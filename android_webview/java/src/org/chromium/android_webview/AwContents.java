@@ -62,6 +62,7 @@ import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.android_webview.autofill.AndroidAutofillSafeModeAction;
+import org.chromium.android_webview.common.AwFeatureMap;
 import org.chromium.android_webview.common.AwFeatures;
 import org.chromium.android_webview.common.AwSwitches;
 import org.chromium.android_webview.common.Lifetime;
@@ -98,6 +99,7 @@ import org.chromium.components.content_capture.OnscreenContentProvider;
 import org.chromium.components.embedder_support.util.TouchEventFilter;
 import org.chromium.components.embedder_support.util.WebResourceResponseInfo;
 import org.chromium.components.navigation_interception.InterceptNavigationDelegate;
+import org.chromium.components.origin_matcher.OriginMatcher;
 import org.chromium.components.sensitive_content.SensitiveContentFeatures;
 import org.chromium.components.stylus_handwriting.StylusHandwritingFeatureMap;
 import org.chromium.components.stylus_handwriting.StylusWritingController;
@@ -1627,7 +1629,8 @@ public class AwContents implements SmartClipProvider {
 
         mWindowAndroid = getWindowAndroid(mContext);
         mViewAndroidDelegate =
-                new AwViewAndroidDelegate(mContainerView, mContentsClient, mScrollOffsetManager);
+                new AwViewAndroidDelegate(
+                        mContainerView, mContentsClient, mScrollOffsetManager, mWebContents);
         mWebContentsInternalsHolder = new WebContentsInternalsHolder(this);
         AutofillSelectionActionMenuDelegate selectionActionMenuDelegate =
                 SelectionActionMenuDelegateProvider.getSelectionActionMenuDelegate();
@@ -1765,12 +1768,24 @@ public class AwContents implements SmartClipProvider {
                 previousState.javascriptInterfaces.entrySet()) {
             @SuppressWarnings("unchecked")
             JavascriptInjector.InjectedInterface injected = entry.getValue();
-            getJavascriptInjector()
-                    .addPossiblyUnsafeInterface(
-                            injected.getInjectedObject(),
-                            entry.getKey(),
-                            injected.getRequiredAnnotation(),
-                            injected.getOriginAllowlist());
+
+            OriginMatcher matcher = new OriginMatcher();
+            try {
+                List<String> badRules = matcher.setRuleList(injected.getMatcherRules());
+                // We should only be storing well formed rules at this point.
+                assert badRules.size() == 0;
+
+                getJavascriptInjector()
+                        .addPossiblyUnsafeInterfaceToOrigins(
+                                injected.getInjectedObject(),
+                                entry.getKey(),
+                                injected.getRequiredAnnotation(),
+                                matcher);
+            } finally {
+                // The matcher has a native counter part so we need to clean it
+                // after we are done with it. The injector will copy whatever it uses.
+                matcher.destroy();
+            }
         }
 
         // Restore injected WebMessageListeners.
@@ -3561,8 +3576,6 @@ public class AwContents implements SmartClipProvider {
 
     public List<String> addJavascriptInterface(
             Object object, String name, @NonNull List<String> originAllowlist) {
-        // TODO(crbug.com/383099115): Get rid of this allowlist version of addJavascriptInterface
-        // and instead rely on some allowlist state.
         if (TRACE) Log.i(TAG, "%s addJavascriptInterface=%s", this, name);
         if (isDestroyed(WARN)) return Collections.emptyList();
 
@@ -3580,8 +3593,24 @@ public class AwContents implements SmartClipProvider {
             requiredAnnotation = JavascriptInterface.class;
         }
 
-        return getJavascriptInjector()
-                .addPossiblyUnsafeInterface(object, name, requiredAnnotation, originAllowlist);
+        // If any rules were ill-formed, we will skip injection and return the
+        // bad rules.
+        OriginMatcher matcher = new OriginMatcher();
+        try {
+            List<String> badRules = matcher.setRuleList(originAllowlist);
+            if (badRules.size() != 0) {
+                return badRules;
+            }
+
+            getJavascriptInjector()
+                    .addPossiblyUnsafeInterfaceToOrigins(object, name, requiredAnnotation, matcher);
+        } finally {
+            // The matcher has a native counter part so we need to clean it
+            // after we are done with it. The injector will copy whatever it uses.
+            matcher.destroy();
+        }
+
+        return Collections.emptyList();
     }
 
     /**
@@ -4151,6 +4180,10 @@ public class AwContents implements SmartClipProvider {
             }
         }
         return false;
+    }
+
+    public AwViewAndroidDelegate getViewAndroidDelegateForTesting() {
+        return mViewAndroidDelegate;
     }
 
     @VisibleForTesting

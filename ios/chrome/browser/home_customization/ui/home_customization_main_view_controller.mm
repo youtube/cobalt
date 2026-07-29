@@ -9,6 +9,7 @@
 #import "ios/chrome/browser/home_customization/ui/home_customization_background_cell.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_background_picker_cell.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_collection_configurator.h"
+#import "ios/chrome/browser/home_customization/ui/home_customization_color_palette_provider.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_logo_vendor_provider.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_mutator.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_toggle_cell.h"
@@ -18,6 +19,7 @@
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/public/provider/chrome/browser/ui_utils/ui_utils_api.h"
 #import "ui/base/l10n/l10n_util.h"
@@ -202,6 +204,49 @@
   return nil;
 }
 
+- (UIContextMenuConfiguration*)collectionView:(UICollectionView*)collectionView
+    contextMenuConfigurationForItemAtIndexPath:(NSIndexPath*)indexPath
+                                         point:(CGPoint)point {
+  CustomizationSection* section =
+      [self.diffableDataSource snapshot].sectionIdentifiers[indexPath.section];
+  NSString* itemIdentifier =
+      [self.diffableDataSource itemIdentifierForIndexPath:indexPath];
+
+  if (![section isEqualToString:kCustomizationSectionBackground] ||
+      ![itemIdentifier hasPrefix:kBackgroundCellIdentifier]) {
+    return nil;
+  }
+
+  __weak __typeof(self) weakSelf = self;
+
+  return [UIContextMenuConfiguration
+      configurationWithIdentifier:indexPath
+                  previewProvider:nil
+                   actionProvider:^UIMenu*(
+                       NSArray<UIMenuElement*>* suggestedActions) {
+                     UIAction* deleteAction = [UIAction
+                         actionWithTitle:
+                             l10n_util::GetNSString(
+                                 IDS_IOS_HOME_CUSTOMIZATION_CONTEXT_MENU_DELETE_RECENT_BACKGROUND_TITLE)
+                                   image:DefaultSymbolWithPointSize(
+                                             kTrashSymbol,
+                                             [[UIFont preferredFontForTextStyle:
+                                                          UIFontTextStyleBody]
+                                                 pointSize])
+                              identifier:nil
+                                 handler:^(UIAction* action) {
+                                   [weakSelf
+                                       handleDeleteBackgroundActionAtIndexPath:
+                                           indexPath];
+                                 }];
+                     deleteAction.attributes =
+                         UIMenuElementAttributesDestructive;
+
+                     return [UIMenu menuWithTitle:@""
+                                         children:@[ deleteAction ]];
+                   }];
+}
+
 - (BOOL)collectionView:(UICollectionView*)collectionView
     shouldSelectItemAtIndexPath:(NSIndexPath*)indexPath {
   CustomizationSection* section =
@@ -332,9 +377,14 @@
   BackgroundCustomizationConfiguration* backgroundConfiguration =
       _backgroundCustomizationConfigurationMap[itemIdentifier];
   id<LogoVendor> logoVendor = [self.logoVendorProvider provideLogoVendor];
+  HomeCustomizationColorPaletteConfiguration* colorPalette =
+      [self.colorPaletteProvider
+          provideColorPaletteFromSeedColor:backgroundConfiguration
+                                               .backgroundColor];
 
   [cell configureWithBackgroundOption:backgroundConfiguration
-                           logoVendor:logoVendor];
+                           logoVendor:logoVendor
+                         colorPalette:colorPalette];
 
   if ([itemIdentifier isEqualToString:_selectedBackgroundId]) {
     [self.collectionView
@@ -345,4 +395,22 @@
   cell.mutator = self.mutator;
 }
 
+// Handles the "Delete Background" context menu action for the given index path.
+// This method removes the background from the model (via the mutator) and
+// updates the collection view by removing the associated item from the
+// diffable data source.
+- (void)handleDeleteBackgroundActionAtIndexPath:(NSIndexPath*)indexPath {
+  NSString* identifier =
+      [self.diffableDataSource itemIdentifierForIndexPath:indexPath];
+
+  if (!identifier) {
+    return;
+  }
+
+  NSDiffableDataSourceSnapshot* snapshot = [self.diffableDataSource snapshot];
+  [self.mutator deleteBackgroundFromRecentlyUsedAtIndex:indexPath.item];
+  [snapshot deleteItemsWithIdentifiers:@[ identifier ]];
+  [_backgroundCustomizationConfigurationMap removeObjectForKey:identifier];
+  [self.diffableDataSource applySnapshot:snapshot animatingDifferences:YES];
+}
 @end

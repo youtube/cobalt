@@ -8,6 +8,8 @@ import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.action.ViewActions.click;
 import static androidx.test.espresso.action.ViewActions.scrollTo;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
+import static androidx.test.espresso.intent.Intents.intended;
+import static androidx.test.espresso.intent.matcher.IntentMatchers.hasData;
 import static androidx.test.espresso.matcher.RootMatchers.isDialog;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
@@ -32,6 +34,7 @@ import static org.mockito.Mockito.when;
 
 import androidx.preference.Preference;
 import androidx.preference.PreferenceScreen;
+import androidx.test.espresso.intent.Intents;
 import androidx.test.filters.MediumTest;
 import androidx.test.filters.SmallTest;
 
@@ -48,6 +51,7 @@ import org.mockito.quality.Strictness;
 import org.chromium.base.BuildInfo;
 import org.chromium.base.Callback;
 import org.chromium.base.ThreadUtils;
+import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Features;
 import org.chromium.base.test.util.Features.DisableFeatures;
@@ -55,6 +59,7 @@ import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.chrome.browser.autofill.AutofillTestHelper;
+import org.chromium.chrome.browser.autofill.GoogleWalletLauncher;
 import org.chromium.chrome.browser.autofill.PersonalDataManager.CreditCard;
 import org.chromium.chrome.browser.autofill.PersonalDataManager.Iban;
 import org.chromium.chrome.browser.device_reauth.BiometricStatus;
@@ -94,7 +99,7 @@ import java.util.concurrent.TimeoutException;
     ChromeFeatureList.AUTOFILL_ENABLE_CARD_BENEFITS_FOR_AMERICAN_EXPRESS,
     ChromeFeatureList.AUTOFILL_ENABLE_CARD_BENEFITS_FOR_BMO
 })
-// TODO(crbug.com/344661357): Failing when batched, batch this again.
+@Batch(Batch.PER_CLASS)
 public class AutofillPaymentMethodsFragmentTest {
     @Rule public final AutofillTestRule rule = new AutofillTestRule();
 
@@ -290,10 +295,12 @@ public class AutofillPaymentMethodsFragmentTest {
     public void setUp() {
         mAutofillTestHelper = new AutofillTestHelper();
         ReauthenticatorBridge.setInstanceForTesting(mReauthenticatorMock);
+        Intents.init();
     }
 
     @After
     public void tearDown() throws TimeoutException {
+        Intents.release();
         mAutofillTestHelper.clearAllDataForTesting();
     }
 
@@ -1538,6 +1545,24 @@ public class AutofillPaymentMethodsFragmentTest {
         assertNotNull(loyaltyCardsPref);
         assertThat(loyaltyCardsPref.getTitle().toString()).contains("Loyalty cards");
         assertThat(loyaltyCardsPref.getSummary().toString()).contains("Google Wallet");
+    }
+
+    @Test
+    @MediumTest
+    @EnableFeatures({
+        ChromeFeatureList.AUTOFILL_ENABLE_LOYALTY_CARDS_FILLING,
+    })
+    public void testLoyaltyCards_linkOpensNewActivity() throws Exception {
+        SettingsActivity activity = mSettingsActivityTestRule.startSettingsActivity();
+
+        // Verify that the link to manage loyalty cards in Google Wallet is displayed.
+        Preference loyaltyCardsPref =
+                getPreferenceScreen(activity)
+                        .findPreference(AutofillPaymentMethodsFragment.PREF_LOYALTY_CARDS);
+        // Simulate click on the loyalty card row.
+        ThreadUtils.runOnUiThreadBlocking(loyaltyCardsPref::performClick);
+
+        intended(hasData(GoogleWalletLauncher.GOOGLE_WALLET_PASSES_URL));
     }
 
     private void setUpBiometricAuthenticationResult(boolean success) {

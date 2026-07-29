@@ -261,6 +261,10 @@
 #include "components/enterprise/client_certificates/core/prefs.h"
 #endif  // BUILDFLAG(ENTERPRISE_CLIENT_CERTIFICATES)
 
+#if BUILDFLAG(ENTERPRISE_WATERMARK)
+#include "chrome/browser/enterprise/watermark/watermark_style_policy_handler.h"
+#endif  // BUILDFLAG(ENTERPRISE_WATERMARK)
+
 #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
 #include "components/safe_browsing/content/common/file_type_policies_prefs.h"
 #endif
@@ -2264,12 +2268,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kAllowBackForwardCacheForCacheControlNoStorePageEnabled,
     policy_prefs::kAllowBackForwardCacheForCacheControlNoStorePageEnabled,
     base::Value::Type::BOOLEAN},
-  { key::kSelectParserRelaxationEnabled,
-    policy_prefs::kSelectParserRelaxationEnabled,
-    base::Value::Type::BOOLEAN},
-  { key::kKeyboardFocusableScrollersEnabled,
-    policy_prefs::kKeyboardFocusableScrollersEnabled,
-    base::Value::Type::BOOLEAN},
   { key::kStandardizedBrowserZoomEnabled,
     policy_prefs::kStandardizedBrowserZoomEnabled,
     base::Value::Type::BOOLEAN},
@@ -2389,6 +2387,9 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
 #endif // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
   { key::kAIModeSearchSuggestSettings,
     omnibox::kAIModeSearchSuggestSettings,
+    base::Value::Type::INTEGER },
+  { key::kAIModeSettings,
+    omnibox::kAIModeSettings,
     base::Value::Type::INTEGER },
 
 };
@@ -2547,6 +2548,11 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
       false));
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(ENTERPRISE_WATERMARK)
+  handlers->AddHandler(
+      std::make_unique<WatermarkStylePolicyHandler>(chrome_schema));
+#endif  // BUILDFLAG(ENTERPRISE_WATERMARK)
 
   handlers->AddHandler(
       std::make_unique<
@@ -3371,6 +3377,10 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
 #endif  // BUILDFLAG(IS_CHROMEOS)
   gen_ai_default_policies.emplace_back(
       key::kAIModeSearchSuggestSettings, omnibox::kAIModeSearchSuggestSettings,
+      GenAiDefaultSettingsPolicyHandler::PolicyValueToPrefMap(
+          {{0, 0}, {1, 0}, {2, 1}}));
+  gen_ai_default_policies.emplace_back(
+      key::kAIModeSettings, omnibox::kAIModeSettings,
       GenAiDefaultSettingsPolicyHandler::PolicyValueToPrefMap(
           {{0, 0}, {1, 0}, {2, 1}}));
   handlers->AddHandler(std::make_unique<GenAiDefaultSettingsPolicyHandler>(

@@ -29,7 +29,7 @@
 #include "ipc/ipc_listener.h"
 #include "mojo/public/cpp/base/shared_memory_version.h"
 #include "mojo/public/cpp/bindings/shared_associated_remote.h"
-#include "ui/gfx/gpu_memory_buffer.h"
+#include "ui/gfx/gpu_memory_buffer_handle.h"
 
 namespace IPC {
 class ChannelMojo;
@@ -151,16 +151,11 @@ class GPU_EXPORT GpuChannelHost
       std::vector<SyncToken> sync_token_dependencies,
       uint64_t release_count,
       base::OnceCallback<void(bool)> callback);
-  void CopyNativeGmbToSharedMemorySync(
-      gfx::GpuMemoryBufferHandle buffer_handle,
-      base::UnsafeSharedMemoryRegion memory_region,
-      bool* status);
   void CopyNativeGmbToSharedMemoryAsync(
       gfx::GpuMemoryBufferHandle buffer_handle,
       base::UnsafeSharedMemoryRegion memory_region,
       base::OnceCallback<void(bool)> callback);
-  bool IsConnected();
-#endif
+#endif  // BUILDFLAG(IS_WIN)
 
   // Crashes the GPU process. This functionality is added here because
   // of instability when creating a new tab just to navigate to

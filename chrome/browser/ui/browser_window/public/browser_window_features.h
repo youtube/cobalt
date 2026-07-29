@@ -17,27 +17,30 @@ class GlicIphController;
 }  // namespace glic
 #endif
 
+class BookmarksSidePanelCoordinator;
 class Browser;
 class BrowserInstantController;
+class BrowserLocationBarModelDelegate;
 class BrowserSyncedWindowDelegate;
 class BrowserView;
 class BrowserWindowInterface;
 class ChromeLabsCoordinator;
 class CookieControlsBubbleCoordinator;
 class DesktopBrowserWindowCapabilities;
+class DownloadToolbarUIController;
 class HistorySidePanelCoordinator;
-class BookmarksSidePanelCoordinator;
+class LocationBarModel;
 class MemorySaverOptInIPHController;
+class ReadingListSidePanelCoordinator;
 class SidePanelCoordinator;
 class SidePanelUI;
 class TabMenuModelDelegate;
 class TabSearchToolbarButtonController;
 class TabStripModel;
-class TranslateBubbleController;
+class TabStripServiceRegister;
 class ToastController;
 class ToastService;
-class DownloadToolbarUIController;
-class TabStripServiceRegister;
+class TranslateBubbleController;
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 namespace pdf::infobar {
@@ -259,6 +262,21 @@ class BrowserWindowFeatures {
     return tab_strip_service_.get();
   }
 
+  LocationBarModel* location_bar_model() { return location_bar_model_.get(); }
+  const LocationBarModel* location_bar_model() const {
+    return location_bar_model_.get();
+  }
+#if defined(UNIT_TEST)
+  void swap_location_bar_models(
+      std::unique_ptr<LocationBarModel>* location_bar_model) {
+    location_bar_model->swap(location_bar_model_);
+  }
+#endif
+
+  ReadingListSidePanelCoordinator* reading_list_side_panel_coordinator() {
+    return reading_list_side_panel_coordinator_.get();
+  }
+
   new_tab_footer::NewTabFooterController* new_tab_footer_controller() {
     return new_tab_footer_controller_.get();
   }
@@ -359,8 +377,17 @@ class BrowserWindowFeatures {
   std::unique_ptr<tab_groups::DeletionDialogController>
       tab_group_deletion_dialog_controller_;
 
+  // Helper which implements the LocationBarModelDelegate interface.
+  std::unique_ptr<BrowserLocationBarModelDelegate> location_bar_model_delegate_;
+
+  // The model for the toolbar view.
+  std::unique_ptr<LocationBarModel> location_bar_model_;
+
   std::unique_ptr<new_tab_footer::NewTabFooterController>
       new_tab_footer_controller_;
+
+  std::unique_ptr<ReadingListSidePanelCoordinator>
+      reading_list_side_panel_coordinator_;
 
   std::unique_ptr<extensions::BrowserExtensionWindowController>
       extension_window_controller_;

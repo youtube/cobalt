@@ -744,7 +744,14 @@ class CORE_EXPORT LayoutBox : public LayoutBoxModelObject {
     return rare_data_ ? rare_data_->spanner_placeholder_.Get() : nullptr;
   }
 
-  bool IsValidColumnSpanner() const final;
+  bool IsValidColumnSpanner() const final {
+    NOT_DESTROYED();
+    return IsValidColumnSpanner(StyleRef());
+  }
+
+  // Provide a ComputedStyle argument, so that this function may be used
+  // reliably during style changes.
+  bool IsValidColumnSpanner(const ComputedStyle&) const;
 
   bool MapToVisualRectInAncestorSpaceInternal(
       const LayoutBoxModelObject* ancestor,
@@ -937,7 +944,7 @@ class CORE_EXPORT LayoutBox : public LayoutBoxModelObject {
   bool IsReadingFlowContainer() const;
   // Returns the nodes corresponding to this LayoutBox's layout children,
   // sorted in reading flow if IsReadingFlowContainer().
-  const HeapVector<Member<Node>>& ReadingFlowNodes() const;
+  const GCedHeapVector<Member<Node>>& ReadingFlowNodes() const;
 
   // See README.md for an explanation of scroll origin.
   gfx::Vector2d OriginAdjustmentForScrollbars() const;

@@ -87,9 +87,13 @@ class CaptionBubbleControllerViewsTest
  public:
   CaptionBubbleControllerViewsTest() {
     if (GetParam()) {
-      scoped_feature_list_.InitWithFeatures(
-          {media::kLiveTranslate, media::kFeatureManagementLiveTranslateCrOS,
-           captions::kLiveCaptionScrollable},
+      std::map<std::string, std::string> params;
+      params["live_caption_scrollable_max_lines"] =
+          "9";  // Same size as non-scrollable.
+      scoped_feature_list_.InitWithFeaturesAndParameters(
+          {{media::kLiveTranslate, {}},
+           {media::kFeatureManagementLiveTranslateCrOS, {}},
+           {kLiveCaptionScrollable, params}},
           {});
     } else {
       scoped_feature_list_.InitWithFeatures(
@@ -129,14 +133,6 @@ class CaptionBubbleControllerViewsTest
           browser()->tab_strip_model()->GetActiveWebContents());
     }
     return caption_bubble_context_.get();
-  }
-
-  CaptionBubbleContext* GetCaptionBubbleContext2() {
-    if (!caption_bubble_context2_) {
-      caption_bubble_context2_ = CaptionBubbleContextBrowser::Create(
-          browser()->tab_strip_model()->GetActiveWebContents());
-    }
-    return caption_bubble_context2_.get();
   }
 
   CaptionBubble* GetBubble() {
@@ -424,7 +420,6 @@ class CaptionBubbleControllerViewsTest
   std::unique_ptr<LiveCaptionBubbleSettings> caption_bubble_settings_;
   std::unique_ptr<CaptionBubbleControllerViews> controller_;
   std::unique_ptr<CaptionBubbleContext> caption_bubble_context_;
-  std::unique_ptr<CaptionBubbleContext> caption_bubble_context2_;
 };
 
 IN_PROC_BROWSER_TEST_P(CaptionBubbleControllerViewsTest, ShowsCaptionInBubble) {
@@ -616,8 +611,9 @@ IN_PROC_BROWSER_TEST_P(CaptionBubbleControllerViewsTest, ShowsAndHidesError) {
   OnError();
 
   // The error should not be visible on a different media stream.
-  OnPartialTranscription("Elephants are vegetarians.",
-                         GetCaptionBubbleContext2());
+  auto media_1 = CaptionBubbleContextBrowser::Create(
+      browser()->tab_strip_model()->GetActiveWebContents());
+  OnPartialTranscription("Elephants are vegetarians.", media_1.get());
   EXPECT_TRUE(GetTitle()->GetVisible());
   EXPECT_TRUE(GetLabel()->GetVisible());
   EXPECT_FALSE(GetErrorMessage()->GetVisible());
@@ -1073,6 +1069,8 @@ IN_PROC_BROWSER_TEST_P(CaptionBubbleControllerViewsTest, ChangeMedia) {
   // Media 0 has the text "Polar bears are the largest carnivores on land".
   // Media 1 has the text "A snail can sleep for two years".
   CaptionBubbleContext* media_0 = GetCaptionBubbleContext();
+  auto media_1 = CaptionBubbleContextBrowser::Create(
+      browser()->tab_strip_model()->GetActiveWebContents());
 
   // Send final transcription from media 0.
   OnPartialTranscription("Polar bears are the largest", media_0);
@@ -1081,7 +1079,7 @@ IN_PROC_BROWSER_TEST_P(CaptionBubbleControllerViewsTest, ChangeMedia) {
 
   // Send transcriptions from media 1. Check that the caption bubble now shows
   // text from media 1.
-  OnPartialTranscription("A snail can sleep", GetCaptionBubbleContext2());
+  OnPartialTranscription("A snail can sleep", media_1.get());
   EXPECT_TRUE(IsWidgetVisible());
   EXPECT_EQ("A snail can sleep", GetLabelText());
 
@@ -1095,8 +1093,7 @@ IN_PROC_BROWSER_TEST_P(CaptionBubbleControllerViewsTest, ChangeMedia) {
   // Close the bubble. Check that the bubble is still closed.
   ClickButton(GetCloseButton());
   EXPECT_FALSE(IsWidgetVisible());
-  OnPartialTranscription("A snail can sleep for two years",
-                         GetCaptionBubbleContext2());
+  OnPartialTranscription("A snail can sleep for two years", media_1.get());
   EXPECT_FALSE(IsWidgetVisible());
   EXPECT_EQ("", GetLabelText());
 
@@ -1106,41 +1103,22 @@ IN_PROC_BROWSER_TEST_P(CaptionBubbleControllerViewsTest, ChangeMedia) {
 }
 
 IN_PROC_BROWSER_TEST_P(CaptionBubbleControllerViewsTest, TruncatesFinalText) {
-  if (GetParam()) {
-    // Scrolling enabled, make a string with 501 lines of 500 characters each.
-    std::string text;
-    std::string line(497, 'a');
-    for (int i = 10; i < 511; i++) {
-      text += base::NumberToString(i) + line + " ";
-    }
-    OnPartialTranscription(text);
-    OnFinalTranscription(text);
-    EXPECT_EQ(text.substr(125661, 125250), GetLabelText());
-    EXPECT_EQ(250u, GetNumLinesInLabel());
-    OnPartialTranscription(text);
-    EXPECT_EQ(text.substr(125661, 125250) + text, GetLabelText());
-    EXPECT_EQ(751u, GetNumLinesInLabel());
-    OnFinalTranscription("a ");
-    EXPECT_EQ(text.substr(126162, 124751) + "a ", GetLabelText());
-    EXPECT_EQ(250u, GetNumLinesInLabel());
-  } else {
-    // Scrolling disabled, make a string with 30 lines of 500 characters each.
-    std::string text;
-    std::string line(497, 'a');
-    for (int i = 10; i < 40; i++) {
-      text += base::NumberToString(i) + line + " ";
-    }
-    OnPartialTranscription(text);
-    OnFinalTranscription(text);
-    EXPECT_EQ(text.substr(10500, 15000), GetLabelText());
-    EXPECT_EQ(9u, GetNumLinesInLabel());
-    OnPartialTranscription(text);
-    EXPECT_EQ(text.substr(10500, 15000) + text, GetLabelText());
-    EXPECT_EQ(39u, GetNumLinesInLabel());
-    OnFinalTranscription("a ");
-    EXPECT_EQ(text.substr(11000, 15000) + "a ", GetLabelText());
-    EXPECT_EQ(9u, GetNumLinesInLabel());
+  // Make a string with 30 lines of 500 characters each.
+  std::string text;
+  std::string line(497, 'a');
+  for (int i = 10; i < 40; i++) {
+    text += base::NumberToString(i) + line + " ";
   }
+  OnPartialTranscription(text);
+  OnFinalTranscription(text);
+  EXPECT_EQ(text.substr(10500, 15000), GetLabelText());
+  EXPECT_EQ(9u, GetNumLinesInLabel());
+  OnPartialTranscription(text);
+  EXPECT_EQ(text.substr(10500, 15000) + text, GetLabelText());
+  EXPECT_EQ(39u, GetNumLinesInLabel());
+  OnFinalTranscription("a ");
+  EXPECT_EQ(text.substr(11000, 15000) + "a ", GetLabelText());
+  EXPECT_EQ(9u, GetNumLinesInLabel());
 }
 
 IN_PROC_BROWSER_TEST_P(CaptionBubbleControllerViewsTest,
@@ -1175,8 +1153,9 @@ IN_PROC_BROWSER_TEST_P(CaptionBubbleControllerViewsTest, ExpandsAndCollapses) {
       prefs::kLiveCaptionBubbleExpanded));
 
   // Switch media. The bubble should remain expanded.
-  OnPartialTranscription("Nearly all ants are female.",
-                         GetCaptionBubbleContext2());
+  auto media_1 = CaptionBubbleContextBrowser::Create(
+      browser()->tab_strip_model()->GetActiveWebContents());
+  OnPartialTranscription("Nearly all ants are female.", media_1.get());
   EXPECT_TRUE(GetCollapseButton()->GetVisible());
   EXPECT_FALSE(GetExpandButton()->GetVisible());
   EXPECT_EQ(7 * line_height, GetLabel()->GetBoundsInScreen().height());
@@ -1190,13 +1169,13 @@ IN_PROC_BROWSER_TEST_P(CaptionBubbleControllerViewsTest, ExpandsAndCollapses) {
   EXPECT_EQ(line_height, GetLabel()->GetBoundsInScreen().height());
 
   // The expand and collapse buttons are not visible when there is an error.
-  OnError(GetCaptionBubbleContext2());
+  OnError(media_1.get());
   EXPECT_FALSE(GetCollapseButton()->GetVisible());
   EXPECT_FALSE(GetExpandButton()->GetVisible());
 
   // Clear the error message. The expand button should appear.
   OnPartialTranscription("An ant can lift 20 times its own body weight.",
-                         GetCaptionBubbleContext2());
+                         media_1.get());
   EXPECT_TRUE(GetExpandButton()->GetVisible());
   EXPECT_FALSE(GetCollapseButton()->GetVisible());
   EXPECT_EQ(line_height, GetLabel()->GetBoundsInScreen().height());
@@ -1309,13 +1288,14 @@ IN_PROC_BROWSER_TEST_P(CaptionBubbleControllerViewsTest,
 IN_PROC_BROWSER_TEST_P(CaptionBubbleControllerViewsTest,
                        AccessibleTextChangesWhenMediaChanges) {
   CaptionBubbleContext* media_0 = GetCaptionBubbleContext();
+  auto media_1 = CaptionBubbleContextBrowser::Create(
+      browser()->tab_strip_model()->GetActiveWebContents());
 
   OnPartialTranscription("3 dogs survived the Titanic sinking.", media_0);
   EXPECT_EQ(1u, GetAXLineText().size());
   EXPECT_EQ("3 dogs survived the Titanic sinking.", GetAXLineText()[0]);
 
-  OnFinalTranscription("30% of Dalmations are deaf in one ear.",
-                       GetCaptionBubbleContext2());
+  OnFinalTranscription("30% of Dalmations are deaf in one ear.", media_1.get());
   EXPECT_EQ(1u, GetAXLineText().size());
   EXPECT_EQ("30% of Dalmations are deaf in one ear.", GetAXLineText()[0]);
 
@@ -1326,62 +1306,32 @@ IN_PROC_BROWSER_TEST_P(CaptionBubbleControllerViewsTest,
 
 IN_PROC_BROWSER_TEST_P(CaptionBubbleControllerViewsTest,
                        AccessibleTextTruncates) {
-  if (GetParam()) {
-    // Scrolling enabled, make a string with 501 lines of 500 characters each.
-    std::string text;
-    std::string line(497, 'a');
-    for (int i = 10; i < 511; i++) {
-      text += base::NumberToString(i) + line + " ";
-    }
-    OnPartialTranscription(text);
-    OnFinalTranscription(text);
-    EXPECT_EQ(250u, GetAXLineText().size());
-    for (int i = 0; i < 9; i++) {
-      EXPECT_EQ(base::NumberToString(i + 261) + line + " ", GetAXLineText()[i]);
-    }
-    OnPartialTranscription(text);
-    EXPECT_EQ(751u, GetAXLineText().size());
-    for (int i = 0; i < 9; i++) {
-      EXPECT_EQ(base::NumberToString(i + 261) + line + " ", GetAXLineText()[i]);
-    }
-    for (int i = 10; i < 40; i++) {
-      EXPECT_EQ(base::NumberToString(i + 260) + line + " ",
-                GetAXLineText()[i - 1]);
-    }
-    OnFinalTranscription("a ");
-    EXPECT_EQ(250u, GetAXLineText().size());
-    for (int i = 0; i < 249; i++) {
-      EXPECT_EQ(base::NumberToString(i + 262) + line + " ", GetAXLineText()[i]);
-    }
-    EXPECT_EQ("a ", GetAXLineText()[249]);
-  } else {
-    // Scrolling disabled, make a string with 30 lines of 500 characters each.
-    std::string text;
-    std::string line(497, 'a');
-    for (int i = 10; i < 40; i++) {
-      text += base::NumberToString(i) + line + " ";
-    }
-    OnPartialTranscription(text);
-    OnFinalTranscription(text);
-    EXPECT_EQ(9u, GetAXLineText().size());
-    for (int i = 0; i < 9; i++) {
-      EXPECT_EQ(base::NumberToString(i + 31) + line + " ", GetAXLineText()[i]);
-    }
-    OnPartialTranscription(text);
-    EXPECT_EQ(39u, GetAXLineText().size());
-    for (int i = 0; i < 9; i++) {
-      EXPECT_EQ(base::NumberToString(i + 31) + line + " ", GetAXLineText()[i]);
-    }
-    for (int i = 10; i < 40; i++) {
-      EXPECT_EQ(base::NumberToString(i) + line + " ", GetAXLineText()[i - 1]);
-    }
-    OnFinalTranscription("a ");
-    EXPECT_EQ(9u, GetAXLineText().size());
-    for (int i = 0; i < 8; i++) {
-      EXPECT_EQ(base::NumberToString(i + 32) + line + " ", GetAXLineText()[i]);
-    }
-    EXPECT_EQ("a ", GetAXLineText()[8]);
+  // Make a string with 30 lines of 500 characters each.
+  std::string text;
+  std::string line(497, 'a');
+  for (int i = 10; i < 40; i++) {
+    text += base::NumberToString(i) + line + " ";
   }
+  OnPartialTranscription(text);
+  OnFinalTranscription(text);
+  EXPECT_EQ(9u, GetAXLineText().size());
+  for (int i = 0; i < 9; i++) {
+    EXPECT_EQ(base::NumberToString(i + 31) + line + " ", GetAXLineText()[i]);
+  }
+  OnPartialTranscription(text);
+  EXPECT_EQ(39u, GetAXLineText().size());
+  for (int i = 0; i < 9; i++) {
+    EXPECT_EQ(base::NumberToString(i + 31) + line + " ", GetAXLineText()[i]);
+  }
+  for (int i = 10; i < 40; i++) {
+    EXPECT_EQ(base::NumberToString(i) + line + " ", GetAXLineText()[i - 1]);
+  }
+  OnFinalTranscription("a ");
+  EXPECT_EQ(9u, GetAXLineText().size());
+  for (int i = 0; i < 8; i++) {
+    EXPECT_EQ(base::NumberToString(i + 32) + line + " ", GetAXLineText()[i]);
+  }
+  EXPECT_EQ("a ", GetAXLineText()[8]);
 }
 
 IN_PROC_BROWSER_TEST_P(CaptionBubbleControllerViewsTest,
@@ -1412,14 +1362,11 @@ IN_PROC_BROWSER_TEST_P(CaptionBubbleControllerViewsTest,
 IN_PROC_BROWSER_TEST_P(CaptionBubbleControllerViewsTest,
                        BackToTabButtonActivatesTab) {
   OnPartialTranscription("Whale sharks are the world's largest fish.");
-  ASSERT_FALSE(GetBackToTabButton()->GetVisible());
   chrome::AddTabAt(browser(), GURL(), -1, true);
   browser()->tab_strip_model()->ActivateTabAt(1);
   EXPECT_EQ(1, browser()->tab_strip_model()->active_index());
-  ASSERT_TRUE(GetBackToTabButton()->GetVisible());
   ClickButton(GetBackToTabButton());
   EXPECT_EQ(0, browser()->tab_strip_model()->active_index());
-  ASSERT_FALSE(GetBackToTabButton()->GetVisible());
   // TODO(crbug.com/40119836): Test that browser window is active. It works in
   // app but the tests aren't working.
 }
@@ -1518,7 +1465,7 @@ IN_PROC_BROWSER_TEST_P(CaptionBubbleControllerViewsTest, HeaderView) {
                    left_header_container->GetLayoutManager())
                    ->inside_border_insets()
                    .left());
-  EXPECT_EQ(512, left_header_container->GetPreferredSize().width());
+  EXPECT_EQ(488, left_header_container->GetPreferredSize().width());
 
   EXPECT_EQ(u"English", source_language_button->GetText());
 

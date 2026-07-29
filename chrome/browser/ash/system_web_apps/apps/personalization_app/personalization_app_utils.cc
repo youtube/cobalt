@@ -106,8 +106,8 @@ bool CanSeeWallpaperOrPersonalizationApp(const Profile* profile) {
     return false;
   }
   switch (user->GetType()) {
-    case user_manager::UserType::kKioskApp:
-    case user_manager::UserType::kWebKioskApp:
+    case user_manager::UserType::kKioskChromeApp:
+    case user_manager::UserType::kKioskWebApp:
     case user_manager::UserType::kKioskIWA:
       return false;
     case user_manager::UserType::kRegular:
@@ -172,8 +172,8 @@ bool IsAllowedToInstallSeaPen(Profile* profile) {
   }
   DVLOG(1) << __func__ << " user_type=" << user->GetType();
   switch (user->GetType()) {
-    case user_manager::UserType::kKioskApp:
-    case user_manager::UserType::kWebKioskApp:
+    case user_manager::UserType::kKioskChromeApp:
+    case user_manager::UserType::kKioskWebApp:
     case user_manager::UserType::kKioskIWA:
     case user_manager::UserType::kChild:
     // Demo mode retail devices are type kPublicAccount and may have been

@@ -661,15 +661,15 @@ void ClientControlledShellSurface::DidReceiveCompositorFrameAck() {
 void ClientControlledShellSurface::OnBoundsChangeEvent(
     chromeos::WindowStateType current_state,
     chromeos::WindowStateType requested_state,
-    int64_t display_id,
-    const gfx::Rect& window_bounds,
+    int64_t requested_display_id,
+    const gfx::Rect& requested_bounds_in_display,
     int bounds_change,
     bool is_adjusted_bounds) {
   // 1) Do no update the bounds unless we have geometry from client.
   // 2) Do not update the bounds if window is minimized unless it
   // exiting the minimzied state.
   // The bounds will be provided by client when unminimized.
-  if (geometry().IsEmpty() || window_bounds.IsEmpty() ||
+  if (geometry().IsEmpty() || requested_bounds_in_display.IsEmpty() ||
       (widget_->IsMinimized() &&
        requested_state == chromeos::WindowStateType::kMinimized) ||
       !delegate_) {
@@ -678,26 +678,31 @@ void ClientControlledShellSurface::OnBoundsChangeEvent(
 
   // Sends the client bounds, which matches the geometry
   // when frame is enabled.
-  const gfx::Rect client_bounds = GetClientBoundsForWindowBoundsAndWindowState(
-      window_bounds, requested_state);
+  const gfx::Rect client_bounds_in_display =
+      GetClientBoundsForWindowBoundsAndWindowState(requested_bounds_in_display,
+                                                   requested_state);
 
   gfx::Size current_size = GetFrameView()->GetBoundsForClientView().size();
-  bool is_resize = client_bounds.size() != current_size &&
+  bool is_resize = client_bounds_in_display.size() != current_size &&
                    !widget_->IsMaximized() && !widget_->IsFullscreen();
 
   // Make sure to use the up-to-date scale factor.
   display::Display display;
   const bool display_exists =
-      display::Screen::GetScreen()->GetDisplayWithDisplayId(display_id,
-                                                            &display);
+      display::Screen::GetScreen()->GetDisplayWithDisplayId(
+          requested_display_id, &display);
   DCHECK(display_exists && display.is_valid());
   const float scale =
       use_default_scale_cancellation_ ? 1.f : display.device_scale_factor();
-  const gfx::Rect scaled_client_bounds =
-      gfx::ScaleToRoundedRect(client_bounds, scale);
-  delegate_->OnBoundsChanged(current_state, requested_state, display_id,
-                             scaled_client_bounds, is_resize, bounds_change,
-                             is_adjusted_bounds);
+  const gfx::Rect scaled_client_bounds_in_display =
+      gfx::ScaleToRoundedRect(client_bounds_in_display, scale);
+
+  requested_display_id_ = requested_display_id;
+
+  delegate_->OnBoundsChanged(current_state, requested_state,
+                             requested_display_id,
+                             scaled_client_bounds_in_display, is_resize,
+                             bounds_change, is_adjusted_bounds);
 }
 
 void ClientControlledShellSurface::ChangeZoomLevel(ZoomChange change) {
@@ -1082,7 +1087,14 @@ void ClientControlledShellSurface::SetWidgetBounds(const gfx::Rect& bounds,
     window->SetBoundsInScreen(adjusted_bounds, target_display);
   }
 
-  if (bounds != adjusted_bounds || is_display_move_pending) {
+  // Do not send back the adjusted bounds while waiting for client to
+  // acknowledge the display move.
+  bool has_display_move_requested =
+      requested_display_id_ != display_id_ &&
+      requested_display_id_ != display::kInvalidDisplayId;
+
+  if ((bounds != adjusted_bounds || is_display_move_pending) &&
+      !has_display_move_requested) {
     // Notify client that bounds were adjusted or window moved across displays.
     auto state_type = GetWindowState()->GetStateType();
     gfx::Rect adjusted_bounds_in_display(adjusted_bounds);
@@ -1300,6 +1312,10 @@ void ClientControlledShellSurface::ShowWidget(bool inactive) {
 }
 
 void ClientControlledShellSurface::OnPostWidgetCommit() {
+  if (requested_display_id_ == display_id_) {
+    requested_display_id_ = display::kInvalidDisplayId;
+  }
+
   DCHECK(widget_);
 
   UpdateFrame();

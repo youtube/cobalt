@@ -50,7 +50,7 @@
 #include "components/commerce/core/subscriptions/subscriptions_observer.h"
 #include "components/commerce/core/web_wrapper.h"
 #include "components/grit/components_resources.h"
-#include "components/optimization_guide/core/optimization_guide_decider.h"
+#include "components/optimization_guide/core/hints/optimization_guide_decider.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/optimization_guide/core/optimization_guide_util.h"
 #include "components/optimization_guide/proto/hints.pb.h"
@@ -920,6 +920,17 @@ void ShoppingService::GetDiscountInfoForUrl(const GURL& url,
   GetDiscountInfoFromOptGuide(url, std::move(callback));
 }
 
+void ShoppingService::GetAvailableDiscountInfoForUrl(
+    const GURL& url,
+    DiscountInfoCallback callback) {
+  if (!discount_infos_storage_) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(std::move(callback), url, std::vector<DiscountInfo>()));
+    return;
+  }
+  discount_infos_storage_->LoadDiscountsWithPrefix(url, std::move(callback));
+}
+
 void ShoppingService::GetProductSpecificationsForUrls(
     const std::vector<GURL>& urls,
     ProductSpecificationsCallback callback) {
@@ -1535,6 +1546,10 @@ void ShoppingService::HandleOptGuideDiscountInfoResponse(
 
   std::vector<DiscountInfo> discount_infos =
       OptGuideResultToDiscountInfos(metadata);
+
+  if (discount_infos_storage_) {
+    discount_infos_storage_->SaveDiscounts(url, discount_infos);
+  }
 
   std::move(callback).Run(url, std::move(discount_infos));
 }

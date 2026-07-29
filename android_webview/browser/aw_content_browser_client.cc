@@ -63,10 +63,11 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
 #include "base/path_service.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool/thread_pool_instance.h"
-#include "base/trace_event/base_tracing.h"
+#include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "components/crash/content/browser/crash_handler_host_linux.h"
 #include "components/embedder_support/origin_trials/origin_trials_settings_storage.h"
@@ -643,9 +644,14 @@ void AwContentBrowserClient::GetAdditionalMappedFilesForChildProcess(
   CHECK_GE(fd, 0);
   mappings->ShareWithRegion(kAndroidWebView100PercentPakDescriptor, fd, region);
 
-  fd = ui::GetLocalePackFd(&region);
-  CHECK_GE(fd, 0);
-  mappings->ShareWithRegion(kAndroidWebViewLocalePakDescriptor, fd, region);
+  // WebView will (currently) only ever have one locale pak, compared to Clank,
+  // which has up to 2. This will change in the near future when we introduce
+  // genders to locales.
+  auto locale_paks = ui::GetLocalePaks();
+  CHECK_EQ(locale_paks.size(), 1u);
+  CHECK_GE(locale_paks.at(0).fd, 0);
+  mappings->ShareWithRegion(kAndroidWebViewLocalePakDescriptor,
+                            locale_paks.at(0).fd, locale_paks.at(0).region);
 
   int crash_signal_fd =
       crashpad::CrashHandlerHost::Get()->GetDeathSignalSocket();

@@ -5,14 +5,18 @@
 package org.chromium.chrome.browser.tasks.tab_management;
 
 import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.CARD_ALPHA;
+import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.CARD_ANIMATION_STATUS;
 
 import android.view.View;
 import android.view.ViewGroup;
 
+import org.chromium.base.Callback;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 
 /** ViewBinder for CustomMessageCardItem. */
+@NullMarked
 public class CustomMessageCardViewBinder {
     public static void bind(
             PropertyModel model, CustomMessageCardView view, PropertyKey propertyKey) {
@@ -26,9 +30,14 @@ public class CustomMessageCardViewBinder {
             view.setChildView(customView);
         } else if (CARD_ALPHA == propertyKey) {
             view.setAlpha(model.get(CARD_ALPHA));
+        } else if (CARD_ANIMATION_STATUS == propertyKey) {
+            view.scaleCard(model.get(CARD_ANIMATION_STATUS));
         } else if (MessageCardViewProperties.IS_INCOGNITO == propertyKey) {
-            model.get(CustomMessageCardViewProperties.IS_INCOGNITO_CALLBACK)
-                    .onResult(model.get(MessageCardViewProperties.IS_INCOGNITO));
+            Callback<Boolean> callback =
+                    model.get(CustomMessageCardViewProperties.IS_INCOGNITO_CALLBACK);
+            if (callback != null) {
+                callback.onResult(model.get(MessageCardViewProperties.IS_INCOGNITO));
+            }
         }
     }
 }

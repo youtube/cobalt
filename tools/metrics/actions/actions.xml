@@ -12720,6 +12720,15 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="GlicRemoveHighlight">
+  <owner>adithyas@chromium.org</owner>
+  <owner>liuwilliam@chromium.org</owner>
+  <description>
+    Recorded when a user dismisses a glic text highlight through the context
+    menu.
+  </description>
+</action>
+
 <action name="GlicResponse">
   <owner>carlosk@chromium.org</owner>
   <owner>harringtond@chromium.org</owner>
@@ -43809,6 +43818,12 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="SystemContextMenu_Opened">
+  <owner>corising@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>The user opened the system menu context.</description>
+</action>
+
 <action name="Tab.PinnedTabToastClosedAfterConfirmation">
   <owner>dljames@google.com</owner>
   <owner>chrome-desktop-ui@google.com</owner>
@@ -47997,6 +48012,24 @@ should be able to be added at any place in this file.
   <description>Please enter the description of this user action.</description>
 </action>
 
+<action name="WebView.PermissionAllow.ClipboardReadWrite">
+  <owner>vkrot@google.com</owner>
+  <owner>iwa-team@google.com</owner>
+  <description>
+    Tracks when the user explicitly allows clipboardReadWrite permission on a
+    webview.
+  </description>
+</action>
+
+<action name="WebView.PermissionAllow.ClipboardSanitizedWrite">
+  <owner>vkrot@google.com</owner>
+  <owner>iwa-team@google.com</owner>
+  <description>
+    Tracks when the user explicitly allows clipboardSanitizedWrite permission on
+    a webview.
+  </description>
+</action>
+
 <action name="WebView.PermissionAllow.Download">
   <owner>fsamuel@chromium.org</owner>
   <owner>lazyboy@chromium.org</owner>
@@ -48058,6 +48091,24 @@ should be able to be added at any place in this file.
   <owner>lazyboy@chromium.org</owner>
   <description>
     Tracks when the pointerLock permission is explicitly allowed on a webview.
+  </description>
+</action>
+
+<action name="WebView.PermissionDeny.ClipboardReadWrite">
+  <owner>vkrot@google.com</owner>
+  <owner>iwa-team@google.com</owner>
+  <description>
+    Tracks when the user explicitly denies clipboardReadWrite permission on a
+    webview.
+  </description>
+</action>
+
+<action name="WebView.PermissionDeny.ClipboardSanitizedWrite">
+  <owner>vkrot@google.com</owner>
+  <owner>iwa-team@google.com</owner>
+  <description>
+    Tracks when the user explicitly denies clipboardSanitizedWrite permission on
+    a webview.
   </description>
 </action>
 
@@ -49095,6 +49146,7 @@ should be able to be added at any place in this file.
              chip."/>
   <suffix name="iOSAddressPromoDesktop"
       label="For iOSAddressPromoDesktop feature"/>
+  <suffix name="IOSBWGPromoFeature" label="For IOSBWGPromoFeature feature"/>
   <suffix name="iOSChoiceScreen"
       label="(obsolete) For iOSChoiceScreen feature"/>
   <suffix name="iOSContextualPanelPriceInsights"
@@ -49120,7 +49172,6 @@ should be able to be added at any place in this file.
       label="For iOSFeedSwipeAnimatedFeature feature"/>
   <suffix name="iOSFeedSwipeStaticFeature"
       label="For iOSFeedSwipeStaticFeature feature"/>
-  <suffix name="IOSGLICPromoFeature" label="For IOSGLICPromoFeature feature"/>
   <suffix name="iOSHistoryOnOverflowMenuFeature"
       label="For iOSHistoryOnOverflowMenuFeature feature"/>
   <suffix name="iOSInlineEnhancedSafeBrowsingPromoFeature"
@@ -49131,6 +49182,7 @@ should be able to be added at any place in this file.
       label="For iOSLensOverlayEscapeHatchTip IPH feature"/>
   <suffix name="iOSOverflowMenuCustomization"
       label="For iOSOverflowMenuCustomization feature"/>
+  <suffix name="IOSPageActionMenu" label="For IOSPageActionMenu IPH"/>
   <suffix name="iOSPageInfoRevamp"
       label="For Page Info Revamp new badge IPH feature. (obsolete)"/>
   <suffix name="iOSParcelTrackingFeature"
@@ -49182,6 +49234,8 @@ should be able to be added at any place in this file.
       label="For iOSReminderNotificationsOverflowMenuNewBadgeFeature feature"/>
   <suffix name="iOSReplaceSyncPromosWithSignInPromos"
       label="For iOSReplaceSyncPromosWithSignInPromos feature"/>
+  <suffix name="iOSSafariImportFeature"
+      label="For reminder of the Safari import workflow."/>
   <suffix name="iOSSavedTabGroupClosed"
       label="For Saved Tab Group closed for the first time."/>
   <suffix name="iOSSettingsInOverflowMenuBubbleFeature"

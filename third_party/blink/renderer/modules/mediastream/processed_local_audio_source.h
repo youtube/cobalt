@@ -13,7 +13,6 @@
 #include "media/base/audio_capturer_source.h"
 #include "media/base/audio_glitch_info.h"
 #include "third_party/blink/renderer/modules/mediastream/media_constraints.h"
-#include "third_party/blink/renderer/modules/mediastream/media_stream_audio_processing_layout.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_audio_level_calculator.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_audio_processor_options.h"
@@ -37,8 +36,6 @@ class PeerConnectionDependencyFactory;
 // video conferencing call). Owns a media::AudioCapturerSource and the
 // MediaStreamProcessor that modifies its audio. Modified audio is delivered to
 // one or more MediaStreamAudioTracks.
-// Can only be created for MediaStreamType::DEVICE_AUDIO_CAPTURE device.
-// Does not support source changes.
 class MODULES_EXPORT ProcessedLocalAudioSource final
     : public MediaStreamAudioSource,
       public media::AudioCapturerSource::CaptureCallback {
@@ -51,8 +48,9 @@ class MODULES_EXPORT ProcessedLocalAudioSource final
       LocalFrame& frame,
       const MediaStreamDevice& device,
       bool disable_local_echo,
-      const MediaStreamAudioProcessingLayout& processing_layout,
-      ConstraintsOnceCallback started_callback,
+      const AudioProcessingProperties& audio_processing_properties,
+      int num_requested_channels,
+      ConstraintsRepeatingCallback started_callback,
       scoped_refptr<base::SingleThreadTaskRunner> task_runner);
 
   ProcessedLocalAudioSource(const ProcessedLocalAudioSource&) = delete;
@@ -60,6 +58,9 @@ class MODULES_EXPORT ProcessedLocalAudioSource final
       delete;
 
   ~ProcessedLocalAudioSource() final;
+
+  // MediaStreamAudioSource implementation.
+  void ChangeSourceImpl(const MediaStreamDevice& new_device) final;
 
   // If |source| is an instance of ProcessedLocalAudioSource, return a
   // type-casted pointer to it. Otherwise, return null.
@@ -73,7 +74,7 @@ class MODULES_EXPORT ProcessedLocalAudioSource final
   }
 
   const blink::AudioProcessingProperties& audio_processing_properties() const {
-    return processing_layout_.properties();
+    return audio_processing_properties_;
   }
 
   std::optional<blink::AudioProcessingProperties> GetAudioProcessingProperties()
@@ -140,10 +141,11 @@ class MODULES_EXPORT ProcessedLocalAudioSource final
   WeakPersistent<LocalFrame> consumer_frame_;
   WeakPersistent<PeerConnectionDependencyFactory> dependency_factory_;
 
-  blink::MediaStreamAudioProcessingLayout processing_layout_;
+  blink::AudioProcessingProperties audio_processing_properties_;
+  int num_requested_channels_;
 
   // Callback that's called when the audio source has been initialized.
-  ConstraintsOnceCallback started_callback_;
+  ConstraintsRepeatingCallback started_callback_;
 
   // At most one of |audio_processor_| and |audio_processor_proxy_| can be set.
 

@@ -8804,13 +8804,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_NEW_TAB_FOOTER_NAME" desc="The name of the New Tab Footer feature, a UI that may show at the bottom of the New Tab Page." translateable="false">
         New Tab Footer
       </message>
-      <message name="IDS_OPENS_IN_CURRENT_TAB" desc="ARIA (accessibility) label describing a link which opens in the current tab.">
-        Opens in current tab
+       <message name="IDS_OPENS_MANAGEMENT_PAGE" desc="ARIA (accessibility) role description for a link in the New Tab footer which opens the chrome://management page in the current tab.">
+        Learn about how your browser is managed
       </message>
-      <message name="IDS_OPENS_NTP_EXTENSION_OPTIONS_PAGE" desc="ARIA (accessibility) role description for a link which opens an extension's option page in the current tab.">
-      Open new tab page extension's option page in current tab
-      </message>
-
       <!-- Star View menu -->
       <if expr="use_titlecase">
         <message name="IDS_STAR_VIEW_MENU_ADD_BOOKMARK" desc="The item label of the menu triggered from the star icon in the location bar for adding a bookmark.">
@@ -10860,6 +10856,9 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
         <message name="IDS_PASSWORD_MANAGER_ACCESSORY_PASSWORD_LIST_EMPTY_MESSAGE" desc="Message indicating that the list of saved passwords for this site is empty.">
           No saved passwords for <ph name="domain">$1<ex>example.com</ex></ph>
         </message>
+        <message name="IDS_PASSWORD_MANAGER_ACCESSORY_TRUSTED_VAULT_KEY_RETRIEVAL_REQUIRED_MESSAGE" desc="Message indicating that trusted vault key retrieval is required before passwords can be used.">
+          You need to verify it's you before you can access your passwords
+        </message>
         <message name="IDS_PASSWORD_MANAGER_ACCESSORY_PASSWORD_LIST_TITLE" desc="The title of a list of saved passwords for the currently visible site." translateable="false">
           Saved passwords for <ph name="domain">$1<ex>example.com</ex></ph>
         </message>
@@ -10871,6 +10870,9 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
         </message>
         <message name="IDS_PASSWORD_MANAGER_ACCESSORY_SELECT_PASSWORD" desc="The text of the link in the password sheet that opens a bottom sheet which shows all saved credentials from any origin if the user is about to fill a password or username field. Allows user to pick one of the saved passwords to be filled in.">
           Select password
+        </message>
+        <message name="IDS_PASSWORD_MANAGER_ACCESSORY_RETRIEVE_TRUSTED_VAULT_KEY" desc="The text of the link in the password sheet that opens the trusted vault key retrieval flow.">
+          Verify it's you
         </message>
         <message name="IDS_PASSWORD_MANAGER_ACCESSORY_SELECT_PASSKEY" desc="The text of the link in the password sheet that opens the system's selection for available Passkeys.">
           Select passkey
@@ -17818,6 +17820,12 @@ Please help our engineers fix this problem. Tell us what happened right before y
     <message name="IDS_DATA_CONTROLS_CLIPBOARD_COPY_WARN_TITLE" desc="Text displayed at the top of a dialog telling the user their clipboard copy (ctrl-c) is not recommended by their admin.">
       Copying from this site is not recommended
     </message>
+    <message name="IDS_DATA_CONTROLS_CLIPBOARD_SHARE_WARN_TITLE" desc="Text displayed at the top of a dialog telling the user their share is not recommended by their admin.">
+      Sharing from this site is not recommended
+    </message>
+    <message name="IDS_DATA_CONTROLS_CLIPBOARD_ACTION_WARN_TITLE" desc="Text displayed at the top of a dialog telling the user their action is not recommended by their admin.">
+      This action is not recommended
+    </message>
     <message name="IDS_DATA_CONTROLS_BLOCKED_LABEL" desc="Generic text displayed in a dialog telling the user their action has been blocked by their administrator.">
       Your administrator has blocked this action
     </message>
@@ -17830,11 +17838,17 @@ Please help our engineers fix this problem. Tell us what happened right before y
     <message name="IDS_DATA_CONTROLS_COPY_WARN_CONTINUE_BUTTON" desc="Continue dialog button label for warning before copying from a site.">
       Copy anyway
     </message>
+    <message name="IDS_DATA_CONTROLS_SHARE_WARN_CONTINUE_BUTTON" desc="Continue dialog button label for warning before sharing from a site.">
+      Share anyway
+    </message>
     <message name="IDS_DATA_CONTROLS_PASTE_WARN_CANCEL_BUTTON" desc="Cancel dialog button label for warning before pasting to a site.">
       Don't paste
     </message>
     <message name="IDS_DATA_CONTROLS_COPY_WARN_CANCEL_BUTTON" desc="Cancel dialog button label for warning before copying from a site.">
       Don't copy
+    </message>
+    <message name="IDS_DATA_CONTROLS_SHARE_WARN_CANCEL_BUTTON" desc="Cancel dialog button label for warning before sharing from a site.">
+      Don't share
     </message>
 
     <!-- Data sharing UI strings -->
@@ -18823,11 +18837,6 @@ Please help our engineers fix this problem. Tell us what happened right before y
           other {Found {NUM_SITES} sites with lots of notifications}}
         </message>
         <message name="IDS_SETTINGS_SAFETY_HUB_REVOKED_PERMISSIONS_MENU_NOTIFICATION" desc="Title for the permissions review Safety Check module on the Magic Stack. Shown when Safety Check has identified several sites that send abusive notifications.">
-          {NUM_SITES, plural,
-          =1 {Chrome removed permissions from 1 site}
-          other {Chrome removed permissions from {NUM_SITES} sites}}
-        </message>
-        <message name="IDS_SETTINGS_SAFETY_HUB_UNUSED_SITE_PERMISSIONS_MENU_NOTIFICATION" desc="Title for the permissions review Safety Check module on the Magic Stack. Shown when Safety Check has identified several unused sites that have granted permissions.">
           {NUM_SITES, plural,
           =1 {Chrome removed permissions from 1 site}
           other {Chrome removed permissions from {NUM_SITES} sites}}

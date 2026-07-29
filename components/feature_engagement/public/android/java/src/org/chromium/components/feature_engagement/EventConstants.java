@@ -85,7 +85,7 @@ public final class EventConstants {
 
     /** The keyboard accessory was used to create a new plus address. */
     public static final String KEYBOARD_ACCESSORY_PLUS_ADDRESS_CREATE_SUGGESTION =
-            "keyboard_accessory_plus_address_create_suggestion";
+            "plus_address_create_suggestion_feature_used";
 
     /** User has finished drop-to-merge to create a group. */
     public static final String TAB_DRAG_AND_DROP_TO_GROUP = "tab_drag_and_drop_to_group";
@@ -186,10 +186,6 @@ public final class EventConstants {
 
     /** Shared Highlighting button event */
     public static final String IPH_SHARED_HIGHLIGHTING_USED = "iph_shared_highlighting_used";
-
-    /** The tab switcher IPH on XR was touched inside the IPH */
-    public static final String IPH_TAB_SWITCHER_XR_TOUCHED_INSIDE =
-            "tab_switcher_xr_iph_touched_inside";
 
     /** AutoDark disabled from app menu events. */
     public static final String AUTO_DARK_DISABLED_IN_APP_MENU = "auto_dark_disabled_in_app_menu";

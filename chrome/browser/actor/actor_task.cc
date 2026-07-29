@@ -9,13 +9,20 @@
 #include "base/no_destructor.h"
 #include "base/state_transitions.h"
 #include "chrome/browser/actor/actor_coordinator.h"
+#include "components/tabs/public/tab_interface.h"
 
 namespace actor {
 
 ActorTask::ActorTask() = default;
 ActorTask::ActorTask(std::unique_ptr<ActorCoordinator> actor_coordinator)
-    : actor_coordinator_(std::move(actor_coordinator)) {}
+    : actor_coordinator_(std::move(actor_coordinator)) {
+  actor_coordinator_->SetOwner(this);
+}
 ActorTask::~ActorTask() = default;
+
+void ActorTask::SetId(base::PassKey<ActorKeyedService>, TaskId id) {
+  id_ = id;
+}
 
 ActorCoordinator* ActorTask::GetActorCoordinator() const {
   return actor_coordinator_.get();
@@ -44,6 +51,31 @@ void ActorTask::SetState(State state) {
 #endif  // DCHECK_IS_ON()
 
   state_ = state;
+}
+
+void ActorTask::Stop() {
+  if (actor_coordinator_) {
+    actor_coordinator_->CancelOngoingActions(
+        mojom::ActionResultCode::kTaskWentAway);
+  }
+  SetState(State::kFinished);
+}
+
+void ActorTask::Pause() {
+  if (GetState() == State::kFinished) {
+    return;
+  }
+  if (actor_coordinator_) {
+    actor_coordinator_->CancelOngoingActions(
+        mojom::ActionResultCode::kTaskPaused);
+  }
+  SetState(State::kPausedByClient);
+}
+
+void ActorTask::Resume() {
+  if (GetState() != State::kFinished) {
+    SetState(State::kReflecting);
+  }
 }
 
 bool ActorTask::IsPaused() const {

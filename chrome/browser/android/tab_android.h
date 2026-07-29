@@ -8,6 +8,7 @@
 #include <jni.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/android/jni_weak_ref.h"
@@ -209,6 +210,11 @@ class TabAndroid : public tabs::TabInterface,
   // TabInterface overrides:
   base::WeakPtr<tabs::TabInterface> GetWeakPtr() override;
   content::WebContents* GetContents() const override;
+  // This implementation of close immediately closes the tab without undo
+  // support and without a warning dialog when closing the last tab in a tab
+  // group. For more granualar control it is strongly recommended to close tabs
+  // from Java instead. This operation may fail if the TabModel for this tab is
+  // not found for some reason.
   void Close() override;
   base::CallbackListSubscription RegisterWillDiscardContents(
       WillDiscardContentsCallback callback) override;
@@ -253,6 +259,10 @@ class TabAndroid : public tabs::TabInterface,
   // This constructor bypassing JVM setup is for CreateForTesting only.
   TabAndroid(Profile* profile, int tab_id);
   JavaObjectWeakGlobalRef weak_java_tab_;
+
+  void UpdateProperties();
+  void SetIsPinned(bool pinned);
+  void SetTabGroupId(std::optional<tab_groups::TabGroupId> tab_group_id);
 
   int tab_id_;
 

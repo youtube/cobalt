@@ -587,10 +587,10 @@
     #   ios-webkit-tot
     #   ios-wpt-fyi-rel
     #   ios18-beta-simulator
-    #   ios19-beta-simulator
+    #   ios26-beta-simulator
     #   ios18-sdk-device
     #   ios18-sdk-simulator
-    #   ios19-sdk-simulator
+    #   ios26-sdk-simulator
     #   Linux Viz
     #   linux-annotator-rel
     #   linux-blink-heap-verification
@@ -1065,6 +1065,16 @@
     'name': 'internal.chromeos.fyi',
     'mixins': ['chrome-tester-service-account'],
     'machines': {
+       'chromeos-betty-chrome-tfc-fyi': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+        ],
+        'test_suites': {
+          'skylab_tests': 'chromeos_tfc_tests',
+        },
+        'os_type': 'chromeos',
+        'cros_board': 'betty',
+      },
       'chromeos-betty-finch-smoke-chrome': {
         'mixins': [
           'chromeos-betty-finch',

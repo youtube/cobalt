@@ -25,7 +25,6 @@
   position: relative;
 }
 
-.notice-item > p,
 .notice-item > button {
   color: var(--color-new-tab-footer-text);
   font-size: 13px;
@@ -75,9 +74,22 @@
   display: flex;
 }
 
-#managementNoticeLogo {
-  padding-right: 16px;
+#managementNoticeLogoContainer {
+  align-items: center;
+  display: flex;
+  flex-shrink: 0;
+  height: 32px;
+  justify-content: center;
+  width: 32px;
+  margin-right: 8px;
+}
+
+.custom_logo {
+  background-color: var(--color-new-tab-footer-logo-background);
+  border-radius: 8px;
+}
+
+#managementNoticeLogoContainer > img {
   width: 20px;
   height: 20px;
-  transform: translateY(+25%);
 }

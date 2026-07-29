@@ -34,6 +34,8 @@
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
+#include "chrome/browser/actor/actor_coordinator.h"
+#include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/app_mode/app_mode_utils.h"
 #include "chrome/browser/background/background_contents.h"
 #include "chrome/browser/background/background_contents_service.h"
@@ -100,7 +102,6 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_live_tab_context.h"
-#include "chrome/browser/ui/browser_location_bar_model_delegate.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_tab_strip_model_delegate.h"
@@ -182,8 +183,6 @@
 #include "components/keep_alive_registry/keep_alive_registry.h"
 #include "components/keep_alive_registry/keep_alive_types.h"
 #include "components/keep_alive_registry/scoped_keep_alive.h"
-#include "components/omnibox/browser/location_bar_model.h"
-#include "components/omnibox/browser/location_bar_model_impl.h"
 #include "components/page_load_metrics/browser/metrics_web_contents_observer.h"
 #include "components/page_load_metrics/common/page_load_metrics.mojom.h"
 #include "components/paint_preview/buildflags/buildflags.h"
@@ -464,6 +463,7 @@ base::FunctionRef<bool(const Browser*)> MaybeLazyIsFullscreen(
 
 bool IsActorCoordinatorActingOnTab(Profile* profile,
                                    const content::WebContents* tab) {
+  // TODO(crbug.com/411462297): Delete this code.
 #if BUILDFLAG(ENABLE_GLIC)
   if (glic::GlicEnabling::IsEnabledByFlags()) {
     if (const auto* glic_service = glic::GlicKeyedService::Get(profile);
@@ -471,14 +471,15 @@ bool IsActorCoordinatorActingOnTab(Profile* profile,
       return true;
     }
   }
-  // TODO(https://crbug.com/411462297): Deduplicate ownership of
-  // ActorCoordinators.
-  if (const auto* ai_data_service =
-          AiDataKeyedServiceFactory::GetAiDataKeyedService(profile);
-      ai_data_service && ai_data_service->IsActorCoordinatorActingOnTab(tab)) {
-    return true;
-  }
 #endif
+  auto* actor_service = actor::ActorKeyedService::Get(profile);
+  if (actor_service) {
+    for (auto& [task_id, task] : actor_service->GetTasks()) {
+      if (task->GetActorCoordinator()->HasTaskForTab(tab)) {
+        return true;
+      }
+    }
+  }
   return false;
 }
 
@@ -647,10 +648,6 @@ Browser::Browser(const CreateParams& params)
       unload_controller_(this),
       content_setting_bubble_model_delegate_(
           new BrowserContentSettingBubbleModelDelegate(this)),
-      location_bar_model_delegate_(new BrowserLocationBarModelDelegate(this)),
-      location_bar_model_(std::make_unique<LocationBarModelImpl>(
-          location_bar_model_delegate_.get(),
-          content::kMaxURLDisplayChars)),
       live_tab_context_(new BrowserLiveTabContext(this)),
       app_controller_(web_app::MaybeCreateAppBrowserController(this)),
       bookmark_bar_state_(BookmarkBar::HIDDEN),
@@ -1240,14 +1237,6 @@ views::View* Browser::TopContainer() {
   return window_->GetTopContainer();
 }
 
-bool Browser::IsMinimized() const {
-  return window_->IsMinimized();
-}
-
-bool Browser::IsVisible() const {
-  return window_->IsVisible();
-}
-
 base::WeakPtr<BrowserWindowInterface> Browser::GetWeakPtr() {
   return AsWeakPtr();
 }
@@ -1343,10 +1332,6 @@ Browser* Browser::GetBrowserForMigrationOnly() {
   return this;
 }
 
-void Browser::ActivateWindow() {
-  window_->Activate();
-}
-
 bool Browser::IsTabModalPopupDeprecated() const {
   return is_tab_modal_popup_deprecated_;
 }
@@ -1357,6 +1342,10 @@ bool Browser::CanShowCallToAction() const {
 
 std::unique_ptr<ScopedWindowCallToAction> Browser::ShowCallToAction() {
   return std::make_unique<ScopedWindowCallToActionImpl>(this);
+}
+
+ui::BaseWindow* Browser::GetWindow() {
+  return window_.get();
 }
 
 DesktopBrowserWindowCapabilities* Browser::capabilities() {

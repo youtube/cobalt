@@ -44,7 +44,6 @@ void NavigateTool::Invoke(InvokeCallback callback) {
       false /* is_renderer_initiated */);
 
   CHECK(web_contents());
-
   invoke_callback_ = std::move(callback);
 
   // TODO(crbug.com/406545255): If the page has a BeforeUnload handler the user
@@ -59,8 +58,8 @@ std::string NavigateTool::DebugString() const {
   return absl::StrFormat("NavigateTool[%s]", url_.spec());
 }
 
-ObservationDelayType NavigateTool::GetObservationDelayType() const {
-  return ObservationDelayType::kWatchForLoad;
+std::string NavigateTool::JournalEvent() const {
+  return "Navigate";
 }
 
 void NavigateTool::DidFinishNavigation(NavigationHandle* navigation_handle) {

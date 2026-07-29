@@ -1193,6 +1193,13 @@ void BookmarkBarView::BookmarkNodeMoved(const BookmarkParentFolder& old_parent,
   // mouse/touch-device, the location will update accordingly.
   InvalidateDrop();
 
+  if (extensive_bookmarks_changes_ongoing_) {
+    // Delays the call to the end of the extensive changes.
+    // Assumes that the layout will need an update.
+    needs_layout_update_after_extensive_changes_ = true;
+    return;
+  }
+
   bool needs_layout_and_paint = BookmarkNodeRemovedImpl(
       old_parent, old_index,
       bookmark_service_->GetNodeAtIndex(new_parent, new_index));
@@ -1210,6 +1217,14 @@ void BookmarkBarView::BookmarkNodeAdded(const BookmarkParentFolder& parent,
                                         size_t index) {
   // See comment in BookmarkNodeMoved() for details on this.
   InvalidateDrop();
+
+  if (extensive_bookmarks_changes_ongoing_) {
+    // Delays the call to the end of the extensive changes.
+    // Assumes that the layout will need an update.
+    needs_layout_update_after_extensive_changes_ = true;
+    return;
+  }
+
   if (BookmarkNodeAddedImpl(parent, index)) {
     LayoutAndPaint();
   }
@@ -1303,6 +1318,28 @@ void BookmarkBarView::BookmarkParentFolderChildrenReordered(
 
 void BookmarkBarView::BookmarkNodeFaviconChanged(const BookmarkNode* node) {
   BookmarkNodeChangedImpl(node);
+}
+
+void BookmarkBarView::ExtensiveBookmarkChangesBeginning() {
+  CHECK(!extensive_bookmarks_changes_ongoing_);
+  extensive_bookmarks_changes_ongoing_ = true;
+}
+
+void BookmarkBarView::ExtensiveBookmarkChangesEnded() {
+  CHECK(extensive_bookmarks_changes_ongoing_);
+  extensive_bookmarks_changes_ongoing_ = false;
+
+  if (needs_layout_update_after_extensive_changes_) {
+    needs_layout_update_after_extensive_changes_ = false;
+
+    // After extensive changes, the changed (added/removed mainly) bookmarks may
+    // not have been updated at the proper index, so remove all existing buttons
+    // so that the next layout creates the buttons in the expected order.
+    RemoveAllBookmarkButtons();
+
+    LayoutAndPaint();
+    drop_weak_ptr_factory_.InvalidateWeakPtrs();
+  }
 }
 
 void BookmarkBarView::WriteDragDataForView(View* sender,
@@ -1768,6 +1805,8 @@ void BookmarkBarView::ConfigureButton(const BookmarkNode* node,
 
 bool BookmarkBarView::BookmarkNodeAddedImpl(const BookmarkParentFolder& parent,
                                             size_t index) {
+  CHECK(!extensive_bookmarks_changes_ongoing_);
+
   const bool needs_layout_and_paint = UpdateOtherAndManagedButtonsVisibility();
   if (parent.as_permanent_folder() != PermanentFolderType::kBookmarkBarNode) {
     return needs_layout_and_paint;

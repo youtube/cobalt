@@ -29,6 +29,7 @@
 #include "base/i18n/time_formatting.h"
 #include "base/json/values_util.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_view_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/icu_test_util.h"
@@ -147,8 +148,8 @@ void AddAndLoginUser(const AccountId& account_id, user_manager::UserType type) {
     case user_manager::UserType::kPublicAccount:
       user = user_manager->AddPublicAccountUser(account_id);
       break;
-    case user_manager::UserType::kKioskApp:
-    case user_manager::UserType::kWebKioskApp:
+    case user_manager::UserType::kKioskChromeApp:
+    case user_manager::UserType::kKioskWebApp:
     case user_manager::UserType::kKioskIWA:
       break;
   }
@@ -320,8 +321,8 @@ class PersonalizationAppSeaPenProviderImplTest : public testing::Test {
         profile_ = profile_manager_.CreateGuestProfile();
         break;
       case user_manager::UserType::kPublicAccount:
-      case user_manager::UserType::kKioskApp:
-      case user_manager::UserType::kWebKioskApp:
+      case user_manager::UserType::kKioskChromeApp:
+      case user_manager::UserType::kKioskWebApp:
       case user_manager::UserType::kKioskIWA:
         profile_ = profile_manager_.CreateTestingProfile(name);
         break;

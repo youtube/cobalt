@@ -38,11 +38,11 @@ class ExternalConstants : public base::RefCountedThreadSafe<ExternalConstants> {
   // The URL to send crash reports to.
   virtual GURL CrashUploadURL() const = 0;
 
-  // The URL to fetch device management policies.
-  virtual GURL DeviceManagementURL() const = 0;
-
   // The URL for the app logos.
   virtual GURL AppLogoURL() const = 0;
+
+  // The URL for remote event logging.
+  virtual GURL EventLoggingURL() const = 0;
 
   // True if client update protocol signing of update checks is enabled.
   virtual bool UseCUP() const = 0;
@@ -59,6 +59,13 @@ class ExternalConstants : public base::RefCountedThreadSafe<ExternalConstants> {
 
   // Minimum amount of time between successive event logging transmissions.
   virtual base::TimeDelta MinimumEventLoggingCooldown() const = 0;
+
+  // Indicates which application remote event logging permissions should be
+  // inferred from. Nullopt indicates that logging is unconditionally disabled.
+  // The meaning of the provider is platform specific; on macOS it is the
+  // basename of an application directory, on Windows it is an AppId.
+  virtual std::optional<std::string> GetEventLoggingPermissionProvider()
+      const = 0;
 
   // Policies for the `PolicyManager` surfaced by external constants.
   virtual base::Value::Dict DictPolicies() const = 0;

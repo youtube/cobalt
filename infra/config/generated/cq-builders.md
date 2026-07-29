@@ -596,6 +596,7 @@ builder.
 * [linux-utr-tester](https://ci.chromium.org/p/chromium/builders/try/linux-utr-tester) ([definition](https://cs.chromium.org/search?q=+file:/try/.*\.star$+""linux-utr-tester""))
 
   Location filters:
+  * [`//third_party/depot_tools/.+`](https://cs.chromium.org/chromium/src/third_party/depot_tools/)
   * [`//tools/utr/.+`](https://cs.chromium.org/chromium/src/tools/utr/)
   * [`//tools/mb/.+`](https://cs.chromium.org/chromium/src/tools/mb/)
 
@@ -693,6 +694,13 @@ builder.
   * [`//chrome/updater/.+`](https://cs.chromium.org/chromium/src/chrome/updater/)
   * [`//chrome/enterprise_companion/.+`](https://cs.chromium.org/chromium/src/chrome/enterprise_companion/)
 
+* [mac-utr-tester](https://ci.chromium.org/p/chromium/builders/try/mac-utr-tester) ([definition](https://cs.chromium.org/search?q=+file:/try/.*\.star$+""mac-utr-tester""))
+
+  Location filters:
+  * [`//third_party/depot_tools/.+`](https://cs.chromium.org/chromium/src/third_party/depot_tools/)
+  * [`//tools/utr/.+`](https://cs.chromium.org/chromium/src/tools/utr/)
+  * [`//tools/mb/.+`](https://cs.chromium.org/chromium/src/tools/mb/)
+
 * [mac_optional_gpu_tests_rel](https://ci.chromium.org/p/chromium/builders/try/mac_optional_gpu_tests_rel) ([definition](https://cs.chromium.org/search?q=+file:/try/.*\.star$+""mac_optional_gpu_tests_rel""))
 
   Location filters:
@@ -775,6 +783,7 @@ builder.
 * [win-utr-tester](https://ci.chromium.org/p/chromium/builders/try/win-utr-tester) ([definition](https://cs.chromium.org/search?q=+file:/try/.*\.star$+""win-utr-tester""))
 
   Location filters:
+  * [`//third_party/depot_tools/.+`](https://cs.chromium.org/chromium/src/third_party/depot_tools/)
   * [`//tools/utr/.+`](https://cs.chromium.org/chromium/src/tools/utr/)
   * [`//tools/mb/.+`](https://cs.chromium.org/chromium/src/tools/mb/)
 
@@ -857,7 +866,7 @@ as required builders.
   * Experiment percentage: 10.0
 
 * [mac15-arm64-rel](https://ci.chromium.org/p/chromium/builders/try/mac15-arm64-rel) ([definition](https://cs.chromium.org/search?q=+file:/try/.*\.star$+""mac15-arm64-rel""))
-  * Experiment percentage: 100.0
+  * Experiment percentage: 1.0
 
 * [tricium-clang-tidy](https://ci.chromium.org/p/chromium/builders/try/tricium-clang-tidy) ([definition](https://cs.chromium.org/search?q=+file:/try/.*\.star$+""tricium-clang-tidy""))
   * Experiment percentage: 100.0

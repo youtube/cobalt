@@ -188,6 +188,16 @@ void RichAutocompletionParams::ClearParamsForTesting() {
   GetParams() = {};
 }
 
+// SessionData ----------------------------------------------------------------
+
+SessionData::SessionData() = default;
+
+SessionData::SessionData(const SessionData& session_data) = default;
+
+SessionData::~SessionData() = default;
+
+SessionData& SessionData::operator=(const SessionData& match) = default;
+
 // AutocompleteMatch ----------------------------------------------------------
 
 // static
@@ -279,19 +289,7 @@ AutocompleteMatch::AutocompleteMatch(const AutocompleteMatch& match)
       actions(match.actions),
       takeover_action(match.takeover_action),
       from_previous(match.from_previous),
-      zero_prefix_suggestions_shown_in_session(
-          match.zero_prefix_suggestions_shown_in_session),
-      zero_prefix_search_suggestions_shown_in_session(
-          match.zero_prefix_search_suggestions_shown_in_session),
-      zero_prefix_url_suggestions_shown_in_session(
-          match.zero_prefix_url_suggestions_shown_in_session),
-      typed_search_suggestions_shown_in_session(
-          match.typed_search_suggestions_shown_in_session),
-      typed_url_suggestions_shown_in_session(
-          match.typed_url_suggestions_shown_in_session),
-      contextual_search_suggestions_shown_in_session(
-          match.contextual_search_suggestions_shown_in_session),
-      lens_action_shown_in_session(match.lens_action_shown_in_session),
+      session(match.session),
       search_terms_args(
           match.search_terms_args
               ? new TemplateURLRef::SearchTermsArgs(*match.search_terms_args)
@@ -367,22 +365,7 @@ AutocompleteMatch& AutocompleteMatch::operator=(
   actions = std::move(match.actions);
   takeover_action = std::move(match.takeover_action);
   from_previous = std::move(match.from_previous);
-  // TODO(crbug.com/402519775): Roll all of the individual "shown in session"
-  // members into a single `SessionData` struct (similar to that defined in
-  // `AutocompleteResult`).
-  zero_prefix_suggestions_shown_in_session =
-      std::move(match.zero_prefix_suggestions_shown_in_session);
-  zero_prefix_search_suggestions_shown_in_session =
-      std::move(match.zero_prefix_search_suggestions_shown_in_session);
-  zero_prefix_url_suggestions_shown_in_session =
-      std::move(match.zero_prefix_url_suggestions_shown_in_session);
-  typed_search_suggestions_shown_in_session =
-      std::move(match.typed_search_suggestions_shown_in_session);
-  typed_url_suggestions_shown_in_session =
-      std::move(match.typed_url_suggestions_shown_in_session);
-  contextual_search_suggestions_shown_in_session =
-      std::move(match.contextual_search_suggestions_shown_in_session);
-  lens_action_shown_in_session = std::move(match.lens_action_shown_in_session);
+  session = std::move(match.session);
   search_terms_args = std::move(match.search_terms_args);
   post_content = std::move(match.post_content);
   additional_info = std::move(match.additional_info);
@@ -465,19 +448,7 @@ AutocompleteMatch& AutocompleteMatch::operator=(
   actions = match.actions;
   takeover_action = match.takeover_action;
   from_previous = match.from_previous;
-  zero_prefix_suggestions_shown_in_session =
-      match.zero_prefix_suggestions_shown_in_session;
-  zero_prefix_search_suggestions_shown_in_session =
-      match.zero_prefix_search_suggestions_shown_in_session;
-  zero_prefix_url_suggestions_shown_in_session =
-      match.zero_prefix_url_suggestions_shown_in_session;
-  typed_search_suggestions_shown_in_session =
-      match.typed_search_suggestions_shown_in_session;
-  typed_url_suggestions_shown_in_session =
-      match.typed_url_suggestions_shown_in_session;
-  contextual_search_suggestions_shown_in_session =
-      match.contextual_search_suggestions_shown_in_session;
-  lens_action_shown_in_session = match.lens_action_shown_in_session;
+  session = match.session;
   search_terms_args.reset(
       match.search_terms_args
           ? new TemplateURLRef::SearchTermsArgs(*match.search_terms_args)
@@ -899,6 +870,27 @@ bool AutocompleteMatch::IsFeaturedEnterpriseSearchType(Type type) {
 // static
 bool AutocompleteMatch::IsFeaturedSearchType(Type type) {
   return IsStarterPackType(type) || IsFeaturedEnterpriseSearchType(type);
+}
+
+// static
+bool AutocompleteMatch::IsPreconnectableType(Type type) {
+  CHECK(base::FeatureList::IsEnabled(
+      omnibox::kPreconnectNonSearchOmniboxSuggestions));
+  return IsSearchType(type) ||
+         type == AutocompleteMatchType::URL_WHAT_YOU_TYPED ||
+         type == AutocompleteMatchType::HISTORY_URL ||
+         type == AutocompleteMatchType::HISTORY_TITLE ||
+         type == AutocompleteMatchType::HISTORY_BODY ||
+         type == AutocompleteMatchType::HISTORY_KEYWORD ||
+         type == AutocompleteMatchType::NAVSUGGEST ||
+         type == AutocompleteMatchType::BOOKMARK_TITLE ||
+         type == AutocompleteMatchType::NAVSUGGEST_PERSONALIZED ||
+         type == AutocompleteMatchType::CLIPBOARD_URL ||
+         type == AutocompleteMatchType::DOCUMENT_SUGGESTION ||
+         type == AutocompleteMatchType::TILE_NAVSUGGEST ||
+         type == AutocompleteMatchType::OPEN_TAB ||
+         type == AutocompleteMatchType::TILE_MOST_VISITED_SITE ||
+         type == AutocompleteMatchType::HISTORY_EMBEDDINGS;
 }
 
 // static

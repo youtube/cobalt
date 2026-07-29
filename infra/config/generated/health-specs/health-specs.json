@@ -6731,6 +6731,27 @@
           }
         ]
       },
+      "android-15-tablet-x64-fyi-rel": {
+        "contact_team_email": "clank-engprod@google.com",
+        "problem_specs": [
+          {
+            "name": "Unhealthy",
+            "period_days": 7,
+            "score": 5,
+            "thresholds": {
+              "_default": "_default"
+            }
+          },
+          {
+            "name": "Low Value",
+            "period_days": 90,
+            "score": 1,
+            "thresholds": {
+              "_default": "_default"
+            }
+          }
+        ]
+      },
       "android-15-tablet-x64-rel": {
         "contact_team_email": "clank-engprod@google.com",
         "problem_specs": [
@@ -7108,27 +7129,6 @@
       },
       "android-cast-arm64-rel": {
         "contact_team_email": "cast-eng@google.com",
-        "problem_specs": [
-          {
-            "name": "Unhealthy",
-            "period_days": 7,
-            "score": 5,
-            "thresholds": {
-              "_default": "_default"
-            }
-          },
-          {
-            "name": "Low Value",
-            "period_days": 90,
-            "score": 1,
-            "thresholds": {
-              "_default": "_default"
-            }
-          }
-        ]
-      },
-      "android-chrome-13-x64-wpt-android-specific": {
-        "contact_team_email": "chrome-blink-engprod@google.com",
         "problem_specs": [
           {
             "name": "Unhealthy",
@@ -8005,27 +8005,6 @@
         ]
       },
       "android-pie-arm64-dbg": {
-        "contact_team_email": "clank-engprod@google.com",
-        "problem_specs": [
-          {
-            "name": "Unhealthy",
-            "period_days": 7,
-            "score": 5,
-            "thresholds": {
-              "_default": "_default"
-            }
-          },
-          {
-            "name": "Low Value",
-            "period_days": 90,
-            "score": 1,
-            "thresholds": {
-              "_default": "_default"
-            }
-          }
-        ]
-      },
-      "android-pie-arm64-rel": {
         "contact_team_email": "clank-engprod@google.com",
         "problem_specs": [
           {
@@ -9363,7 +9342,7 @@
           }
         ]
       },
-      "ios19-beta-simulator": {
+      "ios26-beta-simulator": {
         "problem_specs": [
           {
             "name": "Unhealthy",
@@ -9383,7 +9362,7 @@
           }
         ]
       },
-      "ios19-sdk-simulator": {
+      "ios26-sdk-simulator": {
         "problem_specs": [
           {
             "name": "Unhealthy",

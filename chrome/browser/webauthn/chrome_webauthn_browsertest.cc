@@ -17,6 +17,7 @@
 #include "base/rand_util.h"
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
@@ -298,7 +299,7 @@ IN_PROC_BROWSER_TEST_F(WebAuthnBrowserTest, ChromeExtensions) {
 
   auto virtual_device_factory =
       std::make_unique<device::test::VirtualFidoDeviceFactory>();
-  const GURL url = extension->GetResourceURL(kPageFile);
+  const GURL url = extension->ResolveExtensionURL(kPageFile);
   auto extension_id = url.host();
   virtual_device_factory->mutable_state()->InjectRegistration(
       kCredentialID, "chrome-extension://" + extension_id);

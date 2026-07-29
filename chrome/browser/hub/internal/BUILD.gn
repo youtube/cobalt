@@ -48,6 +48,8 @@ android_library("java") {
     "android/java/src/org/chromium/chrome/browser/hub/ShrinkExpandHubLayoutAnimationFactory.java",
     "android/java/src/org/chromium/chrome/browser/hub/ShrinkExpandHubLayoutAnimatorProvider.java",
     "android/java/src/org/chromium/chrome/browser/hub/SingleHubViewColorBlend.java",
+    "android/java/src/org/chromium/chrome/browser/hub/TabListHubLayoutAnimationFactory.java",
+    "android/java/src/org/chromium/chrome/browser/hub/TabListHubLayoutAnimatorProvider.java",
     "android/java/src/org/chromium/chrome/browser/hub/TranslateHubLayoutAnimationFactory.java",
     "android/java/src/org/chromium/chrome/browser/hub/TranslateHubLayoutAnimationFactoryImpl.java",
   ]
@@ -96,6 +98,7 @@ android_resources("java_resources") {
     "android/res/drawable/hub_search_box_background.xml",
     "android/res/drawable/new_tab_button_background.xml",
     "android/res/layout/hub_layout.xml",
+    "android/res/layout/hub_overlay_container.xml",
     "android/res/layout/hub_pane_host_layout.xml",
     "android/res/layout/hub_toolbar_layout.xml",
     "android/res/layout/hub_xr_layout.xml",

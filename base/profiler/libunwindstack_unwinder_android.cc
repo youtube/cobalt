@@ -15,7 +15,7 @@
 #include "base/profiler/module_cache.h"
 #include "base/profiler/native_unwinder_android.h"
 #include "base/profiler/profile_builder.h"
-#include "base/trace_event/base_tracing.h"
+#include "base/trace_event/typed_macros.h"
 #include "build/build_config.h"
 #include "third_party/libunwindstack/src/libunwindstack/include/unwindstack/Elf.h"
 #include "third_party/libunwindstack/src/libunwindstack/include/unwindstack/Error.h"
@@ -74,9 +74,6 @@ std::unique_ptr<unwindstack::Regs> CreateFromRegisterContext(
 #endif  // #if defined(ARCH_CPU_ARM_FAMILY) && defined(ARCH_CPU_32_BITS)
 }
 
-// The WriteLibunwindstackTraceEventArgs callers below get implicitly ifdef'ed
-// out as well, when ENABLE_BASE_TRACING is disabled.
-#if BUILDFLAG(ENABLE_BASE_TRACING)
 void WriteLibunwindstackTraceEventArgs(unwindstack::ErrorCode error_code,
                                        std::optional<int> num_frames,
                                        perfetto::EventContext& ctx) {
@@ -88,7 +85,6 @@ void WriteLibunwindstackTraceEventArgs(unwindstack::ErrorCode error_code,
     libunwindstack_unwinder->set_num_frames(*num_frames);
   }
 }
-#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
 
 bool IsJavaModule(const base::ModuleCache::Module* module) {
   if (!module) {

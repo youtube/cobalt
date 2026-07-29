@@ -5,6 +5,7 @@
 #include <string>
 
 #include "base/functional/callback.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
@@ -319,13 +320,14 @@ TEST_F(VirtualCardEnrollmentManagerTest, OnDidGetDetailsForEnrollResponse) {
           source;
 
       NiceMock<ui::MockResourceBundleDelegate> delegate;
-      ui::ResourceBundle* orig_resource_bundle = nullptr;
+      std::unique_ptr<ui::ResourceBundle::SharedInstanceSwapperForTesting>
+          resource_bundle_swapper;
 
       gfx::Image network_image;
       if (!make_image_present) {
         network_image = gfx::test::CreateImage(32, 30);
-        orig_resource_bundle =
-            ui::ResourceBundle::SwapSharedInstanceForTesting(nullptr);
+        resource_bundle_swapper = std::make_unique<
+            ui::ResourceBundle::SharedInstanceSwapperForTesting>();
         SetNetworkImageInResourceBundle(
             &delegate,
             state->virtual_card_enrollment_fields.credit_card.network(),
@@ -376,7 +378,6 @@ TEST_F(VirtualCardEnrollmentManagerTest, OnDidGetDetailsForEnrollResponse) {
           ->ResetVirtualCardEnrollmentProcessState();
       if (!make_image_present) {
         ui::ResourceBundle::CleanupSharedInstance();
-        ui::ResourceBundle::SwapSharedInstanceForTesting(orig_resource_bundle);
       }
     }
   }
@@ -806,6 +807,8 @@ TEST_F(VirtualCardEnrollmentManagerTest, VirtualCardEnrollmentFields_LastShow) {
   state->virtual_card_enrollment_fields.credit_card = *card_;
   payments_data_manager().SetPaymentsCustomerData(
       std::make_unique<PaymentsCustomerData>("123456"));
+  // Ignore strike database to avoid its required delay cooldown.
+  virtual_card_enrollment_manager_->set_ignore_strike_database(true);
 
   // Making sure there is no existing strike for the card.
   ASSERT_EQ(
@@ -820,8 +823,10 @@ TEST_F(VirtualCardEnrollmentManagerTest, VirtualCardEnrollmentFields_LastShow) {
                               ->GetMaxStrikesLimit() -
                           1;
        i++) {
-    // Show the bubble and ensures VirtualCardEnrollmentFields is set correctly.
-    virtual_card_enrollment_manager_->ShowVirtualCardEnrollBubble();
+    // Start enrollment and ensures VirtualCardEnrollmentFields is set
+    // correctly.
+    virtual_card_enrollment_manager_->InitVirtualCardEnroll(
+        *card_, VirtualCardEnrollmentSource::kDownstream);
     EXPECT_FALSE(state->virtual_card_enrollment_fields.last_show);
     // Reject the bubble and log strike.
     virtual_card_enrollment_manager_->OnVirtualCardEnrollmentBubbleCancelled();
@@ -831,9 +836,10 @@ TEST_F(VirtualCardEnrollmentManagerTest, VirtualCardEnrollmentFields_LastShow) {
         /*sample=*/i + 1, /*count=*/1);
   }
 
-  // Show the bubble for the last time and ensures VirtualCardEnrollmentFields
-  // is set correctly.
-  virtual_card_enrollment_manager_->ShowVirtualCardEnrollBubble();
+  // Start enrollment and ensures VirtualCardEnrollmentFields is set
+  // correctly.
+  virtual_card_enrollment_manager_->InitVirtualCardEnroll(
+      *card_, VirtualCardEnrollmentSource::kDownstream);
   EXPECT_TRUE(state->virtual_card_enrollment_fields.last_show);
 }
 
@@ -908,6 +914,34 @@ TEST_F(VirtualCardEnrollmentManagerTest, Metrics_LatencySinceUpstream) {
   histogram_tester.ExpectTimeBucketCount(
       "Autofill.VirtualCardEnrollBubble.LatencySinceUpstream", base::Minutes(1),
       1);
+}
+
+class DownstreamLatencyMetricsTest
+    : public VirtualCardEnrollmentManagerTest,
+      public ::testing::WithParamInterface<bool> {
+ public:
+  bool card_unmasked_from_cache() const { return GetParam(); }
+};
+
+INSTANTIATE_TEST_SUITE_P(VirtualCardEnrollmentManagerTest,
+                         DownstreamLatencyMetricsTest,
+                         ::testing::Bool());
+
+TEST_P(DownstreamLatencyMetricsTest, LatencySinceDownstream) {
+  base::HistogramTester histogram_tester;
+  CreditCard card = test::GetMaskedServerCard();
+  card.set_virtual_card_enrollment_state(
+      CreditCard::VirtualCardEnrollmentState::kUnenrolledAndEligible);
+  virtual_card_enrollment_manager_->ShouldOfferVirtualCardEnrollment(
+      card, card.instrument_id(), card_unmasked_from_cache());
+  virtual_card_enrollment_manager_->GetVirtualCardEnrollmentProcessState()
+      ->virtual_card_enrollment_fields.virtual_card_enrollment_source =
+      VirtualCardEnrollmentSource::kDownstream;
+  task_environment_.FastForwardBy(base::Minutes(1));
+  virtual_card_enrollment_manager_->ShowVirtualCardEnrollBubble();
+  histogram_tester.ExpectTimeBucketCount(
+      "Autofill.VirtualCardEnrollBubble.LatencySinceDownstream",
+      base::Minutes(1), card_unmasked_from_cache() ? 0 : 1);
 }
 
 }  // namespace autofill

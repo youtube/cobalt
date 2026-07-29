@@ -40,10 +40,9 @@
 #include "gpu/ipc/common/gpu_disk_cache_type.h"
 #include "gpu/ipc/common/gpu_peak_memory.h"
 #include "gpu/ipc/service/gpu_ipc_service_export.h"
-#include "ui/gfx/gpu_memory_buffer.h"
+#include "ui/gfx/gpu_memory_buffer_handle.h"
 #include "ui/gfx/native_widget_types.h"
 #include "ui/gl/gl_surface.h"
-#include "url/gurl.h"
 
 namespace base::trace_event {
 class TracedValue;
@@ -86,12 +85,6 @@ class DawnCachingInterfaceFactory;
 class GPU_IPC_SERVICE_EXPORT GpuChannelManager
     : public raster::GrShaderCache::Client {
  public:
-  using OnMemoryAllocatedChangeCallback =
-      base::OnceCallback<void(gpu::CommandBufferId id,
-                              uint64_t old_size,
-                              uint64_t new_size,
-                              gpu::GpuPeakMemoryAllocationSource source)>;
-
   GpuChannelManager(
       const GpuPreferences& gpu_preferences,
       GpuChannelManagerDelegate* delegate,

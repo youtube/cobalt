@@ -2696,7 +2696,6 @@ void Document::UpdateStyle() {
   style_engine.UpdateStyleAndLayoutTree();
 
   LayoutView* layout_view = GetLayoutView();
-  layout_view->UpdateCountersAfterStyleChange();
   layout_view->RecalcScrollableOverflow();
 
 #if DCHECK_IS_ON()
@@ -7164,6 +7163,16 @@ bool Document::IsValidAttributeLocalNameNewSpec(const StringView& local_name) {
   });
 }
 
+// static
+bool Document::IsValidElementLocalNameNewSpec(const StringView& local_name) {
+  if (local_name.empty()) {
+    return false;
+  }
+  return WTF::VisitCharacters(local_name, [](auto chars) {
+    return !ParseElementLocalNameNewSpec(chars);
+  });
+}
+
 enum QualifiedNameStatus {
   kQNValid,
   kQNMultipleColons,
@@ -8391,7 +8400,7 @@ void Document::RemoveFromTopLayerImmediately(Element* element) {
   element->SetIsInTopLayer(false);
   display_lock_document_state_->ElementRemovedFromTopLayer(element);
   if (auto* html_element = DynamicTo<HTMLElement>(element)) {
-    if (html_element->HasPopoverAttribute()) {
+    if (html_element->IsPopover()) {
       html_element->SetImplicitAnchor(nullptr);
     }
   }
@@ -8445,7 +8454,7 @@ HTMLElement* Document::TopmostPopoverOrHint() const {
   return nullptr;
 }
 void Document::SetPopoverPointerdownTarget(const HTMLElement* popover) {
-  DCHECK(!popover || popover->HasPopoverAttribute());
+  DCHECK(!popover || popover->IsPopover());
   popover_pointerdown_target_ = popover;
 }
 
@@ -8461,12 +8470,6 @@ const HTMLDialogElement* Document::DialogPointerdownTarget() const {
 void Document::SetDialogPointerdownTarget(const HTMLDialogElement* dialog) {
   DCHECK(!dialog || dialog->IsOpen());
   dialog_pointerdown_target_ = dialog;
-}
-
-HeapLinkedHashSet<Member<Element>>& Document::CurrentInterestTargetElements() {
-  DCHECK(RuntimeEnabledFeatures::HTMLInterestTargetAttributeEnabled(
-      GetExecutionContext()));
-  return current_interest_target_elements_;
 }
 
 void Document::exitPointerLock() {
@@ -9209,7 +9212,6 @@ void Document::Trace(Visitor* visitor) const {
   visitor->Trace(popovers_waiting_to_hide_);
   visitor->Trace(all_open_popovers_);
   visitor->Trace(all_open_dialogs_);
-  visitor->Trace(current_interest_target_elements_);
   visitor->Trace(document_part_root_);
   visitor->Trace(load_event_delay_timer_);
   visitor->Trace(plugin_loading_timer_);

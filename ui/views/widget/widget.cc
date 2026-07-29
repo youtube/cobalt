@@ -18,9 +18,9 @@
 #include "base/observer_list.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/current_thread.h"
-#include "base/trace_event/base_tracing.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
+#include "ui/accessibility/accessibility_features.h"
 #include "ui/accessibility/platform/ax_platform.h"
 #include "ui/base/cursor/cursor.h"
 #include "ui/base/default_style.h"
@@ -44,6 +44,7 @@
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/native_widget_types.h"
+#include "ui/views/accessibility/tree/widget_ax_manager.h"
 #include "ui/views/controls/menu/menu_controller.h"
 #include "ui/views/drag_controller.h"
 #include "ui/views/event_monitor.h"
@@ -277,11 +278,6 @@ Widget::~Widget() {
         << "Widget probably should use WIDGET_OWNS_NATIVE_WIDGET ownership.";
   } else {
     DCHECK_EQ(ownership_, InitParams::CLIENT_OWNS_WIDGET);
-    if (native_widget_) {
-      native_widget_->Close();
-    }
-    HandleWidgetDestroying();
-
     // Specifically in the case of CLIENT_OWNS_WIDGET the native widget is
     // notified to allow clearing of any widget-associated state. Do so before
     // the call to `HandleWidgetDestroyed()` below which will invalidate
@@ -289,6 +285,11 @@ Widget::~Widget() {
     if (native_widget_) {
       native_widget_->ClientDestroyedWidget();
     }
+
+    if (native_widget_) {
+      native_widget_->Close();
+    }
+    HandleWidgetDestroying();
 
     HandleWidgetDestroyed();
     if (widget_delegate_) {
@@ -605,6 +606,12 @@ void Widget::Init(InitParams params) {
 }
 
 void Widget::InitAccessibility() {
+  if (::features::IsAccessibilityTreeForViewsEnabled()) {
+    CHECK(!ax_manager_)
+        << "Widget::InitAccessibility() should only be called once";
+    ax_manager_ = std::make_unique<WidgetAXManager>(this);
+  }
+
   // The root view must always be fully initialized so we at least expose one
   // accessible element to the platform APIs. This is necessary for us to detect
   // accessibility API usage and fully enable accessibility support for all

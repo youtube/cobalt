@@ -137,6 +137,8 @@ public class ToolbarSwipeLayout extends Layout {
 
         mLeftTabSupplier = new ObservableSupplierImpl<>();
         mRightTabSupplier = new ObservableSupplierImpl<>();
+        // No new captures should be taken mid swipe, so this shouldn't matter.
+        ObservableSupplier<Long> captureResourceIdSupplier = new ObservableSupplierImpl<>();
 
         if (mMoveToolbar) {
             mLeftToolbarOverlay =
@@ -151,7 +153,8 @@ public class ToolbarSwipeLayout extends Layout {
                             bottomControlsOffsetSupplier,
                             new ObservableSupplierImpl<>(false),
                             LayoutType.TOOLBAR_SWIPE,
-                            true);
+                            /* isVisibilityManuallyControlled= */ true,
+                            captureResourceIdSupplier);
             mLeftToolbarOverlay.setManualVisibility(true);
             layoutManager.addSceneOverlay(mLeftToolbarOverlay);
 
@@ -167,7 +170,8 @@ public class ToolbarSwipeLayout extends Layout {
                             bottomControlsOffsetSupplier,
                             new ObservableSupplierImpl<>(false),
                             LayoutType.TOOLBAR_SWIPE,
-                            true);
+                            /* isVisibilityManuallyControlled= */ true,
+                            captureResourceIdSupplier);
             mRightToolbarOverlay.setManualVisibility(true);
             layoutManager.addSceneOverlay(mRightToolbarOverlay);
         }
@@ -319,7 +323,7 @@ public class ToolbarSwipeLayout extends Layout {
         // Prioritize toTabId because fromTabId likely has a live layer.
         int fromTabId = dragFromLeftEdge ? rightTabId : leftTabId;
         int toTabId = !dragFromLeftEdge ? rightTabId : leftTabId;
-        List<Integer> visibleTabs = new ArrayList<Integer>();
+        List<Integer> visibleTabs = new ArrayList<>();
         if (toTabId != Tab.INVALID_TAB_ID) visibleTabs.add(toTabId);
         if (fromTabId != Tab.INVALID_TAB_ID) visibleTabs.add(fromTabId);
         updateCacheVisibleIds(visibleTabs);

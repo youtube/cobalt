@@ -10,6 +10,7 @@
 #include "base/test/test_future.h"
 #include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/platform_browser_test.h"
+#include "content/public/common/content_features.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_navigation_observer.h"
@@ -225,14 +226,19 @@ IN_PROC_BROWSER_TEST_F(QwacWebContentsObserverBrowserTest,
       web_contents(), embedded_https_test_server().GetURL("/main_noqwac")));
   EXPECT_FALSE(GetCurrentPageQwacStatus());
 
-  // Now go back to the previous page. Since the page was in the BFCache, the
-  // qwac status should still be available and not need to be re-fetched.
+  // Now go back to the previous page. If BFCache is enabled, qwac status
+  // should still be available and not need to be re-fetched, otherwise it
+  // should be re-fetched successfully.
   ASSERT_TRUE(HistoryGoBack(web_contents()));
 
   {
     auto* status = GetCurrentPageQwacStatus();
     ASSERT_TRUE(status);
-    ASSERT_TRUE(status->is_finished());
+    if (base::FeatureList::IsEnabled(features::kBackForwardCache)) {
+      ASSERT_TRUE(status->is_finished());
+    } else {
+      ASSERT_TRUE(WaitForStatusFinished(status));
+    }
     EXPECT_EQ(kFakeQwac, status->GetResponseBodyForTesting());
     EXPECT_EQ(1, main_page_handler.request_count());
     EXPECT_EQ(1, qwac_handler.request_count());

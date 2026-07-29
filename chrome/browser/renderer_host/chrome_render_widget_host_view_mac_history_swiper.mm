@@ -26,11 +26,6 @@ const CGFloat kCancelEventVerticalThreshold = 0.24;
 // horizontal motion, the gesture can't be intended for history swiping.
 const CGFloat kCancelEventVerticalLowerThreshold = 0.01;
 
-// Once we call `[NSEvent trackSwipeEventWithOptions:]`, we cannot reliably
-// expect NSTouch callbacks. We set this variable to YES and ignore NSTouch
-// callbacks.
-BOOL forceMagicMouse = NO;
-
 }  // namespace
 
 @interface HistorySwiper ()
@@ -100,9 +95,6 @@ BOOL forceMagicMouse = NO;
   NSPoint _gestureCurrentPoint;
   // The total Y distance moved since the beginning of the gesture.
   CGFloat _gestureTotalY;
-  // A flag that indicates that there is an ongoing gesture. Only used to
-  // determine whether swipe events are coming from a Magic Mouse.
-  BOOL _inGesture;
   // A flag that indicates that Chrome is receiving a series of touch events.
   BOOL _receivingTouches;
   // Each time a new gesture begins, we must get a new start point.
@@ -191,17 +183,6 @@ BOOL forceMagicMouse = NO;
       params.overscroll_behavior.x == cc::OverscrollBehavior::Type::kAuto;
 }
 
-- (void)beginGestureWithEvent:(NSEvent*)event {
-  _inGesture = YES;
-
-  // Reset state pertaining to Magic Mouse swipe gestures.
-  _mouseScrollDelta = NSZeroSize;
-}
-
-- (void)endGestureWithEvent:(NSEvent*)event {
-  _inGesture = NO;
-}
-
 // This method assumes that there is at least 1 touch in the event.
 // The event must correspond to a valid gesture, or else
 // [NSEvent touchesMatchingPhase:inView:] will fail.
@@ -253,7 +234,6 @@ BOOL forceMagicMouse = NO;
   _firstScrollUnconsumed = NO;
   _overscrollTriggeredByRenderer = NO;
   _waitingForFirstGestureScroll = NO;
-  _recognitionState = history_swiper::kPending;
 }
 
 - (void)touchesMovedWithEvent:(NSEvent*)event {
@@ -292,12 +272,6 @@ BOOL forceMagicMouse = NO;
 }
 
 - (BOOL)processTouchEventForHistorySwiping:(NSEvent*)event {
-  NSEventType type = event.type;
-  if (type != NSEventTypeBeginGesture && type != NSEventTypeEndGesture &&
-      type != NSEventTypeGesture) {
-    return NO;
-  }
-
   switch (_recognitionState) {
     case history_swiper::kCancelled:
     case history_swiper::kCompleted:
@@ -495,7 +469,6 @@ BOOL forceMagicMouse = NO;
   // The current UI looks nicer with (1) so that swiping the opposite
   // direction after the initial swipe doesn't cause the shield to move
   // in the wrong direction.
-  forceMagicMouse = YES;
   [event
       trackSwipeEventWithOptions:NSEventSwipeTrackingLockDirection
         dampenAmountThresholdMin:-1
@@ -537,6 +510,15 @@ BOOL forceMagicMouse = NO;
 }
 
 - (BOOL)handleScrollWheelEvent:(NSEvent*)theEvent {
+  // If the swipe began, then reset state.
+  if (theEvent.phase == NSEventPhaseBegan) {
+    _recognitionState = history_swiper::kPending;
+    _mouseScrollDelta = NSZeroSize;
+
+    // Since this might or might not be a history swipe, allow propagation by
+    // falling through to the eventual `return NO`.
+  }
+
   // The only events that this class consumes have type NSEventPhaseChanged.
   // This simultaneously weeds our regular mouse wheel scroll events, and
   // gesture events with incorrect phase.
@@ -574,18 +556,14 @@ BOOL forceMagicMouse = NO;
     return NO;
   }
 
-  // Magic mouse and touchpad swipe events are identical except magic mouse
-  // events do not generate NSTouch callbacks. Since we rely on NSTouch
-  // callbacks to perform history swiping, magic mouse swipe events use an
-  // entirely different set of logic.
-  if ((_inGesture && !_receivingTouches) || forceMagicMouse) {
-    return [self handleMagicMouseWheelEvent:theEvent];
-  }
-
-  // The scrollWheel: callback is only relevant if it happens while the user is
-  // still actively using the touchpad.
+  // Magic Mouse and touchpad scroll events are identical except Magic Mouse
+  // events do not generate NSTouch callbacks.
+  //
+  // At this point, if there is a gesture phase but no touches, then this scroll
+  // event is coming from a Magic Mouse, and usage of an alternative swipe
+  // tracking API is required.
   if (!_receivingTouches) {
-    return NO;
+    return [self handleMagicMouseWheelEvent:theEvent];
   }
 
   // TODO(erikchen): Ideally, the direction of history swiping should not be
@@ -633,10 +611,4 @@ BOOL forceMagicMouse = NO;
   }
 }
 
-@end
-
-@implementation HistorySwiper (PrivateExposedForTesting)
-+ (void)resetMagicMouseState {
-  forceMagicMouse = NO;
-}
 @end

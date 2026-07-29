@@ -8,7 +8,6 @@
 
 #include "base/containers/map_util.h"
 #include "base/containers/to_vector.h"
-#include "base/functional/overloaded.h"
 #include "base/strings/stringprintf.h"
 #include "base/types/expected_macros.h"
 #include "base/types/optional_util.h"
@@ -37,6 +36,7 @@
 #include "content/public/browser/file_select_listener.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents_delegate.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 
 namespace web_app {
 
@@ -480,7 +480,7 @@ void IwaInternalsHandler::GetIsolatedWebAppDevModeAppInfo(
     }
     bool allow_downgrades = app_ids_allowing_downgrades_.contains(app.app_id());
     std::visit(
-        base::Overloaded{
+        absl::Overload{
             [&](const IwaSourceBundleDevMode& source) {
               dev_mode_apps.emplace_back(::mojom::IwaDevModeAppInfo::New(
                   app.app_id(), app.untranslated_name(),
@@ -571,7 +571,7 @@ void IwaInternalsHandler::ApplyDevModeUpdate(
 void IwaInternalsHandler::RotateKey(
     const std::string& web_bundle_id,
     const std::optional<std::vector<uint8_t>>& public_key) {
-  IwaKeyDistributionInfoProvider::GetInstance()->RotateKeyForDevMode(
+  IwaKeyDistributionInfoProvider::GetInstance().RotateKeyForDevMode(
       base::PassKey<IwaInternalsHandler>(), web_bundle_id, public_key);
 }
 

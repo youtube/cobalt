@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//chromecast/build/tests/cast_test.gni")
 import("//chromecast/chromecast.gni")
 import("//chromecast/starboard/starboard.gni")
 import("//testing/test.gni")
@@ -11,19 +12,23 @@ if (!remove_starboard_headers) {
       "//chromecast/starboard/third_party/starboard/sabi/base_configuration.gni")
 }
 
+# This is necessary until code under //chromecast/starboard/media/renderer is
+# hooked up to production code. This way, gn can find those test targets.
+cast_test_group("starboard_renderer_tests") {
+  tests = [
+    "//chromecast/starboard/media/renderer:chromium_starboard_conversions_test",
+  ]
+}
+
 source_set("starboard") {
   sources = [
     "cast_media_starboard.cc",
-    "drm_util.cc",
-    "drm_util.h",
     "media_pipeline_backend_starboard.cc",
     "media_pipeline_backend_starboard.h",
     "starboard_audio_decoder.cc",
     "starboard_audio_decoder.h",
     "starboard_decoder.cc",
     "starboard_decoder.h",
-    "starboard_resampler.cc",
-    "starboard_resampler.h",
     "starboard_video_decoder.cc",
     "starboard_video_decoder.h",
     "starboard_video_plane.cc",
@@ -31,8 +36,10 @@ source_set("starboard") {
     "starboard_volume_control.cc",
   ]
   deps = [
+    ":drm_util",
     ":mime_utils",
     ":starboard_api_wrapper",
+    ":starboard_resampler",
     "//base",
     "//chromecast/base",
     "//chromecast/public",
@@ -43,6 +50,31 @@ source_set("starboard") {
     "//chromecast/starboard/media/cdm:starboard_drm_wrapper",
     "//ui/display",
     "//ui/gfx/geometry",
+  ]
+}
+
+source_set("starboard_resampler") {
+  sources = [
+    "starboard_resampler.cc",
+    "starboard_resampler.h",
+  ]
+  deps = [
+    "//base",
+    "//chromecast/public/media",
+    "//chromecast/starboard/chromecast/starboard_cast_api:cast_starboard_api_types",
+    "//media",
+  ]
+}
+
+source_set("drm_util") {
+  sources = [
+    "drm_util.cc",
+    "drm_util.h",
+  ]
+  deps = [
+    ":starboard_api_wrapper",
+    "//chromecast/public/media",
+    "//media",
   ]
 }
 
@@ -77,7 +109,7 @@ cast_source_set("starboard_api_wrapper") {
       "starboard_api_wrapper_base.cc",
       "starboard_api_wrapper_base.h",
     ]
-    if (sb_api_version == 15) {
+    if (sb_api_version == 15 || sb_api_version == 16) {
       sources += [ "starboard_api_wrapper_15.cc" ]
     } else {
       assert(sb_api_version == 13 || sb_api_version == 14,
@@ -96,9 +128,23 @@ cast_source_set("mime_utils") {
     "mime_utils.cc",
     "mime_utils.h",
   ]
+  public_deps = [
+    "//chromecast/public/media",
+    "//media",
+  ]
   deps = [
     "//base",
-    "//chromecast/public/media",
+    "//chromecast/media/base:media_codec_support",
+  ]
+}
+
+source_set("test_matchers") {
+  testonly = true
+  public = [ "test_matchers.h" ]
+  sources = [ "test_matchers.cc" ]
+  public_deps = [
+    ":starboard_api_wrapper",
+    "//testing/gmock",
   ]
 }
 
@@ -160,6 +206,7 @@ test("starboard_resampler_test") {
     ":mock_starboard_api_wrapper",
     ":starboard",
     ":starboard_api_wrapper",
+    ":starboard_resampler",
     "//base/test:run_all_unittests",
     "//base/test:test_support",
     "//chromecast/media/base",
@@ -188,7 +235,22 @@ test("mime_utils_test") {
   deps = [
     ":mime_utils",
     "//base/test:run_all_unittests",
+    "//chromecast/media/base:media_codec_support",
     "//chromecast/public/media",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}
+
+test("drm_util_test") {
+  sources = [ "drm_util_test.cc" ]
+  deps = [
+    ":drm_util",
+    ":test_matchers",
+    "//base",
+    "//base/test:run_all_unittests",
+    "//chromecast/media/cma/base",
+    "//media",
     "//testing/gmock",
     "//testing/gtest",
   ]

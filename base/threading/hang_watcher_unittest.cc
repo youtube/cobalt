@@ -36,13 +36,18 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace base {
+namespace {
+
+using ::base::test::ScopedFeatureList;
+using ::base::test::SingleThreadTaskEnvironment;
+using ::base::test::TaskEnvironment;
 using ::testing::ElementsAre;
 using ::testing::IsEmpty;
 using ::testing::Pair;
+using ::testing::TestWithParam;
 using ::testing::UnorderedElementsAre;
-
-namespace base {
-namespace {
+using ::testing::ValuesIn;
 
 // Use this value to mark things very far off in the future. Adding this
 // to TimeTicks::Now() gives a point that will never be reached during the
@@ -205,8 +210,6 @@ class HangWatcherTest : public testing::Test {
   test::SingleThreadTaskEnvironment task_environment_{
       test::TaskEnvironment::TimeSource::MOCK_TIME};
 };
-
-}  // namespace
 
 TEST_F(HangWatcherTest, InvalidatingExpectationsPreventsCapture) {
   ManualHangWatcher hang_watcher(HangWatcher::ProcessType::kBrowserProcess);
@@ -436,50 +439,96 @@ TEST_F(HangWatcherTest, HistogramsLoggedOnBrowserProcessHang) {
                BucketsAre(Bucket(true, /*count=*/1)))));
 }
 
-TEST_F(HangWatcherTest, HistogramsLoggedOnHang) {
+struct AnyCriticalTestParam {
+  std::string test_name;
+  HangWatcher::ProcessType process_type;
+  HangWatcher::ThreadType thread_type;
+  bool is_critical;
+};
+
+// Spot check critical and non-critical process and thread types. We can't do a
+// full cross product because some processes types don't support some thread
+// types.
+using HangWatcherAnyCriticalThreadTests = TestWithParam<AnyCriticalTestParam>;
+INSTANTIATE_TEST_SUITE_P(
+    CriticalProcessAndThreadSpotChecks,
+    HangWatcherAnyCriticalThreadTests,
+    ValuesIn<AnyCriticalTestParam>({
+        // Test at least one critical thread per process types:
+        {.test_name = "BrowserProcessIsCritical",
+         .process_type = HangWatcher::ProcessType::kBrowserProcess,
+         .thread_type = HangWatcher::ThreadType::kMainThread,
+         .is_critical = true},
+        {.test_name = "RendererProcessIsCritical",
+         .process_type = HangWatcher::ProcessType::kRendererProcess,
+         .thread_type = HangWatcher::ThreadType::kMainThread,
+         .is_critical = true},
+        {.test_name = "UtilityProcessIsCritical",
+         .process_type = HangWatcher::ProcessType::kUtilityProcess,
+         .thread_type = HangWatcher::ThreadType::kMainThread,
+         .is_critical = true},
+        // Test each critical thread types for one process type:
+        {.test_name = "MainThreadIsCritical",
+         .process_type = HangWatcher::ProcessType::kBrowserProcess,
+         .thread_type = HangWatcher::ThreadType::kMainThread,
+         .is_critical = true},
+        {.test_name = "IOThreadIsCritical",
+         .process_type = HangWatcher::ProcessType::kBrowserProcess,
+         .thread_type = HangWatcher::ThreadType::kIOThread,
+         .is_critical = true},
+        {.test_name = "CompositorThreadIsCritical",
+         .process_type = HangWatcher::ProcessType::kRendererProcess,
+         .thread_type = HangWatcher::ThreadType::kCompositorThread,
+         .is_critical = true},
+        // Test non critical threads:
+        {.test_name = "ThreadPoolIsNotCritical",
+         .process_type = HangWatcher::ProcessType::kBrowserProcess,
+         .thread_type = HangWatcher::ThreadType::kThreadPoolThread,
+         .is_critical = false},
+    }),
+    [](const auto& info) { return info.param.test_name; });
+
+// Checks that Any and AnyCritical are correctly recorded for different process
+// and thread types.
+TEST_P(HangWatcherAnyCriticalThreadTests, AnyCriticalThreadHung) {
+  ScopedFeatureList feature_list_(kEnableHangWatcher);
+  SingleThreadTaskEnvironment task_env(TaskEnvironment::TimeSource::MOCK_TIME);
   base::HistogramTester histogram_tester;
-  ManualHangWatcher hang_watcher(HangWatcher::ProcessType::kBrowserProcess);
+  ManualHangWatcher hang_watcher(GetParam().process_type);
 
   // Start a blocked thread and simulate a hang.
-  BlockedThread thread(HangWatcher::ThreadType::kMainThread, base::Seconds(10));
+  BlockedThread thread(GetParam().thread_type, base::Seconds(10));
+  task_env.FastForwardBy(base::Seconds(11));
+
+  hang_watcher.TriggerSynchronousMonitoring();
+  EXPECT_THAT(
+      histogram_tester.GetAllSamplesForPrefix("HangWatcher.IsThreadHung.Any"),
+      UnorderedElementsAre(
+          Pair("HangWatcher.IsThreadHung.Any",
+               BucketsAre(Bucket(true, /*count=*/1))),
+          Pair("HangWatcher.IsThreadHung.AnyCritical",
+               BucketsAre(Bucket(GetParam().is_critical, /*count=*/1)))));
+}
+
+// Checks that only a single Any/AnyCritical histogram is recorded even if
+// multiple threads hang.
+TEST_F(HangWatcherTest, AnyRecordedOnlyOnceEvenIfMultipleThreadsHang) {
+  ManualHangWatcher hang_watcher(HangWatcher::ProcessType::kBrowserProcess);
+  base::HistogramTester histogram_tester;
+
+  // Start and hang multiple threads.
+  BlockedThread main(HangWatcher::ThreadType::kMainThread, base::Seconds(10));
+  BlockedThread io(HangWatcher::ThreadType::kIOThread, base::Seconds(10));
   task_environment_.FastForwardBy(base::Seconds(11));
 
-  // First monitoring catches the hang and emits the histogram.
+  // A single Any/AnyCritical should be recorded, even if multiple threads hung.
   hang_watcher.TriggerSynchronousMonitoring();
-  EXPECT_THAT(histogram_tester.GetAllSamples("HangWatcher.IsThreadHung."
-                                             "BrowserProcess.UIThread.Normal"),
-              ElementsAre(base::Bucket(true, /*count=*/1)));
-
-  EXPECT_THAT(histogram_tester.GetAllSamples("HangWatcher.IsThreadHung."
-                                             "Any"),
-              ElementsAre(base::Bucket(true, /*count=*/1)));
-
-  EXPECT_THAT(histogram_tester.GetAllSamples("HangWatcher.IsThreadHung."
-                                             "AnyCritical"),
-              ElementsAre(base::Bucket(true, /*count=*/1)));
-
-  // Attempt capture again. Hang is logged again even if it would not trigger a
-  // crash dump.
-  hang_watcher.TriggerSynchronousMonitoring();
-  EXPECT_THAT(histogram_tester.GetAllSamples("HangWatcher.IsThreadHung."
-                                             "BrowserProcess.UIThread.Normal"),
-              ElementsAre(base::Bucket(true, /*count=*/2)));
-
-  EXPECT_THAT(histogram_tester.GetAllSamples("HangWatcher.IsThreadHung."
-                                             "Any"),
-              ElementsAre(base::Bucket(true, /*count=*/2)));
-
-  EXPECT_THAT(histogram_tester.GetAllSamples("HangWatcher.IsThreadHung."
-                                             "AnyCritical"),
-              ElementsAre(base::Bucket(true, /*count=*/2)));
-
-  // No shutdown hangs, either.
-  EXPECT_THAT(histogram_tester.GetAllSamples(
-                  "HangWatcher.IsThreadHung.BrowserProcess.UIThread.Shutdown"),
-              IsEmpty());
-  EXPECT_THAT(histogram_tester.GetAllSamples(
-                  "HangWatcher.IsThreadHung.BrowserProcess.IOThread.Shutdown"),
-              IsEmpty());
+  EXPECT_THAT(
+      histogram_tester.GetAllSamplesForPrefix("HangWatcher.IsThreadHung.Any"),
+      UnorderedElementsAre(Pair("HangWatcher.IsThreadHung.Any",
+                                BucketsAre(Bucket(true, /*count=*/1))),
+                           Pair("HangWatcher.IsThreadHung.AnyCritical",
+                                BucketsAre(Bucket(true, /*count=*/1)))));
 }
 
 // Checks that histograms with `false` buckets are recorded if there's no hang.
@@ -508,7 +557,8 @@ TEST_F(HangWatcherTest, HistogramsLoggedWithoutHangs) {
                BucketsAre(Bucket(false, /*count=*/1)))));
 }
 
-TEST_F(HangWatcherTest, HistogramsLoggedWithShutdownFlag) {
+// Histograms should be recorded on each monitoring.
+TEST_F(HangWatcherTest, HistogramsLoggedOnEachHang) {
   base::HistogramTester histogram_tester;
   ManualHangWatcher hang_watcher(HangWatcher::ProcessType::kBrowserProcess);
 
@@ -516,34 +566,53 @@ TEST_F(HangWatcherTest, HistogramsLoggedWithShutdownFlag) {
   BlockedThread thread(HangWatcher::ThreadType::kMainThread, base::Seconds(10));
   task_environment_.FastForwardBy(base::Seconds(11));
 
+  // First monitoring catches the hang and emits the histogram.
+  hang_watcher.TriggerSynchronousMonitoring();
+  EXPECT_THAT(
+      histogram_tester.GetAllSamplesForPrefix("HangWatcher.IsThreadHung"),
+      UnorderedElementsAre(
+          Pair("HangWatcher.IsThreadHung.BrowserProcess.UIThread.Normal",
+               BucketsAre(Bucket(true, /*count=*/1))),
+          Pair("HangWatcher.IsThreadHung.Any",
+               BucketsAre(Bucket(true, /*count=*/1))),
+          Pair("HangWatcher.IsThreadHung.AnyCritical",
+               BucketsAre(Bucket(true, /*count=*/1)))));
+
+  // Hang is logged again even if it would not trigger a crash dump.
+  hang_watcher.TriggerSynchronousMonitoring();
+  EXPECT_THAT(
+      histogram_tester.GetAllSamplesForPrefix("HangWatcher.IsThreadHung"),
+      UnorderedElementsAre(
+          Pair("HangWatcher.IsThreadHung.BrowserProcess.UIThread.Normal",
+               BucketsAre(Bucket(true, /*count=*/2))),
+          Pair("HangWatcher.IsThreadHung.Any",
+               BucketsAre(Bucket(true, /*count=*/2))),
+          Pair("HangWatcher.IsThreadHung.AnyCritical",
+               BucketsAre(Bucket(true, /*count=*/2)))));
+}
+
+// Checks that the browser process emits Shutdown histograms on shutdown.
+TEST_F(HangWatcherTest, HistogramsLoggedWithShutdownFlag) {
+  base::HistogramTester histogram_tester;
+  ManualHangWatcher hang_watcher(HangWatcher::ProcessType::kBrowserProcess);
+
+  // Start blocked threads for all thread types and simulate hangs.
+  BlockedThreadsForAllTypes threads(/*timeout=*/base::Seconds(10));
+  task_environment_.FastForwardBy(base::Seconds(11));
+
   // Make this process emit *.Shutdown instead of *.Normal histograms.
   base::HangWatcher::SetShuttingDown();
 
-  // First monitoring catches the hang and emits the histogram.
+  // Check that histograms are only recorded for the expected threads.
   hang_watcher.TriggerSynchronousMonitoring();
-  EXPECT_THAT(histogram_tester.GetAllSamples(
-                  "HangWatcher.IsThreadHung.BrowserProcess.UIThread.Shutdown"),
-              ElementsAre(base::Bucket(true, /*count=*/1)));
-
-  // Attempt capture again. Hang is logged again even if it would not trigger a
-  // crash dump.
-  hang_watcher.TriggerSynchronousMonitoring();
-  EXPECT_THAT(histogram_tester.GetAllSamples(
-                  "HangWatcher.IsThreadHung.BrowserProcess.UIThread.Shutdown"),
-              ElementsAre(base::Bucket(true, /*count=*/2)));
-
-  // Thread types that are not monitored should not get any samples.
-  EXPECT_THAT(histogram_tester.GetAllSamples(
-                  "HangWatcher.IsThreadHung.BrowserProcess.IOThread.Shutdown"),
-              IsEmpty());
-
-  // No normal hangs.
-  EXPECT_THAT(histogram_tester.GetAllSamples(
-                  "HangWatcher.IsThreadHung.BrowserProcess.UIThread.Normal"),
-              IsEmpty());
-  EXPECT_THAT(histogram_tester.GetAllSamples(
-                  "HangWatcher.IsThreadHung.BrowserProcess.IOThread.Normal"),
-              IsEmpty());
+  EXPECT_THAT(
+      histogram_tester.GetAllSamplesForPrefix(
+          "HangWatcher.IsThreadHung.BrowserProcess"),
+      UnorderedElementsAre(
+          Pair("HangWatcher.IsThreadHung.BrowserProcess.UIThread.Shutdown",
+               BucketsAre(Bucket(true, /*count=*/1))),
+          Pair("HangWatcher.IsThreadHung.BrowserProcess.IOThread.Shutdown",
+               BucketsAre(Bucket(true, /*count=*/1)))));
 }
 
 TEST_F(HangWatcherTest, Hang) {
@@ -587,7 +656,6 @@ TEST_F(HangWatcherTest, NoHang) {
   EXPECT_EQ(hang_watcher.GetHangCount(), 0);
 }
 
-namespace {
 class HangWatcherSnapshotTest : public testing::Test {
  protected:
   // Verify that a capture takes place and that at the time of the capture the
@@ -637,7 +705,6 @@ class HangWatcherSnapshotTest : public testing::Test {
   test::SingleThreadTaskEnvironment task_environment_{
       test::TaskEnvironment::TimeSource::MOCK_TIME};
 };
-}  // namespace
 
 // Verify that the hang capture fails when marking a thread for blocking fails.
 // This simulates a WatchHangsInScope completing between the time the hang
@@ -781,8 +848,6 @@ TEST_F(HangWatcherSnapshotTest, TimeSinceLastSystemPowerResumeCrashKey) {
   }
 }
 
-namespace {
-
 // Determines how long the HangWatcher will wait between calls to
 // Monitor(). Choose a low value so that that successive invocations happens
 // fast. This makes tests that wait for monitoring run fast and makes tests that
@@ -826,7 +891,6 @@ class HangWatcherPeriodicMonitoringTest : public testing::Test {
   // delayed tasks created by the tests.
   test::SingleThreadTaskEnvironment task_environment_;
 
-  std::unique_ptr<base::TickClock> fake_tick_clock_;
   HangWatcher hang_watcher_;
 
   // Signaled when a hang is detected.
@@ -834,7 +898,6 @@ class HangWatcherPeriodicMonitoringTest : public testing::Test {
 
   base::ScopedClosureRunner unregister_thread_closure_;
 };
-}  // namespace
 
 // Don't register any threads for hang watching. HangWatcher should not monitor.
 TEST_F(HangWatcherPeriodicMonitoringTest,
@@ -948,7 +1011,6 @@ TEST_F(HangWatcherPeriodicMonitoringTest, NoMonitorOnOverSleep) {
   // enough that this happens rarely.
 }
 
-namespace {
 class WatchHangsInScopeBlockingTest : public testing::Test {
  public:
   WatchHangsInScopeBlockingTest() {
@@ -1022,7 +1084,6 @@ class WatchHangsInScopeBlockingTest : public testing::Test {
   HangWatcher hang_watcher_;
   base::ScopedClosureRunner unregister_thread_closure_;
 };
-}  // namespace
 
 // Tests that execution is unimpeded by ~WatchHangsInScope() when no capture
 // ever takes place.
@@ -1102,6 +1163,8 @@ TEST_F(WatchHangsInScopeBlockingTest, MAYBE_NewScopeDoesNotBlockDuringCapture) {
   continue_capture_.Signal();
 }
 
+}  // namespace
+
 namespace internal {
 namespace {
 
@@ -1124,8 +1187,6 @@ MATCHER(HasNoFlagSet, /*description=*/"") {
   return true;
 }
 
-}  // namespace
-
 class HangWatchDeadlineTest : public testing::Test {
  protected:
   // Return a flag mask without one of the flags for test purposes. Use to
@@ -1137,6 +1198,8 @@ class HangWatchDeadlineTest : public testing::Test {
   HangWatchDeadline deadline_;
 };
 
+}  // namespace
+
 // Verify that the extract functions don't mangle any bits.
 TEST_F(HangWatchDeadlineTest, BitsPreservedThroughExtract) {
   for (auto bits : {kAllOnes, kAllZeros, kOnesThenZeroes, kZeroesThenOnes}) {
@@ -1144,6 +1207,8 @@ TEST_F(HangWatchDeadlineTest, BitsPreservedThroughExtract) {
                  HangWatchDeadline::ExtractDeadline(bits)) == bits);
   }
 }
+
+namespace {
 
 // Verify that setting and clearing a persistent flag works and has no unwanted
 // side-effects. Neither the flags nor the deadline change concurrently in this
@@ -1311,6 +1376,6 @@ TEST_F(HangWatchDeadlineTest, SetDeadlineWipesFlags) {
       HangWatchDeadline::Flag::kIgnoreCurrentWatchHangsInScope));
 }
 
+}  // namespace
 }  // namespace internal
-
 }  // namespace base

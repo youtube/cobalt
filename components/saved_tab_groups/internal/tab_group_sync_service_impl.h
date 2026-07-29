@@ -20,7 +20,7 @@
 #include "base/threading/thread_checker.h"
 #include "base/timer/timer.h"
 #include "base/uuid.h"
-#include "components/optimization_guide/core/optimization_guide_decider.h"
+#include "components/optimization_guide/core/hints/optimization_guide_decider.h"
 #include "components/saved_tab_groups/delegate/tab_group_sync_delegate.h"
 #include "components/saved_tab_groups/internal/saved_tab_group_model.h"
 #include "components/saved_tab_groups/internal/saved_tab_group_sync_bridge.h"
@@ -360,7 +360,9 @@ class TabGroupSyncServiceImpl : public TabGroupSyncService,
   std::optional<SavedTabGroup> FindGroupWithCollaborationId(
       const syncer::CollaborationId& collaboration_id);
 
-  // Updates the last seen time for any focused thab in the given tab group.
+  // Updates the last seen time for any focused tab. Invoked for remote updates.
+  // This is because if a tab is updated from remote while being focused, it
+  // should automatically be marked as seen.
   void UpdateLastSeenTimeForAnyFocusedTabForRemoteUpdates(
       const SavedTabGroup* group,
       TriggerSource source);

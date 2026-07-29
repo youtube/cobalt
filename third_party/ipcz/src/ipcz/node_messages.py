@@ -49,6 +49,7 @@ class Field(object):
           kDataArray - offset to an ArrayHeader containing sized elements.
           kDriverObject - offset to in the message's driver object array.
           kDriverObjectArray - offset to an ArrayHeader of driver objects.
+          kEnum - inline data with range validation.
         """
         return 'kData'
 
@@ -96,6 +97,9 @@ class Enum(Field):
     def __init__(self, type, name):
         super().__init__(type, name)
 
+    def param_type(self):
+        return 'kEnum'
+
 
 class LinkSide(Enum):
 
@@ -116,6 +120,20 @@ class HandleType(Enum):
     def __init__(self, name):
         super().__init__('HandleType', name)
         self.headers.add('ipcz/handle_type.h')
+
+
+class TestEnum8(Enum):
+
+    def __init__(self, name):
+        super().__init__('TestEnum8', name)
+        self.headers.add('ipcz/message_test_types.h')
+
+
+class TestEnum32(Enum):
+
+    def __init__(self, name):
+        super().__init__('TestEnum32', name)
+        self.headers.add('ipcz/message_test_types.h')
 
 
 class Id(Field):
@@ -211,12 +229,6 @@ class Array(Field):
 def make_field(type, name) -> Field:
     if type == 'NodeName':
         return NodeName(name)
-    elif type == 'NodeType':
-        return NodeType(name)
-    elif type == 'HandleType':
-        return HandleType(name)
-    elif type == 'LinkSide':
-        return LinkSide(name)
     elif type == 'BufferId':
         return BufferId(name)
     elif type == 'SublinkId':
@@ -237,7 +249,22 @@ def make_field(type, name) -> Field:
         return FieldU64(name)
     elif type == 'Features::Bitfield':
         return FeaturesBitfield(name)
-    raise Exception(f'type {type} not supported')
+    elif type == 'HandleType':
+        # Note: Enum used in arrays, will be supported as enum eventually.
+        return HandleType(name)
+    raise Exception(f'type {type} not supported as Field')
+
+
+def make_enum(type, name) -> Enum:
+    if type == 'LinkSide':
+        return LinkSide(name)
+    elif type == 'NodeType':
+        return NodeType(name)
+    elif type == 'TestEnum8':
+        return TestEnum8(name)
+    elif type == 'TestEnum32':
+        return TestEnum32(name)
+    raise Exception(f'type {type} not supported as Enum')
 
 
 def make_array(type, name) -> Array:
@@ -280,6 +307,9 @@ class Message(object):
 
     def add_field(self, type, name):
         self.fields.append(make_field(type, name))
+
+    def add_enum(self, type, name):
+        self.fields.append(make_enum(type, name))
 
     def add_driver_object(self, name):
         self.fields.append(DriverObject(name))
@@ -333,6 +363,13 @@ def process_messages_file(lines):
                      line)
         if m:
             cur_message.add_field(m.group('type'), m.group('name'))
+            continue
+
+        # IPCZ_MSG_PARAM(uint32_t, num_initial_portals)
+        m = re.match(r'\s+IPCZ_MSG_PARAM_ENUM\((?P<type>\w+),\s*(?P<name>\w+)\)',
+                     line)
+        if m:
+            cur_message.add_enum(m.group('type'), m.group('name'))
             continue
 
         # IPCZ_MSG_PARAM_DRIVER_OBJECT(driver_object)
@@ -465,21 +502,24 @@ def process(messages_file, template_prefix, output, check):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="""
-Parses ipcz message definition files (*_messages_generator.h) and generates
-.cc and .h files for use by the IPCZ build. Determines the interface type from
-the provided IPCZ_MSG_BEGIN_INTERFACE(name) and supports both Node and Test.
-
-node_messages.py --dir=.\third_party\ipcz\src\ipcz
-
-Writes node_messages.h and node_messages.cc in the same directory `messages`.
-Files are only touched if the contents have changed.
-
-Can be run in a check-only mode which does not write the output files, but
-instead validates that the checked-in file matches the expected output.
-
-node_messages.py --dir=.\third_party\ipcz\src\ipcz --check
-                                     """)
+    parser = argparse.ArgumentParser(description=(
+        "Parses ipcz message definition files (*_messages_generator.h) and\n"
+        "generates .cc and .h files for use by the IPCZ build. Determines the\n"
+        "interface type from the provided IPCZ_MSG_BEGIN_INTERFACE(name) and\n"
+        "supports both Node and Test.\n"
+        "\n"
+        r"  node_messages.py --dir=.\third_party\ipcz\src\ipcz"
+        "\n\n"
+        "Writes node_messages.h and node_messages.cc in the same directory\n"
+        "`messages`. Files are only touched if the contents have changed.\n"
+        "\n"
+        "Can be run in a check-only mode which does not write the output\n"
+        "files, but instead validates that the checked-in file matches the\n"
+        "expected output.\n"
+        "\n"
+        r"  node_messages.py --dir=.\third_party\ipcz\src\ipcz --check"),
+                                     formatter_class=argparse.
+                                     RawDescriptionHelpFormatter)
     parser.add_argument('--template',
                         default='node_messages',
                         help='template prefix')

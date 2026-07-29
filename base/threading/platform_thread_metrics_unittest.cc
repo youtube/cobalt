@@ -4,6 +4,7 @@
 
 #include "base/threading/platform_thread_metrics.h"
 
+#include <array>
 #include <atomic>
 #include <optional>
 #include <string>
@@ -32,18 +33,21 @@ using ::testing::Ge;
 using ::testing::Gt;
 using ::testing::Optional;
 
-void BusyWork(std::vector<std::string>* vec) {
-  int64_t test_value = 0;
-  for (int i = 0; i < 100000; ++i) {
-    ++test_value;
-    vec->push_back(NumberToString(test_value));
+void BusyWork() {
+  ElapsedTimer timer;
+  while (timer.Elapsed() < TestTimeouts::tiny_timeout()) {
+    std::vector<std::string> vec;
+    int64_t test_value = 0;
+    for (int i = 0; i < 100000; ++i) {
+      ++test_value;
+      vec.push_back(NumberToString(test_value));
+    }
   }
 }
 
 class MetricsTestThread final : public SimpleThread {
  public:
-  explicit MetricsTestThread(bool do_busy_work = false)
-      : SimpleThread("MetricsTestThread"), do_busy_work_(do_busy_work) {}
+  MetricsTestThread() : SimpleThread("MetricsTestThread") {}
 
   MetricsTestThread(const MetricsTestThread&) = delete;
   MetricsTestThread& operator=(const MetricsTestThread&) = delete;
@@ -59,11 +63,20 @@ class MetricsTestThread final : public SimpleThread {
     return handle_.load(std::memory_order_relaxed);
   }
 
+  // Stop the thread.
   void Stop() {
     ASSERT_TRUE(HasBeenStarted());
     ASSERT_FALSE(HasBeenJoined());
-    run_event_.Signal();
+    stop_event_.Signal();
     Join();
+  }
+
+  // Cause the thread to do busy work. The caller will block until it's done.
+  void DoBusyWork() {
+    ASSERT_TRUE(HasBeenStarted());
+    ASSERT_FALSE(HasBeenJoined());
+    do_busy_work_event_.Signal();
+    done_busy_work_event_.Wait();
   }
 
   // SimpleThread:
@@ -82,19 +95,29 @@ class MetricsTestThread final : public SimpleThread {
     handle_.store(handle, std::memory_order_relaxed);
     handle_ready_event_.Signal();
 
-    if (do_busy_work_) {
-      while (!run_event_.IsSignaled()) {
-        std::vector<std::string> vec;
-        BusyWork(&vec);
+    std::array<WaitableEvent*, 2> events{&do_busy_work_event_, &stop_event_};
+    while (!stop_event_.IsSignaled()) {
+      // WaitMany returns the lowest index among signaled events.
+      if (WaitableEvent::WaitMany(events.data(), events.size()) == 0) {
+        // DoBusyWork() waits on `done_busy_work_event_` so it should be
+        // impossible to signal `stop_event_` too.
+        ASSERT_FALSE(stop_event_.IsSignaled());
+        BusyWork();
+        done_busy_work_event_.Signal();
       }
-    } else {
-      run_event_.Wait();
     }
   }
 
  private:
-  bool do_busy_work_;
-  TestWaitableEvent run_event_;
+  // When this is signaled, stop the thread.
+  TestWaitableEvent stop_event_;
+
+  // When `do_busy_work_event_` is signaled, do some busy work, then signal
+  // `done_busy_work_event_`. These are auto-reset so they can be reused to do
+  // more busy work.
+  TestWaitableEvent do_busy_work_event_{WaitableEvent::ResetPolicy::AUTOMATIC};
+  TestWaitableEvent done_busy_work_event_{
+      WaitableEvent::ResetPolicy::AUTOMATIC};
 
   std::atomic<PlatformThreadHandle> handle_;
   mutable TestWaitableEvent handle_ready_event_;
@@ -160,11 +183,7 @@ TEST_F(PlatformThreadMetricsTest, GetCumulativeCPUUsage_CurrentThread) {
   // First call to GetCPUUsageProportion() always returns 0.
   EXPECT_EQ(metrics->GetCPUUsageProportion(cpu_usage.value()), 0.0);
 
-  ElapsedTimer timer;
-  while (timer.Elapsed() < TestTimeouts::tiny_timeout()) {
-    std::vector<std::string> vec;
-    BusyWork(&vec);
-  }
+  BusyWork();
 
   const auto cpu_usage2 = metrics->GetCumulativeCPUUsage();
   ASSERT_THAT(cpu_usage2, Optional(Gt(cpu_usage.value())));
@@ -175,7 +194,7 @@ TEST_F(PlatformThreadMetricsTest, GetCumulativeCPUUsage_CurrentThread) {
 }
 
 TEST_F(PlatformThreadMetricsTest, GetCumulativeCPUUsage_OtherThread) {
-  MetricsTestThread thread(/*do_busy_work=*/true);
+  MetricsTestThread thread;
   thread.Start();
 #if BUILDFLAG(IS_APPLE)
   // Apple is the only platform that doesn't support CreateFromId().
@@ -193,7 +212,7 @@ TEST_F(PlatformThreadMetricsTest, GetCumulativeCPUUsage_OtherThread) {
   // First call to GetCPUUsageProportion() always returns 0.
   EXPECT_EQ(metrics->GetCPUUsageProportion(cpu_usage.value()), 0.0);
 
-  PlatformThread::Sleep(TestTimeouts::tiny_timeout());
+  thread.DoBusyWork();
 
   const auto cpu_usage2 = metrics->GetCumulativeCPUUsage();
   ASSERT_THAT(cpu_usage2, Optional(Gt(cpu_usage.value())));

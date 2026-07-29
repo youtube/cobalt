@@ -338,7 +338,7 @@ void LaunchPlusAddressUserPerceptionSurvey(
       /*product_specific_bits_data=*/{},
       /*product_specific_string_data=*/
       delegate->GetPlusAddressHatsData(),
-      /*navigation_behaviour=*/HatsService::NavigationBehaviour::ALLOW_ANY,
+      /*navigation_behavior=*/HatsService::NavigationBehavior::ALLOW_ANY,
       /*success_callback=*/base::DoNothing(),
       /*failure_callback=*/base::DoNothing());
 }
@@ -1143,6 +1143,15 @@ std::unique_ptr<AutofillManager> ChromeAutofillClient::CreateManager(
     base::PassKey<ContentAutofillDriver> pass_key,
     ContentAutofillDriver& driver) {
   return std::make_unique<BrowserAutofillManager>(&driver);
+}
+
+credential_management::ContentCredentialManager*
+ChromeAutofillClient::GetContentCredentialManager() {
+  if (auto* chrome_password_manager_client =
+          ChromePasswordManagerClient::FromWebContents(web_contents())) {
+    return chrome_password_manager_client->GetContentCredentialManager();
+  }
+  return nullptr;
 }
 
 void ChromeAutofillClient::set_test_addresses(

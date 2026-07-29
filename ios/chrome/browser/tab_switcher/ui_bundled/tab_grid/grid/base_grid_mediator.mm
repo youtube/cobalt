@@ -10,6 +10,7 @@
 #import <memory>
 
 #import "base/apple/foundation_util.h"
+#import "base/check_deref.h"
 #import "base/debug/dump_without_crashing.h"
 #import "base/functional/bind.h"
 #import "base/metrics/histogram_functions.h"
@@ -64,9 +65,9 @@
 #import "ios/chrome/browser/shared/ui/util/url_with_title.h"
 #import "ios/chrome/browser/snapshots/model/model_swift.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_browser_agent.h"
+#import "ios/chrome/browser/snapshots/model/snapshot_id.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_id_wrapper.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_storage_wrapper.h"
-#import "ios/chrome/browser/snapshots/model/snapshot_tab_helper.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_collection_consumer.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_collection_drag_drop_metrics.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/grid_consumer.h"
@@ -113,6 +114,19 @@ void LogPriceDropMetrics(web::WebState* web_state) {
       base::StringPrintf("Commerce.TabGridSwitched.%s",
                          has_price_drop ? "HasPriceDrop" : "NoPriceDrop")
           .c_str()));
+}
+
+// Returns the pinned WebState with the given SnapshotID (if it exists) or null.
+web::WebState* WebStateWithSnapshotID(WebStateList& web_state_list,
+                                      SnapshotID snapshot_id) {
+  const int count = web_state_list.count();
+  for (int i = web_state_list.pinned_tabs_count(); i < count; ++i) {
+    web::WebState* const web_state = web_state_list.GetWebStateAt(i);
+    if (snapshot_id == SnapshotID(web_state->GetUniqueIdentifier())) {
+      return web_state;
+    }
+  }
+  return nullptr;
 }
 
 }  // namespace
@@ -492,16 +506,6 @@ void LogPriceDropMetrics(web::WebState* web_state) {
   groupWebStateList->DeleteGroup(group);
 }
 
-- (void)leaveSharedTabGroup:(const TabGroup*)group {
-  [self takeActionForActionType:TabGroupActionType::kLeaveSharedTabGroup
-                 sharedTabGroup:group];
-}
-
-- (void)deleteSharedTabGroup:(const TabGroup*)group {
-  [self takeActionForActionType:TabGroupActionType::kDeleteSharedTabGroup
-                 sharedTabGroup:group];
-}
-
 - (BOOL)canHandleTabGroupDrop:(TabGroupInfo*)tabGroupInfo {
   return self.profile->IsOffTheRecord() == tabGroupInfo.incognito;
 }
@@ -828,17 +832,8 @@ void LogPriceDropMetrics(web::WebState* web_state) {
 #pragma mark - SnapshotStorageObserver
 
 - (void)didUpdateSnapshotStorageWithSnapshotID:(SnapshotIDWrapper*)snapshotID {
-  web::WebState* webState = nullptr;
-  WebStateList* webStateList = self.webStateList;
-  for (int i = webStateList->pinned_tabs_count(); i < webStateList->count();
-       i++) {
-    SnapshotTabHelper* snapshotTabHelper =
-        SnapshotTabHelper::FromWebState(webStateList->GetWebStateAt(i));
-    if (snapshotID.snapshot_id == snapshotTabHelper->GetSnapshotID()) {
-      webState = webStateList->GetWebStateAt(i);
-      break;
-    }
-  }
+  web::WebState* webState = WebStateWithSnapshotID(
+      CHECK_DEREF(self.webStateList), snapshotID.snapshot_id);
   if (webState) {
     // It is possible to observe an updated snapshot for a WebState before
     // observing that the WebState has been added to the WebStateList. It is the
@@ -866,19 +861,19 @@ void LogPriceDropMetrics(web::WebState* web_state) {
 }
 
 - (void)selectItemWithID:(web::WebStateID)itemID
-                    pinned:(BOOL)pinned
+               pinnedState:(WebStateSearchCriteria::PinnedState)pinnedState
     isFirstActionOnTabGrid:(BOOL)isFirstActionOnTabGrid {
   Browser* itemBrowser = nil;
 
   WebStateSearchCriteria searchCriteria{
       .identifier = itemID,
-      .pinned_state = pinned ? PinnedState::kPinned : PinnedState::kNonPinned,
+      .pinned_state = pinnedState,
   };
 
   int index = GetWebStateIndex(self.webStateList, searchCriteria);
   WebStateList* itemWebStateList = self.webStateList;
   if (index == WebStateList::kInvalidIndex) {
-    if (pinned) {
+    if (pinnedState == WebStateSearchCriteria::PinnedState::kPinned) {
       return;
     }
     // If this is a search result, it may contain items from other windows or
@@ -1725,56 +1720,6 @@ void LogPriceDropMetrics(web::WebState* web_state) {
          withReplacementItem:groupIdentifier];
 }
 
-// Takes the corresponded action to `actionType` for the shared `group`.
-// TabGroupActionType must be kLeaveSharedTabGroup or kDeleteSharedTabGroup.
-- (void)takeActionForActionType:(TabGroupActionType)actionType
-                 sharedTabGroup:(const TabGroup*)group {
-  [self.tabGridIdleStatusHandler
-      tabGridDidPerformAction:TabGridActionType::kInPageAction];
-
-  collaboration::CollaborationService* collaborationService =
-      collaboration::CollaborationServiceFactory::GetForProfile(_profile);
-  tab_groups::TabGroupSyncService* tabGroupSyncService =
-      tab_groups::TabGroupSyncServiceFactory::GetForProfile(self.profile);
-  CHECK(collaborationService);
-  CHECK(tabGroupSyncService);
-
-  const tab_groups::CollaborationId collabId =
-      tab_groups::utils::GetTabGroupCollabID(group, tabGroupSyncService);
-  CHECK(!collabId->empty());
-  const data_sharing::GroupId groupId = data_sharing::GroupId(collabId.value());
-
-  __weak BaseGridMediator* weakSelf = self;
-  auto callback = base::BindOnce(^(bool success) {
-    [weakSelf handleTakeActionForActionTypeOutcome:success];
-  });
-
-  // TODO(crbug.com/393073658): Block the screen.
-
-  // Asynchronously call on the server.
-  switch (actionType) {
-    case TabGroupActionType::kLeaveSharedTabGroup:
-      collaborationService->LeaveGroup(groupId, std::move(callback));
-      break;
-    case TabGroupActionType::kDeleteSharedTabGroup:
-      collaborationService->DeleteGroup(groupId, std::move(callback));
-      break;
-    case TabGroupActionType::kUngroupTabGroup:
-    case TabGroupActionType::kDeleteTabGroup:
-    case TabGroupActionType::kLeaveOrKeepSharedTabGroup:
-    case TabGroupActionType::kDeleteOrKeepSharedTabGroup:
-      NOTREACHED();
-  }
-}
-
-// Called when `takeActionForActionType:forSharedTabGroup:` server's call
-// returned.
-- (void)handleTakeActionForActionTypeOutcome:(BOOL)success {
-  // TODO(crbug.com/393073658):
-  // - Unblock the screen.
-  // - Show an error if needed.
-}
-
 // Exits Tab grid of `itemBrowser`'s window.
 - (void)exitTabGridOfBrowser:(Browser*)itemBrowser {
   if (!itemBrowser) {
@@ -2003,9 +1948,11 @@ void LogPriceDropMetrics(web::WebState* web_state) {
   return nil;
 }
 
-- (void)fetchTabGroupItemInfo:(TabGroupItem*)tabGroupItem
-                   completion:
-                       (GroupTabSnapshotAndFaviconCompletionBlock)completion {
+- (void)
+    fetchTabGroupItemSnapshotsAndFavicons:(TabGroupItem*)tabGroupItem
+                               completion:
+                                   (GroupTabSnapshotAndFaviconCompletionBlock)
+                                       completion {
   WebStateList* webStateList = self.webStateList;
   // If this is called during a search result, it may contain items from other
   // windows or from the inactive browser.

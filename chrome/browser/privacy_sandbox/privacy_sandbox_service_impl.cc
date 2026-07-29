@@ -17,6 +17,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "base/types/optional_util.h"
@@ -1494,6 +1495,41 @@ void PrivacySandboxServiceImpl::OnAdMeasurementPrefChanged() {
                 DATA_TYPE_PRIVATE_AGGREGATION_INTERNAL,
         content::BrowsingDataRemover::ORIGIN_TYPE_UNPROTECTED_WEB);
   }
+}
+
+// We are intentionally not setting the old pref
+// `kPrivacySandboxM1ConsentDecisionMade` here. This means that when switching
+// to the new implementation, GetRequiredPromptType as part of the old PSService
+// will no longer return the correct value due to its reliance on the old prefs.
+// See go/notice-framework-migration-plan-onepager for more details on how we
+// plan on doing a safe migration with this constraint.
+void PrivacySandboxServiceImpl::UpdateTopicsApiResult(bool value) {
+  pref_service_->SetBoolean(prefs::kPrivacySandboxM1TopicsEnabled, value);
+}
+
+// We are intentionally not setting the old prefs
+// `PrivacySandboxM1EEANoticeAcknowledged` or
+// `PrivacySandboxM1RowNoticeAcknowledged` here. This means that when switching
+// to the new implementation, GetRequiredPromptType as part of the old
+// PSService will no longer return the correct value due to its reliance on the
+// old prefs. See go/notice-framework-migration-plan-onepager for more
+// details on how we plan on doing a safe migration with this constraint
+void PrivacySandboxServiceImpl::UpdateProtectedAudienceApiResult(bool value) {
+  pref_service_->SetBoolean(prefs::kPrivacySandboxM1FledgeEnabled, value);
+}
+
+// We are intentionally not setting the old pref
+// `PrivacySandboxM1EEANoticeAcknowledged`,
+// `PrivacySandboxM1RowNoticeAcknowledged`,
+// `PrivacySandboxM1RestrictedNoticeAcknowledged` here.
+// This means that when switching to the new implementation,
+// the GetRequiredPromptType as part of the old PSService will no longer return
+// the correct value due to its reliance on the old prefs. See
+// go/notice-framework-migration-plan-onepager for more details on the migration
+// plan.
+void PrivacySandboxServiceImpl::UpdateMeasurementApiResult(bool value) {
+  pref_service_->SetBoolean(prefs::kPrivacySandboxM1AdMeasurementEnabled,
+                            value);
 }
 
 // static

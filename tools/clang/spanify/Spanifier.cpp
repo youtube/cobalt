@@ -63,6 +63,29 @@ const char kArrayIncludePath[] = "array";
 
 const char kStringViewIncludePath[] = "string_view";
 
+// Precedence values for EmitReplacement.
+//
+// The `extract_edits.py` script sorts multiple insertions at the same code
+// location by these precedence values in ascending numerical order.
+//
+// Paired insertions (e.g., an opening and its corresponding closing bracket)
+// typically use a precedence of `+K` for the "opening" part and `-K` for the
+// "closing" part, where K is one of the constants defined below. This is
+// because, for a given position, we usually want to close the bracket before
+// opening a new one. A higher precedence value is used when the replacement
+// has a higher tie with the expression.
+enum Precedence {
+  kNeutralPrecedence = 0,
+
+  // Lower priority (weaker ties to the target)
+  kDecaySpanToPointerPrecedence,
+  kAdaptBinaryOperationPrecedence,
+  kEmitSingleVariableSpanPrecedence,
+  kAdaptBinaryPlusEqOperationPrecedence,
+  kAppendDataCallPrecedence,
+  // Higher priority (stronger ties to the target)
+};
+
 // This iterates over function parameters and matches the ones that match
 // parm_var_decl_matcher.
 AST_MATCHER_P(clang::FunctionDecl,
@@ -411,7 +434,8 @@ void EmitFrontier(const std::string& lhs_key,
 static std::string GetReplacementDirective(
     const clang::SourceRange& replacement_range,
     std::string replacement_text,
-    const clang::SourceManager& source_manager) {
+    const clang::SourceManager& source_manager,
+    int precedence = kNeutralPrecedence) {
   clang::tooling::Replacement replacement(
       source_manager, clang::CharSourceRange::getCharRange(replacement_range),
       replacement_text);
@@ -422,9 +446,9 @@ static std::string GetReplacementDirective(
   // `./apply-edits.py` expects `\n` to be escaped as '\0'.
   std::replace(replacement_text.begin(), replacement_text.end(), '\n', '\0');
 
-  return llvm::formatv("r:::{0}:::{1}:::{2}:::{3}", file_path,
+  return llvm::formatv("r:::{0}:::{1}:::{2}:::{3}:::{4}", file_path,
                        replacement.getOffset(), replacement.getLength(),
-                       replacement_text);
+                       precedence, replacement_text);
 }
 
 std::string GetIncludeDirective(const clang::SourceRange replacement_range,
@@ -769,13 +793,15 @@ static void DecaySpanToPointer(const MatchFinder::MatchResult& result) {
     end_replacement_text = ")[0]";
   }
 
-  EmitReplacement(GetRHS(result),
-                  GetReplacementDirective(begin_range, begin_replacement_text,
-                                          source_manager));
+  EmitReplacement(
+      GetRHS(result),
+      GetReplacementDirective(begin_range, begin_replacement_text,
+                              source_manager, -kDecaySpanToPointerPrecedence));
 
   EmitReplacement(
       GetRHS(result),
-      GetReplacementDirective(end_range, end_replacement_text, source_manager));
+      GetReplacementDirective(end_range, end_replacement_text, source_manager,
+                              kDecaySpanToPointerPrecedence));
 }
 
 static clang::SourceLocation GetBinaryOperationOperatorLoc(
@@ -806,6 +832,52 @@ static clang::SourceLocation GetBinaryOperationOperatorLoc(
   assert(false && "Unexpected binaryOperation Node");
 }
 
+// When a binary operation and rhs expr appear inside a macro expansion,
+// this function produces an expression like:
+//     UNSAFE_TODO(MACRO(will_be_span.data()))
+// where MACRO is defined as something like below:
+//     #define MACRO(arg) (arg + offset)
+//
+// Known issue:
+// The following code implicitly assumes that the will_be_span object is a
+// macro argument, and cannot handle the following case appropriately.
+//     #define MACRO() (will_be_span + offset)
+//
+// See test: 'span-frontier-macro-original.cc'
+static void AdaptBinaryOpInMacro(const MatchFinder::MatchResult& result,
+                                 const std::string& key) {
+  const clang::SourceManager& source_manager = *result.SourceManager;
+  const clang::ASTContext& ast_context = *result.Context;
+  const auto& lang_opts = ast_context.getLangOpts();
+
+  const auto* decl_ref =
+      result.Nodes.getNodeAs<clang::DeclRefExpr>("declRefExpr");
+  if (!decl_ref) {
+    llvm::errs()
+        << "\n"
+           "Error: In case of a binary operation in a macro expansion, "
+           "only `declRefExpr` is supported for now.\n";
+    DumpMatchResult(result);
+    return;
+  }
+
+  EmitReplacement(
+      key, GetReplacementDirective(
+               getExprRange(decl_ref, source_manager, lang_opts).getEnd(),
+               ".data()", source_manager));
+
+  clang::CharSourceRange macro_range =
+      source_manager.getExpansionRange(decl_ref->getBeginLoc());
+  EmitReplacement(key, GetReplacementDirective(macro_range.getBegin(),
+                                               "UNSAFE_TODO(", source_manager));
+  // `macro_range.getEnd()` points to the last character of the macro call,
+  // i.e. the closing parenthesis of the macro call, so +1 offset is needed.
+  // Note that `macro_range` is a CharSourceRange, not a SourceRange.
+  EmitReplacement(
+      key, GetReplacementDirective(macro_range.getEnd().getLocWithOffset(1),
+                                   ")", source_manager));
+}
+
 static void AdaptBinaryOperation(const MatchFinder::MatchResult& result) {
   const clang::SourceManager& source_manager = *result.SourceManager;
   const clang::ASTContext& ast_context = *result.Context;
@@ -814,7 +886,17 @@ static void AdaptBinaryOperation(const MatchFinder::MatchResult& result) {
       GetNodeOrCrash<clang::Expr>(result, "binary_operation", __FUNCTION__);
   const auto* binary_op_RHS =
       GetNodeOrCrash<clang::Expr>(result, "binary_op_rhs", __FUNCTION__);
+  const auto* rhs_expr =
+      GetNodeOrCrash<clang::Expr>(result, "rhs_expr", __FUNCTION__);
   const std::string key = GetRHS(result);
+
+  // If `binary_operation` and `rhs_expr` appear inside a macro expansion, then
+  // add ".data()" call in the call site instead of adding ".subspan(offset)".
+  if (binary_operation->getBeginLoc().isMacroID() &&
+      rhs_expr->getBeginLoc().isMacroID()) {
+    AdaptBinaryOpInMacro(result, key);
+    return;
+  }
 
   // C-style arrays are rewritten to `std::array`, not `base::span`, so
   // a binary operation on the rewritten array must explicitly construct
@@ -838,7 +920,7 @@ static void AdaptBinaryOperation(const MatchFinder::MatchResult& result) {
                  llvm::formatv("base::span<{0}>(",
                                GetTypeAsString(rhs_array_type->getInnerType(),
                                                ast_context)),
-                 source_manager));
+                 source_manager, kAdaptBinaryOperationPrecedence));
     // Emit the closing `)` of `base::span(...)` below.
   }
 
@@ -862,7 +944,7 @@ static void AdaptBinaryOperation(const MatchFinder::MatchResult& result) {
                source_range,
                llvm::formatv("{0}.subspan({1})", rhs_array_type ? ")" : "",
                              initial_text.substr(1)),
-               source_manager));
+               source_manager, -kAdaptBinaryOperationPrecedence));
 
   // It's possible we emitted a rewrite that creates a temporary but
   // unnamed `base::span` (issue 408018846). This could end up being
@@ -889,8 +971,8 @@ static void AdaptBinaryPlusEqOperation(const MatchFinder::MatchResult& result) {
   auto lhs_expr_range = getExprRange(lhs_expr, source_manager, lang_opts);
   auto binary_op_rhs_range =
       getExprRange(binary_op_RHS, source_manager, lang_opts);
-  auto source_range =
-      clang::SourceRange(lhs_expr_range.getEnd(), binary_op_rhs_range.getEnd());
+  auto source_range = clang::SourceRange(lhs_expr_range.getEnd(),
+                                         binary_op_rhs_range.getBegin());
   std::string lhs_expr_text =
       clang::Lexer::getSourceText(
           clang::CharSourceRange::getCharRange(lhs_expr_range), source_manager,
@@ -902,12 +984,17 @@ static void AdaptBinaryPlusEqOperation(const MatchFinder::MatchResult& result) {
           source_manager, lang_opts)
           .str();
 
-  std::string replacement_text =
-      "=" + lhs_expr_text + ".subspan(" + binary_op_rhs_text + ")";
+  const std::string& key = GetRHS(result);
 
   EmitReplacement(
-      GetRHS(result),
-      GetReplacementDirective(source_range, replacement_text, source_manager));
+      key, GetReplacementDirective(
+               source_range, "=" + lhs_expr_text + ".subspan(", source_manager,
+               kAdaptBinaryPlusEqOperationPrecedence));
+
+  EmitReplacement(key,
+                  GetReplacementDirective(
+                      clang::SourceRange(binary_op_rhs_range.getEnd()), ")",
+                      source_manager, -kAdaptBinaryPlusEqOperationPrecedence));
 }
 
 // Handles boolean operations that need to be adapted after a span rewrite.
@@ -979,13 +1066,15 @@ void AppendDataCall(const MatchFinder::MatchResult& result) {
     // Insert enclosing parenthesis for expressions with UnaryOperators
     auto begin_range = clang::SourceRange(getSourceRange(result).getBegin());
     EmitReplacement(GetRHS(result),
-                    GetReplacementDirective(begin_range, "(", source_manager));
+                    GetReplacementDirective(begin_range, "(", source_manager,
+                                            kAppendDataCallPrecedence));
     replacement_text = ").data()";
   }
 
   EmitReplacement(
       GetRHS(result),
-      GetReplacementDirective(rep_range, replacement_text, source_manager));
+      GetReplacementDirective(rep_range, replacement_text, source_manager,
+                              -kAppendDataCallPrecedence));
 }
 
 // Given that we want to emit `.subspan(expr)`,
@@ -1137,12 +1226,13 @@ static void EmitSingleVariableSpan(const std::string& key,
   clang::SourceRange expr_range = {expr->getBeginLoc()};
   std::string type = GetTypeAsString(operand_decl->getType(), ast_context);
   std::string replacement_text = llvm::formatv("base::span<{0}, 1>(", type);
-  EmitReplacement(key, GetReplacementDirective(expr_range, replacement_text,
-                                               source_manager));
+  EmitReplacement(
+      key, GetReplacementDirective(expr_range, replacement_text, source_manager,
+                                   kEmitSingleVariableSpanPrecedence));
   EmitReplacement(
       key, GetReplacementDirective(
                getExprRange(operand_expr, source_manager, lang_opts).getEnd(),
-               ", 1u)", source_manager));
+               ", 1u)", source_manager, -kEmitSingleVariableSpanPrecedence));
 }
 
 // Rewrites unsafe third-party member function calls to helper macro calls.
@@ -1393,13 +1483,17 @@ void AddSpanFrontierChange(const std::string& lhs_key,
     // Insert enclosing parenthesis for expressions with UnaryOperators
     auto begin_range = clang::SourceRange(getSourceRange(result).getBegin());
     EmitFrontier(lhs_key, rhs_key,
-                 GetReplacementDirective(begin_range, "(", source_manager));
+                 GetReplacementDirective(begin_range, "(", source_manager,
+                                         kAppendDataCallPrecedence));
     replacement_text = ").data()";
   }
 
+  // Use kAppendDataCallPrecedence because some rewrites will be duplicates of
+  // the ones in AppendDataCall().
   EmitFrontier(
       lhs_key, rhs_key,
-      GetReplacementDirective(rep_range, replacement_text, source_manager));
+      GetReplacementDirective(rep_range, replacement_text, source_manager,
+                              -kAppendDataCallPrecedence));
 }
 
 // Generate a class name for rewriting unnamed struct/class types. This is
@@ -2801,17 +2895,16 @@ class Spanifier {
     // Note that BinaryOperations's LHS and RHS expressions refer to what's
     // before and after the binary operator (+) (Not to be confused with
     // lhs_expr and rhs_expr).
-    auto binary_op = traverse(
-        clang::TK_IgnoreUnlessSpelledInSource,
-        expr(ignoringParenCasts(binaryOperation(
-            binary_plus_or_minus_operation(
-                binaryOperation(hasLHS(rhs_expr), hasOperatorName("+"),
-                                hasRHS(expr(hasType(isInteger()))),
-                                unless(raw_ptr_plugin::isInMacroLocation()))
-                    .bind("binary_operation")),
-            hasRHS(expr().bind("binary_op_rhs")),
-            unless(hasParent(binaryOperation(
-                anyOf(hasOperatorName("+"), hasOperatorName("-")))))))));
+    auto binary_op =
+        traverse(clang::TK_IgnoreUnlessSpelledInSource,
+                 expr(ignoringParenCasts(binaryOperation(
+                     binary_plus_or_minus_operation(
+                         binaryOperation(hasLHS(rhs_expr), hasOperatorName("+"),
+                                         hasRHS(expr(hasType(isInteger()))))
+                             .bind("binary_operation")),
+                     hasRHS(expr().bind("binary_op_rhs")),
+                     unless(hasParent(binaryOperation(anyOf(
+                         hasOperatorName("+"), hasOperatorName("-")))))))));
     Match(binary_op, AdaptBinaryOperation);
 
     // Handles expressions of the form:

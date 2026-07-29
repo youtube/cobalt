@@ -106,6 +106,8 @@ import org.chromium.ui.dragdrop.DragDropGlobalState;
 import org.chromium.ui.interpolators.Interpolators;
 import org.chromium.ui.resources.ResourceManager;
 import org.chromium.ui.util.ColorUtils;
+import org.chromium.ui.xr.scenecore.XrSceneCoreSessionManager;
+import org.chromium.ui.xr.scenecore.XrSceneCoreUtils;
 import org.chromium.url.GURL;
 
 import java.util.ArrayList;
@@ -203,7 +205,6 @@ public class StripLayoutHelperManager
     private float mWidth; // in dp units
     private float mHeight; // Height of the entire tab strip compositor layer in DP.
     private final float mScrollableStripHeight; // Height of the scrollable tab strip layer in DP.
-    private boolean mIsVerticalScrollInProgress; // Is the tab strip is being scrolled by a gesture.
 
     // Padding regions that tabs should remain untouchable.
     private float mLeftPadding; // in dp units
@@ -255,6 +256,8 @@ public class StripLayoutHelperManager
 
     // Drag-Drop
     @Nullable private TabStripDragHandler mTabStripDragHandler;
+
+    private @Nullable XrSceneCoreSessionManager mXrSessionManager;
 
     private class TabStripEventHandler implements MotionEventHandler {
         @Override
@@ -366,6 +369,14 @@ public class StripLayoutHelperManager
     /** Observer for Tab Switcher layout events. */
     class TabSwitcherLayoutObserver implements LayoutStateObserver {
         @Override
+        public void onStartedShowing(int layoutType) {
+            if (layoutType == LayoutType.TAB_SWITCHER
+                    && XrSceneCoreUtils.isSceneCoreSessionInFsm(mXrSessionManager)) {
+                setStripVisibilityState(StripVisibilityState.OBSCURED, /* clear= */ false);
+            }
+        }
+
+        @Override
         public void onFinishedShowing(@LayoutType int layoutType) {
             if (layoutType != LayoutType.TAB_SWITCHER) return;
             setStripVisibilityState(StripVisibilityState.OBSCURED, /* clear= */ false);
@@ -374,11 +385,21 @@ public class StripLayoutHelperManager
         @Override
         public void onStartedHiding(@LayoutType int layoutType) {
             if (layoutType != LayoutType.TAB_SWITCHER) return;
-            setStripVisibilityState(StripVisibilityState.OBSCURED, /* clear= */ true);
+            if (!XrSceneCoreUtils.isSceneCoreSessionInFsm(mXrSessionManager)) {
+                setStripVisibilityState(StripVisibilityState.OBSCURED, /* clear= */ true);
+            }
 
             // Expand tab group on GTS exit.
             mNormalHelper.expandGroupOnGtsExit();
             mIncognitoHelper.expandGroupOnGtsExit();
+        }
+
+        @Override
+        public void onFinishedHiding(int layoutType) {
+            if (layoutType != LayoutType.TAB_SWITCHER) return;
+            if (XrSceneCoreUtils.isSceneCoreSessionInFsm(mXrSessionManager)) {
+                setStripVisibilityState(StripVisibilityState.OBSCURED, /* clear= */ true);
+            }
         }
     }
 
@@ -575,6 +596,8 @@ public class StripLayoutHelperManager
         if (isAppInDesktopWindow()) {
             onAppHeaderStateChanged(mDesktopWindowStateManager.getAppHeaderState());
         }
+
+        mXrSessionManager = XrSceneCoreUtils.getXrSceneCoreSessionManagerFromContext(context);
     }
 
     private boolean isAppInDesktopWindow() {
@@ -708,6 +731,7 @@ public class StripLayoutHelperManager
         if (mDesktopWindowStateManager != null) {
             mDesktopWindowStateManager.removeObserver(this);
         }
+        mXrSessionManager = null;
     }
 
     /** Mark whether tab strip is hidden by a height transition. */
@@ -782,17 +806,19 @@ public class StripLayoutHelperManager
                     getStripTransitionScrimColor(), mStripTransitionScrimOpacity);
 
             yOffset = 0;
-        } else if (ChromeFeatureList.sBrowserControlsInViz.isEnabled()
-                && mIsVerticalScrollInProgress) {
-            // With bciv, we don't want anything else controlling the offset while scrolling.
-            // Tabstrip currently has no min height, so setting to 0 is ok.
-            yOffset = 0;
         } else if ((getStripVisibilityState() & StripVisibilityState.HIDDEN_BY_HEIGHT_TRANSITION)
                 != 0) {
             // When the tab strip is hidden by a height transition, the stable offset of this scene
             // layer should be a negative value.
             yOffset -= getHeight();
+        } else if (ChromeFeatureList.sBrowserControlsInViz.isEnabled()
+                && !mBrowserControlsStateProvider.isVisibilityForced()) {
+            // With bciv, as long as if the visibility isn't forced by the browser, and if the
+            // tabstrip isn't hidden, the composited layers should positioned at their fully visible
+            // positions.
+            yOffset = 0;
         }
+
         mTabStripTreeProvider.pushAndUpdateStrip(
                 this,
                 mLayerTitleCacheSupplier.get(),
@@ -1428,11 +1454,6 @@ public class StripLayoutHelperManager
                                     offsetTagsInfo.getContentOffsetTag());
                         }
                     }
-
-                    @Override
-                    public void onContentViewScrollingStateChanged(boolean scrolling) {
-                        mIsVerticalScrollInProgress = scrolling;
-                    }
                 };
 
         mTabModelSelector.getCurrentTabModelSupplier().addObserver(mCurrentTabModelObserver);
@@ -1625,5 +1646,14 @@ public class StripLayoutHelperManager
      */
     public boolean containsKeyboardFocus() {
         return mManagerHost.containsKeyboardFocus(this);
+    }
+
+    /**
+     * Opens the context menu for the currently keyboard-focused item, if applicable.
+     *
+     * @return Whether the context menu was successfully opened.
+     */
+    public boolean openKeyboardFocusedContextMenu() {
+        return getActiveStripLayoutHelper().openKeyboardFocusedContextMenu();
     }
 }

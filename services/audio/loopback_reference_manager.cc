@@ -13,6 +13,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
 #include "base/synchronization/lock.h"
+#include "base/task/bind_post_task.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "media/audio/audio_device_description.h"
@@ -29,45 +30,150 @@
 // LoopbackReferenceProviders get a weak reference to.
 //
 // * LoopbackReferenceManagerCore contains the logic for starting and stopping
-// the loopback stream, as well as delivering data to the listeners. If the core
-// experiences an error, it will be destroyed (not implemented yet because error
-// handling is not imlpemented).
+// the loopback stream, as well as delivering data to the listeners. If the
+// loopback stream experiences an error while it's running, the core will be
+// destroyed.
 //
 // * LoopbackReferenceProvider implements ReferenceSignalProvider. Each
 // LoopbackReferenceProvider contains a weak pointer to a
 // LoopbackReferenceManagerCore, which it forwards StartListening() and
-// StopListening() to. If the core has been destroyed due to an error, it does
-// nothing (this cannot happen yet because error handling is not implemented).
+// StopListening() to. If the core has been destroyed due to an error, these
+// calls are safe no-ops.
 
 namespace audio {
+namespace {
+using ReferenceOpenOutcome = ReferenceSignalProvider::ReferenceOpenOutcome;
+using OpenOutcome = media::AudioInputStream::OpenOutcome;
+
+ReferenceOpenOutcome MapStreamOpenOutcomeToReferenceOpenOutcome(
+    OpenOutcome outcome) {
+  switch (outcome) {
+    case OpenOutcome::kSuccess:
+      return ReferenceOpenOutcome::SUCCESS;
+    case OpenOutcome::kFailedSystemPermissions:
+      return ReferenceOpenOutcome::STREAM_OPEN_SYSTEM_PERMISSIONS_ERROR;
+    case OpenOutcome::kFailedInUse:
+      return ReferenceOpenOutcome::STREAM_OPEN_DEVICE_IN_USE_ERROR;
+    default:
+      return ReferenceOpenOutcome::STREAM_OPEN_ERROR;
+  }
+}
+}  // namespace
+
+class LoopbackReferenceStreamIdProvider {
+ public:
+  LoopbackReferenceStreamIdProvider() = default;
+  ~LoopbackReferenceStreamIdProvider() = default;
+
+  LoopbackReferenceStreamIdProvider(const LoopbackReferenceStreamIdProvider&) =
+      delete;
+  LoopbackReferenceStreamIdProvider& operator=(
+      const LoopbackReferenceStreamIdProvider&) = delete;
+
+  int GetNextId() {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(owning_sequence_);
+    return next_stream_id_++;
+  }
+
+ private:
+  SEQUENCE_CHECKER(owning_sequence_);
+  // To differentiate the streams that LoopbackReferenceManagerCore creates from
+  // the InputControllers, we start their ids at 1000000.
+  // TODO(crbug.com/412581642): Remove this hack once the reference streams get
+  // their own category.
+  int next_stream_id_ = 1000000;
+};
 
 // Tracks ReferenceOutput::Listeners. When there are at least one listener, it
 // creates a system loopback stream and forwards the audio to the listeners.
 class LoopbackReferenceManagerCore
     : public media::AudioInputStream::AudioInputCallback {
  public:
-  explicit LoopbackReferenceManagerCore(media::AudioManager* audio_manager)
-      : audio_manager_(audio_manager) {}
+  using ErrorCallback = base::OnceCallback<void()>;
+
+  explicit LoopbackReferenceManagerCore(
+      media::AudioManager* audio_manager,
+      LoopbackReferenceStreamIdProvider* stream_id_provider,
+      ErrorCallback on_error_callback)
+      : audio_manager_(audio_manager),
+        task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
+        stream_id_provider_(stream_id_provider),
+        on_error_callback_(std::move(on_error_callback)) {}
 
   LoopbackReferenceManagerCore(const LoopbackReferenceManagerCore&) = delete;
   LoopbackReferenceManagerCore& operator=(const LoopbackReferenceManagerCore&) =
       delete;
 
   ~LoopbackReferenceManagerCore() override {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(owning_sequence_);
+    DCHECK(task_runner_->RunsTasksInCurrentSequence());
     EnsureLoopbackStreamClosed();
+    // If the error callback has been used, there has been an error.
+    if (!on_error_callback_) {
+      for (ReferenceOutput::Listener* listener : listeners_) {
+        listener->OnReferenceStreamError();
+      }
+    }
   }
 
-  void StartListening(ReferenceOutput::Listener* listener,
-                      const std::string& device_id) {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(owning_sequence_);
-    EnsureLoopbackStreamStarted();
-    base::AutoLock scoped_lock(lock_);
-    listeners_.insert(listener);
+  ReferenceOpenOutcome StartListening(ReferenceOutput::Listener* listener,
+                                      const std::string& device_id) {
+    DCHECK(task_runner_->RunsTasksInCurrentSequence());
+    if (loopback_stream_) {
+      // The core was already successfully started.
+      base::AutoLock scoped_lock(lock_);
+      listeners_.insert(listener);
+      return ReferenceOpenOutcome::SUCCESS;
+    }
+
+    // Capture audio from all audio devices, or equivalently, audio from all
+    // PIDs playing out audio.
+    const std::string loopback_device_id =
+        media::AudioDeviceDescription::kLoopbackAllDevicesId;
+    // TODO(crbug.com/412581642): Determine optimal parameters.
+    const media::AudioParameters params =
+        AudioManagerPowerUser(audio_manager_)
+            .GetInputStreamParameters(loopback_device_id);
+    // Does not require the lock because the audio stream is not started.
+    sample_rate_ = params.sample_rate();
+
+    // Create an AudioLog for the new stream.
+    // TODO(crbug.com/412581642): Add a different AudioComponent for the
+    // reference loopback streams and show them in chrome://media-internals
+    audio_log_ = audio_manager_->CreateAudioLog(
+        media::AudioLogFactory::AudioComponent::kAudioInputController,
+        stream_id_provider_->GetNextId());
+
+    // Create the stream, and return an error if we fail.
+    loopback_stream_ = audio_manager_->MakeAudioInputStream(
+        params, loopback_device_id,
+        base::BindRepeating(&media::AudioLog::OnLogMessage,
+                            base::Unretained(audio_log_.get())));
+    if (!loopback_stream_) {
+      return ReferenceOpenOutcome::STREAM_CREATE_ERROR;
+    }
+
+    // Open the stream, and return an error if we fail.
+    media::AudioInputStream::OpenOutcome stream_open_outcome =
+        loopback_stream_->Open();
+    if (stream_open_outcome != OpenOutcome::kSuccess) {
+      loopback_stream_.ExtractAsDangling()->Close();
+      return MapStreamOpenOutcomeToReferenceOpenOutcome(stream_open_outcome);
+    }
+    audio_log_->OnCreated(params, loopback_device_id);
+
+    // Add the listener and start the stream.
+    {
+      base::AutoLock scoped_lock(lock_);
+      listeners_.insert(listener);
+    }
+    loopback_stream_->Start(this);
+    audio_log_->OnStarted();
+
+    return ReferenceOpenOutcome::SUCCESS;
   }
 
   void StopListening(ReferenceOutput::Listener* listener) {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(owning_sequence_);
+    DCHECK(task_runner_->RunsTasksInCurrentSequence());
     bool is_empty;
     {
       base::AutoLock scoped_lock(lock_);
@@ -82,7 +188,7 @@ class LoopbackReferenceManagerCore
   }
 
   base::WeakPtr<LoopbackReferenceManagerCore> GetWeakPtr() {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(owning_sequence_);
+    DCHECK(task_runner_->RunsTasksInCurrentSequence());
     return weak_ptr_factory_.GetWeakPtr();
   }
 
@@ -103,45 +209,24 @@ class LoopbackReferenceManagerCore
   }
 
   void OnError() override {
-    // TODO(crbug.com/412581642): Handle errors.
-    LOG(ERROR) << "System loopback AEC reference stream failed.";
+    // We post a new task even when we run on the same sequence, to avoid odd
+    // call stacks where the input stream is closed while it's being started.
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&LoopbackReferenceManagerCore::OnErrorMainSequence,
+                       weak_ptr_factory_.GetWeakPtr()));
+  }
+
+  void OnErrorMainSequence() {
+    DCHECK(task_runner_->RunsTasksInCurrentSequence());
+    if (on_error_callback_) {
+      std::move(on_error_callback_).Run();
+    }
   }
 
  private:
-  void EnsureLoopbackStreamStarted() {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(owning_sequence_);
-    if (loopback_stream_) {
-      return;
-    }
-    // Capture audio from all audio devices, or equivalently, audio from all
-    // PIDs playing out audio.
-    const std::string loopback_device_id =
-        media::AudioDeviceDescription::kLoopbackAllDevicesId;
-
-    // TODO(crbug.com/412581642): Determine optimal parameters.
-    const media::AudioParameters params =
-        AudioManagerPowerUser(audio_manager_)
-            .GetInputStreamParameters(loopback_device_id);
-    sample_rate_ = params.sample_rate();
-
-    // TODO(crbug.com/412581642): Add a different AudioComponent for the
-    // reference loopback streams and show them in chrome://media-internals
-    audio_log_ = audio_manager_->CreateAudioLog(
-        media::AudioLogFactory::AudioComponent::kAudioInputController,
-        next_loopback_stream_id_++);
-
-    loopback_stream_ = audio_manager_->MakeAudioInputStream(
-        params, loopback_device_id,
-        base::BindRepeating(&media::AudioLog::OnLogMessage,
-                            base::Unretained(audio_log_.get())));
-    loopback_stream_->Open();
-    audio_log_->OnCreated(params, loopback_device_id);
-    loopback_stream_->Start(this);
-    audio_log_->OnStarted();
-  }
-
   void EnsureLoopbackStreamClosed() {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(owning_sequence_);
+    DCHECK(task_runner_->RunsTasksInCurrentSequence());
     if (!loopback_stream_) {
       return;
     }
@@ -154,15 +239,12 @@ class LoopbackReferenceManagerCore
     audio_log_.reset();
   }
 
-  SEQUENCE_CHECKER(owning_sequence_);
   const raw_ptr<media::AudioManager> audio_manager_;
+  const scoped_refptr<base::SequencedTaskRunner> task_runner_;
+  const raw_ptr<LoopbackReferenceStreamIdProvider> stream_id_provider_;
+  ErrorCallback on_error_callback_;
   raw_ptr<media::AudioInputStream> loopback_stream_ = nullptr;
   std::unique_ptr<media::AudioLog> audio_log_;
-  // To differentiate the streams that LoopbackReferenceManagerCore creates from
-  // the InputControllers, we start their ids at 1000000.
-  // TODO(crbug.com/412581642): Remove this hack once the reference streams get
-  // their own category.
-  int next_loopback_stream_id_ = 1000000;
   int sample_rate_;
 
   base::Lock lock_;
@@ -179,18 +261,19 @@ class LoopbackReferenceProvider : public ReferenceSignalProvider {
   LoopbackReferenceProvider(base::WeakPtr<LoopbackReferenceManagerCore> core)
       : core_(core) {}
 
-  void StartListening(ReferenceOutput::Listener* listener,
-                      const std::string& device_id) final {
+  ReferenceOpenOutcome StartListening(ReferenceOutput::Listener* listener,
+                                      const std::string& device_id) final {
     DCHECK_CALLED_ON_VALID_SEQUENCE(owning_sequence_);
-    DCHECK(core_);
     if (core_) {
-      core_->StartListening(listener, device_id);
+      return core_->StartListening(listener, device_id);
     }
+    // If the core no longer exists, it must have been destroyed due to an
+    // error.
+    return ReferenceOpenOutcome::STREAM_PREVIOUS_ERROR;
   }
 
   void StopListening(ReferenceOutput::Listener* listener) final {
     DCHECK_CALLED_ON_VALID_SEQUENCE(owning_sequence_);
-    DCHECK(core_);
     if (core_) {
       core_->StopListening(listener);
     }
@@ -203,17 +286,30 @@ class LoopbackReferenceProvider : public ReferenceSignalProvider {
 
 LoopbackReferenceManager::LoopbackReferenceManager(
     media::AudioManager* audio_manager)
-    : audio_manager_(audio_manager) {}
+    : audio_manager_(audio_manager),
+      stream_id_provider_(
+          std::make_unique<LoopbackReferenceStreamIdProvider>()) {}
 
 std::unique_ptr<ReferenceSignalProvider>
 LoopbackReferenceManager::GetReferenceSignalProvider() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(owning_sequence_);
   if (!core_) {
-    core_ = std::make_unique<LoopbackReferenceManagerCore>(audio_manager_);
+    core_ = std::make_unique<LoopbackReferenceManagerCore>(
+        audio_manager_, stream_id_provider_.get(),
+        base::BindOnce(&LoopbackReferenceManager::OnCoreError,
+                       weak_ptr_factory_.GetWeakPtr()));
   }
   return std::make_unique<LoopbackReferenceProvider>(core_->GetWeakPtr());
 }
 
-LoopbackReferenceManager::~LoopbackReferenceManager() = default;
+void LoopbackReferenceManager::OnCoreError() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(owning_sequence_);
+  CHECK(core_);
+  core_.reset();
+}
+
+LoopbackReferenceManager::~LoopbackReferenceManager() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(owning_sequence_);
+}
 
 }  // namespace audio

@@ -155,8 +155,9 @@ class PrerenderManager::SearchPrerenderTask {
   void set_prediction_status(PrerenderPredictionStatus prediction_status) {
     // If the final status was set, do nothing because the status has been
     // finalized.
-    if (prediction_status_ != PrerenderPredictionStatus::kUnused)
+    if (prediction_status_ != PrerenderPredictionStatus::kUnused) {
       return;
+    }
     CHECK_NE(prediction_status, PrerenderPredictionStatus::kUnused);
     prediction_status_ = prediction_status;
   }
@@ -195,15 +196,6 @@ PrerenderManager::StartPrerenderBookmark(const GURL& prerendering_url) {
       content::PreloadingData::GetOrCreateForWebContents(web_contents());
   content::PreloadingURLMatchCallback same_url_matcher =
       content::PreloadingData::GetSameURLMatcher(prerendering_url);
-
-  if (IsSearchUrl(*web_contents(), prerendering_url)) {
-    base::UmaHistogramBoolean(
-        internal::kHistogramPrerenderBookmarkBarIsPrerenderingSrpUrl, true);
-    return nullptr;
-  }
-
-  base::UmaHistogramBoolean(
-      internal::kHistogramPrerenderBookmarkBarIsPrerenderingSrpUrl, false);
   // Create new PreloadingAttempt and pass all the values corresponding to
   // this prerendering attempt for Prerender.
   content::PreloadingAttempt* preloading_attempt =
@@ -211,6 +203,16 @@ PrerenderManager::StartPrerenderBookmark(const GURL& prerendering_url) {
           chrome_preloading_predictor::kMouseHoverOrMouseDownOnBookmarkBar,
           content::PreloadingType::kPrerender, std::move(same_url_matcher),
           web_contents()->GetPrimaryMainFrame()->GetPageUkmSourceId());
+
+  bool is_search_url = IsSearchUrl(*web_contents(), prerendering_url);
+  base::UmaHistogramBoolean(
+      internal::kHistogramPrerenderBookmarkBarIsPrerenderingSrpUrl,
+      is_search_url);
+  if (is_search_url) {
+    preloading_attempt->SetEligibility(ToPreloadingEligibility(
+        ChromePreloadingEligibility::KDisallowSearchUrl));
+    return nullptr;
+  }
 
   // BookmarkBar only allows https protocol.
   // TODO(crbug.com/40259793): Add an enum metric to report the protocol scheme
@@ -265,14 +267,6 @@ base::WeakPtr<content::PrerenderHandle>
 PrerenderManager::StartPrerenderNewTabPage(
     const GURL& prerendering_url,
     content::PreloadingPredictor predictor) {
-  if (IsSearchUrl(*web_contents(), prerendering_url)) {
-    base::UmaHistogramBoolean(
-        internal::kHistogramPrerenderNTPIsPrerenderingSrpUrl, true);
-    return nullptr;
-  }
-
-  base::UmaHistogramBoolean(
-      internal::kHistogramPrerenderNTPIsPrerenderingSrpUrl, false);
   // Helpers to create content::PreloadingAttempt.
   auto* preloading_data =
       content::PreloadingData::GetOrCreateForWebContents(web_contents());
@@ -284,6 +278,15 @@ PrerenderManager::StartPrerenderNewTabPage(
           predictor, content::PreloadingType::kPrerender,
           std::move(same_url_matcher),
           web_contents()->GetPrimaryMainFrame()->GetPageUkmSourceId());
+
+  bool is_search_url = IsSearchUrl(*web_contents(), prerendering_url);
+  base::UmaHistogramBoolean(
+      internal::kHistogramPrerenderNTPIsPrerenderingSrpUrl, is_search_url);
+  if (is_search_url) {
+    preloading_attempt->SetEligibility(ToPreloadingEligibility(
+        ChromePreloadingEligibility::KDisallowSearchUrl));
+    return nullptr;
+  }
 
   // New Tab Page only allow https protocol.
   if (!prerendering_url.SchemeIs("https")) {
@@ -399,6 +402,48 @@ PrerenderManager::StartPrerenderDirectUrlInput(
     return direct_url_input_prerender_handle_->GetWeakPtr();
   }
   return nullptr;
+}
+
+bool PrerenderManager::StartPrewarmSearchResult() {
+  CHECK(base::FeatureList::IsEnabled(features::kPrewarm));
+  const GURL prewarm_url(features::kPrewarmUrl.Get());
+  CHECK(prewarm_url.is_valid());
+
+  auto* preloading_data =
+      content::PreloadingData::GetOrCreateForWebContents(web_contents());
+  content::PreloadingAttempt* preloading_attempt =
+      preloading_data->AddPreloadingAttempt(
+          chrome_preloading_predictor::kPrewarmDefaultSearchEngine,
+          content::PreloadingType::kPrerender,
+          content::PreloadingData::GetSameURLMatcher(prewarm_url),
+          web_contents()->GetPrimaryMainFrame()->GetPageUkmSourceId());
+
+  search_prewarm_handle_ = web_contents()->StartPrerendering(
+      prewarm_url, content::PreloadingTriggerType::kEmbedder,
+      prerender_utils::kPrewarmDefaultSearchEngineMetricSuffix,
+      /*additional_headers=*/net::HttpRequestHeaders(),
+      /*no_vary_search_hint=*/std::nullopt,
+      ui::PageTransitionFromInt(ui::PAGE_TRANSITION_GENERATED |
+                                ui::PAGE_TRANSITION_FROM_ADDRESS_BAR),
+      // TODO(https://crbug.com/406378765): Consider enabling rendering
+      // warm-ups when we support process reuse.
+      /*should_warm_up_compositor=*/false,
+      /*should_prepare_paint_tree=*/false,
+      content::PreloadingHoldbackStatus::kUnspecified,
+      content::PreloadPipelineInfo::Create(
+          /*planned_max_preloading_type=*/content::PreloadingType::kPrerender),
+      preloading_attempt,
+      // Prewarm page won't be activated, so we don't need to match the
+      // prerendering url with the navigation url.
+      // TODO(https://crbug.com/406378765): Revisit when we support process
+      // reuse.
+      /*url_match_predicate=*/base::BindRepeating([](const GURL& url,
+                               const std::optional<content::UrlMatchType>&) {
+        return false;
+      }),
+      /*prerender_navigation_handle_callback=*/{});
+
+  return search_prewarm_handle_ != nullptr;
 }
 
 void PrerenderManager::StartPrerenderSearchResult(
@@ -526,8 +571,9 @@ void PrerenderManager::ResetPrerenderHandlesOnPrimaryPageChanged(
 bool PrerenderManager::ResetSearchPrerenderTaskIfNecessary(
     const GURL& canonical_search_url,
     base::WeakPtr<content::PreloadingAttempt> preloading_attempt) {
-  if (!search_prerender_task_)
+  if (!search_prerender_task_) {
     return true;
+  }
 
   // Do not re-prerender the same search result.
   if (search_prerender_task_->prerendered_canonical_search_url() ==

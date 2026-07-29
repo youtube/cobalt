@@ -11,6 +11,7 @@
 #include "base/containers/adapters.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/numerics/safe_conversions.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
 #include "third_party/blink/renderer/core/dom/events/event.h"
@@ -34,6 +35,25 @@ namespace {
 const char kPageLoadInternalSoftNavigationOutcome[] =
     "PageLoad.Internal.SoftNavigationOutcome";
 
+const char kPageLoadInternalSoftNavigationEmittedTotalPaintArea[] =
+    "PageLoad.Internal.SoftNavigation.Emitted.TotalPaintArea";
+const char kPageLoadInternalSoftNavigationEmittedTotalPaintAreaPoints[] =
+    "PageLoad.Internal.SoftNavigation.Emitted.TotalPaintAreaPoints";
+
+const char kPageLoadInternalSoftNavigationNotEmittedUrlEmptyTotalPaintArea[] =
+    "PageLoad.Internal.SoftNavigation.NotEmittedUrlEmpty.TotalPaintArea";
+const char
+    kPageLoadInternalSoftNavigationNotEmittedUrlEmptyTotalPaintAreaPoints[] =
+        "PageLoad.Internal.SoftNavigation.NotEmittedUrlEmpty."
+        "TotalPaintAreaPoints";
+const char
+    kPageLoadInternalSoftNavigationNotEmittedInsufficientPaintTotalPaintArea[] =
+        "PageLoad.Internal.SoftNavigation.NotEmittedInsufficientPaint."
+        "TotalPaintArea";
+const char
+    kPageLoadInternalSoftNavigationNotEmittedInsufficientPaintTotalPaintAreaPercentage
+        [] = "PageLoad.Internal.SoftNavigation.NotEmittedInsufficientPaint."
+             "TotalPaintAreaPoints";
 // These values are logged to UMA. Entries should not be renumbered and numeric
 // values should never be reused. Please keep in sync with
 // "SoftNavigationOutcome" in tools/metrics/histograms/enums.xml. Note also that
@@ -42,9 +62,10 @@ const char kPageLoadInternalSoftNavigationOutcome[] =
 enum SoftNavigationOutcome {
   kSoftNavigationDetected = 0,
 
-  kNoSoftNavContextDuringUrlChange = 1,
-  kInsufficientPaints = 2,
-  kNoDomModification = 4,
+  kNoSoftNavContextDuringUrlChange = 1 << 0,
+  kInsufficientPaints = 1 << 1,
+  kNoDomModification = 1 << 2,
+  kNoSoftNavContextDuringUrlChangeButMergingIntoPreviousContext = 1 << 3,
 
   // For now, this next value is equivalent to kNoDomModification, because we
   // cannot have paints without a dom mod.
@@ -52,11 +73,12 @@ enum SoftNavigationOutcome {
   // such that you could have paints without a dom mod.
   kNoPaintOrDomModification = kInsufficientPaints | kNoDomModification,
 
-  kMaxValue = kNoPaintOrDomModification,
+  kMaxValue = kNoSoftNavContextDuringUrlChangeButMergingIntoPreviousContext,
 };
 // LINT.ThenChange(/tools/metrics/histograms/enums.xml:SoftNavigationOutcome)
 
 void OnSoftNavigationContextWasExhausted(const SoftNavigationContext& context,
+                                         uint64_t viewport_area,
                                          uint64_t required_paint_area) {
   TRACE_EVENT_INSTANT(
       TRACE_DISABLED_BY_DEFAULT("loading"),
@@ -65,7 +87,17 @@ void OnSoftNavigationContextWasExhausted(const SoftNavigationContext& context,
 
   // Don't bother to log if the URL was never set.  That means it was just a
   // normal interaction.
-  if (context.Url().empty()) {
+  if (!context.HasUrl()) {
+    uint64_t total_paint_area = context.PaintedArea();
+    base::UmaHistogramCounts1M(
+        kPageLoadInternalSoftNavigationNotEmittedUrlEmptyTotalPaintArea,
+        total_paint_area);
+
+    // viewport_area is guaranteed to be >= 1.
+    uint64_t points_val = (total_paint_area * 10000ULL) / viewport_area;
+    base::UmaHistogramCounts100000(
+        kPageLoadInternalSoftNavigationNotEmittedUrlEmptyTotalPaintAreaPoints,
+        base::saturated_cast<int>(points_val));
     return;
   }
 
@@ -75,14 +107,32 @@ void OnSoftNavigationContextWasExhausted(const SoftNavigationContext& context,
   if (context.WasEmitted()) {
     // We already report this outcome eagerly, as part of
     // `ReportSoftNavigationToMetrics`, so don't report again here.
-    // However, if we ever report total painted area, or largest paint size, we
-    // should do it here, lazily, in order to wait for the final sizes.
+    // However, we can report the final paint area metrics here.
+    uint64_t total_paint_area = context.PaintedArea();
+    base::UmaHistogramCounts1M(
+        kPageLoadInternalSoftNavigationEmittedTotalPaintArea, total_paint_area);
+
+    // viewport_area is guaranteed to be >= 1.
+    uint64_t points_val = (total_paint_area * 10000ULL) / viewport_area;
+    base::UmaHistogramCounts100000(
+        kPageLoadInternalSoftNavigationEmittedTotalPaintAreaPoints,
+        base::saturated_cast<int>(points_val));
   } else if (!context.HasDomModification()) {
     base::UmaHistogramEnumeration(kPageLoadInternalSoftNavigationOutcome,
                                   SoftNavigationOutcome::kNoDomModification);
   } else if (!context.SatisfiesSoftNavPaintCriteria(required_paint_area)) {
     base::UmaHistogramEnumeration(kPageLoadInternalSoftNavigationOutcome,
                                   SoftNavigationOutcome::kInsufficientPaints);
+    uint64_t total_paint_area = context.PaintedArea();
+    base::UmaHistogramCounts1M(
+        kPageLoadInternalSoftNavigationNotEmittedInsufficientPaintTotalPaintArea,
+        total_paint_area);
+
+    // viewport_area is guaranteed to be >= 1.
+    uint64_t points_val = (total_paint_area * 10000ULL) / viewport_area;
+    base::UmaHistogramCounts100000(
+        kPageLoadInternalSoftNavigationNotEmittedInsufficientPaintTotalPaintAreaPercentage,
+        base::saturated_cast<int>(points_val));
   }
 }
 
@@ -158,9 +208,11 @@ SoftNavigationHeuristics* SoftNavigationHeuristics::CreateIfNeeded(
 void SoftNavigationHeuristics::Shutdown() {
   task_attribution_tracker_ = nullptr;
 
+  const auto viewport_area = CalculateViewportArea();
   const auto required_paint_area = CalculateRequiredPaintArea();
   for (const auto& context : potential_soft_navigations_) {
-    OnSoftNavigationContextWasExhausted(*context.Get(), required_paint_area);
+    OnSoftNavigationContextWasExhausted(*context.Get(), viewport_area,
+                                        required_paint_area);
   }
   potential_soft_navigations_.clear();
 }
@@ -228,7 +280,9 @@ void SoftNavigationHeuristics::SameDocumentNavigationCommitted(
     const String& url,
     SoftNavigationContext* context) {
   context = EnsureContextForCurrentWindow(context);
-  if (!context) {
+  if (!context && !context_for_current_url_) {
+    // If we don't have a context for this task, and we haven't had a context
+    // for a recent URL change, then this URL change is not a soft-navigation.
     TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("loading"),
                         "SoftNavigationHeuristics::"
                         "SameDocumentNavigationCommittedWithoutContext",
@@ -236,16 +290,39 @@ void SoftNavigationHeuristics::SameDocumentNavigationCommitted(
     base::UmaHistogramEnumeration(
         kPageLoadInternalSoftNavigationOutcome,
         SoftNavigationOutcome::kNoSoftNavContextDuringUrlChange);
-    return;
+  } else if (!context) {
+    // All URL changes which follow an attributed URL change are assumed to be
+    // client-side-redirects and will not disable paint attribution or change
+    // the emitting of existing contexts.
+    // TODO(crbug.com/353043684, crbug.com/40943017): Perhaps there should be
+    // limits to how long we will keep the current context as active.
+    context_for_current_url_->AddUrl(url);
+
+    TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("loading"),
+                        "SoftNavigationHeuristics::"
+                        "SameDocumentNavigationCommittedWithoutContextButMerg"
+                        "edIntoPreviousContext",
+                        "context", *context_for_current_url_, "url", url);
+    base::UmaHistogramEnumeration(
+        kPageLoadInternalSoftNavigationOutcome,
+        SoftNavigationOutcome::
+            kNoSoftNavContextDuringUrlChangeButMergingIntoPreviousContext);
+  } else {
+    context->AddUrl(url);
+    // TODO(crbug.com/416705860): If we replace a previous context that is for a
+    // previous URL change, maybe we should check if it was emitted?  If not,
+    // we will no longer be attributing paints to it and so it will never meet
+    // criteria again (unless it changes URL again).  We might want to clean up
+    // and exhaust this context immediately.
+    context_for_current_url_ = context;
+
+    TRACE_EVENT_INSTANT(
+        TRACE_DISABLED_BY_DEFAULT("loading"),
+        "SoftNavigationHeuristics::SameDocumentNavigationCommitted", "context",
+        *context);
+
+    EmitSoftNavigationEntryIfAllConditionsMet(context);
   }
-  context->SetUrl(url);
-
-  TRACE_EVENT_INSTANT(
-      TRACE_DISABLED_BY_DEFAULT("loading"),
-      "SoftNavigationHeuristics::SameDocumentNavigationCommitted", "context",
-      *context);
-
-  EmitSoftNavigationEntryIfAllConditionsMet(context);
 }
 
 bool SoftNavigationHeuristics::ModifiedDOM(Node* node) {
@@ -276,14 +353,6 @@ bool SoftNavigationHeuristics::EmitSoftNavigationEntryIfAllConditionsMet(
     return false;
   }
 
-  // Once we've met all criteria with a new context, we replace the active
-  // soft_navigation. This helps us collect paints even after Task graph is
-  // exhausted, and allows the previous context to get cleaned up.
-  // TODO(crbug.com/416705860): Consider always making this the context which
-  // was last to update the URL, immediately upon changing, rather than waiting
-  // for other criteria (like dom modification) to be met.
-  most_recent_context_to_meet_non_paint_criteria_ = context;
-
   // Are we done?
   uint64_t required_paint_area = CalculateRequiredPaintArea();
   if (!context->SatisfiesSoftNavPaintCriteria(required_paint_area)) {
@@ -309,7 +378,7 @@ bool SoftNavigationHeuristics::EmitSoftNavigationEntryIfAllConditionsMet(
   ++soft_navigation_count_;
   window_->GenerateNewNavigationId();
   auto* performance = DOMWindowPerformance::performance(*window_.Get());
-  performance->AddSoftNavigationEntry(AtomicString(context->Url()),
+  performance->AddSoftNavigationEntry(AtomicString(context->InitialUrl()),
                                       context->UserInteractionTimestamp());
 
   CommitPreviousPaintTimings(frame);
@@ -326,12 +395,8 @@ bool SoftNavigationHeuristics::EmitSoftNavigationEntryIfAllConditionsMet(
 void SoftNavigationHeuristics::RecordPaint(LocalFrame* frame,
                                            const gfx::RectF& rect,
                                            Node* node) {
-  // For now, we only care to map paints for the most recent context to meet
-  // non-paint criteria.
-  if (most_recent_context_to_meet_non_paint_criteria_ &&
-      most_recent_context_to_meet_non_paint_criteria_->AddPaintedArea(
-          node, rect, true)) {
-    return;
+  if (context_for_current_url_) {
+    context_for_current_url_->AddPaintedArea(node, rect, true);
   }
 }
 
@@ -412,7 +477,7 @@ void SoftNavigationHeuristics::CommitPreviousPaintTimings(LocalFrame* frame) {
 
 void SoftNavigationHeuristics::Trace(Visitor* visitor) const {
   visitor->Trace(active_interaction_context_);
-  visitor->Trace(most_recent_context_to_meet_non_paint_criteria_);
+  visitor->Trace(context_for_current_url_);
   // Register a custom weak callback, which runs after processing weakness for
   // the container. This allows us to observe the collection becoming empty
   // without needing to observe individual element disposal.
@@ -464,21 +529,22 @@ void SoftNavigationHeuristics::ProcessCustomWeakness(
   const auto required_paint_area = CalculateRequiredPaintArea();
   WTF::EraseIf(potential_soft_navigations_, [&](const auto& context) {
     if (!info.IsHeapObjectAlive(context)) {
-      OnSoftNavigationContextWasExhausted(*context.Get(), required_paint_area);
+      OnSoftNavigationContextWasExhausted(
+          *context.Get(), CalculateViewportArea(), required_paint_area);
       return true;
     }
     return false;
   });
 
-  // This should never happen if we have a last_interaction_context_.
-  // numbecrbug.com/416706750aints?  Perhaps once all dom nodes modified by the
-  // context and/or number of paints?  Perhaps once all dom nodes modified by
-  // the context have been painted at least once, we don't care about more data?
-  // Perhaps after user scrolls/interacts after history change?
+  // If we fully clear out all contexts via GC, then turn off soft-navs tracking
+  // on document.  This should never happen if we have a
+  // `context_for_current_url_`, which means we won't ever turn off tracking
+  // once an attributable URL change is detected.
+  // TODO(crbug.com/416706750, crbug.com/420402247): Consider enabling some
+  // mechanism for eventually resetting things.
   if (potential_soft_navigations_.empty()) {
     CHECK(!active_interaction_context_, base::NotFatalUntil::M142);
-    CHECK(!most_recent_context_to_meet_non_paint_criteria_,
-          base::NotFatalUntil::M142);
+    CHECK(!context_for_current_url_, base::NotFatalUntil::M142);
     SetIsTrackingSoftNavigationHeuristicsOnDocument(false);
   }
 }
@@ -496,6 +562,29 @@ LocalFrame* SoftNavigationHeuristics::GetLocalFrameIfOutermostAndNotDetached()
 
   return frame;
 }
+
+namespace {
+bool ShouldEnableAdvancedPaintAttribution(const FeatureContext* context) {
+  // If the feature flag for SoftNavigationHeuristics is enabled, prefer the
+  // feature param to determine whether to enable advanced paint attribution.
+  // This allows users to select the mode via about://flags.
+  if (base::FeatureList::IsEnabled(features::kSoftNavigationHeuristics)) {
+    features::SoftNavigationHeuristicsMode mode =
+        features::kSoftNavigationHeuristicsModeParam.Get();
+    switch (mode) {
+      case features::SoftNavigationHeuristicsMode::kBasic:
+        return false;
+      case features::SoftNavigationHeuristicsMode::kAdvancedPaintAttribution:
+        return true;
+    }
+  }
+  // Without the feature flag enabled, query the runtime enabled feature
+  // directly. This allows the finch experiment to control the feature; it
+  // also enables the feature for tests (since it's 'experimental').
+  return RuntimeEnabledFeatures::
+      SoftNavigationDetectionAdvancedPaintAttributionEnabled(context);
+}
+}  // namespace
 
 SoftNavigationHeuristics::EventScope SoftNavigationHeuristics::CreateEventScope(
     EventScope::Type type,
@@ -516,8 +605,7 @@ SoftNavigationHeuristics::EventScope SoftNavigationHeuristics::CreateEventScope(
     // been cleared, which can happen in tests.
     if (IsInteractionStart(type) || !active_interaction_context_) {
       active_interaction_context_ = MakeGarbageCollected<SoftNavigationContext>(
-          RuntimeEnabledFeatures::
-              SoftNavigationDetectionAdvancedPaintAttributionEnabled(window_));
+          ShouldEnableAdvancedPaintAttribution(window_));
       potential_soft_navigations_.push_back(active_interaction_context_);
       TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("loading"),
                           "SoftNavigationHeuristics::CreateNewContext",
@@ -587,21 +675,24 @@ void SoftNavigationHeuristics::OnSoftNavigationEventScopeDestroyed(
   // after a click event handler is done, to reduce potential cycles.
 }
 
-uint64_t SoftNavigationHeuristics::CalculateRequiredPaintArea() const {
-  static constexpr uint64_t kMinRequiredArea = 1;
-
+uint64_t SoftNavigationHeuristics::CalculateViewportArea() const {
+  static constexpr uint64_t kMinViewportArea = 1;
   LocalFrame* frame = window_->GetFrame();
   CHECK(frame);
   LocalFrameView* local_frame_view = frame->View();
   if (!local_frame_view) {
-    return kMinRequiredArea;
+    return kMinViewportArea;
   }
-
-  constexpr int kSoftNavigationPaintAreaPercentageInPoints = 1;  // 0.01%
   uint64_t viewport_area = local_frame_view->GetLayoutSize().Area64();
+  return std::max(viewport_area, kMinViewportArea);
+}
+
+uint64_t SoftNavigationHeuristics::CalculateRequiredPaintArea() const {
+  static constexpr uint64_t kMinRequiredArea = 1;
+  constexpr int kSoftNavigationPaintAreaPercentageInPoints = 1;  // 0.01%
+  uint64_t viewport_area = CalculateViewportArea();
   uint64_t required_paint_area =
       (viewport_area * kSoftNavigationPaintAreaPercentageInPoints) / 10000;
-
   if (required_paint_area > kMinRequiredArea) {
     return required_paint_area;
   }

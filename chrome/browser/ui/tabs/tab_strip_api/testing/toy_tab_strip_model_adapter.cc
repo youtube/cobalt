@@ -12,11 +12,11 @@ ToyTabStripModelAdapter::ToyTabStripModelAdapter(ToyTabStrip* tab_strip)
 void ToyTabStripModelAdapter::AddObserver(TabStripModelObserver*) {}
 void ToyTabStripModelAdapter::RemoveObserver(TabStripModelObserver*) {}
 
-std::vector<tabs::TabHandle> ToyTabStripModelAdapter::GetTabs() {
+std::vector<tabs::TabHandle> ToyTabStripModelAdapter::GetTabs() const {
   return tab_strip_->GetTabs();
 }
 
-TabRendererData ToyTabStripModelAdapter::GetTabRendererData(int index) {
+TabRendererData ToyTabStripModelAdapter::GetTabRendererData(int index) const {
   return TabRendererData();
 }
 
@@ -32,6 +32,11 @@ std::optional<int> ToyTabStripModelAdapter::GetIndexForHandle(
 void ToyTabStripModelAdapter::ActivateTab(size_t idx) {
   const auto tab = tab_strip_->GetTabs().at(idx);
   tab_strip_->ActivateTab(tab);
+}
+
+void ToyTabStripModelAdapter::MoveTab(tabs::TabHandle handle,
+                                      Position position) {
+  tab_strip_->MoveTab(handle, position.index);
 }
 
 mojom::TabCollectionContainerPtr

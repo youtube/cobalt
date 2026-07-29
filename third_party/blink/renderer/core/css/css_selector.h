@@ -385,8 +385,8 @@ class CORE_EXPORT CSSSelector {
     // for details.
     kPseudoViewTransition,
     kPseudoViewTransitionGroup,
-    kPseudoViewTransitionImagePair,
     kPseudoViewTransitionGroupChildren,
+    kPseudoViewTransitionImagePair,
     kPseudoViewTransitionNew,
     kPseudoViewTransitionOld,
     // Scroll markers pseudos for Carousel
@@ -589,6 +589,8 @@ class CORE_EXPORT CSSSelector {
   // True if :link or :visited pseudo-classes are found anywhere in
   // the selector.
   bool HasLinkOrVisited() const;
+  // True if :visited pseudo-classes are found anywhere in the selector.
+  bool HasVisited() const;
 
   bool HasRareData() const { return bits_.get<HasRareDataField>(); }
 

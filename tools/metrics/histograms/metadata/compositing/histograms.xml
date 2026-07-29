@@ -821,21 +821,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Compositing.SurfaceManager.MarkForDestructionToDestroy"
-    units="ms" expires_after="2025-06-08">
-  <owner>jonross@chromium.org</owner>
-  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
-  <summary>
-    The time between when a Surface has been Marked for Destruction, to when it
-    is actually Destroyed.
-
-    This time denotes how long the Surface remains referenced by other Surfaces,
-    preventing deletion. This does not include the following time until the
-    associated resources are released, and their memory is freed. This is logged
-    once per destroyed Surface.
-  </summary>
-</histogram>
-
 <histogram name="Compositing.TileManager.EnoughMemory.{ProcessType}"
     enum="Boolean" expires_after="2024-06-30">
   <owner>lizeb@chromium.org</owner>
@@ -880,15 +865,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Compositing.VizBreakdownToPresentationUnexpected"
-    enum="VizBreakdown" expires_after="2025-06-08">
-  <owner>jonross@chromium.org</owner>
-  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
-  <summary>
-    Recorded when an unexpected viz stage ends after the presentation time.
-  </summary>
-</histogram>
-
 <histogram name="Compositing.{Process}.CompositorFrame.Quads" units="quads"
     expires_after="2025-10-26">
   <owner>vmiura@chromium.org</owner>
@@ -902,64 +878,6 @@ chromium-metrics-reviews@google.com.
   <token key="Process">
     <variant name="Browser"/>
     <variant name="Renderer"/>
-  </token>
-</histogram>
-
-<histogram
-    name="CompositorLatency.CompositorOnlyFrame{InteractionType}.{StageType}"
-    units="microseconds" expires_after="2025-10-12">
-  <owner>jonross@chromium.org</owner>
-  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
-  <summary>
-    Tracks the duration of various stages in the pipeline as a single frame goes
-    through the various stages in the compositor in the cases that there is no
-    damage from main thread.
-
-    This metric uses base::Histogram::FactoryMicrosecondsTimeGet so only users
-    with high resolution clocks will report this metric.
-
-    Note: This metric was expired from 2023-03-01 to 2023-05-05.
-  </summary>
-  <token key="InteractionType">
-    <variant name=""/>
-    <variant name=".CanvasAnimation"/>
-    <variant name=".CompositorAnimation"/>
-    <variant name=".JSAnimation"/>
-    <variant name=".MainThreadAnimation"/>
-    <variant name=".NativePropertyAnimation"/>
-    <variant name=".PinchZoom"/>
-    <variant name=".RAF"/>
-    <variant name=".RasterAnimation"/>
-    <variant name=".ScrollbarScroll"/>
-    <variant name=".SETCompositorAnimation"/>
-    <variant name=".SETMainThreadAnimation"/>
-    <variant name=".TouchScroll"/>
-    <variant name=".WheelScroll"/>
-  </token>
-  <token key="StageType">
-    <variant name="BeginImplFrameToFinishImpl"/>
-    <variant name="ImplFrameDoneToSubmitCompositorFrame"/>
-    <variant name="SendBeginMainFrameToBeginMainAbort"/>
-    <variant name="SubmitCompositorFrameToPresentationCompositorFrame"/>
-    <variant
-        name="SubmitCompositorFrameToPresentationCompositorFrame.BufferAvailableToBufferReady"/>
-    <variant
-        name="SubmitCompositorFrameToPresentationCompositorFrame.BufferReadyToLatch"/>
-    <variant
-        name="SubmitCompositorFrameToPresentationCompositorFrame.LatchToSwapEnd"/>
-    <variant
-        name="SubmitCompositorFrameToPresentationCompositorFrame.ReceivedCompositorFrameToStartDraw"/>
-    <variant
-        name="SubmitCompositorFrameToPresentationCompositorFrame.StartDrawToSwapStart"/>
-    <variant
-        name="SubmitCompositorFrameToPresentationCompositorFrame.SubmitToReceiveCompositorFrame"/>
-    <variant
-        name="SubmitCompositorFrameToPresentationCompositorFrame.SwapEndToPresentationCompositorFrame"/>
-    <variant
-        name="SubmitCompositorFrameToPresentationCompositorFrame.SwapStartToBufferAvailable"/>
-    <variant
-        name="SubmitCompositorFrameToPresentationCompositorFrame.SwapStartToSwapEnd"/>
-    <variant name="TotalLatency"/>
   </token>
 </histogram>
 
@@ -996,57 +914,17 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
-<histogram name="CompositorLatency.Type{Sequence}" enum="FrameReportType"
-    expires_after="2025-10-26">
-  <owner>jonross@chromium.org</owner>
-  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
-  <summary>
-    Whether frame is dropped or presented meeting or missing the deadline or is
-    a compositor only frame.
-  </summary>
-  <token key="Sequence">
-    <variant name="" summary="All Sequences"/>
-    <variant name=".AnyInteraction" summary="At least one active interaction"/>
-    <variant name=".CanvasAnimation" summary="Main-thread canvas animation"/>
-    <variant name=".CompositorAnimation" summary="Compositor-driven animation"/>
-    <variant name=".JSAnimation" summary="JS-driven animation"/>
-    <variant name=".MainThreadAnimation"
-        summary="Main-thread driven animation"/>
-    <variant name=".NoInteraction" summary="No active interaction"/>
-    <variant name=".PinchZoom" summary="Pinch-to-zoom interaction"/>
-    <variant name=".RAF" summary="rAF callback driven animation"/>
-    <variant name=".ScrollbarScroll" summary="Scrollbar driven scrolls"/>
-    <variant name=".TouchScroll" summary="Touchscreen driven interaction"/>
-    <variant name=".Video" summary="Video playback"/>
-    <variant name=".WheelScroll" summary="Mousewheel driven interaction"/>
-  </token>
-</histogram>
-
-<histogram name="CompositorLatency{ReportType}{InteractionType}.{StageType}"
+<histogram name="CompositorLatency2{InteractionType}.{StageType}"
     units="microseconds" expires_after="2025-10-05">
   <owner>jonross@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
     Tracks the duration of various stages in the pipeline as a single frame goes
-    through the various stages in the compositor {ReportType}.
+    through the various stages in the compositor.
 
     This metric uses base::Histogram::FactoryMicrosecondsTimeGet so only users
     with high resolution clocks will report this metric.
   </summary>
-  <token key="ReportType">
-    <variant name=""
-        summary="reported for frames that went through all the compositor
-                 stages in chromium, and was presented to the user"/>
-    <variant name=".DroppedFrame"
-        summary="reported for frames that the user did not see: this includes
-                 frames that are dropped in various stages inside chromium,
-                 or even frames that went through all stages in chromium, but
-                 ultimately was not presented to the user"/>
-    <variant name=".MissedDeadlineFrame"
-        summary="reported for frames that went through all the compositor
-                 stages in chromium, and was presented to the user, but were
-                 delayed and missed their deadline"/>
-  </token>
   <token key="InteractionType">
     <variant name=""/>
     <variant name=".CanvasAnimation"/>
@@ -1070,6 +948,7 @@ chromium-metrics-reviews@google.com.
     <variant name="EndActivateToSubmitCompositorFrame"/>
     <variant name="EndCommitToActivation"/>
     <variant name="SendBeginMainFrameToCommit"/>
+    <variant name="SendBeginMainFrameToCommit.AccessibiltyUpdate"/>
     <variant name="SendBeginMainFrameToCommit.Animate"/>
     <variant name="SendBeginMainFrameToCommit.BeginMainSentToStarted"/>
     <variant name="SendBeginMainFrameToCommit.CompositeCommit"/>
@@ -1101,33 +980,6 @@ chromium-metrics-reviews@google.com.
         name="SubmitCompositorFrameToPresentationCompositorFrame.SwapStartToSwapEnd"/>
     <variant name="TotalLatency"/>
   </token>
-</histogram>
-
-<histogram name="Graphics.Exo.Smoothness.BeginFrameArrivalToSubmission"
-    units="microseconds" expires_after="2025-11-09">
-  <owner>jonross@chromium.org</owner>
-  <owner>yzshen@chromium.org</owner>
-  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
-  <summary>
-    Measures the time duration between Exo receiving a BeginFrame and submitting
-    a frame for it. Reported for clients with high-resolution clocks.
-
-    Please note that no value is reported if a BeginFrame is responded with
-    DidNotProduceFrame.
-  </summary>
-</histogram>
-
-<histogram name="Graphics.Exo.Smoothness.FrameArrivalToSubmission"
-    units="microseconds" expires_after="2025-07-06">
-  <owner>jonross@chromium.org</owner>
-  <owner>yzshen@chromium.org</owner>
-  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
-  <summary>
-    Measures the time duration between Exo receiving a frame and submitting it.
-    Reported for clients with high-resolution clocks.
-
-    Please note that no value is reported if a frame is discarded by Exo.
-  </summary>
 </histogram>
 
 <histogram name="Graphics.Paint.UI.NormalizedInvalidatedArea" units="%"
@@ -1195,7 +1047,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Graphics.Smoothness.CheckerboardingNeedRecord4.AllSequences"
-    units="%" expires_after="2025-10-05">
+    units="%" expires_after="2025-12-07">
   <owner>wangxianzhu@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -1243,7 +1095,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Graphics.Smoothness.Checkerboarding{Version}.{Sequence}"
-    units="%" expires_after="2025-10-05">
+    units="%" expires_after="2025-12-07">
   <owner>jonross@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -1407,7 +1259,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Graphics.Smoothness.PercentDroppedFrames3.{Sequence}"
-    units="%" expires_after="2025-10-05">
+    units="%" expires_after="2025-12-07">
   <owner>jonross@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -1459,7 +1311,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Graphics.Smoothness.PercentDroppedFrames3.{Thread}{Sequence}"
-    units="%" expires_after="2025-10-05">
+    units="%" expires_after="2025-12-07">
   <owner>jonross@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>

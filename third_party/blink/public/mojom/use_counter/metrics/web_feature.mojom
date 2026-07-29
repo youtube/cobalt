@@ -1575,7 +1575,7 @@ enum WebFeature {
   kOBSOLETE_BatteryStatusInsecureOrigin = 2199,
   kBatteryStatusCrossOrigin = 2200,
   kBatteryStatusSameOriginABA = 2201,
-  kHasIDClassTagAttribute = 2203,
+  kOBSOLETE_HasIDClassTagAttribute = 2203,
   kHasBeforeOrAfterPseudoElement = 2204,
   kShapeOutsideMaybeAffectedInlineSize = 2205,
   kShapeOutsideMaybeAffectedInlinePosition = 2206,
@@ -4900,6 +4900,7 @@ enum WebFeature {
   kSchedulerYieldNonTrivialInheritCrossFrameIgnored = 5591,
   kLocalNetworkAccessPrivateAliasUse = 5592,
   kV8URLPattern_Generate_Method = 5593,
+  kSelectMultipleSizeOne = 5594,
 
   // Add new features immediately above this line. Don't change assigned
   // numbers of any item, and don't reuse removed slots. Also don't add extra

@@ -135,7 +135,7 @@
 #import "ios/chrome/browser/lens_overlay/coordinator/lens_view_finder_coordinator.h"
 #import "ios/chrome/browser/lens_overlay/model/lens_overlay_tab_helper.h"
 #import "ios/chrome/browser/metrics/model/tab_usage_recorder_browser_agent.h"
-#import "ios/chrome/browser/mini_map/ui_bundled/mini_map_coordinator.h"
+#import "ios/chrome/browser/mini_map/coordinator/mini_map_coordinator.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_state.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_tab_helper.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_component_factory.h"
@@ -2712,11 +2712,36 @@ enum class ToolbarKind {
     return;
   }
 
-  if (IsNativeFindInPageAvailable()) {
-    [self showSystemFindPanel];
-  } else {
-    [self showFindBar];
+  __weak __typeof(self) weakSelf = self;
+
+  auto startFindInPage = ^{
+    if (IsNativeFindInPageAvailable()) {
+      [weakSelf showSystemFindPanel];
+    } else {
+      [weakSelf showFindBar];
+    }
+  };
+
+  BOOL lensOverlayAvailable = IsLensOverlayAvailable(self.profile->GetPrefs());
+  web::WebState* activeWebState = self.activeWebState;
+  if (lensOverlayAvailable && activeWebState) {
+    LensOverlayTabHelper* lensOverlayTabHelper =
+        LensOverlayTabHelper::FromWebState(activeWebState);
+    BOOL lensOverlayVisible =
+        lensOverlayTabHelper &&
+        lensOverlayTabHelper->IsLensOverlayUIAttachedAndAlive();
+    if (lensOverlayVisible) {
+      id<LensOverlayCommands> lensOverlayHandler =
+          HandlerForProtocol(_dispatcher, LensOverlayCommands);
+      [lensOverlayHandler
+          destroyLensUI:YES
+                 reason:lens::LensOverlayDismissalSource::kFindInPageInvoked
+             completion:startFindInPage];
+      return;
+    }
   }
+
+  startFindInPage();
 }
 
 - (void)closeFindInPage {
@@ -2905,6 +2930,8 @@ enum class ToolbarKind {
 
 - (void)showPromo {
   if (!self.promosManagerCoordinator) {
+    id<ApplicationCommands> applicationHandler = HandlerForProtocol(
+        self.browser->GetCommandDispatcher(), ApplicationCommands);
     id<CredentialProviderPromoCommands> credentialProviderPromoHandler =
         HandlerForProtocol(self.browser->GetCommandDispatcher(),
                            CredentialProviderPromoCommands);
@@ -2914,6 +2941,7 @@ enum class ToolbarKind {
     self.promosManagerCoordinator = [[PromosManagerCoordinator alloc]
             initWithBaseViewController:self.viewController
                                browser:self.browser
+                    applicationHandler:applicationHandler
         credentialProviderPromoHandler:credentialProviderPromoHandler
                    dockingPromoHandler:dockingPromoHandler];
 
@@ -2989,12 +3017,20 @@ enum class ToolbarKind {
 
 - (void)showBWGPromo {
   if (IsPageActionMenuEnabled()) {
-    _BWGCoordinator = [[BWGCoordinator alloc]
-        initWithBaseViewController:self.viewController
-                           browser:self.browser
-                    fromEntryPoint:bwg::EntryPointPromo];
-    _BWGCoordinator.promosUIHandler = self.promosManagerCoordinator;
-    [_BWGCoordinator start];
+    web::WebState* activeWebState = self.activeWebState;
+    DCHECK(activeWebState);
+    NewTabPageTabHelper* NTPHelper =
+        NewTabPageTabHelper::FromWebState(activeWebState);
+    BOOL isNTP = NTPHelper && NTPHelper->IsActive();
+
+    if (!isNTP) {
+      _BWGCoordinator = [[BWGCoordinator alloc]
+          initWithBaseViewController:self.viewController
+                             browser:self.browser
+                      fromEntryPoint:bwg::EntryPointPromo];
+      _BWGCoordinator.promosUIHandler = self.promosManagerCoordinator;
+      [_BWGCoordinator start];
+    }
   }
 }
 

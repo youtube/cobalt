@@ -15,15 +15,22 @@ separated from each other by a divider.
 -->
 <div id="container">
   <div id="infoContainer">
-    ${this.managementNotice_ ? html`
-      <div id="managementNoticeContainer" class="notice-item">
-        <img id="managementNoticeLogo" alt=""
-            src="${this.managementNotice_.bitmapDataUrl.url}">
-        <p title="${this.managementNotice_.text}">
-          ${this.managementNotice_.text}
-        </p>
+  ${this.managementNotice_ ?
+      html`<div id="managementNoticeContainer" class="notice-item"
+        title="${this.managementNotice_.text}">
+        <div id="managementNoticeLogoContainer"
+             class=${this.managementNotice_.isCustomLogo ?
+             'custom_logo' : ''}>
+          <img id="managementNoticeLogo" alt=""
+               src="${this.managementNotice_.bitmapDataUrl.url}">
+        </div>
+        <button @click="${this.onManagementNoticeClick_}" role="link"
+            aria-label="${this.managementNotice_.text}"
+            aria-description="$i18n{managementLinkDesc}">
+            ${this.managementNotice_.text}
+        </button>
       </div>` : ''}
-    ${this.extensionName_ ? html`
+    ${this.showExtension_ ? html`
       <div id="extensionNameContainer" title="${this.extensionName_}"
           class="notice-item">
         <button @click="${this.onExtensionNameClick_}" role="link"
@@ -33,12 +40,13 @@ separated from each other by a divider.
         </button>
       </div>` : ''}
   </div>
-  <ntp-customize-buttons id="customizeButtons"
-      ?info-shown-to-user="${this.managementNotice_ || this.extensionName_}"
-      ?show-customize="${this.showCustomize_}"
-      ?show-customize-chrome-text="${this.showCustomizeChromeText_}"
-      @customize-click="${this.onCustomizeClick_}">
-  </ntp-customize-buttons>
+  ${this.showCustomizeButtons_ ? html`
+    <ntp-customize-buttons id="customizeButtons"
+        ?info-shown-to-user="${this.managementNotice_ || this.extensionName_}"
+        ?show-customize="${this.isCustomizeActive_}"
+        ?show-customize-chrome-text="${this.showCustomizeText_}"
+        @customize-click="${this.onCustomizeClick_}">
+    </ntp-customize-buttons>` : ''}
 </div>
 <!--_html_template_end_-->`;
   // clang-format off

@@ -12,6 +12,7 @@
 #include "base/files/memory_mapped_file.h"
 #include "base/no_destructor.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_view_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/to_string.h"
 #include "services/on_device_model/ml/chrome_ml_audio_buffer.h"
@@ -219,7 +220,7 @@ void FakeOnDeviceSession::GenerateImpl(
     remote->OnResponse(std::move(chunk));
   }
 
-  int output_token_count = 0;
+  uint32_t output_token_count = 0;
   if (settings_->model_execute_result.empty()) {
     for (const auto& context : context_) {
       std::string text = CtxToString(*context, params_->capabilities);
@@ -242,6 +243,10 @@ void FakeOnDeviceSession::GenerateImpl(
       chunk->text = text;
       remote->OnResponse(std::move(chunk));
     }
+  }
+  if (options->max_output_tokens &&
+      output_token_count > options->max_output_tokens) {
+    output_token_count = options->max_output_tokens;
   }
   auto summary = mojom::ResponseSummary::New();
   summary->output_token_count = output_token_count;
