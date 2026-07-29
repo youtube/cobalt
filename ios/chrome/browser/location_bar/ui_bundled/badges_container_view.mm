@@ -66,12 +66,6 @@ const CGFloat kBackgroundHorizontalInset = 5.0;
 
     [self addSubview:_containerStackView];
     AddSameConstraints(self, _containerStackView);
-
-    if (IsProactiveSuggestionsFrameworkEnabled()) {
-      [self setupUnifiedBadgeBackground];
-      _containerStackView.userInteractionEnabled = NO;
-      [self setupTapOverlay];
-    }
   }
 
   return self;
@@ -250,6 +244,32 @@ const CGFloat kBackgroundHorizontalInset = 5.0;
   [self updateViewsVisibility];
 }
 
+- (void)setIncognito:(BOOL)incognito {
+  _incognito = incognito;
+  if (IsProactiveSuggestionsFrameworkEnabled()) {
+    if (!incognito) {
+      if (!_badgeBackgroundView) {
+        [self setupUnifiedBadgeBackground];
+      }
+      _containerStackView.userInteractionEnabled = NO;
+      if (!_tapOverlayButton) {
+        [self setupTapOverlay];
+      }
+      _tapOverlayButton.hidden = NO;
+    } else {
+      _containerStackView.userInteractionEnabled = YES;
+      if (_tapOverlayButton) {
+        _tapOverlayButton.hidden = YES;
+      }
+      if (_badgeBackgroundView) {
+        _badgeBackgroundView.hidden = YES;
+      }
+      self.tintColor = nil;
+    }
+    [self updateBackgroundVisibility];
+  }
+}
+
 #pragma mark - private
 
 // Updates the hidden state of the views.
@@ -262,11 +282,16 @@ const CGFloat kBackgroundHorizontalInset = 5.0;
   BOOL readerModeChipShouldBeVisibleFinal = NO;
   BOOL placeholderViewShouldBeVisibleFinal = NO;
 
-  // The Incognito badge, and Reader mode chip (shown when Reader mode is active
-  // in the current tab) should decide their visibility independently of the
+  // The Incognito badge should decide its visibility independently of the
   // visibility of other badges.
   incognitoBadgeViewShouldBeVisibleFinal = _incognitoBadgeViewShouldBeVisible;
-  readerModeChipShouldBeVisibleFinal = _readerModeChipShouldBeVisible;
+  // The Reader mode chip (which wants to be visible when Reader mode is active)
+  // should not be visible if the contextual panel is currently visible and
+  // animating.
+  readerModeChipShouldBeVisibleFinal =
+      _readerModeChipShouldBeVisible &&
+      !(_contextualPanelEntrypointShouldBeVisible &&
+        _contextualPanelCurrentlyAnimating);
 
   // Other badges can be visible only outside of Reader mode.
   if (!readerModeChipShouldBeVisibleFinal) {
@@ -336,6 +361,7 @@ const CGFloat kBackgroundHorizontalInset = 5.0;
   }
   if (IsProactiveSuggestionsFrameworkEnabled()) {
     [self updateBackgroundVisibility];
+    [self updateTapOverlayButtonVisibility];
   }
 }
 
@@ -407,11 +433,29 @@ const CGFloat kBackgroundHorizontalInset = 5.0;
 // Returns YES if any badges are currently visible.
 - (BOOL)hasVisibleBadges {
   for (UIView* subview in _containerStackView.arrangedSubviews) {
-    if (!subview.hidden) {
+    if (!subview.hidden && subview != _placeholderView) {
       return YES;
     }
   }
   return NO;
+}
+
+// Updates the tap overlay button visibility.
+- (void)updateTapOverlayButtonVisibility {
+  if ([self hasVisibleBadges]) {
+    _tapOverlayButton.hidden = NO;
+    return;
+  }
+
+  switch (_placeholderType) {
+    // Placeholder views that don't open AI Hub.
+    case LocationBarPlaceholderType::kNone:
+    case LocationBarPlaceholderType::kDefaultSearchEngineIcon:
+      _tapOverlayButton.hidden = YES;
+      break;
+    default:
+      _tapOverlayButton.hidden = NO;
+  }
 }
 
 @end

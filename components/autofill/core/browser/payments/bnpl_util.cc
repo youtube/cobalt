@@ -48,6 +48,8 @@ bool BnplIssuerContext::IsEligible() const {
     case BnplIssuerEligibilityForPage::kUndefined:
       NOTREACHED();
     case BnplIssuerEligibilityForPage::kIsEligible:
+    case BnplIssuerEligibilityForPage::
+        kTemporarilyEligibleCheckoutAmountNotYetKnown:
       return true;
     case BnplIssuerEligibilityForPage::kNotEligibleIssuerDoesNotSupportMerchant:
     case BnplIssuerEligibilityForPage::kNotEligibleCheckoutAmountTooLow:
@@ -115,6 +117,8 @@ std::u16string GetBnplIssuerSelectionOptionText(
     case BnplIssuerEligibilityForPage::kUndefined:
       NOTREACHED();
     case BnplIssuerEligibilityForPage::kIsEligible:
+    case BnplIssuerEligibilityForPage::
+        kTemporarilyEligibleCheckoutAmountNotYetKnown:
       switch (issuer_id) {
         case BnplIssuer::IssuerId::kBnplAffirm:
         case BnplIssuer::IssuerId::kBnplAfterpay:
@@ -176,6 +180,27 @@ TextWithLink GetBnplUiFooterText() {
   text_with_link.offset =
       gfx::Range(offset, offset + payments_settings_link_text.length());
 
+  return text_with_link;
+}
+
+TextWithLink GetBnplUiFooterTextForAi(
+    const PaymentsDataManager& payments_data_manager) {
+  TextWithLink text_with_link;
+  std::u16string payments_settings_link_text = l10n_util::GetStringUTF16(
+      IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_FOOTNOTE_HIDE_OPTION_PAYMENT_SETTINGS_LINK_TEXT);
+  size_t offset = 0;
+  text_with_link.text = l10n_util::GetStringFUTF16(
+      IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_AI_FOOTNOTE,
+      payments_settings_link_text, &offset);
+
+  text_with_link.offset =
+      gfx::Range(offset, offset + payments_settings_link_text.length());
+  if (!payments_data_manager
+           .IsAutofillAmountExtractionAiTermsSeenPrefEnabled()) {
+    std::u16string ai_notice = l10n_util::GetStringUTF16(
+        IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_FOOTNOTE_FOR_AI_AMOUNT_EXTRACTION_NOTE);
+    text_with_link.bold_range = gfx::Range(0, ai_notice.length());
+  }
   return text_with_link;
 }
 

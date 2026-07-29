@@ -6,25 +6,45 @@
 
 #include <stddef.h>
 
+#include <algorithm>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "base/memory/weak_ptr.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/single_thread_task_runner.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/app/vector_icons/vector_icons.h"
+#include "chrome/browser/contextual_search/contextual_search_web_contents_helper.h"
 #include "chrome/browser/favicon/favicon_service_factory.h"
 #include "chrome/browser/favicon/favicon_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/chrome_select_file_policy.h"
+#include "chrome/browser/ui/contextual_search/searchbox_context_data.h"
+#include "chrome/browser/ui/omnibox/omnibox_controller.h"
+#include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
+#include "chrome/browser/ui/omnibox/omnibox_popup_state_manager.h"
+#include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/tab_renderer_data.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/views/location_bar/omnibox_popup_file_selector.h"
+#include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
+#include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_aim_handler.h"
+#include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_ui.h"
+#include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_web_contents_helper.h"
+#include "chrome/browser/ui/webui/top_chrome/webui_contents_wrapper.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/omnibox_popup_resources.h"
 #include "components/favicon/core/favicon_service.h"
 #include "components/favicon_base/favicon_types.h"
+#include "components/lens/contextual_input.h"
+#include "components/lens/tab_contextualization_controller.h"
+#include "components/omnibox/browser/searchbox.mojom.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/url_constants.h"
 #include "ui/base/models/image_model.h"
@@ -36,17 +56,32 @@ namespace {
 constexpr int kMaxRecentTabs = 5;
 constexpr int kMinOmniboxContextMenuRecentTabsCommandId = 33000;
 
-struct TabInfo {
-  int tab_id;
-  std::u16string title;
-  GURL url;
-  base::TimeTicks last_active;
-};
+bool IsValidTab(GURL url) {
+  // Skip tabs that are still loading, and skip webui.
+  return url.is_valid() && !url.is_empty() &&
+         !url.SchemeIs(content::kChromeUIScheme) &&
+         !url.SchemeIs(content::kChromeUIUntrustedScheme) &&
+         !url.IsAboutBlank();
+}
+
+std::optional<lens::ImageEncodingOptions> CreateImageEncodingOptions() {
+  // TODO(crbug.com/457815342): Use omnibox fieldtrial when available.
+  auto image_upload_config =
+      ntp_composebox::FeatureConfig::Get().config.composebox().image_upload();
+  return lens::ImageEncodingOptions{
+      .enable_webp_encoding = image_upload_config.enable_webp_encoding(),
+      .max_size = image_upload_config.downscale_max_image_size(),
+      .max_height = image_upload_config.downscale_max_image_height(),
+      .max_width = image_upload_config.downscale_max_image_width(),
+      .compression_quality = image_upload_config.image_compression_quality()};
+}
 }  // namespace
 
 OmniboxContextMenuController::OmniboxContextMenuController(
-    BrowserWindowInterface* browser_window_interface)
-    : browser_window_interface_(browser_window_interface) {
+    OmniboxPopupFileSelector* file_selector,
+    content::WebContents* web_contents)
+    : file_selector_(file_selector->GetWeakPtr()),
+      web_contents_(web_contents->GetWeakPtr()) {
   menu_model_ = std::make_unique<ui::SimpleMenuModel>(this);
   next_command_id_ = kMinOmniboxContextMenuRecentTabsCommandId;
   BuildMenu();
@@ -81,40 +116,8 @@ void OmniboxContextMenuController::AddSeparator() {
 }
 
 void OmniboxContextMenuController::AddRecentTabItems() {
-  std::vector<TabInfo> tabs;
-
-  // Iterate through the tab strip model.
-  auto* tab_strip_model = browser_window_interface_->GetTabStripModel();
   AddTitleWithStringId(IDS_NTP_COMPOSE_MOST_RECENT_TABS);
-  for (int i = 0; i < tab_strip_model->count(); i++) {
-    tabs::TabInterface* const tab = tab_strip_model->GetTabAtIndex(i);
-    TabRendererData tab_renderer_data =
-        TabRendererData::FromTabInModel(tab_strip_model, i);
-    const auto& last_committed_url = tab_renderer_data.last_committed_url;
-    if (!IsValidTab(last_committed_url)) {
-      continue;
-    }
-
-    TabInfo tab_data;
-    tab_data.tab_id = tab->GetHandle().raw_value();
-    tab_data.title = tab_renderer_data.title;
-    tab_data.url = last_committed_url;
-
-    content::WebContents* web_contents = tab_strip_model->GetWebContentsAt(i);
-    tab_data.last_active =
-        std::max(web_contents->GetLastActiveTimeTicks(),
-                 web_contents->GetLastInteractionTimeTicks());
-    tabs.push_back(tab_data);
-  }
-
-  // Sort tabs by most recently active.
-  int max_tab_suggestions =
-      std::min(static_cast<int>(tabs.size()), kMaxRecentTabs);
-  std::partial_sort(tabs.begin(), tabs.begin() + max_tab_suggestions,
-                    tabs.end(), [](const TabInfo& a, const TabInfo& b) {
-                      return a.last_active > b.last_active;
-                    });
-  tabs.resize(max_tab_suggestions);
+  std::vector<OmniboxContextMenuController::TabInfo> tabs = GetRecentTabs();
 
   for (const auto& tab : tabs) {
     AddItemWithIcon(next_command_id_, tab.title,
@@ -156,10 +159,54 @@ void OmniboxContextMenuController::AddStaticItems() {
                              IDS_NTP_COMPOSE_CREATE_IMAGES, create_images_icon);
 }
 
+std::vector<OmniboxContextMenuController::TabInfo>
+OmniboxContextMenuController::GetRecentTabs() {
+  std::vector<OmniboxContextMenuController::TabInfo> tabs;
+
+  // Iterate through the tab strip model.
+  auto* browser_window_interface =
+      webui::GetBrowserWindowInterface(web_contents_.get());
+  auto* tab_strip_model = browser_window_interface->GetTabStripModel();
+  for (int i = 0; i < tab_strip_model->count(); i++) {
+    tabs::TabInterface* const tab = tab_strip_model->GetTabAtIndex(i);
+    TabRendererData tab_renderer_data =
+        TabRendererData::FromTabInModel(tab_strip_model, i);
+    const auto& last_committed_url = tab_renderer_data.last_committed_url;
+    if (!IsValidTab(last_committed_url)) {
+      continue;
+    }
+
+    OmniboxContextMenuController::TabInfo tab_data;
+    tab_data.tab_id = tab->GetHandle().raw_value();
+    tab_data.title = tab_renderer_data.title;
+    tab_data.url = last_committed_url;
+
+    content::WebContents* web_contents = tab_strip_model->GetWebContentsAt(i);
+    tab_data.last_active =
+        std::max(web_contents->GetLastActiveTimeTicks(),
+                 web_contents->GetLastInteractionTimeTicks());
+    tabs.push_back(tab_data);
+  }
+
+  // Sort tabs by most recently active.
+  int max_tab_suggestions =
+      std::min(static_cast<int>(tabs.size()), kMaxRecentTabs);
+  std::partial_sort(tabs.begin(), tabs.begin() + max_tab_suggestions,
+                    tabs.end(),
+                    [](const OmniboxContextMenuController::TabInfo& a,
+                       const OmniboxContextMenuController::TabInfo& b) {
+                      return a.last_active > b.last_active;
+                    });
+  tabs.resize(max_tab_suggestions);
+  return tabs;
+}
+
 void OmniboxContextMenuController::AddTabFavicon(int command_id,
                                                  const GURL& url,
                                                  const std::u16string& label) {
-  Profile* profile = browser_window_interface_->GetProfile();
+  auto* browser_window_interface =
+      webui::GetBrowserWindowInterface(web_contents_.get());
+  Profile* profile = browser_window_interface->GetProfile();
   if (!profile) {
     return;
   }
@@ -201,12 +248,140 @@ void OmniboxContextMenuController::AddTitleWithStringId(int localization_id) {
   menu_model_->AddTitleWithStringId(localization_id);
 }
 
-void OmniboxContextMenuController::ExecuteCommand(int id, int event_flags) {}
+void OmniboxContextMenuController::AddTabContext(const TabInfo& tab_info) {
+  const tabs::TabHandle handle = tabs::TabHandle(tab_info.tab_id);
+  tabs::TabInterface* const tab = handle.Get();
+  if (!tab) {
+    return;
+  }
+  lens::TabContextualizationController* tab_contextualization_controller =
+      tab->GetTabFeatures()->tab_contextualization_controller();
+  auto token = base::UnguessableToken::Create();
+  auto context_callback =
+      base::BindOnce(&OmniboxContextMenuController::OnGetTabPageContext,
+                     weak_ptr_factory_.GetWeakPtr(), token, tab_info);
+  tab_contextualization_controller->GetPageContext(std::move(context_callback));
+}
 
-bool OmniboxContextMenuController::IsValidTab(GURL url) {
-  // Skip tabs that are still loading, and skip webui.
-  return url.is_valid() && !url.is_empty() &&
-         !url.SchemeIs(content::kChromeUIScheme) &&
-         !url.SchemeIs(content::kChromeUIUntrustedScheme) &&
-         !url.IsAboutBlank();
+void OmniboxContextMenuController::OnGetTabPageContext(
+    const base::UnguessableToken& context_token,
+    const TabInfo& tab_info,
+    std::unique_ptr<lens::ContextualInputData> page_content_data) {
+  GetQueryController()->StartFileUploadFlow(context_token,
+                                            std::move(page_content_data),
+                                            CreateImageEncodingOptions());
+  UpdateSearchboxContext(/*tab_info=*/tab_info, /*tool_mode=*/std::nullopt);
+  GetEditModel()->OpenAiMode(/*via_keyboard=*/false, /*via_context_menu=*/true);
+}
+
+void OmniboxContextMenuController::UpdateSearchboxContext(
+    std::optional<TabInfo> tab_info,
+    std::optional<searchbox::mojom::ToolMode> tool_mode) {
+  auto* browser_window_interface =
+      webui::GetBrowserWindowInterface(web_contents_.get());
+  if (!browser_window_interface) {
+    return;
+  }
+  SearchboxContextData* searchbox_context_data =
+      browser_window_interface->GetFeatures().searchbox_context_data();
+  if (!searchbox_context_data) {
+    return;
+  }
+  auto context = searchbox_context_data->TakePendingContext();
+  if (!context) {
+    context = std::make_unique<SearchboxContextData::Context>();
+  }
+
+  if (tab_info) {
+    auto tab_attachment = searchbox::mojom::TabAttachmentStub::New();
+    tab_attachment->tab_id = tab_info->tab_id;
+    tab_attachment->title = base::UTF16ToUTF8(tab_info->title);
+    tab_attachment->url = tab_info->url;
+    context->file_infos.push_back(
+        searchbox::mojom::SearchContextAttachmentStub::NewTabAttachment(
+            std::move(tab_attachment)));
+  }
+
+  if (tool_mode) {
+    context->mode = *tool_mode;
+  }
+
+  OmniboxController* omnibox_controller = nullptr;
+  if (auto* helper =
+          OmniboxPopupWebContentsHelper::FromWebContents(web_contents_.get())) {
+    omnibox_controller = helper->get_omnibox_controller();
+  }
+
+  if (omnibox_controller &&
+      omnibox_controller->popup_state_manager()->popup_state() ==
+          OmniboxPopupState::kAim) {
+    if (auto* webui = web_contents_->GetWebUI()) {
+      if (auto* webui_controller = webui->GetController()) {
+        auto* omnibox_popup_ui = webui_controller->GetAs<OmniboxPopupUI>();
+        if (omnibox_popup_ui && omnibox_popup_ui->popup_aim_handler()) {
+          // TODO (crbug.com/460471173): Clean this up and create a method
+          // or other clearly supported way to update context.
+          omnibox_popup_ui->popup_aim_handler()->OnShow(std::move(context));
+        }
+      }
+    }
+  } else {
+    searchbox_context_data->SetPendingContext(std::move(context));
+  }
+}
+
+raw_ptr<contextual_search::ContextualSearchContextController>
+OmniboxContextMenuController::GetQueryController() {
+  return ContextualSearchWebContentsHelper::FromWebContents(web_contents_.get())
+      ->session_handle()
+      ->GetController();
+}
+
+raw_ptr<OmniboxEditModel> OmniboxContextMenuController::GetEditModel() {
+  return OmniboxPopupWebContentsHelper::FromWebContents(web_contents_.get())
+      ->get_omnibox_controller()
+      ->edit_model();
+}
+
+void OmniboxContextMenuController::ExecuteCommand(int id, int event_flags) {
+  // Add tab context if tab is selected.
+  if (id >= kMinOmniboxContextMenuRecentTabsCommandId &&
+      id < next_command_id_) {
+    std::vector<OmniboxContextMenuController::TabInfo> tabs = GetRecentTabs();
+    int tab_index_in_menu = id - kMinOmniboxContextMenuRecentTabsCommandId;
+    if (static_cast<size_t>(tab_index_in_menu) < tabs.size()) {
+      const auto& tab_info = tabs[tab_index_in_menu];
+      AddTabContext(tab_info);
+    }
+  } else {
+    switch (id) {
+      case IDC_OMNIBOX_CONTEXT_ADD_IMAGE: {
+        file_selector_->OpenFileUploadDialog(
+            web_contents_.get(),
+            /*is_image=*/true, GetQueryController(), GetEditModel());
+        break;
+      }
+      case IDC_OMNIBOX_CONTEXT_ADD_FILE:
+        file_selector_->OpenFileUploadDialog(
+            web_contents_.get(),
+            /*is_image=*/false, GetQueryController(), GetEditModel());
+        break;
+      case IDC_OMNIBOX_CONTEXT_DEEP_RESEARCH:
+        UpdateSearchboxContext(
+            /*tab_info=*/std::nullopt,
+            /*tool_mode=*/searchbox::mojom::ToolMode::kDeepSearch);
+        GetEditModel()->OpenAiMode(/*via_keyboard=*/false,
+                                   /*via_context_menu=*/true);
+        break;
+      case IDC_OMNIBOX_CONTEXT_CREATE_IMAGES:
+        UpdateSearchboxContext(
+            /*tab_info=*/std::nullopt,
+            /*tool_mode=*/searchbox::mojom::ToolMode::kCreateImage);
+        GetEditModel()->OpenAiMode(/*via_keyboard=*/false,
+                                   /*via_context_menu=*/true);
+        break;
+      default:
+        NOTREACHED();
+    }
+  }
 }

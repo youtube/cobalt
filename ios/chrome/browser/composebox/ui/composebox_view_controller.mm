@@ -12,7 +12,8 @@
 
 namespace {
 /// The padding for the close button.
-const CGFloat kCloseButtonPadding = 16.0f;
+const CGFloat kCloseButtonDefaultPadding = 16.0f;
+const CGFloat kCloseButtonTopAlignedPadding = 22.0f;
 /// The horizontal and bottom padding for the input plate container.
 const CGFloat kInputPlatePadding = 10.0f;
 /// The size for the close button.
@@ -24,25 +25,34 @@ const CGFloat kCloseButtonAlpha = 0.6f;
 @implementation ComposeboxViewController {
   // Close button.
   UIButton* _closeButton;
-  // Container for the input.
-  UIView* _inputContainer;
   // Container for the omnibox popup.
   UIView* _omniboxPopupContainer;
   // WebView for the SRP, when AI Mode Immersive SRP is enabled.
   UIView* _webView;
-
+  // The list of constraints for the current position. Updates once the current
+  // position changes (e.g. on orientation change).
+  NSMutableArray<NSLayoutConstraint*>* _constraintsForCurrentPosition;
   // The presenter for the omnibox popup.
   __weak OmniboxPopupPresenter* _presenter;
   // View controller for the composebox composebox.
-  __weak ComposeboxInputPlateViewController* _inputView;
+  __weak ComposeboxInputPlateViewController* _inputViewController;
+  // The theme of the composebox.
+  ComposeboxTheme* _theme;
+}
+
+- (instancetype)initWithTheme:(ComposeboxTheme*)theme {
+  self = [super init];
+  if (self) {
+    _theme = theme;
+  }
+
+  return self;
 }
 
 - (void)viewDidLoad {
   [super viewDidLoad];
 
-  self.view.backgroundColor = [UIColor colorNamed:kPrimaryBackgroundColor];
-
-  UILayoutGuide* safeAreaGuide = self.view.safeAreaLayoutGuide;
+  self.view.backgroundColor = _theme.composeboxBackgroundColor;
 
   // Close button.
   _closeButton = [UIButton buttonWithType:UIButtonTypeSystem];
@@ -66,70 +76,122 @@ const CGFloat kCloseButtonAlpha = 0.6f;
          forControlEvents:UIControlEventTouchUpInside];
   [self.view addSubview:_closeButton];
 
-  [NSLayoutConstraint activateConstraints:@[
-    [_closeButton.topAnchor constraintEqualToAnchor:safeAreaGuide.topAnchor
-                                           constant:kCloseButtonPadding],
-    [_closeButton.trailingAnchor
-        constraintEqualToAnchor:safeAreaGuide.trailingAnchor
-                       constant:-kCloseButtonPadding],
-    [_closeButton.heightAnchor constraintEqualToConstant:kCloseButtonSize],
-    [_closeButton.widthAnchor
-        constraintEqualToAnchor:_closeButton.heightAnchor],
-  ]];
-
   // Omnibox popup container.
   _omniboxPopupContainer = [[UIView alloc] init];
   _omniboxPopupContainer.hidden = YES;
   _omniboxPopupContainer.translatesAutoresizingMaskIntoConstraints = NO;
   [self.view addSubview:_omniboxPopupContainer];
 
-  [NSLayoutConstraint activateConstraints:@[
-    [_omniboxPopupContainer.topAnchor
-        constraintEqualToAnchor:_closeButton.bottomAnchor],
-    [_omniboxPopupContainer.leadingAnchor
-        constraintEqualToAnchor:self.view.leadingAnchor],
-    [_omniboxPopupContainer.trailingAnchor
-        constraintEqualToAnchor:self.view.trailingAnchor],
-    [_omniboxPopupContainer.bottomAnchor
-        constraintEqualToAnchor:self.view.bottomAnchor],
-  ]];
-
-  // Input container.
-  _inputContainer = [[UIView alloc] init];
-  _inputContainer.translatesAutoresizingMaskIntoConstraints = NO;
-  [self.view addSubview:_inputContainer];
-
-  [NSLayoutConstraint activateConstraints:@[
-    [_inputContainer.leadingAnchor
-        constraintEqualToAnchor:safeAreaGuide.leadingAnchor
-                       constant:kInputPlatePadding],
-    [_inputContainer.trailingAnchor
-        constraintEqualToAnchor:safeAreaGuide.trailingAnchor
-                       constant:-kInputPlatePadding],
-    [_inputContainer.bottomAnchor
-        constraintEqualToAnchor:self.view.keyboardLayoutGuide.topAnchor
-                       constant:-kInputPlatePadding],
-  ]];
+  [self setupConstraints];
 }
 
 - (void)viewDidLayoutSubviews {
   [super viewDidLayoutSubviews];
-  [_presenter setKeyboardAttachedBottomOmniboxHeight:_inputView.inputHeight];
+  [_presenter
+      setKeyboardAttachedBottomOmniboxHeight:_inputViewController.inputHeight];
 }
 
 - (void)addInputViewController:
     (ComposeboxInputPlateViewController*)inputViewController {
   [self loadViewIfNeeded];
 
-  // Make sure we didn't already add an input.
-  CHECK_EQ(_inputContainer.subviews.count, 0UL);
-
   [self addChildViewController:inputViewController];
-  [_inputContainer addSubview:inputViewController.view];
+  [self.view addSubview:inputViewController.view];
   inputViewController.view.translatesAutoresizingMaskIntoConstraints = NO;
-  AddSameConstraints(_inputContainer, inputViewController.view);
   [inputViewController didMoveToParentViewController:self];
-  _inputView = inputViewController;
+  _inputViewController = inputViewController;
+
+  [_inputViewController.view
+      setContentHuggingPriority:UILayoutPriorityRequired
+                        forAxis:UILayoutConstraintAxisVertical];
+  [_inputViewController.view
+      setContentCompressionResistancePriority:UILayoutPriorityRequired
+                                      forAxis:UILayoutConstraintAxisVertical];
+
+  [self setupConstraints];
+}
+
+- (void)setupConstraints {
+  for (NSLayoutConstraint* staleConstraint in _constraintsForCurrentPosition) {
+    staleConstraint.active = NO;
+  }
+
+  _constraintsForCurrentPosition = [[NSMutableArray alloc] init];
+
+  UILayoutGuide* safeAreaGuide = self.view.safeAreaLayoutGuide;
+
+  // Close button.
+  [_constraintsForCurrentPosition addObjectsFromArray:@[
+    [_closeButton.trailingAnchor
+        constraintEqualToAnchor:safeAreaGuide.trailingAnchor
+                       constant:-kCloseButtonDefaultPadding],
+    [_closeButton.heightAnchor constraintEqualToConstant:kCloseButtonSize],
+    [_closeButton.widthAnchor
+        constraintEqualToAnchor:_closeButton.heightAnchor],
+  ]];
+
+  [_constraintsForCurrentPosition addObjectsFromArray:@[
+    [_omniboxPopupContainer.leadingAnchor
+        constraintEqualToAnchor:self.view.leadingAnchor],
+    [_omniboxPopupContainer.trailingAnchor
+        constraintEqualToAnchor:self.view.trailingAnchor],
+  ]];
+
+  switch ([self currentInputPlatePosition]) {
+    case ComposeboxInputPlatePosition::kBottom:
+      [_constraintsForCurrentPosition addObjectsFromArray:@[
+        [_closeButton.topAnchor
+            constraintEqualToAnchor:safeAreaGuide.topAnchor
+                           constant:kCloseButtonDefaultPadding],
+        [_omniboxPopupContainer.topAnchor
+            constraintEqualToAnchor:_closeButton.bottomAnchor],
+        [_omniboxPopupContainer.bottomAnchor
+            constraintEqualToAnchor:self.view.bottomAnchor],
+        [_inputViewController.view.leadingAnchor
+            constraintEqualToAnchor:safeAreaGuide.leadingAnchor
+                           constant:kInputPlatePadding],
+        [_inputViewController.view.trailingAnchor
+            constraintEqualToAnchor:safeAreaGuide.trailingAnchor
+                           constant:-kInputPlatePadding],
+        [_inputViewController.view.bottomAnchor
+            constraintEqualToAnchor:self.view.keyboardLayoutGuide.topAnchor
+                           constant:-kInputPlatePadding],
+      ]];
+      break;
+    case ComposeboxInputPlatePosition::kTop:
+      [_constraintsForCurrentPosition addObjectsFromArray:@[
+        [_closeButton.topAnchor
+            constraintEqualToAnchor:safeAreaGuide.topAnchor
+                           constant:kCloseButtonTopAlignedPadding],
+        [_omniboxPopupContainer.topAnchor
+            constraintEqualToAnchor:_inputViewController.view.bottomAnchor],
+        [_omniboxPopupContainer.leadingAnchor
+            constraintEqualToAnchor:self.view.leadingAnchor],
+        [_omniboxPopupContainer.trailingAnchor
+            constraintEqualToAnchor:self.view.trailingAnchor],
+        [_omniboxPopupContainer.bottomAnchor
+            constraintEqualToAnchor:self.view.bottomAnchor],
+        [_inputViewController.view.leadingAnchor
+            constraintEqualToAnchor:safeAreaGuide.leadingAnchor
+                           constant:kInputPlatePadding],
+        [_inputViewController.view.trailingAnchor
+            constraintEqualToAnchor:_closeButton.leadingAnchor
+                           constant:-kInputPlatePadding],
+        [_inputViewController.view.topAnchor
+            constraintEqualToAnchor:safeAreaGuide.topAnchor
+                           constant:kInputPlatePadding],
+      ]];
+      break;
+    case ComposeboxInputPlatePosition::kMissing:
+      break;
+  }
+
+  [NSLayoutConstraint activateConstraints:_constraintsForCurrentPosition];
+}
+
+- (ComposeboxInputPlatePosition)currentInputPlatePosition {
+  return _inputViewController.view ? _theme.inputPlatePosition
+                                   : ComposeboxInputPlatePosition::kMissing;
 }
 
 #pragma mark - ComposeboxNavigationConsumer
@@ -147,7 +209,8 @@ const CGFloat kCloseButtonAlpha = 0.6f;
                               LayoutSides::kLeading | LayoutSides::kTrailing);
     [NSLayoutConstraint activateConstraints:@[
       [webView.topAnchor constraintEqualToAnchor:_closeButton.bottomAnchor],
-      [webView.bottomAnchor constraintEqualToAnchor:_inputContainer.topAnchor],
+      [webView.bottomAnchor
+          constraintEqualToAnchor:_inputViewController.view.topAnchor],
     ]];
   }
 }
@@ -171,7 +234,7 @@ const CGFloat kCloseButtonAlpha = 0.6f;
 
 - (UIColor*)popupBackgroundColorForPresenter:(OmniboxPopupPresenter*)presenter {
   _presenter = presenter;
-  return [UIColor colorNamed:kPrimaryBackgroundColor];
+  return self.view.backgroundColor;
 }
 
 - (GuideName*)omniboxGuideNameForPresenter:(OmniboxPopupPresenter*)presenter {

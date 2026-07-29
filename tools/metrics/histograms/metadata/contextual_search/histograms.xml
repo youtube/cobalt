@@ -35,6 +35,45 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <histogram
+    name="ContextualSearch.ActiveTabsCountOnContextMenuOpen.{ContextualSearchSource}"
+    units="count" expires_after="2026-06-10">
+  <owner>hujasonx@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Tracks the total number of active tabs a user has at the time in which they
+    open the composeboxcontext menu. This metric is recorded regardless of
+    whether or not a query was issued with the tab.
+  </summary>
+  <token key="ContextualSearchSource" variants="ContextualSearchSource"/>
+</histogram>
+
+<histogram
+    name="ContextualSearch.AddedTabContextRecencyRanking.{ContextualSearchSource}"
+    units="rank" expires_after="2026-06-10">
+  <owner>hujasonx@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Tracks the relative recency ranking (0-indexed) of a tab across its window
+    when a tab is added as context through the composebox context menu. This
+    metric is recorded regardless of whether or not a query was issued with the
+    tab.
+  </summary>
+  <token key="ContextualSearchSource" variants="ContextualSearchSource"/>
+</histogram>
+
+<histogram
+    name="ContextualSearch.DuplicateTabTitlesShownCount.{ContextualSearchSource}"
+    units="count" expires_after="2026-06-10">
+  <owner>hujasonx@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Recorded during each session and records the number of tabs shown in the
+    context menu UI that have duplicate titles.
+  </summary>
+  <token key="ContextualSearchSource" variants="ContextualSearchSource"/>
+</histogram>
+
+<histogram
     name="ContextualSearch.File.Size.{ContextualSearchFileTypes}.{ContextualSearchSource}"
     units="bytes" expires_after="2026-03-29">
   <owner>hujasonx@google.com</owner>
@@ -250,6 +289,63 @@ chromium-metrics-reviews@google.com.
     composebox remains open. Recorded at the end of the session.
   </summary>
   <token key="ContextualSearchSource" variants="ContextualSearchSource"/>
+</histogram>
+
+<histogram name="ContextualSearch.TabContextAdded.{ContextualSearchSource}"
+    units="count" expires_after="2026-06-10">
+  <owner>hujasonx@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Tracks the total number of times a tab is added as context through the
+    composebox context menu. This metric is recorded regardless of whether or
+    not a query was issued with the tab.
+  </summary>
+  <token key="ContextualSearchSource" variants="ContextualSearchSource"/>
+</histogram>
+
+<histogram
+    name="ContextualSearch.TabWithDuplicateTitleClicked.{ContextualSearchSource}"
+    units="count" expires_after="2026-06-10">
+  <owner>hujasonx@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Tracks the total number of times a tab with a duplicate title is clicked
+    through the composebox context menu. This metric is recorded regardless of
+    whether or not a query was issued with the tab.
+  </summary>
+  <token key="ContextualSearchSource" variants="ContextualSearchSource"/>
+</histogram>
+
+<histogram
+    name="ContextualSearch.Tools.SubmissionType.{ContextualSearchSource}"
+    enum="ContextualSearchSubmissionType" expires_after="2026-06-10">
+  <owner>hujasonx@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Tracks whether the user submitted a query using a tool or model or through a
+    suggestion. This metric is recorded only once the user has submitted the
+    query and navigated to AIM.
+  </summary>
+  <token key="ContextualSearchSource" variants="ContextualSearchSource"/>
+</histogram>
+
+<histogram
+    name="ContextualSearch.Tools.{ContextualSearchSubmissionType}.{ContextualSearchSource}"
+    enum="ContextualSearchAimToolState" expires_after="2026-06-10">
+  <owner>ananyaseelam@google.com</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Tracks the number of times the {ContextualSearchSubmissionType} tool
+    selected or deselected in the composebox. The metric is only recorded when
+    the {ContextualSearchSubmissionType} tool chip or the create images dropdown
+    item in the composebox context menu is selected.
+  </summary>
+  <token key="ContextualSearchSource" variants="ContextualSearchSource"/>
+  <token key="ContextualSearchSubmissionType">
+    <variant name="CreateImages" summary="create images"/>
+    <variant name="DeepSearch" summary="deep search"/>
+  </token>
 </histogram>
 
 </histograms>

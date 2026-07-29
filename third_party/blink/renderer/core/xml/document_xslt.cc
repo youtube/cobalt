@@ -67,9 +67,6 @@ class DOMContentLoadedListener final
   Member<ProcessingInstruction> processing_instruction_;
 };
 
-DocumentXSLT::DocumentXSLT(Document& document)
-    : Supplement<Document>(document) {}
-
 void DocumentXSLT::ApplyXSLTransform(Document& document,
                                      ProcessingInstruction* pi) {
   DCHECK(!pi->IsLoading());
@@ -149,21 +146,15 @@ bool DocumentXSLT::SheetLoaded(Document& document, ProcessingInstruction* pi) {
   return true;
 }
 
-// static
-const char DocumentXSLT::kSupplementName[] = "DocumentXSLT";
-
 bool DocumentXSLT::HasTransformSourceDocument(Document& document) {
-  return Supplement<Document>::From<DocumentXSLT>(document);
+  return document.GetDocumentXSLT();
 }
 
 void DocumentXSLT::SetHasTransformSource(Document& document) {
   DCHECK(!HasTransformSourceDocument(document));
-  Supplement<Document>::ProvideTo(document,
-                                  MakeGarbageCollected<DocumentXSLT>(document));
+  document.SetDocumentXSLT(MakeGarbageCollected<DocumentXSLT>());
 }
 
-void DocumentXSLT::Trace(Visitor* visitor) const {
-  Supplement<Document>::Trace(visitor);
-}
+void DocumentXSLT::Trace(Visitor* visitor) const {}
 
 }  // namespace blink

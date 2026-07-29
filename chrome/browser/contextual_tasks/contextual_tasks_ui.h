@@ -49,6 +49,8 @@ class TaskInfoDelegate {
   virtual void SetThreadId(std::optional<std::string> id) = 0;
   virtual const std::optional<std::string>& GetThreadTitle() = 0;
   virtual void SetThreadTitle(std::optional<std::string> title) = 0;
+  virtual bool IsShownInTab() = 0;
+  virtual BrowserWindowInterface* GetBrowser() = 0;
 };
 
 class ContextualTasksUI : public TaskInfoDelegate,
@@ -76,7 +78,6 @@ class ContextualTasksUI : public TaskInfoDelegate,
     raw_ptr<contextual_tasks::ContextualTasksContextController>
         context_controller_;
     raw_ref<TaskInfoDelegate> task_info_delegate_;
-    raw_ptr<BrowserWindowInterface> browser_;
   };
 
   explicit ContextualTasksUI(content::WebUI* web_ui);
@@ -97,6 +98,8 @@ class ContextualTasksUI : public TaskInfoDelegate,
   void SetThreadId(std::optional<std::string> id) override;
   const std::optional<std::string>& GetThreadTitle() override;
   void SetThreadTitle(std::optional<std::string> title) override;
+  bool IsShownInTab() override;
+  BrowserWindowInterface* GetBrowser() override;
 
   void CloseSidePanel();
 
@@ -122,6 +125,10 @@ class ContextualTasksUI : public TaskInfoDelegate,
       mojo::PendingReceiver<composebox::mojom::PageHandlerFactory> receiver);
 
   static constexpr std::string_view GetWebUIName() { return "ContextualTasks"; }
+
+  // Notify the UI that the WebContents has moved to or from the side panel or
+  // tab.
+  void OnSidePanelStateChanged();
 
  private:
   // A an observer specifically to watch for the creation of the hosted remote
@@ -162,7 +169,7 @@ class ContextualTasksUI : public TaskInfoDelegate,
   mojo::Receiver<contextual_tasks::mojom::PageHandlerFactory>
       contextual_tasks_page_handler_factory_receiver_{this};
 
-  std::unique_ptr<contextual_tasks::mojom::PageHandler> page_handler_;
+  std::unique_ptr<ContextualTasksPageHandler> page_handler_;
 
   std::unique_ptr<InnerFrameCreationObvserver>
       inner_web_contents_creation_observer_;
@@ -183,6 +190,8 @@ class ContextualTasksUI : public TaskInfoDelegate,
   std::optional<std::string> thread_id_;
 
   std::optional<std::string> thread_title_;
+
+  mojo::Remote<contextual_tasks::mojom::Page> page_;
 
   base::WeakPtrFactory<ContextualTasksUI> weak_ptr_factory_{this};
 

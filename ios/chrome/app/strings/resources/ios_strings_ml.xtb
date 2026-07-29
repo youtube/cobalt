@@ -1,6 +1,7 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="ml">
+<translation id="1004825134262590729">{count,plural, =1{{count} പാസ്‌കീ}other{{count} പാസ്‌കീകൾ}}</translation>
 <translation id="1005023885865154304">പാസ്‌വേഡ് സ്വയമേവ പൂരിപ്പിക്കൽ ക്രമീകരണം തുറക്കുക</translation>
 <translation id="1005230401424685968">YYYY</translation>
 <translation id="1013952917065545813">നിങ്ങൾ അടുത്തിടെ അടച്ച ടാബുകൾ ഇവിടേക്ക് തിരികെ വന്ന് നിങ്ങൾക്ക് വീണ്ടും തുറക്കാം</translation>
@@ -656,6 +657,7 @@
 <translation id="3547933853190131743">AI മോഡ് ഉപയോഗിച്ച് തിരയുക</translation>
 <translation id="3557336313807607643">കോൺടാക്‌റ്റുകളിലേക്ക് ചേർക്കുക</translation>
 <translation id="355765753469272474">പഴയപടിയാക്കുക</translation>
+<translation id="3565012355885596568">ചിത്രങ്ങൾ ലോഡ് ചെയ്യാനാകുന്നില്ല</translation>
 <translation id="3565930036634619844">ടാബ്. <ph name="NUMBER_OF_TABS" />-ൽ <ph name="TAB_INDEX" />-ാമത്തേത്.</translation>
 <translation id="3572607909481582402">നിങ്ങളുടെ Google Account-ൽ</translation>
 <translation id="3575234738189584619">Lens ഉപയോഗിച്ച് തിരയുക</translation>
@@ -1314,6 +1316,7 @@
 <translation id="6045460247888249350">പേര് ചേർക്കുക</translation>
 <translation id="6052269326659653305">പ്രൊഫൈൽ മാറുക</translation>
 <translation id="605721222689873409">YY</translation>
+<translation id="6058415747854995776">വീഡിയോ എടുക്കുക</translation>
 <translation id="6059830886158432458">നിങ്ങളുടെ സ്‌റ്റോറികളും ആക്റ്റിവിറ്റികളും ഇവിടെ നിയന്ത്രിക്കുക</translation>
 <translation id="6066301408025741299">റദ്ദാക്കുന്നതിന് ടാപ്പ് ചെയ്യുക.</translation>
 <translation id="6074656473835429958">അറിയിപ്പുകൾ നേടുക</translation>
@@ -1815,6 +1818,7 @@
 <translation id="7866872729285243843">നിങ്ങളുടെ എല്ലാ ഉപകരണങ്ങളിലും വായിക്കാനുള്ളവയുടെ ലിസ്‌റ്റ് ലഭിക്കാൻ, ക്രമീകരണത്തിൽ “വായിക്കാനുള്ളവയുടെ ലിസ്‌റ്റ്” ഓണാക്കുക.</translation>
 <translation id="7874107544081154809"><ph name="CELL_ACCESSIBILITY_LABEL" /> ഉപയോഗിച്ച് ഫോം സ്വയമേവ പൂരിപ്പിക്കുക</translation>
 <translation id="7879275349003161544">ഡൗൺലോഡുകൾ കാണിക്കുക</translation>
+<translation id="7882689957034389473">ഫോട്ടോ എടുക്കുക</translation>
 <translation id="7883882164760409935">നിങ്ങൾക്ക് ആവർത്തിച്ച് ഉപയോഗിക്കുന്ന പാസ്‌വേഡുകളുണ്ട്.</translation>
 <translation id="7887174313503389866">പ്രധാന സ്വകാര്യതാ, സുരക്ഷാ നിയന്ത്രണങ്ങളെ കുറിച്ചുള്ള മാർഗ്ഗനിർദ്ദേശങ്ങൾ അവലോകനം ചെയ്യൂ. കൂടുതൽ ഓപ്ഷനുകൾക്ക്, വ്യക്തിഗത ക്രമീകരണത്തിലേക്ക് പോകുക.</translation>
 <translation id="7887198238286927132">നിങ്ങളുടെ സ്വകാര്യത പരിരക്ഷിക്കാൻ, Chrome ഈ ഫീൽഡ് സ്വയമേവ പൂരിപ്പിക്കില്ല.</translation>
@@ -1998,6 +2002,7 @@
 <translation id="8551311254462607218">വിലാസ ബാറിൽ, Google Lens ക്യാമറാ ഐക്കൺ ടാപ്പ് ചെയ്യുക</translation>
 <translation id="8556590991644167667">{count,plural, =1{നിങ്ങൾ {count} മുന്നറിയിപ്പ് ഡിസ്‌മിസ് ചെയ്‌തു}other{നിങ്ങൾ {count} മുന്നറിയിപ്പുകൾ ഡിസ്‌മിസ് ചെയ്‌തു}}</translation>
 <translation id="8558046478684552694">ഗ്രൂപ്പ് അടയ്ക്കുക.</translation>
+<translation id="8559858985063901027">പാസ്‌കീകൾ</translation>
 <translation id="8560253818350321773">ഇടയ്ക്കിടെ ഉപയോഗിക്കുന്ന ഇനങ്ങൾ ആദ്യം കാണിക്കുക.</translation>
 <translation id="8561999115126307258">{count,plural, =1{നിങ്ങളുടെ കീബോർഡിന് മുകളിൽ, പാസ്‌വേഡിനുള്ള {count} ഓപ്ഷൻ ലഭ്യമാണ്.}other{നിങ്ങളുടെ കീബോർഡിന് മുകളിൽ, പാസ്‌വേഡിനുള്ള {count} ഓപ്ഷനുകൾ ലഭ്യമാണ്.}}</translation>
 <translation id="8564894539416715395">പുതിയ ടാബ് പേജ്</translation>
@@ -2208,5 +2213,6 @@
 <translation id="984275831282074731">പേയ്‌മെന്റ് രീതികൾ</translation>
 <translation id="985379595344853742">എല്ലാ അദൃശ്യ ടാബുകളും അടയ്‌ക്കുക</translation>
 <translation id="988141524645182168">മറ്റ് ഉപകരണങ്ങൾ</translation>
+<translation id="995174784802614337">{count,plural, =1{{count} പാസ്‌കീ ഇമ്പോർട്ട് ചെയ്തു}other{{count} പാസ്‌കീകൾ ഇമ്പോർട്ട് ചെയ്തു}}</translation>
 <translation id="999768147936949692">ഇപ്പോൾ നിങ്ങൾക്ക്, കുടുംബാംഗങ്ങളുമായി മാത്രമേ പാസ്‌വേഡുകൾ പങ്കിടാനാകൂ. നിങ്ങളുടെ ഗ്രൂപ്പിൽ ചേരാൻ <ph name="BEGIN_LINK" />കുടുംബാംഗങ്ങളെ ക്ഷണിക്കുക<ph name="END_LINK" />, Google-ൽ ഉടനീളമുള്ള നിങ്ങളുടെ ഉൽപ്പന്നങ്ങളിൽ നിന്നും സബ്‌സ്‌ക്രിപ്‌ഷനുകളിൽ നിന്നും കൂടുതൽ നേടുക.</translation>
 </translationbundle>

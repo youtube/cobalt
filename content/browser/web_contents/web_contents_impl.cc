@@ -133,7 +133,6 @@
 #include "content/browser/wake_lock/wake_lock_context_host.h"
 #include "content/browser/web_contents/file_chooser_impl.h"
 #include "content/browser/web_contents/java_script_dialog_commit_deferring_condition.h"
-#include "content/browser/web_contents/partitioned_popins_controller.h"
 #include "content/browser/web_contents/slow_web_preference_cache.h"
 #include "content/browser/web_contents/web_contents_view.h"
 #include "content/browser/web_contents/web_contents_view_child_frame.h"
@@ -883,78 +882,6 @@ WebContentsImpl* WebContentsImpl::FromRenderWidgetHostImpl(
 
 bool WebContentsImpl::IsPopup() const {
   return is_popup_;
-}
-
-bool WebContentsImpl::IsPartitionedPopin() const {
-  // The feature must be enabled if a popin was opened.
-  CHECK(base::FeatureList::IsEnabled(blink::features::kPartitionedPopins) ||
-        (!partitioned_popin_opener_ && !partitioned_popin_opener_properties_));
-
-  // We must check local data and not `partitioned_popin_opener_` as it could
-  // go away before this popin closes.
-  return !!partitioned_popin_opener_properties_;
-}
-
-const PartitionedPopinOpenerProperties&
-WebContentsImpl::GetPartitionedPopinOpenerProperties() const {
-  // This function is only usable if we are in a popin.
-  CHECK(IsPartitionedPopin());
-
-  return *partitioned_popin_opener_properties_;
-}
-
-RenderFrameHostImpl* WebContentsImpl::GetPartitionedPopinOpener(
-    base::PassKey<PartitionedPopinsController>) const {
-  // A popin cannot open a popin so at most one could be set at a time.
-  CHECK(!partitioned_popin_opener_ || !opened_partitioned_popin_);
-
-  // The feature must be enabled if the popin opener is set.
-  CHECK(base::FeatureList::IsEnabled(blink::features::kPartitionedPopins) ||
-        !partitioned_popin_opener_);
-
-  return partitioned_popin_opener_.get();
-}
-
-void WebContentsImpl::ClearPartitionedPopinOpenerForTesting() {
-  partitioned_popin_opener_.reset();
-}
-
-WebContents* WebContentsImpl::GetOpenedPartitionedPopin() const {
-  // A popin cannot open a popin so at most one could be set at a time.
-  CHECK(!IsPartitionedPopin() || !opened_partitioned_popin_);
-
-  // The feature must be enabled if a popin was opened.
-  CHECK(base::FeatureList::IsEnabled(blink::features::kPartitionedPopins) ||
-        !opened_partitioned_popin_);
-
-  return opened_partitioned_popin_.get();
-}
-
-GURL WebContentsImpl::GetPartitionedPopinEmbedderOrigin(
-    base::PassKey<StorageAccessGrantPermissionContext>) const {
-  return GetPartitionedPopinEmbedderOriginImpl();
-}
-
-GURL WebContentsImpl::GetPartitionedPopinEmbedderOriginForTesting() const {
-  return GetPartitionedPopinEmbedderOriginImpl();
-}
-
-GURL WebContentsImpl::GetPartitionedPopinEmbedderOriginImpl() const {
-  // This should only be checked for popins.
-  CHECK(IsPartitionedPopin());
-
-  // If the opener is still around and has not navigated then we want to use the
-  // embedder origin it would have used for its own iframe.
-  if (partitioned_popin_opener_ &&
-      partitioned_popin_opener_->GetMainFrame()->GetLastCommittedOrigin() ==
-          partitioned_popin_opener_properties_->top_frame_origin) {
-    return PermissionUtil::GetLastCommittedOriginAsURL(
-        partitioned_popin_opener_->GetMainFrame());
-  }
-  // If we end up here there was a race condition between a permissions check
-  // and this popin being closed or navigated, so we should fallback to using
-  // the origin we partitioned by.
-  return partitioned_popin_opener_properties_->top_frame_origin.GetURL();
 }
 
 WindowOpenDisposition WebContentsImpl::GetOriginalWindowOpenDisposition()
@@ -4954,6 +4881,13 @@ void WebContentsImpl::UpdateVisibilityAndNotifyPageAndView(
   const bool hide_or_reveal = (visibility_ == Visibility::HIDDEN) !=
                               (new_visibility == Visibility::HIDDEN);
 
+  if (new_visibility != visibility_ ||
+      (new_visibility == Visibility::VISIBLE && !did_first_set_visible_)) {
+    SCOPED_UMA_HISTOGRAM_TIMER("WebContentsObserver.OnVisibilityWillChange");
+    observers_.NotifyObservers(&WebContentsObserver::OnVisibilityWillChange,
+                               new_visibility);
+  }
+
   // Send ax modes to renderers before they start painting if they are being
   // revealed.
   if (!is_never_composited_ && hide_or_reveal &&
@@ -5018,25 +4952,19 @@ void WebContentsImpl::UpdateVisibilityAndNotifyPageAndView(
 
   SetVisibilityForChildViews(view_is_visible);
 
-  // Make sure to call SetVisibilityAndNotifyObservers(VISIBLE) before notifying
-  // the CrossProcessFrameConnector.
-  if (new_visibility == Visibility::VISIBLE) {
-    if (is_activity) {
-      last_active_time_ticks_ = base::TimeTicks::Now();
-      last_active_time_ = base::Time::Now();
-    }
-    SetVisibilityAndNotifyObservers(new_visibility);
-  }
-
   if (page_visibility == PageVisibilityState::kHidden) {
     // Similar to when showing the page, we only hide the page after
     // hiding the individual RenderWidgets.
     ForEachRenderViewHost(view_mask, update_frame_tree_visibility);
   }
 
-  if (new_visibility != Visibility::VISIBLE) {
-    SetVisibilityAndNotifyObservers(new_visibility);
+  // Make sure to call SetVisibilityAndNotifyObservers(VISIBLE) before notifying
+  // the CrossProcessFrameConnector.
+  if (is_activity && new_visibility == Visibility::VISIBLE) {
+    last_active_time_ticks_ = base::TimeTicks::Now();
+    last_active_time_ = base::Time::Now();
   }
+  SetVisibilityAndNotifyObservers(new_visibility);
 
   if (base::FeatureList::IsEnabled(kUpdateInnerWebContentsVisibility)) {
     // Inner WebContents are skipped in ForEachRenderViewHost() above, which
@@ -5341,8 +5269,6 @@ FrameTree* WebContentsImpl::CreateNewWindow(
     }
     web_contents_impl->is_popup_ =
         params.disposition == WindowOpenDisposition::NEW_POPUP;
-    SetPartitionedPopinOpenerOnNewWindowIfNeeded(web_contents_impl, params,
-                                                 opener);
     return &web_contents_impl->GetPrimaryFrameTree();
   }
 
@@ -5443,8 +5369,6 @@ FrameTree* WebContentsImpl::CreateNewWindow(
   auto* new_contents_impl = new_contents.get();
   new_contents_impl->is_popup_ =
       params.disposition == WindowOpenDisposition::NEW_POPUP;
-  SetPartitionedPopinOpenerOnNewWindowIfNeeded(new_contents_impl, params,
-                                               opener);
 
   // Sets the newly created WebContents WindowOpenDisposition.
   new_contents_impl->original_window_open_disposition_ = params.disposition;
@@ -9802,6 +9726,17 @@ bool WebContentsImpl::MaybeCopyContentAreaAsBitmap(
   return GetDelegate()->MaybeCopyContentAreaAsBitmap(std::move(callback));
 }
 
+#if BUILDFLAG(IS_ANDROID)
+bool WebContentsImpl::MaybeCopyContentAreaAsHardwareBuffer(
+    HardwareBufferResultCallback callback) {
+  if (!GetDelegate()) {
+    return false;
+  }
+  return GetDelegate()->MaybeCopyContentAreaAsHardwareBuffer(
+      std::move(callback));
+}
+#endif  // BUILDFLAG(IS_ANDROID)
+
 bool WebContentsImpl::SupportsForwardTransitionAnimation() {
 #if BUILDFLAG(IS_ANDROID)
   return supports_forward_transition_animation_;
@@ -12393,31 +12328,6 @@ void WebContentsImpl::WarmUpAndroidSpareRenderer() {
     SpareRenderProcessHostManagerImpl::Get().WarmupSpare(GetBrowserContext(),
                                                          timeout);
   }
-}
-
-void WebContentsImpl::SetPartitionedPopinOpenerOnNewWindowIfNeeded(
-    WebContentsImpl* new_window,
-    const mojom::CreateNewWindowParams& params,
-    RenderFrameHostImpl* opener) {
-  // We should not take action if the feature is disabled.
-  if (!base::FeatureList::IsEnabled(blink::features::kPartitionedPopins)) {
-    return;
-  }
-
-  // All popins should be counted as popups to ensure proper UX treatment.
-  if (!params.features->is_partitioned_popin || !new_window->is_popup_) {
-    return;
-  }
-
-  PartitionedPopinsController::CreateForWebContents(
-      static_cast<WebContentsImpl*>(opener->delegate()));
-  new_window->partitioned_popin_opener_ = opener->GetWeakPtr();
-  new_window->partitioned_popin_opener_properties_ =
-      PartitionedPopinOpenerProperties(
-          opener->GetMainFrame()->GetLastCommittedOrigin(),
-          opener->ComputeSiteForCookies(),
-          opener->GetStorageKey().ancestor_chain_bit());
-  opened_partitioned_popin_ = new_window->GetWeakPtr();
 }
 
 }  // namespace content

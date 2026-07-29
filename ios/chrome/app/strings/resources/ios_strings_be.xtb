@@ -656,6 +656,7 @@
 <translation id="3547933853190131743">Пошук у рэжыме AI</translation>
 <translation id="3557336313807607643">Дадаць у кантакты</translation>
 <translation id="355765753469272474">Адрабіць</translation>
+<translation id="3565012355885596568">Не ўдалося загрузіць відарысы</translation>
 <translation id="3565930036634619844">Укладка. <ph name="TAB_INDEX" /> з <ph name="NUMBER_OF_TABS" />.</translation>
 <translation id="3572607909481582402">Ва Уліковым запісе Google</translation>
 <translation id="3575234738189584619">Пошук з дапамогай Аб’ектыва</translation>
@@ -1314,6 +1315,7 @@
 <translation id="6045460247888249350">Дадайце назву</translation>
 <translation id="6052269326659653305">Пераключыцца на іншы профіль</translation>
 <translation id="605721222689873409">ГГ</translation>
+<translation id="6058415747854995776">Зняць відэа</translation>
 <translation id="6059830886158432458">Кіруйце паказам артыкулаў і гісторыяй дзеянняў тут</translation>
 <translation id="6066301408025741299">Каб скасаваць, націсніце тут.</translation>
 <translation id="6074656473835429958">Атрымлівайце апавяшчэнні</translation>
@@ -1815,6 +1817,7 @@
 <translation id="7866872729285243843">Каб спіс на прагляд быў даступны на ўсіх вашых прыладах, уключыце "Спіс на прагляд" у наладах.</translation>
 <translation id="7874107544081154809">Аўтаматычна запоўніць наступныя даныя: <ph name="CELL_ACCESSIBILITY_LABEL" /></translation>
 <translation id="7879275349003161544">Паказаць спампоўкі</translation>
+<translation id="7882689957034389473">Зрабіць фота</translation>
 <translation id="7883882164760409935">У вас ёсць ужытыя раней паролі.</translation>
 <translation id="7887174313503389866">Даведайцеся пра ключавыя налады бяспекі і прыватнасці. Больш інфармацыі вы можаце атрымаць, знаёмячыся з кожнай наладай асобна.</translation>
 <translation id="7887198238286927132">У мэтах аховы вашай прыватнасці Chrome не будзе выкарыстоўваць аўтазапаўненне ў гэтым полі.</translation>
@@ -1998,6 +2001,7 @@
 <translation id="8551311254462607218">У адрасным радку націсніце на значок камеры Google Аб’ектыва</translation>
 <translation id="8556590991644167667">{count,plural, =1{Вы адхілілі {count} папярэджанне}one{Вы адхілілі {count} папярэджанне}few{Вы адхілілі {count} папярэджанні}many{Вы адхілілі {count} папярэджанняў}other{Вы адхілілі {count} папярэджання}}</translation>
 <translation id="8558046478684552694">Закрыць групу.</translation>
+<translation id="8559858985063901027">Ключы доступу</translation>
 <translation id="8560253818350321773">Спачатку паказваць элементы, якія часта выкарыстоўваюцца.</translation>
 <translation id="8561999115126307258">{count,plural, =1{Над вашай клавіятурай паказаны {count} варыянт пароля.}one{Над вашай клавіятурай паказаны {count} варыянт пароля.}few{Над вашай клавіятурай паказаны {count} варыянты пароля.}many{Над вашай клавіятурай паказаны {count} варыянтаў пароля.}other{Над вашай клавіятурай паказаны {count} варыянта пароля.}}</translation>
 <translation id="8564894539416715395">Старонка новай укладкі</translation>

@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/350788890): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "url/url_canon.h"
 
 #include <errno.h>
@@ -261,8 +256,7 @@ TEST_F(URLCanonTest, UTF) {
       size_t input_len = strlen(utf_case.input8);
       bool success = true;
       for (size_t ch = 0; ch < input_len; ch++) {
-        success &=
-            AppendUTF8EscapedChar(utf_case.input8, &ch, input_len, &output);
+        success &= AppendUtf8EscapedChar(utf_case.input8, &ch, &output);
       }
       output.Complete();
       EXPECT_EQ(utf_case.expected_success, success);
@@ -277,8 +271,7 @@ TEST_F(URLCanonTest, UTF) {
       size_t input_len = input_str.length();
       bool success = true;
       for (size_t ch = 0; ch < input_len; ch++) {
-        success &= AppendUTF8EscapedChar(input_str.c_str(), &ch, input_len,
-                                         &output);
+        success &= AppendUtf8EscapedChar(input_str, &ch, &output);
       }
       output.Complete();
       EXPECT_EQ(utf_case.expected_success, success);
@@ -345,8 +338,8 @@ TEST_F(URLCanonTest, Scheme) {
 
     std::u16string wide_input(base::UTF8ToUTF16(scheme_case.input));
     in_comp.len = static_cast<int>(wide_input.length());
-    success = CanonicalizeScheme(in_comp.as_string_view_on(wide_input.c_str()),
-                                 &output2, &out_comp);
+    success =
+        CanonicalizeScheme(in_comp.AsViewOn(wide_input), &output2, &out_comp);
     output2.Complete();
 
     EXPECT_EQ(scheme_case.expected_success, success);
@@ -1299,10 +1292,9 @@ TEST_F(URLCanonTest, UserInfo) {
     out_str.clear();
     StdStringCanonOutput output2(&out_str);
     std::u16string wide_input(base::UTF8ToUTF16(user_info_case.input));
-    success = CanonicalizeUserInfo(
-        parsed.username.maybe_as_string_view_on(wide_input.c_str()),
-        parsed.password.maybe_as_string_view_on(wide_input.c_str()), &output2,
-        &out_user, &out_pass);
+    success = CanonicalizeUserInfo(parsed.username.MaybeAsViewOn(wide_input),
+                                   parsed.password.MaybeAsViewOn(wide_input),
+                                   &output2, &out_user, &out_pass);
     output2.Complete();
 
     EXPECT_EQ(user_info_case.expected_success, success);
@@ -1615,8 +1607,7 @@ TEST_F(URLCanonTest, Query) {
       std::string out_str;
 
       StdStringCanonOutput output(&out_str);
-      CanonicalizeQuery(in_comp.as_string_view_on(input16.c_str()), nullptr,
-                        &output, &out_comp);
+      CanonicalizeQuery(in_comp.AsViewOn(input16), nullptr, &output, &out_comp);
       output.Complete();
 
       EXPECT_EQ(query_case.expected, out_str);
@@ -1693,8 +1684,7 @@ TEST_F(URLCanonTest, Ref) {
 
       std::string out_str;
       StdStringCanonOutput output(&out_str);
-      CanonicalizeRef(in_comp.maybe_as_string_view_on(input16.c_str()), &output,
-                      &out_comp);
+      CanonicalizeRef(in_comp.MaybeAsViewOn(input16), &output, &out_comp);
       output.Complete();
 
       EXPECT_EQ(ref_case.expected_component.begin, out_comp.begin);
@@ -2418,7 +2408,7 @@ TEST_F(URLCanonTest, CanonicalizePathUrl) {
     EXPECT_EQ(-1, out_parsed.host.len);
 
     // When we end with a colon at the end, there should be no path.
-    if (path_case.input[url_len - 1] == ':') {
+    if (UNSAFE_TODO(path_case.input[url_len - 1]) == ':') {
       EXPECT_EQ(0, out_parsed.GetContent().begin);
       EXPECT_EQ(-1, out_parsed.GetContent().len);
     }
@@ -2554,35 +2544,35 @@ TEST_F(URLCanonTest, _itoa_s) {
   // null-terminated. We also allocate one byte more than what we tell
   // _itoa_s about, and ensure that the extra byte is untouched.
   char buf[6];
-  memset(buf, 0xff, sizeof(buf));
+  UNSAFE_TODO(memset(buf, 0xff, sizeof(buf)));
   EXPECT_EQ(0, _itoa_s(12, buf, sizeof(buf) - 1, 10));
   EXPECT_STREQ("12", buf);
   EXPECT_EQ('\xFF', buf[3]);
 
   // Test the edge cases - exactly the buffer size and one over
-  memset(buf, 0xff, sizeof(buf));
+  UNSAFE_TODO(memset(buf, 0xff, sizeof(buf)));
   EXPECT_EQ(0, _itoa_s(1234, buf, sizeof(buf) - 1, 10));
   EXPECT_STREQ("1234", buf);
   EXPECT_EQ('\xFF', buf[5]);
 
-  memset(buf, 0xff, sizeof(buf));
+  UNSAFE_TODO(memset(buf, 0xff, sizeof(buf)));
   EXPECT_EQ(EINVAL, _itoa_s(12345, buf, sizeof(buf) - 1, 10));
   EXPECT_EQ('\xFF', buf[5]);  // should never write to this location
 
   // Test the template overload (note that this will see the full buffer)
-  memset(buf, 0xff, sizeof(buf));
+  UNSAFE_TODO(memset(buf, 0xff, sizeof(buf)));
   EXPECT_EQ(0, _itoa_s(12, buf, 10));
   EXPECT_STREQ("12", buf);
   EXPECT_EQ('\xFF', buf[3]);
 
-  memset(buf, 0xff, sizeof(buf));
+  UNSAFE_TODO(memset(buf, 0xff, sizeof(buf)));
   EXPECT_EQ(0, _itoa_s(12345, buf, 10));
   EXPECT_STREQ("12345", buf);
 
   EXPECT_EQ(EINVAL, _itoa_s(123456, buf, 10));
 
   // Test that radix 16 is supported.
-  memset(buf, 0xff, sizeof(buf));
+  UNSAFE_TODO(memset(buf, 0xff, sizeof(buf)));
   EXPECT_EQ(0, _itoa_s(1234, buf, sizeof(buf) - 1, 16));
   EXPECT_STREQ("4d2", buf);
   EXPECT_EQ('\xFF', buf[5]);
@@ -2937,28 +2927,29 @@ TEST_F(URLCanonTest, DefaultPortForScheme) {
 }
 
 TEST_F(URLCanonTest, FindWindowsDriveLetter) {
+  constexpr size_t npos = std::string_view::npos;
   struct TestCase {
     std::string_view spec;
     int begin;
     int end;  // -1 for end of spec
-    int expected_drive_letter_pos;
+    size_t expected_drive_letter_pos;
   } cases[] = {
-      {"/", 0, -1, -1},
+      {"/", 0, -1, npos},
 
       {"c:/foo", 0, -1, 0},
       {"/c:/foo", 0, -1, 1},
-      {"//c:/foo", 0, -1, -1},  // "//" does not canonicalize to "/"
+      {"//c:/foo", 0, -1, npos},  // "//" does not canonicalize to "/"
       {"\\C|\\foo", 0, -1, 1},
-      {"/cd:/foo", 0, -1, -1},  // "/c" does not canonicalize to "/"
+      {"/cd:/foo", 0, -1, npos},  // "/c" does not canonicalize to "/"
       {"/./c:/foo", 0, -1, 3},
-      {"/.//c:/foo", 0, -1, -1},  // "/.//" does not canonicalize to "/"
+      {"/.//c:/foo", 0, -1, npos},  // "/.//" does not canonicalize to "/"
       {"/././c:/foo", 0, -1, 5},
-      {"/abc/c:/foo", 0, -1, -1},  // "/abc/" does not canonicalize to "/"
+      {"/abc/c:/foo", 0, -1, npos},  // "/abc/" does not canonicalize to "/"
       {"/abc/./../c:/foo", 0, -1, 10},
 
-      {"/c:/c:/foo", 3, -1, 4},  // actual input is "/c:/foo"
-      {"/c:/foo", 3, -1, -1},    // actual input is "/foo"
-      {"/c:/foo", 0, 1, -1},     // actual input is "/"
+      {"/c:/c:/foo", 3, -1, 1},  // actual input is "/c:/foo"
+      {"/c:/foo", 3, -1, npos},  // actual input is "/foo"
+      {"/c:/foo", 0, 1, npos},   // actual input is "/"
   };
 
   for (const auto& c : cases) {
@@ -2966,13 +2957,15 @@ TEST_F(URLCanonTest, FindWindowsDriveLetter) {
     if (end == -1)
       end = c.spec.size();
 
-    EXPECT_EQ(c.expected_drive_letter_pos,
-              FindWindowsDriveLetter(c.spec.data(), c.begin, end))
+    EXPECT_EQ(
+        c.expected_drive_letter_pos,
+        FindWindowsDriveLetter(MakeRange(c.begin, end).MaybeAsViewOn(c.spec)))
         << "for " << c.spec << "[" << c.begin << ":" << end << "] (UTF-8)";
 
     std::u16string spec16 = base::ASCIIToUTF16(c.spec);
-    EXPECT_EQ(c.expected_drive_letter_pos,
-              FindWindowsDriveLetter(spec16.data(), c.begin, end))
+    EXPECT_EQ(
+        c.expected_drive_letter_pos,
+        FindWindowsDriveLetter(MakeRange(c.begin, end).MaybeAsViewOn(spec16)))
         << "for " << c.spec << "[" << c.begin << ":" << end << "] (UTF-16)";
   }
 }

@@ -99,8 +99,7 @@ enum class EmptyPathStringHandling { kFailure, kTreatAsNone };
 
 using ConsumeAnimationItemValue = CSSValue* (*)(CSSPropertyID,
                                                 CSSParserTokenStream&,
-                                                const CSSParserContext&,
-                                                bool use_legacy_parsing);
+                                                const CSSParserContext&);
 using IsResetOnlyFunction = bool (*)(CSSPropertyID);
 using IsPositionKeyword = bool (*)(CSSValueID);
 
@@ -379,9 +378,8 @@ CSSValue* ConsumeContentDistributionOverflowPosition(CSSParserTokenStream&,
 
 CSSValue* ConsumeAnimationIterationCount(CSSParserTokenStream&,
                                          const CSSParserContext&);
-CSSValue* ConsumeAnimationName(CSSParserTokenStream&,
-                               const CSSParserContext&,
-                               bool allow_quoted_name);
+bool IsValidIdentAnimationName(const AtomicString& name);
+CSSValue* ConsumeAnimationName(CSSParserTokenStream&, const CSSParserContext&);
 CSSValue* ConsumeAnimationTimeline(CSSParserTokenStream&,
                                    const CSSParserContext&);
 CSSValue* ConsumeAnimationTimingFunction(CSSParserTokenStream&,
@@ -404,8 +402,7 @@ bool ConsumeAnimationShorthand(
     ConsumeAnimationItemValue,
     IsResetOnlyFunction,
     CSSParserTokenStream&,
-    const CSSParserContext&,
-    bool use_legacy_parsing);
+    const CSSParserContext&);
 
 CSSValue* ConsumeSingleTimelineAxis(CSSParserTokenStream&);
 CSSValue* ConsumeSingleTimelineName(CSSParserTokenStream&,
@@ -584,14 +581,14 @@ CSSValue* ParseMasonryTemplateAreasValue(const String& masonry_template_areas,
 
 CSSValue* ConsumeItemTolerance(CSSParserTokenStream&, const CSSParserContext&);
 
-bool ConsumeGapDecorationsRuleOutsetShorthand(
+bool ConsumeGapDecorationsRuleInsetShorthand(
     bool important,
     const CSSParserContext& context,
     CSSParserTokenStream& stream,
-    CSSValue*& rule_edge_start_outset,
-    CSSValue*& rule_edge_end_outset,
-    CSSValue*& rule_interior_start_outset,
-    CSSValue*& rule_interior_end_outset);
+    CSSValue*& rule_edge_start_inset,
+    CSSValue*& rule_edge_end_inset,
+    CSSValue*& rule_interior_start_inset,
+    CSSValue*& rule_interior_end_inset);
 
 bool ConsumeGapDecorationsRuleShorthand(bool important,
                                         const CSSParserContext& context,

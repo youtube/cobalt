@@ -105,6 +105,7 @@
 #include "chrome/browser/ui/profiles/profile_view_utils.h"
 #include "chrome/browser/ui/qrcode_generator/qrcode_generator_bubble_controller.h"
 #include "chrome/browser/ui/read_anything/read_anything_controller.h"
+#include "chrome/browser/ui/read_anything/read_anything_entry_point_controller.h"
 #include "chrome/browser/ui/read_anything/read_anything_side_panel_controller_utils.h"
 #include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_bubble.h"
 #include "chrome/browser/ui/tab_contents/core_tab_helper.h"
@@ -2082,8 +2083,7 @@ void RenderViewContextMenu::AppendSearchWebForImageItems() {
 
 void RenderViewContextMenu::AppendGlicShareImageItem() {
 #if BUILDFLAG(ENABLE_GLIC)
-  if (glic::GlicEnabling::IsEnabledForProfile(GetProfile()) &&
-      base::FeatureList::IsEnabled(features::kGlicShareImage) &&
+  if (glic::GlicEnabling::IsShareImageEnabledForProfile(GetProfile()) &&
       !IsGlicWindow(this, browser_context_)) {
     tabs::TabInterface* tab =
         tabs::TabInterface::MaybeGetFromContents(source_web_contents_);
@@ -4197,8 +4197,6 @@ void RenderViewContextMenu::ExecOpenCompose() {
     autofill::LocalFrameToken frame_token = driver->GetFrameToken();
     client->GetManager().OpenCompose(
         *driver,
-        autofill::FormGlobalId(
-            frame_token, autofill::FormRendererId(params_.form_renderer_id)),
         autofill::FieldGlobalId(
             frame_token, autofill::FieldRendererId(params_.field_renderer_id)),
         compose::ComposeManagerImpl::UiEntryPoint::kContextMenu);
@@ -4216,16 +4214,8 @@ void RenderViewContextMenu::ExecOpenInReadAnything() {
   if (!browser) {
     return;
   }
-  if (features::IsImmersiveReadAnythingEnabled()) {
-    if (tabs::TabInterface* tab = browser->tab_strip_model()->GetActiveTab()) {
-      auto* controller = ReadAnythingController::From(tab);
-      CHECK(controller);
-      controller->ShowUI(SidePanelOpenTrigger::kReadAnythingContextMenu);
-    }
-  } else {
-    ShowReadAnythingSidePanel(browser,
-                              SidePanelOpenTrigger::kReadAnythingContextMenu);
-  }
+  read_anything::ReadAnythingEntryPointController::ShowUI(
+      browser, ReadAnythingOpenTrigger::kReadAnythingContextMenu);
 }
 
 void RenderViewContextMenu::ExecInspectElement() {
@@ -4378,8 +4368,7 @@ void RenderViewContextMenu::ExecSaveAs() {
 
 void RenderViewContextMenu::ExecGlicShareImage() {
 #if BUILDFLAG(ENABLE_GLIC)
-  if (!glic::GlicEnabling::IsEnabledForProfile(GetProfile()) ||
-      !base::FeatureList::IsEnabled(features::kGlicShareImage)) {
+  if (!glic::GlicEnabling::IsShareImageEnabledForProfile(GetProfile())) {
     // If this has changed since the context menu was summoned, bail early.
     return;
   }
@@ -4995,8 +4984,8 @@ void RenderViewContextMenu::OpenLinkInSplitView() {
 
   TabStripModel* const tab_strip_model = browser->tab_strip_model();
   tabs::TabInterface* const source_tab =
-      tabs::TabInterface::GetFromContents(source_web_contents_);
-  if (source_tab->IsSplit()) {
+      tabs::TabInterface::MaybeGetFromContents(source_web_contents_);
+  if (source_tab && source_tab->IsSplit()) {
     // Navigate the inactive tab to the URL
     const split_tabs::SplitTabId split_id = source_tab->GetSplit().value();
     for (tabs::TabInterface* tab :

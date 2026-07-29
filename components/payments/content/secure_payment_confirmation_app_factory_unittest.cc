@@ -19,6 +19,7 @@
 #include "components/payments/content/mock_payment_app_factory_delegate.h"
 #include "components/payments/content/mock_secure_payment_confirmation_credential_finder.h"
 #include "components/payments/content/mock_web_payments_web_data_service.h"
+#include "components/payments/content/secure_payment_confirmation_app.h"
 #include "components/payments/core/features.h"
 #include "components/payments/core/native_error_strings.h"
 #include "components/payments/core/secure_payment_confirmation_credential.h"
@@ -34,10 +35,6 @@
 #include "ui/gfx/geometry/size.h"
 #include "url/gurl.h"
 #include "url/origin.h"
-
-#if BUILDFLAG(IS_ANDROID)
-#include "components/payments/content/secure_payment_confirmation_app.h"
-#endif  // BUILDFLAG(IS_ANDROID)
 
 namespace payments {
 namespace {
@@ -776,7 +773,7 @@ TEST_F(SecurePaymentConfirmationAppFactoryPaymentEntitiesLogosTest,
                               kPaymentEntity2LogoUrl)));
 }
 
-#if BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_IOS)
 class SecurePaymentConfirmationAppFactoryBrowserBoundKeysTest
     : public SecurePaymentConfirmationAppFactoryTest {
  protected:
@@ -838,7 +835,9 @@ TEST_F(SecurePaymentConfirmationAppFactoryBrowserBoundKeysTest,
   EXPECT_EQ(mock_service_.get(),
             passkey_browser_binder->GetWebDataServiceForTesting());
 }
+#endif  // !BUILDFLAG(IS_IOS)
 
+#if BUILDFLAG(IS_ANDROID)
 class SecurePaymentConfirmationAppFactoryFallbackTest
     : public SecurePaymentConfirmationAppFactoryTest {
  public:

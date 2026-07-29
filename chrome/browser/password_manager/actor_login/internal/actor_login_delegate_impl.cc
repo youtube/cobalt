@@ -14,7 +14,11 @@
 #include "base/task/bind_post_task.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/types/expected.h"
+#include "chrome/browser/translate/chrome_translate_client.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/common/buildflags.h"
 #include "components/password_manager/content/browser/content_password_manager_driver.h"
+#include "components/password_manager/core/browser/actor_login/actor_login_quality_logger_interface.h"
 #include "components/password_manager/core/browser/actor_login/actor_login_types.h"
 #include "components/password_manager/core/browser/actor_login/internal/actor_login_credential_filler.h"
 #include "components/password_manager/core/browser/actor_login/internal/actor_login_get_credentials_helper.h"
@@ -26,6 +30,12 @@
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents_user_data.h"
+#include "url/origin.h"
+
+#if BUILDFLAG(ENABLE_GLIC)
+#include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
+#endif  // BUILDFLAG(ENABLE_GLIC)
 
 using password_manager::ContentPasswordManagerDriver;
 using password_manager::PasswordManagerDriver;
@@ -82,7 +92,9 @@ ActorLoginDelegateImpl::ActorLoginDelegateImpl(
 ActorLoginDelegateImpl::~ActorLoginDelegateImpl() = default;
 
 // TODO(crbug.com/434156135): move to components/ as much as possible.
-void ActorLoginDelegateImpl::GetCredentials(CredentialsOrErrorReply callback) {
+void ActorLoginDelegateImpl::GetCredentials(
+    base::WeakPtr<ActorLoginQualityLoggerInterface> mqls_logger,
+    CredentialsOrErrorReply callback) {
   CHECK(callback);
 
   // One request at a time mechanism using pending callbacks.
@@ -104,9 +116,13 @@ void ActorLoginDelegateImpl::GetCredentials(CredentialsOrErrorReply callback) {
   PasswordManagerDriver* driver = driver_supplier_.Run(&GetWebContents());
   CHECK(driver);
 
+  const url::Origin request_origin =
+      GetWebContents().GetPrimaryMainFrame()->GetLastCommittedOrigin();
+  mqls_logger->SetDomainAndLanguage(
+      ChromeTranslateClient::GetManagerFromWebContents(&GetWebContents()),
+      request_origin.GetURL());
   get_credentials_helper_ = std::make_unique<ActorLoginGetCredentialsHelper>(
-      GetWebContents().GetPrimaryMainFrame()->GetLastCommittedOrigin(), client_,
-      driver->GetPasswordManager(),
+      request_origin, client_, driver->GetPasswordManager(), mqls_logger,
       base::BindOnce(&ActorLoginDelegateImpl::OnGetCredentialsCompleted,
                      weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
 }
@@ -114,6 +130,7 @@ void ActorLoginDelegateImpl::GetCredentials(CredentialsOrErrorReply callback) {
 void ActorLoginDelegateImpl::AttemptLogin(
     const Credential& credential,
     bool should_store_permission,
+    base::WeakPtr<ActorLoginQualityLoggerInterface> mqls_logger,
     LoginStatusResultOrErrorReply callback) {
   CHECK(callback);
 
@@ -144,24 +161,58 @@ void ActorLoginDelegateImpl::AttemptLogin(
 
   const url::Origin origin =
       GetWebContents().GetPrimaryMainFrame()->GetLastCommittedOrigin();
+  mqls_logger->SetDomainAndLanguage(
+      ChromeTranslateClient::GetManagerFromWebContents(&GetWebContents()),
+      origin.GetURL());
 
   credential_filler_ = std::make_unique<ActorLoginCredentialFiller>(
-      origin, credential, should_store_permission, client_,
+      origin, credential, should_store_permission, client_, mqls_logger,
+      base::BindRepeating(&ActorLoginDelegateImpl::IsTaskInFocus,
+                          base::Unretained(this)),
       base::BindPostTaskToCurrentDefault(
           base::BindOnce(&ActorLoginDelegateImpl::OnAttemptLoginCompleted,
                          weak_ptr_factory_.GetWeakPtr())));
-  credential_filler_->AttemptLogin(
-      password_manager,
-      // This `WebContents` comes from the `TabInterface` that
-      // `ActorLoginService` is invoked with, so we know the `WebContents` is
-      // attached to a tab.
-      *tabs::TabInterface::GetFromContents(&GetWebContents()));
+  credential_filler_->AttemptLogin(password_manager);
 }
 
 void ActorLoginDelegateImpl::WebContentsDestroyed() {
   get_credentials_helper_.reset();
   credential_filler_.reset();
   client_ = nullptr;
+}
+
+bool ActorLoginDelegateImpl::IsTaskInFocus() {
+  // This `WebContents` comes from the `TabInterface` that
+  // `ActorLoginService` is invoked with, so we know the `WebContents` is
+  // attached to a tab.
+  tabs::TabInterface* tab_interface =
+      tabs::TabInterface::GetFromContents(web_contents());
+  BrowserWindowInterface* browser_window =
+      tab_interface->GetBrowserWindowInterface();
+  if (!browser_window->IsActive()) {
+    return false;
+  }
+  if (tab_interface->IsActivated()) {
+    return true;
+  }
+#if BUILDFLAG(ENABLE_GLIC)
+  glic::GlicKeyedService* glic_service =
+      glic::GlicKeyedService::Get(web_contents()->GetBrowserContext());
+  CHECK(glic_service);
+
+  glic::GlicInstance* current_tab_instance =
+      glic_service->GetInstanceForTab(tab_interface);
+  glic::GlicInstance* active_tab_instance =
+      glic_service->GetInstanceForActiveTab(
+          tab_interface->GetBrowserWindowInterface());
+  if (current_tab_instance != active_tab_instance) {
+    return false;
+  }
+
+  return current_tab_instance->IsShowing();
+#else
+  NOTREACHED();
+#endif
 }
 
 void ActorLoginDelegateImpl::OnGetCredentialsCompleted(

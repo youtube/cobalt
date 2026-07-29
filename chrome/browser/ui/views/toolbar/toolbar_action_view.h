@@ -5,9 +5,7 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_TOOLBAR_TOOLBAR_ACTION_VIEW_H_
 #define CHROME_BROWSER_UI_VIEWS_TOOLBAR_TOOLBAR_ACTION_VIEW_H_
 
-#include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
-#include "chrome/browser/ui/toolbar/toolbar_action_view_delegate.h"
 #include "chrome/browser/ui/views/extensions/extension_context_menu_controller.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_action_hover_card_controller.h"
 #include "extensions/common/extension_id.h"
@@ -23,12 +21,9 @@ namespace content {
 class WebContents;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// ToolbarActionView
-// A wrapper around a ToolbarActionViewController to display a toolbar action
-// action in the browser's toolbar.
+// The View to display an action button in the browser's toolbar using the
+// underlying `ToolbarActionViewModel`.
 class ToolbarActionView : public views::MenuButton,
-                          public ToolbarActionViewDelegate,
                           public ExtensionContextMenuController::Observer {
   METADATA_HEADER(ToolbarActionView, views::MenuButton)
 
@@ -69,8 +64,7 @@ class ToolbarActionView : public views::MenuButton,
     ~Delegate() override = default;
   };
 
-  ToolbarActionView(ToolbarActionViewController* view_controller,
-                    Delegate* delegate);
+  ToolbarActionView(ToolbarActionViewModel* view_model, Delegate* delegate);
   ToolbarActionView(const ToolbarActionView&) = delete;
   ToolbarActionView& operator=(const ToolbarActionView&) = delete;
   ~ToolbarActionView() override;
@@ -96,6 +90,8 @@ class ToolbarActionView : public views::MenuButton,
   // to be deprecated.
   views::BubbleAnchor GetReferenceButtonForPopup();
 
+  void UpdateState();
+
   // views::MenuButton:
   gfx::Rect GetAnchorBoundsInScreen() const override;
   std::unique_ptr<views::LabelButtonBorder> CreateDefaultBorder()
@@ -105,10 +101,7 @@ class ToolbarActionView : public views::MenuButton,
   void OnMouseMoved(const ui::MouseEvent& event) override;
   void OnMouseEntered(const ui::MouseEvent& event) override;
 
-  // ToolbarActionViewDelegate:
-  void UpdateState() override;
-
-  ToolbarActionViewController* view_controller() { return view_controller_; }
+  ToolbarActionViewModel* view_model() { return view_model_; }
 
   // Returns button icon so it can be accessed during tests.
   gfx::ImageSkia GetIconForTest();
@@ -141,8 +134,8 @@ class ToolbarActionView : public views::MenuButton,
   // A lock to keep the MenuButton pressed when a menu or popup is visible.
   std::unique_ptr<views::MenuButtonController::PressedLock> pressed_lock_;
 
-  // The controller for this toolbar action view.
-  raw_ptr<ToolbarActionViewController> view_controller_;
+  // The view model for this toolbar action view.
+  raw_ptr<ToolbarActionViewModel> view_model_;
 
   // Delegate that usually represents a container for ToolbarActionView.
   raw_ptr<Delegate> delegate_;

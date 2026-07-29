@@ -226,6 +226,15 @@ void CheckChipButtonsOfLocalCard() {
   autofill::CreditCard card = autofill::test::GetCreditCard();
   std::string locale = l10n_util::GetLocaleOverride();
 
+  if (base::ios::IsRunningOnIOS18OrLater()) {
+  } else {
+    // On iOS 17.5, a rendering issue in tests prevents some cells from
+    // displaying correctly. This scroll action ensures their proper visibility.
+    [[EarlGrey
+        selectElementWithMatcher:manual_fill::CreditCardTableViewMatcher()]
+        performAction:grey_scrollInDirection(kGREYDirectionDown, 10)];
+  }
+
   [[EarlGrey selectElementWithMatcher:LocalCardNumberChipButton()]
       assertWithMatcher:grey_sufficientlyVisible()];
   [[EarlGrey
@@ -294,7 +303,8 @@ void DismissPaymentBottomSheet() {
 - (void)tearDownHelper {
   [AutofillAppInterface clearCreditCardStore];
   [AutofillAppInterface clearAllServerDataForTesting];
-  [EarlGrey rotateDeviceToOrientation:UIDeviceOrientationPortrait error:nil];
+  [EarlGrey rotateInterfaceToOrientation:UIInterfaceOrientationPortrait
+                                   error:nil];
 
   // Clean up histogram tester.
   [MetricsAppInterface stopOverridingMetricsAndCrashReportingForTesting];
@@ -336,9 +346,17 @@ void DismissPaymentBottomSheet() {
       @"Unexpected histogram error for number of visible suggestions.");
 }
 
+// TODO(crbug.com/460721951): Test is failing on ios-simulator.
+#if TARGET_OS_SIMULATOR
+#define MAYBE_testCardChipButtonsAreAllVisible \
+  DISABLED_testCardChipButtonsAreAllVisible
+#else
+#define MAYBE_testCardChipButtonsAreAllVisible testCardChipButtonsAreAllVisible
+#endif
+
 // Tests that the saved card chip buttons are all visible in the card
 // table view controller, and that they have the right accessibility label.
-- (void)testCardChipButtonsAreAllVisible {
+- (void)MAYBE_testCardChipButtonsAreAllVisible {
   [AutofillAppInterface saveLocalCreditCard];
 
   // Bring up the keyboard.
@@ -754,8 +772,8 @@ void DismissPaymentBottomSheet() {
   // Open the payment method manual fill view.
   OpenPaymentMethodManualFillView();
 
-  [EarlGrey rotateDeviceToOrientation:UIDeviceOrientationLandscapeLeft
-                                error:nil];
+  [EarlGrey rotateInterfaceToOrientation:UIInterfaceOrientationLandscapeLeft
+                                   error:nil];
 
   // Verify the credit card controller table view is still visible.
   [[EarlGrey selectElementWithMatcher:manual_fill::CreditCardTableViewMatcher()]
@@ -1052,7 +1070,7 @@ void DismissPaymentBottomSheet() {
 
   // Scroll down to show the server card.
   [[EarlGrey selectElementWithMatcher:manual_fill::CreditCardTableViewMatcher()]
-      performAction:grey_scrollInDirection(kGREYDirectionDown, 10)];
+      performAction:grey_scrollInDirection(kGREYDirectionDown, 40)];
 
   // Check that the GPay icon is visible in the masked card cell.
   [[EarlGrey selectElementWithMatcher:GPayIcon(masked_card_last_digits)]

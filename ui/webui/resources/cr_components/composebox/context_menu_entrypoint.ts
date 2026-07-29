@@ -16,6 +16,7 @@ import {assert} from '//resources/js/assert.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {TabInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 
 import {getCss} from './context_menu_entrypoint.css.js';
 import {getHtml} from './context_menu_entrypoint.html.js';
@@ -23,6 +24,8 @@ import {getHtml} from './context_menu_entrypoint.html.js';
 
 /** The width of the dropdown menu in pixels. */
 const MENU_WIDTH_PX = 190;
+/** The string value of the tall bottom context layout mode. */
+const TALL_BOTTOM_CONTEXT_LAYOUT_MODE = 'TallBottomContext';
 
 export interface ContextMenuEntrypointElement {
   $: {
@@ -65,10 +68,15 @@ export class ContextMenuEntrypointElement extends
       disabledTabIds: {type: Object},
       tabSuggestions: {type: Array},
       entrypointName: {type: String},
+      searchboxLayoutMode: {type: String},
 
       // =========================================================================
       // Protected properties
       // =========================================================================
+      enableMultiTabSelection_: {
+        reflect: true,
+        type: Boolean,
+      },
       tabPreviewUrl_: {type: String},
       tabPreviewsEnabled_: {type: Boolean},
       showDeepSearch_: {
@@ -87,10 +95,13 @@ export class ContextMenuEntrypointElement extends
   accessor showContextMenuDescription: boolean = false;
   accessor inCreateImageMode: boolean = false;
   accessor hasImageFiles: boolean = false;
-  accessor disabledTabIds: Set<number> = new Set();
+  accessor disabledTabIds: Map<number, UnguessableToken> = new Map();
   accessor tabSuggestions: TabInfo[] = [];
   accessor entrypointName: string = '';
+  accessor searchboxLayoutMode: string = '';
 
+  protected accessor enableMultiTabSelection_: boolean =
+      loadTimeData.getBoolean('composeboxContextMenuEnableMultiTabSelection');
   protected accessor tabPreviewUrl_: string = '';
   protected accessor tabPreviewsEnabled_: boolean =
       loadTimeData.getBoolean('composeboxShowContextMenuTabPreviews');
@@ -103,6 +114,13 @@ export class ContextMenuEntrypointElement extends
 
   constructor() {
     super();
+  }
+
+  openMenuForMultiSelection() {
+    if (this.enableMultiTabSelection_ &&
+        this.searchboxLayoutMode !== TALL_BOTTOM_CONTEXT_LAYOUT_MODE) {
+      this.showMenuAtEntrypoint_();
+    }
   }
 
   // Checks if the image upload item in the context menu should be disabled.
@@ -129,30 +147,38 @@ export class ContextMenuEntrypointElement extends
 
   // Checks if a tab item in the context menu should be disabled.
   protected isTabDisabled_(tab: TabInfo): boolean {
-    return this.inCreateImageMode || this.fileNum >= this.maxFileCount_ ||
-        this.disabledTabIds.has(tab.tabId);
+    const noNewContextAllowed =
+        this.inCreateImageMode || this.fileNum >= this.maxFileCount_;
+    const isTabInContext = this.disabledTabIds.has(tab.tabId);
+    // If multi-tab selection is enabled, we only want to disable a tab if
+    // no more context can be added and the tab has not yet been added as
+    // context already. Otherwise, don't disable the tab, since we want to allow
+    // users to unselect the tab, and remove it from the context.
+    if (this.enableMultiTabSelection_) {
+      return noNewContextAllowed && !isTabInContext;
+    }
+    return noNewContextAllowed || isTabInContext;
   }
 
   protected onEntrypointClick_() {
     if (this.entrypointName === 'Omnibox') {
-      this.fire('context-menu-entrypoint-click');
+      const entrypoint =
+          this.shadowRoot.querySelector<HTMLElement>('#entrypoint');
+      assert(entrypoint);
+      this.fire('context-menu-entrypoint-click', {
+        x: entrypoint.getBoundingClientRect().left,
+        y: entrypoint.getBoundingClientRect().bottom,
+      });
       return;
     }
 
     const metricName =
         'NewTabPage.' + this.entrypointName + '.ContextMenuEntry.Clicked';
     chrome.metricsPrivate.recordBoolean(metricName, true);
-    const entrypoint =
-        this.shadowRoot.querySelector<HTMLElement>('#entrypoint');
-    assert(entrypoint);
-    this.$.menu.showAt(entrypoint, {
-      top: entrypoint.getBoundingClientRect().bottom,
-      width: MENU_WIDTH_PX,
-      anchorAlignmentX: AnchorAlignment['AFTER_START'],
-    });
+    this.showMenuAtEntrypoint_();
   }
 
-  protected addTabContext_(e: Event) {
+  protected onTabClick_(e: Event) {
     e.stopPropagation();
 
     const tabElement = e.currentTarget! as HTMLButtonElement;
@@ -160,12 +186,33 @@ export class ContextMenuEntrypointElement extends
 
     assert(tabInfo);
 
+    if (this.enableMultiTabSelection_ &&
+        this.disabledTabIds.has(tabInfo.tabId)) {
+      this.deleteTabContext_(this.disabledTabIds.get(tabInfo.tabId)!);
+      return;
+    }
+    this.addTabContext_(tabInfo);
+  }
+
+  protected deleteTabContext_(uuid: UnguessableToken) {
+    this.fire('delete-tab-context', {uuid: uuid});
+    if (this.searchboxLayoutMode === TALL_BOTTOM_CONTEXT_LAYOUT_MODE) {
+      this.$.menu.close();
+    }
+  }
+
+
+  protected addTabContext_(tabInfo: TabInfo) {
     this.fire('add-tab-context', {
       id: tabInfo.tabId,
       title: tabInfo.title,
       url: tabInfo.url,
+      delayUpload: false,
     });
-    this.$.menu.close();
+    if (!this.enableMultiTabSelection_ || this.entrypointName === 'Realbox' ||
+        this.searchboxLayoutMode === TALL_BOTTOM_CONTEXT_LAYOUT_MODE) {
+      this.$.menu.close();
+    }
   }
 
   protected onTabPointerenter_(e: Event) {
@@ -210,6 +257,17 @@ export class ContextMenuEntrypointElement extends
   protected onCreateImageClick_() {
     this.fire('create-image-click');
     this.$.menu.close();
+  }
+
+  private showMenuAtEntrypoint_() {
+    const entrypoint =
+        this.shadowRoot.querySelector<HTMLElement>('#entrypoint');
+    assert(entrypoint);
+    this.$.menu.showAt(entrypoint, {
+      top: entrypoint.getBoundingClientRect().bottom,
+      width: MENU_WIDTH_PX,
+      anchorAlignmentX: AnchorAlignment['AFTER_START'],
+    });
   }
 }
 

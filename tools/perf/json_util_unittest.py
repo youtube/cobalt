@@ -53,6 +53,7 @@ MOCK_JSON_CONSTANTS = {
     'SUMMARY_OPTIONS': 'summaryOptions',
     'TEST': 'test',
     'TRACE_URLS': 'traceUrls',
+    'TRACING_URI': 'Tracing uri',
     'TYPE': 'type',
     'UNIT': 'unit',
     'V8_GIT_HASH': 'V8',
@@ -60,7 +61,6 @@ MOCK_JSON_CONSTANTS = {
     'VALUES': 'values',
     'VERSION': 'version',
     'WEBRTC_GIT_HASH': 'WebRTC',
-    'LEGACY_BENCHMARKS': ['legacy_benchmark1', 'legacy_benchmark2'],
     'STATS_BLOCKLIST': {'std', 'count', 'max', 'min', 'sum'},
 }
 
@@ -231,8 +231,8 @@ class JsonUtilTest(unittest.TestCase):
     mock_json_constants(mock_constants)
     setattr(mock_hist_helpers, '_STATS_BLACKLIST',
             MOCK_JSON_CONSTANTS['STATS_BLOCKLIST'])
-    setattr(mock_hist_helpers, '_LEGACY_BENCHMARKS',
-            MOCK_JSON_CONSTANTS['LEGACY_BENCHMARKS'])
+    mock_hist_helpers.ShouldGenerateStatistics.return_value = True
+
     result2_json = [
         {
             'type': 'GenericSet',
@@ -334,6 +334,16 @@ class JsonUtilTest(unittest.TestCase):
             'min': 1736637289209.919,
         },
         {
+            'type':
+            'GenericSet',
+            'guid':
+            '8563ece0-740a-44c0-ae72-418721ee56d8',
+            'values': [('https://storage.cloud.google.com/'
+                        'chrome-telemetry-output/20251112T181417_63858/'
+                        'rendering.desktop/balls_css_transition_all_properties/'
+                        'retry_0/trace.pb')]
+        },
+        {
             'name':
             'Editor-TipTap',
             'unit':
@@ -355,6 +365,7 @@ class JsonUtilTest(unittest.TestCase):
                 'storysetRepeats': 'a7f54f55-870b-4b76-bb87-d64df4bf3e7b',
                 'storyTags': 'f0bb92d7-5ab2-42ed-ad7f-d79018aa3b60',
                 'traceStart': 'cf09d1a1-8b3b-4d3c-bee6-b8d341d5e31e',
+                'traceUrls': '8563ece0-740a-44c0-ae72-418721ee56d8',
             },
             'sampleValues': [
                 172.90000000130385,
@@ -434,6 +445,10 @@ class JsonUtilTest(unittest.TestCase):
                '60e67b93909a1c858305b27111d9988f94fff0f8'),
         'WebRTC': ('https://webrtc.googlesource.com/src/+/'
                    '1e19045eaa63d00a3b4017fd43c5b502c6ed73a2'),
+        'Tracing uri': ('https://storage.cloud.google.com/'
+                        'chrome-telemetry-output/20251112T181417_63858/'
+                        'rendering.desktop/balls_css_transition_all_properties/'
+                        'retry_0/trace.pb'),
     }
     expected = {
         'version': 1,
@@ -474,31 +489,8 @@ class JsonUtilTest(unittest.TestCase):
       got = agent.process(details, benchmark_name='speedometer3_modified')
       self.assertDictEqual(got, expected2)
 
-    with self.subTest(
-        name='synthetic_measurements_skipped_for_legacy_benchmark'):
-      # Set flag to True to confirm that legacy status overrides it.
-      agent = json_util.JsonUtil(generate_synthetic_measurements=True)
-
-      # Create a copy of the test data and change the benchmark name.
-      legacy_result2_json = copy.deepcopy(result2_json)
-      benchmark_guid = '9ef9da4a-3b79-4574-9603-bf9e2fe4bbe7'
-      for item in legacy_result2_json:
-        if item.get('guid') == benchmark_guid:
-          item['values'] = ['legacy_benchmark1']
-          break
-      agent.add(legacy_result2_json)
-
-      # The expected output should be the same as the 'no_synthetics' case,
-      # but with the updated benchmark name.
-      expected_legacy = copy.deepcopy(expected)
-      expected_legacy['key']['benchmark'] = 'legacy_benchmark1'
-
-      got = agent.process(details)
-
-      self.assertEqual(len(got['results']), 1)
-      self.assertDictEqual(got, expected_legacy)
-
     with self.subTest(name='generate_synthetic_measurements'):
+      mock_hist_helpers.ShouldGenerateStatistics.return_value = True
       agent = json_util.JsonUtil(generate_synthetic_measurements=True)
       agent.add(result2_json)
       synthetic_measurements_1 = {
@@ -656,7 +648,8 @@ class JsonUtilTest(unittest.TestCase):
   @parameterized.expand([
       (
           'empty_data',
-          False,
+          False,  # synthetic_measurements enabled in JsonUtil
+          True,  # should_generate_stats (Mock return value)
           'some_benchmark',
           None,
           [],
@@ -664,6 +657,7 @@ class JsonUtilTest(unittest.TestCase):
       (
           'without_subtest',
           False,
+          True,
           'some_benchmark',
           {
               ('abc', 'ms_smallerIsBetter', 'down'): [1, 2, 3],
@@ -707,6 +701,7 @@ class JsonUtilTest(unittest.TestCase):
       (
           'with_subtest',
           False,
+          True,
           'some_benchmark',
           {
               ('abc', 'ms_smallerIsBetter', 'down', 'subtest', 'subtest2'): [
@@ -755,6 +750,7 @@ class JsonUtilTest(unittest.TestCase):
       ),
       (
           'without_subtest_with_synthetic_measurements',
+          True,
           True,
           'some_benchmark',
           {
@@ -891,6 +887,7 @@ class JsonUtilTest(unittest.TestCase):
       (
           'with_subtest_with_synthetic_measurements',
           True,
+          True,
           'some_benchmark',
           {
               ('abc', 'ms_smallerIsBetter', 'down', 'subtest', 'subtest2'): [
@@ -1042,9 +1039,10 @@ class JsonUtilTest(unittest.TestCase):
           ],
       ),
       (
-          'legacy_benchmark_with_synthetics_enabled',
-          True,
-          'legacy_benchmark1',
+          'synthetics_enabled_but_blocked_by_helper',
+          True,  # generate_synthetic_measurements=True
+          False,  # should_generate_stats=False (Mock override)
+          'any_benchmark_name',
           {
               ('abc', 'ms_smallerIsBetter', 'down'): [1, 2, 3],
           },
@@ -1087,13 +1085,14 @@ class JsonUtilTest(unittest.TestCase):
   ])
   @mock.patch('json_util.histogram_helpers')
   @mock.patch('json_util.json_constants')
-  def test_measurement(self, _, synthetic_measurements, benchmark_name, data,
-                       expected, mock_constants, mock_hist_helpers):
+  def test_measurement(self, _, synthetic_measurements, should_generate_stats,
+                       benchmark_name, data, expected, mock_constants,
+                       mock_hist_helpers):
     mock_json_constants(mock_constants)
     setattr(mock_hist_helpers, '_STATS_BLACKLIST',
             MOCK_JSON_CONSTANTS['STATS_BLOCKLIST'])
-    setattr(mock_hist_helpers, '_LEGACY_BENCHMARKS',
-            MOCK_JSON_CONSTANTS['LEGACY_BENCHMARKS'])
+    mock_hist_helpers.ShouldGenerateStatistics.return_value = should_generate_stats
+
     instance = json_util.JsonUtil(
         generate_synthetic_measurements=synthetic_measurements)
     got = instance.measurements_from_results(data=data,
@@ -1141,7 +1140,7 @@ class JsonUtilTest(unittest.TestCase):
         builder_details=builder_details,
         bot_ids={'win-222-e504', 'win-223-e504', 'win-224-e504'},
         os_versions={'10.0.19045'},
-    )
+        trace_urls=[])
     expected = {
         'Build Page':
         ('https://ci.chromium.org/ui/p/chrome/builders/ci/win-10-perf/39376'),
@@ -1495,8 +1494,8 @@ class JsonUtilTest(unittest.TestCase):
     mock_json_constants(mock_constants)
     setattr(mock_hist_helpers, '_STATS_BLACKLIST',
             MOCK_JSON_CONSTANTS['STATS_BLOCKLIST'])
-    setattr(mock_hist_helpers, '_LEGACY_BENCHMARKS',
-            MOCK_JSON_CONSTANTS['LEGACY_BENCHMARKS'])
+
+    mock_hist_helpers.ShouldGenerateStatistics.return_value = True
     mock_extractor.return_value = ('sub1', 'sub2')
 
     agent = json_util.JsonUtil()

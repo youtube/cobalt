@@ -656,6 +656,7 @@
 <translation id="3547933853190131743">AI ਮੋਡ ਨਾਲ ਖੋਜੋ</translation>
 <translation id="3557336313807607643">ਸੰਪਰਕਾਂ ਵਿੱਚ ਸ਼ਾਮਲ ਕਰੋ</translation>
 <translation id="355765753469272474">ਅਣਕੀਤਾ ਕਰੋ</translation>
+<translation id="3565012355885596568">ਚਿੱਤਰ ਲੋਡ ਨਹੀਂ ਕੀਤੇ ਜਾ ਸਕੇ</translation>
 <translation id="3565930036634619844">ਟੈਬ। <ph name="NUMBER_OF_TABS" /> ਵਿੱਚੋਂ <ph name="TAB_INDEX" />.</translation>
 <translation id="3572607909481582402">ਤੁਹਾਡੇ Google ਖਾਤੇ ਵਿੱਚ</translation>
 <translation id="3575234738189584619">Lens ਨਾਲ ਖੋਜੋ</translation>
@@ -1314,6 +1315,7 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="6045460247888249350">ਸਿਰਲੇਖ ਸ਼ਾਮਲ ਕਰੋ</translation>
 <translation id="6052269326659653305">ਪ੍ਰੋਫਾਈਲ ਬਦਲੋ</translation>
 <translation id="605721222689873409">YY</translation>
+<translation id="6058415747854995776">ਵੀਡੀਓ ਬਣਾਓ</translation>
 <translation id="6059830886158432458">ਆਪਣੀਆਂ ਕਹਾਣੀਆਂ ਅਤੇ ਸਰਗਰਮੀ ਨੂੰ ਇੱਥੇ ਕੰਟਰੋਲ ਕਰੋ</translation>
 <translation id="6066301408025741299">ਰੱਦ ਕਰਨ ਲਈ ਟੈਪ ਕਰੋ।</translation>
 <translation id="6074656473835429958">ਸੂਚਨਾਵਾਂ ਪ੍ਰਾਪਤ ਕਰੋ</translation>
@@ -1815,6 +1817,7 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="7866872729285243843">ਆਪਣੇ ਸਾਰੇ ਡੀਵਾਈਸਾਂ 'ਤੇ ਆਪਣੇ ਪੜ੍ਹਨ-ਸੂਚੀ ਪ੍ਰਾਪਤ ਕਰਨ ਲਈ, ਸੈਟਿੰਗਾਂ ਵਿੱਚ "ਪੜ੍ਹਨ-ਸੂਚੀ" ਚਾਲੂ ਕਰੋ।</translation>
 <translation id="7874107544081154809"><ph name="CELL_ACCESSIBILITY_LABEL" /> ਨਾਲ ਫ਼ਾਰਮ ਨੂੰ ਆਟੋਫਿਲ ਕਰੋ</translation>
 <translation id="7879275349003161544">ਡਾਊਨਲੋਡ ਦਿਖਾਓ</translation>
+<translation id="7882689957034389473">ਫ਼ੋਟੋ ਖਿੱਚੋ</translation>
 <translation id="7883882164760409935">ਤੁਹਾਡੇ ਪਾਸਵਰਡ ਮੁੜ-ਵਰਤੇ ਹੋਏ ਹਨ।</translation>
 <translation id="7887174313503389866">ਪ੍ਰਮੁੱਖ ਪਰਦੇਦਾਰੀ ਅਤੇ ਸੁਰੱਖਿਆ ਕੰਟਰੋਲਾਂ 'ਤੇ ਨਿਰਦੇਸ਼ਿਤ ਟੂਰ ਦੇਖੋ। ਹੋਰ ਵਿਕਲਪਾਂ ਲਈ, ਵਿਅਕਤੀਗਤ ਸੈਟਿੰਗਾਂ 'ਤੇ ਜਾਓ।</translation>
 <translation id="7887198238286927132">ਤੁਹਾਡੀ ਪਰਦੇਦਾਰੀ ਦੀ ਸੁਰੱਖਿਆ ਲਈ, Chrome ਇਸ ਖੇਤਰ ਨੂੰ ਆਟੋਫਿਲ ਨਹੀਂ ਕਰੇਗਾ।</translation>
@@ -1998,6 +2001,7 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="8551311254462607218">ਪਤਾ ਬਾਰ ਵਿੱਚ, Google Lens ਕੈਮਰਾ ਪ੍ਰਤੀਕ 'ਤੇ ਟੈਪ ਕਰੋ</translation>
 <translation id="8556590991644167667">{count,plural, =1{ਤੁਸੀਂ {count} ਚਿਤਾਵਨੀ ਖਾਰਜ ਕੀਤੀ}one{ਤੁਸੀਂ {count} ਚਿਤਾਵਨੀ ਖਾਰਜ ਕੀਤੀ}other{ਤੁਸੀਂ {count} ਚਿਤਾਵਨੀਆਂ ਖਾਰਜ ਕੀਤੀਆਂ}}</translation>
 <translation id="8558046478684552694">ਗਰੁੱਪ ਬੰਦ ਕਰੋ।</translation>
+<translation id="8559858985063901027">ਪਾਸਕੀਆਂ</translation>
 <translation id="8560253818350321773">ਅਕਸਰ ਵਰਤੀਆਂ ਜਾਣ ਵਾਲੀਆਂ ਆਈਟਮਾਂ ਪਹਿਲਾਂ ਦਿਖਾਓ।</translation>
 <translation id="8561999115126307258">{count,plural, =1{ਪਾਸਵਰਡ ਦਾ {count} ਵਿਕਲਪ ਤੁਹਾਡੇ ਕੀ-ਬੋਰਡ ਦੇ ਉੱਪਰ ਉਪਲਬਧ ਹੈ।}one{ਪਾਸਵਰਡ ਦਾ {count} ਵਿਕਲਪ ਤੁਹਾਡੇ ਕੀ-ਬੋਰਡ ਦੇ ਉੱਪਰ ਉਪਲਬਧ ਹੈ।}other{ਪਾਸਵਰਡ ਦੇ {count} ਵਿਕਲਪ ਤੁਹਾਡੇ ਕੀ-ਬੋਰਡ ਦੇ ਉੱਪਰ ਉਪਲਬਧ ਹਨ।}}</translation>
 <translation id="8564894539416715395">ਨਵਾਂ ਟੈਬ ਪੰਨਾ</translation>

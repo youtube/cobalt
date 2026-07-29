@@ -20,7 +20,7 @@ namespace ui {
 class NativePixmapEGLBinding : public NativePixmapGLBinding {
  public:
   NativePixmapEGLBinding(const gfx::Size& size,
-                         gfx::BufferFormat format,
+                         viz::SharedImageFormat format,
                          gfx::BufferPlane plane);
   ~NativePixmapEGLBinding() override;
 
@@ -33,7 +33,7 @@ class NativePixmapEGLBinding : public NativePixmapGLBinding {
   // (limited or null), and |color_space| conveys this.
   static std::unique_ptr<NativePixmapGLBinding> Create(
       scoped_refptr<gfx::NativePixmap> pixmap,
-      gfx::BufferFormat plane_format,
+      viz::SharedImageFormat plane_format,
       gfx::BufferPlane plane,
       gfx::Size plane_size,
       const gfx::ColorSpace& color_space,
@@ -52,7 +52,7 @@ class NativePixmapEGLBinding : public NativePixmapGLBinding {
   gl::ScopedEGLImage egl_image_;
   const gfx::Size size_;
   THREAD_CHECKER(thread_checker_);
-  gfx::BufferFormat format_;
+  viz::SharedImageFormat format_;
   scoped_refptr<gfx::NativePixmap> pixmap_;
   gfx::BufferPlane plane_;
 };

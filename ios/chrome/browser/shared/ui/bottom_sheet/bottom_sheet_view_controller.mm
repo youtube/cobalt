@@ -11,9 +11,6 @@ namespace {
 // Custom radius for the half sheet presentation.
 CGFloat const kHalfSheetCornerRadius = 20;
 
-// Custom height for the gradient view of the bottom sheet.
-CGFloat const kCustomGradientViewHeight = 30;
-
 // Custom detent identifier for when the bottom sheet is minimized.
 NSString* const kCustomMinimizedDetentIdentifier = @"customMinimizedDetent";
 
@@ -27,9 +24,7 @@ NSString* const kCustomExpandedDetentIdentifier = @"customExpandedDetent";
 
 - (void)viewDidLoad {
   self.alwaysShowImage = YES;
-  self.customGradientViewHeight = kCustomGradientViewHeight;
   [super viewDidLoad];
-  self.showsGradientView = NO;
   [self setUpBottomSheetPresentationController];
   [self setUpBottomSheetDetents];
   [self registerForTraitChanges:@[ UITraitPreferredContentSizeCategory.class ]
@@ -44,7 +39,6 @@ NSString* const kCustomExpandedDetentIdentifier = @"customExpandedDetent";
   auto resolver = ^CGFloat(
       id<UISheetPresentationControllerDetentResolutionContext> context) {
     BOOL tooLarge = (fullHeight > context.maximumDetentValue);
-    self.showsGradientView = tooLarge;
     return tooLarge ? context.maximumDetentValue : fullHeight;
   };
   UISheetPresentationControllerDetent* customDetentExpand =
@@ -66,16 +60,18 @@ NSString* const kCustomExpandedDetentIdentifier = @"customExpandedDetent";
       self.sheetPresentationController;
   presentationController.prefersEdgeAttachedInCompactHeight = YES;
   presentationController.widthFollowsPreferredContentSizeWhenEdgeAttached = YES;
-  presentationController.preferredCornerRadius = kHalfSheetCornerRadius;
+  if (!@available(iOS 26, *)) {
+    presentationController.preferredCornerRadius = kHalfSheetCornerRadius;
+  }
 }
 
 - (void)setUpBottomSheetDetents {
   UISheetPresentationController* presentationController =
       self.sheetPresentationController;
-  CGFloat bottomSheetHeight = [self preferredHeightForContent];
+  __weak __typeof(self) weakSelf = self;
   auto resolver = ^CGFloat(
       id<UISheetPresentationControllerDetentResolutionContext> context) {
-    return bottomSheetHeight;
+    return [weakSelf preferredHeightForContent];
   };
   UISheetPresentationControllerDetent* customDetent =
       [UISheetPresentationControllerDetent

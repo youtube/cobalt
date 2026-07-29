@@ -656,6 +656,7 @@
 <translation id="3547933853190131743">Пребарувајте со „AI-режим“</translation>
 <translation id="3557336313807607643">Додај во контакти</translation>
 <translation id="355765753469272474">Врати</translation>
+<translation id="3565012355885596568">Не можеше да се вчитаат сликите</translation>
 <translation id="3565930036634619844">Картичка. <ph name="TAB_INDEX" /> од <ph name="NUMBER_OF_TABS" />.</translation>
 <translation id="3572607909481582402">Во вашата сметка на Google</translation>
 <translation id="3575234738189584619">Пребарајте со Lens</translation>
@@ -1314,6 +1315,7 @@ Handoff мора да биде овозможен и во Општиот дел 
 <translation id="6045460247888249350">Додајте наслов</translation>
 <translation id="6052269326659653305">Сменете го профилот</translation>
 <translation id="605721222689873409">ГГ</translation>
+<translation id="6058415747854995776">Сними видео</translation>
 <translation id="6059830886158432458">Контролирајте ги сториите и активноста тука</translation>
 <translation id="6066301408025741299">Допри за откажување.</translation>
 <translation id="6074656473835429958">Добивајте известувања</translation>
@@ -1815,6 +1817,7 @@ Handoff мора да биде овозможен и во Општиот дел 
 <translation id="7866872729285243843">За да го добиете „Списокот за читање“ на сите ваши уреди, вклучете „Список за читање“ во „Поставки“.</translation>
 <translation id="7874107544081154809">Пополни го формуларот автоматски со <ph name="CELL_ACCESSIBILITY_LABEL" /></translation>
 <translation id="7879275349003161544">Прикажете ги преземањата</translation>
+<translation id="7882689957034389473">Сними фотографија</translation>
 <translation id="7883882164760409935">Имате повторно употребени лозинки.</translation>
 <translation id="7887174313503389866">Разгледајте го упатството што ќе ве води низ клучните контроли за приватноста и безбедноста. За повеќе опции, одете на поединечните поставки.</translation>
 <translation id="7887198238286927132">За да ја заштити вашата приватност, Chrome нема автоматски да го пополнува ова поле.</translation>
@@ -1998,6 +2001,7 @@ Handoff мора да биде овозможен и во Општиот дел 
 <translation id="8551311254462607218">Во лентата за адреса, допрете ја иконата за камера за Google Lens</translation>
 <translation id="8556590991644167667">{count,plural, =1{Отфрливте {count} предупредување}one{Отфрливте {count} предупредување}other{Отфрливте {count} предупредувања}}</translation>
 <translation id="8558046478684552694">Затвори ја групата.</translation>
+<translation id="8559858985063901027">Криптографски клучеви</translation>
 <translation id="8560253818350321773">Прво прикажувај ги често користените ставки.</translation>
 <translation id="8561999115126307258">{count,plural, =1{Достапна е {count} опција за лозинка над тастатурата.}one{Достапни се {count} опција за лозинка над тастатурата.}other{Достапни се {count} опции за лозинка над тастатурата.}}</translation>
 <translation id="8564894539416715395">Страница во нова картичка</translation>

@@ -70,7 +70,7 @@ class ArcVpnProviderTest : public AppListTestBase {
   void SetUp() override {
     arc_app_test_.PreProfileSetUp();
     AppListTestBase::SetUp();
-    arc_app_test_.SetUp(profile());
+    arc_app_test_.PostProfileSetUp(profile());
     ArcVpnProviderManager* arc_vpn_provider_manager =
         ArcVpnProviderManager::Get(profile());
     DCHECK(arc_vpn_provider_manager);
@@ -82,8 +82,9 @@ class ArcVpnProviderTest : public AppListTestBase {
         ArcVpnProviderManager::Get(profile());
     DCHECK(arc_vpn_provider_manager);
     arc_vpn_provider_manager->RemoveObserver(&arc_vpn_observer_);
-    arc_app_test_.TearDown();
+    arc_app_test_.PreProfileTearDown();
     AppListTestBase::TearDown();
+    arc_app_test_.PostProfileTearDown();
   }
 
   void AddArcApp(const std::string& app_name,

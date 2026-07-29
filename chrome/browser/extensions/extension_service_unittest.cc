@@ -46,9 +46,7 @@
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/custom_handlers/protocol_handler_registry_factory.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
-#include "chrome/browser/extensions/blocklist.h"
 #include "chrome/browser/extensions/chrome_extension_cookies.h"
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
 #include "chrome/browser/extensions/chrome_zipfile_installer.h"
@@ -67,7 +65,6 @@
 #include "chrome/browser/extensions/external_provider_impl.h"
 #include "chrome/browser/extensions/external_provider_manager.h"
 #include "chrome/browser/extensions/external_testing_loader.h"
-#include "chrome/browser/extensions/fake_safe_browsing_database_manager.h"
 #include "chrome/browser/extensions/installed_loader.h"
 #include "chrome/browser/extensions/load_error_reporter.h"
 #include "chrome/browser/extensions/managed_installation_mode.h"
@@ -76,8 +73,6 @@
 #include "chrome/browser/extensions/permissions/permissions_updater.h"
 #include "chrome/browser/extensions/plugin_manager.h"
 #include "chrome/browser/extensions/preinstalled_apps.h"
-#include "chrome/browser/extensions/scoped_database_manager_for_test.h"
-#include "chrome/browser/extensions/test_blocklist.h"
 #include "chrome/browser/extensions/test_extension_system.h"
 #include "chrome/browser/extensions/unpacked_installer.h"
 #include "chrome/browser/extensions/updater/extension_updater.h"
@@ -94,8 +89,6 @@
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/scoped_browser_locale.h"
 #include "components/crx_file/id_util.h"
-#include "components/custom_handlers/protocol_handler_registry.h"
-#include "components/custom_handlers/simple_protocol_handler_registry_factory.h"
 #include "components/policy/core/common/management/scoped_management_service_override_for_testing.h"
 #include "components/policy/core/common/policy_pref_names.h"
 #include "components/pref_registry/pref_registry_syncable.h"
@@ -117,6 +110,7 @@
 #include "content/public/common/content_constants.h"
 #include "content/public/test/browser_task_environment.h"
 #include "extensions/browser/app_sorting.h"
+#include "extensions/browser/blocklist.h"
 #include "extensions/browser/blocklist_extension_prefs.h"
 #include "extensions/browser/blocklist_state.h"
 #include "extensions/browser/disable_reason.h"
@@ -129,12 +123,15 @@
 #include "extensions/browser/extension_util.h"
 #include "extensions/browser/external_install_info.h"
 #include "extensions/browser/external_provider_interface.h"
+#include "extensions/browser/fake_safe_browsing_database_manager.h"
 #include "extensions/browser/install_flag.h"
 #include "extensions/browser/management_policy.h"
 #include "extensions/browser/mock_external_provider.h"
 #include "extensions/browser/pending_extension_info.h"
 #include "extensions/browser/pending_extension_manager.h"
 #include "extensions/browser/pref_names.h"
+#include "extensions/browser/scoped_database_manager_for_test.h"
+#include "extensions/browser/test_blocklist.h"
 #include "extensions/browser/test_extension_registry_observer.h"
 #include "extensions/browser/test_management_policy.h"
 #include "extensions/browser/uninstall_reason.h"
@@ -6884,20 +6881,9 @@ TEST_F(ExtensionServiceTestSimple, Enabledness) {
   LoadErrorReporter::Init(false);  // no noisy errors
   std::unique_ptr<base::CommandLine> command_line;
 
-  auto profile_builder = []() {
-    TestingProfile::Builder builder;
-    // Use SimpleProtocolHandlerRegistryFactory to prevent OS integration during
-    // the protocol registration process.
-    builder.AddTestingFactory(
-        ProtocolHandlerRegistryFactory::GetInstance(),
-        custom_handlers::SimpleProtocolHandlerRegistryFactory::
-            GetDefaultFactory());
-    return builder;
-  };
-
   // The profile lifetimes must not overlap: services may use global variables.
   {
-    auto profile = profile_builder().Build();
+    auto profile = std::make_unique<TestingProfile>();
     bool ready = false;
     auto on_ready = [](bool* ready) { *ready = true; };
     ExtensionSystem::Get(profile.get())
@@ -6922,7 +6908,7 @@ TEST_F(ExtensionServiceTestSimple, Enabledness) {
   }
 
   {
-    auto profile = profile_builder().Build();
+    auto profile = std::make_unique<TestingProfile>();
     bool ready = false;
     auto on_ready = [](bool* ready) { *ready = true; };
     ExtensionSystem::Get(profile.get())
@@ -6943,7 +6929,7 @@ TEST_F(ExtensionServiceTestSimple, Enabledness) {
   }
 
   {
-    auto profile = profile_builder().Build();
+    auto profile = std::make_unique<TestingProfile>();
     bool ready = false;
     auto on_ready = [](bool* ready) { *ready = true; };
     ExtensionSystem::Get(profile.get())
@@ -6964,7 +6950,7 @@ TEST_F(ExtensionServiceTestSimple, Enabledness) {
   }
 
   {
-    auto profile = profile_builder().Build();
+    auto profile = std::make_unique<TestingProfile>();
     bool ready = false;
     auto on_ready = [](bool* ready) { *ready = true; };
     ExtensionSystem::Get(profile.get())

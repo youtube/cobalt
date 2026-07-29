@@ -4,10 +4,11 @@
 
 package org.chromium.chrome.browser.omnibox.fusebox;
 
-import android.content.res.ColorStateList;
-import android.graphics.drawable.Drawable;
+import android.graphics.Bitmap;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.WritableBooleanPropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.WritableObjectPropertyKey;
@@ -33,8 +34,8 @@ class NavigationAttachmentsProperties {
             new WritableBooleanPropertyKey();
 
     /** Tracks the {@link AutocompleteRequestType}. */
-    public static final WritableObjectPropertyKey<Integer> AUTOCOMPLETE_REQUEST_TYPE =
-            new WritableObjectPropertyKey<>();
+    public static final WritableObjectPropertyKey<@AutocompleteRequestType Integer>
+            AUTOCOMPLETE_REQUEST_TYPE = new WritableObjectPropertyKey<>();
 
     /** Whether the navigation type toggle is changeable. */
     public static final WritableBooleanPropertyKey AUTOCOMPLETE_REQUEST_TYPE_CHANGEABLE =
@@ -48,16 +49,25 @@ class NavigationAttachmentsProperties {
     public static final WritableObjectPropertyKey<Runnable> BUTTON_ADD_CLICKED =
             new WritableObjectPropertyKey<>();
 
+    /** Whether the UI is in compact mode. */
+    public static final WritableBooleanPropertyKey COMPACT_UI = new WritableBooleanPropertyKey();
+
     /** Action to perform when the user clicks the "add current tab" button */
     public static final WritableObjectPropertyKey<Runnable> CURRENT_TAB_BUTTON_CLICKED =
             new WritableObjectPropertyKey<>();
 
-    /** Thumbnail for the add current tab button */
-    public static final WritableObjectPropertyKey<Drawable> CURRENT_TAB_BUTTON_THUMBNAIL =
-            new WritableObjectPropertyKey<>();
+    /**
+     * Whether the current tab button is enabled or disabled. Being disabled still leaves it
+     * visible, but with a greyed out color and not interactable.
+     */
+    public static final WritableBooleanPropertyKey CURRENT_TAB_BUTTON_ENABLED =
+            new WritableBooleanPropertyKey();
 
-    /** Tint for the add current tab button */
-    public static final WritableObjectPropertyKey<ColorStateList> CURRENT_TAB_BUTTON_TINT =
+    /**
+     * The favicon of the underlying tab which this button would add. Can be null, in which case a
+     * fallback will be used instead.
+     */
+    public static final WritableObjectPropertyKey<@Nullable Bitmap> CURRENT_TAB_BUTTON_FAVICON =
             new WritableObjectPropertyKey<>();
 
     /** Whether the current tab button is visible. */
@@ -79,6 +89,22 @@ class NavigationAttachmentsProperties {
     /** Action to perform when the user clicks the Clipboard button in the popup. */
     public static final WritableObjectPropertyKey<Runnable> POPUP_CLIPBOARD_CLICKED =
             new WritableObjectPropertyKey<>();
+
+    /** Whether the create image button is enabled or disabled. */
+    public static final WritableBooleanPropertyKey POPUP_CREATE_IMAGE_BUTTON_ENABLED =
+            new WritableBooleanPropertyKey();
+
+    /** Whether the create image button in the popup is visible. */
+    public static final WritableBooleanPropertyKey POPUP_CREATE_IMAGE_BUTTON_VISIBLE =
+            new WritableBooleanPropertyKey();
+
+    /** Action to perform when the user clicks the 'Create Image' button in the popup. */
+    public static final WritableObjectPropertyKey<Runnable> POPUP_CREATE_IMAGE_CLICKED =
+            new WritableObjectPropertyKey<>();
+
+    /** Whether the File button in the popup is visible. */
+    public static final WritableBooleanPropertyKey POPUP_FILE_BUTTON_VISIBLE =
+            new WritableBooleanPropertyKey();
 
     /** Action to perform when the user clicks the File button in the popup. */
     public static final WritableObjectPropertyKey<Runnable> POPUP_FILE_CLICKED =
@@ -109,15 +135,20 @@ class NavigationAttachmentsProperties {
         AUTOCOMPLETE_REQUEST_TYPE_CHANGEABLE,
         AUTOCOMPLETE_REQUEST_TYPE_CLICKED,
         BUTTON_ADD_CLICKED,
+        COMPACT_UI,
         CURRENT_TAB_BUTTON_CLICKED,
-        CURRENT_TAB_BUTTON_THUMBNAIL,
-        CURRENT_TAB_BUTTON_TINT,
+        CURRENT_TAB_BUTTON_ENABLED,
+        CURRENT_TAB_BUTTON_FAVICON,
         CURRENT_TAB_BUTTON_VISIBLE,
         POPUP_AI_MODE_CLICKED,
         POPUP_CAMERA_CLICKED,
         POPUP_CLIPBOARD_BUTTON_VISIBLE,
         POPUP_CLIPBOARD_CLICKED,
+        POPUP_CREATE_IMAGE_BUTTON_ENABLED,
+        POPUP_CREATE_IMAGE_BUTTON_VISIBLE,
+        POPUP_CREATE_IMAGE_CLICKED,
         POPUP_FILE_CLICKED,
+        POPUP_FILE_BUTTON_VISIBLE,
         POPUP_GALLERY_CLICKED,
         POPUP_TAB_PICKER_CLICKED,
         RECENT_TABS_HEADER_VISIBLE,

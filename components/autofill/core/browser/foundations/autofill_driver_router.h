@@ -223,9 +223,11 @@ class AutofillDriverRouter {
       AutofillDriver& source,
       FormData form,
       const FieldGlobalId& field_id);
-  void SelectFieldOptionsDidChange(RoutedCallback<const FormData&> callback,
-                                   AutofillDriver& source,
-                                   FormData form);
+  void SelectFieldOptionsDidChange(
+      RoutedCallback<const FormData&, const FieldGlobalId&> callback,
+      AutofillDriver& source,
+      FormData form,
+      const FieldGlobalId& field_id);
 
   // Events called by the browser, passed to the renderer:
   // Keep in alphabetic order.
@@ -277,9 +279,10 @@ class AutofillDriverRouter {
   //
   // If routing the request fails, ExtractForm() calls `browser_form_handler`
   // right away with nullptr and std::nullopt.
-  void ExtractForm(RoutedCallback<FormRendererId, RendererFormHandler> callback,
-                   FormGlobalId form_id,
-                   BrowserFormHandler browser_form_handler);
+  void ExtractFormWithField(
+      RoutedCallback<FieldRendererId, RendererFormHandler> callback,
+      FieldGlobalId field_id,
+      BrowserFormHandler browser_form_handler);
   void RendererShouldAcceptDataListSuggestion(
       RoutedCallback<FieldRendererId, const std::u16string&> callback,
       const FieldGlobalId& field_id,

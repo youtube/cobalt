@@ -48,6 +48,7 @@ tast.security.SELinuxFilesDataDir.arcvm_user@trogdor
 
 # b/384060114
 tast.inputs.InputMethodShelfInputs@reven-vmtest
+tast.inputs.InputMethodShelfInputs@betty
 tast.inputs.VirtualKeyboardHandwriting.docked@reven-vmtest
 tast.inputs.VirtualKeyboardHandwriting.floating@reven-vmtest
 
@@ -98,5 +99,17 @@ tast.bruschetta.CopyFilesToGuest@betty
 
 # https://crbug.com/432304431
 tast.featured.FieldTrialEarlyBoot.active_trial
+
+# https://crbug.com/459929970
+tast.crostini.SyncTime.baguette_stable
+
+# https://crbug.com/460052469
+tast.apps.LaunchHelpAppFromShortcut.stable_guest
+
+# https://crbug.com/460054243
+tast.inputs.VirtualKeyboardTypingUserMode.guest
+
+# https://crbug.com/368606672
+tast.inputs.InputMethodManagement.guest
 
 # READ COMMENT AT TOP BEFORE ADDING NEW TESTS HERE.

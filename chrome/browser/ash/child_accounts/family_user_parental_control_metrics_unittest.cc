@@ -224,7 +224,7 @@ TEST_F(FamilyUserParentalControlMetricsTest, AppTimeLimitMetrics) {
 
   // Install and set up Arc app.
   app_service_test_.SetUp(profile_.get());
-  arc_app_test_.SetUp(profile_.get());
+  arc_app_test_.PostProfileSetUp(profile_.get());
   arc_app_test_.app_instance()->set_icon_response_type(
       arc::FakeAppInstance::IconResponseType::ICON_RESPONSE_SKIP);
   EXPECT_EQ(apps::AppType::kArc, kArcApp.app_type());
@@ -268,7 +268,9 @@ TEST_F(FamilyUserParentalControlMetricsTest, AppTimeLimitMetrics) {
       ChildUserService::GetTimeLimitPolicyTypesHistogramNameForTest(),
       /*expected_count=*/2);
 
-  arc_app_test_.TearDown();
+  arc_app_test_.PreProfileTearDown();
+  // TODO(crbug.com/454468678): This should be called after profile is deleted.
+  arc_app_test_.PostProfileTearDown();
 }
 
 }  // namespace ash

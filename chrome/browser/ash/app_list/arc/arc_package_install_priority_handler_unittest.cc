@@ -27,12 +27,14 @@ class ArcPackageInstallPiroirtyHanlderTest : public testing::Test {
     arc_app_test_ = std::make_unique<ArcAppTest>();
     arc_app_test_->PreProfileSetUp();
     testing_profile_ = std::make_unique<TestingProfile>();
-    arc_app_test_->SetUp(testing_profile_.get());
+    arc_app_test_->PostProfileSetUp(testing_profile_.get());
   }
 
   void TearDown() override {
     arc_app_test_->StopArcInstance();
-    arc_app_test_->TearDown();
+    arc_app_test_->PreProfileTearDown();
+    testing_profile_.reset();
+    arc_app_test_->PostProfileTearDown();
   }
 
   ArcAppTest* arc_app_test() { return arc_app_test_.get(); }

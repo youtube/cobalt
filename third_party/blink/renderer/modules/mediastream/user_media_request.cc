@@ -37,7 +37,6 @@
 #include "base/strings/stringprintf.h"
 #include "media/base/media_switches.h"
 #include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-blink.h"
-#include "third_party/blink/public/common/privacy_budget/identifiability_metric_builder.h"
 #include "third_party/blink/public/platform/modules/webrtc/webrtc_logging.h"
 #include "third_party/blink/renderer/bindings/core/v8/dictionary.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_media_stream_constraints.h"
@@ -49,7 +48,6 @@
 #include "third_party/blink/renderer/core/frame/deprecation/deprecation.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/modules/mediastream/capture_controller.h"
-#include "third_party/blink/renderer/modules/mediastream/identifiability_metrics.h"
 #include "third_party/blink/renderer/modules/mediastream/media_constraints_impl.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream_set.h"
@@ -60,7 +58,6 @@
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_descriptor.h"
-#include "third_party/blink/renderer/platform/privacy_budget/identifiability_digest_helpers.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
@@ -395,8 +392,7 @@ UserMediaRequest* UserMediaRequest::Create(
     UserMediaRequestType media_type,
     const MediaStreamConstraints* options,
     Callbacks* callbacks,
-    ExceptionState& exception_state,
-    IdentifiableSurface surface) {
+    ExceptionState& exception_state) {
   MediaConstraints audio =
       ParseOptions(context, options->audio(), exception_state);
   if (exception_state.HadException()) {
@@ -530,7 +526,7 @@ UserMediaRequest* UserMediaRequest::Create(
 
   UserMediaRequest* const result = MakeGarbageCollected<UserMediaRequest>(
       context, client, media_type, audio, video, options->preferCurrentTab(),
-      options->getControllerOr(nullptr), callbacks, surface);
+      options->getControllerOr(nullptr), callbacks);
 
   // The default is to include.
   // Note that this option is no-op if audio is not requested.
@@ -684,8 +680,7 @@ UserMediaRequest* UserMediaRequest::CreateForTesting(
                     : UserMediaRequestType::kDisplayMedia,
       audio, video,
       /*should_prefer_current_tab=*/false,
-      /*capture_controller=*/nullptr, /*callbacks=*/nullptr,
-      IdentifiableSurface());
+      /*capture_controller=*/nullptr, /*callbacks=*/nullptr);
 }
 
 UserMediaRequest::UserMediaRequest(ExecutionContext* context,
@@ -695,8 +690,7 @@ UserMediaRequest::UserMediaRequest(ExecutionContext* context,
                                    MediaConstraints video,
                                    bool should_prefer_current_tab,
                                    CaptureController* capture_controller,
-                                   Callbacks* callbacks,
-                                   IdentifiableSurface surface)
+                                   Callbacks* callbacks)
     : ExecutionContextLifecycleObserver(context),
       media_type_(media_type),
       audio_(audio),
@@ -704,9 +698,7 @@ UserMediaRequest::UserMediaRequest(ExecutionContext* context,
       capture_controller_(capture_controller),
       should_prefer_current_tab_(should_prefer_current_tab),
       client_(client),
-      callbacks_(callbacks),
-      surface_(surface) {
-}
+      callbacks_(callbacks) {}
 
 UserMediaRequest::~UserMediaRequest() = default;
 
@@ -874,9 +866,6 @@ void UserMediaRequest::OnMediaStreamsInitialized(MediaStreamVector streams) {
     for (const auto& video_track : video_tracks)
       video_track->SetInitialConstraints(video_);
 
-    RecordIdentifiabilityMetric(
-        surface_, GetExecutionContext(),
-        IdentifiabilityBenignStringToken(g_empty_string));
     if (auto* window = GetWindow()) {
       if (media_type_ == UserMediaRequestType::kUserMedia) {
         PeerConnectionTracker::From(*window).TrackGetUserMediaSuccess(this,
@@ -901,8 +890,6 @@ void UserMediaRequest::FailConstraint(const String& constraint_name,
   DCHECK(!is_resolved_);
   if (!GetExecutionContext())
     return;
-  RecordIdentifiabilityMetric(surface_, GetExecutionContext(),
-                              IdentifiabilityBenignStringToken(message));
   if (auto* window = GetWindow()) {
     if (media_type_ == UserMediaRequestType::kUserMedia) {
       PeerConnectionTracker::From(*window).TrackGetUserMediaFailure(
@@ -943,6 +930,7 @@ void UserMediaRequest::Fail(Result error, const String& message) {
     case Result::NO_TRANSIENT_ACTIVATION:
       // TODO(crbug.com/453600255): Use `result_enum` kInvalidStateError for
       // NO_TRANSIENT_ACTIVATION once all new enum values are added.
+    case Result::CAPTURE_NOT_ALLOWED_BY_POLICY:
     case Result::KILL_SWITCH_ON:
       exception_code = DOMExceptionCode::kNotAllowedError;
       result_enum = UserMediaRequestResult::kNotAllowedError;
@@ -957,6 +945,9 @@ void UserMediaRequest::Fail(Result error, const String& message) {
       break;
     case Result::INVALID_STATE:
     case Result::FAILED_DUE_TO_SHUTDOWN:
+      // TODO(crbug.com/453600255): Use `result_enum` kContextDestroyed and
+      // `exception_code` kInvalidStateError for
+      // FAILED_DUE_TO_SHUTDOWN once all new enum values are added.
     case Result::TAB_CAPTURE_FAILURE:
     case Result::SCREEN_CAPTURE_FAILURE:
     case Result::CAPTURE_FAILURE:
@@ -980,18 +971,15 @@ void UserMediaRequest::Fail(Result error, const String& message) {
       result_enum = UserMediaRequestResult::kSecurityError;
       break;
     case Result::CONSTRAINT_NOT_SATISFIED:
-    case Result::REQUEST_CANCELLED:
       // TODO(crbug.com/416456028): Either handle these or document why
       // they cannot be encountered by this method.
       NOTREACHED();
+    case Result::REQUEST_CANCELLED:  // Deprecated, use FAILED_DUE_TO_SHUTDOWN
     case Result::NUM_MEDIA_REQUEST_RESULTS:
       NOTREACHED();  // Not a valid enum value.
   }
   CHECK(exception_code.has_value());
   CHECK(result_enum.has_value());
-
-  RecordIdentifiabilityMetric(surface_, GetExecutionContext(),
-                              IdentifiabilityBenignStringToken(message));
 
   if (auto* window = GetWindow()) {
     if (media_type_ == UserMediaRequestType::kUserMedia) {
@@ -1029,8 +1017,8 @@ void UserMediaRequest::ContextDestroyed() {
       callbacks_->OnError(
           nullptr,
           MakeGarbageCollected<V8MediaStreamError>(
-              MakeGarbageCollected<DOMException>(DOMExceptionCode::kAbortError,
-                                                 "Context destroyed")),
+              MakeGarbageCollected<DOMException>(
+                  DOMExceptionCode::kInvalidStateError, "Context destroyed")),
           capture_controller_, UserMediaRequestResult::kContextDestroyed);
     }
     client_ = nullptr;

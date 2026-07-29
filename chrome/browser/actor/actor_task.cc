@@ -126,7 +126,11 @@ ActorTask::ActorTask(Profile* profile,
       delegate_(std::move(delegate)),
       ui_weak_ptr_factory_(ui_event_dispatcher_.get()) {}
 
-ActorTask::~ActorTask() = default;
+ActorTask::~ActorTask() {
+  // The owner of the ActorTasks (ActorKeyedService) should have stopped all
+  // tasks already.
+  CHECK(IsCompleted());
+}
 
 void ActorTask::SetId(base::PassKey<ActorKeyedService>, TaskId id) {
   id_ = id;
@@ -244,12 +248,16 @@ void ActorTask::SetState(State new_state) {
 
 void ActorTask::Act(std::vector<std::unique_ptr<ToolRequest>>&& actions,
                     ActCallback callback) {
-  if (state_ == State::kPausedByActor) {
+  if (IsUnderUserControl()) {
+    journal_->Log(GURL(), id(), "ActorTask::Act",
+                  JournalDetailsBuilder().AddError("Task is paused").Build());
     std::move(callback).Run(MakeResult(mojom::ActionResultCode::kTaskPaused),
                             std::nullopt, {});
     return;
   }
   if (IsCompleted()) {
+    journal_->Log(GURL(), id(), "ActorTask::Act",
+                  JournalDetailsBuilder().AddError("Task is Stopped").Build());
     std::move(callback).Run(MakeResult(mojom::ActionResultCode::kTaskWentAway),
                             std::nullopt, {});
     return;
@@ -269,6 +277,23 @@ void ActorTask::Act(std::vector<std::unique_ptr<ToolRequest>>&& actions,
 }
 
 void ActorTask::OnFinishedAct(
+    base::WeakPtr<ActorTask> actor_task,
+    ActCallback callback,
+    mojom::ActionResultPtr result,
+    std::optional<size_t> index_of_failed_action,
+    std::vector<ActionResultWithLatencyInfo> action_results) {
+  // Actor task disappeared.
+  if (!actor_task) {
+    std::move(callback).Run(MakeResult(mojom::ActionResultCode::kTaskWentAway),
+                            std::nullopt, {});
+    return;
+  }
+  actor_task->OnFinishedActImpl(std::move(callback), std::move(result),
+                                index_of_failed_action,
+                                std::move(action_results));
+}
+
+void ActorTask::OnFinishedActImpl(
     ActCallback callback,
     mojom::ActionResultPtr result,
     std::optional<size_t> index_of_failed_action,
@@ -300,8 +325,11 @@ void ActorTask::Stop(StoppedReason stop_reason) {
   }
   State final_state;
   switch (stop_reason) {
+    case StoppedReason::kUserStartedNewChat:
+    case StoppedReason::kUserLoadedPreviousChat:
     case StoppedReason::kStoppedByUser:
     case StoppedReason::kTabDetached:
+    case StoppedReason::kShutdown:
       final_state = State::kCancelled;
       break;
     case StoppedReason::kTaskComplete:

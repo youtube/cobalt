@@ -364,6 +364,15 @@ class AutocompleteMediator
      * <p>Note: the only supported page context right now is the ANDROID_SEARCH_WIDGET.
      */
     void startCachedZeroSuggest() {
+        // Do not show cached zero suggest results when omnibox autofocus feature enabled and
+        // Incognito NTP visible.
+        boolean disableZps =
+                ChromeFeatureList.sOmniboxAutofocusOnIncognitoNtpNoZeroSuggest.getValue();
+
+        if (disableZps && isOmniboxAutofocusOnIncognitoNtpActive()) {
+            return;
+        }
+
         maybeServeCachedResult();
         postAutocompleteRequest(this::startZeroSuggest, SCHEDULE_FOR_IMMEDIATE_EXECUTION);
     }
@@ -434,10 +443,7 @@ class AutocompleteMediator
 
             // Do not attach IME observer when omnibox autofocus feature enabled and Incognito NTP
             // visible.
-            if (!ChromeFeatureList.sOmniboxAutofocusOnIncognitoNtp.isEnabled()
-                    || !mDataProvider
-                            .getNewTabPageDelegate()
-                            .isIncognitoNewTabPageCurrentlyVisible()) {
+            if (!isOmniboxAutofocusOnIncognitoNtpActive()) {
                 mDeferredIMEWindowInsetApplicationCallback.attach(mWindowAndroid);
             }
 
@@ -459,6 +465,8 @@ class AutocompleteMediator
             onTextChanged(
                     text, /* isOnFocusContext= */ OmniboxFeatures.shouldRetainOmniboxOnFocus());
         } else {
+            mNavigationAttachmentsCoordinator.notifyOmniboxSessionEnded(
+                    mOmniboxFocusResultedInNavigation);
             mDeferredIMEWindowInsetApplicationCallback.detach();
             stopMeasuringSuggestionRequestToUiModelTime();
             cancelAutocompleteRequests();
@@ -583,7 +591,8 @@ class AutocompleteMediator
                                 url,
                                 mLastActionUpTimestamp,
                                 /* openInNewTab= */ false,
-                                true);
+                                /* openInNewWindow= */ false,
+                                /* shouldUpdateSuggestionUrl= */ true);
 
         // Note: Action will be reset when load is initiated.
         if (mAutocomplete != null) {
@@ -959,8 +968,15 @@ class AutocompleteMediator
      * @param eventTime The timestamp the load was triggered by the user.
      * @param openInNewTab Whether the URL will be loaded in a new tab. If {@code true}, the URL
      *     will be loaded in a new tab. If {@code false}, The URL will be loaded in the current tab.
+     * @param openInNewWindow Whether the URL will be loaded in a new window. If {@code true}, the
+     *     URL will be loaded in a new window. If {@code false}, The URL will be loaded in the
+     *     current window.
      */
-    void loadTypedOmniboxText(long eventTime, boolean openInNewTab) {
+    void loadTypedOmniboxText(long eventTime, boolean openInNewTab, boolean openInNewWindow) {
+        assert !openInNewTab || !openInNewWindow
+                : "Unable to determine if the URL should be loaded in a new tab in the current"
+                        + " window or in a new window.";
+
         final String urlText = mUrlBarEditingTextProvider.getTextWithAutocomplete();
         cancelAutocompleteRequests();
 
@@ -969,26 +985,32 @@ class AutocompleteMediator
             // For Hub Search, default behavior kicks off search by pressing enter, do not return.
         }
 
-        if (mNavigationAttachmentsCoordinator
-                .getAutocompleteRequestTypeSupplier()
-                .get()
-                .equals(AutocompleteRequestType.AI_MODE)) {
+        @AutocompleteRequestType
+        int type = mNavigationAttachmentsCoordinator.getAutocompleteRequestTypeSupplier().get();
+        if (type == AutocompleteRequestType.AI_MODE
+                || type == AutocompleteRequestType.IMAGE_GENERATION) {
             AutocompleteMatch suggestionMatch = getSuggestionMatchForUrlText(urlText);
             if (suggestionMatch == null) return;
+            GURL url =
+                    type == AutocompleteRequestType.AI_MODE
+                            ? mNavigationAttachmentsCoordinator.getAimUrl(urlText)
+                            : mNavigationAttachmentsCoordinator.getImageGenerationUrl(urlText);
             loadUrlForOmniboxMatch(
                     0,
                     suggestionMatch,
-                    mNavigationAttachmentsCoordinator.getAimUrl(urlText),
+                    url,
                     eventTime,
                     /* openInNewTab= */ false,
+                    openInNewWindow,
                     /* shouldUpdateSuggestionUrl= */ false);
             return;
         }
 
         if (mAutocomplete != null) {
-            findMatchAndLoadUrl(urlText, eventTime, openInNewTab);
+            findMatchAndLoadUrl(urlText, eventTime, openInNewTab, openInNewWindow);
         } else {
-            mDeferredLoadAction = () -> findMatchAndLoadUrl(urlText, eventTime, openInNewTab);
+            mDeferredLoadAction =
+                    () -> findMatchAndLoadUrl(urlText, eventTime, openInNewTab, openInNewWindow);
         }
     }
 
@@ -999,13 +1021,23 @@ class AutocompleteMediator
      * @param inputStart The timestamp the load was triggered by the user.
      * @param openInNewTab Whether the URL will be loaded in a new tab. If {@code true}, the URL
      *     will be loaded in a new tab. If {@code false}, The URL will be loaded in the current tab.
+     * @param openInNewWindow Whether the URL will be loaded in a new window. If {@code true}, the
+     *     URL will be loaded in a new window. If {@code false}, The URL will be loaded in the
+     *     current window.
      */
-    private void findMatchAndLoadUrl(String urlText, long inputStart, boolean openInNewTab) {
+    private void findMatchAndLoadUrl(
+            String urlText, long inputStart, boolean openInNewTab, boolean openInNewWindow) {
         AutocompleteMatch suggestionMatch = getSuggestionMatchForUrlText(urlText);
 
         if (suggestionMatch == null) return;
         loadUrlForOmniboxMatch(
-                0, suggestionMatch, suggestionMatch.getUrl(), inputStart, openInNewTab, true);
+                0,
+                suggestionMatch,
+                suggestionMatch.getUrl(),
+                inputStart,
+                openInNewTab,
+                openInNewWindow,
+                /* shouldUpdateSuggestionUrl= */ true);
     }
 
     private @Nullable AutocompleteMatch getSuggestionMatchForUrlText(String urlText) {
@@ -1035,6 +1067,9 @@ class AutocompleteMediator
      * @param openInNewTab Whether the suggestion will be loaded in a new tab. If {@code true}, the
      *     suggestion will be loaded in a new tab. If {@code false}, the suggestion will be loaded
      *     in the current tab.
+     * @param openInNewWindow Whether the URL will be loaded in a new window. If {@code true}, the
+     *     URL will be loaded in a new window. If {@code false}, The URL will be loaded in the
+     *     current window.
      * @param shouldUpdateSuggestionUrl Whether the suggestion url should be updated with additional
      *     query formulation stats param.
      */
@@ -1044,6 +1079,7 @@ class AutocompleteMediator
             GURL url,
             long inputStart,
             boolean openInNewTab,
+            boolean openInNewWindow,
             boolean shouldUpdateSuggestionUrl) {
         try (TraceEvent e = TraceEvent.scoped("AutocompleteMediator.loadUrlFromOmniboxMatch")) {
             OmniboxMetrics.recordFocusToOpenTime(System.currentTimeMillis() - mUrlFocusTime);
@@ -1099,6 +1135,7 @@ class AutocompleteMediator
                             .setInputStartTimestamp(inputStart)
                             .setPostData(suggestion.getPostData())
                             .setOpenInNewTab(openInNewTab)
+                            .setOpenInNewWindow(openInNewWindow)
                             .setExtraHeaders(suggestion.getExtraHeaders())
                             .setAutocompleteLoadCallback(autocompleteLoadCallback)
                             .build());
@@ -1364,8 +1401,9 @@ class AutocompleteMediator
     /** Cancel any pending autocomplete actions. */
     private void cancelAutocompleteRequests() {
         stopMeasuringSuggestionRequestToUiModelTime();
-        if (mCurrentAutocompleteRequest != null)
+        if (mCurrentAutocompleteRequest != null) {
             mHandler.removeCallbacks(mCurrentAutocompleteRequest);
+        }
         mCurrentAutocompleteRequest = null;
     }
 
@@ -1561,5 +1599,16 @@ class AutocompleteMediator
         // This is a best-effort action and may not always work (e.g. if Chrome gets killed or
         // swiped away before we manage to retrieve and persist the information).
         mAutocomplete.startZeroSuggest(input);
+    }
+
+    /**
+     * Returns whether the Omnibox Autofocus on Incognito NTP feature is enabled and the Incognito
+     * NTP is currently visible.
+     *
+     * @return True if the feature is enabled and Incognito NTP is visible, false otherwise.
+     */
+    private boolean isOmniboxAutofocusOnIncognitoNtpActive() {
+        return ChromeFeatureList.sOmniboxAutofocusOnIncognitoNtp.isEnabled()
+                && mDataProvider.getNewTabPageDelegate().isIncognitoNewTabPageCurrentlyVisible();
     }
 }

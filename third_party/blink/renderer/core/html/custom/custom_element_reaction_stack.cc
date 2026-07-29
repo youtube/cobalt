@@ -17,15 +17,7 @@ namespace blink {
 // TODO(dominicc): Consider using linked heap structures, avoiding
 // finalizers, to make short-lived entries fast.
 
-// static
-const char CustomElementReactionStack::kSupplementName[] =
-    "CustomElementReactionStackAgentData";
-
-CustomElementReactionStack::CustomElementReactionStack(Agent& agent)
-    : Supplement<Agent>(agent) {}
-
 void CustomElementReactionStack::Trace(Visitor* visitor) const {
-  Supplement<Agent>::Trace(visitor);
   visitor->Trace(map_);
   visitor->Trace(stack_);
   visitor->Trace(backup_queue_);
@@ -115,10 +107,10 @@ void CustomElementReactionStack::InvokeBackupQueue() {
 
 CustomElementReactionStack& CustomElementReactionStack::From(Agent& agent) {
   CustomElementReactionStack* supplement =
-      Supplement<Agent>::From<CustomElementReactionStack>(agent);
+      agent.GetCustomElementReactionStack();
   if (!supplement) {
-    supplement = MakeGarbageCollected<CustomElementReactionStack>(agent);
-    ProvideTo(agent, supplement);
+    supplement = MakeGarbageCollected<CustomElementReactionStack>();
+    agent.SetCustomElementReactionStack(supplement);
   }
   return *supplement;
 }
@@ -128,7 +120,7 @@ CustomElementReactionStack* CustomElementReactionStack::Swap(
     CustomElementReactionStack* new_stack) {
   CustomElementReactionStack* old_stack =
       &CustomElementReactionStack::From(agent);
-  CustomElementReactionStack::ProvideTo(agent, new_stack);
+  agent.SetCustomElementReactionStack(new_stack);
   return old_stack;
 }
 

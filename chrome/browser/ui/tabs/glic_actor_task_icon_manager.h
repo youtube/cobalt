@@ -47,6 +47,8 @@ struct ActorTaskNudgeState {
     kDefault,
     // `Needs attention` text.
     kNeedsAttention,
+    // `Multiple tasks need attention` text.
+    kMultipleTasksNeedAttention,
     // `Complete Tasks` text.
     kCompleteTasks,
   };
@@ -55,6 +57,11 @@ struct ActorTaskNudgeState {
   bool operator==(const ActorTaskNudgeState& other) const {
     return text == other.text;
   }
+};
+
+struct ActorTaskListBubbleRowState {
+  actor::TaskId task_id;
+  std::string title;
 };
 
 class GlicActorTaskIconManager : public KeyedService {
@@ -83,6 +90,9 @@ class GlicActorTaskIconManager : public KeyedService {
   // Determines the state the task nudge should be in.
   void UpdateTaskNudge();
 
+  // Determines the state of a task to show in the task list bubble.
+  void UpdateTaskListBubble(actor::TaskId task_id);
+
   // TODO(crbug.com/431015299): Clean up after redesign is launched.
   // Register for this callback to get task icon state change notifications.
   using TaskIconStateChangeCallback = base::RepeatingCallback<void(
@@ -98,12 +108,30 @@ class GlicActorTaskIconManager : public KeyedService {
   base::CallbackListSubscription RegisterTaskNudgeStateChange(
       TaskNudgeChangeCallback callback);
 
+  // Register for this callback to get task state change notifications for the
+  // bubble.
+  using TaskListBubbleChangeCallback =
+      base::RepeatingCallback<void(const actor::TaskId& task_id)>;
+  base::CallbackListSubscription RegisterTaskListBubbleStateChange(
+      TaskListBubbleChangeCallback callback);
+
   ActorTaskIconState GetCurrentActorTaskIconState() const;
   ActorTaskNudgeState GetCurrentActorTaskNudgeState() const;
 
   raw_ptr<tabs::TabInterface> GetLastUpdatedTab();
+  raw_ptr<tabs::TabInterface> GetLastUpdatedTabForTaskId(actor::TaskId task_id);
 
   void ClearStoppedTasks();
+
+  std::map<actor::TaskId, ActorTaskListBubbleRowState>
+  GetActorTaskListBubbleRows() const {
+    return actor_task_list_bubble_rows_;
+  }
+
+  // Callback to remove a row from the task list bubble when it is clicked.
+  // A task row should be visible in the bubble until clicked on by the user.
+  // The nudge should be visible until all task rows have been clicked on.
+  void RemoveRowFromTaskListBubble(actor::TaskId task_id);
 
   // KeyedService:
   void Shutdown() override;
@@ -125,6 +153,10 @@ class GlicActorTaskIconManager : public KeyedService {
       const ActorTaskNudgeState& actor_task_nudge_text)>;
   TaskNudgeChangeCallbackList task_nudge_state_change_callback_list_;
 
+  using TaskListBubbleChangeCallbackList =
+      base::RepeatingCallbackList<void(const actor::TaskId& task_id)>;
+  TaskListBubbleChangeCallbackList task_list_bubble_change_callback_list_;
+
   ActorTaskIconState current_actor_task_icon_state_;
   ActorTaskNudgeState current_actor_task_nudge_state_;
 
@@ -141,6 +173,10 @@ class GlicActorTaskIconManager : public KeyedService {
   bool has_unprocessed_completed_tasks_ = false;
   // Whether there is an unprocessed failed task.
   bool has_unprocessed_failed_tasks_ = false;
+
+  // Map of tasks needing notifications.
+  std::map<actor::TaskId, ActorTaskListBubbleRowState>
+      actor_task_list_bubble_rows_;
 };
 
 }  // namespace tabs

@@ -195,6 +195,8 @@ class PDFiumEngine : public DocumentLoader::Client,
   PDFiumEngine& operator=(const PDFiumEngine&) = delete;
   ~PDFiumEngine() override;
 
+  PdfCaret* caret() { return caret_.get(); }
+
   // Replaces the normal DocumentLoader for testing. Must be called before
   // HandleDocumentLoad().
   void SetDocumentLoaderForTesting(std::unique_ptr<DocumentLoader> loader);
@@ -365,6 +367,8 @@ class PDFiumEngine : public DocumentLoader::Client,
 
   // Notify whether the PDF currently has the focus or not.
   void UpdateFocus(bool has_focus);
+
+  bool has_focus() const { return has_focus_; }
 
   // Returns the focus info of current focus item.
   AccessibilityFocusInfo GetFocusInfo();
@@ -599,7 +603,9 @@ class PDFiumEngine : public DocumentLoader::Client,
                          AddSearchResultCallback add_result_callback);
 
   // Sets whether caret browsing is enabled or not. Initializes `caret_` if it
-  // is the first time enabling caret browsing mode. Virtual to support testing.
+  // is the first time enabling caret browsing mode. If `enabled` is true, then
+  // moves the caret to the start of the first visible text run. If there is no
+  // visible text, the caret will not move. Virtual to support testing.
   virtual void SetCaretBrowsingEnabled(bool enabled);
 
  private:
@@ -1087,6 +1093,13 @@ class PDFiumEngine : public DocumentLoader::Client,
   // requests the thumbnail for that page.
   void MaybeRequestPendingThumbnail(int page_index);
 
+  // Returns the first text run that is visible on the page at `page_index`.
+  // Otherwise, returns std::nullopt if the PDF has not loaded yet or there is
+  // no visible text on the page. `page_index` must be valid, otherwise a crash
+  // occurs.
+  std::optional<AccessibilityTextRunInfo> GetFirstVisibleTextRun(
+      uint32_t page_index) const;
+
 #if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
   // Called if OCR service gets disconnected.
   void OnOcrDisconnected();
@@ -1206,6 +1219,9 @@ class PDFiumEngine : public DocumentLoader::Client,
 
   // Set to true when handling long touch press.
   bool handling_long_press_ = false;
+
+  // Whether the plugin element currently has focus.
+  bool has_focus_ = false;
 
   // Set to true when updating plugin focus.
   bool updating_focus_ = false;

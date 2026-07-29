@@ -435,7 +435,7 @@ ImageData* BaseRenderingContext2D::getImageDataInternal(
 
   // Deferred offscreen canvases might have recorded commands, make sure
   // that those get drawn here
-  FinalizeFrame(FlushReason::kGetImageData);
+  FinalizeFrame(FlushReason::kOther);
 
   num_readbacks_performed_++;
   CanvasContextCreationAttributesCore::WillReadFrequently
@@ -479,8 +479,7 @@ ImageData* BaseRenderingContext2D::getImageDataInternal(
     }
   }
 
-  scoped_refptr<StaticBitmapImage> snapshot =
-      GetImage(FlushReason::kGetImageData);
+  scoped_refptr<StaticBitmapImage> snapshot = GetImage(FlushReason::kOther);
 
   TRACE_EVENT_INSTANT(
       TRACE_DISABLED_BY_DEFAULT("identifiability.high_entropy_api"),
@@ -1448,7 +1447,7 @@ GPUTexture* BaseRenderingContext2D::transferToGPUTexture(
   }
 
   // Prepare to flush the canvas to a WebGPU texture.
-  FinalizeFrame(FlushReason::kWebGPUTexture);
+  FinalizeFrame();
 
   // We will need to access the canvas' resource provider.
   CanvasRenderingContextHost* host = GetCanvasRenderingContextHost();

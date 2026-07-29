@@ -12,7 +12,6 @@
 #include <vector>
 
 #include "base/check.h"
-#include "base/functional/callback.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/read_only_shared_memory_region.h"
 #include "base/memory/weak_ptr.h"
@@ -65,7 +64,7 @@ class FakeLayerTreeFrameSink : public LayerTreeFrameSink {
 
   static std::unique_ptr<FakeLayerTreeFrameSink> Create3d() {
     return base::WrapUnique(
-        new FakeLayerTreeFrameSink(viz::TestContextProvider::Create(),
+        new FakeLayerTreeFrameSink(viz::TestContextProvider::CreateRaster(),
                                    viz::TestContextProvider::CreateWorker()));
   }
 

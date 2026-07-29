@@ -1866,7 +1866,8 @@ WebGLRenderingContextBase::PaintRenderingResultsToSnapshot(
     return nullptr;
   }
 
-  if (GetDrawingBuffer()->SupportsNoCopyExportForLowLatency()) {
+  if (Host()->LowLatencyEnabled() &&
+      GetDrawingBuffer()->SupportsNoCopyExportForLowLatency()) {
     auto resource = ExportLowLatencyCanvasResource(source_buffer);
     return resource ? resource->Bitmap() : nullptr;
   }
@@ -1955,7 +1956,8 @@ WebGLRenderingContextBase::PaintRenderingResultsToResource(
     return nullptr;
   }
 
-  if (GetDrawingBuffer()->SupportsNoCopyExportForLowLatency()) {
+  if (Host()->LowLatencyEnabled() &&
+      GetDrawingBuffer()->SupportsNoCopyExportForLowLatency()) {
     return ExportLowLatencyCanvasResource(source_buffer);
   }
 
@@ -5705,7 +5707,7 @@ void WebGLRenderingContextBase::TexImageStaticBitmapImage(
   scoped_refptr<StaticBitmapImage> color_converted_image;
   if (params.unpack_colorspace_conversion && image->IsTextureBacked()) {
     color_converted_image = StaticBitmapImageTransform::ConvertToColorSpace(
-        FlushReason::kWebGLTexImage, image,
+        FlushReason::kOther, image,
         PredefinedColorSpaceToSkColorSpace(unpack_color_space_));
     if (!color_converted_image) {
       SynthesizeGLError(GL_OUT_OF_MEMORY, func_name,
@@ -5829,7 +5831,7 @@ scoped_refptr<Image> WebGLRenderingContextBase::DrawImageIntoBufferForTexImage(
   CanvasResourceProviderBitmap* resource_provider_bitmap =
       static_cast<CanvasResourceProviderBitmap*>(resource_provider);
 
-  resource_provider_bitmap->ExternalCanvasDrawHelper(
+  return resource_provider_bitmap->DoExternalDrawAndSnapshot(
       [&](MemoryManagedPaintCanvas& canvas) {
         if (!image->IsOpaque()) {
           canvas.clear(SkColors::kTransparent);
@@ -5844,8 +5846,6 @@ scoped_refptr<Image> WebGLRenderingContextBase::DrawImageIntoBufferForTexImage(
         image->Draw(&canvas, flags, gfx::RectF(dest_rect), gfx::RectF(src_rect),
                     draw_options);
       });
-
-  return resource_provider_bitmap->Snapshot(FlushReason::kWebGLTexImage);
 }
 
 WebGLTexture* WebGLRenderingContextBase::ValidateTexImageBinding(
@@ -6059,7 +6059,7 @@ void WebGLRenderingContextBase::TexImageHelperHTMLImageElement(
     if (have_svg_image) {
       SourceImageStatus status;
       image_for_render = image->GetSourceImageForCanvas(
-          FlushReason::kWebGLTexImage, &status, gfx::SizeF(300, 150));
+          FlushReason::kOther, &status, gfx::SizeF(300, 150));
       // Since the size of the source has not been previously validated,
       // GetSourceImageForCanvas() can return nullptr.
       if (!image_for_render) {
@@ -6340,7 +6340,7 @@ void WebGLRenderingContextBase::TexImageHelperCanvasRenderingContextHost(
 
   SourceImageStatus source_image_status = kInvalidSourceImageStatus;
   scoped_refptr<Image> image = context_host->GetSourceImageForCanvas(
-      FlushReason::kWebGLTexImage, &source_image_status,
+      FlushReason::kOther, &source_image_status,
       gfx::SizeF(*params.width, *params.height));
   if (source_image_status != kNormalSourceImageStatus)
     return;
@@ -6867,23 +6867,6 @@ void WebGLRenderingContextBase::texElementImage2D(
   GetCurrentUnpackState(params);
 
   DrawElementImage(image_for_render, params, exception_state);
-}
-
-void WebGLRenderingContextBase::setHitTestRegions(
-    VectorOf<CanvasElementHitTestRegion> hit_test_regions,
-    ExceptionState& exception_state) {
-  HTMLCanvasElement* canvas_element = canvas();
-  DCHECK(canvas_element);
-  canvas_element->GetDocument().View()->UpdateAllLifecyclePhasesExceptPaint(
-      DocumentUpdateReason::kCanvasDrawElementImage);
-
-  VectorOf<HTMLCanvasElement::ElementHitTestRegion> result;
-  if (!ConvertHitTestRegionsToHTMLCanvasRegions(
-          hit_test_regions, result, "setHitTestRegions()", exception_state)) {
-    return;
-  }
-
-  canvas()->SetHitTestRegions(std::move(result));
 }
 
 void WebGLRenderingContextBase::texSubImage2D(
@@ -9201,9 +9184,7 @@ base::ByteCount WebGLRenderingContextBase::AllocatedBufferSize() const {
     result += provider->EstimatedSizeInBytes();
   }
   if (cached_snapshot_) {
-    result += base::ByteCount(
-        cached_snapshot_->GetSharedImageFormat().EstimatedSizeInBytes(
-            cached_snapshot_->GetSize()));
+    result += cached_snapshot_->EstimatedSizeInBytes();
   }
 
   return result;

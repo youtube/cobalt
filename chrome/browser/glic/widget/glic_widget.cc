@@ -4,9 +4,12 @@
 
 #include "chrome/browser/glic/widget/glic_widget.h"
 
+#include <memory>
+#include <utility>
+
+#include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "chrome/browser/glic/widget/glic_view.h"
-#include "chrome/browser/shell_integration_linux.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
@@ -19,15 +22,18 @@
 #include "ui/base/base_window.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/color/color_provider_key.h"
+#include "ui/compositor/layer_type.h"
 #include "ui/display/display.h"
 #include "ui/display/display_finder.h"
 #include "ui/display/screen.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/geometry/outsets.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
+#include "ui/views/view.h"
 #include "ui/views/widget/native_widget.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_delegate.h"
+#include "ui/views/window/client_view.h"
 
 #if BUILDFLAG(IS_OZONE)
 #include "ui/ozone/public/ozone_platform.h"
@@ -43,8 +49,13 @@
 #include "ui/views/win/hwnd_util.h"
 #endif
 
+#if BUILDFLAG(IS_LINUX)
+#include "chrome/browser/shell_integration_linux.h"
+#endif
+
 #if BUILDFLAG(IS_CHROMEOS)
-#include "ui/wm/core/shadow_types.h"
+#include "ash/wm/window_util.h"
+#include "chromeos/ui/base/window_properties.h"
 #endif
 
 namespace glic {
@@ -72,27 +83,27 @@ gfx::Outsets GetTargetOutsets(const gfx::Rect& bounds) {
   return outsets;
 }
 
-class ClientView : public views::ClientView {
+class GlicClientView : public views::ClientView {
  public:
-  explicit ClientView(std::unique_ptr<GlicView> glic_view)
-      : views::ClientView(/*widget=*/nullptr,
-                          /*contents_view=*/glic_view.get()),
-        glic_view_(std::move(glic_view)) {}
-  ~ClientView() override = default;
+  GlicClientView(views::Widget* widget, views::View* contents_view)
+      : views::ClientView(widget, contents_view) {}
+  ~GlicClientView() override = default;
 
-  GlicView* glic_view() { return glic_view_.get(); }
+#if BUILDFLAG(IS_CHROMEOS)
+  void UpdateWindowRoundedCorners(
+      const gfx::RoundedCornersF& window_radii) override {
+    // For ChromeOS, we have to manually round the contents of `ClientView`.
+    glic_view()->SetBackgroundRoundedCorners(window_radii);
+    glic_view()->holder()->SetCornerRadii(window_radii);
+  }
+#endif
 
  private:
-  std::unique_ptr<GlicView> glic_view_;
+  GlicView* glic_view() { return static_cast<GlicView*>(contents_view()); }
 };
 
-bool UseClientView() {
+bool ShouldCreateNonClientView() {
   return base::FeatureList::IsEnabled(features::kGlicWindowDragRegions);
-}
-
-views::Widget::InitParams::Type GetWidgetType() {
-  return UseClientView() ? views::Widget::InitParams::TYPE_WINDOW
-                         : views::Widget::InitParams::TYPE_WINDOW_FRAMELESS;
 }
 
 display::Display GetDisplayForOpeningDetached() {
@@ -148,34 +159,6 @@ gfx::Rect GetInitialDetachedBoundsNoBrowser(const gfx::Size& target_size) {
   return {{initial_x, initial_y}, target_size};
 }
 }  // namespace
-
-class GlicWidgetDelegate : public views::WidgetDelegate {
- public:
-  explicit GlicWidgetDelegate(std::unique_ptr<GlicView> glic_view)
-      : client_view_(glic_view
-                         ? std::make_unique<ClientView>(std::move(glic_view))
-                         : nullptr) {
-    SetFocusTraversesOut(true);
-    RegisterDeleteDelegateCallback(
-        RegisterDeleteCallbackPassKey(),
-        base::BindOnce(&GlicWidgetDelegate::Destroy, base::Unretained(this)));
-  }
-
-  GlicWidgetDelegate(const GlicWidgetDelegate&) = delete;
-  GlicWidgetDelegate& operator=(const GlicWidgetDelegate&) = delete;
-
-  ~GlicWidgetDelegate() override = default;
-
-  views::ClientView* CreateClientView(views::Widget* widget) override {
-    return client_view_ ? client_view_.get()
-                        : views::WidgetDelegate::CreateClientView(widget);
-  }
-
- private:
-  void Destroy() { delete this; }
-
-  std::unique_ptr<ClientView> client_view_;
-};
 
 void* kGlicWidgetIdentifier = &kGlicWidgetIdentifier;
 
@@ -244,15 +227,43 @@ bool GlicWidget::IsWidgetLocationAllowed(const gfx::Rect& bounds) {
   });
 }
 
-// End Static
-
-std::unique_ptr<GlicWidget> GlicWidget::Create(
-    Profile* profile,
-    const gfx::Rect& initial_bounds,
-    base::WeakPtr<ui::AcceleratorTarget> accelerator_delegate,
+std::unique_ptr<views::WidgetDelegate> GlicWidget::CreateWidgetDelegate(
+    std::unique_ptr<GlicView> contents_view,
     bool user_resizable) {
+  auto delegate = std::make_unique<views::WidgetDelegate>();
+  delegate->SetFocusTraversesOut(true);
+  delegate->SetCanResize(user_resizable);
+  delegate->SetContentsView(std::move(contents_view));
+  delegate->SetClientViewFactory(base::BindOnce(
+      [](views::Widget* widget,
+         views::View* contents_view) -> std::unique_ptr<views::ClientView> {
+        return std::make_unique<GlicClientView>(widget, contents_view);
+      }));
+
+#if BUILDFLAG(IS_CHROMEOS)
+  // TODO(b:458115863): Move ChromeOS specific code to platform specific
+  // implementation. (Like GlicWidgetChromeOS?)
+  delegate->RegisterWidgetInitializedCallback(base::BindOnce(
+      [](views::WidgetDelegate* delegate) {
+        auto* frame_window = delegate->GetWidget()->GetNativeWindow();
+        ash::window_util::SetChildrenUseExtendedHitRegionForWindow(
+            frame_window->parent());
+      },
+      base::Unretained(delegate.get())));
+#endif
+
+  return delegate;
+}
+
+std::unique_ptr<GlicWidget> GlicWidget::Create(views::WidgetDelegate* delegate,
+                                               Profile* profile,
+                                               const gfx::Rect& initial_bounds,
+                                               bool user_resizable) {
   views::Widget::InitParams params(
-      views::Widget::InitParams::CLIENT_OWNS_WIDGET, GetWidgetType());
+      views::Widget::InitParams::CLIENT_OWNS_WIDGET,
+      ShouldCreateNonClientView()
+          ? views::Widget::InitParams::TYPE_WINDOW
+          : views::Widget::InitParams::TYPE_WINDOW_FRAMELESS);
 
   // -------------- Non Platform-Specific Parameters.
   params.bounds = initial_bounds;
@@ -264,17 +275,14 @@ std::unique_ptr<GlicWidget> GlicWidget::Create(
   // Widget::InitParams::rounded_corners. DO NOT apply this radius using
   // views::Background or in the web client because it will mismatch with
   // the window's actual corner radius. e.g. on win10 resizable windows
-  // do have rounded corners.
+  // do have rounded corners. (Except for ChromeOS)
   params.rounded_corners = gfx::RoundedCornersF(kGlicWidgetCornerRadius);
-  if (UseClientView()) {
+  if (ShouldCreateNonClientView()) {
     params.remove_standard_frame = true;
   }
-  auto glic_view = std::make_unique<GlicView>(profile, initial_bounds.size(),
-                                              accelerator_delegate);
-  auto delegate = std::make_unique<GlicWidgetDelegate>(
-      UseClientView() ? std::move(glic_view) : nullptr);
-  delegate->SetCanResize(user_resizable);
-  params.delegate = delegate.release();
+
+  params.delegate = delegate;
+  params.z_order = ui::ZOrderLevel::kFloatingWindow;
 
   // -------------- Platform-Specific Pre-Init Parameters.
 #if BUILDFLAG(IS_OZONE)
@@ -304,16 +312,11 @@ std::unique_ptr<GlicWidget> GlicWidget::Create(
   params.wayland_app_id = params.wm_class_class + "-glic";
 #endif  // BUILDFLAG(IS_LINUX)
 #if BUILDFLAG(IS_CHROMEOS)
-  // crbug.com/450670079: Shadows on ChromeOS are specified by the Ash WM (at
-  // Chrome level, natively), whereas on Windows and Mac, they are specified by
-  // the Desktop WM (OS level, as a user application).
+  // TODO(b:452406346): Use a `LAYER_NOT_DRAWN` for all the platforms.
+  params.layer_type = ui::LAYER_NOT_DRAWN;
   params.shadow_type = views::Widget::InitParams::ShadowType::kDrop;
-  params.shadow_elevation = wm::kShadowElevationActiveWindow;
-
-  // crbug.com/452137970: Rounded Corners conflict with the shadow backdrop so
-  // disable them for now. Since they need some more investigation work/special
-  // handling on ChromeOS, we'll fix them in the RoundedCorners bug.
-  params.rounded_corners = gfx::RoundedCornersF(0);
+  params.init_properties_container.SetProperty(
+      chromeos::kShouldHaveHighlightBorderOverlay, true);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
   if (user_resizable) {
@@ -324,10 +327,6 @@ std::unique_ptr<GlicWidget> GlicWidget::Create(
   auto widget = base::WrapUnique(new GlicWidget(
       ThemeServiceFactory::GetForProfile(profile), std::move(params)));
   widget->SetMinimumSize(GetInitialSize());
-
-  if (!UseClientView()) {
-    widget->SetContentsView(std::move(glic_view));
-  }
 
   // Mac fullscreen uses this identifier to find this widget and reparent it to
   // the overlay widget.
@@ -347,6 +346,8 @@ std::unique_ptr<GlicWidget> GlicWidget::Create(
 #endif  // BUILDFLAG(IS_WIN)
   return widget;
 }
+
+// End Static
 
 display::Display GlicWidget::GetDisplay() {
   std::optional<display::Display> display = GetNearestDisplay();
@@ -387,11 +388,7 @@ base::WeakPtr<GlicWidget> GlicWidget::GetWeakPtr() {
 }
 
 GlicView* GlicWidget::GetGlicView() {
-  if (UseClientView()) {
-    return static_cast<::glic::ClientView*>(client_view())->glic_view();
-  } else {
-    return static_cast<GlicView*>(GetContentsView());
-  }
+  return static_cast<GlicView*>(GetClientContentsView());
 }
 
 ui::ColorProviderKey GlicWidget::GetColorProviderKey() const {

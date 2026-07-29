@@ -20,7 +20,6 @@
 #include "base/feature_list.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
-#include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
@@ -31,6 +30,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
@@ -726,7 +726,8 @@ void NetworkService::ConfigureStubHostResolver(
     bool happy_eyeballs_v3_enabled,
     net::SecureDnsMode secure_dns_mode,
     const net::DnsOverHttpsConfig& dns_over_https_config,
-    bool additional_dns_types_enabled) {
+    bool additional_dns_types_enabled,
+    const std::vector<net::IPEndPoint>& fallback_doh_nameservers) {
   // Enable or disable the insecure part of DnsClient. "DnsClient" is the class
   // that implements the stub resolver.
   host_resolver_manager_->SetInsecureDnsClientEnabled(
@@ -742,7 +743,7 @@ void NetworkService::ConfigureStubHostResolver(
   overrides.secure_dns_mode = secure_dns_mode;
   overrides.allow_dns_over_https_upgrade =
       base::FeatureList::IsEnabled(features::kDnsOverHttpsUpgrade);
-
+  overrides.fallback_doh_nameservers = fallback_doh_nameservers;
   host_resolver_manager_->SetDnsConfigOverrides(overrides);
 
   const bool happy_eyeballs_v3_changed =
@@ -799,17 +800,13 @@ void NetworkService::SetRawHeadersAccess(
   }
 }
 
-void NetworkService::SetMaxConnectionsPerProxyChain(int32_t max_connections) {
-  int new_limit = max_connections;
-  if (new_limit < 0) {
-    new_limit = net::kDefaultMaxSocketsPerProxyChain;
-  }
-
+void NetworkService::SetMaxConnectionsPerProxyChain(uint32_t max_connections) {
   // Clamp the value between min_limit and max_limit.
-  int max_limit = 99;
-  int min_limit = net::ClientSocketPoolManager::max_sockets_per_group(
+  size_t max_limit = 99;
+  size_t min_limit = net::ClientSocketPoolManager::max_sockets_per_group(
       net::HttpNetworkSession::NORMAL_SOCKET_POOL);
-  new_limit = std::clamp(new_limit, min_limit, max_limit);
+  size_t new_limit = std::clamp(base::saturated_cast<size_t>(max_connections),
+                                min_limit, max_limit);
 
   // Assign the global limit.
   net::ClientSocketPoolManager::set_max_sockets_per_proxy_chain(

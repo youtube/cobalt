@@ -20,6 +20,7 @@
 #include "base/containers/map_util.h"
 #include "base/containers/to_vector.h"
 #include "base/feature_list.h"
+#include "base/features.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
@@ -40,6 +41,7 @@
 #include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
 #include "chrome/browser/web_applications/web_app_command_scheduler.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
+#include "chrome/browser/web_applications/web_app_filter.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_install_utils.h"
 #include "chrome/browser/web_applications/web_app_management_type.h"
@@ -167,11 +169,21 @@ void WebAppPolicyManager::Start(
 
   policy_settings_and_force_installs_applied_ =
       std::move(policy_settings_and_force_installs_applied);
-  content::GetUIThreadTaskRunner({base::TaskPriority::BEST_EFFORT})
-      ->PostTask(FROM_HERE,
-                 base::BindOnce(
-                     &WebAppPolicyManager::InitChangeRegistrarAndRefreshPolicy,
-                     weak_ptr_factory_.GetWeakPtr()));
+  if (base::FeatureList::IsEnabled(
+          base::features::kScopedBestEffortExecutionFenceForTaskQueue)) {
+    // ScopedBestEffortExecutionFenceForTaskQueue can delay the execution of
+    // BEST_EFFORT tasks for a longer period after startup. The policy for
+    // force-installed apps must be available quickly so with this feature the
+    // registry should be initialized immediately.
+    InitChangeRegistrarAndRefreshPolicy();
+  } else {
+    content::GetUIThreadTaskRunner({base::TaskPriority::BEST_EFFORT})
+        ->PostTask(
+            FROM_HERE,
+            base::BindOnce(
+                &WebAppPolicyManager::InitChangeRegistrarAndRefreshPolicy,
+                weak_ptr_factory_.GetWeakPtr()));
+  }
 }
 
 void WebAppPolicyManager::Shutdown() {
@@ -297,8 +309,8 @@ std::vector<std::string> WebAppPolicyManager::GetPolicyIds(
   WebAppRegistrar& web_app_registrar =
       WebAppProvider::GetForWebApps(profile)->registrar_unsafe();
 
-  if (web_app_registrar.IsIsolated(app_id) &&
-      web_app_registrar.IsInstalledByPolicy(app_id)) {
+  if (web_app_registrar.AppMatches(
+          app_id, WebAppFilter::PolicyInstalledIsolatedWebApp())) {
     // This is an IWA - and thus, web_bundle_id == policy_id == URL hostname
     return {web_app.start_url().GetHost()};
   }

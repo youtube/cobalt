@@ -50,12 +50,12 @@
 #include "components/custom_handlers/protocol_handler.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
 #include "components/enterprise/buildflags/buildflags.h"
+#include "components/enterprise/connectors/core/cloud_content_scanning/common.h"
 #include "components/enterprise/data_controls/core/browser/test_utils.h"
 #include "components/guest_view/browser/guest_view_base.h"
 #include "components/guest_view/browser/guest_view_manager.h"
 #include "components/guest_view/browser/guest_view_manager_delegate.h"
 #include "components/guest_view/browser/test_guest_view_manager.h"
-#include "components/network_session_configurator/common/network_switches.h"
 #include "components/policy/core/common/cloud/cloud_policy_constants.h"
 #include "components/policy/core/common/policy_pref_names.h"
 #include "components/prefs/pref_service.h"
@@ -184,6 +184,7 @@ class IsolatedOriginNTPBrowserTest : public InProcessBrowserTest,
                                      public InstantTestBase {
  public:
   void SetUpCommandLine(base::CommandLine* command_line) override {
+    https_test_server().SetCertHostnames({"ntp.com"});
     ASSERT_TRUE(https_test_server().InitializeAndListen());
 
     // Mark ntp.com (with an appropriate port from the test server) as an
@@ -191,7 +192,6 @@ class IsolatedOriginNTPBrowserTest : public InProcessBrowserTest,
     GURL isolated_url(https_test_server().GetURL("ntp.com", "/"));
     command_line->AppendSwitchASCII(switches::kIsolateOrigins,
                                     isolated_url.spec());
-    command_line->AppendSwitch(switches::kIgnoreCertificateErrors);
   }
 
   void SetUpOnMainThread() override {
@@ -256,13 +256,10 @@ IN_PROC_BROWSER_TEST_F(IsolatedOriginNTPBrowserTest,
 class OpenWindowFromNTPBrowserTest : public InProcessBrowserTest,
                                      public InstantTestBase {
  public:
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    command_line->AppendSwitch(switches::kIgnoreCertificateErrors);
-  }
-
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
     host_resolver()->AddRule("*", "127.0.0.1");
+    https_test_server().SetCertHostnames({"ntp.com"});
     ASSERT_TRUE(https_test_server().InitializeAndListen());
     https_test_server().StartAcceptingConnections();
   }
@@ -1100,7 +1097,7 @@ class ClipboardTestContentAnalysisDelegate
 
  protected:
   void FakeUploadFileForDeepScanning(
-      safe_browsing::BinaryUploadService::Result result,
+      enterprise_connectors::ScanRequestUploadResult result,
       const base::FilePath& path,
       std::unique_ptr<safe_browsing::BinaryUploadService::Request> request,
       enterprise_connectors::test::FakeFilesRequestHandler::
@@ -1759,13 +1756,10 @@ class AutomaticBeaconCredentialsBrowserTest : public InProcessBrowserTest,
             content_settings::features::kTrackingProtection3pcd});
   }
 
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    command_line->AppendSwitch(switches::kIgnoreCertificateErrors);
-  }
-
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
     host_resolver()->AddRule("*", "127.0.0.1");
+    https_test_server().SetSSLConfig(net::EmbeddedTestServer::CERT_TEST_NAMES);
   }
 
  protected:

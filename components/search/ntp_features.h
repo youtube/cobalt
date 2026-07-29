@@ -249,6 +249,14 @@ extern const base::FeatureParam<size_t> kNtpTabGroupsModuleMaxGroupCountParam;
 // button is shown.
 extern const base::FeatureParam<int> kNtpNextMaxMVTilesBeforeShowMoreParam;
 
+// Parameter determining if the Action Chips on the NTP should display static
+// text instead of real suggestions.
+extern const base::FeatureParam<bool> kNtpNextShowStaticTextParam;
+
+// Parameter determining if the tab upload should be delayed when tab context is
+// added from an action chip.
+extern const base::FeatureParam<bool> kAddTabUploadDelayOnActionChipClick;
+
 // Returns the timeout after which the load of a module should be aborted.
 base::TimeDelta GetModulesLoadTimeout();
 

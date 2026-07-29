@@ -383,22 +383,6 @@ void SpellcheckCustomDictionary::StopSyncing(syncer::DataType type) {
   account_words_.clear();
 }
 
-syncer::SyncDataList SpellcheckCustomDictionary::GetAllSyncDataForTesting(
-    syncer::DataType type) const {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  DCHECK_EQ(syncer::DICTIONARY, type);
-  syncer::SyncDataList data;
-  size_t i = 0;
-  for (const auto& word : words_) {
-    if (i++ >= spellcheck::kMaxSyncableDictionaryWords)
-      break;
-    sync_pb::EntitySpecifics specifics;
-    specifics.mutable_dictionary()->set_word(word);
-    data.push_back(syncer::SyncData::CreateLocalData(word, word, specifics));
-  }
-  return data;
-}
-
 std::optional<syncer::ModelError>
 SpellcheckCustomDictionary::ProcessSyncChanges(
     const base::Location& from_here,
@@ -561,9 +545,15 @@ std::optional<syncer::ModelError> SpellcheckCustomDictionary::Sync(
   if (!IsSyncing() || dictionary_change.empty())
     return std::nullopt;
 
+  // If the account words set is maintained separately, then use that.
+  const std::set<std::string>& words =
+      base::FeatureList::IsEnabled(
+          syncer::kSpellcheckSeparateLocalAndAccountDictionaries)
+          ? account_words_
+          : words_;
   // The number of words on the sync server should not exceed the limits.
-  int server_size = static_cast<int>(words_.size()) -
-      static_cast<int>(dictionary_change.to_add().size());
+  int server_size = static_cast<int>(words.size()) -
+                    static_cast<int>(dictionary_change.to_add().size());
   int max_upload_size =
       std::max(0, static_cast<int>(spellcheck::kMaxSyncableDictionaryWords) -
                       server_size);
@@ -601,8 +591,16 @@ std::optional<syncer::ModelError> SpellcheckCustomDictionary::Sync(
 
   // Turn off syncing of this dictionary if the server already has the maximum
   // number of words.
-  if (words_.size() > spellcheck::kMaxSyncableDictionaryWords)
+  // If the account words set is maintained separately, then stopping sync will
+  // clear the account words set which is not desired. No words will be uploaded
+  // anymore anyway because of the logic above which takes care of the max
+  // syncable dictionary words, so the following extra logic is not really
+  // needed.
+  if (!base::FeatureList::IsEnabled(
+          syncer::kSpellcheckSeparateLocalAndAccountDictionaries) &&
+      words.size() > spellcheck::kMaxSyncableDictionaryWords) {
     StopSyncing(syncer::DICTIONARY);
+  }
 
   return std::nullopt;
 }

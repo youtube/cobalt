@@ -29,9 +29,8 @@ enum class ComplexSdpCategory {
 
 class RTCPeerConnectionController
     : public GarbageCollected<RTCPeerConnectionController>,
-      public Supplement<Document> {
+      public GarbageCollectedMixin {
  public:
-  static const char kSupplementName[];
   static RTCPeerConnectionController& From(Document&);
 
   void MaybeReportComplexSdp(ComplexSdpCategory);
@@ -41,6 +40,7 @@ class RTCPeerConnectionController
   void Trace(Visitor*) const override;
 
  private:
+  Member<Document> document_;
   bool has_reported_ukm_ = false;
 };
 

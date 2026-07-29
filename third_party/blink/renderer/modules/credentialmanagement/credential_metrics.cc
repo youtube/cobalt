@@ -16,23 +16,19 @@
 namespace blink {
 
 // static
-const char CredentialMetrics::kSupplementName[] = "CredentialMetrics";
-
-// static
 CredentialMetrics& CredentialMetrics::From(ScriptState* script_state) {
   Document* document =
       To<LocalDOMWindow>(ExecutionContext::From(script_state))->document();
-  CredentialMetrics* supplement =
-      Supplement<Document>::From<CredentialMetrics>(document);
+  CredentialMetrics* supplement = document->GetCredentialMetrics();
   if (!supplement) {
     supplement = MakeGarbageCollected<CredentialMetrics>(*document);
-    ProvideTo(*document, supplement);
+    document->SetCredentialMetrics(supplement);
   }
   return *supplement;
 }
 
 CredentialMetrics::CredentialMetrics(Document& document)
-    : Supplement<Document>(document) {}
+    : document_(document) {}
 
 CredentialMetrics::~CredentialMetrics() {}
 
@@ -44,7 +40,7 @@ void CredentialMetrics::RecordWebAuthnConditionalUiCall() {
     return;
   }
 
-  Document* document = GetSupplementable();
+  Document* document = document_;
 
   // UKMs can only be recorded for top-level frames.
   if (!document->GetFrame()->IsOutermostMainFrame()) {

@@ -617,7 +617,8 @@ class LocationBarViewAddContextButtonBrowserTest
     scoped_feature_list_.InitWithFeaturesAndParameters(
         {{omnibox::kWebUIOmniboxAimPopup,
           {{omnibox::kWebUIOmniboxAimPopupAddContextButtonVariantParam.name,
-            "inline"}}}},
+            "inline"}}},
+         {omnibox::kWebUIOmniboxPopup, {}}},
         {});
   }
   ~LocationBarViewAddContextButtonBrowserTest() override = default;
@@ -643,8 +644,7 @@ IN_PROC_BROWSER_TEST_F(LocationBarViewAddContextButtonBrowserTest,
 
   // The "Add Context" button doesn't show up when the Omnibox popup is
   // closed.
-  EXPECT_FALSE(
-      location_bar_view->GetOmniboxController()->edit_model()->PopupIsOpen());
+  EXPECT_FALSE(location_bar_view->GetOmniboxController()->IsPopupOpen());
   EXPECT_FALSE(location_bar_view->GetOmniboxController()
                    ->edit_model()
                    ->ShouldShowAddContextButton());
@@ -655,9 +655,7 @@ IN_PROC_BROWSER_TEST_F(LocationBarViewAddContextButtonBrowserTest,
   location_bar_view->FocusLocation(true);
   omnibox_view->SetUserText(u"test");
   ASSERT_TRUE(base::test::RunUntil([&]() {
-    return location_bar_view->GetOmniboxController()
-        ->edit_model()
-        ->PopupIsOpen();
+    return location_bar_view->GetOmniboxController()->IsPopupOpen();
   }));
   EXPECT_TRUE(location_bar_view->GetOmniboxController()
                   ->edit_model()

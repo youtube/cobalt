@@ -304,6 +304,7 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="Required field missing"/>
   <int value="6" label="Invalid session parameters"/>
   <int value="7" label="Required credential field missing"/>
+  <int value="8" label="Unexpected parser error"/>
 </enum>
 
 <!-- LINT.IfChange(BoundSessionParamsReadError) -->
@@ -772,7 +773,7 @@ chromium-metrics-reviews@google.com.
   <int value="77" label="YouTube Music"/>
 </enum>
 
-<!-- LINT.ThenChange(//components/signin/public/identity_manager/oauth_consumer_ids.h:OAuthConsumerId) -->
+<!-- LINT.ThenChange(//components/signin/public/base/oauth_consumer_id.h:OAuthConsumerId) -->
 
 <!-- LINT.IfChange(OAuthMultiloginDeviceBoundSessionParsingError) -->
 
@@ -781,6 +782,12 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Invalid domain"/>
   <int value="2" label="Register payload required field missing"/>
   <int value="3" label="Register payload required credential field missing"/>
+  <int value="4" label="Register payload malformed refresh initiator"/>
+  <int value="5"
+      label="Register payload malformed session scope specification"/>
+  <int value="6" label="Register payload required scope field missing"/>
+  <int value="7" label="Register payload invalid scope type"/>
+  <int value="8" label="Register payload invalid credential type"/>
 </enum>
 
 <!-- LINT.ThenChange(//google_apis/gaia/oauth_multilogin_result.h:OAuthMultiloginDeviceBoundSessionParsingError) -->
@@ -928,9 +935,9 @@ chromium-metrics-reviews@google.com.
   <int value="64" label="OIDC auth redirect URI interception"/>
   <int value="65" label="WebAuthn modal dialog"/>
   <int value="66" label="Avatar bubble sign in with sync promo"/>
-  <int value="67" label="Account menu"/>
+  <int value="67" label="Account menu: Switch account"/>
   <int value="68" label="Product Specifications"/>
-  <int value="69" label="Account menu failed switch"/>
+  <int value="69" label="Account menu: Switch account failed"/>
   <int value="70" label="Address bubble"/>
   <int value="71" label="CCT account mismatch notification"/>
   <int value="72" label="Drive file picker (iOS only)"/>

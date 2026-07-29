@@ -141,7 +141,8 @@ mojom::blink::MediaSessionPlaybackState EnumToMediaSessionPlaybackState(
 
 }  // anonymous namespace
 
-const char MediaSession::kSupplementName[] = "MediaSession";
+const unsigned MediaSession::kSupplementIndex =
+    static_cast<unsigned>(Navigator::Supplements::kMediaSession);
 
 MediaSession* MediaSession::mediaSession(Navigator& navigator) {
   MediaSession* supplement =
@@ -223,14 +224,6 @@ void MediaSession::setActionHandler(const V8MediaSessionAction& action,
   }
 
   if (action_value == V8MediaSessionAction::Enum::kEnterpictureinpicture) {
-    if (!RuntimeEnabledFeatures::MediaSessionEnterPictureInPictureEnabled()) {
-      exception_state.ThrowTypeError(
-          "The provided value 'enterpictureinpicture'"
-          " is not a valid enum "
-          "value of type MediaSessionAction.");
-      return;
-    }
-
     UseCounter::Count(GetSupplementable()->DomWindow(),
                       WebFeature::kMediaSessionEnterPictureInPicture);
   }

@@ -2762,7 +2762,7 @@ void ForceRefreshOfPlugins() {
   content::RenderProcessHost::SetRunRendererInProcess(true);
 #endif
   base::RunLoop run_loop;
-  content::PluginService::GetInstance()->GetPlugins(
+  content::PluginService::GetInstance()->GetPluginsAsync(
       base::BindOnce(&DummyGetPluginsCallback, run_loop.QuitClosure()));
   run_loop.Run();
 #if !BUILDFLAG(IS_WIN)
@@ -2878,7 +2878,7 @@ TEST_F(DownloadTargetDeterminerTestWithPlugin, CheckForSecureHandling_PPAPI) {
     ForceRefreshOfPlugins();
     std::vector<content::WebPluginInfo> info;
     ASSERT_FALSE(plugin_service->GetPluginInfoArray(GURL(), kTestMIMEType,
-                                                    false, &info, nullptr));
+                                                    &info, nullptr));
     ASSERT_EQ(0u, info.size())
         << "Name: " << info[0].name << ", Path: " << info[0].path.value();
   }
@@ -2945,7 +2945,7 @@ TEST_F(DownloadTargetDeterminerTestWithPlugin,
     ForceRefreshOfPlugins();
     std::vector<content::WebPluginInfo> info;
     ASSERT_FALSE(plugin_service->GetPluginInfoArray(GURL(), kTestMIMEType,
-                                                    false, &info, nullptr));
+                                                    &info, nullptr));
     ASSERT_EQ(0u, info.size())
         << "Name: " << info[0].name << ", Path: " << info[0].path.value();
   }

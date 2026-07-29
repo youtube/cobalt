@@ -3,6 +3,7 @@
     --cr-searchbox-height: 52px;
     --cr-searchbox-min-width: min(calc(100%), 1100px);
     --composebox-collapsed-height: 90px;
+    --composebox-margin-bottom: 30px;
     --aim-header-height: 66px;
     --context-carousel-inline-end-spacing: 24px;
     --context-carousel-inline-start-spacing: 24px;
@@ -21,6 +22,8 @@
     --color-composebox-hover: #e9ebf0;
     --color-composebox-lens-button: #0a0a0a;
     --search-background-color: white;
+    --color-composebox-font-light: #0a0a0a;
+    --color-composebox-font-dark: #0a0a0a;
   }
 
   /* Light mode on AIM results */
@@ -31,6 +34,8 @@
     --color-composebox-hover: #e9ebf0;
     --color-composebox-lens-button: #0a0a0a;
     --search-background-color: white;
+    --color-composebox-font-light: #0a0a0a;
+    --color-composebox-font-dark: #0a0a0a;
   }
 
   /* Dark mode not on AIM results */
@@ -38,8 +43,12 @@
     --cr-composebox-background-color: #28292a;
     --color-composebox-cancel-button: #bfbfbf;
     --color-composebox-hover: #3e3f43;
+    --color-composebox-input-icon: var(--color-searchbox-results-icon);
     --color-composebox-font: #e6e8f0;
     --color-composebox-lens-button: #bfbfbf;
+    --color-composebox-font-light: #e6e8f0;
+    --color-composebox-font-dark: #e6e8f0;
+    --color-searchbox-results-background-hovered: #3c4043;
     --search-background-color: #1f1f1f;
   }
 
@@ -48,8 +57,12 @@
     --cr-composebox-background-color: #1d1e26;
     --color-composebox-font: #e6e8f0;
     --color-composebox-hover: #3e3f43;
+    --color-composebox-input-icon: var(--color-searchbox-results-icon);
     --color-composebox-cancel-button: #bfbfbf;
     --color-composebox-lens-button: #bfbfbf;
+    --color-composebox-font-light: #e6e8f0;
+    --color-composebox-font-dark: #e6e8f0;
+    --color-searchbox-results-background-hovered: #3c4043;
     --search-background-color: #101218;
   }
 
@@ -273,10 +286,6 @@
     width: 100%;
   }
 
-  /* Hide the gradient fog when the dropdown is visible. */
-  #composeboxContainer:has(#composebox[show-dropdown_][expanded_])::before {
-    display: none;
-  }
 
   /* Show the composebox when enabled and not on the error page.
    * Disabling when the error page is visible is a temporary fix since the
@@ -332,8 +341,16 @@
     position: absolute;
   }
 
-  :host([enable-lens-aim-suggestions])
-    #composeboxContainer:has(cr-composebox[show-dropdown_][expanded_]) {
+  /* When the gradient is enabled, the container only spans the height of the composebox and dropdown. */
+  :host([enable-lens-aim-suggestions][enable-lens-aim-suggestions-gradient-background][is-composebox-focused])
+    #composeboxContainer:has(#composebox[show-dropdown_]) {
+    height: calc(var(--composebox-height) + var(--composebox-dropdown-height) + var(--composebox-margin-bottom));
+    background-color: var(--search-background-color);
+    inset-block-start: auto;
+  }
+
+  :host([enable-lens-aim-suggestions][is-composebox-focused])
+    #composeboxContainer:has(#composebox[show-dropdown_]) {
     background-color: var(--search-background-color);
     pointer-events: auto;
     inset-block-start: var(--aim-header-height);
@@ -348,7 +365,7 @@
     box-shadow: none;
     position: relative;
     width: calc(100% - 32px); /* 16px on each side */
-    margin-bottom: 30px;
+    margin-bottom: var(--composebox-margin-bottom);
   }
 
   #composebox::part(text-container) {
@@ -361,7 +378,7 @@
     transition-duration: var(--collapse-duration);
   }
 
-  #composebox[expanded_]::part(input-container) {
+  #composebox[expanding_]::part(input-container) {
     transition-duration: var(--expand-duration);
   }
 
@@ -369,20 +386,21 @@
     display: none;
   }
 
-  #composebox:not([expanded_])[show-file-carousel_]::part(cr-composebox-file-carousel) {
+  #composebox:not([expanding_])[show-file-carousel_]::part(cr-composebox-file-carousel) {
     pointer-events: none;
   }
 
   #composeboxFooter {
+    height: 0px;
     transition: height var(--emphasized-curve);
     transition-duration: var(--collapse-duration);
   }
 
-  #composeboxContainer:has(#composebox[expanded_]) #composeboxFooter {
+  #composeboxContainer:has(#composebox[expanding_]) #composeboxFooter {
     transition-duration: var(--expand-duration);
   }
 
-  #composeboxContainer:has(#composebox[expanded_]) #composeboxFooter {
+  #composeboxContainer:has(#composebox[expanding_]) #composeboxFooter {
     height: 64px;
     width: 100%;
   }
@@ -421,8 +439,8 @@
     display: block;
   }
 
-  #composebox:not([expanded_])::part(cancel),
-  #composebox:not([expanded_])::part(submit) {
+  #composebox:not([expanding_])::part(cancel),
+  #composebox:not([expanding_])::part(submit) {
     pointer-events: none;
   }
 
@@ -444,7 +462,7 @@
     position: fixed;
     flex-direction: column-reverse;
     bottom: 0;
-    transform: translateY(calc(-1 * (var(--composebox-height) + 30px)));
+    transform: translateY(calc(-1 * (var(--composebox-height) + var(--composebox-margin-bottom))));
   }
 
 
@@ -585,13 +603,13 @@
   </cr-button>
 </cr-toast>
 
-<div id="composeboxContainer">
+<div id="composeboxContainer" style$="--composebox-height: [[composeboxHeight_]]px;
+ --composebox-dropdown-height: [[composeboxDropdownHeight_]]px;">
   <cr-composebox
     id="composebox"
     is-collapsible
     hide-file-inputs_
     carousel-on-top_
-    style$="--composebox-height: [[composeboxHeight_]]px;"
     lens-button-disabled_$="[[isOverlayShowing]]"
   >
     <!-- Currently an empty div that has height to force the input textarea to

@@ -108,7 +108,7 @@ class FetchManifestAndInstallCommandTest : public WebAppTest {
     web_contents_manager().SetUrlLoaded(web_contents(), kWebAppUrl);
 
 #if BUILDFLAG(IS_CHROMEOS)
-    arc_app_test_.SetUp(profile());
+    arc_app_test_.PostProfileSetUp(profile());
 
     auto* arc_bridge_service =
         arc_app_test_.arc_service_manager()->arc_bridge_service();
@@ -130,8 +130,13 @@ class FetchManifestAndInstallCommandTest : public WebAppTest {
         ->CloseInstance(fake_intent_helper_instance_.get());
     fake_intent_helper_instance_.reset();
     fake_intent_helper_host_.reset();
-    arc_app_test_.TearDown();
-#endif
+    arc_app_test_.PreProfileTearDown();
+
+    // TODO(crbug.com/454468678): This should be called after profile is
+    // deleted, but before TaskEnvironment is deleted.
+    arc_app_test_.PostProfileTearDown();
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
     WebAppTest::TearDown();
   }
 

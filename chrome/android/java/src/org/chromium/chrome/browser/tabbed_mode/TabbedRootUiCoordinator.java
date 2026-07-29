@@ -110,6 +110,7 @@ import org.chromium.chrome.browser.locale.LocaleManager;
 import org.chromium.chrome.browser.metrics.UmaSessionStats;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceIphController;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.night_mode.WebContentsDarkModeMessageController;
 import org.chromium.chrome.browser.notifications.permissions.NotificationPermissionController;
@@ -117,6 +118,7 @@ import org.chromium.chrome.browser.notifications.permissions.NotificationPermiss
 import org.chromium.chrome.browser.notifications.permissions.NotificationPermissionRationaleBottomSheet;
 import org.chromium.chrome.browser.notifications.permissions.NotificationPermissionRationaleDialogController;
 import org.chromium.chrome.browser.notifications.tips.TipsOptInCoordinator;
+import org.chromium.chrome.browser.notifications.tips.TipsUtils;
 import org.chromium.chrome.browser.ntp.NewTabPageLaunchOrigin;
 import org.chromium.chrome.browser.ntp.NewTabPageUtils;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
@@ -1035,7 +1037,9 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                             TabGroupSyncServiceFactory.getForProfile(originalProfile),
                             UserPrefs.get(originalProfile),
                             () -> {
-                                return MultiWindowUtils.getInstanceCount() <= 1
+                                return MultiWindowUtils.getInstanceCountWithFallback(
+                                                        PersistedInstanceType.ANY)
+                                                <= 1
                                         || ApplicationStatus.getLastTrackedFocusedActivity()
                                                 == mActivity;
                             });
@@ -1324,14 +1328,24 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
     }
 
     private void maybeShowTipsOptInPromo(long timeSinceLastBackgroundedMs) {
-        // Only trigger the promo if the user has been 3 hours inactive and has not seen it before.
-        if (ChromeFeatureList.sAndroidTipsNotifications.isEnabled()
-                && !ChromeSharedPreferences.getInstance()
-                        .readBoolean(
-                                ChromePreferenceKeys.TIPS_NOTIFICATIONS_OPT_IN_PROMO_SHOWN, false)
-                && timeSinceLastBackgroundedMs > TimeUnit.HOURS.toMillis(3)) {
-            mTipsOptInCoordinator = new TipsOptInCoordinator(mActivity, getBottomSheetController());
-            mTipsOptInCoordinator.showBottomSheet();
+        // Only trigger the promo if the user has been 3 hours inactive and has not seen it before
+        // and the notifications toggle is not enabled, or a testing param is enabled.
+        if (ChromeFeatureList.sAndroidTipsNotifications.isEnabled()) {
+            TipsUtils.areTipsNotificationsEnabled(
+                    (enabled) -> {
+                        if ((!enabled
+                                        && !ChromeSharedPreferences.getInstance()
+                                                .readBoolean(
+                                                        ChromePreferenceKeys
+                                                                .TIPS_NOTIFICATIONS_OPT_IN_PROMO_SHOWN,
+                                                        false)
+                                        && timeSinceLastBackgroundedMs > TimeUnit.HOURS.toMillis(3))
+                                || TipsUtils.shouldAlwaysShowOptInPromo()) {
+                            mTipsOptInCoordinator =
+                                    new TipsOptInCoordinator(mActivity, getBottomSheetController());
+                            mTipsOptInCoordinator.showBottomSheet();
+                        }
+                    });
         }
     }
 
@@ -1566,7 +1580,9 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                                     dataSharingNotificationManager,
                                     mDataSharingTabManager,
                                     () -> {
-                                        return MultiWindowUtils.getInstanceCount() <= 1
+                                        return MultiWindowUtils.getInstanceCountWithFallback(
+                                                                PersistedInstanceType.ANY)
+                                                        <= 1
                                                 || ApplicationStatus.getLastTrackedFocusedActivity()
                                                         == mActivity;
                                     });
@@ -1877,15 +1893,19 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             mBookmarkBarHeightSupplier = mBookmarkBarCoordinator::getTopControlHeight;
             mLayoutManager.addSceneOverlay(mBookmarkBarCoordinator.getSceneLayer());
             mLayoutManager.requestUpdate();
+
+            // Requesting a layer update must come after the heightSupplier has been set.
+            if (mToolbarManager != null) {
+                mToolbarManager.setBookmarkBarHeightSupplier(mBookmarkBarHeightSupplier);
+            }
+            mTopControlsStacker.requestLayerUpdate(false);
         } else {
             mBookmarkBarCoordinator.setVisibility(true);
             // When toggling the visibility of the existing view, the LayoutChangeListener will not
             // be triggered as it is on instantiation, so we update the top controls height here.
+            // The height supplier should already be set since the coordinator was not destroyed,
+            // and the following method will also request a layer update.
             updateTopControlsHeight(false);
-        }
-
-        if (mToolbarManager != null) {
-            mToolbarManager.setBookmarkBarHeightSupplier(mBookmarkBarHeightSupplier);
         }
     }
 

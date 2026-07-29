@@ -21,7 +21,7 @@ class Browser;
 class ExtensionContextMenuController;
 class ExtensionsMenuButton;
 class HoverButton;
-class ToolbarActionViewController;
+class ToolbarActionViewModel;
 class ToolbarActionsModel;
 
 namespace views {
@@ -39,14 +39,14 @@ class ExtensionMenuItemView : public views::FlexLayoutView,
 
  public:
   ExtensionMenuItemView(Browser* browser,
-                        std::unique_ptr<ToolbarActionViewController> controller,
+                        std::unique_ptr<ToolbarActionViewModel> view_model,
                         bool allow_pinning);
 
   // Constructor for the kExtensionsMenuAccessControl feature.
   ExtensionMenuItemView(
       Browser* browser,
       bool is_enterprise,
-      std::unique_ptr<ToolbarActionViewController> controller,
+      std::unique_ptr<ToolbarActionViewModel> view_model,
       base::RepeatingCallback<void(bool)> site_access_toggle_callback,
       views::Button::PressedCallback site_permissions_button_callback);
   ExtensionMenuItemView(const ExtensionMenuItemView&) = delete;
@@ -62,10 +62,8 @@ class ExtensionMenuItemView : public views::FlexLayoutView,
   // Updates the context menu button given `is_action_pinned`.
   void UpdateContextMenuButton(bool is_action_pinned);
 
-  ToolbarActionViewController* view_controller() { return controller_.get(); }
-  const ToolbarActionViewController* view_controller() const {
-    return controller_.get();
-  }
+  ToolbarActionViewModel* view_model() { return view_model_.get(); }
+  const ToolbarActionViewModel* view_model() const { return view_model_.get(); }
 
   bool IsContextMenuRunningForTesting() const;
   ExtensionsMenuButton* primary_action_button_for_testing();
@@ -93,8 +91,8 @@ class ExtensionMenuItemView : public views::FlexLayoutView,
 
   const raw_ptr<Browser> browser_;
 
-  // Controller responsible for an action that is shown in the toolbar.
-  std::unique_ptr<ToolbarActionViewController> controller_;
+  // View Model for an action that is shown in the toolbar.
+  std::unique_ptr<ToolbarActionViewModel> view_model_;
 
   // Model for the browser actions toolbar that provides information such as the
   // action pin status or visibility.

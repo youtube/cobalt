@@ -1069,105 +1069,125 @@ void AutofillControllerJsTest::TestInputElementDataEvaluation(
     NSArray* test_data,
     NSString* tag_name) {
   NSString* html_fragment = [test_data objectAtIndex:0U];
-  web::test::LoadHtml(html_fragment, web_state());
+  ASSERT_TRUE(
+      web::test::LoadHtml(web_view(), html_fragment,
+                          [NSURL URLWithString:@"https://chromium.test/"]));
 
   for (NSUInteger i = 1; i < [test_data count]; ++i) {
     NSString* get_element_javascripts = [NSString
         stringWithFormat:@"window.document.getElementsByTagName('%@')[%" PRIuNS
                           "]",
                          tag_name, i - 1];
-    id actual = ExecuteJavaScript([NSString
-        stringWithFormat:@"%@(%@).label === %@", javascripts_statement,
-                         get_element_javascripts,
-                         [[test_data objectAtIndex:i]
-                             objectForKey:attribute_name]]);
+    id actual = web::test::ExecuteJavaScript(
+        web_view(),
+        [NSString stringWithFormat:@"%@(%@).label === %@",
+                                   javascripts_statement,
+                                   get_element_javascripts,
+                                   [[test_data objectAtIndex:i]
+                                       objectForKey:attribute_name]]);
     EXPECT_NSEQ(@YES, actual);
   }
 }
 
 TEST_F(AutofillControllerJsTest, InferLabelFromPrevious) {
   TestInputElementDataEvaluation(
-      @"__gCrWeb.fill.inferLabelFromPrevious", @"label",
-      GetTestFormInputElementWithLabelFromPrevious(), @"input");
+      @"__gCrWeb.getRegisteredApi('fill_test_api').getFunction('"
+      @"inferLabelFromPrevious')",
+      @"label", GetTestFormInputElementWithLabelFromPrevious(), @"input");
 }
 
 TEST_F(AutofillControllerJsTest, InferLabelFromPreviousSpan) {
   TestInputElementDataEvaluation(
-      @"__gCrWeb.fill.inferLabelFromPrevious", @"label",
-      GetTestFormInputElementWithLabelFromPreviousSpan(), @"input");
+      @"__gCrWeb.getRegisteredApi('fill_test_api')."
+      @"getFunction('inferLabelFromPrevious')",
+      @"label", GetTestFormInputElementWithLabelFromPreviousSpan(), @"input");
 }
 
 TEST_F(AutofillControllerJsTest, InferLabelFromPreviousParagraph) {
   TestInputElementDataEvaluation(
-      @"__gCrWeb.fill.inferLabelFromPrevious", @"label",
-      GetTestFormInputElementWithLabelFromPreviousParagraph(), @"input");
+      @"__gCrWeb.getRegisteredApi('fill_test_api')."
+      @"getFunction('inferLabelFromPrevious')",
+      @"label", GetTestFormInputElementWithLabelFromPreviousParagraph(),
+      @"input");
 }
 
 TEST_F(AutofillControllerJsTest, InferLabelFromPreviousLabel) {
   TestInputElementDataEvaluation(
-      @"__gCrWeb.fill.inferLabelFromPrevious", @"label",
-      GetTestFormInputElementWithLabelFromPreviousLabel(), @"input");
+      @"__gCrWeb.getRegisteredApi('fill_test_api')."
+      @"getFunction('inferLabelFromPrevious')",
+      @"label", GetTestFormInputElementWithLabelFromPreviousLabel(), @"input");
 }
 
 TEST_F(AutofillControllerJsTest, InferLabelFromPreviousLabelOtherIgnored) {
   TestInputElementDataEvaluation(
-      @"__gCrWeb.fill.inferLabelFromPrevious", @"label",
-      GetTestFormInputElementWithLabelFromPreviousLabelOtherIgnored(),
+      @"__gCrWeb.getRegisteredApi('fill_test_api')."
+      @"getFunction('inferLabelFromPrevious')",
+      @"label", GetTestFormInputElementWithLabelFromPreviousLabelOtherIgnored(),
       @"input");
 }
 
 TEST_F(AutofillControllerJsTest, InferLabelFromEnclosingLabelBefore) {
   TestInputElementDataEvaluation(
-      @"__gCrWeb.fill.inferLabelFromEnclosingLabel", @"label",
-      GetTestFormInputElementWithLabelFromEnclosingLabelBefore(), @"input");
+      @"__gCrWeb.getRegisteredApi('fill_test_api')."
+      @"getFunction('inferLabelFromEnclosingLabel')",
+      @"label", GetTestFormInputElementWithLabelFromEnclosingLabelBefore(),
+      @"input");
 }
 
 TEST_F(AutofillControllerJsTest, InferLabelFromPreviousTextBrAndSpan) {
   TestInputElementDataEvaluation(
-      @"__gCrWeb.fill.inferLabelFromPrevious", @"label",
-      GetTestFormInputElementWithLabelFromPreviousTextBrAndSpan(), @"input");
+      @"__gCrWeb.getRegisteredApi('fill_test_api')."
+      @"getFunction('inferLabelFromPrevious')",
+      @"label", GetTestFormInputElementWithLabelFromPreviousTextBrAndSpan(),
+      @"input");
 }
 
 TEST_F(AutofillControllerJsTest, InferLabelFromListItem) {
   TestInputElementDataEvaluation(
-      @"__gCrWeb.fill.inferLabelFromListItem", @"label",
-      GetTestFormInputElementWithLabelFromListItem(), @"input");
+      @"__gCrWeb.getRegisteredApi('fill_test_api')."
+      @"getFunction('inferLabelFromListItem')",
+      @"label", GetTestFormInputElementWithLabelFromListItem(), @"input");
 }
 
 TEST_F(AutofillControllerJsTest, InferLabelFromTableColumnTD) {
   TestInputElementDataEvaluation(
-      @"__gCrWeb.fill.inferLabelFromTableColumn", @"label",
-      GetTestFormInputElementWithLabelFromTableColumnTD(), @"input");
+      @"__gCrWeb.getRegisteredApi('fill_test_api')."
+      @"getFunction('inferLabelFromTableColumn')",
+      @"label", GetTestFormInputElementWithLabelFromTableColumnTD(), @"input");
 }
 
 TEST_F(AutofillControllerJsTest, InferLabelFromTableColumnTH) {
   TestInputElementDataEvaluation(
-      @"__gCrWeb.fill.inferLabelFromTableColumn", @"label",
-      GetTestFormInputElementWithLabelFromTableColumnTH(), @"input");
+      @"__gCrWeb.getRegisteredApi('fill_test_api')."
+      @"getFunction('inferLabelFromTableColumn')",
+      @"label", GetTestFormInputElementWithLabelFromTableColumnTH(), @"input");
 }
 
 TEST_F(AutofillControllerJsTest, InferLabelFromTableColumnNested) {
   TestInputElementDataEvaluation(
-      @"__gCrWeb.fill.inferLabelFromTableColumn", @"label",
-      GetTestFormInputElementWithLabelFromTableNested(), @"input");
+      @"__gCrWeb.getRegisteredApi('fill_test_api')."
+      @"getFunction('inferLabelFromTableColumn')",
+      @"label", GetTestFormInputElementWithLabelFromTableNested(), @"input");
 }
 
 TEST_F(AutofillControllerJsTest, InferLabelFromTableRow) {
   TestInputElementDataEvaluation(
-      @"__gCrWeb.fill.inferLabelFromTableRow", @"label",
-      GetTestFormInputElementWithLabelFromTableRow(), @"input");
+      @"__gCrWeb.getRegisteredApi('fill_test_api')."
+      @"getFunction('inferLabelFromTableRow')",
+      @"label", GetTestFormInputElementWithLabelFromTableRow(), @"input");
 }
 
 TEST_F(AutofillControllerJsTest, InferLabelFromDivTable) {
   TestInputElementDataEvaluation(
-      @"__gCrWeb.fill.inferLabelFromDivTable", @"label",
-      GetTestFormInputElementWithLabelFromDivTable(), @"input");
+      @"__gCrWeb.getRegisteredApi('fill_test_api')."
+      @"getFunction('inferLabelFromDivTable')",
+      @"label", GetTestFormInputElementWithLabelFromDivTable(), @"input");
 }
 
 TEST_F(AutofillControllerJsTest, InferLabelFromDefinitionList) {
   TestInputElementDataEvaluation(
-      @"__gCrWeb.fill.inferLabelFromDefinitionList", @"label",
-      GetTestFormInputElementWithLabelFromDefinitionList(), @"input");
+      @"__gCrWeb.getRegisteredApi('fill_test_api').getFunction('inferLabelFromDefinitionList')",
+      @"label", GetTestFormInputElementWithLabelFromDefinitionList(), @"input");
 }
 
 TEST_F(AutofillControllerJsTest, InferLabelForElement) {
@@ -1190,17 +1210,20 @@ TEST_F(AutofillControllerJsTest, InferLabelForElement) {
     GetTestInputCheckbox()
   ];
   for (NSArray* testingElement in testingElements) {
-    TestInputElementDataEvaluation(@"__gCrWeb.fill.inferLabelForElement",
+    TestInputElementDataEvaluation(@"__gCrWeb.getRegisteredApi('fill_test_api')."
+                                   @"getFunction('inferLabelForElement')",
                                    @"label", testingElement, @"input");
   }
 
-  TestInputElementDataEvaluation(@"__gCrWeb.fill.inferLabelForElement",
+  TestInputElementDataEvaluation(@"__gCrWeb.getRegisteredApi('fill_test_api')."
+                                 @"getFunction('inferLabelForElement')",
                                  @"label", GetTestFormSelectElement(),
                                  @"select");
 
   TestInputElementDataEvaluation(
-      @"__gCrWeb.fill.inferLabelForElement", @"label",
-      GetTestFormSelectElementWithOptgroup(), @"select");
+      @"__gCrWeb.getRegisteredApi('fill_test_api')."
+      @"getFunction('inferLabelForElement')",
+      @"label", GetTestFormSelectElementWithOptgroup(), @"select");
 }
 
 TEST_F(AutofillControllerJsTest, IsAutofillableElement) {

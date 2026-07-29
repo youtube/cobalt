@@ -59,6 +59,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/profiles/profile_selections.h"
+#include "chrome/browser/safe_browsing/safe_browsing_service.h"
 #include "chrome/browser/task_manager/web_contents_tags.h"
 #include "chrome/browser/ui/webui/chrome_web_ui_controller_factory.h"
 #include "chrome/browser/usb/usb_chooser_context.h"
@@ -74,6 +75,7 @@
 #include "components/privacy_sandbox/privacy_sandbox_prefs.h"
 #include "components/proxy_config/proxy_config_pref_names.h"
 #include "components/sessions/content/session_tab_helper.h"
+#include "components/update_client/configurator.h"
 #include "components/update_client/update_client.h"
 #include "components/version_info/version_info.h"
 #include "content/public/browser/browser_context.h"
@@ -596,6 +598,12 @@ void ChromeExtensionsBrowserClient::AttachExtensionTaskManagerTag(
 
 scoped_refptr<update_client::UpdateClient>
 ChromeExtensionsBrowserClient::CreateUpdateClient(
+    scoped_refptr<update_client::Configurator> configurator) {
+  return update_client::UpdateClientFactory(configurator);
+}
+
+scoped_refptr<update_client::Configurator>
+ChromeExtensionsBrowserClient::CreateUpdateClientConfigurator(
     content::BrowserContext* context) {
   std::optional<GURL> override_url;
   GURL update_url = extension_urls::GetWebstoreUpdateUrl();
@@ -606,8 +614,7 @@ ChromeExtensionsBrowserClient::CreateUpdateClient(
       override_url = update_url;
     }
   }
-  return update_client::UpdateClientFactory(
-      ChromeUpdateClientConfig::Create(context, override_url));
+  return ChromeUpdateClientConfig::Create(context, override_url);
 }
 
 std::unique_ptr<ScopedExtensionUpdaterKeepAlive>
@@ -909,6 +916,29 @@ bool ChromeExtensionsBrowserClient::UpdatesFromWebstore(
     const Extension& extension) {
   return ExtensionManagementFactory::GetForBrowserContext(context)
       ->UpdatesFromWebstore(extension);
+}
+
+scoped_refptr<safe_browsing::SafeBrowsingDatabaseManager>
+ChromeExtensionsBrowserClient::GetSafeBrowsingDatabaseManager() const {
+#if BUILDFLAG(SAFE_BROWSING_DB_LOCAL)
+  return g_browser_process && g_browser_process->safe_browsing_service()
+             ? g_browser_process->safe_browsing_service()->database_manager()
+             : nullptr;
+#else
+  return nullptr;
+#endif
+}
+
+std::optional<safe_browsing::V4ProtocolConfig>
+ChromeExtensionsBrowserClient::GetV4ProtocolConfig() const {
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
+  return g_browser_process && g_browser_process->safe_browsing_service()
+             ? std::optional(g_browser_process->safe_browsing_service()
+                                 ->GetV4ProtocolConfig())
+             : std::nullopt;
+#else
+  return std::nullopt;
+#endif
 }
 
 // static

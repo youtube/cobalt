@@ -38,6 +38,7 @@ import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.lifecycle.NativeInitObserver;
 import org.chromium.chrome.browser.locale.LocaleManager;
 import org.chromium.chrome.browser.merchant_viewer.MerchantTrustSignalsCoordinator;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.browser.omnibox.LocationBarMediator.OmniboxUma;
 import org.chromium.chrome.browser.omnibox.fusebox.NavigationAttachmentsCoordinator;
 import org.chromium.chrome.browser.omnibox.geo.GeolocationHeader;
@@ -113,6 +114,7 @@ public class LocationBarCoordinator
     private StatusCoordinator mStatusCoordinator;
     private NavigationAttachmentsCoordinator mNavigationAttachmentsCoordinator;
     private final WindowAndroid mWindowAndroid;
+    private final Callback<Boolean> mTextWrappingListener;
     private LocationBarMediator mLocationBarMediator;
     private View mUrlBar;
     private View mZoomButton;
@@ -211,7 +213,8 @@ public class LocationBarCoordinator
             @Nullable BrowserControlsStateProvider browserControlsStateProvider,
             boolean isToolbarPositionCustomizationEnabled,
             @Nullable PageZoomManager pageZoomManager,
-            Function<Tab, @Nullable Bitmap> tabFaviconFunction) {
+            Function<Tab, @Nullable Bitmap> tabFaviconFunction,
+            @Nullable MultiInstanceManager multiInstanceManager) {
         mLocationBarLayout = (LocationBarLayout) locationBarLayout;
         mWindowAndroid = windowAndroid;
         mActivityLifecycleDispatcher = activityLifecycleDispatcher;
@@ -287,7 +290,9 @@ public class LocationBarCoordinator
                         browserControlsStateProvider,
                         modalDialogManagerSupplier,
                         autocompleteRequestTypeSupplier,
-                        mPageZoomIndicatorCoordinator);
+                        mPageZoomIndicatorCoordinator,
+                        mNavigationAttachmentsCoordinator,
+                        multiInstanceManager);
         if (backPressManager != null) {
             backPressManager.addHandler(mLocationBarMediator, BackPressHandler.Type.LOCATION_BAR);
         }
@@ -302,6 +307,11 @@ public class LocationBarCoordinator
                         windowAndroid.getKeyboardDelegate(),
                         isIncognito,
                         onLongClickListener);
+
+        // Set up text wrapping listener for NavigationAttachmentsCoordinator
+        mTextWrappingListener = this::onTextWrappingChanged;
+        mUrlCoordinator.addTextWrappingChangeListener(mTextWrappingListener);
+
         mAutocompleteCoordinator =
                 new AutocompleteCoordinator(
                         mLocationBarLayout,
@@ -459,6 +469,7 @@ public class LocationBarCoordinator
         }
 
         mLocationBarMediator.removeUrlFocusChangeListener(mUrlCoordinator);
+        mUrlCoordinator.removeTextWrappingChangeListener(mTextWrappingListener);
         mUrlCoordinator.destroy();
         mUrlCoordinator = null;
 
@@ -616,8 +627,8 @@ public class LocationBarCoordinator
     }
 
     @Override
-    public void setHideStatusIconForSecureOrigins(boolean hideStatusIconForSecureOrigins) {
-        mStatusCoordinator.setHideStatusIconForSecureOrigins(hideStatusIconForSecureOrigins);
+    public void setShowStatusIconForSecureOrigins(boolean showStatusIconForSecureOrigins) {
+        mStatusCoordinator.setShowStatusIconForSecureOrigins(showStatusIconForSecureOrigins);
     }
 
     @Override
@@ -793,6 +804,12 @@ public class LocationBarCoordinator
      */
     public void setUrlBarFocusable(boolean focusable) {
         mUrlCoordinator.setAllowFocus(focusable);
+    }
+
+    private void onTextWrappingChanged(boolean isWrapping) {
+        if (mNavigationAttachmentsCoordinator != null) {
+            mNavigationAttachmentsCoordinator.onFuseboxTextWrappingChanged(isWrapping);
+        }
     }
 
     /**

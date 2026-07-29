@@ -131,6 +131,7 @@ chromium-metrics-reviews@google.com.
     <variant name="CaptureScreenshot"/>
     <variant name="ClosePanel"/>
     <variant name="ClosePanelAndShutdown"/>
+    <variant name="CreateActorTab"/>
     <variant name="CreateTab"/>
     <variant name="CreateTask"/>
     <variant name="DetachPanel"/>
@@ -170,6 +171,7 @@ chromium-metrics-reviews@google.com.
     <variant name="OnViewChanged"/>
     <variant name="OpenGlicSettingsPage"/>
     <variant name="OpenOsPermissionSettingsMenu"/>
+    <variant name="OpenPasswordManagerSettingsPage"/>
     <variant name="PauseActorTask"/>
     <variant name="PerformActions"/>
     <variant name="PinTabs"/>
@@ -272,6 +274,29 @@ chromium-metrics-reviews@google.com.
     quick succession. When analyzing metrics from a synthetic field trial this
     histogram will allow us to create custom queries to filter out users who may
     have contaminated logs from multiple profiles.
+  </summary>
+</histogram>
+
+<histogram name="Glic.ConcurrentVisibility.Duration" units="ms"
+    expires_after="2026-06-01">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <summary>
+    Records the duration of a single period of Concurrent Visibility. Concurrent
+    Visibility is defined as a continuous period of time where two or more Glic
+    instances are visible simultaneously. Recorded when the number of visible
+    instances drops below two.
+  </summary>
+</histogram>
+
+<histogram name="Glic.ConcurrentVisibility.PeakCount" units="instances"
+    expires_after="2026-06-01">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <summary>
+    Records the maximum number of Glic instances that were visible
+    simultaneously during a single period of Concurrent Visibility. Recorded
+    when the period of Concurrent Visibility ends.
   </summary>
 </histogram>
 
@@ -619,6 +644,16 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Glic.Instance.Floaty.InitialMode" enum="GlicWebClientMode"
+    expires_after="2026-06-01">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <summary>
+    Records the initial mode (Text or Audio) when a Glic Floaty is shown.
+    Recorded each time a Floaty instance is shown with a specified initial mode.
+  </summary>
+</histogram>
+
 <histogram name="Glic.Instance.Floaty.OpenDuration" units="ms"
     expires_after="2026-06-01">
   <owner>birnie@google.com</owner>
@@ -765,6 +800,27 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Glic.Instance.Session.MaxPinnedTabs" units="count"
+    expires_after="2026-06-01">
+  <owner>sanaakbani@google.com</owner>
+  <owner>birnie@google.com</owner>
+  <summary>
+    Records the maximum number of tabs that were pinned at any time during a
+    single session. This is recorded when the session finishes.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Instance.Session.MultipleTabsPinnedInAnyTurn"
+    enum="Boolean" expires_after="2026-06-01">
+  <owner>sanaakbani@google.com</owner>
+  <owner>birnie@google.com</owner>
+  <summary>
+    Boolean histogram that logs whether multiple tabs were pinned for any input
+    submitted during a single session. This is recorded when the session
+    finishes.
+  </summary>
+</histogram>
+
 <histogram name="Glic.Instance.Session.ToggleCount" units="count"
     expires_after="2026-10-27">
   <owner>birnie@google.com</owner>
@@ -775,6 +831,50 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Glic.Instance.Session.TotalActiveDuration" units="ms"
+    expires_after="2026-10-27">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <summary>
+    Records the total time a Glic multi-instance session was active. Recorded
+    when the session ends. A session is active when it is showing in an embedder
+    in the active browser window.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Instance.Session.TotalHiddenDuration" units="ms"
+    expires_after="2026-10-27">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <summary>
+    Records the total time a Glic multi-instance session was hidden. Recorded
+    when the session ends. A session is hidden when it is not shown in any
+    embedder. This does not account for occlusion.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Instance.Session.TotalInactiveDuration" units="ms"
+    expires_after="2026-10-27">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <summary>
+    Records the total time a Glic multi-instance session was inactive. Recorded
+    when the session ends. A session is inactive when it is not showing in any
+    embedder of an active browser window.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Instance.Session.TotalVisibleDuration" units="ms"
+    expires_after="2026-10-27">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <summary>
+    Records the total time a Glic multi-instance session was visible. Recorded
+    when the session ends. A session is visible when it is shown in any
+    embedder. This does not account for occlusion.
+  </summary>
+</histogram>
+
 <histogram name="Glic.Instance.Session.TurnCount" units="count"
     expires_after="2026-10-27">
   <owner>birnie@google.com</owner>
@@ -782,6 +882,28 @@ chromium-metrics-reviews@google.com.
   <summary>
     The number of turns that occurred in a single Glic multi-instance session.
     Recorded when the session ends.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Instance.Session.UninterruptedActiveDuration" units="ms"
+    expires_after="2026-10-27">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <summary>
+    Records the duration of a single, uninterrupted period of time that a Glic
+    multi-instance session was active. Recorded each time the session becomes
+    inactive.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Instance.Session.UninterruptedVisibleDuration" units="ms"
+    expires_after="2026-10-27">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <summary>
+    Records the duration of a single, uninterrupted period of time that a Glic
+    multi-instance session was visible. Recorded each time the session becomes
+    hidden.
   </summary>
 </histogram>
 
@@ -1647,6 +1769,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Glic.Tab.DaisyChainDepth" units="count"
+    expires_after="2026-06-01">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <summary>
+    Records the depth of a tab in a daisy chain. Depth 1 means opened directly
+    from Glic. Depth 2 means opened from a tab that was opened from Glic, and so
+    on. Recorded each time a tab is bound via daisy chaining from another tab.
+  </summary>
+</histogram>
+
 <histogram name="Glic.TabContext.PdfContentsRequested" enum="PdfRequestStates"
     expires_after="2026-03-22">
   <owner>carlosk@chromium.org</owner>
@@ -1802,6 +1935,111 @@ chromium-metrics-reviews@google.com.
     <variant name="Other"/>
     <variant name="UnknownCause"/>
   </token>
+</histogram>
+
+<histogram name="Glic.Turn.Source" enum="GlicTurnSource"
+    expires_after="2026-10-16">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <summary>
+    Records the source of the turn, including the UI mode (Side Panel or Floaty)
+    and the input mode (Text or Audio). Recorded at the end of each turn.
+  </summary>
+</histogram>
+
+<histogram name="Glic.UnifiedFre.InteractionTime.Accepted" units="ms"
+    expires_after="2026-08-03">
+  <owner>michelleabreo@google.com</owner>
+  <owner>birnie@google.com</owner>
+  <summary>
+    Records the time elapsed between an instance of a sidepanel FRE being fully
+    loaded (the Ready state) and the user clicking the accept/continue button.
+    This is logged when the user accepts the FRE.
+  </summary>
+</histogram>
+
+<histogram name="Glic.UnifiedFre.InteractionTime.Dismissed" units="ms"
+    expires_after="2026-08-03">
+  <owner>michelleabreo@google.com</owner>
+  <owner>birnie@google.com</owner>
+  <summary>
+    Records the time elapsed between an instance of a sidepanel FRE being fully
+    loaded (the Ready state) and the user dismissing the panel through an
+    indirect action (e.g., closing the tab, pressing Esc, clicking the glic
+    entrypoint toggle).
+  </summary>
+</histogram>
+
+<histogram name="Glic.UnifiedFre.InteractionTime.NoThanks" units="ms"
+    expires_after="2026-08-03">
+  <owner>michelleabreo@google.com</owner>
+  <owner>birnie@google.com</owner>
+  <summary>
+    Records the time elapsed between an instance of a sidepanel FRE being fully
+    loaded (the Ready state) and the user explicitly clicking the No thanks
+    button. This is logged when the user rejects the FRE.
+  </summary>
+</histogram>
+
+<histogram name="Glic.UnifiedFre.TotalTime.Accepted" units="ms"
+    expires_after="2026-08-03">
+  <owner>michelleabreo@google.com</owner>
+  <owner>birnie@google.com</owner>
+  <summary>
+    Records the time elapsed from when an instance of a sidepanel FRE is first
+    opened until the user accepts it.
+  </summary>
+</histogram>
+
+<histogram name="Glic.UnifiedFre.TotalTime.AcceptedByOtherInstance" units="ms"
+    expires_after="2026-08-03">
+  <owner>michelleabreo@google.com</owner>
+  <owner>birnie@google.com</owner>
+  <summary>
+    Records the time elapsed from when an instance of a sidepanel FRE is first
+    opened until the user accepts it in another instance.
+  </summary>
+</histogram>
+
+<histogram name="Glic.UnifiedFre.TotalTime.Dismissed" units="ms"
+    expires_after="2026-08-03">
+  <owner>michelleabreo@google.com</owner>
+  <owner>birnie@google.com</owner>
+  <summary>
+    Records the time elapsed from when an instance of a sidepanel FRE is first
+    opened until it is dismissed by the user (e.g. closing the tab).
+  </summary>
+</histogram>
+
+<histogram name="Glic.UnifiedFre.TotalTime.NoThanks" units="ms"
+    expires_after="2026-08-03">
+  <owner>michelleabreo@google.com</owner>
+  <owner>birnie@google.com</owner>
+  <summary>
+    Records the time elapsed from when an instance of a sidepanel FRE is first
+    opened until the user clicks the No Thanks button.
+  </summary>
+</histogram>
+
+<histogram name="Glic.UnifiedFre.WebClientLoadTime" units="ms"
+    expires_after="2026-08-03">
+  <owner>michelleabreo@google.com</owner>
+  <owner>birnie@google.com</owner>
+  <summary>
+    Records the time from when the sidepanel Glic FRE WebUI begins loading the
+    remote content until the WebUI reports itself as fully loaded and ready.
+  </summary>
+</histogram>
+
+<histogram name="Glic.UnifiedFre.WebUiFrameworkLoadTime" units="ms"
+    expires_after="2026-08-03">
+  <owner>michelleabreo@google.com</owner>
+  <owner>birnie@google.com</owner>
+  <summary>
+    Records the time from when the Glic FRE in sidepanel is visible until the
+    local WebUI framework has loaded and is ready to load the remote web
+    content.
+  </summary>
 </histogram>
 
 <histogram name="Glic.Usage.Hotkey" enum="GlicHotkeyUsage"

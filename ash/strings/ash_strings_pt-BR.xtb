@@ -162,7 +162,7 @@
 <translation id="1505542291183484463">Redimensionar janela em mosaico para baixo</translation>
 <translation id="1510238584712386396">Iniciador</translation>
 <translation id="1520303207432623762">{NUM_APPS,plural, =1{Mostrar configurações de notificação. As notificações estão desativadas para um app}one{Mostrar configurações de notificação. As notificações estão desativadas para # app}other{Mostrar configurações de notificação. As notificações estão desativadas para # apps}}</translation>
-<translation id="1521655867290435174">Planilhas Google</translation>
+<translation id="1521655867290435174">Google Planilhas</translation>
 <translation id="1523032696246003">Bateria em <ph name="BATTERY_PERCENTAGE" />% | <ph name="TIME" /> até a carga completa</translation>
 <translation id="1525508553941733066">DISPENSAR</translation>
 <translation id="1526448108126799339">Abrir nova guia em uma nova janela</translation>
@@ -1011,7 +1011,7 @@ Alguns recursos estão limitados para aumentar a duração da bateria.</translat
 <translation id="439598569299422042">Pausado, <ph name="SIZE_INFO" /></translation>
 <translation id="440113666232554208">Falha ao salvar screencast</translation>
 <translation id="4405151984121254935">O tipo do periférico conectado não é compatível</translation>
-<translation id="4406883609789734330">Legenda Instantânea</translation>
+<translation id="4406883609789734330">Legenda instantânea</translation>
 <translation id="4412698727486357573">Central de Ajuda</translation>
 <translation id="4412944820643904175">O recurso <ph name="FEATURE_NAME" /> está desativado.</translation>
 <translation id="4417647906073317561">Configurações de foco. Defina um timer, uma tarefa e uma música para entrar no ritmo.</translation>

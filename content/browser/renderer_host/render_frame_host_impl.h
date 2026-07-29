@@ -1805,11 +1805,7 @@ class CONTENT_EXPORT RenderFrameHostImpl
   }
   void SetKeepAliveTimeoutForTesting(base::TimeDelta timeout);
 
-  network::mojom::WebSandboxFlags active_sandbox_flags() {
-    CHECK(policy_container_host_)
-        << LifecycleStateImplToString(lifecycle_state_);
-    return policy_container_host_->sandbox_flags();
-  }
+  network::mojom::WebSandboxFlags active_sandbox_flags();
   bool is_mhtml_document() const { return is_mhtml_document_; }
 
   // Returns whether this document is a subframe of a MHTML document.
@@ -3285,12 +3281,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
   // happen before it fires (to avoid flakiness).
   void DisableUnloadTimerForTesting();
 
-  // Returns true if the `delegate()` for this host is a partitioned
-  // popin and this host is not within a fenced frame (as this prevents the
-  // popin from impacting partitioning).
-  // See https://explainers-by-googlers.github.io/partitioned-popins/
-  bool ShouldPartitionAsPopin() const override;
-
   bool IsFullCookieAccessAllowed() override;
 
   void SimulateDiscardShutdownKeepAliveTimeoutForTesting();
@@ -3428,7 +3418,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
   friend class WebContentsSplitCacheBrowserTest;
   friend class RenderFrameHostManagerUnloadBrowserTest;
   friend class NavigationBrowserTest;
-  friend class FrameHostInterceptorForPopins;
 
   FRIEND_TEST_ALL_PREFIXES(NavigatorTest, TwoNavigationsRacingCommit);
   FRIEND_TEST_ALL_PREFIXES(RenderFrameHostImplBeforeUnloadBrowserTest,
