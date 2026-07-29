@@ -22,6 +22,7 @@
 #include <memory>
 #include <unordered_map>
 
+#include "build/build_config.h"
 #include "util/file/file_io.h"
 #include "util/linux/exception_handler_protocol.h"
 #include "util/misc/address_types.h"

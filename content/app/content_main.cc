@@ -314,6 +314,13 @@ NO_STACK_PROTECTOR int RunContentProcess(
 #if BUILDFLAG(IS_IOS_TVOS)
     // Set tvOS to single-process mode by default.
     command_line->AppendSwitch(switches::kSingleProcess);
+<<<<<<< HEAD
+=======
+
+    // Enable spatial navigation; we interpret remote control swipes as arrow
+    // keys.
+    command_line->AppendSwitch(switches::kEnableSpatialNavigation);
+>>>>>>> parent of 2f36891edfc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #endif
 #endif
 
@@ -358,7 +365,7 @@ NO_STACK_PROTECTOR int RunContentProcess(
     CommonSubprocessInit();
   exit_code = content_main_runner->Run();
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_STARBOARD)
   content_main_runner->Shutdown();
 #endif
 

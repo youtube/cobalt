@@ -5,7 +5,9 @@
 # This file should only be imported from files that define toolchains.
 # There's no way to enforce this exactly, but all toolchains are processed
 # in the context of the default_toolchain, so we can at least check for that.
-assert(current_toolchain == default_toolchain)
+import("//starboard/build/config/android_toolchain.gni")
+assert(current_toolchain == default_toolchain ||
+       current_toolchain == android_toolchain)
 
 import("//build/config/android/config.gni")
 import("//build/config/apple/symbols.gni")
