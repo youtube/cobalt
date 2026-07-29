@@ -13,10 +13,13 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_value.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_testing.h"
+#include "build/buildflag.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_object_builder.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_payment_complete.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_payment_validation_errors.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "third_party/blink/renderer/modules/credentialmanagement/public_key_credential.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "third_party/blink/renderer/modules/payments/payment_address.h"
 #include "third_party/blink/renderer/modules/payments/payment_state_resolver.h"
 #include "third_party/blink/renderer/modules/payments/payment_test_helper.h"
@@ -107,6 +110,7 @@ MATCHER_P(ArrayBufferEqualTo, other_buffer, "equal to") {
                     std::begin(other_buffer));
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 // Calls getClientExtensionResults on the given public_key_credential.
 static v8::Local<v8::Object> GetClientExtensionResults(
     V8TestingScope& scope,
@@ -175,6 +179,7 @@ TEST(PaymentResponseTest, PaymentResponseDetailsContainsSpcExtensionsPRF) {
   EXPECT_THAT(GetArrayBuffer(scope, results, "second"),
               ArrayBufferEqualTo(WTF::Vector{4, 5, 6}));
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 TEST(PaymentResponseTest,
      PaymentResponseDetailsWithUnexpectedJSONFormatString) {

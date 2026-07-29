@@ -24,8 +24,12 @@
 #include "sandbox/policy/linux/sandbox_linux.h"
 #endif
 
+<<<<<<< HEAD:content/utility/on_device_model/on_device_model_sandbox_init.cc
 #if !BUILDFLAG(IS_FUCHSIA)
 #include "base/feature_list.h"
+=======
+#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+>>>>>>> parent of ea54da3a611 (CONFLICTED Chromium Cherry pick: Revert Cobalt.):services/on_device_model/pre_sandbox_init.cc
 #include "third_party/dawn/include/dawn/dawn_proc.h"          // nogncheck
 #include "third_party/dawn/include/dawn/native/DawnNative.h"  // nogncheck
 #include "third_party/dawn/include/dawn/webgpu_cpp.h"         // nogncheck
@@ -63,7 +67,7 @@ void UpdateSandboxOptionsForGpu(
 }
 #endif
 
-#if !BUILDFLAG(IS_FUCHSIA)
+#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 // If this feature is enabled, a WebGPU device is created for each valid
 // adapter. This makes sure any relevant drivers or other libs are loaded before
 // enabling the sandbox.
@@ -97,12 +101,17 @@ bool PreSandboxInit() {
   }
 #endif
 
+<<<<<<< HEAD:content/utility/on_device_model/on_device_model_sandbox_init.cc
 #if !BUILDFLAG(IS_FUCHSIA)
   if (base::FeatureList::IsEnabled(kOnDeviceModelWarmDrivers)
 #if defined(ENABLE_ML_INTERNAL)
       && !ml::IsGpuBlocked(ml::ChromeML::Get()->api(), /*log_histogram=*/false)
 #endif
   ) {
+=======
+#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+  if (base::FeatureList::IsEnabled(kOnDeviceModelWarmDrivers)) {
+>>>>>>> parent of ea54da3a611 (CONFLICTED Chromium Cherry pick: Revert Cobalt.):services/on_device_model/pre_sandbox_init.cc
     // Warm any relevant drivers before attempting to bring up the sandbox. For
     // good measure we initialize a device instance for any adapter with an
     // appropriate backend on top of any integrated or discrete GPU.

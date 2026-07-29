@@ -6,16 +6,17 @@ complete a task. Everything is intended to work with gemini-cli.
 
 ## Directory Structure
 
-- `common.GEMINI.md`: Contains global, high-level context and instructions for
-  the agent with general guidelines for interacting with the Chromium project.
+- `common.md`: Common prompt for gemini-cli
+- `common.minimal.md`: Core parts that are sub-included by `common.md`
+- `templates/`: Reusable snippets of prompts or that can be included in other
+  prompts.
 - `tasks/`: This directory is intended to hold prompts and plans for complex,
   multi-step tasks. Each subdirectory within `tasks/` represents a specific
   task.
-- `templates/`: This directory contains reusable snippets of prompts or
-  instructions that can be included in other prompts.
 
 ## Creating the System Instruction Prompt
 
+<<<<<<< HEAD
 Create a local, untracked file `chromium/src/GEMINI.md`. Include the relevant
 prompts using @, for example, a typical desktop developer will use:
 
@@ -27,6 +28,22 @@ prompts using @, for example, a typical desktop developer will use:
 Whereas an Android developer would use:
 ```src/GEMINI.md
 @agents/prompts/common.GEMINI.md
+=======
+Googler-only docs: http://go/chrome-coding-with-ai-agents
+
+Create a local, untracked file `//GEMINI.md`. Include the relevant
+prompts using @, for example, a typical desktop developer will use:
+
+```src/GEMINI.md
+@agents/prompts/common.md
+@agents/prompts/templates/desktop.md
+```
+
+An Android developer would use:
+
+```src/GEMINI.md
+@agents/prompts/common.md
+>>>>>>> parent of ea54da3a611 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 @agents/prompts/templates/android.md
 ```
 
@@ -38,3 +55,14 @@ show` command in gemini-cli.
 All imports must be scoped to the current prompt file. a/prompt.md can import
 a/prompt2.md or a/b/prompt3.md, but cannot import c/prompt4.md. See
 https://github.com/google-gemini/gemini-cli/issues/4098.
+<<<<<<< HEAD
+=======
+
+## Contributing
+
+Please freely add self-contained task prompts and prompt templates that match
+the format of the existing examples.
+
+Changes to `common.minimal.md` should be done carefully as it's meant to be used
+broadly.
+>>>>>>> parent of ea54da3a611 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)

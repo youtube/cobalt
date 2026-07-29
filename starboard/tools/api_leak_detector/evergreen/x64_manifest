@@ -1,0 +1,10 @@
+# Manifest of Leaking Files
+
+# This file was auto-generated using api_leak_detector.py.
+
+TLS init function for egl::gCurrentThread
+TLS init function for gl::gCurrentValidContext
+TLS init function for v8::internal::trap_handler::TrapHandlerGuard::is_active_
+dlopen
+dlsym
+dlerror

@@ -842,8 +842,16 @@ group("gn_all") {
     deps += [ "//internal:all" ]
   }
 
+<<<<<<< HEAD
   if (checkout_clusterfuzz_data) {
     deps += [ "//clusterfuzz-data:all" ]
+=======
+  if (is_cobalt) {
+    deps += [
+      "//cobalt:gn_all",
+      "//cobalt:cobalt_browsertests",
+    ]
+>>>>>>> parent of ea54da3a611 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 }
 
@@ -860,8 +868,10 @@ group("all_rust") {
 
   # TODO(https://crbug.com/405379314): This fails to build on some iOS ASAN
   # builders.
+  if (!is_cobalt_hermetic_build) {
   if (!is_ios || !is_asan) {
     deps += [ "//testing/rust_gtest_interop:rust_gtest_interop_unittests" ]
+  }
   }
 
   if (enable_rust_mojo) {
@@ -1528,6 +1538,12 @@ if (use_blink && !is_cronet_build) {
         "//third_party/blink/web_tests/FlagSpecificConfig",
         "//third_party/blink/web_tests/FlagExpectations/",
         "//third_party/blink/web_tests/flag-specific/",
+      ]
+    }
+
+    if (is_cobalt) {
+      data += [
+        "//third_party/blink/web_tests/wpt_internal/cobalt",
       ]
     }
   }

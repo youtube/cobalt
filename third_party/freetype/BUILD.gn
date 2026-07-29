@@ -66,6 +66,12 @@ config("freetype-warnings") {
   }
 }
 
+if (is_starboard) {
+  config("freetype_enable_brotli") {
+    defines = [ "FT_CONFIG_OPTION_USE_BROTLI" ]
+  }
+}
+
 component("freetype") {
   visibility = [ "//build/config/freetype:freetype" ]
 
@@ -168,4 +174,9 @@ component("freetype") {
     "//third_party/libpng",
     "//third_party/zlib",
   ]
+
+  if (is_starboard) {
+    public_configs += [ ":freetype_enable_brotli" ]
+    deps += [ "//third_party/brotli:dec" ]
+  }
 }

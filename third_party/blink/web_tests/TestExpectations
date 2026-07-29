@@ -9596,6 +9596,7 @@ crbug.com/431938385 [ Win11-arm64 ] virtual/dbsc-enabled/external/wpt/device-bou
 crbug.com/431938385 [ Win11-arm64 ] external/wpt/secure-payment-confirmation/authentication-invalid-icon.https.html [ Failure ]
 crbug.com/431938385 [ Win11-arm64 ] external/wpt/service-workers/service-worker/fetch-request-xhr.https.html [ Failure ]
 
+<<<<<<< HEAD
 crbug.com/432201711 external/wpt/trusted-types/trusted-types-navigation.html?01-05 [ Skip Timeout ]
 crbug.com/432201711 external/wpt/trusted-types/trusted-types-navigation.html?06-10 [ Skip Timeout ]
 crbug.com/432201711 external/wpt/trusted-types/trusted-types-navigation.html?11-15 [ Skip Timeout ]
@@ -9613,3 +9614,17 @@ crbug.com/419705502 [ Mac ] http/tests/devtools/elements/styles-2/nested-pseudo-
 
 # Gardener 2025-07-23
 crbug.com/40253082 [ Mac14 ] virtual/controls-refresh-hc/fast/forms/color-scheme/select/select-multiple-appearance-basic.html [ Failure ]
+=======
+# Cobalt bug: b/461834934.
+wpt_internal/cobalt/HTMLVideoElementExtension/getAndSetMaxVideoCapabilities.html [ Timeout ]
+
+# Cobalt bug: b/405993906.
+wpt_internal/cobalt/h5vcc-runtime/* [ Failure ]
+
+# Cobalt bug: b/405997906.
+wpt_internal/cobalt/h5vcc-system/h5vcc-system-advertisingId.https.any.html [ Failure Timeout ]
+wpt_internal/cobalt/h5vcc-system/h5vcc-system-exit.https.any.html [ Failure Timeout ]
+wpt_internal/cobalt/h5vcc-system/h5vcc-system-limitAdTracking.https.any.html [ Failure Timeout ]
+wpt_internal/cobalt/h5vcc-system/h5vcc-system-trackingAuthorizationStatus.https.any.html [ Failure Timeout ]
+wpt_internal/cobalt/h5vcc-system/h5vcc-system-userOnExitStrategy.https.any.html [ Failure Timeout ]
+>>>>>>> parent of ea54da3a611 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)

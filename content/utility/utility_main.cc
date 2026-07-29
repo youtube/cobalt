@@ -12,6 +12,7 @@
 #include "base/immediate_crash.h"
 #include "base/message_loop/message_pump_type.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/notreached.h"
 #include "base/power_monitor/power_monitor.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_executor.h"
@@ -35,7 +36,13 @@
 #include "sandbox/policy/mojom/sandbox.mojom.h"
 #include "sandbox/policy/sandbox.h"
 #include "sandbox/policy/sandbox_type.h"
+<<<<<<< HEAD
 #include "services/on_device_model/public/mojom/on_device_model_service.mojom.h"
+=======
+#if !BUILDFLAG(IS_COBALT)
+#include "services/on_device_model/on_device_model_service.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
+>>>>>>> parent of ea54da3a611 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "services/tracing/public/cpp/trace_startup.h"
 #include "services/video_effects/public/cpp/buildflags.h"
 
@@ -43,7 +50,9 @@
 #include "base/file_descriptor_store.h"
 #include "base/files/file_util.h"
 #include "base/pickle.h"
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include "content/child/sandboxed_process_thread_type_handler.h"
+#endif
 #include "content/common/gpu_pre_sandbox_hook_linux.h"
 #include "content/public/common/content_descriptor_keys.h"
 #include "content/utility/speech/speech_recognition_sandbox_hook_linux.h"
@@ -130,7 +139,7 @@ namespace content {
 
 namespace {
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
 std::vector<std::string> GetNetworkContextsParentDirectories() {
   base::MemoryMappedFile::Region region;
   base::ScopedFD read_pipe_fd = base::FileDescriptorStore::GetInstance().TakeFD(
@@ -175,7 +184,7 @@ bool ShouldUseAmdGpuPolicy(sandbox::mojom::Sandbox sandbox_type) {
         // BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
   return false;
 }
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#endif  // BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_WIN)
 // Handle pre-lockdown sandbox hooks
@@ -281,9 +290,11 @@ int UtilityMain(MainFunctionParams parameters) {
     }
   }
 
+#if !BUILDFLAG(IS_COBALT)
   if (utility_sub_type == on_device_model::mojom::OnDeviceModelService::Name_) {
     CHECK(on_device_model::PreSandboxInit());
   }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
@@ -296,12 +307,15 @@ int UtilityMain(MainFunctionParams parameters) {
   }
 #endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION) && BUILDFLAG(USE_VAAPI)
 
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   // Thread type delegate of the process should be registered before first
   // thread type change in ChildProcess constructor. It also needs to be
   // registered before the process has multiple threads, which may race with
   // application of the sandbox.
   SandboxedProcessThreadTypeHandler::Create();
+#endif
 
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   // Initializes the sandbox before any threads are created.
   // TODO(jorgelo): move this after GTK initialization when we enable a strict
   // Seccomp-BPF policy.
@@ -321,13 +335,16 @@ int UtilityMain(MainFunctionParams parameters) {
 #else
       NOTREACHED();
 #endif  // BUILDFLAG(ENABLE_OOP_PRINTING)
+#if !BUILDFLAG(IS_STARBOARD)
     case sandbox::mojom::Sandbox::kAudio:
       pre_sandbox_hook = base::BindOnce(&audio::AudioPreSandboxHook);
       break;
+#if !BUILDFLAG(IS_COBALT)
     case sandbox::mojom::Sandbox::kOnDeviceModelExecution:
       on_device_model::AddSandboxLinuxOptions(sandbox_options);
       pre_sandbox_hook = base::BindOnce(&on_device_model::PreSandboxHook);
       break;
+#endif  // !BUILDFLAG(IS_COBALT)
     case sandbox::mojom::Sandbox::kSpeechRecognition:
       pre_sandbox_hook =
           base::BindOnce(&speech::SpeechRecognitionPreSandboxHook);
@@ -356,6 +373,7 @@ int UtilityMain(MainFunctionParams parameters) {
 #endif
       break;
 #endif  // BUILDFLAG(IS_LINUX)
+#endif  // !BUILDFLAG(IS_STARBOARD)
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #if BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
     case sandbox::mojom::Sandbox::kHardwareVideoDecoding:
@@ -419,6 +437,7 @@ int UtilityMain(MainFunctionParams parameters) {
                             uncovered_hang_watcher_time);
     base::HangWatcher::GetInstance()->Start();
   }
+#endif  // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 #elif BUILDFLAG(IS_WIN)
   std::optional<base::win::ScopedCOMInitializer> scoped_com_initializer;
@@ -506,9 +525,11 @@ int UtilityMain(MainFunctionParams parameters) {
 
   run_loop.Run();
 
+#if !BUILDFLAG(IS_COBALT)
   if (utility_sub_type == on_device_model::mojom::OnDeviceModelService::Name_) {
     CHECK(on_device_model::Shutdown());
   }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 #if defined(LEAK_SANITIZER)
   // Invoke LeakSanitizer before shutting down the utility thread, to avoid

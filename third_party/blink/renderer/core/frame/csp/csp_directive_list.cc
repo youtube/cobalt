@@ -572,6 +572,9 @@ void ReportViolationForCheckSource(
     case CSPDirectiveName::TreatAsPublicAddress:
     case CSPDirectiveName::TrustedTypes:
     case CSPDirectiveName::UpgradeInsecureRequests:
+#if BUILDFLAG(IS_COBALT)
+    case CSPDirectiveName::CobaltLocationSrc:
+#endif
     case CSPDirectiveName::Unknown:
       NOTREACHED();
   }
