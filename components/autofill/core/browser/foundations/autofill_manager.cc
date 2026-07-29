@@ -131,8 +131,10 @@ struct AutofillManager::AsyncContext {
 
   std::vector<FormData> forms;
   std::vector<RegexPredictions> regex_predictions;
+#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   std::vector<ModelPredictions> autofill_predictions;
   std::vector<ModelPredictions> password_manager_predictions;
+#endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   GeoIpCountryCode country_code;
   LanguageCode current_page_language;
   std::unique_ptr<BufferingLogManager> log_manager;
@@ -684,6 +686,60 @@ void AutofillManager::ParseFormsAsyncCommon(
                 &Observer::OnFieldTypesDetermined, form_structure->global_id(),
                 Observer::FieldTypeSource::kHeuristicsOrAutocomplete);
           }
+<<<<<<< HEAD
+=======
+
+          if (cached_form_structure) {
+            // Preserves already cached information (in particular, the server
+            // field types). This must happen before rationalization.
+            form_structure->RetrieveFromCache(
+                *cached_form_structure, FormStructure::RetrieveFromCacheReason::
+                                            kFormCacheUpdateAfterParsing);
+
+            // Not updating signatures of credit card forms is legacy behaviour.
+            // We believe that the signatures are kept stable for voting
+            // purposes. Credit card forms are those which contain only credit
+            // card fields.
+            // TODO(crbug.com/431754194): Investigate making the behavior
+            // consistent across all form types.
+            if (!preserve_signatures &&
+                !IsCreditCardFormForSignaturePurposes(*cached_form_structure)) {
+              form_structure->set_form_signature(
+                  CalculateFormSignature(context.forms[i]));
+              form_structure->set_alternative_form_signature(
+                  CalculateAlternativeFormSignature(context.forms[i]));
+              form_structure->set_structural_form_signature(
+                  CalculateStructuralFormSignature(context.forms[i]));
+            }
+          }
+
+#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
+          if (!context.autofill_predictions.empty()) {
+            context.autofill_predictions[i].ApplyTo(form_structure->fields());
+          }
+          if (!context.password_manager_predictions.empty()) {
+            context.password_manager_predictions[i].ApplyTo(
+                form_structure->fields());
+          }
+#endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
+          if (!context.regex_predictions.empty()) {
+            context.regex_predictions[i].ApplyTo(form_structure->fields());
+          }
+          form_structure->RationalizeAndAssignSections(
+              context.country_code, context.current_page_language,
+              context.log_manager.get());
+
+          const FormStructure& raw_form_structure = *form_structure;
+          self->form_structures_[raw_form_structure.global_id()] =
+              std::move(form_structure);
+          DCHECK_LE(self->form_structures_.size(),
+                    kAutofillManagerMaxFormCacheSize);
+
+          self->LogCurrentFieldTypes(&raw_form_structure);
+          self->NotifyObservers(
+              &Observer::OnFieldTypesDetermined, raw_form_structure.global_id(),
+              Observer::FieldTypeSource::kHeuristicsOrAutocomplete);
+>>>>>>> parent of 13b33d35ced (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
         }
         if (context.log_manager && self->log_manager()) {
           context.log_manager->Flush(*self->log_manager());
@@ -999,6 +1055,7 @@ void AutofillManager::LogCurrentFieldTypes(
 
 void AutofillManager::SubscribeToMlModelChanges(
     FieldClassificationModelHandler& handler) {
+#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   switch (handler.optimization_target()) {
     case optimization_guide::proto::OptimizationTarget::
         OPTIMIZATION_TARGET_AUTOFILL_FIELD_CLASSIFICATION:
@@ -1019,6 +1076,9 @@ void AutofillManager::SubscribeToMlModelChanges(
     default:
       NOTREACHED();
   }
+#else
+  NOTREACHED();
+#endif
 }
 
 }  // namespace autofill

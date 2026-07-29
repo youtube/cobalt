@@ -827,7 +827,7 @@ TEST_P(ParkableStringTest, ShouldPark) {
   base::PlatformThread::Join(thread_handle);
 }
 
-#if defined(ADDRESS_SANITIZER)
+#if defined(ADDRESS_SANITIZER) && defined(GTEST_HAS_DEATH_TEST)
 #define EXPECT_ASAN_DEATH(statement, regex) EXPECT_DEATH(statement, regex)
 #else
 #define EXPECT_ASAN_DEATH(statement, regex) \

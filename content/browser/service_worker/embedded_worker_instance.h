@@ -246,13 +246,17 @@ class CONTENT_EXPORT EmbeddedWorkerInstance
       const storage::BucketLocator& bucket_locator);
 
 #if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_COBALT)
   void BindHidService(const url::Origin& origin,
                       mojo::PendingReceiver<blink::mojom::HidService> receiver);
+#endif
 #endif  // !BUILDFLAG(IS_ANDROID)
 
+#if !BUILDFLAG(IS_COBALT)
   void BindUsbService(
       const url::Origin& origin,
       mojo::PendingReceiver<blink::mojom::WebUsbService> receiver);
+#endif
 
   base::WeakPtr<EmbeddedWorkerInstance> AsWeakPtr();
 
