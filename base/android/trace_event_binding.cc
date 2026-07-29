@@ -98,7 +98,7 @@ static jboolean JNI_TraceEvent_ViewHierarchyDumpEnabled(JNIEnv* env) {
 static void JNI_TraceEvent_InitViewHierarchyDump(
     JNIEnv* env,
     jlong id,
-    const JavaParamRef<jobject>& obj) {
+    const base::android::JavaParamRef<jobject>& obj) {
   TRACE_EVENT(
       kAndroidViewHierarchyTraceCategory, kAndroidViewHierarchyEventName,
       perfetto::TerminatingFlow::ProcessScoped(static_cast<uint64_t>(id)),
@@ -110,9 +110,10 @@ static void JNI_TraceEvent_InitViewHierarchyDump(
       });
 }
 
-static jlong JNI_TraceEvent_StartActivityDump(JNIEnv* env,
-                                              const JavaParamRef<jstring>& name,
-                                              jlong dump_proto_ptr) {
+static jlong JNI_TraceEvent_StartActivityDump(
+    JNIEnv* env,
+    const base::android::JavaParamRef<jstring>& name,
+    jlong dump_proto_ptr) {
   auto* dump = reinterpret_cast<perfetto::protos::pbzero::AndroidViewDump*>(
       dump_proto_ptr);
   auto* activity = dump->add_activity();
@@ -126,8 +127,8 @@ static void JNI_TraceEvent_AddViewDump(
     jint parent_id,
     jboolean is_shown,
     jboolean is_dirty,
-    const JavaParamRef<jstring>& class_name,
-    const JavaParamRef<jstring>& resource_name,
+    const base::android::JavaParamRef<jstring>& class_name,
+    const base::android::JavaParamRef<jstring>& resource_name,
     jlong activity_proto_ptr) {
   auto* activity = reinterpret_cast<perfetto::protos::pbzero::AndroidActivity*>(
       activity_proto_ptr);
@@ -145,8 +146,9 @@ namespace {
 // Boilerplate for safely converting Java data to TRACE_EVENT data.
 class TraceEventDataConverter {
  public:
-  TraceEventDataConverter(JNIEnv* env, jstring jarg)
-      : has_arg_(jarg != nullptr),
+  TraceEventDataConverter(JNIEnv* env,
+                          const base::android::JavaParamRef<jstring>& jarg)
+      : has_arg_(!jarg.is_null()),
         arg_(jarg ? ConvertJavaStringToUTF8(env, jarg) : "") {}
 
   TraceEventDataConverter(const TraceEventDataConverter&) = delete;
@@ -165,9 +167,10 @@ class TraceEventDataConverter {
 
 }  // namespace
 
-static void JNI_TraceEvent_Instant(JNIEnv* env,
-                                   const JavaParamRef<jstring>& jname,
-                                   const JavaParamRef<jstring>& jarg) {
+static void JNI_TraceEvent_Instant(
+    JNIEnv* env,
+    const base::android::JavaParamRef<jstring>& jname,
+    const base::android::JavaParamRef<jstring>& jarg) {
   TraceEventDataConverter converter(env, jarg);
 
   if (converter.arg_name()) {
@@ -185,9 +188,10 @@ static void JNI_TraceEvent_Instant(JNIEnv* env,
   }
 }
 
-static void JNI_TraceEvent_InstantAndroidIPC(JNIEnv* env,
-                                             const JavaParamRef<jstring>& jname,
-                                             jlong jdur) {
+static void JNI_TraceEvent_InstantAndroidIPC(
+    JNIEnv* env,
+    const base::android::JavaParamRef<jstring>& jname,
+    jlong jdur) {
   TRACE_EVENT_INSTANT(
       internal::kJavaTraceCategory, "AndroidIPC",
       [&](perfetto::EventContext ctx) {
@@ -226,8 +230,7 @@ static void JNI_TraceEvent_InstantAndroidToolbar(JNIEnv* env,
 static void JNI_TraceEvent_WebViewStartupTotalFactoryInit(JNIEnv* env,
                                                           jlong start_time_ms,
                                                           jlong duration_ms) {
-  auto t = perfetto::Track::ThreadScoped(
-      reinterpret_cast<void*>(trace_event::GetNextGlobalTraceId()));
+  auto t = perfetto::ThreadTrack::Current();
   TRACE_EVENT_BEGIN("android_webview.timeline",
                     "WebView.Startup.CreationTime.TotalFactoryInitTime", t,
                     TimeTicks() + Milliseconds(start_time_ms));
@@ -238,8 +241,7 @@ static void JNI_TraceEvent_WebViewStartupTotalFactoryInit(JNIEnv* env,
 static void JNI_TraceEvent_WebViewStartupStage1(JNIEnv* env,
                                                 jlong start_time_ms,
                                                 jlong duration_ms) {
-  auto t = perfetto::Track::ThreadScoped(
-      reinterpret_cast<void*>(trace_event::GetNextGlobalTraceId()));
+  auto t = perfetto::ThreadTrack::Current();
   TRACE_EVENT_BEGIN("android_webview.timeline",
                     "WebView.Startup.CreationTime.Stage1.FactoryInit", t,
                     TimeTicks() + Milliseconds(start_time_ms));
@@ -252,8 +254,7 @@ static void JNI_TraceEvent_WebViewStartupFirstInstance(
     jlong start_time_ms,
     jlong duration_ms,
     jboolean included_global_startup) {
-  auto t = perfetto::Track::ThreadScoped(
-      reinterpret_cast<void*>(trace_event::GetNextGlobalTraceId()));
+  auto t = perfetto::ThreadTrack::Current();
   if (included_global_startup) {
     TRACE_EVENT_BEGIN(
         "android_webview.timeline",
@@ -273,8 +274,7 @@ static void JNI_TraceEvent_WebViewStartupFirstInstance(
 static void JNI_TraceEvent_WebViewStartupNotFirstInstance(JNIEnv* env,
                                                           jlong start_time_ms,
                                                           jlong duration_ms) {
-  auto t = perfetto::Track::ThreadScoped(
-      reinterpret_cast<void*>(trace_event::GetNextGlobalTraceId()));
+  auto t = perfetto::ThreadTrack::Current();
   TRACE_EVENT_BEGIN("android_webview.timeline",
                     "WebView.Startup.CreationTime.NotFirstInstance", t,
                     TimeTicks() + Milliseconds(start_time_ms));
@@ -289,8 +289,7 @@ static void JNI_TraceEvent_WebViewStartupStartChromiumLocked(
     jint start_call_site,
     jint finish_call_site,
     jint startup_mode) {
-  auto t = perfetto::Track::ThreadScoped(
-      reinterpret_cast<void*>(trace_event::GetNextGlobalTraceId()));
+  auto t = perfetto::ThreadTrack::Current();
   TRACE_EVENT_BEGIN(
       "android_webview.timeline",
       "WebView.Startup.CreationTime.StartChromiumLocked", t,
@@ -423,9 +422,10 @@ static void JNI_TraceEvent_StartupTimeToFirstVisibleContent2(
                   TimeTicks() + Milliseconds(start_time_ms + duration_ms));
 }
 
-static void JNI_TraceEvent_Begin(JNIEnv* env,
-                                 const JavaParamRef<jstring>& jname,
-                                 const JavaParamRef<jstring>& jarg) {
+static void JNI_TraceEvent_Begin(
+    JNIEnv* env,
+    const base::android::JavaParamRef<jstring>& jname,
+    const base::android::JavaParamRef<jstring>& jarg) {
   TraceEventDataConverter converter(env, jarg);
   if (converter.arg_name()) {
     TRACE_EVENT_BEGIN(
@@ -442,9 +442,10 @@ static void JNI_TraceEvent_Begin(JNIEnv* env,
   }
 }
 
-static void JNI_TraceEvent_BeginWithIntArg(JNIEnv* env,
-                                           const JavaParamRef<jstring>& jname,
-                                           jint jarg) {
+static void JNI_TraceEvent_BeginWithIntArg(
+    JNIEnv* env,
+    const base::android::JavaParamRef<jstring>& jname,
+    jint jarg) {
   TRACE_EVENT_BEGIN(
       internal::kJavaTraceCategory, nullptr, "arg", jarg,
       [&](::perfetto::EventContext& ctx) {
@@ -453,7 +454,7 @@ static void JNI_TraceEvent_BeginWithIntArg(JNIEnv* env,
 }
 
 static void JNI_TraceEvent_End(JNIEnv* env,
-                               const JavaParamRef<jstring>& jarg,
+                               const base::android::JavaParamRef<jstring>& jarg,
                                jlong jflow) {
   TraceEventDataConverter converter(env, jarg);
   bool has_arg = converter.arg_name();
@@ -474,8 +475,9 @@ static void JNI_TraceEvent_End(JNIEnv* env,
   }
 }
 
-static void JNI_TraceEvent_BeginToplevel(JNIEnv* env,
-                                         const JavaParamRef<jstring>& jtarget) {
+static void JNI_TraceEvent_BeginToplevel(
+    JNIEnv* env,
+    const base::android::JavaParamRef<jstring>& jtarget) {
   TRACE_EVENT_BEGIN(
       internal::kToplevelTraceCategory, nullptr,
       [&](::perfetto::EventContext& ctx) {
@@ -487,9 +489,10 @@ static void JNI_TraceEvent_EndToplevel(JNIEnv* env) {
   TRACE_EVENT_END(internal::kToplevelTraceCategory);
 }
 
-static void JNI_TraceEvent_StartAsync(JNIEnv* env,
-                                      const JavaParamRef<jstring>& jname,
-                                      jlong jid) {
+static void JNI_TraceEvent_StartAsync(
+    JNIEnv* env,
+    const base::android::JavaParamRef<jstring>& jname,
+    jlong jid) {
   TRACE_EVENT_BEGIN(
       internal::kJavaTraceCategory, nullptr,
       perfetto::Track(static_cast<uint64_t>(jid)),

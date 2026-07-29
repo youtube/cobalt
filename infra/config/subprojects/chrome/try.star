@@ -7,8 +7,8 @@
 # certain ACL restrictions. For more info, see
 # http://go/chromium-cq#internal-builders-on-the-cq.
 
-load("//lib/branches.star", "branches")
-load("//lib/try.star", "default_location_filters", "default_owner_whitelist_group_for_cq_bots", "try_")
+load("@chromium-luci//branches.star", "branches")
+load("@chromium-luci//try.star", "default_location_filters", "default_owner_whitelist_group_for_cq_bots", "try_")
 load("//project.star", "settings")
 
 def chrome_internal_verifier(
@@ -274,13 +274,16 @@ chrome_internal_verifier(
 
 chrome_internal_verifier(
     builder = "linux-perf-trigger",
-    # Using the 'googlers' as the owner whitelist groups, so that this builder
-    # should run only on CLs owner by googlers and robots
-    # such as autorollers and rubber-stamper.
-    # We also want to catch regressions caused by sub-projects such as v8. We
-    # will update the way how autoroll robots create CLs, with the footer
-    # 'Cq-Include-Trybots: luci.chrome.try:linux-perf-trigger'.
-    owner_whitelist = ["googlers"],
+    # The current whitelist includes:
+    #  Googlers: internal users are always welcome
+    #  project-chromium-robot-committers: this list includes autoroll bots,
+    #       rubber stamper for reverts, etc.
+    #       We definitely want to have autoroll bots here because we have no
+    #       Perf tests on those sub repos, and we want to catch the regressions
+    #       during rollout.
+    #       For stamper, we should add the footer (TBD) to allow ignoring the
+    #       perf result.
+    owner_whitelist = ["googlers", "project-chromium-robot-committers"],
     tryjob = try_.job(
         # In the current setting, we will use static mapping to decide whether
         # changing a file can has impact on a certain benchmark. Due to the
@@ -295,7 +298,7 @@ chrome_internal_verifier(
         #    and thus will exist in a couple of minutes.
         #  - so far we only have 166 files listed in the map, which is a tiny
         #    amount compared to the number of files in the chromium repo.
-        experiment_percentage = 50,
+        experiment_percentage = 100,
     ),
 )
 

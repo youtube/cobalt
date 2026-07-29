@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/targets.star", "targets")
+load("@chromium-luci//targets.star", "targets")
 
 targets.mixin(
     name = "10-x86-emulator",
@@ -2659,12 +2659,12 @@ targets.mixin(
     generate_pyl_entry = False,
     args = [
         "--xcode-build-version",
-        "17a5241o",
+        "17a5285i",
     ],
     swarming = targets.swarming(
         named_caches = [
             swarming.cache(
-                name = "xcode_ios_17a5241o",
+                name = "xcode_ios_17a5285i",
                 path = "Xcode.app",
             ),
         ],

@@ -6,21 +6,22 @@
 
 #include "base/test/test_future.h"
 #include "base/time/time.h"
-#include "chrome/browser/actor/actor_keyed_service.h"
-#include "chrome/browser/actor/actor_keyed_service_factory.h"
 #include "chrome/browser/actor/shared_types.h"
 #include "chrome/browser/actor/tools/click_tool_request.h"
 #include "chrome/browser/actor/tools/move_mouse_tool_request.h"
+#include "chrome/browser/actor/tools/type_tool_request.h"
 #include "chrome/browser/actor/tools/wait_tool_request.h"
 #include "chrome/browser/actor/ui/actor_ui_state_manager_interface.h"
 #include "chrome/browser/actor/ui/mock_actor_ui_state_manager.h"
 #include "chrome/browser/actor/ui/ui_event.h"
 #include "chrome/common/actor/action_result.h"
-#include "chrome/test/base/testing_profile.h"
-#include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
 namespace actor::ui {
+
 namespace {
+
+using ::actor::mojom::ActionResultPtr;
 using base::test::TestFuture;
 using testing::_;
 using testing::AllOf;
@@ -32,77 +33,18 @@ using testing::WithArgs;
 class EventDispatcherTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    profile_ =
-        TestingProfile::Builder()
-            .AddTestingFactory(ActorKeyedServiceFactory::GetInstance(),
-                               base::BindRepeating(
-                                   &EventDispatcherTest::BuildActorKeyedService,
-                                   base::Unretained(this)))
-            .Build();
-    dispatcher_ = NewUiEventDispatcher(profile_.get());
+    mock_state_manager_ = std::make_unique<MockActorUiStateManager>();
+    dispatcher_ = NewUiEventDispatcher(mock_state_manager_.get());
   }
 
-  std::unique_ptr<KeyedService> BuildActorKeyedService(
-      content::BrowserContext* context) {
-    std::unique_ptr<MockActorUiStateManager> mock_state_manager =
-        std::make_unique<MockActorUiStateManager>();
-    mock_state_manager_ = mock_state_manager.get();
-
-    auto actor_keyed_service =
-        std::make_unique<ActorKeyedService>(static_cast<Profile*>(context));
-    actor_keyed_service->SetActorUiStateManagerForTesting(
-        std::move(mock_state_manager));
-    return std::move(actor_keyed_service);
-  }
-
-  content::BrowserTaskEnvironment task_environment_;
-  std::unique_ptr<TestingProfile> profile_;
+  std::unique_ptr<MockActorUiStateManager> mock_state_manager_;
   std::unique_ptr<UiEventDispatcher> dispatcher_;
-  raw_ptr<MockActorUiStateManager> mock_state_manager_;
 };
-
-TEST_F(EventDispatcherTest, NoActorKeyedServiceForProfile) {
-  std::unique_ptr<TestingProfile> broken_profile =
-      TestingProfile::Builder()
-          .AddTestingFactory(
-              ActorKeyedServiceFactory::GetInstance(),
-              base::BindOnce(
-                  [](content::BrowserContext*)
-                      -> std::unique_ptr<KeyedService> { return nullptr; }))
-          .Build();
-  MoveMouseToolRequest tr(tabs::TabHandle(123),
-                          PageTarget(gfx::Point(100, 200)));
-  TestFuture<mojom::ActionResultPtr> result;
-  auto dispatcher = NewUiEventDispatcher(broken_profile.get());
-  dispatcher->OnPreTool(tr, result.GetCallback());
-  EXPECT_EQ(result.Get()->code, mojom::ActionResultCode::kError);
-}
-
-TEST_F(EventDispatcherTest, NoUiStateManager) {
-  std::unique_ptr<TestingProfile> broken_profile =
-      TestingProfile::Builder()
-          .AddTestingFactory(
-              ActorKeyedServiceFactory::GetInstance(),
-              base::BindOnce([](content::BrowserContext*)
-                                 -> std::unique_ptr<KeyedService> {
-                auto actor_keyed_service = std::make_unique<ActorKeyedService>(
-                    /*profile=*/nullptr);
-                actor_keyed_service->SetActorUiStateManagerForTesting(nullptr);
-                return std::move(actor_keyed_service);
-              }))
-          .Build();
-  MoveMouseToolRequest tr(tabs::TabHandle(123),
-                          PageTarget(gfx::Point(100, 200)));
-  TestFuture<mojom::ActionResultPtr> result;
-  auto dispatcher = NewUiEventDispatcher(broken_profile.get());
-  dispatcher->OnPreTool(tr, result.GetCallback());
-  EXPECT_EQ(result.Get()->code, mojom::ActionResultCode::kError);
-}
 
 TEST_F(EventDispatcherTest, NoEventsToDispatch) {
   EXPECT_CALL(*mock_state_manager_, OnUiEvent(_, _)).Times(0);
   WaitToolRequest tr(base::Microseconds(1000));
-  TestFuture<mojom::ActionResultPtr> success;
+  TestFuture<ActionResultPtr> success;
   dispatcher_->OnPostTool(tr, success.GetCallback());
   EXPECT_TRUE(IsOk(*success.Get()));
 }
@@ -115,7 +57,7 @@ TEST_F(EventDispatcherTest, SingleUiEvent) {
       }));
   MoveMouseToolRequest tr(tabs::TabHandle(123),
                           PageTarget(gfx::Point(100, 200)));
-  TestFuture<mojom::ActionResultPtr> result;
+  TestFuture<ActionResultPtr> result;
   dispatcher_->OnPreTool(tr, result.GetCallback());
   EXPECT_TRUE(IsOk(*result.Get()));
 }
@@ -130,7 +72,7 @@ TEST_F(EventDispatcherTest, TwoToolRequests) {
                            PageTarget(gfx::Point(100, 200)));
   MoveMouseToolRequest tr2(tabs::TabHandle(456),
                            PageTarget(gfx::Point(300, 400)));
-  TestFuture<mojom::ActionResultPtr> result1, result2;
+  TestFuture<ActionResultPtr> result1, result2;
   dispatcher_->OnPreTool(tr1, result1.GetCallback());
   dispatcher_->OnPreTool(tr2, result2.GetCallback());
   EXPECT_TRUE(IsOk(*result1.Get()));
@@ -148,7 +90,7 @@ TEST_F(EventDispatcherTest, TwoUiEvents) {
       }));
   ClickToolRequest tr(tabs::TabHandle(123), PageTarget(gfx::Point(10, 50)),
                       MouseClickType::kLeft, MouseClickCount::kSingle);
-  TestFuture<mojom::ActionResultPtr> result;
+  TestFuture<ActionResultPtr> result;
   dispatcher_->OnPreTool(tr, result.GetCallback());
   EXPECT_TRUE(IsOk(*result.Get()));
 }
@@ -162,9 +104,22 @@ TEST_F(EventDispatcherTest, TwoUiEventsWithFirstOneFailing) {
       .Times(0);
   ClickToolRequest tr(tabs::TabHandle(123), PageTarget(gfx::Point(10, 50)),
                       MouseClickType::kLeft, MouseClickCount::kSingle);
-  TestFuture<mojom::ActionResultPtr> result;
+  TestFuture<ActionResultPtr> result;
   dispatcher_->OnPreTool(tr, result.GetCallback());
-  EXPECT_EQ(result.Get()->code, mojom::ActionResultCode::kError);
+  EXPECT_EQ(result.Get()->code, ::actor::mojom::ActionResultCode::kError);
+}
+
+TEST_F(EventDispatcherTest, TypeCausesMouseMove) {
+  EXPECT_CALL(*mock_state_manager_, OnUiEvent(VariantWith<MouseMove>(_), _))
+      .WillOnce(WithArgs<1>([&](UiCompleteCallback callback) {
+        std::move(callback).Run(MakeOkResult());
+      }));
+  TypeToolRequest tr(tabs::TabHandle(456), PageTarget(gfx::Point(300, 400)),
+                     "some text to type",
+                     /*follow_by_enter=*/true, TypeToolRequest::Mode::kReplace);
+  TestFuture<ActionResultPtr> result;
+  dispatcher_->OnPreTool(tr, result.GetCallback());
+  EXPECT_TRUE(IsOk(*result.Get()));
 }
 
 TEST_F(EventDispatcherTest, SyncActorTaskChange_OneEvent) {
@@ -180,6 +135,30 @@ TEST_F(EventDispatcherTest, SyncActorTaskChange_OneEvent) {
       .new_state = ActorTask::State::kPausedByClient});
 }
 
+TEST_F(EventDispatcherTest, SyncActorTaskChange_NewTask) {
+  EXPECT_CALL(*mock_state_manager_, OnUiEvent(VariantWith<StartTask>(Field(
+                                        &StartTask::task_id, TaskId(222)))))
+      .Times(1);
+  EXPECT_CALL(*mock_state_manager_,
+              OnUiEvent(VariantWith<TaskStateChanged>(AllOf(
+                  Field(&TaskStateChanged::task_id, TaskId(222)),
+                  Field(&TaskStateChanged::state, ActorTask::State::kActing)))))
+      .Times(1);
+  dispatcher_->OnActorTaskSyncChange(UiEventDispatcher::ChangeTaskState{
+      .task_id = TaskId(222),
+      .old_state = ActorTask::State::kCreated,
+      .new_state = ActorTask::State::kActing});
+}
+
+TEST_F(EventDispatcherTest, SyncActor_RemoveTab) {
+  EXPECT_CALL(*mock_state_manager_,
+              OnUiEvent(VariantWith<StoppedActingOnTab>(Field(
+                  &StoppedActingOnTab::tab_handle, tabs::TabHandle(5309)))))
+      .Times(1);
+  dispatcher_->OnActorTaskSyncChange(UiEventDispatcher::RemoveTab{
+      .task_id = TaskId(867), .handle = tabs::TabHandle(5309)});
+}
+
 TEST_F(EventDispatcherTest, AsyncActorTaskChange_OneEvent) {
   EXPECT_CALL(*mock_state_manager_,
               OnUiEvent(VariantWith<StartingToActOnTab>(_), _))
@@ -187,7 +166,7 @@ TEST_F(EventDispatcherTest, AsyncActorTaskChange_OneEvent) {
       .WillOnce(WithArgs<1>([&](UiCompleteCallback callback) {
         std::move(callback).Run(MakeOkResult());
       }));
-  TestFuture<mojom::ActionResultPtr> result;
+  TestFuture<ActionResultPtr> result;
   dispatcher_->OnActorTaskAsyncChange(
       UiEventDispatcher::AddTab{.task_id = TaskId(992),
                                 .handle = tabs::TabHandle(998)},
@@ -198,4 +177,5 @@ TEST_F(EventDispatcherTest, AsyncActorTaskChange_OneEvent) {
 // TODO(crbug.com/425784083): improve unit testing
 
 }  // namespace
+
 }  // namespace actor::ui

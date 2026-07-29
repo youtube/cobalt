@@ -17,6 +17,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
+#include "base/trace_event/trace_event.h"
 #include "base/types/expected.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/ip_endpoint.h"
@@ -26,7 +27,6 @@
 #include "net/base/net_export.h"
 #include "net/base/priority_queue.h"
 #include "net/base/request_priority.h"
-#include "net/base/tracing.h"
 #include "net/dns/host_resolver.h"
 #include "net/dns/public/resolve_error_info.h"
 #include "net/http/http_stream_pool.h"
@@ -242,13 +242,6 @@ class HttpStreamPool::AttemptManager
 
   MultiplexedSessionCreationInitiator
   CalculateMultiplexedSessionCreationInitiator();
-
-  // TODO(crbug.com/383606724): Remove this once we move unittests from
-  // HttpStreamPoolAttemptManagerTest to
-  // HttpStreamPoolIPEndPointStateTrackerTest
-  const IPEndPointStateTracker& ip_endpoint_state_tracker() const {
-    return ip_endpoint_state_tracker_;
-  }
 
   std::optional<int> GetQuicAttemptResultForTesting() {
     return quic_attempt_result_;

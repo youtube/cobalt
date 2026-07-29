@@ -10,7 +10,7 @@ export {DEFAULT_CHECKED_VALUE, DEFAULT_UNCHECKED_VALUE} from '/shared/settings/c
 export {ExtensionControlBrowserProxy, ExtensionControlBrowserProxyImpl} from '/shared/settings/extension_control_browser_proxy.js';
 export {LifetimeBrowserProxy, LifetimeBrowserProxyImpl} from '/shared/settings/lifetime_browser_proxy.js';
 export {ProfileInfo, ProfileInfoBrowserProxy, ProfileInfoBrowserProxyImpl} from '/shared/settings/people_page/profile_info_browser_proxy.js';
-export {ChromeSigninUserChoice, ChromeSigninUserChoiceInfo, PageStatus, SignedInState, StatusAction, StoredAccount, SyncBrowserProxy, SyncBrowserProxyImpl, SyncPrefs, syncPrefsIndividualDataTypes, SyncStatus, TrustedVaultBannerState} from '/shared/settings/people_page/sync_browser_proxy.js';
+export {ChromeSigninUserChoice, ChromeSigninUserChoiceInfo, PageStatus, SignedInState, StatusAction, StoredAccount, SyncBrowserProxy, SyncBrowserProxyImpl, SyncPrefs, syncPrefsIndividualDataTypes, SyncStatus, TrustedVaultBannerState, UserSelectableType} from '/shared/settings/people_page/sync_browser_proxy.js';
 export {prefToString, stringToPrefValue} from '/shared/settings/prefs/pref_util.js';
 export {SettingsPrefsElement} from '/shared/settings/prefs/prefs.js';
 export {PrefsMixin, PrefsMixinInterface} from '/shared/settings/prefs/prefs_mixin.js';
@@ -47,6 +47,7 @@ export {PromoteUpdaterStatus} from './about_page/about_page_browser_proxy.js';
 export {SettingsAiInfoCardElement} from './ai_page/ai_info_card.js';
 export {SettingsAiLoggingInfoBullet} from './ai_page/ai_logging_info_bullet.js';
 export {SettingsAiPageElement} from './ai_page/ai_page.js';
+export {SettingsAiPageIndexElement} from './ai_page/ai_page_index.js';
 export {ModelExecutionEnterprisePolicyValue} from './ai_page/constants.js';
 export {AppearanceBrowserProxy, AppearanceBrowserProxyImpl} from './appearance_page/appearance_browser_proxy.js';
 export {SettingsAppearancePageElement, SystemTheme} from './appearance_page/appearance_page.js';
@@ -64,7 +65,8 @@ export {SettingsDefaultBrowserPageElement} from './default_browser_page/default_
 // </if>
 // <if expr="enable_glic">
 export {GlicBrowserProxy, GlicBrowserProxyImpl} from './glic_page/glic_browser_proxy.js';
-export {SettingsGlicPageElement, SettingsGlicPageFeaturePrefName} from './glic_page/glic_page.js';
+export {SettingsGlicPageElement} from './glic_page/glic_page.js';
+export {SettingsGlicPageFeaturePrefName, SettingsGlicSubpageElement} from './glic_page/glic_subpage.js';
 // </if>
 export {HatsBrowserProxy, HatsBrowserProxyImpl, SafeBrowsingSetting, SecurityPageInteraction, TrustSafetyInteraction} from './hats_browser_proxy.js';
 export {loadTimeData} from './i18n_setup.js';
@@ -83,6 +85,7 @@ export {pageVisibility, PrivacyPageVisibility, resetPageVisibilityForTesting} fr
 export {AccountManagerBrowserProxy, AccountManagerBrowserProxyImpl} from './people_page/account_manager_browser_proxy.js';
 // </if>
 export {SettingsPeoplePageElement} from './people_page/people_page.js';
+export {SettingsPeoplePageIndexElement} from './people_page/people_page_index.js';
 // <if expr="not is_chromeos">
 export {SettingsSyncAccountControlElement} from './people_page/sync_account_control.js';
 // </if>
@@ -107,8 +110,8 @@ export {SettingsResetProfileBannerElement} from './reset_page/reset_profile_bann
 export {buildRouter, resetRouterForTesting, routes} from './route.js';
 export {Route, Router, SettingsRoutes} from './router.js';
 export {ScrollableMixin} from './scrollable_mixin.js';
-export {ChoiceMadeLocation, SearchEngine, SearchEnginesBrowserProxy, SearchEnginesBrowserProxyImpl, SearchEnginesInfo, SearchEnginesInteractions} from './search_engines_page/search_engines_browser_proxy.js';
 export {SettingsSearchEngineListDialogElement} from './search_page/search_engine_list_dialog.js';
+export {ChoiceMadeLocation, SearchEngine, SearchEnginesBrowserProxy, SearchEnginesBrowserProxyImpl, SearchEnginesInfo, SearchEnginesInteractions} from './search_page/search_engines_browser_proxy.js';
 export {SettingsSearchPageElement} from './search_page/search_page.js';
 export {SettingsSearchPageIndexElement} from './search_page/search_page_index.js';
 export {getSearchManager, SearchManager, SearchRequest, setSearchManagerForTesting} from './search_settings.js';

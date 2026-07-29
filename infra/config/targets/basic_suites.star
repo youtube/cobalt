@@ -9,7 +9,7 @@
 # suite is no longer needed in //testing/buildbot, targets.bundle (which does
 # not yet exist) can be used for grouping tests in a more flexible manner.
 
-load("//lib/targets.star", "targets")
+load("@chromium-luci//targets.star", "targets")
 
 # TODO(gbeaty) - Make the resultdb information for tests using the same binaries
 # consistent and move the information onto the binaries
@@ -1448,6 +1448,24 @@ targets.legacy_basic_suite(
             ],
             linux_args = [
                 "--no-xvfb",
+            ],
+        ),
+    },
+)
+
+# TODO: crbug.com/433525769 - When builders using this suite are all migrated to
+# starlark, this should be combined with optimization_guide_gpu_gtests.
+targets.legacy_basic_suite(
+    name = "optimization_guide_gpu_isolated_scripts",
+    tests = {
+        "blink_wpt_tests": targets.legacy_test_config(
+            args = [
+                # Ensure that the platform-specific backends are disabled so
+                # that TFLite is used.
+                "--additional-driver-flag=--disable-features=WebNNCoreML,WebNNDirectML,WebNNOnnxRuntime",
+                "--ignore-default-expectations",
+                "--additional-expectations=../../third_party/blink/web_tests/OptimizationGuideExpectations",
+                "--test-launcher-filter-file=../../third_party/blink/web_tests/TestLists/optimization_guide.filter",
             ],
         ),
     },

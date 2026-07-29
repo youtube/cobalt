@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.media;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.PictureInPictureParams;
@@ -14,7 +16,6 @@ import android.os.PowerManager;
 import android.os.SystemClock;
 import android.util.Rational;
 
-import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.Callback;
@@ -23,6 +24,8 @@ import org.chromium.base.MathUtils;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.fullscreen.FullscreenManager;
 import org.chromium.chrome.browser.infobar.InfoBarContainer;
@@ -41,6 +44,7 @@ import java.util.List;
 import java.util.Set;
 
 /** A controller for entering Picture in Picture mode with fullscreen videos. */
+@NullMarked
 public class FullscreenVideoPictureInPictureController {
     private static final String TAG = "VideoPersist";
     private static final int AUTO_PIP_UPDATE_DELAY = 500 /* msec */;
@@ -94,7 +98,7 @@ public class FullscreenVideoPictureInPictureController {
     /** Current observers, if any. */
     @Nullable DismissActivityOnTabChangeObserver mActivityTabObserver;
 
-    @Nullable FullscreenManager.Observer mFullscreenListener;
+    FullscreenManager.@Nullable Observer mFullscreenListener;
 
     private final Activity mActivity;
     private final ActivityTabProvider mActivityTabProvider;
@@ -317,13 +321,13 @@ public class FullscreenVideoPictureInPictureController {
         final Tab activityTab = mActivityTabProvider.get();
 
         // We don't want InfoBars displaying while in PiP, they cover too much content.
-        getInfoBarContainerForTab(activityTab).setHidden(true);
+        assumeNonNull(getInfoBarContainerForTab(activityTab)).setHidden(true);
 
         mOnLeavePipCallbacks.add(
                 () -> {
                     Log.i(TAG, "Running Picture-in-picture exit callbacks");
                     webContents.setHasPersistentVideo(false);
-                    getInfoBarContainerForTab(activityTab).setHidden(false);
+                    assumeNonNull(getInfoBarContainerForTab(activityTab)).setHidden(false);
                 });
 
         // Setup observers to dismiss the Activity on events that should end PiP.  In auto-enter
@@ -353,7 +357,7 @@ public class FullscreenVideoPictureInPictureController {
         dismissActivityIfNeeded(mActivity, MetricsEndReason.RESUME);
     }
 
-    private static Rect getVideoBounds(WebContents webContents, Activity activity) {
+    private static @Nullable Rect getVideoBounds(WebContents webContents, Activity activity) {
         Rect rect = webContents.getFullscreenVideoSize();
         if (rect == null || rect.width() == 0 || rect.height() == 0) return null;
 
@@ -587,8 +591,8 @@ public class FullscreenVideoPictureInPictureController {
     private class DismissActivityOnTabEventObserver extends EmptyTabObserver {
         private final Activity mActivity;
         private final Tab mTab;
-        private WebContents mWebContents;
-        private DismissActivityOnWebContentsObserver mWebContentsObserver;
+        private @Nullable WebContents mWebContents;
+        private @Nullable DismissActivityOnWebContentsObserver mWebContentsObserver;
 
         public DismissActivityOnTabEventObserver(Activity activity, Tab tab) {
             mActivity = activity;
@@ -663,10 +667,10 @@ public class FullscreenVideoPictureInPictureController {
     }
 
     /** A class to dismiss the Activity when the tab changes. */
-    private class DismissActivityOnTabChangeObserver implements Callback<Tab> {
+    private class DismissActivityOnTabChangeObserver implements Callback<@Nullable Tab> {
         private final Activity mActivity;
-        private Tab mCurrentTab;
-        private DismissActivityOnTabEventObserver mTabEventObserver;
+        private @Nullable Tab mCurrentTab;
+        private @Nullable DismissActivityOnTabEventObserver mTabEventObserver;
 
         private DismissActivityOnTabChangeObserver(Activity activity) {
             mActivity = activity;
@@ -692,7 +696,7 @@ public class FullscreenVideoPictureInPictureController {
         }
 
         @Override
-        public void onResult(Tab tab) {
+        public void onResult(@Nullable Tab tab) {
             if (mCurrentTab == tab) return;
 
             // If we're switching tabs, including to the case of "no tab", then get rid of the
@@ -770,7 +774,7 @@ public class FullscreenVideoPictureInPictureController {
 
     /** Protected to allow tests to override, since mocking statics is error-prone. */
     @VisibleForTesting
-    /* package */ InfoBarContainer getInfoBarContainerForTab(Tab tab) {
+    /* package */ @Nullable InfoBarContainer getInfoBarContainerForTab(@Nullable Tab tab) {
         return InfoBarContainer.get(tab);
     }
 
@@ -789,9 +793,8 @@ public class FullscreenVideoPictureInPictureController {
      * MediaSession's static getter.
      */
     @VisibleForTesting
-    /* package */ @Nullable
-    MediaSession getMediaSession() {
-        // This works if `getWebContents()` is null.
+    /* package */ @Nullable MediaSession getMediaSession() {
+        if (getWebContents() == null) return null;
         return MediaSession.fromWebContents(getWebContents());
     }
 }

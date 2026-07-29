@@ -65,6 +65,7 @@
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/chrome/browser/shared/public/commands/text_zoom_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/public/prototypes/diamond/utils.h"
 #import "ios/chrome/browser/shared/ui/util/named_guide.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/shared/ui/util/url_with_title.h"
@@ -89,8 +90,6 @@
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_params.h"
 #import "ios/chrome/browser/voice/ui_bundled/voice_search_notification_names.h"
-#import "ios/chrome/browser/web/model/page_placeholder_browser_agent.h"
-#import "ios/chrome/browser/web/model/page_placeholder_tab_helper.h"
 #import "ios/chrome/browser/web/model/web_navigation_browser_agent.h"
 #import "ios/chrome/browser/web/model/web_navigation_util.h"
 #import "ios/chrome/browser/web_state_list/model/web_usage_enabler/web_usage_enabler_browser_agent.h"
@@ -118,6 +117,11 @@ enum HeaderBehaviour {
   // This header stay on screen and covers part of the content.
   Overlap
 };
+
+// Inset to remove from the toolbar height when in full-screen mode with the
+// dynamic island visible.
+const CGFloat kTopDynamicIslandInset = 24;
+
 }  // namespace
 
 #pragma mark - HeaderDefinition helper
@@ -222,6 +226,9 @@ enum HeaderBehaviour {
   // Fake status bar view used to blend the toolbar into the status bar.
   UIView* _fakeStatusBarView;
 
+  // Background view behind the `_fakeStatusBarView and the `tabStripView`.
+  UIView* _topBackgroundView;
+
   // The service used to load url parameters in current or new tab.
   raw_ptr<UrlLoadingBrowserAgent> _urlLoadingBrowserAgent;
 
@@ -230,9 +237,6 @@ enum HeaderBehaviour {
 
   // Used to get the layout guide center.
   LayoutGuideCenter* _layoutGuideCenter;
-
-  // Used to add or cancel a page placeholder for next navigation.
-  raw_ptr<PagePlaceholderBrowserAgent> _pagePlaceholderBrowserAgent;
 
   // Whether the Lens Overlay is currently active and visible for the browser
   // view.
@@ -382,7 +386,6 @@ enum HeaderBehaviour {
     _webStateList = dependencies.webStateList;
     _voiceSearchController = dependencies.voiceSearchController;
     self.safeAreaProvider = dependencies.safeAreaProvider;
-    _pagePlaceholderBrowserAgent = dependencies.pagePlaceholderBrowserAgent;
 
     self.inNewTabAnimation = NO;
     self.fullscreenController = dependencies.fullscreenController;
@@ -535,7 +538,7 @@ enum HeaderBehaviour {
     return results;
   }
 
-  if (!IsRegularXRegularSizeClass(self)) {
+  if (!CanShowTabStrip(self)) {
     if (self.toolbarCoordinator.primaryToolbarViewController.view) {
       [results
           addObject:[HeaderDefinition
@@ -585,7 +588,7 @@ enum HeaderBehaviour {
 
 - (CGFloat)headerOffset {
   CGFloat headerOffset = self.rootSafeAreaInsets.top;
-  return IsRegularXRegularSizeClass(self) ? headerOffset : 0.0;
+  return CanShowTabStrip(self) ? headerOffset : 0.0;
 }
 
 - (CGFloat)headerHeight {
@@ -717,7 +720,6 @@ enum HeaderBehaviour {
   if (active) {
     // Force loading the view in case it was not loaded yet.
     [self loadViewIfNeeded];
-    _pagePlaceholderBrowserAgent->AddPagePlaceholder();
     if (self.viewForCurrentWebState) {
       [self displayTabView];
     }
@@ -773,8 +775,7 @@ enum HeaderBehaviour {
 
 - (void)animateOpenBackgroundTabFromOriginPoint:(CGPoint)originPoint
                                      completion:(void (^)())completion {
-  if (IsRegularXRegularSizeClass(self) ||
-      CGPointEqualToPoint(originPoint, CGPointZero)) {
+  if (CanShowTabStrip(self) || CGPointEqualToPoint(originPoint, CGPointZero)) {
     completion();
   } else {
     self.inNewTabAnimation = YES;
@@ -901,6 +902,7 @@ enum HeaderBehaviour {
   [self buildToolbarAndTabStrip];
   [self setUpViewLayout:YES];
   [self addConstraintsToToolbar];
+  [self configureTopBackgroundView];
 
   [_sideSwipeCoordinator addHorizontalGesturesToView:self.view];
 
@@ -949,6 +951,13 @@ enum HeaderBehaviour {
   // Update the toolbar height to account for `topLayoutGuide` changes.
   self.primaryToolbarHeightConstraint.constant =
       [self primaryToolbarHeightWithInset];
+
+  if ([self topInsetWithCornerAdaptation] - self.rootSafeAreaInsets.top > 0) {
+    // On iOS 26, the safe area layout guide doesn't automatically adjust
+    // for the control setting island's dimensions.
+    // Update the collapsedTopToolbarHeight when the dynamic island has moved.
+    [self updateToolbarState];
+  }
 
   if (self.ntpCoordinator.isNTPActiveForCurrentWebState &&
       self.webUsageEnabled) {
@@ -1126,12 +1135,10 @@ enum HeaderBehaviour {
 
       // Load view from Launch Screen and add it to window.
       NSBundle* mainBundle = base::apple::FrameworkBundle();
-      NSArray* topObjects = [mainBundle loadNibNamed:@"LaunchScreen"
-                                               owner:self
-                                             options:nil];
+      UIStoryboard* storyboard =
+          [UIStoryboard storyboardWithName:@"LaunchScreen" bundle:mainBundle];
       UIViewController* launchScreenController =
-          base::apple::ObjCCastStrict<UIViewController>(
-              [topObjects lastObject]);
+          [storyboard instantiateInitialViewController];
       // `launchScreenView` is loaded as an autoreleased object, and is retained
       // by the `completion` block below.
       UIView* launchScreenView = launchScreenController.view;
@@ -1244,7 +1251,7 @@ enum HeaderBehaviour {
     _fakeStatusBarView.overrideUserInterfaceStyle =
         _isOffTheRecord ? UIUserInterfaceStyleDark
                         : UIUserInterfaceStyleUnspecified;
-    const bool canShowTabStrip = IsRegularXRegularSizeClass(self);
+    const bool canShowTabStrip = CanShowTabStrip(self);
     _fakeStatusBarView.hidden = !canShowTabStrip;
     _fakeStatusBarView.autoresizingMask = UIViewAutoresizingFlexibleWidth;
     DCHECK(self.contentArea);
@@ -1268,9 +1275,9 @@ enum HeaderBehaviour {
   }
 
   if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
-    const bool canShowTabStrip = IsRegularXRegularSizeClass(self);
-      [self.tabStripCoordinator start];
-      [self.tabStripCoordinator hideTabStrip:!canShowTabStrip];
+    const bool canShowTabStrip = CanShowTabStrip(self);
+    [self.tabStripCoordinator start];
+    [self.tabStripCoordinator hideTabStrip:!canShowTabStrip];
   }
 }
 
@@ -1301,11 +1308,11 @@ enum HeaderBehaviour {
 // Returns 0 if the toolbar should be hidden.
 - (CGFloat)secondaryToolbarHeightWithInset {
   CGFloat height = self.toolbarCoordinator.expandedSecondaryToolbarHeight;
-  if (IsDiamondPrototypeEnabled()) {
-    return height;
-  }
   if (!height) {
     return 0.0;
+  }
+  if (IsDiamondPrototypeEnabled()) {
+    return kDiamondToolbarHeight;
   }
   // Add the safe area inset to the toolbar height.
   CGFloat unsafeHeight = self.rootSafeAreaInsets.bottom;
@@ -1315,16 +1322,12 @@ enum HeaderBehaviour {
 // Sets up the constraints on the toolbar.
 - (void)addConstraintsToPrimaryToolbar {
   NSLayoutYAxisAnchor* topAnchor;
-  // On iPhone, the toolbar is underneath the top of the screen.
-  // On iPad, it depends:
-  // - if the window is compact, it is like iPhone, underneath the top of the
-  // screen.
-  // - if the window is regular, it is underneath the tab strip.
-  if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_PHONE ||
-      !IsRegularXRegularSizeClass(self)) {
-    topAnchor = self.view.topAnchor;
-  } else {
+  if (CanShowTabStrip(self)) {
+    // On iPad, the toolbar is underneath the tab strip.
     topAnchor = self.tabStripView.bottomAnchor;
+  } else {
+    // On iPhone, the toolbar is underneath the top of the screen.
+    topAnchor = self.view.topAnchor;
   }
 
   // Only add leading and trailing constraints once as they are never updated.
@@ -1645,14 +1648,14 @@ enum HeaderBehaviour {
   DCHECK(self.ntpCoordinator.isNTPActiveForCurrentWebState);
   // NTP is laid out only in the visible part of the screen.
   UIEdgeInsets viewportInsets = UIEdgeInsetsZero;
-  if (!IsRegularXRegularSizeClass(self)) {
+  if (!CanShowTabStrip(self)) {
     viewportInsets.bottom = [self secondaryToolbarHeightWithInset];
   }
 
   // Add toolbar margin to the frame for every scenario except compact-width
   // non-otr, as that is the only case where there isn't a primary toolbar.
   // (see crbug.com/1063173)
-  if (!IsSplitToolbarMode(self) || _isOffTheRecord) {
+  if (CanShowTabStrip(self) || !IsSplitToolbarMode(self) || _isOffTheRecord) {
     viewportInsets.top = [self expandedTopToolbarHeight];
   }
   return UIEdgeInsetsInsetRect(self.contentArea.bounds, viewportInsets);
@@ -1672,7 +1675,7 @@ enum HeaderBehaviour {
     // toolbar_view manages it's alpha changes would also need to be updated.
     // TODO(crbug.com/40546808): This can be cleaned up when the new fullscreen
     // is enabled.
-    if (isPrimaryToolbar && !IsRegularXRegularSizeClass(self)) {
+    if (isPrimaryToolbar && !CanShowTabStrip(self)) {
       self.primaryToolbarOffsetConstraint.constant = yOrigin;
     }
     CGRect frame = [header.view frame];
@@ -1780,8 +1783,8 @@ enum HeaderBehaviour {
   if (self.tabStripView) {
     [self showTabStripView:self.tabStripView];
     [self.tabStripView layoutSubviews];
-    const bool canShowTabStrip = IsRegularXRegularSizeClass(self);
-      [self.tabStripCoordinator hideTabStrip:!canShowTabStrip];
+    const bool canShowTabStrip = CanShowTabStrip(self);
+    [self.tabStripCoordinator hideTabStrip:!canShowTabStrip];
     _fakeStatusBarView.hidden = !canShowTabStrip;
     [self addConstraintsToPrimaryToolbar];
     // If tabstrip is leaving or coming back due to a window resize or screen
@@ -1816,6 +1819,50 @@ enum HeaderBehaviour {
   UIView* primaryToolbar =
       self.toolbarCoordinator.primaryToolbarViewController.view;
   [self.view insertSubview:tabStripView belowSubview:primaryToolbar];
+}
+
+// On iOS 26, returns the top inset with corner adapation, otherwise returns 0.
+- (CGFloat)topInsetWithCornerAdaptation {
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+  if (@available(iOS 26, *)) {
+    UIViewLayoutRegion* safeAreaRegion =
+        [UIViewLayoutRegion safeAreaLayoutRegionWithCornerAdaptation:
+                                UIViewLayoutRegionAdaptivityAxisVertical];
+    NSDirectionalEdgeInsets calculatedInsets = [self.safeAreaProvider
+        directionalEdgeInsetsForLayoutRegion:safeAreaRegion];
+    return calculatedInsets.top;
+  }
+#endif
+  return 0;
+}
+
+// Adds a a background filler below the top of the fake status bar to the bottom
+// of the tab strip. This is needed on iPad when the app is windowed and pinned
+// to the top with fullscreen is enabled.
+- (void)configureTopBackgroundView {
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+  if (@available(iOS 26, *)) {
+    if (self.tabStripView) {
+      _topBackgroundView = [[UIView alloc] init];
+      _topBackgroundView.translatesAutoresizingMaskIntoConstraints = NO;
+      _topBackgroundView.backgroundColor =
+          [UIColor colorNamed:kBackgroundColor];
+      [self.view insertSubview:_topBackgroundView
+                  belowSubview:_fakeStatusBarView];
+
+      [NSLayoutConstraint activateConstraints:@[
+        [_topBackgroundView.topAnchor
+            constraintEqualToAnchor:_fakeStatusBarView.topAnchor],
+        [_topBackgroundView.bottomAnchor
+            constraintEqualToAnchor:self.tabStripView.bottomAnchor],
+        [_topBackgroundView.leadingAnchor
+            constraintEqualToAnchor:_fakeStatusBarView.leadingAnchor],
+        [_topBackgroundView.trailingAnchor
+            constraintEqualToAnchor:_fakeStatusBarView.trailingAnchor],
+      ]];
+    }
+  }
+#endif
 }
 
 #pragma mark - Private Methods: Tap handling
@@ -1869,7 +1916,7 @@ enum HeaderBehaviour {
     // If the NTP is active, then it's used as the base view for snapshotting.
     // When the tab strip is visible, or for the incognito NTP, the NTP is laid
     // out between the toolbars, so it should not be inset while snapshotting.
-    if (IsRegularXRegularSizeClass(self) || _isOffTheRecord) {
+    if (CanShowTabStrip(self) || _isOffTheRecord) {
       return UIEdgeInsetsZero;
     }
 
@@ -2009,8 +2056,19 @@ enum HeaderBehaviour {
 // The minimum amount by which the top toolbar overlaps the browser content
 // area.
 - (CGFloat)collapsedTopToolbarHeight {
-  return self.rootSafeAreaInsets.top +
-         self.toolbarCoordinator.collapsedPrimaryToolbarHeight;
+  CGFloat topInset = self.rootSafeAreaInsets.top;
+
+  // On iOS 26, the safe area layout guide doesn't automatically adjust for the
+  // control setting island's dimensions.
+  // If the app is windowed, the dynamic island is not included in the
+  // status bar. In that case, `topInset` should be updated.
+  CGFloat topInsetWithCornerAdaptation = [self topInsetWithCornerAdaptation];
+  if (topInsetWithCornerAdaptation - topInset > 0) {
+    topInset =
+        fmax(topInset, topInsetWithCornerAdaptation - kTopDynamicIslandInset);
+  }
+
+  return topInset + self.toolbarCoordinator.collapsedPrimaryToolbarHeight;
 }
 
 // The minimum amount by which the bottom toolbar overlaps the browser content
@@ -2020,6 +2078,9 @@ enum HeaderBehaviour {
   if (!height) {
     return 0.0;
   }
+  if (IsDiamondPrototypeEnabled()) {
+    return kDiamondCollapsedToolbarHeight;
+  }
   // Height is non-zero only when bottom omnibox is enabled.
   return self.rootSafeAreaInsets.bottom + height;
 }
@@ -2028,8 +2089,7 @@ enum HeaderBehaviour {
 // area.
 - (CGFloat)expandedTopToolbarHeight {
   return [self primaryToolbarHeightWithInset] +
-         (IsRegularXRegularSizeClass(self) ? self.tabStripView.frame.size.height
-                                           : 0.0) +
+         (CanShowTabStrip(self) ? self.tabStripView.frame.size.height : 0.0) +
          self.headerOffset;
 }
 
@@ -2076,6 +2136,14 @@ enum HeaderBehaviour {
 // progress of 1.0 fully shows the headers and a progress of 0.0 fully hides
 // them.
 - (void)updateHeadersForFullscreenProgress:(CGFloat)progress {
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+  if (@available(iOS 26, *)) {
+    if (self.tabStripView) {
+      self.tabStripView.alpha = progress;
+      _fakeStatusBarView.alpha = progress;
+    }
+  }
+#endif
   CGFloat offset =
       AlignValueToPixel((1.0 - progress) * [self primaryToolbarHeightDelta]);
   [self setFramesForHeaders:[self headerViews] atOffset:offset];
@@ -2239,9 +2307,6 @@ enum HeaderBehaviour {
   }
 
   [self displayTabView];
-  if (!self.inNewTabAnimation) {
-    _pagePlaceholderBrowserAgent->CancelPagePlaceholder();
-  }
 }
 
 - (void)initiateNewTabForegroundAnimationForWebState:(web::WebState*)webState {
@@ -2250,7 +2315,7 @@ enum HeaderBehaviour {
   __weak id<OmniboxCommands> omniboxHandler = self.omniboxCommandsHandler;
 
   // Initiates the new tab foreground animation, which is phone-specific.
-  if (IsRegularXRegularSizeClass(self)) {
+  if (CanShowTabStrip(self)) {
     if (self.foregroundTabWasAddedCompletionBlock) {
       // This callback is called before webState is activated. Dispatch the
       // callback asynchronously to be sure the activation is complete.
@@ -2310,7 +2375,7 @@ enum HeaderBehaviour {
                  newTabPageTabHelper:(NewTabPageTabHelper*)NTPHelper
                      topToolbarImage:(UIImage*)topToolbarImage
                   bottomToolbarImage:(UIImage*)bottomToolbarImage {
-  if (IsRegularXRegularSizeClass(self)) {
+  if (CanShowTabStrip(self)) {
     return;
   }
 
@@ -2391,7 +2456,7 @@ enum HeaderBehaviour {
   BOOL isNTP = tabURL == kChromeUINewTabURL;
   BOOL isIncognito = _isOffTheRecord;
 
-  if (isNTP && !isIncognito && !IsRegularXRegularSizeClass(self)) {
+  if (isNTP && !isIncognito && !CanShowTabStrip(self)) {
     // Add a snapshot of the primary toolbar to the background as the
     // animation runs.
     UIViewController* toolbarViewController =
@@ -2606,7 +2671,7 @@ enum HeaderBehaviour {
 #pragma mark - CardSwipeViewDelegate
 
 - (void)sideSwipeViewDismissAnimationDidEnd:(UIView*)sideSwipeView {
-  DCHECK(!IsRegularXRegularSizeClass(self));
+  DCHECK(!CanShowTabStrip(self));
   // TODO(crbug.com/40842406): Signal to the toolbar coordinator to perform this
   // update. Longer-term, make SideSwipeMediatorDelegate observable instead of
   // delegating.
@@ -2762,7 +2827,7 @@ enum HeaderBehaviour {
   // The LensCoordinator needs the content area of the webView with the
   // header and footer toolbars visible.
   UIEdgeInsets viewportInsets = self.rootSafeAreaInsets;
-  if (!IsRegularXRegularSizeClass(self)) {
+  if (!CanShowTabStrip(self)) {
     viewportInsets.bottom = [self secondaryToolbarHeightWithInset];
   }
 
@@ -2797,7 +2862,7 @@ enum HeaderBehaviour {
 }
 
 - (NSDirectionalEdgeInsets)presentationInsetsForLensOverlay {
-  if (IsRegularXRegularSizeClass(self)) {
+  if (CanShowTabStrip(self)) {
     return NSDirectionalEdgeInsetsMake([self expandedTopToolbarHeight], 0, 0,
                                        0);
   }

@@ -221,6 +221,10 @@ export class PdfViewerElement extends PdfViewerBaseElement {
       pdfInk2Enabled_: {type: Boolean},
       // </if>
 
+      // <if expr="enable_pdf_save_to_drive">
+      pdfSaveToDriveEnabled_: {type: Boolean},
+      // </if>
+
       pdfUseShowSaveFilePicker_: {type: Boolean},
       showPasswordDialog_: {type: Boolean},
       showPropertiesDialog_: {type: Boolean},
@@ -286,6 +290,10 @@ export class PdfViewerElement extends PdfViewerBaseElement {
   // <if expr="enable_pdf_ink2">
   protected accessor pdfInk2Enabled_: boolean = false;
   // </if>
+  // <if expr="enable_pdf_save_to_drive">
+  protected accessor pdfSaveToDriveEnabled_: boolean = false;
+  // </if>
+  private pdfSearchifySaveEnabled_: boolean = false;
   private accessor pdfUseShowSaveFilePicker_: boolean = false;
   private pluginController_: PluginController = PluginController.getInstance();
   // <if expr="enable_pdf_ink2">
@@ -933,6 +941,11 @@ export class PdfViewerElement extends PdfViewerBaseElement {
     // <if expr="enable_pdf_ink2">
     this.pdfInk2Enabled_ = loadTimeData.getBoolean('pdfInk2Enabled');
     // </if>
+    // <if expr="enable_pdf_save_to_drive">
+    this.pdfSaveToDriveEnabled_ = loadTimeData.getBoolean('pdfSaveToDrive');
+    // </if>
+    this.pdfSearchifySaveEnabled_ =
+        loadTimeData.getBoolean('pdfSearchifySaveEnabled');
     this.pdfUseShowSaveFilePicker_ =
         loadTimeData.getBoolean('pdfUseShowSaveFilePicker');
     const presetZoomFactors = this.viewport.presetZoomFactors;
@@ -1317,7 +1330,7 @@ export class PdfViewerElement extends PdfViewerBaseElement {
       saveMode = SaveRequestType.ANNOTATION;
     } else if (this.hasEdits_) {
       saveMode = SaveRequestType.EDITED;
-    } else if (this.hasSearchifyText_) {
+    } else if (this.hasSearchifyText_ && this.pdfSearchifySaveEnabled_) {
       saveMode = SaveRequestType.SEARCHIFIED;
     } else {
       saveMode = SaveRequestType.ORIGINAL;
@@ -1329,6 +1342,13 @@ export class PdfViewerElement extends PdfViewerBaseElement {
   protected onToolbarSave_(e: CustomEvent<SaveRequestType>) {
     this.save_(e.detail);
   }
+
+  // <if expr="enable_pdf_save_to_drive">
+  protected onSaveToDrive_(e: CustomEvent<SaveRequestType>) {
+    // TODO(crbug.com/427449996): Implement the logic to save the PDF to Drive.
+    console.warn('Saving to Drive is not implemented yet.' + e);
+  }
+  // </if> enable_pdf_save_to_drive
 
   protected onChangePage_(e: CustomEvent<ChangePageDetail>) {
     this.viewport.goToPage(e.detail.page);

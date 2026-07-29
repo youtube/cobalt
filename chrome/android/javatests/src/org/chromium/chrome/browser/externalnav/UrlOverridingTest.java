@@ -57,6 +57,7 @@ import org.chromium.base.ApplicationStatus;
 import org.chromium.base.ApplicationStatus.ActivityStateListener;
 import org.chromium.base.Callback;
 import org.chromium.base.ContextUtils;
+import org.chromium.base.Holder;
 import org.chromium.base.IntentUtils;
 import org.chromium.base.PackageManagerUtils;
 import org.chromium.base.ThreadUtils;
@@ -73,6 +74,7 @@ import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.base.test.util.PackageManagerWrapper;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.blink_public.common.BlinkFeatures;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.LaunchIntentDispatcher;
 import org.chromium.chrome.browser.app.ChromeActivity;
@@ -509,11 +511,11 @@ public class UrlOverridingTest {
         final CallbackHelper loadCallback = new CallbackHelper();
 
         final Tab tab = mTabbedActivityTestRule.getActivity().getActivityTab();
-        final Tab[] latestTabHolder = new Tab[1];
+        final Holder<@Nullable Tab> latestTabHolder = new Holder<>(null);
 
         AtomicReference<OverrideUrlLoadingResult> lastResultValue = new AtomicReference<>();
 
-        latestTabHolder[0] = tab;
+        latestTabHolder.value = tab;
 
         Callback<Pair<GURL, OverrideUrlLoadingResult>> resultCallback =
                 (Pair<GURL, OverrideUrlLoadingResult> result) -> {
@@ -546,6 +548,7 @@ public class UrlOverridingTest {
                                 public void onNewTabCreated(
                                         Tab newTab, @TabCreationState int creationState) {
                                     Assert.assertTrue(params.createsNewTab);
+                                    latestTabHolder.value = newTab;
                                     newTabCallback.notifyCalled();
                                     loadCallback.notifyCalled();
                                     newTab.addObserver(
@@ -555,7 +558,6 @@ public class UrlOverridingTest {
                                                     destroyedCallback,
                                                     failCallback,
                                                     loadCallback));
-                                    latestTabHolder[0] = newTab;
                                     TestChildFrameNavigationObserver
                                             .createAndAttachToNativeWebContents(
                                                     newTab.getWebContents(),
@@ -617,11 +619,20 @@ public class UrlOverridingTest {
             newTabCallback.waitForCallback("New Tab was not created.", 0, 1, 20, TimeUnit.SECONDS);
         }
 
-        if (params.createsNewTab
-                && UrlUtilities.isHttpOrHttps(latestTabHolder[0].getUrl())
-                && !params.shouldLaunchExternalIntent) {
-            firstPaintCallback.waitForCallback(
-                    "New Tab content was not drawn.", 1, 1, 20, TimeUnit.SECONDS);
+        if (params.createsNewTab && !params.shouldLaunchExternalIntent) {
+            ChromeTabUtils.waitForInteractable(tab);
+            // The new tab URL is sometimes empty and not strictly linked to the interactable state.
+            CriteriaHelper.pollUiThread(
+                    () -> {
+                        Criteria.checkThat(
+                                GURL.isEmptyOrInvalid(latestTabHolder.value.getUrl()),
+                                Matchers.is(false));
+                    });
+
+            if (UrlUtilities.isHttpOrHttps(latestTabHolder.value.getUrl())) {
+                firstPaintCallback.waitForCallback(
+                        "New Tab content was not drawn.", 1, 1, 20, TimeUnit.SECONDS);
+            }
         }
 
         if (params.shouldFailNavigation) {
@@ -649,7 +660,7 @@ public class UrlOverridingTest {
                     // and NO_OVERRIDE since tab clobbering will eventually lead to NO_OVERRIDE.
                     // in the tab. Rather, we check the final URL to distinguish between
                     // fallback and normal navigation. See crbug.com/487364 for more.
-                    Tab latestTab = latestTabHolder[0];
+                    Tab latestTab = latestTabHolder.value;
                     if (params.shouldLaunchExternalIntent) {
                         Criteria.checkThat(
                                 lastResultValue.get().getResultType(),
@@ -2287,6 +2298,8 @@ public class UrlOverridingTest {
     @EnableFeatures({ExternalIntentsFeatures.AUXILIARY_NAVIGATION_STAYS_IN_BROWSER_NAME})
     @LargeTest
     public void testAuxiliaryNavigationShouldStayInBrowser() throws Exception {
+        InterceptNavigationDelegateClientImpl.setIsDesktopWindowingModeForTesting(true);
+
         mTabbedActivityTestRule.startOnBlankPage();
 
         String url_external = EXTERNAL_APP_SCHEME + "://example.com";
@@ -2316,6 +2329,8 @@ public class UrlOverridingTest {
     @EnableFeatures({ExternalIntentsFeatures.AUXILIARY_NAVIGATION_STAYS_IN_BROWSER_NAME})
     @LargeTest
     public void testTopLevelNavigationShouldBeIntercepted() throws Exception {
+        InterceptNavigationDelegateClientImpl.setIsDesktopWindowingModeForTesting(true);
+
         mTabbedActivityTestRule.startOnBlankPage();
 
         String url_external = EXTERNAL_APP_SCHEME + "://example.com";
@@ -2344,6 +2359,8 @@ public class UrlOverridingTest {
     @EnableFeatures({ExternalIntentsFeatures.AUXILIARY_NAVIGATION_STAYS_IN_BROWSER_NAME})
     @LargeTest
     public void testSelfNavigationInAuxiliaryPage() throws Exception {
+        InterceptNavigationDelegateClientImpl.setIsDesktopWindowingModeForTesting(true);
+
         String page_with_self_link =
                 getUrlWithParam(
                         NAVIGATION_FROM_TARGET_SELF_LINK, EXTERNAL_APP_SCHEME + "://example.com");

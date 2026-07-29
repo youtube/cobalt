@@ -12,6 +12,7 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
 #include "base/notreached.h"
@@ -51,6 +52,7 @@
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
+#include "chrome/browser/ui/hats/survey_config.h"
 #include "chrome/browser/ui/managed_ui.h"
 #include "chrome/browser/ui/passwords/ui_utils.h"
 #include "chrome/browser/ui/profiles/profile_colors_util.h"
@@ -218,9 +220,26 @@ ProfileMenuView::ProfileMenuView(
       browser_(raw_ref<Browser>::from_ptr(browser)),
       explicit_signin_access_point_(explicit_signin_access_point) {
   set_close_on_deactivate(close_on_deactivate_for_testing_);
+
+  // Set the callback to launch a HaTS survey upon menu dismissal.
+  // We use `SetCloseCallback` instead of `SetCancelCallback` because the close
+  // callback is also executed when users dismiss the menu by clicking outside,
+  // unlike the cancel callback.
+  SetCloseCallback(
+      base::BindOnce(&ProfileMenuView::OnClose, base::Unretained(this)));
 }
 
 ProfileMenuView::~ProfileMenuView() = default;
+
+void ProfileMenuView::OnClose() {
+  if (!actionable_item_clicked()) {
+    // Launch a HaTS survey only if the user dismissed the profile menu by
+    // clicking outside or pressing the Escape key. Do not launch if a button
+    // within the menu was clicked.
+    profiles::LaunchSigninHatsSurveyForBrowser(
+        kHatsSurveyTriggerIdentityProfileMenuDismissed, &browser());
+  }
+}
 
 void ProfileMenuView::BuildMenu() {
   if (profile().IsGuestSession()) {
@@ -280,7 +299,7 @@ std::u16string ProfileMenuView::GetAccessibleWindowTitle() const {
 }
 
 void ProfileMenuView::OnProfileManagementButtonClicked() {
-  RecordClick(ActionableItem::kProfileManagementLabel);
+  OnActionableItemClicked(ActionableItem::kProfileManagementLabel);
   if (!perform_menu_actions()) {
     return;
   }
@@ -288,7 +307,7 @@ void ProfileMenuView::OnProfileManagementButtonClicked() {
 }
 
 void ProfileMenuView::OnManageGoogleAccountButtonClicked() {
-  RecordClick(ActionableItem::kManageGoogleAccountButton);
+  OnActionableItemClicked(ActionableItem::kManageGoogleAccountButton);
   if (!perform_menu_actions()) {
     return;
   }
@@ -303,7 +322,7 @@ void ProfileMenuView::OnManageGoogleAccountButtonClicked() {
 }
 
 void ProfileMenuView::OnGuestProfileButtonClicked() {
-  RecordClick(ActionableItem::kGuestProfileButton);
+  OnActionableItemClicked(ActionableItem::kGuestProfileButton);
   if (!perform_menu_actions()) {
     return;
   }
@@ -312,7 +331,7 @@ void ProfileMenuView::OnGuestProfileButtonClicked() {
 }
 
 void ProfileMenuView::OnExitProfileButtonClicked() {
-  RecordClick(ActionableItem::kExitProfileButton);
+  OnActionableItemClicked(ActionableItem::kExitProfileButton);
   if (!perform_menu_actions()) {
     return;
   }
@@ -320,7 +339,7 @@ void ProfileMenuView::OnExitProfileButtonClicked() {
 }
 
 void ProfileMenuView::OnSyncSettingsButtonClicked() {
-  RecordClick(ActionableItem::kSyncSettingsButton);
+  OnActionableItemClicked(ActionableItem::kSyncSettingsButton);
   if (!perform_menu_actions()) {
     return;
   }
@@ -328,7 +347,7 @@ void ProfileMenuView::OnSyncSettingsButtonClicked() {
 }
 
 void ProfileMenuView::OnSyncErrorButtonClicked(AvatarSyncErrorType error) {
-  RecordClick(ActionableItem::kSyncErrorButton);
+  OnActionableItemClicked(ActionableItem::kSyncErrorButton);
   if (!perform_menu_actions()) {
     return;
   }
@@ -393,24 +412,16 @@ void ProfileMenuView::OnSigninButtonClicked(
     CoreAccountInfo account,
     ActionableItem button_type,
     signin_metrics::AccessPoint access_point) {
-  RecordClick(button_type);
+  OnActionableItemClicked(button_type);
 
   if (!perform_menu_actions()) {
     return;
   }
   GetWidget()->CloseWithReason(views::Widget::ClosedReason::kUnspecified);
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-  // TODO(crbug.com/404807488): Update the button and the dialog strings.
-  if (base::FeatureList::IsEnabled(switches::kEnableHistorySyncOptin)) {
-    browser()
-        .GetFeatures()
-        .signin_view_controller()
-        ->ShowModalHistorySyncOptInDialog();
-    return;
-  }
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-
+  // TODO(crbug.com/418145883): Trigger the history sync optin
+  // screen for the case of a signed in with history sync off.
+  // Pending while the HistorySyncPillExperiment is in progress.
   if (button_type == ActionableItem::kSigninReauthButton) {
     // The reauth button does not trigger a sync opt in.
     signin_ui_util::ShowReauthForAccount(&profile(), account.email,
@@ -430,7 +441,7 @@ void ProfileMenuView::OnSignoutButtonClicked() {
       << "Clear primary account is not allowed. Signout should not be offered "
          "in the UI.";
 
-  RecordClick(ActionableItem::kSignoutButton);
+  OnActionableItemClicked(ActionableItem::kSignoutButton);
   if (!perform_menu_actions()) {
     return;
   }
@@ -444,14 +455,19 @@ void ProfileMenuView::OnSignoutButtonClicked() {
 
 void ProfileMenuView::OnOtherProfileSelected(
     const base::FilePath& profile_path) {
-  RecordClick(ActionableItem::kOtherProfileButton);
+  OnActionableItemClicked(ActionableItem::kOtherProfileButton);
   if (!perform_menu_actions()) {
     return;
   }
 
   if (!web_app::AppBrowserController::IsWebApp(&browser())) {
     GetWidget()->CloseWithReason(views::Widget::ClosedReason::kUnspecified);
-    profiles::SwitchToProfile(profile_path, /*always_create=*/false);
+    // Switch to the selected profile and launch a HaTS survey for the
+    // associated non-webapp browser.
+    profiles::SwitchToProfile(
+        profile_path, /*always_create=*/false,
+        base::BindOnce(&profiles::LaunchSigninHatsSurveyForBrowser,
+                       kHatsSurveyTriggerIdentitySwitchProfileFromProfileMenu));
   } else {
     // Open the same web app for another profile.
     // On non-macOS the only allowlisted case is PasswordManager WebApp, which
@@ -484,7 +500,7 @@ void ProfileMenuView::OnOtherProfileSelected(
 }
 
 void ProfileMenuView::OnAddNewProfileButtonClicked() {
-  RecordClick(ActionableItem::kAddNewProfileButton);
+  OnActionableItemClicked(ActionableItem::kAddNewProfileButton);
   if (!perform_menu_actions()) {
     return;
   }
@@ -493,7 +509,7 @@ void ProfileMenuView::OnAddNewProfileButtonClicked() {
 }
 
 void ProfileMenuView::OnManageProfilesButtonClicked() {
-  RecordClick(ActionableItem::kManageProfilesButton);
+  OnActionableItemClicked(ActionableItem::kManageProfilesButton);
   if (!perform_menu_actions()) {
     return;
   }
@@ -502,7 +518,7 @@ void ProfileMenuView::OnManageProfilesButtonClicked() {
 }
 
 void ProfileMenuView::OnEditProfileButtonClicked() {
-  RecordClick(ActionableItem::kEditProfileButton);
+  OnActionableItemClicked(ActionableItem::kEditProfileButton);
   if (!perform_menu_actions()) {
     return;
   }
@@ -510,7 +526,7 @@ void ProfileMenuView::OnEditProfileButtonClicked() {
 }
 
 void ProfileMenuView::OnAutofillSettingsButtonClicked() {
-  RecordClick(ActionableItem::kAutofillSettingsButton);
+  OnActionableItemClicked(ActionableItem::kAutofillSettingsButton);
   if (!perform_menu_actions()) {
     return;
   }
@@ -518,7 +534,7 @@ void ProfileMenuView::OnAutofillSettingsButtonClicked() {
 }
 
 void ProfileMenuView::OnBuildBatchUploadButtonClicked() {
-  RecordClick(ActionableItem::kBatchUploadButton);
+  OnActionableItemClicked(ActionableItem::kBatchUploadButton);
   if (!perform_menu_actions()) {
     return;
   }
@@ -590,8 +606,6 @@ ProfileMenuView::GetIdentitySectionParams(const ProfileAttributesEntry& entry) {
       GetAvatarSyncErrorType(&profile());
   const signin::IdentityManager* identity_manager =
       IdentityManagerFactory::GetForProfile(&profile());
-  const bool is_sync_feature_enabled =
-      identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSync);
   const CoreAccountInfo primary_account_info =
       identity_manager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
   const AccountInfo primary_extended_account_info =
@@ -649,8 +663,8 @@ ProfileMenuView::GetIdentitySectionParams(const ProfileAttributesEntry& entry) {
 
   // Sync error, including "paused".
   if (error.has_value()) {
-    params.subtitle = GetAvatarSyncErrorDescription(
-        *error, is_sync_feature_enabled, primary_account_info.email);
+    params.subtitle =
+        GetAvatarSyncErrorDescription(*error, primary_account_info.email);
     params.button_text = GetSyncErrorButtonText(error.value());
     params.button_action =
         base::BindRepeating(&ProfileMenuView::OnSyncErrorButtonClicked,

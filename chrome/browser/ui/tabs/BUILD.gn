@@ -39,7 +39,10 @@ source_set("tab_enums") {
 # A common interface for operating on tabs for use by both desktop and android.
 # This is temporary until the tabstrip api is implemented on both platforms.
 source_set("tab_list_interface") {
-  sources = [ "tab_list_interface.h" ]
+  sources = [
+    "tab_list_interface.h",
+    "tab_list_interface_observer.h",
+  ]
 
   deps = [
     "//components/tab_groups:tab_groups",
@@ -104,6 +107,10 @@ if (!is_android) {
     if (enable_glic) {
       deps += [ "//chrome/browser/glic" ]
     }
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 
   source_set("tab_group") {
@@ -281,6 +288,7 @@ if (!is_android) {
       "//chrome/browser/profiles:profile",
       "//chrome/browser/reading_list",
       "//chrome/browser/ui:browser_list",
+      "//chrome/browser/ui:browser_tab_strip",
       "//chrome/browser/ui:ui_features",
       "//chrome/browser/ui/browser_window:browser_window",
       "//chrome/browser/ui/commerce:commerce",
@@ -301,6 +309,10 @@ if (!is_android) {
     if (enable_glic) {
       deps += [ "//chrome/browser/glic" ]
     }
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 
   source_set("tabs") {
@@ -308,6 +320,7 @@ if (!is_android) {
       "contents_observing_tab_feature.h",
       "features.h",
       "hover_tab_selector.h",
+      "new_tab_grouping_user_data.h",
       "pinned_tab_codec.h",
       "pinned_tab_service.h",
       "pinned_tab_service_factory.h",
@@ -315,6 +328,7 @@ if (!is_android) {
       "split_tab_scrim_controller.h",
       "split_tab_scrim_delegate.h",
       "split_tab_util.h",
+      "tab_creation_metrics_controller.h",
       "tab_renderer_data.h",
       "tab_style.h",
       "tab_types.h",
@@ -369,6 +383,7 @@ if (!is_android) {
       "split_tab_scrim_controller.cc",
       "split_tab_scrim_delegate.cc",
       "split_tab_util.cc",
+      "tab_creation_metrics_controller.cc",
       "tab_dialog_manager.cc",
       "tab_features.cc",
       "tab_renderer_data.cc",
@@ -387,6 +402,7 @@ if (!is_android) {
       ":tabs",
       "//chrome/app:command_ids",
       "//chrome/app/vector_icons",
+      "//chrome/browser/actor:actor",
       "//chrome/browser/actor/ui:ui",
       "//chrome/browser/commerce",
       "//chrome/browser/content_settings:content_settings_factory",
@@ -416,6 +432,7 @@ if (!is_android) {
       "//chrome/browser/ui/toolbar/pinned_toolbar",
       "//chrome/browser/ui/views/intent_picker:intent_picker_page_action",
       "//chrome/browser/ui/views/page_action",
+      "//chrome/browser/ui/views/page_info",
       "//chrome/browser/ui/views/side_panel",
       "//chrome/browser/ui/views/toolbar:toolbar",
       "//chrome/browser/ui/webui:webui_util",
@@ -533,6 +550,7 @@ if (!is_android) {
       "recent_tabs_builder_test_helper.cc",
       "recent_tabs_builder_test_helper.h",
       "recent_tabs_sub_menu_model_browsertest.cc",
+      "tab_creation_metrics_controller_browsertest.cc",
       "tab_dialog_manager_browsertest.cc",
       "tab_list_bridge_browsertest.cc",
       "tab_menu_model_browsertest.cc",
@@ -629,6 +647,7 @@ if (!is_android) {
       "tab_menu_model_unittest.cc",
       "tab_model_unittest.cc",
       "tab_renderer_data_unittest.cc",
+      "tab_strip_model_context_menu_unittest.cc",
       "tab_strip_model_stats_recorder_unittest.cc",
       "tab_strip_model_unittest.cc",
     ]

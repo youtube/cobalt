@@ -285,17 +285,15 @@ suite('PrivacyGuidePromo', () => {
     document.body.appendChild(page);
     page.scroller = document.body;
 
-    // Need to wait for the 'show-container' event to fire after every
-    // transition, to ensure no logic related to previous transitions is still
-    // running when later transitions are tested.
-    const whenDone = eventToPromise('show-container', page);
-
     // Ensure that all settings-section instances are rendered.
     flush();
     const sections = page.shadowRoot!.querySelectorAll('settings-section');
     assertTrue(sections.length > 1);
 
+    const whenDone = eventToPromise('show-container', page);
+    Router.getInstance().navigateTo(routes.PRIVACY);
     await whenDone;
+    return microtasksFinished();
   });
 
   test('load page', function() {
@@ -305,10 +303,6 @@ suite('PrivacyGuidePromo', () => {
   // Same as the SometimesMoreSectionsShown test in the suite above, but
   // including the privacy guide.
   test('SometimesMoreSectionsShownWithPrivacyGuide', async function() {
-    const whenDone = eventToPromise('show-container', page);
-    Router.getInstance().navigateTo(routes.PRIVACY);
-    await whenDone;
-    await microtasksFinished();
     await privacyGuideBrowserProxy.whenCalled('incrementPromoImpressionCount');
 
     const activeSections =
@@ -402,107 +396,4 @@ suite('PrivacyGuidePromo', () => {
         'recordPrivacyGuideEntryExitHistogram');
     assertEquals(result, PrivacyGuideInteractions.PROMO_ENTRY);
   });
-});
-
-suite('AiSections', () => {
-  let page: SettingsBasicPageElement;
-
-  function createBasicPage() {
-    document.body.innerHTML = window.trustedTypes!.emptyHTML;
-    page = document.createElement('settings-basic-page');
-    document.body.appendChild(page);
-    flush();
-  }
-
-  test('showAiPageHidesAiFeaturesSection', function() {
-    loadTimeData.overrideValues({
-      showAiPage: false,
-      showAiPageAiFeatureSection: true,
-    });
-    resetRouterForTesting();
-
-    createBasicPage();
-    const infoCardSectionElement =
-        page.shadowRoot!.querySelector<SettingsSectionElement>(
-            'settings-section[section=aiInfoCard]');
-    assertFalse(!!infoCardSectionElement);
-
-    const aiFeaturesSectionElement =
-        page.shadowRoot!.querySelector('settings-section[section=ai]');
-    assertFalse(!!aiFeaturesSectionElement);
-  });
-
-  test('aiFeaturesSectionNotVisible', function() {
-    loadTimeData.overrideValues({
-      showAiPage: true,
-      showAiPageAiFeatureSection: false,
-    });
-    resetRouterForTesting();
-
-    createBasicPage();
-    const aiFeaturesSectionElement =
-        page.shadowRoot!.querySelector('settings-section[section=ai]');
-    assertFalse(!!aiFeaturesSectionElement);
-  });
-
-  test('aiFeaturesSectionVisible', function() {
-    loadTimeData.overrideValues({
-      showAiPage: true,
-      showAiPageAiFeatureSection: true,
-    });
-    resetRouterForTesting();
-
-    createBasicPage();
-    const aiFeaturesSectionElement =
-        page.shadowRoot!.querySelector('settings-section[section=ai]');
-    assertTrue(!!aiFeaturesSectionElement);
-
-    const infoCardSectionElement =
-        page.shadowRoot!.querySelector<SettingsSectionElement>(
-            'settings-section[section=aiInfoCard]');
-    assertTrue(!!infoCardSectionElement);
-    assertEquals(
-        routes.AI.section,
-        infoCardSectionElement.getAttribute('nest-under-section'));
-  });
-
-  // <if expr="enable_glic">
-  test('AIPageGlicSectionVisible', function() {
-    loadTimeData.overrideValues({
-      showAiPage: true,
-      showGlicSettings: true,
-    });
-    resetRouterForTesting();
-
-    createBasicPage();
-    const sectionElement =
-        page.shadowRoot!.querySelector<SettingsSectionElement>(
-            'settings-section[section=glicSection]');
-    assertTrue(!!sectionElement);
-    assertEquals(
-        routes.AI.section, sectionElement.getAttribute('nest-under-section'));
-
-    const infoCardSectionElement =
-        page.shadowRoot!.querySelector<SettingsSectionElement>(
-            'settings-section[section=aiInfoCard]');
-    assertTrue(!!infoCardSectionElement);
-    assertEquals(
-        routes.AI.section,
-        infoCardSectionElement.getAttribute('nest-under-section'));
-  });
-
-  test('AIPageGlicSectionNotVisible', function() {
-    loadTimeData.overrideValues({
-      showAiPage: true,
-      showGlicSettings: false,
-    });
-    resetRouterForTesting();
-
-    createBasicPage();
-    const sectionElement =
-        page.shadowRoot!.querySelector<SettingsSectionElement>(
-            'settings-section[section=glicSection]');
-    assertFalse(!!sectionElement);
-  });
-  // </if>
 });

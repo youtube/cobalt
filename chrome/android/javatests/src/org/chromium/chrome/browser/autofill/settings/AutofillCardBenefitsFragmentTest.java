@@ -34,6 +34,7 @@ import org.junit.runner.RunWith;
 
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.Batch;
+import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.UserActionTester;
 import org.chromium.chrome.browser.autofill.AutofillTestHelper;
@@ -92,7 +93,35 @@ public class AutofillCardBenefitsFragmentTest {
                     /* obfuscatedLastFourDigits= */ "• • • • 0005",
                     /* cvc= */ "",
                     /* issuerId= */ "amex",
+                    /* benefitSource= */ "amex",
                     /* productTermsUrl= */ new GURL("http://www.example.com/amex/terms"));
+    private static final CreditCard SAMPLE_CARD_BMO_WITH_BENEFIT =
+            new CreditCard(
+                    /* guid= */ "",
+                    /* origin= */ "",
+                    /* isLocal= */ false,
+                    /* isVirtual= */ false,
+                    /* name= */ "bmo",
+                    /* number= */ "378282246310005",
+                    /* networkAndLastFourDigits= */ "",
+                    /* month= */ "10",
+                    /* year= */ AutofillTestHelper.nextYear(),
+                    /* basicCardIssuerNetwork= */ "BMO",
+                    /* issuerIconDrawableId= */ R.drawable.visa_metadata_card,
+                    /* billingAddressId= */ "",
+                    /* serverId= */ "",
+                    /* instrumentId= */ 2222,
+                    /* cardLabel= */ "",
+                    /* nickname= */ "",
+                    /* cardArtUrl= */ null,
+                    /* virtualCardEnrollmentState= */ VirtualCardEnrollmentState.UNSPECIFIED,
+                    /* productDescription= */ "eclipse Visa Infinite",
+                    /* cardNameForAutofillDisplay= */ "BMO",
+                    /* obfuscatedLastFourDigits= */ "• • • • 0005",
+                    /* cvc= */ "",
+                    /* issuerId= */ "bmo",
+                    /* benefitSource= */ "bmo",
+                    /* productTermsUrl= */ new GURL("http://www.example.com/bmo/terms"));
     private AutofillTestHelper mAutofillTestHelper;
     private UserActionTester mActionTester;
 
@@ -277,8 +306,56 @@ public class AutofillCardBenefitsFragmentTest {
         assertEquals(3, getPreferenceScreen(activity).getPreferenceCount());
     }
 
+    // Test to verify terms for different card with benefits are listed if the card's respective
+    // benefit feature flag is enabled.
+    @Test
+    @MediumTest
+    public void testCardBenefitsPreferenceScreen_withBenefitFlagsOn() throws Exception {
+        mAutofillTestHelper.addServerCreditCard(SAMPLE_CARD_AMERICAN_EXPRESS_WITH_BENEFIT);
+        mAutofillTestHelper.addServerCreditCard(SAMPLE_CARD_BMO_WITH_BENEFIT);
+
+        SettingsActivity activity = mSettingsActivityTestRule.startSettingsActivity();
+
+        assertEquals(2, getPreferenceCountWithKey(activity, PREF_KEY_CARD_BENEFIT_TERM));
+    }
+
+    // Test to verify terms for different cards with benefits are listed only if the card's
+    // respective benefit feature flag is enabled.
+    @Test
+    @MediumTest
+    @DisableFeatures({ChromeFeatureList.AUTOFILL_ENABLE_CARD_BENEFITS_FOR_BMO})
+    public void testCardBenefitsPreferenceScreen_withOneBenefitFlagOn() throws Exception {
+        mAutofillTestHelper.addServerCreditCard(SAMPLE_CARD_AMERICAN_EXPRESS_WITH_BENEFIT);
+        mAutofillTestHelper.addServerCreditCard(SAMPLE_CARD_BMO_WITH_BENEFIT);
+
+        SettingsActivity activity = mSettingsActivityTestRule.startSettingsActivity();
+
+        assertEquals(1, getPreferenceCountWithKey(activity, PREF_KEY_CARD_BENEFIT_TERM));
+        assertTrue(
+                doesPreferenceTitleExist(
+                        activity,
+                        SAMPLE_CARD_AMERICAN_EXPRESS_WITH_BENEFIT.getProductDescription()));
+    }
+
+    // Test to verify terms for different card with benefits are not listed if the card's respective
+    // benefit feature flag is disabled.
+    @Test
+    @MediumTest
+    @DisableFeatures({
+        ChromeFeatureList.AUTOFILL_ENABLE_CARD_BENEFITS_FOR_AMERICAN_EXPRESS,
+        ChromeFeatureList.AUTOFILL_ENABLE_CARD_BENEFITS_FOR_BMO
+    })
+    public void testCardBenefitsPreferenceScreen_withBenefitFlagsOff() throws Exception {
+        mAutofillTestHelper.addServerCreditCard(SAMPLE_CARD_AMERICAN_EXPRESS_WITH_BENEFIT);
+        mAutofillTestHelper.addServerCreditCard(SAMPLE_CARD_BMO_WITH_BENEFIT);
+
+        SettingsActivity activity = mSettingsActivityTestRule.startSettingsActivity();
+
+        assertEquals(0, getPreferenceCountWithKey(activity, PREF_KEY_CARD_BENEFIT_TERM));
+    }
+
     // Test to verify terms for card with the same product (same product description and same
-    // issuer) is only displayed once.
+    // benefit source) is only displayed once.
     @Test
     @MediumTest
     public void testCardBenefitsPreferenceScreen_withDuplicateCardProduct_termsOnlyDisplayedOnce()
@@ -310,6 +387,7 @@ public class AutofillCardBenefitsFragmentTest {
                         /* obfuscatedLastFourDigits= */ "• • • • 0001",
                         /* cvc= */ "",
                         /* issuerId= */ "amex",
+                        /* benefitSource= */ "amex",
                         /* productTermsUrl= */ new GURL("http://www.example.com/amex/terms")));
 
         SettingsActivity activity = mSettingsActivityTestRule.startSettingsActivity();
@@ -317,10 +395,10 @@ public class AutofillCardBenefitsFragmentTest {
         assertEquals(1, getPreferenceCountWithKey(activity, PREF_KEY_CARD_BENEFIT_TERM));
     }
 
-    // Test to verify terms for different card products from the same issuer are listed.
+    // Test to verify terms for different card products from the same benefit source are listed.
     @Test
     @MediumTest
-    public void testCardBenefitsPreferenceScreen_FromSameIssuer() throws Exception {
+    public void testCardBenefitsPreferenceScreen_FromSameBenefitSource() throws Exception {
         mAutofillTestHelper.addServerCreditCard(SAMPLE_CARD_AMERICAN_EXPRESS_WITH_BENEFIT);
         mAutofillTestHelper.addServerCreditCard(
                 new CreditCard(
@@ -347,6 +425,7 @@ public class AutofillCardBenefitsFragmentTest {
                         /* obfuscatedLastFourDigits= */ "• • • • 0001",
                         /* cvc= */ "",
                         /* issuerId= */ "amex",
+                        /* benefitSource= */ "amex",
                         /* productTermsUrl= */ new GURL("http://www.example.com/amex/terms")));
 
         SettingsActivity activity = mSettingsActivityTestRule.startSettingsActivity();
@@ -354,8 +433,8 @@ public class AutofillCardBenefitsFragmentTest {
         assertEquals(2, getPreferenceCountWithKey(activity, PREF_KEY_CARD_BENEFIT_TERM));
     }
 
-    // Test to verify terms for cards with the same product description from the different issuers
-    // are listed.
+    // Test to verify terms for cards with the same product description from the different benefit
+    // sources are listed.
     @Test
     @MediumTest
     public void testCardBenefitsPreferenceScreen_withDuplicateCardProductDescription()
@@ -367,13 +446,13 @@ public class AutofillCardBenefitsFragmentTest {
                         /* origin= */ "",
                         /* isLocal= */ false,
                         /* isVirtual= */ false,
-                        /* name= */ "capital one",
+                        /* name= */ "bmo",
                         /* number= */ "378282246310001",
                         /* networkAndLastFourDigits= */ "",
                         /* month= */ "10",
                         /* year= */ AutofillTestHelper.nextYear(),
-                        /* basicCardIssuerNetwork= */ "Capital One",
-                        /* issuerIconDrawableId= */ R.drawable.capitalone_metadata_card,
+                        /* basicCardIssuerNetwork= */ "BMO",
+                        /* issuerIconDrawableId= */ R.drawable.visa_metadata_card,
                         /* billingAddressId= */ "",
                         /* serverId= */ "",
                         /* instrumentId= */ 3333,
@@ -383,12 +462,12 @@ public class AutofillCardBenefitsFragmentTest {
                         /* virtualCardEnrollmentState= */ VirtualCardEnrollmentState.UNSPECIFIED,
                         /* productDescription= */ SAMPLE_CARD_AMERICAN_EXPRESS_WITH_BENEFIT
                                 .getProductDescription(),
-                        /* cardNameForAutofillDisplay= */ "Capital One",
+                        /* cardNameForAutofillDisplay= */ "BMO",
                         /* obfuscatedLastFourDigits= */ "• • • • 0001",
                         /* cvc= */ "",
-                        /* issuerId= */ "capitalone",
-                        /* productTermsUrl= */ new GURL(
-                                "http://www.example.com/capitalone/terms")));
+                        /* issuerId= */ "bmo",
+                        /* benefitSource= */ "bmo",
+                        /* productTermsUrl= */ new GURL("http://www.example.com/bmo/terms")));
 
         SettingsActivity activity = mSettingsActivityTestRule.startSettingsActivity();
 
@@ -424,6 +503,7 @@ public class AutofillCardBenefitsFragmentTest {
                         /* obfuscatedLastFourDigits= */ "• • • • 0001",
                         /* cvc= */ "",
                         /* issuerId= */ "amex",
+                        /* benefitSource= */ "amex",
                         /* productTermsUrl= */ new GURL("")));
         SettingsActivity activity = mSettingsActivityTestRule.startSettingsActivity();
 
@@ -433,13 +513,27 @@ public class AutofillCardBenefitsFragmentTest {
     private int getPreferenceCountWithKey(SettingsActivity activity, String preferenceKey) {
         int matchingPreferenceCount = 0;
 
-        for (int i = 0; i < getPreferenceScreen(activity).getPreferenceCount(); i++) {
-            Preference preference = getPreferenceScreen(activity).getPreference(i);
+        for (int preferenceIndex = 0;
+                preferenceIndex < getPreferenceScreen(activity).getPreferenceCount();
+                preferenceIndex++) {
+            Preference preference = getPreferenceScreen(activity).getPreference(preferenceIndex);
             if (preference.getKey() != null && preference.getKey().equals(preferenceKey)) {
                 matchingPreferenceCount++;
             }
         }
         return matchingPreferenceCount;
+    }
+
+    private boolean doesPreferenceTitleExist(SettingsActivity activity, String title) {
+        for (int preferenceIndex = 0;
+                preferenceIndex < getPreferenceScreen(activity).getPreferenceCount();
+                preferenceIndex++) {
+            Preference preference = getPreferenceScreen(activity).getPreference(preferenceIndex);
+            if (preference.getTitle() != null && preference.getTitle().equals(title)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static PreferenceScreen getPreferenceScreen(SettingsActivity activity) {

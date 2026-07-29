@@ -11,6 +11,8 @@
 #include <utility>
 
 #include "base/containers/heap_array.h"
+#include "base/debug/crash_logging.h"
+#include "base/debug/dump_without_crashing.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
@@ -36,8 +38,8 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
+#include "base/trace_event/trace_event.h"
 #include "net/base/net_errors.h"
-#include "net/base/tracing.h"
 #include "net/disk_cache/backend_cleanup_tracker.h"
 #include "net/disk_cache/blockfile/disk_format.h"
 #include "net/disk_cache/blockfile/entry_impl.h"
@@ -245,7 +247,10 @@ int BackendImpl::SyncInit() {
     new_eviction_ = (GetCacheType() == net::DISK_CACHE);
   }
 
-  if (!CheckIndex()) {
+  BackendImpl::CheckIndexResult check_index_result = CheckIndex();
+  if (check_index_result != BackendImpl::CheckIndexResult::kOk) {
+    SCOPED_CRASH_KEY_NUMBER("DiskCache", "check_index_result",
+                            static_cast<int>(check_index_result));
     ReportError(ERR_INIT_FAILED);
     return net::ERR_FAILED;
   }
@@ -1012,6 +1017,25 @@ void BackendImpl::ReportError(int error) {
   // We transmit positive numbers, instead of direct error codes.
   DCHECK_LE(error, 0);
   if (GetCacheType() == net::DISK_CACHE) {
+    // TODO(crbug.com/433551601): Remove this once sufficient crash reports have
+    // been gathered, and definitely before stable.
+    if (error == ERR_INIT_FAILED) {
+      static bool has_considered_dumping = false;
+      // We want to DumpWithoutCrashing() only for 0.2% of processes, and only
+      // once per process, to avoid overwhelming the crash service. There are
+      // roughly 8000 ERR_INIT_FAILED logged to UMA per day in Dev and Canary,
+      // so this should yield around 0.002 * 8000 = 16 crash reports per day.
+      if (!has_considered_dumping) {
+        has_considered_dumping = true;
+        if (base::ShouldRecordSubsampledMetric(0.002)) {
+          // Capture the last file error. This may or may not be related to the
+          // reason why init failed.
+          base::File::Error file_error = base::File::GetLastFileError();
+          SCOPED_CRASH_KEY_NUMBER("DiskCache", "file_error", file_error);
+          base::debug::DumpWithoutCrashing();
+        }
+      }
+    }
     base::UmaHistogramExactLinear("DiskCache.0.Error", error * -1, 50);
   }
 }
@@ -1890,18 +1914,18 @@ void BackendImpl::UpgradeTo3_0() {
   data_->header.num_bytes = data_->header.old_v2_num_bytes;
 }
 
-bool BackendImpl::CheckIndex() {
+BackendImpl::CheckIndexResult BackendImpl::CheckIndex() {
   DCHECK(data_);
 
   size_t current_size = index_->GetLength();
   if (current_size < sizeof(Index)) {
     LOG(ERROR) << "Corrupt Index file";
-    return false;
+    return BackendImpl::CheckIndexResult::kCorruptIndexFileInIndexLength;
   }
 
   if (data_->header.magic != kIndexMagic) {
     LOG(ERROR) << "Invalid file magic";
-    return false;
+    return BackendImpl::CheckIndexResult::kInvalidFileMagic;
   }
 
   // 2.0 + new_eviction needs conversion to 2.1.
@@ -1917,18 +1941,18 @@ bool BackendImpl::CheckIndex() {
 
   if (kCurrentVersion != data_->header.version) {
     LOG(ERROR) << "Invalid file version";
-    return false;
+    return BackendImpl::CheckIndexResult::kInvalidFileVersion;
   }
 
   if (!data_->header.table_len) {
     LOG(ERROR) << "Invalid table size";
-    return false;
+    return BackendImpl::CheckIndexResult::kInvalidTableSize;
   }
 
   if (current_size < GetIndexSize(data_->header.table_len) ||
       data_->header.table_len & (kBaseTableLen - 1)) {
     LOG(ERROR) << "Corrupt Index file";
-    return false;
+    return BackendImpl::CheckIndexResult::kCorruptIndexFileInTableLength;
   }
 
   AdjustMaxCacheSize(data_->header.table_len);
@@ -1938,13 +1962,13 @@ bool BackendImpl::CheckIndex() {
       (max_size_ < std::numeric_limits<int32_t>::max() - kDefaultCacheSize &&
        data_->header.num_bytes > max_size_ + kDefaultCacheSize)) {
     LOG(ERROR) << "Invalid cache (current) size";
-    return false;
+    return BackendImpl::CheckIndexResult::kInvalidCacheSize;
   }
 #endif
 
   if (data_->header.num_entries < 0) {
     LOG(ERROR) << "Invalid number of entries";
-    return false;
+    return BackendImpl::CheckIndexResult::kInvalidNumberOfEntries;
   }
 
   if (!mask_) {
@@ -1952,7 +1976,8 @@ bool BackendImpl::CheckIndex() {
   }
 
   // Load the table into memory.
-  return index_->Preload();
+  return index_->Preload() ? BackendImpl::CheckIndexResult::kOk
+                           : BackendImpl::CheckIndexResult::kFailedOnPreload;
 }
 
 int BackendImpl::CheckAllEntries() {

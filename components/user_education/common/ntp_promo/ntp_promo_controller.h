@@ -10,13 +10,17 @@
 #include "base/auto_reset.h"
 #include "base/feature_list.h"
 #include "base/memory/raw_ref.h"
+#include "base/time/time.h"
 #include "components/user_education/common/ntp_promo/ntp_promo_identifier.h"
-#include "components/user_education/common/ntp_promo/ntp_promo_registry.h"
-#include "components/user_education/common/ntp_promo/ntp_promo_specification.h"
-#include "components/user_education/common/user_education_data.h"
-#include "components/user_education/common/user_education_storage_service.h"
+
+class BrowserWindowInterface;
+class Profile;
 
 namespace user_education {
+
+class NtpPromoRegistry;
+class NtpPromoOrderPolicy;
+class UserEducationStorageService;
 
 // The contents of a promo as it will be shown in the NTP.
 struct NtpShowablePromo {
@@ -60,11 +64,11 @@ class NtpPromoController {
                      UserEducationStorageService& storage_service);
 
   // Determines if there are any showable proms.
-  virtual bool HasShowablePromos() const;
+  virtual bool HasShowablePromos(Profile* profile) const;
 
   // Provides ordered lists of eligible and completed promos, intended to be
   // displayed by the NTP. May update prefs as a side effect.
-  virtual NtpShowablePromos GenerateShowablePromos();
+  virtual NtpShowablePromos GenerateShowablePromos(Profile* profile);
 
   // Called when promos are shown by the NTP promo component.
   //
@@ -74,7 +78,8 @@ class NtpPromoController {
       const std::vector<NtpPromoIdentifier>& completed_shown);
 
   // Called in response to an NTP promo activation.
-  virtual void OnPromoClicked(NtpPromoIdentifier id);
+  virtual void OnPromoClicked(NtpPromoIdentifier id,
+                              BrowserWindowInterface* browser);
 
   // Returns the duration for which a promo can be shown after completion.
   static base::TimeDelta GetCompletedPromoShowDurationForTest();
@@ -83,8 +88,14 @@ class NtpPromoController {
   // Updates the data on the promo shown in the top spot.
   void OnPromoShownInTopSpot(NtpPromoIdentifier id);
 
+  // Assembles a vector of showable promo objects (ie. the presentation parts
+  // of the promo) to be sent to the NTP.
+  std::vector<NtpShowablePromo> MakeShowablePromos(
+      const std::vector<NtpPromoIdentifier>& ids);
+
   const raw_ref<NtpPromoRegistry> registry_;
   const raw_ref<UserEducationStorageService> storage_service_;
+  std::unique_ptr<NtpPromoOrderPolicy> order_policy_;
 };
 
 }  // namespace user_education

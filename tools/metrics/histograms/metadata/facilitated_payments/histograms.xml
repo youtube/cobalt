@@ -293,18 +293,74 @@ reviewer.
   <token key="Scheme" variants="EwalletScheme"/>
 </histogram>
 
-<histogram name="FacilitatedPayments.Pix.AccountLinkingPromptShown"
+<histogram name="FacilitatedPayments.Pix.AccountLinking.FlowExitedReason"
+    enum="FacilitatedPayments.Pix.AccountLinking.FlowExitedReason"
+    expires_after="2026-06-01">
+  <owner>longsheng@google.com</owner>
+  <owner>siashah@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    This histogram logs the reasons as to why the Pix account linking flow was
+    exited. The flow is said to be completed if Chrome successfully opens
+    Wallet's Pix account linking page. [Trigger] Pix account linking flow was
+    exited early. [Frequency] Logged at most once per payflow.
+  </summary>
+</histogram>
+
+<histogram
+    name="FacilitatedPayments.Pix.AccountLinking.GetDetailsForCreatePaymentInstrument.Latency"
+    units="ms" expires_after="2026-06-01">
+  <owner>longsheng@google.com</owner>
+  <owner>siashah@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Records the amount of time that it takes to receive a response from the
+    server endpoint that checks the Pix account linking eligibility
+    (GetDetailsForCreatePaymentInstrument). [Frequency] Logged once per Pix
+    account linking flow. [Trigger] The histogram is logged when the server
+    endpoint returns a response.
+  </summary>
+</histogram>
+
+<histogram
+    name="FacilitatedPayments.Pix.AccountLinking.GetDetailsForCreatePaymentInstrument.Result"
+    enum="BooleanEligible" expires_after="2026-06-01">
+  <owner>longsheng@google.com</owner>
+  <owner>siashah@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Records the eligibility response received from the server endpoint that
+    checks the Pix account linking eligibility
+    (GetDetailsForCreatePaymentInstrument). [Frequency] Logged once per Pix
+    account linking flow. [Trigger] The histogram is logged when the server
+    endpoint returns a response.
+  </summary>
+</histogram>
+
+<histogram name="FacilitatedPayments.Pix.AccountLinking.PromptAccepted"
+    enum="BooleanAccepted" expires_after="2026-06-01">
+  <owner>longsheng@google.com</owner>
+  <owner>siashah@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    The count for the number of times user accepted the Pix account linking
+    prompt. 'Accepted' is logged when the prompt is accpeted and `Not accepted`
+    is not logged. [Frequency] Logged once per Pix account linking flow.
+    [Trigger] User clicks the Accept button on Pix account linking prompt.
+  </summary>
+</histogram>
+
+<histogram name="FacilitatedPayments.Pix.AccountLinking.PromptShown"
     enum="BooleanShown" expires_after="2026-06-01">
   <owner>longsheng@google.com</owner>
-  <owner>vishwasuppoor@google.com</owner>
   <owner>siashah@google.com</owner>
   <owner>payments-autofill-team@google.com</owner>
   <summary>
     The count for the number of times the Pix account linking prompt is shown.
-    Records true every time the prompt is shown. [Frequency] Logged once per Pix
-    account linking flow. [Trigger] The histogram is logged when the prompt
-    appears after user completes the payment on their bank/payment app and
-    return back to Chrome.
+    'Shown' is logged when the prompt is shown and `Not shown` is not logged.
+    [Frequency] Logged once per Pix account linking flow. [Trigger] The
+    histogram is logged when the prompt appears after user completes the payment
+    on their bank/payment app and return back to Chrome.
   </summary>
 </histogram>
 
@@ -446,6 +502,22 @@ reviewer.
     response was received.
   </summary>
   <token key="Result" variants="PurchaseActionResult"/>
+</histogram>
+
+<histogram
+    name="FacilitatedPayments.SettingsPage.NonCardPaymentMethodsManagement.A2A.ToggleUpdated"
+    enum="Boolean" expires_after="2026-07-01">
+  <owner>joshuatan@google.com</owner>
+  <owner>junhuihe@google.com</owner>
+  <owner>tushartushar@google.com</owner>
+  <owner>rouslan@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Logs true when the toggle for A2A is enabled and false otherwise. Does not
+    log if the toggle is not updated. [Trigger] User updates the toggle for A2A
+    from the &quot;Pay with non-card payment methods&quot; settings page.
+    [Frequency] Logged once per toggle update.
+  </summary>
 </histogram>
 
 <histogram

@@ -5,6 +5,7 @@
 <translation id="1086486568852410168">Søk med Google Lens</translation>
 <translation id="1143896152279775643">Passordet blir lagret i Google Passordlagring for <ph name="EMAIL" />.</translation>
 <translation id="1146503048444965320">Åpne en ny fane i Chrome</translation>
+<translation id="1158134713295836892">Gemini i Chrome</translation>
 <translation id="1166460004393506534">Slett nettlesingsdata i Chrome</translation>
 <translation id="1179527450541388808">Få raskere tilgang til Chrome fra dokken på Hjem-skjermen på iPad.</translation>
 <translation id="1180362651362502943">Fortsett å bruke Chrome-dataene i Google-kontoen din.</translation>
@@ -117,6 +118,7 @@ Prøv å vente i noen minutter før du logger av. Hvis du logger av nå, blir di
 <translation id="3863841106411295595">Legger til de angitte nettadressene på leselisten i Chrome.</translation>
 <translation id="3901001113120561395">Få mest mulig ut av Chrome.</translation>
 <translation id="3913386780052199712">Pålogget Chrome</translation>
+<translation id="3932250749914183695">Chrome-tips: Bekreft at det er deg</translation>
 <translation id="3984746313391923992">Organisasjonen din krever at du forblir logget av Chrome.</translation>
 <translation id="3988789688219830639">Google Chrome har ikke tilgang til bildene eller videoene dine. Slå på tilgangen i iOS-innstillingene &gt; Personvern &gt; Bilder.</translation>
 <translation id="4064699917955374540">For å bruke og lagre Chrome-data i Google-kontoen din, bekreft at det er deg.</translation>
@@ -327,6 +329,7 @@ Dataene dine ble kryptert med passordfrasen din <ph name="TIME" />. Skriv den in
 <translation id="8897749957032330183">Passord lagres i Google Passordlagring på denne enheten.</translation>
 <translation id="9004772704776174843">Chrome er logget av</translation>
 <translation id="9068336935206019333">Åpne i Chrome Inkognito</translation>
+<translation id="9082304295862405388">Gemini kan bruke den nøyaktige posisjonen din, avhengig av tillatelsen du allerede har gitt Chrome</translation>
 <translation id="909127538042363610">Få den sterkeste sikkerheten i Chrome</translation>
 <translation id="9122931302567044771">Dette betyr at Chrome kommer til å forespørre nettstedet for datamaskiner hver gang.</translation>
 <translation id="9176561303811134420">Administrer betalingsmåter i Chrome</translation>

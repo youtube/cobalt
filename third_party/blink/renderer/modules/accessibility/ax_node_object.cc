@@ -56,6 +56,7 @@
 #include "third_party/blink/renderer/core/dom/node_traversal.h"
 #include "third_party/blink/renderer/core/dom/qualified_name.h"
 #include "third_party/blink/renderer/core/dom/range.h"
+#include "third_party/blink/renderer/core/dom/scroll_marker_group_pseudo_element.h"
 #include "third_party/blink/renderer/core/dom/scroll_marker_pseudo_element.h"
 #include "third_party/blink/renderer/core/dom/shadow_root.h"
 #include "third_party/blink/renderer/core/dom/text.h"
@@ -197,6 +198,44 @@
 
 namespace blink {
 namespace {
+
+const ScrollMarkerPseudoElement* GetScrollMarker(const Node* node) {
+  auto* element = DynamicTo<Element>(node);
+  if (!element) {
+    return nullptr;
+  }
+  return DynamicTo<ScrollMarkerPseudoElement>(
+      element->GetPseudoElement(kPseudoIdScrollMarker));
+}
+
+bool IsTabsModeScrollMarker(const ScrollMarkerPseudoElement& scroll_marker) {
+  ScrollMarkerGroupPseudoElement* scroll_marker_group =
+      scroll_marker.ScrollMarkerGroup();
+  // ::scroll-marker can be without a ::scroll-marker-group when
+  // it's inside e.g. <select>.
+  if (!scroll_marker_group) {
+    return false;
+  }
+  return scroll_marker_group->ScrollMarkerGroupMode() ==
+         ScrollMarkerGroup::ScrollMarkerMode::kTabs;
+}
+
+// Returns `true` if `node` has ::scroll-marker and the originating
+// element of its ::scroll-marker-group has scroll-marker-group property
+// set to `tabs` mode.
+bool IsOriginatingElementForScrollMarkerInTabsMode(const Node* node) {
+  const ScrollMarkerPseudoElement* scroll_marker = GetScrollMarker(node);
+  return scroll_marker && IsTabsModeScrollMarker(*scroll_marker);
+}
+
+// Returns `true` if `node` has inactive ::scroll-marker and the originating
+// element of its ::scroll-marker-group has scroll-marker-group property
+// set to `tabs` mode.
+bool IsOriginatingElementForInactiveScrollMarkerInTabsMode(const Node* node) {
+  const ScrollMarkerPseudoElement* scroll_marker = GetScrollMarker(node);
+  return scroll_marker && !scroll_marker->IsSelected() &&
+         IsTabsModeScrollMarker(*scroll_marker);
+}
 
 bool ShouldUseLayoutNG(const blink::LayoutObject& layout_object) {
   return layout_object.IsInline() &&
@@ -1195,6 +1234,16 @@ AXObjectInclusion AXNodeObject::ShouldIncludeBasedOnSemantics(
 bool AXNodeObject::ComputeIsIgnored(IgnoredReasons* ignored_reasons) const {
   Node* node = GetNode();
 
+  // Originating element should be ignored in AX tree, if the ::scroll-marker
+  // is in tabs mode and not active.
+  if (RuntimeEnabledFeatures::CSSScrollMarkerGroupModesEnabled() &&
+      IsOriginatingElementForInactiveScrollMarkerInTabsMode(node)) {
+    if (ignored_reasons) {
+      ignored_reasons->push_back(IgnoredReason(kAXInactiveCarouselTabContent));
+    }
+    return true;
+  }
+
   if (ShouldIgnoreForHiddenOrInert(ignored_reasons)) {
     if (IsAriaHidden()) {
       return true;
@@ -2151,6 +2200,15 @@ ax::mojom::blink::Role AXNodeObject::RoleFromLayoutObjectOrNode() const {
     return ax::mojom::blink::Role::kSplitter;
   }
 
+  // If the originating element (the scroller) of ::scroll-marker-group to
+  // which ::scroll-marker belongs has scroll-marker-group set to `tabs` mode,
+  // the originating element of ::scroll-marker is given an implicit
+  // role of tabpanel.
+  if (RuntimeEnabledFeatures::CSSScrollMarkerGroupModesEnabled() &&
+      IsOriginatingElementForScrollMarkerInTabsMode(node)) {
+    return ax::mojom::blink::Role::kTabPanel;
+  }
+
   // Minimum role:
   // TODO(accessibility) if (AXObjectCache().IsInternalUICheckerOn()) assert,
   // because it is a bad code smell and usually points to other problems.
@@ -2202,14 +2260,38 @@ ax::mojom::blink::Role AXNodeObject::NativeRoleIgnoringAria() const {
       return ax::mojom::blink::Role::kButton;
     }
 
-    // Carousel ::scroll-marker-group is a kTabList.
-    if (GetNode()->IsScrollMarkerGroupPseudoElement()) {
-      return ax::mojom::blink::Role::kTabList;
-    }
+    if (RuntimeEnabledFeatures::CSSScrollMarkerGroupModesEnabled()) {
+      // Carousel ::scroll-marker-group is either a kTabList or a kNavigation,
+      // based on the scroll-marker-group property of its originating element.
+      if (const auto* scroll_marker_group =
+              DynamicTo<ScrollMarkerGroupPseudoElement>(GetNode())) {
+        return scroll_marker_group->ScrollMarkerGroupMode() ==
+                       ScrollMarkerGroup::ScrollMarkerMode::kTabs
+                   ? ax::mojom::blink::Role::kTabList
+                   : ax::mojom::blink::Role::kNavigation;
+      }
 
-    // Carousel ::scroll-marker within a group is a kTab.
-    if (GetNode()->IsScrollMarkerPseudoElement()) {
-      return ax::mojom::blink::Role::kTab;
+      // Carousel ::scroll-marker within a group is either a kTab or a kLink,
+      // based on the scroll-marker-group property of its
+      // ::scroll-marker-group's originating element.
+      if (const auto* scroll_marker =
+              DynamicTo<ScrollMarkerPseudoElement>(GetNode())) {
+        CHECK(scroll_marker->ScrollMarkerGroup());
+        return scroll_marker->ScrollMarkerGroup()->ScrollMarkerGroupMode() ==
+                       ScrollMarkerGroup::ScrollMarkerMode::kTabs
+                   ? ax::mojom::blink::Role::kTab
+                   : ax::mojom::blink::Role::kLink;
+      }
+    } else {
+      // Carousel ::scroll-marker-group is a kTabList.
+      if (GetNode()->IsScrollMarkerGroupPseudoElement()) {
+        return ax::mojom::blink::Role::kTabList;
+      }
+
+      // Carousel ::scroll-marker within a group is a kTab.
+      if (GetNode()->IsScrollMarkerPseudoElement()) {
+        return ax::mojom::blink::Role::kTab;
+      }
     }
 
     if (GetCSSAltText(GetElement())) {
@@ -2796,7 +2878,7 @@ bool AXNodeObject::IsLineBreakingObject() const {
   if (const LayoutText* layout_text = DynamicTo<LayoutText>(layout_object)) {
     const ComputedStyle& style = layout_object->StyleRef();
     if (layout_text->HasNonCollapsedText() && style.ShouldPreserveBreaks() &&
-        layout_text->PlainText().find('\n') != WTF::kNotFound) {
+        layout_text->PlainText().find('\n') != kNotFound) {
       return true;
     }
   }
@@ -3716,7 +3798,7 @@ AXObject::AXObjectVector AXNodeObject::RadioButtonsInGroup() const {
   // radio buttons.
   AXObject* parent = ParentObjectUnignored();
   if (parent && parent->RoleValue() == ax::mojom::blink::Role::kRadioGroup) {
-    for (AXObject* child : parent->UnignoredChildren()) {
+    for (AXObject* child : parent->UnignoredChildrenSlow()) {
       DCHECK(child);
       if (child->RoleValue() == ax::mojom::blink::Role::kRadioButton &&
           child->IsIncludedInTree()) {

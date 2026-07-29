@@ -67,6 +67,7 @@
 #include "components/sync/model/sync_change_processor.h"
 #include "components/sync/protocol/entity_specifics.pb.h"
 #include "components/sync/protocol/search_engine_specifics.pb.h"
+#include "components/sync/protocol/entity_data.h"
 #include "components/url_formatter/url_fixer.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "url/gurl.h"
@@ -599,21 +600,6 @@ void TemplateURLService::RegisterProfilePrefs(
   registry->RegisterBooleanPref(prefs::kDefaultSearchProviderEnabled, true);
   registry->RegisterBooleanPref(
       prefs::kDefaultSearchProviderContextMenuAccessAllowed, true);
-
-  registry->RegisterInt64Pref(
-      prefs::kDefaultSearchProviderChoiceScreenCompletionTimestamp, 0);
-  registry->RegisterStringPref(
-      prefs::kDefaultSearchProviderChoiceScreenCompletionVersion,
-      std::string());
-  registry->RegisterDictionaryPref(
-      prefs::kDefaultSearchProviderPendingChoiceScreenDisplayState);
-  registry->RegisterInt64Pref(
-      prefs::kDefaultSearchProviderChoiceInvalidationTimestamp, 0);
-
-#if BUILDFLAG(IS_IOS)
-  registry->RegisterIntegerPref(
-      prefs::kDefaultSearchProviderChoiceScreenSkippedCount, 0);
-#endif
 }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -1981,6 +1967,12 @@ std::optional<syncer::ModelError> TemplateURLService::ProcessSyncChanges(
 
 base::WeakPtr<syncer::SyncableService> TemplateURLService::AsWeakPtr() {
   return weak_ptr_factory_.GetWeakPtr();
+}
+
+std::string TemplateURLService::GetClientTag(
+    const syncer::EntityData& entity_data) const {
+  DCHECK(entity_data.specifics.has_search_engine());
+  return entity_data.specifics.search_engine().sync_guid();
 }
 
 std::optional<syncer::ModelError> TemplateURLService::MergeDataAndStartSyncing(

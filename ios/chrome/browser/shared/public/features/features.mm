@@ -250,6 +250,10 @@ BASE_FEATURE(kNTPMIAEntrypoint,
 // contains temporary UI exploration for AIM.
 BASE_FEATURE(kAIMPrototype, "AIMPrototype", base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kOmniboxDRSPrototype,
+             "OmniboxDRSPrototype",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kEnableTraitCollectionWorkAround,
              "EnableTraitCollectionWorkAround",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -432,7 +436,7 @@ BASE_FEATURE(kIOSDownloadNoUIUpdateInBackground,
 
 BASE_FEATURE(kIOSManageAccountStorage,
              "IOSManageAccountStorage",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kDeprecateFeedHeader,
              "DeprecateFeedHeader",
@@ -732,6 +736,17 @@ bool IsKeyboardAccessoryUpgradeEnabled() {
          base::FeatureList::IsEnabled(kIOSKeyboardAccessoryUpgradeForIPad);
 }
 
+bool IsLiquidGlassEffectEnabled() {
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+  if (@available(iOS 26, *)) {
+    return IsKeyboardAccessoryUpgradeEnabled();
+  }
+#endif  // defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >=
+        // __IPHONE_26_0
+
+  return false;
+}
+
 // Feature disabled by default.
 BASE_FEATURE(kMagicStack, "MagicStack", base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -1014,12 +1029,6 @@ BASE_FEATURE(kFRESignInSecondaryActionLabelUpdate,
 
 bool FRESignInSecondaryActionLabelUpdate() {
   return base::FeatureList::IsEnabled(kFRESignInSecondaryActionLabelUpdate);
-}
-
-BASE_FEATURE(kIOSPasskeysM2, "IOSPasskeysM2", base::FEATURE_ENABLED_BY_DEFAULT);
-
-bool IOSPasskeysM2Enabled() {
-  return base::FeatureList::IsEnabled(kIOSPasskeysM2);
 }
 
 BASE_FEATURE(kIOSPushNotificationMultiProfile,

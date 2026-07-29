@@ -162,6 +162,12 @@ typedef NS_ENUM(NSInteger, AccountsItemType) {
   return self;
 }
 
+- (void)dealloc {
+  DUMP_WILL_BE_CHECK(_isBeingDismissed);
+}
+
+#pragma mark - UIViewController
+
 - (void)viewDidLoad {
   [super viewDidLoad];
   self.tableView.accessibilityIdentifier = kSettingsLegacyAccountsTableViewId;
@@ -431,12 +437,16 @@ typedef NS_ENUM(NSInteger, AccountsItemType) {
 #pragma mark - Authentication operations
 
 - (void)showAddAccount {
+  // In case of double-tap, we must stop the first coordinator. This may occur
+  // because, up to iOS 18, the view may have disappeared without calling the
+  // signin completion. See crbug.com/395959814 This also mean we can’t prevent
+  // user interaction as it may simply block the coordinator..
+  [_signinCoordinator stop];
+  if (@available(iOS 26, *)) {
+    [self preventUserInteraction];
+  }
   DCHECK(!self.removeOrMyGoogleChooserAlertCoordinator);
   _authenticationOperationInProgress = YES;
-
-  // TODO(crbug.com/40229802): Remove the following line when todo bug will be
-  // fixed.
-  [self preventUserInteraction];
   __weak __typeof(self) weakSelf = self;
   SigninContextStyle contextStyle = SigninContextStyle::kDefault;
   AccessPoint accessPoint = AccessPoint::kSettings;
@@ -457,7 +467,9 @@ typedef NS_ENUM(NSInteger, AccountsItemType) {
 - (void)handleDidAddAccount:(SigninCoordinatorResult)result {
   // TODO(crbug.com/40229802): Remove the following line when todo bug will be
   // fixed.
-  [self allowUserInteraction];
+  if (@available(iOS 26, *)) {
+    [self allowUserInteraction];
+  }
   [self stopSigninCoordinator];
   [self handleAuthenticationOperationDidFinish];
   if (result == SigninCoordinatorResult::SigninCoordinatorResultSuccess &&

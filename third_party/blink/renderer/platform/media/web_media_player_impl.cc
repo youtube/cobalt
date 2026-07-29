@@ -45,7 +45,6 @@
 #include "media/base/limits.h"
 #include "media/base/media_content_type.h"
 #include "media/base/media_log.h"
-#include "media/base/media_player_logging_id.h"
 #include "media/base/media_switches.h"
 #include "media/base/memory_dump_provider_proxy.h"
 #include "media/base/output_device_info.h"
@@ -62,8 +61,13 @@
 #include "media/learning/common/learning_task_controller.h"
 #include "media/learning/common/media_learning_tasks.h"
 #include "media/learning/mojo/public/cpp/mojo_learning_task_controller.h"
+#include "media/learning/mojo/public/mojom/learning_task_controller.mojom-blink.h"
 #include "media/media_buildflags.h"
 #include "media/mojo/mojom/media_metrics_provider.mojom-blink.h"
+#include "media/mojo/mojom/media_types.mojom-blink.h"
+#include "media/mojo/mojom/playback_events_recorder.mojom-blink.h"
+#include "media/mojo/mojom/video_decode_stats_recorder.mojom-blink.h"
+#include "media/mojo/mojom/watch_time_recorder.mojom-blink.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "net/base/data_url.h"
@@ -71,6 +75,7 @@
 #include "net/url_request/url_request_job.h"
 #include "services/device/public/mojom/battery_monitor.mojom-blink.h"
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
+#include "third_party/blink/public/platform/cross_variant_mojo_util.h"
 #include "third_party/blink/public/platform/web_audio_source_provider_impl.h"
 #include "third_party/blink/public/platform/web_content_decryption_module.h"
 #include "third_party/blink/public/platform/web_encrypted_media_types.h"
@@ -105,6 +110,7 @@
 #include "third_party/blink/renderer/platform/wtf/cross_thread_copier_std.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
+#include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "ui/gfx/geometry/size.h"
 
 #if BUILDFLAG(ENABLE_HLS_DEMUXER)
@@ -443,7 +449,8 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
     base::WeakPtr<media::MediaObserver> media_observer,
     bool enable_instant_source_buffer_gc,
     bool embedded_media_experience_enabled,
-    mojo::PendingRemote<media::mojom::MediaMetricsProvider> metrics_provider,
+    mojo::PendingRemote<media::mojom::blink::MediaMetricsProvider>
+        metrics_provider,
     CreateSurfaceLayerBridgeCB create_bridge_callback,
     scoped_refptr<viz::RasterContextProvider> raster_context_provider,
     bool use_surface_layer,
@@ -1101,8 +1108,21 @@ void WebMediaPlayerImpl::OnFrozen() {
   // We should already be paused before we are frozen.
   DCHECK(paused_);
 
-  if (observer_)
+  if (observer_) {
     observer_->OnFrozen();
+  }
+
+  // This may be the last chance `main_task_runner_` gets to execute, so we
+  // should kick off release of all media resources.
+  if (base::FeatureList::IsEnabled(media::kSuspendMediaForFrozenFrames)) {
+    if (demuxer_manager_->HasDataSource()) {
+      demuxer_manager_->StopPreloading();
+    }
+
+    was_suspended_for_frame_closed_or_frozen_ = true;
+    UpdateBackgroundVideoOptimizationState();
+    UpdatePlayState();
+  }
 }
 
 void WebMediaPlayerImpl::Seek(double seconds) {
@@ -1120,20 +1140,20 @@ void WebMediaPlayerImpl::DoSeek(base::TimeDelta time, bool time_updated) {
   if (ready_state_ > WebMediaPlayer::kReadyStateHaveMetadata)
     SetReadyState(WebMediaPlayer::kReadyStateHaveMetadata);
 
-  // For zero duration video-only media, if we can elide the seek, use a large
-  // delay to avoid an expensive spin loop. Per spec we must still deliver all
-  // the requisite events, but we're not required to be timely about it.
+  // For playing zero duration video-only media, if we can elide the seek, use a
+  // large delay to avoid an expensive spin loop. Per spec we must still deliver
+  // all the requisite events, but we're not required to be timely about it.
   //
   // 250ms matches the max timeupdate interval used by the media element.
   auto delay = base::TimeDelta();
-  bool is_at_eos = false;
+  bool seeking_for_zero_duration_loop = false;
   if (ended_) {
     if (time == base::Seconds(Duration())) {
-      is_at_eos = true;
+      seeking_for_zero_duration_loop = !paused_;
     } else if (!HasAudio()) {
       if (auto frame = compositor_->GetCurrentFrameOnAnyThread()) {
         if (frame->timestamp() == GetCurrentTimeInternal()) {
-          is_at_eos = true;
+          seeking_for_zero_duration_loop = !paused_;
           delay = base::Milliseconds(250);
         }
       }
@@ -1152,7 +1172,8 @@ void WebMediaPlayerImpl::DoSeek(base::TimeDelta time, bool time_updated) {
   //   3) For MSE.
   //      Because the buffers may have changed between seeks, MSE seeks are
   //      never elided.
-  if (((paused_ && paused_time_ == time) || (ended_ && is_at_eos)) &&
+  const bool seeking_to_same_paused_time = paused_ && paused_time_ == time;
+  if ((seeking_to_same_paused_time || seeking_for_zero_duration_loop) &&
       pipeline_controller_->IsStable() &&
       GetDemuxerType() != media::DemuxerType::kChunkDemuxer) {
     if (old_state == kReadyStateHaveEnoughData) {
@@ -1752,7 +1773,7 @@ void WebMediaPlayerImpl::SetCdmInternal(WebContentDecryptionModule* cdm) {
 
   media_log_->SetProperty<MediaLogProperty::kSetCdm>(cdm_config_.value());
 
-  media_metrics_provider_->SetKeySystem(cdm_config_->key_system);
+  media_metrics_provider_->SetKeySystem(String(cdm_config_->key_system));
   if (cdm_config_->use_hw_secure_codecs)
     media_metrics_provider_->SetIsHardwareSecure();
   CreateVideoDecodeStatsReporter();
@@ -2201,7 +2222,7 @@ void WebMediaPlayerImpl::CreateVideoDecodeStatsReporter() {
     DCHECK(!cdm_config_->key_system.empty());
   }
 
-  mojo::PendingRemote<media::mojom::VideoDecodeStatsRecorder> recorder;
+  mojo::PendingRemote<media::mojom::blink::VideoDecodeStatsRecorder> recorder;
   media_metrics_provider_->AcquireVideoDecodeStatsRecorder(
       recorder.InitWithNewPipeAndPassReceiver());
 
@@ -2601,7 +2622,7 @@ void WebMediaPlayerImpl::OnPageHidden() {
 void WebMediaPlayerImpl::SuspendForFrameClosed() {
   DCHECK(main_task_runner_->BelongsToCurrentThread());
 
-  was_suspended_for_frame_closed_ = true;
+  was_suspended_for_frame_closed_or_frozen_ = true;
   UpdateBackgroundVideoOptimizationState();
   UpdatePlayState();
 }
@@ -2613,7 +2634,7 @@ void WebMediaPlayerImpl::OnPageShown() {
   // Foreground videos don't require user gesture to continue playback.
   video_locked_when_paused_when_hidden_ = false;
 
-  was_suspended_for_frame_closed_ = false;
+  was_suspended_for_frame_closed_or_frozen_ = false;
 
   if (watch_time_reporter_)
     watch_time_reporter_->OnShown();
@@ -2673,7 +2694,7 @@ void WebMediaPlayerImpl::OnFrameShown() {
   // Foreground videos don't require user gesture to continue playback.
   video_locked_when_paused_when_hidden_ = false;
 
-  was_suspended_for_frame_closed_ = false;
+  was_suspended_for_frame_closed_or_frozen_ = false;
 
   if (watch_time_reporter_) {
     watch_time_reporter_->OnShown();
@@ -3246,7 +3267,7 @@ WebMediaPlayerImpl::UpdatePlayState_ComputePlayState(
   PlayState result;
 
   bool must_suspend =
-      was_suspended_for_frame_closed_ || pending_oneshot_suspend_;
+      was_suspended_for_frame_closed_or_frozen_ || pending_oneshot_suspend_;
   bool is_stale = delegate_->IsStale(delegate_id_);
 
   if (stale_state_override_for_testing_.has_value() &&
@@ -3507,11 +3528,11 @@ void WebMediaPlayerImpl::CreateWatchTimeReporter() {
 
   // Create the watch time reporter and synchronize its initial state.
   watch_time_reporter_ = std::make_unique<WatchTimeReporter>(
-      media::mojom::PlaybackProperties::New(
+      media::mojom::blink::PlaybackProperties::New(
           pipeline_metadata_.has_audio, pipeline_metadata_.has_video, false,
           false, GetDemuxerType() == media::DemuxerType::kChunkDemuxer,
           is_encrypted_, embedded_media_experience_enabled_,
-          media::mojom::MediaStreamType::kNone, renderer_type_),
+          media::mojom::blink::MediaStreamType::kNone, renderer_type_),
       pipeline_metadata_.natural_size,
       WTF::BindRepeating(&WebMediaPlayerImpl::GetCurrentTimeInternal,
                          WTF::Unretained(this)),
@@ -3559,7 +3580,7 @@ void WebMediaPlayerImpl::CreateWatchTimeReporter() {
 
 void WebMediaPlayerImpl::UpdateSecondaryProperties() {
   watch_time_reporter_->UpdateSecondaryProperties(
-      media::mojom::SecondaryPlaybackProperties::New(
+      media::mojom::blink::SecondaryPlaybackProperties::New(
           pipeline_metadata_.audio_decoder_config.codec(),
           pipeline_metadata_.video_decoder_config.codec(),
           pipeline_metadata_.audio_decoder_config.profile(),
@@ -3572,14 +3593,20 @@ void WebMediaPlayerImpl::UpdateSecondaryProperties() {
 
 bool WebMediaPlayerImpl::IsPageHidden() const {
   DCHECK(main_task_runner_->BelongsToCurrentThread());
-
-  return delegate_->IsPageHidden() && !was_suspended_for_frame_closed_;
+  if (base::FeatureList::IsEnabled(media::kSuspendMediaForFrozenFrames)) {
+    return delegate_->IsPageHidden();
+  }
+  return delegate_->IsPageHidden() &&
+         !was_suspended_for_frame_closed_or_frozen_;
 }
 
 bool WebMediaPlayerImpl::IsFrameHidden() const {
   DCHECK(main_task_runner_->BelongsToCurrentThread());
-
-  return delegate_->IsFrameHidden() && !was_suspended_for_frame_closed_;
+  if (base::FeatureList::IsEnabled(media::kSuspendMediaForFrozenFrames)) {
+    return delegate_->IsFrameHidden();
+  }
+  return delegate_->IsFrameHidden() &&
+         !was_suspended_for_frame_closed_or_frozen_;
 }
 
 bool WebMediaPlayerImpl::IsPausedBecausePageHidden() const {
@@ -4107,11 +4134,17 @@ WebMediaPlayerImpl::GetLearningTaskController(const char* task_name) {
   learning::LearningTask task = learning::MediaLearningTasks::Get(task_name);
   DCHECK_EQ(task.name, task_name);
 
-  mojo::Remote<learning::mojom::LearningTaskController> remote_ltc;
+  mojo::PendingRemote<learning::mojom::blink::LearningTaskController>
+      remote_ltc;
   media_metrics_provider_->AcquireLearningTaskController(
-      task.name, remote_ltc.BindNewPipeAndPassReceiver());
+      String(task.name),
+      CrossVariantMojoReceiver<
+          learning::mojom::LearningTaskControllerInterfaceBase>(
+          remote_ltc.InitWithNewPipeAndPassReceiver()));
   return std::make_unique<learning::MojoLearningTaskController>(
-      task, std::move(remote_ltc));
+      task, CrossVariantMojoRemote<
+                learning::mojom::LearningTaskControllerInterfaceBase>(
+                std::move(remote_ltc)));
 }
 
 bool WebMediaPlayerImpl::HasUnmutedAudio() const {

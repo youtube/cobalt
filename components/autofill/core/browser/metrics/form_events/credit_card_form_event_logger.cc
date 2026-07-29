@@ -25,6 +25,7 @@
 #include "components/autofill/core/browser/metrics/payments/bnpl_metrics.h"
 #include "components/autofill/core/browser/metrics/payments/card_info_retrieval_enrolled_metrics.h"
 #include "components/autofill/core/browser/metrics/payments/card_unmask_flow_metrics.h"
+#include "components/autofill/core/browser/metrics/payments/save_and_fill_metrics.h"
 #include "components/autofill/core/browser/metrics/payments/virtual_card_standalone_cvc_suggestion_metrics.h"
 #include "components/autofill/core/browser/payments/autofill_offer_manager.h"
 #include "components/autofill/core/browser/payments/bnpl_manager.h"
@@ -61,7 +62,6 @@ void CreditCardFormEventLogger::OnDidFetchSuggestion(
     bool with_card_info_retrieval_enrolled,
     bool is_virtual_card_standalone_cvc_field,
     CardMetadataLoggingContext metadata_logging_context) {
-  has_eligible_offer_ = with_offer;
   suggestion_contains_card_with_cvc_ = with_cvc;
   suggestion_contains_card_info_retrieval_enrolled_card_ =
       with_card_info_retrieval_enrolled;
@@ -173,13 +173,6 @@ void CreditCardFormEventLogger::OnDidSelectCardSuggestion(
     AutofillMetrics::PaymentsSigninState signin_state_for_metrics) {
   signin_state_for_metrics_ = signin_state_for_metrics;
   metadata_logging_context_.SetSelectedCardInfo(credit_card);
-
-  card_selected_has_offer_ = false;
-  if (has_eligible_offer_) {
-    card_selected_has_offer_ = DoesCardHaveOffer(credit_card);
-    base::UmaHistogramBoolean("Autofill.Offer.SelectedCardHasOffer",
-                              card_selected_has_offer_);
-  }
 
   latest_selected_card_was_virtual_card_ = false;
   switch (credit_card.record_type()) {
@@ -582,6 +575,20 @@ void CreditCardFormEventLogger::OnDidAcceptBnplSuggestion() {
   }
 }
 
+void CreditCardFormEventLogger::OnSaveAndFillSuggestionShown() {
+  if (!has_logged_save_and_fill_suggestion_shown_) {
+    LogSaveAndFillFormEvent(SaveAndFillFormEvent::kSuggestionShown);
+    has_logged_save_and_fill_suggestion_shown_ = true;
+  }
+}
+
+void CreditCardFormEventLogger::OnDidAcceptSaveAndFillSuggestion() {
+  if (!has_logged_save_and_fill_suggestion_accepted_) {
+    LogSaveAndFillFormEvent(SaveAndFillFormEvent::kSuggestionAccepted);
+    has_logged_save_and_fill_suggestion_accepted_ = true;
+  }
+}
+
 std::optional<CreditCard>
 CreditCardFormEventLogger::GetFilledCreditCardForTesting() {
   return filled_credit_card_;
@@ -690,11 +697,6 @@ void CreditCardFormEventLogger::LogFormSubmitted(const FormStructure& form) {
     Log(FORM_EVENT_LOCAL_SUGGESTION_SUBMITTED_ONCE, form);
   }
 
-  if (has_logged_form_filling_suggestion_filled_ && has_eligible_offer_) {
-    base::UmaHistogramBoolean("Autofill.Offer.SubmittedCardHasOffer",
-                              card_selected_has_offer_);
-  }
-
   // Log if a CVC suggestion for a virtual card was filled before form
   // submission.
   if (is_virtual_card_standalone_cvc_field_ &&
@@ -759,11 +761,9 @@ void CreditCardFormEventLogger::LogUkmInteractedWithForm(
 
 void CreditCardFormEventLogger::OnSuggestionsShownOnce(
     const FormStructure& form) {
-  if (DoSuggestionsIncludeVirtualCard())
+  if (DoSuggestionsIncludeVirtualCard()) {
     Log(FORM_EVENT_SUGGESTIONS_SHOWN_WITH_VIRTUAL_CARD_ONCE, form);
-
-  base::UmaHistogramBoolean("Autofill.Offer.SuggestedCardsHaveOffer",
-                            has_eligible_offer_);
+  }
 }
 
 void CreditCardFormEventLogger::OnSuggestionsShownSubmittedOnce(
@@ -772,17 +772,6 @@ void CreditCardFormEventLogger::OnSuggestionsShownSubmittedOnce(
     const CreditCard& credit_card =
         client().GetFormDataImporter()->ExtractCreditCardFromForm(form).card;
     Log(GetCardNumberStatusFormEvent(credit_card), form);
-  }
-}
-
-void CreditCardFormEventLogger::OnLog(const std::string& name,
-                                      FormEvent event,
-                                      const FormStructure& form) const {
-  // Log a different histogram for credit card forms with credit card offers
-  // available so that selection rate with offers and rewards can be compared on
-  // their own.
-  if (has_eligible_offer_) {
-    base::UmaHistogramEnumeration(name + ".WithOffer", event, NUM_FORM_EVENTS);
   }
 }
 

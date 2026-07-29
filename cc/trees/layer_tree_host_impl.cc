@@ -333,7 +333,7 @@ void LayerTreeHostImpl::DidEndScroll() {
     client_->SetWaitingForScrollEvent(false);
   }
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
   if (render_frame_metadata_observer_) {
     render_frame_metadata_observer_->DidEndScroll();
   }
@@ -1872,7 +1872,7 @@ void LayerTreeHostImpl::ResetTreesForTesting() {
 }
 
 size_t LayerTreeHostImpl::SourceAnimationFrameNumberForTesting() const {
-  return *next_frame_token_;
+  return next_frame_token();
 }
 
 void LayerTreeHostImpl::UpdateTileManagerMemoryPolicy(
@@ -2487,7 +2487,15 @@ viz::RegionCaptureBounds LayerTreeHostImpl::CollectRegionCaptureBounds() {
 
 viz::CompositorFrameMetadata LayerTreeHostImpl::MakeCompositorFrameMetadata() {
   viz::CompositorFrameMetadata metadata;
-  metadata.frame_token = ++next_frame_token_;
+  if (settings().trees_in_viz_in_viz_process) {
+    // In TreesInViz mode, this function is called in client process already,
+    // and viz process could crash and the frame token generator will be
+    // reset and out of sync with client process. Therefore, always use the
+    // frame_token sent by client.
+    metadata.frame_token = next_frame_token_from_client_;
+  } else {
+    metadata.frame_token = ++next_frame_token_;
+  }
   metadata.device_scale_factor = active_tree_->painted_device_scale_factor() *
                                  active_tree_->device_scale_factor();
 
@@ -3198,7 +3206,7 @@ viz::CompositorFrame LayerTreeHostImpl::GenerateCompositorFrame(
   metadata.activation_dependencies = std::move(frame->activation_dependencies);
   active_tree()->FinishSwapPromises(&metadata);
   // The swap-promises should not change the frame-token.
-  DCHECK_EQ(metadata.frame_token, *next_frame_token_);
+  DCHECK_EQ(metadata.frame_token, next_frame_token());
 
   // In TreesInViz mode in viz, we need to compute
   // |last_draw_render_frame_metadata_| because it impacts HasDamage()
@@ -3399,6 +3407,19 @@ ImageDecodeCache* LayerTreeHostImpl::GetImageDecodeCache() const {
              : nullptr;
 }
 
+uint32_t LayerTreeHostImpl::next_frame_token() const {
+  if (settings().trees_in_viz_in_viz_process) {
+    DCHECK_NE(next_frame_token_from_client_, viz::kInvalidFrameToken);
+    return next_frame_token_from_client_;
+  }
+  return *next_frame_token_;
+}
+
+void LayerTreeHostImpl::set_next_frame_token_from_client(uint32_t frame_token) {
+  DCHECK(settings().trees_in_viz_in_viz_process);
+  next_frame_token_from_client_ = frame_token;
+}
+
 void LayerTreeHostImpl::RegisterMainThreadPresentationTimeCallbackForTesting(
     uint32_t frame_token,
     PresentationTimeCallbackBuffer::Callback callback) {
@@ -3485,7 +3506,10 @@ bool LayerTreeHostImpl::WillBeginImplFrame(const viz::BeginFrameArgs& args) {
   if (input_delegate_)
     input_delegate_->WillBeginImplFrame(args);
 
-  Animate();
+  // TODO(zmo): Revisit if this is needed for TreeAnimationsInViz mode.
+  if (!settings().trees_in_viz_in_viz_process) {
+    Animate();
+  }
 
   image_animation_controller_.WillBeginImplFrame(args);
 
@@ -4392,11 +4416,12 @@ void LayerTreeHostImpl::ReleaseLayerTreeFrameSink() {
     ClearUIResources();
   }
 
-  bool should_finish = true;
+  bool should_finish = !base::FeatureList::IsEnabled(
+      features::kSkipFinishDuringReleaseLayerTreeFrameSink);
 #if BUILDFLAG(IS_WIN)
   // Windows does not have stability issues that require calling Finish.
   // To minimize risk, only avoid waiting for the UI layer tree.
-  should_finish = !settings_.is_layer_tree_for_ui;
+  should_finish &= !settings_.is_layer_tree_for_ui;
 #endif
 
   if (should_finish && layer_tree_frame_sink_->context_provider()) {
@@ -6013,9 +6038,9 @@ void LayerTreeHostImpl::RequestImplSideInvalidationForRerasterTiling() {
 
 void LayerTreeHostImpl::RequestImplSideInvalidationForRasterInducingScroll(
     ElementId scroll_element_id) {
+  pending_invalidation_raster_inducing_scrolls_.insert(scroll_element_id);
   client_->SetNeedsImplSideInvalidation(
       /*needs_first_draw_on_activation=*/true);
-  pending_invalidation_raster_inducing_scrolls_.insert(scroll_element_id);
 }
 
 base::WeakPtr<LayerTreeHostImpl> LayerTreeHostImpl::AsWeakPtr() {

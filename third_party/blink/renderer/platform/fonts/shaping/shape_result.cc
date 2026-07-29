@@ -596,7 +596,6 @@ void ShapeResult::OffsetForPosition(float target_x,
     if (offset_for_run >= 0 && offset_for_run < run->width_) {
       // The x value in question is within this script run.
       run->CharacterIndexForXPosition(offset_for_run, break_glyphs, result);
-      result->characters_on_left_runs = characters_so_far;
       if (IsRtl()) {
         result->left_character_index =
             characters_so_far + result->left_character_index;
@@ -626,16 +625,13 @@ void ShapeResult::OffsetForPosition(float target_x,
     result->right_character_index += characters_so_far;
   }
 
-  result->characters_on_left_runs = characters_so_far;
-
   DCHECK_LE(result->left_character_index, NumCharacters());
   DCHECK_LE(result->right_character_index, NumCharacters() + 1);
 }
 
-unsigned ShapeResult::OffsetForPosition(float x,
-                                        BreakGlyphsOption break_glyphs) const {
+unsigned ShapeResult::OffsetForPosition(float x) const {
   GlyphIndexResult result;
-  OffsetForPosition(x, break_glyphs, &result);
+  OffsetForPosition(x, BreakGlyphsOption(true), &result);
 
   // For LTR, the offset is always the left one.
   if (IsLtr())
@@ -649,15 +645,12 @@ unsigned ShapeResult::OffsetForPosition(float x,
   return result.right_character_index;
 }
 
-unsigned ShapeResult::CaretOffsetForHitTest(
-    float x,
-    const StringView& text,
-    BreakGlyphsOption break_glyphs_option) const {
-  if (break_glyphs_option)
-    EnsureGraphemes(text);
+unsigned ShapeResult::CaretOffsetForHitTest(float x,
+                                            const StringView& text) const {
+  EnsureGraphemes(text);
 
   GlyphIndexResult result;
-  OffsetForPosition(x, break_glyphs_option, &result);
+  OffsetForPosition(x, BreakGlyphsOption(true), &result);
 
   if (x - result.origin_x <= result.advance / 2)
     return result.left_character_index;
@@ -2283,11 +2276,9 @@ unsigned ShapeResult::CachedPreviousSafeToBreakOffset(unsigned offset) const {
              : 0;
 }
 
-namespace {
-
-void AddRunInfoRanges(const ShapeResultRun& run_info,
-                      float offset,
-                      Vector<CharacterRange>* ranges) {
+void ShapeResult::AddRunInfoRanges(const ShapeResultRun& run_info,
+                                   float offset,
+                                   Vector<CharacterRange>* ranges) {
   Vector<float> character_widths(run_info.num_characters_);
   for (const auto& glyph : run_info.glyph_data_) {
     // TODO(crbug.com/1147011): This should not happen, but crash logs indicate
@@ -2314,8 +2305,6 @@ void AddRunInfoRanges(const ShapeResultRun& run_info,
       ranges->push_back(CharacterRange(start, end, 0, 0));
   }
 }
-
-}  // anonymous namespace
 
 float ShapeResult::IndividualCharacterRanges(Vector<CharacterRange>* ranges,
                                              float start_x) const {

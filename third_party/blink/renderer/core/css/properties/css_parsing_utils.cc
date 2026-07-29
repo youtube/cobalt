@@ -4618,119 +4618,6 @@ const CSSValue* GetSingleValueOrMakeList(
   return MakeGarbageCollected<CSSValueList>(list_separator, std::move(values));
 }
 
-CSSValue* ConsumeAnimationTriggerValue(CSSPropertyID property,
-                                       CSSParserTokenStream& stream,
-                                       const CSSParserContext& context) {
-  switch (property) {
-    case CSSPropertyID::kAnimationTriggerBehavior:
-      return css_parsing_utils::ConsumeIdent<
-          CSSValueID::kOnce, CSSValueID::kRepeat, CSSValueID::kAlternate,
-          CSSValueID::kState>(stream);
-    case CSSPropertyID::kAnimationTriggerTimeline:
-      return css_parsing_utils::ConsumeAnimationTimeline(stream, context);
-    case CSSPropertyID::kAnimationTriggerRangeStart:
-      return css_parsing_utils::ConsumeAnimationRange(stream, context, 0.0,
-                                                      /*allow_auto=*/false);
-    case CSSPropertyID::kAnimationTriggerExitRangeStart:
-      return css_parsing_utils::ConsumeAnimationRange(stream, context, 0.0,
-                                                      /*allow_auto=*/true);
-    case CSSPropertyID::kAnimationTriggerRangeEnd:
-      return css_parsing_utils::ConsumeAnimationRange(stream, context, 100.0,
-                                                      /*allow_auto=*/false);
-    case CSSPropertyID::kAnimationTriggerExitRangeEnd:
-      return css_parsing_utils::ConsumeAnimationRange(stream, context, 100.0,
-                                                      /*allow_auto=*/true);
-    default:
-      NOTREACHED();
-  }
-}
-
-// TODO(crbug.com/429392773): This is deprecated and should be deleted.
-bool ConsumeAnimationTriggerShorthand(
-    const StylePropertyShorthand& shorthand,
-    HeapVector<Member<CSSValueList>, kMaxNumAnimationTriggerLonghands>& longhands,
-    CSSParserTokenStream& stream,
-    const CSSParserContext& context) {
-  const unsigned longhand_count = shorthand.length();
-  DCHECK_LE(longhand_count, kMaxNumAnimationTriggerLonghands);
-
-  for (unsigned i = 0; i < longhand_count; ++i) {
-    longhands[i] = CSSValueList::CreateCommaSeparated();
-  }
-
-  do {
-    std::array<bool, kMaxNumAnimationTriggerLonghands> parsed_longhand = {
-        false};
-    bool found_any = false;
-    CSSValue* trigger_exit_range_start = nullptr;
-    CSSValue* trigger_range_start = nullptr;
-    do {
-      bool found_property = false;
-      for (unsigned i = 0; i < longhand_count; ++i) {
-        if (parsed_longhand[i]) {
-          continue;
-        }
-
-        CSSValue* value = ConsumeAnimationTriggerValue(
-            shorthand.properties()[i]->PropertyID(), stream, context);
-        if (value) {
-          parsed_longhand[i] = true;
-          found_property = true;
-          found_any = true;
-          longhands[i]->Append(*value);
-          // If we don't get a trigger{-exit}-range-end, we'll need to infer
-          // based on the trigger{-exit}-range-start.
-          if (shorthand.properties()[i]->PropertyID() ==
-              CSSPropertyID::kAnimationTriggerExitRangeStart) {
-            trigger_exit_range_start = value;
-          } else if (shorthand.properties()[i]->PropertyID() ==
-                     CSSPropertyID::kAnimationTriggerRangeStart) {
-            trigger_range_start = value;
-          }
-          break;
-        }
-      }
-      if (!found_property) {
-        break;
-      }
-    } while (!stream.AtEnd() && stream.Peek().GetType() != kCommaToken);
-
-    if (!found_any) {
-      return false;
-    }
-
-    for (unsigned i = 0; i < longhand_count; ++i) {
-      const Longhand& longhand = *To<Longhand>(shorthand.properties()[i]);
-      if (!parsed_longhand[i]) {
-        CSSPropertyID property_id = longhand.PropertyID();
-        CSSValue* longhand_value = nullptr;
-
-        // If we didn't get a trigger{-exit}-range-end, try to infer it from
-        // trigger{-exit}-range-start if we got one.
-        if (property_id == CSSPropertyID::kAnimationTriggerExitRangeEnd) {
-          longhand_value =
-              css_parsing_utils::GetImpliedRangeEnd(trigger_exit_range_start);
-        } else if (property_id == CSSPropertyID::kAnimationTriggerRangeEnd) {
-          longhand_value =
-              css_parsing_utils::GetImpliedRangeEnd(trigger_range_start);
-        }
-
-        if (longhand_value) {
-          longhands[i]->Append(*longhand_value);
-        } else {
-          longhands[i]->Append(*longhand.InitialValue());
-        }
-      }
-      parsed_longhand[i] = false;
-    }
-
-    trigger_range_start = nullptr;
-    trigger_exit_range_start = nullptr;
-  } while (ConsumeCommaIncludingWhitespace(stream));
-
-  return true;
-}
-
 bool ConsumeTimelineTriggerShorthand(
     const StylePropertyShorthand& shorthand,
     HeapVector<Member<CSSValueList>, kMaxNumTimelineTriggerLonghands>&
@@ -6061,6 +5948,16 @@ bool IsAngleWithinLimits(CSSPrimitiveValue* angle) {
          numeric_angle->DoubleValue() <= kMaxAngle;
 }
 
+bool IsAngleZero(CSSPrimitiveValue* angle) {
+  DCHECK(RuntimeEnabledFeatures::FontStyleObliqueZeroDegreeAsNormalEnabled());
+  auto* numeric_angle = DynamicTo<CSSNumericLiteralValue>(angle);
+  if (!numeric_angle) {
+    return false;
+  }
+
+  return numeric_angle->DoubleValue() == 0.0;
+}
+
 CSSValue* ConsumeFontStyle(CSSParserTokenStream& stream,
                            const CSSParserContext& context) {
   if (stream.Peek().Id() == CSSValueID::kNormal ||
@@ -6090,6 +5987,10 @@ CSSValue* ConsumeFontStyle(CSSParserTokenStream& stream,
   }
 
   if (context.Mode() != kCSSFontFaceRuleMode || stream.AtEnd()) {
+    if (RuntimeEnabledFeatures::FontStyleObliqueZeroDegreeAsNormalEnabled() &&
+        IsAngleZero(start_angle)) {
+      return MakeGarbageCollected<CSSIdentifierValue>(CSSValueID::kNormal);
+    }
     CSSValueList* value_list = CSSValueList::CreateSpaceSeparated();
     value_list->Append(*start_angle);
     return MakeGarbageCollected<cssvalue::CSSFontStyleRangeValue>(
@@ -6100,6 +6001,11 @@ CSSValue* ConsumeFontStyle(CSSParserTokenStream& stream,
       stream, context, std::nullopt, kMinObliqueValue, kMaxObliqueValue);
   if (!end_angle || !IsAngleWithinLimits(end_angle)) {
     return nullptr;
+  }
+
+  if (RuntimeEnabledFeatures::FontStyleObliqueZeroDegreeAsNormalEnabled() &&
+      IsAngleZero(start_angle) && IsAngleZero(end_angle)) {
+    return MakeGarbageCollected<CSSIdentifierValue>(CSSValueID::kNormal);
   }
 
   CSSValueList* range_list = CombineToRangeList(start_angle, end_angle);
@@ -6213,7 +6119,7 @@ template <typename T>
 T* ConsumeFontSettingsTagAndValue(CSSParserTokenStream& stream,
                                   const CSSParserContext& context) {
   // Tag name consists of 4-letter characters.
-  const unsigned kTagNameLength = 4;
+  constexpr static unsigned kTagNameLength = 4;
 
   const CSSParserToken& token = stream.Peek();
   // Tag name comes first for both features and variations.
@@ -6235,8 +6141,19 @@ T* ConsumeFontSettingsTagAndValue(CSSParserTokenStream& stream,
   }
 
   CSSPrimitiveValue* tag_value = nullptr;
-  // Tag values could follow: <integer> | on | off
-  if (CSSPrimitiveValue* value = ConsumeInteger(stream, context)) {
+  CSSPrimitiveValue* value = nullptr;
+  if constexpr (std::is_same_v<T, CSSFontVariationValue>) {
+    // Tag values could follow: <number> | on | off.
+    // The <number> can be fractional or negative, depending on the value range
+    // available in your font, as defined by the font designer.
+    // See https://drafts.csswg.org/css-fonts/#font-variation-settings-def
+    value = ConsumeNumber(stream, context, CSSPrimitiveValue::ValueRange::kAll);
+  } else {
+    // Tag values could follow: <integer> | on | off
+    value = ConsumeInteger(stream, context);
+  }
+
+  if (value) {
     tag_value = value;
   } else if (stream.Peek().Id() == CSSValueID::kOn ||
              stream.Peek().Id() == CSSValueID::kOff) {
@@ -8647,26 +8564,15 @@ CSSValue* ConsumeBorderWidth(CSSParserTokenStream& stream,
   return ConsumeLineWidth(stream, context, unitless);
 }
 
-// TODO(crbug.com/327740939): Merge ParseLetterSpacing and ParseWordSpacing if
-// percentage for word-spacing is implemented.
-CSSValue* ParseLetterSpacing(CSSParserTokenStream& stream,
-                             const CSSParserContext& context) {
+CSSValue* ParseSpacing(CSSParserTokenStream& stream,
+                       const CSSParserContext& context) {
   if (stream.Peek().Id() == CSSValueID::kNormal) {
     return ConsumeIdent(stream);
   }
-  if (RuntimeEnabledFeatures::CSSLetterSpacingPercentageEnabled()) {
+  if (RuntimeEnabledFeatures::CSSLetterAndWordSpacingPercentageEnabled()) {
     return ConsumeLengthOrPercent(stream, context,
                                   CSSPrimitiveValue::ValueRange::kAll,
                                   UnitlessQuirk::kAllow);
-  }
-  return ConsumeLength(stream, context, CSSPrimitiveValue::ValueRange::kAll,
-                       UnitlessQuirk::kAllow);
-}
-
-CSSValue* ParseWordSpacing(CSSParserTokenStream& stream,
-                           const CSSParserContext& context) {
-  if (stream.Peek().Id() == CSSValueID::kNormal) {
-    return ConsumeIdent(stream);
   }
   return ConsumeLength(stream, context, CSSPrimitiveValue::ValueRange::kAll,
                        UnitlessQuirk::kAllow);
@@ -9011,6 +8917,17 @@ CSSValue* ConsumeFitText(CSSParserTokenStream& stream,
   // - [target, size], or
   // - [target, method, size]
   return list;
+}
+
+CSSValue* ConsumeTextOverflow(CSSParserTokenStream& stream) {
+  if (CSSValue* value =
+          ConsumeIdent<CSSValueID::kClip, CSSValueID::kEllipsis>(stream)) {
+    return value;
+  }
+  if (RuntimeEnabledFeatures::TextOverflowStringEnabled()) {
+    return ConsumeString(stream);
+  }
+  return nullptr;
 }
 
 namespace {

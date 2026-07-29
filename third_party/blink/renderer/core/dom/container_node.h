@@ -42,8 +42,10 @@ class ExceptionState;
 class GetHTMLOptions;
 class HTMLCollection;
 class RadioNodeList;
+class ScriptState;
 class StyleRecalcContext;
 class WhitespaceAttacher;
+class WritableStream;
 
 using StaticElementList = StaticNodeTypeList<Element>;
 
@@ -469,6 +471,9 @@ class CORE_EXPORT ContainerNode : public Node {
   // IDL implementation of getHTML. This is exposed on Element and ShadowRoot
   // only.
   String getHTML(const GetHTMLOptions*, ExceptionState&) const;
+
+  WritableStream* patchSelf(ScriptState*);
+  WritableStream* patchAll(ScriptState*);
 
   // DocumentOrElementEventHandlers:
   // These event listeners are only actually web-exposed on interfaces that

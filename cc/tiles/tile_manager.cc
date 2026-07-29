@@ -324,8 +324,7 @@ class DidFinishRunningAllTilesTask : public TileTask {
 
  private:
   raw_ptr<base::SequencedTaskRunner> task_runner_;
-  raw_ptr<RasterQueryQueue, AcrossTasksDanglingUntriaged>
-      pending_raster_queries_;
+  raw_ptr<RasterQueryQueue> pending_raster_queries_;
   CompletionCb completion_cb_;
 };
 
@@ -420,6 +419,10 @@ void TileManager::FinishTasksAndCleanUp() {
   tile_task_manager_->CheckForCompletedTasks();
 
   tile_task_manager_ = nullptr;
+  // The TaskGraph holds onto the TileTasks, so we need to clear it to avoid
+  // dangling pointers from TileTasks to other objects. One example is
+  // DidFinishRunningAllTilesTask::pending_raster_queries_.
+  graph_.Reset();
   resource_pool_ = nullptr;
   pending_raster_queries_ = nullptr;
   more_tiles_need_prepare_check_notifier_.Cancel();
@@ -1486,8 +1489,7 @@ scoped_refptr<TileTask> TileManager::CreateRasterTask(
   playback_settings.msaa_sample_count = msaa_sample_count;
   playback_settings.visible =
       tile->required_for_activation() || tile->required_for_draw();
-  playback_settings.hdr_headroom =
-      target_color_params.hdr_max_luminance_relative;
+  playback_settings.hdr_headroom = target_color_params.GetHdrHeadroom();
 
   // Create and queue all image decode tasks that this tile depends on. Note
   // that we need to store the images for decode tasks in

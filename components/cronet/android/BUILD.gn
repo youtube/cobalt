@@ -236,6 +236,10 @@ source_set("cronet_static") {
   if (!use_platform_icu_alternatives) {
     deps += [ "//base:i18n" ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 config("hide_all_but_jni_onload_and_cronet") {
@@ -742,16 +746,18 @@ android_resource_sizes_test("resource_sizes_cronet_sample_apk") {
 template("collect_proguard_configs") {
   _build_config_target = "${target_name}__build_config"
   _build_config = "$target_gen_dir/${target_name}.build_config.json"
+
+  _deps = [
+    ":cronet_build_config_and_jni_registration_java",
+    ":repackage_api",
+    ":repackage_native_impl",
+  ]
   write_build_config(_build_config_target) {
     type = "dist_jar"
     build_config = _build_config
     requires_android = true
     proguard_enabled = true
-    config_deps = [
-      ":cronet_build_config_and_jni_registration_java",
-      ":repackage_api",
-      ":repackage_native_impl",
-    ]
+    config_deps = _deps
   }
 
   action(target_name) {
@@ -760,7 +766,7 @@ template("collect_proguard_configs") {
     outputs = [ invoker.output ]
     sources = [ _build_config ]
     depfile = "$target_out_dir/$target_name.d"
-    deps = [ ":$_build_config_target" ]
+    deps = _deps + [ ":$_build_config_target" ]
     args = [
       "--output_file",
       rebase_path(invoker.output, root_build_dir),
@@ -1158,13 +1164,16 @@ shared_library("cronet_tests") {
     "test/experimental_options_test.cc",
     "test/mock_cert_verifier.cc",
     "test/mock_url_request_job_factory.cc",
-    "test/native_test_server.cc",
     "test/quic_test_server.cc",
+    "test/test_server/embedded_test_server_adapter.cc",
+    "test/test_server/embedded_test_server_adapter.h",
     "test/test_upload_data_stream_handler.cc",
     "test/test_upload_data_stream_handler.h",
     "test/url_request_intercepting_job_factory.cc",
     "test/url_request_intercepting_job_factory.h",
   ]
+
+  data = [ "test/test_server/data/" ]
 
   deps = [
     ":cronet_static",
@@ -1175,7 +1184,6 @@ shared_library("cronet_tests") {
     "//base/test:test_support",
     "//components/cronet:cronet_common",
     "//components/cronet:cronet_version_header",
-    "//components/cronet/testing:test_support",
     "//components/prefs",
     "//net",
     "//net:simple_quic_tools",
@@ -1187,6 +1195,10 @@ shared_library("cronet_tests") {
 
   configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
   configs += [ "//build/config/android:hide_all_but_jni" ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 android_resources("cronet_test_apk_resources") {
@@ -1471,7 +1483,7 @@ android_library("cronet_javatests") {
     "//third_party/mockito:mockito_java",
   ]
   deps += cronet_javatests_deps_to_package
-  data = [ "//components/cronet/testing/test_server/data/" ]
+  data = [ "//components/cronet/android/test/test_server/data/" ]
 }
 
 cronet_instrumentation_test_apk("cronet_test_instrumentation_apk") {
@@ -1518,7 +1530,7 @@ cronet_instrumentation_test_apk("cronet_test_instrumentation_apk") {
 
            # This is used by base_test utility classes, proguard complains about missing classes
            # but in reality, we don't even use those classes at all.
-           "//third_party/accessibility_test_framework:accessibility_core_java",
+           "//third_party/android_deps:com_google_android_apps_common_testing_accessibility_framework_accessibility_test_framework_java",
 
            # This is used by base_test utility classes, proguard complains about missing classes
            # but in reality, we don't even use those classes at all.
@@ -1588,8 +1600,6 @@ instrumentation_test_apk(
     ]
   }
 
-  # There is no native in this apk. However, since we depend on //base, we
-  # need something that provides a GEN_JNI, as //base uses GEN_JNI.
   srcjar_deps = [ ":cronet_jni_registration" ]
 }
 
@@ -1628,9 +1638,10 @@ instrumentation_test_apk(
     ]
   }
 
-  # There is no native in this apk. However, since we depend on //base, we
-  # need something that provides a GEN_JNI, as //base uses GEN_JNI.
-  srcjar_deps = [ ":cronet_jni_registration" ]
+  srcjar_deps = [
+    ":cronet_jni_registration",
+    ":cronet_tests_jni_registration",
+  ]
 }
 
 # The smoketests included in this test target are already included in
@@ -1745,7 +1756,7 @@ cronet_test("cronet_unittests_android") {
 
   sources = [ "../run_all_unittests.cc" ]
 
-  data = [ "//components/cronet/testing/test_server/data/" ]
+  data = [ "//components/cronet/android/test/test_server/data/" ]
 
   if (is_android) {
     shard_timeout = 180
@@ -1775,7 +1786,7 @@ cronet_test("cronet_tests_android") {
 
   defines = [ "CRONET_TESTS_IMPLEMENTATION" ]
 
-  data = [ "//components/cronet/testing/test_server/data/" ]
+  data = [ "//components/cronet/android/test/test_server/data/" ]
 
   if (is_android) {
     shard_timeout = 180
@@ -1983,7 +1994,7 @@ copy("cronet_package_copy_native_test_lib_unstripped") {
 
 copy("cronet_package_copy_test_assets") {
   testonly = true
-  sources = [ "//components/cronet/testing/test_server/data" ]
+  sources = [ "//components/cronet/android/test/test_server/data" ]
   outputs = [ "$_test_package_dir/assets/test" ]
 }
 

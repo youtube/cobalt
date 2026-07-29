@@ -174,6 +174,7 @@
 #include "content/public/common/content_switches.h"
 #include "content/public/common/referrer_type_converters.h"
 #include "content/public/common/url_constants.h"
+#include "ipc/constants.mojom.h"
 #include "media/base/media_switches.h"
 #include "net/base/url_util.h"
 #include "net/http/http_util.h"
@@ -326,7 +327,7 @@ bool HasMatchingWidgetHost(FrameTree* tree, RenderWidgetHostImpl* host) {
 
 RenderFrameHostImpl* FindOpenerRFH(const WebContents::CreateParams& params) {
   RenderFrameHostImpl* opener_rfh = nullptr;
-  if (params.opener_render_frame_id != MSG_ROUTING_NONE) {
+  if (params.opener_render_frame_id != IPC::mojom::kRoutingIdNone) {
     opener_rfh = RenderFrameHostImpl::FromID(params.opener_render_process_id,
                                              params.opener_render_frame_id);
   }
@@ -3811,19 +3812,45 @@ const blink::web_pref::WebPreferences WebContentsImpl::ComputeWebPreferences(
   // viewport)
 #if BUILDFLAG(IS_ANDROID)
   if (base::FeatureList::IsEnabled(
-          blink::features::kAndroidDesktopWebPrefsLargeDisplays) &&
-      (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_DESKTOP ||
-       // Specific to large tablets (10"), by default they request desktop site,
-       // but can per-site optionally override it to request mobile instead.
-       (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET &&
-        is_request_android_desktop_site))) {
-    // Set page scale factors to be similar to desktop.
-    // The significant change compared to mobile is that we lock the min scale
-    // to 1, so that we don't allow for a birds-eye-view zoom-out (this matches
-    // desktop)
-    prefs.default_minimum_page_scale_factor = 1.f;
-    prefs.default_maximum_page_scale_factor = 4.f;
+          blink::features::kAndroidDesktopWebPrefsLargeDisplays)) {
+    bool apply_desktop_common_settings = false;
+    switch (ui::GetDeviceFormFactor()) {
+      case ui::DEVICE_FORM_FACTOR_DESKTOP:
+        apply_desktop_common_settings = true;
+        // There are no orientation changes in desktop mode.
+        // Might need to revisit for convertible devices (i.e. clamshell ->
+        // tablet).
+        prefs.main_frame_resizes_are_orientation_changes = false;
+        break;
+      case ui::DEVICE_FORM_FACTOR_TABLET:
+        // Specific to large tablets (10"), by default they request desktop
+        // site, but can per-site optionally override it to request mobile
+        // instead.
+        if (is_request_android_desktop_site) {
+          apply_desktop_common_settings = true;
+        }
+        break;
+      default:
+        break;
+    }
+
+    if (apply_desktop_common_settings) {
+      // Settings below matches up with desktop chrome
+
+      // Set page scale factors to be similar to desktop.
+      // The significant change compared to mobile is that we lock the min scale
+      // to 1, so that we don't allow for a birds-eye-view zoom-out (this
+      // matches desktop).
+      prefs.default_minimum_page_scale_factor = 1.f;
+      prefs.default_maximum_page_scale_factor = 4.f;
+
+      // Ensure no further viewport scaling
+      prefs.shrinks_viewport_contents_to_fit = false;
+      // Not needed for larger form factors
+      prefs.text_autosizing_enabled = false;
+    }
   }
+
 #endif  // BUILDFLAG(IS_ANDROID)
 
   GetContentClient()->browser()->OverrideWebPreferences(
@@ -4330,7 +4357,6 @@ void WebContentsImpl::RenderWidgetCreated(
     RenderWidgetHostImpl* render_widget_host) {
   OPTIONAL_TRACE_EVENT1("content", "WebContentsImpl::RenderWidgetCreated",
                         "render_widget_host", render_widget_host);
-  CHECK(!created_widgets_.contains(render_widget_host->GetFrameSinkId()));
   created_widgets_[render_widget_host->GetFrameSinkId()] = render_widget_host;
 }
 
@@ -10392,7 +10418,7 @@ bool WebContentsImpl::CreateRenderViewForRenderManager(
   }
 
   const auto proxy_routing_id =
-      proxy_host ? proxy_host->GetRoutingID() : MSG_ROUTING_NONE;
+      proxy_host ? proxy_host->GetRoutingID() : IPC::mojom::kRoutingIdNone;
   // TODO(crbug.com/40166243): Given MPArch, should we pass
   // opened_by_another_window_ for non primary FrameTrees?
   if (!rvh_impl->CreateRenderView(opener_frame_token, proxy_routing_id,
@@ -12012,6 +12038,7 @@ std::unique_ptr<PrerenderHandle> WebContentsImpl::StartPrerendering(
       no_vary_search_hint,
       /*initiator_render_frame_host=*/nullptr, GetWeakPtr(), page_transition,
       should_warm_up_compositor, should_prepare_paint_tree,
+      /*should_pause_javascript_execution=*/false,
       std::move(url_match_predicate),
       std::move(prerender_navigation_handle_callback),
       base::WrapRefCounted(

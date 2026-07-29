@@ -197,7 +197,7 @@ _CONFIG = [
             'base::SplitOnceCallback',
 
             # //base/functional/callback.h is allowed, but you need to use
-            # WTF::Bind or WTF::BindRepeating to create callbacks in
+            # blink::BindOnce or blink::BindRepeating to create callbacks in
             # //third_party/blink/renderer.
             'base::BarrierCallback',
             'base::BarrierClosure',
@@ -215,6 +215,9 @@ _CONFIG = [
 
             # //base/memory/ptr_util.h.
             'base::WrapUnique',
+
+            # //base/memory/safety_checks.h
+            'base::ScopedSafetyChecksExclusion',
 
             # //base/containers/adapters.h
             'base::Reversed',
@@ -925,8 +928,8 @@ _CONFIG = [
             'hw::.+',
         ],
         'disallowed': [
-            ('base::Bind(Once|Repeating)',
-             'Use WTF::BindOnce or WTF::BindRepeating.'),
+            ('(base|WTF)::Bind(Once|Repeating)',
+             'Use blink::BindOnce or blink::BindRepeating.'),
             'base::BindPostTaskToCurrentDefault',
             _DISALLOW_NON_BLINK_MOJOM,
             _DISALLOW_CONTINUATION_DATA_,
@@ -1967,8 +1970,8 @@ _CONFIG = [
         # Suppress almost all checks on platform since code in this directory is
         # meant to be a bridge between Blink and non-Blink code. However,
         # base::RefCounted and base::RefCountedThreadSafe should still be
-        # explicitly blocked.
-        # WTF::RefCounted and WTF::ThreadSafeRefCounted should be used instead.
+        # explicitly blocked. blink::RefCounted and blink::ThreadSafeRefCounted
+        # should be used instead.
         'allowed': ['.+'],
         'inclass_allowed': ['.+'],
         'disallowed': [
@@ -1984,11 +1987,9 @@ _CONFIG = [
             'third_party/blink/renderer/platform/media/',
         ],
         'allowed': [
-            # TODO(crbug.com/40760651): migrate to Blink variant.
-            'media::mojom::MediaMetricsProvider',
-            'media::mojom::PlaybackPropertiesPtr',
-            'media::mojom::SecondaryPlaybackPropertiesPtr',
-            'media::mojom::WatchTimeRecorder',
+            # For interoperability with non-Blink code.
+            'learning::mojom::LearningTaskControllerInterfaceBase',
+            'media::mojom::MediaMetricsProviderInterfaceBase',
         ],
     },
     {
@@ -2725,11 +2726,12 @@ _COMPILED_CONFIG = _precompile_config()
 # GURL isn't namespace qualified and wouldn't match otherwise.
 # ContinuationPreservedEmbedder data is similarly hardcoded to restrict access
 # to the v8 APIs which would not otherwise match.
+# "WTF::" is hardcoded because the namespace is not lowercased.
 #
 # An example of an identifier that will be matched with this RE is
 # "base::BindOnce" or "performance_manager::policies::WorkingSetTrimData".
 _IDENTIFIER_WITH_NAMESPACE_RE = re.compile(
-    r'\b(?:(?:[a-z_][a-z0-9_]*::)+[A-Za-z_][A-Za-z0-9_]*|GURL|.*ContinuationPreservedEmbedderData.*)\b'
+    r'\b(?:(?:[a-z_][a-z0-9_]*::|WTF::)+[A-Za-z_][A-Za-z0-9_]*|GURL|.*ContinuationPreservedEmbedderData.*)\b'
 )
 
 # Different check which matches a non-empty sequence of lower-case

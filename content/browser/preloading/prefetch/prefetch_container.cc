@@ -243,6 +243,7 @@ bool CalculateIsLikelyAheadOfPrerender(
     case PreloadingType::kPrefetch:
       return false;
     case PreloadingType::kPrerender:
+    case PreloadingType::kPrerenderUntilScript:
       return true;
     case PreloadingType::kUnspecified:
     case PreloadingType::kPreconnect:
@@ -276,8 +277,9 @@ GetPrefetchResponseCompletedCallbackForTesting() {
 // during serving.
 class PrefetchContainer::SinglePrefetch {
  public:
-  explicit SinglePrefetch(const GURL& url,
-                          bool is_isolated_network_context_required);
+  SinglePrefetch(PrefetchContainer& prefetch_container,
+                 const GURL& url,
+                 bool is_isolated_network_context_required);
   ~SinglePrefetch();
 
   SinglePrefetch(const SinglePrefetch&) = delete;
@@ -289,9 +291,6 @@ class PrefetchContainer::SinglePrefetch {
   const GURL url_;
 
   const bool is_isolated_network_context_required_;
-
-  // Whether this |url_| is eligible to be prefetched
-  std::optional<PreloadingEligibility> eligibility_;
 
   // This tracks whether the cookies associated with |url_| have changed at
   // some point after the initial eligibility check.
@@ -509,7 +508,7 @@ PrefetchContainer::PrefetchContainer(
       CalculateIsLikelyAheadOfPrerender(*preload_pipeline_info_);
 
   redirect_chain_.push_back(std::make_unique<SinglePrefetch>(
-      GetURL(), IsCrossSiteRequest(url::Origin::Create(GetURL()))));
+      *this, GetURL(), IsCrossSiteRequest(url::Origin::Create(GetURL()))));
 
   // Disallow prefetching ServiceWorker-controlled responses for isolated
   // network contexts.
@@ -777,8 +776,17 @@ void PrefetchContainer::SetPrefetchStatus(PrefetchStatus prefetch_status) {
   // only be called once prefetching has actually started, and not for
   // ineligible or eligibled but not started triggers (e.g., holdback triggers,
   // triggers waiting on a queue).
-  if (GetLoadState() == LoadState::kStarted) {
-    SetTriggeringOutcomeAndFailureReasonFromStatus(prefetch_status);
+  switch (GetLoadState()) {
+    case LoadState::kStarted:
+    case LoadState::kDeterminedHead:
+    case LoadState::kCompletedOrFailed:
+      SetTriggeringOutcomeAndFailureReasonFromStatus(prefetch_status);
+      break;
+    case LoadState::kNotStarted:
+    case LoadState::kEligible:
+    case LoadState::kFailedIneligible:
+    case LoadState::kFailedHeldback:
+      break;
   }
   SetPrefetchStatusWithoutUpdatingTriggeringOutcome(prefetch_status);
 }
@@ -860,6 +868,14 @@ void PrefetchContainer::SetLoadState(LoadState new_load_state) {
     case LoadState::kFailedHeldback:
       CHECK_EQ(load_state_, LoadState::kEligible);
       break;
+
+    case LoadState::kDeterminedHead:
+      CHECK_EQ(load_state_, LoadState::kStarted);
+      break;
+
+    case LoadState::kCompletedOrFailed:
+      CHECK_EQ(load_state_, LoadState::kDeterminedHead);
+      break;
   }
   DVLOG(1) << (*this) << " LoadState " << load_state_ << " -> "
            << new_load_state;
@@ -876,8 +892,6 @@ void PrefetchContainer::OnAddedToPrefetchService() {
 
 void PrefetchContainer::OnEligibilityCheckComplete(
     PreloadingEligibility eligibility) {
-  SinglePrefetch& this_prefetch = GetCurrentSinglePrefetchToPrefetch();
-  this_prefetch.eligibility_ = eligibility;
   preload_pipeline_info_->SetPrefetchEligibility(eligibility);
   for (auto& preload_pipeline_info : inherited_preload_pipeline_infos_) {
     preload_pipeline_info->SetPrefetchEligibility(eligibility);
@@ -925,13 +939,6 @@ void PrefetchContainer::OnEligibilityCheckComplete(
       SetPrefetchStatus(PrefetchStatus::kPrefetchFailedIneligibleRedirect);
     }
   }
-}
-
-bool PrefetchContainer::IsInitialPrefetchEligible() const {
-  DCHECK(redirect_chain_.size() > 0);
-  return redirect_chain_[0]->eligibility_ &&
-         redirect_chain_[0]->eligibility_.value() ==
-             PreloadingEligibility::kEligible;
 }
 
 void PrefetchContainer::AddRedirectHop(const net::RedirectInfo& redirect_info) {
@@ -1007,7 +1014,7 @@ void PrefetchContainer::AddRedirectHop(const net::RedirectInfo& redirect_info) {
   AddXClientDataHeader(*resource_request_.get());
 
   redirect_chain_.push_back(std::make_unique<SinglePrefetch>(
-      redirect_info.new_url,
+      *this, redirect_info.new_url,
       IsCrossSiteRequest(url::Origin::Create(redirect_info.new_url))));
 }
 
@@ -1277,6 +1284,8 @@ void PrefetchContainer::Reader::OnPrefetchProbeResult(
 }
 
 void PrefetchContainer::OnDeterminedHead() {
+  SetLoadState(LoadState::kDeterminedHead);
+
   if (GetNonRedirectHead()) {
     time_header_determined_successfully_ = base::TimeTicks::Now();
   }
@@ -1400,6 +1409,7 @@ void PrefetchContainer::OnPrefetchCompleteInternal(
 
 void PrefetchContainer::OnPrefetchComplete(
     const network::URLLoaderCompletionStatus& completion_status) {
+  SetLoadState(LoadState::kCompletedOrFailed);
   OnPrefetchCompleteInternal(completion_status);
 
   std::optional<int> response_code = std::nullopt;
@@ -1455,6 +1465,8 @@ PrefetchContainer::ServableState PrefetchContainer::GetServableState(
         return ServableState::kShouldBlockUntilEligibilityGot;
       case LoadState::kFailedIneligible:
       case LoadState::kStarted:
+      case LoadState::kDeterminedHead:
+      case LoadState::kCompletedOrFailed:
       case LoadState::kFailedHeldback:
         // nop
         break;
@@ -1880,6 +1892,10 @@ std::ostream& operator<<(std::ostream& ostream,
       return ostream << "FailedIneligible";
     case PrefetchContainer::LoadState::kStarted:
       return ostream << "Started";
+    case PrefetchContainer::LoadState::kDeterminedHead:
+      return ostream << "DeterminedHead";
+    case PrefetchContainer::LoadState::kCompletedOrFailed:
+      return ostream << "CompletedOrFailed";
     case PrefetchContainer::LoadState::kFailedHeldback:
       return ostream << "FailedHeldback";
   }
@@ -1901,12 +1917,17 @@ CONTENT_EXPORT std::ostream& operator<<(
 }
 
 PrefetchContainer::SinglePrefetch::SinglePrefetch(
+    PrefetchContainer& prefetch_container,
     const GURL& url,
     bool is_isolated_network_context_required)
     : url_(url),
       is_isolated_network_context_required_(
           is_isolated_network_context_required),
-      response_reader_(base::MakeRefCounted<PrefetchResponseReader>()) {}
+      response_reader_(base::MakeRefCounted<PrefetchResponseReader>(
+          base::BindOnce(&PrefetchContainer::OnDeterminedHead,
+                         prefetch_container.GetWeakPtr()),
+          base::BindOnce(&PrefetchContainer::OnPrefetchComplete,
+                         prefetch_container.GetWeakPtr()))) {}
 
 PrefetchContainer::SinglePrefetch::~SinglePrefetch() {
   CHECK(response_reader_);
@@ -1923,6 +1944,7 @@ const char* PrefetchContainer::GetSecPurposeHeaderValue(
       } else {
         return blink::kSecPurposePrefetchHeaderValue;
       }
+    case PreloadingType::kPrerenderUntilScript:
     case PreloadingType::kPrerender:
       if (IsProxyRequiredForURL(request_url)) {
         // Note that this path would be reachable if a prefetch ahead of

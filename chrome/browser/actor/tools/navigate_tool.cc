@@ -53,7 +53,7 @@ void NavigateTool::Validate(ValidateCallback callback) {
   }
 
   MayActOnUrl(url_,
-              /*allow_insecure_http=*/false,
+              /*allow_insecure_http=*/true,
               Profile::FromBrowserContext(web_contents()->GetBrowserContext()),
               journal(), task_id(),
               base::BindOnce(&MayActOnUrlToResult).Then(std::move(callback)));
@@ -90,15 +90,17 @@ NavigateTool::GetObservationDelayer() const {
       *web_contents()->GetPrimaryMainFrame());
 }
 
-void NavigateTool::UpdateTaskBeforeInvoke(ActorTask& task) const {
-  task.AddToTabSet(tab_handle_);
+void NavigateTool::UpdateTaskBeforeInvoke(ActorTask& task,
+                                          InvokeCallback callback) const {
+  task.AddTab(tab_handle_, std::move(callback));
 }
 
 void NavigateTool::DidFinishNavigation(NavigationHandle* navigation_handle) {
-  // TODO(crbug.com/411748801): We should probably handle the case where the
-  // page navigates before it's done loading. Common with client-side redirects.
   if (pending_navigation_handle_id_ &&
       navigation_handle->GetNavigationId() == *pending_navigation_handle_id_) {
+    journal().Log(
+        url_, task_id(), "NavigateTool::DidFinishNavigation",
+        absl::StrFormat("id[%d]", navigation_handle->GetNavigationId()));
     auto result =
         navigation_handle->HasCommitted() && !navigation_handle->IsErrorPage()
             ? MakeOkResult()
@@ -112,6 +114,8 @@ void NavigateTool::DidFinishNavigation(NavigationHandle* navigation_handle) {
 }
 
 void NavigateTool::NavigationHandleCallback(NavigationHandle& handle) {
+  journal().Log(url_, task_id(), "NavigateTool::NavigationHandleCallback",
+                absl::StrFormat("id[%d]", handle.GetNavigationId()));
   pending_navigation_handle_id_ = handle.GetNavigationId();
 }
 

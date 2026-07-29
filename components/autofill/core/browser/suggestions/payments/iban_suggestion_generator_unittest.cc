@@ -12,6 +12,7 @@
 #include "components/autofill/core/browser/form_structure_test_api.h"
 #include "components/autofill/core/browser/foundations/test_autofill_client.h"
 #include "components/autofill/core/browser/payments/test/mock_iban_manager.h"
+#include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/form_data_test_api.h"
@@ -20,7 +21,6 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/l10n/l10n_util.h"
-#include "ui/base/resource/mock_resource_bundle_delegate.h"
 #include "ui/gfx/image/image_unittest_util.h"
 
 namespace autofill {
@@ -48,24 +48,9 @@ class IbanSuggestionGeneratorTest : public testing::Test,
         test::CreateTestIbanFormData(/*value=*/""));
     test_api(*form_structure_).SetFieldTypes({IBAN_VALUE});
 
-    ui::ResourceBundle::InitSharedInstanceWithLocale(
-        "en-US", &mock_resource_delegate_,
-        ui::ResourceBundle::DO_NOT_LOAD_COMMON_RESOURCES);
-    if (IsNewFopDisplayEnabled()) {
-      ON_CALL(mock_resource_delegate_, GetImageNamed(IDR_AUTOFILL_IBAN))
-          .WillByDefault(testing::Return(gfx::test::CreateImage(100, 50)));
-    } else {
-      ON_CALL(mock_resource_delegate_, GetImageNamed(IDR_AUTOFILL_IBAN_OLD))
-          .WillByDefault(testing::Return(gfx::test::CreateImage(100, 50)));
-    }
-
     ON_CALL(*autofill_client_.GetAutofillOptimizationGuide(),
             ShouldBlockSingleFieldSuggestions)
         .WillByDefault(testing::Return(false));
-  }
-
-  ~IbanSuggestionGeneratorTest() override {
-    ui::ResourceBundle::CleanupSharedInstance();
   }
 
   bool IsNewFopDisplayEnabled() const {
@@ -112,7 +97,7 @@ class IbanSuggestionGeneratorTest : public testing::Test,
 
   // Get an IBAN suggestion with the given `iban`.
   Suggestion GetSuggestionForIban(const Iban& iban) {
-    Suggestion iban_suggestion;
+    Suggestion iban_suggestion(SuggestionType::kIbanEntry);
     const std::u16string iban_identifier =
         iban.GetIdentifierStringForAutofillDisplay();
 #if BUILDFLAG(IS_ANDROID)
@@ -133,7 +118,6 @@ class IbanSuggestionGeneratorTest : public testing::Test,
     }
 #endif
 
-    iban_suggestion.type = SuggestionType::kIbanEntry;
     if (iban.record_type() == Iban::kServerIban) {
       iban_suggestion.payload = Suggestion::InstrumentId(iban.instrument_id());
     } else {
@@ -142,16 +126,10 @@ class IbanSuggestionGeneratorTest : public testing::Test,
     return iban_suggestion;
   }
 
-  Suggestion SetUpSeparator() {
-    Suggestion separator;
-    separator.type = SuggestionType::kSeparator;
-    return separator;
-  }
-
   Suggestion SetUpFooterManagePaymentMethods() {
     Suggestion footer_suggestion(
-        l10n_util::GetStringUTF16(IDS_AUTOFILL_MANAGE_PAYMENT_METHODS));
-    footer_suggestion.type = SuggestionType::kManageIban;
+        l10n_util::GetStringUTF16(IDS_AUTOFILL_MANAGE_PAYMENT_METHODS),
+        SuggestionType::kManageIban);
     footer_suggestion.icon = Suggestion::Icon::kSettings;
     return footer_suggestion;
   }
@@ -162,8 +140,6 @@ class IbanSuggestionGeneratorTest : public testing::Test,
   TestAutofillClient autofill_client_;
   std::unique_ptr<PrefService> prefs_;
   std::unique_ptr<FormStructure> form_structure_;
-  testing::NiceMock<ui::MockResourceBundleDelegate> mock_resource_delegate_;
-  ui::ResourceBundle::SharedInstanceSwapperForTesting resource_bundle_swapper_;
   base::test::ScopedFeatureList feature_list_;
 };
 
@@ -189,7 +165,7 @@ TEST_P(IbanSuggestionGeneratorTest, GeneratesIbanSuggestions) {
   Suggestion server_iban_suggestion_1 = GetSuggestionForIban(SetUpServerIban(
       /*instrument_id=*/12346, /*prefix=*/"BE71", /*suffix=*/"6769",
       kNickname_1));
-  Suggestion separator_suggestion = SetUpSeparator();
+  Suggestion separator_suggestion(SuggestionType::kSeparator);
   Suggestion footer_suggestion = SetUpFooterManagePaymentMethods();
 
   base::MockCallback<base::OnceCallback<void(
@@ -207,20 +183,20 @@ TEST_P(IbanSuggestionGeneratorTest, GeneratesIbanSuggestions) {
   EXPECT_CALL(suggestion_data_callback,
               Run(testing::Pair(FillingProduct::kIban, testing::SizeIs(4))))
       .WillOnce(testing::SaveArg<0>(&savedCallbackArgument));
-  generator.FetchSuggestionData(form(), field(), client(),
-                                suggestion_data_callback.Get());
+  generator.FetchSuggestionData(form().ToFormData(), field(), &form(), &field(),
+                                client(), suggestion_data_callback.Get());
 
   EXPECT_CALL(suggestions_generated_callback,
               Run(testing::Pair(
                   FillingProduct::kIban,
                   testing::UnorderedElementsAre(
-                    MatchesTextAndSuggestionType(local_iban_suggestion_0),
-                    MatchesTextAndSuggestionType(local_iban_suggestion_1),
-                    MatchesTextAndSuggestionType(server_iban_suggestion_0),
-                    MatchesTextAndSuggestionType(server_iban_suggestion_1),
-                    MatchesTextAndSuggestionType(separator_suggestion),
-                    MatchesTextAndSuggestionType(footer_suggestion)))));
-  generator.GenerateSuggestions(form(), field(),
+                      MatchesTextAndSuggestionType(local_iban_suggestion_0),
+                      MatchesTextAndSuggestionType(local_iban_suggestion_1),
+                      MatchesTextAndSuggestionType(server_iban_suggestion_0),
+                      MatchesTextAndSuggestionType(server_iban_suggestion_1),
+                      MatchesTextAndSuggestionType(separator_suggestion),
+                      MatchesTextAndSuggestionType(footer_suggestion)))));
+  generator.GenerateSuggestions(form().ToFormData(), field(), &form(), &field(),
                                 {savedCallbackArgument},
                                 suggestions_generated_callback.Get());
   task_environment().RunUntilIdle();

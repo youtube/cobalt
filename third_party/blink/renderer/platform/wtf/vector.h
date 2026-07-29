@@ -585,7 +585,7 @@ class VectorBufferBase {
 
 template <typename T,
           wtf_size_t InlineCapacity,
-          typename Allocator = WTF::PartitionAllocator>
+          typename Allocator = PartitionAllocator>
 class VectorBuffer;
 
 template <typename T, typename Allocator>
@@ -1015,7 +1015,7 @@ class VectorBuffer : protected VectorBufferBase<T, Allocator> {
     if constexpr (Allocator::kIsGarbageCollected) {
       const bool is_zeroed =
           std::ranges::all_of(inline_buffer_, [](char c) { return c == 0; });
-      DCHECK(is_zeroed || WTF::IsOnStack(inline_buffer_));
+      DCHECK(is_zeroed || IsOnStack(inline_buffer_));
     }
   }
 
@@ -1713,13 +1713,13 @@ class Vector : private VectorBuffer<T, INLINE_CAPACITY, Allocator> {
   struct TypeConstraints {
     constexpr TypeConstraints() {
       // This condition is relied upon by TraceCollectionIfEnabled.
-      static_assert(!IsWeak<T>::value);
+      static_assert(!IsWeakV<T>);
       static_assert(!IsStackAllocatedTypeV<T>);
       static_assert(!std::is_polymorphic_v<T> ||
                         !VectorTraits<T>::kCanInitializeWithMemset,
                     "Cannot initialize with memset if there is a vtable.");
       static_assert(Allocator::kIsGarbageCollected || !IsDisallowNew<T> ||
-                        !IsTraceable<T>::value,
+                        !IsTraceableV<T>,
                     "Cannot put DISALLOW_NEW() objects that have trace methods "
                     "into an off-heap Vector.");
       static_assert(

@@ -4,9 +4,9 @@
 
 import("//build/config/ui.gni")
 import("//content/common/features.gni")
+import("//content/public/common/features.gni")
 import("//device/vr/buildflags/buildflags.gni")
 import("//media/media_options.gni")
-import("//ppapi/buildflags/buildflags.gni")
 import("//services/video_effects/args.gni")
 import("//third_party/protobuf/proto_library.gni")
 import("//third_party/webrtc/webrtc.gni")
@@ -179,6 +179,7 @@ source_set("browser_sources") {
     "download_manager_delegate.h",
     "download_request_utils.h",
     "download_utils.h",
+    "error_navigation_trigger.h",
     "eye_dropper.h",
     "eye_dropper_listener.h",
     "favicon_status.cc",
@@ -310,8 +311,6 @@ source_set("browser_sources") {
     "permission_controller_delegate.cc",
     "permission_controller_delegate.h",
     "permission_descriptor_util.h",
-    "permission_overrides.cc",
-    "permission_overrides.h",
     "permission_request_description.cc",
     "permission_request_description.h",
     "permission_result.cc",
@@ -322,6 +321,8 @@ source_set("browser_sources") {
     "platform_notification_context.h",
     "platform_notification_service.h",
     "popup_menu.h",
+    "preconnect_request.cc",
+    "preconnect_request.h",
     "prefetch_handle.h",
     "prefetch_metrics.h",
     "prefetch_priority.h",
@@ -346,7 +347,6 @@ source_set("browser_sources") {
     "privacy_sandbox_invoking_api.h",
     "private_aggregation_data_model.cc",
     "private_aggregation_data_model.h",
-    "private_network_device_delegate.h",
     "process_allocation_context.cc",
     "process_allocation_context.h",
     "process_visibility_util.h",
@@ -552,11 +552,12 @@ source_set("browser_sources") {
   public_deps = [
     "//base",
     "//build:chromecast_buildflags",
-    "//components/browsing_topics/common:common",
+    "//components/browsing_topics/common",
     "//components/download/public/common:public",
     "//components/file_access",
     "//components/services/storage/privileged/mojom",
     "//components/services/storage/public/mojom",
+    "//content/public/common:buildflags",
     "//content/public/common:common_sources",
     "//device/vr/buildflags",
     "//ipc",
@@ -564,7 +565,6 @@ source_set("browser_sources") {
     "//media/mojo/mojom:remoting",
     "//mojo/public/cpp/bindings",
     "//mojo/public/cpp/system",
-    "//ppapi/buildflags",
     "//sandbox/policy/mojom",
     "//services/audio/public/mojom",
     "//services/cert_verifier/public/mojom",
@@ -600,7 +600,7 @@ source_set("browser_sources") {
     "//components/language_detection/content/common",
     "//components/language_detection/core/browser:language_detection_model_service",
     "//components/services/storage/public/cpp",
-    "//components/variations:variations",
+    "//components/variations",
     "//components/viz/host",
     "//content/browser",  # Must not be public_deps!
     "//device/fido",
@@ -746,7 +746,7 @@ source_set("browser_sources") {
   }
 
   if (enable_video_effects) {
-    public_deps += [ "//services/video_effects/public/mojom:mojom" ]
+    public_deps += [ "//services/video_effects/public/mojom" ]
   }
 }
 

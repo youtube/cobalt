@@ -17,8 +17,10 @@
 @protocol AutocompleteSuggestion;
 struct AutocompleteMatch;
 class AutocompleteController;
+class AutocompleteInput;
 class AutocompleteResult;
 @class AutocompleteResultWrapper;
+class GURL;
 @protocol OmniboxAutocompleteControllerDelegate;
 @protocol OmniboxAutocompleteControllerDebuggerDelegate;
 class OmniboxClient;
@@ -123,6 +125,20 @@ struct OmniboxTextModel;
 - (void)startZeroSuggestRequestWithText:(const std::u16string&)text
                           userClobbered:(BOOL)userClobberedPermanentText;
 
+/// Called when a new omnibox session starts.
+- (void)resetSession;
+
+/// If a query is active or the popup is visible, find the best match item
+/// (default or selected). This will update `match` and, if found,
+/// `alternateNavigationURL`. Returns whether a match has been found.
+- (BOOL)findMatchForInput:(const AutocompleteInput&)input
+                     match:(AutocompleteMatch*)match
+    alternateNavigationURL:(GURL*)alternateNavigationURL;
+
+/// Computes the alternate navigation URL for `input` and `match`.
+- (GURL)computeAlternateNavURLForInput:(const AutocompleteInput&)input
+                                 match:(const AutocompleteMatch&)match;
+
 /// Closes the omnibox popup.
 - (void)closeOmniboxPopup;
 
@@ -135,6 +151,10 @@ struct OmniboxTextModel;
 
 /// Notifies thumbnail update.
 - (void)setHasThumbnail:(BOOL)hasThumbnail;
+
+/// Returns the autocomplete result. This is used to forward the result to the
+/// client. TODO(crbug.com/432215477): Remove after refactor.
+- (const AutocompleteResult*)autocompleteResult;
 
 #pragma mark - Prefetch events
 

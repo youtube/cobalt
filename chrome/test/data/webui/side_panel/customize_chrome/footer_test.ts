@@ -5,7 +5,7 @@
 import 'chrome://customize-chrome-side-panel.top-chrome/footer.js';
 
 import {CustomizeChromeAction} from 'chrome://customize-chrome-side-panel.top-chrome/common.js';
-import type {CustomizeChromePageRemote} from 'chrome://customize-chrome-side-panel.top-chrome/customize_chrome.mojom-webui.js';
+import type {CustomizeChromePageRemote, ManagementNoticeState} from 'chrome://customize-chrome-side-panel.top-chrome/customize_chrome.mojom-webui.js';
 import {CustomizeChromePageCallbackRouter, CustomizeChromePageHandlerRemote} from 'chrome://customize-chrome-side-panel.top-chrome/customize_chrome.mojom-webui.js';
 import {CustomizeChromeApiProxy} from 'chrome://customize-chrome-side-panel.top-chrome/customize_chrome_api_proxy.js';
 import type {FooterElement} from 'chrome://customize-chrome-side-panel.top-chrome/footer.js';
@@ -39,64 +39,120 @@ suite('FooterTest', () => {
     return microtasksFinished();
   });
 
-  async function setChecked(checked: boolean): Promise<void> {
+  async function setChecked(
+      checked: boolean,
+      managementNoticeState: ManagementNoticeState): Promise<void> {
     await handler.whenCalled('updateFooterSettings');
-    callbackRouterRemote.setFooterSettings(checked, false, false);
+    callbackRouterRemote.setFooterSettings(
+        checked, false, managementNoticeState);
     await callbackRouterRemote.$.flushForTesting();
   }
 
   ([true, false]).forEach((checked) => {
     test(`initial setting checked ${checked}`, async () => {
-      await setChecked(checked);
+      await setChecked(checked, {canBeShown: false, enabledByPolicy: false});
       assertEquals(checked, footer.$.showToggle.checked);
     });
   });
 
-  async function setManaged(managed: boolean): Promise<void> {
+  async function setManaged(managementNoticeState: ManagementNoticeState):
+      Promise<void> {
     await handler.whenCalled('updateFooterSettings');
-    callbackRouterRemote.setFooterSettings(true, managed, false);
+    callbackRouterRemote.setFooterSettings(true, false, managementNoticeState);
     await callbackRouterRemote.$.flushForTesting();
   }
 
-  ([true, false]).forEach((managed) => {
-    test(`initial setting managed ${managed}`, async () => {
-      await setManaged(managed);
-      assertEquals(managed, footer.$.showToggle.disabled);
+  ([[true, false]] as Array<[boolean, boolean]>)
+      .forEach(([noticeEnabledByPolicy]) => {
+        const managementNoticeState = {
+          canBeShown: true,
+          enabledByPolicy: noticeEnabledByPolicy,
+        };
+        test(
+            `initial setting managed by policy ${noticeEnabledByPolicy}`,
+            async () => {
+              await setManaged(managementNoticeState);
+              assertEquals(noticeEnabledByPolicy, footer.$.showToggle.disabled);
+              assertTrue(footer.$.showToggle.checked);
+            });
+      });
+
+  async function setVisible(visible: boolean):
+      Promise<void> {
+    await handler.whenCalled('updateFooterSettings');
+    callbackRouterRemote.setFooterSettings(visible, false, {canBeShown: true, enabledByPolicy: false});
+    await callbackRouterRemote.$.flushForTesting();
+  }
+
+  ([true, false]).forEach((visible) => {
+    test(`initial setting visible ${visible}`, async () => {
+      await setVisible(visible);
+      assertEquals(visible, footer.$.showToggle.checked);
     });
   });
 
   (['#showToggleContainer', '#showToggle']).forEach((selector: string) => {
-    test(`logs click metrics for ${selector}`, async () => {
-      await setChecked(false);
-      const toggle = footer.shadowRoot.querySelector<HTMLElement>(selector);
-      assertTrue(!!toggle);
+    ([
+      [
+        false,
+        'NewTabPage.Footer.ToggledVisibility.Consumer',
+      ],
+      [
+        true,
+        'NewTabPage.Footer.ToggledVisibility.Enterprise',
+      ],
+    ] as Array<[boolean, string]>)
+        .forEach(([managementNoticeShown, histogramName]) => {
+          test(
+              `logs click metrics for ${selector} with management state :${
+                  managementNoticeShown}`,
+              async () => {
+                const managementNoticeState = {
+                  canBeShown: managementNoticeShown,
+                  enabledByPolicy: false,
+                };
+                await setChecked(false, managementNoticeState);
+                const toggle =
+                    footer.shadowRoot.querySelector<HTMLElement>(selector);
+                assertTrue(!!toggle);
 
-      toggle.click();
-      await microtasksFinished();
+                toggle.click();
+                await microtasksFinished();
 
-      assertEquals(
-          1, metrics.count('NewTabPage.CustomizeChromeSidePanelAction'));
-      assertEquals(
-          1,
-          metrics.count(
-              'NewTabPage.CustomizeChromeSidePanelAction',
-              CustomizeChromeAction.SHOW_FOOTER_TOGGLE_CLICKED));
-      assertEquals(1, metrics.count('NewTabPage.Footer.ToggledVisibility'));
-      assertEquals(
-          1, metrics.count('NewTabPage.Footer.ToggledVisibility', true));
+                assertEquals(
+                    1,
+                    metrics.count('NewTabPage.CustomizeChromeSidePanelAction'));
+                assertEquals(
+                    1,
+                    metrics.count(
+                        'NewTabPage.CustomizeChromeSidePanelAction',
+                        CustomizeChromeAction.SHOW_FOOTER_TOGGLE_CLICKED));
+                assertEquals(1, metrics.count(histogramName));
+                assertEquals(1, metrics.count(histogramName, true));
+                assertEquals(
+                    1, metrics.count('NewTabPage.Footer.ToggledVisibility'));
+                assertEquals(
+                    1,
+                    metrics.count('NewTabPage.Footer.ToggledVisibility', true));
 
-      toggle.click();
-      await microtasksFinished();
+                toggle.click();
+                await microtasksFinished();
 
-      assertEquals(2, metrics.count('NewTabPage.Footer.ToggledVisibility'));
-      assertEquals(
-          1, metrics.count('NewTabPage.Footer.ToggledVisibility', false));
-    });
+                assertEquals(2, metrics.count(histogramName));
+                assertEquals(1, metrics.count(histogramName, false));
+                assertEquals(
+                    2, metrics.count('NewTabPage.Footer.ToggledVisibility'));
+                assertEquals(
+                    1,
+                    metrics.count(
+                        'NewTabPage.Footer.ToggledVisibility', false));
+              });
+        });
   });
 
   (['#showToggleContainer', '#showToggle']).forEach((selector: string) => {
     test(`toggles visibility via ${selector}`, async () => {
-      await setChecked(false);
+      await setChecked(false, {canBeShown: false, enabledByPolicy: false});
       const toggle = $$<HTMLElement>(footer, selector);
       assertTrue(!!toggle);
 

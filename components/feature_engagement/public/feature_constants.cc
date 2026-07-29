@@ -110,7 +110,7 @@ BASE_FEATURE(kIPHFocusHelpBubbleScreenReaderPromoFeature,
              base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHGlicPromoFeature,
              "IPH_GlicPromo",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHGMCCastStartStopFeature,
              "IPH_GMCCastStartStop",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -788,10 +788,6 @@ BASE_FEATURE(kIPHiOSFeedSwipeAnimatedFeature,
 
 BASE_FEATURE(kIPHiOSWelcomeBackFeature,
              "IPH_iOSWelcomeBack",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kIPHIOSBWGPromoFeature,
-             "IPH_iOSBWGPromo",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kIPHIOSPageActionMenu,

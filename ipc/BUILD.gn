@@ -23,7 +23,6 @@ component("ipc") {
     "param_traits_macros.h",
     "param_traits_read_macros.h",
     "param_traits_write_macros.h",
-    "struct_constructor_macros.h",
     "tracing_helpers.h",
     "tracing_helpers_internal.h",
   ]
@@ -41,8 +40,6 @@ component("ipc") {
       "ipc_channel_mojo.h",
       "ipc_channel_proxy.cc",
       "ipc_channel_proxy.h",
-      "ipc_channel_reader.cc",
-      "ipc_channel_reader.h",
       "ipc_listener.cc",
       "ipc_listener.h",
       "ipc_message_macros.h",
@@ -56,8 +53,6 @@ component("ipc") {
       "ipc_sender.h",
       "ipc_sync_channel.cc",
       "ipc_sync_channel.h",
-      "ipc_sync_message_filter.cc",
-      "ipc_sync_message_filter.h",
       "message_filter.cc",
       "message_filter.h",
       "message_filter_router.cc",
@@ -73,6 +68,7 @@ component("ipc") {
   public_deps = [
     ":message_support",
     ":mojom",
+    ":mojom_constants",
     ":native_handle_type_converters",
     ":param_traits",
     "//base",
@@ -230,22 +226,6 @@ source_set("protobuf_support") {
   ]
 }
 
-static_library("test_sink") {
-  testonly = true
-  sources = [
-    "ipc_security_test_util.cc",
-    "ipc_security_test_util.h",
-    "ipc_test_sink.cc",
-    "ipc_test_sink.h",
-  ]
-  public_deps = [ ":ipc" ]
-  deps = [
-    "//base",
-    "//base/test:test_support",
-    "//mojo/core/test:test_support",
-  ]
-}
-
 if (use_blink) {
   source_set("run_all_unittests") {
     testonly = true
@@ -270,7 +250,6 @@ if (use_blink) {
     sources = [
       "ipc_channel_mojo_unittest.cc",
       "ipc_channel_proxy_unittest.cc",
-      "ipc_channel_reader_unittest.cc",
       "ipc_fuzzing_tests.cc",
       "ipc_message_protobuf_utils_unittest.cc",
       "ipc_message_unittest.cc",
@@ -350,10 +329,7 @@ if (use_blink) {
       "ipc_test_channel_listener.cc",
       "ipc_test_channel_listener.h",
     ]
-    public_deps = [
-      ":ipc",
-      ":test_sink",
-    ]
+    public_deps = [ ":ipc" ]
     deps = [
       "//base",
       "//base/test:test_support",

@@ -2092,8 +2092,7 @@ bool HTMLInputElement::ShouldAppearIndeterminate() const {
   return input_type_->ShouldAppearIndeterminate();
 }
 
-HTMLFormControlElement::PopoverTriggerSupport
-HTMLInputElement::SupportsPopoverTriggering() const {
+PopoverTriggerSupport HTMLInputElement::SupportsPopoverTriggering() const {
   return input_type_->SupportsPopoverTriggering();
 }
 
@@ -2473,6 +2472,12 @@ void HTMLInputElement::SetFocused(bool is_focused,
   if (!is_focused && !input_type_view_->IsMultipleFieldsTemporal() &&
       UserHasEditedTheField()) {
     SetUserHasEditedTheFieldAndBlurred();
+  }
+
+  if (RuntimeEnabledFeatures::RadioKeyboardFocusableOptimizeEnabled()) {
+    if (RadioButtonGroupScope* scope = GetRadioButtonGroupScope()) {
+      scope->UpdateLastFocusedState(this);
+    }
   }
 }
 

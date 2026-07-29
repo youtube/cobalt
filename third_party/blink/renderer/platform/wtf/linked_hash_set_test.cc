@@ -9,20 +9,12 @@
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_test_helper.h"
 
-namespace WTF {
-template <typename T>
-int* const ValueInstanceCount<T>::kDeletedValue =
-    reinterpret_cast<int*>(static_cast<uintptr_t>(-1));
-}  // namespace WTF
-
 namespace blink {
 
-static_assert(!WTF::IsTraceable<LinkedHashSet<int>>::value,
+static_assert(!IsTraceableV<LinkedHashSet<int>>,
               "LinkedHashSet must not be traceable.");
-static_assert(!WTF::IsTraceable<LinkedHashSet<String>>::value,
+static_assert(!IsTraceableV<LinkedHashSet<String>>,
               "LinkedHashSet must not be traceable.");
-
-using WTF::ValueInstanceCount;
 
 TEST(LinkedHashSetTest, CopyConstructAndAssignInt) {
   using Set = LinkedHashSet<ValueInstanceCount<int>>;
@@ -862,7 +854,7 @@ TEST(LinkedHashSetTest, Clear) {
 // A unit type that has empty std::string value.
 struct EmptyString {
   EmptyString() = default;
-  explicit EmptyString(WTF::HashTableDeletedValueType) : deleted_(true) {}
+  explicit EmptyString(HashTableDeletedValueType) : deleted_(true) {}
   ~EmptyString() { CHECK(ok_); }
 
   bool operator==(const EmptyString& other) const {
@@ -956,7 +948,6 @@ TEST(LinkedHashSetTest, IteratorsConvertToConstVersions) {
 }
 
 TEST(LinkedHashSetRefPtrTest, WithRefPtr) {
-  using WTF::DummyRefCounted;
   using Set = LinkedHashSet<scoped_refptr<DummyRefCounted>>;
   int expected = 1;
   // LinkedHashSet stores each object twice.
@@ -992,7 +983,6 @@ TEST(LinkedHashSetRefPtrTest, WithRefPtr) {
 }
 
 TEST(LinkedHashSetRefPtrTest, ExerciseValuePeekInType) {
-  using WTF::DummyRefCounted;
   using Set = LinkedHashSet<scoped_refptr<DummyRefCounted>>;
   Set set;
   bool is_deleted = false;
@@ -1105,7 +1095,6 @@ TEST(LinkedHashSetTranslatorTest, ComplexityTranslator) {
 }
 
 TEST(LinkedHashSetCountCopyTest, MoveConstructionShouldNotMakeCopy) {
-  using WTF::CountCopy;
   using Set = LinkedHashSet<CountCopy>;
   Set set;
   int counter = 0;
@@ -1117,7 +1106,6 @@ TEST(LinkedHashSetCountCopyTest, MoveConstructionShouldNotMakeCopy) {
 }
 
 TEST(LinkedHashSetCountCopyTest, MoveAssignmentShouldNotMakeACopy) {
-  using WTF::CountCopy;
   using Set = LinkedHashSet<CountCopy>;
   Set set;
   int counter = 0;

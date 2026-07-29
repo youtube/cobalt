@@ -700,7 +700,7 @@ void PreloadHelper::ModulePreloadIfNeeded(
                          params.referrer_policy,
                          mojom::blink::FetchPriorityHint::kAuto,
                          RenderBlockingBehavior::kNonBlocking),
-      Referrer::NoReferrer(), TextPosition::MinimumPosition(),
+      Referrer::ClientReferrerString(), TextPosition::MinimumPosition(),
       ModuleImportPhase::kEvaluation);
 
   // Step 13. "Fetch a modulepreload module script graph given url, destination,
@@ -780,13 +780,6 @@ void PreloadHelper::PrefetchIfNeeded(const LinkLoadParameters& params,
   resource_request.SetReferrerPolicy(params.referrer_policy);
   resource_request.SetFetchPriorityHint(
       GetFetchPriorityAttributeValue(params.fetch_priority_hint));
-
-  if (base::FeatureList::IsEnabled(features::kPrefetchPrivacyChanges)) {
-    resource_request.SetRedirectMode(network::mojom::RedirectMode::kError);
-    resource_request.SetReferrerPolicy(network::mojom::ReferrerPolicy::kNever);
-    // TODO(domfarolino): Implement more privacy-preserving prefetch changes.
-    // See crbug.com/988956.
-  }
 
   ResourceLoaderOptions options(
       document.GetExecutionContext()->GetCurrentWorld());

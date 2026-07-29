@@ -8,15 +8,15 @@
 #include <memory>
 #include <set>
 
+#include "base/auto_reset.h"
 #include "base/memory/weak_ptr.h"
 #include "ui/gfx/native_widget_types.h"
-#include "ui/views/cocoa/native_widget_mac_ns_window_host.h"
 #include "ui/views/event_monitor.h"
+#include "ui/views/views_export.h"
 
 namespace views {
 
-class EventMonitorMac : public EventMonitor,
-                        public views::NativeWidgetMacEventMonitor::Client {
+class EventMonitorMac : public EventMonitor {
  public:
   EventMonitorMac(ui::EventObserver* event_observer,
                   gfx::NativeWindow target_window,
@@ -30,16 +30,15 @@ class EventMonitorMac : public EventMonitor,
   // EventMonitor:
   gfx::Point GetLastMouseLocation() override;
 
- private:
-  // views::NativeWidgetMacEventMonitor::Client
-  void NativeWidgetMacEventMonitorOnEvent(ui::Event* event,
-                                          bool* event_handled) override;
+  // Causes EventMonitorMac to use the remote cocoa implementation rather than
+  // its normal local event monitoring implementation even if the target window
+  // isn't hosted out of process.
+  VIEWS_EXPORT [[nodiscard]] static base::AutoReset<bool>
+  UseRemoteCocoaForTesting();
 
+ private:
   const std::set<ui::EventType> types_;
   raw_ptr<ui::EventObserver> event_observer_;
-
-  // For remote cocoa use.
-  std::unique_ptr<views::NativeWidgetMacEventMonitor> event_monitor_;
 
   struct ObjCStorage;
   std::unique_ptr<ObjCStorage> objc_storage_;

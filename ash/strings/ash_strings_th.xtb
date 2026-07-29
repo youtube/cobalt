@@ -142,7 +142,7 @@
 <translation id="1419738280318246476">ปลดล็อกอุปกรณ์เพื่อดำเนินการแจ้งเตือน</translation>
 <translation id="1420408895951708260">เปิด/ปิดแสงตอนกลางคืน <ph name="STATE_TEXT" /></translation>
 <translation id="1421166164855200062">กลุ่มที่แนะนำ</translation>
-<translation id="1426410128494586442">ยอมรับ</translation>
+<translation id="1426410128494586442">ใช่</translation>
 <translation id="1435537621343861112">เริ่มการพิมพ์ตามคำบอกไม่ได้ เนื่องจากไมค์ปิดอยู่</translation>
 <translation id="1445031758921122223">ดาวน์โหลดไฟล์การควบคุมใบหน้าแล้ว</translation>
 <translation id="1447907279406111651">ดำเนินอยู่ ⋅ สิ้นสุด <ph name="END_TIME" /></translation>
@@ -603,7 +603,6 @@
 <translation id="3026897869154397692">เพิ่มลงในปฏิทินแล้ว</translation>
 <translation id="3033545621352269033">เปิด</translation>
 <translation id="3033912566804961911">รวมกับ <ph name="DESK_NAME" /></translation>
-<translation id="3036649622769666520">เปิดไฟล์</translation>
 <translation id="3039939407102840004">สไตลัสเหลือแบตเตอรี่ <ph name="PERCENTAGE" /> เปอร์เซ็นต์</translation>
 <translation id="304097922505898963">เปิดแอปแป้นพิมพ์ลัด</translation>
 <translation id="304417730895741346">แอปที่ปักหมุดและเปิดไว้จะอยู่ในแถบ หากต้องการปักหมุดแอปในแถบ ให้คลิกขวาที่แอปหรือใช้ 2 นิ้วแตะทัชแพด</translation>
@@ -1598,7 +1597,6 @@
 <translation id="6166852626429024716">ค้นหาอุปกรณ์ แอป การตั้งค่า เว็บ...</translation>
 <translation id="6168318496333165060">เปิดแอปการวินิจฉัย</translation>
 <translation id="6168622430237609329">แอปที่ติดตั้งของคุณ</translation>
-<translation id="6179832488876878285">คุณปักหมุดไฟล์สำคัญๆ ไว้ที่นี่ได้ เปิดแอป Files เพื่อเริ่มต้นใช้งาน</translation>
 <translation id="6180193585172850042">ปุ่มย้อนกลับ</translation>
 <translation id="6180651297859206670">ปุ่มไปข้างหน้า</translation>
 <translation id="6182592640011875895">เปิดเดสก์</translation>
@@ -1910,6 +1908,7 @@
 <translation id="7240636904654154599">สร้างสเปรดชีตใน Google ชีตแล้ว</translation>
 <translation id="7244725679040769470">แบตเตอรี่เหลืออยู่ <ph name="PERCENTAGE" />% โปรดเชื่อมต่ออุปกรณ์กับแหล่งจ่ายไฟ</translation>
 <translation id="7246071203293827765"><ph name="UPDATE_TEXT" /> Chromebook นี้ต้องรีสตาร์ทเพื่อใช้การอัปเดต ซึ่งอาจใช้เวลาถึง 1 นาที</translation>
+<translation id="7248100343060254997">ค้นหาในหน้าจอ</translation>
 <translation id="7256057185598509352">ExpressKey 2</translation>
 <translation id="7256634071279256947">ไมโครโฟนด้านหลัง</translation>
 <translation id="7258828758145722155">แก้ไขเมื่อวานนี้</translation>

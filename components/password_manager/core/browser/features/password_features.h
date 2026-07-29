@@ -57,6 +57,12 @@ BASE_DECLARE_FEATURE(kClearUndecryptablePasswords);
 // Delete undecryptable passwords from the store when Sync is active.
 BASE_DECLARE_FEATURE(kClearUndecryptablePasswordsOnSync);
 
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)  // Desktop
+// Enables the Mojo JavaScript API for the password manager, replacing the
+// legacy passwordsPrivate extension API.
+BASE_DECLARE_FEATURE(kEnablePasswordManagerMojoApi);
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+
 #if BUILDFLAG(IS_ANDROID)
 // Enables reading credentials from SharedPreferences.
 BASE_DECLARE_FEATURE(kFetchGaiaHashOnSignIn);
@@ -136,6 +142,10 @@ BASE_DECLARE_FEATURE(kSetLeakCheckRequestCriticality);
 // management UI.
 BASE_DECLARE_FEATURE(kShowRecoveryPassword);
 
+// Shows a tab with password change instead of bubble/settings page after
+// successful password change.
+BASE_DECLARE_FEATURE(kShowTabWithPasswordChangeOnSuccess);
+
 // Displays at least the decryptable and never saved logins in the password
 // manager
 BASE_DECLARE_FEATURE(kSkipUndecryptablePasswords);
@@ -151,15 +161,6 @@ BASE_DECLARE_FEATURE(kTriggerPasswordResyncWhenUndecryptablePasswordsDetected);
 // The feature flag for the Identity Check feature. The feature makes biometric
 // authentication mandatory before password filling in untrusted locations.
 BASE_DECLARE_FEATURE(kBiometricAuthIdentityCheck);
-
-// If enabled, the password store no longer uses the Login DB as a backend.
-// Instead, it either uses the Android-specific storage or an empty backend
-// if the client isn't eligible for the former.
-BASE_DECLARE_FEATURE(kLoginDbDeprecationAndroid);
-
-inline constexpr base::FeatureParam<int> kLoginDbDeprecationExportDelay = {
-    &kLoginDbDeprecationAndroid,
-    /*name=*/"login-db-deprecation-export-delay-seconds", /*default_value=*/5};
 #endif  // BUILDFLAG(IS_ANDROID)
 
 // Improves PSL matching capabilities by utilizing PSL-extension list from
@@ -185,6 +186,10 @@ BASE_DECLARE_FEATURE(kImprovedPasswordChangeService);
 // The feature flag for reloading passwords when the trusted vault encryption
 // state changes.
 BASE_DECLARE_FEATURE(kReloadPasswordsOnTrustedVaultEncryptionChange);
+
+// The feature flag for showing an action to unlock passwords in case of a
+// trusted vault error in the keyboard accessory.
+BASE_DECLARE_FEATURE(kRetrieveTrustedVaultKeyKeyboardAccessoryAction);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 inline constexpr base::FeatureParam<std::string>
@@ -199,6 +204,10 @@ inline constexpr base::FeatureParam<std::string>
     kPasswordChangeCanceledSurveyTriggerId{
         &kImprovedPasswordChangeService,
         "PasswordChangeCanceledSurveyTriggerId",
+        /*default_value=*/""};
+inline constexpr base::FeatureParam<std::string>
+    kPasswordChangeDelayedSurveyTriggerId{
+        &kImprovedPasswordChangeService, "PasswordChangeDelayedSurveyTriggerId",
         /*default_value=*/""};
 
 // All features parameters in alphabetical order.

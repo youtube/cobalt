@@ -27,7 +27,10 @@
 #include "chrome/browser/password_manager/password_change_delegate.h"
 #include "chrome/browser/password_manager/password_change_delegate_mock.h"
 #include "chrome/browser/password_manager/password_change_service_factory.h"
+#include "chrome/browser/ui/hats/hats_service_factory.h"
+#include "chrome/browser/ui/hats/mock_hats_service.h"
 #include "chrome/browser/ui/hats/mock_trust_safety_sentiment_service.h"
+#include "chrome/browser/ui/hats/survey_config.h"
 #include "chrome/browser/ui/hats/trust_safety_sentiment_service_factory.h"
 #include "chrome/browser/ui/passwords/credential_leak_dialog_controller.h"
 #include "chrome/browser/ui/passwords/credential_manager_dialog_controller.h"
@@ -49,6 +52,7 @@
 #include "components/password_manager/core/browser/password_store/interactions_stats.h"
 #include "components/password_manager/core/browser/password_store/mock_password_store_interface.h"
 #include "components/password_manager/core/browser/stub_password_manager_client.h"
+#include "components/password_manager/core/browser/undo_password_change_controller.h"
 #include "components/password_manager/core/common/password_manager_features.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/password_manager/core/common/password_manager_ui.h"
@@ -308,6 +312,10 @@ class MockPasswordChangeService : public ChromePasswordChangeService {
 
 class ManagePasswordsUIControllerTest : public ChromeRenderViewHostTestHarness {
  public:
+  ManagePasswordsUIControllerTest()
+      : ChromeRenderViewHostTestHarness(
+            base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
+
   void SetUp() override;
 
   TestPasswordManagerClient& client() { return client_; }
@@ -552,6 +560,63 @@ TEST_F(ManagePasswordsUIControllerTest, PasswordSaved) {
   controller()->SavePassword(submitted_form().username_value,
                              submitted_form().password_value);
   ExpectIconAndControllerStateIs(password_manager::ui::MANAGE_STATE);
+  histogram_tester.ExpectTotalCount(
+      "PasswordManager.PasswordChangeRecoveryFlow", 0);
+}
+
+TEST_F(ManagePasswordsUIControllerTest, BackupPasswordSaved) {
+  using UkmEntry = ukm::builders::PasswordManager_ChangeRecovery;
+  base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder test_ukm_recorder;
+  auto* mock_sentiment_service_ = static_cast<MockTrustSafetySentimentService*>(
+      TrustSafetySentimentServiceFactory::GetInstance()
+          ->SetTestingFactoryAndUse(
+              profile(),
+              base::BindRepeating(&BuildMockTrustSafetySentimentService)));
+  EXPECT_CALL(*mock_sentiment_service_, SavedPassword());
+  MockHatsService* mock_hats_service = static_cast<MockHatsService*>(
+      HatsServiceFactory::GetInstance()->SetTestingFactoryAndUse(
+          profile(), base::BindRepeating(&BuildMockHatsService)));
+  EXPECT_CALL(*mock_hats_service, CanShowAnySurvey)
+      .WillRepeatedly(Return(true));
+  const std::u16string backup_password = u"backup";
+  PasswordForm submitted_form;
+  submitted_form.username_value = kExampleUsername;
+  submitted_form.password_value = backup_password;
+  PasswordForm stored_matching_form;
+  stored_matching_form.username_value = kExampleUsername;
+  stored_matching_form.password_value = kExamplePassword;
+  stored_matching_form.SetPasswordBackupNote(backup_password);
+  stored_matching_form.type =
+      password_manager::PasswordForm::Type::kChangeSubmission;
+  auto test_form_manager = CreateFormManagerWithBestMatches(
+      /*best_matches=*/{stored_matching_form}, &submitted_form);
+
+  EXPECT_CALL(*test_form_manager, Save());
+  controller()->OnUpdatePasswordSubmitted(std::move(test_form_manager));
+
+  EXPECT_CALL(*mock_hats_service, LaunchDelayedSurveyForWebContents(
+                                      kHatsSurveyTriggerPasswordChangeDelayed,
+                                      _, _, _, _, _, _, _, _, _));
+  controller()->SavePassword(submitted_form.username_value,
+                             submitted_form.password_value);
+  // Advance the clock to trigger the delayed survey task and wait until it
+  // actually launches.
+  task_environment()->AdvanceClock(base::Seconds(2));
+  task_environment()->RunUntilIdle();
+
+  ExpectIconAndControllerStateIs(password_manager::ui::MANAGE_STATE);
+  histogram_tester.ExpectUniqueSample(
+      "PasswordManager.PasswordChangeRecoveryFlow",
+      password_manager::PasswordChangeRecoveryFlowState::
+          kPrimaryPasswordUpdated,
+      1);
+  auto ukm_entries = test_ukm_recorder.GetEntriesByName(UkmEntry::kEntryName);
+  EXPECT_EQ(1u, ukm_entries.size());
+  ukm::TestUkmRecorder::ExpectEntryMetric(
+      ukm_entries[0], UkmEntry::kPasswordChangeRecoveryFlowName,
+      static_cast<int>(password_manager::PasswordChangeRecoveryFlowState::
+                           kPrimaryPasswordUpdated));
 }
 
 TEST_F(ManagePasswordsUIControllerTest, PhishedPasswordUpdated) {

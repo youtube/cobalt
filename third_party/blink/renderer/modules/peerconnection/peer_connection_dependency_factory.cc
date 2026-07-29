@@ -140,7 +140,7 @@ network::mojom::IPAddressSpace FromSocketAddress(
     return network::mojom::IPAddressSpace::kLoopback;
   }
   if (socket_address.IsPrivateIP()) {
-    return network::mojom::IPAddressSpace::kPrivate;
+    return network::mojom::IPAddressSpace::kLocal;
   }
   return network::mojom::IPAddressSpace::kPublic;
 }
@@ -291,11 +291,7 @@ class LocalNetworkAccessPermissionFactory final
 };
 
 std::string WorkerThreadName() {
-  if (base::FeatureList::IsEnabled(
-          features::kWebRtcCombinedNetworkAndWorkerThread)) {
-    return "WebRTC_W_and_N";
-  }
-  return "WebRTC_Worker";
+  return "WebRTC_W_and_N";
 }
 
 // Encapsulates process-wide static dependencies used by
@@ -306,12 +302,7 @@ class PeerConnectionStaticDeps {
  public:
   PeerConnectionStaticDeps()
       : chrome_signaling_thread_("WebRTC_Signaling"),
-        chrome_worker_thread_(WorkerThreadName()) {
-    if (!base::FeatureList::IsEnabled(
-            features::kWebRtcCombinedNetworkAndWorkerThread)) {
-      chrome_network_thread_.emplace("WebRTC_Network");
-    }
-  }
+        chrome_worker_thread_(WorkerThreadName()) {}
 
   ~PeerConnectionStaticDeps() {
     if (chrome_worker_thread_.IsRunning()) {
@@ -1116,8 +1107,16 @@ PeerConnectionDependencyFactory::CreatePortAllocator(
     network_manager =
         std::make_unique<blink::EmptyNetworkManager>(network_manager_.get());
   }
+
+  std::unique_ptr<LocalNetworkAccessPermissionFactory> lna_permission_factory;
+  if (RuntimeEnabledFeatures::LocalNetworkAccessWebRTCEnabled()) {
+    lna_permission_factory =
+        std::make_unique<LocalNetworkAccessPermissionFactory>(this);
+  }
+
   auto port_allocator = std::make_unique<P2PPortAllocator>(
-      std::move(network_manager), socket_factory_.get(), port_config);
+      std::move(network_manager), socket_factory_.get(), port_config,
+      std::move(lna_permission_factory));
   if (IsValidPortRange(min_port, max_port))
     port_allocator->SetPortRange(min_port, max_port);
 

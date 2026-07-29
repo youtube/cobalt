@@ -62,6 +62,7 @@ mojom("mojom_platform") {
     "content_extraction/frame_metadata_observer_registry.mojom",
     "content_extraction/inner_html.mojom",
     "content_extraction/inner_text.mojom",
+    "content_extraction/script_tools.mojom",
     "content_index/content_index.mojom",
     "context_menu/context_menu.mojom",
     "conversions/conversions.mojom",
@@ -99,6 +100,7 @@ mojom("mojom_platform") {
     "file_system_access/file_system_access_manager.mojom",
     "file_system_access/file_system_access_observer.mojom",
     "file_system_access/file_system_access_observer_host.mojom",
+    "file_system_access/file_system_access_permission_mode.mojom",
     "file_system_access/file_system_access_transfer_token.mojom",
     "filesystem/file_system.mojom",
     "font_access/font_access.mojom",
@@ -314,7 +316,6 @@ mojom("mojom_platform") {
     "//third_party/blink/public/mojom/gpu",
     "//third_party/blink/public/mojom/origin_trials:origin_trial_feature",
     "//third_party/blink/public/mojom/origin_trials:origin_trial_state",
-    "//third_party/blink/public/mojom/private_network_device",
     "//third_party/blink/public/mojom/quota",
     "//third_party/blink/public/mojom/service_worker:storage",
     "//third_party/blink/public/mojom/storage_key",
@@ -1783,7 +1784,7 @@ mojom("mojom_modules") {
 mojom("web_bluetooth_mojo_bindings") {
   visibility = [
     "//third_party/blink/common",
-    "//third_party/blink/public/common:common",
+    "//third_party/blink/public/common",
     "//third_party/blink/public/common:headers",
   ]
 
@@ -1893,8 +1894,8 @@ mojom("embedded_frame_sink_mojo_bindings") {
 
 mojom("memory_usage_monitor_linux_mojo_bindings") {
   visibility = [
-    "//content/browser:browser",
-    "//third_party/blink/renderer/controller:controller",
+    "//content/browser",
+    "//third_party/blink/renderer/controller",
   ]
   visibility_blink = [ "//third_party/blink/renderer/controller:controller" ]
 

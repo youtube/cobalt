@@ -45,9 +45,6 @@ import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.test.BaseRobolectricTestRule;
-import org.chromium.base.test.util.Features.DisableFeatures;
-import org.chromium.base.test.util.Features.EnableFeatures;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.loading_modal.LoadingModalDialogCoordinator;
 import org.chromium.chrome.browser.password_check.PasswordCheck;
 import org.chromium.chrome.browser.password_check.PasswordCheckFactory;
@@ -110,9 +107,6 @@ import java.util.Set;
 /** Unit tests for {@link SafetyCheckMediator}. */
 @RunWith(ParameterizedRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
-// TODO(crbug.com/397186266): Update the tests when updating SafetyCheckMediator itself.
-// The mediator exercises a code path checking the LOGIN_DB_DEPRECATION_ANDROID
-// flag, so it has to be set up explicitly in tests.
 public class SafetyCheckMediatorTest {
     private static final String SAFETY_CHECK_INTERACTIONS_HISTOGRAM =
             "Settings.SafetyCheck.Interactions";
@@ -275,13 +269,6 @@ public class SafetyCheckMediatorTest {
         PasswordManagerBackendSupportHelper.setInstanceForTesting(mBackendSupportHelperMock);
         when(mBackendSupportHelperMock.isBackendPresent()).thenReturn(true);
         when(mPasswordManagerUtilBridgeNativeMock.areMinUpmRequirementsMet()).thenReturn(true);
-
-        // Availability of the UPM backend will be checked by the SafetyCheckMediator using
-        // PasswordManagerHelper so the bridge method needs to be mocked.
-        // The parameter mUseGmsApi currently means that the mock SyncService will be configured to
-        // sync passwords, which so far is the only case in which the GMS APIs can be used.
-        when(mPasswordManagerUtilBridgeNativeMock.shouldUseUpmWiring(mSyncService, mPrefService))
-                .thenReturn(mUseGmsApi);
 
         SafetyCheckBridgeJni.setInstanceForTesting(mSafetyCheckBridge);
 
@@ -609,7 +596,6 @@ public class SafetyCheckMediatorTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.LOGIN_DB_DEPRECATION_ANDROID)
     public void testNullStateMoreThan10MinsPasswordsSafeState() {
         // Ran 20 mins ago.
         SharedPreferencesManager preferenceManager = ChromeSharedPreferences.getInstance();
@@ -646,7 +632,6 @@ public class SafetyCheckMediatorTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.LOGIN_DB_DEPRECATION_ANDROID)
     public void testNullStateMoreThan10MinsPasswordsUnsafeState() {
         // Ran 20 mins ago.
         SharedPreferencesManager preferenceManager = ChromeSharedPreferences.getInstance();
@@ -683,7 +668,6 @@ public class SafetyCheckMediatorTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.LOGIN_DB_DEPRECATION_ANDROID)
     public void testPasswordsInitialLoadDuringInitialState() {
         // Order: setting initial state -> showing CHECK while the check is still running -> done.
         mMediator.setInitialState();
@@ -696,7 +680,6 @@ public class SafetyCheckMediatorTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.LOGIN_DB_DEPRECATION_ANDROID)
     public void testPasswordsInitialLoadDuringRunningCheck() {
         // Order: initial state -> safety check triggered -> load completed -> check done.
         mMediator.setInitialState();
@@ -728,7 +711,6 @@ public class SafetyCheckMediatorTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.LOGIN_DB_DEPRECATION_ANDROID)
     public void testPasswordsInitialLoadCheckReturnsError() {
         // Order: initial state -> safety check triggered -> check error -> load ignored.
         mMediator.setInitialState();
@@ -747,7 +729,6 @@ public class SafetyCheckMediatorTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.LOGIN_DB_DEPRECATION_ANDROID)
     public void testPasswordsInitialLoadUserSignedOut() {
         // Order: initial state is user signed out -> should display signed out error.
         mMediator.setInitialState();
@@ -779,7 +760,6 @@ public class SafetyCheckMediatorTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.LOGIN_DB_DEPRECATION_ANDROID)
     public void testClickListenerStartsSignInFlowWhenUserSignedOut() {
         mMediator.setInitialState();
         setUpPasswordCheckToReturnError(
@@ -807,29 +787,6 @@ public class SafetyCheckMediatorTest {
     }
 
     @Test
-    @DisableFeatures(ChromeFeatureList.LOGIN_DB_DEPRECATION_ANDROID)
-    public void testClickListenerLeadsToUPMAccountPasswordCheckupPreLoginDbDeprecation() {
-        // Order: initial state -> safety check triggered -> check done -> load completed.
-        mMediator.setInitialState();
-        assertEquals(PasswordsState.CHECKING, mPasswordCheckModel.get(PASSWORDS_STATE));
-
-        mMediator.performSafetyCheck();
-        assertEquals(PasswordsState.CHECKING, mPasswordCheckModel.get(PASSWORDS_STATE));
-
-        setUpPasswordCheckToReturnResult(
-                PasswordStorageType.ACCOUNT_STORAGE,
-                new PasswordCheckResult(/* totalPasswordsCount= */ 20, /* breachedCount= */ 18));
-        assertEquals(PasswordsState.COMPROMISED_EXIST, mPasswordCheckModel.get(PASSWORDS_STATE));
-
-        click(getPasswordsClickListener(mPasswordCheckModel));
-
-        verify(mPasswordCheckupHelper, times(mUseGmsApi ? 1 : 0))
-                .getPasswordCheckupIntent(
-                        eq(SAFETY_CHECK), eq(Optional.of(TEST_EMAIL_ADDRESS)), any(), any());
-    }
-
-    @Test
-    @EnableFeatures(ChromeFeatureList.LOGIN_DB_DEPRECATION_ANDROID)
     public void testClickListenerLeadsToUPMAccountPasswordCheckup() {
         when(mPasswordManagerUtilBridgeNativeMock.isPasswordManagerAvailable(mPrefService, true))
                 .thenReturn(true);
@@ -853,7 +810,6 @@ public class SafetyCheckMediatorTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.LOGIN_DB_DEPRECATION_ANDROID)
     public void testClickListenerDoesntLeadToPasswordCheckupIfThereWasError() {
         // Order: initial state -> safety check triggered -> check done -> load completed.
         mMediator.setInitialState();
@@ -868,7 +824,6 @@ public class SafetyCheckMediatorTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.LOGIN_DB_DEPRECATION_ANDROID)
     public void testClickListenerLeadsToPasswordSettingsWhenUnchecked() {
         assumeTrue(mUseGmsApi);
         LoginDbDeprecationUtilBridge.setHasCsvFileForTesting(false);
@@ -894,7 +849,6 @@ public class SafetyCheckMediatorTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.LOGIN_DB_DEPRECATION_ANDROID)
     public void testClickListenerLeadsToUPMLocalPasswordCheckup() {
         when(mPasswordManagerUtilBridgeNativeMock.isPasswordManagerAvailable(any(), eq(true)))
                 .thenReturn(mUseGmsApi);
@@ -926,7 +880,6 @@ public class SafetyCheckMediatorTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.LOGIN_DB_DEPRECATION_ANDROID)
     public void testPasswordCheckCompletesForTwoStorages() {
         // Set up both local and account models
         PropertyModel passwordCheckAccountModel =

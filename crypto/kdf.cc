@@ -7,6 +7,7 @@
 #include "base/check_op.h"
 #include "crypto/openssl_util.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
+#include "third_party/boringssl/src/include/openssl/hkdf.h"
 
 namespace crypto::kdf {
 
@@ -36,6 +37,20 @@ void DeriveKeyScrypt(const ScryptParams& params,
                      params.max_memory_bytes, result.data(), result.size());
 
   CHECK_EQ(rv, 1);
+}
+
+void Hkdf(crypto::hash::HashKind kind,
+          base::span<const uint8_t> secret,
+          base::span<const uint8_t> salt,
+          base::span<const uint8_t> info,
+          base::span<uint8_t> out) {
+  // Even though ::HKDF() will fail in this situation, check it explicitly here
+  // to give better error info:
+  CHECK_LT(out.size(), 255 * crypto::hash::DigestSizeForHashKind(kind));
+  CHECK_EQ(::HKDF(out.data(), out.size(), crypto::hash::EVPMDForHashKind(kind),
+                  secret.data(), secret.size(), salt.data(), salt.size(),
+                  info.data(), info.size()),
+           1);
 }
 
 }  // namespace crypto::kdf

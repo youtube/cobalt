@@ -4,6 +4,8 @@
 
 #include "net/ntlm/ntlm_buffer_reader.h"
 
+#include <array>
+
 #include "base/compiler_specific.h"
 #include "base/strings/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -183,6 +185,16 @@ TEST(NtlmBufferReaderTest, ReadPayloadBadOffset) {
   NtlmBufferReader sub_reader;
   ASSERT_FALSE(
       reader.ReadPayloadAsBufferReader(SecurityBuffer(4, 1), &sub_reader));
+}
+
+TEST(NtlmBufferReaderTest, ReadPayloadBadOffsetZeroLength) {
+  const uint8_t buf[4] = {};
+  NtlmBufferReader reader(buf);
+
+  NtlmBufferReader sub_reader;
+  ASSERT_TRUE(
+      reader.ReadPayloadAsBufferReader(SecurityBuffer(500, 0), &sub_reader));
+  EXPECT_TRUE(sub_reader.IsEndOfBuffer());
 }
 
 TEST(NtlmBufferReaderTest, ReadPayloadBadLength) {
@@ -432,8 +444,8 @@ TEST(NtlmBufferReaderTest, ReadTargetInfoInvalidTimestampPastEob) {
 TEST(NtlmBufferReaderTest, ReadTargetInfoOtherField) {
   // A domain name AvPair containing the string L'ABCD' followed by
   // a terminating AvPair.
-  const uint8_t buf[16] = {0x02, 0, 0x08, 0, 'A', 0, 'B', 0,
-                           'C',  0, 'D',  0, 0,   0, 0,   0};
+  const std::array<uint8_t, 16> buf = {0x02, 0, 0x08, 0, 'A', 0, 'B', 0,
+                                       'C',  0, 'D',  0, 0,   0, 0,   0};
 
   NtlmBufferReader reader(buf);
 

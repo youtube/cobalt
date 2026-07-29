@@ -63,6 +63,7 @@ Protección avanzada controla estas opcións de configuración de Chrome:
 <translation id="1704230497453185209">Non permitir que os sitios reproduzan son</translation>
 <translation id="1717218214683051432">Sensores de movemento</translation>
 <translation id="1717996979683942279">Cando esta opción está activada, os sitios poden pedir permiso para xestionar as ventás en todas as pantallas. Cando está desactivada, non poden xestionalas.</translation>
+<translation id="1738912554587725807">Panel inferior de coleccións de temas de aparencia da páxina Nova pestana</translation>
 <translation id="1743802530341753419">Preguntar antes de permitir que os sitios se conecten a un dispositivo (recomendado)</translation>
 <translation id="1777815584158991902">Panel inferior do feed de Discover</translation>
 <translation id="1779089405699405702">Descodificador de imaxes</translation>
@@ -120,6 +121,7 @@ Protección avanzada controla estas opcións de configuración de Chrome:
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> e <ph name="NUM_MORE" /> máis (permitidos)}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> e <ph name="NUM_MORE" /> máis (permitidos)}}</translation>
 <translation id="2410940059315936967">Os sitios que visitas poden inserir contido doutros sitios web (por exemplo, imaxes, anuncios ou texto). As cookies definidas por estes outros sitios denomínanse cookies de terceiros.</translation>
+<translation id="2411116727035790889">Activar os atallos</translation>
 <translation id="2433507940547922241">Aparencia</translation>
 <translation id="2434158240863470628">Completouse a descarga <ph name="SEPARATOR" /> <ph name="BYTES_DOWNLOADED" /></translation>
 <translation id="2438120137003069591">Permitiches de maneira temporal que este sitio use cookies de terceiros. Terás menos protección durante a navegación, pero é máis probable que as funcións do sitio marchen segundo o previsto. <ph name="BEGIN_LINK" />Enviar comentarios<ph name="END_LINK" /></translation>
@@ -186,6 +188,7 @@ Protección avanzada controla estas opcións de configuración de Chrome:
 <translation id="3114012059975132928">Reprodutor de vídeo</translation>
 <translation id="3115898365077584848">Mostrar información</translation>
 <translation id="3123473560110926937">Anuncios bloqueados nalgúns sitios</translation>
+<translation id="3132996321662585180">Actualizar diariamente</translation>
 <translation id="3143754809889689516">Reproducir desde o principio</translation>
 <translation id="3162899666601560689">Os sitios poden utilizar cookies para mellorar a túa experiencia de navegación a través de funcións como manter a sesión iniciada ou lembrar artigos da túa cesta da compra</translation>
 <translation id="3165022941318558018">Permite que un sitio use cookies de terceiros</translation>
@@ -356,6 +359,7 @@ Protección avanzada controla estas opcións de configuración de Chrome:
 <translation id="5100237604440890931">Vista contraída (fai clic para ampliala).</translation>
 <translation id="5116239826668864748">Podes utilizar Chrome cando toques as ligazóns en mensaxes, en documentos e noutras aplicacións</translation>
 <translation id="5123685120097942451">Pestana do modo de incógnito</translation>
+<translation id="512938610812707830">Panel inferior de coleccións de temas de aparencia da páxina Nova pestana aberto a altura completa</translation>
 <translation id="5139253256813381453">{PRICE_DROP_COUNT,plural, =1{Baixada de prezo nas pestanas que teñas abertas}other{Baixadas de prezo nas pestanas que teñas abertas}}</translation>
 <translation id="5186036860380548585">Opción dispoñible preto da parte superior da pantalla</translation>
 <translation id="5197729504361054390">Os contactos que selecciones compartiranse con <ph name="BEGIN_BOLD" /><ph name="SITE" /><ph name="END_BOLD" />.</translation>
@@ -608,7 +612,6 @@ Protección avanzada controla estas opcións de configuración de Chrome:
 <translation id="8186479265534291036">O sitio non funciona? As cookies de terceiros están bloqueadas</translation>
 <translation id="8197286292360124385"><ph name="PERMISSION_1" /> (permitido)</translation>
 <translation id="8200772114523450471">Retomar</translation>
-<translation id="8206354486702514201">O administrador aplica esta configuración.</translation>
 <translation id="8211406090763984747">A conexión é segura</translation>
 <translation id="822964464349305906"><ph name="TYPE_1" />, <ph name="TYPE_2" /></translation>
 <translation id="8249310407154411074">Mover á parte superior</translation>
@@ -619,6 +622,7 @@ Protección avanzada controla estas opcións de configuración de Chrome:
 <translation id="8324158725704657629">Non preguntar de novo</translation>
 <translation id="8362795839483915693">Podes achegar ou afastar o zoom nos sitios que visitas</translation>
 <translation id="8372893542064058268">Permite a sincronización en segundo plano nun sitio específico.</translation>
+<translation id="8378714024927312812">Xestionado pola túa organización</translation>
 <translation id="83792324527827022">Un sitio está utilizando a cámara e o micrófono</translation>
 <translation id="8380167699614421159">Este sitio mostra anuncios intrusivos ou enganosos</translation>
 <translation id="8394832520002899662">Toca para volver ao sitio</translation>

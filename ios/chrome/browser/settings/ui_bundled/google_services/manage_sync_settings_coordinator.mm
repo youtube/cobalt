@@ -507,6 +507,10 @@ using DismissViewCallback = SystemIdentityManager::DismissViewCallback;
 }
 
 - (void)openAccountMenu {
+  if (_accountMenuCoordinator) {
+    // This can occurs in cause of double tap.
+    return;
+  }
   _accountMenuCoordinator = [[AccountMenuCoordinator alloc]
       initWithBaseViewController:self.viewController
                          browser:self.browser
@@ -535,7 +539,8 @@ using DismissViewCallback = SystemIdentityManager::DismissViewCallback;
 
 - (void)openPassphraseDialogWithModalPresentation:(BOOL)presentModally {
   SceneState* sceneState = self.browser->GetSceneState();
-  if (sceneState.isUIBlocked || _syncEncryptionPassphraseTableViewController) {
+  if (sceneState.isUIBlocked || _syncEncryptionTableViewController ||
+      _syncEncryptionPassphraseTableViewController) {
     // This could occur due to race condition with multiple windows and
     // simultaneous taps. See crbug.com/368310663.
     return;
@@ -577,11 +582,14 @@ using DismissViewCallback = SystemIdentityManager::DismissViewCallback;
 }
 
 - (void)openTrustedVaultReauthForFetchKeys {
+  if (_trustedVaultReauthenticationCoordinator) {
+    // This can occur if the user double tap on the error button.
+    return;
+  }
   trusted_vault::SecurityDomainId chromeSyncID =
       trusted_vault::SecurityDomainId::kChromeSync;
   syncer::TrustedVaultUserActionTriggerForUMA settingsTrigger =
       syncer::TrustedVaultUserActionTriggerForUMA::kSettings;
-  CHECK(!_trustedVaultReauthenticationCoordinator, base::NotFatalUntil::M145);
   _trustedVaultReauthenticationCoordinator =
       [[TrustedVaultReauthenticationCoordinator alloc]
           initWithBaseViewController:self.viewController
@@ -594,6 +602,10 @@ using DismissViewCallback = SystemIdentityManager::DismissViewCallback;
 }
 
 - (void)openTrustedVaultReauthForDegradedRecoverability {
+  if (_trustedVaultReauthenticationCoordinator) {
+    // This can occurs in case of double tap.
+    return;
+  }
   trusted_vault::SecurityDomainId chromeSyncID =
       trusted_vault::SecurityDomainId::kChromeSync;
   syncer::TrustedVaultUserActionTriggerForUMA settingsTrigger =
@@ -617,6 +629,10 @@ using DismissViewCallback = SystemIdentityManager::DismissViewCallback;
 }
 
 - (void)openPrimaryAccountReauthDialog {
+  // In case of double-tap, we must stop the first coordinator. This may occur
+  // because, up to iOS 18, the view may have disappeared without calling the
+  // signin completion. See crbug.com/395959814
+  [_addAccountCoordinator stop];
   SigninContextStyle contextStyle = SigninContextStyle::kDefault;
   AccessPoint accessPoint = AccessPoint::kSettings;
   signin_metrics::PromoAction promoAction =

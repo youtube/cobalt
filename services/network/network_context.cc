@@ -476,11 +476,12 @@ void TestVerifyCertCallback(
   std::move(callback).Run(result);
 }
 
-std::string HashesToBase64String(const net::HashValueVector& hashes) {
+std::string HashesToBase64String(
+    const absl::flat_hash_set<net::SHA256HashValue>& hashes) {
   std::vector<std::string> strings;
   strings.reserve(hashes.size());
   for (const auto& hash : hashes) {
-    strings.push_back(hash.ToString());
+    strings.push_back(net::HashValue(hash).ToString());
   }
   return base::JoinString(strings, ",");
 }
@@ -1988,8 +1989,8 @@ void NetworkContext::ResolveHost(
     remote_response_client->OnComplete(
         net::ERR_NETWORK_ACCESS_REVOKED,
         net::ResolveErrorInfo(net::ERR_NETWORK_ACCESS_REVOKED),
-        /*resolved_addresses=*/std::nullopt,
-        /*endpoint_results_with_metadata=*/std::nullopt);
+        /*resolved_addresses=*/{},
+        /*alternative_endpoints=*/{});
     return;
   }
 

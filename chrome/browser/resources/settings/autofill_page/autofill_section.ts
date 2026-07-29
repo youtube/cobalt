@@ -40,6 +40,21 @@ import type {AutofillManagerProxy, PersonalDataChangedListener} from './autofill
 import {AutofillManagerImpl} from './autofill_manager_proxy.js';
 import {getTemplate} from './autofill_section.html.js';
 
+/**
+ * The enum values for the Autofill.Address.IsEnabled.Change metric.
+ * These values are persisted to logs. Entries should not be renumbered and
+ * numeric values should never be reused.
+ */
+// LINT.IfChange(AutofillAddressOptInChange)
+export enum AutofillAddressOptInChange {
+  OPT_IN = 0,
+  OPT_OUT = 1,
+
+  // Must be last.
+  COUNT = 2,
+}
+// LINT.ThenChange(/tools/metrics/histograms/metadata/autofill/enums.xml:AutofillAddressOptInChange)
+
 declare global {
   interface HTMLElementEventMap {
     'save-address': CustomEvent<chrome.autofillPrivate.AddressEntry>;
@@ -162,6 +177,29 @@ export class SettingsAutofillSectionElement extends
   }
 
   /**
+   * Returns the text for the edit button in the action menu.
+   */
+  private getMenuEditAddressLabel_(
+      address: chrome.autofillPrivate.AddressEntry): string {
+    const isHomeOrWorkAddress = this.isAccountHomeAddress_(address) ||
+        this.isAccountWorkAddress_(address);
+
+    return this.i18n(isHomeOrWorkAddress ? 'editAddressInAccount' : 'edit');
+  }
+
+  /**
+   * Returns the text for the remove button in the action menu.
+   */
+  private getMenuRemoveAddressLabel_(
+      address: chrome.autofillPrivate.AddressEntry): string {
+    const isHomeOrWorkAddress = this.isAccountHomeAddress_(address) ||
+        this.isAccountWorkAddress_(address);
+
+    return this.i18n(
+        isHomeOrWorkAddress ? 'removeFromChrome' : 'removeAddress');
+  }
+
+  /**
    * Open the address action menu.
    */
   private onAddressMenuClick_(
@@ -193,7 +231,13 @@ export class SettingsAutofillSectionElement extends
    */
   private onMenuEditAddressClick_(e: Event) {
     e.preventDefault();
-    this.showAddressDialog_ = true;
+    if (this.isAccountHomeAddress_(this.activeAddress!)) {
+      this.onAccountHomeAddressClick_();
+    } else if (this.isAccountWorkAddress_(this.activeAddress!)) {
+      this.onAccountWorkAddressClick_();
+    } else {
+      this.showAddressDialog_ = true;
+    }
     this.$.addressSharedMenu.close();
   }
 
@@ -338,6 +382,15 @@ export class SettingsAutofillSectionElement extends
         this.accountInfo_ && this.accountInfo_.isAutofillSyncToggleAvailable);
     this.autofillManager_.setAutofillSyncToggleEnabled(
         this.$.autofillSyncToggle.checked);
+  }
+
+  private onAutofillProfileToggleChanged_() {
+    const value = this.$.autofillProfileToggle.checked ?
+        AutofillAddressOptInChange.OPT_IN :
+        AutofillAddressOptInChange.OPT_OUT;
+    chrome.metricsPrivate.recordEnumerationValue(
+        'Autofill.Address.IsEnabled.Change', value,
+        AutofillAddressOptInChange.COUNT);
   }
 
   private onPlusAddressClick_() {

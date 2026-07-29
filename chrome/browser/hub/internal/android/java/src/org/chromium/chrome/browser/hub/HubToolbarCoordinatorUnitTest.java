@@ -34,6 +34,7 @@ import org.chromium.base.test.BaseRobolectricTestRule;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButton;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButtonCoordinator;
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityClient;
@@ -73,9 +74,11 @@ public class HubToolbarCoordinatorUnitTest {
 
     private final ObservableSupplierImpl<Pane> mFocusedPaneSupplier =
             new ObservableSupplierImpl<>();
+    private final ObservableSupplierImpl<Tab> mCurrentTabSupplier = new ObservableSupplierImpl<>();
     private HubToolbarCoordinator mCoordinator;
     private HubToolbarView mHubToolbarView;
     private MenuButton mMenuButton;
+    private ObservableSupplierImpl<Boolean> mBottomToolbarVisibilitySupplier;
 
     @Mock private PaneManager mPaneManager;
     @Mock private PaneOrderController mPaneOrderController;
@@ -84,6 +87,7 @@ public class HubToolbarCoordinatorUnitTest {
     @Mock private SearchActivityClient mSearchActivityClient;
     @Mock private HubColorMixer mHubColorMixer;
     @Mock private UserEducationHelper mUserEducationHelper;
+    @Mock private Runnable mExitHubRunnable;
 
     @Before
     public void setUp() {
@@ -92,6 +96,7 @@ public class HubToolbarCoordinatorUnitTest {
         when(mPaneManager.getFocusedPaneSupplier()).thenReturn(mFocusedPaneSupplier);
         when(mPaneManager.getPaneOrderController()).thenReturn(mPaneOrderController);
         when(mPaneOrderController.getPaneOrder()).thenReturn(ImmutableSet.of());
+        mBottomToolbarVisibilitySupplier = spy(new ObservableSupplierImpl<>());
         mActivityScenarioRule.getScenario().onActivity(this::onActivity);
     }
 
@@ -113,7 +118,10 @@ public class HubToolbarCoordinatorUnitTest {
                         mSearchActivityClient,
                         mHubColorMixer,
                         mUserEducationHelper,
-                        mIsAnimatingSupplier);
+                        mIsAnimatingSupplier,
+                        mBottomToolbarVisibilitySupplier,
+                        mCurrentTabSupplier,
+                        mExitHubRunnable);
     }
 
     @Test
@@ -125,5 +133,17 @@ public class HubToolbarCoordinatorUnitTest {
 
         verify(mUserEducationHelper).requestShowIph(any());
         verify(mIsAnimatingSupplier).removeObserver(any());
+    }
+
+    @Test
+    public void testBottomToolbarVisibilitySupplier() {
+        // Verify that observer was added to the bottom toolbar visibility supplier
+        verify(mBottomToolbarVisibilitySupplier).addObserver(any());
+
+        // Destroy coordinator
+        mCoordinator.destroy();
+
+        // Verify that observer was removed from the bottom toolbar visibility supplier
+        verify(mBottomToolbarVisibilitySupplier).removeObserver(any());
     }
 }

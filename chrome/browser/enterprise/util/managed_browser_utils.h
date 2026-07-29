@@ -38,6 +38,14 @@ enum EnterpriseProfileBadgingTemporarySetting : int {
 // Represents which type of managed environment we have.
 enum class ManagementEnvironment { kNone, kSchool, kWork };
 
+// Represents the state of the browser management notice in the NTP footer.
+enum class BrowserManagementNoticeState {
+  kEnabled,
+  kDisabled,
+  kEnabledByPolicy,
+  kNotApplicable,
+};
+
 // Determines whether the browser with `profile` as its primary profile is
 // managed. This is determined by looking it there are any policies applied or
 // if `profile` is an enterprise profile.
@@ -94,9 +102,12 @@ bool CanShowEnterpriseBadgingForMenu(Profile* profile);
 
 bool CanShowEnterpriseProfileUI(Profile* profile);
 
+// Returns true if the enterprise badging can be shown inside the NTP footer,
+// irrespective of whether the footer itself can show.
 bool CanShowEnterpriseBadgingForNTPFooter(Profile* profile);
 
-bool IsCustomEnterpriseBadgingForNTPFooter(Profile* profile);
+BrowserManagementNoticeState GetManagementNoticeStateForNTPFooter(
+    Profile* profile);
 
 // Sets the enterprise label if an `EnterpriseCustomLabel` has been set which
 // will replace the profile name where it is used.
@@ -122,8 +133,7 @@ void GetManagementIcon(const GURL& url,
 std::u16string GetEnterpriseLabel(Profile* profile, bool truncated = false);
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
-base::ScopedClosureRunner
-DisableAutomaticManagementDisclaimerOnPrimaryAccountChangeUntilReset(
+base::ScopedClosureRunner DisableAutomaticManagementDisclaimerUntilReset(
     Profile* profile);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 

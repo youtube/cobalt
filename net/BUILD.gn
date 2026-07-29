@@ -302,7 +302,6 @@ component("net") {
     "base/task/task_runner.cc",
     "base/task/task_runner.h",
     "base/trace_event_stub.h",
-    "base/tracing.h",
     "base/transport_info.cc",
     "base/transport_info.h",
     "base/upload_bytes_element_reader.cc",
@@ -727,7 +726,6 @@ component("net") {
     "http/transport_security_persister.cc",
     "http/transport_security_persister.h",
     "http/transport_security_state.h",
-    "http/transport_security_state_source.cc",
     "http/transport_security_state_source.h",
     "http/url_security_manager.cc",
     "http/url_security_manager.h",
@@ -1160,7 +1158,7 @@ component("net") {
     "//components/miracle_parameter/common",
     "//components/network_time/time_tracker",
     "//net/http:transport_security_state_generated_files",
-    "//third_party/simdutf:simdutf",
+    "//third_party/simdutf",
   ]
 
   public_deps = [
@@ -1232,6 +1230,8 @@ component("net") {
     sources += [
       "device_bound_sessions/cookie_craving.cc",
       "device_bound_sessions/cookie_craving.h",
+      "device_bound_sessions/host_patterns.cc",
+      "device_bound_sessions/host_patterns.h",
       "device_bound_sessions/jwk_utils.cc",
       "device_bound_sessions/jwk_utils.h",
       "device_bound_sessions/registration_fetcher.cc",
@@ -1269,8 +1269,8 @@ component("net") {
     deps += [
       ":device_bound_sessions_storage_proto",
       "//components/sqlite_proto",
-      "//components/unexportable_keys:unexportable_keys",
-      "//sql:sql",
+      "//components/unexportable_keys",
+      "//sql",
     ]
   }
 
@@ -1808,7 +1808,7 @@ component("net") {
       "disk_cache/sql/sql_persistent_store.h",
       "disk_cache/sql/sql_persistent_store_queries.h",
     ]
-    deps += [ "//sql:sql" ]
+    deps += [ "//sql" ]
   }
 }
 
@@ -1971,7 +1971,7 @@ component("extras") {
     ":net",
     "//base",
     "//crypto",
-    "//sql:sql",
+    "//sql",
   ]
   public_deps = [ ":shared_dictionary_info" ]
 
@@ -2293,7 +2293,6 @@ static_library("test_support") {
     "data/parse_certificate_unittest/",
     "data/ssl/",
     "data/url_request_unittest/",
-    "data/websocket/",
   ]
 
   if (is_mac) {
@@ -2342,6 +2341,10 @@ static_library("test_support") {
       "reporting/reporting_test_util.h",
     ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 if (!is_ios && !is_android) {
@@ -3134,7 +3137,7 @@ target(_test_target_type, "net_unittests") {
     "//third_party/anonymous_tokens:anonymous_tokens_tests",
     "//third_party/perfetto:perfetto_test_support",
     "//third_party/protobuf:protobuf_lite",
-    "//third_party/simdutf:simdutf",
+    "//third_party/simdutf",
     "//third_party/zlib",
     "//url",
     "//url:buildflags",
@@ -3445,6 +3448,7 @@ target(_test_target_type, "net_unittests") {
   if (enable_device_bound_sessions) {
     sources += [
       "device_bound_sessions/cookie_craving_unittest.cc",
+      "device_bound_sessions/host_patterns_unittest.cc",
       "device_bound_sessions/jwk_utils_unittest.cc",
       "device_bound_sessions/mock_session_service.cc",
       "device_bound_sessions/mock_session_service.h",
@@ -3464,8 +3468,8 @@ target(_test_target_type, "net_unittests") {
     ]
     deps += [
       ":device_bound_sessions_storage_proto",
+      "//components/unexportable_keys",
       "//components/unexportable_keys:test_support",
-      "//components/unexportable_keys:unexportable_keys",
     ]
   }
 
@@ -3483,6 +3487,10 @@ target(_test_target_type, "net_unittests") {
       data_deps += [ "//third_party/sqlite:sqlite_dev_shell" ]
     }
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 # !is_android && !is_win && !is_mac
@@ -3512,7 +3520,7 @@ if (!is_ios) {
       "//base/test:test_support_perf",
       "//testing/gtest",
       "//testing/perf",
-      "//third_party/google_benchmark:google_benchmark",
+      "//third_party/google_benchmark",
       "//url",
     ]
     data_deps = [
@@ -3524,7 +3532,7 @@ if (!is_ios) {
       sources += [ "device_bound_sessions/session_store_impl_perftest.cc" ]
       deps += [
         ":device_bound_sessions_storage_proto",
-        "//components/unexportable_keys:unexportable_keys",
+        "//components/unexportable_keys",
         "//crypto:test_support",
       ]
     }
@@ -3959,6 +3967,15 @@ if (use_fuzzing_engine) {
     testonly = true
     visibility = [
       ":net_web_socket_encoder_fuzzer",
+      ":net_web_socket_encoder_fuzzer__apk__compile_java",
+      ":net_web_socket_encoder_fuzzer__apk__compile_resources",
+      ":net_web_socket_encoder_fuzzer__apk__create",
+      ":net_web_socket_encoder_fuzzer__apk__java",
+      ":net_web_socket_encoder_fuzzer__apk__java__dex",
+      ":net_web_socket_encoder_fuzzer__apk__java__header",
+      ":net_web_socket_encoder_fuzzer__apk__java__validate",
+      ":net_web_socket_encoder_fuzzer__library",
+      ":net_web_socket_encoder_fuzzer__library__jni_registration__native_sources",
       ":net_web_socket_encoder_fuzzer_executable",
       ":run_net_web_socket_encoder_fuzzer",
     ]

@@ -6,6 +6,8 @@
 
 #include <string>
 
+#include "base/feature_list.h"
+#include "base/metrics/field_trial_params.h"
 #include "base/no_destructor.h"
 #include "base/notimplemented.h"
 #include "base/strings/strcat.h"
@@ -15,6 +17,7 @@
 #include "chrome/common/actor.mojom-shared.h"
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/actor/actor_logging.h"
+#include "chrome/common/chrome_features.h"
 #include "chrome/renderer/actor/click_tool.h"
 #include "chrome/renderer/actor/tool_utils.h"
 #include "content/public/renderer/render_frame.h"
@@ -125,10 +128,6 @@ TypeTool::TargetAndKeys::TargetAndKeys(const gfx::PointF& coordinate,
                                        std::vector<KeyParams> key_sequence)
     : target(coordinate), key_sequence(std::move(key_sequence)) {}
 
-TypeTool::TargetAndKeys::TargetAndKeys(const blink::WebElement& element,
-                                       std::vector<KeyParams> key_sequence)
-    : target(element), key_sequence(std::move(key_sequence)) {}
-
 TypeTool::TargetAndKeys::~TargetAndKeys() = default;
 TypeTool::TargetAndKeys::TargetAndKeys(const TargetAndKeys&) = default;
 TypeTool::TargetAndKeys& TypeTool::TargetAndKeys::operator=(
@@ -220,6 +219,23 @@ std::optional<TypeTool::KeyParams> TypeTool::GetKeyParamsForChar(char c) const {
   return params;
 }
 
+namespace {
+
+std::string_view WebInputEventResultToString(WebInputEventResult result) {
+  switch (result) {
+    case WebInputEventResult::kNotHandled:
+      return "NotHandled";
+    case WebInputEventResult::kHandledSuppressed:
+      return "HandledSuppressed";
+    case WebInputEventResult::kHandledApplication:
+      return "HandledApplication";
+    case WebInputEventResult::kHandledSystem:
+      return "HandledSystem";
+  }
+}
+
+}  // namespace
+
 WebInputEventResult TypeTool::CreateAndDispatchKeyEvent(
     WebInputEvent::Type type,
     KeyParams key_params) {
@@ -236,12 +252,14 @@ WebInputEventResult TypeTool::CreateAndDispatchKeyEvent(
   WebInputEventResult result =
       frame_->GetWebFrame()->FrameWidget()->HandleInputEvent(
           WebCoalescedInputEvent(key_event, ui::LatencyInfo()));
+  journal_->Log(
+      task_id_, WebInputEvent::GetName(type),
+      absl::StrFormat("%s[%s] -> %s", WebInputEvent::GetName(type),
+                      key_params.dom_key, WebInputEventResultToString(result)));
 
   return result;
 }
-
 mojom::ActionResultPtr TypeTool::SimulateKeyPress(TypeTool::KeyParams params) {
-  // TODO(crbug.com/402082693): Maybe add slight delay between events?
   WebInputEventResult down_result =
       CreateAndDispatchKeyEvent(WebInputEvent::Type::kRawKeyDown, params);
 
@@ -275,26 +293,23 @@ mojom::ActionResultPtr TypeTool::SimulateKeyPress(TypeTool::KeyParams params) {
   return MakeOkResult();
 }
 
-mojom::ActionResultPtr TypeTool::Execute() {
+void TypeTool::Execute(ToolFinishedCallback callback) {
   ValidatedResult validated_result = Validate();
   if (!validated_result.has_value()) {
-    return std::move(validated_result.error());
+    std::move(callback).Run(std::move(validated_result.error()));
+    return;
   }
 
-  if (std::holds_alternative<gfx::PointF>(validated_result->target)) {
-    const gfx::PointF& coordinate =
-        std::get<gfx::PointF>(validated_result->target);
-    mojom::ActionResultPtr result = CreateAndDispatchClick(
-        blink::WebMouseEvent::Button::kLeft, 1, coordinate,
-        frame_->GetWebFrame()->FrameWidget());
+  // Injecting a click to get focus.
+  gfx::PointF coordinate = validated_result->target;
+  mojom::ActionResultPtr click_result =
+      CreateAndDispatchClick(blink::WebMouseEvent::Button::kLeft, 1, coordinate,
+                             frame_->GetWebFrame()->FrameWidget());
 
-    // Cancel rest of typing if initial click failed.
-    if (!IsOk(*result)) {
-      return result;
-    }
-  } else {
-    WebElement element = std::get<blink::WebElement>(validated_result->target);
-    element.Focus();
+  // Cancel rest of typing if initial click failed.
+  if (!IsOk(*click_result)) {
+    std::move(callback).Run(std::move(click_result));
+    return;
   }
 
   // Note: Focus and preparing the target performs actions which lead to
@@ -318,14 +333,69 @@ mojom::ActionResultPtr TypeTool::Execute() {
                 << focused << "]. https://crbug.com/421133798.";
   }
 
-  for (const auto& param : validated_result->key_sequence) {
-    mojom::ActionResultPtr result = SimulateKeyPress(param);
-    if (!IsOk(*result)) {
-      return result;
+  if (!base::FeatureList::IsEnabled(features::kGlicActorIncrementalTyping)) {
+    for (const auto& param : validated_result->key_sequence) {
+      mojom::ActionResultPtr result = SimulateKeyPress(param);
+      if (!IsOk(*result)) {
+        std::move(callback).Run(std::move(result));
+        return;
+      }
     }
+
+    std::move(callback).Run(MakeOkResult());
+  } else {
+    task_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
+    target_and_keys_ = std::move(validated_result).value();
+    task_runner_->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&TypeTool::ContinueIncrementalTyping,
+                       weak_ptr_factory_.GetWeakPtr(), std::move(callback)),
+        features::kGlicActorKeyUpDuration.Get());
+  }
+}
+
+void TypeTool::ContinueIncrementalTyping(ToolFinishedCallback callback) {
+  const KeyParams& params = target_and_keys_->key_sequence[current_key_];
+
+  if (!is_key_down_) {
+    WebInputEventResult down_result =
+        CreateAndDispatchKeyEvent(WebInputEvent::Type::kRawKeyDown, params);
+
+    // Only the KeyDown event will check for and report failure. The reason the
+    // other events don't is that if the KeyDown event was dispatched to the
+    // page, the key input was observable to the page and it may mutate itself
+    // in a way that subsequent Char and KeyUp events are suppressed (e.g.
+    // mutating the DOM tree, removing frames, etc). These "failure" cases can
+    // be considered successful in terms that the tool has acted on the page. In
+    // particular, a preventDefault()'ed KeyDown event will force suppressing
+    // the following Char event but this is expected and common.
+    if (down_result == WebInputEventResult::kHandledSuppressed) {
+      std::move(callback).Run(
+          MakeResult(mojom::ActionResultCode::kTypeKeyDownSuppressed,
+                     absl::StrFormat("Suppressed char[%s]", params.dom_key)));
+      return;
+    }
+
+    CreateAndDispatchKeyEvent(WebInputEvent::Type::kChar, params);
+
+    is_key_down_ = true;
+  } else {
+    CreateAndDispatchKeyEvent(WebInputEvent::Type::kKeyUp, params);
+    is_key_down_ = false;
+    current_key_++;
   }
 
-  return MakeOkResult();
+  if (current_key_ >= target_and_keys_->key_sequence.size()) {
+    std::move(callback).Run(MakeOkResult());
+  } else {
+    task_runner_->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&TypeTool::ContinueIncrementalTyping,
+                       weak_ptr_factory_.GetWeakPtr(), std::move(callback)),
+        (is_key_down_ ? features::kGlicActorKeyDownDuration
+                      : features::kGlicActorKeyUpDuration)
+            .Get());
+  }
 }
 
 std::string TypeTool::DebugString() const {
@@ -345,6 +415,29 @@ TypeTool::ValidatedResult TypeTool::Validate() const {
 
   CHECK(target_);
 
+  auto resolved_target = ValidateAndResolveTarget();
+  if (!resolved_target.has_value()) {
+    return base::unexpected(std::move(resolved_target.error()));
+  }
+
+  if (target_->is_dom_node_id()) {
+    const WebNode& node = resolved_target->node;
+    if (!node.IsElementNode()) {
+      return base::unexpected(
+          MakeResult(mojom::ActionResultCode::kTypeTargetNotElement));
+    }
+
+    WebElement element = node.To<WebElement>();
+    if (WebFormControlElement form_control =
+            element.DynamicTo<WebFormControlElement>()) {
+      if (!form_control.IsEnabled()) {
+        return base::unexpected(
+            MakeResult(mojom::ActionResultCode::kElementDisabled));
+      }
+    }
+  }
+
+  // Perform typing specific validation.
   if (!base::IsStringASCII(action_->text)) {
     // TODO(crbug.com/409032824): Add support beyond ASCII.
     return base::unexpected(
@@ -368,45 +461,7 @@ TypeTool::ValidatedResult TypeTool::Validate() const {
     key_sequence.push_back(GetEnterKeyParams());
   }
 
-  if (target_->is_coordinate()) {
-    // Injecting a click first at the coordinate.
-    gfx::PointF coordinate = gfx::PointF(target_->get_coordinate());
-    if (!IsPointWithinViewport(coordinate, frame_.get())) {
-      return base::unexpected(
-          MakeResult(mojom::ActionResultCode::kCoordinatesOutOfBounds));
-    }
-
-    return TargetAndKeys{coordinate, std::move(key_sequence)};
-  } else {
-    int32_t dom_node_id = target_->get_dom_node_id();
-    WebNode node = GetNodeFromId(frame_.get(), dom_node_id);
-    if (node.IsNull()) {
-      return base::unexpected(
-          MakeResult(mojom::ActionResultCode::kInvalidDomNodeId));
-    }
-
-    if (!node.IsElementNode()) {
-      return base::unexpected(
-          MakeResult(mojom::ActionResultCode::kTypeTargetNotElement));
-    }
-
-    WebElement element = node.To<WebElement>();
-
-    if (WebFormControlElement form_control =
-            element.DynamicTo<WebFormControlElement>()) {
-      if (!form_control.IsEnabled() || form_control.IsReadOnly()) {
-        return base::unexpected(
-            MakeResult(mojom::ActionResultCode::kElementDisabled));
-      }
-    }
-
-    if (!element.IsFocusable()) {
-      return base::unexpected(
-          MakeResult(mojom::ActionResultCode::kTypeTargetNotFocusable));
-    }
-
-    return TargetAndKeys{element, std::move(key_sequence)};
-  }
+  return TargetAndKeys{resolved_target->point, std::move(key_sequence)};
 }
 
 }  // namespace actor

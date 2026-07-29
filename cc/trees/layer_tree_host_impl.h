@@ -272,6 +272,10 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
     viewport_damage_rect_ = gfx::Rect();
   }
 
+  bool HasPendingRasterInvalidationScrollForTesting(ElementId id) const {
+    return pending_invalidation_raster_inducing_scrolls_.contains(id);
+  }
+
   virtual void WillSendBeginMainFrame() {}
   virtual void BeginMainFrameAborted(
       CommitEarlyOutReason reason,
@@ -600,7 +604,8 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
 
   ImageDecodeCache* GetImageDecodeCache() const;
 
-  uint32_t next_frame_token() const { return *next_frame_token_; }
+  uint32_t next_frame_token() const;
+  void set_next_frame_token_from_client(uint32_t frame_token);
 
   // Buffers `callback` until a relevant presentation feedback arrives, at which
   // point the callback will be posted to run on the main thread. A presentation
@@ -642,6 +647,9 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   // Returns the current local surface id.
   const viz::LocalSurfaceId& GetCurrentLocalSurfaceId() const {
     return child_local_surface_id_allocator_.GetCurrentLocalSurfaceId();
+  }
+  const viz::LocalSurfaceId& target_local_surface_id() const {
+    return target_local_surface_id_;
   }
 
   LayerTreeImpl* active_tree() { return active_tree_.get(); }
@@ -1245,6 +1253,7 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   std::unique_ptr<RenderFrameMetadataObserver> render_frame_metadata_observer_;
 
   viz::FrameTokenGenerator next_frame_token_;
+  uint32_t next_frame_token_from_client_ = viz::kInvalidFrameToken;
 
   viz::LocalSurfaceId last_draw_local_surface_id_;
   base::flat_set<viz::SurfaceRange> last_draw_referenced_surfaces_;

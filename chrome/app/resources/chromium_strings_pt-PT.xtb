@@ -66,6 +66,7 @@
 <translation id="1880677175115548835">Selecionar texto</translation>
 <translation id="1881322772814446296">Está a iniciar sessão com uma conta gerida e a permitir que o gestor controle o seu perfil do Chromium. Os seus dados do Chromium, como aplicações, marcadores, histórico, palavras-passe e outras definições, ficarão associados definitivamente a <ph name="USER_NAME" />. Poderá eliminar estes dados através do Painel de Controlo das Contas Google, mas não poderá associá-los a outra conta. Opcionalmente, pode criar um perfil novo para manter os seus dados atuais do Chromium em separado. <ph name="LEARN_MORE" /></translation>
 <translation id="1896836275755235458">O Chromium poupa a energia da bateria limitando a atividade em segundo plano e os efeitos visuais, como o deslocamento suave e as velocidades de frames do vídeo. <ph name="BEGIN_LINK" />Saiba mais sobre a Poupança de energia<ph name="END_LINK" /></translation>
+<translation id="1898804291554630487">Faça perguntas acerca desta página</translation>
 <translation id="1900969832270057921">Serviço do atualizador do Chromium</translation>
 <translation id="1911763535808217981">Ao desativar esta opção, pode iniciar sessão nos sites da Google como o Gmail sem iniciar sessão no Chromium.</translation>
 <translation id="1916451563296275579">Remover os dados desta app do Chromium</translation>
@@ -133,6 +134,7 @@
 <translation id="2711502716910134313">Separador do Chromium</translation>
 <translation id="2718390899429598676">Para uma segurança adicional, o Chromium encripta os seus dados.</translation>
 <translation id="2721354645805494590">Para remover a sua Conta Google do Chromium, termine sessão</translation>
+<translation id="2722636413143664436">Para aceder às suas palavras-passe, marcadores e muito mais em todos os seus dispositivos, inicie sessão no Chromium</translation>
 <translation id="2738871930057338499">Não é possível ligar à Internet. HTTP 403 proibido. Verifique a sua configuração de proxy.</translation>
 <translation id="2753623023919742414">Clique para pesquisar</translation>
 <translation id="2768103863314748511">Defina o Chromium como o seu visualizador de PDFs predefinido</translation>
@@ -403,6 +405,7 @@
 <translation id="6366160072964553914">O Chromium bloqueou esta transferência porque o ficheiro não é habitualmente transferido e pode ser perigoso</translation>
 <translation id="6373523479360886564">Tem a certeza de que quer desinstalar o Chromium?</translation>
 <translation id="6375219077595103062">Adicione um atalho ao Gestor de Palavras-passe</translation>
+<translation id="6388799252195623474">ajuda-me com isto</translation>
 <translation id="6390800440335263989">Para continuar, inicie sessão no Chromium como <ph name="EMAIL" />. Isto garante que tem as políticas da sua organização.</translation>
 <translation id="6400112897226594999">Logótipo do Chromium num ecrã de computador.</translation>
 <translation id="6403826409255603130">O Chromium é um navegador de internet que executa páginas Web e aplicações à velocidade da luz. É rápido, estável e fácil de utilizar. Navegue na Web com mais segurança, com proteção contra programas maliciosos e phishing integrada no Chromium.</translation>
@@ -501,6 +504,7 @@ O Chromium não consegue recuperar as suas definições.</translation>
 <translation id="7585391435984513350">Não visitou o site recentemente. O Chromium removeu <ph name="PERMISSION" /></translation>
 <translation id="761356813943268536">O Chromium está a utilizar a câmara e o microfone.</translation>
 <translation id="7617377681829253106">O Chromium está ainda melhor</translation>
+<translation id="7622753900276619808">Agora, tem mais funcionalidades disponíveis no Chromium</translation>
 <translation id="7649070708921625228">Ajuda</translation>
 <translation id="7658239707568436148">Cancelar</translation>
 <translation id="7686590090926151193">O Chromium não é o seu navegador predefinido.</translation>

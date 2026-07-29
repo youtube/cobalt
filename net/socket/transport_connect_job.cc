@@ -10,6 +10,7 @@
 #include <variant>
 
 #include "base/check_op.h"
+#include "base/containers/to_vector.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
@@ -18,12 +19,12 @@
 #include "base/notreached.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
+#include "base/trace_event/trace_event.h"
 #include "net/base/features.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
 #include "net/base/trace_constants.h"
-#include "net/base/tracing.h"
 #include "net/dns/public/host_resolver_results.h"
 #include "net/dns/public/secure_dns_policy.h"
 #include "net/log/net_log_event_type.h"
@@ -284,10 +285,6 @@ int TransportConnectJob::DoResolveHostComplete(int result) {
     return result;
   }
 
-  DCHECK(request_->GetAddressResults());
-  DCHECK(request_->GetDnsAliasResults());
-  DCHECK(request_->GetEndpointResults());
-
   // Invoke callback.  If it indicates |this| may be slated for deletion, then
   // only continue after a PostTask.
   next_state_ = STATE_RESOLVE_HOST_CALLBACK_COMPLETE;
@@ -295,7 +292,8 @@ int TransportConnectJob::DoResolveHostComplete(int result) {
     OnHostResolutionCallbackResult callback_result =
         params_->host_resolution_callback().Run(
             ToLegacyDestinationEndpoint(params_->destination()),
-            *request_->GetEndpointResults(), *request_->GetDnsAliasResults());
+            base::ToVector(request_->GetEndpointResults()),
+            request_->GetDnsAliasResults());
     if (callback_result == OnHostResolutionCallbackResult::kMayBeDeletedAsync) {
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(&TransportConnectJob::OnIOComplete,
@@ -308,7 +306,7 @@ int TransportConnectJob::DoResolveHostComplete(int result) {
 }
 
 int TransportConnectJob::DoResolveHostCallbackComplete() {
-  const auto& unfiltered_results = *request_->GetEndpointResults();
+  auto unfiltered_results = request_->GetEndpointResults();
   bool svcb_optional = IsSvcbOptional(unfiltered_results);
   std::set<IPEndPoint> ip_endpoints_seen;
   for (const auto& result : unfiltered_results) {
@@ -333,7 +331,7 @@ int TransportConnectJob::DoResolveHostCallbackComplete() {
       endpoint_results_.push_back(std::move(new_result));
     }
   }
-  dns_aliases_ = *request_->GetDnsAliasResults();
+  dns_aliases_ = request_->GetDnsAliasResults();
 
   // No need to retain `request_` beyond this point.
   request_.reset();
@@ -526,8 +524,8 @@ void TransportConnectJob::ChangePriorityInternal(RequestPriority priority) {
 bool TransportConnectJob::IsSvcbOptional(
     base::span<const HostResolverEndpointResult> results) const {
   // If SVCB/HTTPS resolution succeeded, the client supports ECH, and all routes
-  // support ECH, disable the A/AAAA fallback. See Section 10.1 of
-  // draft-ietf-dnsop-svcb-https-08.
+  // support ECH, disable the A/AAAA fallback. See Section 5.1 of
+  // draft-ietf-tls-svcb-ech-08.
 
   auto* scheme_host_port =
       std::get_if<url::SchemeHostPort>(&params_->destination());
@@ -540,26 +538,25 @@ bool TransportConnectJob::IsSvcbOptional(
     return true;  // ECH is not supported for this request.
   }
 
-  return !HostResolver::AllProtocolEndpointsHaveEch(results);
+  return !HostResolver::AllAlternativeEndpointsHaveEch(results);
 }
 
 bool TransportConnectJob::IsEndpointResultUsable(
     const HostResolverEndpointResult& result,
     bool svcb_optional) const {
-  // A `HostResolverEndpointResult` with no ALPN protocols is the fallback
-  // A/AAAA route. This is always compatible. We assume the ALPN-less option is
-  // TCP-based.
-  if (result.metadata.supported_protocol_alpns.empty()) {
-    // See draft-ietf-dnsop-svcb-https-08, Section 3.
+  // We assume the authority endpoint (i.e. not from SVCB/HTTPS) is TCP-based,
+  // so an authority endpoint.
+  if (!result.metadata.IsAlternative()) {
+    // See RFC 9460, Section 3.
     return svcb_optional;
   }
 
-  // See draft-ietf-dnsop-svcb-https-08, Section 7.1.2. Routes are usable if
-  // there is an overlap between the route's ALPN protocols and the configured
-  // ones. This ensures we do not, e.g., connect to a QUIC-only route with TCP.
+  // See RFC 9460, Section 7.1.2. Alternative endpoints are usable if there is
+  // an overlap between the endpoint's ALPN protocols and the configured ones.
+  // This ensures we do not, e.g., connect to a QUIC-only endpoint with TCP.
   // Note that, if `params_` did not specify any ALPN protocols, no
-  // SVCB/HTTPS-based routes will match and we will effectively ignore all but
-  // plain A/AAAA routes.
+  // SVCB/HTTPS-based endpoints will match and we will effectively ignore all
+  // but plain A/AAAA endpoints.
   for (const auto& alpn : result.metadata.supported_protocol_alpns) {
     if (params_->supported_alpns().contains(alpn)) {
       return true;

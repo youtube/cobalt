@@ -41,23 +41,11 @@ class ContentUiEventHandler {
 
   void SendMouseWheelEvent(JNIEnv* env,
                            const base::android::JavaParamRef<jobject>& event,
-                           jlong time_ns,
-                           jfloat x,
-                           jfloat y,
-                           jfloat ticks_x,
-                           jfloat ticks_y);
+                           jlong time_ns);
   void SendMouseEvent(JNIEnv* env,
                       const base::android::JavaParamRef<jobject>& event,
                       jlong time_ns,
-                      jint android_action,
-                      jfloat x,
-                      jfloat y,
-                      jint pointer_id,
-                      jfloat pressure,
-                      jfloat orientation,
-                      jfloat tilt,
                       jint android_action_button,
-                      jint android_button_state,
                       jint android_tool_type);
   void SendScrollEvent(JNIEnv* env,
                        jlong time_ms,

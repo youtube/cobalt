@@ -52,7 +52,6 @@ declare_args() {
 
 use_custom_libcxx =
     use_custom_libcxx || (use_custom_libcxx_for_host && !is_a_target_toolchain)
-use_custom_libcxx = use_custom_libcxx
 
 declare_args() {
   # WARNING: Setting this to a non-default value is highly discouraged.
@@ -99,7 +98,7 @@ if (is_android && export_libcxxabi_from_executables) {
   libcxx_is_shared = true
 }
 
-if (use_libcxx_modules) {
+if (use_clang_modules) {
   libcxx_prefix = "${root_gen_dir}/third_party/libc++/src"
   libcxx_modulemap_in =
       read_file("//third_party/libc++/src/include/module.modulemap.in",

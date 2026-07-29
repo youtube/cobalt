@@ -6,6 +6,7 @@
 
 #include <limits>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -55,7 +56,11 @@ constexpr char kContentTypeKey[] = "Content-Type";
 constexpr char kContentType[] = "application/x-protobuf";
 constexpr char kOAuthConsumerName[] = "ComposeboxQueryController";
 constexpr char kSessionIdQueryParameterKey[] = "gsessionid";
+
+// TODO(crbug.com/432348301): Move away from hardcoded entrypoint and lns
+// surface values.
 constexpr char kEntrypointParameterValue[] = "42";
+constexpr char kLnsSurfaceParameterValue[] = "47";
 
 constexpr net::NetworkTrafficAnnotationTag kTrafficAnnotationTag =
     net::DefineNetworkTrafficAnnotation("ntp_composebox_query_controller", R"(
@@ -125,7 +130,7 @@ void CreateFileUploadRequestProtoWithPayloadAndContinue(
       ->mutable_client_context()
       ->CopyFrom(client_context);
   objects_request->mutable_payload()->CopyFrom(payload);
-  std::move(callback).Run(request);
+  std::move(callback).Run(request, /*error_type=*/std::nullopt);
 }
 
 #if !BUILDFLAG(IS_IOS)
@@ -146,9 +151,18 @@ void CreateFileUploadRequestProtoWithImageDataAndContinue(
       ->CopyFrom(client_context);
   objects_request->mutable_image_data()->CopyFrom(image_data);
   request.mutable_client_logs()->CopyFrom(client_logs->client_logs());
-  std::move(callback).Run(request);
+  std::move(callback).Run(request, /*error_type=*/std::nullopt);
 }
 #endif  // !BUILDFLAG(IS_IOS)
+
+// Returns true if the file upload status is valid to include in the multimodal
+// request.
+bool IsValidFileUploadStatusForMultimodalRequest(
+    FileUploadStatus upload_status) {
+  return upload_status == FileUploadStatus::kProcessing ||
+         upload_status == FileUploadStatus::kUploadStarted ||
+         upload_status == FileUploadStatus::kUploadSuccessful;
+}
 
 }  // namespace
 
@@ -158,60 +172,58 @@ ComposeboxQueryController::ComposeboxQueryController(
     version_info::Channel channel,
     std::string locale,
     TemplateURLService* template_url_service,
-    variations::VariationsClient* variations_client)
+    variations::VariationsClient* variations_client,
+    bool send_lns_surface)
     : identity_manager_(identity_manager),
       url_loader_factory_(url_loader_factory),
       channel_(channel),
       locale_(locale),
       template_url_service_(template_url_service),
-      variations_client_(variations_client) {
+      variations_client_(variations_client),
+      send_lns_surface_(send_lns_surface) {
   create_request_task_runner_ = base::ThreadPool::CreateTaskRunner(
       {base::TaskPriority::USER_VISIBLE,
        base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN});
 }
 
-ComposeboxQueryController::~ComposeboxQueryController() {
-  // Ensure NTP exits are tracked. i.e. The user starts a composebox session,
-  // and closes the NTP without explicitly exiting the session or submitting a
-  // query.
-  // TODO(420701010): Add unittest coverage, e.g. ensuring abandoned metrics
-  // are correctly emitted.
-  if (session_state() == SessionState::kSessionStarted) {
-    NotifySessionAbandoned();
-  }
-}
+ComposeboxQueryController::~ComposeboxQueryController() = default;
 
 void ComposeboxQueryController::NotifySessionStarted() {
-  DCHECK_EQ(session_state_, SessionState::kNone);
-  DCHECK_EQ(query_controller_state_, QueryControllerState::kOff);
-  session_state_ = SessionState::kSessionStarted;
-  session_start_time_ = base::Time::Now();
   FetchClusterInfo();
 }
 
 void ComposeboxQueryController::NotifySessionAbandoned() {
-  session_state_ = SessionState::kSessionAbandoned;
+  ClearFiles();
+  ClearClusterInfo();
   SetQueryControllerState(QueryControllerState::kOff);
-  cluster_info_access_token_fetcher_.reset();
-  cluster_info_endpoint_fetcher_.reset();
+  session_id_++;
 }
 
 GURL ComposeboxQueryController::CreateAimUrl(const std::string& query_text,
                                              base::Time query_start_time) {
-  CHECK(cluster_info_.has_value());
-  session_state_ = SessionState::kQuerySubmitted;
-  if (!active_files_.empty()) {
+  if (!active_files_.empty() && cluster_info_.has_value()) {
     // Since multiple file upload isn't supported right now, use the last file
     // uploaded to determine `vit` param.
     // TODO(crbug.com/428967670): Support multiple file upload.
     const std::unique_ptr<FileInfo>& last_file = active_files_.rbegin()->second;
-    return GetUrlForMultimodalAim(
-        template_url_service_, kEntrypointParameterValue, query_start_time,
-        cluster_info_->search_session_id(),
-        request_id_generator_.GetNextRequestId(
-            lens::RequestIdUpdateMode::kSearchUrl),
-        last_file->mime_type_, base::UTF8ToUTF16(query_text));
+    if (IsValidFileUploadStatusForMultimodalRequest(
+            last_file->upload_status_)) {
+      std::unique_ptr<lens::LensOverlayRequestId> request_id =
+          request_id_generator_.GetNextRequestId(
+              lens::RequestIdUpdateMode::kSearchUrl);
+      request_id->set_media_type(last_file->request_id_->media_type());
+      return GetUrlForMultimodalAim(
+          template_url_service_, kEntrypointParameterValue, query_start_time,
+          cluster_info_->search_session_id(), std::move(request_id),
+          last_file->mime_type_,
+          send_lns_surface_ ? kLnsSurfaceParameterValue : std::string(),
+          base::UTF8ToUTF16(query_text));
+    }
   }
+  // Treat queries in which the cluster info has expired, or the last file is
+  // not valid, as unimodal text queries.
+  // TODO(crbug.com/432125987): Handle file reupload after cluster info
+  // expiration.
   return GetUrlForAim(template_url_service_, kEntrypointParameterValue,
                       query_start_time, base::UTF8ToUTF16(query_text));
 }
@@ -244,6 +256,10 @@ void ComposeboxQueryController::StartFileUploadFlow(
       current_file_info.mime_type_ == lens::MimeType::kPdf
           ? lens::RequestIdUpdateMode::kPageContentRequest
           : lens::RequestIdUpdateMode::kFullImageRequest);
+  current_file_info.request_id_->set_media_type(
+      current_file_info.mime_type_ == lens::MimeType::kPdf
+          ? lens::LensOverlayRequestId::MEDIA_TYPE_PDF
+          : lens::LensOverlayRequestId::MEDIA_TYPE_DEFAULT_IMAGE);
 
   // Preparing for the file upload request requires multiple async flows to
   // complete before the request is ready to be send to the server. Start the
@@ -269,6 +285,10 @@ void ComposeboxQueryController::StartFileUploadFlow(
 bool ComposeboxQueryController::DeleteFile(
     const base::UnguessableToken& file_token) {
   return !!active_files_.erase(file_token);
+}
+
+void ComposeboxQueryController::ClearFiles() {
+  active_files_.clear();
 }
 
 std::unique_ptr<EndpointFetcher>
@@ -347,6 +367,36 @@ ComposeboxQueryController::CreateOAuthHeadersAndContinue(
   return nullptr;
 }
 
+void ComposeboxQueryController::ClearClusterInfo() {
+  cluster_info_access_token_fetcher_.reset();
+  cluster_info_endpoint_fetcher_.reset();
+  cluster_info_.reset();
+  request_id_generator_.ResetRequestId();
+}
+
+void ComposeboxQueryController::ResetRequestClusterInfoState(int session_id) {
+  if (session_id != session_id_) {
+    // The session associated with this timer has been invalidated.
+    return;
+  }
+  ClearClusterInfo();
+  // Iterate through any existing files and mark them as expired.
+  // TODO(crbug.com/432125987): Handle file reupload after cluster info
+  // expiration.
+  for (const auto& [file_token, file_info] : active_files_) {
+    // Stop the file upload request if it is in progress.
+    file_info->file_upload_endpoint_fetcher_.reset();
+    if (file_info->upload_status_ != FileUploadStatus::kValidationFailed) {
+      UpdateFileUploadStatus(file_token, FileUploadStatus::kUploadExpired,
+                             std::nullopt);
+    }
+  }
+  SetQueryControllerState(QueryControllerState::kClusterInfoInvalid);
+
+  // Fetch new cluster info.
+  FetchClusterInfo();
+}
+
 void ComposeboxQueryController::FetchClusterInfo() {
   SetQueryControllerState(QueryControllerState::kAwaitingClusterInfoResponse);
 
@@ -413,16 +463,28 @@ void ComposeboxQueryController::HandleClusterInfoResponse(
   }
 
   // Store the cluster info.
-  // TODO(crbug.com/425377511): Add TTL timer for the cluster info.
   cluster_info_ = std::make_optional<lens::LensOverlayClusterInfo>();
   cluster_info_->set_server_session_id(server_response.server_session_id());
   cluster_info_->set_search_session_id(server_response.search_session_id());
+  if (server_response.has_routing_info() &&
+      !request_id_generator_.HasRoutingInfo()) {
+    std::unique_ptr<lens::LensOverlayRequestId> request_id =
+        request_id_generator_.SetRoutingInfo(server_response.routing_info());
+  }
   SetQueryControllerState(QueryControllerState::kClusterInfoReceived);
 
   // Iterate through any existing files and send the upload requests if ready.
   for (const auto& [file_token, file_info] : active_files_) {
     MaybeSendFileUploadNetworkRequest(file_token);
   }
+
+  // Clear the cluster info after its lifetime expires.
+  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&ComposeboxQueryController::ResetRequestClusterInfoState,
+                     weak_ptr_factory_.GetWeakPtr(), session_id_),
+      base::Seconds(
+          lens::features::GetLensOverlayClusterInfoLifetimeSeconds()));
 }
 
 void ComposeboxQueryController::SetQueryControllerState(
@@ -458,19 +520,21 @@ void ComposeboxQueryController::ProcessDecodedImageAndContinue(
     const SkBitmap& bitmap) {
   scoped_refptr<lens::RefCountedLensOverlayClientLogs> ref_counted_logs =
       base::MakeRefCounted<lens::RefCountedLensOverlayClientLogs>();
-  // TODO(crbug.com/430053361): Add error handling for when the bitmap is null
-  // or empty.
-  if (!bitmap.isNull() && !bitmap.empty()) {
-    // Downscaling and encoding is done on a background thread to avoid blocking
-    // the main thread.
-    create_request_task_runner_->PostTaskAndReplyWithResult(
-        FROM_HERE,
-        base::BindOnce(&composebox::DownscaleAndEncodeBitmap, bitmap,
-                       ref_counted_logs, image_options),
-        base::BindOnce(&CreateFileUploadRequestProtoWithImageDataAndContinue,
-                       request_id, CreateClientContext(), ref_counted_logs,
-                       std::move(callback)));
+  if (bitmap.isNull() || bitmap.empty()) {
+    std::move(callback).Run(lens::LensOverlayServerRequest(),
+                            FileUploadErrorType::kImageProcessingError);
+    return;
   }
+
+  // Downscaling and encoding is done on a background thread to avoid blocking
+  // the main thread.
+  create_request_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(&composebox::DownscaleAndEncodeBitmap, bitmap,
+                     ref_counted_logs, image_options),
+      base::BindOnce(&CreateFileUploadRequestProtoWithImageDataAndContinue,
+                     request_id, CreateClientContext(), ref_counted_logs,
+                     std::move(callback)));
 }
 #endif  // !BUILDFLAG(IS_IOS)
 
@@ -510,17 +574,25 @@ void ComposeboxQueryController::CreateFileUploadRequestBodyAndContinue(
 #endif  // !BUILDFLAG(IS_IOS)
       break;
     default:
-      // TODO(crbug.com/430053361): Add error handling for unsupported file
-      // types.
+      UpdateFileUploadStatus(file_info->file_token_,
+                             FileUploadStatus::kValidationFailed,
+                             FileUploadErrorType::kBrowserProcessingError);
       break;
   }
 }
 
 void ComposeboxQueryController::OnUploadFileRequestBodyReady(
     const base::UnguessableToken& file_token,
-    lens::LensOverlayServerRequest request) {
+    lens::LensOverlayServerRequest request,
+    std::optional<FileUploadErrorType> error_type) {
   FileInfo* file_info = GetFileInfo(file_token);
   if (!file_info) {
+    return;
+  }
+
+  if (error_type.has_value()) {
+    UpdateFileUploadStatus(file_info->file_token_,
+                           FileUploadStatus::kValidationFailed, error_type);
     return;
   }
 
@@ -551,7 +623,9 @@ void ComposeboxQueryController::MaybeSendFileUploadNetworkRequest(
   }
 
   if (file_info->request_headers_ && file_info->request_body_ &&
-      cluster_info_.has_value()) {
+      cluster_info_.has_value() &&
+      file_info->upload_status_ == FileUploadStatus::kProcessing &&
+      query_controller_state_ == QueryControllerState::kClusterInfoReceived) {
     SendFileUploadNetworkRequest(file_info);
   }
 }

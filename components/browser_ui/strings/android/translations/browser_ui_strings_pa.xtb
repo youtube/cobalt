@@ -63,6 +63,7 @@
 <translation id="1704230497453185209">ਸਾਈਟਾਂ ਨੂੰ ਧੁਨੀ ਚਲਾਉਣ ਦੀ ਇਜਾਜ਼ਤ ਨਾ ਦਿਓ</translation>
 <translation id="1717218214683051432">ਗਤੀਸ਼ੀਲਤਾ ਸੈਂਸਰ</translation>
 <translation id="1717996979683942279">ਚਾਲੂ ਹੋਣ 'ਤੇ, ਸਾਈਟਾਂ ਤੁਹਾਡੀਆਂ ਸਾਰੀਆਂ ਡਿਸਪਲੇਆਂ 'ਤੇ ਵਿੰਡੋਆਂ ਦਾ ਪ੍ਰਬੰਧਨ ਕਰਨ ਲਈ ਪੁੱਛ ਸਕਦੀਆਂ ਹਨ। ਬੰਦ ਹੋਣ 'ਤੇ, ਸਾਈਟਾਂ ਤੁਹਾਡੀਆਂ ਸਾਰੀਆਂ ਡਿਸਪਲੇਆਂ 'ਤੇ ਵਿੰਡੋਆਂ ਦਾ ਪ੍ਰਬੰਧਨ ਨਹੀਂ ਕਰ ਸਕਦੀਆਂ।</translation>
+<translation id="1738912554587725807">'ਨਵੀਂ ਟੈਬ' ਪੰਨੇ 'ਤੇ ਦਿਖਣ ਵਾਲੇ ਥੀਮ ਸੰਗ੍ਰਹਿ ਦੀ ਹੇਠਲੀ ਸ਼ੀਟ</translation>
 <translation id="1743802530341753419">ਸਾਈਟਾਂ ਨੂੰ ਕਿਸੇ ਡੀਵਾਈਸ ਨਾਲ ਕਨੈਕਟ ਕਰਨ ਦੇਣ ਤੋਂ ਪਹਿਲਾਂ ਪੁੱਛੋ (ਸਿਫ਼ਾਰਸ਼ੀ)</translation>
 <translation id="1777815584158991902">ਡਿਸਕਵਰ ਫ਼ੀਡ ਦੀ ਹੇਠਲੀ ਸ਼ੀਟ</translation>
 <translation id="1779089405699405702">ਇਮੇਜ ਡੀਕੋਡਰ</translation>
@@ -120,6 +121,7 @@
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ਅਤੇ <ph name="NUM_MORE" /> ਹੋਰ ਦੀ ਇਜਾਜ਼ਤ ਦਿੱਤੀ ਗਈ}one{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ਅਤੇ <ph name="NUM_MORE" /> ਹੋਰ ਦੀ ਇਜਾਜ਼ਤ ਦਿੱਤੀ ਗਈ}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ਅਤੇ <ph name="NUM_MORE" /> ਹੋਰ ਦੀ ਇਜਾਜ਼ਤ ਦਿੱਤੀ ਗਈ}}</translation>
 <translation id="2410940059315936967">ਜਿਸ ਸਾਈਟ 'ਤੇ ਤੁਸੀਂ ਜਾਂਦੇ ਹੋ, ਉਹ ਦੂਜੀਆਂ ਸਾਈਟਾਂ ਤੋਂ ਸਮੱਗਰੀ ਨੂੰ ਪਰੋ ਸਕਦੀ ਹੈ, ਉਦਾਹਰਨ ਲਈ, ਚਿੱਤਰ, ਵਿਗਿਆਪਨ ਅਤੇ ਲਿਖਤ। ਇਨ੍ਹਾਂ ਦੂਜੀਆਂ ਸਾਈਟਾਂ ਵੱਲੋਂ ਸੈੱਟ ਕੀਤੀਆਂ ਗਈਆਂ ਕੁਕੀਜ਼ ਨੂੰ ਤੀਜੀ-ਧਿਰ ਦੀਆਂ ਕੁਕੀਜ਼ ਕਿਹਾ ਜਾਂਦਾ ਹੈ।</translation>
+<translation id="2411116727035790889">ਸ਼ਾਰਟਕੱਟਾਂ ਨੂੰ ਚਾਲੂ ਕਰੋ</translation>
 <translation id="2433507940547922241">ਪ੍ਰਗਟਾਅ</translation>
 <translation id="2434158240863470628">ਡਾਊਨਲੋਡ ਮੁਕੰਮਲ ਹੋਇਆ <ph name="SEPARATOR" /> <ph name="BYTES_DOWNLOADED" /></translation>
 <translation id="2438120137003069591">ਤੁਸੀਂ ਇਸ ਸਾਈਟ ਨੂੰ ਕੁਝ ਸਮੇਂ ਲਈ ਤੀਜੀ-ਧਿਰ ਦੀਆਂ ਕੁਕੀਜ਼ ਵਰਤਣ ਵਾਸਤੇ ਆਗਿਆ ਦਿੱਤੀ ਹੈ, ਜਿਸਦਾ ਮਤਲਬ ਹੈ ਕਿ ਬ੍ਰਾਊਜ਼ਿੰਗ ਸੰਬੰਧੀ ਸੁਰੱਖਿਆ ਘਟ ਜਾਵੇਗੀ ਪਰ ਸਾਈਟ ਦੀਆਂ ਵਿਸ਼ੇਸ਼ਤਾਵਾਂ ਉਮੀਦ ਮੁਤਾਬਕ ਕੰਮ ਕਰਨਗੀਆਂ। <ph name="BEGIN_LINK" />ਵਿਚਾਰ ਭੇਜੋ<ph name="END_LINK" /></translation>
@@ -186,6 +188,7 @@
 <translation id="3114012059975132928">ਵੀਡੀਓ ਪਲੇਅਰ</translation>
 <translation id="3115898365077584848">ਜਾਣਕਾਰੀ ਦਿਖਾਓ</translation>
 <translation id="3123473560110926937">ਕੁਝ ਸਾਈਟਾਂ 'ਤੇ ਬਲਾਕ ਕੀਤੇ ਗਏ</translation>
+<translation id="3132996321662585180">ਰੋਜ਼ਾਨਾ ਰਿਫ੍ਰੈਸ਼ ਕਰੋ</translation>
 <translation id="3143754809889689516">ਸ਼ੁਰੂ ਤੋਂ ਚਲਾਓ</translation>
 <translation id="3162899666601560689">ਸਾਈਟਾਂ ਤੁਹਾਡੇ ਬ੍ਰਾਊਜ਼ਿੰਗ ਅਨੁਭਵ ਨੂੰ ਬਿਹਤਰ ਬਣਾਉਣ ਲਈ ਕੁਕੀਜ਼ ਨੂੰ ਵਰਤ ਸਕਦੀਆਂ ਹਨ, ਉਦਾਹਰਨ ਲਈ, ਤੁਹਾਨੂੰ ਸਾਈਨ-ਇਨ ਜਾਂ ਤੁਹਾਡੇ ਖਰੀਦਦਾਰੀ ਕਾਰਟ ਵਿਚਲੀਆਂ ਆਈਟਮਾਂ ਨੂੰ ਯਾਦ ਰੱਖਣ ਲਈ</translation>
 <translation id="3165022941318558018">ਕਿਸੇ ਸਾਈਟ ਨੂੰ ਤੀਜੀ-ਧਿਰ ਦੀਆਂ ਕੁਕੀਜ਼ ਵਰਤਣ ਦੀ ਇਜਾਜ਼ਤ ਦਿਓ</translation>
@@ -356,6 +359,7 @@
 <translation id="5100237604440890931">ਸਮੇਟਿਆ ਗਿਆ - ਵਿਸਤਾਰ ਕਰਨ ਲਈ ਕਲਿੱਕ ਕਰੋ।</translation>
 <translation id="5116239826668864748">ਸੁਨੇਹੇ, ਦਸਤਾਵੇਜ਼ ਅਤੇ ਹੋਰ ਐਪਾਂ ਵਿੱਚ ਲਿੰਕ 'ਤੇ ਟੈਪ ਕਰ ਕੇ ਤੁਸੀਂ ਕਿਸੇ ਵੇਲੇ ਵੀ Chrome ਵਰਤ ਸਕਦੇ ਹੋ</translation>
 <translation id="5123685120097942451">ਇਨਕੋਗਨਿਟੋ ਟੈਬ</translation>
+<translation id="512938610812707830">'ਨਵੀਂ ਟੈਬ' ਪੰਨੇ 'ਤੇ ਦਿਖਣ ਵਾਲੇ ਥੀਮ ਸੰਗ੍ਰਹਿ ਦੀ ਹੇਠਲੀ ਸ਼ੀਟ ਪੂਰੀ ਸਕ੍ਰੀਨ 'ਤੇ ਖੁੱਲ੍ਹੀ ਹੋਈ ਹੈ</translation>
 <translation id="5139253256813381453">{PRICE_DROP_COUNT,plural, =1{ਤੁਹਾਡੀਆਂ ਖੁੱਲ੍ਹੀਆਂ ਟੈਬਾਂ 'ਤੇ ਕੀਮਤ ਘਟੀ}one{ਤੁਹਾਡੀਆਂ ਖੁੱਲ੍ਹੀਆਂ ਟੈਬਾਂ 'ਤੇ ਕੀਮਤ ਘਟੀ}other{ਤੁਹਾਡੀਆਂ ਖੁੱਲ੍ਹੀਆਂ ਟੈਬਾਂ 'ਤੇ ਕੀਮਤਾਂ ਘਟੀਆਂ}}</translation>
 <translation id="5186036860380548585">ਸਕ੍ਰੀਨ ਦੇ ਸਿਖਰ ਨੇੜੇ ਵਿਕਲਪ ਉਪਲਬਧ ਹਨ</translation>
 <translation id="5197729504361054390">ਤੁਹਾਡੇ ਵੱਲੋਂ ਚੁਣੇ ਸੰਪਰਕ <ph name="BEGIN_BOLD" /><ph name="SITE" /><ph name="END_BOLD" /> ਨਾਲ ਸਾਂਝੇ ਕੀਤੇ ਜਾਣਗੇ।</translation>
@@ -608,7 +612,6 @@
 <translation id="8186479265534291036">ਕੀ ਸਾਈਟ ਕੰਮ ਨਹੀਂ ਕਰ ਰਹੀ ਹੈ? ਤੀਜੀ-ਧਿਰ ਦੀਆਂ ਕੁਕੀਜ਼ ਨੂੰ ਬਲਾਕ ਕੀਤਾ ਗਿਆ</translation>
 <translation id="8197286292360124385"><ph name="PERMISSION_1" /> ਦੀ ਇਜਾਜ਼ਤ ਦਿੱਤੀ ਗਈ</translation>
 <translation id="8200772114523450471">ਦੁਬਾਰਾ ਸ਼ੁਰੂ ਕਰੋ</translation>
-<translation id="8206354486702514201">ਇਹ ਸੈਟਿੰਗ ਤੁਹਾਡੇ ਪ੍ਰਬੰਧਕ ਵੱਲੋਂ ਲਾਗੂ ਕੀਤੀ ਗਈ ਹੈ।</translation>
 <translation id="8211406090763984747">ਕਨੈਕਸ਼ਨ ਸੁਰੱਖਿਅਤ ਹੈ</translation>
 <translation id="822964464349305906"><ph name="TYPE_1" />, <ph name="TYPE_2" /></translation>
 <translation id="8249310407154411074">ਸਿਖਰ 'ਤੇ ਲੈ ਜਾਓ</translation>
@@ -619,6 +622,7 @@
 <translation id="8324158725704657629">ਦੁਬਾਰਾ ਨਾ ਪੁੱਛੋ</translation>
 <translation id="8362795839483915693">ਤੁਸੀਂ ਤੁਹਾਡੇ ਵੱਲੋਂ ਦੇਖੀਆਂ ਜਾਂਦੀਆਂ ਸਾਈਟਾਂ 'ਤੇ ਜ਼ੂਮ ਵਧਾ ਜਾਂ ਘਟਾ ਸਕਦੇ ਹੋ</translation>
 <translation id="8372893542064058268">ਇੱਕ ਖ਼ਾਸ ਸਾਈਟ ਲਈ ਬੈਕਗ੍ਰਾਊਂਡ ਸਿੰਕ ਦੀ ਆਗਿਆ ਦਿਓ।</translation>
+<translation id="8378714024927312812">ਤੁਹਾਡੀ ਸੰਸਥਾ ਵੱਲੋਂ ਪ੍ਰਬੰਧਨ ਕੀਤਾ ਜਾਂਦਾ ਹੈ</translation>
 <translation id="83792324527827022">ਕੋਈ ਸਾਈਟ ਤੁਹਾਡਾ ਕੈਮਰਾ ਅਤੇ ਮਾਈਕ੍ਰੋਫ਼ੋਨ ਵਰਤ ਰਹੀ ਹੈ</translation>
 <translation id="8380167699614421159">ਇਹ ਸਾਈਟ ਦਖਲਅੰਦਾਜ਼ੀ ਜਾਂ ਗੁਮਰਾਹ ਕਰਨ ਵਾਲੇ ਵਿਗਿਆਪਨ ਦਿਖਾਉਂਦੀ ਹੈ</translation>
 <translation id="8394832520002899662">ਸਾਈਟ 'ਤੇ ਵਾਪਸ ਜਾਣ ਲਈ ਟੈਪ ਕਰੋ</translation>

@@ -16,7 +16,6 @@
 #include "components/page_load_metrics/common/page_load_metrics_util.h"
 #include "components/page_load_metrics/common/page_load_timing.h"
 #include "components/page_load_metrics/renderer/page_timing_sender.h"
-#include "components/page_load_metrics/renderer/soft_navigation_metrics_type_converter.h"
 #include "services/network/public/cpp/url_loader_completion_status.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
 #include "third_party/blink/public/common/features.h"
@@ -126,7 +125,7 @@ void PageTimingMetricsSender::DidObserveNewFeatureUsage(
 }
 
 void PageTimingMetricsSender::DidObserveSoftNavigation(
-    blink::SoftNavigationMetrics new_metrics) {
+    blink::SoftNavigationMetricsForReporting new_metrics) {
   // The start_time is a TimeDelta, and its resolution is in microseconds.
   // Every time we observe a new soft navigation we expect the total count to
   // increase by one, and the navigation_id to update, however, we have no

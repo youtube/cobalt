@@ -951,37 +951,6 @@ bool BookmarkBridge::DoesBookmarkExist(JNIEnv* env, jlong id, jint type) {
   }
 }
 
-void BookmarkBridge::GetBookmarksForFolder(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& j_folder_id_obj,
-    const JavaParamRef<jobject>& j_result_obj) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  DCHECK(IsLoaded());
-
-  long folder_id = JavaBookmarkIdGetId(env, j_folder_id_obj);
-  int type = JavaBookmarkIdGetType(env, j_folder_id_obj);
-  const BookmarkNode* folder = GetFolderWithFallback(folder_id, type);
-
-  if (!folder->is_folder() || !IsReachable(folder))
-    return;
-
-  // Recreate the java bookmarkId object due to fallback.
-  ScopedJavaLocalRef<jobject> folder_id_obj = JavaBookmarkIdCreateBookmarkId(
-      env, folder->id(), GetBookmarkType(folder));
-
-  // Get the folder contents.
-  for (const auto& node : folder->children()) {
-    if (IsFolderAvailable(node.get()))
-      ExtractBookmarkNodeInformation(node.get(), j_result_obj);
-  }
-
-  if (folder == bookmark_model_->mobile_node() &&
-      partner_bookmarks_shim_->HasPartnerBookmarks()) {
-    ExtractBookmarkNodeInformation(
-        partner_bookmarks_shim_->GetPartnerBookmarksRoot(), j_result_obj);
-  }
-}
-
 jboolean BookmarkBridge::IsFolderVisible(JNIEnv* env, jlong id, jint type) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   if (type == BookmarkType::BOOKMARK_TYPE_NORMAL ||
@@ -1751,7 +1720,7 @@ void BookmarkBridge::ReadingListChanged() {
 void BookmarkBridge::ReorderChildren(
     JNIEnv* env,
     const JavaParamRef<jobject>& j_bookmark_id_obj,
-    jlongArray arr) {
+    const base::android::JavaRef<jlongArray>& arr) {
   DCHECK(IsLoaded());
   // get the BookmarkNode* for the "parent" bookmark parameter
   const long bookmark_id = JavaBookmarkIdGetId(env, j_bookmark_id_obj);
@@ -1761,8 +1730,8 @@ void BookmarkBridge::ReorderChildren(
 
   // populate a vector
   std::vector<const BookmarkNode*> ordered_nodes;
-  jsize arraySize = env->GetArrayLength(arr);
-  jlong* elements = env->GetLongArrayElements(arr, 0);
+  jsize arraySize = env->GetArrayLength(arr.obj());
+  jlong* elements = env->GetLongArrayElements(arr.obj(), 0);
 
   // iterate through array, adding the BookmarkNode*s of the objects
   for (int i = 0; i < arraySize; ++i) {

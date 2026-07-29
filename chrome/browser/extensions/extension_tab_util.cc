@@ -29,6 +29,7 @@
 #include "chrome/browser/ui/tabs/tab_list_interface.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/sessions/content/session_tab_helper.h"
+#include "components/tabs/public/split_tab_id.h"
 #include "components/tabs/public/split_tab_visual_data.h"
 #include "components/url_formatter/url_fixer.h"
 #include "content/public/browser/favicon_status.h"
@@ -551,6 +552,14 @@ api::tabs::Tab ExtensionTabUtil::CreateTabObject(
     }
   }
 
+  tab_object.split_view_id = -1;
+  if (tab_interface) {
+    std::optional<split_tabs::SplitTabId> split = tab_interface->GetSplit();
+    if (split.has_value()) {
+      tab_object.split_view_id = GetSplitId(split.value());
+    }
+  }
+
   auto get_audible = [contents]() {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
     auto* audible_helper = RecentlyAudibleHelper::FromWebContents(contents);
@@ -587,7 +596,7 @@ api::tabs::Tab ExtensionTabUtil::CreateTabObject(
                           ::mojom::LifecycleUnitState::FROZEN;
 
   tab_object.muted_info = CreateMutedInfo(contents);
-#endif
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
   tab_object.incognito = contents->GetBrowserContext()->IsOffTheRecord();
   gfx::Size contents_size = contents->GetContainerBounds().size();
@@ -770,9 +779,13 @@ bool ExtensionTabUtil::GetTabListInterface(content::WebContents& web_contents,
     }
   }
 
-  // Since we got to this tab strip from the BrowserWindowInterface associated
-  // with the tab, we should always find the tab.
-  CHECK_NE(-1, index);
+  // Even though we got here by looking at the tab strip from the browser window
+  // we got from the tab, it's possible the tab isn't in the tab strip. One case
+  // in which this happens is if the tab is in the process of being removed.
+  if (index == -1) {
+    return false;
+  }
+
   *index_out = index;
   *tab_list_out = tab_list;
   return true;
@@ -951,6 +964,12 @@ bool ExtensionTabUtil::GetTabById(int tab_id,
 
 // static
 int ExtensionTabUtil::GetGroupId(const tab_groups::TabGroupId& id) {
+  uint32_t hash = base::PersistentHash(id.ToString());
+  return std::abs(static_cast<int>(hash));
+}
+
+// static
+int ExtensionTabUtil::GetSplitId(const split_tabs::SplitTabId& id) {
   uint32_t hash = base::PersistentHash(id.ToString());
   return std::abs(static_cast<int>(hash));
 }
@@ -1478,7 +1497,6 @@ void ExtensionTabUtil::ClearBackForwardCache() {
   }));
 }
 
-#if !BUILDFLAG(IS_ANDROID)
 // static
 bool ExtensionTabUtil::IsTabStripEditable() {
   // See comments in the header for why we need to check all of them.
@@ -1490,6 +1508,15 @@ bool ExtensionTabUtil::IsTabStripEditable() {
   return true;
 }
 
+TabListInterface* ExtensionTabUtil::GetEditableTabList(
+    BrowserWindowInterface& browser) {
+  if (!IsTabStripEditable()) {
+    return nullptr;
+  }
+  return TabListInterface::From(&browser);
+}
+
+#if !BUILDFLAG(IS_ANDROID)
 // static
 TabStripModel* ExtensionTabUtil::GetEditableTabStripModel(Browser* browser) {
   if (!IsTabStripEditable())

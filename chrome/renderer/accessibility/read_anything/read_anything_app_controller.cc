@@ -523,6 +523,10 @@ void ReadAnythingAppController::OnTreeDataChanged(
     ui::AXTree* tree,
     const ui::AXTreeData& old_data,
     const ui::AXTreeData& new_data) {
+  VLOG(1) << "Tree data changed for tree ID: " << tree->GetAXTreeID()
+          << "\n---- OLD DATA: " << old_data.tree_id << ": "
+          << old_data.ToString() << "\n---- NEW DATA: " << new_data.tree_id
+          << ": " << new_data.ToString();
   // If we are waiting for the tree id of the active tree to be populated,
   // distill once we have it.
   if (waiting_for_tree_id_ && old_data.tree_id == ui::AXTreeIDUnknown() &&
@@ -925,6 +929,14 @@ void ReadAnythingAppController::Draw(bool recompute_display_nodes) {
 }
 
 void ReadAnythingAppController::DrawSelection() {
+  // Reset read aloud state if a selection has been made in case the selected
+  // nodes weren't previously distilled. Resetting isn't necessary if the
+  // selection nodes were included in the distilled content.
+  if (IsReadAloudEnabled() && !model_.selection_node_ids().empty() &&
+      !model_.SelectionNodesContainedInDistilledContent()) {
+    read_aloud_model_.ResetReadAloudState();
+  }
+
   // This call should check that the active tree isn't in an undistilled state
   // -- that is, it is awaiting distillation or never requested distillation.
   ExecuteJavaScript("chrome.readingMode.updateSelection();");

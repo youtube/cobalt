@@ -25,6 +25,7 @@ source_set("safety_hub") {
     "safety_hub_result.h",
     "safety_hub_service.h",
     "safety_hub_util.h",
+    "unused_site_permissions_manager.h",
   ]
 
   public_deps = [
@@ -88,6 +89,7 @@ source_set("impl") {
     "safety_hub_result.cc",
     "safety_hub_service.cc",
     "safety_hub_util.cc",
+    "unused_site_permissions_manager.cc",
   ]
 
   deps = [
@@ -128,6 +130,7 @@ source_set("impl") {
     deps += [
       "//chrome/browser/affiliations",
       "//chrome/browser/extensions",
+      "//chrome/browser/password_manager/factories",
       "//chrome/browser/signin",
       "//chrome/browser/ui/webui/settings",
       "//components/password_manager/core/browser:password_form",
@@ -158,6 +161,7 @@ source_set("test_support") {
     "//base",
     "//base/test:test_support",
     "//chrome/browser/content_settings:content_settings_factory",
+    "//chrome/browser/password_manager/factories",
     "//chrome/browser/permissions",
     "//components/content_settings/core/common",
     "//components/sync_preferences:test_support",
@@ -218,9 +222,17 @@ if (!is_android) {
 source_set("unit_tests") {
   testonly = true
   sources = [
+    "abusive_notification_permissions_manager_unittest.cc",
+    "disruptive_notification_permissions_manager_unittest.cc",
     "menu_notification_service_unittest.cc",
     "menu_notification_unittest.cc",
+    "notification_permission_review_result_unittest.cc",
+    "password_status_check_result_unittest.cc",
+    "revoked_permissions_result_unittest.cc",
     "safe_browsing_result_unittest.cc",
+    "safety_hub_result_unittest.cc",
+    "safety_hub_service_unittest.cc",
+    "unused_site_permissions_manager_unittest.cc",
   ]
 
   deps = [
@@ -238,6 +250,7 @@ source_set("unit_tests") {
     "//chrome/test:test_support",
     "//components/content_settings/core/browser",
     "//components/content_settings/core/common",
+    "//components/content_settings/core/test:test_support",
     "//components/password_manager/core/browser/password_store:test_support",
     "//components/permissions",
     "//components/permissions:permissions_common",
@@ -245,6 +258,7 @@ source_set("unit_tests") {
     "//components/safe_browsing/core/common:features",
     "//components/safe_browsing/core/common:safe_browsing_prefs",
     "//components/sync_preferences:test_support",
+    "//components/ukm:test_support",
     "//content/test:test_support",
     "//testing/gtest",
     "//ui/base",
@@ -258,18 +272,11 @@ source_set("unit_tests") {
     sources += [ "password_status_check_result_android_unittest.cc" ]
   } else {
     sources += [
-      "abusive_notification_permissions_manager_unittest.cc",
-      "disruptive_notification_permissions_manager_unittest.cc",
       "extensions_result_unittest.cc",
-      "notification_permission_review_result_unittest.cc",
       "notification_permission_review_service_unittest.cc",
-      "password_status_check_result_unittest.cc",
       "password_status_check_service_unittest.cc",
-      "revoked_permissions_result_unittest.cc",
       "revoked_permissions_service_unittest.cc",
       "safety_hub_hats_service_unittest.cc",
-      "safety_hub_result_unittest.cc",
-      "safety_hub_service_unittest.cc",
     ]
 
     deps += [
@@ -282,7 +289,6 @@ source_set("unit_tests") {
       "//chrome/browser/ui",
       "//chrome/browser/ui/hats:test_support",
       "//components/content_settings/core/common:features",
-      "//components/content_settings/core/test:test_support",
       "//components/crx_file",
       "//components/history/core/browser",
       "//components/history/core/test",
@@ -295,7 +301,6 @@ source_set("unit_tests") {
       "//components/signin/public/base",
       "//components/signin/public/identity_manager:test_support",
       "//components/site_engagement/content",
-      "//components/ukm:test_support",
       "//components/ukm/content",
       "//content/public/browser",
       "//extensions/browser",
@@ -307,4 +312,8 @@ source_set("unit_tests") {
       "//url",
     ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }

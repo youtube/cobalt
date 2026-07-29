@@ -147,8 +147,6 @@ component("network_service") {
     "restricted_cookie_manager.h",
     "restricted_udp_socket.cc",
     "restricted_udp_socket.h",
-    "scheduler/network_service_task_priority.cc",
-    "scheduler/network_service_task_priority.h",
     "scheduler/network_service_task_queues.cc",
     "scheduler/network_service_task_queues.h",
     "scheduler/network_service_task_scheduler.cc",
@@ -631,6 +629,10 @@ source_set("tests") {
       "//third_party/blink/public/common:preloading_headers",
     ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("test_support") {
@@ -718,6 +720,10 @@ source_set("test_support") {
     "//net:test_support",
     "//testing/gtest",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 fuzzer_test("network_content_security_policy_fuzzer") {

@@ -66,7 +66,9 @@ from update_rust import (RUST_REVISION, RUST_TOOLCHAIN_OUT_DIR,
 
 EXCLUDED_TESTS = [
     # Temporarily disabled due to https://crbug.com/396424971
-    os.path.join('tests', 'codegen', 'common_prim_int_ptr.rs'),
+    os.path.join('tests', 'codegen-llvm', 'common_prim_int_ptr.rs'),
+    # Temporarily disabled due to https://crbug.com/433249564
+    os.path.join('tests', 'codegen-llvm', 'enum', 'enum-discriminant-eq.rs'),
 ]
 EXCLUDED_TESTS_WINDOWS = [
     # Temporarily disabled due to https://crbug.com/379308086
@@ -141,7 +143,7 @@ BUILD_TARGETS = [
 # Which test suites to run. Any failure will fail the build.
 TEST_SUITES = [
     'library/std',
-    'tests/codegen',
+    'tests/codegen-llvm',
     'tests/ui',
 ]
 
@@ -594,6 +596,9 @@ def GitApplyCherryPicks():
     # with `GitMoveSubmoduleBranch()`.
     #############################
 
+    # TODO(crbug.com/433513424): Remove once we roll past this revision.
+    GitCherryPick(RUST_SRC_DIR, 'https://github.com/rust-lang/rust.git',
+                  '23fda6084b5e9a618b74a9c417f5353783b72ae9')
     print('Finished applying cherry-picks.')
 
 

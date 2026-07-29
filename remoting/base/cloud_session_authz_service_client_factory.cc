@@ -206,6 +206,10 @@ void CloudSessionAuthzServiceClient::OnVerifySessionTokenResponse(
       session_policies.allow_uri_forwarding =
           response->session_policies().allow_uri_forwarding();
     }
+    if (response->session_policies().has_allow_web_authn_forwarding()) {
+      session_policies.allow_webauthn_forwarding =
+          response->session_policies().allow_web_authn_forwarding();
+    }
     if (response->session_policies().has_clipboard_size_bytes()) {
       session_policies.clipboard_size_bytes =
           response->session_policies().clipboard_size_bytes();
@@ -228,6 +232,13 @@ void CloudSessionAuthzServiceClient::OnVerifySessionTokenResponse(
         session_policies.host_udp_port_range.min_port = min_port;
         session_policies.host_udp_port_range.max_port = max_port;
       }
+    }
+    if (response->session_policies().has_maximum_session_duration()) {
+      auto maximum_session_duration = base::Seconds(
+          response->session_policies().maximum_session_duration().seconds());
+      session_policies.maximum_session_duration =
+          std::max(maximum_session_duration,
+                   SessionPolicies::kMinMaximumSessionDuration);
     }
     response_struct->session_policies.emplace(std::move(session_policies));
   }

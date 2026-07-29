@@ -175,6 +175,7 @@ FormStructure::FormStructure(const FormData& form)
 
   form_signature_ = CalculateFormSignature(form);
   alternative_form_signature_ = CalculateAlternativeFormSignature(form);
+  structural_form_signature_ = CalculateStructuralFormSignature(form);
   // Do further processing on the fields, as needed.
   // Computes the `parseable_name_` of the fields by removing common affixes
   // from their names.
@@ -289,6 +290,8 @@ FormDataPredictions FormStructure::GetFieldTypePredictions() const {
   form.signature = FormSignatureAsStr();
   form.alternative_signature =
       base::NumberToString(alternative_form_signature().value());
+  form.structural_form_signature =
+      base::NumberToString(structural_form_signature().value());
 
   std::map<const AutofillField*, std::vector<AttributeType>>
       field_to_attribute_types;
@@ -646,6 +649,13 @@ void FormStructure::RetrieveFromCache(const FormStructure& cached_form,
   // request.
   form_signature_ = cached_form.form_signature_;
 
+  // Keeping the behavior for structural signature consistent with the main one.
+  // In practice, first-encountered signatures are preserved only for purely
+  // credit card forms.
+  // TODO(crbug.com/431754194): Investigate making the behavior consistent
+  // across all form types.
+  structural_form_signature_ = cached_form.structural_form_signature_;
+
   // Whether the AutofillAI model may be run is set at the same time as the
   // server predictions - it also needs to be retrieved from the cache.
   may_run_autofill_ai_model_ = cached_form.may_run_autofill_ai_model_;
@@ -773,8 +783,7 @@ size_t FormStructure::field_count() const {
 }
 
 const AutofillField* FormStructure::GetFieldById(FieldGlobalId field_id) const {
-  auto it = std::ranges::find(
-      fields_, field_id, [](const auto& field) { return field->global_id(); });
+  auto it = std::ranges::find(fields_, field_id, &FormFieldData::global_id);
   return it != fields_.end() ? it->get() : nullptr;
 }
 
@@ -861,10 +870,10 @@ DenseSet<FormType> FormStructure::GetFormTypes() const {
   DenseSet<FormType> form_types;
   for (const auto& field : fields_) {
     if (field->ShouldSuppressSuggestionsAndFillingByDefault()) {
-      // When `kAutofillPredictionsForAutocompleteUnrecognized` is enabled,
-      // types are predicted for fields with unrecognized autocomplete
-      // attribute. They are excluded from the form types, to keep the baseline
-      // for key and quality metrics.
+      // Types are predicted for fields with unrecognized autocomplete
+      // attribute, but suggestions are suppressed. So we don't want such fields
+      // to affect the key and quality metrics. We therefore exclude them from
+      // the form types.
       form_types.insert(FormType::kUnknownFormType);
     } else {
       form_types.insert(FieldTypeGroupToFormType(field->Type().group()));

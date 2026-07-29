@@ -5,6 +5,7 @@
 <translation id="1086486568852410168">Google Lens ile ara</translation>
 <translation id="1143896152279775643">Şifreniz, <ph name="EMAIL" /> için Google Şifre Yöneticisi'ne kaydedilir.</translation>
 <translation id="1146503048444965320">Chrome'da yeni sekme aç</translation>
+<translation id="1158134713295836892">Chrome'da Gemini</translation>
 <translation id="1166460004393506534">Chrome'daki tarama verilerini silme</translation>
 <translation id="1179527450541388808">iPad'inizin ana ekran yuvasından Chrome'a daha hızlı erişin.</translation>
 <translation id="1180362651362502943">Google Hesabınızdaki Chrome verilerini kullanmaya devam edin.</translation>
@@ -94,7 +95,7 @@ Oturumunuzu kapatmadan önce birkaç dakika bekleyin. Oturumu şimdi kapatırsan
 <translation id="314782365035065913">Ana ekran yuvanızdan Chrome'a daha hızlı erişin</translation>
 <translation id="3167189358072330585">Hesabınız Google Chrome'da kullanılamıyor. Lütfen alan adı yöneticinizle iletişim kurun veya oturum açmak için normal bir Google Hesabı kullanın.</translation>
 <translation id="322254490661677575">Chrome verilerini kullanmak ve Google Hesabınıza kaydetmek için parolanızı girin.</translation>
-<translation id="3282568296779691940">Chrome'da Oturum Aç</translation>
+<translation id="3282568296779691940">Chrome'da oturum açın</translation>
 <translation id="3303503998967553377">iOS'te Chrome işlemler özelliğini kullanın</translation>
 <translation id="3348862487678490430">Okuma listesi öğesini Chrome'a ekle</translation>
 <translation id="3357827134511189025">Otomatik doldurma için Chrome'u kullanarak kayıtlı şifreleriniz ve geçiş anahtarlarınızla tüm uygulamalardan oturum açın</translation>
@@ -117,6 +118,7 @@ Oturumunuzu kapatmadan önce birkaç dakika bekleyin. Oturumu şimdi kapatırsan
 <translation id="3863841106411295595">Girilen URL'leri Chrome'daki okuma listenize ekler.</translation>
 <translation id="3901001113120561395">Chrome'dan en iyi şekilde yararlanın.</translation>
 <translation id="3913386780052199712">Chrome'da oturum açıldı</translation>
+<translation id="3932250749914183695">Chrome İpucu: Kimliğinizi doğrulayın</translation>
 <translation id="3984746313391923992">Kuruluşunuz, Chrome'da oturum kapatmış olarak kalmanızı zorunlu tutuyor.</translation>
 <translation id="3988789688219830639">Google Chrome, fotoğraflarınıza veya videolarınıza erişemiyor. iOS Ayarlar &gt; Gizlilik &gt; Fotoğraflar'dan erişimi etkinleştirin.</translation>
 <translation id="4064699917955374540">Chrome verilerini kullanmak ve Google Hesabınıza kaydetmek için kimliğinizi doğrulayın.</translation>
@@ -248,7 +250,7 @@ Veri kullanarak Chrome deneyiminizi iyileştiren daha fazla ayar görmek için <
 <translation id="7299681342915173313">Artık e-postalardaki, dokümanlardaki ve diğer uygulamalardaki bağlantıları tıkladığınızda Chrome'u kullanabilirsiniz.</translation>
 <translation id="7344094882820374540">Tehlikeli sitelere karşı Chrome'un en güçlü güvenlik özelliğinden yararlanın</translation>
 <translation id="7349129508108954623">Chrome'un, algılanan adreslerle ilgili yol tarifleri ve yerel bilgiler sağlaması için Google Haritalar'ı kullanmasına izin verin.</translation>
-<translation id="7371674917547846460">Faydalı Chrome ipuçlarını ve daha fazlasını takip edin.</translation>
+<translation id="7371674917547846460">Faydalı Chrome ipuçlarını ve yenilikleri takip edin.</translation>
 <translation id="7394108421562933108">Chrome'da Haritalar</translation>
 <translation id="7400722733683201933">Google Chrome hakkında</translation>
 <translation id="7466693328838535498">Arama widget'ları kutusuna Chrome yazın.</translation>

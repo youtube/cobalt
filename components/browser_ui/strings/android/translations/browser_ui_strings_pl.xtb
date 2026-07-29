@@ -63,6 +63,7 @@ Zaawansowana ochrona kontroluje te ustawienia Chrome:
 <translation id="1704230497453185209">Nie zezwalaj witrynom na odtwarzanie dźwięków</translation>
 <translation id="1717218214683051432">Czujniki ruchu</translation>
 <translation id="1717996979683942279">Gdy ta opcja jest włączona, strony mogą prosić o zgodę na zarządzanie oknami na wszystkich wyświetlaczach. Gdy jest wyłączona, strony nie mogą zarządzać oknami na wszystkich wyświetlaczach.</translation>
+<translation id="1738912554587725807">Plansza dolna kolekcji motywów wyglądu strony Nowa karta</translation>
 <translation id="1743802530341753419">Pytaj, zanim zezwolisz stronom na połączenie z urządzeniem (zalecane)</translation>
 <translation id="1777815584158991902">Plansza dolna karty Discover</translation>
 <translation id="1779089405699405702">Dekoder obrazów</translation>
@@ -120,6 +121,7 @@ Zaawansowana ochrona kontroluje te ustawienia Chrome:
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{Dozwolone: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> i jeszcze <ph name="NUM_MORE" />}few{Dozwolone: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> i jeszcze <ph name="NUM_MORE" />}many{Dozwolone: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> i jeszcze <ph name="NUM_MORE" />}other{Dozwolone: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> i jeszcze <ph name="NUM_MORE" />}}</translation>
 <translation id="2410940059315936967">Witryna, którą odwiedzasz, może wykorzystywać treści z innych witryn, np. obrazy, reklamy i tekst. Pliki cookie tworzone przez inne witryny są nazywane plikami cookie innych firm.</translation>
+<translation id="2411116727035790889">Włącz skróty</translation>
 <translation id="2433507940547922241">Wygląd</translation>
 <translation id="2434158240863470628">Ukończono pobieranie <ph name="SEPARATOR" /> <ph name="BYTES_DOWNLOADED" /></translation>
 <translation id="2438120137003069591">Tymczasowo zezwalasz tej witrynie na używanie plików cookie innych firm. Oznacza to słabszą ochronę przeglądania, ale jest większa szansa na to, że funkcje witryny będą działać zgodnie z oczekiwaniami. <ph name="BEGIN_LINK" />Prześlij opinię<ph name="END_LINK" /></translation>
@@ -186,6 +188,7 @@ Zaawansowana ochrona kontroluje te ustawienia Chrome:
 <translation id="3114012059975132928">Odtwarzacz</translation>
 <translation id="3115898365077584848">Pokaż informacje</translation>
 <translation id="3123473560110926937">Blokowane na niektórych stronach</translation>
+<translation id="3132996321662585180">Odświeżaj codziennie</translation>
 <translation id="3143754809889689516">Odtwórz od początku</translation>
 <translation id="3162899666601560689">Witryny mogą używać plików cookie dla Twojej wygody, by na przykład zapamiętać Twoje logowanie lub zawartość koszyka</translation>
 <translation id="3165022941318558018">Zezwól witrynie na używanie plików cookie innych firm</translation>
@@ -356,6 +359,7 @@ Zaawansowana ochrona kontroluje te ustawienia Chrome:
 <translation id="5100237604440890931">Zwinięty – kliknij, by rozwinąć.</translation>
 <translation id="5116239826668864748">Teraz możesz używać Chrome za każdym razem, gdy klikniesz link w wiadomościach, dokumentach i w innych aplikacjach</translation>
 <translation id="5123685120097942451">Karta incognito</translation>
+<translation id="512938610812707830">Plansza dolna kolekcji motywów wyglądu strony Nowa karta, otwarta na całą wysokość</translation>
 <translation id="5139253256813381453">{PRICE_DROP_COUNT,plural, =1{Obniżka ceny na otwartych kartach}few{Obniżki cen na otwartych kartach}many{Obniżki cen na otwartych kartach}other{Obniżki cen na otwartych kartach}}</translation>
 <translation id="5186036860380548585">Opcja dostępna u góry ekranu</translation>
 <translation id="5197729504361054390">Wybrane kontakty zostaną udostępnione witrynie <ph name="BEGIN_BOLD" /><ph name="SITE" /><ph name="END_BOLD" />.</translation>
@@ -608,7 +612,6 @@ Zaawansowana ochrona kontroluje te ustawienia Chrome:
 <translation id="8186479265534291036">Strona nie działa? Pliki cookie innych firm zostały zablokowane</translation>
 <translation id="8197286292360124385">Dozwolone: <ph name="PERMISSION_1" /></translation>
 <translation id="8200772114523450471">Wznów</translation>
-<translation id="8206354486702514201">O tym ustawieniu decyduje administrator.</translation>
 <translation id="8211406090763984747">Połączenie jest bezpieczne</translation>
 <translation id="822964464349305906"><ph name="TYPE_1" />, <ph name="TYPE_2" /></translation>
 <translation id="8249310407154411074">Przenieś na początek</translation>
@@ -619,6 +622,7 @@ Zaawansowana ochrona kontroluje te ustawienia Chrome:
 <translation id="8324158725704657629">Nie pytaj ponownie</translation>
 <translation id="8362795839483915693">Możesz powiększać lub pomniejszać odwiedzane witryny</translation>
 <translation id="8372893542064058268">Zezwalaj na synchronizowanie w tle z określoną stroną.</translation>
+<translation id="8378714024927312812">Zarządzane przez Twoją organizację</translation>
 <translation id="83792324527827022">Strona używa kamery i mikrofonu</translation>
 <translation id="8380167699614421159">Na tej stronie wyświetlają się uciążliwe lub wprowadzające w błąd reklamy</translation>
 <translation id="8394832520002899662">Kliknij, by wrócić na tę stronę</translation>

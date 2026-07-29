@@ -828,11 +828,15 @@ message PolicyData {
 
   // Invalidation topic for devices. Clients register for FCM messages using
   // this topic in order to receive notifications for device policy changes.
+  // TODO(crbug.com/341377023): Deprecate once no clients use topic
+  // invalidations.
   optional string policy_invalidation_topic = 26;
 
   // Invalidation topic for commands. Clients register for FCM messages using
   // this topic in order to receive notifications that one or more commands are
   // available for execution.
+  // TODO(crbug.com/341377023): Deprecate once no clients use topic
+  // invalidations.
   optional string command_invalidation_topic = 27;
 
   // Whether the device needs to upload an enrollment identifier to the cloud.
@@ -3591,6 +3595,7 @@ message TpmVersionInfo {
     GSC_VERSION_NOT_GSC = 1;
     GSC_VERSION_CR50 = 2;
     GSC_VERSION_TI50 = 3;
+    GSC_VERSION_NT = 4;
   }
   optional uint32 family = 1;
   optional uint64 spec_level = 2;
@@ -4430,6 +4435,8 @@ message StartCsrRequest {}
 message StartCsrResponse {
   // The client should register for FCM messages using this topic in order to
   // receive notifications for the certificate provisioning process.
+  // TODO(crbug.com/341377023): Deprecate once no clients use topic
+  // invalidations.
   optional string invalidation_topic = 1;
 
   // The verified access challenge.
@@ -4472,6 +4479,8 @@ message CertProvStartRequest {}
 message CertProvStartResponse {
   // The client should register for FCM messages using this topic in order to
   // receive notifications for the certificate provisioning process.
+  // TODO(crbug.com/341377023): Deprecate once no clients use topic
+  // invalidations.
   optional string invalidation_topic = 1;
 }
 

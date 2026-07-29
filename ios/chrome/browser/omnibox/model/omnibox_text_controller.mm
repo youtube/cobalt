@@ -37,8 +37,6 @@ const char kOmniboxFocusResultedInNavigation[] =
 @implementation OmniboxTextController {
   /// Client of the omnibox.
   raw_ptr<OmniboxClient> _omniboxClient;
-  /// The autocomplete controller , owned by the OmniboxAutocompleteController.
-  raw_ptr<AutocompleteController> _autocompleteController;
   /// Whether the popup was scrolled during this omnibox interaction.
   BOOL _suggestionsListScrolled;
   /// The omnbibox text model, holding the text state.
@@ -70,16 +68,8 @@ const char kOmniboxFocusResultedInNavigation[] =
 }
 
 - (void)disconnect {
-  _autocompleteController = nullptr;
   _omniboxClient = nullptr;
   _omniboxTextModel = nullptr;
-}
-
-- (void)setOmniboxAutocompleteController:
-    (OmniboxAutocompleteController*)omniboxAutocompleteController {
-  _omniboxAutocompleteController = omniboxAutocompleteController;
-  _autocompleteController =
-      omniboxAutocompleteController.autocompleteController;
 }
 
 - (void)updateAppearance {
@@ -220,8 +210,8 @@ const char kOmniboxFocusResultedInNavigation[] =
   }
 
   if (_omniboxTextModel->SetInputInProgressNoNotify(inProgress)) {
-    if (_omniboxTextModel->user_input_in_progress && _autocompleteController) {
-      _autocompleteController->ResetSession();
+    if (_omniboxTextModel->user_input_in_progress) {
+      [self.omniboxAutocompleteController resetSession];
     }
     [self notifyClientOnUserInputInProgressChange:inProgress];
   }
@@ -253,38 +243,21 @@ const char kOmniboxFocusResultedInNavigation[] =
        alternateNavigationURL:(GURL*)alternateNavigationURL {
   DCHECK(match);
 
-  // If there's a query in progress or the popup is open, pick out the default
-  // match or selected match, if there is one.
-  bool found_match_for_text = false;
-  if (_autocompleteController &&
-      (!_autocompleteController->done() ||
-       _omniboxAutocompleteController.hasSuggestions)) {
-    if (!_autocompleteController->done() &&
-        _autocompleteController->result().default_match()) {
-      // The user cannot have manually selected a match, or the query would have
-      // stopped. So the default match must be the desired selection.
-      *match = *_autocompleteController->result().default_match();
-      found_match_for_text = true;
-    }
-    if (found_match_for_text && alternateNavigationURL &&
-        _autocompleteController) {
-      AutocompleteProviderClient* provider_client =
-          _autocompleteController->autocomplete_provider_client();
-      *alternateNavigationURL = AutocompleteResult::ComputeAlternateNavUrl(
-          _omniboxTextModel->input, *match, provider_client);
-    }
-  }
+  BOOL foundMatch = [self.omniboxAutocompleteController
+           findMatchForInput:_omniboxTextModel->input
+                       match:match
+      alternateNavigationURL:alternateNavigationURL];
 
-  if (!found_match_for_text) {
+  if (!foundMatch) {
     // For match generation, we use the unelided `url_for_editing_`, unless the
     // user input is in progress.
-    std::u16string text_for_match_generation =
+    std::u16string textForMatchGeneration =
         _omniboxTextModel->user_input_in_progress
             ? _omniboxTextModel->user_text
             : _omniboxTextModel->url_for_editing;
 
     _omniboxClient->GetAutocompleteClassifier()->Classify(
-        text_for_match_generation, false, true,
+        textForMatchGeneration, false, true,
         _omniboxClient->GetPageClassification(
             /*is_prefetch=*/false),
         match, alternateNavigationURL);
@@ -305,10 +278,9 @@ const char kOmniboxFocusResultedInNavigation[] =
   if (!match.destination_url.is_valid()) {
     [self getInfoForCurrentText:&match alternateNavigationURL:alternateNavURL];
   } else if (alternateNavURL) {
-    AutocompleteProviderClient* provider_client =
-        _autocompleteController->autocomplete_provider_client();
-    *alternateNavURL = AutocompleteResult::ComputeAlternateNavUrl(
-        _omniboxTextModel->input, match, provider_client);
+    *alternateNavURL = [self.omniboxAutocompleteController
+        computeAlternateNavURLForInput:_omniboxTextModel->input
+                                 match:match];
   }
   return match;
 }
@@ -321,11 +293,11 @@ const char kOmniboxFocusResultedInNavigation[] =
       _omniboxTextModel->user_input_in_progress ? [self currentMatch:nullptr]
                                                 : AutocompleteMatch();
 
-  if (_autocompleteController) {
+  if (const AutocompleteResult* result =
+          [self.omniboxAutocompleteController autocompleteResult]) {
     _omniboxClient->OnTextChanged(
         current_match, _omniboxTextModel->user_input_in_progress,
-        _omniboxTextModel->user_text, _autocompleteController->result(),
-        _omniboxTextModel->HasFocus());
+        _omniboxTextModel->user_text, *result, _omniboxTextModel->HasFocus());
   }
 }
 
@@ -368,11 +340,6 @@ const char kOmniboxFocusResultedInNavigation[] =
          (!_omniboxTextModel->HasFocus() ||
           (!_omniboxTextModel->user_input_in_progress &&
            !_omniboxAutocompleteController.hasSuggestions));
-}
-
-- (void)setAutocompleteController:
-    (AutocompleteController*)autocompleteController {
-  _autocompleteController = autocompleteController;
 }
 
 #pragma mark - Autocomplete events
@@ -909,8 +876,8 @@ const char kOmniboxFocusResultedInNavigation[] =
       _omniboxTextModel->SetInputInProgressNoNotify(true);
 
   if (changeToUserInputInProgress &&
-      _omniboxTextModel->user_input_in_progress && _autocompleteController) {
-    _autocompleteController->ResetSession();
+      _omniboxTextModel->user_input_in_progress) {
+    [self.omniboxAutocompleteController resetSession];
   }
 
   if (!(_omniboxTextModel->HasFocus())) {

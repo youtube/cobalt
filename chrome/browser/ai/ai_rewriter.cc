@@ -9,8 +9,10 @@
 #include "base/strings/string_util.h"
 #include "chrome/browser/ai/ai_context_bound_object.h"
 #include "chrome/browser/ai/ai_utils.h"
+#include "components/language/core/common/locale_util.h"
 #include "components/optimization_guide/core/optimization_guide_util.h"
 #include "components/optimization_guide/proto/common_types.pb.h"
+#include "third_party/blink/public/common/features_generated.h"
 #include "third_party/blink/public/mojom/ai/model_streaming_responder.mojom.h"
 
 namespace {
@@ -97,7 +99,24 @@ AIRewriter::ToProtoOptions(
   proto_options->set_output_tone(ToProtoTone(options->tone));
   proto_options->set_output_format(ToProtoFormat(options->format));
   proto_options->set_output_length(ToProtoLength(options->length));
+  if (options->output_language && !options->output_language->code.empty()) {
+    proto_options->set_output_language(
+        language::ExtractBaseLanguage(options->output_language->code));
+  }
   return proto_options;
+}
+
+// static
+base::flat_set<std::string_view> AIRewriter::GetSupportedLanguageBaseCodes() {
+  // Comma-separated language codes to enable; or "*" enables all supported.
+  const base::FeatureParam<std::string> kAIRewriterAPILanguagesEnabled{
+      &blink::features::kAIWriterAPI, "langs", /*default_value=*/"en"};
+  // TODO(crbug.com/394841624): Get supported languages from the model config.
+  auto kSupportedBaseLanguages =
+      base::MakeFixedFlatSet<std::string_view>({"en", "ja", "es"});
+  return AIUtils::RestrictSupportedLanguagesForFeature(
+      base::MakeFlatSet<std::string_view>(kSupportedBaseLanguages),
+      kAIRewriterAPILanguagesEnabled);
 }
 
 void AIRewriter::Rewrite(

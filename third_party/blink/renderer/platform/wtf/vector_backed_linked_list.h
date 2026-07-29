@@ -72,7 +72,7 @@ class VectorBackedLinkedListNode {
   void Trace(auto visitor) const
     requires Allocator::kIsGarbageCollected
   {
-    if (!WTF::IsWeak<ValueType>::value) {
+    if (!IsWeakV<ValueType>) {
       visitor->Trace(value_);
     }
   }
@@ -154,7 +154,7 @@ class ConstructTraits<blink::VectorBackedLinkedListNode<ValueType, Allocator>,
       static_assert(VectorTraits<Node>::kCanMoveWithMemcpy,
                     "Garbage collected types used in VectorBackedLinkedList "
                     "should be movable with memcpy");
-      WTF::AtomicWriteMemcpy<sizeof(Node), alignof(Node)>(location, &element);
+      AtomicWriteMemcpy<sizeof(Node), alignof(Node)>(location, &element);
       return reinterpret_cast<Node*>(location);
     }
   };
@@ -173,11 +173,11 @@ class ConstructTraits<blink::VectorBackedLinkedListNode<ValueType, Allocator>,
 // Unlike normal linked-list implementations, keeping a pointer to an element is
 // unsafe because elements would be moved by vector buffer reallocation. Use
 // index numbers instead.
-template <typename ValueType, typename Allocator = WTF::PartitionAllocator>
+template <typename ValueType, typename Allocator = PartitionAllocator>
 class VectorBackedLinkedList {
   USE_ALLOCATOR(VectorBackedLinkedList, Allocator);
 
-  static_assert(!WTF::IsStackAllocatedTypeV<ValueType>);
+  static_assert(!IsStackAllocatedTypeV<ValueType>);
 
  private:
   using Node = VectorBackedLinkedListNode<ValueType, Allocator>;
@@ -275,7 +275,7 @@ class VectorBackedLinkedList {
     requires Allocator::kIsGarbageCollected
   {
     nodes_.Trace(visitor);
-    if (WTF::IsWeak<ValueType>::value) {
+    if (IsWeakV<ValueType>) {
       visitor->template RegisterWeakCallbackMethod<
           VectorBackedLinkedList,
           &VectorBackedLinkedList::ProcessCustomWeakness>(this);

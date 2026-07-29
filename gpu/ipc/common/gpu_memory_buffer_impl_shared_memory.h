@@ -43,14 +43,7 @@ class GPU_IPC_COMMON_EXPORT GpuMemoryBufferImplSharedMemory
       gfx::BufferFormat format,
       gfx::BufferUsage usage);
 
-  static gfx::GpuMemoryBufferHandle CreateGpuMemoryBuffer(
-      const gfx::Size& size,
-      gfx::BufferFormat format,
-      gfx::BufferUsage usage);
-
   static bool IsUsageSupported(gfx::BufferUsage usage);
-  static bool IsSizeValidForFormat(const gfx::Size& size,
-                                   gfx::BufferFormat format);
 
   static base::OnceClosure AllocateForTesting(
       const gfx::Size& size,
@@ -58,7 +51,7 @@ class GPU_IPC_COMMON_EXPORT GpuMemoryBufferImplSharedMemory
       gfx::BufferUsage usage,
       gfx::GpuMemoryBufferHandle* handle);
 
-  // Overridden from gfx::GpuMemoryBuffer:
+  // Overridden from GpuMemoryBufferImpl:
   bool Map() override;
   void* memory(size_t plane) override;
   void Unmap() override;

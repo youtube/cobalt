@@ -10,6 +10,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/state_transitions.h"
 #include "base/strings/escape.h"
+#include "base/types/expected.h"
 #include "chrome/browser/glic/glic_keyed_service.h"
 #include "chrome/browser/glic/glic_metrics.h"
 #include "chrome/browser/glic/glic_pref_names.h"
@@ -17,13 +18,19 @@
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/common/chrome_features.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
+#include "components/pdf/common/constants.h"
 #include "components/prefs/pref_service.h"
 #include "components/shared_highlighting/core/common/text_fragment.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "mojo/public/cpp/bindings/message.h"
+#include "pdf/buildflags.h"
 #include "services/service_manager/public/cpp/interface_provider.h"
+
+#if BUILDFLAG(ENABLE_PDF)
+#include "components/pdf/browser/pdf_document_helper.h"
+#endif  // BUILDFLAG(ENABLE_PDF)
 
 namespace glic {
 
@@ -50,6 +57,80 @@ std::string AttachmentResultToString(blink::mojom::AttachmentResult result) {
       break;
   }
   return string;
+}
+
+base::expected<content::RenderFrameHost*, mojom::ScrollToErrorReason>
+GetVerifiedAnnotationTargetFrameForPDF(const mojom::ScrollToParams& params,
+                                       content::WebContents* focused_contents) {
+#if BUILDFLAG(ENABLE_PDF)
+  if (!features::kGlicScrollToPDF.Get()) {
+    return base::unexpected(mojom::ScrollToErrorReason::kNotSupported);
+  }
+
+  if (params.selector->is_node_selector()) {
+    return base::unexpected(mojom::ScrollToErrorReason::kNotSupported);
+  }
+
+  // Verifies that the `url` parameter is set and that it matches the
+  // currently focused tab's url.
+  const bool fail_without_url = features::kGlicScrollToEnforceURLForPDF.Get();
+  if (fail_without_url && !params.url) {
+    return base::unexpected(mojom::ScrollToErrorReason::kNotSupported);
+  }
+  if (params.url && params.url != focused_contents->GetLastCommittedURL()) {
+    return base::unexpected(mojom::ScrollToErrorReason::kNoMatchingDocument);
+  }
+
+  auto* pdf_helper =
+      pdf::PDFDocumentHelper::MaybeGetForWebContents(focused_contents);
+  if (!pdf_helper || !pdf_helper->IsDocumentLoadComplete()) {
+    return base::unexpected(mojom::ScrollToErrorReason::kNoMatchingDocument);
+  }
+
+  // TODO(crbug.com/422728758): Implement url verification for PDFs.
+  return &pdf_helper->render_frame_host();
+#else
+  return base::unexpected(mojom::ScrollToErrorReason::kNotSupported);
+#endif  // BUILDFLAG(ENABLE_PDF)
+}
+
+base::expected<content::RenderFrameHost*, mojom::ScrollToErrorReason>
+GetVerifiedAnnotationTargetFrame(content::WebContents* focused_contents,
+                                 const mojom::ScrollToParams& params) {
+  content::Page& focused_primary_page = focused_contents->GetPrimaryPage();
+  content::RenderFrameHost* focused_rfh =
+      &focused_primary_page.GetMainDocument();
+
+  // TODO(crbug.com/427455182): Expand the scrollTo support to the embedded
+  // PDFs. Currently only the main-frame PDF can be scrolled and highlighted.
+  if (focused_primary_page.GetContentsMimeType() == pdf::kPDFMimeType) {
+    return GetVerifiedAnnotationTargetFrameForPDF(params, focused_contents);
+  }
+
+  // The caller currently only enforces if the documentId is set when DOMNodeId
+  // selector parameters are set. If this is configured to be true, we will
+  // always check that the documentId is set, and fail otherwise.
+  const bool fail_without_document_id =
+      features::kGlicScrollToEnforceDocumentId.Get();
+  if (fail_without_document_id && !params.document_id) {
+    return base::unexpected(mojom::ScrollToErrorReason::kNotSupported);
+  }
+
+  // Verifies that the document_id parameter (if set) refers to the primary
+  // document in the currently focused tab.
+  if (params.document_id) {
+    // We only support scrolling the currently focused tab's main frame.
+    auto* document_identifier_user_data =
+        optimization_guide::DocumentIdentifierUserData::GetForCurrentDocument(
+            focused_rfh);
+    if (!document_identifier_user_data ||
+        document_identifier_user_data->serialized_token() !=
+            params.document_id) {
+      return base::unexpected(mojom::ScrollToErrorReason::kNoMatchingDocument);
+    }
+  }
+
+  return focused_rfh;
 }
 }  // namespace
 
@@ -148,64 +229,41 @@ void GlicAnnotationManager::ScrollTo(
     return;
   }
 
-  auto focused_tab_data = service_->sharing_manager().GetFocusedTabData();
-  content::Page* focused_primary_page = nullptr;
-  if (focused_tab_data.focus()) {
-    focused_primary_page =
-        &focused_tab_data.focus()->GetContents()->GetPrimaryPage();
-  }
-  if (!focused_primary_page) {
-    std::move(wrapped_callback).Run(mojom::ScrollToErrorReason::kNoFocusedTab);
-    return;
-  }
-
-  // Note: `GlicWindowController::IsShowing()` will be false and
-  // `focused_primary_page` will be non-null when `GlicWindowController` is
-  // running the close animation.
+  // Note: `GlicWindowController::IsShowing()` will be false when
+  // `GlicWindowController` is running the close animation.
   if (!service_->window_controller().IsShowing()) {
     std::move(wrapped_callback).Run(mojom::ScrollToErrorReason::kNoFocusedTab);
     return;
   }
 
+  auto focused_tab_data = service_->sharing_manager().GetFocusedTabData();
+  if (!focused_tab_data.focus()) {
+    std::move(wrapped_callback).Run(mojom::ScrollToErrorReason::kNoFocusedTab);
+    return;
+  }
+
+  content::WebContents* focused_contents =
+      focused_tab_data.focus()->GetContents();
+  CHECK(focused_contents);
+  base::expected<content::RenderFrameHost*, mojom::ScrollToErrorReason> result =
+      GetVerifiedAnnotationTargetFrame(focused_contents, *params);
+  if (!result.has_value()) {
+    std::move(wrapped_callback).Run(result.error());
+    return;
+  }
+  content::RenderFrameHost* focused_rfh = *result;
+
   if (annotation_agent_container_.has_value() &&
       annotation_agent_container_->document.AsRenderFrameHostIfValid() !=
-          &focused_primary_page->GetMainDocument()) {
+          focused_rfh) {
     annotation_agent_container_ = std::nullopt;
   }
 
   if (!annotation_agent_container_.has_value()) {
     annotation_agent_container_.emplace();
-    annotation_agent_container_->document =
-        focused_primary_page->GetMainDocument().GetWeakDocumentPtr();
-    focused_primary_page->GetMainDocument().GetRemoteInterfaces()->GetInterface(
+    annotation_agent_container_->document = focused_rfh->GetWeakDocumentPtr();
+    focused_rfh->GetRemoteInterfaces()->GetInterface(
         annotation_agent_container_->remote.BindNewPipeAndPassReceiver());
-  }
-
-  // The caller currently only enforces if the documentId is set when DOMNodeId
-  // selector parameters are set. If this is configured to be true, we will
-  // always check that the documentId is set, and fail otherwise.
-  const bool fail_without_document_id =
-      features::kGlicScrollToEnforceDocumentId.Get();
-  if (fail_without_document_id && !params->document_id) {
-    std::move(wrapped_callback).Run(mojom::ScrollToErrorReason::kNotSupported);
-    return;
-  }
-
-  // Verifies that the document_id parameter (if set) refers to the primary
-  // document in the currently focused tab.
-  if (params->document_id) {
-    // We only support scrolling the currently focused tab's main frame.
-    content::RenderFrameHost& rfh = focused_primary_page->GetMainDocument();
-    auto* document_identifier_user_data =
-        optimization_guide::DocumentIdentifierUserData::GetForCurrentDocument(
-            &rfh);
-    if (!document_identifier_user_data ||
-        document_identifier_user_data->serialized_token() !=
-            params->document_id) {
-      std::move(wrapped_callback)
-          .Run(mojom::ScrollToErrorReason::kNoMatchingDocument);
-      return;
-    }
   }
 
   blink::mojom::SelectorPtr blink_mojom_selector;
@@ -227,7 +285,7 @@ void GlicAnnotationManager::ScrollTo(
       search_range_start_node_id);
   annotation_task_ = std::make_unique<AnnotationTask>(
       this, std::move(agent_remote), std::move(agent_host_receiver),
-      std::move(wrapped_callback), *focused_primary_page);
+      std::move(wrapped_callback), *focused_rfh);
 }
 
 void GlicAnnotationManager::RemoveAnnotation(
@@ -243,13 +301,13 @@ GlicAnnotationManager::AnnotationTask::AnnotationTask(
     mojo::PendingReceiver<blink::mojom::AnnotationAgentHost>
         agent_host_pending_receiver,
     mojom::WebClientHandler::ScrollToCallback callback,
-    content::Page& page)
+    content::RenderFrameHost& render_frame_host)
     : annotation_manager_(*annotation_manager),
       annotation_agent_(std::move(agent_remote)),
       annotation_agent_host_receiver_(this,
                                       std::move(agent_host_pending_receiver)),
       scroll_to_callback_(std::move(callback)),
-      page_(page.GetWeakPtr()),
+      document_(render_frame_host.GetWeakDocumentPtr()),
       start_time_(base::TimeTicks::Now()) {
   GlicKeyedService* service = annotation_manager_->service_;
   CHECK(service);
@@ -381,11 +439,13 @@ void GlicAnnotationManager::AnnotationTask::DidFinishAttachment(
     blink::mojom::AttachmentResult attachment_result) {
   CHECK_EQ(state_, State::kRunning);
 
-  // At this point, we're relying on `OnFocusedTabChanged()` to observe `page_`
-  // being navigated from. But that notification can be delayed, so we could be
-  // in a situation where page_ is nullptr, but we haven't received a
-  // notification yet. We fail the task in that situation.
-  if (!page_) {
+  // At this point, we're relying on `OnFocusedTabChanged()` to observe
+  // `document_` (or its embedder in the case of PDFs) being navigated from. But
+  // that notification can be delayed, so we could be in a situation where
+  // `document_` is gone, but we haven't received a notification yet. We fail
+  // the task in that situation.
+  content::RenderFrameHost* rfh = document_.AsRenderFrameHostIfValid();
+  if (!rfh) {
     FailTask(mojom::ScrollToErrorReason::kFocusedTabChangedOrNavigated);
     return;
   }
@@ -403,13 +463,17 @@ void GlicAnnotationManager::AnnotationTask::DidFinishAttachment(
       std::move(scroll_to_callback_).Run(std::nullopt);
 
       // After attachment, we only want to dismiss the active highlight when
-      // the `page_`'s tab changes its primary page (i.e. navigates away from
-      // `page_`), and not if the currently focused tab changes. We cannot rely
-      // on FocusedTabManager to observe this, and observe
+      // the `document_`'s tab changes its primary page (i.e. navigates away),
+      // and not if the currently focused tab changes. We cannot rely on
+      // FocusedTabManager to observe this, and observe
       // `WebContentsObserver::PrimaryPageChanged` from this point instead.
+      // TODO(crbug.com/40268279): This and other similar uses of
+      // GetOutermostMainFrameOrEmbedder() in this file can be replaced with
+      // GetMainFrame() once PDFs stop using GuestView.
       tab_change_subscription_ = base::CallbackListSubscription();
       content::WebContentsObserver::Observe(
-          content::WebContents::FromRenderFrameHost(&page_->GetMainDocument()));
+          content::WebContents::FromRenderFrameHost(
+              rfh->GetOutermostMainFrameOrEmbedder()));
       break;
   }
   base::UmaHistogramTimes(
@@ -454,24 +518,33 @@ void GlicAnnotationManager::AnnotationTask::OnTabContextPermissionChanged(
 void GlicAnnotationManager::AnnotationTask::OnFocusedTabChanged(
     const FocusedTabData& focused_tab_data) {
   CHECK_EQ(state_, State::kRunning);
-  // We've navigated away from the page this (in-progress) task was supposed to
-  // run in, so we fail the task.
-  if (!page_.get()) {
+  content::RenderFrameHost* rfh = document_.AsRenderFrameHostIfValid();
+  // The document this task was running in has been destroyed.
+  if (!rfh) {
     FailTask(mojom::ScrollToErrorReason::kFocusedTabChangedOrNavigated);
     return;
   }
 
-  content::Page* new_focused_primary_page = nullptr;
-  if (focused_tab_data.focus()) {
-    new_focused_primary_page =
-        &focused_tab_data.focus()->GetContents()->GetPrimaryPage();
-  }
-  // If the focused tab hasn't changed and its primary page hasn't changed, we
-  // don't need to do anything.
-  if (page_.get() == new_focused_primary_page) {
+  content::WebContents* new_focused_wc =
+      focused_tab_data.focus() ? focused_tab_data.focus()->GetContents()
+                               : nullptr;
+  content::RenderFrameHost* outermost_rfh =
+      rfh->GetOutermostMainFrameOrEmbedder();
+
+  // If the focused tab has changed, we should fail the task.
+  if (content::WebContents::FromRenderFrameHost(outermost_rfh) !=
+      new_focused_wc) {
+    FailTask(mojom::ScrollToErrorReason::kFocusedTabChangedOrNavigated);
     return;
   }
-  FailTask(mojom::ScrollToErrorReason::kFocusedTabChangedOrNavigated);
+
+  // The document this task is running in is no longer in (or embedded within)
+  // its tab's primary main frame. It is likely in the back-forward cache or
+  // pending deletion.
+  if (!outermost_rfh->GetPage().IsPrimary()) {
+    FailTask(mojom::ScrollToErrorReason::kFocusedTabChangedOrNavigated);
+    return;
+  }
 }
 
 GlicAnnotationManager::AnnotationAgentContainer::AnnotationAgentContainer() =

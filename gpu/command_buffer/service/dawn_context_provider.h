@@ -32,6 +32,7 @@
 namespace gpu {
 
 class DawnSharedContext;
+class GpuProcessShmCount;
 
 class GPU_GLES2_EXPORT DawnContextProvider {
  public:
@@ -78,17 +79,20 @@ class GPU_GLES2_EXPORT DawnContextProvider {
   void SetCachingInterface(
       std::unique_ptr<webgpu::DawnCachingInterface> caching_interface);
 
+  bool use_thread_safe_shared_context() const;
+
+  void InitializeThreadSafeGraphiteContext(
+      const skgpu::graphite::ContextOptions& options,
+      GpuProcessShmCount* use_shader_cache_shm_count);
+
   bool InitializeGraphiteContext(
-      const skgpu::graphite::ContextOptions& context_options);
+      const skgpu::graphite::ContextOptions& options,
+      GpuProcessShmCount* use_shader_cache_shm_count);
 
   GraphiteSharedContext* GetGraphiteSharedContext() const;
 
 #if BUILDFLAG(IS_WIN)
   Microsoft::WRL::ComPtr<ID3D11Device> GetD3D11Device() const;
-
-  // Flush pending D3D11 commands. This function is a noop if
-  // kSkiaGraphiteDawnD3D11DelayFlush is disabled.
-  void FlushD3D11CommandsIfDelayed() const;
 #endif
 
   bool SupportsFeature(wgpu::FeatureName feature);

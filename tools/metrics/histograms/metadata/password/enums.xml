@@ -492,23 +492,6 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="User typed or autofilled values"/>
 </enum>
 
-<enum name="LocalPwdMigrationProgressState">
-  <int value="0" label="Scheduled"/>
-  <int value="1" label="Started"/>
-  <int value="2" label="Finished"/>
-</enum>
-
-<enum name="LocalUpmActivationError">
-  <int value="0"
-      label="None (activated / migration scheduled / previously activated)"/>
-  <int value="1" label="(obsolete) Unenrolled from UPM"/>
-  <int value="2" label="(obsolete) Initial UPM migration missing"/>
-  <int value="3" label="(obsolete) Login DB file move failed"/>
-  <int value="4" label="Outdated GmsCore"/>
-  <int value="5" label="(obsolete) Flag disabled"/>
-  <int value="6" label="(obsolete) Migration warning unacknowledged"/>
-</enum>
-
 <enum name="LoginDatabaseEncryptionStatus">
   <int value="0" label="No issues"/>
   <int value="1"
@@ -648,7 +631,7 @@ chromium-metrics-reviews@google.com.
   <int value="24" label="Passkey deleted confirmation bubble"/>
   <int value="25" label="Passkey updated confirmation bubble"/>
   <int value="26" label="Passkey not accepted confirmation bubble"/>
-  <int value="27" label="Password access loss warning"/>
+  <int value="27" label="(obsolete) Password access loss warning"/>
   <int value="28" label="Passkey upgrade bubble"/>
   <int value="29" label="Password change state information bubble"/>
 </enum>
@@ -663,14 +646,6 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="Passkey created"/>
   <int value="1" label="Passkey updated"/>
   <int value="2" label="Invalid passkey"/>
-</enum>
-
-<enum name="PasswordAccessLossWarningType">
-  <int value="0" label="No warning"/>
-  <int value="1" label="No GMS Core"/>
-  <int value="2" label="No UPM"/>
-  <int value="3" label="Only Account UPM"/>
-  <int value="4" label="New GMS Core, migration failed"/>
 </enum>
 
 <enum name="PasswordAddLoginSyncError">
@@ -790,9 +765,30 @@ chromium-metrics-reviews@google.com.
   <int value="6" label="Password change failed"/>
   <int value="7" label="OTP detected"/>
   <int value="8" label="Canceled by the user"/>
+  <int value="9" label="No state. The feature wasn't offered"/>
 </enum>
 
 <!-- LINT.ThenChange(/chrome/browser/password_manager/password_change_delegate.h) -->
+
+<!-- LINT.IfChange(PasswordChangeFlowStep) -->
+
+<enum name="PasswordChangeFlowStep">
+  <int value="0" label="Open form step"/>
+  <int value="1" label="Submit form step"/>
+  <int value="2" label="Verify submission step"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/password_manager/core/browser/password_manager_metrics_util.h:PasswordChangeFlowStep) -->
+
+<!-- LINT.IfChange(PasswordChangeRecoveryFlowState) -->
+
+<enum name="PasswordChangeRecoveryFlowState">
+  <int value="0" label="TroubleSigningInClicked"/>
+  <int value="1" label="ProactiveRecoveryPopupShown"/>
+  <int value="2" label="PrimaryPasswordUpdated"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/password_manager/core/browser/undo_password_change_controller.h:PasswordChangeRecoveryFlowState) -->
 
 <!-- LINT.IfChange(PasswordChangeToastEvent) -->
 
@@ -1908,12 +1904,6 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="'autocomplete' attribute"/>
   <int value="4" label="Server-side prediction"/>
   <int value="5" label="Client-side model prediction"/>
-</enum>
-
-<enum name="UseUpmLocalAndSeparateStoresState">
-  <int value="0" label="Off"/>
-  <int value="1" label="OffAndMigrationPending"/>
-  <int value="2" label="On"/>
 </enum>
 
 <enum name="WellKnownChangePasswordResult">

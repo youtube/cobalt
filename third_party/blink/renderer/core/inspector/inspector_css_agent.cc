@@ -72,6 +72,7 @@
 #include "third_party/blink/renderer/core/css/css_unparsed_declaration_value.h"
 #include "third_party/blink/renderer/core/css/css_value.h"
 #include "third_party/blink/renderer/core/css/css_variable_data.h"
+#include "third_party/blink/renderer/core/css/document_style_environment_variables.h"
 #include "third_party/blink/renderer/core/css/font_face.h"
 #include "third_party/blink/renderer/core/css/font_size_functions.h"
 #include "third_party/blink/renderer/core/css/media_list.h"
@@ -94,6 +95,7 @@
 #include "third_party/blink/renderer/core/css/resolver/style_rule_usage_tracker.h"
 #include "third_party/blink/renderer/core/css/style_change_reason.h"
 #include "third_party/blink/renderer/core/css/style_engine.h"
+#include "third_party/blink/renderer/core/css/style_environment_variables.h"
 #include "third_party/blink/renderer/core/css/style_rule.h"
 #include "third_party/blink/renderer/core/css/style_rule_font_palette_values.h"
 #include "third_party/blink/renderer/core/css/style_rule_function_declarations.h"
@@ -119,6 +121,7 @@
 #include "third_party/blink/renderer/core/html/html_head_element.h"
 #include "third_party/blink/renderer/core/inspector/identifiers_factory.h"
 #include "third_party/blink/renderer/core/inspector/inspected_frames.h"
+#include "third_party/blink/renderer/core/inspector/inspector_base_agent.h"
 #include "third_party/blink/renderer/core/inspector/inspector_contrast.h"
 #include "third_party/blink/renderer/core/inspector/inspector_ghost_rules.h"
 #include "third_party/blink/renderer/core/inspector/inspector_history.h"
@@ -1615,6 +1618,50 @@ protocol::Response InspectorCSSAgent::getMatchedStylesForNode(
   return protocol::Response::Success();
 }
 
+protocol::Response InspectorCSSAgent::getEnvironmentVariables(
+    std::unique_ptr<protocol::DictionaryValue>* environment_variables) {
+  StyleEnvironmentVariables& vars =
+      StyleEnvironmentVariables::GetRootInstance();
+  *environment_variables = protocol::DictionaryValue::create();
+
+  // LINT.IfChange(EnvironmentVariables)
+  auto variables = {UADefinedVariable::kSafeAreaInsetTop,
+                    UADefinedVariable::kSafeAreaInsetLeft,
+                    UADefinedVariable::kSafeAreaInsetBottom,
+                    UADefinedVariable::kSafeAreaInsetRight,
+                    UADefinedVariable::kSafeAreaMaxInsetTop,
+                    UADefinedVariable::kSafeAreaMaxInsetLeft,
+                    UADefinedVariable::kSafeAreaMaxInsetBottom,
+                    UADefinedVariable::kSafeAreaMaxInsetRight,
+                    UADefinedVariable::kKeyboardInsetTop,
+                    UADefinedVariable::kKeyboardInsetLeft,
+                    UADefinedVariable::kKeyboardInsetBottom,
+                    UADefinedVariable::kKeyboardInsetRight,
+                    UADefinedVariable::kKeyboardInsetWidth,
+                    UADefinedVariable::kKeyboardInsetHeight,
+                    UADefinedVariable::kTitlebarAreaX,
+                    UADefinedVariable::kTitlebarAreaY,
+                    UADefinedVariable::kTitlebarAreaWidth,
+                    UADefinedVariable::kTitlebarAreaHeight,
+                    UADefinedVariable::kContextMenuInsetTop,
+                    UADefinedVariable::kContextMenuInsetLeft,
+                    UADefinedVariable::kContextMenuInsetBottom,
+                    UADefinedVariable::kContextMenuInsetRight,
+                    UADefinedVariable::kPreferredTextScale,
+                    UADefinedVariable::kSafePrintableInset};
+  // LINT.ThenChange(//third_party/blink/renderer/core/css/style_environment_variables.h:UADefinedVariable)
+
+  for (auto variable : variables) {
+    auto name = StyleEnvironmentVariables::GetVariableName(variable, nullptr);
+    auto* value = vars.ResolveVariable(name, {});
+    if (value) {
+      (*environment_variables)
+          ->setValue(name, protocol::StringValue::create(value->Serialize()));
+    }
+  }
+  return protocol::Response::Success();
+}
+
 template <class CSSRuleCollection>
 static CSSKeyframesRule* FindKeyframesRule(CSSRuleCollection* css_rules,
                                            StyleRuleKeyframes* keyframes_rule) {
@@ -1899,7 +1946,7 @@ InspectorCSSAgent::FindKeyframesRuleFromUAViewTransitionStylesheet(
     StyleRuleKeyframes* keyframes_style_rule) {
   // This function should only be called for transition pseudo-elements.
   CHECK(IsTransitionPseudoElement(element->GetPseudoId()));
-  auto* transition = ViewTransitionUtils::GetTransition(element->GetDocument());
+  auto* transition = ViewTransitionUtils::GetTransition(*element);
 
   // There must be a transition and an active UAStyleSheet for the
   // transition when the queried element is a transition pseudo-element.
@@ -4095,7 +4142,7 @@ void InspectorCSSAgent::DidMutateStyleSheet(CSSStyleSheet* css_style_sheet) {
 void InspectorCSSAgent::GetTextPosition(wtf_size_t offset,
                                         const String* text,
                                         TextPosition* result) {
-  std::unique_ptr<Vector<wtf_size_t>> line_endings = WTF::GetLineEndings(*text);
+  std::unique_ptr<Vector<wtf_size_t>> line_endings = GetLineEndings(*text);
   *result = TextPosition::FromOffsetAndLineEndings(offset, *line_endings);
 }
 

@@ -90,8 +90,8 @@ void GetSharedBufferMemoryDump(SharedBuffer* buffer,
   WebMemoryAllocatorDump* dump =
       memory_dump->CreateMemoryAllocatorDump(StrCat({dump_prefix, dump_name}));
   dump->AddScalar("size", "bytes", dump_size);
-  memory_dump->AddSuballocation(
-      dump->Guid(), String(WTF::Partitions::kAllocatedObjectPoolName));
+  memory_dump->AddSuballocation(dump->Guid(),
+                                String(Partitions::kAllocatedObjectPoolName));
 }
 
 // These response headers are not copied from a revalidated response to the
@@ -967,8 +967,8 @@ void Resource::OnMemoryDump(WebMemoryDumpLevelOfDetail level_of_detail,
   WebMemoryAllocatorDump* overhead_dump =
       memory_dump->CreateMemoryAllocatorDump(overhead_name);
   overhead_dump->AddScalar("size", "bytes", OverheadSize());
-  memory_dump->AddSuballocation(
-      overhead_dump->Guid(), String(WTF::Partitions::kAllocatedObjectPoolName));
+  memory_dump->AddSuballocation(overhead_dump->Guid(),
+                                String(Partitions::kAllocatedObjectPoolName));
 }
 
 String Resource::GetMemoryDumpName() const {
@@ -1017,6 +1017,7 @@ void Resource::RevalidationFailed() {
   integrity_report_.Clear();
   DestroyDecodedDataForFailedRevalidation();
   revalidation_status_ = RevalidationStatus::kNoRevalidatingOrFailed;
+  memory_cache_hit_count_ = 0;
 }
 
 void Resource::MarkAsPreload() {
@@ -1297,6 +1298,7 @@ void Resource::SetIsAdResource() {
 
 void Resource::UpdateMemoryCacheLastAccessedTime() {
   memory_cache_last_accessed_ = base::TimeTicks::Now();
+  IncrementMemoryCacheHitCount();
 }
 
 std::unique_ptr<BackgroundResponseProcessorFactory>

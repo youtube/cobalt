@@ -123,6 +123,11 @@ inline constexpr char kFirstFollowUpdateUIShownCount[] =
 inline constexpr char kFeaturePushNotificationPermissions[] =
     "push_notifications.feature_permissions";
 
+// A list of delivered notification identifiers that have been handled by the
+// metrics recorder.
+inline constexpr char kHandledDeliveredNotificationIds[] =
+    "push_notifications.handled_delivered_notification_ids";
+
 // A boolean indicating if the user has ever switched accounts via an account
 // menu triggered from a web flow.
 inline constexpr char kHasSwitchedAccountsViaWebFlow[] =
@@ -533,14 +538,6 @@ inline constexpr char kSearchSuggestEnabled[] = "search.suggest_enabled";
 // Boolean that is true when the TabPickup feature is enabled.
 inline constexpr char kTabPickupEnabled[] = "ios.tab_pickup_enabled";
 
-// The last time a tab pickup banner was displayed.
-inline constexpr char kTabPickupLastDisplayedTime[] =
-    "ios.tab_pickup_last_displayed_time";
-
-// The last URL used to display a tab pickup banner.
-inline constexpr char kTabPickupLastDisplayedURL[] =
-    "ios.tab_pickup_last_displayed_url";
-
 // Boolean indicating if displaying price drops for shopping URLs on Tabs
 // in the Tab Switching UI is enabled.
 inline constexpr char kTrackPricesOnTabsEnabled[] =
@@ -792,8 +789,9 @@ inline constexpr char kIOSBWGPreciseLocationSetting[] =
 inline constexpr char kIOSBWGPageContentSetting[] =
     "ios.bwg.page.content.setting";
 
-// A boolean specifying whether the BWG Promo was shown manually.
-inline constexpr char kIOSBWGManualPromo[] = "ios.bwg.manual_promo";
+// An integer specifying how many times the BWG Promo was shown.
+inline constexpr char kIOSBWGPromoImpressionCount[] =
+    "ios.bwg.promo_impressions";
 
 // A time object storing the first browser startup with a managed primary
 // identity in the personal profile after multi-profile becomes supported. Used
@@ -813,6 +811,10 @@ inline constexpr char kGeminiEnabledByPolicy[] = "ios.gemini_enabled_by_policy";
 // A boolean specifying if the multi-profile force-migration is done.
 inline constexpr char kMultiProfileForcedMigrationDone[] =
     "ios.multi_profile_forced_migration_done";
+
+// A bool checking that multi-profile support for widgets is available.
+inline constexpr char kWidgetsForMultiProfile[] =
+    "ios.multi_profile_for_widgets";
 
 }  // namespace prefs
 

@@ -356,6 +356,7 @@ template("write_build_config") {
                                "assets",
                                "bypass_platform_checks",
                                "chromium_code",
+                               "create_locales_java_list",
                                "dex_needs_classpath",
                                "direct_deps_only",
                                "disable_asset_compression",
@@ -434,9 +435,11 @@ template("write_build_config") {
         android_manifest = rebase_path(invoker.android_manifest, root_build_dir)
       }
       if (defined(invoker.resources_zip)) {
-        resources_zip = rebase_path(invoker.resources_zip, root_build_dir)
         if (defined(invoker.resource_overlay) && invoker.resource_overlay) {
-          resources_overlay_zip = resources_zip
+          resources_overlay_zip =
+              rebase_path(invoker.resources_zip, root_build_dir)
+        } else {
+          resources_zip = rebase_path(invoker.resources_zip, root_build_dir)
         }
       }
       if (defined(invoker.rtxt_path)) {
@@ -2140,12 +2143,25 @@ if (enable_java_templates) {
       "--include-resources=$_rebased_android_sdk_jar",
       "--aapt2-path",
       rebase_path(android_sdk_tools_bundle_aapt2, root_build_dir),
-      "--dependencies-res-zips=@FileArg($_rebased_build_config:dependency_zips)",
       "--extra-res-packages=@FileArg($_rebased_build_config:extra_package_names)",
       "--min-sdk-version=${invoker.min_sdk_version}",
       "--target-sdk-version=${_target_sdk_version}",
       "--webp-cache-dir=obj/android-webp-cache",
     ]
+
+    if (!defined(testonly) || !testonly ||
+        (defined(invoker.enforce_resource_overlays_in_tests) &&
+         invoker.enforce_resource_overlays_in_tests)) {
+      _args += [
+        "--dependencies-res-zips=@FileArg($_rebased_build_config:dependency_zips)",
+        "--dependencies-res-zip-overlays=@FileArg($_rebased_build_config:dependency_zip_overlays)",
+      ]
+    } else {
+      _args += [
+        "--dependencies-res-zip-overlays=@FileArg($_rebased_build_config:dependency_zips)",
+        "--dependencies-res-zip-overlays=@FileArg($_rebased_build_config:dependency_zip_overlays)",
+      ]
+    }
 
     _inputs += [ invoker.android_manifest ]
     _outputs = [ _final_srcjar_path ]
@@ -2255,14 +2271,6 @@ if (enable_java_templates) {
     if (defined(invoker.shared_resources_allowlist_locales)) {
       _args += [ "--shared-resources-allowlist-locales=" +
                  "${invoker.shared_resources_allowlist_locales}" ]
-    }
-
-    if (!defined(testonly) || !testonly ||
-        (defined(invoker.enforce_resource_overlays_in_tests) &&
-         invoker.enforce_resource_overlays_in_tests)) {
-      _args += [ "--dependencies-res-zip-overlays=@FileArg($_rebased_build_config:dependency_zip_overlays)" ]
-    } else {
-      _args += [ "--dependencies-res-zip-overlays=@FileArg($_rebased_build_config:dependency_zips)" ]
     }
 
     if (defined(invoker.proguard_file)) {
@@ -2520,6 +2528,7 @@ if (enable_java_templates) {
         rebase_path(invoker.output_config, root_build_dir),
         "--r-text-in=@FileArg($_rebased_build_config:rtxt_path)",
         "--dependencies-res-zips=@FileArg($_rebased_build_config:dependency_zips)",
+        "--dependencies-res-zips=@FileArg($_rebased_build_config:dependency_zip_overlays)",
         "--depfile",
         rebase_path(depfile, root_build_dir),
       ]
@@ -3560,6 +3569,15 @@ if (enable_java_templates) {
         _dex_path = "$target_out_dir/$_main_target_name.dex.jar"
         _enable_desugar =
             !defined(invoker.enable_desugar) || invoker.enable_desugar
+        if (defined(invoker.min_sdk_version)) {
+          _min_sdk_version = invoker.min_sdk_version
+        } else {
+          _min_sdk_version = default_min_sdk_version
+        }
+        if (_min_sdk_version < default_min_sdk_version ||
+            _min_sdk_version < 24) {
+          _dex_needs_classpath = true
+        }
       }
 
       # For static libraries, the javac jar output is created at the intermediate
@@ -3682,6 +3700,7 @@ if (enable_java_templates) {
                                "aar_path",
                                "annotation_processor_deps",
                                "base_allowlist_rtxt_path",
+                               "create_locales_java_list",
                                "direct_deps_only",
                                "enable_lint",
                                "gradle_treat_as_prebuilt",
@@ -3743,6 +3762,9 @@ if (enable_java_templates) {
       chromium_code = _chromium_code
       build_config = _build_config
       is_prebuilt = _is_prebuilt
+      if (defined(_dex_needs_classpath)) {
+        dex_needs_classpath = _dex_needs_classpath
+      }
 
       # Specifically avoid passing in invoker.base_module_target as one of the
       # possible_config_deps.
@@ -3810,16 +3832,6 @@ if (enable_java_templates) {
           java_resources_jar = _unprocessed_jar_path
         } else {
           java_resources_jar = _processed_jar_path
-        }
-      }
-      if (_build_device_jar) {
-        if (defined(invoker.min_sdk_version)) {
-          _min_sdk_version = invoker.min_sdk_version
-        } else {
-          _min_sdk_version = default_min_sdk_version
-        }
-        if (_min_sdk_version < default_min_sdk_version || _min_sdk_version < 24) {
-          dex_needs_classpath = true
         }
       }
     }

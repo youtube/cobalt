@@ -172,7 +172,6 @@ void AttachTabHelpers(web::WebState* web_state, TabHelperFilter filter_flags) {
   OverlayRequestQueue::CreateForWebState(web_state);
 
   VoiceSearchNavigationTabHelper::CreateForWebState(web_state);
-  IOSChromeSyncedTabDelegate::CreateForWebState(web_state);
   InfoBarManagerImpl::CreateForWebState(web_state);
 
   if (IsNativeFindInPageAvailable()) {
@@ -304,15 +303,14 @@ void AttachTabHelpers(web::WebState* web_state, TabHelperFilter filter_flags) {
     PasswordTabHelper::CreateForWebState(web_state);
     AutofillBottomSheetTabHelper::CreateForWebState(web_state);
     AutofillTabHelper::CreateForWebState(web_state);
-
-    if (base::FeatureList::IsEnabled(kIOSPasskeyShim)) {
-      PasskeyTabHelper::CreateForWebState(
-          web_state, IOSPasskeyModelFactory::GetForProfile(profile));
-    }
   }
 
   if (!for_lens_overlay) {
     InfobarBadgeTabHelper::GetOrCreateForWebState(web_state);
+    if (base::FeatureList::IsEnabled(kIOSPasskeyShim)) {
+      PasskeyTabHelper::CreateForWebState(
+          web_state, IOSPasskeyModelFactory::GetForProfile(profile));
+    }
   }
 
   if (base::FeatureList::IsEnabled(kSharedHighlightingIOS)) {

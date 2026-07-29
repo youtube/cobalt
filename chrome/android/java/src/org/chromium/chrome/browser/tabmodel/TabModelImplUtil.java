@@ -8,6 +8,7 @@ import org.chromium.base.ObserverList;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.NextTabPolicy.NextTabPolicySupplier;
 
@@ -114,22 +115,23 @@ public class TabModelImplUtil {
     /**
      * Returns the tab that is closest to the given index, if any.
      *
-     * @param model The {@link TabModel} to act on.
+     * @param tabIterable The iterable to act on.
      * @param closingIndex The index of the tab that is closing.
      * @param closingTabs The list of tabs that are closing. This is used to avoid returning a tab
      *     that is closing.
      * @return The closest tab or null if no tab could be found.
      */
     public static @Nullable Tab findNearbyNotClosingTab(
-            TabModel model, int closingIndex, List<Tab> closingTabs) {
+            Iterable<Tab> tabIterable, int closingIndex, List<Tab> closingTabs) {
         Tab nearestTab = null;
-        for (int i = 0; i < model.getCount(); i++) {
+        int i = -1;
+        for (Tab tab : tabIterable) {
+            i++;
             if (i == closingIndex) {
                 continue;
             } else if (i > closingIndex && nearestTab != null) {
                 return nearestTab;
             }
-            Tab tab = model.getTabAtChecked(i);
             if (!tab.isClosing() && !closingTabs.contains(tab)) {
                 nearestTab = tab;
             }
@@ -150,6 +152,7 @@ public class TabModelImplUtil {
             boolean isSelected,
             Set<Integer> multiSelectedTabs,
             ObserverList<TabModelObserver> observers) {
+        if (!ChromeFeatureList.sAndroidTabHighlighting.isEnabled()) return;
         if (isSelected) {
             multiSelectedTabs.addAll(tabIds);
         } else {
@@ -171,6 +174,7 @@ public class TabModelImplUtil {
             boolean notifyObservers,
             Set<Integer> multiSelectedTabs,
             ObserverList<TabModelObserver> observers) {
+        if (!ChromeFeatureList.sAndroidTabHighlighting.isEnabled()) return;
         if (multiSelectedTabs.isEmpty()) return;
         multiSelectedTabs.clear();
         if (notifyObservers) {
@@ -191,6 +195,7 @@ public class TabModelImplUtil {
      */
     public static boolean isTabMultiSelected(
             int tabId, Set<Integer> multiSelectedTabs, TabModel model) {
+        if (!ChromeFeatureList.sAndroidTabHighlighting.isEnabled()) return false;
         return multiSelectedTabs.contains(tabId) || tabId == TabModelUtils.getCurrentTabId(model);
     }
 }

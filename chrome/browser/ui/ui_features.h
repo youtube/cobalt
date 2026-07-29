@@ -131,6 +131,8 @@ BASE_DECLARE_FEATURE(kPreloadTopChromeWebUILessNavigations);
 
 BASE_DECLARE_FEATURE(kPressAndHoldEscToExitBrowserFullscreen);
 
+BASE_DECLARE_FEATURE(kReloadSelectionModel);
+
 BASE_DECLARE_FEATURE(kScrimForBrowserWindowModal);
 
 BASE_DECLARE_FEATURE(KScrimForTabModal);
@@ -139,15 +141,18 @@ BASE_DECLARE_FEATURE(kSideBySide);
 
 BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kSideBySideShowDropTargetDelay);
 
-BASE_DECLARE_FEATURE_PARAM(int, kSideBySideDropTargetInnerPadding);
+// Feature params for the width of the multi-contents drop target.
+BASE_DECLARE_FEATURE_PARAM(int, kSideBySideDropTargetMinWidth);
+BASE_DECLARE_FEATURE_PARAM(int, kSideBySideDropTargetMaxWidth);
+BASE_DECLARE_FEATURE_PARAM(int, kSideBySideDropTargetTargetWidthPercentage);
 
 enum class MiniToolbarActiveConfiguration {
   // Hides the toolbar in the active view.
   Hide,
   // Shows only the menu button in the active view.
-  ShowMenuOnly,
-  // Shows favicon, domain, alerts and menu button in the active view.
-  ShowAll
+  ShowMenu,
+  // Shows only the close button in the active view.
+  ShowClose,
 };
 
 BASE_DECLARE_FEATURE_PARAM(MiniToolbarActiveConfiguration,
@@ -328,6 +333,7 @@ BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationManagePasswords);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationCookieControls);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationAutofillAddress);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationFind);
+BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationCollaborationMessaging);
 
 // Determines whether the "save password" page action displays different UI if
 // the user has said to never save passwords for that site.
@@ -343,18 +349,19 @@ BASE_DECLARE_FEATURE(kByDateHistoryInSidePanel);
 // Controls whether to use the TabStrip browser api's controller.
 BASE_DECLARE_FEATURE(kTabStripBrowserApi);
 
-// Controls where tab search lives in the browser.
+// Controls where tab search lives in the browser. By default, the tab search
+// feature lives in the tab strip. The feature moves to the toolbar button if
+// the user is in the US and `kLaunchedTabSearchToolbarButton` is enabled or if
+// `kTabstripComboButton` is enabled and `kTabSearchToolbarButton` is true.
 BASE_DECLARE_FEATURE(kTabstripComboButton);
 BASE_DECLARE_FEATURE(kLaunchedTabSearchToolbarButton);
 
-BASE_DECLARE_FEATURE_PARAM(bool, kTabstripComboButtonHasBackground);
-BASE_DECLARE_FEATURE_PARAM(bool, kTabstripComboButtonHasReverseButtonOrder);
 BASE_DECLARE_FEATURE_PARAM(bool, kTabSearchToolbarButton);
 
-bool IsTabSearchMoving();
-bool HasTabstripComboButtonWithBackground();
-bool HasTabstripComboButtonWithReverseButtonOrder();
 bool HasTabSearchToolbarButton();
+
+// Controls whether to show a toast for Chrome non milestone update.
+BASE_DECLARE_FEATURE(kNonMilestoneUpdateToast);
 
 }  // namespace features
 

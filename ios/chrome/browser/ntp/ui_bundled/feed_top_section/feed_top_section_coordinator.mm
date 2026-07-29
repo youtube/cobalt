@@ -70,9 +70,7 @@ using base::UserMetricsAction;
 
 @end
 
-@implementation FeedTopSectionCoordinator {
-  SigninCoordinator* _signinCoordinator;
-}
+@implementation FeedTopSectionCoordinator
 
 // Synthesized from ChromeCoordinator.
 @synthesize viewController = _viewController;
@@ -155,7 +153,6 @@ using base::UserMetricsAction;
   self.signinPromoMediator = nil;
   self.feedTopSectionMediator = nil;
   self.feedTopSectionViewController = nil;
-  [self stopSigninCoordinator];
 }
 
 #pragma mark - Public
@@ -184,24 +181,12 @@ using base::UserMetricsAction;
 
 - (void)showSignin:(SigninPromoViewMediator*)mediator
            command:(ShowSigninCommand*)command {
-  CHECK_EQ(self.signinPromoMediator, mediator);
   __weak __typeof(self) weakSelf = self;
   [command addSigninCompletion:^(SigninCoordinatorResult result,
                                  id<SystemIdentity>) {
-    [weakSelf signinDidCompleteWithResult:result];
+    [weakSelf.signinPromoMediator signinDidCompleteWithResult:result];
   }];
-  _signinCoordinator =
-      [SigninCoordinator signinCoordinatorWithCommand:command
-                                              browser:self.browser
-                                   baseViewController:self.baseViewController];
-  [_signinCoordinator start];
-}
-
-#pragma mark - SigninPromoViewMediatorDelegate Helper
-
-- (void)signinDidCompleteWithResult:(SigninCoordinatorResult)result {
-  [self.signinPromoMediator signinDidCompleteWithResult:result];
-  [self stopSigninCoordinator];
+  [self.NTPDelegate showSigninWithCommand:command];
 }
 
 #pragma mark - Setters
@@ -282,14 +267,6 @@ using base::UserMetricsAction;
 
 - (void)logHistogramForEvent:(ContentNotificationTopOfFeedPromoEvent)event {
   UmaHistogramEnumeration("ContentNotifications.Promo.TopOfFeed.Event", event);
-}
-
-#pragma mark - Private
-
-// Stops the signin coordinator.
-- (void)stopSigninCoordinator {
-  [_signinCoordinator stop];
-  _signinCoordinator = nil;
 }
 
 @end

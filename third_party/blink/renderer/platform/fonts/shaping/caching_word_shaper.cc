@@ -92,17 +92,6 @@ static inline float ShapeResultsForRun(ShapeCache* shape_cache,
   return total_width;
 }
 
-int CachingWordShaper::OffsetForPosition(
-    const TextRun& run,
-    float target_x,
-    IncludePartialGlyphsOption partial_glyphs,
-    BreakGlyphsOption break_glyphs) {
-  ShapeResultBuffer buffer;
-  ShapeResultsForRun(GetShapeCache(), &font_, run, &buffer);
-
-  return buffer.OffsetForPosition(run, target_x, partial_glyphs, break_glyphs);
-}
-
 void CachingWordShaper::FillResultBuffer(const TextRun& run,
                                          ShapeResultBuffer* buffer) {
   DCHECK(buffer);
@@ -117,14 +106,6 @@ CharacterRange CachingWordShaper::GetCharacterRange(const TextRun& run,
 
   return buffer.GetCharacterRange(run.ToStringView(), run.Direction(),
                                   total_width, from, to);
-}
-
-HeapVector<ShapeResult::RunFontData> CachingWordShaper::GetRunFontData(
-    const TextRun& run) const {
-  ShapeResultBuffer buffer;
-  ShapeResultsForRun(GetShapeCache(), &font_, run, &buffer);
-
-  return buffer.GetRunFontData();
 }
 
 GlyphData CachingWordShaper::EmphasisMarkGlyphData(

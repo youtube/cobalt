@@ -31,6 +31,7 @@ class ReaderModeMetricsHelperTest : public PlatformTest {
  public:
   void SetUp() override {
     profile_ = TestProfileIOS::Builder().Build();
+    web_state_.SetBrowserState(profile_.get());
     distilled_page_prefs_ =
         DistillerServiceFactory::GetForProfile(profile_.get())
             ->GetDistilledPagePrefs();
@@ -86,7 +87,7 @@ TEST_F(ReaderModeMetricsHelperTest,
   metrics_helper()->RecordReaderHeuristicTriggered();
   task_environment_.AdvanceClock(base::Seconds(1));
 
-  metrics_helper()->CancelReaderHeuristicRecording();
+  metrics_helper()->RecordReaderHeuristicCanceled();
 
   // Heuristic result and state are recorded correctly.
   EXPECT_THAT(histogram_tester_.GetAllSamples(kReaderModeStateHistogram),
@@ -210,6 +211,19 @@ TEST_F(ReaderModeMetricsHelperTest, ReaderShownStateAutomaticallyFlushed) {
               BucketsAre(Bucket(ReaderModeState::kReaderShown, 1)));
 }
 
+// Tests that the time spent reading is tracked following a call to the reader
+// being shown.
+TEST_F(ReaderModeMetricsHelperTest, ReaderShownStateStartsReadingTime) {
+  metrics_helper()->RecordReaderShown();
+  task_environment_.AdvanceClock(base::Seconds(1));
+  metrics_helper()->Flush();
+
+  EXPECT_THAT(histogram_tester_.GetAllSamples(kReaderModeStateHistogram),
+              BucketsAre(Bucket(ReaderModeState::kReaderShown, 1)));
+  histogram_tester_.ExpectUniqueTimeSample(kReaderModeTimeSpentHistogram,
+                                           base::Seconds(1), 1);
+}
+
 // Tests that multiple calls to Flush will record all reader mode state events
 // and latency from the last Flush call.
 TEST_F(ReaderModeMetricsHelperTest, FlushMultipleReaderModeStates) {
@@ -229,6 +243,20 @@ TEST_F(ReaderModeMetricsHelperTest, FlushMultipleReaderModeStates) {
       BucketsAre(Bucket(ReaderModeHeuristicResult::kReaderModeEligible, 1)));
   // The second flushed recording did not trigger any latency collection.
   histogram_tester_.ExpectTotalCount(kReaderModeHeuristicLatencyHistogram, 0);
+}
+
+// Tests that canceling distillation records latency and reader mode state.
+TEST_F(ReaderModeMetricsHelperTest, DistillationCanceledOnTimeout) {
+  metrics_helper()->RecordReaderDistillerTriggered();
+  task_environment_.AdvanceClock(base::Seconds(1));
+
+  // Cancelation triggers a metrics flush.
+  metrics_helper()->RecordReaderDistillerTimedOut();
+
+  EXPECT_THAT(histogram_tester_.GetAllSamples(kReaderModeStateHistogram),
+              BucketsAre(Bucket(ReaderModeState::kDistillationTimedOut, 1)));
+  histogram_tester_.ExpectUniqueTimeSample(kReaderModeDistillerLatencyHistogram,
+                                           base::Seconds(1), 1);
 }
 
 // Tests metrics functionality based on the heuristic result.

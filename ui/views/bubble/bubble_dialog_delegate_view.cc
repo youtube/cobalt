@@ -499,10 +499,8 @@ BubbleDialogDelegate::~BubbleDialogDelegate() {
 
 // static
 Widget* BubbleDialogDelegate::CreateBubble(
-    std::unique_ptr<BubbleDialogDelegate> bubble_delegate_unique,
+    BubbleDialogDelegate* bubble_delegate,
     Widget::InitParams::Ownership ownership) {
-  BubbleDialogDelegate* const bubble_delegate = bubble_delegate_unique.get();
-
   // On Mac, MODAL_TYPE_WINDOW is implemented using sheets, which can't be
   // anchored at a specific point - they are always placed near the top center
   // of the window. To avoid unpleasant surprises, disallow setting an anchor
@@ -517,8 +515,7 @@ Widget* BubbleDialogDelegate::CreateBubble(
   if (auto* anchor_view = bubble_delegate->GetAnchorView()) {
     bubble_delegate->SetAnchorView(anchor_view);
   }
-  Widget* const bubble_widget =
-      CreateBubbleWidget(bubble_delegate_unique.release(), ownership);
+  Widget* const bubble_widget = CreateBubbleWidget(bubble_delegate, ownership);
 
   bubble_delegate->set_adjust_if_offscreen(
       PlatformStyle::kAdjustBubbleIfOffscreen);
@@ -529,6 +526,14 @@ Widget* BubbleDialogDelegate::CreateBubble(
   return bubble_widget;
 }
 
+// static
+Widget* BubbleDialogDelegate::CreateBubble(
+    std::unique_ptr<BubbleDialogDelegate> bubble_delegate_unique,
+    Widget::InitParams::Ownership ownership) {
+  return CreateBubble(bubble_delegate_unique.release(), ownership);
+}
+
+// static
 Widget* BubbleDialogDelegateView::CreateBubble(
     BubbleDialogDelegateView* delegate_view,
     Widget::InitParams::Ownership ownership) {
@@ -582,18 +587,18 @@ BubbleDialogDelegate::CreateNonClientFrameView(Widget* widget) {
 }
 
 ClientView* BubbleDialogDelegate::CreateClientView(Widget* widget) {
-  client_view_ = DialogDelegate::CreateClientView(widget);
+  auto* client_view = DialogDelegate::CreateClientView(widget);
 
   // In order for the `client_view`'s content view hierarchy to respect its
   // rounded corner clip we must paint the client view to a layer. This is
   // necessary because layers do not respect the clip of a non-layer backed
   // parent.
-  client_view_->SetPaintToLayer(layer_type());
-  client_view_->layer()->SetRoundedCornerRadius(
+  client_view->SetPaintToLayer(layer_type());
+  client_view->layer()->SetRoundedCornerRadius(
       gfx::RoundedCornersF(GetCornerRadius()));
-  client_view_->layer()->SetIsFastRoundedCorner(true);
+  client_view->layer()->SetIsFastRoundedCorner(true);
 
-  return client_view_;
+  return client_view;
 }
 
 Widget* BubbleDialogDelegateView::GetWidget() {
@@ -905,6 +910,9 @@ void BubbleDialogDelegate::BubbleUmaLogger::LogMetric(
     void (*uma_func)(std::string_view, Value),
     std::string_view histogram_name,
     Value value) const {
+  if (!base::FeatureList::IsEnabled(::features::kBubbleMetricsApi)) {
+    return;
+  }
   // Record histogram for all BDDV subclasses under a generic name
   uma_func(base::StrCat({"Bubble.All.", histogram_name}), value);
   // Record histograms for specific BDDV subclasses

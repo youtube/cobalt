@@ -31,7 +31,6 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/download/bubble/download_bubble_prefs.h"
 #include "chrome/browser/download/download_core_service.h"
 #include "chrome/browser/download/download_core_service_factory.h"
 #include "chrome/browser/download/download_crx_util.h"
@@ -87,6 +86,7 @@
 #include "content/public/browser/download_manager.h"
 #include "content/public/browser/page_navigator.h"
 #include "content/public/browser/service_process_host.h"
+#include "content/public/common/buildflags.h"
 #include "content/public/common/origin_util.h"
 #include "extensions/buildflags/buildflags.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -94,7 +94,6 @@
 #include "net/base/filename_util.h"
 #include "net/base/mime_util.h"
 #include "net/base/network_change_notifier.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "ui/base/l10n/l10n_util.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -194,8 +193,10 @@ constexpr base::TimeDelta kEphemeralWarningLifetimeBeforeCancel =
 bool IsEphemeralWarningCancellationEnabled() {
 #if BUILDFLAG(IS_ANDROID)
   return ShouldShowSafeBrowsingAndroidDownloadWarnings();
+#elif BUILDFLAG(IS_CHROMEOS)
+  return false;
 #else
-  return download::IsDownloadBubbleEnabled();
+  return true;
 #endif
 }
 
@@ -1034,6 +1035,7 @@ bool ChromeDownloadManagerDelegate::InterceptDownloadIfApplicable(
     const std::string& request_origin,
     int64_t content_length,
     bool is_transient,
+    bool is_content_initiated,
     content::WebContents* web_contents) {
   PolicyBlocklistService* service =
       PolicyBlocklistFactory::GetForBrowserContext(profile_);
@@ -1052,7 +1054,9 @@ bool ChromeDownloadManagerDelegate::InterceptDownloadIfApplicable(
   // the download corresponds to background service. Additionally we don't want
   // offline pages backend to intercept html files explicitly marked as
   // attachments.
-  if (!is_transient &&
+  // Also, we only want to respond to browser actions, like saving pages from
+  // a context menu, not content initiated actions. See crbug.com/425492793.
+  if (!is_transient && !is_content_initiated &&
       !net::HttpContentDisposition(content_disposition, std::string())
            .is_attachment() &&
       offline_pages::OfflinePageUtils::CanDownloadAsOfflinePage(url,

@@ -163,11 +163,11 @@ TEST_F(WebStateTest, Snapshot) {
         int white_pixel_x = (snapshot.size.width / 2) + 10;
         // Test a pixel on the left (red) side.
         gfx::test::CheckColors(
-            gfx::test::GetPlatformImageColor(snapshot, red_pixel_x, 50),
+            gfx::test::GetPlatformImageColor(snapshot, red_pixel_x, 60),
             SK_ColorRED);
         // Test a pixel on the right (white) side.
         gfx::test::CheckColors(
-            gfx::test::GetPlatformImageColor(snapshot, white_pixel_x, 50),
+            gfx::test::GetPlatformImageColor(snapshot, white_pixel_x, 60),
             SK_ColorWHITE);
         snapshot_complete = true;
       }));
@@ -177,7 +177,13 @@ TEST_F(WebStateTest, Snapshot) {
 }
 
 // Tests that the create PDF method returns a PDF of a rendered html page.
-TEST_F(WebStateTest, CreateFullPagePdf_ValidURL) {
+// TODO(crbug.com/433740395): Re-enable tests
+#if TARGET_OS_SIMULATOR
+#define MAYBE_CreateFullPagePdf_ValidURL CreateFullPagePdf_ValidURL
+#else
+#define MAYBE_CreateFullPagePdf_ValidURL DISABLED_CreateFullPagePdf_ValidURL
+#endif
+TEST_F(WebStateTest, MAYBE_CreateFullPagePdf_ValidURL) {
   [GetAnyKeyWindow() addSubview:web_state()->GetView()];
 
   // Load a URL and some HTML in the WebState.
@@ -260,15 +266,7 @@ TEST_F(WebStateTest, CreateFullPagePdf_InvalidURLs) {
 
 // Tests that CreateFullPagePdf invokes completion callback nil when the
 // WebState content is not HTML (e.g. a PDF file).
-// TODO(crbug.com/428630864): Flaky on device.
-#if TARGET_IPHONE_SIMULATOR
-#define MAYBE_CreateFullPagePdfWebStatePdfContent \
-  CreateFullPagePdfWebStatePdfContent
-#else
-#define MAYBE_CreateFullPagePdfWebStatePdfContent \
-  DISABLED_CreateFullPagePdfWebStatePdfContent
-#endif
-TEST_F(WebStateTest, MAYBE_CreateFullPagePdfWebStatePdfContent) {
+TEST_F(WebStateTest, CreateFullPagePdfWebStatePdfContent) {
   CGRect fake_bounds = CGRectMake(0, 0, 100, 100);
   UIGraphicsPDFRenderer* pdf_renderer =
       [[UIGraphicsPDFRenderer alloc] initWithBounds:fake_bounds];
@@ -280,14 +278,6 @@ TEST_F(WebStateTest, MAYBE_CreateFullPagePdfWebStatePdfContent) {
       }];
 
   GURL test_url("https://www.chromium.org/somePDF.pdf");
-  NavigationManager::WebLoadParams load_params(test_url);
-  web_state()->GetNavigationManager()->LoadURLWithParams(load_params);
-  ASSERT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
-      base::test::ios::kWaitForPageLoadTimeout, ^bool {
-        return web_state()->GetLastCommittedURL() == test_url &&
-               !web_state()->IsLoading();
-      }));
-
   std::string mime_type = "application/pdf";
   web_state()->LoadData(
       pdf_data, [NSString stringWithUTF8String:mime_type.c_str()], test_url);
@@ -320,7 +310,13 @@ TEST_F(WebStateTest, SetHasOpener) {
 
 // Verifies that large session can be restored with max session size limit
 // equals to `wk_navigation_util::kMaxSessionSize`.
-TEST_F(WebStateTest, RestoreLargeSession) {
+// TODO(crbug.com/433740395): Re-enable tests
+#if TARGET_OS_SIMULATOR
+#define MAYBE_RestoreLargeSession RestoreLargeSession
+#else
+#define MAYBE_RestoreLargeSession DISABLED_RestoreLargeSession
+#endif
+TEST_F(WebStateTest, MAYBE_RestoreLargeSession) {
   // Create session storage with large number of items.
   const int kItemCount = 150;
   std::unique_ptr<WebState> web_state =
@@ -424,7 +420,13 @@ TEST_F(WebStateTest, RestoreLargeSession) {
 // Verifies that calling WebState::Stop() does not stop the session restoration.
 // Session restoration should be opaque to the user and embedder, so calling
 // Stop() is no-op.
-TEST_F(WebStateTest, CallStopDuringSessionRestore) {
+// TODO(crbug.com/433740395): Re-enable tests
+#if TARGET_OS_SIMULATOR
+#define MAYBE_CallStopDuringSessionRestore CallStopDuringSessionRestore
+#else
+#define MAYBE_CallStopDuringSessionRestore DISABLED_CallStopDuringSessionRestore
+#endif
+TEST_F(WebStateTest, MAYBE_CallStopDuringSessionRestore) {
   // Create session storage with large number of items.
   const int kItemCount = 10;
   std::unique_ptr<WebState> web_state =
@@ -505,7 +507,14 @@ TEST_F(WebStateTest, CallLoadURLWithParamsDuringSessionRestore) {
 // Verifies that calling NavigationManager::Reload() does not stop the session
 // restoration. Session restoration should be opaque to the user and embedder,
 // so calling Reload() is no-op.
-TEST_F(WebStateTest, CallReloadDuringSessionRestore) {
+// TODO(crbug.com/433740395): Re-enable tests
+#if TARGET_OS_SIMULATOR
+#define MAYBE_CallReloadDuringSessionRestore CallReloadDuringSessionRestore
+#else
+#define MAYBE_CallReloadDuringSessionRestore \
+  DISABLED_CallReloadDuringSessionRestore
+#endif
+TEST_F(WebStateTest, MAYBE_CallReloadDuringSessionRestore) {
   // Create session storage with large number of items.
   const int kItemCount = 10;
   std::unique_ptr<WebState> web_state =

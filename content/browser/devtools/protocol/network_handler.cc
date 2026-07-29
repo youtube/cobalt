@@ -71,7 +71,9 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_features.h"
+#include "ipc/constants.mojom.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
+#include "net/base/features.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
@@ -2167,6 +2169,10 @@ std::unique_ptr<Network::Response> BuildResponse(
     status_text = "OK";
   }
 
+  const bool was_cached =
+      !info.load_timing.request_start_time.is_null() &&
+      info.response_time < info.load_timing.request_start_time;
+
   std::string url_fragment;
   auto response =
       Network::Response::Create()
@@ -2181,9 +2187,7 @@ std::unique_ptr<Network::Response> BuildResponse(
           .SetSecurityState(securityState(url, info.cert_status))
           .SetEncodedDataLength(info.encoded_data_length)
           .SetTiming(GetTiming(info.load_timing))
-          .SetFromDiskCache(!info.load_timing.request_start_time.is_null() &&
-                            info.response_time <
-                                info.load_timing.request_start_time)
+          .SetFromDiskCache(was_cached)
           .Build();
   response->SetFromServiceWorker(info.was_fetched_via_service_worker);
   if (info.was_fetched_via_service_worker) {
@@ -2233,6 +2237,13 @@ std::unique_ptr<Network::Response> BuildResponse(
   response->SetRemotePort(info.remote_endpoint.port());
   if (info.ssl_info.has_value())
     response->SetSecurityDetails(BuildSecurityDetails(*info.ssl_info));
+
+  // Sets `is_ip_protection_used` within the response. This is currently set
+  // only if kIpPrivacyEnableIppInDevTools is enabled.
+  // TODO(crbug.com/432716000): Remove this guard once IPP is fully launched.
+  if (net::features::kIpPrivacyEnableIppInDevTools.Get()) {
+    response->SetIsIpProtectionUsed(info.is_for_ip_protection && !was_cached);
+  }
 
   return response;
 }
@@ -3668,8 +3679,8 @@ void NetworkHandler::LoadNetworkResource(
     // TODO(mkwst): Check CSP for non-frame targets.
     auto info = host->CreateNetworkFactoryParamsForDevTools();
     auto factory = CreateNetworkFactoryForDevTools(
-        gurl.scheme(), host->GetProcessHost(), MSG_ROUTING_NONE, info.origin,
-        std::move(info.factory_params));
+        gurl.scheme(), host->GetProcessHost(), IPC::mojom::kRoutingIdNone,
+        info.origin, std::move(info.factory_params));
     if (factory.is_valid()) {
       url_loader_factory.Bind(std::move(factory));
       auto loader = DevToolsNetworkResourceLoader::Create(
@@ -3852,8 +3863,8 @@ String NetworkHandler::BuildIpAddressSpace(
   switch (space) {
     case network::mojom::IPAddressSpace::kLoopback:
       return protocol::Network::IPAddressSpaceEnum::Loopback;
-    case network::mojom::IPAddressSpace::kPrivate:
-      return protocol::Network::IPAddressSpaceEnum::Private;
+    case network::mojom::IPAddressSpace::kLocal:
+      return protocol::Network::IPAddressSpaceEnum::Local;
     case network::mojom::IPAddressSpace::kPublic:
       return protocol::Network::IPAddressSpaceEnum::Public;
     case network::mojom::IPAddressSpace::kUnknown:

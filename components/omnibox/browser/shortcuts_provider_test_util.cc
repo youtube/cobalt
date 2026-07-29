@@ -2,15 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "components/omnibox/browser/shortcuts_provider_test_util.h"
 
 #include <algorithm>
 
+#include "base/containers/span.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
@@ -55,10 +51,11 @@ TestShortcutData::~TestShortcutData() = default;
 
 void PopulateShortcutsBackendWithTestData(
     scoped_refptr<ShortcutsBackend> backend,
-    TestShortcutData* db,
-    size_t db_size) {
-  size_t expected_size = backend->shortcuts_map().size() + db_size;
-  for (size_t i = 0; i < db_size; ++i) {
+    base::span<TestShortcutData> db) {
+  // TODO(crbug.com/431824301): Remove unneeded parameter once validated to be
+  // redundant in M143.
+  size_t expected_size = backend->shortcuts_map().size() + db.size();
+  for (size_t i = 0; i < db.size(); ++i) {
     const TestShortcutData& cur = db[i];
     ShortcutsDatabase::Shortcut shortcut(
         cur.guid, base::ASCIIToUTF16(cur.text),

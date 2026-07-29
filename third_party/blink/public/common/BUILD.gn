@@ -47,6 +47,7 @@ blink_python_runner("make_runtime_feature_state_contexts_headers") {
              "../../renderer/build/scripts/templates/runtime_feature_state_context.h.tmpl",
              "../../renderer/build/scripts/templates/runtime_feature_state_read_context.h.tmpl",
              "../../renderer/platform/runtime_enabled_features.json5",
+             "../../renderer/platform/runtime_enabled_features.override.json5",
            ]
 
   outputs = [
@@ -70,7 +71,7 @@ component("common") {
   output_name = "blink_common"
 
   public_deps = [
-    "//third_party/blink/common/privacy_budget:privacy_budget",
+    "//third_party/blink/common/privacy_budget",
     "//third_party/blink/public/common:headers",
     "//third_party/blink/public/mojom:mojom_modules",
     "//third_party/blink/public/mojom:web_bluetooth_mojo_bindings",
@@ -268,7 +269,6 @@ source_set("headers") {
     "peerconnection/webrtc_ip_handling_policy.h",
     "peerconnection/webrtc_ip_handling_url_entry.h",
     "performance/largest_contentful_paint_type.h",
-    "performance/performance_timeline_constants.h",
     "permissions/permission_utils.h",
     "permissions_policy/document_policy.h",
     "permissions_policy/document_policy_features.h",
@@ -328,7 +328,7 @@ source_set("headers") {
     "//base",
     "//mojo/public/cpp/bindings",
     "//services/metrics/public/cpp:metrics_cpp",
-    "//services/network/public/cpp:cpp",
+    "//services/network/public/cpp",
     "//services/network/public/mojom:mojom_permissions_policy",
     "//skia",
     "//skia/public/mojom:shared_typemap_traits",
@@ -360,7 +360,7 @@ source_set("headers") {
     "//mojo/public/cpp/system",
     "//mojo/public/mojom/base",
     "//net",
-    "//ui/base:base",
+    "//ui/base",
   ]
 
   # Chromium without blink doesn't use and must not depend on //media

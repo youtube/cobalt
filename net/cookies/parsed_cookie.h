@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/functional/function_ref.h"
 #include "net/base/net_export.h"
 #include "net/cookies/cookie_constants.h"
 
@@ -21,9 +22,6 @@ class CookieInclusionStatus;
 
 class NET_EXPORT ParsedCookie {
  public:
-  typedef std::pair<std::string, std::string> TokenValuePair;
-  typedef std::vector<TokenValuePair> PairList;
-
   // The maximum length allowed for a cookie string's name/value pair.
   static const size_t kMaxCookieNamePlusValueSize = 4096;
 
@@ -83,9 +81,8 @@ class NET_EXPORT ParsedCookie {
   bool IsSecure() const { return secure_index_ != 0; }
   bool IsHttpOnly() const { return httponly_index_ != 0; }
   // Also spits out an enum value representing the string given as the SameSite
-  // attribute value, if |samesite_string| is non-null.
-  CookieSameSite SameSite(
-      CookieSameSiteString* samesite_string = nullptr) const;
+  // attribute value.
+  std::pair<CookieSameSite, CookieSameSiteString> SameSite() const;
   CookiePriority Priority() const;
   bool IsPartitioned() const { return partitioned_index_ != 0; }
   bool HasInternalHtab() const { return internal_htab_; }
@@ -171,6 +168,14 @@ class NET_EXPORT ParsedCookie {
       const std::string& value,
       CookieInclusionStatus* status_out = nullptr);
 
+  // Synchronously calls `functor` with each attribute and value in the
+  // parsed cookie. `functor` may return `true` to continue the
+  // iteration or `false` to terminate. This function will return `true`
+  // if iteration was completed, or `false` if it was terminated.
+  bool ForEachAttribute(
+      base::FunctionRef<bool(std::string_view, std::string_view)> functor)
+      const;
+
  private:
   void ParseTokenValuePairs(std::string_view cookie_line,
                             CookieInclusionStatus& status_out);
@@ -197,7 +202,7 @@ class NET_EXPORT ParsedCookie {
   // |index| refers to a position in |pairs_|.
   void ClearAttributePair(size_t index);
 
-  PairList pairs_;
+  std::vector<std::pair<std::string, std::string>> pairs_;
   // These will default to 0, but that should never be valid since the
   // 0th index is the user supplied cookie name/value, not an attribute.
   size_t path_index_ = 0;

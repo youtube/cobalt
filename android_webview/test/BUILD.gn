@@ -524,6 +524,7 @@ base_webview_instrumentation_test_apk("webview_instrumentation_test_apk") {
     "../javatests/src/org/chromium/android_webview/test/SslPreferencesTest.java",
     "../javatests/src/org/chromium/android_webview/test/StandaloneAwQuotaManagerBridgeTest.java",
     "../javatests/src/org/chromium/android_webview/test/TestAwContents.java",
+    "../javatests/src/org/chromium/android_webview/test/TestAwContentsClientTestDependencyFactory.java",
     "../javatests/src/org/chromium/android_webview/test/TestAwServiceWorkerClient.java",
     "../javatests/src/org/chromium/android_webview/test/TestPageLoadedNotifier.java",
     "../javatests/src/org/chromium/android_webview/test/TestWebMessageListener.java",
@@ -631,7 +632,7 @@ android_library("base_webview_instrumentation_test_java") {
     "//third_party/androidx:androidx_test_monitor_java",
     "//third_party/hamcrest:hamcrest_core_java",
     "//third_party/hamcrest:hamcrest_library_java",
-    "//third_party/junit:junit",
+    "//third_party/junit",
     "//ui/android:ui_java",
   ]
 }
@@ -669,7 +670,7 @@ android_library("base_webview_instrumentation_java") {
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/androidx:androidx_core_core_java",
     "//third_party/androidx:androidx_test_monitor_java",
-    "//third_party/junit:junit",
+    "//third_party/junit",
     "//ui/android:ui_java_test_support",
     "//ui/android:ui_no_recycler_view_java",
     "//url:url_java",
@@ -795,21 +796,21 @@ test("android_webview_unittests") {
     "//components/metrics:content",
     "//components/optimization_guide/core:bloomfilter",
     "//components/policy/core/browser:test_support",
-    "//components/prefs:prefs",
+    "//components/prefs",
     "//components/prefs:test_support",
     "//components/safe_browsing/content/browser/web_ui",
     "//components/safe_browsing/core/browser",
     "//components/safe_browsing/core/common",
     "//components/tracing:background_tracing_utils",
     "//components/update_client",
-    "//components/variations:variations",
-    "//components/viz/service:service",
-    "//components/webui/flags:flags",
-    "//content:content",
+    "//components/variations",
+    "//components/viz/service",
+    "//components/webui/flags",
+    "//content",
     "//content/test:test_support",
     "//gin:v8_snapshot_assets",
     "//mojo/core/embedder",
-    "//net:net",
+    "//net",
     "//net:test_support",
     "//net/third_party/quiche:blind_sign_auth",
     "//services/cert_verifier/public/mojom",
@@ -873,6 +874,10 @@ test("android_webview_unittests") {
     "../nonembedded/component_updater/aw_component_update_service_test.cc",
     "../nonembedded/component_updater/aw_component_updater_configurator_unittest.cc",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 android_assets("android_webview_unittests_assets") {

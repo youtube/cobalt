@@ -153,14 +153,6 @@ MEDIA_EXPORT extern const char kCastStreamingForceDisableHardwareVp9[];
 // to take effect.
 MEDIA_EXPORT extern const char kCastStreamingForceEnableHardwareVp9[];
 
-#if !BUILDFLAG(IS_ANDROID)
-// If enabled, overrides the target playout delay for a casting mirroring
-// session. The value will be parsed as milliseconds. Lowering this value will
-// result in a lower end to end latency, but could come at the cost of other
-// quality standards such as dropped frames or FPS.
-MEDIA_EXPORT extern const char kCastMirroringTargetPlayoutDelay[];
-#endif  // !BUILDFLAG(IS_ANDROID)
-
 }  // namespace switches
 
 namespace media {
@@ -324,7 +316,6 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaLearningSmoothnessExperiment);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaOptimizer);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaPowerExperiment);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMemoryPressureBasedSourceBufferGC);
-MEDIA_EXPORT BASE_DECLARE_FEATURE(kMultiBufferNeverDefer);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kOverlayFullscreenVideo);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kPauseBackgroundMutedAudio);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kPauseBackgroundTimer);
@@ -357,11 +348,15 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kReduceHardwareVideoDecoderBuffers);
 #endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kResumeBackgroundVideo);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kRevokeMediaSourceObjectURLOnAttach);
+#if BUILDFLAG(ENABLE_SYMPHONIA)
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kSymphoniaAudioDecoding);
+#endif
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kShareThisTabInsteadButtonGetDisplayMedia);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(
     kShareThisTabInsteadButtonGetDisplayMediaAudio);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kSpeakerChangeDetection);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kSpecCompliantCanPlayThrough);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kSuspendMediaForFrozenFrames);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kSuspendMutedAudio);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kUnifiedAutoplay);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kUseAndroidOverlayForSecureOnly);
@@ -397,6 +392,7 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kResolutionBasedDecoderPriority);
 
 #if BUILDFLAG(IS_ANDROID)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kAllowNonSecureOverlays);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kAutoPictureInPictureAndroid);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaCodecBlockModel);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaCodecCodedSizeGuessing);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaCodecElideEOS);
@@ -545,6 +541,9 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kRenderMutedAudio);
 
 // Enable experimental headless captions.
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kHeadlessLiveCaption);
+
+// Enable site-specific media link helpers.
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaLinkHelpers);
 
 // Based on a |command_line| and the current platform, returns the effective
 // autoplay policy. In other words, it will take into account the default policy

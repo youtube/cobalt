@@ -35,7 +35,7 @@ namespace blink {
 // members and their counts, respectively.
 template <typename Value,
           typename Traits = HashTraits<Value>,
-          typename Allocator = WTF::PartitionAllocator>
+          typename Allocator = PartitionAllocator>
 class HashCountedSet {
   USE_ALLOCATOR(HashCountedSet, Allocator);
 
@@ -116,9 +116,9 @@ class HashCountedSet {
 
   struct TypeConstraints {
     constexpr TypeConstraints() {
-      static_assert(!WTF::IsStackAllocatedTypeV<Value>);
+      static_assert(!IsStackAllocatedTypeV<Value>);
       static_assert(Allocator::kIsGarbageCollected ||
-                        !WTF::IsPointerToGarbageCollectedType<Value>,
+                        !IsPointerToGarbageCollectedType<Value>,
                     "Cannot put raw pointers to garbage-collected classes into "
                     "an off-heap HashCountedSet. Use "
                     "HeapHashCountedSet<Member<T>> instead.");

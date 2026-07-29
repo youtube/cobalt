@@ -21,7 +21,7 @@ namespace autofill {
 SaveAndFillDialogControllerImpl::SaveAndFillDialogControllerImpl() = default;
 SaveAndFillDialogControllerImpl::~SaveAndFillDialogControllerImpl() = default;
 
-void SaveAndFillDialogControllerImpl::ShowDialog(
+void SaveAndFillDialogControllerImpl::ShowLocalDialog(
     base::OnceCallback<std::unique_ptr<SaveAndFillDialogView>()>
         create_and_show_view_callback,
     payments::PaymentsAutofillClient::CardSaveAndFillDialogCallback
@@ -32,8 +32,18 @@ void SaveAndFillDialogControllerImpl::ShowDialog(
   CHECK(dialog_view_);
 }
 
-void SaveAndFillDialogControllerImpl::Dismiss() {
-  dialog_view_.reset();
+void SaveAndFillDialogControllerImpl::ShowUploadDialog(
+    const LegalMessageLines& legal_message_lines,
+    base::OnceCallback<std::unique_ptr<SaveAndFillDialogView>()>
+        create_and_show_view_callback,
+    payments::PaymentsAutofillClient::CardSaveAndFillDialogCallback
+        card_save_and_fill_dialog_callback) {
+  dialog_view_ = std::move(create_and_show_view_callback).Run();
+  card_save_and_fill_dialog_callback_ =
+      std::move(card_save_and_fill_dialog_callback);
+  legal_message_lines_ = legal_message_lines;
+  is_upload_save_and_fill_ = true;
+  CHECK(dialog_view_);
 }
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
@@ -207,6 +217,10 @@ bool SaveAndFillDialogControllerImpl::IsValidNameOnCard(
     return false;
   }
   return autofill::IsValidNameOnCard(input_text);
+}
+
+void SaveAndFillDialogControllerImpl::Dismiss() {
+  dialog_view_.reset();
 }
 
 void SaveAndFillDialogControllerImpl::OnUserAcceptedDialog(

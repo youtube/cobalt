@@ -20,7 +20,6 @@
 #include "components/permissions/permission_util.h"
 #include "components/permissions/prediction_service/permission_ui_selector.h"
 #include "components/permissions/request_type.h"
-#include "content/public/browser/browser_context.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "url/origin.h"
 
@@ -177,21 +176,17 @@ class PermissionsClient {
 
   // Called for each request type when a permission prompt is resolved.
   virtual void OnPromptResolved(
-      RequestType request_type,
+      const PermissionRequest* request,
       PermissionAction action,
-      const GURL& origin,
       PermissionPromptDisposition prompt_disposition,
       PermissionPromptDispositionReason prompt_disposition_reason,
-      PermissionRequestGestureType gesture_type,
       std::optional<QuietUiReason> quiet_ui_reason,
       base::TimeDelta prompt_display_duration,
       std::optional<
           permissions::feature_params::PermissionElementPromptPosition>
           pepc_prompt_position,
       ContentSetting initial_permission_status,
-      content::WebContents* web_contents,
-      std::optional<PermissionHatsTriggerHelper::PreviewParametersForHats>
-          preview_parameters);
+      content::WebContents* web_contents);
 
   // Returns true if user has 3 consecutive notifications permission denies,
   // returns false otherwise.

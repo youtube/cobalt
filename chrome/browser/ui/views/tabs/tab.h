@@ -15,6 +15,7 @@
 #include "chrome/browser/ui/tabs/tab_renderer_data.h"
 #include "chrome/browser/ui/views/tabs/tab_slot_view.h"
 #include "chrome/browser/ui/views/tabs/tab_style_views.h"
+#include "chrome/common/buildflags.h"
 #include "components/performance_manager/public/freezing/freezing.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "ui/base/metadata/metadata_header_macros.h"
@@ -46,6 +47,12 @@ class View;
 namespace tabs {
 enum class TabAlert;
 }
+
+#if BUILDFLAG(ENABLE_GLIC)
+namespace glic {
+class GlicTabUnderlineView;
+}  // namespace glic
+#endif
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -262,6 +269,10 @@ class Tab : public gfx::AnimationDelegate,
 
   // True if the tab is being animated closed.
   bool closing_ = false;
+
+#if BUILDFLAG(ENABLE_GLIC)
+  raw_ptr<glic::GlicTabUnderlineView> glic_tab_underline_view_ = nullptr;
+#endif
 
   raw_ptr<TabIcon> icon_ = nullptr;
   raw_ptr<AlertIndicatorButton> alert_indicator_button_ = nullptr;
