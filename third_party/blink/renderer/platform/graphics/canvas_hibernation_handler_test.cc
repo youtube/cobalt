@@ -47,25 +47,16 @@ class TestHibernationHandlerDelegate
   CanvasResourceProvider* GetResourceProvider() const override {
     return resource_provider_.get();
   }
-  void ResetResourceProviderForCanvas2D() override {
-    resource_provider_.reset();
-  }
+  void ResetResourceProvider() override { resource_provider_.reset(); }
 
-  CanvasResourceProvider* GetOrCreateCanvasResourceProviderForCanvas2D() {
-    if (GetResourceProvider()) {
-      return GetResourceProvider();
-    }
-    constexpr auto kShouldInitialize =
-        CanvasResourceProvider::ShouldInitialize::kCallClear;
-    constexpr gpu::SharedImageUsageSet kSharedImageUsageFlags =
-        gpu::SHARED_IMAGE_USAGE_DISPLAY_READ | gpu::SHARED_IMAGE_USAGE_SCANOUT;
+  void CreateResourceProvider() {
+    CHECK(!GetResourceProvider());
     resource_provider_ = CanvasResourceProvider::CreateSharedImageProvider(
         size_, GetN32FormatForCanvas(), kPremul_SkAlphaType,
-        gfx::ColorSpace::CreateSRGB(), kShouldInitialize,
+        gfx::ColorSpace::CreateSRGB(),
+        CanvasResourceProvider::ShouldInitialize::kCallClear,
         SharedGpuContext::ContextProviderWrapper(), RasterMode::kGPU,
-        kSharedImageUsageFlags);
-
-    return resource_provider_.get();
+        gpu::SHARED_IMAGE_USAGE_DISPLAY_READ | gpu::SHARED_IMAGE_USAGE_SCANOUT);
   }
 
   void SetPageVisible(bool visible) {
@@ -167,8 +158,10 @@ std::map<std::string, uint64_t> GetEntries(
 }
 
 void Draw(TestHibernationHandlerDelegate& delegate) {
-  CanvasResourceProvider* provider =
-      delegate.GetOrCreateCanvasResourceProviderForCanvas2D();
+  if (!delegate.GetResourceProvider()) {
+    delegate.CreateResourceProvider();
+  }
+  CanvasResourceProvider* provider = delegate.GetResourceProvider();
   provider->Canvas().drawLine(0, 0, 2, 2, cc::PaintFlags());
   provider->FlushCanvas(FlushReason::kTesting);
 }

@@ -15,6 +15,7 @@
 namespace contextual_tasks {
 
 enum class ThreadType {
+  kUnknown,
   kAiMode,
 };
 
@@ -58,7 +59,7 @@ struct UrlResource {
 // with it, such as URLs, session IDs, and ongoing server-side conversations.
 class ContextualTask {
  public:
-  explicit ContextualTask(const base::Uuid& task_id);
+  explicit ContextualTask(const base::Uuid& task_id, bool is_ephemeral = false);
   ~ContextualTask();
 
   ContextualTask(const ContextualTask& other);
@@ -67,6 +68,9 @@ class ContextualTask {
 
   // Returns the unique ID of the task.
   const base::Uuid& GetTaskId() const;
+
+  // Whether the task is ephemeral. Ephemeral tasks aren't persisted.
+  bool IsEphemeral() const { return is_ephemeral_; }
 
   // Sets the title of the task.
   void SetTitle(const std::string& title);
@@ -91,22 +95,29 @@ class ContextualTask {
   // Returns the URLs relevant to the task.
   std::vector<UrlResource> GetUrlResources() const;
 
-  // Removes a URL from the task.
-  void RemoveUrl(const GURL& url);
+  // Removes a URL from the task. Returns the ID of the removed UrlResource if
+  // found, otherwise returns std::nullopt.
+  std::optional<base::Uuid> RemoveUrl(const GURL& url);
 
-  // Returns the SessionIDs of tabs related to the task.
-  std::vector<SessionID> GetSessionIds() const;
+  // Returns the tab IDs of tabs related to the task.
+  std::vector<SessionID> GetTabIds() const;
 
-  // Adds a SessionID to the task. If the SessionID already exists, this method
+  // Adds a tab ID to the task. If the tab ID already exists, this method
   // does nothing.
-  void AddSessionId(SessionID session_id);
+  void AddTabId(SessionID tab_id);
 
-  // Removes a SessionID from the task.
-  void RemoveSessionId(SessionID session_id);
+  // Removes a tab ID from the task.
+  void RemoveTabId(SessionID tab_id);
+
+  // Clears all tab IDs associated with the task.
+  void ClearTabIds();
 
  private:
   // The unique ID of the task.
   base::Uuid task_id_;
+
+  // Whether the task is ephemeral. Ephemeral tasks are not persisted.
+  bool is_ephemeral_ = false;
 
   // Title of the task;
   std::string title_;
@@ -118,9 +129,9 @@ class ContextualTask {
   // URLs relevant to the task.
   std::vector<UrlResource> url_resources_;
 
-  // SessionIDs of tabs related to the task. SessionIDs are local to the
-  // device and are not synced.
-  std::vector<SessionID> session_ids_;
+  // Tab IDs of tabs related to the task. Tab IDs are local to the device and
+  // are not synced.
+  std::vector<SessionID> tab_ids_;
 };
 
 }  // namespace contextual_tasks

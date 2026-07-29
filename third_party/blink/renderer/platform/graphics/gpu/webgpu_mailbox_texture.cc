@@ -87,8 +87,11 @@ scoped_refptr<WebGPUMailboxTexture> WebGPUMailboxTexture::FromStaticBitmapImage(
       recyclable_canvas_resource->resource_provider();
   DCHECK(resource_provider);
 
-  // Skip copy if constructing dummy mailbox texture.
-  if (!is_dummy_mailbox_texture) {
+  // Skip copy if constructing dummy mailbox texture, but still ensure waiting
+  // on the underlying canvas resource.
+  if (is_dummy_mailbox_texture) {
+    resource_provider->PrepareForWebGPUDummyMailbox();
+  } else {
     if (!image->CopyToResourceProvider(resource_provider, image_sub_rect)) {
       return nullptr;
     }
@@ -116,7 +119,7 @@ scoped_refptr<WebGPUMailboxTexture> WebGPUMailboxTexture::FromCanvasResource(
 
   scoped_refptr<gpu::ClientSharedImage> shared_image =
       canvas_resource->GetClientSharedImage();
-  gpu::SyncToken sync_token = canvas_resource->GetSyncToken();
+  gpu::SyncToken sync_token = canvas_resource->sync_token();
   gfx::Size size = shared_image->size();
 
   wgpu::TextureDescriptor tex_desc = {

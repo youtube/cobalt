@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">متابعة</translation>
 <translation id="2379925928934107488">‏يمكنك تطبيق "المظهر الداكن" على المواقع الإلكترونية عندما يستخدم Chrome "المظهر الداكن"، إن أمكن ذلك.</translation>
 <translation id="2390272837142897736">تكبير</translation>
+<translation id="2397689164757137845">تم السماح • دقيق</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> ميغابايت</translation>
 <translation id="2403474027143565107">دقيق</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{تم السماح بالوصول إلى <ph name="PERMISSION_1" /> و<ph name="PERMISSION_2" /> وإذن واحد (<ph name="NUM_MORE" />) آخر.}zero{تم السماح بالوصول إلى <ph name="PERMISSION_1" /> و<ph name="PERMISSION_2" /> و<ph name="NUM_MORE" /> إذن آخر.}two{تم السماح بالوصول إلى <ph name="PERMISSION_1" /> و<ph name="PERMISSION_2" /> وإذنَين (<ph name="NUM_MORE" />) آخرَين.}few{تم السماح بالوصول إلى <ph name="PERMISSION_1" /> و<ph name="PERMISSION_2" /> و<ph name="NUM_MORE" /> أذونات أخرى.}many{تم السماح بالوصول إلى <ph name="PERMISSION_1" /> و<ph name="PERMISSION_2" /> و<ph name="NUM_MORE" /> إذنًا آخر.}other{تم السماح بالوصول إلى <ph name="PERMISSION_1" /> و<ph name="PERMISSION_2" /> و<ph name="NUM_MORE" /> إذن آخر.}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">المساعدة والملاحظات</translation>
 <translation id="2501278716633472235">الرجوع</translation>
 <translation id="2533138527374486328">عندما يكون هذا الإعداد مفعَّلاً، يمكن للمواقع الإلكترونية طلب الاتصال بأي جهاز على شبكتك المحلية. وعند إيقافه، لا يمكن للمواقع الإلكترونية الاتصال بالأجهزة على الشبكة.</translation>
+<translation id="2536779053640817375">تم السماح هذه المرّة • دقيق</translation>
 <translation id="2544997614631598250">لون المظهر الداكن</translation>
 <translation id="2546283357679194313">ملفات تعريف الارتباط وبيانات الموقع الإلكتروني</translation>
 <translation id="2570922361219980984">‏الوصول إلى الموقع الجغرافي متوقف لهذا الجهاز أيضًا. يمكنك تفعليه في <ph name="BEGIN_LINK" />إعدادات Android<ph name="END_LINK" />.</translation>
@@ -442,6 +444,7 @@
 <translation id="5876056640971328065">إيقاف الفيديو مؤقتًا</translation>
 <translation id="5877248419911025165">تصغير كل الطلبات</translation>
 <translation id="5878945009165002849">حظر طلبات تسجيل الدخول من خدمات إدارة الهوية</translation>
+<translation id="588258955323874662">ملء الشاشة</translation>
 <translation id="5884085660368669834">الإعداد المفضّل للموقع الإلكتروني</translation>
 <translation id="5887687176710214216">تمّت زيارة الموقع الإلكتروني آخر مرة أمس.</translation>
 <translation id="5908617755156109052">عدم السماح للمواقع الإلكترونية بإنشاء خريطة ثلاثية الأبعاد للبيئة المحيطة بك أو تتبُّع موضع الكاميرا</translation>
@@ -702,7 +705,6 @@
 <translation id="8803526663383843427">عندما يكون الإعداد مفعَّلاً</translation>
 <translation id="8805385115381080995">يكون التصفُّح أسرع لأنّ المواقع الإلكترونية قد لا تطلب منك إثبات أنّك مستخدِم حقيقي.</translation>
 <translation id="8816026460808729765">يمكنك حظر المواقع الإلكترونية من الوصول إلى أجهزة الاستشعار.</translation>
-<translation id="884765916894384048">التشغيل في الخلفية</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">جرِّب السماح مؤقتًا باستخدام ملفات تعريف الارتباط التابعة لجهات خارجية. هذا يعني أنّك ستحظى بمستوى حماية أقل أثناء التصفّح، غير أنّ ميزات الموقع الإلكتروني ستعمل غالبًا على النحو المتوقَّع.</translation>
 <translation id="8889294078294184559">‏عند مواصلة التصفُّح على الإنترنت، يمكن للمواقع الإلكترونية التأكّد من أنّك مستخدِم حقيقي من خلال متصفّح Chrome وأحد المواقع الإلكترونية التي سبقت لك زيارتها.</translation>

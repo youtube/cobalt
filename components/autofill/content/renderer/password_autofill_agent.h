@@ -146,11 +146,11 @@ class PasswordAutofillAgent : public content::RenderFrameObserver,
                               const std::u16string& old_password,
                               const std::u16string& new_password,
                               FillChangePasswordFormCallback callback) override;
-  void SubmitFormWithEnter(FieldRendererId field,
-                           SubmitFormWithEnterCallback callback) override;
   void SetLoggingState(bool active) override;
   void AnnotateFieldsWithParsingResult(
       const ParsingResult& parsing_result) override;
+  void CheckViewAreaVisible(FieldRendererId field_id,
+                            CheckViewAreaVisibleCallback callback) override;
 #if BUILDFLAG(IS_ANDROID)
   void TriggerFormSubmission() override;
 #endif

@@ -100,6 +100,12 @@ BASE_DECLARE_FEATURE(kSkipResetServiceWorkerURLLoaderFactories);
 // embedding Chrome App to request access to Human Interface Devices.
 BASE_DECLARE_FEATURE(kEnableWebHidInWebView);
 
+#if BUILDFLAG(ENABLE_DESKTOP_ANDROID_EXTENSIONS)
+// If enabled, extensions will be enabled for @google.com and @managedchrome.com
+// users on desktop Android. Otherwise they will be blocked.
+BASE_DECLARE_FEATURE(kEnableExtensionsForCorpDesktopAndroid);
+#endif
+
 // If enabled, disables unpacked extensions if developer mode is off.
 BASE_DECLARE_FEATURE(kExtensionDisableUnsupportedDeveloper);
 
@@ -286,6 +292,10 @@ BASE_DECLARE_FEATURE(kContentVerifyJobUseJobVersionForHashing);
 // cases (like listeners sending unserializable responses or throwing errors
 // during execution) the error is passed back to the sender.
 BASE_DECLARE_FEATURE(kRuntimeOnMessageWebExtensionPolyfillSupport);
+
+// Enables the shouldShowPromotion API to determine which promotion to show for
+// Chrome Enterprise on CWS.
+BASE_DECLARE_FEATURE(kEnableShouldShowPromotion);
 
 }  // namespace extensions_features
 

@@ -55,7 +55,6 @@ class BrowserWindowFeatures;
 class DesktopBrowserWindowCapabilities;
 class ExclusiveAccessManager;
 class GURL;
-class ImmersiveModeController;
 class TabStripModel;
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -179,17 +178,17 @@ class BrowserWindowInterface : public content::PageNavigator {
   enum class CreationStatus {
     // A new browser window can be created.
     kOk,
+
     // Indicates that the browser is shutting down.
-    // TODO(devlin): Why not call this kErrorShuttingDown? That's more clear.
-    kErrorNoProcess,
+    kErrorShuttingDown,
+
     // Indicates the profile is unsuitable for a new window. This can happen for
     // profiles that don't allow new windows, like certain incognito profiles or
-    // other special profiles (signin screen, etc).
+    // other special profiles (signin screen, etc) or if the profile is shutting
+    // down.
     kErrorProfileUnsuitable,
 
-  // TODO(devlin): Update this to be BUILDFLAG(IS_CHROMEOS). That's the only
-  // spot we have kiosk mode.
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_CHROMEOS)
     // Indicates the profile is currently loading kiosk mode, so no new windows
     // should be allowed.
     kErrorLoadingKiosk,
@@ -320,10 +319,6 @@ class BrowserWindowInterface : public content::PageNavigator {
   // This class is responsible for controlling fullscreen and pointer lock.
   virtual ExclusiveAccessManager* GetExclusiveAccessManager() = 0;
 
-  // This class is responsible for controlling the top chrome reveal state while
-  // in immersive fullscreen.
-  virtual ImmersiveModeController* GetImmersiveModeController() = 0;
-
   // This class manages actions that a user can take that are scoped to a
   // browser window (e.g. most of the 3-dot menu actions).
   virtual BrowserActions* GetActions() = 0;
@@ -340,6 +335,7 @@ class BrowserWindowInterface : public content::PageNavigator {
   // migrating a large chunk of code to BrowserWindowInterface, to allow
   // incremental migration.
   virtual Browser* GetBrowserForMigrationOnly() = 0;
+  virtual const Browser* GetBrowserForMigrationOnly() const = 0;
 
   // Checks if the browser popup is tab modal dialog.
   virtual bool IsTabModalPopupDeprecated() const = 0;

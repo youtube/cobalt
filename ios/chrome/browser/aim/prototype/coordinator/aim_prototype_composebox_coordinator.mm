@@ -16,6 +16,7 @@
 #import "ios/chrome/browser/aim/prototype/ui/aim_prototype_composebox_view_controller.h"
 #import "ios/chrome/browser/favicon/model/ios_chrome_favicon_loader_factory.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
+#import "ios/chrome/browser/lens/ui_bundled/lens_entrypoint.h"
 #import "ios/chrome/browser/location_bar/model/web_location_bar_delegate.h"
 #import "ios/chrome/browser/location_bar/model/web_location_bar_impl.h"
 #import "ios/chrome/browser/location_bar/ui_bundled/location_bar_model_delegate_ios.h"
@@ -30,6 +31,8 @@
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/lens_commands.h"
+#import "ios/chrome/browser/shared/public/commands/open_lens_input_selection_command.h"
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 #import "ios/chrome/browser/shared/ui/util/util_swift.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
@@ -112,6 +115,11 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
       ios::TemplateURLServiceFactory::GetForProfile(self.profile);
   signin::IdentityManager* identityManager =
       IdentityManagerFactory::GetForProfile(self.profile);
+  auto query_contoller_config_params = std::make_unique<
+      ComposeboxQueryController::QueryControllerConfigParams>();
+  query_contoller_config_params->send_lns_surface = false;
+  query_contoller_config_params->enable_multi_context_input_flow = false;
+  query_contoller_config_params->enable_viewport_images = true;
   auto composeboxQueryController =
       std::make_unique<ComposeboxQueryControllerIOS>(
           identityManager, GetApplicationContext()->GetSharedURLLoaderFactory(),
@@ -119,9 +127,7 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
           GetApplicationContext()->GetApplicationLocaleStorage()->Get(),
           templateURLService,
           VariationsClientServiceFactory::GetForProfile(self.profile),
-          /*send_lns_surface=*/false,
-          /*enable_multi_context_input_flow=*/false,
-          /*enable_viewport_images=*/true);
+          std::move(query_contoller_config_params));
 
   FaviconLoader* faviconLoader =
       IOSChromeFaviconLoaderFactory::GetForProfile(self.profile);
@@ -151,7 +157,6 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
                          browser:self.browser
                    omniboxClient:std::move(omniboxClient)
              presentationContext:OmniboxPresentationContext::kAIMPrototype];
-  // TODO(crbug.com/355179721): Add omnibox focus delegate.
   _omniboxCoordinator.presenterDelegate = self.omniboxPopupPresenterDelegate;
   [_omniboxCoordinator start];
 
@@ -215,6 +220,21 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 
   [_voiceSearchController startRecognitionOnViewController:_viewController
                                                   webState:webState];
+}
+
+- (void)aimPrototypeViewController:
+            (AIMPrototypeComposeboxViewController*)composeboxViewController
+                  didTapLensButton:(UIButton*)lensButton {
+  OpenLensInputSelectionCommand* command = [[OpenLensInputSelectionCommand
+      alloc]
+          // TODO(crbug.com/452307696) : Add and update the entrypoint to
+          // reflect on the aim composebox.
+          initWithEntryPoint:LensEntrypoint::Keyboard
+           presentationStyle:LensInputSelectionPresentationStyle::SlideFromRight
+      presentationCompletion:nil];
+  id<LensCommands> handler =
+      HandlerForProtocol(self.browser->GetCommandDispatcher(), LensCommands);
+  [handler openLensInputSelection:command];
 }
 
 - (void)aimPrototypeViewControllerDidTapGalleryButton:

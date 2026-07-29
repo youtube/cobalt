@@ -460,6 +460,29 @@ targets.mixin(
 )
 
 targets.mixin(
+    name = "canary-x64-emulator",
+    generate_pyl_entry = False,
+    description = "Run with android_canary_google_apis_x64",
+    args = [
+        "--avd-config=../../tools/android/avd/proto/android_canary_google_apis_x64.textpb",
+    ],
+    swarming = targets.swarming(
+        # soft affinity so that bots with caches will be picked first
+        optional_dimensions = {
+            60: {
+                "caches": "android_canary_google_apis_x64",
+            },
+        },
+        named_caches = [
+            swarming.cache(
+                name = "android_canary_google_apis_x64",
+                path = ".android_emulator/android_canary_google_apis_x64",
+            ),
+        ],
+    ),
+)
+
+targets.mixin(
     name = "chrome-finch-swarming-pool",
     swarming = targets.swarming(
         dimensions = {
@@ -2515,7 +2538,7 @@ targets.mixin(
         dimensions = {
             "display_attached": "1",
             "gpu": "1002:7340-31.0.24002.92",
-            "os": "Windows-10-19045.3930",
+            "os": "Windows-10-19045",
             "pool": "chromium.tests.gpu",
         },
     ),
@@ -2560,6 +2583,22 @@ targets.mixin(
         dimensions = {
             "display_attached": "1",
             "gpu": "1002:7480-32.0.12033.1030",
+            "os": "Windows-11-26100",
+            "pool": "chromium.tests.gpu",
+        },
+    ),
+)
+
+targets.mixin(
+    name = "win11_qualcomm_snapdragon_x_elite_stable",
+    # We always need this entry to be generated since it is used by
+    # //content/test/gpu/find_bad_machines.py.
+    generate_pyl_entry = targets.IGNORE_UNUSED,
+    swarming = targets.swarming(
+        dimensions = {
+            "display_attached": "1",
+            "cpu": "arm64",
+            "gpu": "qcom:0c36-31.0.121.1",
             "os": "Windows-11-26100",
             "pool": "chromium.tests.gpu",
         },
@@ -2618,7 +2657,7 @@ targets.mixin(
         dimensions = {
             "display_attached": "1",
             "gpu": "8086:4680-31.0.101.5333",
-            "os": "Windows-10-19045.3930",
+            "os": "Windows-10-19045",
             "pool": "chromium.tests.gpu",
         },
     ),
@@ -2677,7 +2716,7 @@ targets.mixin(
     swarming = targets.swarming(
         dimensions = {
             "display_attached": "1",
-            "gpu": "10de:2783-32.0.15.8088",
+            "gpu": "10de:2783-32.0.15.8088|10de:2783-32.0.15.8129",
             "os": "Windows-11",
             "pool": "chromium.tests.gpu",
         },
@@ -2807,12 +2846,12 @@ targets.mixin(
     generate_pyl_entry = False,
     args = [
         "--xcode-build-version",
-        "17b5025f",
+        "17b5035f",
     ],
     swarming = targets.swarming(
         named_caches = [
             swarming.cache(
-                name = "xcode_ios_17b5025f",
+                name = "xcode_ios_17b5035f",
                 path = "Xcode.app",
             ),
         ],

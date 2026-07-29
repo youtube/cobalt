@@ -113,6 +113,12 @@ export declare interface GlicWebClient {
    *
    * Important: The panel is only made user-visible once the returned promise is
    * resolved or failed (failures are ignored and the panel is still shown).
+   *
+   * WARNING: Chrome may call this multiple times over the lifetime of the
+   * panel, even while the panel is already open. These calls may indicate that
+   * the panel was opened on a different tab's side panel or as a floating
+   * window. The web client should still inspect and react to the
+   * `panelOpeningData` in these cases.
    */
   notifyPanelWillOpen?
       (panelOpeningData: PanelOpeningData&PanelState): Promise<OpenPanelInfo>;
@@ -435,17 +441,6 @@ export declare interface GlicBrowserHost {
   isBrowserOpen?(): ObservableValue<boolean>;
 
   /**
-   * Provides information about the currently active browser window. Emits
-   * undefined if there is no active browser window.
-   *
-   * A browser window is considered active if it is the current active window,
-   * or if the panel is active and it is the last browser window that had focus.
-   *
-   * @deprecated Does not work for MULTI_INSTANCE, and will go away.
-   */
-  activeBrowser?(): ObservableValue<ActiveBrowserInfo|undefined>;
-
-  /**
    * Returns the observable state of the currently focused tab. Updates are sent
    * whenever:
    * - The user switches active tabs, which causes a change in `tabId`.
@@ -481,6 +476,9 @@ export declare interface GlicBrowserHost {
   /** Returns the state of the glic closed captioning setting. */
   getClosedCaptioningSetting?(): ObservableValue<boolean>;
 
+  /** Returns the state of the web actuation setting. */
+  getActuationOnWebSetting?(): ObservableValue<boolean>;
+
   /**
    * Returns the state of the default tab context permission for new sessions.
    * The returned observable will be updated when the setting changes.
@@ -510,6 +508,12 @@ export declare interface GlicBrowserHost {
    * promise that resolves when the browser has stored the new pref value.
    */
   setClosedCaptioningSetting?(enabled: boolean): Promise<void>;
+
+  /**
+   * Set the state of the web actuation permission in settings. Returns a
+   * promise that resolves when the browser has stored the new pref value.
+   */
+  setActuationOnWebSetting?(enabled: boolean): Promise<void>;
 
   /** Returns the user profile information. */
   getUserProfileInfo?(): Promise<UserProfileInfo>;
@@ -998,18 +1002,6 @@ export declare interface OpenPanelInfo {
 }
 
 /**
- * A panel can be in one of these three states.
- */
-export enum PanelStateKind {
-  /** Not shown. This is the initial state. */
-  HIDDEN = 0,
-  /** A floating window detached from any Chrome window. */
-  DETACHED = 1,
-  /** Attached to a Chrome window. */
-  ATTACHED = 2,
-}
-
-/**
  * Information of how the panel is being presented/configured.
  */
 export declare interface PanelState {
@@ -1315,9 +1307,6 @@ export declare interface ImageOriginAnnotations {}
 
 /**
  * An encoded screenshot image and associated metadata.
- *
- * Note: Only JPEG images will be supported initially, so mimeType will always
- * be "image/jpeg".
  */
 export declare interface Screenshot {
   /** Width and height of the image in pixels. */
@@ -1713,14 +1702,6 @@ export declare interface SuggestionContent {
   suggestion: string;
 }
 
-/** Information about the active browser window. */
-export declare interface ActiveBrowserInfo {
-  /** The unique ID of the active browser window. */
-  windowId: string;
-  /** Whether the active browser window is using the current user profile. */
-  usingThisProfile: boolean;
-}
-
 /**
  * Describes how long the user grants the actor with the permission to actuate.
  * Used when the actor is to actuate with sensitive data, such as entering
@@ -2004,6 +1985,18 @@ export enum RegisterConversationErrorReason {
   UNKNOWN = 0,
   // The instance already has a conversation ID.
   INSTANCE_ALREADY_HAS_CONVERSATION_ID = 1,
+}
+
+///////////////////////////////////////////////
+// WARNING - GENERATED FROM MOJOM, DO NOT EDIT.
+// The panel can be in one of these three states.
+export enum PanelStateKind {
+  // The panel is hidden.
+  HIDDEN = 0,
+  // The panel is a floating window, detached from any browser window.
+  DETACHED = 1,
+  // The panel is a side panel, attached to a browser window.
+  ATTACHED = 2,
 }
 
 ///////////////////////////////////////////////

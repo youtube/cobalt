@@ -833,9 +833,6 @@ BASE_FEATURE(kLiveCaptionUseGreedyTextStabilizer,
 // recognition results.
 BASE_FEATURE(kLiveCaptionUseWaitK, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Live Caption can be used in multiple languages, as opposed to just English.
-BASE_FEATURE(kLiveCaptionMultiLanguage, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enable experimental Live Caption languages.
 BASE_FEATURE(kLiveCaptionExperimentalLanguages,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1207,7 +1204,7 @@ BASE_FEATURE(kUseOutOfProcessVideoDecoding,
 );
 
 // Use shared image interface to transport video frame resources.
-BASE_FEATURE(kUseSharedImageInOOPVDProcess, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kUseSharedImageInOOPVDProcess, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
@@ -1360,12 +1357,6 @@ BASE_FEATURE(kUseFakeDeviceForMediaStream,
 BASE_FEATURE(kMediaStreamAccurateDroppedFrameCount,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_FUCHSIA)
-// Enables effects for camera and mic streams.
-BASE_FEATURE(kCameraMicEffects, base::FEATURE_DISABLED_BY_DEFAULT);
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS) &&
-        // !BUILDFLAG(IS_FUCHSIA)
-
 // Controls whether mirroring negotiations will include the AV1 codec for video
 // encoding.
 //
@@ -1412,6 +1403,11 @@ BASE_FEATURE(kCastStreamingWinHardwareH264, base::FEATURE_DISABLED_BY_DEFAULT);
 // Enables use of Fuchsia's Mediacodec service for encoding.
 BASE_FEATURE(kFuchsiaMediacodecVideoEncoder, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_FUCHSIA)
+
+// Controls whether to pre-dispatch more decode tasks when pending decodes is
+// smaller than maximum supported decodes as advertiszed by decoder.
+// Note: This is controlled on a per-board basis by ChromeOS and must be kept.
+BASE_FEATURE(kVideoDecodeBatching, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Safety switch to allow us to revert to the previous behavior of using the
 // cached bounds when the permission prompt is visible. If this feature is

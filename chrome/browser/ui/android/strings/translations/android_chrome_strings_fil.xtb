@@ -109,7 +109,6 @@ Para sa higit pang setting na gumagamit ng data para pahusayin ang iyong experie
 <translation id="1419753403124156396">I-restart ang Chrome?</translation>
 <translation id="1428770807407000502">I-off ang pag-sync?</translation>
 <translation id="1430915738399379752">I-print</translation>
-<translation id="1433478348197382180">Reading Mode</translation>
 <translation id="1435593198351412143">Awtomatikong magbubukas ang mga PDF</translation>
 <translation id="1437543266176261764">Tumatakbo sa <ph name="APP_NAME" /></translation>
 <translation id="1448440926884431741">Ayusin ang mga sinusubaybayan mong produkto sa Mga Bookmark</translation>
@@ -270,6 +269,7 @@ Ang taong may passphrase mo lang ang makakapagbasa ng iyong naka-encrypt na data
 <translation id="2249635629516220541">I-customize ang impormasyong ginagamit ng mga site para magpakita sa iyo ng mga ad</translation>
 <translation id="2251809247798634662">Bagong Incognito window</translation>
 <translation id="2253927598983295051">Piliin kung ano ang ise-share sa <ph name="APP_NAME" /></translation>
+<translation id="2261570557291037252">Higit pang impormasyon ng app</translation>
 <translation id="2276696007612801991">Mag-sign in sa iyong Google account para masuri ang mga password mo</translation>
 <translation id="2281243904606300427"><ph name="TAB_TITLE" />, Napiling Tab na Incognito</translation>
 <translation id="2286841657746966508">Billing address</translation>
@@ -369,7 +369,6 @@ Ang taong may passphrase mo lang ang makakapagbasa ng iyong naka-encrypt na data
 <translation id="2718352093833049315">Sa Wi-Fi lang</translation>
 <translation id="2718846868787000099">Para ipakita ang content sa iyong mga gustong wika, makikita ng mga site na binibisita mo ang iyong mga kagustuhan</translation>
 <translation id="2723001399770238859">audio</translation>
-<translation id="2734335652257251631">Ipakita ang Reading Mode</translation>
 <translation id="2739887572830526131">Panatilihin ang grupong ito para magdagdag ng mga tab dito sa ibang pagkakataon, o i-delete ito kung hindi mo na ito kailangan.</translation>
 <translation id="2742373789128106053">Hindi available ang <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> sa ngayon.</translation>
 <translation id="2760805590727089264">MM / YY</translation>
@@ -1011,7 +1010,6 @@ Maaaring may ibang uri ng history ng pag-browse ang iyong Google account tulad n
 <translation id="569536719314091526">Isalin ang page na ito sa anumang wika mula sa button na Higit pang opsyon</translation>
 <translation id="5696597120588531049">Makakatulong ang Chrome na panatilihin kang ligtas laban sa mga paglabag sa data, hindi ligtas na website, at higit pa</translation>
 <translation id="5698878456427040674">Tingnan kung sinusuportahan ang napiling account.</translation>
-<translation id="570347048394355941">Lumipat Sa Tab</translation>
 <translation id="5709213329446699338">Gustong kumonekta ng <ph name="SITE" /> sa isang serial port</translation>
 <translation id="5715150588940290235">I-delete ang mga naka-save na panseguridad na code?</translation>
 <translation id="571930967925877633">Hindi na isi-sync sa Google Account mo ang iyong mga bookmark, history, at iba pang data ng Chrome</translation>
@@ -1139,6 +1137,7 @@ Maaaring may ibang uri ng history ng pag-browse ang iyong Google account tulad n
 <translation id="6232535412751077445">Kapag na-enable mo ang “Huwag Subaybayan,” magsasama ng isang kahilingan sa trapiko ng iyong pagba-browse. Ang anumang magiging epekto ay dedepende sa pagtugon at pagbibigay-kahulugan ng website sa nabanggit na kahilingan.
 
 Halimbawa, puwedeng tumugon ang ilang website sa kahilingang ito sa pamamagitan ng pagpapakita sa iyo ng mga ad na hindi ibinatay sa iba pang nabisita mo nang website. Kokolektahin at gagamitin pa rin ng maraming website ang iyong data sa pag-browse - halimbawa, para mapahusay ang seguridad, makapagpakita ng content, mga ad, at rekomendasyon, at makabuo ng mga istatistika sa pag-uulat.</translation>
+<translation id="623755660902014047">Reading mode</translation>
 <translation id="6247557882553405851">Google Password Manager</translation>
 <translation id="6248988683584659830">Mga setting sa paghahanap</translation>
 <translation id="6250847299079540062"><ph name="TAB_TITLE" />, Naka-multiselect at Naka-Pin na Tab na Incognito</translation>
@@ -1300,6 +1299,7 @@ Halimbawa, puwedeng tumugon ang ilang website sa kahilingang ito sa pamamagitan 
 <translation id="6865313869410766144">Data ng form ng autofill</translation>
 <translation id="6867400383614725881">Bagong tab na Incognito</translation>
 <translation id="686899695320434745">Hindi naka-encrypt ang mga address gamit ang iyong passphrase. Binibigyang-daan ka nitong magamit ang mga ito sa iba pang serbisyo ng Google.</translation>
+<translation id="6870625088374152862">Naka-sign in bilang <ph name="USER_EMAIL_ADDRESS" /></translation>
 <translation id="687838958001010630">Mae-edit ng sinumang may link ang lahat ng tab</translation>
 <translation id="6880903702195291049">Mukhang maayos ang mga pahintulot</translation>
 <translation id="6883204995689174413">Ibahagi</translation>
@@ -1396,7 +1396,6 @@ Para baguhin ang setting na ito, <ph name="BEGIN_LINK" />i-delete ang data sa Ch
 <translation id="7221869452894271364">I-reload ang page na ito</translation>
 <translation id="7227218174981371415">{FILE_COUNT,plural, =1{Nakabinbin ang 1 pag-download}one{Nakabinbin ang # pag-download}other{Nakabinbin ang # na pag-download}}</translation>
 <translation id="7230064152164845085">Lumipat sa Incognito</translation>
-<translation id="7230836263524391273">I-hide ang Reading Mode</translation>
 <translation id="7237724030342645845">Huminto sa paggana ang Google Password Manager</translation>
 <translation id="72415438529550637">Nakasara ang mungkahi sa password.</translation>
 <translation id="7248671827512403053">Application</translation>
@@ -1731,7 +1730,6 @@ Para baguhin ang setting na ito, <ph name="BEGIN_LINK" />i-delete ang data sa Ch
 <translation id="867914734596684889">Ipakita o i-hide ang Bookmarks bar</translation>
 <translation id="8683039184091909753">larawan</translation>
 <translation id="8688183792442786085"><ph name="TAB_TITLE" />, Napiling Tab</translation>
-<translation id="8693232767599693749">Tingnan ang Reading Mode?</translation>
 <translation id="8697753151306746444">I-share na lang ang window o screen</translation>
 <translation id="8699120352855309748">Huwag mag-alok na isalin ang mga wikang ito</translation>
 <translation id="8712637175834984815">Nakuha ko</translation>

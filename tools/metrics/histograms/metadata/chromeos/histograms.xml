@@ -418,7 +418,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Camera.ConfigureStreamsLatency" units="microseconds"
-    expires_after="2026-02-10">
+    expires_after="2026-04-12">
   <owner>beckerh@chromium.org</owner>
   <owner>chromeos-camera-eng@google.com</owner>
   <summary>
@@ -431,7 +431,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Camera.Effects.Error" enum="CameraEffectError"
-    expires_after="2026-02-10">
+    expires_after="2026-04-12">
   <owner>skyostil@chromium.org</owner>
   <owner>chromeos-camera-eng@google.com</owner>
   <summary>
@@ -443,7 +443,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Camera.Effects.NpuToGpuFallbackEvent" enum="Boolean"
-    expires_after="2026-02-10">
+    expires_after="2026-04-12">
   <owner>imranziad@chromium.org</owner>
   <owner>chromeos-camera-eng@google.com</owner>
   <summary>
@@ -505,7 +505,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Camera.Effects.SelectedEffect"
-    enum="CameraEffectType" expires_after="2026-02-10">
+    enum="CameraEffectType" expires_after="2026-04-12">
   <owner>jmpollock@chromium.org</owner>
   <owner>chromeos-camera-eng@google.com</owner>
   <summary>
@@ -517,7 +517,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 
 <histogram
     name="ChromeOS.Camera.Effects.{EffectType}.{StreamType}.AvgProcessedFrameInterval"
-    units="microseconds" expires_after="2026-02-10">
+    units="microseconds" expires_after="2026-04-12">
   <owner>jmpollock@chromium.org</owner>
   <owner>chromeos-camera-eng@google.com</owner>
   <summary>
@@ -546,7 +546,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 
 <histogram
     name="ChromeOS.Camera.Effects.{EffectType}.{StreamType}.AvgProcessingLatency"
-    units="microseconds" expires_after="2026-02-10">
+    units="microseconds" expires_after="2026-04-12">
   <owner>jmpollock@chromium.org</owner>
   <owner>chromeos-camera-eng@google.com</owner>
   <summary>
@@ -651,7 +651,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Camera.FrameDropRate.{FeatureType}" units="%"
-    expires_after="2026-02-10">
+    expires_after="2026-04-12">
   <owner>julianachang@chromium.org</owner>
   <owner>chromeos-camera-eng@google.com</owner>
   <summary>
@@ -791,7 +791,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 
 <histogram
     name="ChromeOS.Camera.Jpeg.Latency.{JpegProcessMethod}.{JpegProcessType}"
-    units="microseconds" expires_after="2026-02-10">
+    units="microseconds" expires_after="2026-04-12">
   <owner>beckerh@chromium.org</owner>
   <owner>chromeos-camera-eng@google.com</owner>
   <summary>
@@ -885,7 +885,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Camera.OpenDeviceClientType"
-    enum="ChromeOSCameraClientType" expires_after="2026-02-10">
+    enum="ChromeOSCameraClientType" expires_after="2026-04-12">
   <owner>wtlee@chromium.org</owner>
   <owner>chromeos-camera-eng@google.com</owner>
   <summary>
@@ -905,7 +905,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Camera.OpenDeviceLatency" units="microseconds"
-    expires_after="2026-02-10">
+    expires_after="2026-04-12">
   <owner>beckerh@chromium.org</owner>
   <owner>chromeos-camera-eng@google.com</owner>
   <summary>
@@ -917,7 +917,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Camera.PortraitMode.AverageLatency"
-    units="microseconds" expires_after="2026-02-10">
+    units="microseconds" expires_after="2026-04-12">
   <owner>julianachang@google.com</owner>
   <owner>chromeos-camera-eng@google.com</owner>
   <summary>
@@ -941,7 +941,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Camera.PortraitMode.NumStillShotsTaken"
-    units="captures" expires_after="2026-02-10">
+    units="captures" expires_after="2026-04-12">
   <owner>julianachang@google.com</owner>
   <owner>chromeos-camera-eng@google.com</owner>
   <summary>
@@ -951,7 +951,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Camera.SessionDuration" units="seconds"
-    expires_after="2026-02-10">
+    expires_after="2026-04-12">
   <owner>beckerh@chromium.org</owner>
   <owner>chromeos-camera-eng@google.com</owner>
   <summary>Records the session duration in Chrome OS camera service.</summary>
@@ -1405,7 +1405,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.DiagnosticsUi.KeyboardTesterRoutineDuration"
-    units="ms" expires_after="2025-12-31">
+    units="ms" expires_after="2026-04-12">
   <owner>byronlee@google.com</owner>
   <owner>cros-tdm-tpe-eng@google.com</owner>
   <summary>
@@ -1415,7 +1415,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.DiagnosticsUi.MemoryRoutineDuration" units="s"
-    expires_after="2025-12-31">
+    expires_after="2026-04-12">
   <owner>byronlee@google.com</owner>
   <owner>cros-tdm-tpe-eng@google.com</owner>
   <summary>
@@ -2807,7 +2807,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 
 <histogram name="ChromeOS.MagicBoost.OptInCard.{OptInFeatures}"
     enum="OptInCardAction" expires_after="2026-08-10">
-  <owner>leandre@google.com</owner>
+  <owner>newcomer@google.com</owner>
   <owner>cros-status-area-eng@google.com</owner>
   <summary>
     Tracks the actions in the magic boost opt in card, which is triggered by the
@@ -2846,7 +2846,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 
 <histogram name="ChromeOS.Mahi.ContextMenuView.Activated"
     enum="MahiContextMenuButtonType" expires_after="2026-02-22">
-  <owner>leandre@chromium.org</owner>
+  <owner>newcomer@chromium.org</owner>
   <owner>cros-status-area-eng@google.com</owner>
   <summary>
     Recorded when any button or clickable view in the web Mahi Context Menu view
@@ -2856,7 +2856,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 
 <histogram name="ChromeOS.Mahi.ContextMenuView.ActivatedFailed"
     enum="MahiContextMenuButtonType" expires_after="2026-02-01">
-  <owner>leandre@chromium.org</owner>
+  <owner>newcomer@chromium.org</owner>
   <owner>cros-status-area-eng@google.com</owner>
   <summary>
     Recorded when clicking on any button or clickable view in the web Mahi
@@ -2866,7 +2866,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 
 <histogram name="ChromeOS.Mahi.ContextMenuView.ButtonClicked"
     enum="MahiMenuButton" expires_after="2026-02-22">
-  <owner>leandre@chromium.org</owner>
+  <owner>newcomer@chromium.org</owner>
   <owner>cros-status-area-eng@google.com</owner>
   <summary>
     Recorded when any button in the web Mahi Context Menu view is clicked.
@@ -2875,7 +2875,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 
 <histogram name="ChromeOS.Mahi.ContextMenuView.Distillable"
     enum="BooleanDistillable" expires_after="2025-12-14">
-  <owner>leandre@chromium.org</owner>
+  <owner>newcomer@chromium.org</owner>
   <owner>cros-status-area-eng@google.com</owner>
   <summary>
     Records whether the page is distillable when Mahi menu is requested to show.
@@ -2932,7 +2932,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 
 <histogram name="ChromeOS.MessageCenter.ScrollActionReason"
     enum="ChromeOSMessageCenterScrollActionReason" expires_after="2026-02-01">
-  <owner>leandre@chromium.org</owner>
+  <owner>newcomer@chromium.org</owner>
   <owner>cros-status-area-eng@google.com</owner>
   <summary>
     The cause of the scroll event by the user on the message center. Only the
@@ -4673,7 +4673,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.TelemetryExtension.RoutineCreation"
-    enum="TelemetryExtensionRoutineCategory" expires_after="2025-12-31">
+    enum="TelemetryExtensionRoutineCategory" expires_after="2026-04-12">
   <owner>weiluanwang@google.com</owner>
   <owner>dennyh@google.com</owner>
   <owner>cros-tdm-tpe-eng@google.com</owner>

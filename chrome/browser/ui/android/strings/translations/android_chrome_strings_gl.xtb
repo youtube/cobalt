@@ -109,7 +109,6 @@ Se queres ver máis opcións de configuración que usen datos para mellorar a t�
 <translation id="1419753403124156396">Queres reiniciar Chrome?</translation>
 <translation id="1428770807407000502">Queres desactivar a sincronización?</translation>
 <translation id="1430915738399379752">Imprimir</translation>
-<translation id="1433478348197382180">Modo de lectura</translation>
 <translation id="1435593198351412143">Abrir PDF automaticamente</translation>
 <translation id="1437543266176261764">Executándose en <ph name="APP_NAME" /></translation>
 <translation id="1448440926884431741">Organiza os produtos dos que fagas un seguimento en Marcadores</translation>
@@ -270,6 +269,7 @@ Só poderán ler os teus datos encriptados as persoas que coñezan a túa frase 
 <translation id="2249635629516220541">Personaliza a información que usan os sitios para mostrarche anuncios</translation>
 <translation id="2251809247798634662">Nova ventá do modo de incógnito</translation>
 <translation id="2253927598983295051">Escolle o que queres compartir con <ph name="APP_NAME" /></translation>
+<translation id="2261570557291037252">Máis información sobre a aplicación</translation>
 <translation id="2276696007612801991">Inicia sesión na túa Conta de Google para comprobar os teus contrasinais</translation>
 <translation id="2281243904606300427"><ph name="TAB_TITLE" />, pestana do modo de incógnito seleccionada</translation>
 <translation id="2286841657746966508">Enderezo de facturación</translation>
@@ -369,7 +369,6 @@ Só poderán ler os teus datos encriptados as persoas que coñezan a túa frase 
 <translation id="2718352093833049315">Só con wifi</translation>
 <translation id="2718846868787000099">Se queres que che apareza o contido nos teus idiomas preferidos, os sitios que visites poderán ver as túas preferencias</translation>
 <translation id="2723001399770238859">audio</translation>
-<translation id="2734335652257251631">Mostrar modo de lectura</translation>
 <translation id="2739887572830526131">Mantén este grupo para engadir pestanas máis adiante ou elimínao se xa non o necesitas.</translation>
 <translation id="2742373789128106053"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> non está dispoñible neste momento.</translation>
 <translation id="2760805590727089264">MM/AA</translation>
@@ -1011,7 +1010,6 @@ Só poderán ler os teus datos encriptados as persoas que coñezan a túa frase 
 <translation id="569536719314091526">Traduce esta páxina a calquera idioma desde o botón Máis opcións</translation>
 <translation id="5696597120588531049">Chrome pode protexerte contra violacións da seguranza dos datos, sitios web que non son seguros e moito máis</translation>
 <translation id="5698878456427040674">Comproba se se admite a conta seleccionada.</translation>
-<translation id="570347048394355941">Cambiar á pestana</translation>
 <translation id="5709213329446699338"><ph name="SITE" /> quere conectarse a un porto en serie</translation>
 <translation id="5715150588940290235">Queres eliminar os códigos de seguranza gardados?</translation>
 <translation id="571930967925877633">Os marcadores, o historial e outros datos de Chrome deixarán de sincronizarse coa túa Conta de Google</translation>
@@ -1139,6 +1137,7 @@ Só poderán ler os teus datos encriptados as persoas que coñezan a túa frase 
 <translation id="6232535412751077445">Se activas a opción Do Not Track, incluirase unha solicitude no teu tráfico de navegación. O efecto producido depende de se o sitio web responde á solicitude e da interpretación desta.
 
 Por exemplo, algúns sitios web poden responder a esta solicitude mostrándoche anuncios que non estean baseados noutros sitios web que visitases. Moitos sitios web seguirán recompilando e utilizando os teus datos de navegación para, por exemplo, mellorar a seguranza, fornecer contido, anuncios e recomendacións e para crear estatísticas de informes.</translation>
+<translation id="623755660902014047">Modo de lectura</translation>
 <translation id="6247557882553405851">Xestor de contrasinais de Google</translation>
 <translation id="6248988683584659830">Configuración de busca</translation>
 <translation id="6250847299079540062"><ph name="TAB_TITLE" />, pestana do modo de incógnito fixada e multiseleccionada</translation>
@@ -1300,6 +1299,7 @@ Por exemplo, algúns sitios web poden responder a esta solicitude mostrándoche 
 <translation id="6865313869410766144">Autocompletar datos do formulario</translation>
 <translation id="6867400383614725881">Nova pestana de incógnito</translation>
 <translation id="686899695320434745">Os enderezos non se encriptan coa túa frase de acceso. Deste xeito, poderás usalos noutros servizos de Google.</translation>
+<translation id="6870625088374152862">Iniciaches sesión como <ph name="USER_EMAIL_ADDRESS" /></translation>
 <translation id="687838958001010630">Calquera persoa que teña a ligazón poderá editar todas as pestanas</translation>
 <translation id="6880903702195291049">Todo en orde cos permisos</translation>
 <translation id="6883204995689174413">Compartir</translation>
@@ -1396,7 +1396,6 @@ Para cambiar esta opción de configuración, <ph name="BEGIN_LINK" />elimina os 
 <translation id="7221869452894271364">Volver cargar esta páxina</translation>
 <translation id="7227218174981371415">{FILE_COUNT,plural, =1{1 descarga pendente}other{# descargas pendentes}}</translation>
 <translation id="7230064152164845085">Cambiar ao modo de incógnito</translation>
-<translation id="7230836263524391273">Ocultar modo de lectura</translation>
 <translation id="7237724030342645845">O xestor de contrasinais de Google deixou de funcionar</translation>
 <translation id="72415438529550637">A suxestión de contrasinal está pechada.</translation>
 <translation id="7248671827512403053">Aplicación</translation>
@@ -1731,7 +1730,6 @@ Para cambiar esta opción de configuración, <ph name="BEGIN_LINK" />elimina os 
 <translation id="867914734596684889">Mostrar ou ocultar a barra de marcadores</translation>
 <translation id="8683039184091909753">imaxe</translation>
 <translation id="8688183792442786085"><ph name="TAB_TITLE" />, pestana seleccionada</translation>
-<translation id="8693232767599693749">Queres abrir o modo de lectura?</translation>
 <translation id="8697753151306746444">Comparte a ventá ou a pantalla no seu lugar</translation>
 <translation id="8699120352855309748">Non ofrecer a opción de traducir texto escrito nestes idiomas</translation>
 <translation id="8712637175834984815">De acordo</translation>

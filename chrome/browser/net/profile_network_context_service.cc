@@ -105,15 +105,15 @@
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_switches.h"
+#include "chrome/browser/ash/certificate_provider/certificate_provider_service.h"
+#include "chrome/browser/ash/certificate_provider/certificate_provider_service_factory.h"
 #include "chrome/browser/ash/kcer/kcer_factory_ash.h"
 #include "chrome/browser/ash/net/client_cert_store_kcer.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
-#include "chrome/browser/certificate_provider/certificate_provider.h"
-#include "chrome/browser/certificate_provider/certificate_provider_service.h"
-#include "chrome/browser/certificate_provider/certificate_provider_service_factory.h"
 #include "chrome/browser/policy/networking/policy_cert_service.h"
 #include "chrome/browser/policy/networking/policy_cert_service_factory.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
+#include "chromeos/components/certificate_provider/certificate_provider.h"
 #include "chromeos/components/kiosk/kiosk_utils.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "components/user_manager/user.h"
@@ -1253,7 +1253,8 @@ ProfileNetworkContextService::CreateClientCertStore() {
   chromeos::CertificateProviderService* cert_provider_service =
       chromeos::CertificateProviderServiceFactory::GetForBrowserContext(
           profile_);
-  std::unique_ptr<chromeos::CertificateProvider> certificate_provider;
+  std::unique_ptr<chromeos::certificate_provider::CertificateProvider>
+      certificate_provider;
   if (cert_provider_service) {
     certificate_provider = cert_provider_service->CreateCertificateProvider();
   }

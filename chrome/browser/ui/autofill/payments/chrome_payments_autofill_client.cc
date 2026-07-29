@@ -4,10 +4,12 @@
 
 #include "chrome/browser/ui/autofill/payments/chrome_payments_autofill_client.h"
 
+#include <memory>
 #include <optional>
 #include <vector>
 
 #include "base/check_deref.h"
+#include "base/containers/span.h"
 #include "base/functional/callback.h"
 #include "base/notimplemented.h"
 #include "base/strings/utf_string_conversions.h"
@@ -987,11 +989,14 @@ bool ChromePaymentsAutofillClient::ShowTouchToFillProgress(
 }
 
 bool ChromePaymentsAutofillClient::ShowTouchToFillBnplIssuers(
-    base::WeakPtr<TouchToFillDelegate> delegate,
-    base::span<const BnplIssuerContext> bnpl_issuer_contexts) {
+    base::span<const payments::BnplIssuerContext> bnpl_issuer_contexts,
+    const std::string& app_locale,
+    base::OnceCallback<void(BnplIssuer)> selected_issuer_callback,
+    base::OnceClosure cancel_callback) {
 #if BUILDFLAG(IS_ANDROID)
   return GetTouchToFillPaymentMethodController()->ShowBnplIssuers(
-      delegate, bnpl_issuer_contexts);
+      bnpl_issuer_contexts, app_locale, std::move(selected_issuer_callback),
+      std::move(cancel_callback));
 #else
   // Touch To Fill is not supported on Desktop.
   NOTREACHED();
@@ -999,7 +1004,6 @@ bool ChromePaymentsAutofillClient::ShowTouchToFillBnplIssuers(
 }
 
 bool ChromePaymentsAutofillClient::ShowTouchToFillError(
-    base::WeakPtr<TouchToFillDelegate> delegate,
     const AutofillErrorDialogContext& context) {
 #if BUILDFLAG(IS_ANDROID)
   // Use temporary `AutofillErrorDialogControllerImpl` to get error title and
@@ -1009,7 +1013,7 @@ bool ChromePaymentsAutofillClient::ShowTouchToFillError(
 
   // TTF should already be shown, so pass nullptr for `view`.
   return GetTouchToFillPaymentMethodController()->ShowErrorScreen(
-      /*view=*/nullptr, delegate, autofill_error_dialog_controller.GetTitle(),
+      /*view=*/nullptr, autofill_error_dialog_controller.GetTitle(),
       autofill_error_dialog_controller.GetDescription());
 #else
   // Touch To Fill is not supported on Desktop.

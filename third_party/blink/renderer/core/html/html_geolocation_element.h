@@ -53,9 +53,29 @@ class CORE_EXPORT HTMLGeolocationElement final : public HTMLPermissionElement {
  private:
   FRIEND_TEST_ALL_PREFIXES(HTMLGeolocationElementTest,
                            GeolocationUsingLocationAppearance);
+  FRIEND_TEST_ALL_PREFIXES(HTMLGeolocationElementTest,
+                           GeolocationTranslateInnerText);
+  FRIEND_TEST_ALL_PREFIXES(HTMLGeolocationElementTest,
+                           GeolocationWatchPositionAppearance);
+  FRIEND_TEST_ALL_PREFIXES(HTMLGeolocationElementTest,
+                           GeolocationGrantedClickBehavior);
+  FRIEND_TEST_ALL_PREFIXES(HTMLGeolocationElementTest, GeolocationAutolocate);
+  FRIEND_TEST_ALL_PREFIXES(HTMLGeolocationElementTest,
+                           GeolocationAutolocateWatch);
+  FRIEND_TEST_ALL_PREFIXES(HTMLGeolocationElementTest,
+                           GeolocationAutolocateTriggersOnce);
+  FRIEND_TEST_ALL_PREFIXES(HTMLGeolocationElementTest,
+                           GeolocationTranslateInnerText);
+  FRIEND_TEST_ALL_PREFIXES(HTMLGeolocationElementTest,
+                           RequestLocationAfterClickAndPermissionChanged);
 
   // blink::HTMLPermissionElement:
   void AttributeChanged(const AttributeModificationParams& params) override;
+  void DefaultEventHandler(Event&) override;
+  void OnPermissionStatusChange(mojom::blink::PermissionName,
+                                mojom::blink::PermissionStatus) override;
+  void DidFinishLifecycleUpdate(const LocalFrameView&) override;
+
   void GetCurrentPosition();
   void WatchPosition();
   // Callback for Geolocation::getCurrentPosition. It is called when the
@@ -65,7 +85,13 @@ class CORE_EXPORT HTMLGeolocationElement final : public HTMLPermissionElement {
   Geolocation* GetGeolocation();
   void SpinningIconTimerFired(TimerBase*);
   void MaybeStopSpinning();
+  enum class RequestInProgress { kNo, kYes };
+  void StartSpinning(RequestInProgress request_in_progress);
   bool ShouldShowSpinningIcon();
+  void RequestGeolocation();
+  void ClearWatch();
+  enum class ForceAutolocate { kNo, kYes };
+  void MaybeTriggerAutolocate(ForceAutolocate);
 
   bool precise_ = false;
   bool autolocate_ = false;
@@ -73,6 +99,7 @@ class CORE_EXPORT HTMLGeolocationElement final : public HTMLPermissionElement {
   // The watch_id_ is used to identify the watcher in the Geolocation object.
   // The ids always start from 1. 0 means that the watch is not set.
   int watch_id_ = 0;
+  bool did_autolocate_trigger_request = false;
   bool is_geolocation_request_in_progress_ = false;
   base::TimeTicks spinning_started_time_;
   HeapTaskRunnerTimer<HTMLGeolocationElement> spinning_icon_timer_;

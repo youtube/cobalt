@@ -63,6 +63,7 @@
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_prefs.h"
 #include "components/device_reauth/mock_device_authenticator.h"
+#include "components/one_time_tokens/core/browser/one_time_token_service_impl.h"
 #include "components/one_time_tokens/core/browser/sms_otp_backend.h"
 #include "components/optimization_guide/core/feature_registry/feature_registration.h"
 #include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
@@ -401,6 +402,10 @@ class TestAutofillClientTemplate : public T {
     return is_cvc_saving_supported_;
   }
 
+  bool IsCreditCardUploadEnabled() const override {
+    return is_credit_card_upload_enabled_;
+  }
+
   LogManager* GetCurrentLogManager() override { return log_manager_.get(); }
 
   autofill_metrics::FormInteractionsUkmLogger& GetFormInteractionsUkmLogger()
@@ -603,6 +608,10 @@ class TestAutofillClientTemplate : public T {
     is_cvc_saving_supported_ = is_cvc_saving_supported;
   }
 
+  void set_is_credit_card_upload_enabled(bool is_credit_card_upload_enabled) {
+    is_credit_card_upload_enabled_ = is_credit_card_upload_enabled;
+  }
+
   void set_crowdsourcing_manager(
       std::unique_ptr<AutofillCrowdsourcingManager> crowdsourcing_manager) {
     crowdsourcing_manager_ = std::move(crowdsourcing_manager);
@@ -656,6 +665,19 @@ class TestAutofillClientTemplate : public T {
     injected_sms_otp_backend_ = std::move(sms_otp_backend);
   }
 
+  one_time_tokens::OneTimeTokenService* GetOneTimeTokenService()
+      const override {
+    return injected_one_time_token_service_
+               ? injected_one_time_token_service_.get()
+               : T::GetOneTimeTokenService();
+  }
+
+  void set_one_time_token_service(
+      std::unique_ptr<one_time_tokens::OneTimeTokenService>
+          one_time_token_service) {
+    injected_one_time_token_service_ = std::move(one_time_token_service);
+  }
+
  private:
   ukm::TestAutoSetUkmRecorder test_ukm_recorder_;
   signin::IdentityTestEnvironment identity_test_env_;
@@ -678,6 +700,8 @@ class TestAutofillClientTemplate : public T {
   std::unique_ptr<device_reauth::MockDeviceAuthenticator>
       device_authenticator_ = nullptr;
   std::unique_ptr<one_time_tokens::SmsOtpBackend> injected_sms_otp_backend_;
+  std::unique_ptr<one_time_tokens::OneTimeTokenService>
+      injected_one_time_token_service_;
 
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   std::unique_ptr<FieldClassificationModelHandler>
@@ -723,6 +747,8 @@ class TestAutofillClientTemplate : public T {
   bool is_showing_popup_ = false;
 
   bool is_cvc_saving_supported_ = true;
+
+  bool is_credit_card_upload_enabled_ = true;
 
   SuggestionHidingReason popup_hidden_reason_;
 

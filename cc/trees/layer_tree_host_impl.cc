@@ -306,7 +306,7 @@ void LayerTreeHostImpl::DidUpdateScrollAnimationCurve() {
 }
 
 void LayerTreeHostImpl::DidStartPinchZoom() {
-  client_->RenewTreePriority();
+  RenewTreePriority();
   frame_trackers_.StartSequence(FrameSequenceTrackerType::kPinchZoom);
 }
 
@@ -321,7 +321,7 @@ void LayerTreeHostImpl::DidEndPinchZoom() {
 
 void LayerTreeHostImpl::DidUpdatePinchZoom() {
   SetNeedsRedraw(/*animation_only=*/false, /*skip_if_inside_draw=*/false);
-  client_->RenewTreePriority();
+  RenewTreePriority();
 }
 
 void LayerTreeHostImpl::DidStartScroll() {
@@ -329,7 +329,7 @@ void LayerTreeHostImpl::DidStartScroll() {
   if (!settings().single_thread_proxy_scheduler) {
     client_->SetHasActiveThreadedScroll(true);
   }
-  client_->RenewTreePriority();
+  RenewTreePriority();
 }
 
 void LayerTreeHostImpl::DidEndScroll() {
@@ -450,8 +450,6 @@ LayerTreeHostImpl::LayerTreeHostImpl(
       task_runner_provider_(task_runner_provider),
       current_begin_frame_tracker_(FROM_HERE),
       settings_(settings),
-      use_layer_context_for_animations_(
-          settings_.UseLayerContextForAnimations()),
       is_synchronous_single_threaded_(!task_runner_provider->HasImplThread() &&
                                       !settings_.single_thread_proxy_scheduler),
       cached_managed_memory_policy_(settings.memory_policy),
@@ -893,6 +891,10 @@ void LayerTreeHostImpl::UpdateSyncTreeAfterCommitOrImplSideInvalidation() {
   if (paint_worklet_tracker_.InvalidatePaintWorkletsOnPendingTree()) {
     client_->SetNeedsImplSideInvalidation(
         true /* needs_first_draw_on_activation */);
+    if (sync_tree()->property_change_forces_commit_criteria() ==
+        PropertyChangeForcesCommitCriteria::kAny) {
+      SetNeedsCommit();
+    }
   }
   PaintImageIdFlatSet dirty_paint_worklet_ids;
   PaintWorkletJobMap dirty_paint_worklets =
@@ -1191,8 +1193,8 @@ void LayerTreeHostImpl::StartPageScaleAnimation(const gfx::Point& target_offset,
   }
 
   SetNeedsOneBeginImplFrame();
-  client_->SetNeedsCommitOnImplThread();
-  client_->RenewTreePriority();
+  SetNeedsCommit();
+  RenewTreePriority();
 }
 
 void LayerTreeHostImpl::SetNeedsAnimateInput() {
@@ -1698,8 +1700,8 @@ DrawResult LayerTreeHostImpl::CalculateRenderPasses(FrameData* frame) {
 }
 
 void LayerTreeHostImpl::DidAnimateScrollOffset() {
-  client_->SetNeedsCommitOnImplThread();
-  client_->RenewTreePriority();
+  SetNeedsCommit();
+  RenewTreePriority();
 }
 
 void LayerTreeHostImpl::SetViewportDamage(const gfx::Rect& damage_rect) {
@@ -2213,19 +2215,14 @@ void LayerTreeHostImpl::NotifyTileStateChanged(const Tile* tile,
   if (settings_.TreesInVizInClientProcess() &&
       !static_cast<PictureLayerImpl&>(*layer_impl)
            .should_batch_updated_tiles()) {
-    gpu::SharedImageInterface* sii = nullptr;
-    if (viz::RasterContextProvider* context_provider =
-            layer_tree_frame_sink_->context_provider()) {
-      sii = context_provider->SharedImageInterface();
-    }
-
     // In TreesInViz mode, send this tile update directly to Viz only if the
     // layer is not batching its updates. A layer stops batching updates
     // (should_batch_updated_tiles() becomes false) after it has been
     // successfully sent to Viz via UpdateDisplayTree().
     layer_context_->UpdateDisplayTile(
         static_cast<PictureLayerImpl&>(*layer_impl), *tile,
-        *resource_provider(), sii, update_damage);
+        *resource_provider(),
+        layer_tree_frame_sink_->shared_image_interface().get(), update_damage);
   }
 
   if (set_needs_redraw && !client_->IsInsideDraw() &&
@@ -2292,7 +2289,7 @@ void LayerTreeHostImpl::SetMemoryPolicyImpl(const ManagedMemoryPolicy& policy) {
   }
 
   if (needs_commit)
-    client_->SetNeedsCommitOnImplThread();
+    SetNeedsCommit();
 }
 
 void LayerTreeHostImpl::SetExternalTilePriorityConstraints(
@@ -2963,6 +2960,10 @@ std::optional<SubmitInfo> LayerTreeHostImpl::DrawLayers(FrameData* frame) {
             data->add_latency_ids(latency.trace_id());
           }
         });
+    if (settings_.trees_in_viz_in_viz_process) {
+      compositor_frame.metadata.trees_in_viz_timing_details
+          .submit_compositor_frame = submit_time;
+    }
     layer_tree_frame_sink_->SubmitCompositorFrame(
         std::move(compositor_frame),
         /*hit_test_data_changed=*/false);
@@ -3034,7 +3035,7 @@ std::optional<SubmitInfo> LayerTreeHostImpl::DrawLayers(FrameData* frame) {
     // may force a separate render pass for the layer, which will persist until
     // a new commit removes it. Force a commit after copy requests, to remove
     // extra render passes.
-    client_->SetNeedsCommitOnImplThread();
+    SetNeedsCommit();
   }
 
   // The next frame should start by assuming nothing has changed, and changes
@@ -3375,13 +3376,9 @@ viz::CompositorFrame LayerTreeHostImpl::GenerateCompositorFrame(
   viz::CompositorFrame compositor_frame;
   compositor_frame.metadata = std::move(metadata);
 
-  gpu::SharedImageInterface* sii = nullptr;
-  if (auto* context_provider = layer_tree_frame_sink_->context_provider()) {
-    sii = context_provider->SharedImageInterface();
-  }
-
-  resource_provider_->PrepareSendToParent(resources,
-                                          &compositor_frame.resource_list, sii);
+  resource_provider_->PrepareSendToParent(
+      resources, &compositor_frame.resource_list,
+      layer_tree_frame_sink_->shared_image_interface().get());
 
   compositor_frame.render_pass_list = std::move(frame->render_passes);
 
@@ -3430,15 +3427,10 @@ base::TimeTicks LayerTreeHostImpl::UpdateDisplayTree(FrameData& frame) {
   DCHECK(settings_.TreesInVizInClientProcess());
   DCHECK(layer_context_);
 
-  gpu::SharedImageInterface* sii = nullptr;
-  if (viz::RasterContextProvider* context_provider =
-          layer_tree_frame_sink_->context_provider()) {
-    sii = context_provider->SharedImageInterface();
-  }
-
   return layer_context_->UpdateDisplayTreeFrom(
-      *active_tree(), *resource_provider(), sii, viewport_damage_rect_,
-      target_local_surface_id_);
+      *active_tree(), *resource_provider(),
+      layer_tree_frame_sink_->shared_image_interface().get(),
+      viewport_damage_rect_, target_local_surface_id_);
 }
 
 int LayerTreeHostImpl::RequestedMSAASampleCount() const {
@@ -3479,10 +3471,7 @@ void LayerTreeHostImpl::UpdateRasterCapabilities() {
 
     // Software compositor always uses BGRA 8888 format for tiles.
     raster_caps_.tile_format = viz::SinglePlaneFormat::kBGRA_8888;
-    raster_caps_.ui_rgba_format =
-        layer_tree_frame_sink_->shared_image_interface()
-            ? viz::SinglePlaneFormat::kBGRA_8888
-            : viz::SinglePlaneFormat::kRGBA_8888;
+    raster_caps_.ui_rgba_format = viz::SinglePlaneFormat::kBGRA_8888;
     return;
   }
 
@@ -3628,7 +3617,8 @@ bool LayerTreeHostImpl::WillBeginImplFrame(const viz::BeginFrameArgs& args) {
     input_delegate_->WillBeginImplFrame(args);
 
   // TODO(zmo): Revisit if this is needed for TreeAnimationsInViz mode.
-  if (!settings().trees_in_viz_in_viz_process) {
+  if (!settings().trees_in_viz_in_viz_process ||
+      settings().TreeAnimationsInVizInVizProcess()) {
     Animate();
   }
 
@@ -4071,7 +4061,7 @@ void LayerTreeHostImpl::ActivateSyncTree() {
   }
 
   active_tree_->DidBecomeActive();
-  client_->RenewTreePriority();
+  RenewTreePriority();
 
   // If we have any picture layers, then by activating we also modified tile
   // priorities.
@@ -4237,7 +4227,7 @@ void LayerTreeHostImpl::SetNeedsRedraw(bool animation_only,
   events_metrics_manager_.SaveActiveEventMetrics();
 
   if (settings_.TreesInVizInClientProcess()) {
-    if (!animation_only || !use_layer_context_for_animations_) {
+    if (!animation_only || !settings_.TreeAnimationsInVizInClientProcess()) {
       client_->SetNeedsRedrawOnImplThread();
     }
   } else {
@@ -4483,7 +4473,7 @@ void LayerTreeHostImpl::DidChangeScrollbarVisibility() {
   // Need a commit since input handling for scrollbars is handled in Blink so
   // we need to communicate to Blink when the compositor shows/hides the
   // scrollbars.
-  client_->SetNeedsCommitOnImplThread();
+  SetNeedsCommit();
 }
 
 void LayerTreeHostImpl::CleanUpTileManagerResources() {
@@ -4784,7 +4774,7 @@ void LayerTreeHostImpl::UpdateImageDecodingHints(
       std::move(decoding_mode_map));
 }
 
-void LayerTreeHostImpl::RenewTreePriorityForTesting() {
+void LayerTreeHostImpl::RenewTreePriority() {
   client_->RenewTreePriority();
 }
 
@@ -4904,7 +4894,7 @@ void LayerTreeHostImpl::DidScrollContent(ElementId element_id,
         }
       }
     }
-    client_->RenewTreePriority();
+    RenewTreePriority();
   }
 
   if (!animated) {
@@ -5195,8 +5185,8 @@ bool LayerTreeHostImpl::AnimatePageScale(base::TimeTicks monotonic_time) {
 
   if (page_scale_animation_->IsAnimationCompleteAtTime(monotonic_time)) {
     page_scale_animation_ = nullptr;
-    client_->SetNeedsCommitOnImplThread();
-    client_->RenewTreePriority();
+    SetNeedsCommit();
+    RenewTreePriority();
     client_->DidCompletePageScaleAnimationOnImplThread();
   } else {
     SetNeedsOneBeginImplFrame();
@@ -5234,8 +5224,8 @@ bool LayerTreeHostImpl::AnimateBrowserControls(base::TimeTicks time) {
   // it is too late for InputHandler to do the snapping.
   viewport().SnapIfNeeded();
 
-  client_->SetNeedsCommitOnImplThread();
-  client_->RenewTreePriority();
+  SetNeedsCommit();
+  RenewTreePriority();
   return true;
 }
 
@@ -5602,10 +5592,8 @@ void LayerTreeHostImpl::CreateUIResource(UIResourceId uid,
   std::unique_ptr<gpu::ClientSharedImage::ScopedMapping> shared_mapping;
 
   if (layer_tree_frame_sink_->context_provider()) {
-    viz::RasterContextProvider* context_provider =
-        layer_tree_frame_sink_->context_provider();
     const auto& shared_image_caps =
-        context_provider->SharedImageInterface()->GetCapabilities();
+        layer_tree_frame_sink_->shared_image_interface()->GetCapabilities();
     const bool overlay_candidate =
         settings_.use_gpu_memory_buffer_resources &&
         shared_image_caps.supports_scanout_shared_images &&
@@ -5633,9 +5621,7 @@ void LayerTreeHostImpl::CreateUIResource(UIResourceId uid,
     // If not scaled, we can copy the pixels 1:1 from the source bitmap to our
     // destination backing of a texture or shared bitmap.
     if (layer_tree_frame_sink_->context_provider()) {
-      viz::RasterContextProvider* context_provider =
-          layer_tree_frame_sink_->context_provider();
-      auto* sii = context_provider->SharedImageInterface();
+      auto sii = layer_tree_frame_sink_->shared_image_interface();
       client_shared_image = sii->CreateSharedImage(
           {format, upload_size, color_space, shared_image_usage,
            "LayerTreeHostUIResourceBitmap"},
@@ -5701,9 +5687,7 @@ void LayerTreeHostImpl::CreateUIResource(UIResourceId uid,
     if (layer_tree_frame_sink_->context_provider()) {
       SkPixmap pixmap;
       scaled_surface->peekPixels(&pixmap);
-      viz::RasterContextProvider* context_provider =
-          layer_tree_frame_sink_->context_provider();
-      auto* sii = context_provider->SharedImageInterface();
+      auto sii = layer_tree_frame_sink_->shared_image_interface();
       client_shared_image = sii->CreateSharedImage(
           {format, upload_size, color_space, shared_image_usage,
            "LayerTreeHostUIResourceScaledBitmap"},
@@ -5881,9 +5865,9 @@ void LayerTreeHostImpl::EvictAllUIResources() {
     DeleteUIResource(uid);
     evicted_ui_resources_.insert(uid);
   }
-  client_->SetNeedsCommitOnImplThread();
+  SetNeedsCommit();
   client_->OnCanDrawStateChanged(CanDraw());
-  client_->RenewTreePriority();
+  RenewTreePriority();
 }
 
 viz::ResourceId LayerTreeHostImpl::ResourceIdForUIResource(

@@ -29,6 +29,10 @@
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/frame/user_activation_state.h"
 
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/picture_in_picture/auto_pip_setting_overlay_view.h"
+#endif
+
 #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
 #include "chrome/browser/safe_browsing/safe_browsing_service.h"
 #endif
@@ -612,6 +616,13 @@ bool AutoPictureInPictureTabHelper::MeetsVideoPlaybackConditions() const {
 }
 
 bool AutoPictureInPictureTabHelper::IsUsingCameraOrMicrophone() const {
+#if BUILDFLAG(IS_ANDROID)
+  // For Android JNI tests, return the testing override value if it's available,
+  // completely bypassing the IsCapturingUserMedia check.
+  if (is_using_camera_or_microphone_for_testing_.has_value()) {
+    return is_using_camera_or_microphone_for_testing_.value();
+  }
+#endif
   return MediaCaptureDevicesDispatcher::GetInstance()
       ->GetMediaStreamCaptureIndicator()
       ->IsCapturingUserMedia(web_contents());

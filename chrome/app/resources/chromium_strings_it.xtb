@@ -205,6 +205,7 @@
 <translation id="3296368748942286671">Continua a eseguire applicazioni in background dopo la chiusura di Chromium</translation>
 <translation id="3313189106987092621">Chromium ti avvisa prima di caricare qualsiasi sito che utilizza una connessione non sicura</translation>
 <translation id="3316771292331273802">Quando chiudi tutte le finestre di Chromium, uscirai dalla maggior parte dei siti, ma se hai eseguito l'accesso a Chromium non uscirai dal tuo Account Google. Per consentire ai siti di memorizzare le tue informazioni, <ph name="SETTINGS_LINK" />.</translation>
+<translation id="3322413454779348750">Il motore di ricerca predefinito è stato modificato dall'esterno di Chromium. Per proteggerti, Chromium l'ha reimpostato.</translation>
 <translation id="3352986031709923790">angolo in alto a destra dell'area di ricerca: destra <ph name="RIGHT" />%, in alto <ph name="TOP" />%</translation>
 <translation id="3366305173356742781">Dati di Chromium nel tuo account</translation>
 <translation id="3369405342922656244">Cerca in questa pagina con la Ricerca immagini</translation>
@@ -397,6 +398,7 @@
 <translation id="5941711191222866238">Riduci a icona</translation>
 <translation id="5949225980829865667">Accedi a Chromium per trovare questo preferito e altro su tutti i tuoi dispositivi</translation>
 <translation id="5953657885167112863">Rendi Chromium personale</translation>
+<translation id="5960071705175224773">Le tue impostazioni sono state modificate da un'app sconosciuta</translation>
 <translation id="5968400720580217226">AI Mode</translation>
 <translation id="5986585015444752010">{COUNT,plural, =1{La tua organizzazione chiude automaticamente Chromium quando non viene utilizzato per 1 minuto.}other{La tua organizzazione chiude automaticamente Chromium quando non viene utilizzato per # minuti.}}</translation>
 <translation id="5987687638152509985">Aggiorna Chromium per avviare la sincronizzazione</translation>
@@ -448,6 +450,7 @@
 <translation id="6390800440335263989">Per continuare, accedi a Chromium come <ph name="EMAIL" />. In questo modo, avrai la certezza di rispettare i criteri della tua organizzazione.</translation>
 <translation id="6400112897226594999">Logo di Chromium sullo schermo di un computer.</translation>
 <translation id="6403826409255603130">Chromium è un browser web che esegue le pagine web e le applicazioni alla velocità della luce. È veloce, stabile e facile da utilizzare. Naviga su Internet in modo più sicuro grazie alla protezione da malware e phishing integrata in Chromium.</translation>
+<translation id="642132557830635295">Chromium funziona più velocemente e le funzionalità che utilizzano JavaScript dovrebbero avere il comportamento previsto</translation>
 <translation id="6436260184216827876">La ricerca immagini non è disponibile. Riprova più tardi.</translation>
 <translation id="6442900851116057561">Riavvia Chromium OS</translation>
 <translation id="6443470774889161065">Chromium precarica ancora più pagine che è probabile che visiterai, in modo che vengano caricate più rapidamente quando lo farai</translation>

@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">অব্যাহত ৰাখক</translation>
 <translation id="2379925928934107488">সম্ভৱ হ’লে, Chromeএ গাঢ় ৰঙৰ থীম ব্যৱহাৰ কৰাৰ সময়ত ছাইটত গাঢ় ৰঙৰ থীম প্ৰয়োগ কৰক</translation>
 <translation id="2390272837142897736">জুম বঢ়াওক</translation>
+<translation id="2397689164757137845">অনুমতি দিয়া হৈছে • সঠিক</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> এম. বি.</translation>
 <translation id="2403474027143565107">সঠিক</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> আৰু <ph name="NUM_MORE" /> টাৰ অনুমতি দিয়া আছে}one{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> আৰু <ph name="NUM_MORE" /> টাৰ অনুমতি দিয়া আছে}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> আৰু <ph name="NUM_MORE" /> টাৰ অনুমতি দিয়া আছে}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">সহায় আৰু মতামত</translation>
 <translation id="2501278716633472235">উভতি যাওক</translation>
 <translation id="2533138527374486328">অন কৰা থাকিলে, ছাইটসমূহে আপোনাৰ স্থানীয় নেটৱৰ্কৰ যিকোনো ডিভাইচৰ সৈতে সংযোগ কৰিবলৈ অনুমতি বিচাৰিব পাৰে। অফ থাকিলে, ছাইটসমূহে আপোনাৰ স্থানীয় নেটৱৰ্কৰ ডিভাইচৰ সৈতে সংযোগ কৰিব নোৱাৰে।</translation>
+<translation id="2536779053640817375">এইবাৰ অনুমতি দিয়ক • সঠিক</translation>
 <translation id="2544997614631598250">থীমৰ ৰং গাঢ়</translation>
 <translation id="2546283357679194313">কুকি আৰু ছাইট ডেটা</translation>
 <translation id="2570922361219980984">এই ডিভাইচটোৰ বাবে অৱস্থান এক্সেছো অফ কৰা আছে। ইয়াক <ph name="BEGIN_LINK" />Android ছেটিংসমূহ<ph name="END_LINK" />-লৈ গৈ অন কৰক।</translation>
@@ -442,6 +444,7 @@
 <translation id="5876056640971328065">ভিডিঅ’ পজ কৰক</translation>
 <translation id="5877248419911025165">আটাইবোৰ অনুৰোধ সংকোচন কৰক</translation>
 <translation id="5878945009165002849">পৰিচয় সেৱাসমূহৰ পৰা ছাইন-ইনৰ প্ৰম্প্‌ট অৱৰোধ কৰক</translation>
+<translation id="588258955323874662">পূৰ্ণস্ক্ৰীণ</translation>
 <translation id="5884085660368669834">ছাইটৰ অগ্ৰাধিকাৰ</translation>
 <translation id="5887687176710214216">শেষবাৰ কালি চাইছিল</translation>
 <translation id="5908617755156109052">ছাইটসমূহক আপোনাৰ চৌপাশৰ ঠাইসমূহৰ এখন 3D মেপ সৃষ্টি কৰিবলৈ বা কেমেৰাৰ দিশ ট্ৰেক কৰিবলৈ অনুমতি নিদিব</translation>
@@ -569,6 +572,7 @@
 <translation id="7406113532070524618">এই ছেটিংটোৱে আপোনাক চিনাক্ত নকৰাকৈ অথবা ছাইটসমূহক আপোনাৰ ব্ৰাউজিঙৰ ইতিহাস চোৱাৰ অনুমতি নিদিয়াকৈ কাম কৰে, যদিও ছাইটসমূহে সত্যাপন প্ৰক্ৰিয়াৰ অংশ হিচাপে সামান্য পৰিমাণৰ তথ্য শ্বেয়াৰ কৰিব পাৰে</translation>
 <translation id="7409735910987429903">আপুনি যিবোৰ ৱেবছাইট হয়তো চাবলৈ নিবিচাৰে, ছাইটসমূহে সেইবোৰ ৱেবছাইটলৈ আপোনাক নিবলৈ বিজ্ঞাপন দেখুওৱাৰ বাবে পপ-আপ পঠিয়াব আৰু ৰিডাইৰেক্টসমূহ ব্যৱহাৰ কৰিব পাৰে</translation>
 <translation id="7412160840120117304">প্ৰাথমিক ৰঙৰ হেক্স</translation>
+<translation id="7412223528111026033">{ZOOM_PERCENTAGE,plural, =1{জুম}one{জুম: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}other{জুম: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}}</translation>
 <translation id="7423098979219808738">প্ৰথমে সোধক</translation>
 <translation id="7423538860840206698">ক্লিপব’ৰ্ড পঢ়াৰ সুবিধা অৱৰোধ কৰা হৈছে</translation>
 <translation id="7425915948813553151">ছাইটৰ বাবে গাঢ় ৰঙৰ থীম</translation>
@@ -700,7 +704,6 @@
 <translation id="8803526663383843427">অন কৰা থাকিলে</translation>
 <translation id="8805385115381080995">ব্ৰাউজিং দ্ৰুত হৈছে কাৰণ এটা ছাইটে আপোনাক আপুনি এগৰাকী প্ৰকৃত ব্যক্তি বুলি সত্যাপন কৰিবলৈ কোৱাৰ সম্ভাৱনা কম</translation>
 <translation id="8816026460808729765">ছেন্সৰসমূহ এক্সেছ কৰাত ছাইটসমূহ অৱৰোধ কৰক</translation>
-<translation id="884765916894384048">পৃষ্ঠভূমিলৈ যাওক</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">তৃতীয় পক্ষৰ কুকিসমূহক অস্থায়ীভাৱে অনুমতি দি চাওক, যাৰ ফলত ব্ৰাউজিং সুৰক্ষিত হ’ব কিন্তু ছাইটৰ সুবিধাসমূহে আশা কৰা কাম কৰাৰ সম্ভাৱনা অধিক থাকে।</translation>
 <translation id="8889294078294184559">আপুনি ব্ৰাউজ কৰি থাকিলে, ছাইটসমূহে Chromeৰ জৰিয়তে পৰীক্ষা কৰিব পাৰে আৰু আপুনি পূৰ্বে চোৱা ছাইটৰ পৰা সত্যাপন কৰিব পাৰে যে আপুনি এগৰাকী প্ৰকৃত ব্যৱহাৰকাৰী হোৱাৰ সম্ভাৱনা বেছি</translation>

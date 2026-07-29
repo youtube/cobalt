@@ -11,6 +11,7 @@
 #include "components/autofill/core/browser/metrics/autofill_metrics_test_base.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/common/signatures.h"
+#include "components/one_time_tokens/core/browser/one_time_token_service_impl.h"
 #include "components/one_time_tokens/core/browser/sms_otp_backend.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -20,7 +21,6 @@ namespace {
 using test::SingleSubmissionKeyMetricExpectations;
 using test::VerifySingleSubmissionKeyMetricExpectations;
 using ::testing::_;
-using ::testing::Invoke;
 using ::testing::Return;
 
 class MockSmsOtpBackend : public one_time_tokens::SmsOtpBackend {
@@ -51,6 +51,9 @@ class OtpFormEventLoggerIntegrationTest
     // Inject the mocked SMS OTP backend into the TestAutofillClient.
     auto mock_sms_otp_backend = std::make_unique<MockSmsOtpBackend>();
     autofill_client().set_sms_otp_backend(std::move(mock_sms_otp_backend));
+    autofill_client().set_one_time_token_service(
+        std::make_unique<one_time_tokens::OneTimeTokenServiceImpl>(
+            autofill_client().GetSmsOtpBackend()));
   }
 
   void ResetCrowdsourcingManager() {
@@ -59,7 +62,7 @@ class OtpFormEventLoggerIntegrationTest
             &autofill_client());
     // Default action: always run the callback with a default/empty response
     ON_CALL(*mock_crowdsourcing_manager, StartQueryRequest)
-        .WillByDefault(Invoke(
+        .WillByDefault(
             [](const std::vector<
                    raw_ptr<const FormStructure, VectorExperimental>>&,
                std::optional<net::IsolationInfo>,
@@ -70,7 +73,7 @@ class OtpFormEventLoggerIntegrationTest
               std::move(callback).Run(
                   AutofillCrowdsourcingManager::QueryResponse("", {}));
               return true;
-            }));
+            });
     autofill_client().set_crowdsourcing_manager(
         std::move(mock_crowdsourcing_manager));
   }
@@ -87,7 +90,7 @@ class OtpFormEventLoggerIntegrationTest
 
     EXPECT_CALL(*mock_crowdsourcing_manager_ptr, StartQueryRequest)
         .Times(testing::AtLeast(0))
-        .WillRepeatedly(Invoke(
+        .WillRepeatedly(
             [response, form_signature](
                 const std::vector<
                     raw_ptr<const FormStructure, VectorExperimental>>&,
@@ -101,7 +104,7 @@ class OtpFormEventLoggerIntegrationTest
                   AutofillCrowdsourcingManager::QueryResponse(
                       response, {form_signature}));
               return true;
-            }));
+            });
   }
 
   FormData CreateOtpForm() {
@@ -127,7 +130,7 @@ class OtpFormEventLoggerIntegrationTest
     one_time_tokens::OtpFetchReply reply = CreateOtpFetchReply(returns_otp);
     EXPECT_CALL(*backend, RetrieveSmsOtp)
         .WillRepeatedly(
-            Invoke([reply](auto callback) { std::move(callback).Run(reply); }));
+            [reply](auto callback) { std::move(callback).Run(reply); });
   }
 
   one_time_tokens::OtpFetchReply CreateOtpFetchReply(bool returns_otp) {

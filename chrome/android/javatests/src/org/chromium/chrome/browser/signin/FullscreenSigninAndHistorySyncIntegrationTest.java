@@ -75,7 +75,6 @@ import org.chromium.components.signin.SigninFeatures;
 import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.metrics.AccountConsistencyPromoAction;
 import org.chromium.components.signin.metrics.SigninAccessPoint;
-import org.chromium.components.signin.metrics.SyncButtonClicked;
 import org.chromium.components.signin.test.util.TestAccounts;
 import org.chromium.content_public.browser.test.NativeLibraryTestUtils;
 import org.chromium.ui.test.util.BlankUiTestActivity;
@@ -191,7 +190,7 @@ public class FullscreenSigninAndHistorySyncIntegrationTest {
         HistogramWatcher accountStartedHistogram =
                 HistogramWatcher.newSingleRecordWatcher(
                         "Signin.SignIn.Started", mSigninAccessPoint);
-        when(mHistorySyncHelperMock.shouldSuppressHistorySync()).thenReturn(false);
+        when(mHistorySyncHelperMock.shouldDisplayHistorySync()).thenReturn(true);
 
         launchActivity();
 
@@ -215,7 +214,7 @@ public class FullscreenSigninAndHistorySyncIntegrationTest {
     @Test
     @MediumTest
     public void testWithExistingAccount_signIn_refuseHistorySync_historySyncRequired() {
-        when(mHistorySyncHelperMock.shouldSuppressHistorySync()).thenReturn(false);
+        when(mHistorySyncHelperMock.shouldDisplayHistorySync()).thenReturn(true);
         mHistoryOptInMode = HistorySyncConfig.OptInMode.REQUIRED;
 
         launchActivity();
@@ -241,7 +240,7 @@ public class FullscreenSigninAndHistorySyncIntegrationTest {
     @Test
     @MediumTest
     public void testWithExistingAccount_signIn_acceptHistorySync_historySyncOptional() {
-        when(mHistorySyncHelperMock.shouldSuppressHistorySync()).thenReturn(false);
+        when(mHistorySyncHelperMock.shouldDisplayHistorySync()).thenReturn(true);
 
         launchActivity();
 
@@ -264,6 +263,7 @@ public class FullscreenSigninAndHistorySyncIntegrationTest {
     @Test
     @MediumTest
     public void testWithExistingAccount_signIn_acceptHistorySync_historySyncRequired() {
+        when(mHistorySyncHelperMock.shouldDisplayHistorySync()).thenReturn(true);
         mHistoryOptInMode = HistorySyncConfig.OptInMode.REQUIRED;
 
         launchActivity();
@@ -315,7 +315,7 @@ public class FullscreenSigninAndHistorySyncIntegrationTest {
     @Test
     @MediumTest
     public void testHistorySyncSuppressed_historySyncOptional() {
-        when(mHistorySyncHelperMock.shouldSuppressHistorySync()).thenReturn(true);
+        when(mHistorySyncHelperMock.shouldDisplayHistorySync()).thenReturn(false);
 
         launchActivity();
 
@@ -333,7 +333,7 @@ public class FullscreenSigninAndHistorySyncIntegrationTest {
     @Test
     @MediumTest
     public void testHistorySyncSuppressed_historySyncRequired() {
-        when(mHistorySyncHelperMock.shouldSuppressHistorySync()).thenReturn(true);
+        when(mHistorySyncHelperMock.shouldDisplayHistorySync()).thenReturn(false);
         mHistoryOptInMode = HistorySyncConfig.OptInMode.REQUIRED;
         mSigninAccessPoint = SigninAccessPoint.RECENT_TABS;
 
@@ -353,6 +353,7 @@ public class FullscreenSigninAndHistorySyncIntegrationTest {
     @Test
     @MediumTest
     public void testHistorySyncDeclinedOften_historySyncOptional() {
+        when(mHistorySyncHelperMock.shouldDisplayHistorySync()).thenReturn(true);
         when(mHistorySyncHelperMock.isDeclinedOften()).thenReturn(true);
 
         launchActivity();
@@ -374,15 +375,12 @@ public class FullscreenSigninAndHistorySyncIntegrationTest {
         HistogramWatcher historySyncHistogramWatcher =
                 HistogramWatcher.newBuilder()
                         .expectIntRecord("Signin.HistorySyncOptIn.Completed", mSigninAccessPoint)
-                        .expectIntRecord(
-                                "Signin.SyncButtons.Clicked",
-                                SyncButtonClicked.HISTORY_SYNC_OPT_IN_NOT_EQUAL_WEIGHTED)
                         .expectNoRecords(
                                 "Signin.SignIn.Timestamps.Fullscreen.ManagementStatusLoaded")
                         .expectNoRecords("Signin.SignIn.Timestamps.Fullscreen.SigninCompleted")
                         .build();
         mSigninTestRule.addAccountThenSignin(TestAccounts.AADC_ADULT_ACCOUNT);
-        when(mHistorySyncHelperMock.shouldSuppressHistorySync()).thenReturn(false);
+        when(mHistorySyncHelperMock.shouldDisplayHistorySync()).thenReturn(true);
 
         launchActivity(/* shouldReplaceProgressBars= */ false);
 
@@ -403,12 +401,9 @@ public class FullscreenSigninAndHistorySyncIntegrationTest {
         HistogramWatcher historySyncHistogramWatcher =
                 HistogramWatcher.newBuilder()
                         .expectIntRecord("Signin.HistorySyncOptIn.Completed", mSigninAccessPoint)
-                        .expectIntRecord(
-                                "Signin.SyncButtons.Clicked",
-                                SyncButtonClicked.HISTORY_SYNC_OPT_IN_EQUAL_WEIGHTED)
                         .build();
         mSigninTestRule.addAccountThenSignin(TestAccounts.AADC_MINOR_ACCOUNT);
-        when(mHistorySyncHelperMock.shouldSuppressHistorySync()).thenReturn(false);
+        when(mHistorySyncHelperMock.shouldDisplayHistorySync()).thenReturn(true);
 
         launchActivity(/* shouldReplaceProgressBars= */ false);
 
@@ -429,12 +424,9 @@ public class FullscreenSigninAndHistorySyncIntegrationTest {
         HistogramWatcher historySyncHistogramWatcher =
                 HistogramWatcher.newBuilder()
                         .expectIntRecord("Signin.HistorySyncOptIn.Declined", mSigninAccessPoint)
-                        .expectIntRecord(
-                                "Signin.SyncButtons.Clicked",
-                                SyncButtonClicked.HISTORY_SYNC_CANCEL_NOT_EQUAL_WEIGHTED)
                         .build();
         mSigninTestRule.addAccountThenSignin(TestAccounts.AADC_ADULT_ACCOUNT);
-        when(mHistorySyncHelperMock.shouldSuppressHistorySync()).thenReturn(false);
+        when(mHistorySyncHelperMock.shouldDisplayHistorySync()).thenReturn(true);
         mHistoryOptInMode = HistorySyncConfig.OptInMode.REQUIRED;
 
         launchActivity(/* shouldReplaceProgressBars= */ false);
@@ -459,12 +451,9 @@ public class FullscreenSigninAndHistorySyncIntegrationTest {
         HistogramWatcher historySyncHistogramWatcher =
                 HistogramWatcher.newBuilder()
                         .expectIntRecord("Signin.HistorySyncOptIn.Declined", mSigninAccessPoint)
-                        .expectIntRecord(
-                                "Signin.SyncButtons.Clicked",
-                                SyncButtonClicked.HISTORY_SYNC_CANCEL_EQUAL_WEIGHTED)
                         .build();
         mSigninTestRule.addAccountThenSignin(TestAccounts.AADC_MINOR_ACCOUNT);
-        when(mHistorySyncHelperMock.shouldSuppressHistorySync()).thenReturn(false);
+        when(mHistorySyncHelperMock.shouldDisplayHistorySync()).thenReturn(true);
         mHistoryOptInMode = HistorySyncConfig.OptInMode.REQUIRED;
 
         launchActivity(/* shouldReplaceProgressBars= */ false);
@@ -484,7 +473,7 @@ public class FullscreenSigninAndHistorySyncIntegrationTest {
     @MediumTest
     @Restriction(DeviceRestriction.RESTRICTION_TYPE_NON_AUTO)
     public void testScreenRotation() {
-        when(mHistorySyncHelperMock.shouldSuppressHistorySync()).thenReturn(false);
+        when(mHistorySyncHelperMock.shouldDisplayHistorySync()).thenReturn(true);
 
         launchActivity();
 
@@ -560,7 +549,7 @@ public class FullscreenSigninAndHistorySyncIntegrationTest {
     @MediumTest
     public void testBackPress() {
         mBlankUiActivityTestRule.launchActivity(null);
-        when(mHistorySyncHelperMock.shouldSuppressHistorySync()).thenReturn(false);
+        when(mHistorySyncHelperMock.shouldDisplayHistorySync()).thenReturn(true);
 
         launchActivity();
 
@@ -591,7 +580,7 @@ public class FullscreenSigninAndHistorySyncIntegrationTest {
         NativeLibraryTestUtils.loadNativeLibraryAndInitBrowserProcess();
         mBlankUiActivityTestRule.launchActivity(null);
         mSigninTestRule.addAccountThenSignin(TestAccounts.ACCOUNT1);
-        when(mHistorySyncHelperMock.shouldSuppressHistorySync()).thenReturn(false);
+        when(mHistorySyncHelperMock.shouldDisplayHistorySync()).thenReturn(true);
 
         launchActivity(/* shouldReplaceProgressBars= */ false);
 
@@ -643,6 +632,7 @@ public class FullscreenSigninAndHistorySyncIntegrationTest {
     @Feature("RenderTest")
     @Features.EnableFeatures(SigninFeatures.SMART_EMAIL_LINE_BREAKING)
     public void testSigninAndHistorySync() throws Exception {
+        when(mHistorySyncHelperMock.shouldDisplayHistorySync()).thenReturn(true);
         FullscreenSigninAndHistorySyncConfig config = getDefaultConfigBuilder().build();
 
         launchActivity(/* shouldReplaceProgressBars= */ true, config);
@@ -670,6 +660,7 @@ public class FullscreenSigninAndHistorySyncIntegrationTest {
     @Feature("RenderTest")
     @Features.EnableFeatures(SigninFeatures.SMART_EMAIL_LINE_BREAKING)
     public void testSigninAndHistorySyncCustomization() throws Exception {
+        when(mHistorySyncHelperMock.shouldDisplayHistorySync()).thenReturn(true);
         // Create a config which only uses non-default resource values to test customization.
         FullscreenSigninAndHistorySyncConfig config =
                 new FullscreenSigninAndHistorySyncConfig.Builder(

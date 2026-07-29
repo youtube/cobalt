@@ -29,7 +29,7 @@
 #include "third_party/blink/renderer/platform/fonts/font_cache.h"
 #include "third_party/blink/renderer/platform/fonts/font_fallback_list.h"
 #include "third_party/blink/renderer/platform/fonts/font_fallback_map.h"
-#include "third_party/blink/renderer/platform/fonts/shaping/caching_word_shape_iterator.h"
+#include "third_party/blink/renderer/platform/fonts/shaping/harfbuzz_shaper.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/shape_result_bloberizer.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/shape_result_spacing.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/shape_result_view.h"
@@ -55,6 +55,21 @@ FontFallbackList* GetOrCreateFontFallbackList(
                                       ? font_selector->GetFontFallbackMap()
                                       : FontCache::Get().GetFontFallbackMap();
   return fallback_map.Get(font_description);
+}
+
+const ShapeResult* ShapeWordWithoutSpacing(const TextRun& word_run,
+                                           const Font& font) {
+  ShapeCacheEntry* cache_entry = font.GetShapeCache()->Add(word_run);
+  if (cache_entry && *cache_entry) {
+    return *cache_entry;
+  }
+
+  HarfBuzzShaper shaper(word_run.NormalizedUTF16());
+  ShapeResult* shape_result = shaper.Shape(&font, word_run.Direction());
+  if (cache_entry) {
+    *cache_entry = shape_result;
+  }
+  return shape_result;
 }
 
 }  // namespace
@@ -233,17 +248,6 @@ void Font::ReportNotDefGlyph() const {
     fontSelector->ReportNotDefGlyph();
 }
 
-void Font::ReportEmojiSegmentGlyphCoverage(unsigned num_clusters,
-                                           unsigned num_broken_clusters) const {
-  FontSelector* fontSelector = EnsureFontFallbackList()->GetFontSelector();
-  // See ReportNotDefGlyph(), sometimes no fontSelector is available in non-DOM
-  // usages of Font.
-  if (fontSelector) {
-    fontSelector->ReportEmojiSegmentGlyphCoverage(num_clusters,
-                                                  num_broken_clusters);
-  }
-}
-
 void Font::WillUseFontData(const String& text) const {
   const FontDescription& font_description = GetFontDescription();
   const FontFamily& family = font_description.Family();
@@ -265,8 +269,7 @@ GlyphData Font::GetEmphasisMarkGlyphData(const AtomicString& mark) const {
   if (mark.empty())
     return GlyphData();
   if (!RuntimeEnabledFeatures::EmphasisMarkShapeCacheEnabled()) {
-    return CachingWordShapeIterator::ShapeWordWithoutSpacing(TextRun(mark),
-                                                             this)
+    return ShapeWordWithoutSpacing(TextRun(mark), *this)
         ->EmphasisMarkGlyphData(font_description_);
   }
   return EnsureFontFallbackList()

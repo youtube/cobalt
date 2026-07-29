@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
+#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
@@ -1580,12 +1581,11 @@ TEST_P(PrefHashFilterTest, TrackedPreferenceResetStored) {
   mock_pref_hash_store_->SetCheckResult(kAtomicPref, ValueState::CHANGED);
   DoFilterOnLoad(true);
   ASSERT_FALSE(pref_store_contents_.contains(kAtomicPref));
-  const base::Value::Dict* reset_prefs =
-      pref_store_contents_.FindDict(user_prefs::kTrackedPreferencesReset);
+  const base::Value::List* reset_prefs =
+      pref_store_contents_.FindList(user_prefs::kTrackedPreferencesReset);
   ASSERT_TRUE(reset_prefs);
-  const base::Value* reset_value = reset_prefs->Find(kAtomicPref);
-  ASSERT_TRUE(reset_value);
-  ASSERT_EQ(base::Value(expected_atomic_int_content), *reset_value);
+  ASSERT_EQ(1u, reset_prefs->size());
+  ASSERT_EQ(base::Value(kAtomicPref), (*reset_prefs)[0]);
 }
 
 TEST_P(PrefHashFilterTest, TrackedSplitPreferenceResetStored) {
@@ -1612,22 +1612,14 @@ TEST_P(PrefHashFilterTest, TrackedSplitPreferenceResetStored) {
 
   DoFilterOnLoad(true);
 
-  const base::Value::Dict* reset_prefs =
-      pref_store_contents_.FindDict(user_prefs::kTrackedPreferencesReset);
+  const base::Value::List* reset_prefs =
+      pref_store_contents_.FindList(user_prefs::kTrackedPreferencesReset);
   ASSERT_TRUE(reset_prefs);
-
-  const base::Value* reset_value_a =
-      reset_prefs->Find(std::string(kSplitPref) + ".a");
-  ASSERT_TRUE(reset_value_a);
-  ASSERT_EQ(base::Value("foo"), *reset_value_a);
-
-  const base::Value* reset_value_c =
-      reset_prefs->Find(std::string(kSplitPref) + ".c");
-  ASSERT_TRUE(reset_value_c);
-  ASSERT_EQ(base::Value(56), *reset_value_c);
-
-  ASSERT_FALSE(reset_prefs->Find(std::string(kSplitPref) + ".b"));
-  ASSERT_FALSE(reset_prefs->Find(std::string(kSplitPref) + ".d"));
+  ASSERT_EQ(2u, reset_prefs->size());
+  EXPECT_TRUE(base::Contains(*reset_prefs,
+                             base::Value(std::string(kSplitPref) + ".a")));
+  EXPECT_TRUE(base::Contains(*reset_prefs,
+                             base::Value(std::string(kSplitPref) + ".c")));
 }
 
 TEST_P(PrefHashFilterTest, CleanupDeprecatedTrackedDictionary) {
@@ -1664,11 +1656,11 @@ TEST_P(PrefHashFilterTest, RecordTrackedPreferenceResetCount_NoResets) {
 }
 
 TEST_P(PrefHashFilterTest, RecordTrackedPreferenceResetCount_WithResets) {
-  base::Value::Dict reset_dict;
-  reset_dict.Set("pref1", "value1");
-  reset_dict.Set("pref2", "value2");
+  base::Value::List reset_list;
+  reset_list.Append("path.to.some.pref");
+  reset_list.Append("path.to.another.pref");
   pref_store_contents_.Set(user_prefs::kTrackedPreferencesReset,
-                           std::move(reset_dict));
+                           std::move(reset_list));
 
   base::HistogramTester histogram_tester;
   pref_hash_filter_->MaybeRecordTrackedPreferenceResetCount(
@@ -2009,6 +2001,63 @@ TEST_P(PrefHashFilterTest, MaybeRecordTrackedPreferenceResetCount_LogsOnce) {
   // Should only have one sample.
   histogram_tester.ExpectUniqueSample("Settings.TrackedPreferenceResets.Count",
                                       0, 1);
+}
+
+TEST_P(PrefHashFilterEncryptedTest, ResetSplitPrefThenDeferredValidation) {
+  if (GetParam() != EnforcementLevel::ENFORCE_ON_LOAD) {
+    return;
+  }
+  InitializeAsyncOSCrypt();
+  ResetImpl(true /* enable_encrypted_hashing_feature */,
+            test_os_crypt_async_.get());
+
+  mock_pref_service_ = std::make_unique<MockPrefService>();
+  mock_pref_service_->registry()->RegisterDictionaryPref(kSplitPref);
+  mock_pref_service_->registry()->RegisterStringPref(kScheduleToFlushToDisk,
+                                                     "0");
+  pref_hash_filter_->SetPrefService(mock_pref_service_.get());
+
+  base::Value::Dict tampered_dict;
+  tampered_dict.Set("some_invalid_key", "this_is_the_tampered_value");
+  pref_store_contents_.Set(kSplitPref, std::move(tampered_dict));
+
+  // Configure the mock to report an invalid unencrypted hash.
+  mock_pref_hash_store_->SetCheckResult(kSplitPref, ValueState::CHANGED);
+  mock_pref_hash_store_->SetInvalidKeysResult(kSplitPref, {"some_invalid_key"});
+
+  base::RunLoop run_loop;
+  pref_hash_filter_->SetOnDeferredRevalidationCompleteForTesting(
+      run_loop.QuitClosure());
+
+  // This will trigger the synchronous reset and schedule the deferred task.
+  pref_hash_filter_->FilterOnLoad(
+      base::BindOnce(&PrefHashFilterTest::GetPrefsBack, base::Unretained(this),
+                     true /* expected_altered */),
+      std::move(pref_store_contents_));
+
+  // The invalid key should have been immediately removed, leaving an empty
+  // dict.
+  const base::Value::Dict* dict_after_sync_reset =
+      pref_store_contents_.FindDict(kSplitPref);
+  ASSERT_TRUE(dict_after_sync_reset);
+  EXPECT_TRUE(dict_after_sync_reset->empty());
+
+  // Clear the mock's call history, then reconfigure it to report that the
+  // encrypted hash for the same preference is also invalid.
+  mock_pref_hash_store_->ClearTestState();
+  mock_pref_hash_store_->SetCheckResult(kSplitPref, ValueState::CHANGED);
+
+  run_loop.Run();
+
+  // The `already_reset_paths` logic should have caused the deferred task to
+  // completely skip re-validating `kSplitPref`. We prove this by asserting
+  // that the mock store's `CheckValue` method was not called.
+  EXPECT_EQ(0u, mock_pref_hash_store_->checked_paths_count());
+
+  const base::Value::Dict* dict_after_async_pass =
+      pref_store_contents_.FindDict(kSplitPref);
+  ASSERT_TRUE(dict_after_async_pass);
+  EXPECT_TRUE(dict_after_async_pass->empty());
 }
 INSTANTIATE_TEST_SUITE_P(PrefHashFilterTestInstance,
                          PrefHashFilterEncryptedTest,

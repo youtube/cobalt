@@ -2074,9 +2074,8 @@ NavigationRequest::NavigationRequest(
 #if BUILDFLAG(IS_ANDROID)
   RenderWidgetHostImpl* host = RenderWidgetHostImpl::From(
       frame_tree_node_->current_frame_host()->GetRenderWidgetHost());
-  if (NeedsUrlLoader() && IsInPrimaryMainFrame() && host &&
-      !host->is_hidden() && host->GetView() &&
-      host->GetView()->GetNativeView() &&
+  if (NeedsUrlLoader() && IsInPrimaryMainFrame() && host && !host->IsHidden() &&
+      host->GetView() && host->GetView()->GetNativeView() &&
       host->GetView()->GetNativeView()->GetWindowAndroid()) {
     // If the compositor changes, we will just let the lock timeout instead of
     // trying to deal with it explicitly.
@@ -4396,6 +4395,12 @@ UrlInfo NavigationRequest::GetUrlInfo() {
       response_head_ &&
       response_head_->is_prefetch_with_cross_site_contamination) {
     url_info_init.WithCrossSitePrefetchContamination(true);
+  }
+
+  if (base::FeatureList::IsEnabled(
+          features::kProcessSelectionDeferringConditions)) {
+    url_info_init.WithProcessSelectionUserData(
+        GetProcessSelectionUserData().GetSafeRef());
   }
 
   return UrlInfo(url_info_init);
@@ -8484,6 +8489,7 @@ void NavigationRequest::UpdatePrivateNetworkRequestPolicy() {
       frame_tree_node_->navigator().controller().GetBrowserContext();
 
   url::Origin origin = GetOriginToCommit().value();
+  // TODO(crbug.com/452389539): Centralize these policy overrides.
   ContentBrowserClient::PrivateNetworkRequestPolicyOverride policy_override =
       client->ShouldOverridePrivateNetworkRequestPolicy(context, origin);
 
@@ -10030,6 +10036,22 @@ NavigationRequest::BuildClientSecurityStateForNavigationFetch() {
           *policy_container_builder_->InitiatorPolicies(),
           PrivateNetworkRequestContext::kSubframeNavigation);
 
+      // Check for policy overrides on LNA. For subframe navigations, we apply
+      // policy overrides based on the initiator.
+      // TODO(crbug.com/452389539): Centralize these policy overrides.
+      if (GetInitiatorOrigin()) {
+        ContentBrowserClient* client = GetContentClient()->browser();
+        BrowserContext* context =
+            frame_tree_node_->navigator().controller().GetBrowserContext();
+        url::Origin origin = GetInitiatorOrigin().value();
+        ContentBrowserClient::PrivateNetworkRequestPolicyOverride
+            policy_override = client->ShouldOverridePrivateNetworkRequestPolicy(
+                context, origin);
+        state->private_network_request_policy =
+            OverrideLocalNetworkAccessPolicy(
+                state->private_network_request_policy, policy_override);
+      }
+
       // Remove the initiator's COEP, it is unused. For iframes, the parent's
       // COEP should be used: that is checked in `EnforceCOEP()`. The value
       // in `ClientSecurityState` is used for subresources only, in which case
@@ -11116,6 +11138,10 @@ NavigationRequest::GetMutableRuntimeFeatureStateContext() {
 const blink::RuntimeFeatureStateContext&
 NavigationRequest::GetRuntimeFeatureStateContext() {
   return runtime_feature_state_context_;
+}
+
+ProcessSelectionUserData& NavigationRequest::GetProcessSelectionUserData() {
+  return process_selection_user_data_;
 }
 
 // The NavigationDownloadPolicy is currently computed by the renderer process.

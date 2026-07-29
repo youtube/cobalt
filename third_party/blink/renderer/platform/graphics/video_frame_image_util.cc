@@ -34,30 +34,6 @@ namespace blink {
 
 namespace {
 
-bool CanUseZeroCopyImages(const media::VideoFrame& frame) {
-  // SharedImage optimization: create AcceleratedStaticBitmapImage directly.
-  // Disabled on Android because the hardware decode implementation may neuter
-  // frames, which would violate ImageBitmap requirements.
-  // TODO(sandersd): Handle YUV pixel formats.
-  // TODO(sandersd): Handle high bit depth formats.
-  // TODO(crbug.com/1203713): Figure out why macOS zero copy ends up with y-flip
-  // images in zero copy mode.
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_MAC)
-  return false;
-#else
-  // A VF created from MappableSI will have a mappable shared image but might
-  // not be intended for rendering in the tests.
-  // |frame.IsTexturableForTesting()| here checks whether the tests have
-  // explicitly marked the VF as non texturable or not.
-  return frame.HasSharedImage() && frame.IsTexturableForTesting() &&
-         (frame.format() == media::PIXEL_FORMAT_ARGB ||
-          frame.format() == media::PIXEL_FORMAT_XRGB ||
-          frame.format() == media::PIXEL_FORMAT_ABGR ||
-          frame.format() == media::PIXEL_FORMAT_XBGR ||
-          frame.format() == media::PIXEL_FORMAT_BGRA);
-#endif
-}
-
 bool ShouldCreateAcceleratedImages(
     viz::RasterContextProvider* raster_context_provider) {
   if (!SharedGpuContext::IsGpuCompositingEnabled())
@@ -130,69 +106,23 @@ media::VideoTransformation ImageOrientationToVideoTransformation(
 }
 
 bool WillCreateAcceleratedImagesFromVideoFrame(const media::VideoFrame* frame) {
-  return CanUseZeroCopyImages(*frame) ||
-         ShouldCreateAcceleratedImages(GetRasterContextProvider().get());
+  return ShouldCreateAcceleratedImages(GetRasterContextProvider().get());
 }
 
 scoped_refptr<StaticBitmapImage> CreateImageFromVideoFrame(
     scoped_refptr<media::VideoFrame> frame,
-    bool allow_zero_copy_images,
     CanvasResourceProvider* resource_provider,
     media::PaintCanvasVideoRenderer* video_renderer,
     const gfx::Rect& dest_rect,
     bool prefer_tagged_orientation,
     bool reinterpret_video_as_srgb) {
-  auto frame_color_space = frame->CompatRGBColorSpace();
-
   DCHECK(frame);
   const auto transform =
       frame->metadata().transformation.value_or(media::kNoTransformation);
-  if (allow_zero_copy_images && !reinterpret_video_as_srgb &&
-      dest_rect.IsEmpty() && transform == media::kNoTransformation &&
-      CanUseZeroCopyImages(*frame)) {
-    // Hold a ref by storing it in the release callback.
-    auto release_callback = blink::BindOnce(
-        [](scoped_refptr<media::VideoFrame> frame,
-           base::WeakPtr<WebGraphicsContext3DProviderWrapper> context_provider,
-           const gpu::SyncToken& sync_token, bool is_lost) {
-          if (is_lost || !context_provider)
-            return;
-          auto* ri = context_provider->ContextProvider().RasterInterface();
-          media::WaitAndReplaceSyncTokenClient client(ri);
-          frame->UpdateReleaseSyncToken(&client);
-        },
-        frame, SharedGpuContext::ContextProviderWrapper());
-
-    return AcceleratedStaticBitmapImage::CreateFromCanvasSharedImage(
-        frame->shared_image(), frame->acquire_sync_token(),
-        frame->shared_image()->alpha_type(),
-        // Pass nullptr for |context_provider_wrapper|, because we don't
-        // know which context the mailbox came from. It is used only to
-        // detect when the mailbox is invalid due to context loss, and is
-        // ignored when |is_cross_thread|.
-        base::WeakPtr<WebGraphicsContext3DProviderWrapper>(),
-        // Pass null |context_thread_ref|, again because we don't know
-        // which context the mailbox came from. This should always trigger
-        // |is_cross_thread|.
-        base::PlatformThreadRef(),
-        // The task runner is only used for |release_callback|.
-        ThreadScheduler::Current()->CleanupTaskRunner(),
-        std::move(release_callback));
-  }
 
   gfx::Rect final_dest_rect = dest_rect;
-  if (final_dest_rect.IsEmpty()) {
-    // Since we're copying, the destination is always aligned with the origin.
-    const auto& visible_rect = frame->visible_rect();
-    final_dest_rect =
-        gfx::Rect(0, 0, visible_rect.width(), visible_rect.height());
-    if (transform.rotation == media::VIDEO_ROTATION_90 ||
-        transform.rotation == media::VIDEO_ROTATION_270) {
-      final_dest_rect.Transpose();
-    }
-  } else if (!resource_provider) {
-    DLOG(ERROR) << "An external CanvasResourceProvider must be provided when "
-                   "providing a custom destination rect.";
+  if (!resource_provider) {
+    DLOG(ERROR) << "An external CanvasResourceProvider must be provided";
     return nullptr;
   } else if (!gfx::Rect(resource_provider->Size()).Contains(final_dest_rect)) {
     DLOG(ERROR)
@@ -203,23 +133,9 @@ scoped_refptr<StaticBitmapImage> CreateImageFromVideoFrame(
   }
 
   auto raster_context_provider = GetRasterContextProvider();
-  std::unique_ptr<CanvasResourceProvider> local_resource_provider;
-  // TODO(https://crbug.com/1341235): The choice of format and alpha type
-  // is inappropriate in many circumstances.
-  if (!resource_provider) {
-    local_resource_provider = CreateResourceProviderForVideoFrame(
-        final_dest_rect.size(), GetN32FormatForCanvas(), kPremul_SkAlphaType,
-        frame_color_space, raster_context_provider.get());
-    if (!local_resource_provider) {
-      DLOG(ERROR) << "Failed to create CanvasResourceProvider.";
-      return nullptr;
-    }
-
-    resource_provider = local_resource_provider.get();
-  }
-
-  if (resource_provider->IsAccelerated())
+  if (resource_provider->IsAccelerated()) {
     prefer_tagged_orientation = false;
+  }
 
   if (!DrawVideoFrameIntoResourceProvider(
           std::move(frame), resource_provider, raster_context_provider.get(),
@@ -248,6 +164,10 @@ bool DrawVideoFrameIntoResourceProvider(
   DCHECK(resource_provider);
   DCHECK(gfx::Rect(resource_provider->Size()).Contains(dest_rect));
 
+  // This method should only be called with context providers supporting OOP-R.
+  CHECK(!raster_context_provider ||
+        raster_context_provider->ContextCapabilities().gpu_rasterization);
+
   // A VF created from MappableSI will have a mappable shared image but might
   // not be intended for rendering in the tests.
   // |frame.IsTexturableForTesting()| here checks whether the tests have
@@ -257,11 +177,6 @@ bool DrawVideoFrameIntoResourceProvider(
       DLOG(ERROR) << "Unable to process a texture backed VideoFrame w/o a "
                      "RasterContextProvider.";
       return false;  // Unable to get/create a shared main thread context.
-    }
-    if (!raster_context_provider->ContextCapabilities().gpu_rasterization) {
-      DLOG(ERROR) << "Unable to process a texture backed VideoFrame w/o OOP "
-                     "raster support.";
-      return false;
     }
   }
 
@@ -296,8 +211,8 @@ bool DrawVideoFrameIntoResourceProvider(
   params.reinterpret_as_srgb = reinterpret_video_as_srgb;
   resource_provider->ExternalCanvasDrawHelper(
       [&](MemoryManagedPaintCanvas& canvas) {
-        video_renderer->Paint(frame.get(), &canvas, media_flags, params,
-                              raster_context_provider);
+        video_renderer->PaintOOPR(frame.get(), &canvas, media_flags, params,
+                                  raster_context_provider);
       });
   return true;
 }
@@ -320,7 +235,8 @@ void DrawVideoFrameIntoCanvas(scoped_refptr<media::VideoFrame> frame,
       ignore_video_transformation
           ? media::kNoTransformation
           : frame->metadata().transformation.value_or(media::kNoTransformation);
-  video_renderer.Paint(frame, canvas, flags, params, raster_context_provider);
+  video_renderer.PaintOOPR(frame, canvas, flags, params,
+                           raster_context_provider);
 }
 
 scoped_refptr<viz::RasterContextProvider> GetRasterContextProvider() {

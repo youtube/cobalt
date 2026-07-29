@@ -238,6 +238,7 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasRenderingContext,
   gfx::ColorSpace GetColorSpace() const final {
     return color_params_.GetGfxColorSpace();
   }
+  void DisableAccelerationForCanvas2D() final { DisableAcceleration(); }
   bool Is2DCanvasAccelerated() const final;
   void PageVisibilityChanged() override {}
   void RestoreCanvasMatrixClipStack(cc::PaintCanvas* c) const final;
@@ -289,9 +290,8 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasRenderingContext,
   void TryRestoreContextEvent(TimerBase*);
   void RestoreFromInvalidSizeIfNeeded() override;
 
-  virtual std::unique_ptr<CanvasResourceProvider>
-      ReplaceResourceProviderForCanvas2D(
-          std::unique_ptr<CanvasResourceProvider>) = 0;
+  virtual std::unique_ptr<CanvasResourceProvider> ReplaceResourceProvider(
+      std::unique_ptr<CanvasResourceProvider>) = 0;
 
   static const char kInheritString[];
 

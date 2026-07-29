@@ -6,6 +6,7 @@ package org.chromium.net.impl;
 
 import android.os.ConditionVariable;
 import android.os.SystemClock;
+import android.util.Pair;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
@@ -41,7 +42,6 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLStreamHandlerFactory;
 import java.nio.ByteBuffer;
-import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -689,9 +689,9 @@ public class CronetUrlRequestContext extends CronetEngineBase {
             @NonNull CompletionOnceCallback callback) {
         try (var traceEvent =
                 ScopedSysTraceEvent.scoped("CronetUrlRequestContext#onTunnelHeadersReceived")) {
-            ArrayList<Map.Entry<String, String>> headersList = new ArrayList<>();
+            ArrayList<Pair<String, String>> headersList = new ArrayList<>();
             for (int i = 0; i < headers.length; i += 2) {
-                headersList.add(new AbstractMap.SimpleImmutableEntry<>(headers[i], headers[i + 1]));
+                headersList.add(new Pair<>(headers[i], headers[i + 1]));
             }
             VersionSafeProxyCallback proxyCallback = mProxyCallbacks.get(chainId);
             postTaskToExecutor(
@@ -710,25 +710,13 @@ public class CronetUrlRequestContext extends CronetEngineBase {
                                                 statusCode);
                             } finally {
                                 // In case onTunnelHeadersReceived returned false, or threw, report
-                                // it as a failure to //net
-                                // (see Proxy.Callback.onTunnelHeadersReceived documentation).
-                                //
-                                // TODO(https://crbug.com/422428959): Decide whether we want to
-                                // propagate org.chromium.net.Proxy.Callback canceling a tunnel
-                                // establishment request as something else
-                                // (NetError.ERR_TUNNEL_CONNECTION_FAILED?
-                                // NetError.ERR_BLOCKED_BY_CLIENT?
-                                // NetError.ERR_PROXY_TUNNEL_REQUEST_FAILED?). This is currently
-                                // not
-                                // possible, as net::ProxyFallback::CanFalloverToNextProxy does
-                                // not
-                                // try the next proxy for a lot of these errors, unless the
-                                // chain is
-                                // for IP Protection. For the time being, we return another
-                                // error
-                                // for which the next proxy is in the list is always attempted.
+                                // it as a failure to //net (see
+                                // Proxy.Callback.onTunnelHeadersReceived documentation).
                                 callback.run(
-                                        success ? NetError.OK : NetError.ERR_CONNECTION_CLOSED);
+                                        success
+                                                ? NetError.OK
+                                                : NetError
+                                                        .ERR_PROXY_DELEGATE_CANCELED_CONNECT_RESPONSE);
                             }
                         }
                     },

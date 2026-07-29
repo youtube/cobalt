@@ -20,10 +20,9 @@ environments that are supported by the Chromium project. The first milestone
 to include full production-ready support was M119.
 
 Rust can be used anywhere in the Chromium repository (not just `//third_party`)
-subject to [current interop capabilities][interop-rust-doc], however it is
-currently subject to a internal approval and FYI process. Googlers can view
-go/chrome-rust for details. New usages of Rust are documented at
-[`rust-fyi@chromium.org`](https://groups.google.com/a/chromium.org/g/rust-fyi).
+subject to [current interop capabilities][interop-rust-doc]. There is no special
+process for introducing Rust. Similar to any code change, OWNERS approval is
+required. Googlers can see go/chrome-rust for more details.
 
 For questions or help, reach out to
 [`rust-dev@chromium.org`](https://groups.google.com/a/chromium.org/g/rust-dev),
@@ -53,7 +52,7 @@ This guidance doesn't apply when depending on Rust standard library
 nor when depending on crates from `//third_party/rust`.
 
 See
-[`//docs/rust-ffi.md`](rust-ffi.md)
+[`//docs/rust-ffi.md`](rust/ffi.md)
 for how to interop with Rust code from C/C++.
 
 Mapping of Chromium APIs to Rust:
@@ -116,7 +115,9 @@ for more details.
 5. Point rust-analyzer to the rust toolchain in Chromium. Otherwise you will
    need to install Rustc in your system, and Chromium uses the nightly
    compiler, so you would need that to match. Add the following to
-   `.vscode/settings.json` in the Chromium checkout:
+   `.vscode/settings.json` in the Chromium checkout (e.g.
+   `chromium/src/.vscode/settings.json`; create the subdirectory and file if
+   they do not already exist):
    ```
    {
       // The rest of the settings...

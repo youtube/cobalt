@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">Turpināt</translation>
 <translation id="2379925928934107488">Lietojiet tumšo motīvu vietnēs, kad tumšais motīvs tiek izmantots pārlūkā Chrome (ja iespējams)</translation>
 <translation id="2390272837142897736">Tālināt</translation>
+<translation id="2397689164757137845">Atļauta • Precīza</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2403474027143565107">Precīza</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{Atļautas: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> un vēl <ph name="NUM_MORE" />}zero{Atļautas: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> un vēl <ph name="NUM_MORE" />}one{Atļautas: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> un vēl <ph name="NUM_MORE" />}other{Atļautas: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> un vēl <ph name="NUM_MORE" />}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">Palīdzība un atsauksmes</translation>
 <translation id="2501278716633472235">Doties atpakaļ</translation>
 <translation id="2533138527374486328">Kad šis slēdzis ir ieslēgts, vietnes var pieprasīt atļauju izveidot savienojumu ar jebkuru ierīci jūsu lokālajā tīklā. Kad šis slēdzis ir izslēgts, vietnes nevar izveidot savienojumu ar ierīcēm jūsu lokālajā tīklā.</translation>
+<translation id="2536779053640817375">Šoreiz atļauta • Precīza</translation>
 <translation id="2544997614631598250">Motīva krāsa: tumša</translation>
 <translation id="2546283357679194313">Sīkfaili un vietņu dati</translation>
 <translation id="2570922361219980984">Arī piekļuve šīs ierīces atrašanās vietai ir izslēgta. Ieslēdziet to <ph name="BEGIN_LINK" />Android iestatījumos<ph name="END_LINK" />.</translation>
@@ -442,6 +444,7 @@ Papildu aizsardzība pārvalda tālāk norādītos Chrome iestatījumus
 <translation id="5876056640971328065">Apturēt video atskaņošanu</translation>
 <translation id="5877248419911025165">Sakļaut visus pieprasījumus</translation>
 <translation id="5878945009165002849">Bloķēt identitātes pakalpojumu pierakstīšanās uzvednes</translation>
+<translation id="588258955323874662">Pilnekrāna</translation>
 <translation id="5884085660368669834">Vietnes preference</translation>
 <translation id="5887687176710214216">Pēdējoreiz apmeklēta vakar</translation>
 <translation id="5908617755156109052">Neļaut vietnēm izveidot jūsu apkārtnes 3D karti vai izsekot kameras pozīciju</translation>
@@ -569,6 +572,7 @@ Papildu aizsardzība pārvalda tālāk norādītos Chrome iestatījumus
 <translation id="7406113532070524618">Šis iestatījums darbojas, neidentificējot jūs vai neatļaujot vietnēm skatīt jūsu pārlūkošanas vēsturi, taču verifikācijas nolūkos vietnes var kopīgot nelielu informācijas daudzumu</translation>
 <translation id="7409735910987429903">Vietnēs var tikt nosūtīti uznirstošie elementi reklāmu rādīšanai vai izmantota novirzīšana uz vietnēm, kuras, iespējams, nevēlaties apmeklēt.</translation>
 <translation id="7412160840120117304">Galvenās krāsas heksadecimālais kods</translation>
+<translation id="7412223528111026033">{ZOOM_PERCENTAGE,plural, =1{Tālummaiņa}zero{Tālummaiņa: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}one{Tālummaiņa: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}other{Tālummaiņa: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}}</translation>
 <translation id="7423098979219808738">Vispirms jautāt</translation>
 <translation id="7423538860840206698">Bloķēta starpliktuves satura lasīšana</translation>
 <translation id="7425915948813553151">Tumšā motīva lietošana vietnēs</translation>
@@ -700,7 +704,6 @@ Papildu aizsardzība pārvalda tālāk norādītos Chrome iestatījumus
 <translation id="8803526663383843427">Ja ieslēgta</translation>
 <translation id="8805385115381080995">Pārlūkošana ir ātrāka, jo vietnē, visticamāk, netiks lūgts apstiprināt, ka esat īsts cilvēks</translation>
 <translation id="8816026460808729765">Bloķēt vietņu piekļuvi sensoriem</translation>
-<translation id="884765916894384048">Atvērt atskaņošanu fonā</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Īslaicīgi atļaujiet izmantot trešo pušu sīkfailus. Tas nozīmē, ka pārlūkošanas aizsardzības līmenis būs zemāks, taču pastāv lielāka iespēja, ka vietnes funkcijas darbosies, kā paredzēts.</translation>
 <translation id="8889294078294184559">Kad turpināsiet pārlūkošanu, vietnes var pieprasīt šo informāciju pārlūkam Chrome un saņemt apstiprinājumu no iepriekš apmeklētās vietnes, ka, visticamāk, esat īsts cilvēks.</translation>

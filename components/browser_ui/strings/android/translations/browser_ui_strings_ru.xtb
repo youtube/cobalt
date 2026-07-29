@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">Продолжить</translation>
 <translation id="2379925928934107488">Если тёмная тема активирована в Chrome, она будет использоваться для сайтов, когда это возможно.</translation>
 <translation id="2390272837142897736">Увеличить масштаб</translation>
+<translation id="2397689164757137845">Разрешение на доступ к точному местоположению</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> МБ</translation>
 <translation id="2403474027143565107">Точное</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{Разрешено: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> и ещё <ph name="NUM_MORE" />}one{Разрешено: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> и ещё <ph name="NUM_MORE" />}few{Разрешено: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> и ещё <ph name="NUM_MORE" />}many{Разрешено: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> и ещё <ph name="NUM_MORE" />}other{Разрешено: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> и ещё <ph name="NUM_MORE" />}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">Справка/отзыв</translation>
 <translation id="2501278716633472235">Назад</translation>
 <translation id="2533138527374486328">Если функция включена, сайты могут отправлять запросы на подключение к устройствам в локальной сети. Если функция отключена, сайты не могут подключаться к устройствам в локальной сети.</translation>
+<translation id="2536779053640817375">Разовое разрешение на доступ к точному местоположению</translation>
 <translation id="2544997614631598250">Цвет темы: тёмный</translation>
 <translation id="2546283357679194313">Файлы сookie и данные сайтов</translation>
 <translation id="2570922361219980984">Определение местоположения отключено и для самого устройства. Включите эту функцию в <ph name="BEGIN_LINK" />настройках Android<ph name="END_LINK" />.</translation>
@@ -442,6 +444,7 @@
 <translation id="5876056640971328065">Приостановить видео</translation>
 <translation id="5877248419911025165">Свернуть все запросы</translation>
 <translation id="5878945009165002849">Запретить сайтам показывать предложения войти в аккаунт через сервисы идентификации</translation>
+<translation id="588258955323874662">Полноэкранный режим</translation>
 <translation id="5884085660368669834">Параметр сайта</translation>
 <translation id="5887687176710214216">Последнее посещение: вчера</translation>
 <translation id="5908617755156109052">Не разрешать сайтам создавать 3D-карту места, в котором вы находитесь, и отслеживать положение камеры</translation>
@@ -569,6 +572,7 @@
 <translation id="7406113532070524618">Ваши персональные данные не раскрываются, а сайтам не разрешается просматривать историю браузера. Однако сайты могут передавать небольшой объем информации для проверки вашей личности.</translation>
 <translation id="7409735910987429903">Сайты могут показывать рекламу с помощью всплывающих окон или перенаправлять вас на страницы, которые вы не собирались открывать.</translation>
 <translation id="7412160840120117304">Основной цвет (шестнадцатеричный код)</translation>
+<translation id="7412223528111026033">{ZOOM_PERCENTAGE,plural, =1{Масштаб}one{Масштаб: <ph name="ZOOM_PERCENTAGE_NUMBER" /> %%}few{Масштаб: <ph name="ZOOM_PERCENTAGE_NUMBER" /> %%}many{Масштаб: <ph name="ZOOM_PERCENTAGE_NUMBER" /> %%}other{Масштаб: <ph name="ZOOM_PERCENTAGE_NUMBER" /> %%}}</translation>
 <translation id="7423098979219808738">Сначала спрашивать</translation>
 <translation id="7423538860840206698">Доступ к данным в буфере обмена заблокирован</translation>
 <translation id="7425915948813553151">Тёмная тема для сайтов</translation>
@@ -700,7 +704,6 @@
 <translation id="8803526663383843427">Если функция включена</translation>
 <translation id="8805385115381080995">Сайты реже запрашивают проверку личности, поэтому вы меньше отвлекаетесь от работы в браузере.</translation>
 <translation id="8816026460808729765">Закрыть сайтам доступ к датчикам</translation>
-<translation id="884765916894384048">Продолжить воспроизведение в фоновом режиме</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Попробуйте временно разрешить сторонние файлы cookie. Браузер будет хуже защищен, но функции сайта могут начать работать правильно.</translation>
 <translation id="8889294078294184559">Затем другие сайты также могут запрашивать эти данные у браузера.</translation>

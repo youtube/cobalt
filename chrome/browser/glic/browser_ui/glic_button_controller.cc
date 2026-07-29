@@ -28,8 +28,8 @@ GlicButtonController::GlicButtonController(
   CHECK(glic_keyed_service_);
 
   // Initialize default values
-  PanelStateChanged(glic_keyed_service_->window_controller().GetPanelState(),
-                    {});
+  PanelStateChanged(
+      glic_keyed_service_->window_controller().GetGlobalPanelState(), {});
 
   // Observe for changes in preferences and panel state events
   pref_registrar_.Init(profile_->GetPrefs());
@@ -41,11 +41,11 @@ GlicButtonController::GlicButtonController(
           base::BindRepeating(&GlicButtonController::OnPrefsChanged,
                               base::Unretained(this))));
 
-  glic_keyed_service_->window_controller().AddStateObserver(this);
+  glic_keyed_service_->window_controller().AddGlobalStateObserver(this);
 }
 
 GlicButtonController::~GlicButtonController() {
-  glic_keyed_service_->window_controller().RemoveStateObserver(this);
+  glic_keyed_service_->window_controller().RemoveGlobalStateObserver(this);
 }
 
 void GlicButtonController::PanelStateChanged(
@@ -54,7 +54,7 @@ void GlicButtonController::PanelStateChanged(
   if (GlicWindowController::AlwaysDetached()) {
     UpdateShowState(true);
   } else {
-    const bool detached = panel_state.kind == mojom::PanelState_Kind::kDetached;
+    const bool detached = panel_state.kind == mojom::PanelStateKind::kDetached;
     glic_controller_delegate_->SetGlicDetached(detached);
     UpdateShowState(detached);
   }
@@ -62,8 +62,8 @@ void GlicButtonController::PanelStateChanged(
 
 void GlicButtonController::OnPrefsChanged() {
   UpdateShowState(
-      glic_keyed_service_->window_controller().GetPanelState().kind ==
-      mojom::PanelState_Kind::kDetached);
+      glic_keyed_service_->window_controller().GetGlobalPanelState().kind ==
+      mojom::PanelStateKind::kDetached);
 }
 
 void GlicButtonController::UpdateShowState(bool detached) {
