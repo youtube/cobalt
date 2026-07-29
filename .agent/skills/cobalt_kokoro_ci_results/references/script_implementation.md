@@ -240,7 +240,7 @@ If the parent `build.log` is successfully downloaded, check it for child runs.
 
 ### 5. Output Generation
 
-Writes a structured JSON to `--output` conforming to the unified schema. It maps the parent-child structure into flat run objects:
+Writes a structured JSON to `--output` conforming to the [Unified Results Schema](<SKILLS_DIR>/cobalt_ci_results_triage/references/unified_results_schema.json). It maps the parent-child structure into flat run objects:
 
 ```json
 {

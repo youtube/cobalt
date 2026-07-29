@@ -31,7 +31,7 @@ This skill orchestrates the entire CI triage process for Cobalt. It retrieves re
 
     Find all available skills that advertise or implement `cobalt gardener results gathering`.
     Invoke each of these skills to retrieve results from their respective CI systems.
-    These skills will save their outputs (conforming to the unified schema) to the shared incoming directory `/tmp/cobalt_gardener_${USER}/incoming/`.
+    These skills will save their outputs (conforming to the [unified results schema](../cobalt_ci_results_triage/references/unified_results_schema.json)) to the shared incoming directory `/tmp/cobalt_gardener_${USER}/incoming/`.
 
 - [ ] **Triage Results**
 

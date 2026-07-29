@@ -199,7 +199,7 @@ If Tier 1 & 2 do not yield logs (or if it is not a test job):
 
 ### 4. Output Generation
 
-Writes a structured JSON to `--output` conforming to the unified schema:
+Writes a structured JSON to `--output` conforming to the [Unified Results Schema](<SKILLS_DIR>/cobalt_ci_results_triage/references/unified_results_schema.json):
 
 ```json
 {
