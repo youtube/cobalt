@@ -288,8 +288,7 @@ void RemoteFrame::Navigate(FrameLoadRequest& frame_request,
       base::OptionalFromPtr(base::OptionalToPtr(initiator_frame_token));
   params->source_location = network::mojom::blink::SourceLocation::New();
 
-  std::unique_ptr<SourceLocation> source_location =
-      frame_request.TakeSourceLocation();
+  SourceLocation* source_location = frame_request.GetSourceLocation();
   if (!source_location->IsUnknown()) {
     params->source_location->url =
         source_location->Url() ? source_location->Url() : "";
@@ -742,8 +741,10 @@ void RemoteFrame::IntrinsicSizingInfoOfChildChanged(
   FrameOwner* owner = Owner();
   // Only communication from HTMLPluginElement-owned subframes is allowed
   // at present. This includes <embed> and <object> tags.
-  if (!owner || !owner->IsPlugin())
+  if (!owner || (!owner->IsPlugin() &&
+                 !RuntimeEnabledFeatures::ResponsiveIframesEnabled())) {
     return;
+  }
 
   // TODO(https://crbug.com/1044304): Should either remove the native
   // C++ Blink type and use the Mojo type everywhere or typemap the

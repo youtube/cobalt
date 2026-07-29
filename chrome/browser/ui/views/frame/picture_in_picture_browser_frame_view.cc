@@ -851,7 +851,8 @@ void PictureInPictureBrowserFrameView::AddedToWidget() {
 
   // TODO(crbug.com/40279642): Don't force dark mode once we support a
   // light mode window.
-  GetWidget()->SetColorModeOverride(ui::ColorProviderKey::ColorMode::kDark);
+  GetWidget()->SetColorModeOverride(ui::ColorProviderKey::ColorMode::kDark,
+                                    /*background_color=*/std::nullopt);
 
   // If the AutoPiP setting overlay is set, then post a task to show it.  Don't
   // do this here, since not all observers might have found out about the new
@@ -1294,8 +1295,8 @@ gfx::Size PictureInPictureBrowserFrameView::GetNonClientViewAreaSize() const {
 #if BUILDFLAG(IS_WIN)
 gfx::Insets PictureInPictureBrowserFrameView::GetClientAreaInsets(
     HMONITOR monitor) const {
-  const int frame_thickness =
-      ui::GetFrameThickness(monitor, /*has_caption=*/true);
+  const int frame_thickness = ui::GetResizableFrameThicknessFromMonitorInPixels(
+      monitor, /*has_caption=*/true);
   return gfx::Insets::TLBR(0, frame_thickness, frame_thickness,
                            frame_thickness);
 }

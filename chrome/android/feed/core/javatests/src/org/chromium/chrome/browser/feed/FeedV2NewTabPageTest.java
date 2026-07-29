@@ -147,7 +147,7 @@ public class FeedV2NewTabPageTest {
             ChromeRenderTestRule.Builder.withPublicCorpus()
                     .setBugComponent(
                             ChromeRenderTestRule.Component.UI_BROWSER_CONTENT_SUGGESTIONS_FEED)
-                    .setRevision(1)
+                    .setRevision(2)
                     .build();
 
     public final SigninTestRule mSigninTestRule = new SigninTestRule();
@@ -385,7 +385,7 @@ public class FeedV2NewTabPageTest {
     @MediumTest
     @Feature({"FeedNewTabPage"})
     public void testSignInPromo_AccountsNotReady() {
-        try (var unused = mSigninTestRule.blockGetCoreAccountInfosUpdate(false)) {
+        try (var unused = mSigninTestRule.blockGetAccountsUpdate(false)) {
             openNewTabPage();
             // Check that the sign-in promo is not shown if accounts are not ready.
             onView(withId(R.id.feed_stream_recycler_view))
@@ -443,7 +443,7 @@ public class FeedV2NewTabPageTest {
     @Test
     @MediumTest
     @Feature({"NewTabPage", "FeedNewTabPage"})
-    @DisableFeatures("NewTabPageCustomization")
+    @DisableFeatures({"NewTabPageCustomization", "FeedHeaderRemoval"})
     @ParameterAnnotations.UseMethodParameter(SigninPromoParams.class)
     public void testArticleSectionHeaderWithMenu(boolean disableSigninPromoCard) throws Exception {
         openNewTabPage();

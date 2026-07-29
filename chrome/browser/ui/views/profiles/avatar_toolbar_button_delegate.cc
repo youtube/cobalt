@@ -262,10 +262,12 @@ class ExplicitStateProvider : public StateProvider {
   explicit ExplicitStateProvider(
       StateObserver& state_observer,
       const std::u16string& explicit_text,
-      std::optional<std::u16string> accessibility_label)
+      std::optional<std::u16string> accessibility_label,
+      std::optional<base::RepeatingCallback<void(bool)>> explicit_action)
       : StateProvider(state_observer),
         explicit_text_(explicit_text),
-        accessibility_label_(accessibility_label) {}
+        accessibility_label_(std::move(accessibility_label)),
+        explicit_action_(std::move(explicit_action)) {}
   ~ExplicitStateProvider() override = default;
 
   // StateProvider:
@@ -283,6 +285,10 @@ class ExplicitStateProvider : public StateProvider {
     RequestUpdate();
   }
 
+  std::optional<base::RepeatingCallback<void(bool)>> GetButtonAction() {
+    return explicit_action_;
+  }
+
   base::WeakPtr<ExplicitStateProvider> GetWeakPtr() {
     return weak_ptr_factory_.GetWeakPtr();
   }
@@ -295,6 +301,9 @@ class ExplicitStateProvider : public StateProvider {
 
   const std::u16string explicit_text_;
   const std::optional<std::u16string> accessibility_label_;
+
+  // The explicit action to be used when the button is pressed.
+  std::optional<base::RepeatingCallback<void(bool)>> explicit_action_;
 
   base::WeakPtrFactory<ExplicitStateProvider> weak_ptr_factory_{this};
 };
@@ -780,11 +789,12 @@ class HistorySyncOptinStateProvider : public StateProvider {
     }
   }
 
-  std::optional<base::RepeatingClosure> GetButtonAction() {
-    return base::BindRepeating(&HistorySyncOptinStateProvider::OnButtonClick,
-                               // This is safe because `AvatarToolbarButton`
-                               // owning all the providers owns the callback.
-                               base::Unretained(this));
+  std::optional<base::RepeatingCallback<void(bool)>> GetButtonAction() {
+    return base::BindRepeating(
+        &HistorySyncOptinStateProvider::OnButtonClick,
+        // This is safe because `AvatarToolbarButtonDelegate`
+        // owning all the providers owns the callback.
+        base::Unretained(this));
   }
 
   void ForceDelayTimeoutForTesting() {
@@ -795,9 +805,9 @@ class HistorySyncOptinStateProvider : public StateProvider {
   // StateProvider:
   void Accept(StateVisitor& visitor) const override { visitor.visit(this); }
 
-  void OnButtonClick() {
+  void OnButtonClick(bool is_source_accelerator) {
     ProfileMenuCoordinator::GetOrCreateForBrowser(&browser_.get())
-        ->Show(/*is_source_accelerator=*/false, coordinator_->access_point());
+        ->Show(is_source_accelerator, coordinator_->access_point());
     coordinator_->PromoUsed();
   }
 
@@ -1267,7 +1277,7 @@ class StateManager : public StateObserver,
 
     // Recompute the button active state after adding a new state.
     ComputeButtonActiveState();
-    UpdateButtonText();
+    UpdateAvatarButton();
   }
 
  private:
@@ -1430,15 +1440,12 @@ class StateManager : public StateObserver,
 
   void UpdateButtonText() { avatar_toolbar_button_->UpdateText(); }
 
-  void UpdateButtonAction() { avatar_toolbar_button_->UpdateButtonAction(); }
-
   // This is mainly used `OnStateProviderUpdateRequest()` where not all of the
   // state transitions update all of the button properties. Consider adding a
   // filter if this is impacting performance.
   void UpdateAvatarButton() {
     UpdateButtonText();
     UpdateButtonIcon();
-    UpdateButtonAction();
   }
 
   // signin::IdentityManager::Observer:
@@ -1530,6 +1537,24 @@ void AvatarToolbarButtonDelegate::InitializeStateManager() {
 
 bool AvatarToolbarButtonDelegate::IsStateManagerInitialized() const {
   return state_manager_.get() != nullptr;
+}
+
+void AvatarToolbarButtonDelegate::OnButtonPressed(bool is_source_accelerator) {
+  std::optional<base::RepeatingCallback<void(bool)>> action_override =
+      GetButtonActionOverride();
+  if (action_override.has_value()) {
+    action_override->Run(is_source_accelerator);
+    return;
+  }
+
+  // By default, show the profile menu.
+  ProfileMenuCoordinator::GetOrCreateForBrowser(browser_)->Show(
+      is_source_accelerator);
+}
+
+bool AvatarToolbarButtonDelegate::HasExplicitButtonState() const {
+  return state_manager_->GetButtonActiveState() ==
+         ButtonState::kExplicitTextShowing;
 }
 
 std::u16string AvatarToolbarButtonDelegate::GetProfileName() const {
@@ -1628,15 +1653,17 @@ void AvatarToolbarButtonDelegate::OnThemeChanged(
           : GetCurrentProfileThemeColors(*color_provider, *service));
 }
 
-base::ScopedClosureRunner AvatarToolbarButtonDelegate::ShowExplicitText(
-    const std::u16string& new_text,
-    std::optional<std::u16string> accessibility_label) {
-  CHECK(!new_text.empty());
+base::ScopedClosureRunner AvatarToolbarButtonDelegate::SetExplicitButtonState(
+    const std::u16string& text,
+    std::optional<std::u16string> accessibility_label,
+    std::optional<base::RepeatingCallback<void(bool)>> action) {
+  CHECK(!text.empty());
 
   // Create the new explicit state with the clear text callback.
   std::unique_ptr<ExplicitStateProvider> explicit_state_provider =
       std::make_unique<ExplicitStateProvider>(
-          /*state_observer=*/*state_manager_, new_text, accessibility_label);
+          /*state_observer=*/*state_manager_, text,
+          std::move(accessibility_label), std::move(action));
 
   ExplicitStateProvider* explicit_state_provider_ptr =
       explicit_state_provider.get();
@@ -1732,20 +1759,16 @@ AvatarToolbarButtonDelegate::GetTextAndColor(
                                            guest_window_count));
       text = l10n_util::GetPluralStringFUTF16(IDS_AVATAR_BUTTON_GUEST,
                                               guest_window_count);
-      color = color_provider->GetColor(kColorAvatarButtonHighlightNormal);
+      color = color_provider->GetColor(kColorAvatarButtonHighlightGuest);
       break;
     }
     case ButtonState::kManagement: {
       text = enterprise_util::GetEnterpriseLabel(profile_, /*truncated=*/true);
-      if (base::FeatureList::IsEnabled(
-              features::
-                  kEnableAppMenuButtonColorsForDefaultAvatarButtonStates)) {
-        color = color_provider->GetColor(kColorAvatarButtonHighlightManagement);
-      }
+      color = color_provider->GetColor(kColorAvatarButtonHighlightManagement);
       break;
     }
     case ButtonState::kNormal:
-      color = color_provider->GetColor(kColorAvatarButtonHighlightNormal);
+      color = std::nullopt;
       break;
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
     case ButtonState::kHistorySyncOptin: {
@@ -1816,7 +1839,7 @@ AvatarToolbarButtonDelegate::GetAccessibilityLabel() const {
   return accessibility_label;
 }
 
-SkColor AvatarToolbarButtonDelegate::GetHighlightTextColor(
+std::optional<SkColor> AvatarToolbarButtonDelegate::GetHighlightTextColor(
     const ui::ColorProvider* color_provider) const {
   switch (state_manager_->GetButtonActiveState()) {
     case ButtonState::kIncognitoProfile:
@@ -1841,17 +1864,13 @@ SkColor AvatarToolbarButtonDelegate::GetHighlightTextColor(
       return color_provider->GetColor(
           kColorAvatarButtonHighlightDefaultForeground);
     case ButtonState::kGuestSession:
-    case ButtonState::kNormal:
       return color_provider->GetColor(
-          kColorAvatarButtonHighlightNormalForeground);
+          kColorAvatarButtonHighlightGuestForeground);
+    case ButtonState::kNormal:
+      return std::nullopt;
     case ButtonState::kManagement:
-      return base::FeatureList::IsEnabled(
-                 features::
-                     kEnableAppMenuButtonColorsForDefaultAvatarButtonStates)
-                 ? color_provider->GetColor(
-                       kColorAvatarButtonHighlightManagementForeground)
-                 : color_provider->GetColor(
-                       kColorAvatarButtonHighlightDefaultForeground);
+      return color_provider->GetColor(
+          kColorAvatarButtonHighlightManagementForeground);
   }
 }
 
@@ -1999,33 +2018,6 @@ bool AvatarToolbarButtonDelegate::ShouldPaintBorder() const {
   }
 }
 
-bool AvatarToolbarButtonDelegate::ShouldBlendHighlightColor() const {
-  switch (state_manager_->GetButtonActiveState()) {
-    case ButtonState::kManagement:
-      return base::FeatureList::IsEnabled(
-                 features::
-                     kEnableAppMenuButtonColorsForDefaultAvatarButtonStates)
-                 ? false
-                 : avatar_toolbar_button_->GetWidget() &&
-                       avatar_toolbar_button_->GetWidget()->GetCustomTheme();
-    case ButtonState::kShowIdentityName:
-    case ButtonState::kNormal:
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
-    case ButtonState::kHistorySyncOptin:
-#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
-    case ButtonState::kIncognitoProfile:
-    case ButtonState::kExplicitTextShowing:
-    case ButtonState::kSigninPending:
-    case ButtonState::kUpgradeClientError:
-    case ButtonState::kPassphraseError:
-    case ButtonState::kSyncPaused:
-    case ButtonState::kSyncError:
-    case ButtonState::kGuestSession:
-      return avatar_toolbar_button_->GetWidget() &&
-             avatar_toolbar_button_->GetWidget()->GetCustomTheme();
-  }
-}
-
 void AvatarToolbarButtonDelegate::OnPrimaryAccountChanged(
     const signin::PrimaryAccountChangeEvent& event_details) {
   // Try showing the IPH for signin preference remembered.
@@ -2056,8 +2048,8 @@ void AvatarToolbarButtonDelegate::OnPrimaryAccountChanged(
   }
 }
 
-std::optional<base::RepeatingClosure>
-AvatarToolbarButtonDelegate::GetButtonAction() {
+std::optional<base::RepeatingCallback<void(bool)>>
+AvatarToolbarButtonDelegate::GetButtonActionOverride() {
   switch (state_manager_->GetButtonActiveState()) {
     case ButtonState::kIncognitoProfile:
     case ButtonState::kSyncError:
@@ -2066,13 +2058,21 @@ AvatarToolbarButtonDelegate::GetButtonAction() {
     case ButtonState::kUpgradeClientError:
     case ButtonState::kPassphraseError:
     case ButtonState::kSyncPaused:
-    case ButtonState::kExplicitTextShowing:
     case ButtonState::kGuestSession:
     case ButtonState::kShowIdentityName:
     case ButtonState::kNormal:
       return std::nullopt;
+    case ButtonState::kExplicitTextShowing: {
+      internal::ExplicitStateProvider* explicit_state =
+          const_cast<internal::ExplicitStateProvider*>(
+              internal::StateProviderGetter(
+                  *state_manager_->GetActiveStateProvider())
+                  .AsExplicit());
+      CHECK(explicit_state);
+      return explicit_state->GetButtonAction();
+    }
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
-    case ButtonState::kHistorySyncOptin:
+    case ButtonState::kHistorySyncOptin: {
       internal::HistorySyncOptinStateProvider* history_sync_optin_state =
           const_cast<internal::HistorySyncOptinStateProvider*>(
               internal::StateProviderGetter(
@@ -2080,6 +2080,7 @@ AvatarToolbarButtonDelegate::GetButtonAction() {
                   .AsHistorySyncOptin());
       CHECK(history_sync_optin_state);
       return history_sync_optin_state->GetButtonAction();
+    }
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
   }
 }

@@ -133,9 +133,9 @@ SK_API void SkDebugf_FileLine(const char* file,
 
 #define SK_LEGACY_INITWITHPREV_LAYER_SIZING
 
-#define SK_AVOID_SLOW_RASTER_PIPELINE_BLURS
+#define SK_SKIP_PIXELALIGNED_QUAD_CHECK_GRAPHITE
 
-#define SK_USE_LEGACY_UNIFORM_LIFTING_GRAPHITE
+#define SK_AVOID_SLOW_RASTER_PIPELINE_BLURS
 
 ///////////////////////// Imported from BUILD.gn and skia_common.gypi
 

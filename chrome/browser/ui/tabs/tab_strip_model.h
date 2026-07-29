@@ -45,7 +45,6 @@ class Profile;
 class TabGroupModel;
 class TabStripModelDelegate;
 class TabStripModelObserver;
-class TabStripServiceImpl;
 
 namespace content {
 class WebContents;
@@ -61,6 +60,10 @@ namespace tabs {
 class SplitTabCollection;
 class TabStripCollection;
 class TabGroupTabCollection;
+}
+
+namespace tabs_api {
+class MojoTreeBuilder;
 }
 
 class TabGroupModelFactory {
@@ -177,7 +180,6 @@ class ScopedTabStripModalUI {
 class TabStripModel {
  public:
   using TabIterator = tabs::TabCollection::TabIterator;
-  using CollectionIterator = tabs::TabCollection::Iterator;
 
   // TODO(crbug.com/40881446): Remove this, and use std::optional<size_t> (or at
   // least std::optional<int>) in its place.
@@ -675,10 +677,9 @@ class TabStripModel {
   TabIterator begin() const;
   TabIterator end() const;
 
-  CollectionIterator collection_begin(
-      base::PassKey<TabStripServiceImpl> key) const;
-  CollectionIterator collection_end(
-      base::PassKey<TabStripServiceImpl> key) const;
+  // Gets the root of the tab strip model. Used to traverse the tab topology.
+  const tabs::TabCollection* Root(
+      base::PassKey<tabs_api::MojoTreeBuilder> key) const;
 
   // View API //////////////////////////////////////////////////////////////////
 
@@ -1133,6 +1134,8 @@ class TabStripModel {
   // Implementation of MoveTabsAndSetPropertiesImpl. Moves the set of tabs in
   // |indices| to the |destination_index| and updates the tabs to the
   // appropriate |group| and |pinned| properties.
+  // Note: |destination_index| refers to a place in the tabstrip prior to the
+  // move operation.
   void MoveTabsAndSetPropertiesImpl(const std::vector<int>& indices,
                                     int destination_index,
                                     std::optional<tab_groups::TabGroupId> group,
@@ -1164,6 +1167,7 @@ class TabStripModel {
 
   // Similar to `MoveTabToIndexImpl` but this is used for multiple tabs either
   // being moved or having their group updated. `tab_indices` should be sorted.
+  // Tabs are inserted at `destination_index` after they are removed.
   void MoveTabsToIndexImpl(const std::vector<int>& tab_indices,
                            int destination_index,
                            const std::optional<tab_groups::TabGroupId> group);

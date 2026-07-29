@@ -1836,6 +1836,7 @@ config("libcxx_module") {
       "-fbuiltin-module-map",
       "-fmodule-map-file=" + sysroot_modulemap,
       "-fno-implicit-module-maps",
+      "-fno-implicit-modules",
 
       "-Xclang",
       "-fmodules-local-submodule-visibility",  # required for builtins
@@ -1850,21 +1851,6 @@ config("libcxx_module") {
       # unnecessarily using extern "C".
       "-Wno-module-import-in-extern-c",
     ]
-
-    if (use_explicit_libcxx_modules) {
-      cflags_cc += [
-        "-fno-implicit-modules",
-
-        # This is for exception handling mismatch.
-        "-Wno-module-file-config-mismatch",
-      ]
-    } else {
-      cflags_cc += [
-        "-fbuiltin-module-map",
-        "-fmodules-cache-path=" +
-            rebase_path("$libcxx_module_prefix/module_cache", root_build_dir),
-      ]
-    }
   }
 }
 
@@ -2533,6 +2519,15 @@ config("no_exceptions") {
 config("wglobal_constructors") {
   if (is_clang) {
     cflags = [ "-Wglobal-constructors" ]
+  }
+}
+
+# TODO(crbug.com/420898150): this can be removed once
+# https://github.com/google/nearby/pull/3392 is merged and rolled.
+config("unnecessary_virtual_specifier_warning") {
+  cflags = []
+  if (is_chromeos) {
+    cflags += [ "-Wno-unnecessary-virtual-specifier" ]
   }
 }
 

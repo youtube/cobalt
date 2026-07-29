@@ -90,7 +90,6 @@
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 #include "components/saved_tab_groups/public/features.h"
 #include "components/signin/public/base/signin_buildflags.h"
-#include "components/signin/public/base/signin_switches.h"
 #include "components/strings/grit/components_branded_strings.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/strings/grit/privacy_sandbox_strings.h"
@@ -497,8 +496,7 @@ void AddAiStrings(content::WebUIDataSource* html_source) {
                          commerce::kChromeUICompareLearnMoreUrl);
   html_source->AddString("compareLearnMoreManagedUrl",
                          commerce::kChromeUICompareLearnMoreManagedUrl);
-  html_source->AddString("compareDataHomeUrl",
-                         commerce::kChromeUICompareListsUrl);
+  html_source->AddString("compareDataHomeUrl", commerce::kChromeUICompareUrl);
   html_source->AddString("composeLearnMorePageURL",
                          chrome::kComposeLearnMorePageURL);
   html_source->AddString("composeLearnMorePageManagedURL",
@@ -642,7 +640,16 @@ void AddClearBrowsingDataStrings(content::WebUIDataSource* html_source,
        IDS_CLEAR_BROWSING_DATA_PASSWORDS_NOTICE_OK},
       {"notificationWarning", IDS_SETTINGS_NOTIFICATION_WARNING},
       {"clearBrowsingDataShowMore", IDS_SETTINGS_CLEAR_BROWSING_DATA_SHOW_MORE},
-      {"clearBrowsingDataMore", IDS_SETTINGS_CLEAR_BROWSING_DATA_MORE}};
+      {"clearBrowsingDataMore", IDS_SETTINGS_CLEAR_BROWSING_DATA_MORE},
+      {"otherDataTitle", IDS_SETTINGS_OTHER_DATA_TITLE},
+      {"otherDataDescription", IDS_SETTINGS_OTHER_DATA_DESCRIPTION},
+      {"passwordsAndPasskeys", IDS_SETTINGS_PASSWORDS_AND_PASSKEYS},
+      {"manageInGooglePasswordManager",
+       IDS_SETTINGS_MANAGE_IN_GOOGLE_PASSWORD_MANAGER},
+      {"searchHistory", IDS_SETTINGS_SEARCH_HISTORY},
+      {"myActivity", IDS_SETTINGS_MY_ACTIVITY},
+      {"manageInYourGoogleAccount",
+       IDS_SETTINGS_MANAGE_IN_YOUR_GOOGLE_ACCOUNT}};
 
   html_source->AddString(
       "clearGoogleSearchHistoryGoogleDse",
@@ -716,6 +723,9 @@ void AddGlicStrings(content::WebUIDataSource* html_source) {
       {"glicPolicyDisabledMessage", IDS_SETTINGS_GLIC_POLICY_DISABLED_MESSAGE},
       {"glicPreferencesSection", IDS_SETTINGS_GLIC_PREFERENCES_SECTION},
       {"glicDataSection", IDS_SETTINGS_GLIC_PERMISSIONS_SECTION},
+      {"glicTabstripButtonToggle", IDS_SETTINGS_GLIC_BUTTON_TOGGLE},
+      {"glicTabstripButtonToggleSublabel",
+       IDS_SETTINGS_GLIC_BUTTON_TOGGLE_SUBLABEL},
       {"glicOsWidgetToggle", IDS_SETTINGS_GLIC_OS_WIDGET_TOGGLE},
       {"glicOsWidgetToggleSublabel",
        IDS_SETTINGS_GLIC_OS_WIDGET_TOGGLE_SUBLABEL},
@@ -1635,10 +1645,6 @@ void AddPersonalizationOptionsStrings(content::WebUIDataSource* html_source) {
        IDS_SETTINGS_CHROME_SIGNIN_OPTION_SAVED_TOAST_LABEL},
   };
   html_source->AddLocalizedStrings(kLocalizedStrings);
-
-  html_source->AddBoolean(
-      "isSnackbarForSettingsEnabled",
-      base::FeatureList::IsEnabled(switches::kEnableSnackbarInSettings));
 }
 
 void AddBrowserSyncPageStrings(content::WebUIDataSource* html_source) {
@@ -2420,8 +2426,12 @@ void AddSearchEnginesStrings(content::WebUIDataSource* html_source) {
        IDS_SETTINGS_SEARCH_ENGINES_VIEW_SITE_SEARCH},
       {"searchEnginesDeleteConfirmationTitle",
        IDS_SETTINGS_SEARCH_ENGINES_DELETE_CONFIRMATION_TITLE},
+      {"searchEnginesDeleteConfirmationSubtitleForPolicy",
+       IDS_SETTINGS_SEARCH_ENGINES_SUBTITLE_FOR_POLICY},
       {"searchEnginesDeleteConfirmationDescription",
        IDS_SETTINGS_SEARCH_ENGINES_DELETE_CONFIRMATION_DESCRIPTION},
+      {"searchEnginesDeleteConfirmationDescriptionForPolicy",
+       IDS_SETTINGS_SEARCH_ENGINES_DELETE_CONFIRMATION_DESCRIPTION_FOR_POLICY},
       {"searchEngines", IDS_SETTINGS_SEARCH_ENGINES},
       {"searchEnginesSearchEngines",
        IDS_SETTINGS_SEARCH_ENGINES_SEARCH_ENGINES},

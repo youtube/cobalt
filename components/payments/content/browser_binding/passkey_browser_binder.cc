@@ -13,6 +13,7 @@
 #include "base/barrier_callback.h"
 #include "base/base64.h"
 #include "base/check.h"
+#include "base/check_deref.h"
 #include "base/containers/contains.h"
 #include "base/containers/to_vector.h"
 #include "base/functional/callback.h"
@@ -20,6 +21,7 @@
 #include "components/payments/content/browser_binding/browser_bound_key_metadata.h"
 #include "components/payments/content/browser_binding/browser_bound_key_store.h"
 #include "components/payments/content/payment_manifest_web_data_service.h"
+#include "components/payments/core/secure_payment_confirmation_metrics.h"
 #include "components/webdata/common/web_data_results.h"
 #include "crypto/random.h"
 
@@ -126,9 +128,12 @@ PasskeyBrowserBinder::PasskeyBrowserBinder(
     scoped_refptr<BrowserBoundKeyStore> key_store,
     scoped_refptr<PaymentManifestWebDataService> web_data_service)
     : key_store_(std::move(key_store)),
-      web_data_service_(web_data_service),
+      web_data_service_(std::move(web_data_service)),
       random_bytes_as_vector_callback_(
-          base::BindRepeating(crypto::RandBytesAsVector)) {}
+          base::BindRepeating(crypto::RandBytesAsVector)) {
+  CHECK(key_store_);
+  CHECK(web_data_service_);
+}
 
 PasskeyBrowserBinder::~PasskeyBrowserBinder() = default;
 
@@ -149,13 +154,17 @@ PasskeyBrowserBinder::UnboundKey::~UnboundKey() {
   // When browser_bound_key_ is still present, then we have not yet bound the
   // key, (in PasskeyBrowserBinder::BindKey()). To prevent this key from being
   // orphaned we delete it now.
-  if (browser_bound_key_) {
-    key_store_->DeleteBrowserBoundKey(browser_bound_key_->GetIdentifier());
+  if (!browser_bound_key_id_.empty()) {
+    key_store_->DeleteBrowserBoundKey(browser_bound_key_id_);
   }
 }
 
+BrowserBoundKey& PasskeyBrowserBinder::UnboundKey::Get() {
+  return CHECK_DEREF(browser_bound_key_.get());
+}
+
 void PasskeyBrowserBinder::UnboundKey::MarkKeyBoundAndReset() {
-  browser_bound_key_ = nullptr;
+  browser_bound_key_id_.clear();
 }
 
 std::optional<PasskeyBrowserBinder::UnboundKey>
@@ -170,6 +179,9 @@ PasskeyBrowserBinder::CreateUnboundKey(
   std::unique_ptr<BrowserBoundKey> browser_bound_key =
       key_store_->GetOrCreateBrowserBoundKeyForCredentialId(
           browser_bound_key_id, allowed_algorithms);
+  RecordCreationOrRetrieval(
+      /*is_creation=*/true,
+      /*did_succeed=*/!!browser_bound_key);
   if (!browser_bound_key) {
     return std::nullopt;
   }
@@ -181,19 +193,17 @@ PasskeyBrowserBinder::CreateUnboundKey(
 void PasskeyBrowserBinder::BindKey(UnboundKey key,
                                    const std::vector<uint8_t>& credential_id,
                                    const std::string& relying_party) {
-  if (web_data_service_) {
-    WebDataServiceBase::Handle handle = web_data_service_->SetBrowserBoundKey(
-        credential_id, relying_party, std::move(key.browser_bound_key_id_),
-        /*consumer=*/this);
-    set_browser_bound_key_handlers_[handle] = base::BindOnce(
-        [](UnboundKey key, bool success) {
-          if (success) {
-            key.MarkKeyBoundAndReset();
-            // Do not call methods on key past this point.
-          }
-        },
-        std::move(key));
-  }
+  WebDataServiceBase::Handle handle = web_data_service_->SetBrowserBoundKey(
+      credential_id, relying_party, key.browser_bound_key_id_,
+      /*consumer=*/this);
+  set_browser_bound_key_handlers_[handle] = base::BindOnce(
+      [](UnboundKey key, bool success) {
+        if (success) {
+          key.MarkKeyBoundAndReset();
+          // Do not call methods on key past this point.
+        }
+      },
+      std::move(key));
 }
 
 void PasskeyBrowserBinder::DeleteAllUnknownBrowserBoundKeys(
@@ -228,10 +238,6 @@ void PasskeyBrowserBinder::GetBoundKeyForPasskey(
     std::vector<uint8_t> credential_id,
     std::string relying_party,
     base::OnceCallback<void(std::unique_ptr<BrowserBoundKey>)> callback) {
-  if (!web_data_service_) {
-    std::move(callback).Run(nullptr);
-    return;
-  }
   auto handle = web_data_service_->GetBrowserBoundKey(
       std::move(credential_id), std::move(relying_party), /*consumer=*/this);
   get_browser_bound_key_handlers_[handle] =
@@ -243,11 +249,7 @@ void PasskeyBrowserBinder::GetOrCreateBoundKeyForPasskey(
     std::vector<uint8_t> credential_id,
     std::string relying_party,
     const BrowserBoundKeyStore::CredentialInfoList& allowed_algorithms,
-    base::OnceCallback<void(std::unique_ptr<BrowserBoundKey>)> callback) {
-  if (!web_data_service_) {
-    std::move(callback).Run(nullptr);
-    return;
-  }
+    base::OnceCallback<void(bool, std::unique_ptr<BrowserBoundKey>)> callback) {
   auto handle = web_data_service_->GetBrowserBoundKey(
       credential_id, relying_party, /*consumer=*/this);
   // The call back must not strongly reference this to avoid strong reference
@@ -309,29 +311,61 @@ void PasskeyBrowserBinder::GetBrowserBoundKey(
   }
   // The BBK is only retrieved: With an empty `allowed_algorithms` no BBK will
   // be created.
-  std::move(callback).Run(key_store_->GetOrCreateBrowserBoundKeyForCredentialId(
-      existing_browser_bound_key_id, /*allowed_algorithms=*/{}));
+  std::unique_ptr<BrowserBoundKey> browser_bound_key =
+      key_store_->GetOrCreateBrowserBoundKeyForCredentialId(
+          existing_browser_bound_key_id, /*allowed_algorithms=*/{});
+  RecordCreationOrRetrieval(
+      /*is_creation=*/false,
+      /*did_succeed=*/!!browser_bound_key);
+  std::move(callback).Run(std::move(browser_bound_key));
 }
 
 void PasskeyBrowserBinder::GetOrCreateBrowserBoundKey(
     std::vector<uint8_t> credential_id,
     std::string relying_party,
     BrowserBoundKeyStore::CredentialInfoList allowed_algorithms,
-    base::OnceCallback<void(std::unique_ptr<BrowserBoundKey>)> callback,
+    base::OnceCallback<void(bool, std::unique_ptr<BrowserBoundKey>)> callback,
     std::vector<uint8_t> browser_bound_key_id) {
-  if (browser_bound_key_id.empty()) {
+  bool needs_to_be_created = browser_bound_key_id.empty();
+  if (needs_to_be_created) {
     browser_bound_key_id =
         random_bytes_as_vector_callback_.Run(kBrowserBoundKeyIdLength);
-    // TODO(crbug.com/384954763): Delete the browser bound key from the key
-    // store if the result was false (not successful).
-    WebDataServiceBase::Handle handle = web_data_service_->SetBrowserBoundKey(
-        std::move(credential_id), std::move(relying_party),
-        browser_bound_key_id,
-        /*consumer=*/this);
-    set_browser_bound_key_handlers_[handle] = base::DoNothing();
   }
-  std::move(callback).Run(key_store_->GetOrCreateBrowserBoundKeyForCredentialId(
-      browser_bound_key_id, allowed_algorithms));
+  std::unique_ptr<BrowserBoundKey> browser_bound_key =
+      key_store_->GetOrCreateBrowserBoundKeyForCredentialId(
+          browser_bound_key_id, allowed_algorithms);
+  if (needs_to_be_created && browser_bound_key) {
+    BindKey(UnboundKey(std::move(browser_bound_key_id),
+                       /*browser_bound_key=*/{}, key_store_),
+            std::move(credential_id), std::move(relying_party));
+  }
+  RecordCreationOrRetrieval(/*is_creation=*/needs_to_be_created,
+                            /*did_succeed=*/!!browser_bound_key);
+  std::move(callback).Run(/*is_new=*/needs_to_be_created,
+                          std::move(browser_bound_key));
+}
+
+void PasskeyBrowserBinder::RecordCreationOrRetrieval(bool is_creation,
+                                                     bool did_succeed) {
+  bool has_device_hardware_support =
+      key_store_->GetDeviceSupportsHardwareKeys();
+  auto metrics_result =
+      did_succeed
+          ? (has_device_hardware_support
+                 ? SecurePaymentConfirmationBrowserBoundKeyDeviceResult::
+                       kSuccessWithDeviceHardware
+                 : SecurePaymentConfirmationBrowserBoundKeyDeviceResult::
+                       kSuccessWithoutDeviceHardware)
+          : (has_device_hardware_support
+                 ? SecurePaymentConfirmationBrowserBoundKeyDeviceResult::
+                       kFailureWithDeviceHardware
+                 : SecurePaymentConfirmationBrowserBoundKeyDeviceResult::
+                       kFailureWithoutDeviceHardware);
+  if (is_creation) {
+    RecordBrowserBoundKeyCreation(metrics_result);
+  } else {
+    RecordBrowserBoundKeyRetrieval(metrics_result);
+  }
 }
 
 }  // namespace payments
