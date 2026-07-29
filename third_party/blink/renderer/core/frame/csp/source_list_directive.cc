@@ -4,10 +4,16 @@
 
 #include "third_party/blink/renderer/core/frame/csp/source_list_directive.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include <arpa/inet.h>
+#include <ifaddrs.h>
+#endif
+
 #include "base/feature_list.h"
 #include "services/network/public/mojom/content_security_policy.mojom-blink.h"
 #include "third_party/blink/renderer/core/frame/csp/content_security_policy.h"
 #include "third_party/blink/renderer/core/frame/csp/csp_source.h"
+#include "third_party/blink/renderer/core/frame/csp/local_ip.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_request.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
@@ -78,6 +84,20 @@ CSPCheckResult CSPSourceListAllows(
       return CSPCheckResult::AllowedOnlyIfWildcardMatchesWs();
     }
   }
+#if BUILDFLAG(IS_COBALT)
+  // Allow websocket connection to host ip within the private range.
+  if (source_list.cobalt_insecure_private_range &&
+      (url.ProtocolIs("ws") || url.ProtocolIs("wss")) &&
+      IsIPInPrivateRange(url.Host().Utf8())) {
+    return network::CSPCheckResult(true);
+  }
+  // Allow websocket connection to host ip within the local network.
+  if (source_list.cobalt_insecure_local_network &&
+      (url.ProtocolIs("ws") || url.ProtocolIs("wss")) &&
+      IsIPInLocalNetwork(url.Host().Utf8())) {
+    return network::CSPCheckResult(true);
+  }
+#endif
 
   return CSPCheckResult::Blocked();
 }
@@ -108,7 +128,12 @@ bool CSPSourceListIsNone(
          !source_list.allow_unsafe_hashes && !source_list.allow_eval &&
          !source_list.allow_wasm_eval && !source_list.allow_wasm_unsafe_eval &&
          !source_list.allow_dynamic && !source_list.nonces.size() &&
+#if BUILDFLAG(IS_COBALT)
+         !source_list.hashes.size() && !source_list.cobalt_insecure_local_network &&
+         !source_list.cobalt_insecure_private_range;
+#else
          !source_list.hashes.size();
+#endif
 }
 
 bool CSPSourceListIsSelf(
@@ -118,7 +143,11 @@ bool CSPSourceListIsSelf(
          !source_list.allow_unsafe_hashes && !source_list.allow_eval &&
          !source_list.allow_wasm_eval && !source_list.allow_wasm_unsafe_eval &&
          !source_list.allow_dynamic && !source_list.nonces.size() &&
+#if BUILDFLAG(IS_COBALT)
+         !source_list.hashes.size() && !source_list.cobalt_insecure_local_network;
+#else
          !source_list.hashes.size();
+#endif
 }
 
 bool CSPSourceListIsHashOrNoncePresent(
