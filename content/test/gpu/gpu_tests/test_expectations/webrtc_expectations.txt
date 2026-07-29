@@ -8,7 +8,7 @@
 #         mac highsierra mojave catalina bigsur monterey ventura sonoma sequoia
 #         win win8 win10 win11 ]
 # Devices
-# tags: [ android-pixel-2 android-pixel-4 android-pixel-6
+# tags: [ android-pixel-2 android-pixel-4 android-pixel-6 android-pixel-10
 #             android-shield-android-tv android-sm-a137f android-sm-a236b
 #             android-sm-s911u1
 #         android-brya android-corsola
@@ -37,6 +37,7 @@
 #         arm
 #         google google-0xffff google-0xc0de
 #         imagination
+#         imagination-technologies
 #         intel intel-gen-9 intel-gen-12 intel-0xa2e intel-0xa011 intel-0x3e92
 #             intel-0x3e9b intel-0x4680 intel-0x46a8 intel-0x5912 intel-0x9bc5
 #         microsoft microsoft-0xffff
@@ -113,6 +114,7 @@
 crbug.com/415954245 [ android ] WebRTC_Codec_Loopback_H265 [ Failure ]
 crbug.com/417133858 [ win amd ] WebRTC_Codec_Loopback_H265 [ Failure ]
 crbug.com/417658672 [ win10 release-x64 intel ] WebRTC_Codec_Loopback_H265 [ Failure ]
+crbug.com/417658672 [ win10 qualcomm-0x41333430 angle-d3d11 graphite-disabled ] WebRTC_Codec_Loopback_H265 [ Failure ]
 
 # MacOS 14.5 -> 15.4 failures
 crbug.com/417974605 [ sequoia intel-0x3e9b ] WebRTC_Codec_Loopback_H265 [ Failure ]

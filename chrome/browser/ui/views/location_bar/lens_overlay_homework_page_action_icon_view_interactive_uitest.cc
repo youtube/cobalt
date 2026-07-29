@@ -13,6 +13,9 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
+#include "chrome/browser/ui/lens/lens_keyed_service.h"
+#include "chrome/browser/ui/lens/lens_keyed_service_factory.h"
+#include "chrome/browser/ui/lens/lens_search_feature_flag_utils.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -109,6 +112,20 @@ class LensOverlayHomeworkPageActionIconViewTestBase
         kLocationBarElementId);
   }
 
+  // Sets the number of times the edu action chip has been shown.
+  void SetLensOverlayEduActionChipShownCount(Profile* profile, int count) {
+    LensKeyedService* service = LensKeyedServiceFactory::GetForProfile(
+        profile, /*create_if_necessary=*/true);
+    service->SetActionChipShownCount(count);
+  }
+
+  // Returns the number of times the edu action chip has been shown.
+  int GetLensOverlayEduActionChipShownCount(Profile* profile) {
+    LensKeyedService* service = LensKeyedServiceFactory::GetForProfile(
+        profile, /*create_if_necessary=*/true);
+    return service->GetActionChipShownCount();
+  }
+
  protected:
   base::test::ScopedFeatureList scoped_feature_list_;
 };
@@ -124,13 +141,15 @@ class LensOverlayHomeworkPageActionIconViewTest
          base::test::FeatureRefAndParams(
              lens::features::kLensOverlayEduActionChip,
              {{"url-allow-filters", "[\"*\"]"},
-              {"url-path-match-allow-filters", "[\"select\"]"}})},
+              {"url-path-match-allow-filters", "[\"select\"]"},
+              {"max-shown-count", "3"}})},
         {lens::features::kLensOverlayKeyboardSelection});
   }
 };
 
 IN_PROC_BROWSER_TEST_F(LensOverlayHomeworkPageActionIconViewTest,
                        ShowsOnMatchingPage) {
+  SetLensOverlayEduActionChipShownCount(browser()->profile(), 0);
   // Navigate to a matching page.
   const GURL url = embedded_test_server()->GetURL(kDocumentWithNamedElement);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(url)));
@@ -148,10 +167,12 @@ IN_PROC_BROWSER_TEST_F(LensOverlayHomeworkPageActionIconViewTest,
 
   EXPECT_TRUE(focus_manager->GetFocusedView());
   EXPECT_FALSE(icon_view->GetVisible());
+  EXPECT_EQ(GetLensOverlayEduActionChipShownCount(browser()->profile()), 1);
 }
 
 IN_PROC_BROWSER_TEST_F(LensOverlayHomeworkPageActionIconViewTest,
                        HidesOnNonMatchingPage) {
+  SetLensOverlayEduActionChipShownCount(browser()->profile(), 0);
   // Navigate to a non-matching page.
   const GURL url = embedded_test_server()->GetURL(kDocument2);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(url)));
@@ -169,6 +190,30 @@ IN_PROC_BROWSER_TEST_F(LensOverlayHomeworkPageActionIconViewTest,
 
   EXPECT_TRUE(focus_manager->GetFocusedView());
   EXPECT_FALSE(icon_view->GetVisible());
+  EXPECT_EQ(GetLensOverlayEduActionChipShownCount(browser()->profile()), 0);
+}
+
+IN_PROC_BROWSER_TEST_F(LensOverlayHomeworkPageActionIconViewTest,
+                       HidesAfterMaxShownCountReached) {
+  SetLensOverlayEduActionChipShownCount(browser()->profile(), 4);
+  // Navigate to a matching page.
+  const GURL url = embedded_test_server()->GetURL(kDocumentWithNamedElement);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(url)));
+
+  LensOverlayHomeworkPageActionIconView* icon_view =
+      lens_overlay_homework_icon_view();
+  views::FocusManager* focus_manager = icon_view->GetFocusManager();
+  focus_manager->ClearFocus();
+  EXPECT_FALSE(focus_manager->GetFocusedView());
+  EXPECT_FALSE(icon_view->GetVisible());
+
+  // Focus in the location bar should not show the icon.
+  location_bar_view()->FocusLocation(false);
+  ViewVisibilityWaiter(icon_view, false).Wait();
+
+  EXPECT_TRUE(focus_manager->GetFocusedView());
+  EXPECT_FALSE(icon_view->GetVisible());
+  EXPECT_EQ(GetLensOverlayEduActionChipShownCount(browser()->profile()), 4);
 }
 
 #if BUILDFLAG(IS_WIN)
@@ -181,6 +226,7 @@ IN_PROC_BROWSER_TEST_F(LensOverlayHomeworkPageActionIconViewTest,
 // Flaky failures on Windows; see https://crbug.com/419308044.
 IN_PROC_BROWSER_TEST_F(LensOverlayHomeworkPageActionIconViewTest,
                        MAYBE_OpensNewTabWhenEnteredThroughKeyboard) {
+  SetLensOverlayEduActionChipShownCount(browser()->profile(), 0);
   const GURL url = embedded_test_server()->GetURL(kDocumentWithNamedElement);
   // Navigate to a matching page.
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(url)));

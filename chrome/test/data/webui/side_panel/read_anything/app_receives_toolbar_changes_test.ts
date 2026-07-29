@@ -5,14 +5,15 @@
 import 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
 
 import type {AppElement} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
-import {BrowserProxy, SpeechBrowserProxyImpl, SpeechController, ToolbarEvent, VoiceLanguageController, WordBoundaries} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
+import {BrowserProxy, setInstance, SpeechBrowserProxyImpl, SpeechController, ToolbarEvent, VoiceLanguageController} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
 import {assertArrayEquals, assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome-untrusted://webui-test/chai_assert.js';
 import {hasStyle, microtasksFinished} from 'chrome-untrusted://webui-test/test_util.js';
 
-import {createApp, createSpeechSynthesisVoice, emitEvent, mockMetrics, setSimpleTreeWithText, setupBasicSpeech} from './common.js';
+import {createApp, createSpeechSynthesisVoice, emitEvent, mockMetrics, setContent, setupBasicSpeech} from './common.js';
 import {FakeReadingMode} from './fake_reading_mode.js';
 import {TestColorUpdaterBrowserProxy} from './test_color_updater_browser_proxy.js';
 import type {TestMetricsBrowserProxy} from './test_metrics_browser_proxy.js';
+import {TestReadAloudModelBrowserProxy} from './test_read_aloud_browser_proxy.js';
 import {TestSpeechBrowserProxy} from './test_speech_browser_proxy.js';
 
 suite('AppReceivesToolbarChanges', () => {
@@ -21,6 +22,7 @@ suite('AppReceivesToolbarChanges', () => {
   let metrics: TestMetricsBrowserProxy;
   let voiceLanguageController: VoiceLanguageController;
   let speechController: SpeechController;
+  let readAloudModel: TestReadAloudModelBrowserProxy;
 
   function containerLetterSpacing(): number {
     return +window.getComputedStyle(app.$.container)
@@ -89,6 +91,8 @@ suite('AppReceivesToolbarChanges', () => {
     const readingMode = new FakeReadingMode();
     chrome.readingMode = readingMode as unknown as typeof chrome.readingMode;
     metrics = mockMetrics();
+    readAloudModel = new TestReadAloudModelBrowserProxy();
+    setInstance(readAloudModel);
     voiceLanguageController = new VoiceLanguageController();
     VoiceLanguageController.setInstance(voiceLanguageController);
     speechController = new SpeechController();
@@ -228,7 +232,8 @@ suite('AppReceivesToolbarChanges', () => {
 
   test('on speech rate change speech rate updated', async () => {
     setupBasicSpeech(speech);
-    setSimpleTreeWithText('we mean no harm');
+    readAloudModel.setInitialized(true);
+    setContent('we mean no harm', readAloudModel);
     app.updateContent();
     await emitPlayPause();
 
@@ -260,12 +265,11 @@ suite('AppReceivesToolbarChanges', () => {
 
   suite('play/pause', () => {
     setup(() => {
-      app.updateContent();
-      return microtasksFinished();
+      readAloudModel.setInitialized(true);
+      setContent('We come in peace', readAloudModel);
     });
 
     test('on first click starts speech', async () => {
-      setSimpleTreeWithText('We come in peace');
       await emitPlayPause();
       assertTrue(speechController.isSpeechActive());
       assertTrue(speechController.isSpeechTreeInitialized());
@@ -273,7 +277,6 @@ suite('AppReceivesToolbarChanges', () => {
     });
 
     test('on second click stops speech', async () => {
-      setSimpleTreeWithText('Don\'t be alarmed!');
       await emitPlayPause();
       await emitPlayPause();
 
@@ -310,50 +313,6 @@ suite('AppReceivesToolbarChanges', () => {
     });
   });
 
-  suite('on highlight toggle', () => {
-    function highlightColor(): string {
-      return window.getComputedStyle(app.$.container)
-          .getPropertyValue('--current-highlight-bg-color');
-    }
-
-    function emitHighlight(highlightOn: boolean) {
-      const highlightValue = highlightOn ? chrome.readingMode.autoHighlighting :
-                                           chrome.readingMode.noHighlighting;
-      chrome.readingMode.onHighlightGranularityChanged(highlightValue);
-      emitEvent(app, ToolbarEvent.HIGHLIGHT_CHANGE, {
-        detail: {data: highlightValue},
-      });
-    }
-
-    setup(() => {
-      emitColorTheme(chrome.readingMode.defaultTheme);
-      app.updateContent();
-      emitPlayPause();
-    });
-
-    test('on hide, uses transparent highlight', () => {
-      emitHighlight(false);
-      assertEquals('transparent', highlightColor());
-    });
-
-    test('on show, uses colored highlight', () => {
-      emitHighlight(true);
-      assertNotEquals('transparent', highlightColor());
-    });
-
-    test('new theme uses colored highlight with highlights on', () => {
-      emitHighlight(true);
-      emitColorTheme(chrome.readingMode.blueTheme);
-      assertNotEquals('transparent', highlightColor());
-    });
-
-    test('new theme uses transparent highlight with highlights off', () => {
-      emitHighlight(false);
-      emitColorTheme(chrome.readingMode.yellowTheme);
-      assertEquals('transparent', highlightColor());
-    });
-  });
-
   suite('with highlight granularity menu', () => {
     function highlightColor(): string {
       return window.getComputedStyle(app.$.container)
@@ -361,38 +320,18 @@ suite('AppReceivesToolbarChanges', () => {
     }
 
     function emitHighlight(granularity: number) {
+      chrome.readingMode.onHighlightGranularityChanged(granularity);
       emitEvent(app, ToolbarEvent.HIGHLIGHT_CHANGE, {
         detail: {data: granularity},
       });
     }
 
     setup(() => {
-      chrome.readingMode.isPhraseHighlightingEnabled = true;
-      WordBoundaries.getInstance().updateBoundary(7);
       app.updateContent();
     });
 
-    test('updates highlight', () => {
-      emitHighlight(chrome.readingMode.wordHighlighting);
-      emitPlayPause();
-
-      assertEquals(
-          chrome.readingMode.wordHighlighting,
-          chrome.readingMode.highlightGranularity);
-
-      emitHighlight(chrome.readingMode.phraseHighlighting);
-      assertEquals(
-          chrome.readingMode.phraseHighlighting,
-          chrome.readingMode.highlightGranularity);
-
-      emitHighlight(chrome.readingMode.noHighlighting);
-      assertEquals(
-          chrome.readingMode.noHighlighting,
-          chrome.readingMode.highlightGranularity);
-    });
-
     test('new theme uses colored highlight with highlights on', () => {
-      emitHighlight(chrome.readingMode.phraseHighlighting);
+      emitHighlight(chrome.readingMode.wordHighlighting);
       emitColorTheme(chrome.readingMode.blueTheme);
       assertNotEquals('transparent', highlightColor());
     });
@@ -407,7 +346,8 @@ suite('AppReceivesToolbarChanges', () => {
   suite('on granularity change', () => {
     setup(() => {
       setupBasicSpeech(speech);
-      setSimpleTreeWithText('we mean no harm');
+      readAloudModel.setInitialized(true);
+      setContent('we mean no harm', readAloudModel);
       app.updateContent();
       return emitPlayPause();
     });

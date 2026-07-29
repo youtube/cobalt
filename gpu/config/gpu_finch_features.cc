@@ -50,9 +50,6 @@ bool IsDeviceBlocked(std::string_view field, std::string_view block_list) {
 
 }  // namespace
 
-// Used to limit GL version to 2.0 for skia raster and compositing.
-BASE_FEATURE(kUseGles2ForOopR, base::FEATURE_DISABLED_BY_DEFAULT);
-
 // More aggressive behavior for the shader cache: increase size, and do not
 // purge as much in case of memory pressure.
 BASE_FEATURE(kAggressiveShaderCacheLimits, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -347,6 +344,13 @@ const base::FeatureParam<bool> kSkiaGraphiteDawnBackendValidation{
 const base::FeatureParam<bool> kSkiaGraphiteDawnBackendDebugLabels{
     &kSkiaGraphite, "dawn_backend_debug_labels", DCHECK_IS_ON()};
 
+// Whether to use PersistentCache for Dawn's pipeline cache.
+BASE_FEATURE_PARAM(bool,
+                   kSkiaGraphiteDawnUsePersistentCache,
+                   &kSkiaGraphite,
+                   "dawn_use_persistent_cache",
+                   false);
+
 const base::FeatureParam<int> kSkiaGraphiteMaxPendingRecordings{
     &kSkiaGraphite, "max_pending_recordings", 100};
 
@@ -431,7 +435,7 @@ bool UseGles2ForOopR() {
   if (gl::UsePassthroughCommandDecoder(base::CommandLine::ForCurrentProcess()))
     return true;
 #endif
-  return base::FeatureList::IsEnabled(features::kUseGles2ForOopR);
+  return false;
 }
 
 bool IsUsingVulkan() {

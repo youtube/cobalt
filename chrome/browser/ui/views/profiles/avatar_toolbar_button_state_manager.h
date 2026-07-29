@@ -32,31 +32,6 @@ class ColorProvider;
 }
 
 class StateObserver;
-class SigninDetectionService;
-
-// Singleton that manages the `SigninDetectionService` per `Profile`.
-class SigninDetectionServiceFactory : public ProfileKeyedServiceFactory {
- public:
-  static SigninDetectionService* GetForProfile(Profile* profile);
-
-  // Returns an instance of the `SigninDetectionServiceFactory` singleton.
-  static SigninDetectionServiceFactory* GetInstance();
-
-  SigninDetectionServiceFactory(const SigninDetectionServiceFactory&) = delete;
-  SigninDetectionServiceFactory& operator=(
-      const SigninDetectionServiceFactory&) = delete;
-
- private:
-  friend base::NoDestructor<SigninDetectionServiceFactory>;
-
-  SigninDetectionServiceFactory();
-  ~SigninDetectionServiceFactory() override;
-
-  // BrowserContextKeyedServiceFactory:
-  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
-      content::BrowserContext* context) const override;
-  bool ServiceIsCreatedWithBrowserContext() const override;
-};
 
 // Provides the information needed to display a specific button state.
 // This class provides a default implementation for button appearance/behavior,
@@ -235,6 +210,10 @@ class AvatarToolbarButtonStateManager
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
   [[nodiscard]] static base::AutoReset<std::optional<base::TimeDelta>>
   CreateScopedZeroDelayOverrideSigninPendingTextForTesting();
+
+  // WARNING: Check `AvatarToolbarButton::ForceShowingPromoForTesting()` before
+  // using.
+  void ForceShowingPromoForTesting();
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
  private:
@@ -298,5 +277,7 @@ class AvatarToolbarButtonStateManager
 
   std::vector<raw_ref<Observer>> state_manager_observers_;
 };
+
+void SigninDetectionServiceFactoryEnsureFactoryBuilt();
 
 #endif  // CHROME_BROWSER_UI_VIEWS_PROFILES_AVATAR_TOOLBAR_BUTTON_STATE_MANAGER_H_

@@ -22,6 +22,12 @@ chromium-metrics-reviews@google.com.
 
 <histograms>
 
+<variants name="IndexedDBTransactionCount">
+  <variant name="" summary="Always recorded"/>
+  <variant name="10kTransactions."
+      summary="Recorded when there are &gt;10k transactions on the connection"/>
+</variants>
+
 <variants name="IndexedDBTransactionMode">
   <variant name="ReadOnly"/>
   <variant name="ReadWrite"/>
@@ -124,20 +130,8 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="API.StorageAccess.PermissionRenewedDeltaToExpiration"
-    units="hours" expires_after="2025-11-02">
-  <owner>cfredric@chromium.org</owner>
-  <owner>johannhof@chromium.org</owner>
-  <summary>
-    Records the delta between the time at which a storage-access permission
-    grant was renewed, and permission grant's old expiration time.
-
-    Recorded once each time any storage-access permission grant is renewed.
-  </summary>
-</histogram>
-
 <histogram name="API.StorageAccess.RequestOutcome"
-    enum="StorageAccessAPIRequestOutcome" expires_after="2026-01-18">
+    enum="StorageAccessAPIRequestOutcome" expires_after="2026-03-22">
   <owner>cfredric@chromium.org</owner>
   <owner>brandm@microsoft.com</owner>
   <summary>
@@ -148,7 +142,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="API.StorageAccess.RequestStorageAccess2"
-    enum="RequestStorageResult" expires_after="2026-01-18">
+    enum="RequestStorageResult" expires_after="2026-03-22">
   <owner>mkwst@chromium.org</owner>
   <owner>cfredric@chromium.org</owner>
   <owner>brandm@microsoft.com</owner>
@@ -194,7 +188,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="API.StorageAccessHeader.SecFetchStorageAccessOutcome"
-    enum="SecFetchStorageAccessOutcome" expires_after="2026-01-18">
+    enum="SecFetchStorageAccessOutcome" expires_after="2026-03-22">
   <owner>sledoux@chromium.org</owner>
   <owner>cfredric@chromium.org</owner>
   <summary>
@@ -207,7 +201,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="API.StorageAccessHeader.StorageAccessStatusOutcome"
-    enum="StorageAccessStatusOutcome" expires_after="2026-01-18">
+    enum="StorageAccessStatusOutcome" expires_after="2026-03-22">
   <owner>sledoux@chromium.org</owner>
   <owner>cfredric@chromium.org</owner>
   <summary>
@@ -245,7 +239,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Clipboard.Read" enum="ClipboardFormatRead"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>huangdarwin@chromium.org</owner>
   <owner>src/ui/base/clipboard/OWNERS</owner>
   <summary>
@@ -272,7 +266,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Clipboard.Write" enum="ClipboardFormatWrite"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>huangdarwin@chromium.org</owner>
   <owner>src/ui/base/clipboard/OWNERS</owner>
   <summary>
@@ -330,7 +324,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IndexedDB.ClientKeepActiveRemotesCount" units="count"
-    expires_after="2026-03-15">
+    expires_after="2026-03-22">
   <owner>pmonette@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -348,20 +342,6 @@ chromium-metrics-reviews@google.com.
     starting from when it's requested on the UI thread to when destruction is
     completed on the IDB task runner.
   </summary>
-</histogram>
-
-<histogram name="IndexedDB.Create{Mode}Transaction.DBExists" enum="Boolean"
-    expires_after="2026-03-30">
-  <owner>fdoray@chromium.org</owner>
-  <owner>catan-team@chromium.org</owner>
-  <summary>
-    Whether the associated database exists. Recorded everytime a {Mode}
-    transaction is created. Will be used to diagnose crbug.com/381086791.
-    Specifically, we'll assses whether the number of clients who get high values
-    for these histograms is similar to the number of clients who hit transaction
-    timeouts.
-  </summary>
-  <token key="Mode" variants="IndexedDBTransactionMode"/>
 </histogram>
 
 <histogram name="IndexedDB.Create{Mode}Transaction.NumTransactionsInConnection"
@@ -419,7 +399,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IndexedDB.LargeValueReadResult" enum="FileErrorCode"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>leimy@chromium.org</owner>
   <owner>evanstade@microsoft.com</owner>
   <owner>chrome-owp-storage@google.com</owner>
@@ -429,6 +409,34 @@ chromium-metrics-reviews@google.com.
     to be unwrapped in a transaction will be logged. This error causes the
     transaction to abort, preventing further read attempts on other values. This
     metric is recorded in the renderer process.
+  </summary>
+</histogram>
+
+<histogram name="IndexedDB.LevelDB.InSessionCleanupSnapshotTime" units="ms"
+    expires_after="2026-07-01">
+  <owner>leimy@chromium.org</owner>
+  <owner>evanstade@microsoft.com</owner>
+  <owner>abhishek.shanthkumar@microsoft.com</owner>
+  <owner>chrome-owp-storage@google.com</owner>
+  <summary>
+    Logs the time taken to snapshot/dump an entire backing store for the
+    purposes of in-session cleanup verification. This is logged for the pre-
+    cleanup snapshot as well as the post-cleanup snapshot.
+  </summary>
+</histogram>
+
+<histogram name="IndexedDB.LevelDB.InSessionCleanupVerificationEvent"
+    enum="IndexedDbLevelDbCleanupVerificationEvent" expires_after="2026-07-01">
+  <owner>leimy@chromium.org</owner>
+  <owner>evanstade@microsoft.com</owner>
+  <owner>abhishek.shanthkumar@microsoft.com</owner>
+  <owner>chrome-owp-storage@google.com</owner>
+  <summary>
+    Logs results of attempts to verify that in-session cleanup (compaction,
+    tombstone sweeping) of LevelDB files was successful. This will only be
+    emitted if in session cleanup is enabled and verification of it is also
+    enabled, so both kIdbInSessionDbCleanup and kIdbVerifyInSessionDbCleanup
+    must be enabled.
   </summary>
 </histogram>
 
@@ -584,89 +592,57 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
-<histogram name="IndexedDB.TransactionTimeout.CommitPending" enum="Boolean"
-    expires_after="2026-03-30">
+<histogram name="IndexedDB.TransactionTimeout.{TransactionCount}CommitPending"
+    enum="Boolean" expires_after="2026-03-30">
   <owner>fdoray@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
     Whether an IndexedDB transaction has a commit pending. Recorded every time
     the 20 seconds inactivity timeout is hit for a transaction. Will be used to
-    diagnose crbug.com/381086791.
+    diagnose crbug.com/381086791. {TransactionCount}
   </summary>
+  <token key="TransactionCount" variants="IndexedDBTransactionCount"/>
 </histogram>
 
-<histogram name="IndexedDB.TransactionTimeout.HasConnection" enum="Boolean"
-    expires_after="2026-03-30">
+<histogram name="IndexedDB.TransactionTimeout.{TransactionCount}IsAborted"
+    enum="IDBTransactionMode" expires_after="2026-03-30">
   <owner>fdoray@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
-    Whether an IndexedDB transaction is associated with an existing connection.
-    Recorded every time the 20 seconds inactivity timeout is hit for a
-    transaction. Will be used to diagnose crbug.com/381086791.
+    Whether an IndexedDB transaction is aborted. Recorded every time the 20
+    seconds inactivity timeout is hit for a transaction. Will be used to
+    diagnose crbug.com/381086791. {TransactionCount}
   </summary>
+  <token key="TransactionCount" variants="IndexedDBTransactionCount"/>
 </histogram>
 
-<histogram name="IndexedDB.TransactionTimeout.IsConnected" enum="Boolean"
-    expires_after="2026-03-30">
+<histogram name="IndexedDB.TransactionTimeout.{TransactionCount}IsConnected"
+    enum="Boolean" expires_after="2026-03-30">
   <owner>fdoray@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
     Whether the connection to which an IndexedDB transaction is associated is
     connected. Recorded every time the 20 seconds inactivity timeout is hit for
     a transaction, if it is associated with an existing connection. Will be used
-    to diagnose crbug.com/381086791.
+    to diagnose crbug.com/381086791. {TransactionCount}
   </summary>
+  <token key="TransactionCount" variants="IndexedDBTransactionCount"/>
 </histogram>
 
-<histogram name="IndexedDB.TransactionTimeout.Mode" enum="IDBTransactionMode"
-    expires_after="2026-03-30">
+<histogram name="IndexedDB.TransactionTimeout.{TransactionCount}Mode"
+    enum="IDBTransactionMode" expires_after="2026-03-30">
   <owner>fdoray@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
     The mode of an IndexedDB transaction. Recorded every time the 20 seconds
     inactivity timeout is hit for a transaction. Will be used to diagnose
-    crbug.com/381086791.
+    crbug.com/381086791. {TransactionCount}
   </summary>
+  <token key="TransactionCount" variants="IndexedDBTransactionCount"/>
 </histogram>
 
-<histogram name="IndexedDB.TransactionTimeout.MojoDisconnected" enum="Boolean"
-    expires_after="2026-03-30">
-  <owner>fdoray@chromium.org</owner>
-  <owner>catan-team@chromium.org</owner>
-  <summary>
-    Whether the Mojo receiver of an IndexedDB transaction is disconnected.
-    Recorded every time the 20 seconds inactivity timeout is hit for a
-    transaction. Will be used to diagnose crbug.com/381086791.
-  </summary>
-</histogram>
-
-<histogram name="IndexedDB.TransactionTimeout.NumPendingPreemptiveTasks"
-    units="tasks" expires_after="2026-03-30">
-  <owner>fdoray@chromium.org</owner>
-  <owner>catan-team@chromium.org</owner>
-  <summary>
-    Number of pending preemptive tasks for an IndexedDB transaction. Recorded
-    every time the 20 seconds inactivity timeout is hit for a transaction. Will
-    be used to diagnose crbug.com/381086791. In theory, this should be 0,
-    otherwise the timeout timer wouldn't be running. It would be valuable
-    information to detect that it can be non-zero.
-  </summary>
-</histogram>
-
-<histogram name="IndexedDB.TransactionTimeout.NumPendingTasks" units="tasks"
-    expires_after="2026-03-30">
-  <owner>fdoray@chromium.org</owner>
-  <owner>catan-team@chromium.org</owner>
-  <summary>
-    Number of pending non-preemptive tasks for an IndexedDB transaction.
-    Recorded every time the 20 seconds inactivity timeout is hit for a
-    transaction. Will be used to diagnose crbug.com/381086791. In theory, this
-    should be 0, otherwise the timeout timer wouldn't be running. It would be
-    valuable information to detect that it can be non-zero.
-  </summary>
-</histogram>
-
-<histogram name="IndexedDB.TransactionTimeout.NumTransactionsInConnection"
+<histogram
+    name="IndexedDB.TransactionTimeout.{TransactionCount}NumTransactionsInConnection"
     units="transactions" expires_after="2026-03-30">
   <owner>fdoray@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
@@ -674,11 +650,13 @@ chromium-metrics-reviews@google.com.
     Number of transactions associated with the same connection as an IndexedDB
     transaction. Recorded every time the 20 seconds inactivity timeout is hit
     for a transaction. Will be used to diagnose crbug.com/381086791. We suspect
-    that this can be very high.
+    that this can be very high. {TransactionCount}
   </summary>
+  <token key="TransactionCount" variants="IndexedDBTransactionCount"/>
 </histogram>
 
-<histogram name="IndexedDB.TransactionTimeout.NumTransactionsInDB"
+<histogram
+    name="IndexedDB.TransactionTimeout.{TransactionCount}NumTransactionsInDB"
     units="transactions" expires_after="2026-03-30">
   <owner>fdoray@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
@@ -686,19 +664,21 @@ chromium-metrics-reviews@google.com.
     Number of transactions associated with the same database as an IndexedDB
     transaction. Recorded every time the 20 seconds inactivity timeout is hit
     for a transaction. Will be used to diagnose crbug.com/381086791. We suspect
-    that this can be very high.
+    that this can be very high. {TransactionCount}
   </summary>
+  <token key="TransactionCount" variants="IndexedDBTransactionCount"/>
 </histogram>
 
-<histogram name="IndexedDB.TransactionTimeout.Used" enum="Boolean"
-    expires_after="2026-03-30">
+<histogram name="IndexedDB.TransactionTimeout.{TransactionCount}TaskRunQueued"
+    enum="IDBTransactionMode" expires_after="2026-03-30">
   <owner>fdoray@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
-    Whether a task was ever scheduled for an IndexedDB transaction. Recorded
-    every time the 20 seconds inactivity timeout is hit for a transaction. Will
-    be used to diagnose crbug.com/381086791.
+    Whether a RunTask invocation is queued for the BucketContext. Recorded every
+    time the 20 seconds inactivity timeout is hit for a transaction. Will be
+    used to diagnose crbug.com/381086791. {TransactionCount}
   </summary>
+  <token key="TransactionCount" variants="IndexedDBTransactionCount"/>
 </histogram>
 
 <histogram name="IndexedDB.ValueDecompressionCount" units="count"
@@ -816,7 +796,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="LocalStorage.AccessMetaDataUpdateAtShutdown" enum="Boolean"
-    expires_after="2025-10-31">
+    expires_after="2026-09-22">
   <owner>arichiv@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
@@ -843,7 +823,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="LocalStorage.DatabaseOpen" enum="LevelDBStatus"
-    expires_after="2025-10-31">
+    expires_after="2026-09-22">
   <owner>arichiv@chromium.org</owner>
   <owner>tamartol@microsoft.com</owner>
   <summary>
@@ -852,29 +832,16 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="LocalStorage.DaysSinceLastModified400DaysGT" units="days"
-    expires_after="2025-10-31">
+<histogram name="LocalStorage.DaysSinceLastModified" units="days"
+    expires_after="2026-09-22">
   <owner>arichiv@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
     Emitted when the browsing context that loaded the related local storage
     controller shuts down. One entry is recorded per local storage area.
 
-    Number of days since a local storage area was modified (for values over 400
-    days).
-  </summary>
-</histogram>
-
-<histogram name="LocalStorage.DaysSinceLastModified400DaysLTE" units="days"
-    expires_after="2025-10-31">
-  <owner>arichiv@chromium.org</owner>
-  <owner>chrome-owp-storage@google.com</owner>
-  <summary>
-    Emitted when the browsing context that loaded the related local storage
-    controller shuts down. One entry is recorded per local storage area.
-
-    Number of days since a local storage area was modified (for values under 400
-    days).
+    Number of days since a local storage area was modified. Capped at 400 days
+    as areas are not retained past that point.
   </summary>
 </histogram>
 
@@ -920,7 +887,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="LocalStorage.OrphanStorageAreasOnStartupCount" units="areas"
-    expires_after="2026-03-08">
+    expires_after="2026-09-22">
   <owner>arichiv@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
@@ -946,7 +913,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="LocalStorage.StaleStorageAreasDeletedOnStartupCount"
-    units="areas" expires_after="2026-03-08">
+    units="areas" expires_after="2026-09-22">
   <owner>arichiv@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
@@ -960,7 +927,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="LocalStorage.StaleStorageAreasDeletedOnStartupSuccess"
-    enum="BooleanSuccess" expires_after="2025-10-31">
+    enum="BooleanSuccess" expires_after="2026-09-22">
   <owner>arichiv@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
@@ -1122,7 +1089,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Storage.DomStorage.IterationsToReach{Size}MB2" units="count"
-    expires_after="2026-01-11">
+    expires_after="2026-03-22">
   <owner>annasato@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
@@ -1373,7 +1340,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Storage.InterestGroup.AdProtoCompressionRatio" units="%"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>caraitto@chromium.org</owner>
   <owner>pauljensen@chromium.org</owner>
   <summary>
@@ -1439,7 +1406,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Storage.InterestGroup.AdProtoSizeCompressed" units="bytes"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>caraitto@chromium.org</owner>
   <owner>pauljensen@chromium.org</owner>
   <summary>
@@ -1496,7 +1463,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Storage.InterestGroup.DBSize" units="KB"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>behamilton@google.com</owner>
   <owner>pauljensen@chromium.org</owner>
   <summary>
@@ -1582,7 +1549,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Storage.InterestGroup.PerInterestGroup.NumAds" units="ads"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>caraitto@chromium.org</owner>
   <owner>pauljensen@chromium.org</owner>
   <summary>
@@ -1593,7 +1560,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Storage.InterestGroup.PerSiteCount" units="groups"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>behamilton@google.com</owner>
   <owner>pauljensen@chromium.org</owner>
   <summary>
@@ -2294,6 +2261,31 @@ chromium-metrics-reviews@google.com.
     SharedStorageDatabase::InitStatus::kInitFailure on disk. Recorded by
     SharedStorageManager::RecordShutdownMetrics() when the StoragePartitionImpl
     is destroyed.
+  </summary>
+</histogram>
+
+<histogram
+    name="Storage.SharedStorage.PrivateAggregationConfig.HasMaxContributions"
+    enum="Boolean" expires_after="2026-03-19">
+  <owner>alexmt@chromium.org</owner>
+  <owner>measurement-api-dev+metrics@google.com</owner>
+  <summary>
+    Records whether or not the `maxContributions` field is set in the
+    `privateAggregationConfig` parameter of `run()` and `selectURL()`. Recorded
+    for each call to those methods (when the corresponding feature is enabled).
+  </summary>
+</histogram>
+
+<histogram
+    name="Storage.SharedStorage.PrivateAggregationConfig.RequestedMaxContributions"
+    units="contributions" expires_after="2026-03-19">
+  <owner>alexmt@chromium.org</owner>
+  <owner>measurement-api-dev+metrics@google.com</owner>
+  <summary>
+    Records the value of the `maxContributions` field in the
+    `privateAggregationConfig` parameter of `run()` and `selectURL()`. Recorded
+    for each call to those methods where the field is set (and the corresponding
+    feature is enabled).
   </summary>
 </histogram>
 

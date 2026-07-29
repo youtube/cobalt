@@ -559,11 +559,11 @@ void ChromeOmniboxClient::OnResultChanged(
           base::BindOnce(on_bitmap_fetched, result_index, match.icon_url)));
     } else {
       const TemplateURL* turl = nullptr;
-      if (match.associated_keyword) {
-        turl = match.associated_keyword->GetTemplateURL(GetTemplateURLService(),
-                                                        false);
+      if (!match.associated_keyword.empty()) {
+        turl = AutocompleteMatch::GetTemplateURLWithKeyword(
+            GetTemplateURLService(), match.associated_keyword, "");
       } else if (!match.keyword.empty()) {
-        turl = match.GetTemplateURL(GetTemplateURLService(), false);
+        turl = match.GetTemplateURL(GetTemplateURLService());
       }
       // Fetch the favicon if the `TemplateURL` is from the enterprise search
       // aggregator policy. This covers both cases:

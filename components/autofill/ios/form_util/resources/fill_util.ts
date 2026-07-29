@@ -107,7 +107,7 @@ function autoComplete(element: fillConstants.FormControlElement|null): boolean {
  * @param element An element to check if it can be autocompleted.
  * @return true if autocomplete dropdown should be suggested.
  */
-gCrWebLegacy.fill.shouldAutocomplete = function(
+function shouldAutocomplete(
     element: fillConstants.FormControlElement|null): boolean {
   if (!autoComplete(element)) {
     return false;
@@ -120,7 +120,7 @@ gCrWebLegacy.fill.shouldAutocomplete = function(
     return false;
   }
   return true;
-};
+}
 
 /**
  * Sets the value of a data-bound input using AngularJS.
@@ -648,7 +648,7 @@ gCrWebLegacy.fill.getAriaDescription = function(element: Element): string {
  * @param element An element to examine.
  * @return Whether the element is inside a <form> or <fieldset>.
  */
-gCrWebLegacy.fill.isElementInsideFormOrFieldSet = function(
+function isElementInsideFormOrFieldSet(
     element: fillConstants.FormControlElement): boolean {
   let parentNode = element.parentNode;
   while (parentNode) {
@@ -660,7 +660,7 @@ gCrWebLegacy.fill.isElementInsideFormOrFieldSet = function(
     parentNode = parentNode.parentNode;
   }
   return false;
-};
+}
 
 /**
  * @param element Form or form input element.
@@ -698,6 +698,64 @@ gCrWebLegacy.fill.getUniqueID = function(element: any): string {
   }
 };
 
+/**
+ * Check if the node is visible.
+ *
+ * @param node The node to be processed.
+ * @return Whether the node is visible or not.
+ */
+function isVisibleNode(node: Node): boolean {
+  if (!node) {
+    return false;
+  }
+
+  if (node.nodeType === Node.ELEMENT_NODE) {
+    const style = window.getComputedStyle(node as Element);
+    if (style.visibility === 'hidden' || style.display === 'none') {
+      return false;
+    }
+  }
+
+  // Verify all ancestors are focusable.
+  return !node.parentNode || isVisibleNode(node.parentNode);
+}
+
+/**
+ * @param element Form or form input element.
+ * @return Unique stable ID converted to string..
+ */
+function getUniqueID(element: any): string {
+  // `setUniqueIDIfNeeded` is only available in the isolated content world.
+  // Check before invoking it as this script is injected into the page content
+  // world as well.
+  if (gCrWebLegacy.fill.setUniqueIDIfNeeded) {
+    gCrWebLegacy.fill.setUniqueIDIfNeeded(element);
+  }
+
+  try {
+    const uniqueIDSymbol = gCrWebLegacy.fill.ID_SYMBOL;
+    if (typeof element[uniqueIDSymbol] !== 'undefined' &&
+        !isNaN(element[uniqueIDSymbol]!)) {
+      return element[uniqueIDSymbol].toString();
+    } else {
+      // Use the fallback value stored in the DOM. This will happen when the
+      // script is running in the page content world. JavaScript properties are
+      // not shared across content worlds. This means that `element[uniqueID]`
+      // will not have value in the page content world because it was set in the
+      // isolated content world.
+      const valueInDOM =
+          element.getAttribute(fillConstants.UNIQUE_ID_ATTRIBUTE);
+
+      // Check that there is a valid integer ID stored in the DOM. If not,
+      // return the fallback value.
+      return isNaN(parseInt(valueInDOM)) ? fillConstants.RENDERER_ID_NOT_SET :
+                                           valueInDOM;
+    }
+  } catch (e) {
+    return fillConstants.RENDERER_ID_NOT_SET;
+  }
+}
+
 function setRemoteFrameToken(token: string) {
   document.documentElement.setAttribute(REMOTE_FRAME_TOKEN_ATTRIBUTE, token);
 }
@@ -713,4 +771,8 @@ export {
   setRemoteFrameToken,
   getRemoteFrameToken,
   valueForElement,
+  isElementInsideFormOrFieldSet,
+  isVisibleNode,
+  getUniqueID,
+  shouldAutocomplete,
 };

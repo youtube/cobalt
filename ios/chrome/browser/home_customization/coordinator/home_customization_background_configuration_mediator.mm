@@ -107,8 +107,8 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
 - (instancetype)
     initWithBackgroundCustomizationService:
         (HomeBackgroundCustomizationService*)backgroundCustomizationService
-                       imageFetcherService:(image_fetcher::ImageFetcherService*)
-                                               imageFetcherService
+                              imageFetcher:
+                                  (image_fetcher::ImageFetcher*)imageFetcher
                 homeBackgroundImageService:
                     (HomeBackgroundImageService*)homeBackgroundImageService
                   userUploadedImageManager:
@@ -119,8 +119,7 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
     _backgroundCustomizationServiceObserverBridge =
         std::make_unique<HomeBackgroundCustomizationServiceObserverBridge>(
             _backgroundCustomizationService, self);
-    _imageFetcher = imageFetcherService->GetImageFetcher(
-        image_fetcher::ImageFetcherConfig::kDiskCacheOnly);
+    _imageFetcher = imageFetcher;
     _homeBackgroundImageService = homeBackgroundImageService;
     _userUploadedImageManager = userUploadedImageManager;
   }
@@ -259,7 +258,7 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
   _backgroundCustomizationService->RestoreCurrentTheme();
   self.themeHasChanged = NO;
   self.backgroundSelectionOutcome =
-      BackgroundSelectionOutcome::kCanceledAfterSelection;
+      BackgroundSelectionOutcome::kCanceledAfterSelected;
 }
 
 #pragma mark - HomeCustomizationBackgroundConfigurationMutator
@@ -567,7 +566,10 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
       return [[BackgroundCustomizationConfigurationItem alloc]
           initWithUserUploadedImagePath:imagePath
                      framingCoordinates:currentUserUploadedBackground
-                                            .framing_coordinates];
+                                            .framing_coordinates
+                      accessibilityName:
+                          l10n_util::GetNSString(
+                              IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_PHOTO_LIBRARY_ACCESSIBILITY_LABEL)];
     }
   } else {
     sync_pb::UserColorTheme colorTheme =

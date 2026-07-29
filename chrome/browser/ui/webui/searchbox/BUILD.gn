@@ -6,6 +6,8 @@ assert(is_win || is_mac || is_linux || is_chromeos)
 
 source_set("searchbox") {
   sources = [
+    "contextual_searchbox_handler.h",
+    "contextual_searchbox_handler.cc",
     "lens_searchbox_client.h",
     "lens_searchbox_handler.cc",
     "lens_searchbox_handler.h",
@@ -15,6 +17,8 @@ source_set("searchbox") {
     "searchbox_handler.h",
     "searchbox_omnibox_client.cc",
     "searchbox_omnibox_client.h",
+    "webui_omnibox_handler.cc",
+    "webui_omnibox_handler.h",
   ]
   public_deps = [
     "//base",
@@ -23,6 +27,7 @@ source_set("searchbox") {
     "//components/lens/proto/server:proto",
     "//components/omnibox/browser",
     "//components/omnibox/browser:mojo_bindings",
+    "//components/omnibox/composebox:mojo_bindings",
     "//components/sessions:session_id",
     "//components/url_formatter",
     "//mojo/public/cpp/bindings",
@@ -36,6 +41,7 @@ source_set("searchbox") {
     "//chrome/app:generated_resources",
     "//chrome/app:generated_resources_grit",
     "//chrome/browser:browser_process",
+    "//chrome/browser:global_features",
     "//chrome/browser/autocomplete",
     "//chrome/browser/omnibox",
     "//chrome/browser/preloading/search_preload",
@@ -51,11 +57,13 @@ source_set("searchbox") {
     "//chrome/browser/ui/tabs:tab_strip",
     "//chrome/browser/ui/webui:webui_util",
     "//components/bookmarks/browser",
+    "//components/lens",
     "//components/navigation_metrics",
     "//components/omnibox/browser",
     "//components/omnibox/browser:location_bar",
     "//components/omnibox/browser:vector_icons",
     "//components/omnibox/common",
+    "//components/omnibox/composebox",
     "//components/prefs",
     "//components/profile_metrics",
     "//components/search",
@@ -69,5 +77,6 @@ source_set("searchbox") {
     "//net",
     "//third_party/omnibox_proto",
     "//ui/base",
+    "//ui/webui/resources/cr_components/composebox:mojo_bindings",
   ]
 }

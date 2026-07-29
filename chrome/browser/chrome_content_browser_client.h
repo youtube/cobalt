@@ -50,15 +50,9 @@
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
-#include "services/video_effects/public/cpp/buildflags.h"
 #include "third_party/blink/public/mojom/on_device_translation/translation_manager.mojom-forward.h"
 #include "third_party/blink/public/mojom/worker/shared_worker_info.mojom.h"
 #include "ui/base/clipboard/clipboard_metadata.h"
-
-#if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
-#include "media/capture/mojom/video_effects_manager.mojom-forward.h"
-#include "services/video_effects/public/mojom/video_effects_processor.mojom-forward.h"
-#endif  // BUILDFLAG(ENABLE_VIDEO_EFFECTS)
 
 class ChromeContentBrowserClientParts;
 class PrefRegistrySimple;
@@ -1081,20 +1075,6 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
 
   bool UseOutermostMainFrameOrEmbedderForSubCaptureTargets() const override;
 
-#if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
-  void BindReadonlyVideoEffectsManager(
-      const std::string& device_id,
-      content::BrowserContext* browser_context,
-      mojo::PendingReceiver<media::mojom::ReadonlyVideoEffectsManager>
-          readonly_video_effects_manager) override;
-
-  void BindVideoEffectsProcessor(
-      const std::string& device_id,
-      content::BrowserContext* browser_context,
-      mojo::PendingReceiver<video_effects::mojom::VideoEffectsProcessor>
-          video_effects_processor) override;
-#endif  // !BUILDFLAG(ENABLE_VIDEO_EFFECTS)
-
   void PreferenceRankAudioDeviceInfos(
       content::BrowserContext* browser_context,
       blink::WebMediaDeviceInfoArray& infos) override;
@@ -1159,11 +1139,6 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
           callback) override;
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_WIN)
-  void OnUiaProviderRequested(bool uia_provider_enabled) override;
-  void OnUiaProviderDisabled() override;
-#endif
-
   bool ShouldDispatchPagehideDuringCommit(
       content::BrowserContext* browser_context,
       const GURL& destination_url) override;
@@ -1216,8 +1191,7 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
 
   // Used by subclasses (e.g. implemented by downstream embedders) to add
   // their own extra part objects.
-  // TODO: This should receive unique_ptr<ChromeContentBrowserClientParts>.
-  void AddExtraPart(ChromeContentBrowserClientParts* part);
+  void AddExtraPart(std::unique_ptr<ChromeContentBrowserClientParts> part);
 
   // Exposed for tests to perform dependency injection.
   virtual std::unique_ptr<HttpAuthCoordinator> CreateHttpAuthCoordinator();
@@ -1420,8 +1394,6 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
   std::unique_ptr<MainThreadStackSamplingProfiler> sampling_profiler_;
 
 #if BUILDFLAG(IS_WIN)
-  bool handled_uia_provider_request_ = false;
-
   std::unique_ptr<WindowsSystemTracingClient> windows_system_tracing_client_;
 #endif
 

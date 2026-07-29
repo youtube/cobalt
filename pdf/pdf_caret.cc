@@ -64,9 +64,14 @@ void PdfCaret::SetChar(const PageCharacterIndex& next_char) {
 
   const gfx::Rect old_screen_rect = caret_screen_rect_;
   caret_screen_rect_ = GetScreenRectForCaret(index_);
-  if (!old_screen_rect.IsEmpty() && old_screen_rect != caret_screen_rect_) {
+  if (is_blink_visible_ && !old_screen_rect.IsEmpty() &&
+      old_screen_rect != caret_screen_rect_) {
     client_->InvalidateRect(old_screen_rect);
   }
+}
+
+void PdfCaret::SetCharAndDraw(const PageCharacterIndex& next_char) {
+  SetChar(next_char);
   if (is_visible_) {
     RefreshDisplayState();
   }
@@ -224,7 +229,7 @@ void PdfCaret::MoveToChar(const PageCharacterIndex& new_index,
 
   if (!should_select || (!client_->IsSelecting() &&
                          !StartSelection(/*move_right=*/index_ < new_index))) {
-    SetChar(new_index);
+    SetCharAndDraw(new_index);
     return;
   }
 

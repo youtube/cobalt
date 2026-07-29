@@ -71,8 +71,9 @@ include_rules = [
   "+components/browser_ui/accessibility",
   "+components/browser_ui/desktop_windowing/android",
   "+components/browser_ui/photo_picker",
-  "+components/browser_ui/util",
   "+components/browser_ui/share/android",
+  "+components/browser_ui/styles",
+  "+components/browser_ui/util",
   "+components/browser_ui/settings",
   "+components/browser_ui/widget",
   "+components/browsing_data/content",
@@ -253,6 +254,7 @@ include_rules = [
   "+components/payments/core",
   "+components/performance_manager/public",
   "+components/performance_manager/embedder",
+  "+components/performance_manager/scenario_api",
   "+components/performance_manager/test_support",
   "+components/permissions",
   "+components/push_messaging",
@@ -575,9 +577,6 @@ specific_include_rules = {
     "+services/network/cookie_manager.h",
     "+services/network/network_context.h",
     "+services/network/network_service.h",
-  ],
-  r"chrome_authenticator_request_delegate_unittest\.cc": [
-    "+third_party/microsoft_webauthn/webauthn.h",
   ],
   r"chrome_content_browser_client_receiver_bindings\.cc" : [
     "+chrome/browser/performance_manager/mechanisms/userspace_swap_chromeos.h",

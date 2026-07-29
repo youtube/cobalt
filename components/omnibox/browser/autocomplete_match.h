@@ -620,14 +620,10 @@ struct AutocompleteMatch {
       const TemplateURL* template_url,
       bool is_history_embeddings_enabled);
 
-  // Returns the TemplateURL associated with this match.  This may be NULL if
-  // the match has no keyword OR if the keyword no longer corresponds to a valid
-  // TemplateURL.  See comments on |keyword| below.
-  // If |allow_fallback_to_destination_host| is true and the keyword does
-  // not map to a valid TemplateURL, we'll then check for a TemplateURL that
-  // corresponds to the destination_url's hostname.
-  TemplateURL* GetTemplateURL(TemplateURLService* template_url_service,
-                              bool allow_fallback_to_destination_host) const;
+  // Returns the `TemplateURL` associated with this match. This may be nullptr
+  // if the match has no keyword OR if the keyword no longer corresponds to a
+  // valid `TemplateURL`. See comments on `keyword` below.
+  TemplateURL* GetTemplateURL(TemplateURLService* template_url_service) const;
 
   // Gets the URL for the match image (whether it be an answer or entity). If
   // there isn't an image URL, returns an empty GURL (test with is_empty()).
@@ -992,15 +988,11 @@ struct AutocompleteMatch {
   // Unset if it has not been computed yet.
   std::optional<bool> has_tab_match;
 
-  // Set with a keyword provider match if this match can show a keyword hint.
-  // For example, if this is a SearchProvider match for "www.amazon.com",
-  // |associated_keyword| could be a KeywordProvider match for "amazon.com".
-  //
-  // When this is set, the popup will show a ">" symbol at the right edge of the
-  // line for this match, and tab/shift-tab will toggle in and out of keyword
-  // mode without disturbing the rest of the popup.  See also
-  // OmniboxPopupModel::SetSelectedLineState().
-  std::unique_ptr<AutocompleteMatch> associated_keyword;
+  // Set to a `TemplateURL`'s keyword; e.g. 'youtube.com' or '@bookmarks'. Set
+  // by the `AutocompleteController`, not individual providers. This determines
+  // which keyword to activate if the user focuses this instant-keyword (e.g.
+  // '@bookmarks') or this match's keyword chip (e.g. 'youtube.com').
+  std::u16string associated_keyword;
 
   // The keyword of the TemplateURL the match originated from.  This is nonempty
   // for both explicit "keyword mode" matches as well as matches for the default

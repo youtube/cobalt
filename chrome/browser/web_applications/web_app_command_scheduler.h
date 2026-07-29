@@ -14,7 +14,9 @@
 #include "base/types/expected.h"
 #include "chrome/browser/apps/app_service/app_launch_params.h"
 #include "chrome/browser/web_applications/commands/internal/callback_command.h"
+#include "chrome/browser/web_applications/isolated_web_apps/commands/isolated_web_app_apply_update_command.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_sub_manager.h"
+#include "chrome/browser/web_applications/ui_manager/update_dialog_types.h"
 #include "chrome/browser/web_applications/web_app_command_manager.h"
 #include "chrome/browser/web_applications/web_app_filter.h"
 #include "chrome/browser/web_applications/web_app_install_params.h"
@@ -72,7 +74,6 @@ struct ExternalInstallOptions;
 struct ExternallyManagedAppManagerInstallResult;
 struct InstallIsolatedWebAppCommandError;
 struct InstallIsolatedWebAppCommandSuccess;
-struct IsolatedWebAppApplyUpdateCommandError;
 struct IsolatedWebAppUpdatePrepareAndStoreCommandError;
 struct IsolatedWebAppUpdatePrepareAndStoreCommandSuccess;
 struct SynchronizeOsOptions;
@@ -327,9 +328,7 @@ class WebAppCommandScheduler {
       const IsolatedWebAppUrlInfo& url_info,
       std::unique_ptr<ScopedKeepAlive> optional_keep_alive,
       std::unique_ptr<ScopedProfileKeepAlive> optional_profile_keep_alive,
-      base::OnceCallback<
-          void(base::expected<void, IsolatedWebAppApplyUpdateCommandError>)>
-          callback,
+      base::OnceCallback<void(IsolatedWebAppApplyUpdateCommandResult)> callback,
       const base::Location& call_location = FROM_HERE);
 
   // Checks if a Signed Web Bundle is a valid and installable Isolated Web App.
@@ -676,6 +675,14 @@ class WebAppCommandScheduler {
   // Synchronizes the os integration of all apps that apply to the filter.
   void SynchronizeOsIntegrationForAllApps(const WebAppFilter& filter,
                                           base::OnceClosure callback);
+
+  // Reads pending app update information like icons to show on the dialog from
+  // disk, and uses that with web app metadata to construct a
+  // WebAppIdentityUpdate instance.
+  void ReadAppUpdateDataFromDisk(
+      const webapps::AppId& app_id,
+      base::OnceCallback<void(std::optional<WebAppIdentityUpdate>)> callback,
+      const base::Location& location = FROM_HERE);
 
   // TODO(crbug.com/40215411): expose all commands for web app
   // operations.

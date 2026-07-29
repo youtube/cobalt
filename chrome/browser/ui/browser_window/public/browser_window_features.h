@@ -80,6 +80,7 @@ class ToastService;
 class TranslateBubbleController;
 class UpgradeNotificationController;
 class WebUIBrowserSidePanelUI;
+class ZoomBubbleCoordinator;
 
 #if BUILDFLAG(IS_WIN)
 class WindowsTaskbarIconUpdater;
@@ -96,6 +97,9 @@ class PinInfoBarController;
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 class ProfileCustomizationBubbleSyncController;
+namespace session_restore_infobar {
+class SessionRestoreInfobarController;
+}
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 #if !BUILDFLAG(IS_CHROMEOS)
@@ -426,6 +430,7 @@ class BrowserWindowFeatures {
   profile_customization_bubble_sync_controller() {
     return profile_customization_bubble_sync_controller_.get();
   }
+
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
   // Get the FindBarController for this browser window, creating it if it does
@@ -451,6 +456,7 @@ class BrowserWindowFeatures {
   ImmersiveModeController* immersive_mode_controller() {
     return immersive_mode_controller_.get();
   }
+
   const ImmersiveModeController* immersive_mode_controller() const {
     return immersive_mode_controller_.get();
   }
@@ -582,6 +588,8 @@ class BrowserWindowFeatures {
   std::unique_ptr<DownloadToolbarUIController> download_toolbar_ui_controller_;
 #endif
 
+  std::unique_ptr<ZoomBubbleCoordinator> zoom_bubble_coordinator_;
+
   std::unique_ptr<ActorUiWindowController> actor_ui_window_controller_;
 
   std::unique_ptr<ActorBorderViewController> actor_border_view_controller_;
@@ -592,6 +600,9 @@ class BrowserWindowFeatures {
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
   std::unique_ptr<ProfileCustomizationBubbleSyncController>
       profile_customization_bubble_sync_controller_;
+
+  std::unique_ptr<session_restore_infobar::SessionRestoreInfobarController>
+      session_restore_infobar_controller_;
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
   std::unique_ptr<tabs::GlicNudgeController> glic_nudge_controller_;

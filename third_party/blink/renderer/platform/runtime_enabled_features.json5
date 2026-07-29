@@ -220,6 +220,11 @@
       status: "stable",
     },
     {
+      // This flag changes about:blank to dark in dark mode on user action.
+      name: "AboutBlankPageRespectsDarkModeOnUserAction",
+      status: "stable",
+    },
+    {
       name: "Accelerated2dCanvas",
       settable_from_internals: true,
       status: "stable",
@@ -581,10 +586,6 @@
       status: "stable",
     },
     {
-      name: "AttributeDirectionality",
-      status: "stable",
-    },
-    {
       name: "AttributionReporting",
       status: "stable",
       base_feature: "none",
@@ -645,12 +646,6 @@
       // https://crbug.com/406053617
       name: "AvoidNormalizingVisiblePositionsWhenStartEqualsEnd",
       status: "stable",
-    },
-    // When enabled, clicking on canvas element will not update the selection.
-    // See crbug.com/40130450.
-    {
-      name: "AvoidSelectionChangeOnCanvasClick",
-      status: "stable"
     },
     {
       // Killswitch for https://crbug.com/40947850.
@@ -941,6 +936,11 @@
       status: {"Android": "", "default": "stable"},
     },
     {
+      // crbug.com/446475645
+      name: "CaretPositionFromPointTextareaFix",
+      status: "stable",
+    },
+    {
       // Changes the caret's affinity to upstream, preventing spaces
       // from appearing in the previous line when typing at the start
       // of a wrapped line. See https://crbug.com/40677155
@@ -1018,11 +1018,6 @@
       name: "CollapseZeroWidthSpaceWhenReuseItem",
       status: "stable",
     },
-    {
-      // Killswitch for https://crbug.com/414827239
-      name: "ColorInputDatalistLooksNormal",
-      status: "stable",
-    },
     // Enable the rec2100-linear color space in CSS and PredefinedColorSpace.
     {
       name: "ColorSpaceRec2100Linear",
@@ -1046,7 +1041,7 @@
     {
       name: "CompositeBGColorAnimation",
       public: true,
-      status: "experimental",
+      status: "stable",
       base_feature: "none",
     },
     {
@@ -1175,6 +1170,10 @@
       base_feature_status: "enabled",
       copied_from_base_feature_if: "overridden",
       origin_trial_feature_name: "CrashReportingStorageAPI",
+    },
+    {
+      name: "CreateInlineContentsExcludeOutOfFlow",
+      status: "stable",
     },
     {
       // When enabled, allowlisting script urls and scripts used in eval via
@@ -1542,7 +1541,7 @@
     },
     {
       name: "CSSRubyOverhang",
-      status: "test",
+      status: "experimental",
     },
     {
       name: "CSSSafePrintableInset",
@@ -1569,10 +1568,10 @@
       status: "experimental",
     },
     {
-      // https://github.com/w3c/csswg-drafts/issues/11600
+      // https://drafts.csswg.org/css-overflow-5/#active-before-after-scroll-markers
       // :target-before and :target-after pseudo classes for scroll markers.
       name: "CSSScrollMarkerTargetBeforeAfter",
-      status: "experimental",
+      status: "stable",
     },
     {
       // https://drafts.csswg.org/css-scroll-snap-2/#scrollsnapchange
@@ -1737,12 +1736,17 @@
     {
       // https://crbug.com/393631108
       name: "DecoupleResolvedColumnRuleWidthFromStyle",
+      public: true,
       status: "experimental",
     },
     {
       // Killswitch for https://crbug.com/400317114 fix.
       // This lands in M142, and the flag can be removed in M144.
       name: "DelegatesFocusTextControlInputFix",
+      status: "stable",
+    },
+    {
+      name: "DeprecateCursorMovementIterator",
       status: "stable",
     },
     // This allows pages to opt out of the unload deprecation. Enabling this
@@ -2147,6 +2151,12 @@
       depends_on: ["FedCm"],
       public: true,
       status: "test",
+      base_feature: "none",
+    },
+    {
+      name: "FedCmErrorAttribute",
+      depends_on: ["FedCm"],
+      public: true,
       base_feature: "none",
     },
     {
@@ -2786,17 +2796,12 @@
       status: {"Android": "stable"},
       base_feature: "none",
     },
-
     {
       // Improved retargeting behavior of ToggleEvent.source and
       // CommandEvent.source to match Event.relatedTarget.
       // crbug.com/420639769
       // Enabled in M142, can be removed in M144.
       name: "ImprovedSourceRetargeting",
-      status: "stable",
-    },
-    {
-      name: "IncludeTransformsForLayerXandLayerY",
       status: "stable",
     },
     {
@@ -2965,10 +2970,6 @@
       name: "LayoutIgnoreMarginsForSticky",
     },
     {
-      name: "LayoutMinSizeAutoIndefinite",
-      status: "stable",
-    },
-    {
       name: "LayoutNGShapeCache",
       status: "stable",
       base_feature: "LayoutNGShapeCache",
@@ -2997,6 +2998,15 @@
       // Stop emitting U+FFFC Object Replacement Character for out-of-flow
       // objects such as floating or out-of-flow positioned. crbug.com/40658609
       name: "LineBreakOofNoOrc",
+      status: "stable",
+    },
+    {
+      // Improves the logic for removing focus from a currently focused <a>
+      // element when its href attribute is removed by considering other ways
+      // that an <a> may be focusable. Shipped in M142, should be safe to
+      // remove in M144.
+      // https://issues.chromium.org/issues/443585794
+      name: "LinkBlurImprovement",
       status: "stable",
     },
     {
@@ -3327,6 +3337,10 @@
       implied_by: ["SoftNavigationHeuristics"],
     },
     {
+      name: "NavigationTransitionDestination",
+      status: "experimental",
+    },
+    {
       name: "NavigatorContentUtils",
       // Android does not yet support NavigatorContentUtils.
       status: {"Android": "", "default": "stable"},
@@ -3617,6 +3631,12 @@
       // Fix for https://crbug.com/40716515.
       // Killswitch M141.
       name: "PaintOffsetTranslationForBackdropFilterWithInlineElement",
+      status: "stable",
+    },
+    {
+      // Killswitch M142. Overrides the above to enable PaintOffsetTranslation
+      // for all composited LayoutObjects.
+      name: "PaintOffsetTranslationForComposited",
       status: "stable",
     },
     {
@@ -4133,13 +4153,6 @@
       name: "RenderPriorityAttribute",
     },
     {
-      // Allocates a render surface for 2D scale transforms, to prevent
-      // composited pixel alignment issues. See
-      // https://crbug.com/40084005
-      name: "RenderSurfaceFor2DScaleTransform",
-      status: "stable",
-    },
-    {
       name: "ReportFirstFrameTimeAsRenderTime",
       status: "test",
     },
@@ -4499,7 +4512,7 @@
       // https://chromestatus.com/feature/5412736871825408
       // https://issues.chromium.org/issues/439964654
       name: "SelectMobileDesktopParity",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "SendBeaconThrowForBlobWithNonSimpleType",
@@ -4621,6 +4634,11 @@
       status: "experimental",
       origin_trial_feature_name: "SharedWorkerExtendedLifetime",
       origin_trial_allows_third_party: true,
+    },
+    {
+      name: "SideRelativeBackgroundPosition",
+      status: "experimental",
+      public: true,
     },
     {
       name: "SignatureBasedInlineIntegrity",
@@ -4778,7 +4796,7 @@
     // requiring a single slash.
     {
       name: "StrictJsonMimeTypeTokenValidation",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "StrictMimeTypesForWorkers",
@@ -4793,7 +4811,7 @@
     },
     {
       name: "SvgAnchorElementDownloadAttribute",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "SvgAnchorElementRelAttributes",
@@ -4859,6 +4877,10 @@
       status: "stable",
     },
     {
+      name: "SvgSizingWithPreserveAspectRatioNone",
+      status: "experimental",
+    },
+    {
       name: "SvgSmilPruneInstanceTimes",
       status: "stable",
     },
@@ -4915,6 +4937,15 @@
     },
     {
       name: "TabWidthNegativePosition",
+      status: "stable",
+    },
+    {
+      // When checking the shadow tree during invoke(),
+      // use the invocationTargetInShadowTree saved before
+      // calling the listener.
+      // This was added in M142 and can be removed after M144.
+      // https://issues.chromium.org/issues/41408360
+      name: "TargetInShadowDeterminedBeforeListener",
       status: "stable",
     },
     // For unit tests.
@@ -5244,6 +5275,10 @@
     {
       name: "TrustedTypesUseCodeLike",
       status: "experimental",
+    },
+    {
+      name: "TwoPhaseViewTransition",
+      status: "test",
     },
     {
       name: "UnclosedFormControlIsInvalid",
@@ -5812,16 +5847,6 @@
       public: true,
     },
     {
-      name: "WebViewXRequestedWithDeprecation",
-      origin_trial_feature_name: "WebViewXRequestedWithDeprecation",
-      origin_trial_allows_insecure: true,
-      origin_trial_allows_third_party: true,
-      origin_trial_os: ["android"],
-      origin_trial_type: "deprecation",
-      status: "experimental",
-      base_feature: "none",
-    },
-    {
       name: "WebVTTRegions",
       status: "experimental",
     },
@@ -5915,7 +5940,8 @@
     },
     {
       name: "WindowControlsOverlay",
-      status: { "Android": "experimental", "default": "stable" },
+      status: { "Android": "test", "default": "stable" },
+      base_feature: "AndroidWindowControlsOverlay",
     },
     // If enabled, window.default[Ss]tatus will be supported. This is disabled
     // by default, and is here to allow this behavior to be re-enabled via Finch

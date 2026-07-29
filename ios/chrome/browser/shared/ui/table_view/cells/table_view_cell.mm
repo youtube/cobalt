@@ -6,7 +6,19 @@
 
 @implementation TableViewCell {
   NSString* _accessibilityLabel;
+  NSArray<NSString*>* _accessibilityUserInputLabels;
 }
+
+#pragma mark - UITableViewCell
+
+- (void)prepareForReuse {
+  [super prepareForReuse];
+  self.accessoryType = UITableViewCellAccessoryNone;
+  self.accessibilityLabel = nil;
+  self.accessibilityUserInputLabels = nil;
+}
+
+#pragma mark - Accessibility
 
 - (void)setAccessibilityLabel:(NSString*)accessibilityLabel {
   _accessibilityLabel = accessibilityLabel;
@@ -18,6 +30,19 @@
     return contentConfiguration.accessibilityLabel;
   }
   return _accessibilityLabel;
+}
+
+- (void)setAccessibilityUserInputLabels:
+    (NSArray<NSString*>*)accessibilityUserInputLabels {
+  _accessibilityUserInputLabels = accessibilityUserInputLabels;
+}
+
+- (NSArray<NSString*>*)accessibilityUserInputLabels {
+  NSObject* contentConfiguration = self.contentConfiguration;
+  if (contentConfiguration.accessibilityUserInputLabels) {
+    return contentConfiguration.accessibilityUserInputLabels;
+  }
+  return _accessibilityUserInputLabels;
 }
 
 @end

@@ -948,7 +948,9 @@ void OnTokenRequestParsed(
       GetTokenResponseType(token_value, continue_on, response_error);
 
   if (response_error) {
-    std::string error_code = ExtractString(*response_error, kErrorCodeKey);
+    const char* key =
+        webid::IsErrorAttributeEnabled() ? kErrorKey : kErrorCodeKey;
+    std::string error_code = ExtractString(*response_error, key);
     const std::string* url = response_error->FindString(kErrorUrlKey);
     GURL error_url;
     std::optional<ErrorUrlType> error_url_type;
@@ -1116,7 +1118,7 @@ IdpNetworkRequestManager::~IdpNetworkRequestManager() = default;
 std::optional<GURL> IdpNetworkRequestManager::ComputeWellKnownUrl(
     const GURL& provider) {
   GURL well_known_url;
-  if (net::IsLocalhost(provider)) {
+  if (net::IsLocalhost(provider) || webid::IsPreservePortsForTestingEnabled()) {
     well_known_url = provider.GetWithEmptyPath();
   } else {
     std::string etld_plus_one = GetDomainAndRegistry(

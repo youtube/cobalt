@@ -37,16 +37,39 @@ extern const base::FeatureParam<bool> kShowComposeboxImageSuggestions;
 // Whether to show the + entrypoint and contextual input menu in the realbox and
 // composebox.
 extern const base::FeatureParam<bool> kShowContextMenu;
+// Whether to show tab previews on hover for the composebox context menu.
+extern const base::FeatureParam<bool> kShowContextMenuTabPreviews;
 // The maximum number of tab suggestions to show in the composebox context menu.
 extern const base::FeatureParam<int> kContextMenuMaxTabSuggestions;
-// Whether to show the next realbox.
-extern const base::FeatureParam<bool> kShowNextRealbox;
+// Enum for `kRealboxLayoutMode`.
+enum class RealboxLayoutMode {
+  kDefault,
+  kTall,
+  kCompact,
+};
+
+// String constants for RealboxLayoutMode.
+inline constexpr char kRealboxLayoutModeDefault[] = "Default";
+inline constexpr char kRealboxLayoutModeTall[] = "Tall";
+inline constexpr char kRealboxLayoutModeCompact[] = "Compact";
+
+// Flag to control the realbox layout mode (Tall, Compact, Default).
+extern const base::FeatureParam<RealboxLayoutMode> kRealboxLayoutMode;
 // The maximum number of file attachments to upload.
 extern const base::FeatureParam<int> kMaxNumFiles;
+// Whether or not to show a description in the context menu entrypoint, or just
+// the icon.
+extern const base::FeatureParam<bool> kShowContextMenuDescription;
 // Whether to show the tools and models picker in the composebox.
 extern const base::FeatureParam<bool> kShowToolsAndModels;
+// Whether to show a series of cycling placeholder texts on the search input UI.
+extern const base::FeatureParam<bool> kCyclingPlaceholders;
 
 bool IsNtpComposeboxEnabled(Profile* profile);
+
+// Returns the string representation of `RealboxLayoutMode`.
+std::string_view RealboxLayoutModeToString(
+    RealboxLayoutMode realbox_layout_mode);
 
 class FeatureConfig : public omnibox_feature_configs::Config<FeatureConfig> {
  public:

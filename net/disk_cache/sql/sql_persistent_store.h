@@ -67,7 +67,8 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
     kNotFound = 13,
     kInvalidArgument = 14,
     kBodyEndMismatch = 15,
-    kMaxValue = kBodyEndMismatch
+    kFailedForTesting = 16,
+    kMaxValue = kFailedForTesting
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/net/enums.xml:SqlDiskCacheStoreError)
 
@@ -149,11 +150,13 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
   virtual void OpenEntry(const CacheEntryKey& key,
                          OptionalEntryInfoOrErrorCallback callback) = 0;
 
-  // Creates a new entry with the given `key`.
+  // Creates a new entry with the given `key`. `creation_time` is the time the
+  // entry is created and will be used as the initial `last_used` time.
   // The `callback` is invoked with the new entry's information on success. If
   // an entry with this key already exists, the callback is invoked with a
   // `kAlreadyExists` error.
   virtual void CreateEntry(const CacheEntryKey& key,
+                           base::Time creation_time,
                            EntryInfoOrErrorCallback callback) = 0;
 
   // Marks an entry for future deletion. When an entry is "doomed", it is
@@ -318,8 +321,25 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
   // kSqlDiskCacheIdleCheckpointThreshold, a checkpoint is executed.
   virtual void MaybeRunCheckpoint(base::OnceCallback<void(bool)> callback) = 0;
 
+  enum class IndexState {
+    // The in-memory index is not available (e.g., not yet loaded or
+    // invalidated).
+    kNotReady,
+    // The index is ready and the hash was found. This may be a false positive.
+    kHashFound,
+    // The index is ready, but the hash was not found.
+    kHashNotFound,
+  };
+
+  // Synchronously checks the state of a key hash against the in-memory index.
+  virtual IndexState GetIndexStateForHash(
+      CacheEntryKey::Hash key_hash) const = 0;
+
   // Enables a strict corruption checking mode for testing purposes.
   virtual void EnableStrictCorruptionCheckForTesting() = 0;
+
+  // Sets a flag to simulate database operation failures for testing.
+  virtual void SetSimulateDbFailureForTesting(bool fail) = 0;
 
  protected:
   SqlPersistentStore() = default;

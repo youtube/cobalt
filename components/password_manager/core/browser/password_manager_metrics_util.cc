@@ -317,10 +317,9 @@ void LogPasswordDropdownShown(
   }
 }
 
-void LogPasswordDropdownItemSelected(PasswordDropdownSelectedOption type,
-                                     bool off_the_record) {
-  base::UmaHistogramEnumeration("PasswordManager.PasswordDropdownItemSelected",
-                                type);
+void LogPasswordSuggestionSelected(PasswordDropdownSelectedOption type,
+                                   bool off_the_record) {
+  LogPasswordDropdownItemSelected(type);
   base::UmaHistogramBoolean("PasswordManager.ItemSelected.OffTheRecord",
                             off_the_record);
 
@@ -339,11 +338,18 @@ void LogPasswordDropdownItemSelected(PasswordDropdownSelectedOption type,
       break;
     case PasswordDropdownSelectedOption::kShowAll:
     case PasswordDropdownSelectedOption::kGenerate:
+    case PasswordDropdownSelectedOption::kBackupPassword:
+    case PasswordDropdownSelectedOption::kTroubleSigningIn:
     default:
       base::RecordAction(base::UserMetricsAction(
           "PasswordManager.PasswordDropdownSelected.Others"));
       break;
   }
+}
+
+void LogPasswordDropdownItemSelected(PasswordDropdownSelectedOption type) {
+  base::UmaHistogramEnumeration("PasswordManager.PasswordDropdownItemSelected",
+                                type);
 }
 
 void LogPasswordSuccessfulSubmissionIndicatorEvent(

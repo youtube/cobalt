@@ -239,8 +239,7 @@ TEST_F(BrowserViewTest, DISABLED_BrowserViewLayout) {
   TabStrip* tabstrip = browser_view()->tabstrip();
   views::View* tabstrip_region = browser_view()->tabstrip()->parent();
   ToolbarView* toolbar = browser_view()->toolbar();
-  views::View* contents_container =
-      browser_view()->GetContentsContainerForTest();
+  views::View* contents_container = browser_view()->contents_container();
   views::WebView* contents_web_view = browser_view()->contents_web_view();
   views::WebView* devtools_web_view =
       browser_view()->GetActiveContentsContainerView()->devtools_web_view();
@@ -330,8 +329,7 @@ TEST_F(BrowserViewTest, DISABLED_BrowserViewLayout) {
 TEST_F(BrowserViewTest, MAYBE_FindBarBoundingBoxLocationBar) {
   ASSERT_FALSE(base::i18n::IsRTL());
   const views::View* location_bar = browser_view()->GetLocationBarView();
-  const views::View* contents_container =
-      browser_view()->GetContentsContainerForTest();
+  const views::View* contents_container = browser_view()->contents_container();
 
   // Make sure we are testing the case where the location bar is visible.
   EXPECT_TRUE(location_bar->GetVisible());
@@ -352,8 +350,7 @@ TEST_F(BrowserViewTest, MAYBE_FindBarBoundingBoxLocationBar) {
 TEST_F(BrowserViewTest, FindBarBoundingBoxNoLocationBar) {
   ASSERT_FALSE(base::i18n::IsRTL());
   const views::View* location_bar = browser_view()->GetLocationBarView();
-  const views::View* contents_container =
-      browser_view()->GetContentsContainerForTest();
+  const views::View* contents_container = browser_view()->contents_container();
 
   // Make sure we are testing the case where the location bar is absent.
   browser_view()->GetLocationBarView()->SetVisible(false);
@@ -723,8 +720,8 @@ TEST_F(BrowserViewHostedAppTest, Layout) {
   // Add a tab because the browser starts out without any tabs at all.
   AddTab(browser(), GURL("about:blank"));
 
-  views::View* contents_container =
-      browser_view()->GetContentsContainerForTest();
+  const int contents_container_y = browser_view()->main_container()->y() -
+                                   browser_view()->contents_container()->y();
 
   // The tabstrip, toolbar and bookmark bar should not be visible for hosted
   // apps.
@@ -740,16 +737,16 @@ TEST_F(BrowserViewHostedAppTest, Layout) {
 
   // The position of the bottom of the header (the bar with the window
   // controls) in the coordinates of BrowserView.
-  int bottom_of_header =
-      browser_view()->browser_widget()->GetTopInset() - header_offset.y();
+  const int top_inset =
+      browser_view()->browser_widget()->GetFrameView()->GetTopInset(false);
+  const int bottom_of_header = top_inset - header_offset.y();
 
   // The web contents should be flush with the bottom of the header.
-  EXPECT_EQ(bottom_of_header, contents_container->y());
+  EXPECT_EQ(bottom_of_header, contents_container_y);
 
   // The find bar should butt against the 1px header/web-contents separator at
   // the bottom of the header.
-  EXPECT_EQ(browser_view()->GetFindBarBoundingBox().y(),
-            browser_view()->browser_widget()->GetTopInset());
+  EXPECT_EQ(top_inset, browser_view()->GetFindBarBoundingBox().y());
 }
 
 using BrowserViewWindowTypeTest = BrowserWithTestWindowTest;

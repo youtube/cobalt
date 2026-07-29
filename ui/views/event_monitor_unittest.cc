@@ -116,13 +116,6 @@ TEST_P(EventMonitorTest, ShouldReceiveWindowEventsWhileInstalled) {
 }
 
 TEST_P(EventMonitorTest, ShouldNotReceiveEventsFromOtherWindow) {
-#if BUILDFLAG(IS_MAC)
-  // TODO(https://crbug.com/426181639): This test is currently failing for the
-  // remote cocoa implementation of EventMonitor. Skip until that is fixed.
-  if (GetParam() == Implementation::kRemoteCocoa) {
-    GTEST_SKIP();
-  }
-#endif
   Widget* widget2 = CreateTopLevelNativeWidget();
   std::unique_ptr<EventMonitor> monitor(EventMonitor::CreateWindowMonitor(
       &observer_, widget2->GetNativeWindow(),
@@ -209,6 +202,27 @@ TEST_P(EventMonitorTest, TwoMonitors) {
   EXPECT_FALSE(deleter->DidDelete());
   generator_->ReleaseLeftButton();
   EXPECT_TRUE(deleter->DidDelete());
+}
+
+TEST_P(EventMonitorTest, ShouldReceiveEventsFromChildWidgets) {
+  Widget* child_widget = CreateChildNativeWidgetWithParent(widget_);
+  child_widget->SetSize(gfx::Size(50, 50));
+  child_widget->Show();
+
+  Widget* grandchild_widget = CreateChildNativeWidgetWithParent(child_widget);
+  grandchild_widget->SetSize(gfx::Size(25, 25));
+  grandchild_widget->Show();
+
+  std::unique_ptr<EventMonitor> monitor(EventMonitor::CreateWindowMonitor(
+      &observer_, widget_->GetNativeWindow(), {ui::EventType::kMousePressed}));
+
+  generator_->SetTargetWindow(grandchild_widget->GetNativeWindow());
+  generator_->ClickLeftButton();
+  EXPECT_EQ(1u, observer_.observed_event_count());
+
+  monitor.reset();
+  grandchild_widget->CloseNow();
+  child_widget->CloseNow();
 }
 
 INSTANTIATE_TEST_SUITE_P(,

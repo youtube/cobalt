@@ -206,7 +206,7 @@ class PixManager {
   // Called by the utility process after validation of the `pix_code`. If the
   // utility processes has disconnected (e.g., due to a crash in the validation
   // code), then `is_pix_code_valid` contains an error string instead of the
-  // boolean validation result. The call to validate the PIX code was made at
+  // boolean validation result. The call to validate the Pix code was made at
   // `start_time`.
   void OnPixCodeValidated(std::string pix_code,
                           base::TimeTicks start_time,
@@ -259,9 +259,8 @@ class PixManager {
   void OnPurchaseActionResult(base::TimeTicks start_time,
                               PurchaseActionResult result);
 
-  // TODO(crbug.com/420735186): Rename to OnUiScreenEvent.
   // Called by the view to communicate UI events.
-  void OnUiEvent(UiEvent ui_event_type);
+  void OnUiScreenEvent(UiEvent ui_event_type);
 
   // Sets the internal state and triggers dismissal.
   void DismissPrompt();
@@ -317,7 +316,7 @@ class PixManager {
   // double-click.
   bool has_payflow_started_ = false;
 
-  // Utility process validator for PIX code strings.
+  // Utility process validator for Pix code strings.
   data_decoder::DataDecoder utility_process_validator_;
 
   // Represents the current state of the UI or the UI state that is intended. In

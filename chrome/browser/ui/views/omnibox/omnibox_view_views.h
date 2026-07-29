@@ -17,8 +17,8 @@
 #include "base/scoped_observation.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "components/omnibox/browser/omnibox_popup_view.h"
-#include "components/omnibox/browser/omnibox_view.h"
+#include "chrome/browser/ui/omnibox/omnibox_popup_view.h"
+#include "chrome/browser/ui/omnibox/omnibox_view.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/search_engines/template_url_service.h"
 #include "components/search_engines/template_url_service_observer.h"
@@ -38,8 +38,6 @@
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ui/base/ime/ash/input_method_manager.h"
 #endif
-
-static_assert(!BUILDFLAG(IS_IOS));
 
 class LocationBarView;
 class OmniboxClient;
@@ -136,8 +134,6 @@ class OmniboxViewViews
   void SetFocus(bool is_user_initiated) override;
   void ApplyFocusRingToAimButton(bool focus_aim) override;
   bool AimButtonVisible() const override;
-  bool IsImeComposing() const override;
-  gfx::NativeView GetRelativeWindowForPopup() const override;
   bool IsImeShowingPopup() const override;
 
   // views::Textfield:

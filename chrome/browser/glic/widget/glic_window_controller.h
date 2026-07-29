@@ -78,6 +78,9 @@ class GlicWindowController : public GlicInstance::UIDelegate {
   virtual HostManager& host_manager() = 0;
   virtual std::vector<GlicInstance*> GetInstances() = 0;
   virtual GlicInstance* GetInstanceForTab(tabs::TabInterface* tab) = 0;
+  virtual void FindInstanceFromGlicContentsAndBindToTab(
+      content::WebContents* source_glic_web_contents,
+      tabs::TabInterface* tab_to_bind) = 0;
 
   // Show, summon, or activate the panel if needed, or close it if it's already
   // active and prevent_close is false.
@@ -214,12 +217,6 @@ class GlicWindowController : public GlicInstance::UIDelegate {
   static bool AlwaysDetached() {
     return base::FeatureList::IsEnabled(features::kGlicDetached);
   }
-
-  // Register for this callback to detect changes to the floaty.
-  using FloatyStateChangeCallback =
-      base::RepeatingCallback<void(State, mojom::CurrentView view)>;
-  virtual base::CallbackListSubscription RegisterFloatyStateChange(
-      FloatyStateChangeCallback callback) = 0;
 };
 
 }  // namespace glic

@@ -7,27 +7,27 @@
 
 #include "base/time/time.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
-#include "chrome/browser/glic/host/glic_ui_embedder.h"
 #include "chrome/browser/glic/host/host.h"
+#include "chrome/browser/glic/service/glic_ui_embedder.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace glic {
 
 // A stub implementation of GlicUiEmbedder for floating UIs.
-class GlicFloatingUi : public GlicUiEmbedder, public Host::Delegate {
+class GlicFloatingUi : public GlicUiEmbedder, public Host::EmbedderDelegate {
  public:
   GlicFloatingUi();
   ~GlicFloatingUi() override;
 
   // GlicUiEmbedder:
-  Host::Delegate* GetHostDelegate() override;
+  Host::EmbedderDelegate* GetHostEmbedderDelegate() override;
   void Show() override;
+  bool IsShowing() const override;
   void Close() override;
-  std::unique_ptr<views::View> CreateView() override;
   std::unique_ptr<GlicUiEmbedder> CreateInactiveEmbedder() const override;
 
-  // Host::Delegate:
+  // Host::EmbedderDelegate:
   const mojom::PanelState& GetPanelState() const override;
   void Resize(const gfx::Size& size,
               base::TimeDelta duration,
@@ -38,12 +38,12 @@ class GlicFloatingUi : public GlicUiEmbedder, public Host::Delegate {
   void Attach() override;
   void Detach() override;
   void SetMinimumWidgetSize(const gfx::Size& size) override;
-  bool IsShowing() const override;
   void SwitchConversation(
-      const std::string& conversation_id,
+      glic::mojom::ConversationInfoPtr info,
       mojom::WebClientHandler::SwitchConversationCallback callback) override;
 
  private:
+  std::unique_ptr<views::View> CreateView();
   mojom::PanelState panel_state_;
 };
 

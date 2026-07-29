@@ -39,7 +39,7 @@ using ::blink::WebMouseEvent;
 using ::blink::WebNode;
 
 ClickTool::ClickTool(content::RenderFrame& frame,
-                     Journal::TaskId task_id,
+                     TaskId task_id,
                      Journal& journal,
                      mojom::ClickActionPtr action,
                      mojom::ToolTargetPtr target,
@@ -97,6 +97,10 @@ std::string ClickTool::DebugString() const {
   return absl::StrFormat("ClickTool[%s;type(%s);count(%s)]",
                          ToDebugString(target_), base::ToString(action_->type),
                          base::ToString(action_->count));
+}
+
+bool ClickTool::SupportsPaintStability() const {
+  return true;
 }
 
 ClickTool::ValidatedResult ClickTool::Validate() const {

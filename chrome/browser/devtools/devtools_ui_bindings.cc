@@ -72,6 +72,7 @@
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/privacy_sandbox/tracking_protection_settings.h"
 #include "components/search_engines/util.h"
+#include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/sync/service/sync_service.h"
@@ -697,6 +698,7 @@ void DevToolsUIBindings::FrontendWebContentsObserver::
     case base::TERMINATION_STATUS_PROCESS_CRASHED:
     case base::TERMINATION_STATUS_LAUNCH_FAILED:
     case base::TERMINATION_STATUS_OOM:
+    case base::TERMINATION_STATUS_EVICTED_FOR_MEMORY:
 #if BUILDFLAG(IS_WIN)
     case base::TERMINATION_STATUS_INTEGRITY_FAILURE:
 #endif
@@ -1397,8 +1399,8 @@ void DevToolsUIBindings::IndexPath(
     return;
   }
   std::vector<std::string> excluded_folders;
-  std::optional<base::Value> parsed_excluded_folders =
-      base::JSONReader::Read(excluded_folders_message);
+  std::optional<base::Value> parsed_excluded_folders = base::JSONReader::Read(
+      excluded_folders_message, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (parsed_excluded_folders && parsed_excluded_folders->is_list()) {
     for (const base::Value& folder_path : parsed_excluded_folders->GetList()) {
       if (folder_path.is_string()) {
@@ -1480,12 +1482,13 @@ void DevToolsUIBindings::SetDevicesDiscoveryConfig(
     bool network_discovery_enabled,
     const std::string& network_discovery_config) {
   std::optional<base::Value::Dict> parsed_port_forwarding =
-      base::JSONReader::ReadDict(port_forwarding_config);
+      base::JSONReader::ReadDict(port_forwarding_config,
+                                 base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!parsed_port_forwarding) {
     return;
   }
-  std::optional<base::Value> parsed_network =
-      base::JSONReader::Read(network_discovery_config);
+  std::optional<base::Value> parsed_network = base::JSONReader::Read(
+      network_discovery_config, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!parsed_network || !parsed_network->is_list()) {
     return;
   }
@@ -1642,7 +1645,9 @@ base::Value::Dict DevToolsUIBindings::GetSyncInformationForProfile(
     return result;
   }
 
-  result.Set("isSyncActive", sync_service->IsSyncFeatureActive());
+  result.Set("isSyncActive", base::FeatureList::IsEnabled(
+                                 switches::kEnablePreferencesAccountStorage) ||
+                                 sync_service->IsSyncFeatureActive());
   result.Set("arePreferencesSynced", sync_service->GetActiveDataTypes().Has(
                                          syncer::DataType::PREFERENCES));
   result.Set("isSyncPaused", sync_service->GetTransportState() ==
@@ -1965,6 +1970,8 @@ void DevToolsUIBindings::GetHostConfig(DispatchCallback callback) {
     base::Value::Dict gdp_profiles_dict;
     gdp_profiles_dict.Set("enabled", base::FeatureList::IsEnabled(
                                          ::features::kDevToolsGdpProfiles));
+    gdp_profiles_dict.Set("badgesEnabled",
+                          features::kDevToolsGdpProfilesBadgesEnabled.Get());
     gdp_profiles_dict.Set(
         "starterBadgeEnabled",
         features::kDevToolsGdpProfilesStarterBadgeEnabled.Get());
@@ -2161,7 +2168,7 @@ void DevToolsUIBindings::MaybeStartLogging() {
     session_start_time_ = base::TimeTicks::Now();
     base::Value::Dict sync_info = GetSyncInformationForProfile(profile_);
     int64_t session_tags = 0;
-    bool is_signed_in = sync_info.FindBool("isSyncActive").value_or(false) &&
+    bool is_signed_in = sync_info.FindBool("accountEmail").has_value() &&
                         !sync_info.FindBool("isSyncPaused").value_or(false);
     if (is_signed_in) {
       session_tags |= SessionTags::kUserSignedIn;

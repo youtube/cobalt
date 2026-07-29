@@ -1553,7 +1553,15 @@ IN_PROC_BROWSER_TEST_F(SitePerProcessDevToolsProtocolTest,
   EXPECT_EQ(frame_target_id, *params.FindString("targetId"));
 }
 
-IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, PageCrashClearsPendingCommands) {
+// TODO(crbug.com/440535492): Flaky on Win dbg. Re-enable this test.
+#if BUILDFLAG(IS_WIN) && !defined(NDEBUG)
+#define MAYBE_PageCrashClearsPendingCommands \
+  DISABLED_PageCrashClearsPendingCommands
+#else
+#define MAYBE_PageCrashClearsPendingCommands PageCrashClearsPendingCommands
+#endif
+IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
+                       MAYBE_PageCrashClearsPendingCommands) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL test_url = embedded_test_server()->GetURL("/devtools/navigation.html");
   NavigateToURLBlockUntilNavigationsComplete(shell(), test_url, 1);
@@ -1688,7 +1696,15 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, CrossSiteCrash) {
   // Should not crash at this point.
 }
 
-IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, InspectorTargetCrashedNavigate) {
+// TODO(crbug.com/440535492): Flaky on Win dbg. Re-enable this test.
+#if BUILDFLAG(IS_WIN) && !defined(NDEBUG)
+#define MAYBE_InspectorTargetCrashedNavigate \
+  DISABLED_InspectorTargetCrashedNavigate
+#else
+#define MAYBE_InspectorTargetCrashedNavigate InspectorTargetCrashedNavigate
+#endif
+IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
+                       MAYBE_InspectorTargetCrashedNavigate) {
   set_agent_host_can_close();
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url_a = embedded_test_server()->GetURL("a.com", "/title1.html");
@@ -1708,7 +1724,13 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, InspectorTargetCrashedNavigate) {
   WaitForNotification("Inspector.targetReloadedAfterCrash", true);
 }
 
-IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, TargetGetTargetsAfterCrash) {
+// TODO(crbug.com/440535492): Flaky on Win dbg. Re-enable this test.
+#if BUILDFLAG(IS_WIN) && !defined(NDEBUG)
+#define MAYBE_TargetGetTargetsAfterCrash DISABLED_TargetGetTargetsAfterCrash
+#else
+#define MAYBE_TargetGetTargetsAfterCrash TargetGetTargetsAfterCrash
+#endif
+IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, MAYBE_TargetGetTargetsAfterCrash) {
   set_agent_host_can_close();
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url_a = embedded_test_server()->GetURL("a.com", "/title1.html");
@@ -2226,12 +2248,15 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
   SendCommandAsync("Security.enable");
   SendCommandSync("Network.setRequestInterception",
                   std::move(base::JSONReader::Read(
-                                "{\"patterns\": [{\"urlPattern\": \"*\"}]}")
+                                "{\"patterns\": [{\"urlPattern\": \"*\"}]}",
+                                base::JSON_PARSE_CHROMIUM_EXTENSIONS)
                                 ->GetDict()));
 
   SendCommandSync(
       "Security.setIgnoreCertificateErrors",
-      std::move(base::JSONReader::Read("{\"ignore\": true}")->GetDict()));
+      std::move(base::JSONReader::Read("{\"ignore\": true}",
+                                       base::JSON_PARSE_CHROMIUM_EXTENSIONS)
+                    ->GetDict()));
 
   SendCommandSync("Network.clearBrowserCache");
   SendCommandSync("Network.clearBrowserCookies");
@@ -2240,10 +2265,12 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
   base::Value::Dict params =
       WaitForNotification("Network.requestIntercepted", false);
   std::string interceptionId = *params.FindString("interceptionId");
-  SendCommandAsync("Network.continueInterceptedRequest",
-                   std::move(base::JSONReader::Read("{\"interceptionId\": \"" +
-                                                    interceptionId + "\"}")
-                                 ->GetDict()));
+  SendCommandAsync(
+      "Network.continueInterceptedRequest",
+      std::move(base::JSONReader::Read(
+                    "{\"interceptionId\": \"" + interceptionId + "\"}",
+                    base::JSON_PARSE_CHROMIUM_EXTENSIONS)
+                    ->GetDict()));
   continue_observer.Wait();
   EXPECT_EQ(test_url, shell()
                           ->web_contents()

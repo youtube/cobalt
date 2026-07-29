@@ -46,8 +46,10 @@
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/common/content_switches.h"
+#include "extensions/browser/blocklist_extension_prefs.h"
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/pref_names.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_features.h"
 #include "extensions/common/extension_urls.h"
@@ -77,11 +79,18 @@
 #include "chrome/browser/extensions/management/management_util.h"
 #endif
 
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
+
 namespace extensions {
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 // Disables off-store force-installed extensions in low trust environments.
 BASE_FEATURE(kDisableOffstoreForceInstalledExtensionsInLowTrustEnviroment,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Disables force-installed extensions in low trust environments when
+// greylisted.
+BASE_FEATURE(kDisableForceInstalledExtensionsInLowTrustEnviromentWhenGreylisted,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
@@ -116,6 +125,9 @@ ExtensionManagement::ExtensionManagement(Profile* profile)
                              pref_change_callback);
   pref_change_registrar_.Add(pref_names::kExtensionUnpublishedAvailability,
                              pref_change_callback);
+  pref_change_registrar_.Add(
+      pref_names::kExtensionForceInstallWithNonMalwareViolationsEnabled,
+      pref_change_callback);
   // Note that both |global_settings_| and |default_settings_| will be null
   // before first call to Refresh(), so in order to resolve this, Refresh() must
   // be called in the initialization of ExtensionManagement.
@@ -287,8 +299,10 @@ bool ExtensionManagement::IsInstallationExplicitlyAllowed(
     const ExtensionId& id) {
   auto* setting = GetSettingsForId(id);
   // No settings explicitly specified for |id|.
-  if (setting == nullptr)
+  if (setting == nullptr) {
     return false;
+  }
+
   // Checks if the extension is on the automatically installed list or
   // install allow-list.
   ManagedInstallationMode mode = setting->installation_mode;
@@ -466,6 +480,37 @@ bool ExtensionManagement::IsAllowedByUnpackedDeveloperModePolicy(
   bool in_developer_mode =
       profile_->GetPrefs()->GetBoolean(prefs::kExtensionsUIDeveloperMode);
   return in_developer_mode;
+}
+
+bool ExtensionManagement::IsGreylistedForceInstalledInLowTrustEnvironment(
+    const ExtensionId& extension_id) {
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+  if (!base::FeatureList::IsEnabled(
+          kDisableForceInstalledExtensionsInLowTrustEnviromentWhenGreylisted)) {
+    return false;
+  }
+
+  if (profile_->GetPrefs()->GetBoolean(
+          pref_names::kExtensionForceInstallWithNonMalwareViolationsEnabled)) {
+    return false;
+  }
+
+  if (!blocklist_prefs::IsExtensionGreylisted(extension_id,
+                                              ExtensionPrefs::Get(profile_))) {
+    return false;
+  }
+
+  auto* setting = GetSettingsForId(extension_id);
+  if (setting == nullptr ||
+      setting->installation_mode != ManagedInstallationMode::kForced) {
+    return false;
+  }
+
+  return GetHigherManagementAuthorityTrustworthiness(profile_) <
+         policy::ManagementAuthorityTrustworthiness::TRUSTED;
+#else
+  return false;
+#endif
 }
 
 bool ExtensionManagement::IsForceInstalledInLowTrustEnvironment(

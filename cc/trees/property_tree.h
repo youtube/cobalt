@@ -7,10 +7,10 @@
 
 #include <stddef.h>
 
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -56,6 +56,7 @@ class RenderSurfaceImpl;
 struct RenderSurfacePropertyChangedFlags;
 struct CompositorCommitData;
 struct ViewportPropertyIds;
+enum class ScrollSourceType;
 
 using SyncedScrollOffset =
     SyncedProperty<AdditionGroup<gfx::PointF, gfx::Vector2dF>>;
@@ -443,7 +444,9 @@ class CC_EXPORT EffectTree final : public PropertyTree<EffectNode> {
   void UpdateHasFilters(EffectNode* node, EffectNode* parent_node);
   void UpdateHasFastRoundedCorner(EffectNode* node, EffectNode* parent_node);
 
-  typedef std::unordered_multimap<int, std::unique_ptr<viz::CopyOutputRequest>>
+  // TODO(crbug.com/443024856): Revisit decision of 'unordered_multimap' to
+  // 'multimap'.
+  typedef std::multimap<int, std::unique_ptr<viz::CopyOutputRequest>>
       CopyRequestMap;
 
   void AddCopyRequest(int node_id,
@@ -510,8 +513,9 @@ class CC_EXPORT EffectTree final : public PropertyTree<EffectNode> {
                                           EffectNode* parent_node);
 
   // Stores copy requests, keyed by node id.
-  std::unordered_multimap<int, std::unique_ptr<viz::CopyOutputRequest>>
-      copy_requests_;
+  // TODO(crbug.com/443024856): Revisit decision of 'unordered_multimap' to
+  // 'multimap'.
+  std::multimap<int, std::unique_ptr<viz::CopyOutputRequest>> copy_requests_;
 
   // Indexed by node id.
   std::vector<std::unique_ptr<RenderSurfaceImpl>> render_surfaces_;
@@ -525,6 +529,7 @@ class ScrollCallbacks {
   virtual void DidCompositorScroll(
       ElementId scroll_element_id,
       const gfx::PointF&,
+      ScrollSourceType type,
       const std::optional<TargetSnapAreaElementIds>&) = 0;
   // Called after the hidden status of composited scrollbars changed. Note that
   // |scroll_element_id| is the element id of the scroll not of the scrollbars.
@@ -659,6 +664,7 @@ class CC_EXPORT ScrollTree final : public PropertyTree<ScrollNode> {
   void NotifyDidCompositorScroll(
       ElementId scroll_element_id,
       const gfx::PointF& scroll_offset,
+      ScrollSourceType type,
       const std::optional<TargetSnapAreaElementIds>& snap_target_ids);
   void NotifyDidChangeScrollbarsHidden(ElementId scroll_element_id,
                                        bool hidden) const;

@@ -283,13 +283,15 @@ bool CanAddForeignVisitToSegments(
 // invalid, we DO NOT add this navigation to the VisitedLinkDatabase. We
 // do not add ephemeral keys because, by definition, their state shouldn't be
 // persisted across browsing sessions.
-bool AddToVisitedLinkDatabase(std::optional<GURL> top_level_url,
-                              std::optional<GURL> frame_url,
-                              bool is_ephemeral) {
+bool ShouldAddToVisitedLinkDatabase(
+    std::optional<GURL> top_level_url,
+    std::optional<GURL> frame_url,
+    VisitContextEphemerality visit_context_ephemerality) {
   // If our navigation comes from an ephemeral context or does not provide
   // enough information to construct our triple partition key, do not add it to
   // the database.
-  if (is_ephemeral || !top_level_url.has_value() || !frame_url.has_value()) {
+  if (visit_context_ephemerality == VisitContextEphemerality::kEphemeral ||
+      !top_level_url.has_value() || !frame_url.has_value()) {
     return false;
   }
 
@@ -1031,13 +1033,13 @@ void HistoryBackend::AddPage(const HistoryAddPageArgs& request) {
 
     // No redirect case (one element means just the page itself).
     last_visit_id =
-        AddPageVisit(request.url, request.time, last_visit_id,
-                     external_referrer_url, t, request.hidden,
-                     request.visit_source, request.response_code_category,
-                     IsTypedIncrement(t), opener_visit,
-                     request.consider_for_ntp_most_visited,
-                     request.is_ephemeral, request.local_navigation_id,
-                     request.title, top_level_url, frame_url, request.app_id)
+        AddPageVisit(
+            request.url, request.time, last_visit_id, external_referrer_url, t,
+            request.hidden, request.visit_source,
+            request.response_code_category, IsTypedIncrement(t), opener_visit,
+            request.consider_for_ntp_most_visited,
+            request.visit_context_ephemerality, request.local_navigation_id,
+            request.title, top_level_url, frame_url, request.app_id)
             .second;
 
     // Update the segment for this visit. KEYWORD_GENERATED visits should not
@@ -1162,15 +1164,15 @@ void HistoryBackend::AddPage(const HistoryAddPageArgs& request) {
       // from the redirect chain. Only place the opener on the initial visit in
       // the chain.
       last_visit_id =
-          AddPageVisit(redirects[redirect_index], request.time, last_visit_id,
-                       redirect_index == 0 ? external_referrer_url : GURL(), t,
-                       request.hidden, request.visit_source,
-                       request.response_code_category,
-                       should_increment_typed_count,
-                       redirect_index == 0 ? opener_visit : 0,
-                       request.consider_for_ntp_most_visited,
-                       request.is_ephemeral, request.local_navigation_id,
-                       request.title, top_level_url, frame_url, request.app_id)
+          AddPageVisit(
+              redirects[redirect_index], request.time, last_visit_id,
+              redirect_index == 0 ? external_referrer_url : GURL(), t,
+              request.hidden, request.visit_source,
+              request.response_code_category, should_increment_typed_count,
+              redirect_index == 0 ? opener_visit : 0,
+              request.consider_for_ntp_most_visited,
+              request.visit_context_ephemerality, request.local_navigation_id,
+              request.title, top_level_url, frame_url, request.app_id)
               .second;
 
       if (t & ui::PAGE_TRANSITION_CHAIN_START) {
@@ -1386,7 +1388,7 @@ std::pair<URLID, VisitID> HistoryBackend::AddPageVisit(
     bool should_increment_typed_count,
     VisitID opener_visit,
     bool consider_for_ntp_most_visited,
-    bool is_ephemeral,
+    VisitContextEphemerality visit_context_ephemerality,
     std::optional<int64_t> local_navigation_id,
     std::optional<std::u16string> title,
     std::optional<GURL> top_level_url,
@@ -1444,9 +1446,8 @@ std::pair<URLID, VisitID> HistoryBackend::AddPageVisit(
 
   VisitedLinkRow visited_link_info;
   if (base::FeatureList::IsEnabled(kPopulateVisitedLinkDatabase)) {
-    // Determine whether or not the current row should be added to the
-    // VisitedLinkDatabase.
-    if (AddToVisitedLinkDatabase(top_level_url, frame_url, is_ephemeral)) {
+    if (ShouldAddToVisitedLinkDatabase(top_level_url, frame_url,
+                                       visit_context_ephemerality)) {
       // Determine if the visited link is already in the database.
       VisitedLinkID existing_row_id = db_->GetRowForVisitedLink(
           url_id, *top_level_url, *frame_url, visited_link_info);
@@ -1502,8 +1503,16 @@ std::pair<URLID, VisitID> HistoryBackend::AddPageVisit(
   if (visit_info.visit_time < first_recorded_time_)
     first_recorded_time_ = visit_info.visit_time;
 
-  // Broadcast a notification of the visit.
   if (visit_info.visit_id) {
+    // For redirect chains that end in a 404 visit, the redirect visits are
+    // saved due to the 404 visit, as with `history::kVisitedLinksOn404`
+    // disabled, the entire chain would be ineligible for History
+    // (`NavigationHandle::ShouldUpdateHistory()` would be false). Here, the
+    // `response_code_category` is always for the final navigation in the chain.
+    bool is_saved_due_to_404 =
+        response_code_category == VisitResponseCodeCategory::k404;
+    UMA_HISTOGRAM_BOOLEAN("History.VisitAddedDueTo404", is_saved_due_to_404);
+    // Broadcast a notification of the visit.
     NotifyURLVisited(url_info, visit_info, local_navigation_id);
   } else {
     DLOG(ERROR) << "Failed to build visit insert statement:  "
@@ -1740,7 +1749,7 @@ VisitID HistoryBackend::AddSyncedVisit(
       visit.transition, hidden, VisitSource::SOURCE_SYNCED,
       response_code_category, IsTypedIncrement(visit.transition),
       visit.opener_visit, visit.consider_for_ntp_most_visited,
-      /*is_ephemeral=*/false,
+      VisitContextEphemerality::kNotEphemeral,
       /*local_navigation_id=*/std::nullopt, title,
       /*top_level_url=*/std::nullopt, /*frame_url=*/std::nullopt, visit.app_id,
       visit.visit_duration, visit.originator_cache_guid,
@@ -2053,10 +2062,10 @@ HistoryCountResult HistoryBackend::GetHistoryCount(
 }
 
 std::pair<DomainDiversityResults, DomainDiversityResults>
-HistoryBackend::GetDomainDiversity(
-    base::Time report_time,
-    int number_of_days_to_report,
-    DomainMetricBitmaskType metric_type_bitmask) {
+HistoryBackend::GetDomainDiversity(base::Time report_time,
+                                   int number_of_days_to_report,
+                                   DomainMetricBitmaskType metric_type_bitmask,
+                                   VisitQuery404sPolicy policy_for_404_visits) {
   DCHECK_GE(number_of_days_to_report, 0);
   DomainDiversityResults local_result;
   DomainDiversityResults all_result;
@@ -2077,8 +2086,8 @@ HistoryBackend::GetDomainDiversity(
 
     if (metric_type_bitmask & kEnableLast1DayMetric) {
       base::Time last_midnight = MidnightNDaysLater(current_midnight, -1);
-      auto [local_domains, all_domains] =
-          db_->CountUniqueDomainsVisited(last_midnight, current_midnight);
+      auto [local_domains, all_domains] = db_->CountUniqueDomainsVisited(
+          last_midnight, current_midnight, policy_for_404_visits);
       local_metric_set.one_day_metric =
           DomainMetricCountType(local_domains, last_midnight);
       all_metric_set.one_day_metric =
@@ -2087,8 +2096,8 @@ HistoryBackend::GetDomainDiversity(
 
     if (metric_type_bitmask & kEnableLast7DayMetric) {
       base::Time seven_midnights_ago = MidnightNDaysLater(current_midnight, -7);
-      auto [local_domains, all_domains] =
-          db_->CountUniqueDomainsVisited(seven_midnights_ago, current_midnight);
+      auto [local_domains, all_domains] = db_->CountUniqueDomainsVisited(
+          seven_midnights_ago, current_midnight, policy_for_404_visits);
       local_metric_set.seven_day_metric =
           DomainMetricCountType(local_domains, seven_midnights_ago);
       all_metric_set.seven_day_metric =
@@ -2099,7 +2108,7 @@ HistoryBackend::GetDomainDiversity(
       base::Time twenty_eight_midnights_ago =
           MidnightNDaysLater(current_midnight, -28);
       auto [local_domains, all_domains] = db_->CountUniqueDomainsVisited(
-          twenty_eight_midnights_ago, current_midnight);
+          twenty_eight_midnights_ago, current_midnight, policy_for_404_visits);
       local_metric_set.twenty_eight_day_metric =
           DomainMetricCountType(local_domains, twenty_eight_midnights_ago);
       all_metric_set.twenty_eight_day_metric =
@@ -2116,12 +2125,14 @@ HistoryBackend::GetDomainDiversity(
 
 DomainsVisitedResult HistoryBackend::GetUniqueDomainsVisited(
     base::Time begin_time,
-    base::Time end_time) {
+    base::Time end_time,
+    VisitQuery404sPolicy policy_for_404_visits) {
   if (!db_) {
     return {};
   }
 
-  return db_->GetUniqueDomainsVisited(begin_time, end_time);
+  return db_->GetUniqueDomainsVisited(begin_time, end_time,
+                                      policy_for_404_visits);
 }
 
 GetAllAppIdsResult HistoryBackend::GetAllAppIds() {
@@ -2144,20 +2155,24 @@ HistoryLastVisitResult HistoryBackend::GetLastVisitToHost(
 HistoryLastVisitResult HistoryBackend::GetLastVisitToOrigin(
     const url::Origin& origin,
     base::Time begin_time,
-    base::Time end_time) {
+    base::Time end_time,
+    VisitQuery404sPolicy policy_for_404_visits) {
   base::Time last_visit;
   return {db_ && db_->GetLastVisitToOrigin(origin, begin_time, end_time,
-                                           &last_visit),
+                                           policy_for_404_visits, &last_visit),
           last_visit};
 }
 
-DailyVisitsResult HistoryBackend::GetDailyVisitsToHost(const GURL& host,
-                                                       base::Time begin_time,
-                                                       base::Time end_time) {
+DailyVisitsResult HistoryBackend::GetDailyVisitsToOrigin(
+    const url::Origin& origin,
+    base::Time begin_time,
+    base::Time end_time,
+    VisitQuery404sPolicy policy_for_404_visits) {
   if (!db_) {
     return {};
   }
-  return db_->GetDailyVisitsToHost(host, begin_time, end_time);
+  return db_->GetDailyVisitsToOrigin(origin, begin_time, end_time,
+                                     policy_for_404_visits);
 }
 
 // Keyword visits --------------------------------------------------------------

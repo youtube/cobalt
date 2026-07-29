@@ -243,7 +243,8 @@ public class TopToolbarCoordinator implements Toolbar {
                 browserStateBrowserControlsVisibilityDelegate,
                 layoutStateProviderSupplier,
                 fullscreenManager,
-                topControlsStacker);
+                topControlsStacker,
+                toolbarDataProvider);
         mToolbarLayout.initialize(
                 toolbarDataProvider,
                 tabController,
@@ -805,5 +806,9 @@ public class TopToolbarCoordinator implements Toolbar {
     /** Returns true if the toolbar contains keyboard focus. */
     public boolean containsKeyboardFocus() {
         return mToolbarLayout.getFocusedChild() != null;
+    }
+
+    public void onContentViewScrollingStateChanged(boolean scrolling) {
+        mControlContainer.onContentViewScrollingStateChanged(scrolling);
     }
 }

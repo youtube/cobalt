@@ -7,6 +7,7 @@ package org.chromium.base;
 import static android.content.Context.UI_MODE_SERVICE;
 
 import android.app.UiModeManager;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.pm.FeatureInfo;
 import android.content.pm.PackageInfo;
@@ -15,6 +16,7 @@ import android.content.res.Configuration;
 import android.os.Build;
 import android.os.Build.VERSION_CODES;
 import android.os.Process;
+import android.provider.Settings;
 import android.util.DisplayMetrics;
 
 import androidx.annotation.GuardedBy;
@@ -43,7 +45,9 @@ public final class DeviceInfo {
     private static @Nullable Boolean sIsAutomotiveForTesting;
     private static boolean sInitialized;
     private static boolean sIsXrForTesting;
+    private static @Nullable Boolean sIsRetailDemoModeForTesting;
     private final IDeviceInfo mIDeviceInfo;
+    private @Nullable Boolean mIsRetailDemoMode;
 
     // This is the minimum width in DP that defines a large display device
     public static final int LARGE_DISPLAY_MIN_SCREEN_WIDTH_600_DP = 600;
@@ -121,6 +125,27 @@ public final class DeviceInfo {
         return getInstance().mIDeviceInfo.isXr;
     }
 
+    public static boolean isRetailDemoMode() {
+        if (sIsRetailDemoModeForTesting != null) {
+            return sIsRetailDemoModeForTesting;
+        }
+        // Always assume false for tests, unless specifically overridden by a test.
+        if (BuildConfig.IS_FOR_TEST) {
+            return false;
+        }
+        DeviceInfo instance = getInstance();
+        boolean ret;
+        if (instance.mIsRetailDemoMode != null) {
+            ret = instance.mIsRetailDemoMode;
+        } else {
+            ContentResolver resolver = ContextUtils.getApplicationContext().getContentResolver();
+            // Android demo mode (Settings.Global.DEVICE_DEMO_MODE is @hide).
+            ret = Settings.Global.getInt(resolver, "device_demo_mode", 0) != 0;
+            instance.mIsRetailDemoMode = ret;
+        }
+        return ret;
+    }
+
     public static boolean isInitializedForTesting() {
         return sInitialized;
     }
@@ -133,6 +158,11 @@ public final class DeviceInfo {
     @CalledByNativeForTesting
     public static void resetIsXrForTesting() {
         sIsXrForTesting = false;
+    }
+
+    public static void setIsRetailDemoModeForTesting(boolean value) {
+        sIsRetailDemoModeForTesting = value;
+        ResettersForTesting.register(() -> sIsRetailDemoModeForTesting = null);
     }
 
     private static DeviceInfo getInstance() {

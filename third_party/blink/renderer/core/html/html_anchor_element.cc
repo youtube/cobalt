@@ -250,8 +250,17 @@ void HTMLAnchorElementBase::AttributeChanged(
     return;
   if (params.name != html_names::kHrefAttr)
     return;
-  if (!IsLink() && AdjustedFocusedElementInTreeScope() == this)
+  if (RuntimeEnabledFeatures::LinkBlurImprovementEnabled()) {
+    if (!IsLink() && AdjustedFocusedElementInTreeScope() == this) {
+      // Removing the href attribute might make this element no longer
+      // focusable, but other attributes like tabindex can keep it focusable.
+      // Style and layout are needed in order to check focusability.
+      GetDocument().UpdateStyleAndLayoutTree();
+      GetDocument().ClearFocusedElementIfNeeded();
+    }
+  } else if (!IsLink() && AdjustedFocusedElementInTreeScope() == this) {
     blur();
+  }
 }
 
 void HTMLAnchorElementBase::ParseAttribute(
@@ -585,18 +594,11 @@ void HTMLAnchorElementBase::NavigateToHyperlink(
   }
 }
 
-Element* HTMLAnchorElementBase::InterestForElement() const {
-  if (!RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled()) {
-    return nullptr;
-  }
+bool HTMLAnchorElementBase::IsValidInterestInvoker(Element& target) const {
+  DCHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled());
   // Anchor elements that don't have the `href` attribute are not interactive,
   // so they can't support `interestfor`.
-  if (!IsInTreeScope() || !IsLink()) {
-    return nullptr;
-  }
-
-  return GetElementAttributeResolvingReferenceTarget(
-      html_names::kInterestforAttr);
+  return IsLink();
 }
 
 void HTMLAnchorElementBase::HandleClick(MouseEvent& event) {

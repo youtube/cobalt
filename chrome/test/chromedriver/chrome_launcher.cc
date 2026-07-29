@@ -723,9 +723,8 @@ Status LaunchDesktopChrome(network::mojom::URLLoaderFactory* factory,
     if (chrome_exit_code == CHROME_RESULT_CODE_NORMAL_EXIT_PROCESS_NOTIFIED ||
         chrome_exit_code == content::RESULT_CODE_NORMAL_EXIT) {
       return Status(kSessionNotCreated,
-                    "probably user data directory is already in use, "
-                    "please specify a unique value for --user-data-dir "
-                    "argument, or don't use --user-data-dir");
+                    "Chrome instance exited. "
+                    "Examine ChromeDriver verbose log to determine the cause.");
     }
     std::string termination_reason =
         internal::GetTerminationReason(chrome_status);
@@ -1142,8 +1141,8 @@ Status ProcessExtension(const std::string& extension,
   std::string manifest_data;
   if (!base::ReadFileToString(manifest_path, &manifest_data))
     return Status(kUnknownError, "cannot read manifest");
-  std::optional<base::Value> manifest_value =
-      base::JSONReader::Read(manifest_data);
+  std::optional<base::Value> manifest_value = base::JSONReader::Read(
+      manifest_data, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   base::Value::Dict* manifest =
       manifest_value ? manifest_value->GetIfDict() : nullptr;
   if (!manifest)
@@ -1232,8 +1231,8 @@ Status ProcessExtensions(const std::vector<std::string>& extensions,
 Status WritePrefsFile(const std::string& template_string,
                       const base::FilePath& path,
                       const base::Value::Dict* custom_prefs) {
-  auto parsed_json =
-      base::JSONReader::ReadAndReturnValueWithError(template_string);
+  auto parsed_json = base::JSONReader::ReadAndReturnValueWithError(
+      template_string, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!parsed_json.has_value()) {
     return Status(kUnknownError, "cannot parse internal JSON template: " +
                                      parsed_json.error().message);
@@ -1369,6 +1368,8 @@ std::string GetTerminationReason(base::TerminationStatus status) {
     case base::TERMINATION_STATUS_INTEGRITY_FAILURE:
       return "integrity failure";
 #endif
+    case base::TERMINATION_STATUS_EVICTED_FOR_MEMORY:
+      return "evicted for memory";
     case base::TERMINATION_STATUS_MAX_ENUM:
       NOTREACHED();
   }

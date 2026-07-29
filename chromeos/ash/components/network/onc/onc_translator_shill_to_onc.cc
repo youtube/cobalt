@@ -41,7 +41,8 @@ base::Value ConvertVpnStringToValue(const std::string& str,
   if (type == base::Value::Type::STRING)
     return base::Value(str);
 
-  std::optional<base::Value> value = base::JSONReader::Read(str);
+  std::optional<base::Value> value =
+      base::JSONReader::Read(str, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!value || value->type() != type)
     return base::Value(type);
 
@@ -898,7 +899,8 @@ void ShillToONCTranslator::TranslateEap() {
         continue;
       }
       base::JSONReader::Result deserialized_dict =
-          base::JSONReader::ReadAndReturnValueWithError(*san_string);
+          base::JSONReader::ReadAndReturnValueWithError(
+              *san_string, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
       if (!deserialized_dict.has_value()) {
         LOG(ERROR) << "failed to deserialize " << san << " with error "
                    << deserialized_dict.error().ToString();

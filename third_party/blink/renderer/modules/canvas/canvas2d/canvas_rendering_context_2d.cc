@@ -1002,9 +1002,14 @@ void CanvasRenderingContext2D::PageVisibilityChanged() {
   HTMLCanvasElement* const element = canvas();
 
   bool page_is_visible = element->IsPageVisible();
-  CanvasResourceProvider* resource_provider = GetResourceProvider();
-  if (resource_provider) {
-    resource_provider->SetResourceRecyclingEnabled(page_is_visible);
+
+  // If the canvas is backed by a SharedImage resource provider, toggle
+  // whether resource recycling is enabled based on page visibility.
+  auto* resource_provider = GetResourceProvider();
+  auto* resource_provider_si =
+      resource_provider ? resource_provider->AsSharedImageProvider() : nullptr;
+  if (resource_provider_si) {
+    resource_provider_si->SetResourceRecyclingEnabled(page_is_visible);
   }
 
   // Conserve memory.
@@ -1314,10 +1319,6 @@ CanvasRenderingContext2D::CreateCanvasResourceProvider() {
     provider = CanvasResourceProvider::CreateBitmapProvider(
         canvas()->Size(), format, alpha_type, color_space, kShouldInitialize,
         canvas());
-  }
-
-  if (provider) {
-    provider->SetResourceRecyclingEnabled(true);
   }
 
   return provider;

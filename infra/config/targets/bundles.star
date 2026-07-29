@@ -2,9 +2,11 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# This file contains bundle definitions, which are groupings of targets that can
-# be referenced by other bundles or by builders. Bundles cannot be used in
-# //testing/buildbot
+"""Bundle declarations
+
+Bundles are groupings of tests and/or compile targets that can be referenced by
+builders or other bundles. Bundles cannot be referenced in //testing/buildbot.
+"""
 
 load("@chromium-luci//targets.star", "targets")
 
@@ -482,8 +484,6 @@ targets.bundle(
                 # TODO(crbug.com/444753297): Remove this config.
                 "--timeout-scale=2.0",
             ],
-            # TODO(crbug.com/441704684): Remove the ci_only after green.
-            ci_only = True,
         ),
         "chrome_public_unit_test_apk": targets.mixin(
             swarming = targets.swarming(
@@ -4528,7 +4528,7 @@ targets.bundle(
 )
 
 targets.bundle(
-    name = "gpu_pixel_2_telemetry_tests",
+    name = "gpu_pixel_02_telemetry_tests",
     targets = [
         "gpu_validating_telemetry_tests",
         "gpu_webgl_conformance_gles_passthrough_telemetry_tests",
@@ -4538,7 +4538,7 @@ targets.bundle(
 )
 
 targets.bundle(
-    name = "gpu_pixel_4_telemetry_tests",
+    name = "gpu_pixel_04_telemetry_tests",
     targets = [
         "gpu_common_and_optional_telemetry_tests",
         "gpu_passthrough_ganesh_telemetry_tests",
@@ -4553,7 +4553,7 @@ targets.bundle(
 )
 
 targets.bundle(
-    name = "gpu_pixel_6_telemetry_tests",
+    name = "gpu_pixel_06_telemetry_tests",
     targets = [
         "gpu_common_and_optional_telemetry_tests",
         "gpu_passthrough_ganesh_telemetry_tests",
@@ -4569,6 +4569,18 @@ targets.bundle(
         "gpu_webgl_conformance_gles_passthrough_graphite_telemetry_tests",
         "gpu_webgl_conformance_validating_ganesh_telemetry_tests",
         "gpu_webgl_conformance_validating_graphite_telemetry_tests",
+    ],
+)
+
+targets.bundle(
+    name = "gpu_pixel_10_telemetry_tests",
+    targets = [
+        "gpu_common_and_optional_telemetry_tests",
+        "gpu_passthrough_telemetry_tests",
+        "gpu_webrtc_telemetry_test",
+        "gpu_webcodecs_telemetry_test",
+        "gpu_webgl2_conformance_gles_passthrough_telemetry_tests",
+        "gpu_webgl_conformance_gles_passthrough_telemetry_tests",
     ],
 )
 
@@ -6849,7 +6861,7 @@ targets.bundle(
         targets.bundle(
             targets = "tvos_tests",
             variants = [
-                "SIM_APPLE_TV_4K_3RD_GENERATION_18_5",
+                "SIM_APPLE_TV_4K_3RD_GENERATION_26_0",
             ],
         ),
     ],

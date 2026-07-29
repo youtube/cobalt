@@ -2,24 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://new-tab-page/strings.m.js';
-import 'chrome://resources/cr_components/searchbox/searchbox_match.js';
+import 'chrome://new-tab-page/new_tab_page.js';
 
-import {SearchboxBrowserProxy} from 'chrome://resources/cr_components/searchbox/searchbox_browser_proxy.js';
-import type {SearchboxMatchElement} from 'chrome://resources/cr_components/searchbox/searchbox_match.js';
+import {createAutocompleteMatch, SearchboxBrowserProxy} from 'chrome://new-tab-page/new_tab_page.js';
+import type {SearchboxMatchElement} from 'chrome://new-tab-page/new_tab_page.js';
 import {NavigationPredictor} from 'chrome://resources/mojo/components/omnibox/browser/omnibox.mojom-webui.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
-import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 import {eventToPromise} from 'chrome://webui-test/test_util.js';
 
-import {createAutocompleteMatch} from './searchbox_test_utils.js';
 import {TestSearchboxBrowserProxy} from './test_searchbox_browser_proxy.js';
 
 suite('CrComponentsRealboxMatchTest', () => {
   let matchEl: SearchboxMatchElement;
   let testProxy: TestSearchboxBrowserProxy;
 
-  setup(async () => {
+  setup(() => {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     testProxy = new TestSearchboxBrowserProxy();
     SearchboxBrowserProxy.setInstance(testProxy);
@@ -28,8 +25,6 @@ suite('CrComponentsRealboxMatchTest', () => {
     matchEl.match = createAutocompleteMatch();
     matchEl.matchIndex = 0;
     document.body.appendChild(matchEl);
-
-    await flushTasks();
   });
 
   test('MousedownEventsAreSentToHandler', async () => {

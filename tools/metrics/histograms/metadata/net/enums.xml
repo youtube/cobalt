@@ -655,14 +655,6 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="3G"/>
 </enum>
 
-<enum name="IpProtectionJobResult">
-  <int value="0" label="IP Protection was not attempted"/>
-  <int value="1"
-      label="The request was IP Protected and carried via IP Protection
-             proxies or, if the direct-only parameter is true, made directly"/>
-  <int value="2" label="The request was IP Protected, but fell back to direct"/>
-</enum>
-
 <enum name="JobProtocolErrorLocation">
   <int value="0" label="kSessionStartReadingFailedAsync"/>
   <int value="1" label="kSessionStartReadingFailedSync"/>
@@ -2998,6 +2990,19 @@ Called by update_net_trust_anchors.py.-->
 
 <!-- LINT.ThenChange(//net/disk_cache/sql/sql_backend_impl.h:FakeIndexFileError) -->
 
+<!-- LINT.IfChange(SqlDiskCacheIndexMismatchLocation) -->
+
+<enum name="SqlDiskCacheIndexMismatchLocation">
+  <int value="0" label="OpenOrCreateEntry"/>
+  <int value="1" label="CreateEntry"/>
+  <int value="2" label="DoomEntry"/>
+  <int value="3" label="StartEviction"/>
+  <int value="4" label="DeleteLiveEntry"/>
+  <int value="5" label="DeleteLiveEntriesBetween"/>
+</enum>
+
+<!-- LINT.ThenChange(//net/disk_cache/sql/sql_persistent_store.cc:IndexMismatchLocation) -->
+
 <!-- LINT.IfChange(SqlDiskCacheStoreError) -->
 
 <enum name="SqlDiskCacheStoreError">
@@ -3017,6 +3022,7 @@ Called by update_net_trust_anchors.py.-->
   <int value="13" label="NotFound"/>
   <int value="14" label="InvalidArgument"/>
   <int value="15" label="BodyEndMismatch"/>
+  <int value="16" label="FailedForTesting"/>
 </enum>
 
 <!-- LINT.ThenChange(//net/disk_cache/sql/sql_persistent_store.h:SqlDiskCacheStoreError) -->

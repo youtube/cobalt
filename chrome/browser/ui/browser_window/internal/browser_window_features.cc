@@ -82,6 +82,7 @@
 #include "chrome/browser/ui/views/interaction/browser_elements_views_impl.h"
 #include "chrome/browser/ui/views/location_bar/cookie_controls/cookie_controls_bubble_coordinator.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
+#include "chrome/browser/ui/views/location_bar/zoom_bubble_coordinator.h"
 #include "chrome/browser/ui/views/media_router/cast_browser_controller.h"
 #include "chrome/browser/ui/views/new_tab_footer/footer_controller.h"
 #include "chrome/browser/ui/views/profiles/profile_customization_bubble_sync_controller.h"
@@ -131,6 +132,10 @@
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 #include "chrome/browser/ui/pdf/infobar/pdf_infobar_controller.h"
 #include "chrome/browser/ui/startup/default_browser_prompt/pin_infobar/pin_infobar_controller.h"
+#endif
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#include "chrome/browser/ui/views/session_restore_infobar/session_restore_infobar_controller.h"
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -263,7 +268,7 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
     }
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
-    if (tabs::AreVerticalTabsEnabled()) {
+    if (tabs::IsVerticalTabsFeatureEnabled()) {
       vertical_tab_strip_state_controller_ =
           std::make_unique<tabs::VerticalTabStripStateController>(
               profile->GetPrefs());
@@ -373,6 +378,11 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
   profile_customization_bubble_sync_controller_ =
       std::make_unique<ProfileCustomizationBubbleSyncController>(browser,
                                                                  profile);
+  session_restore_infobar_controller_ =
+      GetUserDataFactory()
+          .CreateInstance<
+              session_restore_infobar::SessionRestoreInfobarController>(
+              *browser, browser);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 }
 
@@ -588,9 +598,9 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
   // TODO(crbug.com/346148554): Do not create a SidePanelCoordinator for most
   // browser.h types
   // Conceptually, SidePanelCoordinator handles the "model" whereas
-  // BrowserView::unified_side_panel_ handles the "ui". When we stop making this
-  // for most browser.h types, we should also stop making the
-  // unified_side_panel_.
+  // BrowserView::contents_height_side_panel_ handles the "ui". When we stop
+  // making this for most browser.h types, we should also stop making the
+  // contents_height_side_panel_.
   side_panel_coordinator_ =
       std::make_unique<SidePanelCoordinator>(browser_view);
 
@@ -705,6 +715,10 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
       std::make_unique<WindowsTaskbarIconUpdater>(*browser_view);
 #endif
 
+  zoom_bubble_coordinator_ =
+      GetUserDataFactory().CreateInstance<ZoomBubbleCoordinator>(*browser_,
+                                                                 *browser_view);
+
   user_education_->Init(browser_view);
 
   find_bar_owner_ = std::make_unique<FindBarOwnerViews>(browser_view);
@@ -734,6 +748,8 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
     download_toolbar_ui_controller_->TearDownPreBrowserWindowDestruction();
   }
 #endif
+
+  zoom_bubble_coordinator_.reset();
 
   comments_side_panel_coordinator_.reset();
 

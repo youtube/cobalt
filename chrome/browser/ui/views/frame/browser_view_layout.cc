@@ -244,10 +244,11 @@ BrowserViewLayout::BrowserViewLayout(
     views::View* vertical_tab_strip_container,
     views::View* toolbar,
     InfoBarContainerView* infobar_container,
+    views::View* main_container,
     views::View* contents_container,
     MultiContentsView* multi_contents_view,
     views::View* left_aligned_side_panel_separator,
-    views::View* unified_side_panel,
+    views::View* contents_height_side_panel,
     views::View* right_aligned_side_panel_separator,
     views::View* side_panel_rounded_corner,
     views::View* top_container_separator)
@@ -261,9 +262,10 @@ BrowserViewLayout::BrowserViewLayout(
       vertical_tab_strip_container_(vertical_tab_strip_container),
       toolbar_(toolbar),
       infobar_container_(infobar_container),
+      main_container_(main_container),
       contents_container_(contents_container),
       multi_contents_view_(multi_contents_view),
-      unified_side_panel_(unified_side_panel),
+      contents_height_side_panel_(contents_height_side_panel),
       left_aligned_side_panel_separator_(left_aligned_side_panel_separator),
       right_aligned_side_panel_separator_(right_aligned_side_panel_separator),
       side_panel_rounded_corner_(side_panel_rounded_corner),
@@ -353,7 +355,7 @@ void BrowserViewLayout::Layout(views::View* browser_view) {
     window_scrim_->SetBoundsRect(available_bounds);
   }
 
-  if (tabs::AreVerticalTabsEnabled() && IsVerticalTabsEnabled()) {
+  if (tabs::IsVerticalTabsFeatureEnabled() && ShouldDisplayVerticalTabs()) {
     LayoutVerticalTabStrip(available_bounds);
   }
 
@@ -376,6 +378,8 @@ void BrowserViewLayout::Layout(views::View* browser_view) {
   UpdateTopContainerBounds(available_bounds);
 
   // Layout the contents container in the remaining space.
+  // Ensure `available_bounds` has the correct height.
+  available_bounds.set_height(available_bounds.height() - available_bounds.y());
   LayoutContentsContainerView(available_bounds);
 
   // This must be done _after_ we lay out the WebContents since this
@@ -442,8 +446,12 @@ BrowserViewLayout::GetChildViewsInPaintOrder(const views::View* host) const {
   // controls are in fact drawn on top of the web contents.
   if (delegate_->IsWindowControlsOverlayEnabled()) {
     auto top_container_iter = std::ranges::find(result, top_container_);
-    auto contents_container_iter =
-        std::ranges::find(result, contents_container_);
+
+    // TODO(crbug.com/445446905): For now `main_container_` only holds
+    // `contents_container_` and side panel related views. Once we are further
+    // along in the ToolbarHeightSidePanel effort, this function should be
+    // revisited and updated accordingly.
+    auto contents_container_iter = std::ranges::find(result, main_container_);
     CHECK(contents_container_iter != result.end());
     // When in Immersive Fullscreen `top_container_` might not be one of our
     // children at all. While Window Controls Overlay shouldn't be enabled in
@@ -542,7 +550,7 @@ void BrowserViewLayout::LayoutTabStripRegion(gfx::Rect& available_bounds) {
         0, 0, 0, web_app_frame_toolbar_->GetPreferredSize().width()));
   }
 
-  if (tabs::AreVerticalTabsEnabled() && IsVerticalTabsEnabled()) {
+  if (tabs::IsVerticalTabsFeatureEnabled() && ShouldDisplayVerticalTabs()) {
     SetViewVisibility(tab_strip_region_view_, false);
   } else {
     SetViewVisibility(tab_strip_region_view_, true);
@@ -572,7 +580,7 @@ void BrowserViewLayout::LayoutToolbar(gfx::Rect& available_bounds) {
   bool toolbar_visible = delegate_->IsToolbarVisible();
   SetViewVisibility(toolbar_, toolbar_visible);
 
-  if (tabs::AreVerticalTabsEnabled() && IsVerticalTabsEnabled()) {
+  if (tabs::IsVerticalTabsFeatureEnabled() && ShouldDisplayVerticalTabs()) {
     gfx::Rect toolbar_bounds(
         delegate_->GetBoundsForToolbarInVerticalTabBrowserView());
     toolbar_bounds.set_x(available_bounds.x());
@@ -718,10 +726,8 @@ BrowserViewLayout::ContentsContainerLayoutResult
 BrowserViewLayout::CalculateContentsContainerLayout(
     const gfx::Rect& available_bounds) const {
   gfx::Rect contents_container_bounds = available_bounds;
-  contents_container_bounds.set_height(available_bounds.height() -
-                                       available_bounds.y());
   int vertical_tab_offset = 0;
-  if (tabs::AreVerticalTabsEnabled() && IsVerticalTabsEnabled()) {
+  if (tabs::IsVerticalTabsFeatureEnabled() && ShouldDisplayVerticalTabs()) {
     vertical_tab_offset = BrowserView::kVerticalTabStripWidth;
     contents_container_bounds.set_width(available_bounds.width() -
                                         vertical_tab_offset);
@@ -735,7 +741,7 @@ BrowserViewLayout::CalculateContentsContainerLayout(
   }
 
   const bool side_panel_visible =
-      unified_side_panel_ && unified_side_panel_->GetVisible();
+      contents_height_side_panel_ && contents_height_side_panel_->GetVisible();
   if (!side_panel_visible) {
     // The contents container takes all available space, and we're done.
     return ContentsContainerLayoutResult{contents_container_bounds,
@@ -746,7 +752,8 @@ BrowserViewLayout::CalculateContentsContainerLayout(
                                          gfx::Rect()};
   }
 
-  SidePanel* side_panel = views::AsViewClass<SidePanel>(unified_side_panel_);
+  SidePanel* side_panel =
+      views::AsViewClass<SidePanel>(contents_height_side_panel_);
 
   const bool side_panel_right_aligned = side_panel->IsRightAligned();
   views::View* side_panel_separator =
@@ -778,7 +785,8 @@ BrowserViewLayout::CalculateContentsContainerLayout(
 
   double side_panel_visible_width =
       side_panel_bounds.width() *
-      views::AsViewClass<SidePanel>(unified_side_panel_)->GetAnimationValue();
+      views::AsViewClass<SidePanel>(contents_height_side_panel_)
+          ->GetAnimationValue();
 
   // Shrink container bounds to fit the side panel.
   contents_container_bounds.set_width(contents_container_bounds.width() -
@@ -835,16 +843,16 @@ BrowserViewLayout::CalculateContentsContainerLayout(
 void BrowserViewLayout::LayoutContentsContainerView(
     const gfx::Rect& available_bounds) {
   TRACE_EVENT0("ui", "BrowserViewLayout::LayoutContentsContainerView");
-  // |contents_container_| contains web page contents and devtools.
-  // See browser_view.h for details.
+  // |main_contents_region_| contains web page contents, side panel and
+  // devtools. See browser_view.h for details.
+  main_container_->SetBoundsRect(available_bounds);
 
   BrowserViewLayout::ContentsContainerLayoutResult layout_result =
-      CalculateContentsContainerLayout(available_bounds);
-
+      CalculateContentsContainerLayout(main_container_->GetLocalBounds());
   contents_container_->SetBoundsRect(layout_result.contents_container_bounds);
 
-  if (unified_side_panel_) {
-    unified_side_panel_->SetBoundsRect(layout_result.side_panel_bounds);
+  if (contents_height_side_panel_) {
+    contents_height_side_panel_->SetBoundsRect(layout_result.side_panel_bounds);
   }
 
   if (multi_contents_view_) {
@@ -932,7 +940,7 @@ void BrowserViewLayout::UpdateTopContainerBounds(
 int BrowserViewLayout::GetMinWebContentsWidth() const {
   int min_width =
       kMainBrowserContentsMinimumWidth -
-      unified_side_panel_->GetMinimumSize().width() -
+      contents_height_side_panel_->GetMinimumSize().width() -
       (right_aligned_side_panel_separator_
            ? right_aligned_side_panel_separator_->GetPreferredSize().width()
            : 0);
@@ -968,9 +976,9 @@ void BrowserViewLayout::SetDelegateForTesting(
   browser_view_->InvalidateLayout();
 }
 
-bool BrowserViewLayout::IsVerticalTabsEnabled() const {
+bool BrowserViewLayout::ShouldDisplayVerticalTabs() const {
   return browser_view_->browser()
       ->browser_window_features()
       ->vertical_tab_strip_state_controller()
-      ->IsVerticalTabsEnabled();
+      ->ShouldDisplayVerticalTabs();
 }

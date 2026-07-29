@@ -2120,6 +2120,12 @@ protocol::Response InspectorCSSAgent::getComputedStyleForNode(
         "Node is not an element and does not have a parent element");
   }
 
+  if (element->GetDocument().View() &&
+      element->GetDocument().View()->NeedsLayout()) {
+    element->GetDocument().UpdateStyleAndLayoutForNode(
+        element, DocumentUpdateReason::kInspector);
+  }
+
   TRACE_EVENT1("devtools", "InspectorCSSAgent::getComputedStyleForNode", "node",
                element->DebugName());
   auto* computed_style_info =
@@ -3906,7 +3912,8 @@ std::unique_ptr<protocol::CSS::CSSRule> InspectorCSSAgent::BuildObjectForRule(
     CSSStyleRule* rule,
     Element* element,
     PseudoId pseudo_id,
-    const AtomicString& pseudo_argument) {
+    const AtomicString& pseudo_argument,
+    const TreeScope* tree_scope) {
   InspectorStyleSheet* inspector_style_sheet = InspectorStyleSheetForRule(rule);
   if (!inspector_style_sheet)
     return nullptr;
@@ -3914,6 +3921,10 @@ std::unique_ptr<protocol::CSS::CSSRule> InspectorCSSAgent::BuildObjectForRule(
   std::unique_ptr<protocol::CSS::CSSRule> result =
       inspector_style_sheet->BuildObjectForRuleWithoutAncestorData(
           rule, element, pseudo_id, pseudo_argument);
+  if (tree_scope) {
+    Node* root_node = &tree_scope->RootNode();
+    result->setOriginTreeScopeNodeId(root_node->GetDomNodeId());
+  }
   FillAncestorData(rule, result.get());
   return result;
 }
@@ -3930,18 +3941,20 @@ InspectorCSSAgent::BuildArrayForMatchedRuleList(
     return result;
 
   // Dedupe matches coming from the same rule source.
-  HeapVector<Member<CSSStyleRule>> uniq_rules;
+  HeapVector<std::pair<Member<const TreeScope>, Member<CSSStyleRule>>>
+      uniq_rules;
   HeapHashSet<Member<CSSRule>> uniq_rules_set;
   HeapHashMap<Member<CSSStyleRule>, std::unique_ptr<Vector<unsigned>>>
       rule_indices;
   for (auto it = rule_list->rbegin(); it != rule_list->rend(); ++it) {
     CSSRule* rule = it->rule.Get();
+    const TreeScope* tree_scope = it->tree_scope;
     auto* style_rule = DynamicTo<CSSStyleRule>(rule);
     if (!style_rule)
       continue;
     if (!uniq_rules_set.Contains(rule)) {
       uniq_rules_set.insert(rule);
-      uniq_rules.push_back(style_rule);
+      uniq_rules.push_back(std::make_pair(tree_scope, style_rule));
       rule_indices.Set(style_rule, std::make_unique<Vector<unsigned>>());
     }
 
@@ -3949,9 +3962,10 @@ InspectorCSSAgent::BuildArrayForMatchedRuleList(
   }
 
   for (auto it = uniq_rules.rbegin(); it != uniq_rules.rend(); ++it) {
-    CSSStyleRule* rule = it->Get();
-    std::unique_ptr<protocol::CSS::CSSRule> rule_object =
-        BuildObjectForRule(rule, element, pseudo_id, pseudo_argument);
+    const TreeScope* tree_scope = it->first;
+    CSSStyleRule* rule = it->second;
+    std::unique_ptr<protocol::CSS::CSSRule> rule_object = BuildObjectForRule(
+        rule, element, pseudo_id, pseudo_argument, tree_scope);
     if (!rule_object)
       continue;
     if (ghost_rules.Contains(rule)) {

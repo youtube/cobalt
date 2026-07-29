@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import '//resources/cr_elements/cr_icons.css.js';
-
 import {html} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {ComposeboxDropdownElement} from './composebox_dropdown.js';
@@ -20,7 +18,8 @@ export function getHtml(this: ComposeboxDropdownElement) {
           .match="${item}"
           .matchIndex="${index}"
           ?selected="${this.isSelected_(item)}"
-          ?is-last="${this.isLastMatch_(index)}">
+          ?is-last="${this.isLastMatch_(index)}"
+          ?hidden="${this.hideVerbatimMatch_(index)}">
       </ntp-composebox-match>
     `)}
   </div>

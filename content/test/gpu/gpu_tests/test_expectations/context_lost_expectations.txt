@@ -8,7 +8,7 @@
 #         mac highsierra mojave catalina bigsur monterey ventura sonoma sequoia
 #         win win8 win10 win11 ]
 # Devices
-# tags: [ android-pixel-2 android-pixel-4 android-pixel-6
+# tags: [ android-pixel-2 android-pixel-4 android-pixel-6 android-pixel-10
 #             android-shield-android-tv android-sm-a137f android-sm-a236b
 #             android-sm-s911u1
 #         android-brya android-corsola
@@ -37,6 +37,7 @@
 #         arm
 #         google google-0xffff google-0xc0de
 #         imagination
+#         imagination-technologies
 #         intel intel-gen-9 intel-gen-12 intel-0xa2e intel-0xa011 intel-0x3e92
 #             intel-0x3e9b intel-0x4680 intel-0x46a8 intel-0x5912 intel-0x9bc5
 #         microsoft microsoft-0xffff
@@ -183,10 +184,6 @@ crbug.com/1334650 [ linux ] GpuCrash_SoftwareFallbackDisabled [ Skip ]
 # since Windows 8 is no longer tested.
 crbug.com/524808 [ win8 nvidia ] ContextLost_WebGLContextLostFromSelectElement [ Skip ]
 
-# Slow on DCHECK and need extra time to address.
-crbug.com/425745937 [ fuchsia web-engine-shell ] ContextLost_WebGLContextLostFromQuantity [ Skip ]
-crbug.com/425745937 [ fuchsia web-engine-shell ] ContextLost_WebGLContextLostFromSelectElement [ Skip ]
-
 ###################
 # Failures/Flakes #
 ###################
@@ -194,6 +191,7 @@ crbug.com/425745937 [ fuchsia web-engine-shell ] ContextLost_WebGLContextLostFro
 
 # Very flaky on Pixel 2 and Samsung A13 Android bots
 crbug.com/444480419 [ android android-pixel-2 ] ContextLost_WebGLContextLostInHiddenTab [ Failure ]
+crbug.com/444480419 [ android android-pixel-4 ] ContextLost_WebGLContextLostInHiddenTab [ Failure ]
 crbug.com/444480419 [ android android-sm-a137f ] ContextLost_WebGLContextLostInHiddenTab [ Failure ]
 
 # Fails with Graphite on Windows and Mac
@@ -203,8 +201,11 @@ crbug.com/329145823 [ win release intel ] GpuCrash_InfoForHardwareGpu [ Failure 
 crbug.com/329145823 [ win release intel ] GpuCrash_SoftwareFallbackDisabled [ Failure ]
 crbug.com/329145823 [ win release nvidia ] GpuCrash_InfoForHardwareGpu [ Failure ]
 crbug.com/329145823 [ win release nvidia ] GpuCrash_SoftwareFallbackDisabled [ Failure ]
-crbug.com/329145823 [ angle-metal graphite-enabled mac release ] GpuCrash_InfoForHardwareGpu [ Failure ]
-crbug.com/329145823 [ angle-metal graphite-enabled mac release ] GpuCrash_SoftwareFallbackDisabled [ Failure ]
+crbug.com/329145823 [ angle-metal apple-angle-metal-renderer:-apple-m1 arch-arm64 graphite-enabled memory_ge_16gb no-asan no-clang-coverage release sequoia ] GpuCrash_InfoForHardwareGpu [ Failure ]
+crbug.com/329145823 [ angle-metal apple-angle-metal-renderer:-apple-m2 arch-arm64 graphite-enabled memory_ge_16gb no-asan no-clang-coverage release sonoma ] GpuCrash_InfoForHardwareGpu [ Failure ]
+crbug.com/329145823 [ angle-metal arch-x86_64 graphite-enabled mac memory_ge_16gb release ] GpuCrash_InfoForHardwareGpu [ Failure ]
+crbug.com/329145823 [ angle-metal apple-angle-metal-renderer:-apple-m1 arch-arm64 graphite-enabled memory_ge_16gb no-asan no-clang-coverage release sequoia ] GpuCrash_SoftwareFallbackDisabled [ Failure ]
+crbug.com/329145823 [ angle-metal arch-x86_64 graphite-enabled mac memory_ge_16gb release ] GpuCrash_SoftwareFallbackDisabled [ Failure ]
 crbug.com/329145823 [ graphite-disabled mac release ] GpuCrash_SoftwareFallbackDisabled [ Failure ]
 crbug.com/329145823 [ asan graphite-disabled intel-0x3e9b arch-x86_64 no-clang-coverage release sonoma ] GpuCrash_InfoForHardwareGpu [ Failure ]
 crbug.com/329145823 [ angle-metal graphite-enabled intel-gen-9 mac no-asan release ] GpuCrash_InfoForDualHardwareGpus [ Failure ]
@@ -216,7 +217,6 @@ crbug.com/354748640 [ mac amd no-asan graphite-disabled release ] GpuCrash_InfoF
 
 # Flaky failure on Mac Intel ASAN - DevTools Serialization Crash
 crbug.com/338574390 [ angle-metal asan intel mac ] ContextLost_WebGLContextRestoredInHiddenTab [ Failure ]
-crbug.com/338574390 [ angle-metal asan graphite-disabled intel mac ] ContextLost_WebGPUBlockedAfterJSNavigation [ Failure ]
 
 # Windows debug causes render process hangs due to slow gpu process restart.
 crbug.com/1416920 [ win debug ] GpuCrash_InfoForHardwareGpu [ Failure ]
@@ -236,8 +236,18 @@ crbug.com/365565140 [ angle-opengl debug graphite-disabled intel-0x3e9b arch-x86
 
 # Renderer Hung Possibly just Slow
 crbug.com/338574390 [ mac intel-0x3e9b angle-metal asan graphite-disabled ] ContextLost_WebGPUUnblockedAfterUserInitiatedReload [ Failure ]
-crbug.com/338574390 [ angle-metal asan graphite-disabled intel-0x3e9b mac ] ContextLost_WebGLContextLostOverlyLargeUniform [ RetryOnFailure ]
 crbug.com/338574390 [ angle-metal asan graphite-disabled intel-0x3e9b mac ] GpuNormalTermination_NewWebGLNotBlocked [ RetryOnFailure ]
+crbug.com/338574390 [ angle-metal graphite-enabled amd-0x7340 mac ] ContextLost_WebGPUBlockedAfterJSNavigation [ Slow ]
+
+###############################
+# Permanent Slow Expectations #
+###############################
+
+# Slow on DCHECK builds being used on fuchsia builders.
+crbug.com/425745937 [ fuchsia web-engine-shell ] ContextLost_WebGLContextLostFromQuantity [ Slow ]
+crbug.com/425745937 [ fuchsia web-engine-shell ] ContextLost_WebGLContextLostFromSelectElement [ Slow ]
+
+crbug.com/446113735 [ android android-pixel-10 ] ContextLost_WebGL2Blocked [ RetryOnFailure ]
 
 #######################################################################
 # Automated Entries After This Point - Do Not Manually Add Below Here #

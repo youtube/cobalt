@@ -105,6 +105,10 @@ class FakeChromeRenderFrame : public chrome::mojom::ChromeRenderFrame {
   void StartActorJournal(
       mojo::PendingAssociatedRemote<actor::mojom::JournalClient> client)
       override {}
+  void CreatePageStabilityMonitor(
+      mojo::PendingReceiver<actor::mojom::PageStabilityMonitor> monitor,
+      const TaskId& task_id,
+      bool supports_paint_stability) override {}
 
  private:
   void Bind(mojo::ScopedInterfaceEndpointHandle handle) {
@@ -146,8 +150,9 @@ class MockTool : public Tool {
 
   std::string DebugString() const override { return "MockTool"; }
   std::string JournalEvent() const override { return "MockTool"; }
-  std::unique_ptr<ObservationDelayController> GetObservationDelayer()
-      const override {
+  std::unique_ptr<ObservationDelayController> GetObservationDelayer(
+      std::optional<ObservationDelayController::PageStabilityConfig>
+          page_stability_config) const override {
     return nullptr;
   }
 
@@ -545,6 +550,68 @@ TEST_F(ExecutionEngineTest, CancelledHistogram) {
   histograms_.ExpectBucketCount(kActorTaskCountCancelledHistogram, 2, 1);
 }
 
+TEST_F(ExecutionEngineTest, CountAndDurationHistograms) {
+  // Task in Created state followed by Acting then Reflecting states.
+  const base::TimeDelta created_duration = base::Seconds(5);
+
+  ActResultFuture result;
+  std::unique_ptr<ToolRequest> action1 =
+      MakeClickCallback(kFakeContentNodeId).Run();
+  std::unique_ptr<ToolRequest> action2 =
+      MakeClickCallback(kFakeContentNodeId).Run();
+  std::unique_ptr<ToolRequest> action3 =
+      MakeClickCallback(kFakeContentNodeId).Run();
+  task_environment()->FastForwardBy(created_duration);
+
+  task_->Act(ToRequestList(action1, action2, action3), result.GetCallback());
+
+  histograms_.ExpectTimeBucketCount(
+      "Actor.Task.StateTransition.Duration.Created", created_duration, 1);
+  histograms_.ExpectBucketCount(
+      "Actor.Task.StateTransition.ActionCount.Created_Acting", 0, 1);
+
+  // Task in PausedByUser state
+  task_->Pause(/*from_actor=*/false);
+  histograms_.ExpectBucketCount(
+      "Actor.Task.StateTransition.ActionCount.Acting_PausedByUser", 3, 1);
+
+  const base::TimeDelta pause_duration = base::Seconds(7);
+  task_environment()->FastForwardBy(pause_duration);
+
+  // Task in Resumed state.
+  task_->Resume();
+  histograms_.ExpectTimeBucketCount(
+      "Actor.Task.StateTransition.Duration.PausedByUser", pause_duration, 1);
+  histograms_.ExpectBucketCount(
+      "Actor.Task.StateTransition.ActionCount.PausedByUser_Reflecting", 0, 1);
+
+  const base::TimeDelta reflecting_duration = base::Seconds(8);
+  task_environment()->FastForwardBy(reflecting_duration);
+
+  // Task in PausedByActor state.
+  task_->Pause(/*from_actor=*/true);
+  histograms_.ExpectTimeBucketCount(
+      "Actor.Task.StateTransition.Duration.Reflecting", reflecting_duration, 1);
+  histograms_.ExpectBucketCount(
+      "Actor.Task.StateTransition.ActionCount.Reflecting_PausedByActor", 0, 1);
+
+  task_environment()->FastForwardBy(pause_duration);
+  // Task in Resumed state.
+  task_->Resume();
+  histograms_.ExpectTimeBucketCount(
+      "Actor.Task.StateTransition.Duration.PausedByActor", pause_duration, 1);
+  histograms_.ExpectBucketCount(
+      "Actor.Task.StateTransition.ActionCount.PausedByActor_Reflecting", 0, 1);
+
+  // Task in Finished state.
+  task_environment()->FastForwardBy(reflecting_duration);
+  task_->Stop(/*success=*/true);
+  histograms_.ExpectTimeBucketCount(
+      "Actor.Task.StateTransition.Duration.Reflecting", reflecting_duration, 2);
+  histograms_.ExpectBucketCount(
+      "Actor.Task.StateTransition.ActionCount.Reflecting_Finished", 0, 1);
+}
+
 TEST_F(ExecutionEngineTest, LatencyInfo) {
   content::NavigationSimulator::NavigateAndCommitFromBrowser(
       web_contents(), GURL("http://localhost/"));
@@ -562,46 +629,6 @@ TEST_F(ExecutionEngineTest, LatencyInfo) {
   EXPECT_EQ(actions_result.size(), 1u);
   EXPECT_NE(actions_result[0].start_time, base::TimeTicks());
   EXPECT_NE(actions_result[0].end_time, base::TimeTicks());
-}
-
-class ExecutionEngineOriginGatingTest : public ExecutionEngineTest {
- public:
-  void SetUp() override {
-    ExecutionEngineTest::SetUp();
-    scoped_feature_list_.InitAndEnableFeature(kGlicCrossOriginNavigationGating);
-  }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-TEST_F(ExecutionEngineOriginGatingTest, CrossOriginGating) {
-  const GURL kDestination = GURL("https://bar.com");
-
-  struct TestCase {
-    std::optional<url::Origin> initiator;
-    bool expected;
-  };
-
-  TestCase test_cases[] = {
-      // No initiator origin indicates that this navigation was not made by the
-      // page
-      // and should be allowed.
-      {std::nullopt, false},
-      // Same origin should not be gated.
-      {url::Origin::Create(GURL("https://bar.com")), false},
-      // Gate cross origin
-      {url::Origin::Create(GURL("https://foo.com")), true}};
-
-  for (const auto& test_case : test_cases) {
-    content::MockNavigationHandle navigation_handle(kDestination, main_rfh());
-    if (test_case.initiator) {
-      navigation_handle.set_initiator_origin(test_case.initiator.value());
-    }
-    EXPECT_EQ(
-        test_case.expected,
-        task_->GetExecutionEngine()->ShouldGateNavigation(navigation_handle));
-  }
 }
 
 }  // namespace

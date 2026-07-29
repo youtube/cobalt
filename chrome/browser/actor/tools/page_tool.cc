@@ -191,7 +191,8 @@ bool ValidateTargetFrameCandidate(
 // TargetNodeInfo struct.
 mojom::ObservedToolTargetPtr ToMojoObservedToolTarget(
     const std::optional<optimization_guide::TargetNodeInfo>&
-        observed_target_node_info) {
+        observed_target_node_info,
+    RenderFrameHost& target_frame) {
   if (!observed_target_node_info) {
     return nullptr;
   }
@@ -208,16 +209,23 @@ mojom::ObservedToolTargetPtr ToMojoObservedToolTarget(
   if (content_attributes.has_geometry()) {
     observed_target->node_attribute->geometry =
         blink::mojom::AIPageContentGeometry::New();
-    observed_target->node_attribute->geometry->outer_bounding_box =
-        gfx::Rect(content_attributes.geometry().outer_bounding_box().x(),
-                  content_attributes.geometry().outer_bounding_box().y(),
-                  content_attributes.geometry().outer_bounding_box().width(),
-                  content_attributes.geometry().outer_bounding_box().height());
+    // Transform to frame's widget coordinate space.
+    const gfx::Point outer_box_origin_point = gfx::ToRoundedPoint(
+        target_frame.GetView()->TransformRootPointToViewCoordSpace(gfx::PointF(
+            content_attributes.geometry().outer_bounding_box().x(),
+            content_attributes.geometry().outer_bounding_box().y())));
+    observed_target->node_attribute->geometry->outer_bounding_box = gfx::Rect(
+        outer_box_origin_point,
+        {content_attributes.geometry().outer_bounding_box().width(),
+         content_attributes.geometry().outer_bounding_box().height()});
+    const gfx::Point visible_box_origin_point = gfx::ToRoundedPoint(
+        target_frame.GetView()->TransformRootPointToViewCoordSpace(gfx::PointF(
+            content_attributes.geometry().visible_bounding_box().x(),
+            content_attributes.geometry().visible_bounding_box().y())));
     observed_target->node_attribute->geometry->visible_bounding_box = gfx::Rect(
-        content_attributes.geometry().visible_bounding_box().x(),
-        content_attributes.geometry().visible_bounding_box().y(),
-        content_attributes.geometry().visible_bounding_box().width(),
-        content_attributes.geometry().visible_bounding_box().height());
+        visible_box_origin_point,
+        {content_attributes.geometry().visible_bounding_box().width(),
+         content_attributes.geometry().visible_bounding_box().height()});
     observed_target->node_attribute->geometry->is_fixed_or_sticky_position =
         content_attributes.geometry().is_fixed_or_sticky_position();
   }
@@ -333,7 +341,8 @@ mojom::ActionResultPtr PageTool::TimeOfUseValidation(
     }
   }
 
-  observed_target_ = ToMojoObservedToolTarget(observed_target_node_info);
+  observed_target_ =
+      ToMojoObservedToolTarget(observed_target_node_info, *frame);
   has_completed_time_of_use_ = true;
   target_document_ = frame->GetWeakDocumentPtr();
 
@@ -350,7 +359,7 @@ void PageTool::Invoke(InvokeCallback callback) {
   invoke_callback_ = std::move(callback);
 
   auto invocation = actor::mojom::ToolInvocation::New();
-  invocation->action = request_->ToMojoToolAction();
+  invocation->action = request_->ToMojoToolAction(frame);
 
   // Transform coordinate target from viewport space to widget space for use
   // within renderer.
@@ -365,7 +374,7 @@ void PageTool::Invoke(InvokeCallback callback) {
 
   invocation->observed_target = std::move(observed_target_);
 
-  invocation->task_id = task_id().value();
+  invocation->task_id = task_id();
 
   // ToolRequest params are checked for validity at creation.
   CHECK(invocation->action);
@@ -425,8 +434,9 @@ std::string PageTool::JournalEvent() const {
   return request_->JournalEvent();
 }
 
-std::unique_ptr<ObservationDelayController> PageTool::GetObservationDelayer()
-    const {
+std::unique_ptr<ObservationDelayController> PageTool::GetObservationDelayer(
+    std::optional<ObservationDelayController::PageStabilityConfig>
+        page_stability_config) const {
   CHECK(has_completed_time_of_use_);
 
   RenderFrameHost* frame = GetFrame();
@@ -435,7 +445,8 @@ std::unique_ptr<ObservationDelayController> PageTool::GetObservationDelayer()
   // this method.
   CHECK(frame);
 
-  return std::make_unique<ObservationDelayController>(*frame);
+  return std::make_unique<ObservationDelayController>(*frame, task_id(),
+                                                      page_stability_config);
 }
 
 void PageTool::UpdateTaskBeforeInvoke(ActorTask& task,
@@ -483,14 +494,6 @@ void PageTool::FinishInvoke(mojom::ActionResultPtr result) {
   std::move(invoke_callback_).Run(std::move(result));
 
   // WARNING: `this` may now be destroyed.
-}
-
-void PageTool::PostFinishInvoke(mojom::ActionResultCode result_code) {
-  CHECK(invoke_callback_);
-  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE,
-      base::BindOnce(&PageTool::FinishInvoke, weak_ptr_factory_.GetWeakPtr(),
-                     MakeResult(result_code)));
 }
 
 content::RenderFrameHost* PageTool::GetFrame() const {

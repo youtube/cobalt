@@ -48,7 +48,13 @@ UserSelectableTypeInfo GetUserSelectableTypeInfo(
     // TODO(crbug.com/412602018): Remove this parameter once the feature is
     // launched.
     bool skip_feature_checks_if_early = false) {
-  static_assert(56 == syncer::GetNumDataTypes(),
+  // TODO(crbug.com/445841720): In CL #3, map AI_THREAD to an existing
+  // selectable type or to a new one. The first option should be trivial, the
+  // second requires touching UI code across platforms.
+  // TODO(crbug.com/445840788): In CL #3, map CONTEXTUAL_TASK to an existing
+  // selectable type or to a new one. The first option should be trivial, the
+  // second requires touching UI code across platforms.
+  static_assert(58 == syncer::GetNumDataTypes(),
                 "Almost always when adding a new Data, you must tie it to "
                 "a UserSelectableType below (new or existing) so the user can "
                 "disable syncing of that data. Today you must also update the "

@@ -52,56 +52,26 @@ export function getHtml(this: ComposeboxElement) {
           `: ''}
         </div>
       </div>
-      ${this.showFileCarousel_ ? html`
-        <ntp-composebox-file-carousel
-          id="carousel"
-          .files=${Array.from(this.files_.values())}
-          @delete-file=${this.onDeleteFile_}>
-        </ntp-composebox-file-carousel> ` : ''}
-      ${this.showDropdown_ ? html`
-      <div class="carousel-divider"></div>` : ''}
-      <ntp-composebox-dropdown
-          id="matches"
-          role="listbox"
-          .result="${this.result_}"
-          .selectedMatchIndex="${this.selectedMatchIndex_}"
-          @selected-match-index-changed="${this.onSelectedMatchIndexChanged_}"
-          @match-focusin="${this.onMatchFocusin_}"
-          @match-click="${this.onMatchClick_}"
-          ?hidden="${!this.showDropdown_}">
-      </ntp-composebox-dropdown>
-    ${this.contextMenuEnabled_ ? html`
-      <composebox-context-menu-entrypoint id="contextEntrypoint"
-          class="upload-icon no-overlap"
-          .tabSuggestions="${this.tabSuggestions_}"
-          @open-image-upload="${this.openImageUpload_}"
-          @open-file-upload="${this.openFileUpload_}"
+      <contextual-entrypoint-and-carousel id="context"
           @add-tab-context="${this.addTabContext_}"
+          @add-file-context="${this.addFileContext_}"
+          @delete-context="${this.deleteContext_}"
           @refresh-tab-suggestions="${this.refreshTabSuggestions_}"
-          ?inputs-disabled="${this.inputsDisabled_}">
-      </composebox-context-menu-entrypoint>
-    ` : html`
-      <div id="uploadContainer" class="icon-fade">
-          <cr-icon-button
-              class="upload-icon no-overlap"
-              id="imageUploadButton"
-              iron-icon="composebox:imageUpload"
-              title="${this.i18n('composeboxImageUploadButtonTitle')}"
-              .disabled="${this.inputsDisabled_}"
-              @click="${this.openImageUpload_}">
-          </cr-icon-button>
-          ${this.composeboxShowPdfUpload_ ? html`
-          <cr-icon-button
-              class="upload-icon no-overlap"
-              id="fileUploadButton"
-              iron-icon="composebox:fileUpload"
-              title="${this.i18n('composeboxPdfUploadButtonTitle')}"
-              .disabled="${this.inputsDisabled_}"
-              @click="${this.openFileUpload_}">
-          </cr-icon-button>
-          `: ''}
-      </div>
-    `}
+          @on-file-validation-error="${this.onFileValidationError_}"
+          @set-deep-search-mode="${this.setDeepSearchMode_}"
+          ?show-dropdown="${this.showDropdown_}">
+        <ntp-composebox-dropdown
+            id="matches"
+            part="dropdown"
+            role="listbox"
+            .result="${this.result_}"
+            .selectedMatchIndex="${this.selectedMatchIndex_}"
+            @selected-match-index-changed="${this.onSelectedMatchIndexChanged_}"
+            @match-focusin="${this.onMatchFocusin_}"
+            @match-click="${this.onMatchClick_}"
+            ?hidden="${!this.showDropdown_}">
+        </ntp-composebox-dropdown>
+      </contextual-entrypoint-and-carousel>
     </div>
     <!-- A seperate container is needed for the submit button so the
     expand/collapse animation can be applied without affecting the submit
@@ -138,18 +108,6 @@ export function getHtml(this: ComposeboxElement) {
       </cr-icon-button>
     </div>
   </div>
-  <input type="file"
-      accept="${this.imageFileTypes_}"
-      id="imageInput"
-      @change="${this.onFileChange_}"
-      hidden>
-  </input>
-  <input type="file"
-      accept="${this.attachmentFileTypes_}"
-      id="fileInput"
-      @change="${this.onFileChange_}"
-      hidden>
-  </input>
   ${this.shouldShowSuggestionActivityLink_() ? html`
     <div id="suggestionActivity">
       <localized-link

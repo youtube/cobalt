@@ -66,7 +66,6 @@ class CanvasResource;
 class CanvasResourceSharedImage;
 class CanvasResourceProviderBitmap;
 class CanvasResourceProviderSharedImage;
-class ExternalCanvasResource;
 class MemoryManagedPaintCanvas;
 class StaticBitmapImage;
 class WebGraphicsSharedImageInterfaceProvider;
@@ -197,14 +196,14 @@ class PLATFORM_EXPORT CanvasResourceProvider
       WebGraphicsSharedImageInterfaceProvider* shared_image_interface_provider,
       Delegate* delegate = nullptr);
 
-  static std::unique_ptr<CanvasResourceProvider> CreateSharedImageProvider(
-      gfx::Size size,
-      const Canvas2DColorParams& color_params,
-      ShouldInitialize initialize_provider,
-      base::WeakPtr<WebGraphicsContext3DProviderWrapper>,
-      RasterMode raster_mode,
-      gpu::SharedImageUsageSet shared_image_usage_flags,
-      Delegate* delegate = nullptr);
+  static std::unique_ptr<CanvasResourceProviderSharedImage>
+  CreateSharedImageProvider(gfx::Size size,
+                            const Canvas2DColorParams& color_params,
+                            ShouldInitialize initialize_provider,
+                            base::WeakPtr<WebGraphicsContext3DProviderWrapper>,
+                            RasterMode raster_mode,
+                            gpu::SharedImageUsageSet shared_image_usage_flags,
+                            Delegate* delegate = nullptr);
 
   static std::unique_ptr<CanvasResourceProvider> CreateWebGPUImageProvider(
       gfx::Size size,
@@ -264,19 +263,6 @@ class PLATFORM_EXPORT CanvasResourceProvider
   // rate.
   virtual bool IsSingleBuffered() const = 0;
 
-  // Subclasses implementing import of external canvas resources must override
-  // this method.
-  virtual void ImportResource(scoped_refptr<ExternalCanvasResource>&&) {
-    NOTREACHED();
-  }
-
-  // CanvasResourceProviderSharedImage overrides these methods as part of
-  // implementing resource recycling.
-  virtual void OnResourceRefReturned(
-      scoped_refptr<CanvasResourceSharedImage>&&) {}
-  virtual void SetResourceRecyclingEnabled(bool) {}
-  virtual void ClearUnusedResources() {}
-
   SkSurface* GetSkSurface() const;
   bool IsGpuContextLost() const;
 
@@ -289,39 +275,12 @@ class PLATFORM_EXPORT CanvasResourceProvider
                            const void* pixels,
                            size_t row_bytes,
                            int x,
-                           int y);
-
-  // Returns the ClientSharedImage backing this CanvasResourceProvider, if one
-  // exists, after flushing the resource and signaling that an external write
-  // will occur on it. The caller should wait on `internal_access_sync_token`
-  // before writing the contents unless the caller's usage model makes such a
-  // wait unnecessary (in which case the client should pass `nullptr` for the
-  // token together with an explanation at the callsite).
-  // `required_shared_image_usages` is a set of usages that the passed-back
-  // ClientSharedImage must support. A copy will be performed if either (a) the
-  // display compositor is reading the current resource or (b) the current
-  // resource does not support `required_shared_image_usages.` In these cases,
-  // `was_copy_performed` will be set to true if it is non-null.
-  virtual scoped_refptr<gpu::ClientSharedImage>
-  GetBackingClientSharedImageForExternalWrite(
-      gpu::SharedImageUsageSet required_shared_image_usages,
-      gpu::SyncToken& internal_access_sync_token,
-      bool* was_copy_performed = nullptr) {
-    return nullptr;
-  }
-
-  // Signals that an external write has completed, passing the token that should
-  // be waited on to ensure that the service-side operations of the external
-  // write have completed. Ensures that the next read of this resource (whether
-  // via raster or the compositor) waits on this token.
-  virtual void EndExternalWrite(
-      const gpu::SyncToken& external_write_sync_token) {
-    NOTREACHED();
-  }
-
-  virtual gpu::SharedImageUsageSet GetSharedImageUsageFlags() const {
-    NOTREACHED();
-  }
+                           int y) = 0;
+  bool UnacceleratedWritePixels(const SkImageInfo& orig_info,
+                                const void* pixels,
+                                size_t row_bytes,
+                                int x,
+                                int y);
 
   CanvasResourceProvider(const CanvasResourceProvider&) = delete;
   CanvasResourceProvider& operator=(const CanvasResourceProvider&) = delete;
@@ -330,8 +289,6 @@ class PLATFORM_EXPORT CanvasResourceProvider
   void RestoreBackBuffer(const cc::PaintImage&);
 
   ResourceProviderType GetType() const { return type_; }
-
-  virtual void OnDestroyResource() {}
 
   void FlushIfRecordingLimitExceeded();
 
@@ -363,15 +320,6 @@ class PLATFORM_EXPORT CanvasResourceProvider
     NOTREACHED();
   }
 
-  virtual bool HasUnusedResourcesForTesting() const { return false; }
-  virtual bool unused_resources_reclaim_timer_is_running_for_testing() const {
-    return false;
-  }
-  virtual int NumInflightResourcesForTesting() const { return 0; }
-
-  constexpr static base::TimeDelta kUnusedResourceExpirationTime =
-      base::Seconds(5);
-
  protected:
   class CanvasImageProvider;
 
@@ -400,10 +348,11 @@ class PLATFORM_EXPORT CanvasResourceProvider
   // decodes/uploads in the cache is invalidated only when the canvas contents
   // change.
   cc::PaintImage MakeImageSnapshot(FlushReason);
-  virtual void RasterRecord(cc::PaintRecord);
-  void RasterRecordOOP(cc::PaintRecord last_recording,
-                       bool needs_clear,
-                       gpu::Mailbox mailbox);
+  virtual void RasterRecord(cc::PaintRecord) = 0;
+  void UnacceleratedRasterRecord(cc::PaintRecord);
+  void AcceleratedRasterRecord(cc::PaintRecord last_recording,
+                               bool needs_clear,
+                               gpu::Mailbox mailbox);
 
   CanvasImageProvider* GetOrCreateCanvasImageProvider();
 
@@ -420,10 +369,6 @@ class PLATFORM_EXPORT CanvasResourceProvider
   friend class FlushForImageListener;
 
   virtual sk_sp<SkSurface> CreateSkSurface() const = 0;
-  virtual bool UseOopRasterization() { return false; }
-  bool UseHardwareDecodeCache() const {
-    return IsAccelerated() && context_provider_wrapper_;
-  }
   // Notifies before any drawing will be done on the resource used by this
   // provider.
   virtual void WillDraw() {}
@@ -431,8 +376,6 @@ class PLATFORM_EXPORT CanvasResourceProvider
   size_t ComputeSurfaceSize() const;
   size_t GetSize() const override;
 
-  cc::ImageDecodeCache* ImageDecodeCacheRGBA8();
-  cc::ImageDecodeCache* ImageDecodeCacheF16();
   void EnsureSkiaCanvas();
 
   void Clear();
@@ -509,6 +452,12 @@ class PLATFORM_EXPORT CanvasResourceProviderBitmap
   scoped_refptr<StaticBitmapImage> Snapshot(
       FlushReason reason,
       ImageOrientation = ImageOrientationEnum::kDefault) override;
+  void RasterRecord(cc::PaintRecord last_recording) override;
+  bool WritePixels(const SkImageInfo& orig_info,
+                   const void* pixels,
+                   size_t row_bytes,
+                   int x,
+                   int y) override;
 
  private:
   scoped_refptr<CanvasResource> ProduceCanvasResource(FlushReason) override {
@@ -543,34 +492,28 @@ class PLATFORM_EXPORT CanvasResourceProviderSharedImage
                                     Delegate*);
   ~CanvasResourceProviderSharedImage() override;
 
-  CanvasResourceProviderSharedImage* AsSharedImageProvider() override {
-    return this;
-  }
-  bool IsAccelerated() const final { return is_accelerated_; }
-  bool SupportsDirectCompositing() const override { return true; }
-  bool UseOopRasterization() final { return use_oop_rasterization_; }
-  bool unused_resources_reclaim_timer_is_running_for_testing() const override {
-    return unused_resources_reclaim_timer_.IsRunning();
-  }
-  int NumInflightResourcesForTesting() const override {
-    return num_inflight_resources_;
-  }
-
-  scoped_refptr<CanvasResource> ProduceCanvasResource(
-      FlushReason reason) override;
-  bool IsValid() const override;
-  gpu::SharedImageUsageSet GetSharedImageUsageFlags() const override;
-  bool HasUnusedResourcesForTesting() const override;
+  // Returns the ClientSharedImage backing this CanvasResourceProvider, if one
+  // exists, after flushing the resource and signaling that an external write
+  // will occur on it. The caller should wait on `internal_access_sync_token`
+  // before writing the contents unless the caller's usage model makes such a
+  // wait unnecessary (in which case the client should pass `nullptr` for the
+  // token together with an explanation at the callsite).
+  // `required_shared_image_usages` is a set of usages that the passed-back
+  // ClientSharedImage must support. A copy will be performed if either (a) the
+  // display compositor is reading the current resource or (b) the current
+  // resource does not support `required_shared_image_usages.` In these cases,
+  // `was_copy_performed` will be set to true if it is non-null.
   scoped_refptr<gpu::ClientSharedImage>
   GetBackingClientSharedImageForExternalWrite(
       gpu::SharedImageUsageSet required_shared_image_usages,
       gpu::SyncToken& internal_access_sync_token,
-      bool* was_copy_performed = nullptr) override;
-  void EndExternalWrite(
-      const gpu::SyncToken& external_write_sync_token) override;
-  scoped_refptr<StaticBitmapImage> Snapshot(
-      FlushReason reason,
-      ImageOrientation = ImageOrientationEnum::kDefault) override;
+      bool* was_copy_performed = nullptr);
+
+  // Signals that an external write has completed, passing the token that should
+  // be waited on to ensure that the service-side operations of the external
+  // write have completed. Ensures that the next read of this resource (whether
+  // via raster or the compositor) waits on this token.
+  void EndExternalWrite(const gpu::SyncToken& external_write_sync_token);
 
   // For WebGpu RecyclableCanvasResource.
   void OnAcquireRecyclableCanvasResource();
@@ -586,14 +529,50 @@ class PLATFORM_EXPORT CanvasResourceProviderSharedImage
                       const gfx::Rect& copy_rect,
                       const gpu::SyncToken& ready_sync_token,
                       gpu::SyncToken& completion_sync_token);
+  void ClearUnusedResources() { unused_resources_.clear(); }
+  void OnResourceRefReturned(
+      scoped_refptr<CanvasResourceSharedImage>&& resource);
+  void OnDestroyResource() { --num_inflight_resources_; }
+  void SetResourceRecyclingEnabled(bool value);
+
+  bool unused_resources_reclaim_timer_is_running_for_testing() const {
+    return unused_resources_reclaim_timer_.IsRunning();
+  }
+  int NumInflightResourcesForTesting() const { return num_inflight_resources_; }
+  gpu::SharedImageUsageSet GetSharedImageUsageFlags() const;
+  bool HasUnusedResourcesForTesting() const;
+
+  constexpr static base::TimeDelta kUnusedResourceExpirationTime =
+      base::Seconds(5);
+
+  // CanvasResourceProvider:
+  CanvasResourceProviderSharedImage* AsSharedImageProvider() final {
+    return this;
+  }
+  bool IsAccelerated() const final { return is_accelerated_; }
+  bool SupportsDirectCompositing() const override { return true; }
+  scoped_refptr<CanvasResource> ProduceCanvasResource(
+      FlushReason reason) override;
+  bool IsValid() const override;
+  bool IsSoftwareSharedImageGpuChannelLost() const final;
+  void ExternalCanvasDrawHelper(
+      base::FunctionRef<void(MemoryManagedPaintCanvas&)> draw_callback) final;
+  void RasterRecord(cc::PaintRecord last_recording) override;
+  sk_sp<SkSurface> CreateSkSurface() const override;
+  void OnFlushForImage(cc::PaintImage::ContentId content_id) final;
+  void OnMemoryDump(base::trace_event::ProcessMemoryDump* pmd) final;
+  scoped_refptr<StaticBitmapImage> Snapshot(
+      FlushReason reason,
+      ImageOrientation = ImageOrientationEnum::kDefault) override;
+  bool IsSingleBuffered() const final;
   bool WritePixels(const SkImageInfo& orig_info,
                    const void* pixels,
                    size_t row_bytes,
                    int x,
                    int y) override;
-  void ClearUnusedResources() override { unused_resources_.clear(); }
+  void WillDraw() final;
 
- protected:
+ private:
   scoped_refptr<CanvasResourceSharedImage> CreateResource();
 
   // The maximum number of in-flight resources waiting to be used for
@@ -623,34 +602,17 @@ class PLATFORM_EXPORT CanvasResourceProviderSharedImage
   void EnsureWriteAccess();
   void EndWriteAccess();
   void WillDrawInternal(bool write_to_local_texture);
-  void WillDraw() override;
-  bool IsSoftwareSharedImageGpuChannelLost() const override;
-  bool IsSingleBuffered() const override;
-  void ExternalCanvasDrawHelper(
-      base::FunctionRef<void(MemoryManagedPaintCanvas&)> draw_callback)
-      override;
-  void RasterRecord(cc::PaintRecord last_recording) override;
-  sk_sp<SkSurface> CreateSkSurface() const override;
-  GrBackendTexture CreateGrTextureForResource() const;
-  void OnFlushForImage(cc::PaintImage::ContentId content_id) override;
 
- private:
-  void OnMemoryDump(base::trace_event::ProcessMemoryDump* pmd) override;
-
-  // `viz::ContextLostObserver` implementation.
-  void OnContextLost() override;
-
-  // BitmapGpuChannelLostObserver implementation.
-  void OnGpuChannelLost() override;
-
-  void OnDestroyResource() override { --num_inflight_resources_; }
-  void SetResourceRecyclingEnabled(bool value) override;
-  void OnResourceRefReturned(
-      scoped_refptr<CanvasResourceSharedImage>&& resource) override;
   void RecycleResource(scoped_refptr<CanvasResourceSharedImage>&& resource);
   void MaybePostUnusedResourcesReclaimTask();
   void ClearOldUnusedResources();
   base::WeakPtr<CanvasResourceProviderSharedImage> CreateWeakPtr();
+
+  // `viz::ContextLostObserver`:
+  void OnContextLost() final;
+
+  // BitmapGpuChannelLostObserver:
+  void OnGpuChannelLost() final;
 
   // If this instance is single-buffered or |resource_recycling_enabled_| is
   // false, |unused_resources_| will be empty.
@@ -671,7 +633,6 @@ class PLATFORM_EXPORT CanvasResourceProviderSharedImage
   const bool is_accelerated_;
   gpu::SharedImageUsageSet shared_image_usage_flags_;
   bool current_resource_has_write_access_ = false;
-  const bool use_oop_rasterization_;
   bool is_software_ = false;
   bool is_cleared_ = false;
 

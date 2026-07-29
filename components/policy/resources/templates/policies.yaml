@@ -1393,6 +1393,12 @@ policies:
   1392: IncognitoModeBlocklist
   1393: IncognitoModeAllowlist
   1394: PreferSlowKexAlgorithms
+  1395: ExtensionForceInstallWithNonMalwareViolationsEnabled
+  1396: CacheEncryptionEnabled
+  1397: SilentPrintingEnabled
+  1398: PreferSlowCiphers
+  1399: DeveloperToolsAvailabilityAllowlist
+  1400: DeveloperToolsAvailabilityBlocklist
 atomic_groups:
   1: Homepage
   2: RemoteAccess

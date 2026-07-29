@@ -30,12 +30,14 @@
 #include "chrome/browser/ui/lens/lens_session_metrics_logger.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
+#include "chrome/grit/branded_strings.h"
 #include "components/lens/lens_features.h"
 #include "components/lens/lens_overlay_permission_utils.h"
 #include "components/lens/lens_url_utils.h"
 #include "components/omnibox/browser/autocomplete_match_type.h"
 #include "components/optimization_guide/content/browser/page_context_eligibility.h"
 #include "third_party/skia/include/core/SkBitmap.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/gfx/geometry/rect.h"
 
 namespace {
@@ -137,12 +139,16 @@ void LensSearchController::OpenLensOverlay(
     lens::LensOverlayInvocationSource invocation_source) {
   CheckInitialized(initialized_);
 
+  // The overlay can only be reinvoked if the feature is enabled.
+  const bool allow_reinvoking_overlay =
+      lens::features::GetEnableLensButtonInSearchbox() || IsOff();
   // If the eligibility checks fail, do not procced with opening any UI.
-  if (!IsOff() || !RunLensEligibilityChecks(
-                      invocation_source,
-                      /*permission_granted_callback=*/base::BindRepeating(
-                          &LensSearchController::OpenLensOverlay,
-                          weak_ptr_factory_.GetWeakPtr(), invocation_source))) {
+  if (!allow_reinvoking_overlay ||
+      !RunLensEligibilityChecks(
+          invocation_source,
+          /*permission_granted_callback=*/base::BindRepeating(
+              &LensSearchController::OpenLensOverlay,
+              weak_ptr_factory_.GetWeakPtr(), invocation_source))) {
     return;
   }
 
@@ -161,9 +167,27 @@ void LensSearchController::OpenLensOverlay(
     return;
   }
 
+  if (lens::features::IsLensSearchZeroStateCsbEnabled() && IsOff()) {
+    std::string query_text =
+        lens::features::GetZeroStateCsbQuery().empty()
+            ? l10n_util::GetStringUTF8(
+                  IDS_LENS_CONTEXTUAL_SEARCH_ZERO_STATE_QUERY)
+            : lens::features::GetZeroStateCsbQuery();
+    IssueTextSearchRequest(
+        invocation_source,
+        /*query_text=*/query_text,
+        /*additional_query_parameters=*/{},
+        // TODO(crbug.com/432490312): Match type here is likely not ideal.
+        // Investigate removing match type from this function.
+        AutocompleteMatchType::Type::SEARCH_SUGGEST,
+        /*is_zero_prefix_suggestion=*/false,
+        /*suppress_contextualization=*/false);
+    return;
+  }
+
   // If the overlay is already active, don't start a new session. This can
   // happen if the side panel is open and the user reinvokes the overlay.
-  if (!lens_overlay_controller_->IsOverlayActive()) {
+  if (IsOff()) {
     // Setup all state necessary for this Lens session.
     StartLensSession(invocation_source);
   }
@@ -206,6 +230,14 @@ void LensSearchController::OpenLensOverlayWithPendingRegion(
   lens_overlay_controller_->ShowUIWithPendingRegion(
       lens_overlay_query_controller_.get(), invocation_source,
       std::move(region), region_bitmap);
+}
+
+void LensSearchController::OpenLensOverlayInCurrentSession() {
+  if (IsOff() || lens_overlay_controller_->IsOverlayShowing()) {
+    return;
+  }
+
+  lens_overlay_controller_->ReshowOverlay();
 }
 
 void LensSearchController::StartContextualization(

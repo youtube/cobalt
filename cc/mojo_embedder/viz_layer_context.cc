@@ -88,6 +88,15 @@ void ComputePropertyTreeNodeUpdate(
       old_node->delegates_to_parent_for_backface ==
           new_node.delegates_to_parent_for_backface &&
       old_node->will_change_transform == new_node.will_change_transform &&
+      old_node->maximum_animation_scale == new_node.maximum_animation_scale &&
+      old_node->node_and_ancestors_are_animated_or_invertible ==
+          new_node.node_and_ancestors_are_animated_or_invertible &&
+      old_node->is_invertible == new_node.is_invertible &&
+      old_node->ancestors_are_invertible == new_node.ancestors_are_invertible &&
+      old_node->node_and_ancestors_are_flat ==
+          new_node.node_and_ancestors_are_flat &&
+      old_node->node_or_ancestors_will_change_transform ==
+          new_node.node_or_ancestors_will_change_transform &&
       old_node->visible_frame_element_id == new_node.visible_frame_element_id) {
     return;
   }
@@ -125,6 +134,14 @@ void ComputePropertyTreeNodeUpdate(
   wire->delegates_to_parent_for_backface =
       new_node.delegates_to_parent_for_backface;
   wire->will_change_transform = new_node.will_change_transform;
+  wire->maximum_animation_scale = new_node.maximum_animation_scale;
+  wire->node_and_ancestors_are_animated_or_invertible =
+      new_node.node_and_ancestors_are_animated_or_invertible;
+  wire->is_invertible = new_node.is_invertible;
+  wire->ancestors_are_invertible = new_node.ancestors_are_invertible;
+  wire->node_and_ancestors_are_flat = new_node.node_and_ancestors_are_flat;
+  wire->node_or_ancestors_will_change_transform =
+      new_node.node_or_ancestors_will_change_transform;
   wire->visible_frame_element_id = new_node.visible_frame_element_id;
   wire->damage_reasons_bit_mask = new_node.damage_reasons().ToEnumBitmask();
   wire->moved_by_safe_area_bottom = new_node.moved_by_safe_area_bottom;
@@ -925,6 +942,8 @@ void SerializeLayer(LayerImpl& layer,
       tile_display_extra->is_directly_composited_image =
           picture_layer.IsDirectlyCompositedImage();
       tile_display_extra->nearest_neighbor = picture_layer.nearest_neighbor();
+      tile_display_extra->content_color_usage =
+          picture_layer.GetContentColorUsage();
       wire.layer_extra = viz::mojom::LayerExtra::NewTileDisplayLayerExtra(
           std::move(tile_display_extra));
       SerializePictureLayerTileUpdates(picture_layer, resource_provider,

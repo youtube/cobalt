@@ -21,6 +21,7 @@
 #include "components/autofill/android/touch_to_fill_keyboard_suppressor.h"
 #include "components/autofill/content/browser/content_autofill_client.h"
 #include "components/autofill/content/browser/content_autofill_driver.h"
+#include "components/autofill/core/browser/autofill_server_prediction.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/common/autocomplete_parsing_util.h"
 #include "components/autofill/core/common/autofill_constants.h"
@@ -62,11 +63,11 @@ std::unique_ptr<PasswordForm> ParseToPasswordForm(
   // and parse the form.
   FormData form_data = form_structure.ToFormData();
   auto autofill_predictions =
-      base::MakeFlatMap<FieldGlobalId, AutofillType::ServerPrediction>(
+      base::MakeFlatMap<FieldGlobalId, AutofillServerPrediction>(
           form_structure, /*comp=*/{},
           /*proj=*/[](const std::unique_ptr<AutofillField>& field) {
             return std::make_pair(field->global_id(),
-                                  AutofillType::ServerPrediction(*field));
+                                  AutofillServerPrediction(*field));
           });
   password_manager::FormDataParser parser;
   // The driver id is irrelevant here because it would only be used by password
@@ -539,10 +540,9 @@ void AndroidAutofillProvider::MaybeFireFormFieldDidChange(
   bridge_->OnFormFieldDidChange(field_info);
 }
 
-void AndroidAutofillProvider::OnDidFillAutofillFormData(
-    AndroidAutofillManager* manager,
-    const FormData& form,
-    base::TimeTicks timestamp) {
+void AndroidAutofillProvider::OnDidAutofillForm(AndroidAutofillManager* manager,
+                                                const FormData& form,
+                                                base::TimeTicks timestamp) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   if (manager != manager_.get() || !IsIdOfLinkedForm(form.global_id())) {
     return;
@@ -550,7 +550,7 @@ void AndroidAutofillProvider::OnDidFillAutofillFormData(
   // TODO(crbug.com/40760916): Investigate passing the actually filled fields,
   // in case the passed fields to be filled are different from the fields that
   // were actually filled.
-  bridge_->OnDidFillAutofillFormData();
+  bridge_->OnDidAutofillForm();
 }
 
 void AndroidAutofillProvider::OnHidePopup(AndroidAutofillManager* manager) {

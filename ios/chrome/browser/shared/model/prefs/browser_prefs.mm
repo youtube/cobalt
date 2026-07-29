@@ -42,6 +42,7 @@
 #import "components/ntp_tiles/most_visited_sites.h"
 #import "components/ntp_tiles/popular_sites_impl.h"
 #import "components/omnibox/browser/aim_eligibility_service.h"
+#import "components/omnibox/browser/omnibox_pref_names.h"
 #import "components/omnibox/browser/omnibox_prefs.h"
 #import "components/omnibox/browser/zero_suggest_provider.h"
 #import "components/optimization_guide/core/model_execution/model_execution_prefs.h"
@@ -79,6 +80,7 @@
 #import "components/sync/service/glue/sync_transport_data_prefs.h"
 #import "components/sync/service/sync_prefs.h"
 #import "components/sync_device_info/device_info_prefs.h"
+#import "components/sync_preferences/cross_device_pref_tracker/prefs/cross_device_pref_registry.h"
 #import "components/sync_sessions/session_sync_prefs.h"
 #import "components/themes/pref_names.h"
 #import "components/translate/core/browser/translate_pref_names.h"
@@ -101,7 +103,7 @@
 #import "ios/chrome/browser/content_suggestions/ui_bundled/price_tracking_promo/price_tracking_promo_prefs.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/safety_check/safety_check_prefs.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/shop_card/shop_card_prefs.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/tips/tips_prefs.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/tips/model/tips_prefs.h"
 #import "ios/chrome/browser/cross_platform_promos/model/cross_platform_promos_service.h"
 #import "ios/chrome/browser/download/model/auto_deletion/auto_deletion_service.h"
 #import "ios/chrome/browser/drive/model/drive_policy.h"
@@ -214,6 +216,7 @@ inline constexpr char kHomeCustomizationMagicStackParcelTrackingEnabled[] =
 inline constexpr char kNtpShownBookmarksFolder[] = "ntp.shown_bookmarks_folder";
 constexpr char kGaiaCookieLastListAccountsData[] =
     "gaia_cookie.last_list_accounts_data";
+inline constexpr char kFRESourceTrial[] = "FileMetricsProviderFRESourceTrial";
 
 // Migrates a boolean pref from source to target PrefService.
 void MigrateBooleanPref(std::string_view pref_name,
@@ -305,6 +308,29 @@ void MigrateListPref(std::string_view pref_name,
 
   // In all cases, clear the pref from source.
   source_pref_service->ClearPref(pref_name);
+}
+
+// Renames a boolean pref within a PrefService.
+void RenameBooleanPref(std::string_view target_pref_name,
+                       std::string_view source_pref_name,
+                       PrefService* pref_service) {
+  const PrefService::Preference* target_pref =
+      pref_service->FindPreference(target_pref_name);
+  CHECK(target_pref);
+
+  const PrefService::Preference* source_pref =
+      pref_service->FindPreference(source_pref_name);
+  CHECK(source_pref);
+
+  // Only migrate the pref if 1. it is not set in target,
+  // 2. it is not the default in source.
+  if (target_pref->IsDefaultValue() && !source_pref->IsDefaultValue()) {
+    pref_service->SetBoolean(target_pref_name,
+                             pref_service->GetBoolean(source_pref_name));
+  }
+
+  // In all cases, clear the pref from source.
+  pref_service->ClearPref(source_pref_name);
 }
 
 // Helper function migrating the `int` preference from LocalState prefs to
@@ -529,7 +555,6 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
   registry->RegisterTimePref(kLastInfobarDisplayTimeKey, base::Time());
 
   // Bottom omnibox preferences.
-  registry->RegisterBooleanPref(prefs::kBottomOmnibox, false);
   registry->RegisterBooleanPref(prefs::kBottomOmniboxByDefault, false);
 
   // Preferences related to the Docking Promo feature (used only if
@@ -645,6 +670,9 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
       prefs::kNTPHomeCustomizationNewBadgeImpressionCount, 0);
 
   registry->RegisterBooleanPref(prefs::kWidgetsForMultiProfile, false);
+
+  // Deprecated 09/2025.
+  registry->RegisterBooleanPref(prefs::kBottomOmnibox, false);
 }
 
 void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
@@ -652,6 +680,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   collaboration::prefs::RegisterProfilePrefs(registry);
   commerce::RegisterPrefs(registry);
   AimEligibilityService::RegisterProfilePrefs(registry);
+  cross_device::RegisterProfilePrefs(registry);
   CrossPlatformPromosService::RegisterProfilePrefs(registry);
   data_controls::RegisterProfilePrefs(registry);
   dom_distiller::DistilledPagePrefs::RegisterProfilePrefs(registry);
@@ -1023,6 +1052,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
                              base::Time());
 
   registry->RegisterIntegerPref(prefs::kGeminiEnabledByPolicy, 0);
+  registry->RegisterBooleanPref(prefs::kAIHubEligibilityTriggered, false);
 
   registry->RegisterListPref(policy::policy_prefs::kIncognitoModeBlocklist);
   registry->RegisterListPref(policy::policy_prefs::kIncognitoModeAllowlist);
@@ -1075,6 +1105,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   // Deprecated 09/2025.
   registry->RegisterInt64Pref(kNtpShownBookmarksFolder, 0);
   registry->RegisterStringPref(kGaiaCookieLastListAccountsData, std::string());
+  registry->RegisterStringPref(kFRESourceTrial, std::string());
 }
 
 // This method should be periodically pruned of year+ old migrations.
@@ -1113,6 +1144,10 @@ void MigrateObsoleteLocalStatePrefs(PrefService* prefs) {
 
   // Added 07/2025.
   prefs->ClearPref(prefs::kTabPickupEnabled);
+
+  // Added 09/2025.
+  RenameBooleanPref(omnibox::kIsOmniboxInBottomPosition, prefs::kBottomOmnibox,
+                    prefs);
 }
 
 // This method should be periodically pruned of year+ old migrations.
@@ -1247,6 +1282,7 @@ void MigrateObsoleteProfilePrefs(PrefService* prefs) {
   // Added 09/2025.
   prefs->ClearPref(kNtpShownBookmarksFolder);
   prefs->ClearPref(kGaiaCookieLastListAccountsData);
+  prefs->ClearPref(kFRESourceTrial);
 }
 
 void MigrateObsoleteUserDefault() {

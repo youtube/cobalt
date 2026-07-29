@@ -8,6 +8,7 @@
 #include "base/memory/raw_ref.h"
 #include "base/scoped_observation.h"
 #include "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
+#include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
@@ -16,19 +17,39 @@
 
 namespace autofill {
 
-// The `kAccountNameEmail` autofill profile is an un-syncable, locally stored,
-// profile generated automatically for every signed in user, unless they deleted
-// it or didn't use it. This profile is composed of 2 pieces of data:
+// The kAccountNameEmail autofill profile is an un-syncable, locally stored,
+// profile generated automatically for the every signed in user with the
+// Autofill sync toggle enabled, unless they have deleted it or have not used
+// it. There are two ways this profile can be removed:
+// 1. Soft remove - which happens when the user does one of the following:
+// - turns off the autofill sync toggle,
+// - signs out.
+// When the toggle is turned on again, or the user signs in again, the
+// kAccountNameEmail profile reappears.
+// 2. Hard remove - which happens when the user does one of the following:
+// - explicitly removes profile from the autofill settings,
+// - does not use the kAccountNameEmail profile during the first
+//   `kAutofillNameAndEmailProfileNotSelectedThreshold` times it was suggested,
+// - accepts an import of an `AutofillProfile` that is a superset of
+//   kAccountNameEmail (`AutofillProfileImportType::kNameEmailSuperset` and
+//   `AutofillProfileImportType::kHomeWorkNameEmailMerge`).
+// The profile will always be recreated after removal (including a hard remove)
+// when the users account full name changes (assuming that other feature
+// conditions are met).
+//
+// This profile is composed of 2 pieces of data:
 // - full name
 // - email
-// Keeping `kAccountNameEmail` profile's state up to date between the devices is
-// handled through syncable prefs. `AccountNameEmailStore` is a class
+// `kLegacyHierarchyCountryCode` is used to not reveal the country of this
+// profile.
+//
+// Keeping kAccountNameEmail profile's state up to date between the devices is
+// handled through priority prefs. `AccountNameEmailStore` is a class
 // responsible for accessing and modifying those prefs, as well as managing
-// (create, update, remove) `kAccountNameEmail` profile. In code
+// (create, update, remove) kAccountNameEmail profile. In code
 // `AccountNameEmailStore` is owned by and has the same lifetime as
 // `AddressDataManager`.
 class AccountNameEmailStore : public signin::IdentityManager::Observer,
-                              public AddressDataManager::Observer,
                               public syncer::SyncServiceObserver {
  public:
   AccountNameEmailStore(AddressDataManager& address_data_manager,
@@ -38,42 +59,65 @@ class AccountNameEmailStore : public signin::IdentityManager::Observer,
   ~AccountNameEmailStore() override;
 
   // IdentityManager::Observer:
-  // Called when the user signs out. Used to remove `kAccountNameEmail` profile.
-  void OnExtendedAccountInfoRemoved(const AccountInfo& info) override;
-  // Called when the account's extended information (e.g., full name) is
-  // updated. Used to keep the `kAccountNameEmail` profile up to date.
+  // Called when the account's extended information (e.g. full name) is
+  // updated. Used to keep the kAccountNameEmail profile up to date.
   void OnExtendedAccountInfoUpdated(const AccountInfo& info) override;
 
-  // AddressDataManager::Observer:
-  // Called when the address data of the `AddressDataManager` changes. If
-  // `kAccountNameEmail` profile is missing but the user is still signed in,
-  // `kAutofillNameAndEmailProfileNotSelectedCounter` is set to
-  // `kAutofillNameAndEmailProfileNotSelectedThreshold` + 1.
-  void OnAddressDataChanged() override;
+  // syncer::SyncServiceObserver:
+  void OnSyncShutdown(syncer::SyncService* sync) override;
+  void OnStateChanged(syncer::SyncService* sync_service) override;
 
-  // Updates the `kAccountNameEmail` autofill profile with the newest signed-in
-  // account `info`. If the `kAccountNameEmail` profile doesn't exist, it is
-  // created.
-  void UpdateOrCreateAccountNameEmail(const AccountInfo& info);
+  // Checks that the necessary data is available and that the user has enabled
+  // autofill sync before updating/creating the kAccountNameEmail profile.
+  // This prevents premature update/create without all of the relevant data.
+  void MaybeUpdateOrCreateAccountNameEmail();
 
-  // Removes the `kAccountNameEmail` autofill profile if it exists.
-  void RemoveAccountNameEmail();
+  // Persists the `change` in prefs, if it applies to kAccountNameEmail
+  // profile.
+  void ApplyChange(const AutofillProfileChange& change);
+
+  // Removes the kAccountNameEmail autofill profile if it exists.
+  void SoftRemoveAccountNameEmail();
 
  private:
   friend class AccountNameEmailStoreTestApi;
 
+  enum class ProfileUpdateBlockReason {
+    // The user is signed-in, but explicitly disabled
+    // address syncing.
+    kAutofillSyncToggleDisabled = 0,
+    // The user is signed-in, but not all address data
+    // or priority prefs have been loaded.
+    kDataNotLoaded = 1,
+    // Signed-out.
+    kUserSignedOut = 2,
+  };
+
+  // Updates the kAccountNameEmail autofill profile with the account `info`. If
+  // the kAccountNameEmail profile doesn't exist, it is created.
+  void UpdateOrCreateAccountNameEmail(const AccountInfo& info);
+
   // Hashes concatenated full_name and email_address delimited by |.
   std::string HashAccountInfo(const AccountInfo& info) const;
+
+  // Determines if the conditions for creating or updating the kAccountNameEmail
+  // profile are not met. The operation should be blocked if sync is disabled
+  // for Autofill or if sync is enabled but the necessary data has not yet been
+  // downloaded.
+  // Returns a blocking reason or nullopt if the operation shouldn't be blocked.
+  std::optional<ProfileUpdateBlockReason>
+  GetBlockAccountNameEmailUpdateReason();
+
+  // Called when `prefs::kAutofillNameAndEmailProfileNotSelectedCounter` pref is
+  // updated. If it's value exceeds
+  // `kAutofillNameAndEmailProfileNotSelectedThreshold` the kAccountNameEmail
+  // profile will be removed.
+  void OnCounterPrefUpdated();
 
   const raw_ref<AddressDataManager> address_data_manager_;
   const raw_ref<signin::IdentityManager> identity_manager_;
   const raw_ref<syncer::SyncService> sync_service_;
-  const raw_ref<PrefService> pref_service_;
-
-  // Used to update `kAutofillNameAndEmailProfileNotSelectedCounter` pref in
-  // `OnAddressDataChanged` method.
-  base::ScopedObservation<AddressDataManager, AddressDataManager::Observer>
-      address_data_manager_observer_{this};
+  raw_ref<PrefService> pref_service_;
 
   // Used to update the `kAccountNameEmail` profile when the account name
   // changes.
@@ -87,6 +131,10 @@ class AccountNameEmailStore : public signin::IdentityManager::Observer,
   // overridden `OnStateChanged(SyncService*)` method.
   base::ScopedObservation<syncer::SyncService, syncer::SyncServiceObserver>
       sync_service_observer_{this};
+
+  // Used to observe `prefs::kAutofillNameAndEmailProfileNotSelectedCounter` and
+  // possibly remove the kAccountNameEmail profile.
+  PrefChangeRegistrar pref_registrar_;
 };
 
 }  // namespace autofill

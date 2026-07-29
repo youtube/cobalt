@@ -33,7 +33,6 @@ source_set("model") {
     "//base",
     "//build:blink_buildflags",
     "//ios/chrome/browser/ntp/model:util",
-    "//ios/chrome/browser/sessions/model:session_constants",
     "//ios/chrome/browser/shared/model/browser",
     "//ios/chrome/browser/shared/model/profile",
     "//ios/chrome/browser/shared/model/url:constants",
@@ -142,7 +141,6 @@ source_set("unit_tests") {
     "//base",
     "//base/test:test_support",
     "//components/sessions:session_id",
-    "//ios/chrome/browser/sessions/model:session_constants",
     "//ios/chrome/browser/shared/model/browser",
     "//ios/chrome/browser/shared/model/browser/test:test_support",
     "//ios/chrome/browser/shared/model/profile/test",
@@ -168,6 +166,7 @@ source_set("eg2_tests") {
   testonly = true
   sources = [ "snapshot_egtest.mm" ]
   deps = [
+    "//ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid:grid_ui_constants",
     "//ios/chrome/test/earl_grey:eg_test_support+eg2",
     "//ios/testing/earl_grey:eg_test_support+eg2",
     "//net:test_support",

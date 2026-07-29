@@ -59,7 +59,6 @@
 
 namespace gpu {
 class DawnContextProvider;
-class GpuMemoryBufferFactory;
 class GpuWatchdogThread;
 class ImageDecodeAcceleratorWorker;
 class Scheduler;
@@ -172,6 +171,12 @@ class VIZ_SERVICE_EXPORT GpuServiceImpl
   void SetChannelDiskCacheHandle(
       int32_t client_id,
       const gpu::GpuDiskCacheHandle& handle) override;
+  void SetChannelPersistentCacheFile(
+      int32_t client_id,
+      const gpu::GpuDiskCacheHandle& handle,
+      base::File db_file,
+      base::File journal_file,
+      base::UnsafeSharedMemoryRegion shared_lock) override;
   void OnDiskCacheHandleDestoyed(
       const gpu::GpuDiskCacheHandle& handle) override;
   void CloseChannel(int32_t client_id) override;
@@ -523,8 +528,6 @@ class VIZ_SERVICE_EXPORT GpuServiceImpl
 #endif
 
   std::unique_ptr<webnn::WebNNContextProviderImpl> webnn_context_provider_;
-
-  std::unique_ptr<gpu::GpuMemoryBufferFactory> gpu_memory_buffer_factory_;
 
   // An event that will be signalled when we shutdown. On some platforms it
   // comes from external sources.

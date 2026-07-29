@@ -150,8 +150,8 @@ class OopPixelTest : public testing::Test,
     const int raster_max_texture_size =
         raster_context_provider_->ContextCapabilities().max_texture_size;
     oop_image_cache_ = std::make_unique<GpuImageDecodeCache>(
-        raster_context_provider_.get(), true, kRGBA_8888_SkColorType,
-        kWorkingSetSize, raster_max_texture_size, nullptr);
+        raster_context_provider_.get(), kRGBA_8888_SkColorType, kWorkingSetSize,
+        raster_max_texture_size, nullptr);
   }
 
   class RasterOptions {
@@ -1358,7 +1358,7 @@ class TestMailboxBacking : public TextureBacking {
 
 TEST_F(OopPixelTest, DrawMailboxBackedImage) {
   RasterOptions options(gfx::Size(16, 16));
-  options.image_provider_raster_mode = PlaybackImageProvider::RasterMode::kOop;
+  options.image_provider_raster_mode = PlaybackImageProvider::RasterMode::kGpu;
   SkImageInfo backing_info = SkImageInfo::MakeN32Premul(
       options.resource_size.width(), options.resource_size.height());
 

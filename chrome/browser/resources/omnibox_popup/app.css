@@ -8,6 +8,9 @@
  * #css_wrapper_metadata_end */
 
 :host {
+  --cr-searchbox-icon-container-size: 28px;
+  --cr-searchbox-match-padding: 5px;
+  --cr-searchbox-match-padding-inline-start: 16px;
   --cr-searchbox-min-width: 75%;
   --cr-searchbox-width: 100%;
   font-size: 14.6px; /* closely resembles the omnibox input font size. */
@@ -19,18 +22,21 @@
   --color-searchbox-results-action-chip: var(--color-omnibox-results-button-border);
   --color-searchbox-results-background-hovered: var(--color-omnibox-results-background-hovered);
   --color-searchbox-results-background: var(--color-omnibox-results-background);
-  /* TODO(crbug.com/40251392): Replace hardcoded color below with a color token. */
-  --color-searchbox-results-button-hover: #202124ff;
+  --color-searchbox-results-button-hover: var(--color-omnibox-results-icon-hovered);
   --color-searchbox-results-dim-selected: var(--color-omnibox-result-text-dimmed-selected);
   --color-searchbox-results-focus-indicator: var(--color-omnibox-results-focus-indicator);
   --color-searchbox-results-foreground-dimmed: var(--color-omnibox-results-text-dimmed);
   --color-searchbox-results-foreground: var(--color-omnibox-text);
+  --color-searchbox-results-icon: var(--color-omnibox-results-icon);
+  --color-searchbox-results-icon-container-background: unset;
+  --color-searchbox-results-icon-container-background-fallback: var(--color-omnibox-results-background-hovered);
   --color-searchbox-results-icon-focused-outline: var(--color-omnibox-results-focus-indicator);
   --color-searchbox-results-icon-selected: var(--color-omnibox-results-icon-selected);
-  --color-searchbox-results-icon: var(--color-omnibox-results-icon);
+  --color-searchbox-results-typed-prefix: unset;
   --color-searchbox-results-url-selected: var(--color-omnibox-results-url-selected);
   --color-searchbox-results-url: var(--color-omnibox-results-url);
   --color-searchbox-search-icon-background: var(--color-omnibox-results-icon);
+  --cr-searchbox-match-padding: 4px;
 }
 
 /**
@@ -39,4 +45,12 @@
  */
 :host([can-show-secondary-side][has-secondary-side]) {
   --cr-searchbox-secondary-side-display: block;
+}
+
+/**
+ * In debug mode, make the element take up 50% of the viewport width.
+ */
+:host([is-debug]) {
+  display: block;
+  width: 50%;
 }

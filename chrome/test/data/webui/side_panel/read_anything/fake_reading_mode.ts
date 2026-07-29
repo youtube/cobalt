@@ -87,6 +87,8 @@ export class FakeReadingMode {
   // If the speech tree has been initialized.
   isSpeechTreeInitialized: boolean = false;
 
+  requiresDistillation: boolean = false;
+
   private maxNodeId: number = 5;
 
   fetchedImages: number[] = [];
@@ -291,6 +293,11 @@ export class FakeReadingMode {
   getLanguagesEnabledInPref(): string[] {
     return [...this.savedLanguagePref.values()];
   }
+
+  // Signals that a system voice was used during a speech playback session,
+  // which will be used to log the installation state of the TTS engine
+  // extension.
+  logExtensionState() {}
 
   // Called when a user makes a selection change. AnchorNodeID and
   // focusAXNodeID are AXNodeIDs which identify the anchor and focus AXNodes

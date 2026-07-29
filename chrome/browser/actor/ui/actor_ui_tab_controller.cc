@@ -8,6 +8,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/ui/actor_border_view_controller.h"
 #include "chrome/browser/actor/ui/actor_ui_tab_controller_interface.h"
 #include "chrome/browser/actor/ui/actor_ui_window_controller.h"
@@ -57,6 +58,7 @@ ActorUiTabController::ActorUiTabController(
   CHECK(actor_keyed_service_);
   handoff_button_controller_ =
       controller_factory_->CreateHandoffButtonController(tab);
+  RegisterTabSubscriptions();
 }
 
 ActorUiTabController::~ActorUiTabController() = default;
@@ -206,7 +208,7 @@ void ActorUiTabController::InitializeImmersiveModeObserver() {
 }
 
 void ActorUiTabController::OnImmersiveFullscreenEntered() {
-  if (!actor_keyed_service_->IsAnyTaskActingOnTab(*tab_)) {
+  if (!actor_keyed_service_->GetTaskFromTab(*tab_)) {
     return;
   }
   UpdateUi(base::BindOnce(&LogAndIgnoreCallbackError,
@@ -214,7 +216,7 @@ void ActorUiTabController::OnImmersiveFullscreenEntered() {
 }
 
 void ActorUiTabController::OnImmersiveFullscreenExited() {
-  if (!actor_keyed_service_->IsAnyTaskActingOnTab(*tab_)) {
+  if (!actor_keyed_service_->GetTaskFromTab(*tab_)) {
     return;
   }
   UpdateUi(base::BindOnce(&LogAndIgnoreCallbackError,
@@ -275,7 +277,7 @@ bool ActorUiTabController::ComputeHandoffButtonVisibility() {
 }
 
 void ActorUiTabController::SetActorTaskPaused() {
-  TaskId task_id = actor_keyed_service_->IsAnyTaskActingOnTab(*tab_);
+  TaskId task_id = actor_keyed_service_->GetTaskFromTab(*tab_);
   if (!task_id) {
     VLOG(1) << "There is no active task acting on this tab.";
     return;
@@ -287,7 +289,7 @@ void ActorUiTabController::SetActorTaskPaused() {
 }
 
 void ActorUiTabController::SetActorTaskResume() {
-  TaskId task_id = actor_keyed_service_->IsAnyTaskActingOnTab(*tab_);
+  TaskId task_id = actor_keyed_service_->GetTaskFromTab(*tab_);
   if (!task_id) {
     VLOG(1) << "There is no active task acting on this tab.";
     return;

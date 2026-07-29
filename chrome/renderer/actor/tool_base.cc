@@ -13,6 +13,7 @@
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/actor/journal_details_builder.h"
 #include "chrome/common/chrome_features.h"
+#include "chrome/renderer/actor/journal.h"
 #include "chrome/renderer/actor/tool_utils.h"
 #include "content/public/renderer/render_frame.h"
 #include "third_party/abseil-cpp/absl/strings/str_format.h"
@@ -56,8 +57,12 @@ base::TimeDelta ToolBase::ExecutionObservationDelay() const {
   return base::TimeDelta();
 }
 
+bool ToolBase::SupportsPaintStability() const {
+  return false;
+}
+
 ToolBase::ToolBase(content::RenderFrame& frame,
-                   Journal::TaskId task_id,
+                   TaskId task_id,
                    Journal& journal,
                    mojom::ToolTargetPtr target,
                    mojom::ObservedToolTargetPtr observed_target)
@@ -150,16 +155,41 @@ ToolBase::ValidateTimeOfUse(const ResolvedTarget& resolved_target) const {
       return resolved_target;
     }
 
-    if (target_node.GetDomNodeId() !=
-        *observed_target_->node_attribute->dom_node_id) {
-      journal_->Log(task_id_, "TimeOfUseValidation",
-                    JournalDetailsBuilder()
-                        .Add("obs_node_id",
-                             *observed_target_->node_attribute->dom_node_id)
-                        .Add("target_node_id", target_node.GetDomNodeId())
-                        .Add("target", NodeToDebugSring(target_node))
-                        .AddError("Wrong Node At Location")
-                        .Build());
+    const blink::WebNode& observed_target_node =
+        GetNodeFromId(*frame_, *observed_target_->node_attribute->dom_node_id);
+
+    if (observed_target_node.IsNull()) {
+      journal_->Log(
+          task_id_, "TimeOfUseValidation",
+          JournalDetailsBuilder()
+              .Add("coordinate", base::ToString(target_->get_coordinate()))
+              .Add("target_id", target_node.GetDomNodeId())
+              .Add("observed_target_id",
+                   *observed_target_->node_attribute->dom_node_id)
+              .Add("target", NodeToDebugSring(target_node))
+              .AddError(
+                  "Observed target at coordinate is not present in live DOM")
+              .Build());
+      if (base::FeatureList::IsEnabled(features::kGlicActorToctouValidation)) {
+        return base::unexpected(MakeResult(
+            mojom::ActionResultCode::kObservedTargetElementDestroyed,
+            "The observed element at the target location is destroyed"));
+      }
+    }
+
+    // Target node for coordinate target is obtained through blink hit test
+    // which includes shadow host elements.
+    if (!observed_target_node.ContainsIncludingHostElements(&target_node)) {
+      journal_->Log(
+          task_id_, "TimeOfUseValidation",
+          JournalDetailsBuilder()
+              .Add("coordinate", base::ToString(target_->get_coordinate()))
+              .Add("target_id", target_node.GetDomNodeId())
+              .Add("observed_target_id", observed_target_node.GetDomNodeId())
+              .Add("target", NodeToDebugSring(target_node))
+              .Add("observed_target", NodeToDebugSring(observed_target_node))
+              .AddError("Wrong Node At Location")
+              .Build());
       UmaHistogramEnumeration(kTimeOfUseValidationHistogram,
                               TimeOfUseResult::kWrongNodeAtCoordinate);
       if (base::FeatureList::IsEnabled(features::kGlicActorToctouValidation)) {
@@ -217,8 +247,8 @@ ToolBase::ValidateTimeOfUse(const ResolvedTarget& resolved_target) const {
               .Add("point", gfx::ToFlooredPoint(resolved_target.point))
               .AddError("No geometry for node")
               .Build());
-      // TODO(crbug.com/418280472): return error after retry for failed task is
-      // landed.
+      // TODO(crbug.com/418280472): return error after retry for failed task
+      // is landed.
       UmaHistogramEnumeration(kTimeOfUseValidationHistogram,
                               TimeOfUseResult::kTargetNodeMissingGeometry);
       return resolved_target;
@@ -236,8 +266,8 @@ ToolBase::ValidateTimeOfUse(const ResolvedTarget& resolved_target) const {
                         .Add("bounding_box", observed_bounds)
                         .AddError("Point not in box")
                         .Build());
-      // TODO(crbug.com/418280472): return error after retry for failed task is
-      // landed.
+      // TODO(crbug.com/418280472): return error after retry for failed task
+      // is landed.
       UmaHistogramEnumeration(kTimeOfUseValidationHistogram,
                               TimeOfUseResult::kTargetPointOutsideBoundingBox);
       return resolved_target;

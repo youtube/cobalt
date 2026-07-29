@@ -147,17 +147,6 @@ constexpr char kTestEmail[] = "foo@example.com";
 class MockSigninUiDelegate : public signin_ui_util::SigninUiDelegate {
  public:
   MOCK_METHOD(void,
-              ShowTurnSyncOnUI,
-              (Profile*,
-               signin_metrics::AccessPoint,
-               signin_metrics::PromoAction,
-               const CoreAccountId&,
-               TurnSyncOnHelper::SigninAbortedMode,
-               bool,
-               bool),
-              (override));
-
-  MOCK_METHOD(void,
               ShowSigninUI,
               (Profile*,
                bool,
@@ -171,6 +160,20 @@ class MockSigninUiDelegate : public signin_ui_util::SigninUiDelegate {
                bool,
                signin_metrics::AccessPoint,
                signin_metrics::PromoAction),
+              (override));
+  MOCK_METHOD(void,
+              ShowTurnSyncOnUI,
+              (Profile*,
+               signin_metrics::AccessPoint,
+               signin_metrics::PromoAction,
+               const CoreAccountId&,
+               TurnSyncOnHelper::SigninAbortedMode,
+               bool,
+               bool),
+              (override));
+  MOCK_METHOD(void,
+              ShowHistorySyncOptinUI,
+              (Profile*, const CoreAccountId&),
               (override));
 };
 
@@ -852,14 +855,23 @@ IN_PROC_BROWSER_TEST_F(ProfileMenuViewWebOnlyTest, ContinueAs) {
   base::HistogramTester histogram_tester;
   const signin_metrics::AccessPoint expected_access_point =
       signin_metrics::AccessPoint::kAvatarBubbleSignInWithSyncPromo;
-  EXPECT_CALL(
-      mock_signin_ui_delegate,
-      ShowTurnSyncOnUI(browser()->profile(), expected_access_point,
-                       signin_metrics::PromoAction::PROMO_ACTION_WITH_DEFAULT,
-                       account_info_.account_id,
-                       TurnSyncOnHelper::SigninAbortedMode::KEEP_ACCOUNT,
-                       /*is_sync_promo=*/true,
-                       /*user_already_signed_in=*/false));
+
+  if (base::FeatureList::IsEnabled(
+          syncer::kReplaceSyncPromosWithSignInPromos)) {
+    EXPECT_CALL(
+        mock_signin_ui_delegate,
+        ShowHistorySyncOptinUI(browser()->profile(), account_info_.account_id));
+  } else {
+    EXPECT_CALL(
+        mock_signin_ui_delegate,
+        ShowTurnSyncOnUI(browser()->profile(), expected_access_point,
+                         signin_metrics::PromoAction::PROMO_ACTION_WITH_DEFAULT,
+                         account_info_.account_id,
+                         TurnSyncOnHelper::SigninAbortedMode::KEEP_ACCOUNT,
+                         /*is_sync_promo=*/true,
+                         /*user_already_signed_in=*/false));
+  }
+
   ClickSigninButton();
   EXPECT_EQ(IdentityManagerFactory::GetForProfile(browser()->profile())
                 ->GetPrimaryAccountId(signin::ConsentLevel::kSignin),
@@ -1141,7 +1153,7 @@ class ProfileMenuClickTest : public SyncTest,
   class test_case_name : public FixtureClass {                            \
    public:                                                                \
     test_case_name() {                                                    \
-      scoped_feature_list_##test_case_name.InitWithFeaturesAndParameters( \
+      scoped_feature_list_##test_case_name.InitWithFeatures(              \
           enabled_features, disabled_features);                           \
     }                                                                     \
     test_case_name(const test_case_name&) = delete;                       \
@@ -1217,14 +1229,11 @@ constexpr std::array kActionableItems_ManagedProfile = {
     // there are no other buttons at the end.
     ProfileMenuViewBase::ActionableItem::kProfileManagementLabel};
 
-const std::vector<base::test::FeatureRefAndParams>
-    kManagedProfileEnabledFeatures = {
-        {features::kEnterpriseProfileBadgingForMenu, {}}};
-
-PROFILE_MENU_CLICK_WITH_FEATURE_TEST(kActionableItems_ManagedProfile,
-                                     ProfileMenuClickTest_ManagedProfile,
-                                     kManagedProfileEnabledFeatures,
-                                     /*disabled_features=*/{}) {
+PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
+    kActionableItems_ManagedProfile,
+    ProfileMenuClickTest_ManagedProfile,
+    /*enabled_features=*/{features::kEnterpriseProfileBadgingForMenu},
+    /*disabled_features=*/{}) {
   enterprise_util::SetUserAcceptedAccountManagement(browser()->profile(), true);
   std::unique_ptr<policy::ScopedManagementServiceOverrideForTesting>
       scoped_browser_management_ =
@@ -1265,7 +1274,42 @@ PROFILE_MENU_CLICK_TEST(kActionableItems_MultipleProfiles,
 
 // List of actionable items in the correct order as they appear in the menu. If
 // a new button is added to the menu, it should also be added to this list.
-constexpr std::array kActionableItems_WebOnly = {
+constexpr std::array kActionableItems_WebOnly_ReplaceSyncPromosEnabled = {
+    ProfileMenuViewBase::ActionableItem::kSigninAccountButton,
+    ProfileMenuViewBase::ActionableItem::kAutofillSettingsButton,
+    ProfileMenuViewBase::ActionableItem::kEditProfileButton,
+    ProfileMenuViewBase::ActionableItem::kAddNewProfileButton,
+    ProfileMenuViewBase::ActionableItem::kGuestProfileButton,
+    ProfileMenuViewBase::ActionableItem::kManageProfilesButton,
+    // The first button is added again to finish the cycle and test that
+    // there are no other buttons at the end.
+    ProfileMenuViewBase::ActionableItem::kSigninAccountButton};
+
+PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
+    kActionableItems_WebOnly_ReplaceSyncPromosEnabled,
+    ProfileMenuClickTest_WebOnly_ReplaceSyncPromosEnabled,
+    {syncer::kReplaceSyncPromosWithSignInPromos},
+    /*disabled_features=*/{}) {
+  // Add an account, not signed in.
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(browser()->profile());
+  signin::AccountAvailabilityOptionsBuilder builder;
+  AccountInfo account_info = signin::MakeAccountAvailable(
+      identity_manager,
+      builder.WithAccessPoint(signin_metrics::AccessPoint::kWebSignin)
+          .Build(kTestEmail));
+  signin::SetCookieAccounts(identity_manager, &test_url_loader_factory_,
+                            {{account_info.email, account_info.gaia}});
+  ASSERT_FALSE(
+      identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin));
+  ASSERT_EQ(identity_manager->GetAccountsWithRefreshTokens().size(), 1u);
+
+  RunTest();
+}
+
+// List of actionable items in the correct order as they appear in the menu. If
+// a new button is added to the menu, it should also be added to this list.
+constexpr std::array kActionableItems_WebOnly_ReplaceSyncPromosDisabled = {
     ProfileMenuViewBase::ActionableItem::kSigninAccountButton,
     ProfileMenuViewBase::ActionableItem::kAutofillSettingsButton,
     ProfileMenuViewBase::ActionableItem::kEditProfileButton,
@@ -1277,8 +1321,11 @@ constexpr std::array kActionableItems_WebOnly = {
     // there are no other buttons at the end.
     ProfileMenuViewBase::ActionableItem::kSigninAccountButton};
 
-PROFILE_MENU_CLICK_TEST(kActionableItems_WebOnly,
-                        ProfileMenuClickTest_WebOnly) {
+PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
+    kActionableItems_WebOnly_ReplaceSyncPromosDisabled,
+    ProfileMenuClickTest_WebOnly_ReplaceSyncPromosDisabled,
+    /*enabled_features=*/{},
+    {syncer::kReplaceSyncPromosWithSignInPromos}) {
   // Add an account, not signed in.
   signin::IdentityManager* identity_manager =
       IdentityManagerFactory::GetForProfile(browser()->profile());
@@ -1395,19 +1442,23 @@ PROFILE_MENU_CLICK_TEST(kActionableItems_SyncPaused,
 // List of actionable items in the correct order as they appear in the menu with
 // signin disallowed. If a new button is added to the menu, it should also be
 // added to this list.
-constexpr std::array kActionableItems_SigninDisallowed = {
-    ProfileMenuViewBase::ActionableItem::kAutofillSettingsButton,
-    ProfileMenuViewBase::ActionableItem::kEditProfileButton,
-    ProfileMenuViewBase::ActionableItem::kSyncSettingsButton,
-    ProfileMenuViewBase::ActionableItem::kAddNewProfileButton,
-    ProfileMenuViewBase::ActionableItem::kGuestProfileButton,
-    ProfileMenuViewBase::ActionableItem::kManageProfilesButton,
-    // The first button is added again to finish the cycle and test that
-    // there are no other buttons at the end.
-    ProfileMenuViewBase::ActionableItem::kAutofillSettingsButton};
+constexpr std::array
+    kActionableItems_SigninDisallowed_ReplaceSyncPromosEnabled = {
+        ProfileMenuViewBase::ActionableItem::kAutofillSettingsButton,
+        ProfileMenuViewBase::ActionableItem::kEditProfileButton,
+        ProfileMenuViewBase::ActionableItem::kGoogleServicesSettingsButton,
+        ProfileMenuViewBase::ActionableItem::kAddNewProfileButton,
+        ProfileMenuViewBase::ActionableItem::kGuestProfileButton,
+        ProfileMenuViewBase::ActionableItem::kManageProfilesButton,
+        // The first button is added again to finish the cycle and test that
+        // there are no other buttons at the end.
+        ProfileMenuViewBase::ActionableItem::kAutofillSettingsButton};
 
-PROFILE_MENU_CLICK_TEST(kActionableItems_SigninDisallowed,
-                        ProfileMenuClickTest_SigninDisallowed) {
+PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
+    kActionableItems_SigninDisallowed_ReplaceSyncPromosEnabled,
+    ProfileMenuClickTest_SigninDisallowed_ReplaceSyncPromosEnabled,
+    {syncer::kReplaceSyncPromosWithSignInPromos},
+    /*disabled_features=*/{}) {
   // Check that the setup was successful.
   ASSERT_FALSE(
       browser()->profile()->GetPrefs()->GetBoolean(prefs::kSigninAllowed));
@@ -1415,8 +1466,43 @@ PROFILE_MENU_CLICK_TEST(kActionableItems_SigninDisallowed,
   RunTest();
 }
 
-IN_PROC_BROWSER_TEST_P(ProfileMenuClickTest_SigninDisallowed,
-                       PRE_ProfileMenuClickTest_SigninDisallowed) {
+IN_PROC_BROWSER_TEST_P(
+    ProfileMenuClickTest_SigninDisallowed_ReplaceSyncPromosEnabled,
+    PRE_ProfileMenuClickTest_SigninDisallowed_ReplaceSyncPromosEnabled) {
+  browser()->profile()->GetPrefs()->SetBoolean(
+      prefs::kSigninAllowedOnNextStartup, false);
+}
+
+// List of actionable items in the correct order as they appear in the menu with
+// signin disallowed. If a new button is added to the menu, it should also be
+// added to this list.
+constexpr std::array
+    kActionableItems_SigninDisallowed_ReplaceSyncPromosDisabled = {
+        ProfileMenuViewBase::ActionableItem::kAutofillSettingsButton,
+        ProfileMenuViewBase::ActionableItem::kEditProfileButton,
+        ProfileMenuViewBase::ActionableItem::kSyncSettingsButton,
+        ProfileMenuViewBase::ActionableItem::kAddNewProfileButton,
+        ProfileMenuViewBase::ActionableItem::kGuestProfileButton,
+        ProfileMenuViewBase::ActionableItem::kManageProfilesButton,
+        // The first button is added again to finish the cycle and test that
+        // there are no other buttons at the end.
+        ProfileMenuViewBase::ActionableItem::kAutofillSettingsButton};
+
+PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
+    kActionableItems_SigninDisallowed_ReplaceSyncPromosDisabled,
+    ProfileMenuClickTest_SigninDisallowed_ReplaceSyncPromosDisabled,
+    /*enabled_features=*/{},
+    {syncer::kReplaceSyncPromosWithSignInPromos}) {
+  // Check that the setup was successful.
+  ASSERT_FALSE(
+      browser()->profile()->GetPrefs()->GetBoolean(prefs::kSigninAllowed));
+
+  RunTest();
+}
+
+IN_PROC_BROWSER_TEST_P(
+    ProfileMenuClickTest_SigninDisallowed_ReplaceSyncPromosDisabled,
+    PRE_ProfileMenuClickTest_SigninDisallowed_ReplaceSyncPromosDisabled) {
   browser()->profile()->GetPrefs()->SetBoolean(
       prefs::kSigninAllowedOnNextStartup, false);
 }
@@ -1424,18 +1510,18 @@ IN_PROC_BROWSER_TEST_P(ProfileMenuClickTest_SigninDisallowed,
 // List of actionable items in the correct order as they appear in the menu when
 // the web account is disallowed by pattern. If a new button is added to the
 // menu, it should also be added to this list.
-constexpr std::array kActionableItems_SigninPatternDisallowed = {
-    // Non-personalized signin button.
-    ProfileMenuViewBase::ActionableItem::kSigninButton,
-    ProfileMenuViewBase::ActionableItem::kAutofillSettingsButton,
-    ProfileMenuViewBase::ActionableItem::kEditProfileButton,
-    ProfileMenuViewBase::ActionableItem::kSyncSettingsButton,
-    ProfileMenuViewBase::ActionableItem::kAddNewProfileButton,
-    ProfileMenuViewBase::ActionableItem::kGuestProfileButton,
-    ProfileMenuViewBase::ActionableItem::kManageProfilesButton,
-    // The first button is added again to finish the cycle and test that
-    // there are no other buttons at the end.
-    ProfileMenuViewBase::ActionableItem::kSigninButton};
+constexpr std::array
+    kActionableItems_SigninPatternDisallowed_ReplaceSyncPromosEnabled = {
+        // Non-personalized signin button.
+        ProfileMenuViewBase::ActionableItem::kSigninButton,
+        ProfileMenuViewBase::ActionableItem::kAutofillSettingsButton,
+        ProfileMenuViewBase::ActionableItem::kEditProfileButton,
+        ProfileMenuViewBase::ActionableItem::kAddNewProfileButton,
+        ProfileMenuViewBase::ActionableItem::kGuestProfileButton,
+        ProfileMenuViewBase::ActionableItem::kManageProfilesButton,
+        // The first button is added again to finish the cycle and test that
+        // there are no other buttons at the end.
+        ProfileMenuViewBase::ActionableItem::kSigninButton};
 
 // In this test, the user has an account on the web, but this account is not
 // allowed to be signed in due to a pattern set by policy.
@@ -1443,8 +1529,11 @@ constexpr std::array kActionableItems_SigninPatternDisallowed = {
 // -- as opposed to a personalized "Continue as" button. This is checked by
 // verifying that the first item in the menu is `kSigninButton`, and not
 // `kSigninAccountButton`.
-PROFILE_MENU_CLICK_TEST(kActionableItems_SigninPatternDisallowed,
-                        ProfileMenuClickTest_SigninPatternDisallowed) {
+PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
+    kActionableItems_SigninPatternDisallowed_ReplaceSyncPromosEnabled,
+    ProfileMenuClickTest_SigninPatternDisallowed_ReplaceSyncPromosEnabled,
+    {syncer::kReplaceSyncPromosWithSignInPromos},
+    /*disabled_features=*/{}) {
   // Check that the setup was successful.
   PrefService* local_state = g_browser_process->local_state();
   constexpr char kAccountNotAllowed[] = "foo@notallowed.com";
@@ -1470,19 +1559,20 @@ PROFILE_MENU_CLICK_TEST(kActionableItems_SigninPatternDisallowed,
   RunTest();
 }
 
-IN_PROC_BROWSER_TEST_P(ProfileMenuClickTest_SigninPatternDisallowed,
-                       PRE_ProfileMenuClickTest_SigninPatternDisallowed) {
+IN_PROC_BROWSER_TEST_P(
+    ProfileMenuClickTest_SigninPatternDisallowed_ReplaceSyncPromosEnabled,
+    PRE_ProfileMenuClickTest_SigninPatternDisallowed_ReplaceSyncPromosEnabled) {
   g_browser_process->local_state()->SetString(
       prefs::kGoogleServicesUsernamePattern, "*@signinallowed.com");
 }
 
 // List of actionable items in the correct order as they appear in the menu when
-// the web account is disallowed by pattern, but a secondary account is allowed.
-// If a new button is added to the menu, it should also be added to this list.
-constexpr std::array kActionableItems_SigninPatternDisallowedSecondaryAllowed =
-    {
-        // Personalized signin button.
-        ProfileMenuViewBase::ActionableItem::kSigninAccountButton,
+// the web account is disallowed by pattern. If a new button is added to the
+// menu, it should also be added to this list.
+constexpr std::array
+    kActionableItems_SigninPatternDisallowed_ReplaceSyncPromosDisabled = {
+        // Non-personalized signin button.
+        ProfileMenuViewBase::ActionableItem::kSigninButton,
         ProfileMenuViewBase::ActionableItem::kAutofillSettingsButton,
         ProfileMenuViewBase::ActionableItem::kEditProfileButton,
         ProfileMenuViewBase::ActionableItem::kSyncSettingsButton,
@@ -1491,15 +1581,77 @@ constexpr std::array kActionableItems_SigninPatternDisallowedSecondaryAllowed =
         ProfileMenuViewBase::ActionableItem::kManageProfilesButton,
         // The first button is added again to finish the cycle and test that
         // there are no other buttons at the end.
-        ProfileMenuViewBase::ActionableItem::kSigninAccountButton};
+        ProfileMenuViewBase::ActionableItem::kSigninButton};
+
+// In this test, the user has an account on the web, but this account is not
+// allowed to be signed in due to a pattern set by policy.
+// The test checks that a generic non-personalized button is shown in the menu
+// -- as opposed to a personalized "Continue as" button. This is checked by
+// verifying that the first item in the menu is `kSigninButton`, and not
+// `kSigninAccountButton`.
+PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
+    kActionableItems_SigninPatternDisallowed_ReplaceSyncPromosDisabled,
+    ProfileMenuClickTest_SigninPatternDisallowed_ReplaceSyncPromosDisabled,
+    /*enabled_features=*/{},
+    {syncer::kReplaceSyncPromosWithSignInPromos}) {
+  // Check that the setup was successful.
+  PrefService* local_state = g_browser_process->local_state();
+  constexpr char kAccountNotAllowed[] = "foo@notallowed.com";
+  ASSERT_TRUE(signin::IsUsernameAllowedByPatternFromPrefs(
+      local_state, "foo@signinallowed.com"));
+  ASSERT_FALSE(signin::IsUsernameAllowedByPatternFromPrefs(local_state,
+                                                           kAccountNotAllowed));
+
+  // Add an account, not signed in.
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(browser()->profile());
+  signin::AccountAvailabilityOptionsBuilder builder;
+  AccountInfo account_info = signin::MakeAccountAvailable(
+      identity_manager,
+      builder.WithAccessPoint(signin_metrics::AccessPoint::kWebSignin)
+          .Build(kAccountNotAllowed));
+  signin::SetCookieAccounts(identity_manager, &test_url_loader_factory_,
+                            {{account_info.email, account_info.gaia}});
+  ASSERT_FALSE(
+      identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin));
+  ASSERT_EQ(identity_manager->GetAccountsWithRefreshTokens().size(), 1u);
+
+  RunTest();
+}
+
+IN_PROC_BROWSER_TEST_P(
+    ProfileMenuClickTest_SigninPatternDisallowed_ReplaceSyncPromosDisabled,
+    PRE_ProfileMenuClickTest_SigninPatternDisallowed_ReplaceSyncPromosDisabled) {
+  g_browser_process->local_state()->SetString(
+      prefs::kGoogleServicesUsernamePattern, "*@signinallowed.com");
+}
+
+// List of actionable items in the correct order as they appear in the menu when
+// the web account is disallowed by pattern, but a secondary account is allowed.
+// If a new button is added to the menu, it should also be added to this list.
+constexpr std::array
+    kActionableItems_SigninPatternDisallowedSecondaryAllowed_ReplaceSyncPromosEnabled =
+        {
+            // Personalized signin button.
+            ProfileMenuViewBase::ActionableItem::kSigninAccountButton,
+            ProfileMenuViewBase::ActionableItem::kAutofillSettingsButton,
+            ProfileMenuViewBase::ActionableItem::kEditProfileButton,
+            ProfileMenuViewBase::ActionableItem::kAddNewProfileButton,
+            ProfileMenuViewBase::ActionableItem::kGuestProfileButton,
+            ProfileMenuViewBase::ActionableItem::kManageProfilesButton,
+            // The first button is added again to finish the cycle and test that
+            // there are no other buttons at the end.
+            ProfileMenuViewBase::ActionableItem::kSigninAccountButton};
 
 // This test is similar to the previous one, but the user has a secondary
 // account that is allowed. The first button is now `kSigninAccountButton` which
 // is "Continue as". Clicking the button would sign the user in with the allowed
 // account, but this test does not actually check that.
-PROFILE_MENU_CLICK_TEST(
-    kActionableItems_SigninPatternDisallowedSecondaryAllowed,
-    ProfileMenuClickTest_SigninPatternDisallowedSecondaryAllowed) {
+PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
+    kActionableItems_SigninPatternDisallowedSecondaryAllowed_ReplaceSyncPromosEnabled,
+    ProfileMenuClickTest_SigninPatternDisallowedSecondaryAllowed_ReplaceSyncPromosEnabled,
+    /*enabled_features=*/{syncer::kReplaceSyncPromosWithSignInPromos},
+    /*disabled_features=*/{}) {
   // Check that the setup was successful.
   PrefService* local_state = g_browser_process->local_state();
   constexpr char kAccountNotAllowed[] = "foo@notallowed.com";
@@ -1539,30 +1691,140 @@ PROFILE_MENU_CLICK_TEST(
 }
 
 IN_PROC_BROWSER_TEST_P(
-    ProfileMenuClickTest_SigninPatternDisallowedSecondaryAllowed,
-    PRE_ProfileMenuClickTest_SigninPatternDisallowedSecondaryAllowed) {
+    ProfileMenuClickTest_SigninPatternDisallowedSecondaryAllowed_ReplaceSyncPromosEnabled,
+    PRE_ProfileMenuClickTest_SigninPatternDisallowedSecondaryAllowed_ReplaceSyncPromosEnabled) {
+  g_browser_process->local_state()->SetString(
+      prefs::kGoogleServicesUsernamePattern, "*@signinallowed.com");
+}
+
+// List of actionable items in the correct order as they appear in the menu when
+// the web account is disallowed by pattern, but a secondary account is allowed.
+// If a new button is added to the menu, it should also be added to this list.
+constexpr std::array
+    kActionableItems_SigninPatternDisallowedSecondaryAllowed_ReplaceSyncPromosDisabled =
+        {
+            // Personalized signin button.
+            ProfileMenuViewBase::ActionableItem::kSigninAccountButton,
+            ProfileMenuViewBase::ActionableItem::kAutofillSettingsButton,
+            ProfileMenuViewBase::ActionableItem::kEditProfileButton,
+            ProfileMenuViewBase::ActionableItem::kSyncSettingsButton,
+            ProfileMenuViewBase::ActionableItem::kAddNewProfileButton,
+            ProfileMenuViewBase::ActionableItem::kGuestProfileButton,
+            ProfileMenuViewBase::ActionableItem::kManageProfilesButton,
+            // The first button is added again to finish the cycle and test that
+            // there are no other buttons at the end.
+            ProfileMenuViewBase::ActionableItem::kSigninAccountButton};
+
+// This test is similar to the previous one, but the user has a secondary
+// account that is allowed. The first button is now `kSigninAccountButton` which
+// is "Continue as". Clicking the button would sign the user in with the allowed
+// account, but this test does not actually check that.
+PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
+    kActionableItems_SigninPatternDisallowedSecondaryAllowed_ReplaceSyncPromosDisabled,
+    ProfileMenuClickTest_SigninPatternDisallowedSecondaryAllowed_ReplaceSyncPromosDisabled,
+    /*enabled_features=*/{},
+    /*disabled_features=*/{syncer::kReplaceSyncPromosWithSignInPromos}) {
+  // Check that the setup was successful.
+  PrefService* local_state = g_browser_process->local_state();
+  constexpr char kAccountNotAllowed[] = "foo@notallowed.com";
+  constexpr char kAccountAllowed[] = "foo@signinallowed.com";
+  ASSERT_TRUE(signin::IsUsernameAllowedByPatternFromPrefs(local_state,
+                                                          kAccountAllowed));
+  ASSERT_FALSE(signin::IsUsernameAllowedByPatternFromPrefs(local_state,
+                                                           kAccountNotAllowed));
+
+  // Add an account, not signed in.
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(browser()->profile());
+  AccountInfo disallowed_account = signin::MakeAccountAvailable(
+      identity_manager,
+      signin::AccountAvailabilityOptionsBuilder()
+          .WithAccessPoint(signin_metrics::AccessPoint::kWebSignin)
+          .Build(kAccountNotAllowed));
+  AccountInfo allowed_account = signin::MakeAccountAvailable(
+      identity_manager,
+      signin::AccountAvailabilityOptionsBuilder()
+          .WithAccessPoint(signin_metrics::AccessPoint::kWebSignin)
+          .Build(kAccountAllowed));
+  signin::SetCookieAccounts(
+      identity_manager, &test_url_loader_factory_,
+      {{disallowed_account.email, disallowed_account.gaia},
+       {allowed_account.email, allowed_account.gaia}});
+  ASSERT_FALSE(
+      identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin));
+  ASSERT_EQ(identity_manager->GetAccountsWithRefreshTokens().size(), 2u);
+  signin::AccountsInCookieJarInfo cookie_info =
+      identity_manager->GetAccountsInCookieJar();
+  ASSERT_EQ(cookie_info.GetAllAccounts().size(), 2u);
+  // Disallowed account is the first in cookies.
+  ASSERT_EQ(cookie_info.GetAllAccounts()[0].email, kAccountNotAllowed);
+
+  RunTest();
+}
+
+IN_PROC_BROWSER_TEST_P(
+    ProfileMenuClickTest_SigninPatternDisallowedSecondaryAllowed_ReplaceSyncPromosDisabled,
+    PRE_ProfileMenuClickTest_SigninPatternDisallowedSecondaryAllowed_ReplaceSyncPromosDisabled) {
   g_browser_process->local_state()->SetString(
       prefs::kGoogleServicesUsernamePattern, "*@signinallowed.com");
 }
 
 // List of actionable items in the correct order as they appear in the menu. If
 // a new button is added to the menu, it should also be added to this list.
-constexpr std::array kActionableItems_WithUnconsentedPrimaryAccount = {
-    ProfileMenuViewBase::ActionableItem::kSigninAccountButton,
-    ProfileMenuViewBase::ActionableItem::kAutofillSettingsButton,
-    ProfileMenuViewBase::ActionableItem::kManageGoogleAccountButton,
-    ProfileMenuViewBase::ActionableItem::kEditProfileButton,
-    ProfileMenuViewBase::ActionableItem::kSyncSettingsButton,
-    ProfileMenuViewBase::ActionableItem::kSignoutButton,
-    ProfileMenuViewBase::ActionableItem::kAddNewProfileButton,
-    ProfileMenuViewBase::ActionableItem::kGuestProfileButton,
-    ProfileMenuViewBase::ActionableItem::kManageProfilesButton,
-    // The first button is added again to finish the cycle and test that
-    // there are no other buttons at the end.
-    ProfileMenuViewBase::ActionableItem::kSigninAccountButton};
+constexpr std::array
+    kActionableItems_WithUnconsentedPrimaryAccount_ReplaceSyncPromosEnabled = {
+        ProfileMenuViewBase::ActionableItem::kSigninAccountButton,
+        ProfileMenuViewBase::ActionableItem::kAutofillSettingsButton,
+        ProfileMenuViewBase::ActionableItem::kManageGoogleAccountButton,
+        ProfileMenuViewBase::ActionableItem::kEditProfileButton,
+        ProfileMenuViewBase::ActionableItem::kAccountSettingsButton,
+        ProfileMenuViewBase::ActionableItem::kSignoutButton,
+        ProfileMenuViewBase::ActionableItem::kAddNewProfileButton,
+        ProfileMenuViewBase::ActionableItem::kGuestProfileButton,
+        ProfileMenuViewBase::ActionableItem::kManageProfilesButton,
+        // The first button is added again to finish the cycle and test that
+        // there are no other buttons at the end.
+        ProfileMenuViewBase::ActionableItem::kSigninAccountButton};
 
-PROFILE_MENU_CLICK_TEST(kActionableItems_WithUnconsentedPrimaryAccount,
-                        ProfileMenuClickTest_WithUnconsentedPrimaryAccount) {
+PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
+    kActionableItems_WithUnconsentedPrimaryAccount_ReplaceSyncPromosEnabled,
+    ProfileMenuClickTest_WithUnconsentedPrimaryAccount_ReplaceSyncPromosEnabled,
+    /*enabled_features=*/{syncer::kReplaceSyncPromosWithSignInPromos},
+    /*disabled_features=*/{}) {
+  secondary_account_helper::SignInUnconsentedAccount(
+      GetProfile(), &test_url_loader_factory_, "user@example.com");
+  UnconsentedPrimaryAccountChecker(identity_manager()).Wait();
+  // Check that the setup was successful.
+  ASSERT_FALSE(
+      identity_manager()->HasPrimaryAccount(signin::ConsentLevel::kSync));
+  ASSERT_TRUE(
+      identity_manager()->HasPrimaryAccount(signin::ConsentLevel::kSignin));
+
+  RunTest();
+}
+
+// List of actionable items in the correct order as they appear in the menu. If
+// a new button is added to the menu, it should also be added to this list.
+constexpr std::array
+    kActionableItems_WithUnconsentedPrimaryAccount_ReplaceSyncPromosDisabled = {
+        ProfileMenuViewBase::ActionableItem::kSigninAccountButton,
+        ProfileMenuViewBase::ActionableItem::kAutofillSettingsButton,
+        ProfileMenuViewBase::ActionableItem::kManageGoogleAccountButton,
+        ProfileMenuViewBase::ActionableItem::kEditProfileButton,
+        ProfileMenuViewBase::ActionableItem::kSyncSettingsButton,
+        ProfileMenuViewBase::ActionableItem::kSignoutButton,
+        ProfileMenuViewBase::ActionableItem::kAddNewProfileButton,
+        ProfileMenuViewBase::ActionableItem::kGuestProfileButton,
+        ProfileMenuViewBase::ActionableItem::kManageProfilesButton,
+        // The first button is added again to finish the cycle and test that
+        // there are no other buttons at the end.
+        ProfileMenuViewBase::ActionableItem::kSigninAccountButton};
+
+PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
+    kActionableItems_WithUnconsentedPrimaryAccount_ReplaceSyncPromosDisabled,
+    ProfileMenuClickTest_WithUnconsentedPrimaryAccount_ReplaceSyncPromosDisabled,
+    /*enabled_features=*/{},
+    /*disabled_features=*/{syncer::kReplaceSyncPromosWithSignInPromos}) {
   secondary_account_helper::SignInUnconsentedAccount(
       GetProfile(), &test_url_loader_factory_, "user@example.com");
   UnconsentedPrimaryAccountChecker(identity_manager()).Wait();
@@ -1592,14 +1854,11 @@ constexpr std::array kActionableItems_WithPromoButton = {
     // there are no other buttons at the end.
     ProfileMenuViewBase::ActionableItem::kSigninAccountButton};
 
-const std::vector<base::test::FeatureRefAndParams>
-    kProfileMenuPromoButtonFeatureFlags = {
-        {syncer::kReplaceSyncPromosWithSignInPromos, {}}};
-
-PROFILE_MENU_CLICK_WITH_FEATURE_TEST(kActionableItems_WithPromoButton,
-                                     ProfileMenuClickTest_WithPromoButton,
-                                     kProfileMenuPromoButtonFeatureFlags,
-                                     /*disabled_features=*/{}) {
+PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
+    kActionableItems_WithPromoButton,
+    ProfileMenuClickTest_WithPromoButton,
+    /*enabled_features=*/{syncer::kReplaceSyncPromosWithSignInPromos},
+    /*disabled_features=*/{}) {
   secondary_account_helper::SignInUnconsentedAccount(
       GetProfile(), &test_url_loader_factory_, "user@example.com");
   UnconsentedPrimaryAccountChecker(identity_manager()).Wait();
@@ -1622,29 +1881,33 @@ PROFILE_MENU_CLICK_WITH_FEATURE_TEST(kActionableItems_WithPromoButton,
 // List of actionable items in the correct order as they appear in the menu in
 // signin pending state. If a new button is added to the menu, it should also be
 // added to this list.
-constexpr std::array kActionableItems_WithPendingAccount = {
-    ProfileMenuViewBase::ActionableItem::kSigninReauthButton,
-    ProfileMenuViewBase::ActionableItem::kAutofillSettingsButton,
-    ProfileMenuViewBase::ActionableItem::kEditProfileButton,
-    ProfileMenuViewBase::ActionableItem::kSyncSettingsButton,
-    ProfileMenuViewBase::ActionableItem::kSignoutButton,
-    ProfileMenuViewBase::ActionableItem::kAddNewProfileButton,
-    ProfileMenuViewBase::ActionableItem::kGuestProfileButton,
-    ProfileMenuViewBase::ActionableItem::kManageProfilesButton,
-    // The first button is added again to finish the cycle and test that
-    // there are no other buttons at the end.
-    ProfileMenuViewBase::ActionableItem::kSigninReauthButton};
+constexpr std::array
+    kActionableItems_WithPendingAccount_ReplaceSyncPromosEnabled = {
+        ProfileMenuViewBase::ActionableItem::kSigninReauthButton,
+        ProfileMenuViewBase::ActionableItem::kAutofillSettingsButton,
+        ProfileMenuViewBase::ActionableItem::kEditProfileButton,
+        ProfileMenuViewBase::ActionableItem::kAccountSettingsButton,
+        ProfileMenuViewBase::ActionableItem::kSignoutButton,
+        ProfileMenuViewBase::ActionableItem::kAddNewProfileButton,
+        ProfileMenuViewBase::ActionableItem::kGuestProfileButton,
+        ProfileMenuViewBase::ActionableItem::kManageProfilesButton,
+        // The first button is added again to finish the cycle and test that
+        // there are no other buttons at the end.
+        ProfileMenuViewBase::ActionableItem::kSigninReauthButton};
 
 // TODO(crbug.com/40822972): flaky on Windows and Mac
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
-#define MAYBE_ProfileMenuClickTest_WithPendingAccount \
-  DISABLED_ProfileMenuClickTest_WithPendingAccount
+#define MAYBE_ProfileMenuClickTest_WithPendingAccount_ReplaceSyncPromosEnabled \
+  DISABLED_ProfileMenuClickTest_WithPendingAccount_ReplaceSyncPromosEnabled
 #else
-#define MAYBE_ProfileMenuClickTest_WithPendingAccount \
-  ProfileMenuClickTest_WithPendingAccount
+#define MAYBE_ProfileMenuClickTest_WithPendingAccount_ReplaceSyncPromosEnabled \
+  ProfileMenuClickTest_WithPendingAccount_ReplaceSyncPromosEnabled
 #endif
-PROFILE_MENU_CLICK_TEST(kActionableItems_WithPendingAccount,
-                        MAYBE_ProfileMenuClickTest_WithPendingAccount) {
+PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
+    kActionableItems_WithPendingAccount_ReplaceSyncPromosEnabled,
+    MAYBE_ProfileMenuClickTest_WithPendingAccount_ReplaceSyncPromosEnabled,
+    {syncer::kReplaceSyncPromosWithSignInPromos},
+    {}) {
   AccountInfo account_info = signin::MakePrimaryAccountAvailable(
       identity_manager(), "user@example.com", signin::ConsentLevel::kSignin);
   signin::UpdatePersistentErrorOfRefreshTokenForAccount(
@@ -1668,27 +1931,120 @@ PROFILE_MENU_CLICK_TEST(kActionableItems_WithPendingAccount,
 }
 
 constexpr std::array
-    kActionableItems_GuestProfileButtonNotAvailable_SignedInSupervised = {
-        ProfileMenuViewBase::ActionableItem::kProfileManagementLabel,
-        ProfileMenuViewBase::ActionableItem::kSigninAccountButton,
+    kActionableItems_WithPendingAccount_ReplaceSyncPromosDisabled = {
+        ProfileMenuViewBase::ActionableItem::kSigninReauthButton,
         ProfileMenuViewBase::ActionableItem::kAutofillSettingsButton,
-        ProfileMenuViewBase::ActionableItem::kManageGoogleAccountButton,
         ProfileMenuViewBase::ActionableItem::kEditProfileButton,
         ProfileMenuViewBase::ActionableItem::kSyncSettingsButton,
         ProfileMenuViewBase::ActionableItem::kSignoutButton,
         ProfileMenuViewBase::ActionableItem::kAddNewProfileButton,
-        // The kGuestProfileButton entry is not present.
+        ProfileMenuViewBase::ActionableItem::kGuestProfileButton,
         ProfileMenuViewBase::ActionableItem::kManageProfilesButton,
         // The first button is added again to finish the cycle and test that
         // there are no other buttons at the end.
-        ProfileMenuViewBase::ActionableItem::kProfileManagementLabel,
+        ProfileMenuViewBase::ActionableItem::kSigninReauthButton};
+
+// TODO(crbug.com/40822972): flaky on Windows and Mac
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+#define MAYBE_ProfileMenuClickTest_WithPendingAccount_ReplaceSyncPromosDisabled \
+  DISABLED_ProfileMenuClickTest_WithPendingAccount_ReplaceSyncPromosDisabled
+#else
+#define MAYBE_ProfileMenuClickTest_WithPendingAccount_ReplaceSyncPromosDisabled \
+  ProfileMenuClickTest_WithPendingAccount_ReplaceSyncPromosDisabled
+#endif
+PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
+    kActionableItems_WithPendingAccount_ReplaceSyncPromosDisabled,
+    MAYBE_ProfileMenuClickTest_WithPendingAccount_ReplaceSyncPromosDisabled,
+    {},
+    {syncer::kReplaceSyncPromosWithSignInPromos}) {
+  AccountInfo account_info = signin::MakePrimaryAccountAvailable(
+      identity_manager(), "user@example.com", signin::ConsentLevel::kSignin);
+  signin::UpdatePersistentErrorOfRefreshTokenForAccount(
+      identity_manager(), account_info.account_id,
+      GoogleServiceAuthError::FromInvalidGaiaCredentialsReason(
+          GoogleServiceAuthError::InvalidGaiaCredentialsReason::
+              CREDENTIALS_REJECTED_BY_SERVER));
+  UnconsentedPrimaryAccountChecker(identity_manager()).Wait();
+  // Check that the setup was successful.
+  ASSERT_TRUE(
+      GetProfile()->GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin));
+  ASSERT_FALSE(
+      identity_manager()->HasPrimaryAccount(signin::ConsentLevel::kSync));
+  ASSERT_TRUE(
+      identity_manager()->HasPrimaryAccount(signin::ConsentLevel::kSignin));
+  ASSERT_TRUE(
+      identity_manager()->HasAccountWithRefreshTokenInPersistentErrorState(
+          account_info.account_id));
+
+  RunTest();
+}
+
+constexpr std::array
+    kActionableItems_GuestProfileButtonNotAvailable_SignedInSupervised_ReplaceSyncPromosEnabled =
+        {
+            ProfileMenuViewBase::ActionableItem::kProfileManagementLabel,
+            ProfileMenuViewBase::ActionableItem::kSigninAccountButton,
+            ProfileMenuViewBase::ActionableItem::kAutofillSettingsButton,
+            ProfileMenuViewBase::ActionableItem::kManageGoogleAccountButton,
+            ProfileMenuViewBase::ActionableItem::kEditProfileButton,
+            ProfileMenuViewBase::ActionableItem::kAccountSettingsButton,
+            ProfileMenuViewBase::ActionableItem::kSignoutButton,
+            ProfileMenuViewBase::ActionableItem::kAddNewProfileButton,
+            // The kGuestProfileButton entry is not present.
+            ProfileMenuViewBase::ActionableItem::kManageProfilesButton,
+            // The first button is added again to finish the cycle and test that
+            // there are no other buttons at the end.
+            ProfileMenuViewBase::ActionableItem::kProfileManagementLabel,
 };
 
 PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
-    kActionableItems_GuestProfileButtonNotAvailable_SignedInSupervised,
-    ProfileMenuClickTest_GuestProfileButtonNotAvailable_SignedInSupervised,
-    kManagedProfileEnabledFeatures,
+    kActionableItems_GuestProfileButtonNotAvailable_SignedInSupervised_ReplaceSyncPromosEnabled,
+    ProfileMenuClickTest_GuestProfileButtonNotAvailable_SignedInSupervised_ReplaceSyncPromosEnabled,
+    /*enabled_features=*/
+    std::vector<base::test::FeatureRef>(
+        {features::kEnterpriseProfileBadgingForMenu,
+         syncer::kReplaceSyncPromosWithSignInPromos}),
     /*disabled_features=*/{}) {
+  AccountInfo account_info = signin::MakePrimaryAccountAvailable(
+      identity_manager(), "child@gmail.com", signin::ConsentLevel::kSignin);
+  supervised_user::UpdateSupervisionStatusForAccount(
+      account_info, identity_manager(),
+      /*is_subject_to_parental_controls=*/true);
+  UnconsentedPrimaryAccountChecker(identity_manager()).Wait();
+
+  // Check setup.
+  ASSERT_EQ(account_info.account_id, identity_manager()->GetPrimaryAccountId(
+                                         signin::ConsentLevel::kSignin));
+  ASSERT_FALSE(profiles::IsGuestModeEnabled(*GetProfile()));
+
+  RunTest();
+}
+
+constexpr std::array
+    kActionableItems_GuestProfileButtonNotAvailable_SignedInSupervised_ReplaceSyncPromosDisabled =
+        {
+            ProfileMenuViewBase::ActionableItem::kProfileManagementLabel,
+            ProfileMenuViewBase::ActionableItem::kSigninAccountButton,
+            ProfileMenuViewBase::ActionableItem::kAutofillSettingsButton,
+            ProfileMenuViewBase::ActionableItem::kManageGoogleAccountButton,
+            ProfileMenuViewBase::ActionableItem::kEditProfileButton,
+            ProfileMenuViewBase::ActionableItem::kSyncSettingsButton,
+            ProfileMenuViewBase::ActionableItem::kSignoutButton,
+            ProfileMenuViewBase::ActionableItem::kAddNewProfileButton,
+            // The kGuestProfileButton entry is not present.
+            ProfileMenuViewBase::ActionableItem::kManageProfilesButton,
+            // The first button is added again to finish the cycle and test that
+            // there are no other buttons at the end.
+            ProfileMenuViewBase::ActionableItem::kProfileManagementLabel,
+};
+
+PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
+    kActionableItems_GuestProfileButtonNotAvailable_SignedInSupervised_ReplaceSyncPromosDisabled,
+    ProfileMenuClickTest_GuestProfileButtonNotAvailable_SignedInSupervised_ReplaceSyncPromosDisabled,
+    /*enabled_features=*/
+    std::vector<base::test::FeatureRef>(
+        {features::kEnterpriseProfileBadgingForMenu}),
+    /*disabled_features=*/{syncer::kReplaceSyncPromosWithSignInPromos}) {
   AccountInfo account_info = signin::MakePrimaryAccountAvailable(
       identity_manager(), "child@gmail.com", signin::ConsentLevel::kSignin);
   supervised_user::UpdateSupervisionStatusForAccount(
@@ -2236,14 +2592,21 @@ IN_PROC_BROWSER_TEST_F(ProfileMenuSigninAccessPointTest,
   histogram_tester.ExpectUniqueSample("Signin.SignIn.Offered",
                                       default_access_point,
                                       /*expected_bucket_count=*/0);
-  EXPECT_CALL(
-      mock_signin_ui_delegate_,
-      ShowTurnSyncOnUI(browser()->profile(), default_access_point,
-                       signin_metrics::PromoAction::PROMO_ACTION_WITH_DEFAULT,
-                       account_info_.account_id,
-                       TurnSyncOnHelper::SigninAbortedMode::KEEP_ACCOUNT,
-                       /*is_sync_promo=*/false,
-                       /*user_already_signed_in=*/true));
+  if (base::FeatureList::IsEnabled(
+          syncer::kReplaceSyncPromosWithSignInPromos)) {
+    EXPECT_CALL(
+        mock_signin_ui_delegate_,
+        ShowHistorySyncOptinUI(browser()->profile(), account_info_.account_id));
+  } else {
+    EXPECT_CALL(
+        mock_signin_ui_delegate_,
+        ShowTurnSyncOnUI(browser()->profile(), default_access_point,
+                         signin_metrics::PromoAction::PROMO_ACTION_WITH_DEFAULT,
+                         account_info_.account_id,
+                         TurnSyncOnHelper::SigninAbortedMode::KEEP_ACCOUNT,
+                         /*is_sync_promo=*/false,
+                         /*user_already_signed_in=*/true));
+  }
   ASSERT_NO_FATAL_FAILURE(ClickSyncButton());
   const ProfileMenuViewBase::ActionableItem actionable_item =
       ProfileMenuViewBase::ActionableItem::kSigninAccountButton;
@@ -2259,27 +2622,47 @@ IN_PROC_BROWSER_TEST_F(ProfileMenuSigninAccessPointTest,
       signin_metrics::AccessPoint::kHistorySyncOptinExpansionPillOnStartup;
   ASSERT_NO_FATAL_FAILURE(
       OpenProfileMenuFromCoordinator(explicit_access_point));
-  // `Signin.SyncOptIn.Offered` should be recorded if the sync opt-in is
-  // offered from the profile menu.
-  histogram_tester.ExpectUniqueSample("Signin.SyncOptIn.Offered",
-                                      explicit_access_point,
-                                      /*expected_bucket_count=*/1);
   // `Signin.SignIn.Offered` should NOT be recorded if the sign-in is not
   // directly offered from the profile menu.
   histogram_tester.ExpectUniqueSample("Signin.SignIn.Offered",
                                       explicit_access_point,
                                       /*expected_bucket_count=*/0);
-  EXPECT_CALL(
-      mock_signin_ui_delegate_,
-      ShowTurnSyncOnUI(browser()->profile(), explicit_access_point,
-                       signin_metrics::PromoAction::PROMO_ACTION_WITH_DEFAULT,
-                       account_info_.account_id,
-                       TurnSyncOnHelper::SigninAbortedMode::KEEP_ACCOUNT,
-                       /*is_sync_promo=*/false,
-                       /*user_already_signed_in=*/true));
-  ASSERT_NO_FATAL_FAILURE(ClickSyncButton());
-  histogram_tester.ExpectUniqueSample(
-      "Profile.Menu.ClickedActionableItem",
-      ProfileMenuViewBase::ActionableItem::kSigninAccountButton,
-      /*expected_bucket_count=*/1);
+
+  if (base::FeatureList::IsEnabled(
+          syncer::kReplaceSyncPromosWithSignInPromos)) {
+    // `Signin.SyncOptIn.Offered` is still recorded if
+    // `kReplaceSyncPromosWithSignInPromos` is enabled.
+    // TODO(crbug.com/418145883): This should not be recorded.
+    histogram_tester.ExpectUniqueSample("Signin.SyncOptIn.Offered",
+                                        explicit_access_point,
+                                        /*expected_bucket_count=*/1);
+    EXPECT_CALL(
+        mock_signin_ui_delegate_,
+        ShowHistorySyncOptinUI(browser()->profile(), account_info_.account_id));
+    ASSERT_NO_FATAL_FAILURE(ClickSyncButton());
+    histogram_tester.ExpectUniqueSample(
+        "Profile.Menu.ClickedActionableItem",
+        ProfileMenuViewBase::ActionableItem::kSigninAccountButton,
+        /*expected_bucket_count=*/1);
+  } else {
+    // `Signin.SyncOptIn.Offered` should be recorded if the sync opt-in is
+    // offered from the profile menu.
+    histogram_tester.ExpectUniqueSample("Signin.SyncOptIn.Offered",
+                                        explicit_access_point,
+                                        /*expected_bucket_count=*/1);
+
+    EXPECT_CALL(
+        mock_signin_ui_delegate_,
+        ShowTurnSyncOnUI(browser()->profile(), explicit_access_point,
+                         signin_metrics::PromoAction::PROMO_ACTION_WITH_DEFAULT,
+                         account_info_.account_id,
+                         TurnSyncOnHelper::SigninAbortedMode::KEEP_ACCOUNT,
+                         /*is_sync_promo=*/false,
+                         /*user_already_signed_in=*/true));
+    ASSERT_NO_FATAL_FAILURE(ClickSyncButton());
+    histogram_tester.ExpectUniqueSample(
+        "Profile.Menu.ClickedActionableItem",
+        ProfileMenuViewBase::ActionableItem::kSigninAccountButton,
+        /*expected_bucket_count=*/1);
+  }
 }

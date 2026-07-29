@@ -30,8 +30,8 @@ TEST(RegisterReceiverRequestTest, RequestBody) {
   RegisterReceiverRequest request(kFcmToken, base::DoNothing());
   std::optional<std::string> request_body = request.GetRequestBody();
   ASSERT_TRUE(request_body.has_value());
-  std::optional<base::Value::Dict> request_dict =
-      base::JSONReader::ReadDict(request_body.value());
+  std::optional<base::Value::Dict> request_dict = base::JSONReader::ReadDict(
+      request_body.value(), base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   ASSERT_TRUE(request_dict.has_value());
   ASSERT_THAT(request_dict.value().FindString("token"), testing::NotNull());
   EXPECT_EQ(*request_dict.value().FindString("token"), kFcmToken);
@@ -46,7 +46,7 @@ TEST(RegisterReceiverRequestTest, OnSuccess) {
                        response_body = std::move(response);
                      }));
   base::Value::Dict response_dict;
-  response_dict.Set("receiver_id", kReceiverId);
+  response_dict.Set("receiverId", kReceiverId);
   request.OnSuccess(std::make_unique<base::Value>(std::move(response_dict)));
 
   ASSERT_TRUE(response_body.has_value());

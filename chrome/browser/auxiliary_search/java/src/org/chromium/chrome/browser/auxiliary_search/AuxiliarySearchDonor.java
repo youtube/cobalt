@@ -59,6 +59,7 @@ import java.util.concurrent.TimeUnit;
 
 /** This class handles the donation of Tabs. */
 @NullMarked
+@SuppressWarnings("CheckReturnValue") // For Futures.transform() and not using the result.
 public class AuxiliarySearchDonor {
 
     /** Callback to set schema visibilities for package names. */

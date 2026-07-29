@@ -58,6 +58,8 @@ BASE_FEATURE(kEnableWebHidInWebView, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kExtensionDisableUnsupportedDeveloper,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kExtensionLocalizationGuid, base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kExtensionIconVariants, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kExtensionManifestV2Unsupported, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -93,9 +95,6 @@ BASE_FEATURE(kForceWebRequestProxyForTest, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLaunchWindowsNativeHostsDirectly,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// To investigate signal beacon loss in crrev.com/c/2262402.
-BASE_FEATURE(kReportKeepaliveUkm, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSafeBrowsingCrxAllowlistAutoDisable,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -139,17 +138,6 @@ BASE_FEATURE(kDisableDisableExtensionsExceptCommandLineSwitch,
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 );
 
-BASE_FEATURE(kDisableLoadExtensionCommandLineSwitch,
-// --load-extension is disabled for chrome-branded release builds except on
-// ChromeOS where it is required for testing, and is not a security risk
-// since it cannot be controlled by users.
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING) && !BUILDFLAG(IS_CHROMEOS)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT
-#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING) && !BUILDFLAG(IS_CHROMEOS)
-);
-
 BASE_FEATURE(kDisableExtensionsOnChromeUrlsSwitch,
 // TODO (crbug.com/426554244): Determine if this switch should be
 // removed for desktop-android builds as well.
@@ -167,10 +155,11 @@ BASE_FEATURE(kDebuggerAPIRestrictedToDevMode,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kExtensionBrowserNamespaceAlternative,
+             "ExtensionBrowserNamespaceAlternative",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kOptimizeServiceWorkerStartRequests,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAvoidCloneArgsOnExtensionFunctionDispatch,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -179,6 +168,7 @@ BASE_FEATURE(kContentVerifyJobUseJobVersionForHashing,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kRuntimeOnMessageWebExtensionPolyfillSupport,
+             "RuntimeOnMessageWebExtensionPolyfillSupport",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace extensions_features

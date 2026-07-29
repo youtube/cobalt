@@ -36,17 +36,12 @@ class Iban;
 // Describes the suggestions returned by
 // `GetCreditCardOrCvcFieldSuggestions()`.
 struct CreditCardSuggestionSummary {
-  // Whether any card has card-linked offers.
-  bool with_offer = false;
   // True if any card has a saved CVC.
   bool with_cvc = false;
   // True if any card is card info retrieval enrolled.
   bool with_card_info_retrieval_enrolled = false;
   // Contains card metadata related information used for metrics logging.
   autofill_metrics::CardMetadataLoggingContext metadata_logging_context;
-  // Contains information regarding the ranking of suggestions and is used for
-  // metrics logging.
-  autofill_metrics::SuggestionRankingContext ranking_context;
 };
 
 // Holds the result of `MaybeUpdateDesktopSuggestionsWithBnpl`.
@@ -66,11 +61,9 @@ struct BnplSuggestionUpdateResult {
 
 // Returns the credit cards to suggest to the user. Those have been deduped
 // and ordered by frecency with the expired cards put at the end of the
-// vector. `should_use_legacy_algorithm` indicates if we should rank credit
-// cards using the legacy ranking algorithm.
+// vector.
 std::vector<const CreditCard*> GetCreditCardsToSuggest(
-    const PaymentsDataManager& payments_data_manager,
-    bool should_use_legacy_algorithm = false);
+    const PaymentsDataManager& payments_data_manager);
 
 // Generates suggestions for all available credit cards based on the
 // `trigger_field_type`, `trigger_field` and `four_digit_combinations_in_dom`.
@@ -123,15 +116,24 @@ std::vector<CreditCard> GetTouchToFillCardsToSuggest(
     const FormFieldData& trigger_field,
     FieldType trigger_field_type);
 
-// Returns a suggestion list with a BNPL suggestion, initialized with
-// `bnpl_issuers` and the BNPL amount `extracted_amount_in_micros`, added at the
-// end (but before footer items) of the given suggestion list
+// Returns a suggestion list with a separator and BNPL suggestion, initialized
+// with `bnpl_issuers` and the BNPL amount `extracted_amount_in_micros`, added
+// at the end (but before footer items) of the given suggestion list
 // `current_suggestions`. `BnplSuggestionUpdateResult::is_bnpl_suggestion_added`
 // is true if a BNPL suggestion is inserted successfully.
 BnplSuggestionUpdateResult MaybeUpdateDesktopSuggestionsWithBnpl(
     const base::span<const Suggestion>& current_suggestions,
-    const std::vector<BnplIssuer>& bnpl_issuers,
+    std::vector<BnplIssuer> bnpl_issuers,
     uint64_t extracted_amount_in_micros);
+
+// Creates a suggestion for the BNPL issuer selection. `bnpl_issuers` is used to
+// set various properties of the suggestion including but not limited to the
+// second line of text, as well as what IPH bubble should be shown.
+// `extracted_amount_in_micros` is used to set the extracted amount in the BNPL
+// suggestion to be used where necessary for the BNPL flow.
+Suggestion CreateBnplSuggestion(
+    std::vector<BnplIssuer> bnpl_issuers,
+    std::optional<uint64_t> extracted_amount_in_micros);
 
 // Generates touch-to-fill suggestions for all available credit cards to be
 // used in the bottom sheet. Benefits information, containing instrument IDs and
@@ -198,8 +200,7 @@ std::vector<CreditCard> GetOrderedCardsToSuggestForTest(
     bool suppress_disused_cards,
     bool prefix_match,
     bool require_non_empty_value_on_trigger_field,
-    bool include_virtual_cards,
-    bool use_legacy_algorithm = false);
+    bool include_virtual_cards);
 
 // Exposes `CreateCreditCardSuggestion` in tests.
 Suggestion CreateCreditCardSuggestionForTest(
@@ -235,6 +236,22 @@ void FilterCardsToSuggestForCvcFields(
     const base::flat_set<std::string>& four_digit_combinations_in_dom,
     const std::u16string& autofilled_last_four_digits_in_form_for_filtering,
     std::vector<CreditCard>& cards_to_suggest);
+
+// Function, shared between android touch-to-fill feature
+// and CCSG.
+//
+// Returns the local and server cards ordered by the Autofill ranking.
+// If `suppress_disused_cards`, local expired disused cards are removed.
+// If `prefix_match`, cards are matched with the contents of `trigger_field`.
+// If `include_virtual_cards`, virtual cards will be added when possible.
+std::vector<CreditCard> GetOrderedCardsToSuggest(
+    const AutofillClient& client,
+    const FormFieldData& trigger_field,
+    FieldType trigger_field_type,
+    bool suppress_disused_cards,
+    bool prefix_match,
+    bool require_non_empty_value_on_trigger_field,
+    bool include_virtual_cards);
 
 }  // namespace autofill
 

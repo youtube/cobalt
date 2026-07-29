@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/time/time.h"
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
@@ -465,9 +466,9 @@ EntityInstance GetRedressNumberEntityInstance(
 
 template <typename = void>
 struct FlightReservationOptionsT {
-  const char16_t* flight_number = u"987654321";
+  const char16_t* flight_number = u"AA123";
   const char16_t* ticket_number = u"123123456";
-  const char16_t* confirmation_code = u"0123";
+  const char16_t* confirmation_code = u"AB4KW5";
   const char16_t* name = u"John Doe";
   const char16_t* departure_airport = u"MUC";
   const char16_t* arrival_airport = u"BEY";
@@ -610,6 +611,21 @@ BnplIssuer GetTestUnlinkedBnplIssuer();
 // fake data using `id` as the `PaymentInstrumentCreationOption.id`.
 sync_pb::PaymentInstrumentCreationOption
 CreatePaymentInstrumentCreationOptionWithBnplIssuer(const std::string& id);
+
+// For the key metrics as used for different data types, this struct allows to
+// define expectations. The values are marked optional. `std::nullopt` means
+// that no value was recorded to the histogram.
+struct SingleSubmissionKeyMetricExpectations {
+  std::optional<bool> readiness;
+  std::optional<bool> acceptance;
+  std::optional<bool> assistance;
+  std::optional<bool> correctness;
+};
+
+void VerifySingleSubmissionKeyMetricExpectations(
+    const base::HistogramTester& histogram_tester,
+    absl::string_view form_type_name,
+    const SingleSubmissionKeyMetricExpectations& expectations);
 
 }  // namespace test
 }  // namespace autofill

@@ -16,6 +16,7 @@
 #include "base/types/optional_ref.h"
 #include "build/build_config.h"
 #include "cc/base/features.h"
+#include "cc/base/math_util.h"
 #include "cc/input/browser_controls_offset_manager.h"
 #include "cc/input/browser_controls_offset_tag_modifications.h"
 #include "cc/input/scroll_elasticity_helper.h"
@@ -1132,6 +1133,19 @@ void InputHandler::NotifyInputEvent(bool is_fling) {
   compositor_delegate_->NotifyInputEvent(is_fling);
 }
 
+void InputHandler::UpdateLastLatchedScrollSourceType() {
+  if (has_scrolled_by_wheel_ || has_scrolled_by_touch_ ||
+      has_scrolled_by_precisiontouchpad_ || has_scrolled_by_scrollbar_ ||
+      has_pinch_zoomed_) {
+    // On the compositor we set all scrollbar scrolls as relatives, the correct
+    // type for scrollbar scrolls is computed in
+    // `ScrollableArea::DidCompositorScroll`.
+    last_latched_scroll_source_type_ = ScrollSourceType::kRelativeScroll;
+    return;
+  }
+  last_latched_scroll_source_type_ = ScrollSourceType::kNone;
+}
+
 //
 // =========== InputDelegateForCompositor Interface
 //
@@ -1161,6 +1175,8 @@ void InputHandler::ProcessCommitDeltas(
       commit_data, inner_viewport_scroll_element_id,
       compositor_delegate_->GetSettings().commit_fractional_scroll_deltas,
       snapped_elements, main_thread_mutator_host);
+
+  commit_data->scroll_type = last_latched_scroll_source_type_;
 
   // Record and reset scroll source flags.
   DCHECK(!commit_data->manipulation_info);
@@ -1199,6 +1215,7 @@ void InputHandler::ProcessCommitDeltas(
   if (commit_data->scroll_end_data.done_containers.contains(
           last_latched_scroller_)) {
     last_latched_scroller_ = ElementId();
+    last_latched_scroll_source_type_ = ScrollSourceType::kNone;
   }
 }
 
@@ -2186,6 +2203,7 @@ void InputHandler::DidLatchToScroller(const ScrollState& scroll_state,
   compositor_delegate_->DidStartScroll();
 
   UpdateScrollSourceInfo(scroll_state, type);
+  UpdateLastLatchedScrollSourceType();
 }
 
 bool InputHandler::CanConsumeDelta(const ScrollState& scroll_state,

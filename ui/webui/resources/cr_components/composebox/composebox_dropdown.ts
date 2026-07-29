@@ -4,6 +4,7 @@
 
 import './composebox_match.js';
 
+import {assert} from '//resources/js/assert.js';
 import {mojoString16ToString} from '//resources/js/mojo_type_util.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {AutocompleteMatch, AutocompleteResult} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
@@ -12,7 +13,9 @@ import {getCss} from './composebox_dropdown.css.js';
 import {getHtml} from './composebox_dropdown.html.js';
 
 // The '%' operator in JS returns negative numbers. This workaround avoids that.
-const remainder = (lhs: number, rhs: number) => ((lhs % rhs) + rhs) % rhs;
+function remainder(lhs: number, rhs: number) {
+  return ((lhs % rhs) + rhs) % rhs;
+}
 
 // TODO(crbug.com/439616869): Provide an API for the embedder (i.e., <cr-composebox>)
 // to change the selection.
@@ -47,7 +50,7 @@ export class ComposeboxDropdownElement extends CrLitElement {
   }
 
   accessor result: AutocompleteResult|null = null;
-  accessor selectedMatchIndex: number;
+  accessor selectedMatchIndex: number = -1;
 
   //============================================================================
   // Public methods
@@ -80,16 +83,21 @@ export class ComposeboxDropdownElement extends CrLitElement {
    * Selects the last match if the first one or no match is currently selected.
    */
   selectPrevious() {
+    if (!this.result) {
+      this.selectedMatchIndex = -1;
+      return;
+    }
+
     // The value of -1 for |this.selectedMatchIndex| indicates no selection.
     // Therefore subtract one from the maximum of its value and 0.
     const previous = Math.max(this.selectedMatchIndex, 0) - 1;
     this.selectedMatchIndex =
-        remainder(previous, this.result?.matches?.length!);
+        remainder(previous, this.result.matches.length);
   }
 
   /** Selects the last match. */
   selectLast() {
-    this.selectedMatchIndex = this.result?.matches?.length! - 1;
+    this.selectedMatchIndex = this.result ? this.result.matches.length - 1 : -1;
   }
 
   /**
@@ -97,8 +105,13 @@ export class ComposeboxDropdownElement extends CrLitElement {
    * Selects the first match if the last one or no match is currently selected.
    */
   selectNext() {
+    if (!this.result) {
+      this.selectedMatchIndex = -1;
+      return;
+    }
+
     const next = this.selectedMatchIndex + 1;
-    this.selectedMatchIndex = remainder(next, this.result?.matches?.length!);
+    this.selectedMatchIndex = remainder(next, this.result.matches.length);
   }
 
   /**
@@ -106,7 +119,7 @@ export class ComposeboxDropdownElement extends CrLitElement {
    *     so it knows its position in the list of matches.
    */
   protected matchIndex_(match: AutocompleteMatch): number {
-    return this.result?.matches?.indexOf(match) ?? -1;
+    return this.result?.matches.indexOf(match) ?? -1;
   }
 
   protected isSelected_(match: AutocompleteMatch): boolean {
@@ -117,13 +130,26 @@ export class ComposeboxDropdownElement extends CrLitElement {
    * Returns whether the given index corresponds to the last match.
    */
   protected isLastMatch_(index: number): boolean {
-    return index === this.result?.matches?.length! - 1;
+    assert(this.result);
+    return index === this.result.matches.length - 1;
+  }
+
+  /**
+   * Hides the match if its a verbatim match. This match should be hidden
+   * for all typed suggestions. It will still be "selected" when the
+   * autocomplete result changes, and the user can still navigate to this
+   * verbatim match by navigating to the input text. Zero suggest does not
+   * have verbatim matches.
+   */
+  protected hideVerbatimMatch_(index: number): boolean {
+    assert(this.result);
+    if (!mojoString16ToString(this.result.input)) {
+      return false;
+    }
+    return index === 0;
   }
 
   protected computeAriaLabel_(match: AutocompleteMatch): string {
-    if (!match) {
-      return '';
-    }
     return mojoString16ToString(match.a11yLabel);
   }
 }

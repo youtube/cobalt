@@ -46,6 +46,7 @@ import org.chromium.components.browsing_data.DeleteBrowsingDataAction;
 import org.chromium.components.content_settings.ContentSetting;
 import org.chromium.components.content_settings.ContentSettingsType;
 import org.chromium.components.content_settings.SessionModel;
+import org.chromium.components.embedder_support.util.ExtensionUrlUtil;
 import org.chromium.components.embedder_support.util.Origin;
 import org.chromium.components.permissions.PermissionsAndroidFeatureList;
 import org.chromium.components.permissions.PermissionsAndroidFeatureMap;
@@ -71,6 +72,9 @@ public class SingleWebsiteSettings extends BaseSiteSettingsFragment
 
         /** Notifies the observer that a permission was changed. */
         void onPermissionChanged();
+
+        /** Notifies the observer that the location permission subpage was clicked. */
+        void onLocationPermissionSubpageClicked();
     }
 
     // SingleWebsiteSettings expects either EXTRA_SITE (a Website) or
@@ -311,6 +315,21 @@ public class SingleWebsiteSettings extends BaseSiteSettingsFragment
         return fragmentArgs;
     }
 
+    /**
+     * Creates a Bundle with the correct arguments for opening this fragment for the extension with
+     * the given url.
+     *
+     * @param url The URL to open the fragment with. This is a complete url including scheme,
+     *     domain, port, path, etc.
+     * @return The bundle to attach to the preferences intent.
+     */
+    public static Bundle createFragmentArgsForExtensionSite(String url) {
+        Bundle fragmentArgs = new Bundle();
+        String origin = ExtensionUrlUtil.getOrigin(url);
+        fragmentArgs.putSerializable(EXTRA_SITE_ADDRESS, WebsiteAddress.create(origin));
+        return fragmentArgs;
+    }
+
     @Override
     public void onCreatePreferences(@Nullable Bundle savedInstanceState, @Nullable String rootKey) {
         mPageTitle.set(getContext().getString(R.string.prefs_site_settings));
@@ -415,6 +434,13 @@ public class SingleWebsiteSettings extends BaseSiteSettingsFragment
         } else {
             super.onDisplayPreferenceDialog(preference);
         }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+
+        // TODO(crbug.com/418936295): Update location preference.
     }
 
     public void setHideNonPermissionPreferences(boolean hide) {
@@ -631,7 +657,7 @@ public class SingleWebsiteSettings extends BaseSiteSettingsFragment
     private Preference getPermissionPreference(@ContentSettingsType.EnumType int type) {
         boolean isOneTime = isOneTime(type);
         if (type == ContentSettingsType.GEOLOCATION_WITH_OPTIONS && !isOneTime) {
-            return new TwoActionSwitchPreference(getStyledContext());
+            return createTwoActionLocationSwitchPreference();
         }
 
         return (isOneTime
@@ -639,6 +665,27 @@ public class SingleWebsiteSettings extends BaseSiteSettingsFragment
                                 PermissionsAndroidFeatureList.APPROXIMATE_GEOLOCATION_PERMISSION))
                 ? new ChromeImageViewPreference(getStyledContext())
                 : new ChromeSwitchPreference(getStyledContext());
+    }
+
+    private TwoActionSwitchPreference createTwoActionLocationSwitchPreference() {
+        TwoActionSwitchPreference preference = new TwoActionSwitchPreference(getStyledContext());
+        preference.setPrimaryButtonClickListener(
+                (v) -> {
+                    if (getSettingsNavigation() != null) {
+                        Bundle fragmentArgs = new Bundle();
+                        fragmentArgs.putSerializable(EXTRA_SITE, mSite);
+                        getSettingsNavigation()
+                                .startSettings(
+                                        getActivity(),
+                                        LocationPermissionSubpageSettings.class,
+                                        fragmentArgs);
+                    } else if (mWebsiteSettingsObserver != null) {
+                        mWebsiteSettingsObserver.onLocationPermissionSubpageClicked();
+                    } else {
+                        assert false : "Not reached.";
+                    }
+                });
+        return preference;
     }
 
     @RequiresNonNull({"mSite"})

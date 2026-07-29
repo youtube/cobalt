@@ -4,8 +4,11 @@
 
 #include "chrome/browser/actor/tools/click_tool_request.h"
 
+#include <optional>
+
 #include "chrome/browser/actor/tools/tool_request_visitor_functor.h"
 #include "chrome/common/actor.mojom.h"
+#include "chrome/common/actor/actor_utils.h"
 
 namespace actor {
 
@@ -29,7 +32,8 @@ std::string ClickToolRequest::JournalEvent() const {
   return "Click";
 }
 
-mojom::ToolActionPtr ClickToolRequest::ToMojoToolAction() const {
+mojom::ToolActionPtr ClickToolRequest::ToMojoToolAction(
+    content::RenderFrameHost& frame) const {
   auto click = mojom::ClickAction::New();
   click->type = click_type_;
   click->count = click_count_;
@@ -38,6 +42,17 @@ mojom::ToolActionPtr ClickToolRequest::ToMojoToolAction() const {
 
 std::unique_ptr<PageToolRequest> ClickToolRequest::Clone() const {
   return std::make_unique<ClickToolRequest>(*this);
+}
+
+std::optional<ObservationDelayController::PageStabilityConfig>
+ClickToolRequest::GetObservationPageStabilityConfig() const {
+  if (UseGeneralPageStabilityAllTools()) {
+    return ObservationDelayController::PageStabilityConfig{
+        .supports_paint_stability = true,
+    };
+  } else {
+    return std::nullopt;
+  }
 }
 
 }  // namespace actor

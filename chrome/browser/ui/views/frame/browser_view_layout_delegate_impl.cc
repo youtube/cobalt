@@ -56,7 +56,8 @@ int BrowserViewLayoutDelegateImplBase::GetTopInsetInBrowserView() const {
   }
 #endif
 
-  return browser_view_->browser_widget()->GetTopInset() - browser_view_->y();
+  return browser_view_->browser_widget()->GetFrameView()->GetTopInset(false) -
+         browser_view_->y();
 }
 
 bool BrowserViewLayoutDelegateImplBase::IsToolbarVisible() const {
@@ -276,6 +277,9 @@ BrowserViewLayoutDelegateImplNew::GetBoundsForToolbarInVerticalTabBrowserView()
 gfx::Rect
 BrowserViewLayoutDelegateImplNew::GetBoundsForWebAppFrameToolbarInBrowserView()
     const {
+  if (browser_view().ShouldHideUIForFullscreen()) {
+    return gfx::Rect();
+  }
   const gfx::Size web_app_frame_toolbar_preferred_size =
       browser_view().web_app_frame_toolbar()->GetPreferredSize();
 

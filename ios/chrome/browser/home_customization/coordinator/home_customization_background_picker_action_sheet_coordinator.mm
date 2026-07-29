@@ -5,6 +5,8 @@
 #import "ios/chrome/browser/home_customization/coordinator/home_customization_background_picker_action_sheet_coordinator.h"
 
 #import "base/apple/foundation_util.h"
+#import "base/metrics/histogram_functions.h"
+#import "base/metrics/user_metrics.h"
 #import "components/image_fetcher/core/image_fetcher_service.h"
 #import "ios/chrome/browser/google/model/google_logo_service_factory.h"
 #import "ios/chrome/browser/home_customization/coordinator/home_customization_background_configuration_mediator.h"
@@ -59,6 +61,9 @@ CGFloat const kSheetCornerRadius = 30;
 
   // The view to which the action sheet popover should be anchored.
   UIView* _sourceView;
+
+  // The current background style used for home customization.
+  HomeCustomizationBackgroundStyle _pickerStyle;
 }
 
 @end
@@ -84,6 +89,9 @@ CGFloat const kSheetCornerRadius = 30;
   __weak __typeof(self) weakSelf = self;
   image_fetcher::ImageFetcherService* imageFetcherService =
       ImageFetcherServiceFactory::GetForProfile(self.profile);
+  image_fetcher::ImageFetcher* imageFetcher =
+      imageFetcherService->GetImageFetcher(
+          image_fetcher::ImageFetcherConfig::kDiskCacheOnly);
   HomeBackgroundImageService* homeBackgroundImageService =
       HomeBackgroundImageServiceFactory::GetForProfile(self.profile);
   HomeBackgroundCustomizationService* homeBackgroundCustomizationService =
@@ -93,7 +101,7 @@ CGFloat const kSheetCornerRadius = 30;
       [[HomeCustomizationBackgroundConfigurationMediator alloc]
           initWithBackgroundCustomizationService:
               homeBackgroundCustomizationService
-                             imageFetcherService:imageFetcherService
+                                    imageFetcher:imageFetcher
                       homeBackgroundImageService:homeBackgroundImageService
                         userUploadedImageManager:nil];
   _backgroundConfigurationMediator.delegate = self.presentationDelegate;
@@ -148,6 +156,7 @@ CGFloat const kSheetCornerRadius = 30;
 
 - (void)stop {
   [_mainViewController dismissViewControllerAnimated:YES completion:nil];
+  [self recordUserBackgroundSelectionOutcome];
 
   _backgroundConfigurationMediator = nil;
   if (_photoPickerCoordinator) {
@@ -179,7 +188,7 @@ CGFloat const kSheetCornerRadius = 30;
 
   if (_backgroundConfigurationMediator.themeHasChanged) {
     _backgroundConfigurationMediator.backgroundSelectionOutcome =
-        BackgroundSelectionOutcome::kCanceledAfterSelection;
+        BackgroundSelectionOutcome::kCanceledAfterSelected;
   } else {
     _backgroundConfigurationMediator.backgroundSelectionOutcome =
         BackgroundSelectionOutcome::kCanceled;
@@ -205,16 +214,17 @@ CGFloat const kSheetCornerRadius = 30;
 
 // Presents the background customization picker based on the given type.
 - (void)presentPickerWithStyle:(HomeCustomizationBackgroundStyle)pickerStyle {
-  switch (pickerStyle) {
-    case HomeCustomizationBackgroundStyle::kDefault:
-      // Do nothing.
-      break;
+  _pickerStyle = pickerStyle;
+  switch (_pickerStyle) {
     case HomeCustomizationBackgroundStyle::kColor:
       _mainViewController = [self createColorPickerViewController];
       _backgroundConfigurationMediator.configurationConsumer =
           _mainViewController;
       _backgroundConfigurationMediator.consumer = _mainViewController;
       [_backgroundConfigurationMediator loadColorBackgroundConfigurations];
+      base::RecordAction(base::UserMetricsAction(
+          "IOS.HomeCustomization.Background.PickerActionSheet."
+          "Color.Tapped"));
       break;
     case HomeCustomizationBackgroundStyle::kPreset:
       _mainViewController = [self createPresetGalleryPickerViewController];
@@ -222,6 +232,9 @@ CGFloat const kSheetCornerRadius = 30;
           _mainViewController;
       _backgroundConfigurationMediator.consumer = _mainViewController;
       [_backgroundConfigurationMediator loadGalleryBackgroundConfigurations];
+      base::RecordAction(base::UserMetricsAction(
+          "IOS.HomeCustomization.Background.PickerActionSheet."
+          "Gallery.Tapped"));
       break;
     case HomeCustomizationBackgroundStyle::kUserUploaded:
       // Create and start the photo picker coordinator.
@@ -233,7 +246,12 @@ CGFloat const kSheetCornerRadius = 30;
       _photoPickerCoordinator.searchEngineLogoMediatorProvider =
           self.searchEngineLogoMediatorProvider;
       [_photoPickerCoordinator start];
+      base::RecordAction(base::UserMetricsAction(
+          "IOS.HomeCustomization.Background.PickerActionSheet."
+          "UserUploaded.Tapped"));
       return;
+    case HomeCustomizationBackgroundStyle::kDefault:
+      NOTREACHED();
   }
 
   _mainViewController.modalPresentationStyle = UIModalPresentationFormSheet;
@@ -273,7 +291,7 @@ CGFloat const kSheetCornerRadius = 30;
 
   // The preset gallery can be expanded full screen and therefore a grabber is
   // shown.
-  if (pickerStyle == HomeCustomizationBackgroundStyle::kPreset) {
+  if (_pickerStyle == HomeCustomizationBackgroundStyle::kPreset) {
     presentationController.prefersGrabberVisible = YES;
     [detents addObject:[UISheetPresentationControllerDetent largeDetent]];
   }
@@ -321,6 +339,32 @@ CGFloat const kSheetCornerRadius = 30;
 // Cancels the menu when the alert controller cancels.
 - (void)alertControllerDidCancel {
   [self.presentationDelegate cancelBackgroundPicker];
+}
+
+// Records UMA metrics for the user's background selection outcome.
+- (void)recordUserBackgroundSelectionOutcome {
+  switch (_pickerStyle) {
+    case HomeCustomizationBackgroundStyle::kColor:
+      base::UmaHistogramEnumeration(
+          "IOS.HomeCustomization.Background.Color."
+          "Outcome",
+          _backgroundConfigurationMediator.backgroundSelectionOutcome);
+      break;
+    case HomeCustomizationBackgroundStyle::kPreset:
+      base::UmaHistogramEnumeration(
+          "IOS.HomeCustomization.Background.Gallery."
+          "Outcome",
+          _backgroundConfigurationMediator.backgroundSelectionOutcome);
+      break;
+    case HomeCustomizationBackgroundStyle::kUserUploaded:
+      base::UmaHistogramEnumeration(
+          "IOS.HomeCustomization.Background.UserUploaded."
+          "Outcome",
+          _backgroundConfigurationMediator.backgroundSelectionOutcome);
+      break;
+    case HomeCustomizationBackgroundStyle::kDefault:
+      NOTREACHED();
+  }
 }
 
 @end

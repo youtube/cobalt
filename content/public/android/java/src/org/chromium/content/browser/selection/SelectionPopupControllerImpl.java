@@ -5,6 +5,7 @@
 package org.chromium.content.browser.selection;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
+import static org.chromium.ui.listmenu.ListMenuUtils.setupCallbacksRecursively;
 
 import android.app.Activity;
 import android.app.SearchManager;
@@ -76,6 +77,8 @@ import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.ViewAndroidDelegate;
 import org.chromium.ui.base.ViewAndroidDelegate.ContainerViewObserver;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.listmenu.ListMenuFlyoutController;
+import org.chromium.ui.listmenu.ListMenuSubmenuItemProperties;
 import org.chromium.ui.listmenu.MenuModelBridge;
 import org.chromium.ui.modelutil.MVCListAdapter;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
@@ -86,6 +89,7 @@ import org.chromium.ui.touch_selection.TouchSelectionDraggableType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -228,6 +232,8 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
     // Cached selection menu items to check against new selections.
     private @Nullable SelectionMenuCachedResult mSelectionMenuCachedResult;
 
+    // TODO(crbug.com/445155873): Move menu items from using custom click listeners to handling them
+    //  manually in the handleMenuItemClick callback.
     /** Custom {@link android.view.View.OnClickListener} map for ActionMode menu items. */
     private final Map<MenuItem, View.OnClickListener> mCustomActionMenuItemClickListeners;
 
@@ -664,8 +670,13 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
             final int groupId = delegate.getGroupId(item);
             final int id = delegate.getItemId(item);
             logSelectionAction(groupId, id);
+            boolean isSubmenuParent = item.containsKey(ListMenuSubmenuItemProperties.SUBMENU_ITEMS);
             mCallback.onDropdownItemClicked(
-                    groupId, id, delegate.getItemIntent(item), delegate.getClickListener(item));
+                    groupId,
+                    id,
+                    delegate.getItemIntent(item),
+                    delegate.getClickListener(item),
+                    !isSubmenuParent);
         };
     }
 
@@ -764,6 +775,29 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
                 items.add(listItem);
             }
         }
+        setupCallbacksRecursively(
+                /* headerModelList= */ null,
+                items,
+                this::dismissMenu,
+                // TODO(crbug.com/433410990): Implement flyouts for selected text context menu.
+                new ListMenuFlyoutController<>(
+                        new ListMenuFlyoutController.FlyoutHandler<SelectionPopupController>() {
+                            @Override
+                            public List<
+                                            ListMenuFlyoutController.FlyoutPopupEntry<
+                                                    SelectionPopupController>>
+                                    getFlyoutWindows() {
+                                return Collections.emptyList();
+                            }
+
+                            @Override
+                            public void addFlyoutWindow(
+                                    ListItem item, View view, int levelOfHoveredItem) {}
+
+                            @Override
+                            public void removeFlyoutWindows(int removeFromIndex) {}
+                        }),
+                /* drillDownOverrideValue= */ true);
         SelectionDropdownMenuDelegate.ItemClickListener itemClickListener =
                 getDropdownItemClickListener(mDropdownMenuDelegate);
         mDropdownMenuDelegate.show(mContext, mView, items, itemClickListener, x, y);
@@ -959,6 +993,8 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
         return true;
     }
 
+    // TODO(crbug.com/445155873): Refactor this to directly populate the Menu for ActionMode and the
+    //  MVCListAdapter.ModelList for dropdown menus.
     @VisibleForTesting
     public SortedSet<SelectionMenuGroup> getMenuItems() {
         TextProcessingIntentHandler textProcessingIntentHandler =
@@ -1166,7 +1202,8 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
             int groupId,
             int id,
             @Nullable Intent intent,
-            View.@Nullable OnClickListener clickListener) {
+            View.@Nullable OnClickListener clickListener,
+            boolean closeMenu) {
         // Use the click listener for the item if it has one.
         if (clickListener != null) {
             clickListener.onClick(null);
@@ -1178,7 +1215,7 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
             // than select all.
             clearSelection();
         }
-        destroyDropdownMenu();
+        if (closeMenu) destroyDropdownMenu();
         return true;
     }
 

@@ -11,7 +11,7 @@
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
 #import "components/strings/grit/components_strings.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey.h"
+#import "ios/chrome/browser/authentication/test/signin_earl_grey.h"
 #import "ios/chrome/browser/browser_view/public/browser_view_visibility_state.h"
 #import "ios/chrome/browser/browser_view/test/browser_view_visibility_app_interface.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/content_suggestions_constants.h"
@@ -240,14 +240,7 @@ const char kSecondURLText[] = "You've arrived";
 
 // Tests that BVC properly handles open URL. When BVC is showing a non-NTP
 // tab, the URL should be opened in a new tab, adding to the tab count.
-// TODO(crbug.com/436849556): Renable this test. It is flaky on iphone-device
-// and ipad-device.
-#if TARGET_OS_SIMULATOR
-#define MAYBE_testOpenURLFromTab testOpenURLFromTab
-#else
-#define MAYBE_testOpenURLFromTab FLAKY_testOpenURLFromTab
-#endif
-- (void)MAYBE_testOpenURLFromTab {
+- (void)testOpenURLFromTab {
   [ChromeEarlGrey loadURL:GURL("https://invalid")];
   [ChromeEarlGrey sceneOpenURL:GURL("https://anything")];
   [[EarlGrey selectElementWithMatcher:chrome_test_util::OmniboxText(

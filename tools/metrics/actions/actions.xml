@@ -2425,7 +2425,6 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Actions.CustomizeToolbarSidePanel.OpenedFromCustomizeChrome">
-  <owner>tbergquist@chromium.org</owner>
   <owner>corising@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <description>
@@ -2436,7 +2435,6 @@ should be able to be added at any place in this file.
 
 <action
     name="Actions.CustomizeToolbarSidePanel.OpenedFromOutsideCustomizeChrome">
-  <owner>tbergquist@chromium.org</owner>
   <owner>corising@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <description>
@@ -4705,6 +4703,13 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Autofill_ParsedOtpForm">
+  <owner>koerber@google.com</owner>
+  <description>
+    The browser parsed a form containing a one-time password field.
+  </description>
+</action>
+
 <action name="Autofill_ParsedProfileForm" not_user_triggered="true">
   <owner>battre@chromium.org</owner>
   <description>
@@ -4856,6 +4861,13 @@ should be able to be added at any place in this file.
   <description>
     This user action is logged when the user is shown some loyalty card
     suggestions.
+  </description>
+</action>
+
+<action name="Autofill_ShowedOtpSuggestions">
+  <owner>koerber@google.com</owner>
+  <description>
+    The browser showed a one-time password suggestion to the user.
   </description>
 </action>
 
@@ -6855,6 +6867,14 @@ should be able to be added at any place in this file.
   <description>
     Recorded when a user clicks on the settings button in Network view within
     systems tray.
+  </description>
+</action>
+
+<action name="ChromeSchemePage.OverrideTriggered">
+  <owner>mfiaz@google.com</owner>
+  <owner>clank-tab-dev@google.com</owner>
+  <description>
+    Recorded when a native page is not generated for a chrome:// scheme page.
   </description>
 </action>
 
@@ -12626,6 +12646,15 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Glic.DisabledByAdminPanelLinkClicked">
+  <owner>dewittj@chromium.org</owner>
+  <owner>glic@google.com</owner>
+  <description>
+    Recorded whenever the user clicked a link to follow up about why the Glic
+    feature was blocked by admin.
+  </description>
+</action>
+
 <action name="Glic.Enabled">
   <owner>iwells@google.com</owner>
   <owner>erikchen@chromium.org</owner>
@@ -12702,6 +12731,15 @@ should be able to be added at any place in this file.
   <owner>birnie@google.com</owner>
   <description>
     User clicked the 'X' button to close the Glic First Run Experience dialog.
+  </description>
+</action>
+
+<action name="Glic.Fre.DisabledByAdminPanelClosed">
+  <owner>dewittj@google.com</owner>
+  <owner>glic@google.com</owner>
+  <description>
+    User closed the disabled by admin panel in the FRE by clicking the
+    confirmation button.
   </description>
 </action>
 
@@ -15704,6 +15742,62 @@ should be able to be added at any place in this file.
     user edits the query. This is not recorded if the Find in Page variant uses
     the system Find panel (bottom of the screen, right above the keyboard) as
     opposed to the Chrome Find bar (top of the screen).
+  </description>
+</action>
+
+<action name="IOS.HomeCustomization.Background.PickerActionSheet.Color.Tapped">
+  <owner>cheickcisse@google.com</owner>
+  <owner>bling-mony-pod@google.com</owner>
+  <description>
+    User tapped the color option in the background picker action sheet on the
+    customization main menu on iOS.
+  </description>
+</action>
+
+<action
+    name="IOS.HomeCustomization.Background.PickerActionSheet.Gallery.Tapped">
+  <owner>cheickcisse@google.com</owner>
+  <owner>bling-mony-pod@google.com</owner>
+  <description>
+    User tapped the gallery option in the background picker action sheet on the
+    customization main menu on iOS.
+  </description>
+</action>
+
+<action name="IOS.HomeCustomization.Background.PickerActionSheet.Tapped">
+  <owner>cheickcisse@google.com</owner>
+  <owner>bling-mony-pod@google.com</owner>
+  <description>
+    User tapped the entry point to open the background picker action sheet on
+    the customization main menu on iOS.
+  </description>
+</action>
+
+<action
+    name="IOS.HomeCustomization.Background.PickerActionSheet.UserUploaded.Tapped">
+  <owner>cheickcisse@google.com</owner>
+  <owner>bling-mony-pod@google.com</owner>
+  <description>
+    User tapped the user uploaded image option in the background picker action
+    sheet on the customization main menu on iOS.
+  </description>
+</action>
+
+<action name="IOS.HomeCustomization.Background.RecentlyUsed.Tapped">
+  <owner>cheickcisse@google.com</owner>
+  <owner>bling-mony-pod@google.com</owner>
+  <description>
+    User tapped on any recently used background image on the customization main
+    menu on iOS.
+  </description>
+</action>
+
+<action name="IOS.HomeCustomization.Background.ResetDefault.Tapped">
+  <owner>cheickcisse@google.com</owner>
+  <owner>bling-mony-pod@google.com</owner>
+  <description>
+    User tapped the option to reset the background to the default on the
+    customization main menu on iOS.
   </description>
 </action>
 
@@ -25431,6 +25525,13 @@ should be able to be added at any place in this file.
   <description>User pressed 'Listen to this page' in the app menu.</description>
 </action>
 
+<action name="MobileMenuReaderMode">
+  <owner>fernandex@google.com</owner>
+  <description>
+    User pressed 'Show/Hide Reading Mode' in the app menu.
+  </description>
+</action>
+
 <action name="MobileMenuReadingList">
   <owner>gambard@chromium.org</owner>
   <description>User pressed 'Reading List' in the app menu.</description>
@@ -28635,6 +28736,14 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="MobileToolbarPinnedOnlyTabStrip">
+  <owner>zheliooo@google.com</owner>
+  <description>
+    User entered a state where pinned tabs occupy the entire visible area of
+    tablet tab strip; record at most once per session. Android only.
+  </description>
+</action>
+
 <action name="MobileToolbarReload">
   <owner>tedchoc@chromium.org</owner>
   <description>
@@ -28708,6 +28817,14 @@ should be able to be added at any place in this file.
 <action name="MobileToolbarShowMenu">
   <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
   <description>Please enter the description of this user action.</description>
+</action>
+
+<action name="MobileToolbarShowMenuFromReaderMode">
+  <owner>fernandex@google.com</owner>
+  <description>
+    User pressed the toolbar's button to open the app menu from Reader Mode. iOS
+    only.
+  </description>
 </action>
 
 <action name="MobileToolbarShowNewTabMenu">
@@ -37086,6 +37203,16 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Settings.DeleteBrowsingData.GeminiAppsActivityLinkClick">
+  <owner>rainhard@chromium.com</owner>
+  <owner>zalmashni@chromium.org</owner>
+  <owner>chrome-browser-privacy-team@google.com</owner>
+  <description>
+    User clicks on the &quot;Gemini Apps Activity&quot; link in the &quot;Other
+    Google data&quot; dialog.
+  </description>
+</action>
+
 <action name="Settings.DeleteBrowsingData.GoogleSearchHistoryLinkClick">
   <owner>hkamila@google.com</owner>
   <owner>zalmashni@chromium.org</owner>
@@ -40717,9 +40844,10 @@ should be able to be added at any place in this file.
   <owner>myuu@google.com</owner>
   <owner>jlebel@chromium.org</owner>
   <owner>chrome-signin-mobile-team@google.com</owner>
+  <owner>chrome-signin-team@google.com</owner>
   <description>
     Recorded when user takes an action on the History Sync Opt-In screen.
-    Recorded on iOS only.
+    Recorded on iOS and Desktop.
   </description>
 </action>
 
@@ -42004,7 +42132,7 @@ should be able to be added at any place in this file.
   <owner>gogerald@chromium.org</owner>
   <description>
     Recorded on sign in start from access point
-    signin_metrics::AccessPoint::kSigninPromo.
+    signin_metrics::AccessPoint::kFullscreenSigninPromo.
   </description>
 </action>
 
@@ -45185,8 +45313,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="TabContextMenu_AddToExistingGroup">
-  <owner>bsep@google.com</owner>
-  <owner>tbergquist@google.com</owner>
+  <owner>dpenning@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <description>
     User selected an entry in the Add to existing group submenu from the tab
@@ -45204,8 +45331,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="TabContextMenu_AddToNewGroup">
-  <owner>bsep@google.com</owner>
-  <owner>tbergquist@google.com</owner>
+  <owner>dpenning@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <description>
     User selected Add to new group from the tab context menu.
@@ -45233,7 +45359,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="TabContextMenu_CloseOtherTabs">
-  <owner>tbergquist@chromium.org</owner>
+  <owner>dpenning@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <description>
     User selected Close Other Tabs from the tab context menu. Temporarily
@@ -45242,7 +45368,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="TabContextMenu_CloseTab">
-  <owner>tbergquist@chromium.org</owner>
+  <owner>dpenning@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <description>User selected Close Tabs from tab context menu.</description>
 </action>
@@ -45254,7 +45380,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="TabContextMenu_CloseTabsToRight">
-  <owner>tbergquist@chromium.org</owner>
+  <owner>dpenning@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <description>
     User selected Close Tabs to the Right from tab context menu.
@@ -45274,7 +45400,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="TabContextMenu_Duplicate">
-  <owner>tbergquist@chromium.org</owner>
+  <owner>dpenning@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <description>User selected Duplicate from tab context menu.</description>
 </action>
@@ -45304,7 +45430,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="TabContextMenu_NewTab">
-  <owner>tbergquist@chromium.org</owner>
+  <owner>dpenning@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <description>
     User selected New Tab to the Right from the tabstrip context menu.
@@ -45339,14 +45465,13 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="TabContextMenu_Reload">
-  <owner>tbergquist@chromium.org</owner>
+  <owner>dpenning@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <description>User selected Reload from tab context menu.</description>
 </action>
 
 <action name="TabContextMenu_RemoveFromGroup">
-  <owner>bsep@google.com</owner>
-  <owner>tbergquist@google.com</owner>
+  <owner>dpenning@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <description>
     User selected Remove from group from the tab context menu.
@@ -45400,7 +45525,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="TabContextMenu_TogglePinned">
-  <owner>tbergquist@chromium.org</owner>
+  <owner>dpenning@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <description>User selected Pin/Unpin from tab context menu.</description>
 </action>

@@ -9,8 +9,8 @@
 #import "base/ios/ios_util.h"
 #import "base/strings/sys_string_conversions.h"
 #import "components/signin/public/base/signin_pref_names.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey_ui_test_util.h"
+#import "ios/chrome/browser/authentication/test/signin_earl_grey.h"
+#import "ios/chrome/browser/authentication/test/signin_earl_grey_ui_test_util.h"
 #import "ios/chrome/browser/bookmarks/model/bookmark_storage_type.h"
 #import "ios/chrome/browser/bookmarks/ui_bundled/bookmark_earl_grey.h"
 #import "ios/chrome/browser/bookmarks/ui_bundled/bookmark_earl_grey_ui.h"
@@ -40,14 +40,13 @@ NSString* const kPassphrase = @"hello";
 // formatted for `count` local bookmarks and `email` user email.
 void ExpectBatchUploadSection(int count, NSString* email) {
   // Verify that the batch upload section is visible.
-  NSString* text = nil;
   NSString* detailText = base::SysUTF16ToNSString(
       base::i18n::MessageFormatter::FormatWithNamedArgs(
           l10n_util::GetStringUTF16(
               IDS_IOS_BOOKMARKS_HOME_BULK_UPLOAD_SECTION_DESCRIPTION),
           "count", count, "email", base::SysNSStringToUTF16(email)));
   // Build label for a TableViewImageItem.
-  NSString* label = [NSString stringWithFormat:@"%@, %@", text, detailText];
+  NSString* label = [NSString stringWithFormat:@"%@", detailText];
 
   [[EarlGrey
       selectElementWithMatcher:

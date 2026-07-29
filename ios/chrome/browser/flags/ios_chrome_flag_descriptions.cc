@@ -21,6 +21,11 @@ const char kAIMPrototypeDescription[] =
     "When enabled the AIM ZPS entrypoint will open the AIM prototype which "
     "contains temporary UI exploration for AIM.";
 
+const char kAIMPrototypeImmersiveSRPName[] =
+    "Enable the immersive SRP within the AIM prototype";
+const char kAIMPrototypeImmersiveSRPDescription[] =
+    "When enabled, the AIM prototype will open SRPs in an embedded web view.";
+
 const char kAskGeminiChipName[] = "Ask Gemini Chip";
 const char kAskGeminiChipDescription[] = "Enables the Ask Gemini Chip feature.";
 
@@ -131,12 +136,6 @@ const char
         "enhancement will enable CVV storage suggestions for standalone CVC "
         "fields.";
 
-const char kAutofillEnableDynamicallyLoadingFieldsForAddressInputName[] =
-    "Enable dynamically loading fields for address input";
-const char kAutofillEnableDynamicallyLoadingFieldsForAddressInputDescription[] =
-    "When enabled, the address fields for input would be dynamically loaded "
-    "based on the country value";
-
 const char kAutofillPaymentsFieldSwappingName[] =
     "Swap credit card suggestions";
 const char kAutofillPaymentsFieldSwappingDescription[] =
@@ -170,18 +169,6 @@ const char kAutofillEnablePrefetchingRiskDataForRetrievalName[] =
 const char kAutofillEnablePrefetchingRiskDataForRetrievalDescription[] =
     "When enabled, risk data is prefetched during payments autofill flows "
     "to reduce user-perceived latency.";
-
-const char kAutofillEnableRankingFormulaAddressProfilesName[] =
-    "Enable new Autofill suggestion ranking formula for address profiles";
-const char kAutofillEnableRankingFormulaAddressProfilesDescription[] =
-    "When enabled, Autofill will use a new ranking formula to rank Autofill "
-    "address profile suggestions.";
-
-const char kAutofillEnableRankingFormulaCreditCardsName[] =
-    "Enable new Autofill suggestion ranking formula for credit cards";
-const char kAutofillEnableRankingFormulaCreditCardsDescription[] =
-    "When enabled, Autofill will use a new ranking formula to rank Autofill "
-    "data model credit card suggestions.";
 
 const char kAutofillEnableSupportForHomeAndWorkName[] =
     "Enable support for home and work addresses";
@@ -270,7 +257,8 @@ const char kAutofillVcnEnrollStrikeExpiryTimeDescription[] =
 const char kBeginCursorAtPointTentativeFixName[] =
     "Begin cursor at point tentative fix";
 const char kBeginCursorAtPointTentativeFixDescription[] =
-    "A tentative fix for crbug.com/361003475. When enabled, it prevents a call to "
+    "A tentative fix for crbug.com/361003475. When enabled, it prevents a call "
+    "to "
     "setSelectedTextRange.";
 
 const char kBestFeaturesScreenInFirstRunName[] =
@@ -415,11 +403,6 @@ const char kEnableFamilyLinkControlsName[] = "Family Link parental controls";
 const char kEnableFamilyLinkControlsDescription[] =
     "Enables parental controls from Family Link on supervised accounts "
     "signed-in to Chrome.";
-
-extern const char kMagicStackName[] = "Enable Magic Stack";
-extern const char kMagicStackDescription[] =
-    "When enabled, a Magic Stack will be shown in the Home surface displaying "
-    "a variety of modules.";
 
 const char kMobilePromoOnDesktopName[] = "Mobile Promo On Desktop";
 const char kMobilePromoOnDesktopDescription[] =
@@ -745,6 +728,10 @@ const char kIOSBrowserEditMenuMetricsName[] = "Browser edit menu metrics";
 const char kIOSBrowserEditMenuMetricsDescription[] =
     "Collect metrics for edit menu usage.";
 
+const char kIOSCustomFileUploadMenuName[] = "Custom file upload menu";
+const char kIOSCustomFileUploadMenuDescription[] =
+    "Enables the custom file upload menu implementation.";
+
 const char kIOSDockingPromoName[] = "Docking Promo";
 const char kIOSDockingPromoDescription[] =
     "When enabled, the user will be presented an animated, instructional "
@@ -761,6 +748,18 @@ extern const char kIOSEnableRealtimeEventReportingName[] =
 extern const char kIOSEnableRealtimeEventReportingDescription[] =
     "When enabled, realtime events will be reported to the user's "
     "organization.";
+
+extern const char kIOSEnableCloudProfileReportingName[] =
+    "Enable profile reporting on iOS";
+extern const char kIOSEnableCloudProfileReportingDescription[] =
+    "When enabled, profile reports will be reported to the user's "
+    "organization.";
+
+extern const char kIOSBrowserReportIncludeAllProfilesName[] =
+    "include all profiles in browser reports";
+extern const char kIOSBrowserReportIncludeAllProfilesDescription[] =
+    "When enabled, enterprise browser reports include all profiles (instead of "
+    "only the current profile).";
 
 const char kIOSFillRecoveryPasswordName[] =
     "Enable autofilling with a recovery password";
@@ -806,12 +805,6 @@ const char kIOSOneTapMiniMapRestrictionsDescription[] =
 const char kIOSChooseFromDriveName[] = "IOS Choose from Drive";
 const char kIOSChooseFromDriveDescription[] =
     "Enables the Choose from Drive feature on iOS.";
-
-const char kIOSChooseFromDriveSimulatedClickName[] =
-    "IOS Choose from Drive (simulated clicks)";
-const char kIOSChooseFromDriveSimulatedClickDescription[] =
-    "Enables support for simulated clicks in the Choose from Drive feature on "
-    "iOS.";
 
 const char kIOSManageAccountStorageName[] = "Allow managing Account storage.";
 const char kIOSManageAccountStorageDescription[] =
@@ -960,6 +953,12 @@ const char kLensLoadAIMInLensResultPageName[] =
     "Enable loading AIM in the Lens result page";
 const char kLensLoadAIMInLensResultPageDescription[] =
     "Opens in Lens result page rather than a new tab.";
+
+extern const char kLensOverlayCustomBottomSheetName[] =
+    "Use a custom bottom sheet presentation for Lens Overlay";
+extern const char kLensOverlayCustomBottomSheetDescription[] =
+    "When enabled the system bottom sheet for the Lens result page is "
+    "replaced by a custom bottom sheet presentation";
 
 extern const char kLensOverlayDisableIPHPanGestureName[] =
     "Disable Lens Overlay IPH Pan Dismissal";

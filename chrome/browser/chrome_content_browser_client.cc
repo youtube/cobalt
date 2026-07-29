@@ -53,9 +53,6 @@
 #include "build/build_config.h"
 #include "build/config/chromebox_for_meetings/buildflags.h"  // PLATFORM_CFM
 #include "chrome/browser/preloading/search_preload/search_preload_features.h"
-#if !BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/actor/actor_keyed_service.h"
-#endif  // !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/after_startup_task_utils.h"
 #include "chrome/browser/ai/ai_manager.h"
 #include "chrome/browser/app_mode/app_mode_utils.h"
@@ -110,7 +107,6 @@
 #include "chrome/browser/memory/chrome_browser_main_extra_parts_memory.h"
 #include "chrome/browser/metrics/chrome_browser_main_extra_parts_metrics.h"
 #include "chrome/browser/metrics/chrome_feature_list_creator.h"
-#include "chrome/browser/metrics/chrome_metrics_service_accessor.h"
 #include "chrome/browser/navigation_predictor/anchor_element_preloader.h"
 #include "chrome/browser/net/chrome_network_delegate.h"
 #include "chrome/browser/net/profile_network_context_service.h"
@@ -390,7 +386,6 @@
 #include "services/network/public/mojom/network_service.mojom.h"
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
 #include "services/network/public/mojom/web_transport.mojom.h"
-#include "services/video_effects/public/cpp/buildflags.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/loader/url_loader_throttle.h"
 #include "third_party/blink/public/common/navigation/navigation_policy.h"
@@ -430,7 +425,6 @@
 #include "chrome/services/util_win/public/mojom/util_win.mojom.h"
 #include "content/public/browser/tracing_service.h"
 #include "sandbox/win/src/sandbox_policy.h"
-#include "ui/accessibility/accessibility_features.h"
 #elif BUILDFLAG(IS_MAC)
 #include "chrome/browser/browser_process_platform_part_mac.h"
 #include "chrome/browser/chrome_browser_main_mac.h"
@@ -520,14 +514,47 @@
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/devtools/chrome_devtools_manager_delegate.h"
+#include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/digital_credentials/digital_identity_provider_desktop.h"
+#include "chrome/browser/direct_sockets/chrome_direct_sockets_delegate.h"
+#include "chrome/browser/headless/chrome_browser_main_extra_parts_headless.h"
+#include "chrome/browser/media/unified_autoplay_config.h"
+#include "chrome/browser/metrics/usage_scenario/chrome_responsiveness_calculator_delegate.h"
+#include "chrome/browser/new_tab_page/new_tab_page_util.h"
 #include "chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.h"
+#include "chrome/browser/screen_ai/screen_ai_install_state.h"
+#include "chrome/browser/search/instant_service.h"
+#include "chrome/browser/search/instant_service_factory.h"
+#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_dialogs.h"
+#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/chrome_pages.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/webui/chrome_content_browser_client_webui_part.h"
+#include "chrome/browser/ui/webui/webui_util_desktop.h"
 #include "chrome/browser/web_applications/isolated_web_apps/chrome_content_browser_client_isolated_web_apps_part.h"
+#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_error_page.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
 #include "chrome/browser/web_applications/locks/app_lock.h"
+#include "chrome/browser/web_applications/policy/web_app_policy_manager.h"
 #include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
+#include "chrome/browser/web_applications/web_app_provider.h"
+#include "chrome/browser/web_applications/web_app_registrar.h"
+#include "chrome/browser/web_applications/web_app_utils.h"
+#include "chrome/browser/webauthn/authenticator_request_scheduler.h"
+#include "chrome/browser/webauthn/chrome_authenticator_request_delegate.h"
+#include "chrome/browser/webauthn/chrome_web_authentication_delegate.h"
+#include "chrome/grit/chrome_unscaled_resources.h"  // nogncheck crbug.com/1125897
+#include "components/commerce/core/commerce_feature_list.h"
 #include "components/keep_alive_registry/keep_alive_registry.h"
+#include "components/password_manager/content/common/web_ui_constants.h"
+#include "components/password_manager/core/common/password_manager_features.h"
+#include "components/webapps/isolated_web_apps/url_loading/url_loader_factory.h"
+#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom.h"
 #include "third_party/blink/public/mojom/installedapp/related_application.mojom.h"
 #endif  // !BUILDFLAG(IS_ANDROID)
 
@@ -549,40 +576,6 @@
 #include "chromeos/constants/chromeos_features.h"
 #include "third_party/cros_system_api/switches/chrome_switches.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
-
-#if !BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/devtools/chrome_devtools_manager_delegate.h"
-#include "chrome/browser/devtools/devtools_window.h"
-#include "chrome/browser/direct_sockets/chrome_direct_sockets_delegate.h"
-#include "chrome/browser/headless/chrome_browser_main_extra_parts_headless.h"
-#include "chrome/browser/media/unified_autoplay_config.h"
-#include "chrome/browser/metrics/usage_scenario/chrome_responsiveness_calculator_delegate.h"
-#include "chrome/browser/new_tab_page/new_tab_page_util.h"
-#include "chrome/browser/search/instant_service.h"
-#include "chrome/browser/search/instant_service_factory.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_dialogs.h"
-#include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_list.h"
-#include "chrome/browser/ui/chrome_pages.h"
-#include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/browser/ui/webui/chrome_content_browser_client_webui_part.h"
-#include "chrome/browser/ui/webui/webui_util_desktop.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_error_page.h"
-#include "chrome/browser/web_applications/policy/web_app_policy_manager.h"
-#include "chrome/browser/web_applications/web_app_helpers.h"
-#include "chrome/browser/web_applications/web_app_provider.h"
-#include "chrome/browser/web_applications/web_app_registrar.h"
-#include "chrome/browser/web_applications/web_app_utils.h"
-#include "chrome/browser/webauthn/authenticator_request_scheduler.h"
-#include "chrome/browser/webauthn/chrome_authenticator_request_delegate.h"
-#include "chrome/grit/chrome_unscaled_resources.h"  // nogncheck crbug.com/1125897
-#include "components/commerce/core/commerce_feature_list.h"
-#include "components/password_manager/content/common/web_ui_constants.h"
-#include "components/password_manager/core/common/password_manager_features.h"
-#include "components/webapps/isolated_web_apps/url_loading/url_loader_factory.h"
-#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom.h"
-#endif  //  !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #include "components/crash/core/app/crash_switches.h"
@@ -669,12 +662,6 @@
 #include "chrome/browser/media/cast_remoting_connector.h"
 #endif
 
-#if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
-#include "chrome/browser/media_effects/media_effects_manager_binder.h"
-#include "media/capture/mojom/video_effects_manager.mojom-forward.h"
-#include "services/video_effects/public/mojom/video_effects_processor.mojom-forward.h"
-#endif  // BUILDFLAG(ENABLE_VIDEO_EFFECTS)
-
 #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
 #include "chrome/browser/enterprise/connectors/connectors_service.h"
 #include "chrome/browser/safe_browsing/chrome_enterprise_url_lookup_service_factory.h"
@@ -710,11 +697,6 @@
 
 #if BUILDFLAG(FULL_SAFE_BROWSING)
 #include "components/enterprise/common/files_scan_data.h"
-#endif
-
-#if !BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/screen_ai/screen_ai_install_state.h"
-#include "chrome/browser/webauthn/chrome_web_authentication_delegate.h"
 #endif
 
 #if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
@@ -1604,6 +1586,7 @@ void ChromeContentBrowserClient::MaybeProxyNetworkBoundRequest(
     context_params->bound_network = bound_network;
     context_params->cert_verifier_params = content::GetCertVerifierParams(
         cert_verifier::mojom::CertVerifierCreationParams::New());
+    context_params->enable_domain_reliability = false;
     ConfigureNetworkContextParams(
         browser_context, true, base::FilePath(), context_params.get(),
         cert_verifier::mojom::CertVerifierCreationParams::New().get());
@@ -6947,7 +6930,7 @@ bool ChromeContentBrowserClient::HandleExternalProtocol(
     // If actor is active, bail out early to prevent it from launching external
     // applications.
     if (tab_interface && actor_service &&
-        actor_service->IsAnyTaskActingOnTab(*tab_interface)) {
+        actor_service->IsActiveOnTab(*tab_interface)) {
       return false;
     }
   }
@@ -7155,8 +7138,8 @@ bool ChromeContentBrowserClient::HandleWebUIReverse(
 }
 
 void ChromeContentBrowserClient::AddExtraPart(
-    ChromeContentBrowserClientParts* part) {
-  extra_parts_.push_back(base::WrapUnique(part));
+    std::unique_ptr<ChromeContentBrowserClientParts> part) {
+  extra_parts_.push_back(std::move(part));
 }
 
 std::unique_ptr<HttpAuthCoordinator>
@@ -8464,26 +8447,6 @@ bool ChromeContentBrowserClient::
 #endif
 }
 
-#if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
-void ChromeContentBrowserClient::BindReadonlyVideoEffectsManager(
-    const std::string& device_id,
-    content::BrowserContext* browser_context,
-    mojo::PendingReceiver<media::mojom::ReadonlyVideoEffectsManager>
-        readonly_video_effects_manager) {
-  media_effects::BindReadonlyVideoEffectsManager(
-      device_id, browser_context, std::move(readonly_video_effects_manager));
-}
-
-void ChromeContentBrowserClient::BindVideoEffectsProcessor(
-    const std::string& device_id,
-    content::BrowserContext* browser_context,
-    mojo::PendingReceiver<video_effects::mojom::VideoEffectsProcessor>
-        video_effects_processor) {
-  media_effects::BindVideoEffectsProcessor(device_id, browser_context,
-                                           std::move(video_effects_processor));
-}
-#endif  // BUILDFLAG(ENABLE_VIDEO_EFFECTS)
-
 void ChromeContentBrowserClient::PreferenceRankAudioDeviceInfos(
     content::BrowserContext* browser_context,
     blink::WebMediaDeviceInfoArray& infos) {
@@ -8726,81 +8689,6 @@ void ChromeContentBrowserClient::QueryInstalledWebAppsByManifestId(
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_WIN)
-void ChromeContentBrowserClient::OnUiaProviderRequested(
-    bool uia_provider_enabled) {
-  if (handled_uia_provider_request_) {
-    return;
-  }
-  handled_uia_provider_request_ = true;
-
-  if (features::kUiaProvider.default_state ==
-      base::FEATURE_ENABLED_BY_DEFAULT) {
-    // Do nothing if the feature has launched.
-    // TODO: Remove all code relating to this synthetic field trial.
-    return;
-  }
-
-  // The "Control_NNNN" and "Enabled_NNNN" groups in the UiaProviderWin study
-  // are equal-sized arms for which the UiaProvider feature is disabled and
-  // enabled, respectively. (The feature may also be disabled in other groups,
-  // such as "Default_NNNN" or preperiod groups.) Analyzing data from users in
-  // these two groups alone does not provide an accurate picture of the impact
-  // of the feature, because the browser must check whether or not the feature
-  // is enable during startup regardless of whether or not a UI automation
-  // client connects to the browser. Filtering data by whether or not
-  // accessibility is enabled is also insufficient, as this will include
-  // browsers for which an MSAA/IAccessible2 client connects. To measure the
-  // impact of the UiaProvider feature, we only want to consider clients where a
-  // UI automation client connected and said connection was either refused
-  // because the client is in the control group, or was accepted because the
-  // client is in the enabled group. We do this by enrolling the client in one
-  // of two groups of a synthetic field trial in only these two situations.
-  if (auto* trial = base::FeatureList::GetFieldTrial(features::kUiaProvider)) {
-    static constexpr std::string_view kControl = "Control";
-    static constexpr std::string_view kEnabled = "Enabled";
-    const auto& trial_group_name = trial->GetGroupNameWithoutActivation();
-    std::string_view group_name;
-
-    if (base::StartsWith(trial_group_name, "Control")) {
-      group_name = kControl;
-    } else if (base::StartsWith(trial_group_name, "Enabled")) {
-      group_name = kEnabled;
-    }
-    if (!group_name.empty()) {
-      ChromeMetricsServiceAccessor::RegisterSyntheticFieldTrial(
-          "UiaProviderActiveSynthetic", group_name,
-          variations::SyntheticTrialAnnotationMode::kCurrentLog);
-    }
-  }
-}
-
-void ChromeContentBrowserClient::OnUiaProviderDisabled() {
-  // Regardless of whether another request has been handled before, we want to
-  // make this user as part of the "Rejected" group.
-  handled_uia_provider_request_ = true;
-
-  if (features::kUiaProvider.default_state ==
-      base::FEATURE_ENABLED_BY_DEFAULT) {
-    // Do nothing if the feature has launched.
-    // TODO: Remove all code relating to this synthetic field trial.
-    return;
-  }
-
-  // See the comment in `ChromeContentBrowserClient::OnUiaProviderRequested`.
-  if (auto* trial = base::FeatureList::GetFieldTrial(features::kUiaProvider)) {
-    // When the UI Automation Provider is forcibly disabled despite the user
-    // being in the "Enabled" group, we want to ensure that the user is properly
-    // assigned to the "Rejected" group.
-    if (base::StartsWith(trial->GetGroupNameWithoutActivation(), "Enabled")) {
-      ChromeMetricsServiceAccessor::RegisterSyntheticFieldTrial(
-          "UiaProviderActiveSynthetic", "Rejected",
-          variations::SyntheticTrialAnnotationMode::kCurrentLog);
-    }
-  }
-}
-#endif  // BUILDFLAG(IS_WIN)
-
 void ChromeContentBrowserClient::SetSamplingProfiler(
     std::unique_ptr<MainThreadStackSamplingProfiler> sampling_profiler) {
   sampling_profiler_ = std::move(sampling_profiler);
@@ -8808,8 +8696,7 @@ void ChromeContentBrowserClient::SetSamplingProfiler(
 
 void ChromeContentBrowserClient::AddExtraPartForTesting(
     std::unique_ptr<ChromeContentBrowserClientParts> part) {
-  // AddExtraPart takes ownership of a raw pointer.
-  AddExtraPart(part.release());
+  AddExtraPart(std::move(part));
 }
 
 bool ChromeContentBrowserClient::ShouldDispatchPagehideDuringCommit(

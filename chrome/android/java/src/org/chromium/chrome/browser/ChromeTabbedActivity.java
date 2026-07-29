@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser;
 
+import static org.chromium.chrome.browser.notifications.tips.TipsPromoCoordinator.INVALID_TIPS_NOTIFICATION_FEATURE_TYPE;
 import static org.chromium.chrome.browser.tabwindow.TabWindowManager.INVALID_WINDOW_ID;
 import static org.chromium.chrome.browser.ui.IncognitoRestoreAppLaunchDrawBlocker.IS_INCOGNITO_SELECTED;
 
@@ -171,6 +172,7 @@ import org.chromium.chrome.browser.native_page.NativePageAssassin;
 import org.chromium.chrome.browser.navigation_predictor.NavigationPredictorBridge;
 import org.chromium.chrome.browser.new_tab_url.DseNewTabUrlManager;
 import org.chromium.chrome.browser.night_mode.NightModeStateProvider;
+import org.chromium.chrome.browser.notifications.tips.TipsPromoCoordinator;
 import org.chromium.chrome.browser.ntp.NewTabPage;
 import org.chromium.chrome.browser.ntp.NewTabPageLaunchOrigin;
 import org.chromium.chrome.browser.ntp.NewTabPageUma;
@@ -284,6 +286,7 @@ import org.chromium.chrome.browser.ui.RootUiCoordinator;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuPropertiesDelegate;
 import org.chromium.chrome.browser.ui.browser_window.BrowserWindowType;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
+import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTaskTracker;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTaskTrackerFactory;
 import org.chromium.chrome.browser.ui.desktop_windowing.AppHeaderUtils;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
@@ -295,6 +298,8 @@ import org.chromium.chrome.browser.ui.signin.account_picker.AccountPickerBottomS
 import org.chromium.chrome.browser.ui.signin.history_sync.HistorySyncConfig;
 import org.chromium.chrome.browser.undo_tab_close_snackbar.TabUndoBarController;
 import org.chromium.chrome.browser.undo_tab_close_snackbar.UndoBarController;
+import org.chromium.chrome.browser.url_constants.UrlConstantResolver;
+import org.chromium.chrome.browser.url_constants.UrlConstantResolverFactory;
 import org.chromium.chrome.browser.usage_stats.UsageStatsService;
 import org.chromium.chrome.browser.util.ChromeAccessibilityUtil;
 import org.chromium.chrome.browser.xr.scenecore.XrSceneCoreSessionInitializerImpl;
@@ -348,6 +353,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
@@ -636,6 +642,8 @@ public class ChromeTabbedActivity extends ChromeActivity {
     private XrSceneCoreSessionInitializer mXrSceneCoreSessionInitializer;
     private @SupportedProfileType int mSupportedProfileType = SupportedProfileType.UNSET;
 
+    private TipsPromoCoordinator mTipsPromoCoordinator;
+
     /** Constructs a ChromeTabbedActivity. */
     public ChromeTabbedActivity() {
         mIntentHandlingTimeMs = SystemClock.uptimeMillis();
@@ -775,9 +783,10 @@ public class ChromeTabbedActivity extends ChromeActivity {
                     String message =
                             String.format(
                                     """
-                                            VIEW intent sent to .Main activity alias was not dispatched. \
-                                            PLEASE report the following info to crbug.com/789732: \
-                                            "%s". Use --%s flag to disable this check.""",
+                                    VIEW intent sent to .Main activity alias was not dispatched. \
+                                    PLEASE report the following info to crbug.com/789732: \
+                                    "%s". Use --%s flag to disable this check.\
+                                    """,
                                     intentInfo, ChromeSwitches.DONT_CRASH_ON_VIEW_MAIN_INTENTS);
                     throw new IllegalStateException(message);
                 }
@@ -1325,8 +1334,18 @@ public class ChromeTabbedActivity extends ChromeActivity {
             assert activityWindowAndroid != null
                     : "ChromeAndroidTask must be initialized after Java WindowAndroid is created.";
 
+            int pendingIdExtraValue =
+                    IntentUtils.safeGetIntExtra(
+                            getIntent(),
+                            ChromeAndroidTaskTracker.EXTRA_PENDING_BROWSER_WINDOW_TASK_ID,
+                            /* defaultValue= */ -1);
+            OptionalInt pendingId =
+                    pendingIdExtraValue == -1
+                            ? OptionalInt.empty()
+                            : OptionalInt.of(pendingIdExtraValue);
+
             return chromeAndroidTaskTracker.obtainTask(
-                    BrowserWindowType.NORMAL, activityWindowAndroid, currentTabModel);
+                    BrowserWindowType.NORMAL, activityWindowAndroid, currentTabModel, pendingId);
         }
     }
 
@@ -1986,7 +2005,7 @@ public class ChromeTabbedActivity extends ChromeActivity {
                     mLayoutManager.getStripLayoutHelperManager();
             isTabStripVisible =
                     layoutHelperManager != null
-                            && layoutHelperManager.getStripVisibilityState()
+                            && layoutHelperManager.getStripVisibilityStateSupplier().get()
                                     == StripVisibilityState.VISIBLE;
         }
         int dropIndex =
@@ -2398,21 +2417,29 @@ public class ChromeTabbedActivity extends ChromeActivity {
     private void createInitialTab() {
         Log.i(TAG, "#createInitialTab executed.");
         mPendingInitialTabCreation = false;
+        boolean incognito = mSupportedProfileType == SupportedProfileType.OFF_THE_RECORD;
 
         String url = null;
         GURL homepageGurl = HomepageManager.getInstance().getHomepageGurl();
+
+        ProfileProvider profileProvider = getProfileProviderSupplier().get();
+        Profile profile =
+                incognito
+                        ? profileProvider.getOffTheRecordProfile()
+                        : profileProvider.getOriginalProfile();
+        UrlConstantResolver urlConstantResolver = UrlConstantResolverFactory.getForProfile(profile);
         if (homepageGurl.isEmpty()) {
-            url = UrlConstants.NTP_URL;
+            url = urlConstantResolver.getNtpUrl();
         } else {
             // Migrate legacy NTP URLs (chrome://newtab) to the newer format
             // (chrome-native://newtab)
             if (UrlUtilities.isNtpUrl(homepageGurl)) {
-                url = UrlConstants.NTP_URL;
+                url = urlConstantResolver.getNtpUrl();
             } else {
                 url = homepageGurl.getSpec();
             }
         }
-        boolean incognito = mSupportedProfileType == SupportedProfileType.OFF_THE_RECORD;
+
         getTabCreator(incognito).launchUrl(url, TabLaunchType.FROM_STARTUP);
         PartnerBrowserCustomizations.getInstance()
                 .onCreateInitialTab(
@@ -2499,6 +2526,11 @@ public class ChromeTabbedActivity extends ChromeActivity {
         boolean fromAppWidget =
                 IntentUtils.safeGetBooleanExtra(
                         intent, IntentHandler.EXTRA_INVOKED_FROM_APP_WIDGET, false);
+        int fromTipsNotifications =
+                IntentUtils.safeGetIntExtra(
+                        intent,
+                        IntentHandler.EXTRA_TIPS_NOTIFICATION_FEATURE_TYPE,
+                        INVALID_TIPS_NOTIFICATION_FEATURE_TYPE);
         boolean focus = false;
 
         // TODO(crbug.com/418106849): We should use regular tab model in case the url
@@ -2628,6 +2660,12 @@ public class ChromeTabbedActivity extends ChromeActivity {
                 }
 
                 resultTab = launchIntent(loadUrlParams, externalAppId, true, intent);
+                if (fromTipsNotifications != INVALID_TIPS_NOTIFICATION_FEATURE_TYPE) {
+                    mTipsPromoCoordinator =
+                            new TipsPromoCoordinator(
+                                    this, mRootUiCoordinator.getBottomSheetController());
+                    mTipsPromoCoordinator.showBottomSheet();
+                }
                 break;
             case TabOpenType.OPEN_NEW_INCOGNITO_TAB:
                 if (!TextUtils.equals(externalAppId, getPackageName())) {
@@ -3397,7 +3435,8 @@ public class ChromeTabbedActivity extends ChromeActivity {
                 getModalDialogManager(),
                 getSnackbarManager(),
                 mRootUiCoordinator.getIncognitoReauthControllerSupplier(),
-                mRootUiCoordinator.getReadAloudControllerSupplier());
+                mRootUiCoordinator.getReadAloudControllerSupplier(),
+                mRootUiCoordinator.getPageZoomManager());
     }
 
     private TabDelegateFactory getTabDelegateFactory() {
@@ -4437,6 +4476,11 @@ public class ChromeTabbedActivity extends ChromeActivity {
 
         if (mXrSceneCoreSessionInitializer != null) {
             mXrSceneCoreSessionInitializer.destroy();
+        }
+
+        if (mTipsPromoCoordinator != null) {
+            mTipsPromoCoordinator.destroy();
+            mTipsPromoCoordinator = null;
         }
 
         super.onDestroyInternal();

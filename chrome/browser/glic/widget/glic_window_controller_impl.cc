@@ -312,7 +312,7 @@ GlicWindowControllerImpl::GlicWindowControllerImpl(
     previous_position_ = GetPreviousPositionFromPrefs(profile_->GetPrefs());
   }
   application_hotkey_manager_ = MakeApplicationHotkeyManager(GetWeakPtr());
-  host_.Initialize(this);
+  host_.SetDelegate(this);
   host_observation_.Observe(&host());
 }
 
@@ -901,7 +901,7 @@ void GlicWindowControllerImpl::ClientReadyToShow(
 }
 
 void GlicWindowControllerImpl::OnViewChanged(mojom::CurrentView view) {
-  floaty_state_change_callback_list_.Notify(state(), view);
+  state_change_callback_list_.Notify(IsShowing(), view);
 }
 
 void GlicWindowControllerImpl::ContextAccessIndicatorChanged(bool enabled) {
@@ -1136,10 +1136,10 @@ gfx::Size GlicWindowControllerImpl::GetSize() {
   }
   BrowserView* browser_view =
       BrowserView::GetBrowserViewForBrowser(attached_browser_);
-  CHECK(browser_view->unified_side_panel());
+  CHECK(browser_view->contents_height_side_panel());
   // This returns the size of the entire side panel (including content,
   // heading, and surrounding padding).
-  return browser_view->unified_side_panel()->size();
+  return browser_view->contents_height_side_panel()->size();
 }
 
 void GlicWindowControllerImpl::SetDraggableAreas(
@@ -1479,8 +1479,8 @@ bool GlicWindowControllerImpl::IsActive() {
   if (IsAttached()) {
     auto* browser_view =
         BrowserView::GetBrowserViewForBrowser(attached_browser_);
-    DCHECK(browser_view->unified_side_panel());
-    return browser_view->unified_side_panel()->HasFocus();
+    DCHECK(browser_view->contents_height_side_panel());
+    return browser_view->contents_height_side_panel()->HasFocus();
   }
   return IsDetached() && GetGlicWidget()->IsActive();
 }
@@ -1490,7 +1490,7 @@ bool GlicWindowControllerImpl::IsShowing() const {
 }
 
 void GlicWindowControllerImpl::SwitchConversation(
-    const std::string& conversation_id,
+    glic::mojom::ConversationInfoPtr info,
     mojom::WebClientHandler::SwitchConversationCallback callback) {
   std::move(callback).Run(mojom::SwitchConversationErrorReason::kUnknown);
 }
@@ -1582,10 +1582,9 @@ void GlicWindowControllerImpl::MaybeAdjustSizeForDisplay(bool animate) {
   }
 }
 
-base::CallbackListSubscription
-GlicWindowControllerImpl::RegisterFloatyStateChange(
-    FloatyStateChangeCallback callback) {
-  return floaty_state_change_callback_list_.Add(std::move(callback));
+base::CallbackListSubscription GlicWindowControllerImpl::RegisterStateChange(
+    StateChangeCallback callback) {
+  return state_change_callback_list_.Add(std::move(callback));
 }
 
 void GlicWindowControllerImpl::SetWindowState(State new_state) {
@@ -1607,8 +1606,8 @@ void GlicWindowControllerImpl::SetWindowState(State new_state) {
     }
   }
 
-  floaty_state_change_callback_list_.Notify(state_,
-                                            host().GetPrimaryCurrentView());
+  state_change_callback_list_.Notify(IsShowing(),
+                                     host_.GetPrimaryCurrentView());
 
   if (IsWindowOpenAndReady()) {
     glic_service_->metrics()->OnGlicWindowOpenAndReady();

@@ -31,6 +31,7 @@
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/foundations/autofill_driver.h"
 #include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
+#include "components/autofill/core/browser/integrators/identity_credential/identity_credential_delegate.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/suggestions/suggestion_hiding_reason.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
@@ -271,14 +272,14 @@ void PasswordAutofillManager::DidAcceptSuggestion(
   switch (suggestion.type) {
     case autofill::SuggestionType::kGeneratePasswordEntry:
       password_client_->GeneratePassword(PasswordGenerationType::kAutomatic);
-      metrics_util::LogPasswordDropdownItemSelected(
+      metrics_util::LogPasswordSuggestionSelected(
           PasswordDropdownSelectedOption::kGenerate,
           password_client_->IsOffTheRecord());
       break;
     case autofill::SuggestionType::kAllSavedPasswordsEntry:
       password_client_->NavigateToManagePasswordsPage(
           ManagePasswordsReferrer::kPasswordDropdown);
-      metrics_util::LogPasswordDropdownItemSelected(
+      metrics_util::LogPasswordSuggestionSelected(
           PasswordDropdownSelectedOption::kShowAll,
           password_client_->IsOffTheRecord());
 
@@ -290,7 +291,7 @@ void PasswordAutofillManager::DidAcceptSuggestion(
       }
       break;
     case autofill::SuggestionType::kWebauthnCredential:
-      metrics_util::LogPasswordDropdownItemSelected(
+      metrics_util::LogPasswordSuggestionSelected(
           PasswordDropdownSelectedOption::kWebAuthn,
           password_client_->IsOffTheRecord());
       password_client_
@@ -306,7 +307,7 @@ void PasswordAutofillManager::DidAcceptSuggestion(
           std::move(last_popup_open_args_).suggestions, suggestion));
       break;
     case autofill::SuggestionType::kWebauthnSignInWithAnotherDevice:
-      metrics_util::LogPasswordDropdownItemSelected(
+      metrics_util::LogPasswordSuggestionSelected(
           PasswordDropdownSelectedOption::kWebAuthnSignInWithAnotherDevice,
           password_client_->IsOffTheRecord());
       password_client_
@@ -341,6 +342,9 @@ void PasswordAutofillManager::DidAcceptSuggestion(
       break;
     }
     case autofill::SuggestionType::kBackupPasswordEntry: {
+      metrics_util::LogPasswordSuggestionSelected(
+          PasswordDropdownSelectedOption::kBackupPassword,
+          password_client_->IsOffTheRecord());
       // The payload is set during suggestion generation and contains the backup
       // password in its password field.
       auto payload =
@@ -352,6 +356,9 @@ void PasswordAutofillManager::DidAcceptSuggestion(
       break;
     }
     case autofill::SuggestionType::kTroubleSigningInEntry: {
+      metrics_util::LogPasswordSuggestionSelected(
+          PasswordDropdownSelectedOption::kTroubleSigningIn,
+          password_client_->IsOffTheRecord());
       auto payload =
           suggestion
               .GetPayload<autofill::Suggestion::PasswordSuggestionDetails>();
@@ -363,7 +370,7 @@ void PasswordAutofillManager::DidAcceptSuggestion(
       return;
     }
     default: {
-      metrics_util::LogPasswordDropdownItemSelected(
+      metrics_util::LogPasswordSuggestionSelected(
           PasswordDropdownSelectedOption::kPassword,
           password_client_->IsOffTheRecord());
 

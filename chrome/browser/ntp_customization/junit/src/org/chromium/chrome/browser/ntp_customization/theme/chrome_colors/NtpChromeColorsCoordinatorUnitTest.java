@@ -4,10 +4,13 @@
 
 package org.chromium.chrome.browser.ntp_customization.theme.chrome_colors;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
@@ -15,11 +18,14 @@ import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoor
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType.THEME;
 
 import android.content.Context;
+import android.graphics.Color;
 import android.view.ContextThemeWrapper;
 import android.view.View;
 import android.view.View.MeasureSpec;
+import android.widget.EditText;
 import android.widget.ImageView;
 
+import androidx.annotation.ColorInt;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.test.core.app.ApplicationProvider;
 
@@ -34,9 +40,15 @@ import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.Features;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.ntp_customization.BottomSheetDelegate;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType;
 import org.chromium.chrome.browser.ntp_customization.R;
 import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpChromeColorsCoordinator.ColorGridView;
+import org.chromium.ui.widget.ButtonCompat;
 
 /** Unit tests for {@link NtpChromeColorsCoordinator}. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -46,6 +58,7 @@ public class NtpChromeColorsCoordinatorUnitTest {
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     @Mock private BottomSheetDelegate mBottomSheetDelegate;
+    @Mock private Runnable mOnChromeColorSelectedCallback;
 
     private NtpChromeColorsCoordinator mCoordinator;
     private Context mContext;
@@ -57,12 +70,9 @@ public class NtpChromeColorsCoordinatorUnitTest {
                 new ContextThemeWrapper(
                         ApplicationProvider.getApplicationContext(),
                         R.style.Theme_BrowserUI_DayNight);
-        mCoordinator = new NtpChromeColorsCoordinator(mContext, mBottomSheetDelegate);
+        NtpCustomizationUtils.resetSharedPreferenceForTesting();
 
-        ArgumentCaptor<View> viewCaptor = ArgumentCaptor.forClass(View.class);
-        verify(mBottomSheetDelegate)
-                .registerBottomSheetLayout(eq(CHROME_COLORS), viewCaptor.capture());
-        mBottomSheetView = viewCaptor.getValue();
+        createCoordinator();
     }
 
     @Test
@@ -88,6 +98,18 @@ public class NtpChromeColorsCoordinatorUnitTest {
 
         assertFalse(backButton.hasOnClickListeners());
         assertFalse(learnMoreButton.hasOnClickListeners());
+    }
+
+    @Test
+    @Features.EnableFeatures(
+            ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2 + ":show_color_picker/true")
+    public void testDestroy_colorPickerView() {
+        createCoordinator();
+        ButtonCompat saveColorButton = mBottomSheetView.findViewById(R.id.save_color_button);
+        assertTrue(saveColorButton.hasOnClickListeners());
+
+        mCoordinator.destroy();
+        assertFalse(saveColorButton.hasOnClickListeners());
     }
 
     @Test
@@ -126,5 +148,125 @@ public class NtpChromeColorsCoordinatorUnitTest {
                 MeasureSpec.makeMeasureSpec(width3, MeasureSpec.EXACTLY),
                 MeasureSpec.makeMeasureSpec(100, MeasureSpec.EXACTLY));
         verify(layoutManager).setSpanCount(eq(1));
+    }
+
+    @Test
+    public void testOnItemClicked_callsCallback() {
+        ColorGridView gridView = mBottomSheetView.findViewById(R.id.chrome_colors_recycler_view);
+        NtpChromeColorsAdapter adapter = (NtpChromeColorsAdapter) gridView.getAdapter();
+        assertNotNull(adapter);
+
+        // Click the first item.
+        adapter.getOnItemClickedCallbackForTesting().onResult(adapter.getColorsForTesting().get(0));
+
+        // Verify the callback is called.
+        verify(mOnChromeColorSelectedCallback).run();
+    }
+
+    @Test
+    public void testOnItemClicked_noPrimaryColorSelected() {
+        @Nullable
+        @ColorInt
+        Integer primaryColor = mCoordinator.getPrimaryColorForTesting();
+
+        assertNull(primaryColor);
+        NtpThemeColorInfo colorInfo =
+                NtpThemeColorUtils.createNtpThemeColorInfo(
+                        mContext, NtpThemeColorInfo.NtpThemeColorId.BLUE);
+        mCoordinator.onItemClicked(colorInfo);
+
+        verify(mBottomSheetDelegate).onNewColorSelected(eq(true));
+    }
+
+    @Test
+    @Features.EnableFeatures({ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2})
+    public void testOnItemClicked_withPrimaryColorSelected() {
+        NtpThemeColorInfo colorInfo =
+                NtpThemeColorUtils.createNtpThemeColorInfo(
+                        mContext, NtpThemeColorInfo.NtpThemeColorId.BLUE);
+        NtpThemeColorInfo colorInfo1 =
+                NtpThemeColorUtils.createNtpThemeColorInfo(
+                        mContext, NtpThemeColorInfo.NtpThemeColorId.LIGHT_BLUE);
+        @ColorInt Integer primaryColor = colorInfo.primaryColor;
+        NtpCustomizationUtils.setCustomizedPrimaryColor(primaryColor);
+        NtpCustomizationUtils.setNtpBackgroundImageType(NtpBackgroundImageType.CHROME_COLOR);
+        assertEquals(primaryColor, NtpCustomizationUtils.getPrimaryColorFromCustomizedThemeColor());
+
+        createCoordinator();
+        assertEquals(primaryColor, mCoordinator.getPrimaryColorForTesting());
+
+        mCoordinator.onItemClicked(colorInfo);
+        verify(mBottomSheetDelegate).onNewColorSelected(eq(false));
+
+        mCoordinator.onItemClicked(colorInfo1);
+        verify(mBottomSheetDelegate).onNewColorSelected(eq(true));
+
+        NtpCustomizationUtils.resetSharedPreferenceForTesting();
+    }
+
+    @Test
+    @Features.EnableFeatures(
+            ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2 + ":show_color_picker/true")
+    public void testCustomColorPicker_saveButton() {
+        createCoordinator();
+        View customColorPickerContainer =
+                mBottomSheetView.findViewById(R.id.custom_color_picker_container);
+        assertEquals(View.VISIBLE, customColorPickerContainer.getVisibility());
+
+        EditText backgroundColorInput = mBottomSheetView.findViewById(R.id.background_color_input);
+        EditText primaryColorInput = mBottomSheetView.findViewById(R.id.primary_color_input);
+        ButtonCompat saveColorButton = mBottomSheetView.findViewById(R.id.save_color_button);
+
+        String backgroundColorHex = "#FF0000";
+        String primaryColorHex = "#00FF00";
+        @ColorInt int backgroundColor = Color.parseColor(backgroundColorHex);
+        @ColorInt int primaryColor = Color.parseColor(primaryColorHex);
+        backgroundColorInput.setText(backgroundColorHex);
+        primaryColorInput.setText(primaryColorHex);
+
+        // Verifies that both background color and primary color are saved to the SharedPreference.
+        saveColorButton.performClick();
+        assertEquals(
+                backgroundColor, NtpCustomizationUtils.getBackgroundColorFromSharedPreference(-1));
+        assertEquals(
+                primaryColor,
+                NtpCustomizationUtils.getPrimaryColorFromCustomizedThemeColor().intValue());
+    }
+
+    @Test
+    @Features.EnableFeatures(
+            ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2 + ":show_color_picker/true")
+    public void testsUpdateColorCircle() {
+        createCoordinator();
+        ImageView colorCircleImageView = mCoordinator.getBackgroundColorCircleImageViewForTesting();
+        assertNotNull(colorCircleImageView);
+
+        // Verifies null is returned for an invalid hexadecimal string.
+        assertNull(mCoordinator.updateColorCircle("FF00", colorCircleImageView));
+
+        // Verifies the method returns the expected color value for a valid hexadecimal string.
+        String colorHex = "#FF0000";
+        @ColorInt int color = Color.parseColor(colorHex);
+        assertEquals(
+                color, mCoordinator.updateColorCircle(colorHex, colorCircleImageView).intValue());
+
+        // Verifies the missing "#" will be added automatically, and the method returns the expected
+        // color value.
+        colorHex = "FF0000";
+        assertEquals(
+                color, mCoordinator.updateColorCircle(colorHex, colorCircleImageView).intValue());
+    }
+
+    private void createCoordinator() {
+        clearInvocations(mBottomSheetDelegate);
+
+        mCoordinator =
+                new NtpChromeColorsCoordinator(
+                        mContext, mBottomSheetDelegate, mOnChromeColorSelectedCallback);
+
+        ArgumentCaptor<View> viewCaptor = ArgumentCaptor.forClass(View.class);
+        verify(mBottomSheetDelegate)
+                .registerBottomSheetLayout(eq(CHROME_COLORS), viewCaptor.capture());
+        mBottomSheetView = viewCaptor.getValue();
     }
 }

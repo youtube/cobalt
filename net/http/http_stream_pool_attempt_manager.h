@@ -145,8 +145,6 @@ class HttpStreamPool::AttemptManager
     return dns_resolution_end_time_;
   }
 
-  NextProtoSet allowed_alpns() const { return allowed_alpns_; }
-
   const NetLogWithSource& net_log();
 
   // Starts `job` for a stream request. Will call one of Job::Delegate methods
@@ -221,7 +219,7 @@ class HttpStreamPool::AttemptManager
   void OnTcpBasedAttemptComplete(TcpBasedAttempt* raw_attempt, int rv);
   void OnTcpBasedAttemptSlow(TcpBasedAttempt* raw_attempt);
 
-  bool CanUseExistingQuicSession();
+  bool CanUseExistingQuicSession() const;
 
   // Runs the TCP based attempt delay timer if TCP based attempts are blocked
   // and the timer is not running. TcpBasedAttemptDelayBehavior specifies when
@@ -371,9 +369,6 @@ class HttpStreamPool::AttemptManager
   // HTTP/2. Note that this does nothing with QUIC.
   bool IsIpBasedPoolingEnabledForH2() const;
 
-  // Returns true only when there are no jobs that disable alternative services.
-  bool IsAlternativeServiceEnabled() const;
-
   // Returns true when the destination is known to support HTTP/2. Note that
   // this could return false while initializing HttpServerProperties.
   bool SupportsSpdy() const;
@@ -487,7 +482,7 @@ class HttpStreamPool::AttemptManager
 
   bool CanUseTcpBasedProtocols();
 
-  bool CanUseQuic();
+  bool CanUseQuic() const;
 
   bool IsEchEnabled() const;
 
@@ -517,7 +512,10 @@ class HttpStreamPool::AttemptManager
   // attempt for the first time.
   std::optional<InitialAttemptState> initial_attempt_state_;
 
-  NextProtoSet allowed_alpns_ = NextProtoSet::All();
+  // List of allowed protocols. Excludes protocols when, e.g., one protocol or
+  // another is marked as broken or is disabled for one or more jobs. Never
+  // includes NextProto::kProtoUnknown, since that's an alias for any protocol.
+  NextProtoSet allowed_alpns_;
 
   // Holds request jobs that are waiting for notifications.
   JobQueue request_jobs_;
@@ -530,8 +528,6 @@ class HttpStreamPool::AttemptManager
   base::flat_set<raw_ptr<Job>> limit_ignoring_jobs_;
 
   base::flat_set<raw_ptr<Job>> ip_based_pooling_disabling_jobs_;
-
-  base::flat_set<raw_ptr<Job>> alternative_service_disabling_jobs_;
 
   std::unique_ptr<HostResolver::ServiceEndpointRequest>
       service_endpoint_request_;

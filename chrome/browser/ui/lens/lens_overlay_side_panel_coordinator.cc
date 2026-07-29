@@ -14,6 +14,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/lens/lens_composebox_controller.h"
 #include "chrome/browser/ui/lens/lens_help_menu_utils.h"
+#include "chrome/browser/ui/lens/lens_media_link_handler.h"
 #include "chrome/browser/ui/lens/lens_overlay_controller.h"
 #include "chrome/browser/ui/lens/lens_overlay_side_panel_web_view.h"
 #include "chrome/browser/ui/lens/lens_overlay_url_builder.h"
@@ -41,6 +42,7 @@
 #include "components/strings/grit/components_strings.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/vector_icons/vector_icons.h"
+#include "content/public/browser/media_session.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
@@ -180,10 +182,6 @@ void LensOverlaySidePanelCoordinator::RegisterEntryAndShow() {
                                 ->GetFeatures()
                                 .side_panel_coordinator();
   CHECK(side_panel_coordinator_);
-
-  // Focus the web contents when created, so that hotkey presses (i.e. escape)
-  // are handled.
-  GetSidePanelWebContents()->Focus();
 }
 
 void LensOverlaySidePanelCoordinator::RecordAndShowSidePanelErrorPage() {
@@ -278,10 +276,27 @@ bool LensOverlaySidePanelCoordinator::MaybeHandleTextDirectives(
   return false;
 }
 
+bool LensOverlaySidePanelCoordinator::MaybeHandleContextualMediaLink(
+    const GURL& nav_url) {
+  // Exit early if the feature is disabled or the overlay is showing.
+  if (!lens::features::IsLensVideoCitationsEnabled() ||
+      GetLensOverlayController()->IsOverlayShowing()) {
+    return false;
+  }
+
+  return lens::LensMediaLinkHandler(
+             lens_search_controller_->GetTabInterface()->GetContents())
+      .MaybeReplaceNavigation(nav_url);
+}
+
 bool LensOverlaySidePanelCoordinator::IsEntryShowing() {
-  return GetSidePanelUI(GetLensOverlayController())
-      ->IsSidePanelEntryShowing(
-          SidePanelEntry::Key(SidePanelEntry::Id::kLensOverlayResults));
+  auto* side_panel_ui = GetSidePanelUI(GetLensOverlayController());
+  if (!side_panel_ui) {
+    return false;
+  }
+
+  return side_panel_ui->IsSidePanelEntryShowing(
+      SidePanelEntry::Key(SidePanelEntry::Id::kLensOverlayResults));
 }
 
 void LensOverlaySidePanelCoordinator::NotifyNewQueryLoaded(std::string query,
@@ -831,6 +846,9 @@ void LensOverlaySidePanelCoordinator::DidOpenRequestedURL(
 
 void LensOverlaySidePanelCoordinator::DidStartNavigation(
     content::NavigationHandle* navigation_handle) {
+  // Focus the web contents immediately, so that hotkey presses (i.e. escape)
+  // are handled.
+  GetSidePanelWebContents()->Focus();
   SetSidePanelIsOffline(net::NetworkChangeNotifier::IsOffline());
 
   const GURL& nav_url = navigation_handle->GetURL();
@@ -871,6 +889,12 @@ void LensOverlaySidePanelCoordinator::DidStartNavigation(
     // be a citation that should be rendered as text highlights in the current
     // tab.
     if (MaybeHandleTextDirectives(nav_url)) {
+      return;
+    }
+
+    // If the contextual media link is enabled, cross-origin navigations could
+    // be a video that should be played in the current tab.
+    if (MaybeHandleContextualMediaLink(nav_url)) {
       return;
     }
 

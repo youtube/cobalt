@@ -90,6 +90,10 @@ source_set("internal") {
       ]
     }
 
+    if (is_win || is_mac || is_linux) {
+      deps += [ "//chrome/browser/ui/views/session_restore_infobar" ]
+    }
+
     if (enable_glic) {
       deps += [ "//chrome/browser/glic" ]
     }
@@ -150,11 +154,13 @@ if (is_android) {
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/AndroidBrowserWindow.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/AndroidBrowserWindowCreateParamsImpl.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/AndroidBrowserWindowEnumerator.java",
+      "android/java/src/org/chromium/chrome/browser/ui/browser_window/BrowserWindowCreatorBridge.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/BrowserWindowInterfaceIteratorAndroid.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/ChromeAndroidTaskImpl.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/ChromeAndroidTaskTrackerFactory.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/ChromeAndroidTaskTrackerImpl.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/IdSequencer.java",
+      "android/java/src/org/chromium/chrome/browser/ui/browser_window/PendingActionManager.java",
     ]
     deps = [
       "//base:base_java",
@@ -190,8 +196,10 @@ if (is_android) {
     testonly = true
     sources = [
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/AndroidBrowserWindowCreateParamsImplUnitTest.java",
+      "android/java/src/org/chromium/chrome/browser/ui/browser_window/BrowserWindowCreatorBridgeUnitTest.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/ChromeAndroidTaskImplUnitTest.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/ChromeAndroidTaskTrackerImplUnitTest.java",
+      "android/java/src/org/chromium/chrome/browser/ui/browser_window/PendingActionManagerUnitTest.java",
     ]
     deps = [
       ":java",
@@ -235,6 +243,19 @@ if (is_android) {
       "//third_party/junit",
       "//third_party/mockito:mockito_java",
       "//ui/android:ui_no_recycler_view_java",
+    ]
+  }
+
+  source_set("android_browsertests") {
+    testonly = true
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+    sources = [ "android/create_browser_window_android_browsertest.cc" ]
+    deps = [
+      "//chrome/browser/profiles",
+      "//chrome/browser/ui/browser_window",
+      "//chrome/browser/ui/browser_window:create_browser_window",
+      "//chrome/test:test_support_ui_android",
+      "//testing/gtest",
     ]
   }
 }

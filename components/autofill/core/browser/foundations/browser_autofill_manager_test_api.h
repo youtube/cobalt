@@ -12,11 +12,13 @@
 #include "base/time/time.h"
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/autofill_trigger_source.h"
+#include "components/autofill/core/browser/data_manager/addresses/account_name_email_strike_manager.h"
 #include "components/autofill/core/browser/data_model/payments/credit_card.h"
 #include "components/autofill/core/browser/filling/filling_product.h"
 #include "components/autofill/core/browser/filling/form_filler_test_api.h"
 #include "components/autofill/core/browser/foundations/autofill_manager_test_api.h"
 #include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
+#include "components/autofill/core/browser/integrators/one_time_tokens/otp_manager_impl.h"
 #include "components/autofill/core/browser/payments/amount_extraction_manager.h"
 #include "components/autofill/core/browser/payments/bnpl_manager.h"
 #include "components/autofill/core/browser/payments/credit_card_access_manager.h"
@@ -53,6 +55,10 @@ class BrowserAutofillManagerTestApi : public AutofillManagerTestApi {
 
   autofill_metrics::CreditCardFormEventLogger* credit_card_form_event_logger() {
     return &manager_->metrics_->credit_card_form_event_logger;
+  }
+
+  autofill_metrics::OtpFormEventLogger* get_otp_form_event_logger() {
+    return &manager_->metrics_->otp_form_event_logger;
   }
 
   void set_credit_card_access_manager(
@@ -107,6 +113,15 @@ class BrowserAutofillManagerTestApi : public AutofillManagerTestApi {
   OtpManager* set_otp_manager(std::unique_ptr<OtpManager> otp_manager) {
     manager_->otp_manager_ = std::move(otp_manager);
     return manager_->otp_manager_.get();
+  }
+
+  bool ShouldShowScanCreditCard(const FormStructure& form,
+                                const AutofillField& trigger_field) {
+    return manager_->ShouldShowScanCreditCard(form, trigger_field);
+  }
+
+  AccountNameEmailStrikeManager* account_name_email_strike_manager() {
+    return manager_->account_name_email_strike_manager_.get();
   }
 
  private:

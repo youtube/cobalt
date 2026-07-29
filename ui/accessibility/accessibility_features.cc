@@ -53,6 +53,11 @@ bool IsAccessibilityTextFormattingEnabled() {
   return base::FeatureList::IsEnabled(::features::kAccessibilityTextFormatting);
 }
 
+BASE_FEATURE(kAccessibilityLabeledBy, base::FEATURE_DISABLED_BY_DEFAULT);
+bool IsAccessibilityLabeledByEnabled() {
+  return base::FeatureList::IsEnabled(::features::kAccessibilityLabeledBy);
+}
+
 BASE_FEATURE(kAccessibilityTreeForViews, base::FEATURE_DISABLED_BY_DEFAULT);
 bool IsAccessibilityTreeForViewsEnabled() {
   return base::FeatureList::IsEnabled(::features::kAccessibilityTreeForViews);
@@ -316,14 +321,14 @@ bool IsAccessibilityManifestV3EnabledForEnhancedNetworkTts() {
 }
 
 BASE_FEATURE(kAccessibilityManifestV3EspeakNGTts,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 bool IsAccessibilityManifestV3EnabledForEspeakNGTts() {
   return base::FeatureList::IsEnabled(
       ::features::kAccessibilityManifestV3EspeakNGTts);
 }
 
 BASE_FEATURE(kAccessibilityManifestV3GoogleTts,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 bool IsAccessibilityManifestV3EnabledForGoogleTts() {
   return base::FeatureList::IsEnabled(
       ::features::kAccessibilityManifestV3GoogleTts);
@@ -362,7 +367,6 @@ bool IsAccessibilityInlineLineSeparatorsEnabled() {
 }
 
 BASE_FEATURE(kAccessibilityMagnificationFollowsInputFocus,
-             "AccessibilityMagnificationFollowsInputFocus",
              base::FEATURE_DISABLED_BY_DEFAULT);
 bool IsAccessibilityMagnificationFollowsInputEnabled() {
   return base::FeatureList::IsEnabled(

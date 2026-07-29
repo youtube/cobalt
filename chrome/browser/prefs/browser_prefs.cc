@@ -188,6 +188,7 @@
 #include "components/sync/service/glue/sync_transport_data_prefs.h"
 #include "components/sync/service/sync_prefs.h"
 #include "components/sync_device_info/device_info_prefs.h"
+#include "components/sync_preferences/cross_device_pref_tracker/prefs/cross_device_pref_registry.h"
 #include "components/sync_preferences/pref_service_syncable.h"
 #include "components/sync_sessions/session_sync_prefs.h"
 #include "components/tpcd/metadata/browser/prefs.h"
@@ -1160,6 +1161,10 @@ constexpr char kObsoleteUpmAutoExportCsvNeedsDeletion[] =
 constexpr char kGaiaCookieLastListAccountsData[] =
     "gaia_cookie.last_list_accounts_data";
 
+// Deprecated 09/2025.
+constexpr char kLensOverlayEduActionChipShownCount[] =
+    "lens.edu_action_chip.shown_count";
+
 constexpr char kRendererCodeIntegrityEnabledNeedsDeletion[] =
     "renderer_code_integrity_enabled";
 
@@ -1684,6 +1689,9 @@ void RegisterProfilePrefsForMigration(
 
   // Deprecated 09/2025.
   registry->RegisterStringPref(kGaiaCookieLastListAccountsData, std::string());
+
+  // Deprecated 09/2025.
+  registry->RegisterIntegerPref(kLensOverlayEduActionChipShownCount, 0);
 }
 
 }  // namespace
@@ -2021,6 +2029,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   chrome_prefs::RegisterProfilePrefs(registry);
   collaboration::prefs::RegisterProfilePrefs(registry);
   commerce::RegisterPrefs(registry);
+  cross_device::RegisterProfilePrefs(registry);
   enterprise::RegisterIdentifiersProfilePrefs(registry);
   enterprise_connectors::RegisterProfilePrefs(registry);
   enterprise_reporting::RegisterProfilePrefs(registry);
@@ -3039,6 +3048,9 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
   // Added 09/2025.
   PageColorsController::MigrateObsoleteProfilePrefs(profile_prefs);
   profile_prefs->ClearPref(kGaiaCookieLastListAccountsData);
+
+  // Added 09/2025.
+  profile_prefs->ClearPref(kLensOverlayEduActionChipShownCount);
 
   // Please don't delete the following line. It is used by PRESUBMIT.py.
   // END_MIGRATE_OBSOLETE_PROFILE_PREFS

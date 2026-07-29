@@ -129,7 +129,7 @@ void MaybeRecordWebSigninToChromeSigninTimes(
     case signin_metrics::AccessPoint::kAvatarBubbleSignIn:
     case signin_metrics::AccessPoint::kUserManager:
     case signin_metrics::AccessPoint::kDevicesPage:
-    case signin_metrics::AccessPoint::kSigninPromo:
+    case signin_metrics::AccessPoint::kFullscreenSigninPromo:
     case signin_metrics::AccessPoint::kRecentTabs:
     case signin_metrics::AccessPoint::kUnknown:
     case signin_metrics::AccessPoint::kAutofillDropdown:
@@ -186,8 +186,6 @@ void MaybeRecordWebSigninToChromeSigninTimes(
     case signin_metrics::AccessPoint::kHistorySyncOptinExpansionPillOnStartup:
     case signin_metrics::AccessPoint::kWidget:
     case signin_metrics::AccessPoint::kCollaborationLeaveOrDeleteTabGroup:
-    case signin_metrics::AccessPoint::
-        kHistorySyncOptinExpansionPillOnInactivity:
     case signin_metrics::AccessPoint::kHistorySyncEducationalTip:
     case signin_metrics::AccessPoint::kManagedProfileAutoSigninIos:
     case signin_metrics::AccessPoint::kNonModalSigninPasswordPromo:
@@ -314,18 +312,19 @@ void SigninMetricsService::OnPrimaryAccountChanged(
           event_details.GetSetPrimaryAccountAccessPoint();
       CHECK(access_point.has_value());
       if (access_point == signin_metrics::AccessPoint::
-                              kHistorySyncOptinExpansionPillOnStartup ||
-          access_point == signin_metrics::AccessPoint::
-                              kHistorySyncOptinExpansionPillOnInactivity) {
+                              kHistorySyncOptinExpansionPillOnStartup) {
         SigninPrefs signin_prefs(pref_service_.get());
         const CoreAccountInfo& account =
             event_details.GetCurrentState().primary_account;
         base::UmaHistogramExactLinear(
             "Signin.SyncOptIn.IdentityPill.SyncAtShowCount",
-            switches::IsAvatarSyncPromoFeatureEnabled()
-                ? signin_prefs.GetSyncPromoIdentityPillShownCount(account.gaia)
-                : signin_prefs.GetHistorySyncPromoIdentityPillShownCount(
-                      account.gaia),
+            // `!switches::IsAvatarSyncPromoFeatureEnabled()` assumes that
+            // `syncer::kReplaceSyncPromosWithSignInPromos` is enabled. For
+            // simplicity of component dependency we avoid doing the check here.
+            !switches::IsAvatarSyncPromoFeatureEnabled()
+                ? signin_prefs.GetHistorySyncPromoIdentityPillShownCount(
+                      account.gaia)
+                : signin_prefs.GetSyncPromoIdentityPillShownCount(account.gaia),
             // Arbitrary number that is higher than the possible show count that
             // the promo can reach
             // (`user_education::features::GetNewBadgeShowCount()`: 10).

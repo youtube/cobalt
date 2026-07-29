@@ -31,6 +31,7 @@ class UnexportableKeyService;
 
 namespace net::device_bound_sessions {
 
+class SessionService;
 class RegistrationRequestParam;
 
 // This class creates a new unexportable key, creates a registration JWT and
@@ -51,6 +52,7 @@ class NET_EXPORT RegistrationFetcher {
   // Creates a fetcher that can be used to do registration or refresh.
   static std::unique_ptr<RegistrationFetcher> CreateFetcher(
       RegistrationRequestParam& request_params,
+      SessionService& session_service,
       unexportable_keys::UnexportableKeyService& key_service,
       const URLRequestContext* context,
       const IsolationInfo& isolation_info,
@@ -75,8 +77,7 @@ class NET_EXPORT RegistrationFetcher {
   // will be called with a std::nullopt.
   virtual void StartFetchWithExistingKey(
       RegistrationRequestParam& request_params,
-      unexportable_keys::ServiceErrorOr<unexportable_keys::UnexportableKeyId>
-          key_id,
+      unexportable_keys::UnexportableKeyId key_id,
       RegistrationCompleteCallback callback) = 0;
 
   // Starts the network request to the DBSC registration endpoint for a
@@ -91,12 +92,10 @@ class NET_EXPORT RegistrationFetcher {
   // Helper function for generating a new binding key and a registration token
   // to bind the key on the server. unexportable_key_service must outlive the
   // callback result
-  static void CreateTokenAsyncForTesting(
+  static void CreateRegistrationTokenAsyncForTesting(
       unexportable_keys::UnexportableKeyService& unexportable_key_service,
       std::string challenge,
-      const GURL& registration_url,
       std::optional<std::string> authorization,
-      std::optional<std::string> session_identifier,
       base::OnceCallback<void(std::optional<RegistrationToken>)> callback);
 
   static void SetFetcherForTesting(FetcherType* fetcher);

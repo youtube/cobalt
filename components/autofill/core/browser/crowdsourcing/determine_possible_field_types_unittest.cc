@@ -18,11 +18,13 @@
 #include "components/autofill/core/browser/form_parsing/determine_regex_types.h"
 #include "components/autofill/core/browser/foundations/test_autofill_client.h"
 #include "components/autofill/core/browser/geo/alternative_state_name_map_test_utils.h"
+#include "components/autofill/core/browser/proto/server.pb.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/browser/test_utils/valuables_data_test_utils.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_test_utils.h"
 #include "components/autofill/core/common/form_data_test_api.h"
+#include "components/autofill/core/common/form_field_data.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -35,6 +37,8 @@ void PrintTo(const PossibleTypes& ps, std::ostream* os) {
         return u"AFFIX";
       case FormatString_Type_DATE:
         return u"DATE";
+      case FormatString_Type_FLIGHT_NUMBER:
+        return u"FLIGHT_NUMBER";
     }
     NOTREACHED();
   };
@@ -87,21 +91,26 @@ Matcher<const PossibleTypes&> HasNoFormats() {
 // Matcher for `PossibleTypes::formats`.
 template <typename... Ts>
   requires(std::convertible_to<Ts, const char*> && ...)
-Matcher<const PossibleTypes&> HasAffixFormats(Ts&&... formats) {
+Matcher<const PossibleTypes&> HasFormats(FormatString_Type type,
+                                         Ts&&... formats) {
   return Field("PossibleTypes::formats", &PossibleTypes::formats,
-               UnorderedElementsAre(
-                   Pair(FormatString_Type_AFFIX,
-                        base::UTF8ToUTF16(std::string_view(formats)))...));
+               UnorderedElementsAre(Pair(
+                   type, base::UTF8ToUTF16(std::string_view(formats)))...));
 }
 
-// Matcher for `PossibleTypes::formats`.
 template <typename... Ts>
-  requires(std::convertible_to<Ts, const char*> && ...)
+Matcher<const PossibleTypes&> HasAffixFormats(Ts&&... formats) {
+  return HasFormats(FormatString_Type_AFFIX, formats...);
+}
+
+template <typename... Ts>
 Matcher<const PossibleTypes&> HasDateFormats(Ts&&... formats) {
-  return Field("PossibleTypes::formats", &PossibleTypes::formats,
-               UnorderedElementsAre(
-                   Pair(FormatString_Type_DATE,
-                        base::UTF8ToUTF16(std::string_view(formats)))...));
+  return HasFormats(FormatString_Type_DATE, formats...);
+}
+
+template <typename... Ts>
+Matcher<const PossibleTypes&> HasFlightNumberFormats(Ts&&... formats) {
+  return HasFormats(FormatString_Type_FLIGHT_NUMBER, formats...);
 }
 
 // Fakes that a `form` has been seen (without its field value) and parsed and
@@ -412,6 +421,7 @@ class DeterminePossibleFieldTypesForUploadTest : public ::testing::Test {
     scoped_feature_list_.InitWithFeatures(
         {features::kAutofillAiWithDataSchema,
          features::kAutofillAiVoteForFormatStringsForAffixes,
+         features::kAutofillAiVoteForFormatStringsForFlightNumbers,
          features::kAutofillEnableLoyaltyCardsFilling},
         {});
   }
@@ -805,6 +815,13 @@ TEST_F(DeterminePossibleFieldTypesForUploadTest,
                           FormControlType::kInputText),
       CreateTestFormField("issue", "issue-year", "2010",
                           FormControlType::kInputText),
+      // Flight number.
+      CreateTestFormField("airline", "airline", "LH",
+                          FormControlType::kInputText),
+      CreateTestFormField("number", "number", "93",
+                          FormControlType::kInputText),
+      CreateTestFormField("flight number", "flight number", "LH93",
+                          FormControlType::kInputText),
       // No format string.
       CreateTestFormField("wrong-country", "wrong-country", "Finland",
                           FormControlType::kInputText),
@@ -812,7 +829,7 @@ TEST_F(DeterminePossibleFieldTypesForUploadTest,
   std::unique_ptr<FormStructure> form_structure =
       ConstructFormStructureFromFormData(form);
 
-  EntityInstance entity = test::GetPassportEntityInstance({
+  const EntityInstance passport_entity = test::GetPassportEntityInstance({
       .name = u"Pippi Longstocking",
       .number = u"0123456789",
       .country = u"Sweden",
@@ -820,10 +837,13 @@ TEST_F(DeterminePossibleFieldTypesForUploadTest,
       .issue_date = u"2010-09-01",
   });
 
+  const EntityInstance flight_entity =
+      test::GetFlightReservationEntityInstance({.flight_number = u"LH93"});
+
   EXPECT_THAT(
       DeterminePossibleFieldTypesForUpload(
           std::vector<AutofillProfile>(), std::vector<CreditCard>(),
-          base::span_from_ref(entity), std::vector<LoyaltyCard>(),
+          {passport_entity, flight_entity}, std::vector<LoyaltyCard>(),
           /*fields_that_match_state=*/{},
           /*last_unlocked_credit_card_cvc=*/u"", "en-US",
           form_structure->fields()),
@@ -841,6 +861,12 @@ TEST_F(DeterminePossibleFieldTypesForUploadTest,
           AllOf(HasTypes(PASSPORT_ISSUE_DATE), HasDateFormats("DD", "MM")),
           AllOf(HasTypes(PASSPORT_ISSUE_DATE), HasDateFormats("DD", "MM")),
           AllOf(HasTypes(PASSPORT_ISSUE_DATE), HasDateFormats("YYYY")),
+          AllOf(HasTypes(FLIGHT_RESERVATION_FLIGHT_NUMBER),
+                HasFlightNumberFormats("A")),
+          AllOf(HasTypes(FLIGHT_RESERVATION_FLIGHT_NUMBER),
+                HasFlightNumberFormats("N")),
+          AllOf(HasTypes(FLIGHT_RESERVATION_FLIGHT_NUMBER),
+                HasFlightNumberFormats("F")),
           AllOf(HasTypes(UNKNOWN_TYPE), HasNoFormats())));
 }
 

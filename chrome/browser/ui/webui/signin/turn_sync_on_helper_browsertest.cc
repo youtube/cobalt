@@ -28,6 +28,7 @@
 #include "components/signin/public/identity_manager/accounts_mutator.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
+#include "components/sync/base/features.h"
 #include "content/public/test/browser_test.h"
 #include "testing/gmock/include/gmock/gmock-matchers.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -67,7 +68,10 @@ class Delegate : public TurnSyncOnHelper::Delegate {
   ~Delegate() override = default;
 
   // TurnSyncOnHelper::Delegate:
-  void ShowLoginError(const SigninUIError& error) override { NOTREACHED(); }
+  void ShowLoginError(const SigninUIError& error) override {
+    ADD_FAILURE() << "ShowLoginError() invoked unpexectedly with error: "
+                  << error.message();
+  }
   void ShowMergeSyncDataConfirmation(
       const std::string& previous_email,
       const std::string& new_email,
@@ -204,6 +208,10 @@ class TurnSyncOnHelperBrowserTestWithParam
  public:
   TurnSyncOnHelperBrowserTestWithParam()
       : SigninBrowserTestBase(/*use_main_profile=*/false) {
+    // Class `TurnSyncOnHelper` is only reachable and usable if the feature is
+    // disabled.
+    scoped_feature_list_.InitAndDisableFeature(
+        syncer::kReplaceSyncPromosWithSignInPromos);
   }
 
   void SetUpOnMainThread() override {
@@ -220,6 +228,7 @@ class TurnSyncOnHelperBrowserTestWithParam
     return std::get<TurnSyncOnHelper::SigninAbortedMode>(GetParam());
   }
 
+  base::test::ScopedFeatureList scoped_feature_list_;
   base::ScopedClosureRunner disclaimer_service_resetter_;
 };
 
@@ -339,7 +348,12 @@ INSTANTIATE_TEST_SUITE_P(
 class TurnSyncOnHelperBrowserTest : public SigninBrowserTestBase {
  public:
   TurnSyncOnHelperBrowserTest()
-      : SigninBrowserTestBase(/*use_main_profile=*/false) {}
+      : SigninBrowserTestBase(/*use_main_profile=*/false) {
+    // Class `TurnSyncOnHelper` is only reachable and usable if the feature is
+    // disabled.
+    scoped_feature_list_.InitAndDisableFeature(
+        syncer::kReplaceSyncPromosWithSignInPromos);
+  }
 
   void SetUpOnMainThread() override {
     SigninBrowserTestBase::SetUpOnMainThread();
@@ -349,6 +363,7 @@ class TurnSyncOnHelperBrowserTest : public SigninBrowserTestBase {
   }
 
  private:
+  base::test::ScopedFeatureList scoped_feature_list_;
   base::ScopedClosureRunner disclaimer_service_resetter_;
 };
 

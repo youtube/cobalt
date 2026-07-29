@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/rand_util.h"
 #ifdef UNSAFE_BUFFERS_BUILD
 // TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
 #pragma allow_unsafe_buffers
 #endif
-
-#include "base/allocator/partition_alloc_support.h"
 
 #include <algorithm>
 #include <array>
@@ -19,6 +18,7 @@
 #include <string_view>
 
 #include "base/allocator/partition_alloc_features.h"
+#include "base/allocator/partition_alloc_support.h"
 #include "base/allocator/scheduler_loop_quarantine_config.h"
 #include "base/at_exit.h"
 #include "base/check.h"
@@ -44,6 +44,7 @@
 #include "base/synchronization/lock_impl.h"
 #include "base/synchronization/lock_metrics_recorder.h"
 #include "base/system/sys_info.h"
+#include "base/task/common/task_annotator.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/thread_annotations.h"
 #include "base/threading/platform_thread.h"
@@ -163,7 +164,9 @@ namespace {
 
 void RunThreadCachePeriodicPurge() {
   // Micros, since periodic purge should typically take at most a few ms.
-  SCOPED_UMA_HISTOGRAM_TIMER_MICROS("Memory.PartitionAlloc.PeriodicPurge");
+  SCOPED_UMA_HISTOGRAM_TIMER_MICROS_SUBSAMPLED(
+      "Memory.PartitionAlloc.PeriodicPurge.Subsampled",
+      base::ShouldRecordSubsampledMetric(0.01));
   TRACE_EVENT0("memory", "PeriodicPurge");
   auto& instance = ::partition_alloc::ThreadCacheRegistry::Instance();
   instance.RunPeriodicPurge();
@@ -1006,6 +1009,7 @@ void PartitionAllocSupport::ReconfigureAfterFeatureListInit(
     base::allocator::InstallDanglingRawPtrChecks();
   }
   base::allocator::InstallUnretainedDanglingRawPtrChecks();
+
   {
     base::AutoLock scoped_lock(lock_);
     // Avoid initializing more than once.
@@ -1093,10 +1097,19 @@ void PartitionAllocSupport::ReconfigureAfterFeatureListInit(
               process_type,
               SchedulerLoopQuarantineBranchType::kAdvancedMemorySafetyChecks);
 
+  if (base::FeatureList::IsEnabled(
+          base::features::
+              kPartitionAllocSchedulerLoopQuarantineTaskControlledPurge) &&
+      ShouldEnableFeatureOnProcess(
+          base::features::
+              kPartitionAllocSchedulerLoopQuarantineTaskControlledPurgeEnabledProcessesParam
+                  .Get(),
+          process_type)) {
+    base::EnableSchedulerLoopQuarantineTaskControlledPurge();
+  }
+
   const bool eventually_zero_freed_memory = base::FeatureList::IsEnabled(
       base::features::kPartitionAllocEventuallyZeroFreedMemory);
-  const bool fewer_memory_regions = base::FeatureList::IsEnabled(
-      base::features::kPartitionAllocFewerMemoryRegions);
 
   bool enable_memory_tagging = false;
   partition_alloc::TagViolationReportingMode memory_tagging_reporting_mode =
@@ -1194,8 +1207,7 @@ void PartitionAllocSupport::ReconfigureAfterFeatureListInit(
       scheduler_loop_quarantine_global_config,
       scheduler_loop_quarantine_thread_local_config,
       scheduler_loop_quarantine_for_advanced_memory_safety_checks_config,
-      allocator_shim::EventuallyZeroFreedMemory(eventually_zero_freed_memory),
-      allocator_shim::FewerMemoryRegions(fewer_memory_regions));
+      allocator_shim::EventuallyZeroFreedMemory(eventually_zero_freed_memory));
 
   const uint32_t extras_size = allocator_shim::GetMainPartitionRootExtrasSize();
   // As per description, extras are optional and are expected not to

@@ -28,19 +28,20 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_GEOLOCATION_GEOLOCATION_H_
 
 #include "base/dcheck_is_on.h"
+#include "base/types/expected.h"
 #include "services/device/public/mojom/geolocation.mojom-blink.h"
 #include "third_party/blink/public/mojom/geolocation/geolocation_service.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_position_callback.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_position_error_callback.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_position_options.h"
+#include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
-#include "third_party/blink/renderer/core/page/page_visibility_observer.h"
 #include "third_party/blink/renderer/core/geolocation/geo_notifier.h"
 #include "third_party/blink/renderer/core/geolocation/geolocation_position_error.h"
 #include "third_party/blink/renderer/core/geolocation/geolocation_watchers.h"
 #include "third_party/blink/renderer/core/geolocation/geoposition.h"
-#include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/page/page_visibility_observer.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
@@ -80,7 +81,8 @@ class CORE_EXPORT Geolocation final
   LocalFrame* GetFrame() const;
 
   // Creates a oneshot and attempts to obtain a position that meets the
-  // constraints of the options.
+  // constraints of the options. This method gets called when the geolocation
+  // API is invoked from V8.
   void getCurrentPosition(V8PositionCallback*,
                           V8PositionErrorCallback* = nullptr,
                           const PositionOptions* = PositionOptions::Create());
@@ -93,6 +95,14 @@ class CORE_EXPORT Geolocation final
 
   // Removes all references to the watcher, it will not be updated again.
   void clearWatch(int watch_id);
+
+  // Creates a oneshot and attempts to obtain a position that meets the
+  // constraints of the options. This method gets called when the geolocation
+  // API is invoked from Blink.
+  void RequestPosition(
+      base::RepeatingCallback<
+          void(base::expected<Geoposition*, GeolocationPositionError*>)>,
+      const PositionOptions* = PositionOptions::Create());
 
   // Notifies this that a new position is available. Must never be called
   // before permission is granted by the user.
@@ -171,17 +181,30 @@ class CORE_EXPORT Geolocation final
   // and the user must have given permission.
   void MakeSuccessCallbacks();
 
-  // Sends the given error to all notifiers, unless the error is not fatal and
-  // the notifier is due to receive a cached position. Clears the oneshots,
   // and also  clears the watchers if the error is fatal.
   void HandleError(GeolocationPositionError*);
 
-  // Connects to the Geolocation mojo service and starts polling for updates.
-  void StartUpdating(GeoNotifier*);
+  // Ensures location updates are active and accuracy is
+  // always configured based on the current set of requests. This central
+  // function should be called whenever active notifiers change or permission is
+  // granted.
+  // If the connection to the Geolocation service is not yet established, it
+  // initiates the connection and permission request, then returns early. This
+  // function is called again once the permission status is resolved.
+  void UpdateGeolocationState();
 
+  // Tears down the connection to the Geolocation service and stops all timers.
   void StopUpdating();
 
-  void UpdateGeolocationConnection(GeoNotifier*);
+  // Establishes a connection to the Geolocation service and request permission.
+  // This is an asynchronous operation. Returns true if the connection is
+  // already established. Returns false if the connection is not yet
+  // established, In this case, permission will be reuested and
+  // OnGeolocationPermissionStatusUpdated will be called upon completion.
+  bool EnsureGeolocationConnection();
+
+  // Resets the connection to the Geolocation service.
+  void ResetGeolocationConnection();
   void QueryNextPosition();
 
   // Attempts to obtain a position for the given notifier, either by using
@@ -201,8 +224,13 @@ class CORE_EXPORT Geolocation final
 
   void OnGeolocationConnectionError();
 
-  void OnGeolocationPermissionStatusUpdated(GeoNotifier*,
-                                            mojom::PermissionStatus);
+  // Callback for the asynchronous permission request. Upon invoked, it proceeds
+  // with location updates or handles the error.
+  void OnGeolocationPermissionStatusUpdated(mojom::blink::PermissionStatus);
+
+  void HandlePermissionError();
+
+  void UpdateAccuracyHint();
 
   Member<GeoNotifierSet> one_shots_;
   Member<GeolocationWatchers> watchers_;
@@ -225,13 +253,10 @@ class CORE_EXPORT Geolocation final
   HeapMojoRemote<mojom::blink::GeolocationService> geolocation_service_;
   bool enable_high_accuracy_ = false;
 
-  // Whether a GeoNotifier is waiting for a position update.
+  // Whether a QueryNextPosition request sent and we are waiting for a position
+  // update.
   bool updating_ = false;
-
-  // Set to true when |geolocation_| is disconnected. This is used to
-  // detect when |geolocation_| is disconnected and reconnected while
-  // running callbacks in response to a call to OnPositionUpdated().
-  bool disconnected_geolocation_ = false;
+  bool permission_request_in_progress_ = false;
 };
 
 }  // namespace blink

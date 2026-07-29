@@ -567,7 +567,7 @@ TEST_F(PeopleHandlerTest, DisplayBasicLogin) {
                                PROMO_ACTION_NEW_ACCOUNT_NO_EXISTING_ACCOUNT));
   handler_->HandleStartSignin(base::Value::List());
 
-  // Sync setup hands off control to the gaia login tab.
+  // The sign-in flow setup hands off control to the gaia login tab.
   EXPECT_EQ(
       nullptr,
       LoginUIServiceFactory::GetForProfile(profile())->current_login_ui());

@@ -11,6 +11,7 @@
 #include "base/check_deref.h"
 #include "base/check_op.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/prefs/incognito_mode_prefs.h"
@@ -368,6 +369,16 @@ void BrowserActions::InitializeBrowserActions() {
           .SetImage(ui::ImageModel::FromVectorIcon(kZoomInIcon))
           .Build());
 
+  // The action does nothing, but is used to configure the page action, which
+  // acts as an anchor for the find bar.
+  root_action_item_->AddChild(
+      actions::ActionItem::Builder(base::DoNothing())
+          .SetActionId(kActionFind)
+          .SetTooltipText(l10n_util::GetStringUTF16(IDS_TOOLTIP_FIND))
+          .SetImage(ui::ImageModel::FromVectorIcon(
+              omnibox::kFindInPageChromeRefreshIcon))
+          .Build());
+
   root_action_item_->AddChild(
       actions::ActionItem::Builder(
           base::BindRepeating(
@@ -670,7 +681,7 @@ void BrowserActions::InitializeBrowserActions() {
                       ManagePasswordsUIController::FromWebContents(
                           web_contents);
                   if (controller->IsShowingBubble()) {
-                    controller->HideBubble(/*show_next_bubble=*/true);
+                    controller->HideBubble();
                   } else {
                     chrome::ManagePasswordsForPage(bwi);
                   }

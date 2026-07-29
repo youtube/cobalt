@@ -325,6 +325,8 @@ component("net") {
     "base/upload_progress.h",
     "base/url_search_params.cc",
     "base/url_search_params.h",
+    "base/url_unescape_iterator.cc",
+    "base/url_unescape_iterator.h",
     "base/url_util.cc",
     "base/url_util.h",
     "cert/asn1_util.cc",
@@ -1591,8 +1593,6 @@ component("net") {
       "third_party/mozilla_security_manager/nsNSSCertificateDB.h",
       "third_party/mozilla_security_manager/nsPKCS12Blob.cpp",
       "third_party/mozilla_security_manager/nsPKCS12Blob.h",
-      "third_party/nss/ssl/cmpcert.cc",
-      "third_party/nss/ssl/cmpcert.h",
     ]
     deps += [ "//build:chromeos_buildflags" ]
     if (!is_castos) {
@@ -1819,6 +1819,7 @@ component("net") {
       "disk_cache/sql/cache_entry_key.h",
       "disk_cache/sql/exclusive_operation_coordinator.cc",
       "disk_cache/sql/exclusive_operation_coordinator.h",
+      "disk_cache/sql/indexed_pair_set.h",
       "disk_cache/sql/sql_backend_constants.h",
       "disk_cache/sql/sql_backend_impl.cc",
       "disk_cache/sql/sql_backend_impl.h",
@@ -2763,6 +2764,7 @@ target(_test_target_type, "net_unittests") {
     "base/upload_bytes_element_reader_unittest.cc",
     "base/upload_file_element_reader_unittest.cc",
     "base/url_search_params_unittest.cc",
+    "base/url_unescape_iterator_unittest.cc",
     "base/url_util_unittest.cc",
     "cert/caching_cert_verifier_unittest.cc",
     "cert/cert_database_unittest.cc",
@@ -3129,6 +3131,7 @@ target(_test_target_type, "net_unittests") {
   fuzztests = [
     "PickleTest.FuzzRoundTrip",
     "QuicVersionsFuzzTest.ParseSerializeParseIdentityProperty",
+    "UrlUnescapeIteratorTest.SameOutputAsUnescapePercentEncodedUrl",
   ]
 
   deps = [
@@ -3501,6 +3504,7 @@ target(_test_target_type, "net_unittests") {
     sources += [
       "disk_cache/sql/cache_entry_key_unittest.cc",
       "disk_cache/sql/exclusive_operation_coordinator_unittest.cc",
+      "disk_cache/sql/indexed_pair_set_unittest.cc",
       "disk_cache/sql/sql_backend_impl_unittest.cc",
       "disk_cache/sql/sql_persistent_store_unittest.cc",
     ]

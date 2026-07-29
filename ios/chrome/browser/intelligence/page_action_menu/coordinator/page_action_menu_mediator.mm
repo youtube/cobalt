@@ -7,11 +7,16 @@
 #import "components/prefs/pref_service.h"
 #import "components/search/search.h"
 #import "components/search_engines/template_url_service.h"
+#import "components/translate/core/browser/translate_download_manager.h"
+#import "components/translate/core/browser/translate_manager.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
+#import "ios/chrome/browser/intelligence/page_action_menu/ui/page_action_menu_feature.h"
 #import "ios/chrome/browser/lens_overlay/coordinator/lens_overlay_availability.h"
 #import "ios/chrome/browser/reader_mode/model/features.h"
 #import "ios/chrome/browser/reader_mode/model/reader_mode_tab_helper.h"
+#import "ios/chrome/browser/shared/public/commands/page_action_menu_commands.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
+#import "ios/chrome/browser/translate/model/chrome_ios_translate_client.h"
 #import "ios/web/public/web_state.h"
 #import "ios/web/public/web_state_observer_bridge.h"
 
@@ -63,6 +68,7 @@
 #pragma mark - Public
 
 - (void)disconnect {
+  _readerModeTabHelper = nullptr;
   [self detachFromWebState];
 }
 
@@ -85,6 +91,7 @@
 }
 
 - (BOOL)isReaderModeAvailable {
+  // TODO(crbug.com/447371545): Migrate Reader Mode to the feature type system.
   if (!_readerModeTabHelper) {
     return NO;
   }
@@ -101,6 +108,61 @@
   return _readerModeTabHelper->IsActive();
 }
 
+- (BOOL)isFeatureAvailable:(PageActionMenuFeatureType)featureType {
+  switch (featureType) {
+    case PageActionMenuTranslate: {
+      if (!_webState) {
+        return NO;
+      }
+      ChromeIOSTranslateClient* translateClient =
+          ChromeIOSTranslateClient::FromWebState(_webState);
+      return IsTranslateActive(translateClient);
+    }
+    case PageActionMenuCameraPermission:
+      // TODO(crbug.com/447143165): Implement camera permission availability
+      // check.
+      return NO;
+    case PageActionMenuMicrophonePermission:
+      // TODO(crbug.com/447143165): Implement microphone permission availability
+      // check.
+      return NO;
+    case PageActionMenuPopupBlocker:
+      // TODO(crbug.com/447143165): Implement popup blocker permission
+      // availability check.
+      return NO;
+  }
+}
+
+- (NSString*)translateLanguagePair {
+  if (!_webState) {
+    return nil;
+  }
+
+  ChromeIOSTranslateClient* translateClient =
+      ChromeIOSTranslateClient::FromWebState(_webState);
+
+  if (!IsTranslateActive(translateClient)) {
+    return nil;
+  }
+
+  std::string sourceCode = GetSourceLanguageCode(translateClient);
+  std::string targetCode = GetTargetLanguageCode(translateClient);
+
+  // TODO(crbug.com/447143165): Convert language codes to display names.
+  return [NSString
+      stringWithFormat:@"%s to %s", sourceCode.c_str(), targetCode.c_str()];
+}
+
+- (NSInteger)blockedPopupCount {
+  // TODO(crbug.com/447143165): Return actual blocked popup count.
+  return 2;
+}
+
+- (NSString*)currentSiteDomain {
+  // TODO(crbug.com/447143165): Return actual current domain.
+  return @"foo.com";
+}
+
 #pragma mark - CRWWebStateObserver
 
 - (void)webStateDidStartLoading:(web::WebState*)webState {
@@ -112,7 +174,8 @@
 }
 
 - (void)webStateDestroyed:(web::WebState*)webState {
-  [self detachFromWebState];
+  [self disconnect];
+  [self.pageActionMenuHandler dismissPageActionMenuWithCompletion:nil];
 }
 
 #pragma mark - Private
@@ -127,6 +190,35 @@
     _webState = nullptr;
   }
   _webStateObserver.reset();
+}
+
+// Returns true if translation is currently active for the page.
+bool IsTranslateActive(ChromeIOSTranslateClient* translate_client) {
+  return translate_client && translate_client->GetTranslateManager() &&
+         translate_client->GetTranslateManager()
+             ->GetLanguageState()
+             ->IsPageTranslated();
+}
+
+// Returns the source language code of the translated page.
+std::string GetSourceLanguageCode(ChromeIOSTranslateClient* translate_client) {
+  if (!translate_client || !translate_client->GetTranslateManager()) {
+    return "";
+  }
+  return translate::TranslateDownloadManager::GetLanguageCode(
+      translate_client->GetTranslateManager()
+          ->GetLanguageState()
+          ->source_language());
+}
+
+// Returns the target language code of the translated page.
+std::string GetTargetLanguageCode(ChromeIOSTranslateClient* translate_client) {
+  if (!translate_client || !translate_client->GetTranslateManager()) {
+    return "";
+  }
+  return translate_client->GetTranslateManager()
+      ->GetLanguageState()
+      ->current_language();
 }
 
 @end

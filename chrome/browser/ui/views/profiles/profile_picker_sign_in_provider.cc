@@ -27,8 +27,10 @@
 #include "chrome/browser/trusted_vault/trusted_vault_encryption_keys_tab_helper.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
+#include "chrome/browser/ui/views/profiles/profile_management_types.h"
 #include "chrome/browser/ui/views/profiles/profile_picker_view.h"
 #include "chrome/browser/ui/views/profiles/profile_picker_web_contents_host.h"
+#include "chrome/browser/ui/webui/signin/signin_ui_error.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/safe_browsing/buildflags.h"
@@ -36,6 +38,7 @@
 #include "components/signin/public/base/signin_metrics.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
+#include "components/sync/base/features.h"
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
 #include "content/public/browser/context_menu_params.h"
 #include "content/public/browser/render_frame_host.h"
@@ -378,6 +381,40 @@ void ProfilePickerSignInProvider::FinishFlowInPickerWithHistorySyncOptin(
   FinishFlow(account_info);
 }
 
+void ProfilePickerSignInProvider::ShowSigninError(
+    Profile* profile,
+    content::WebContents* contents,
+    const SigninUIError& error) {
+  if (!base::FeatureList::IsEnabled(
+          syncer::kReplaceSyncPromosWithSignInPromos)) {
+    return;
+  }
+
+  if (signin_util::IsForceSigninEnabled() &&
+      error.type() ==
+          SigninUIError::Type::kUsernameNotAllowedByPatternFromPrefs) {
+    host_->Reset(StepSwitchFinishedCallback(base::BindOnce(
+        &ProfilePickerWebContentsHost::ShowForceSigninErrorDialog,
+        base::Unretained(host_),
+        ForceSigninUIError::SigninPatternNotMatching(
+            base::UTF16ToUTF8(error.email())))));
+  }
+
+  if (error.type() ==
+      SigninUIError::Type::kAccountAlreadyUsedByAnotherProfile) {
+    GURL profile_switch_url(chrome::kChromeUIProfilePickerUrl);
+    profile_switch_url = profile_switch_url.Resolve("profile-switch");
+    // Appends the `profile_path` to be retrieved in the web page.
+    profile_switch_url =
+        net::AppendQueryParameter(profile_switch_url, "profileSwitchPath",
+                                  base::ToString(error.another_profile_path()));
+
+    host_->ShowScreenInPickerContents(profile_switch_url, base::OnceClosure());
+  }
+
+  // TODO(crbug.com/40276801): Handle other errors in the profile picker.
+}
+
 void ProfilePickerSignInProvider::ResetWebContentsDelegates() {
   contents()->SetDelegate(nullptr);
   web_modal::WebContentsModalDialogManager::FromWebContents(contents())
@@ -429,9 +466,8 @@ void ProfilePickerSignInProvider::InitializeOrUpdateDiceTabHelper(
                                   FinishFlowInPickerWithHistorySyncOptin,
                               weak_ptr_factory_.GetWeakPtr()),
           DiceTabHelper::OnSigninHeaderReceived(),
-          // TODO(crbug.com/40276801): Handle signin errors in the profile
-          // picker.
-          /*show_signin_error_callback=*/base::DoNothing());
+          base::BindRepeating(&ProfilePickerSignInProvider::ShowSigninError,
+                              weak_ptr_factory_.GetWeakPtr()));
       tab_helper_is_initialized_ = true;
       return;
     case DiceTabHelperMode::kInBrowser:

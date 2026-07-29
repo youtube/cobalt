@@ -94,7 +94,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="AppBanners.DisplayEvent" enum="AppBannersDisplayEvent"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>pjmclachlan@google.com</owner>
   <owner>pcovell@google.com</owner>
   <summary>
@@ -214,7 +214,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Launch.WebApp.DiyOrCrafted" enum="LaunchedAppType"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>dibyapal@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -224,7 +224,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Launch.WebAppDisplayMode" enum="WebAppDisplayMode"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>peter@chromium.org</owner>
   <owner>yfriedman@chromium.org</owner>
   <summary>
@@ -801,7 +801,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Icon.AppsWithEmptyDownloadedIconSizes" units="web apps"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>alancutter@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -1025,7 +1025,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Webapp.Install.DisplayMode2" enum="WebAppDisplayMode"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>peter@chromium.org</owner>
   <owner>yfriedman@chromium.org</owner>
   <summary>
@@ -1183,7 +1183,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.InstalledCount.ByUserNotLocallyInstalled" units="count"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>dmurph@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -1809,7 +1809,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Launcher.LaunchResult"
-    enum="WebAppLauncherLaunchResult" expires_after="2026-01-18">
+    enum="WebAppLauncherLaunchResult" expires_after="2026-03-22">
   <owner>davidbienvenu@chromium.org</owner>
   <owner>jessemckenna@google.com</owner>
   <summary>
@@ -2480,14 +2480,14 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Shortcuts.Creation.Result"
-    enum="ShortcutsCreationResult" expires_after="2026-01-18">
+    enum="ShortcutsCreationResult" expires_after="2026-03-22">
   <owner>phillis@chromium.org</owner>
   <owner>dmurph@chromium.org</owner>
   <summary>Records the result of shortcut creation for PWA.</summary>
 </histogram>
 
 <histogram name="WebApp.Shortcuts.Delete.Result" enum="BooleanSuccess"
-    expires_after="2025-11-16">
+    expires_after="2026-03-22">
   <owner>dmurph@google.com</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -2501,7 +2501,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Shortcuts.Update.Result" enum="BooleanSuccess"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>camdenking@google.com</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -2641,6 +2641,21 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="WebApp.TotalIconsMemory.DownloadedForUpdate" units="MB"
+    expires_after="2026-09-29">
+  <owner>dibyapal@chromium.org</owner>
+  <owner>pwa-team@google.com</owner>
+  <summary>
+    Measures the total sizes of icons downloaded as part of the manifest update
+    process when triggered for web apps, for both the old and the new
+    predictable algorithm. This is not a measure of the network resources used
+    while downloading, as that is affected by various factors like whether the
+    image is served from the cache or not, or whether the image was compressed
+    or not. But, since the goal of predictable app updating is to reduce the
+    number of icons being fetched, this is still a reliable measurement.
+  </summary>
+</histogram>
+
 <histogram name="WebApp.TrustedIcons.ReadResult" enum="BooleanSuccess"
     expires_after="2026-09-16">
   <owner>dibyapal@chromium.org</owner>
@@ -2730,6 +2745,18 @@ chromium-metrics-reviews@google.com.
     navigations. Note that &quot;No app in scope&quot; results are ignored due
     to the expected several orders of magnitude higher volume than all other
     update results.
+  </summary>
+</histogram>
+
+<histogram name="WebApp.UpdateReviewDialog.TriggerToShowTime" units="ms"
+    expires_after="2026-09-19">
+  <owner>dibyapal@chromium.org</owner>
+  <owner>pwa-team@google.com</owner>
+  <summary>
+    Records the time taken in milliseconds for the user to click on the 3-dot
+    menu option for reviewing an app update to the update dialog actually
+    showing up. Useful for measuring the latency of certain things like icon
+    reading from disk as well as icon masking.
   </summary>
 </histogram>
 

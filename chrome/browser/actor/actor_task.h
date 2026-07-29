@@ -16,9 +16,9 @@
 #include "base/memory/weak_ptr.h"
 #include "base/timer/elapsed_timer.h"
 #include "base/types/pass_key.h"
-#include "chrome/browser/actor/task_id.h"
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/common/actor.mojom-forward.h"
+#include "chrome/common/actor/task_id.h"
 #include "chrome/common/actor_webui.mojom.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "components/tabs/public/tab_interface.h"
@@ -62,15 +62,21 @@ class ActorTask {
 
   // Once state leaves kCreated it should never go back. One state enters
   // kFinished or kCancelled it should never change.
+
+  // LINT.IfChange(State)
+  // These enum values are persisted to logs.  Do not renumber or reuse numeric
+  // values.
   enum class State {
-    kCreated,
-    kActing,
-    kReflecting,
-    kPausedByActor,
-    kPausedByUser,
-    kCancelled,
-    kFinished
+    kCreated = 0,
+    kActing = 1,
+    kReflecting = 2,
+    kPausedByActor = 3,
+    kPausedByUser = 4,
+    kCancelled = 5,
+    kFinished = 6,
+    kMaxValue = kFinished,
   };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/actor/histograms.xml:ActorTaskState)
 
   State GetState() const;
   void SetState(State state);
@@ -106,7 +112,11 @@ class ActorTask {
   void AddTab(tabs::TabHandle tab, AddTabCallback callback);
   void RemoveTab(tabs::TabHandle tab);
 
-  // Returns true if the given tab is part of this task's acting set.
+  // Returns true if the given tab is part of this task's tab set.
+  bool HasTab(tabs::TabHandle tab) const;
+
+  // Returns true if the given tab is part of this task's tab set and is in
+  // an active (non-paused) state.
   bool IsActingOnTab(tabs::TabHandle tab) const;
 
   using TabHandleSet = absl::flat_hash_set<tabs::TabHandle>;
@@ -153,9 +163,8 @@ class ActorTask {
   TaskId id_;
 
   std::string title_;
-
-  // A timer for the current state that is not paused.
-  std::optional<base::ElapsedTimer> current_timer_ = base::ElapsedTimer();
+  // A timer for the current state.
+  base::ElapsedTimer current_state_timer_;
   // An accumulation of elapsed times for previous "active" states.
   base::TimeDelta total_active_time_;
 
@@ -163,8 +172,10 @@ class ActorTask {
   // of a tab in this map signifies that it is part of the task.
   absl::flat_hash_map<tabs::TabHandle, ActingTabState> acting_tabs_;
 
-  // Running number of steps this task has taken.
-  size_t number_of_steps_ = 0;
+  // Running number of actions taken in the current state.
+  size_t actions_in_current_state_ = 0;
+  // Running number of actions this task has taken.
+  size_t total_number_of_actions_ = 0;
 
   base::WeakPtrFactory<ui::UiEventDispatcher> ui_weak_ptr_factory_;
   base::WeakPtrFactory<ActorTask> weak_ptr_factory_{this};

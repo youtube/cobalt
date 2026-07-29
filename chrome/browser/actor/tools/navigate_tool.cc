@@ -85,10 +85,11 @@ std::string NavigateTool::JournalEvent() const {
   return "Navigate";
 }
 
-std::unique_ptr<ObservationDelayController>
-NavigateTool::GetObservationDelayer() const {
+std::unique_ptr<ObservationDelayController> NavigateTool::GetObservationDelayer(
+    std::optional<ObservationDelayController::PageStabilityConfig>
+        page_stability_config) const {
   return std::make_unique<ObservationDelayController>(
-      *web_contents()->GetPrimaryMainFrame());
+      *web_contents()->GetPrimaryMainFrame(), task_id(), page_stability_config);
 }
 
 void NavigateTool::UpdateTaskBeforeInvoke(ActorTask& task,

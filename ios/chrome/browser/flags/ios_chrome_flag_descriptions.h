@@ -26,6 +26,9 @@ extern const char kAIMPrototypeDevToolsDescription[];
 extern const char kAIMPrototypeName[];
 extern const char kAIMPrototypeDescription[];
 
+extern const char kAIMPrototypeImmersiveSRPName[];
+extern const char kAIMPrototypeImmersiveSRPDescription[];
+
 extern const char kAskGeminiChipName[];
 extern const char kAskGeminiChipDescription[];
 
@@ -92,12 +95,6 @@ extern const char
 extern const char
     kAutofillEnableCvcStorageAndFillingStandaloneFormEnhancementDescription[];
 
-// Title and description for the flag to enable dynamically loading the fields
-// for address input based on the country value.
-extern const char kAutofillEnableDynamicallyLoadingFieldsForAddressInputName[];
-extern const char
-    kAutofillEnableDynamicallyLoadingFieldsForAddressInputDescription[];
-
 extern const char kAutofillPaymentsFieldSwappingName[];
 extern const char kAutofillPaymentsFieldSwappingDescription[];
 
@@ -115,12 +112,6 @@ extern const char
 
 extern const char kAutofillEnablePrefetchingRiskDataForRetrievalName[];
 extern const char kAutofillEnablePrefetchingRiskDataForRetrievalDescription[];
-
-extern const char kAutofillEnableRankingFormulaAddressProfilesName[];
-extern const char kAutofillEnableRankingFormulaAddressProfilesDescription[];
-
-extern const char kAutofillEnableRankingFormulaCreditCardsName[];
-extern const char kAutofillEnableRankingFormulaCreditCardsDescription[];
 
 extern const char kAutofillEnableSupportForHomeAndWorkName[];
 extern const char kAutofillEnableSupportForHomeAndWorkDescription[];
@@ -429,6 +420,9 @@ extern const char kIOSAppBundlePromoEphemeralCardDescription[];
 extern const char kIOSBrowserEditMenuMetricsName[];
 extern const char kIOSBrowserEditMenuMetricsDescription[];
 
+extern const char kIOSCustomFileUploadMenuName[];
+extern const char kIOSCustomFileUploadMenuDescription[];
+
 extern const char kIOSDockingPromoName[];
 extern const char kIOSDockingPromoDescription[];
 
@@ -437,6 +431,12 @@ extern const char kIOSEnablePasswordManagerTrustedVaultWidgetDescription[];
 
 extern const char kIOSEnableRealtimeEventReportingName[];
 extern const char kIOSEnableRealtimeEventReportingDescription[];
+
+extern const char kIOSEnableCloudProfileReportingName[];
+extern const char kIOSEnableCloudProfileReportingDescription[];
+
+extern const char kIOSBrowserReportIncludeAllProfilesName[];
+extern const char kIOSBrowserReportIncludeAllProfilesDescription[];
 
 extern const char kIOSFillRecoveryPasswordName[];
 extern const char kIOSFillRecoveryPasswordDescription[];
@@ -477,9 +477,6 @@ extern const char kIOSQuickDeleteDescription[];
 
 extern const char kIOSChooseFromDriveName[];
 extern const char kIOSChooseFromDriveDescription[];
-
-extern const char kIOSChooseFromDriveSimulatedClickName[];
-extern const char kIOSChooseFromDriveSimulatedClickDescription[];
 
 extern const char kIOSManageAccountStorageName[];
 extern const char kIOSManageAccountStorageDescription[];
@@ -559,6 +556,9 @@ extern const char kLensInitialLvfZoomLevel90PercentDescription[];
 extern const char kLensLoadAIMInLensResultPageName[];
 extern const char kLensLoadAIMInLensResultPageDescription[];
 
+extern const char kLensOverlayCustomBottomSheetName[];
+extern const char kLensOverlayCustomBottomSheetDescription[];
+
 extern const char kLensOverlayForceShowOnboardingScreenName[];
 extern const char kLensOverlayForceShowOnboardingScreenDescription[];
 
@@ -630,9 +630,6 @@ extern const char kLinkedServicesSettingIosDescription[];
 
 extern const char kLockBottomToolbarName[];
 extern const char kLockBottomToolbarDescription[];
-
-extern const char kMagicStackName[];
-extern const char kMagicStackDescription[];
 
 extern const char kMobilePromoOnDesktopName[];
 extern const char kMobilePromoOnDesktopDescription[];

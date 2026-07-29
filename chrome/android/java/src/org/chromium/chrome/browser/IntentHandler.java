@@ -294,8 +294,22 @@ public class IntentHandler {
 
     public static final String EXTRA_CCT_EARLY_NAV = "org.chromium.chrome.browser.cct_early_nav";
 
+    /**
+     * Used to determine the {@link TipsNotificationFeatureType} that the tip is attempting to show.
+     */
+    public static final String EXTRA_TIPS_NOTIFICATION_FEATURE_TYPE =
+            "org.chromium.chrome.browser.tips_notification_feature_type";
+
     /** The package name for the Google Search App. */
     public static final String PACKAGE_GSA = GSAUtils.GSA_PACKAGE_NAME;
+
+    /** Action to launch the Chrome Item Picker UI, e.g.: tabs. */
+    public static final String EXTRA_OPEN_CHROME_ITEM_PICKER =
+            "org.chromium.chrome.browser.actions.open_chrome_item_picker";
+
+    /** Optional extra for the maximum number of items the user can select. */
+    public static final String EXTRA_ITEM_PICKER_MAX_SELECTABLE_ITEMS =
+            "org.chromium.chrome.browser.extras.item_picker_max_selectable_items";
 
     private static @Nullable Pair<Integer, String> sPendingReferrer;
     private static int sReferrerId;
@@ -534,30 +548,30 @@ public class IntentHandler {
      * @param packageName String The application package name to map.
      * @return ExternalAppId representing the app.
      */
-    public static @ExternalAppId int mapPackageToExternalAppId(String packageName) {
-        if (packageName.equals(PACKAGE_PLUS)) {
+    public static @ExternalAppId int mapPackageToExternalAppId(@Nullable String packageName) {
+        if (PACKAGE_PLUS.equals(packageName)) {
             return ExternalAppId.PLUS;
-        } else if (packageName.equals(PACKAGE_GMAIL)) {
+        } else if (PACKAGE_GMAIL.equals(packageName)) {
             return ExternalAppId.GMAIL;
-        } else if (packageName.equals(PACKAGE_HANGOUTS)) {
+        } else if (PACKAGE_HANGOUTS.equals(packageName)) {
             return ExternalAppId.HANGOUTS;
-        } else if (packageName.equals(PACKAGE_MESSENGER)) {
+        } else if (PACKAGE_MESSENGER.equals(packageName)) {
             return ExternalAppId.MESSENGER;
-        } else if (packageName.equals(PACKAGE_YOUTUBE)) {
+        } else if (PACKAGE_YOUTUBE.equals(packageName)) {
             return ExternalAppId.YOUTUBE;
-        } else if (packageName.equals(PACKAGE_LINE)) {
+        } else if (PACKAGE_LINE.equals(packageName)) {
             return ExternalAppId.LINE;
-        } else if (packageName.equals(PACKAGE_WHATSAPP)) {
+        } else if (PACKAGE_WHATSAPP.equals(packageName)) {
             return ExternalAppId.WHATSAPP;
-        } else if (packageName.equals(PACKAGE_GSA)) {
+        } else if (PACKAGE_GSA.equals(packageName)) {
             return ExternalAppId.GSA;
-        } else if (packageName.equals(ContextUtils.getApplicationContext().getPackageName())) {
+        } else if (ContextUtils.getApplicationContext().getPackageName().equals(packageName)) {
             return ExternalAppId.CHROME;
-        } else if (packageName.startsWith(WEBAPK_PACKAGE_PREFIX)) {
+        } else if (assumeNonNull(packageName).startsWith(WEBAPK_PACKAGE_PREFIX)) {
             return ExternalAppId.WEBAPK;
-        } else if (packageName.equals(PACKAGE_YAHOO_MAIL)) {
+        } else if (PACKAGE_YAHOO_MAIL.equals(packageName)) {
             return ExternalAppId.YAHOO_MAIL;
-        } else if (packageName.equals(PACKAGE_VIBER)) {
+        } else if (PACKAGE_VIBER.equals(packageName)) {
             return ExternalAppId.VIBER;
         }
         return ExternalAppId.OTHER;

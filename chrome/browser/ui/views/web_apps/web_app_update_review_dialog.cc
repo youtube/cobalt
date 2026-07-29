@@ -7,10 +7,13 @@
 #include <optional>
 
 #include "base/memory/weak_ptr.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/scoped_observation.h"
+#include "base/time/time.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_occlusion_observer.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "chrome/browser/picture_in_picture/scoped_picture_in_picture_occlusion_observation.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
@@ -104,18 +107,30 @@ class UpdateDialogDelegate : public ui::DialogModelDelegate,
     browser_->GetBrowserView().SetProperty(kIsPwaUpdateDialogShowingKey, true);
   }
   ~UpdateDialogDelegate() override {
-    browser_->GetBrowserView().SetProperty(kIsPwaUpdateDialogShowingKey, false);
+    if (browser_->window()) {
+      browser_->GetBrowserView().SetProperty(kIsPwaUpdateDialogShowingKey,
+                                             false);
+    }
   }
 
   void OnAcceptButtonClicked() {
     std::move(callback_).Run(WebAppIdentityUpdateResult::kAccept);
   }
+
+  // Close the dialog if the "Ignore" button is clicked.
   void OnIgnoreButtonClicked(const ui::Event& event) {
-    std::move(callback_).Run(WebAppIdentityUpdateResult::kIgnore);
+    CHECK(dialog_model() && dialog_model()->host());
+    // `callback_` is being moved out to the stack because `Close()`
+    // synchronously deletes `this`.
+    auto callback = std::move(callback_);
+    dialog_model()->host()->Close();
+    std::move(callback).Run(WebAppIdentityUpdateResult::kIgnore);
   }
+
   void OnUninstallButtonClicked() {
     std::move(callback_).Run(WebAppIdentityUpdateResult::kUninstallApp);
   }
+
   void OnClose() {
     // This should not be called, but due to lack of clarity with UI framework
     // assumptions, we should still handle this even if we asked for the close
@@ -202,6 +217,7 @@ DEFINE_ELEMENT_IDENTIFIER_VALUE(kWebAppUpdateReviewIgnoreButton);
 void ShowWebAppReviewUpdateDialog(const webapps::AppId& app_id,
                                   const WebAppIdentityUpdate& update,
                                   Browser* browser,
+                                  base::TimeTicks start_time,
                                   UpdateReviewDialogCallback callback) {
   CHECK(!callback.is_null());
 
@@ -300,17 +316,19 @@ void ShowWebAppReviewUpdateDialog(const webapps::AppId& app_id,
                           /*n=*/1,
                           /*vertical_resize=*/views::TableLayout::kFixedSize,
                           /*height=*/0)
-                      .AddChildren(
-                          views::Builder<WebAppUpdateIdentityView>(
-                              std::make_unique<WebAppUpdateIdentityView>(
-                                  update.MakeOldIdentity())),
-                          views::Builder<views::ImageView>().SetImage(
-                              ui::ImageModel::FromVectorIcon(
-                                  vector_icons::kForwardArrowIcon,
-                                  ui::kColorIcon, kArrowIconSizeDp)),
-                          views::Builder<WebAppUpdateIdentityView>(
-                              std::make_unique<WebAppUpdateIdentityView>(
-                                  update.MakeNewIdentity())))
+                      // Using AddChildren() here leads to the evaluation order
+                      // reversed on Windows, making it harder to test
+                      // consistently.
+                      .AddChild(views::Builder<WebAppUpdateIdentityView>(
+                          std::make_unique<WebAppUpdateIdentityView>(
+                              update.MakeOldIdentity())))
+                      .AddChild(views::Builder<views::ImageView>().SetImage(
+                          ui::ImageModel::FromVectorIcon(
+                              vector_icons::kForwardArrowIcon, ui::kColorIcon,
+                              kArrowIconSizeDp)))
+                      .AddChild(views::Builder<WebAppUpdateIdentityView>(
+                          std::make_unique<WebAppUpdateIdentityView>(
+                              update.MakeNewIdentity())))
                       .SetMinimumSize(gfx::Size(
                           layout_provider->GetDistanceMetric(
                               views::DISTANCE_MODAL_DIALOG_PREFERRED_WIDTH),
@@ -322,6 +340,9 @@ void ShowWebAppReviewUpdateDialog(const webapps::AppId& app_id,
   views::Widget* widget = constrained_window::ShowBrowserModal(
       std::move(dialog_model), browser->window()->GetNativeWindow());
   delegate_weak_ptr->OnWidgetShownStartTracking(widget);
+
+  base::UmaHistogramTimes("WebApp.UpdateReviewDialog.TriggerToShowTime",
+                          base::TimeTicks::Now() - start_time);
 }
 
 }  // namespace web_app

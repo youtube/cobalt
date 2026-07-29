@@ -111,7 +111,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Compositing.Browser.LayersUpdateTime" units="microseconds"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>pdr@chromium.org</owner>
   <owner>animations-dev@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -391,7 +391,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Compositing.Display.Draw.Occlusion.Calculation.Time"
-    units="microseconds" expires_after="2026-01-18">
+    units="microseconds" expires_after="2026-03-22">
   <owner>yiyix@chromium.org</owner>
   <owner>chromeos-gfx@chromium.org</owner>
   <summary>
@@ -419,7 +419,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Compositing.Display.DrawToSwapUs" units="microseconds"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>jonross@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -671,7 +671,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Compositing.Renderer.CALayerResult" enum="CALayerResult"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>ccameron@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -862,7 +862,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Compositing.TileManager.TileInvalidationArea" units="%"
-    expires_after="2025-12-14">
+    expires_after="2026-03-22">
   <owner>petermcneeley@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -953,6 +953,11 @@ chromium-metrics-reviews@google.com.
     <variant name="BeginImplFrameToSendBeginMainFrame"/>
     <variant name="Commit"/>
     <variant name="EndActivateToSubmitCompositorFrame"/>
+    <variant name="EndActivateToSubmitUpdateDisplayTree"/>
+    <variant
+        name="EndActivateToSubmitUpdateDisplayTree.DrawLayersToSubmitUpdateDisplayTree"/>
+    <variant
+        name="EndActivateToSubmitUpdateDisplayTree.EndActivateToDrawLayers"/>
     <variant name="EndCommitToActivation"/>
     <variant name="SendBeginMainFrameToCommit"/>
     <variant name="SendBeginMainFrameToCommit.AccessibiltyUpdate"/>
@@ -985,6 +990,15 @@ chromium-metrics-reviews@google.com.
         name="SubmitCompositorFrameToPresentationCompositorFrame.SwapStartToBufferAvailable"/>
     <variant
         name="SubmitCompositorFrameToPresentationCompositorFrame.SwapStartToSwapEnd"/>
+    <variant name="SubmitUpdateDisplayTreeToPresentationCompositorFrame"/>
+    <variant
+        name="SubmitUpdateDisplayTreeToPresentationCompositorFrame.RecieveUpdateDisplayTreeToStartPrepareToDraw"/>
+    <variant
+        name="SubmitUpdateDisplayTreeToPresentationCompositorFrame.SendUpdateDisplayTreeToRecieveUpdateDisplayTree"/>
+    <variant
+        name="SubmitUpdateDisplayTreeToPresentationCompositorFrame.StartDrawLayersToSubmitCompositorFrame"/>
+    <variant
+        name="SubmitUpdateDisplayTreeToPresentationCompositorFrame.StartPrepareToDrawToStartDrawLayers"/>
     <variant name="TotalLatency"/>
   </token>
 </histogram>

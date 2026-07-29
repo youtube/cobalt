@@ -26,6 +26,10 @@ class LensSearchboxHandler : public SearchboxHandler {
 
   ~LensSearchboxHandler() override;
 
+  // SearchboxHandler:
+  std::string AutocompleteIconToResourceName(
+      const gfx::VectorIcon& icon) override;
+
   // searchbox::mojom::PageHandler:
   void SetPage(
       mojo::PendingRemote<searchbox::mojom::Page> pending_page) override;
@@ -42,7 +46,6 @@ class LensSearchboxHandler : public SearchboxHandler {
                      bool ctrl_key,
                      bool meta_key,
                      bool shift_key) override {}
-  void PopupElementSizeChanged(const gfx::Size& size) override {}
   void OnThumbnailRemoved() override;
 
   // Invoked by LensSearchboxController.

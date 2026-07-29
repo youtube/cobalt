@@ -5,48 +5,15 @@
 import 'chrome://new-tab-page/new_tab_page.js';
 
 import type {SearchboxElement} from 'chrome://new-tab-page/new_tab_page.js';
-import {BrowserProxyImpl, MetricsReporterImpl, SearchboxBrowserProxy} from 'chrome://new-tab-page/new_tab_page.js';
+import {BrowserProxyImpl, createAutocompleteMatch, MetricsReporterImpl, SearchboxBrowserProxy} from 'chrome://new-tab-page/new_tab_page.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {PageMetricsCallbackRouter} from 'chrome://resources/js/metrics_reporter.mojom-webui.js';
 import {stringToMojoString16} from 'chrome://resources/js/mojo_type_util.js';
-import type {AutocompleteMatch} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {TestMock} from 'chrome://webui-test/test_mock.js';
-import {waitAfterNextRender} from 'chrome://webui-test/polymer_test_util.js';
 import {eventToPromise, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {TestSearchboxBrowserProxy} from './test_searchbox_browser_proxy.js';
-
-function createAutocompleteMatch(): AutocompleteMatch {
-  return {
-    a11yLabel: stringToMojoString16(''),
-    actions: [],
-    allowedToBeDefaultMatch: false,
-    answer: null,
-    isSearchType: false,
-    isEnterpriseSearchAggregatorPeopleType: false,
-    isWeatherAnswerSuggestion: null,
-    swapContentsAndDescription: false,
-    supportsDeletion: false,
-    suggestionGroupId: -1,  // Indicates a missing suggestion group Id.
-    contents: stringToMojoString16(''),
-    contentsClass: [{offset: 0, style: 0}],
-    description: stringToMojoString16(''),
-    descriptionClass: [{offset: 0, style: 0}],
-    destinationUrl: {url: ''},
-    inlineAutocompletion: stringToMojoString16(''),
-    isNoncannedAimSuggestion: false,
-    fillIntoEdit: stringToMojoString16(''),
-    iconPath: '',
-    iconUrl: {url: ''},
-    imageDominantColor: '',
-    imageUrl: '',
-    removeButtonA11yLabel: stringToMojoString16(''),
-    tailSuggestCommonPrefix: null,
-    type: '',
-    isRichSuggestion: false,
-  };
-}
 
 suite('Lens search', () => {
   let realbox: SearchboxElement;
@@ -57,7 +24,6 @@ suite('Lens search', () => {
 
   async function areMatchesShowing(): Promise<boolean> {
     await testProxy.callbackRouterRemote.$.flushForTesting();
-    await waitAfterNextRender(realbox);
     await microtasksFinished();
     return window.getComputedStyle(realbox.$.matches).display !== 'none';
   }
@@ -99,7 +65,7 @@ suite('Lens search', () => {
 
     // Assert
     const lensButton =
-        realbox.shadowRoot!.querySelector<HTMLElement>('#lensSearchButton');
+        realbox.shadowRoot.querySelector<HTMLElement>('#lensSearchButton');
     assertTrue(!!lensButton);
   });
 
@@ -113,7 +79,7 @@ suite('Lens search', () => {
 
     // Assert
     const lensButton =
-        realbox.shadowRoot!.querySelector<HTMLElement>('#lensSearchButton');
+        realbox.shadowRoot.querySelector<HTMLElement>('#lensSearchButton');
     assertFalse(!!lensButton);
 
     // Restore
@@ -142,7 +108,7 @@ suite('Lens search', () => {
 
     // Act.
     const lensButton =
-        realbox.shadowRoot!.querySelector<HTMLElement>('#lensSearchButton');
+        realbox.shadowRoot.querySelector<HTMLElement>('#lensSearchButton');
     assertTrue(!!lensButton);
     lensButton.click();
 
@@ -160,7 +126,7 @@ suite('Lens search', () => {
 
     // Act.
     const lensButton =
-        realbox.shadowRoot!.querySelector<HTMLElement>('#lensSearchButton');
+        realbox.shadowRoot.querySelector<HTMLElement>('#lensSearchButton');
     assertTrue(!!lensButton);
     lensButton.click();
 

@@ -21,8 +21,8 @@
 #include "components/autofill/core/browser/payments/amount_extraction_heuristic_regexes.h"
 #include "components/autofill/core/browser/payments/bnpl_manager.h"
 #include "components/autofill/core/browser/payments/constants.h"
-#include "components/autofill/core/browser/suggestions/suggestions_context.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
+#include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "third_party/re2/src/re2/re2.h"
 #include "url/gurl.h"
 
@@ -68,16 +68,17 @@ AmountExtractionManager::MaybeParseAmountToMonetaryMicroUnits(
 }
 
 DenseSet<AmountExtractionManager::EligibleFeature>
-AmountExtractionManager::GetEligibleFeatures(const SuggestionsContext& context,
+AmountExtractionManager::GetEligibleFeatures(bool is_autofill_payments_enabled,
                                              bool should_suppress_suggestions,
                                              bool has_suggestions,
+                                             FillingProduct filling_product,
                                              FieldType field_type) const {
   // If there is an ongoing search, do not trigger the search.
   if (search_request_pending_) {
     return {};
   }
   // If autofill is not available, do not trigger the search.
-  if (!context.is_autofill_available) {
+  if (!is_autofill_payments_enabled) {
     return {};
   }
 
@@ -97,7 +98,7 @@ AmountExtractionManager::GetEligibleFeatures(const SuggestionsContext& context,
     return {};
   }
   // Amount extraction is only offered for Credit Card filling scenarios.
-  if (context.filling_product != FillingProduct::kCreditCard) {
+  if (filling_product != FillingProduct::kCreditCard) {
     return {};
   }
 
@@ -113,6 +114,27 @@ AmountExtractionManager::GetEligibleFeatures(const SuggestionsContext& context,
   }
 
   return {};
+}
+
+void AmountExtractionManager::FetchAiPageContent() {
+  if (is_fetching_ai_page_content_) {
+    return;
+  }
+  is_fetching_ai_page_content_ = true;
+  autofill_manager_->client().GetAiPageContent(
+      base::BindOnce(&AmountExtractionManager::OnAiPageContentReceived,
+                     weak_ptr_factory_.GetWeakPtr()));
+}
+
+void AmountExtractionManager::OnAiPageContentReceived(
+    std::optional<optimization_guide::proto::AnnotatedPageContent> result) {
+  if (result) {
+    ai_page_content_ =
+        std::make_unique<optimization_guide::proto::AnnotatedPageContent>(
+            std::move(*result));
+  }
+  is_fetching_ai_page_content_ = false;
+  // TODO(crbug.com/444683986): Log ApcGenerationResult to UMA.
 }
 
 void AmountExtractionManager::TriggerCheckoutAmountExtraction() {
@@ -134,15 +156,6 @@ void AmountExtractionManager::TriggerCheckoutAmountExtraction() {
       base::BindOnce(&AmountExtractionManager::OnTimeoutReached,
                      weak_ptr_factory_.GetWeakPtr()),
       kAmountExtractionWaitTime);
-}
-
-void AmountExtractionManager::SetSearchRequestPendingForTesting(
-    bool search_request_pending) {
-  search_request_pending_ = search_request_pending;
-}
-
-bool AmountExtractionManager::GetSearchRequestPendingForTesting() {
-  return search_request_pending_;
 }
 
 void AmountExtractionManager::OnCheckoutAmountReceived(
@@ -222,8 +235,7 @@ AmountExtractionManager::CheckEligibilityForFeaturesRequiringAmountExtraction()
   // Check eligibility of BNPL feature.
   if constexpr (BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
                 BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)) {
-    if (BnplManager* bnpl_manager = autofill_manager_->GetPaymentsBnplManager();
-        bnpl_manager && bnpl_manager->IsEligibleForBnpl()) {
+    if (BnplManager::IsEligibleForBnpl(autofill_manager_->client())) {
       eligible_features.insert(EligibleFeature::kBnpl);
     }
   }

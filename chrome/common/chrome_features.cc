@@ -16,25 +16,46 @@ namespace features {
 
 // All features in alphabetical order.
 
-#if BUILDFLAG(IS_CHROMEOS)
-BASE_FEATURE(kAppPreloadService, base::FEATURE_ENABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_CHROMEOS)
+// Controls if page stability monitoring uses paint stability as a signal.
+constexpr base::FeatureParam<ActorPaintStabilityMode>::Option
+    kActorPaintStabilityModeOptions[] = {
+        {ActorPaintStabilityMode::kDisabled, "disabled"},
+        {ActorPaintStabilityMode::kLogOnly, "log-only"},
+        {ActorPaintStabilityMode::kEnabled, "enabled"},
+};
+BASE_FEATURE_ENUM_PARAM(ActorPaintStabilityMode,
+                        kActorPaintStabilityMode,
+                        &kGlicActor,
+                        "actor-paint-stability-mode",
+                        ActorPaintStabilityMode::kLogOnly,
+                        &kActorPaintStabilityModeOptions);
+// Timeout controlling how long the paint stability monitor waits after the
+// initial contentful paint before considering the UI to have stabilized.
+const base::FeatureParam<base::TimeDelta>
+    kActorPaintStabilityIntialPaintTimeout{
+        &kGlicActor, "actor-paint-stability-initial-paint-timeout",
+        base::Seconds(1)};
+// Timeout controlling how long the paint stability monitor waits for subsequent
+// contenful paints before considering the UI to have stabilized.
+const base::FeatureParam<base::TimeDelta>
+    kActorPaintStabilitySubsequentPaintTimeout{
+        &kGlicActor, "actor-paint-stability-subsequent-paint-timeout",
+        base::Milliseconds(500)};
 
 #if BUILDFLAG(IS_WIN)
 // When enabled, notifications from PWA's will use the PWA icon and name,
 // as long as the PWA is on the start menu.  b/40285965.
 BASE_FEATURE(kAppSpecificNotifications, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// When enabled, invokes `SetProcessPriorityBoost` to disable priority boosting
-// when a thread is taken out of the wait state. The default Windows behavior is
-// to boost when taking a thread out of waking state. On other platforms, the
-// default is not to boost and implementing boosting regresses input and page
-// load metrics. Therefore, we experiment on Windows to determine if operating
-// without boosting improves these metrics. This is a field-sampling experiment
-// and is not intended to be shipped as is regardless of the outcome but rather
-// to gather data before the design phase of enhanced cross-platform scheduling
-// primitives.
 BASE_FEATURE(kDisableBoostPriority, base::FEATURE_DISABLED_BY_DEFAULT);
+static constexpr base::FeatureParam<DisableBoostPriorityMode>::Option
+    kDisableBoostPriorityOptions[] = {
+        {DisableBoostPriorityMode::kAfterLoading, "AfterLoading"},
+        {DisableBoostPriorityMode::kAtStartup, "AtStartup"}};
+constinit const base::FeatureParam<DisableBoostPriorityMode>
+    kDisableBoostPriorityMode{&kDisableBoostPriority, "mode",
+                              DisableBoostPriorityMode::kAtStartup,
+                              &kDisableBoostPriorityOptions};
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_MAC)
@@ -115,7 +136,13 @@ BASE_FEATURE(kCrostiniAnsibleSoftwareManagement,
 
 // Enables support for sideloading android apps into Arc via crostini.
 BASE_FEATURE(kCrostiniArcSideload, base::FEATURE_ENABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
+// Enables stricter cryptography settings for CNSA2 compliance. This is not
+// needed for security, but may be required by some organizations.
+BASE_FEATURE(kCryptographyComplianceCnsa, base::FEATURE_DISABLED_BY_DEFAULT);
+
+#if BUILDFLAG(IS_CHROMEOS)
 // Enables distributed model for TPM1.2, i.e., using tpm_managerd and
 // attestationd.
 BASE_FEATURE(kCryptohomeDistributedModel, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -264,6 +291,7 @@ BASE_FEATURE(kGlicActor, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kGlicActorUi, base::FEATURE_ENABLED_BY_DEFAULT);
 
 const char kGlicActorUiTaskIconName[] = "glic-actor-ui-task-icon";
+const char kGlicActorUiNudgeRedesignName[] = "glic-actor-ui-nudge-redesign";
 const char kGlicActorUiOverlayName[] = "glic-actor-ui-overlay";
 const char kGlicActorUiOverlayMagicCursorName[] =
     "glic-actor-ui-overlay-magic-cursor";
@@ -277,6 +305,10 @@ const char kGlicActorUiCompletedTaskExpiryDelaySecondsName[] =
 // Controls whether the task icon in the actor ui is enabled.
 const base::FeatureParam<bool> kGlicActorUiTaskIcon{
     &kGlicActorUi, kGlicActorUiTaskIconName, true};
+// Controls whether the new Nudge UI is enabled. No-op if `kGlicActorUiTaskIcon`
+// is false.
+const base::FeatureParam<bool> kGlicActorUiNudgeRedesign{
+    &kGlicActorUi, kGlicActorUiNudgeRedesignName, false};
 // Controls whether the Actor Overlay in the actor ui is enabled.
 const base::FeatureParam<bool> kGlicActorUiOverlay{
     &kGlicActorUi, kGlicActorUiOverlayName, true};
@@ -315,6 +347,22 @@ const base::FeatureParam<base::TimeDelta>
         &kGlicActor, "glic-actor-page-stability-invoke-callback-delay",
         base::Milliseconds(200)};
 
+// Controls whether to enable general wait on renderer-side page stability.
+constexpr base::FeatureParam<ActorGeneralPageStabilityMode>::Option
+    kActorGeneralPageStabilityModeOptions[] = {
+        {ActorGeneralPageStabilityMode::kDisabled, "disabled"},
+        {ActorGeneralPageStabilityMode::kNavigateAndHistoryEnabled,
+         "navigate-and-history-enabled"},
+        {ActorGeneralPageStabilityMode::kAllEnabled, "all-enabled"},
+};
+BASE_FEATURE_ENUM_PARAM(
+    ActorGeneralPageStabilityMode,
+    kActorGeneralPageStabilityMode,
+    &kGlicActor,
+    "actor-general-page-stability-mode",
+    ActorGeneralPageStabilityMode::kNavigateAndHistoryEnabled,
+    &kActorGeneralPageStabilityModeOptions);
+
 // Controls whether typing happens incrementally.
 BASE_FEATURE(kGlicActorIncrementalTyping, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -345,6 +393,10 @@ BASE_FEATURE(kGlicDetached, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls whether the Glic feature uses multiple instances or not.
 BASE_FEATURE(kGlicMultiInstance, base::FEATURE_DISABLED_BY_DEFAULT);
+// Controls desired min width for the side panel. Not guaranteed to be respected
+// if user manually resizes.
+const base::FeatureParam<int> kGlicSidePanelMinWidth{
+    &kGlicMultiInstance, "glic-side-panel-min-width", 384};
 
 // Controls whether the Glic feature's z order changes based on the webclient
 // mode.
@@ -676,6 +728,25 @@ BASE_FEATURE(kGlicHeader, base::FEATURE_ENABLED_BY_DEFAULT);
 const base::FeatureParam<std::string> kGlicHeaderRequestTypes{
     &kGlicHeader, "glic-header-request-types",
     "main_frame,xmlhttprequest,websocket"};
+
+BASE_FEATURE(kGlicCaaGuestError, base::FEATURE_ENABLED_BY_DEFAULT);
+extern const base::FeatureParam<std::string> kGlicCaaLinkUrl{
+    &kGlicCaaGuestError, "glic-caa-link-url", "https://gemini.google.com/"};
+extern const base::FeatureParam<std::string> kGlicCaaLinkText{
+    &kGlicCaaGuestError, "glic-caa-link-text", "gemini.google.com"};
+extern const base::FeatureParam<std::string> kGlicCaaGuestRedirectPatterns{
+    &kGlicCaaGuestError, "glic-caa-redirect-patterns",
+    "https://access.workspace.google.com https://admin.google.com "
+    "https://accounts.google.com/info/servicerestricted"};
+
+BASE_FEATURE(kGlicEntrypointVariations, base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<bool> kGlicEntrypointVariationsShowLabel{
+    &kGlicEntrypointVariations, "glic-entrypoint-variations-show-label", false};
+const base::FeatureParam<bool> kGlicEntrypointVariationsAltIcon{
+    &kGlicEntrypointVariations, "glic-entrypoint-variations-alt-icon", false};
+const base::FeatureParam<bool> kGlicEntrypointVariationsHighlightNudge{
+    &kGlicEntrypointVariations, "glic-entrypoint-variations-highlight-nudge",
+    false};
 
 #endif  // BUILDFLAG(ENABLE_GLIC)
 

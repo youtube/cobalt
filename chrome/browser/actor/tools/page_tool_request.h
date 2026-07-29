@@ -11,16 +11,19 @@
 #include <variant>
 
 #include "chrome/browser/actor/shared_types.h"
-#include "chrome/browser/actor/task_id.h"
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/common/actor.mojom-forward.h"
+#include "chrome/common/actor/task_id.h"
 #include "ui/gfx/geometry/point.h"
 #include "url/gurl.h"
+
+namespace content {
+class RenderFrameHost;
+}  // namespace content
 
 namespace actor {
 
 mojom::ToolTargetPtr ToMojo(const PageTarget& target);
-
 // Tool requests targeting a specific, existing document should inherit from
 // this subclass. Being page-scoped implies also being tab-scoped since a page
 // exists inside a tab.
@@ -38,13 +41,16 @@ class PageToolRequest : public TabToolRequest {
 
   // Converts this request into the ToolAction mojo message which can be
   // executed in the renderer.
-  virtual mojom::ToolActionPtr ToMojoToolAction() const = 0;
+  virtual mojom::ToolActionPtr ToMojoToolAction(
+      content::RenderFrameHost& frame) const = 0;
 
   virtual std::unique_ptr<PageToolRequest> Clone() const = 0;
 
   // ToolRequest
   CreateToolResult CreateTool(TaskId task_id,
                               ToolDelegate& tool_delegate) const override;
+  std::optional<ObservationDelayController::PageStabilityConfig>
+  GetObservationPageStabilityConfig() const override;
 
   // Returns what in the page the tool should act upon.
   const PageTarget& GetTarget() const;

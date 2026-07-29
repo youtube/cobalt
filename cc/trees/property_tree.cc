@@ -20,6 +20,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/trace_event/traced_value.h"
 #include "cc/base/features.h"
+#include "cc/base/math_util.h"
 #include "cc/trees/clip_node.h"
 #include "cc/trees/compositor_commit_data.h"
 #include "cc/trees/effect_node.h"
@@ -2132,10 +2133,11 @@ void ScrollTree::SetScrollCallbacks(base::WeakPtr<ScrollCallbacks> callbacks) {
 void ScrollTree::NotifyDidCompositorScroll(
     ElementId scroll_element_id,
     const gfx::PointF& scroll_offset,
+    ScrollSourceType type,
     const std::optional<TargetSnapAreaElementIds>& snap_target_ids) {
   DCHECK(property_trees()->is_main_thread());
   if (callbacks_) {
-    callbacks_->DidCompositorScroll(scroll_element_id, scroll_offset,
+    callbacks_->DidCompositorScroll(scroll_element_id, scroll_offset, type,
                                     snap_target_ids);
   }
 }

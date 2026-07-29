@@ -96,6 +96,7 @@ class LayerTreeHostScrollTest : public LayerTreeTest, public ScrollCallbacks {
   void DidCompositorScroll(
       ElementId element_id,
       const gfx::PointF& scroll_offset,
+      ScrollSourceType type,
       const std::optional<TargetSnapAreaElementIds>& snap_target_ids) override {
     // Simulates cc client (e.g Blink) behavior when handling impl-side scrolls.
     SetScrollOffsetFromImplSide(layer_tree_host()->LayerByElementId(element_id),
@@ -563,9 +564,18 @@ class LayerTreeHostScrollTestScrollSnapping : public LayerTreeHostScrollTest {
 
 MULTI_THREAD_TEST_F(LayerTreeHostScrollTestScrollSnapping);
 
-class LayerTreeHostScrollTestCaseWithChild : public LayerTreeHostScrollTest {
+// TODO(crbug.com/440535492): Flaky on Win dbg.
+#if BUILDFLAG(IS_WIN) && !defined(NDEBUG)
+#define MAYBE_LayerTreeHostScrollTestCaseWithChild \
+  DISABLED_LayerTreeHostScrollTestCaseWithChild
+#else
+#define MAYBE_LayerTreeHostScrollTestCaseWithChild \
+  LayerTreeHostScrollTestCaseWithChild
+#endif
+class MAYBE_LayerTreeHostScrollTestCaseWithChild
+    : public LayerTreeHostScrollTest {
  public:
-  LayerTreeHostScrollTestCaseWithChild()
+  MAYBE_LayerTreeHostScrollTestCaseWithChild()
       : initial_offset_(10, 20),
         javascript_scroll_(40, 5),
         scroll_amount_(2, -1) {}
@@ -630,8 +640,9 @@ class LayerTreeHostScrollTestCaseWithChild : public LayerTreeHostScrollTest {
   void DidCompositorScroll(
       ElementId element_id,
       const gfx::PointF& offset,
+      ScrollSourceType type,
       const std::optional<TargetSnapAreaElementIds>& snap_target_ids) override {
-    LayerTreeHostScrollTest::DidCompositorScroll(element_id, offset,
+    LayerTreeHostScrollTest::DidCompositorScroll(element_id, offset, type,
                                                  snap_target_ids);
     if (element_id == expected_scroll_layer_->element_id()) {
       final_scroll_offset_ = CurrentScrollOffset(expected_scroll_layer_);
@@ -777,7 +788,7 @@ class LayerTreeHostScrollTestCaseWithChild : public LayerTreeHostScrollTest {
 #else
 #define MAYBE_DeviceScaleFactor1_ScrollChild DeviceScaleFactor1_ScrollChild
 #endif
-TEST_F(LayerTreeHostScrollTestCaseWithChild,
+TEST_F(MAYBE_LayerTreeHostScrollTestCaseWithChild,
        MAYBE_DeviceScaleFactor1_ScrollChild) {
   device_scale_factor_ = 1.f;
   scroll_child_layer_ = true;
@@ -793,7 +804,7 @@ TEST_F(LayerTreeHostScrollTestCaseWithChild,
 #else
 #define MAYBE_DeviceScaleFactor15_ScrollChild DeviceScaleFactor15_ScrollChild
 #endif
-TEST_F(LayerTreeHostScrollTestCaseWithChild,
+TEST_F(MAYBE_LayerTreeHostScrollTestCaseWithChild,
        MAYBE_DeviceScaleFactor15_ScrollChild) {
   device_scale_factor_ = 1.5f;
   scroll_child_layer_ = true;
@@ -808,7 +819,7 @@ TEST_F(LayerTreeHostScrollTestCaseWithChild,
 #else
 #define MAYBE_DeviceScaleFactor2_ScrollChild DeviceScaleFactor2_ScrollChild
 #endif
-TEST_F(LayerTreeHostScrollTestCaseWithChild,
+TEST_F(MAYBE_LayerTreeHostScrollTestCaseWithChild,
        MAYBE_DeviceScaleFactor2_ScrollChild) {
   device_scale_factor_ = 2.f;
   scroll_child_layer_ = true;
@@ -824,7 +835,7 @@ TEST_F(LayerTreeHostScrollTestCaseWithChild,
 #define MAYBE_DeviceScaleFactor1_ScrollRootScrollLayer \
   DeviceScaleFactor1_ScrollRootScrollLayer
 #endif
-TEST_F(LayerTreeHostScrollTestCaseWithChild,
+TEST_F(MAYBE_LayerTreeHostScrollTestCaseWithChild,
        MAYBE_DeviceScaleFactor1_ScrollRootScrollLayer) {
   device_scale_factor_ = 1.f;
   scroll_child_layer_ = false;
@@ -842,7 +853,7 @@ TEST_F(LayerTreeHostScrollTestCaseWithChild,
 #define MAYBE_DeviceScaleFactor15_ScrollRootScrollLayer \
   DeviceScaleFactor15_ScrollRootScrollLayer
 #endif
-TEST_F(LayerTreeHostScrollTestCaseWithChild,
+TEST_F(MAYBE_LayerTreeHostScrollTestCaseWithChild,
        MAYBE_DeviceScaleFactor15_ScrollRootScrollLayer) {
   device_scale_factor_ = 1.5f;
   scroll_child_layer_ = false;
@@ -859,7 +870,7 @@ TEST_F(LayerTreeHostScrollTestCaseWithChild,
 #define MAYBE_DeviceScaleFactor2_ScrollRootScrollLayer \
   DeviceScaleFactor2_ScrollRootScrollLayer
 #endif
-TEST_F(LayerTreeHostScrollTestCaseWithChild,
+TEST_F(MAYBE_LayerTreeHostScrollTestCaseWithChild,
        MAYBE_DeviceScaleFactor2_ScrollRootScrollLayer) {
   device_scale_factor_ = 2.f;
   scroll_child_layer_ = false;
@@ -1130,15 +1141,23 @@ class LayerTreeHostScrollTestImplOnlyScroll : public LayerTreeHostScrollTest {
 // This tests scrolling on the impl side which is only possible with a thread.
 MULTI_THREAD_TEST_F(LayerTreeHostScrollTestImplOnlyScroll);
 
-// TODO(crbug.com/40451005): Mac currently doesn't support smooth scrolling
-// wheel events.
-#if !BUILDFLAG(IS_MAC)
 // This test simulates scrolling on the impl thread such that it starts a scroll
 // animation. It ensures that RequestScrollAnimationEndNotification() correctly
 // notifies the callback after the animation ends.
-class SmoothScrollAnimationEndNotification : public LayerTreeHostScrollTest {
+// TODO(crbug.com/40451005): Mac currently doesn't support smooth scrolling
+// wheel events.
+// TODO(crbug.com/440535492): Flaky on Win dbg.
+#if BUILDFLAG(IS_MAC) || (BUILDFLAG(IS_WIN) && !defined(NDEBUG))
+#define MAYBE_SmoothScrollAnimationEndNotification \
+  DISABLED_SmoothScrollAnimationEndNotification
+#else
+#define MAYBE_SmoothScrollAnimationEndNotification \
+  SmoothScrollAnimationEndNotification
+#endif
+class MAYBE_SmoothScrollAnimationEndNotification
+    : public LayerTreeHostScrollTest {
  public:
-  SmoothScrollAnimationEndNotification() = default;
+  MAYBE_SmoothScrollAnimationEndNotification() = default;
 
   void InitializeSettings(LayerTreeSettings* settings) override {
     LayerTreeHostScrollTest::InitializeSettings(settings);
@@ -1216,9 +1235,9 @@ class SmoothScrollAnimationEndNotification : public LayerTreeHostScrollTest {
 
     if (layer_tree_host()->HasCompositorDrivenScrollAnimationForTesting()) {
       scroll_animation_started_ = true;
-      layer_tree_host()->RequestScrollAnimationEndNotification(
-          base::BindOnce(&SmoothScrollAnimationEndNotification::OnScrollEnd,
-                         base::Unretained(this)));
+      layer_tree_host()->RequestScrollAnimationEndNotification(base::BindOnce(
+          &MAYBE_SmoothScrollAnimationEndNotification::OnScrollEnd,
+          base::Unretained(this)));
     }
   }
 
@@ -1241,8 +1260,7 @@ class SmoothScrollAnimationEndNotification : public LayerTreeHostScrollTest {
   bool scroll_animation_ended_ = false;
 };
 
-MULTI_THREAD_TEST_F(SmoothScrollAnimationEndNotification);
-#endif  // !BUILDFLAG(IS_MAC)
+MULTI_THREAD_TEST_F(MAYBE_SmoothScrollAnimationEndNotification);
 
 void DoGestureScroll(LayerTreeHostImpl* host_impl,
                      const scoped_refptr<Layer>& scroller,
@@ -1274,10 +1292,21 @@ void DoGestureScroll(LayerTreeHostImpl* host_impl,
 // This test simulates scrolling on the impl thread such that snapping occurs
 // and ensures that the target snap area element ids are sent back to the main
 // thread.
-class LayerTreeHostScrollTestImplOnlyScrollSnap
+// TODO(crbug.com/40762489): Flaky on Fuchsia, ChromeOS, and Linux.
+// TODO(crbug.com/41495136): Flaky on Windows
+// TODO(crbug.com/342502558): Flaky on Mac
+#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+#define MAYBE_LayerTreeHostScrollTestImplOnlyScrollSnap \
+  DISABLED_LayerTreeHostScrollTestImplOnlyScrollSnap
+#else
+#define MAYBE_LayerTreeHostScrollTestImplOnlyScrollSnap \
+  LayerTreeHostScrollTestImplOnlyScrollSnap
+#endif
+class MAYBE_LayerTreeHostScrollTestImplOnlyScrollSnap
     : public LayerTreeHostScrollTest {
  public:
-  LayerTreeHostScrollTestImplOnlyScrollSnap()
+  MAYBE_LayerTreeHostScrollTestImplOnlyScrollSnap()
       : initial_scroll_(100, 100),
         impl_thread_scroll_(350, 350),
         snap_area_id_(ElementId(10)) {}
@@ -1390,16 +1419,7 @@ class LayerTreeHostScrollTestImplOnlyScrollSnap
   bool snap_animation_finished_ = false;
 };
 
-// TODO(crbug.com/40762489): Flaky on Fuchsia, ChromeOS, and Linux.
-// TODO(crbug.com/41495136): Flaky on Windows ARM, ASAN and debug builds.
-// TODO(crbug.com/342502558): Flaky on Mac's ARM, ASAN and debug builds.
-#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_CHROMEOS) && \
-    !BUILDFLAG(IS_LINUX) &&                              \
-    !((BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)) &&        \
-      (defined(ADDRESS_SANITIZER) || defined(NDEBUG) ||  \
-       defined(ARCH_CPU_ARM64)))
-MULTI_THREAD_TEST_F(LayerTreeHostScrollTestImplOnlyScrollSnap);
-#endif
+MULTI_THREAD_TEST_F(MAYBE_LayerTreeHostScrollTestImplOnlyScrollSnap);
 
 // This test simulates scrolling on the impl thread such that 2 impl-only
 // scrolls occur between main frames. It ensures that the snap target ids will
@@ -1910,6 +1930,7 @@ class LayerTreeHostScrollTestLayerStructureChange
   void DidCompositorScroll(
       ElementId element_id,
       const gfx::PointF&,
+      ScrollSourceType type,
       const std::optional<TargetSnapAreaElementIds>&) override {
     if (scroll_destroy_whole_tree_) {
       layer_tree_host()->SetRootLayer(nullptr);

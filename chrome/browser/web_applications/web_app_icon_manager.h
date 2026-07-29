@@ -58,8 +58,26 @@ struct IconMetadataFromDisk {
   IconPurpose purpose = IconPurpose::ANY;
 };
 
+// Returning icon metadata about icons that will be shown on the app identity
+// update dialog. The `to_icon` can be not populated if there are no pending
+// trusted icons.
+struct IconMetadataForUpdate {
+  IconMetadataForUpdate();
+  ~IconMetadataForUpdate();
+  IconMetadataForUpdate(IconMetadataForUpdate&& icon_metadata);
+  IconMetadataForUpdate& operator=(IconMetadataForUpdate&& icon_metadata);
+
+  SkBitmap from_icon;
+  std::optional<SkBitmap> to_icon;
+  IconPurpose from_icon_purpose = IconPurpose::ANY;
+  std::optional<IconPurpose> to_icon_purpose;
+};
+
 using ReadIconMetadataCallback =
     base::OnceCallback<void(IconMetadataFromDisk icon_bitmap_metadata)>;
+
+using ReadIconMetadataForUpdateCallback =
+    base::OnceCallback<void(IconMetadataForUpdate icon_bitmap_metadata)>;
 
 // Exclusively used from the UI thread.
 class WebAppIconManager : public WebAppInstallManagerObserver {
@@ -147,6 +165,16 @@ class WebAppIconManager : public WebAppInstallManagerObserver {
       IconPurpose purpose_for_fallback,
       ReadIconMetadataCallback callback);
 
+  // Returns 2 icons, one from the pending trusted icons folder of `size` and
+  // `purpose_for_pending_info` if that is set, and the other from the trusted
+  // icons folder of the app of the same `size`. The purpose for the latter icon
+  // is determined from the cached icon sizes in the app for correctness.
+  void ReadIconsForPendingUpdate(
+      const webapps::AppId& app_id,
+      SquareSizePx size,
+      std::optional<IconPurpose> purpose_for_pending_info,
+      ReadIconMetadataForUpdateCallback callback);
+
   // Mimics WebAppShortcutsMenuItemInfo but stores timestamps instead of icons
   // for os integration.
   using ShortcutMenuIconTimes =
@@ -224,6 +252,11 @@ class WebAppIconManager : public WebAppInstallManagerObserver {
       base::PassKey<ApplyPendingManifestUpdateCommand>,
       OverwriteAppIconsFromPendingIconsCallback callback);
 
+  using DeletePendingIconDataCallback = base::OnceCallback<void(bool success)>;
+  void DeletePendingIconData(const webapps::AppId& app_id,
+                             base::PassKey<ApplyPendingManifestUpdateCommand>,
+                             DeletePendingIconDataCallback callback);
+
   // Returns a square icon of gfx::kFaviconSize px, or an empty bitmap if not
   // found.
   SkBitmap GetFavicon(const webapps::AppId& app_id) const;
@@ -272,6 +305,16 @@ class WebAppIconManager : public WebAppInstallManagerObserver {
   base::FilePath GetIconFilePathForTesting(const webapps::AppId& app_id,
                                            IconPurpose purpose,
                                            SquareSizePx size);
+
+  // Returns the pending trusted icon file path that exists on the disk for
+  // testing.
+  base::FilePath GetAppPendingTrustedIconDirForTesting(
+      const webapps::AppId& app_id);
+
+  // Returns the pending trusted icon file path that exists on the disk for
+  // testing.
+  base::FilePath GetAppPendingManifestIconDirForTesting(
+      const webapps::AppId& app_id);
 
   // Collects icon read/write errors (unbounded) if the |kRecordWebAppDebugInfo|
   // flag is enabled to be used by: chrome://web-app-internals

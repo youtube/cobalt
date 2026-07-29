@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/containers/span.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "base/types/pass_key.h"
@@ -19,7 +20,6 @@
 #include "chrome/browser/actor/browser_action_util.h"
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/actor/site_policy.h"
-#include "chrome/browser/actor/task_id.h"
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/browser/actor/ui/actor_ui_state_manager.h"
 #include "chrome/browser/actor/ui/event_dispatcher.h"
@@ -28,6 +28,7 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/common/actor.mojom.h"
 #include "chrome/common/actor/action_result.h"
+#include "chrome/common/actor/task_id.h"
 #include "third_party/abseil-cpp/absl/strings/str_format.h"
 
 namespace {
@@ -74,12 +75,11 @@ void ActorKeyedService::SetActorUiStateManagerForTesting(
 
 const ActorTask* ActorKeyedService::GetActingActorTaskForWebContents(
     content::WebContents* web_contents) {
-  if (auto* tab_interface = tabs::TabModel::GetFromContents(web_contents)) {
+  if (auto* tab_interface =
+          tabs::TabModel::MaybeGetFromContents(web_contents)) {
     // There should only be one active task per tab.
     for (const auto& [task_id, actor_task] : GetActiveTasks()) {
-      if (actor_task->IsActingOnTab(tab_interface->GetHandle()) &&
-          (actor_task->GetState() == ActorTask::State::kActing ||
-           actor_task->GetState() == ActorTask::State::kReflecting)) {
+      if (actor_task->IsActingOnTab(tab_interface->GetHandle())) {
         return actor_task;
       }
     }
@@ -132,6 +132,7 @@ void ActorKeyedService::ResetForTesting() {
 
 TaskId ActorKeyedService::CreateTask(webui::mojom::TaskOptionsPtr options) {
   TRACE_EVENT0("actor", "ActorKeyedService::CreateTask");
+  base::UmaHistogramBoolean("Actor.Task.Created", true);
   auto execution_engine = std::make_unique<ExecutionEngine>(profile_.get());
   auto actor_task = std::make_unique<ActorTask>(
       profile_.get(), std::move(execution_engine),
@@ -370,11 +371,21 @@ ActorUiStateManagerInterface* ActorKeyedService::GetActorUiStateManager() {
   return actor_ui_state_manager_.get();
 }
 
-TaskId ActorKeyedService::IsAnyTaskActingOnTab(
-    const tabs::TabInterface& tab) const {
+bool ActorKeyedService::IsActiveOnTab(const tabs::TabInterface& tab) const {
   tabs::TabHandle handle = tab.GetHandle();
   for (auto [task_id, task] : GetActiveTasks()) {
     if (task->IsActingOnTab(handle)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+TaskId ActorKeyedService::GetTaskFromTab(const tabs::TabInterface& tab) const {
+  tabs::TabHandle handle = tab.GetHandle();
+  for (auto [task_id, task] : GetActiveTasks()) {
+    if (task->HasTab(handle)) {
       return task_id;
     }
   }

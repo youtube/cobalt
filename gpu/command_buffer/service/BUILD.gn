@@ -263,6 +263,8 @@ target(link_target_type, "gles2_sources") {
     "shared_image/gl_texture_image_backing_factory.h",
     "shared_image/gl_texture_passthrough_fallback_image_representation.cc",
     "shared_image/gl_texture_passthrough_fallback_image_representation.h",
+    "shared_image/gpu_memory_buffer_factory.cc",
+    "shared_image/gpu_memory_buffer_factory.h",
     "shared_image/raw_draw_image_backing.cc",
     "shared_image/raw_draw_image_backing.h",
     "shared_image/raw_draw_image_backing_factory.cc",
@@ -348,6 +350,8 @@ target(link_target_type, "gles2_sources") {
       "dawn_service_memory_transfer_service.h",
       "dawn_service_serializer.cc",
       "dawn_service_serializer.h",
+      "gpu_persistent_cache.cc",
+      "gpu_persistent_cache.h",
       "shared_image/dawn_copy_strategy.cc",
       "shared_image/dawn_copy_strategy.h",
       "shared_image/dawn_fallback_image_representation.cc",
@@ -380,6 +384,7 @@ target(link_target_type, "gles2_sources") {
     "//gpu/command_buffer/common:gles2_sources",
     "//gpu/command_buffer/common:raster_sources",
     "//gpu/command_buffer/common:webgpu_sources",
+    "//gpu/ipc/common:surface_handle_type",
     "//skia",
     "//third_party/blink/public/common/tokens:tokens_headers",
     "//third_party/dawn/include/dawn:cpp_headers",
@@ -390,6 +395,7 @@ target(link_target_type, "gles2_sources") {
     "//base",
     "//build:chromecast_buildflags",
     "//components/crash/core/common",
+    "//components/persistent_cache",
     "//components/viz/common:shared_image_format",
     "//gpu/command_buffer/client",
     "//gpu/command_buffer/common:gles2_utils",
@@ -422,6 +428,8 @@ target(link_target_type, "gles2_sources") {
     sources += [
       "shared_image/gl_ozone_image_representation.cc",
       "shared_image/gl_ozone_image_representation.h",
+      "shared_image/gpu_memory_buffer_factory_native_pixmap.cc",
+      "shared_image/gpu_memory_buffer_factory_native_pixmap.h",
       "shared_image/ozone_image_backing.cc",
       "shared_image/ozone_image_backing.h",
       "shared_image/ozone_image_backing_factory.cc",
@@ -519,6 +527,8 @@ target(link_target_type, "gles2_sources") {
 
   if (is_apple) {
     sources += [
+      "shared_image/gpu_memory_buffer_factory_io_surface.cc",
+      "shared_image/gpu_memory_buffer_factory_io_surface.h",
       "shared_image/iosurface_image_backing.h",
       "shared_image/iosurface_image_backing.mm",
       "shared_image/iosurface_image_backing_factory.h",
@@ -655,14 +665,16 @@ target(link_target_type, "gles2_sources") {
       "shared_image/dxgi_swap_chain_image_backing.h",
       "shared_image/dxgi_swap_chain_image_representation.cc",
       "shared_image/dxgi_swap_chain_image_representation.h",
+      "shared_image/gpu_memory_buffer_factory_dxgi.cc",
+      "shared_image/gpu_memory_buffer_factory_dxgi.h",
     ]
     libs = [
+      "d3d11.lib",
       "d3d12.lib",
       "dxguid.lib",
       "onecore.lib",
     ]
     all_dependent_configs = [ ":service_win_linker_flags" ]
-    deps += [ "//services/webnn:webnn_headers" ]
   }
 }
 

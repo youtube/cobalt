@@ -72,6 +72,8 @@ using ::optimization_guide::proto::PermissionsAiResponse;
 
 constexpr auto VeryUnlikely = permissions::
     PermissionPrediction_Likelihood_DiscretizedLikelihood_VERY_UNLIKELY;
+constexpr auto Unlikely =
+    permissions::PermissionPrediction_Likelihood_DiscretizedLikelihood_UNLIKELY;
 
 // The data we consider can only be at most 28 days old to match the data that
 // the ML model is built on.
@@ -113,6 +115,9 @@ ParsePredictionServiceMockLikelihood(const std::string& value) {
 
 bool ShouldPredictionTriggerQuietUi(
     permissions::PermissionUiSelector::PredictionGrantLikelihood likelihood) {
+  if (base::FeatureList::IsEnabled(permissions::features::kPermissionsAIP92)) {
+    return likelihood == Unlikely || likelihood == VeryUnlikely;
+  }
   return likelihood == VeryUnlikely;
 }
 }  // namespace
@@ -192,7 +197,8 @@ void PermissionsAiUiSelector::InquireCpssV1OnDeviceModelIfAvailable(
         prediction_model_handler_provider->GetPredictionModelHandler(
             request_metadata.request_type);
   }
-  if (prediction_model_handler && prediction_model_handler->ModelAvailable()) {
+  if (prediction_model_handler && prediction_model_handler->ModelAvailable() &&
+      prediction_model_handler->GetModelInfo().has_value()) {
     VLOG(1) << "[CPSS] Using locally available CPSSv1 model";
     auto proto_request = GetPredictionRequestProto(features);
     cpss_v1_model_holdback_probability_ =
@@ -776,14 +782,8 @@ PredictionSource PermissionsAiUiSelector::GetPredictionTypeToUse(
   }
 
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
-  bool use_ondevice_tflite = false;
-  if (request_type == permissions::RequestType::kNotifications) {
-    use_ondevice_tflite = true;
-  } else if (request_type == permissions::RequestType::kGeolocation) {
-    use_ondevice_tflite = base::FeatureList::IsEnabled(
-        permissions::features::kPermissionOnDeviceGeolocationPredictions);
-  }
-  if (use_ondevice_tflite) {
+  if (request_type == permissions::RequestType::kNotifications ||
+      request_type == permissions::RequestType::kGeolocation) {
     VLOG(1) << "[CPSS] GetPredictionTypeToUse CPSSv1";
     return PredictionSource::kOnDeviceCpssV1Model;
   }

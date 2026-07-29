@@ -257,6 +257,7 @@ component("base") {
     "containers/to_value_list.h",
     "containers/to_vector.h",
     "containers/unique_ptr_adapters.h",
+    "containers/variant_map.cc",
     "containers/variant_map.h",
     "containers/vector_buffer.h",
     "critical_closure.h",
@@ -1283,8 +1284,8 @@ component("base") {
       ":sys_utils_jni",
       ":tasks_jni",
       ":virtual_document_path_jni",
+      "//base/android/linker:ashmem",
       "//base/version_info/android:version_constants_bridge_jni",
-      "//third_party/ashmem",
       "//third_party/cpu_features:ndk_compat",
     ]
 
@@ -4035,6 +4036,7 @@ test("base_unittests") {
       "test/launcher/test_results_tracker_unittest.cc",
     ]
     deps += [
+      "//base/android/linker:ashmem",
       ":base_unittest_support_java",
       ":base_unittest_support_jni",
       "//base/test:test_support_java",
@@ -5583,6 +5585,8 @@ if (is_android) {
   android_library("base_java_process_launcher_test_support") {
     testonly = true
 
+    srcjar_deps = [ ":base_android_java_enums_srcjar" ]
+    deps = [ "//third_party/androidx:androidx_annotation_annotation_java" ]
     public_deps = [ ":process_launcher_java" ]
 
     sources = [ "test/android/javatests/src/org/chromium/base/process_launcher/TestChildProcessConnection.java" ]

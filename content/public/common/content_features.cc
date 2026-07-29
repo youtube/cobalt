@@ -223,6 +223,11 @@ const char kCookieDeprecationLabelName[] = "label";
 
 const char kCookieDeprecationTestingDisableAdsAPIsName[] = "disable_ads_apis";
 
+// Kill switch for Cookie Deprecation labels, also gated on
+// kCookieDeprecationFacilitatedTesting.
+BASE_FEATURE(kCookieDeprecationFacilitatedTestingLabels,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Adiitional FeatureParams for CookieDeprecationFacilitatedTesting are defined
 // in chrome/browser/tpcd/experiment/tpcd_experiment_features.cc.
 
@@ -404,7 +409,7 @@ BASE_FEATURE(kFedCmIdPRegistration,
 // For cross-site iframes, sends the top-level origin to the IDP and parses
 // an optional returned boolean indicating whether it is part of the same
 // client to allow for UI decisions based on the boolean.
-BASE_FEATURE(kFedCmIframeOrigin, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kFedCmIframeOrigin, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables usage of the FedCM API with metrics endpoint at the same time.
 BASE_FEATURE(kFedCmMetricsEndpoint, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -868,7 +873,7 @@ constexpr base::FeatureParam<double> kProcessPerSiteMainFrameTotalMemoryLimit{
 // it doesn't require a developer opt-in.
 //
 // crbug.com/1472634 for more details.
-BASE_FEATURE(kServiceWorkerAutoPreload, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kServiceWorkerAutoPreload, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // crbug.com/374606637: When this is enabled, race-network-and-fetch-hander will
 // prioritize the response processing for the network request over the
@@ -1318,7 +1323,7 @@ BASE_FEATURE(kEnableExclusiveAccessManager, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
-BASE_FEATURE(kKeyboardLockApiOnAndroid, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kKeyboardLockApiOnAndroid, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 // Sets IO threads to kInteractive all the time.

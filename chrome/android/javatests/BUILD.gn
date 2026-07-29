@@ -230,6 +230,7 @@ android_library("chrome_test_java_helper") {
     "//chrome/test/android:chrome_java_test_pagecontroller",
     "//chrome/test/android:chrome_java_transit",
     "//chrome/test/android/test_trusted_web_activity:test_trusted_web_activity_java",
+    "//components/android_autofill/browser:features_java",
     "//components/android_autofill/browser/test_support:java",
     "//components/autofill/android:autofill_features_java",
     "//components/autofill/android:autofill_java",
@@ -622,7 +623,9 @@ android_library("chrome_test_java_org.chromium.chrome.browser.compositor") {
     "src/org/chromium/chrome/browser/compositor/layouts/LayoutManagerTest.java",
     "src/org/chromium/chrome/browser/compositor/layouts/content/TabContentManagerTest.java",
     "src/org/chromium/chrome/browser/compositor/overlays/strip/TabStripGroupContextMenuTest.java",
+    "src/org/chromium/chrome/browser/compositor/overlays/strip/TabStripPinUnpinTabsTest.java",
     "src/org/chromium/chrome/browser/compositor/overlays/strip/TabStripTest.java",
+    "src/org/chromium/chrome/browser/compositor/overlays/strip/TabStripTestUtils.java",
   ]
 
   deps = [
@@ -1207,10 +1210,12 @@ android_library("chrome_test_java_org.chromium.chrome.browser.site_settings") {
     "src/org/chromium/chrome/browser/site_settings/CookieSettingsTest.java",
     "src/org/chromium/chrome/browser/site_settings/FakeRwsPrivacySandboxBridge.java",
     "src/org/chromium/chrome/browser/site_settings/FamilyLinkControlsTest.java",
+    "src/org/chromium/chrome/browser/site_settings/LocationPermissionSubpageSettingsTest.java",
     "src/org/chromium/chrome/browser/site_settings/ManageSpaceActivityTest.java",
     "src/org/chromium/chrome/browser/site_settings/PermissionInfoTest.java",
     "src/org/chromium/chrome/browser/site_settings/SingleWebsiteSettingsTest.java",
     "src/org/chromium/chrome/browser/site_settings/SiteSettingsTest.java",
+    "src/org/chromium/chrome/browser/site_settings/TwoActionSwitchPreferenceTest.java",
     "src/org/chromium/chrome/browser/site_settings/WebsitePermissionsFetcherTest.java",
     "src/org/chromium/chrome/browser/site_settings/WebsitePreferenceBridgeTest.java",
   ]
@@ -1501,11 +1506,13 @@ android_library("chrome_test_java_various") {
     "src/org/chromium/chrome/browser/externalnav/UrlOverridingTest.java",
     "src/org/chromium/chrome/browser/findinpage/FindTest.java",
     "src/org/chromium/chrome/browser/fullscreen/FullscreenManagerTest.java",
+    "src/org/chromium/chrome/browser/history/HistoryPageOnLffTest.java",
     "src/org/chromium/chrome/browser/history/HistoryPaneTest.java",
     "src/org/chromium/chrome/browser/history/HistoryTabHelperTest.java",
     "src/org/chromium/chrome/browser/history/HistoryTest.java",
     "src/org/chromium/chrome/browser/homepage/HomepagePolicyIntegrationTest.java",
     "src/org/chromium/chrome/browser/homepage/settings/HomepageSettingsRenderTest.java",
+    "src/org/chromium/chrome/browser/host_zoom/HostZoomListenerTest.java",
     "src/org/chromium/chrome/browser/identity_disc/IdentityDiscControllerTest.java",
     "src/org/chromium/chrome/browser/infobar/InfoBarContainerTest.java",
     "src/org/chromium/chrome/browser/init/ChromeBrowserInitializerTest.java",
@@ -1551,7 +1558,7 @@ android_library("chrome_test_java_various") {
     "src/org/chromium/chrome/browser/status_indicator/StatusIndicatorTest.java",
     "src/org/chromium/chrome/browser/storage/BlobUrlStoreTest.java",
     "src/org/chromium/chrome/browser/survey/ChromeStartupSurveyIntegrationTest.java",
-    "src/org/chromium/chrome/browser/tab/WebContentsStateBridgeTest.java",
+    "src/org/chromium/chrome/browser/tab/WebContentsStateTest.java",
     "src/org/chromium/chrome/browser/tabbed_mode/KeyboardFocusRowManagerTest.java",
     "src/org/chromium/chrome/browser/tabbed_mode/TabbedNavigationBarColorControllerTest.java",
     "src/org/chromium/chrome/browser/tabbed_mode/TabbedRootUiCoordinatorTest.java",
@@ -1575,6 +1582,7 @@ android_library("chrome_test_java_various") {
   deps = [
     ":chrome_test_java_helper",
     "//base:holder_java",
+    "//components/browser_ui/http_auth/android:java",
   ]
 }
 

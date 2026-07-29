@@ -32,11 +32,14 @@
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/glic_profile_manager.h"
 #include "chrome/browser/glic/host/auth_controller.h"
+#include "chrome/browser/glic/host/context/glic_active_browser_sharing_manager.h"
 #include "chrome/browser/glic/host/context/glic_page_context_fetcher.h"
 #include "chrome/browser/glic/host/context/glic_screenshot_capturer.h"
 #include "chrome/browser/glic/host/context/glic_sharing_manager_impl.h"
 #include "chrome/browser/glic/host/context/glic_tab_data.h"
+#include "chrome/browser/glic/host/context/glic_tab_source_observer.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
+#include "chrome/browser/glic/host/glic_web_client_access.h"
 #include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/host/webui_contents_container.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
@@ -48,7 +51,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
-#include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/common/actor/action_result.h"
@@ -59,6 +62,7 @@
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "components/prefs/pref_service.h"
+#include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/common/url_constants.h"
@@ -104,6 +108,18 @@ std::unique_ptr<GlicWindowController> CreateWindowController(
       profile, identity_manager, glic_service, glic_enabling);
 }
 
+std::unique_ptr<GlicSharingManager> CreateSharingManager(
+    Profile* profile,
+    GlicWindowController* window_controller,
+    GlicMetrics* metrics) {
+  if (UseDefaultWindowController()) {
+    return std::make_unique<GlicSharingManagerImpl>(profile, window_controller,
+                                                    metrics);
+  }
+
+  return std::make_unique<GlicActiveBrowserSharingManager>(profile);
+}
+
 }  // namespace
 
 GlicKeyedService::GlicKeyedService(
@@ -125,9 +141,7 @@ GlicKeyedService::GlicKeyedService(
                                                 this,
                                                 enabling_.get())),
       sharing_manager_(
-          std::make_unique<GlicSharingManagerImpl>(profile,
-                                                   &window_controller(),
-                                                   metrics_.get())),
+          CreateSharingManager(profile, &window_controller(), metrics_.get())),
       screenshot_capturer_(std::make_unique<GlicScreenshotCapturer>()),
       auth_controller_(std::make_unique<AuthController>(profile,
                                                         identity_manager,
@@ -164,6 +178,11 @@ GlicKeyedService::GlicKeyedService(
         static_cast<int>(prefs::FreStatus::kCompleted));
   }
 
+  if (!UseDefaultWindowController()) {
+    glic_tab_source_observer_ = std::make_unique<GlicTabSourceObserver>(
+        window_controller_.get(), profile_);
+  }
+
   // This is only used by automation for tests.
   glic_profile_manager->MaybeAutoOpenGlicPanel();
 }
@@ -179,6 +198,11 @@ GlicKeyedService* GlicKeyedService::Get(content::BrowserContext* context) {
 
 void GlicKeyedService::Shutdown() {
   CloseUI();
+
+  if (!UseDefaultWindowController()) {
+    glic_tab_source_observer_.reset();
+  }
+
   GlicProfileManager* glic_profile_manager = GlicProfileManager::GetInstance();
   if (glic_profile_manager) {
     glic_profile_manager->OnServiceShutdown(this);
@@ -262,31 +286,6 @@ GlicSharingManager& GlicKeyedService::sharing_manager() {
   return *sharing_manager_.get();
 }
 
-void GlicKeyedService::CreateTab() {
-  NOTIMPLEMENTED();
-}
-void GlicKeyedService::CreateTask() {
-  NOTIMPLEMENTED();
-}
-void GlicKeyedService::PerformActions() {
-  NOTIMPLEMENTED();
-}
-void GlicKeyedService::StopActorTask() {
-  NOTIMPLEMENTED();
-}
-void GlicKeyedService::PauseActorTask() {
-  NOTIMPLEMENTED();
-}
-void GlicKeyedService::ResumeActorTask() {
-  NOTIMPLEMENTED();
-}
-void GlicKeyedService::GetZeroStateSuggestionsAndSubscribe() {
-  NOTIMPLEMENTED();
-}
-void GlicKeyedService::GetZeroStateSuggestionsForFocusedTab() {
-  NOTIMPLEMENTED();
-}
-
 void GlicKeyedService::OnZeroStateSuggestionsFetched(
     mojom::ZeroStateSuggestionsPtr suggestions,
     mojom::WebClientHandler::GetZeroStateSuggestionsForFocusedTabCallback
@@ -330,6 +329,23 @@ void GlicKeyedService::FetchZeroStateSuggestions(
   }
 }
 
+void GlicKeyedService::RegisterConversation(
+    glic::mojom::ConversationInfoPtr info,
+    mojom::WebClientHandler::RegisterConversationCallback callback) {
+  NOTIMPLEMENTED();
+  std::move(callback).Run(mojom::RegisterConversationErrorReason::kUnknown);
+}
+
+void GlicKeyedService::GetZeroStateSuggestionsAndSubscribe(
+    bool has_active_subscription,
+    const mojom::ZeroStateSuggestionsOptions& options,
+    mojom::WebClientHandler::GetZeroStateSuggestionsAndSubscribeCallback
+        callback) {
+  zero_state_suggestions_manager().ObserveZeroStateSuggestions(
+      has_active_subscription, options.is_first_run, options.supported_tools,
+      std::move(callback));
+}
+
 void GlicKeyedService::GuestAdded(content::WebContents* guest_contents) {
   host_manager().GuestAdded(guest_contents);
 }
@@ -353,6 +369,7 @@ GlicKeyedService::AddContextAccessIndicatorStatusChangedCallback(
 }
 
 void GlicKeyedService::CreateTab(
+    content::RenderFrameHost* source,
     const ::GURL& url,
     bool open_in_background,
     const std::optional<int32_t>& window_id,
@@ -367,6 +384,11 @@ void GlicKeyedService::CreateTab(
   params.disposition = open_in_background
                            ? WindowOpenDisposition::NEW_BACKGROUND_TAB
                            : WindowOpenDisposition::NEW_FOREGROUND_TAB;
+
+  // Ensure the source is Glic, then set the opener of the navigation.
+  if (source && host_manager().IsGlicWebUiHost(source->GetProcess())) {
+    params.opener = source;
+  }
   base::WeakPtr<content::NavigationHandle> navigation_handle =
       Navigate(&params);
   if (!navigation_handle.get()) {
@@ -609,41 +631,52 @@ void GlicKeyedService::ResumeActorTask(
     return;
   }
 
-  auto fetcher_callback = base::BindOnce(
-      [](base::WeakPtr<actor::ActorKeyedService> actor_keyed_service,
-         actor::TaskId task_id,
-         glic::mojom::WebClientHandler::ResumeActorTaskCallback final_callback,
-         base::expected<glic::mojom::GetContextResultPtr,
-                        page_content_annotations::FetchPageContextErrorDetails>
-             result) {
+  auto observation_callback = base::BindOnce(
+      [](glic::mojom::WebClientHandler::ResumeActorTaskCallback reply_callback,
+         glic::mojom::TabDataPtr tab_data,
+         actor::ActorKeyedService::TabObservationResult result) {
         if (!result.has_value()) {
-          if (actor_keyed_service) {
-            actor_keyed_service->GetJournal().Log(
-                GURL::EmptyGURL(), task_id, actor::mojom::JournalTrack::kActor,
-                "Failed to resume task - fetch context",
-                actor::JournalDetailsBuilder()
-                    .AddError(result.error().message)
-                    .Build());
-          }
-          std::move(final_callback)
+          std::move(reply_callback)
               .Run(glic::mojom::GetContextResult::NewErrorReason(
-                  result.error().message));
+                  result.error()));
           return;
         }
 
-        std::move(final_callback).Run(std::move(result.value()));
+        page_content_annotations::FetchPageContextResult& page_context =
+            *result.value();
+
+        // RequestTabObservation guarantees a successful request has both
+        // screenshot and APC.
+        CHECK(page_context.screenshot_result.has_value());
+        CHECK(page_context.annotated_page_content_result.has_value());
+
+        auto glic_tab_context = mojom::TabContext::New();
+
+        glic_tab_context->tab_data = std::move(tab_data);
+
+        glic_tab_context->viewport_screenshot = glic::mojom::Screenshot::New(
+            page_context.screenshot_result->dimensions.width(),
+            page_context.screenshot_result->dimensions.height(),
+            std::move(page_context.screenshot_result->jpeg_data), "image/jpeg",
+            // TODO(b/380495633): Finalize and implement image annotations.
+            glic::mojom::ImageOriginAnnotations::New());
+
+        glic_tab_context->annotated_page_data = mojom::AnnotatedPageData::New();
+        glic_tab_context->annotated_page_data->annotated_page_content =
+            mojo_base::ProtoWrapper(
+                page_context.annotated_page_content_result->proto);
+        glic_tab_context->annotated_page_data->metadata =
+            std::move(page_context.annotated_page_content_result->metadata);
+
+        glic::mojom::GetContextResultPtr glic_result =
+            glic::mojom::GetContextResult::NewTabContext(
+                std::move(glic_tab_context));
+        std::move(reply_callback).Run(std::move(glic_result));
       },
-      actor_keyed_service_->GetWeakPtr(), task_id, std::move(callback));
+      std::move(callback), CreateTabData(tab_of_resumed_task->GetContents()));
 
-  // TODO(khushalsagar): Ideally this should be set by the web UI instead of
-  // overriding here for actor mode.
-  // TODO(crbug.com/411462297): This should probably use RequestTabObservation
-  auto actionable_context_options = context_options.Clone();
-  actionable_context_options->annotated_page_content_mode = optimization_guide::
-      proto::ANNOTATED_PAGE_CONTENT_MODE_ACTIONABLE_ELEMENTS;
-
-  glic::FetchPageContext(tab_of_resumed_task, *actionable_context_options,
-                         std::move(fetcher_callback));
+  actor_keyed_service_->RequestTabObservation(*tab_of_resumed_task, task_id,
+                                              std::move(observation_callback));
 }
 
 void GlicKeyedService::OnUserInputSubmitted(glic::mojom::WebClientMode mode) {
@@ -812,6 +845,14 @@ GlicInstance* GlicKeyedService::GetInstanceForActiveTab(
     BrowserWindowInterface* bwi) {
   return window_controller().GetInstanceForTab(
       bwi ? bwi->GetActiveTabInterface() : nullptr);
+}
+
+void GlicKeyedService::SendAdditionalContext(
+    tabs::TabHandle tab_handle,
+    mojom::AdditionalContextPtr context) {
+  auto* tab = tab_handle.Get();
+  auto* host = &window_controller().GetInstanceForTab(tab)->host();
+  host->NotifyAdditionalContext(std::move(context));
 }
 
 }  // namespace glic

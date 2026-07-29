@@ -21,6 +21,10 @@ BASE_FEATURE(kSyncSharedTabGroupAccountData, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSyncSharedComment, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kSyncAIThread, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kSyncContextualTask, base::FEATURE_DISABLED_BY_DEFAULT);
+
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kUnoPhase2FollowUp, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -138,9 +142,7 @@ BASE_FEATURE(kSyncTrustedVaultInfobarMessageImprovements,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_IOS)
 
-BASE_FEATURE(kSyncUseOsCryptAsync,
-             "SyncUseOsCryptAsyncForNigori",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kSyncUseOsCryptAsync, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSyncDetermineAccountManagedStatus,
              base::FEATURE_DISABLED_BY_DEFAULT);

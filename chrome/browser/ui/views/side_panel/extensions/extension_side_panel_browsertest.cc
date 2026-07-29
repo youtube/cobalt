@@ -19,6 +19,7 @@
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/extensions/extension_action_test_helper.h"
 #include "chrome/browser/ui/extensions/extensions_container.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
@@ -274,8 +275,10 @@ class ExtensionSidePanelBrowserTest : public ExtensionBrowserTest {
 
   void WaitForSidePanelClose() {
     ASSERT_TRUE(base::test::RunUntil([&]() {
-      return browser()->GetBrowserView().unified_side_panel()->state() ==
-             SidePanel::State::kClosed;
+      return browser()
+                 ->GetBrowserView()
+                 .contents_height_side_panel()
+                 ->state() == SidePanel::State::kClosed;
     }));
   }
 
@@ -341,6 +344,10 @@ class ExtensionSidePanelBrowserTest : public ExtensionBrowserTest {
 
   SidePanelCoordinator* side_panel_coordinator(Browser* browser) {
     return browser->GetFeatures().side_panel_coordinator();
+  }
+
+  SidePanelCoordinator* side_panel_coordinator(BrowserWindowInterface* window) {
+    return side_panel_coordinator(window->GetBrowserForMigrationOnly());
   }
 };
 
@@ -2231,7 +2238,9 @@ IN_PROC_BROWSER_TEST_F(ExtensionCloseSidePanelBrowserTest,
   RunSetOptions(*extension, second_tab_id, "panel_2.html", /*enabled=*/true);
   side_panel_coordinator()->Show(extension_key);
   EXPECT_TRUE(side_panel_coordinator()->IsSidePanelShowing());
-  EXPECT_TRUE(second_tab_registry->active_entry().has_value());
+  EXPECT_TRUE(second_tab_registry
+                  ->GetActiveEntryFor(SidePanelEntry::PanelType::kContent)
+                  .has_value());
 
   // Switch back to the first tab, making the second tab inactive.
   browser()->tab_strip_model()->ActivateTabAt(0);
@@ -2244,7 +2253,9 @@ IN_PROC_BROWSER_TEST_F(ExtensionCloseSidePanelBrowserTest,
   RunClosePanel(*extension, second_tab_id, /*window_id=*/std::nullopt);
 
   // Directly check that the inactive tab's registry has been reset.
-  EXPECT_FALSE(second_tab_registry->active_entry().has_value());
+  EXPECT_FALSE(second_tab_registry
+                   ->GetActiveEntryFor(SidePanelEntry::PanelType::kContent)
+                   .has_value());
   EXPECT_TRUE(side_panel_coordinator()->IsSidePanelShowing());
 
   // Switch back to the second tab to confirm the panel does not reopen.
@@ -2271,7 +2282,9 @@ IN_PROC_BROWSER_TEST_F(ExtensionCloseSidePanelBrowserTest,
   // Show the global panel first to set it as the window's active global entry.
   side_panel_coordinator()->Show(global_key);
   ASSERT_TRUE(side_panel_coordinator()->IsSidePanelEntryShowing(global_key));
-  ASSERT_TRUE(global_registry()->active_entry().has_value());
+  ASSERT_TRUE(global_registry()
+                  ->GetActiveEntryFor(SidePanelEntry::PanelType::kContent)
+                  .has_value());
 
   // Enable and show the contextual panel, which will replace the global
   // panel in the UI.
@@ -2288,7 +2301,9 @@ IN_PROC_BROWSER_TEST_F(ExtensionCloseSidePanelBrowserTest,
   EXPECT_TRUE(
       side_panel_coordinator()->IsSidePanelEntryShowing(contextual_key));
   // The global registry's active entry should be reset.
-  EXPECT_FALSE(global_registry()->active_entry().has_value());
+  EXPECT_FALSE(global_registry()
+                   ->GetActiveEntryFor(SidePanelEntry::PanelType::kContent)
+                   .has_value());
 }
 
 class ExtensionOnOpenedEventSidePanelBrowserTest
@@ -2403,8 +2418,8 @@ IN_PROC_BROWSER_TEST_F(ExtensionOnOpenedEventSidePanelBrowserTest,
   EXPECT_TRUE(side_panel_coordinator()->IsSidePanelShowing());
 
   // Parse the JSON string received from the extension.
-  std::optional<base::Value> value =
-      base::JSONReader::Read(opened_listener.message());
+  std::optional<base::Value> value = base::JSONReader::Read(
+      opened_listener.message(), base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   ASSERT_TRUE(value);
   ASSERT_TRUE(value->is_dict());
   const base::Value::Dict& open_info = value->GetDict();
@@ -2426,6 +2441,256 @@ IN_PROC_BROWSER_TEST_F(ExtensionOnOpenedEventSidePanelBrowserTest,
   const std::string* path_from_event = open_info.FindString("path");
   ASSERT_TRUE(path_from_event);
   EXPECT_EQ("/panel.html", *path_from_event);
+}
+
+class ExtensionOnClosedEventSidePanelBrowserTest
+    : public ExtensionSidePanelBrowserTest {
+ protected:
+  // Helper to load a test extension configured for the onClosed event tests.
+  const Extension* CreateOnClosedTestExtension() {
+    test_dirs_.emplace_back();
+    extensions::TestExtensionDir& test_dir = test_dirs_.back();
+
+    test_dir.WriteFile(FILE_PATH_LITERAL("panel.html"), "<html></html>");
+    test_dir.WriteFile(FILE_PATH_LITERAL("manifest.json"), R"({
+      "name": "Side Panel onClosed Test",
+      "version": "1.0", "manifest_version": 3,
+      "permissions": ["sidePanel", "tabs"],
+      "background": { "service_worker": "background.js" }
+    })");
+    test_dir.WriteFile(FILE_PATH_LITERAL("background.js"), R"(
+      let expectedWindowId, expectedTabId;
+
+      // This function is used only in tests where the context of the opened
+      // side panel has been changed.
+      function updateExpectedContext(newContext) {
+        if (newContext && newContext.windowId && newContext.tabId) {
+          expectedWindowId = newContext.windowId;
+          expectedTabId = newContext.tabId;
+          return true;
+        }
+        return false;
+      }
+
+      chrome.test.runTests([
+        // Test that the onClosed event fires with the correct arguments.
+        async function onClosedEventFires() {
+          const [tab] = await chrome.tabs.query(
+              {active: true, currentWindow: true});
+          expectedWindowId = tab.windowId;
+          expectedTabId = tab.id;
+
+          chrome.sidePanel.onClosed.addListener(function listener(closeInfo) {
+            chrome.test.assertEq(expectedTabId, closeInfo.tabId);
+            chrome.test.assertEq('/panel.html', closeInfo.path);
+            chrome.test.assertEq(expectedWindowId, closeInfo.windowId);
+            chrome.sidePanel.onClosed.removeListener(listener);
+            chrome.test.succeed();
+          });
+
+          // Enable the side panel and let the C++ test know it can proceed.
+          await chrome.sidePanel.setOptions(
+              {tabId: tab.id, path: 'panel.html', enabled: true});
+          chrome.test.sendMessage("ready");
+        }
+      ]);
+  )");
+
+    ExtensionTestMessageListener ready_listener("ready");
+    const Extension* extension = LoadExtension(test_dir.UnpackedPath());
+    if (!extension) {
+      return nullptr;
+    }
+
+    // Wait for the extension to be ready before returning.
+    if (!ready_listener.WaitUntilSatisfied()) {
+      return nullptr;
+    }
+    return extension;
+  }
+
+ private:
+  std::vector<extensions::TestExtensionDir> test_dirs_;
+};
+
+// Tests that onClosed fires when the hosting tab is closed.
+IN_PROC_BROWSER_TEST_F(ExtensionOnClosedEventSidePanelBrowserTest,
+                       OnClosedEvent_TabClosed) {
+  // Open a new tab first to prevent the browser from shutting down.
+  ui_test_utils::NavigateToURLWithDisposition(
+      browser(), GURL("about:blank"), WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+  ASSERT_EQ(2, browser()->tab_strip_model()->count());
+
+  extensions::ResultCatcher result_catcher;
+
+  // Create and load the test extension.
+  const Extension* extension = CreateOnClosedTestExtension();
+  ASSERT_TRUE(extension);
+
+  // Show the extension's panel and verify it is active.
+  SidePanelEntry* extension_entry =
+      GetCurrentTabRegistry()->GetEntryForKey(GetKey(extension->id()));
+  ASSERT_TRUE(extension_entry);
+  ShowContextualEntryAndWait(GetKey(extension->id()));
+
+  // Close the active tab, which has the panel. This action should trigger the
+  // onClosed event in the extension.
+  browser()->tab_strip_model()->CloseWebContentsAt(
+      browser()->tab_strip_model()->active_index(),
+      TabCloseTypes::CLOSE_USER_GESTURE);
+
+  ASSERT_TRUE(result_catcher.GetNextResult()) << result_catcher.message();
+}
+
+// Tests that onClosed fires when the panel is replaced by another.
+IN_PROC_BROWSER_TEST_F(ExtensionOnClosedEventSidePanelBrowserTest,
+                       OnClosedEvent_PanelReplaced) {
+  extensions::ResultCatcher result_catcher;
+
+  // Create and load the test extension.
+  const Extension* extension = CreateOnClosedTestExtension();
+  ASSERT_TRUE(extension);
+
+  // Show the extension's panel and verify it is active.
+  SidePanelEntry* extension_entry =
+      GetCurrentTabRegistry()->GetEntryForKey(GetKey(extension->id()));
+  ASSERT_TRUE(extension_entry);
+  ShowContextualEntryAndWait(GetKey(extension->id()));
+
+  // Show a different panel, which should cause the extension's panel to close.
+  // This action should trigger the onClosed event in the extension.
+  {
+    TestSidePanelEntryWaiter waiter(extension_entry);
+    side_panel_coordinator()->Show(SidePanelEntry::Id::kReadingList);
+    waiter.WaitForEntryHidden();
+  }
+
+  ASSERT_NE(side_panel_coordinator()->GetCurrentEntryId(),
+            GetKey(extension->id()).id());
+  ASSERT_TRUE(result_catcher.GetNextResult()) << result_catcher.message();
+}
+
+// Tests that onClosed fires when the panel is closed directly.
+IN_PROC_BROWSER_TEST_F(ExtensionOnClosedEventSidePanelBrowserTest,
+                       OnClosedEvent_PanelClosed) {
+  extensions::ResultCatcher result_catcher;
+
+  // Create and load the test extension.
+  const Extension* extension = CreateOnClosedTestExtension();
+  ASSERT_TRUE(extension);
+
+  // Show the extension's panel and verify it is active.
+  SidePanelEntry* extension_entry =
+      GetCurrentTabRegistry()->GetEntryForKey(GetKey(extension->id()));
+  ASSERT_TRUE(extension_entry);
+  ShowContextualEntryAndWait(GetKey(extension->id()));
+
+  // Close the panel. This action should trigger the onClosed event in the
+  // extension.
+  {
+    TestSidePanelEntryWaiter waiter(extension_entry);
+    side_panel_coordinator()->Close();
+    waiter.WaitForEntryHidden();
+  }
+
+  ASSERT_FALSE(side_panel_coordinator()->IsSidePanelShowing());
+  ASSERT_TRUE(result_catcher.GetNextResult()) << result_catcher.message();
+}
+
+// Tests that onClosed fires when the hosting browser window is closed.
+IN_PROC_BROWSER_TEST_F(ExtensionOnClosedEventSidePanelBrowserTest,
+                       OnClosedEvent_WindowClosed) {
+  // The initial `browser()` will remain open to keep the process alive.
+  // We create a new browser window to perform the test actions and then close.
+  // Creating a new browser makes it the active one by default.
+  Browser* browser_to_close = CreateBrowser(browser()->profile());
+
+  extensions::ResultCatcher result_catcher;
+
+  // Load the test extension. Its background script will run against the
+  // newly created active window (`browser_to_close`).
+  const Extension* extension = CreateOnClosedTestExtension();
+  ASSERT_TRUE(extension);
+
+  // Get the side panel registry and entry for `browser_to_close`.
+  content::WebContents* active_contents =
+      browser_to_close->tab_strip_model()->GetActiveWebContents();
+  SidePanelRegistry* registry =
+      SidePanelRegistry::GetDeprecated(active_contents);
+  SidePanelEntry* extension_entry =
+      registry->GetEntryForKey(GetKey(extension->id()));
+  ASSERT_TRUE(extension_entry);
+
+  // Show the panel in `browser_to_close` and wait for it to be visible.
+  {
+    TestSidePanelEntryWaiter waiter(extension_entry);
+    side_panel_coordinator(browser_to_close)->Show(GetKey(extension->id()));
+    waiter.WaitForEntryShown();
+    EXPECT_TRUE(side_panel_coordinator(browser_to_close)->IsSidePanelShowing());
+  }
+
+  // Close the test browser window. This should trigger the onClosed event in
+  // the extension.
+  CloseBrowserSynchronously(browser_to_close);
+  ASSERT_TRUE(result_catcher.GetNextResult()) << result_catcher.message();
+}
+
+// Tests that the sidePanel.onClosed event fires with the correct payload when
+// its hosting tab is dragged into a new window, and the panel is then closed
+// within that new window.
+IN_PROC_BROWSER_TEST_F(ExtensionOnClosedEventSidePanelBrowserTest,
+                       OnClosedEvent_TabDraggedToNewWindow) {
+  extensions::ResultCatcher result_catcher;
+  // Create and load the test extension. This enables the panel on the initial
+  // tab.
+  const Extension* extension = CreateOnClosedTestExtension();
+  ASSERT_TRUE(extension);
+
+  // Show the extension's panel to ensure it is active before proceeding.
+  SidePanelEntry* extension_entry =
+      GetCurrentTabRegistry()->GetEntryForKey(GetKey(extension->id()));
+  ASSERT_TRUE(extension_entry);
+  ShowContextualEntryAndWait(GetKey(extension->id()));
+
+  // Add a second tab to ensure the original window doesn't close when we move
+  // the first tab.
+  ASSERT_TRUE(AddTabAtIndex(1, GURL("about:blank"), ui::PAGE_TRANSITION_LINK));
+  ASSERT_EQ(2, browser()->tab_strip_model()->count());
+
+  // Ensure the tab with the panel is the active one before moving it.
+  browser()->tab_strip_model()->ActivateTabAt(0);
+
+  // Move the first tab (at index 0) to a new window. This action correctly
+  // simulates the user dragging the tab out.
+  chrome::MoveTabsToNewWindow(browser(), {0});
+
+  // Get the new browser window.
+  BrowserWindowInterface* const new_browser =
+      GetLastActiveBrowserWindowInterfaceWithAnyProfile();
+  ASSERT_TRUE(new_browser);
+  EXPECT_NE(browser()->window(), new_browser->GetWindow());
+
+  // Get the session IDs for the new window and its active tab.
+  const int new_window_id = new_browser->GetSessionID().id();
+  content::WebContents* new_tab =
+      new_browser->GetTabStripModel()->GetActiveWebContents();
+  const int new_tab_id = ExtensionTabUtil::GetTabId(new_tab);
+
+  // Send the new window and tab IDs to the extension's background script. This
+  // updates the script's expectations for the onClosed event payload.
+  EXPECT_TRUE(ExecuteScriptInBackgroundPage(
+                  extension->id(),
+                  base::StringPrintf(
+                      "chrome.test.sendScriptResult(updateExpectedContext({"
+                      "windowId: %d, tabId: %d}))",
+                      new_window_id, new_tab_id))
+                  .GetBool());
+
+  side_panel_coordinator(new_browser)->Close();
+  // Verify the extension's test succeeded, confirming onClosed was fired with
+  // the correct details from the new window.
+  ASSERT_TRUE(result_catcher.GetNextResult()) << result_catcher.message();
 }
 // TODO(crbug.com/40243760): Add a test here which requires a browser in
 // ExtensionViewHost for both global and contextual extension entries. One

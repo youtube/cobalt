@@ -231,7 +231,6 @@ inline constexpr char kDarkModeParameterDarkValue[] = "1";
 - (void)disconnect {
   if (_webState) {
     [self detachWebState];
-    _webState.reset();
   }
   _webStateObserverBridge.reset();
   _webStateDelegateBridge.reset();
@@ -331,7 +330,7 @@ inline constexpr char kDarkModeParameterDarkValue[] = "1";
     }
 
     if (IsMaximizeBottomSheetURL(URL)) {
-      [self.presentationDelegate requestMaximizeBottomSheet];
+      [self.bottomSheetCommands requestMaximizeBottomSheet];
       return;
     }
 

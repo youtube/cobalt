@@ -7,9 +7,9 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/unguessable_token.h"
 #include "chrome/browser/ui/lens/lens_composebox_controller.h"
+#include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/composebox_omnibox_client.h"
 #include "chrome/browser/ui/webui/searchbox/searchbox_handler.h"
-#include "components/omnibox/browser/omnibox_controller.h"
 #include "components/omnibox/browser/searchbox.mojom.h"
 #include "content/public/browser/web_contents.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -56,16 +56,6 @@ void LensComposeboxHandler::SubmitQuery(
   lens_composebox_controller_->IssueComposeboxQuery(query_text);
 }
 
-void LensComposeboxHandler::NotifySessionStarted() {
-  // Ignored, intentionally unimplemented for Lens. The session starts when Lens
-  // is opened.
-}
-
-void LensComposeboxHandler::NotifySessionAbandoned() {
-  // Ignored, intentionally unimplemented for Lens. The session starts when Lens
-  // is closed.
-}
-
 void LensComposeboxHandler::SubmitQuery(const std::string& query_text,
                                         uint8_t mouse_button,
                                         bool alt_key,
@@ -83,29 +73,13 @@ void LensComposeboxHandler::FocusChanged(bool focused) {
   lens_composebox_controller_->OnFocusChanged(focused);
 }
 
-void LensComposeboxHandler::AddFileContext(
-    composebox::mojom::SelectedFileInfoPtr file_info_mojom,
-    mojo_base::BigBuffer file_bytes,
-    AddFileContextCallback callback) {
-  // Ignored, intentionally unimplemented for Lens. Adding files via the
-  // composebox is not yet supported.
+void LensComposeboxHandler::SetDeepSearchMode(bool enabled) {
+  // Ignore, intentionally unimplemented for Lens. Deep search not implemented
+  // in Lens.
 }
 
-void LensComposeboxHandler::AddTabContext(int32_t tab_id,
-                                          AddTabContextCallback callback) {
-  // Ignored, intentionally unimplemented for Lens. Adding tabs via the
-  // composebox is not yet supported.
-}
-
-void LensComposeboxHandler::DeleteContext(
-    const base::UnguessableToken& file_token) {
-  // Ignored, intentionally unimplemented for Lens. Adding files via the
-  // composebox is not yet supported.
-}
-
-void LensComposeboxHandler::ClearFiles() {
-  // Ignore, intentionally unimplemented for Lens. Adding files via the
-  // composebox is not yet supported.
+void LensComposeboxHandler::HandleLensButtonClick() {
+  lens_composebox_controller_->ShowLensSelectionOverlay();
 }
 
 void LensComposeboxHandler::DeleteAutocompleteMatch(uint8_t line,
@@ -123,10 +97,6 @@ void LensComposeboxHandler::ExecuteAction(
     bool ctrl_key,
     bool meta_key,
     bool shift_key) {
-  NOTREACHED();
-}
-
-void LensComposeboxHandler::PopupElementSizeChanged(const gfx::Size& size) {
   NOTREACHED();
 }
 

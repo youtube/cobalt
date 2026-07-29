@@ -209,15 +209,19 @@ export class SpeechController {
   }
 
   onHighlightGranularityChange(newGranularity: number) {
-    chrome.readingMode.onHighlightGranularityChanged(newGranularity);
-
     // Rehighlight the new granularity.
     if (newGranularity !== chrome.readingMode.noHighlighting) {
       this.highlightCurrentGranularity_(
           this.readAloudModel_.getCurrentTextSegments());
     }
+  }
 
-    this.logger_.logHighlightGranularity(newGranularity);
+  onPlayPauseKeyPress(context: HTMLElement|null) {
+    if (this.isSpeechActive()) {
+      this.logger_.logSpeechStopSource(
+          chrome.readingMode.keyboardShortcutStopSource);
+    }
+    this.onPlayPauseToggle(context);
   }
 
   onPlayPauseToggle(context: HTMLElement|null) {

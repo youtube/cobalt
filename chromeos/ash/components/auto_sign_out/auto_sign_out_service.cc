@@ -8,6 +8,7 @@
 #include "base/check_deref.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "chromeos/constants/pref_names.h"
 #include "chromeos/dbus/power/power_manager_client.h"
@@ -36,7 +37,6 @@ AutoSignOutService::AutoSignOutService(
       initialization_time_(base::Time::Now()) {
   RegisterPrefListeners();
   UpdateObservations();
-  UpdateLocalDeviceInfoWhenReady();
 }
 
 AutoSignOutService::~AutoSignOutService() = default;
@@ -71,6 +71,7 @@ void AutoSignOutService::UpdateObservations() {
       power_manager_client_observation_.Observe(
           chromeos::PowerManagerClient::Get());
     }
+    UpdateLocalDeviceInfoWhenReady();
   } else {
     power_manager_client_observation_.Reset();
     session_manager_observation_.Reset();
@@ -86,13 +87,21 @@ void AutoSignOutService::UpdateLocalDeviceInfoWhenReady() {
 
   if (local_device_info_provider->GetLocalDeviceInfo()) {
     UpdateLocalDeviceInfo();
-  } else {
-    CHECK(!local_device_info_ready_subscription_);
+  } else if (!local_device_info_ready_subscription_) {
     local_device_info_ready_subscription_ =
         local_device_info_provider->RegisterOnInitializedCallback(
-            base::BindRepeating(&AutoSignOutService::UpdateLocalDeviceInfo,
-                                weak_pointer_factory_.GetWeakPtr()));
+            base::BindRepeating(
+                &AutoSignOutService::OnLocalDeviceInfoProviderReady,
+                weak_pointer_factory_.GetWeakPtr()));
   }
+}
+
+// TODO(crbug.com/447113190): Change the way we update DeviceInfo so that we
+// don't need this PostTask.
+void AutoSignOutService::OnLocalDeviceInfoProviderReady() {
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&AutoSignOutService::UpdateLocalDeviceInfo,
+                                weak_pointer_factory_.GetWeakPtr()));
 }
 
 void AutoSignOutService::UpdateLocalDeviceInfo() {
@@ -127,10 +136,16 @@ void AutoSignOutService::OnStateChanged(syncer::SyncService* sync) {
     if (device->auto_sign_out_last_signin_timestamp().has_value() &&
         device->auto_sign_out_last_signin_timestamp().value() >
             initialization_time_) {
+      LOG(WARNING) << "An automatic sign-out is about to be performed.";
       session_manager_->RequestSignOut();
       return;
     }
   }
+}
+
+void AutoSignOutService::OnSyncShutdown(syncer::SyncService* sync) {
+  // This service must be destroyed before the SyncService is Shutdown().
+  NOTREACHED();
 }
 
 void AutoSignOutService::OnUnlockScreenAttempt(

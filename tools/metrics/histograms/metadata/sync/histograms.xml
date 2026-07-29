@@ -26,6 +26,7 @@ chromium-metrics-reviews@google.com.
 
 <variants name="SyncDataType">
   <variant name=".ACCOUNT_SETTING" summary="ACCOUNT_SETTING"/>
+  <variant name=".AI_THREAD" summary="AI_THREAD"/>
   <variant name=".APP" summary="APP"/>
   <variant name=".APP_LIST" summary="APP_LIST"/>
   <variant name=".APP_SETTING" summary="APP_SETTING"/>
@@ -41,6 +42,7 @@ chromium-metrics-reviews@google.com.
   <variant name=".BOOKMARK" summary="BOOKMARK"/>
   <variant name=".COLLABORATION_GROUP" summary="COLLABORATION_GROUP"/>
   <variant name=".CONTACT_INFO" summary="CONTACT_INFO"/>
+  <variant name=".CONTEXTUAL_TASK" summary="CONTEXTUAL_TASK"/>
   <variant name=".COOKIE" summary="COOKIE"/>
   <variant name=".DEVICE_INFO" summary="DEVICE_INFO"/>
   <variant name=".DICTIONARY" summary="DICTIONARY"/>
@@ -438,7 +440,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.BookmarkModelMergerTime{UpdatesCount}" units="ms"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>rushans@google.com</owner>
   <owner>mastiz@chromium.org</owner>
   <summary>
@@ -499,6 +501,37 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Sync.BootstrapTokenDecryptionResult" enum="BooleanSuccess"
+    expires_after="2025-12-01">
+  <owner>mtatarski@google.com</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    Records the success or failure of decrypting the sync bootstrap token. This
+    token is used to decrypt sync data when a custom passphrase is set.
+  </summary>
+</histogram>
+
+<histogram name="Sync.BootstrapTokenEncryptionResult" enum="BooleanSuccess"
+    expires_after="2025-12-01">
+  <owner>mtatarski@google.com</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    Records the success or failure of encrypting the sync bootstrap token. This
+    token is used to decrypt sync data when a custom passphrase is set.
+  </summary>
+</histogram>
+
+<histogram name="Sync.ClearMetadataDueToEmptyStorageKey" enum="SyncDataTypes"
+    expires_after="2026-03-30">
+  <owner>treib@chromium.org</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    Records when a data type's metadata is cleared due to empty/missing storage
+    keys in the persisted metadata. This will result in a re-download of all
+    data of this type.
+  </summary>
+</histogram>
+
 <histogram name="Sync.ClearMetadataWhileStopped{ClearTime}"
     enum="SyncDataTypes" expires_after="2026-05-13">
   <owner>ankushkush@google.com</owner>
@@ -531,7 +564,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.CommitResponseForUnknownEntity" enum="SyncDataTypes"
-    expires_after="2025-11-05">
+    expires_after="2026-05-05">
   <owner>treib@chromium.org</owner>
   <owner>mastiz@chromium.org</owner>
   <summary>
@@ -789,7 +822,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.DataTypeCommitWithDepletedQuota" enum="SyncDataTypes"
-    expires_after="2025-11-04">
+    expires_after="2026-11-04">
   <owner>rushans@google.com</owner>
   <owner>treib@chromium.org</owner>
   <summary>
@@ -859,7 +892,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.DataTypeErrorSite{SyncDataType}"
-    enum="SyncDataTypeErrorSite" expires_after="2026-01-18">
+    enum="SyncDataTypeErrorSite" expires_after="2026-03-22">
   <owner>treib@chromium.org</owner>
   <owner>rushans@google.com</owner>
   <summary>
@@ -1083,7 +1116,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.DeviceCount2.{DeviceType}" units="devices"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>ssid@chromium.org</owner>
   <owner>mastiz@chromium.org</owner>
   <owner>chrome-metrics-team@google.com</owner>
@@ -1122,7 +1155,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.EntityEncryptionSucceeded{SyncDataType}"
-    enum="BooleanSuccess" expires_after="2026-01-18">
+    enum="BooleanSuccess" expires_after="2026-03-22">
   <owner>rushans@google.com</owner>
   <owner>treib@chromium.org</owner>
   <summary>
@@ -1338,6 +1371,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Sync.InvalidSessionHeader.AssociateWindows"
+    enum="SessionSpecificsInvalidReason" expires_after="2026-03-30">
+  <owner>treib@chromium.org</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    Recorded if the SessionHeader specifics produced at the end of an
+    AssociateWindows() call was invalid (and thus not actually sent to the sync
+    machinery).
+  </summary>
+</histogram>
+
 <histogram name="Sync.KeystoreDecryptionFailed"
     enum="SyncKeystoreDecryptionFailure" expires_after="2026-07-05">
   <owner>mmoskvitin@google.com</owner>
@@ -1428,6 +1472,26 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Sync.NigoriStorageDecryptionResult" enum="BooleanSuccess"
+    expires_after="2025-12-01">
+  <owner>mtatarski@google.com</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    Records the success or failure of decrypting the Nigori local data from
+    disk. This data contains sync's encryption keys.
+  </summary>
+</histogram>
+
+<histogram name="Sync.NigoriStorageEncryptionResult" enum="BooleanSuccess"
+    expires_after="2025-12-01">
+  <owner>mtatarski@google.com</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    Records the success or failure of encrypting the Nigori local data to disk.
+    This data contains sync's encryption keys.
+  </summary>
+</histogram>
+
 <histogram
     name="Sync.NonReflectionUpdateFreshnessPossiblySkewed2{SyncDataType}"
     units="ms" expires_after="2026-03-15">
@@ -1478,7 +1542,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Sync.OutgoingPassordSharingInvitation.CommitError"
     enum="OutgoingPasswordSharingInvitationCommitError"
-    expires_after="2025-11-05">
+    expires_after="2026-11-05">
   <owner>rushans@google.com</owner>
   <owner>src/components/sync/OWNERS</owner>
   <summary>
@@ -1679,7 +1743,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.PostedGetUpdatesOrigin" enum="SyncGetUpdatesOrigin"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>mastiz@chromium.org</owner>
   <owner>rushans@google.com</owner>
   <summary>
@@ -2087,7 +2151,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.SyncStoppedReported" enum="Boolean"
-    expires_after="2025-12-15">
+    expires_after="2026-03-22">
   <owner>rushans@google.com</owner>
   <owner>treib@chromium.org</owner>
   <summary>
@@ -2247,6 +2311,19 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Sync.TriggerRefreshSource" enum="TriggerRefreshSource"
+    expires_after="2026-09-22">
+  <owner>mtatarski@google.com</owner>
+  <owner>chrome-sync-dev@chromium.org</owner>
+  <summary>
+    Recorded whenever SyncService::TriggerRefresh() is called, records the call
+    site/reason why it's called. This method forces a download of latest updates
+    from the server. This histogram helps to track existing and new use cases
+    and have an alert in case there are too many usages of it leading to
+    additional traffic to the server.
+  </summary>
+</histogram>
+
 <histogram name="Sync.TrustedVaultAddKeysAttemptIsSuccessful" enum="Boolean"
     expires_after="2026-03-15">
   <owner>mmoskvitin@google.com</owner>
@@ -2369,7 +2446,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.TrustedVaultKeyRetrievalTrigger"
-    enum="TrustedVaultUserActionTrigger" expires_after="2026-01-18">
+    enum="TrustedVaultUserActionTrigger" expires_after="2026-03-22">
   <owner>mmoskvitin@google.com</owner>
   <owner>mastiz@chromium.org</owner>
   <summary>
@@ -2473,7 +2550,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.UserActionableError" enum="UserActionableError"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>mmrashad@google.com</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>

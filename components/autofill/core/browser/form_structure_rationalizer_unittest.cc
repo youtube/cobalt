@@ -18,6 +18,7 @@
 #include "components/autofill/core/browser/form_parsing/determine_regex_types.h"
 #include "components/autofill/core/browser/form_structure_test_api.h"
 #include "components/autofill/core/browser/heuristic_source.h"
+#include "components/autofill/core/browser/proto/server.pb.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
@@ -167,14 +168,15 @@ auto FieldTypesAre(auto... types) {
   return ElementsAre(FieldTypeSet{types}...);
 }
 
-std::vector<std::optional<std::string>> GetFormatStrings(
+std::vector<std::optional<std::string>> GetDateFormatStrings(
     const FormStructure& form_structure) {
   std::vector<std::optional<std::string>> format_strings;
   format_strings.reserve(form_structure.field_count());
   for (size_t i = 0; i < form_structure.field_count(); ++i) {
-    if (std::optional<std::u16string> format_string =
-            form_structure.field(i)->format_string().CopyAsOptional()) {
-      format_strings.emplace_back(base::UTF16ToUTF8(*format_string));
+    if (std::optional<AutofillFormatString> format_string =
+            form_structure.field(i)->format_string().CopyAsOptional();
+        format_string && format_string->type == FormatString_Type_DATE) {
+      format_strings.emplace_back(base::UTF16ToUTF8(format_string->value));
     } else {
       format_strings.push_back(std::nullopt);
     }
@@ -1236,8 +1238,9 @@ TEST_F(RationalizeDateFormatTest, LeavesUntouchedIfUnknown) {
        {.field_type = PASSPORT_EXPIRATION_DATE, .placeholder = "DD/MM/YYYY"}},
       /*run_heuristics=*/false);
   form_structure->fields()[1]->set_format_string_unless_overruled(
-      u"YYYY-MM-DD", AutofillField::FormatStringSource::kServer);
-  EXPECT_THAT(GetFormatStrings(*form_structure),
+      AutofillFormatString(u"YYYY-MM-DD", FormatString_Type_DATE),
+      AutofillFormatStringSource::kServer);
+  EXPECT_THAT(GetDateFormatStrings(*form_structure),
               ElementsAre(std::nullopt, "YYYY-MM-DD", "DD/MM/YYYY"));
 }
 
@@ -1247,9 +1250,10 @@ TEST_F(RationalizeDateFormatTest, DoesNotOverruleTheServer) {
       {{.field_type = PASSPORT_EXPIRATION_DATE, .placeholder = "DD/MM/YYYY"},
        {.field_type = PASSPORT_EXPIRATION_DATE, .placeholder = "DD/MM/YYYY"}},
       /*run_heuristics=*/false);
-  form_structure->fields().back()->set_format_string_unless_overruled(
-      u"YYYY-MM-DD", AutofillField::FormatStringSource::kServer);
-  EXPECT_THAT(GetFormatStrings(*form_structure),
+  form_structure->fields()[1]->set_format_string_unless_overruled(
+      AutofillFormatString(u"YYYY-MM-DD", FormatString_Type_DATE),
+      AutofillFormatStringSource::kServer);
+  EXPECT_THAT(GetDateFormatStrings(*form_structure),
               ElementsAre("DD/MM/YYYY", "YYYY-MM-DD"));
 }
 
@@ -1266,7 +1270,7 @@ TEST_F(RationalizeDateFormatTest, Placeholder) {
         .value = "YYYY-MM-DD"}},
       /*run_heuristics=*/false);
   EXPECT_THAT(
-      GetFormatStrings(*form_structure),
+      GetDateFormatStrings(*form_structure),
       ElementsAre("YYYY-MM-DD", "DD", "YYYY-MM", "DD/MM/YY", "DD/MM/YY"));
 }
 
@@ -1287,7 +1291,7 @@ TEST_F(RationalizeDateFormatTest, Value) {
         .value = "YYYY-MM-DD"}},
       /*run_heuristics=*/false);
   EXPECT_THAT(
-      GetFormatStrings(*form_structure),
+      GetDateFormatStrings(*form_structure),
       ElementsAre("YYYY-MM-DD", "DD", "YYYY-MM", "DD/MM/YY", "DD/MM/YY"));
 }
 
@@ -1300,7 +1304,7 @@ TEST_F(RationalizeDateFormatTest, Label_OnePerField) {
                           {.label = "Until which D/M/YY is the thing valid?",
                            .field_type = PASSPORT_EXPIRATION_DATE}},
                          /*run_heuristics=*/false);
-  EXPECT_THAT(GetFormatStrings(*form_structure),
+  EXPECT_THAT(GetDateFormatStrings(*form_structure),
               ElementsAre("YYYY-MM-DD", "D/M/YY"));
 }
 
@@ -1317,7 +1321,7 @@ TEST_F(RationalizeDateFormatTest, Label_SplitAcrossThreeFields) {
                           {.label = "Until which D/M/YY is the thing valid?",
                            .field_type = PASSPORT_EXPIRATION_DATE}},
                          /*run_heuristics=*/false);
-  EXPECT_THAT(GetFormatStrings(*form_structure),
+  EXPECT_THAT(GetDateFormatStrings(*form_structure),
               ElementsAre("YYYY", "MM", "DD", "D/M/YY"));
 }
 
@@ -1332,7 +1336,7 @@ TEST_F(RationalizeDateFormatTest, Label_SplitAcrossThreeFieldsWithEmptyLabels) {
                           {.label = "Until which D/M/YY is the thing valid?",
                            .field_type = PASSPORT_ISSUE_DATE}},
                          /*run_heuristics=*/false);
-  EXPECT_THAT(GetFormatStrings(*form_structure),
+  EXPECT_THAT(GetDateFormatStrings(*form_structure),
               ElementsAre("DD", "MM", "YYYY", "D/M/YY"));
 }
 
@@ -1347,7 +1351,7 @@ TEST_F(RationalizeDateFormatTest, Label_SplitAcrossTwoFields) {
                           {.label = "Until which D/M/YY is the thing valid?",
                            .field_type = PASSPORT_EXPIRATION_DATE}},
                          /*run_heuristics=*/false);
-  EXPECT_THAT(GetFormatStrings(*form_structure),
+  EXPECT_THAT(GetDateFormatStrings(*form_structure),
               ElementsAre("YYYY", "MM", "D/M/YY"));
 }
 
@@ -1360,7 +1364,7 @@ TEST_F(RationalizeDateFormatTest, Label_DoNotSplitIfTooFewFields) {
                           {.label = "When did you pick it up? YYYY-MM-DD",
                            .field_type = PASSPORT_ISSUE_DATE}},
                          /*run_heuristics=*/false);
-  EXPECT_THAT(GetFormatStrings(*form_structure),
+  EXPECT_THAT(GetDateFormatStrings(*form_structure),
               ElementsAre("YYYY-MM-DD", "YYYY-MM-DD"));
 }
 
@@ -1378,7 +1382,7 @@ TEST_F(RationalizeDateFormatTest, Label_DoNotCrashIfManyFields) {
                            .field_type = PASSPORT_ISSUE_DATE}},
                          /*run_heuristics=*/false);
   // There is no particular motivation for this assignment.
-  EXPECT_THAT(GetFormatStrings(*form_structure),
+  EXPECT_THAT(GetDateFormatStrings(*form_structure),
               ElementsAre("YYYY", "MM", "DD", "YYYY-MM-DD"));
 }
 

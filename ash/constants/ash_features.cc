@@ -92,7 +92,7 @@ BASE_FEATURE(kAutoScreenBrightness, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables a setting to automatically sign out a user when their account signs
 // in on a new device.
-BASE_FEATURE(kAutoSignOut, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAutoSignOut, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables params tuning experiment for autocorrect on ChromeOS.
 BASE_FEATURE(kAutocorrectParamsTuning, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -260,11 +260,8 @@ BASE_FEATURE(kBocaTranslateToggle, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kBocaMigrateSpeechRecongnizerClient,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables or disables marker mode.
-BASE_FEATURE(kBocaMarkerMode, base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Enables or disables Boca receiver app.
-BASE_FEATURE(kBocaReceiverApp, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kBocaReceiverApp, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables or disables using a configured number of students.
 BASE_FEATURE(kBocaConfigureMaxStudents, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -274,7 +271,13 @@ constexpr base::FeatureParam<int> kBocaMaxNumStudentsAllowed{
     &kBocaConfigureMaxStudents, "BocaMaxNumStudentsAllowed", 100};
 
 // Enables or disables use of the courseWorkMaterials API in the Boca app.
-BASE_FEATURE(kBocaCourseWorkMaterialApi, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kBocaCourseWorkMaterialApi, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Enables or disables sharing teacher's screen in the Boca app.
+BASE_FEATURE(kBocaScreenSharingTeacher, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables or disables sharing student's screen in the Boca app.
+BASE_FEATURE(kBocaScreenSharingStudent, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCrosSwitcher, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -832,7 +835,7 @@ BASE_FEATURE(kFjordOobeForceEnabled, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kFlexAutoEnrollment, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables firmware updates from LVFS for ChromeOS Flex.
-BASE_FEATURE(kFlexFirmwareUpdate, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kFlexFirmwareUpdate, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls Floating SSO feature which can move cookies between ChromeOS
 // enterprise devices. The feature is also guarded by an enterprise policy. This
@@ -1170,9 +1173,6 @@ BASE_FEATURE(kImeUsEnglishModelUpdate, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kImeServiceProto, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enable or disable system emoji picker GIF support
-BASE_FEATURE(kImeManifestV3, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enable or disable system emoji picker GIF support
 BASE_FEATURE(kImeSystemEmojiPickerGIFSupport,
              "SystemEmojiPickerGIFSupport",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1191,12 +1191,6 @@ BASE_FEATURE(kImeSystemEmojiPickerMojoSearch,
 BASE_FEATURE(kImeSystemEmojiPickerVariantGrouping,
              "SystemEmojiPickerVariantGrouping",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables a change in the Korean input method whereby right-Alt location solely
-// functions as the internal-mode switch, i.e. not concurrently as Alt modifier.
-BASE_FEATURE(kImeKoreanOnlyModeSwitchOnRightAlt,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables a change in the IME switching logic such that the mojo connection
 // status is tracked via a global boolean instead of checking if the runner is
 // idle.
@@ -1252,11 +1246,11 @@ BASE_FEATURE(kIppClientInfo, base::FEATURE_ENABLED_BY_DEFAULT);
 // Used in finch experiment.
 BASE_FEATURE(kIppFirstSetupForUsbPrinters, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enables correct handling of the function key row in Japanese.
-BASE_FEATURE(kJapaneseFunctionRow, base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Enables OS Settings page for japanese.
 BASE_FEATURE(kJapaneseOSSettings, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables Romaji/Kana mode switch for Japanese VK.
+BASE_FEATURE(kJapaneseInputModeSwitchInVK, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kJupiterScreensaver, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -1359,6 +1353,11 @@ BASE_FEATURE(kLobsterUseRewrittenQuery, base::FEATURE_ENABLED_BY_DEFAULT);
 // Enables / Disables the lobster feature from the feature management module.
 BASE_FEATURE(kFeatureManagementLobster, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enabling this flag allows password complexity checks when setting a local pin
+// or password.
+BASE_FEATURE(kLocalFactorsPasswordComplexity,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables local authentication controller with PIN support.
 BASE_FEATURE(kLocalAuthenticationWithPin, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -1382,6 +1381,10 @@ BASE_FEATURE(kLockScreenNotifications, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Feature to allow MAC address randomization to be enabled for WiFi networks.
 BASE_FEATURE(kMacAddressRandomization, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enabling this flag allows the managed local pin and password related changes to be
+// applied.
+BASE_FEATURE(kManagedLocalPinAndPassword, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables Mahi on PDF contents in the Media App.
 BASE_FEATURE(kMediaAppPdfMahi, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -2241,11 +2244,6 @@ BASE_FEATURE(kVcLightIntensity,
 // Enables or disables web API support for ChromeOS video conferencing.
 BASE_FEATURE(kVcWebApi, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enable or disable global preferences for skin tone and gender in the virtual
-// keyboard emoji picker.
-BASE_FEATURE(kVirtualKeyboardGlobalEmojiPreferences,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Controls whether to allow enabling wake on WiFi features in shill.
 BASE_FEATURE(kWakeOnWifiAllowed, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -2433,10 +2431,6 @@ bool IsApnRevampEnabled() {
   return base::FeatureList::IsEnabled(kApnRevamp);
 }
 
-bool IsApnRevampAndPoliciesEnabled() {
-  return IsApnRevampEnabled() && chromeos::features::IsApnPoliciesEnabled();
-}
-
 bool IsAutoNightLightEnabled() {
   return base::FeatureList::IsEnabled(kAutoNightLight);
 }
@@ -2561,10 +2555,6 @@ bool IsBocaMigrateSpeechRecognizerClientEnabled() {
   return base::FeatureList::IsEnabled(kBocaMigrateSpeechRecongnizerClient);
 }
 
-bool IsBocaMarkerModeEnabled() {
-  return base::FeatureList::IsEnabled(kBocaMarkerMode);
-}
-
 bool IsBocaReceiverAppEnabled() {
   return base::FeatureList::IsEnabled(kBocaReceiverApp);
 }
@@ -2575,6 +2565,14 @@ bool IsBocaConfigureMaxStudentsEnabled() {
 
 bool IsBocaCourseWorkMaterialApiEnabled() {
   return base::FeatureList::IsEnabled(kBocaCourseWorkMaterialApi);
+}
+
+bool IsBocaScreenSharingTeacherEnabled() {
+  return base::FeatureList::IsEnabled(kBocaScreenSharingTeacher);
+}
+
+bool IsBocaScreenSharingStudentEnabled() {
+  return base::FeatureList::IsEnabled(kBocaScreenSharingStudent);
 }
 
 bool IsBrightnessControlInSettingsEnabled() {
@@ -3812,6 +3810,14 @@ bool IsUseTokenHandleStoreEnabled() {
 
 bool IsFwupdDeveloperModeEnabled() {
   return base::FeatureList::IsEnabled(kFwupdDeveloperMode);
+}
+
+bool IsLocalFactorsPasswordComplexityEnabled() {
+  return base::FeatureList::IsEnabled(kLocalFactorsPasswordComplexity);
+}
+
+bool IsManagedLocalPinAndPasswordEnabled() {
+  return base::FeatureList::IsEnabled(kManagedLocalPinAndPassword);
 }
 
 }  // namespace ash::features

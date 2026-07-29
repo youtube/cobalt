@@ -35,6 +35,7 @@
 #include "components/sync/base/features.h"
 #include "content/public/browser/context_menu_params.h"
 #include "content/public/browser/render_frame_host.h"
+#include "net/base/url_util.h"
 #include "ui/base/window_open_disposition.h"
 
 namespace {
@@ -60,6 +61,20 @@ GURL GetHistorySyncOptinURL() {
       GURL(chrome::kChromeUIHistorySyncOptinURL),
       HistorySyncOptinLaunchContext::kWindow);
 }
+
+void OnManagementUserChoice(signin::SigninChoiceCallback callback,
+                            signin::SigninChoice choice) {
+  std::move(callback).Run(choice);
+  if (choice != signin::SIGNIN_CHOICE_CANCEL) {
+    return;
+  }
+  // Depending on where the flow started:
+  // - from main view: returns to the main view,
+  // - from FRE: opens a signed out browser,
+  // - from profile menu: closes the picker.
+  ProfilePicker::CancelSignedInFlow();
+}
+
 }  //  namespace
 
 ProfilePickerPostSignInAdapter::ProfilePickerPostSignInAdapter(
@@ -156,8 +171,9 @@ void ProfilePickerPostSignInAdapter::ShowHistorySyncOptinScreen(
 void ProfilePickerPostSignInAdapter::ShowAccountManagementScreen(
     signin::SigninChoiceCallback on_account_management_screen_closed) {
   SwitchToManagedUserProfileNotice(
-      ManagedUserProfileNoticeUI::ScreenType::kEnterpriseAccountCreation,
-      std::move(on_account_management_screen_closed));
+      ManagedUserProfileNoticeUI::ScreenType::kProfilePicker,
+      base::BindOnce(&OnManagementUserChoice,
+                     std::move(on_account_management_screen_closed)));
 }
 
 void ProfilePickerPostSignInAdapter::FinishFlowWithoutHistorySyncOptin() {
@@ -223,10 +239,13 @@ void ProfilePickerPostSignInAdapter::SwitchToProfileSwitch(
   // The sign-in flow is finished, no profile window should be shown in the end.
   Cancel();
 
-  switch_profile_path_ = profile_path;
-  host_->ShowScreenInPickerContents(
-      GURL(chrome::kChromeUIProfilePickerUrl).Resolve("profile-switch"),
-      base::OnceClosure());
+  GURL profile_switch_url(chrome::kChromeUIProfilePickerUrl);
+  profile_switch_url = profile_switch_url.Resolve("profile-switch");
+  // Appends the `profile_path` to be retrieved in the web page.
+  profile_switch_url = net::AppendQueryParameter(
+      profile_switch_url, "profileSwitchPath", base::ToString(profile_path));
+
+  host_->ShowScreenInPickerContents(profile_switch_url, base::OnceClosure());
 }
 
 void ProfilePickerPostSignInAdapter::ResetHostAndShowErrorDialog(

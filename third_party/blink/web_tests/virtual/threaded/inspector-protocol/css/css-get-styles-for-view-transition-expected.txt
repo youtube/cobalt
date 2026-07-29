@@ -232,51 +232,6 @@ The test verifies functionality of querying style information for view-transitio
                             ]
                         }
                     }
-                    [1] : {
-                        matchingSelectors : [
-                            [0] : 0
-                        ]
-                        rule : {
-                            containerQueries : [
-                            ]
-                            layers : [
-                            ]
-                            media : [
-                            ]
-                            origin : user-agent
-                            ruleTypes : [
-                            ]
-                            scopes : [
-                            ]
-                            selectorList : {
-                                selectors : [
-                                    [0] : {
-                                        specificity : {
-                                            a : 0
-                                            b : 1
-                                            c : 1
-                                        }
-                                        text : :root::view-transition
-                                    }
-                                ]
-                                text : :root::view-transition
-                            }
-                            startingStyles : [
-                            ]
-                            style : {
-                                cssProperties : [
-                                    [0] : {
-                                        name : position
-                                        value : fixed
-                                    }
-                                ]
-                                shorthandEntries : [
-                                ]
-                            }
-                            supports : [
-                            ]
-                        }
-                    }
                 ]
                 pseudoType : view-transition
             }
@@ -772,6 +727,7 @@ The test verifies functionality of querying style information for view-transitio
                             media : [
                             ]
                             origin : regular
+                            originTreeScopeNodeId : 5
                             ruleTypes : [
                             ]
                             scopes : [
@@ -1395,6 +1351,7 @@ The test verifies functionality of querying style information for view-transitio
                             media : [
                             ]
                             origin : regular
+                            originTreeScopeNodeId : 5
                             ruleTypes : [
                             ]
                             scopes : [
@@ -1735,6 +1692,7 @@ The test verifies functionality of querying style information for view-transitio
                             media : [
                             ]
                             origin : regular
+                            originTreeScopeNodeId : 5
                             ruleTypes : [
                             ]
                             scopes : [
@@ -2149,6 +2107,7 @@ The test verifies functionality of querying style information for view-transitio
                             media : [
                             ]
                             origin : regular
+                            originTreeScopeNodeId : 5
                             ruleTypes : [
                             ]
                             scopes : [
@@ -2830,6 +2789,7 @@ The test verifies functionality of querying style information for view-transitio
                             media : [
                             ]
                             origin : regular
+                            originTreeScopeNodeId : 5
                             ruleTypes : [
                             ]
                             scopes : [
@@ -2970,51 +2930,6 @@ Dumping styles for : ::view-transition with id undefined{
                                 name : inset
                                 value : 0px
                             }
-                        ]
-                    }
-                    supports : [
-                    ]
-                }
-            }
-            [1] : {
-                matchingSelectors : [
-                    [0] : 0
-                ]
-                rule : {
-                    containerQueries : [
-                    ]
-                    layers : [
-                    ]
-                    media : [
-                    ]
-                    origin : user-agent
-                    ruleTypes : [
-                    ]
-                    scopes : [
-                    ]
-                    selectorList : {
-                        selectors : [
-                            [0] : {
-                                specificity : {
-                                    a : 0
-                                    b : 1
-                                    c : 1
-                                }
-                                text : :root::view-transition
-                            }
-                        ]
-                        text : :root::view-transition
-                    }
-                    startingStyles : [
-                    ]
-                    style : {
-                        cssProperties : [
-                            [0] : {
-                                name : position
-                                value : fixed
-                            }
-                        ]
-                        shorthandEntries : [
                         ]
                     }
                     supports : [
@@ -3944,6 +3859,7 @@ Dumping styles for : ::view-transition-old with id root{
                     media : [
                     ]
                     origin : regular
+                    originTreeScopeNodeId : 5
                     ruleTypes : [
                     ]
                     scopes : [
@@ -4717,6 +4633,7 @@ Dumping styles for : ::view-transition-group with id shared{
                     media : [
                     ]
                     origin : regular
+                    originTreeScopeNodeId : 5
                     ruleTypes : [
                     ]
                     scopes : [
@@ -5075,6 +4992,7 @@ Dumping styles for : ::view-transition-image-pair with id shared{
                     media : [
                     ]
                     origin : regular
+                    originTreeScopeNodeId : 5
                     ruleTypes : [
                     ]
                     scopes : [
@@ -5487,6 +5405,7 @@ Dumping styles for : ::view-transition-old with id shared{
                     media : [
                     ]
                     origin : regular
+                    originTreeScopeNodeId : 5
                     ruleTypes : [
                     ]
                     scopes : [
@@ -5973,6 +5892,7 @@ Dumping styles for : ::view-transition-new with id shared{
                     media : [
                     ]
                     origin : regular
+                    originTreeScopeNodeId : 5
                     ruleTypes : [
                     ]
                     scopes : [

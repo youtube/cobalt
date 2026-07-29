@@ -330,15 +330,7 @@ HEADLESS_MODE_PROTOCOL_TEST(PrintToPdfTinyPage,
 HEADLESS_MODE_PROTOCOL_TEST(ScreenDetailsMultipleScreens,
                             "shared/screen-details-multiple-screens.js")
 
-// TODO(crbug.com/441801025): This currently fails on Windows.
-#if BUILDFLAG(IS_WIN)
-#define MAYBE_ScreenDetailsMultipleScreensScaled \
-  DISABLED_ScreenDetailsMultipleScreensScaled
-#else
-#define MAYBE_ScreenDetailsMultipleScreensScaled \
-  ScreenDetailsMultipleScreensScaled
-#endif
-HEADLESS_MODE_PROTOCOL_TEST(MAYBE_ScreenDetailsMultipleScreensScaled,
+HEADLESS_MODE_PROTOCOL_TEST(ScreenDetailsMultipleScreensScaled,
                             "shared/screen-details-multiple-screens-scaled.js")
 
 HEADLESS_MODE_PROTOCOL_TEST(ScreenDetailsRotationAngle,
@@ -520,4 +512,12 @@ HEADLESS_MODE_PROTOCOL_TEST(RemoveScreenGetScreenDetails,
 
 HEADLESS_MODE_PROTOCOL_TEST(AddRemoveScreen, "shared/add-remove-screen.js")
 
+// TODO(crbug.com/423951863): Fails on Mac.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_SetZoomedWindowBounds DISABLED_SetZoomedWindowBounds
+#else
+#define MAYBE_SetZoomedWindowBounds SetZoomedWindowBounds
+#endif
+HEADLESS_MODE_PROTOCOL_TEST(MAYBE_SetZoomedWindowBounds,
+                            "shared/set-zoomed-window-bounds.js")
 }  // namespace headless

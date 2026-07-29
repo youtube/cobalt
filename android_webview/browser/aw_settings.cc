@@ -107,7 +107,6 @@ AwSettings::AwSettings(JNIEnv* env,
                        const jni_zero::JavaRef<jobject>& obj,
                        content::WebContents* web_contents)
     : WebContentsObserver(web_contents),
-      xrw_allowlist_matcher_(base::MakeRefCounted<AwContentsOriginMatcher>()),
       aw_settings_(env, obj) {
   web_contents->SetUserData(kAwSettingsUserDataKey,
                             std::make_unique<AwSettingsUserData>(this));
@@ -167,33 +166,12 @@ bool AwSettings::GetAllowSniffingFileUrls() {
   return Java_AwSettings_getAllowSniffingFileUrls(env);
 }
 
-AwSettings::RequestedWithHeaderMode
-AwSettings::GetDefaultRequestedWithHeaderMode() {
-  // If the control feature is not enabled, the default is the old behavior,
-  // which is to send the app package name.
-  if (!base::FeatureList::IsEnabled(
-          features::kWebViewXRequestedWithHeaderControl))
-    return AwSettings::RequestedWithHeaderMode::APP_PACKAGE_NAME;
-
-  int configuredValue = features::kWebViewXRequestedWithHeaderMode.Get();
-  switch (configuredValue) {
-    case AwSettings::RequestedWithHeaderMode::CONSTANT_WEBVIEW:
-      return AwSettings::RequestedWithHeaderMode::CONSTANT_WEBVIEW;
-    case AwSettings::RequestedWithHeaderMode::NO_HEADER:
-      return AwSettings::RequestedWithHeaderMode::NO_HEADER;
-    default:
-      // If the field trial config is broken for some reason, use the
-      // package name.
-      return AwSettings::RequestedWithHeaderMode::APP_PACKAGE_NAME;
-  }
-}
-
 AwRenderViewHostExt* AwSettings::GetAwRenderViewHostExt() {
   if (!web_contents())
-    return NULL;
+    return nullptr;
   AwContents* contents = AwContents::FromWebContents(web_contents());
   if (!contents)
-    return NULL;
+    return nullptr;
   return contents->render_view_host_ext();
 }
 
@@ -851,21 +829,6 @@ bool AwSettings::GetAllowFileAccess() {
 
 bool AwSettings::GetAllowFileAccessFromFileURLs() {
   return allow_file_access_from_file_urls_;
-}
-
-base::android::ScopedJavaLocalRef<jobjectArray>
-AwSettings::UpdateXRequestedWithAllowListOriginMatcher(
-    JNIEnv* env,
-    const base::android::JavaParamRef<jobjectArray>& jrules) {
-  std::vector<std::string> rules;
-  base::android::AppendJavaStringArrayToStringVector(env, jrules, &rules);
-  std::vector<std::string> bad_rules =
-      xrw_allowlist_matcher_->UpdateRuleList(rules);
-  return base::android::ToJavaArrayOfStrings(env, bad_rules);
-}
-
-scoped_refptr<AwContentsOriginMatcher> AwSettings::xrw_allowlist_matcher() {
-  return xrw_allowlist_matcher_;
 }
 
 static jlong JNI_AwSettings_Init(JNIEnv* env,

@@ -45,7 +45,6 @@
 #include "third_party/perfetto/include/perfetto/tracing/traced_value_forward.h"
 #include "ui/accessibility/ax_node_id_forward.h"
 #include "ui/gfx/geometry/rect.h"
-#include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/native_ui_types.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -53,6 +52,7 @@
 #endif
 
 class GURL;
+class SkBitmap;
 
 namespace network {
 class PermissionsPolicy;
@@ -837,8 +837,16 @@ class CONTENT_EXPORT RenderFrameHost : public IPC::Listener {
       int max_length) = 0;
 
   // Generates an intervention report in this frame.
+  //
+  // The report is associated with this frame unless `child_frame` is provided.
+  // If `child_frame` is provided, `message` may be modified to include
+  // additional information about `child_frame`.
+  //
+  // Prerequisite: If `child_frame` is provided, it must be a direct child frame
+  // of this frame.
   virtual void SendInterventionReport(const std::string& id,
-                                      const std::string& message) = 0;
+                                      const std::string& message,
+                                      RenderFrameHost* child_frame) = 0;
 
   // Returns the WebUI object associated wit this RenderFrameHost or nullptr
   // otherwise.

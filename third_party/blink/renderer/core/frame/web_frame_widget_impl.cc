@@ -1569,13 +1569,6 @@ void WebFrameWidgetImpl::RequestDecode(const cc::DrawImage& image,
   }
 }
 
-bool WebFrameWidgetImpl::SpeculativeDecodeRequestInFlight() const {
-  if (auto* layer_tree_host = widget_base_->LayerTreeHost()) {
-    return layer_tree_host->SpeculativeDecodeRequestInFlight();
-  }
-  return false;
-}
-
 void WebFrameWidgetImpl::Trace(Visitor* visitor) const {
   visitor->Trace(local_root_);
   visitor->Trace(current_drag_data_);
@@ -2299,7 +2292,8 @@ void WebFrameWidgetImpl::ApplyViewportIntersection(
 }
 
 void WebFrameWidgetImpl::EnableDeviceEmulation(
-    const DeviceEmulationParams& parameters) {
+    const DeviceEmulationParams& parameters,
+    const mojom::blink::DeviceEmulationCacheBehavior cache_behavior) {
   // Device Emaulation is only supported for the main frame.
   DCHECK(ForMainFrame());
   if (!widget_base_ || widget_base_->WillBeDestroyed()) {
@@ -2313,7 +2307,7 @@ void WebFrameWidgetImpl::EnableDeviceEmulation(
         widget_base_->VisibleViewportSize(), widget_base_->WidgetScreenRect(),
         widget_base_->WindowScreenRect());
   }
-  device_emulator_->ChangeEmulationParams(parameters);
+  device_emulator_->ChangeEmulationParams(parameters, cache_behavior);
 }
 
 void WebFrameWidgetImpl::DisableDeviceEmulation() {
@@ -4714,9 +4708,10 @@ bool WebFrameWidgetImpl::AutoResizeMode() {
 
 void WebFrameWidgetImpl::SetScreenMetricsEmulationParameters(
     bool enabled,
-    const DeviceEmulationParams& params) {
+    const DeviceEmulationParams& params,
+    const mojom::blink::DeviceEmulationCacheBehavior& cache_behavior) {
   if (enabled)
-    View()->ActivateDevToolsTransform(params);
+    View()->ActivateDevToolsTransform(params, cache_behavior);
   else
     View()->DeactivateDevToolsTransform();
 }

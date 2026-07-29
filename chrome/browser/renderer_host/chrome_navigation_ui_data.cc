@@ -6,6 +6,7 @@
 
 #include "chrome/browser/preloading/prefetch/no_state_prefetch/chrome_no_state_prefetch_contents_delegate.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/common/actor/task_id.h"
 #include "components/no_state_prefetch/browser/no_state_prefetch_contents.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
@@ -18,7 +19,24 @@
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/actor_task.h"
+#include "chrome/common/actor/task_id.h"
 #endif
+
+namespace {
+#if !BUILDFLAG(IS_ANDROID)
+actor::TaskId GetActorTaskId(content::WebContents& web_contents) {
+  if (auto* actor_keyed_service =
+          actor::ActorKeyedService::Get(web_contents.GetBrowserContext())) {
+    if (auto* task = actor_keyed_service->GetActingActorTaskForWebContents(
+            &web_contents)) {
+      return task->id();
+    }
+  }
+  return actor::TaskId();
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
+}  // namespace
 
 ChromeNavigationUIData::ChromeNavigationUIData() = default;
 
@@ -43,6 +61,10 @@ ChromeNavigationUIData::ChromeNavigationUIData(
   if (no_state_prefetch_contents) {
     is_no_state_prefetching_ = true;
   }
+
+#if !BUILDFLAG(IS_ANDROID)
+  actor_task_id_ = GetActorTaskId(*web_contents);
+#endif  // !BUILDFLAG(IS_ANDROID)
 }
 
 ChromeNavigationUIData::~ChromeNavigationUIData() = default;
@@ -73,13 +95,7 @@ ChromeNavigationUIData::CreateForMainFrameNavigation(
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
-  if (auto* actor_keyed_service =
-          actor::ActorKeyedService::Get(web_contents->GetBrowserContext())) {
-    if (auto* task = actor_keyed_service->GetActingActorTaskForWebContents(
-            web_contents)) {
-      navigation_ui_data->actor_task_id_ = task->id();
-    }
-  }
+  navigation_ui_data->actor_task_id_ = GetActorTaskId(*web_contents);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
   return navigation_ui_data;

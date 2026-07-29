@@ -401,7 +401,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crypto.UnexportableKeys.BackgroundTaskDuration{Priority}"
-    units="ms" expires_after="2026-01-18">
+    units="ms" expires_after="2026-03-22">
   <owner>alexilin@chromium.org</owner>
   <owner>drubery@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
@@ -505,7 +505,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crypto.UnexportableKeys.BackgroundTaskRunDuration{TaskType}"
-    units="ms" expires_after="2026-01-18">
+    units="ms" expires_after="2026-03-22">
   <owner>alexilin@chromium.org</owner>
   <owner>drubery@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
@@ -547,7 +547,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="HttpCache.AccessToDone2{HttpCacheAccessToDoneCases}"
-    units="ms" expires_after="2026-01-18">
+    units="ms" expires_after="2026-03-22">
   <owner>morlovich@chromium.org</owner>
   <owner>olivierli@chromium.org</owner>
   <summary>
@@ -577,7 +577,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="HttpCache.BeforeSend{HttpCacheBeforeSendCases}" units="ms"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>morlovich@chromium.org</owner>
   <owner>yhirano@chromium.org</owner>
   <summary>
@@ -601,7 +601,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="HttpCache.CreateDiskEntry" units="ms"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>yhirano@chromium.org</owner>
   <owner>net-dev@chromium.org</owner>
   <summary>
@@ -795,7 +795,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="HttpCache.NoVarySearch.InitRenameError.{Directory}.{File}"
-    enum="PlatformFileError" expires_after="2026-01-11">
+    enum="PlatformFileError" expires_after="2026-03-22">
   <owner>ricea@chromium.org</owner>
   <owner>net-dev@chromium.org</owner>
   <summary>
@@ -1164,7 +1164,7 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
-<histogram name="HttpCache.OpenDiskEntry" units="ms" expires_after="2026-01-18">
+<histogram name="HttpCache.OpenDiskEntry" units="ms" expires_after="2026-03-22">
   <owner>yhirano@chromium.org</owner>
   <owner>net-dev@chromium.org</owner>
   <summary>
@@ -1246,7 +1246,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="HttpCache.TotalDiskCacheTimePerTransaction.{AccessType}"
-    units="ms" expires_after="2026-01-18">
+    units="ms" expires_after="2026-03-22">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -1497,7 +1497,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.CertificateTransparency.SCTOrigin" enum="SCTOrigin"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>estark@chromium.org</owner>
   <owner>trusty-transport@chromium.org</owner>
   <summary>
@@ -1867,6 +1867,22 @@ chromium-metrics-reviews@google.com.
     This records the reason a Device Bound Session
     (https://github.com/w3c/webappsec-dbsc/blob/main/README.md) was deleted.
     This is logged every time we terminate a session.
+  </summary>
+</histogram>
+
+<histogram name="Net.DeviceBoundSessions.GoogleRegistrationIsFromStandard"
+    enum="Boolean" expires_after="2026-03-18">
+  <owner>thefrog@chromium.org</owner>
+  <owner>chrome-counter-abuse-alerts@google.com</owner>
+  <summary>
+    This records whether a Google Device Bound Session registration was
+    performed by the Device Bound Session Standard in Net code. The alternative
+    is that it was done by BoundSessionCredentials SignIn code. Standard Device
+    Bound Session registration is described in
+    (https://github.com/w3c/webappsec-dbsc/blob/main/README.md). This histogram
+    is logged every time the Standard or the BoundSessionCredentials SignIn code
+    has just completed trying to register a new Google session, whether or not
+    that registration succeeded.
   </summary>
 </histogram>
 
@@ -2289,7 +2305,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Net.DNS.DnsTransaction.SecureValidated.{DohProviderId}FailureError"
-    enum="NetErrorCodes" expires_after="2025-11-30">
+    enum="NetErrorCodes" expires_after="2026-03-22">
   <owner>awillia@chromium.org</owner>
   <owner>src/net/dns/OWNERS</owner>
   <summary>
@@ -3020,236 +3036,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Net.HttpJob.IpProtection.AllowListMatch.BytesReceived2"
-    units="bytes" expires_after="2026-03-08">
-  <owner>aakallam@chromium.org</owner>
-  <owner>ashleynewson@chromium.org</owner>
-  <owner>src/components/ip_protection/OWNERS</owner>
-  <summary>
-    Total bytes received over the network for an HttpJob request that would be
-    covered by IP Protection based on match with respect to the masked domain
-    list alone. This is irrespective of token and proxy availability. Any bypass
-    logic (e.g. first party to top level frame) will be considered, if set.
-    These bytes will be recorded even if `EnableIpPrivacyProxy` is `false`. This
-    is measured when the HttpJob is completed.
-
-    There is no previous version of this metric. It is numbered to be in sync
-    with similar metrics. Unlike PrefilterBytesRead, this metric accounts for
-    all HTTP stream bytes (not just the content body), counts bytes for aborted
-    jobs, and network bytes in 304 Not Modified exchanges (rather than cached
-    content bodies).
-  </summary>
-</histogram>
-
-<histogram name="Net.HttpJob.IpProtection.AllowListMatch.BytesSent2"
-    units="bytes" expires_after="2026-03-08">
-  <owner>aakallam@chromium.org</owner>
-  <owner>ashleynewson@chromium.org</owner>
-  <owner>src/components/ip_protection/OWNERS</owner>
-  <summary>
-    Total bytes sent over the network for an HttpJob request that would be
-    covered by IP Protection based on match with respect to the masked domain
-    list alone. This is irrespective of token and proxy availability. Any bypass
-    logic (e.g. first party to top level frame) will be considered, if set.
-    These bytes will be recorded even if `EnableIpPrivacyProxy` is `false`. This
-    is measured when the HttpJob is completed.
-
-    This version improves on BytesSent by counting bytes for aborted jobs and
-    network bytes in 304 Not Modified exchanges.
-  </summary>
-</histogram>
-
-<histogram
-    name="Net.HttpJob.IpProtection.AllowListMatch.PrefilterBytesRead.Net"
-    units="bytes" expires_after="2026-01-07">
-  <owner>aakallam@chromium.org</owner>
-  <owner>abhijithnair@chromium.org</owner>
-  <owner>ashleynewson@chromium.org</owner>
-  <owner>src/components/ip_protection/OWNERS</owner>
-  <summary>
-    Total prefilter (e.g., before decompression) bytes read for an HttpJob
-    request that would be covered by IP Protection and served from the network
-    based on match with respect to the masked domain list alone. This is
-    irrespective of token and proxy availability. Any bypass logic (e.g. first
-    party to top level frame) will be considered, if set. These bytes will be
-    recorded even if `EnableIpPrivacyProxy` is `false`. This is measured when
-    the HttpJob is completed.
-  </summary>
-</histogram>
-
-<histogram name="Net.HttpJob.IpProtection.BytesSent" units="bytes"
-    expires_after="2026-03-08">
-  <owner>aakallam@chromium.org</owner>
-  <owner>ashleynewson@chromium.org</owner>
-  <owner>src/components/ip_protection/OWNERS</owner>
-  <summary>
-    Total bytes sent over the network for an HttpJob request that is covered by
-    IP Protection. These bytes will be recorded even if the IP Protection proxy
-    is configured as `direct://` (i.e. an IP Protection proxy is configured but
-    doesn't actually proxy any traffic).
-  </summary>
-</histogram>
-
-<histogram name="Net.HttpJob.IpProtection.BytesSent2" units="bytes"
-    expires_after="2026-06-21">
-  <owner>dschinazi@chromium.org</owner>
-  <owner>src/components/ip_protection/OWNERS</owner>
-  <summary>
-    Total bytes sent over the network for an HttpJob request that is covered by
-    IP Protection. These bytes will be recorded even if the IP Protection proxy
-    is configured as `direct://` (i.e. an IP Protection proxy is configured but
-    doesn't actually proxy any traffic). It is also recorded if IP Protection
-    failed and we fell back to going direct.
-  </summary>
-</histogram>
-
-<histogram name="Net.HttpJob.IpProtection.Fallback.BytesSent" units="bytes"
-    expires_after="2026-06-21">
-  <owner>dschinazi@chromium.org</owner>
-  <owner>src/components/ip_protection/OWNERS</owner>
-  <summary>
-    Total bytes sent over the network for an HttpJob request that is covered by
-    IP Protection. These bytes will only be recorded if IP Protection failed and
-    we fell back to going direct.
-  </summary>
-</histogram>
-
-<histogram name="Net.HttpJob.IpProtection.Fallback.PrefilterBytesRead.Net"
-    units="bytes" expires_after="2026-06-21">
-  <owner>dschinazi@chromium.org</owner>
-  <owner>src/components/ip_protection/OWNERS</owner>
-  <summary>
-    Total prefilter (e.g., before decompression) bytes read for an HttpJob
-    request that is covered by IP Protection and served from the network. These
-    bytes will only be recorded if IP Protection failed and we fell back to
-    going direct.
-  </summary>
-</histogram>
-
-<histogram name="Net.HttpJob.IpProtection.Fallback.TotalTimeNotCached"
-    units="ms" expires_after="2026-06-21">
-  <owner>dschinazi@chromium.org</owner>
-  <owner>src/components/ip_protection/OWNERS</owner>
-  <summary>
-    Time it takes to complete an HttpJob that attempted IP Protection, from
-    starting the transaction until we are done reading, for jobs not served from
-    the cache. This time is only recorded if IP Protection failed and we fell
-    back to going direct.
-  </summary>
-</histogram>
-
-<histogram name="Net.HttpJob.IpProtection.JobResult"
-    enum="IpProtectionJobResult" expires_after="never">
-<!-- expires-never: This is used for dashboard metrics (internal: go/ipp-e2e-slos) -->
-
-  <owner>dschinazi@chromium.org</owner>
-  <owner>src/components/ip_protection/OWNERS</owner>
-  <summary>
-    Result of a UrlRequestHttpJob with respect to IP Protection: not protected,
-    successfully protected, or fallback on protection failure. This does not
-    measure the result of the request to the destination, so for example a 500
-    from the destination is still considered success.
-
-    When either of the `MaskedDomainList` or `EnableIpPrivacyProxy` features are
-    disabled, this will always be `kProtectionNotAttempted`.
-
-    This histogram is emitted for every request handled by `UrlRequestHttpJob`
-    that is not aborted.
-  </summary>
-</histogram>
-
-<histogram name="Net.HttpJob.IpProtection.JobResult.{Chain}"
-    enum="IpProtectionJobResult" expires_after="2026-06-21">
-  <owner>dschinazi@chromium.org</owner>
-  <owner>src/components/ip_protection/OWNERS</owner>
-  <summary>
-    Result of a UrlRequestHttpJob with respect to IP Protection: successfully
-    protected or fallback on protection failure. This is not logged when IP
-    Protection is not attempted. This does not measure the result of the request
-    to the destination, so for example a 500 from the destination is still
-    considered success. When either of the `MaskedDomainList` or
-    `EnableIpPrivacyProxy` features are disabled, this will not be logged.
-  </summary>
-  <token key="Chain">
-    <variant name="Chain0"/>
-    <variant name="Chain1"/>
-    <variant name="Chain2"/>
-    <variant name="Chain3"/>
-  </token>
-</histogram>
-
-<histogram name="Net.HttpJob.IpProtection.PrefilterBytesRead.Net" units="bytes"
-    expires_after="2026-03-08">
-  <owner>aakallam@chromium.org</owner>
-  <owner>ashleynewson@chromium.org</owner>
-  <owner>src/components/ip_protection/OWNERS</owner>
-  <summary>
-    Total prefilter (e.g., before decompression) bytes read for an HttpJob
-    request that is covered by IP Protection and served from the network. These
-    bytes will be recorded even if the IP Protection proxy is configured as
-    `direct://` (i.e. an IP Protection proxy is configured but doesn't actually
-    proxy any traffic).
-  </summary>
-</histogram>
-
-<histogram name="Net.HttpJob.IpProtection.PrefilterBytesRead.Net2"
-    units="bytes" expires_after="2026-06-21">
-  <owner>dschinazi@chromium.org</owner>
-  <owner>src/components/ip_protection/OWNERS</owner>
-  <summary>
-    Total prefilter (e.g., before decompression) bytes read for an HttpJob
-    request that is covered by IP Protection and served from the network. These
-    bytes will be recorded even if the IP Protection proxy is configured as
-    `direct://` (i.e. an IP Protection proxy is configured but doesn't actually
-    proxy any traffic). It is also recorded if IP Protection failed and we fell
-    back to going direct.
-  </summary>
-</histogram>
-
-<histogram name="Net.HttpJob.IpProtection.TotalTimeNotCached" units="ms"
-    expires_after="2026-06-21">
-  <owner>dschinazi@chromium.org</owner>
-  <owner>ashleynewson@chromium.org</owner>
-  <owner>src/components/ip_protection/OWNERS</owner>
-  <summary>
-    Time it takes to complete an HttpJob that is covered by IP Protection, from
-    starting the transaction until we are done reading, for jobs not served from
-    the cache. This time will be recorded even if the IP Protection proxy is
-    configured as `direct://` (i.e. an IP Protection proxy is configured but
-    doesn't actually proxy any traffic).
-  </summary>
-</histogram>
-
-<histogram name="Net.HttpJob.IpProtection.TotalTimeNotCached.{Chain}"
-    units="ms" expires_after="2026-06-21">
-  <owner>dschinazi@chromium.org</owner>
-  <owner>ashleynewson@chromium.org</owner>
-  <owner>src/components/ip_protection/OWNERS</owner>
-  <summary>
-    Similar to Net.HttpJob.IpProtection.TotalTimeNotCached, but only chains with
-    the given chain_id, as provided in the GetProxyInfo RPC response.
-  </summary>
-  <token key="Chain">
-    <variant name="Chain1"/>
-    <variant name="Chain2"/>
-    <variant name="Chain3"/>
-  </token>
-</histogram>
-
-<histogram name="Net.HttpJob.IpProtection.TotalTimeNotCached2" units="ms"
-    expires_after="2026-06-21">
-  <owner>dschinazi@chromium.org</owner>
-  <owner>src/components/ip_protection/OWNERS</owner>
-  <summary>
-    Time it takes to complete an HttpJob that attempted IP Protection, from
-    starting the transaction until we are done reading, for jobs not served from
-    the cache. This time will be recorded even if the IP Protection proxy is
-    configured as `direct://` (i.e. an IP Protection proxy is configured but
-    doesn't actually proxy any traffic). It is also recorded if IP Protection
-    failed and we fell back to going direct.
-  </summary>
-</histogram>
-
 <histogram name="Net.HttpJob.MainJobWaitTimeWithAvailableSpdySession"
     units="ms" expires_after="2026-02-22">
   <owner>fayang@chromium.org</owner>
@@ -3503,12 +3289,13 @@ chromium-metrics-reviews@google.com.
     Records Windows error codes returned by the Windows System Proxy Resolver
     when proxy resolution fails. This histogram is only recorded when a non-zero
     Windows error code is returned, indicating a Windows API failure during
-    proxy resolution.
+    proxy resolution. One of the error codes from
+    https://learn.microsoft.com/en-us/windows/win32/com/com-error-codes-4.
   </summary>
 </histogram>
 
 <histogram name="Net.HttpRequestSSLUpgradeDecision"
-    enum="HttpRequestSSLUpgradeDecision" expires_after="2026-01-18">
+    enum="HttpRequestSSLUpgradeDecision" expires_after="2026-03-22">
   <owner>cthomp@chromium.org</owner>
   <owner>etienneb@chromium.org</owner>
   <owner>joenotcharles@google.com</owner>
@@ -3607,8 +3394,32 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
+<histogram name="Net.HttpStreamPool.JobControllerCallRequestCompleteDelay"
+    units="ms" expires_after="2026-02-01">
+  <owner>bashi@chromium.org</owner>
+  <owner>blink-network-stack@google.com</owner>
+  <summary>
+    Record a delay between an HttpStreamPool::JobController gets a successful
+    stream and the job controller complets the corresponding request. Recorded
+    when the job controller completes the corresponding request.
+  </summary>
+</histogram>
+
+<histogram
+    name="Net.HttpStreamPool.JobControllerRequestCompleteTime.{Protocol}"
+    units="ms" expires_after="2026-02-01">
+  <owner>bashi@chromium.org</owner>
+  <owner>blink-network-stack@google.com</owner>
+  <summary>
+    Time from when an HttpStreamPool::JobController is created to when the job
+    controller completes the corresponding request. Recorded when the job
+    controller completes the corresponding request.
+  </summary>
+  <token key="Protocol" variants="NetworkTransactionBlockedProtocol"/>
+</histogram>
+
 <histogram name="Net.HttpStreamPool.JobErrorCode" enum="NetErrorCodes"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -3778,23 +3589,6 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
-<histogram name="Net.IpProtection.CanFalloverToNextProxy2.Error.{Chain}"
-    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2026-02-22">
-  <owner>rsailer@chromium.org</owner>
-  <owner>src/components/ip_protection/OWNERS</owner>
-  <summary>
-    Records the error code passed to CanFalloverToNextProxy() for IP Protection
-    proxy chains. This function is called when a proxy fails, and the error code
-    is used to determine whether to try the next proxy in the chain or not.
-  </summary>
-  <token key="Chain">
-    <variant name="Chain0"/>
-    <variant name="Chain1"/>
-    <variant name="Chain2"/>
-    <variant name="Chain3"/>
-  </token>
-</histogram>
-
 <histogram name="Net.MultiThreadedCertVerifier.RequestDuration{HostType}"
     units="ms" expires_after="2026-03-01">
   <owner>nidhijaju@chromium.org</owner>
@@ -3873,7 +3667,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Net.NetworkTransaction.Create{StreamType}Time{HostType}.{Protocol}{AddressFamily}"
-    units="ms" expires_after="2026-01-18">
+    units="ms" expires_after="2026-03-22">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -4030,6 +3824,22 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Net.NetworkTransaction.SessionSource.{Protocol}"
+    enum="NetworkSessionSource" expires_after="2025-12-01">
+  <owner>bashi@chromium.org</owner>
+  <owner>blink-network-stack@google.com</owner>
+  <summary>
+    Measures whether a request used a new or an existing {Protocol} session.
+    Recorded in HttpNetworkTransaction::DoCreateStreamComplete when the stream
+    creation completes successfully. Note that this is only recorded for HTTP/2
+    and HTTP/3. There are similar histograms called
+    PageLoad.Clients.GoogleSearch.SessionSource.{Protocol} that are recorded
+    only for search navigation. These histograms are recorded per navigation,
+    whereas this histograms measures per request.
+  </summary>
+  <token key="Protocol" variants="NetworkTransactionBlockedProtocol"/>
+</histogram>
+
 <histogram name="Net.NetworkTransaction.StreamAddressFamily"
     enum="AddressFamily" expires_after="2026-03-08">
   <owner>bashi@chromium.org</owner>
@@ -4043,7 +3853,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Net.NetworkTransaction.StreamRequestCompleteTime2{HostType}.{SuccessOrFailure}"
-    units="ms" expires_after="2026-01-18">
+    units="ms" expires_after="2026-03-22">
   <owner>bashi@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -4183,7 +3993,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.QuicChromiumClientStream.HandleOnCloseConnectionError"
-    enum="QuicErrorCodes" expires_after="2025-12-14">
+    enum="QuicErrorCodes" expires_after="2026-03-22">
   <owner>renjietang@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -5208,7 +5018,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.QuicSession.EncryptionEstablishedTime"
-    units="Milliseconds" expires_after="2026-01-18">
+    units="Milliseconds" expires_after="2026-03-22">
   <owner>fayang@chromium.org</owner>
   <owner>src/net/quic/OWNERS</owner>
   <summary>
@@ -5630,7 +5440,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.QuicSession.NumMigrations" units="units"
-    expires_after="2025-12-28">
+    expires_after="2026-03-22">
   <owner>renjietang@chromium.org</owner>
   <owner>src/net/quic/OWNERS</owner>
   <summary>The number of successful migrations for a QUIC session.</summary>
@@ -5667,7 +5477,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.QuicSession.NumPingsSent{HostType}" units="pings"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>renjietang@chromium.org</owner>
   <owner>suzukikeita@chromium.org</owner>
   <owner>src/net/quic/OWNERS</owner>
@@ -6601,7 +6411,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.QuicSession.ZeroRttState{HostType}" enum="ZeroRttState"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>bashi@chromium.org</owner>
   <owner>src/net/quic/OWNERS</owner>
   <summary>
@@ -7035,7 +6845,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.RestrictedPorts" units="connections"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>tov@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -7665,7 +7475,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SqlDiskCache.Backend.DatabaseSize" units="MB"
-    expires_after="2025-12-09">
+    expires_after="2026-03-22">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -7675,7 +7485,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SqlDiskCache.Backend.EntryCount" units="entries"
-    expires_after="2025-12-09">
+    expires_after="2026-03-22">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -7684,8 +7494,32 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Net.SqlDiskCache.Backend.IndexMismatch"
+    enum="SqlDiskCacheIndexMismatchLocation" expires_after="2026-03-22">
+  <owner>horo@chromium.org</owner>
+  <owner>src/net/OWNERS</owner>
+  <summary>
+    Records the location where an in-memory index mismatch is detected in the
+    SQL-based disk cache. This helps identify the operations that are most prone
+    to causing inconsistencies between the in-memory index and the on-disk
+    database.
+  </summary>
+</histogram>
+
+<histogram name="Net.SqlDiskCache.Backend.LoadInMemoryIndexTime"
+    units="microseconds" expires_after="2025-12-09">
+  <owner>horo@chromium.org</owner>
+  <owner>src/net/OWNERS</owner>
+  <summary>
+    Measures the time taken to load the in memory index of the SQL-based disk
+    cache backend. This metric is recorded immediately after the in-memory index
+    is loaded from the database. The histogram is not reported on Windows
+    machines without high resolution clocks.
+  </summary>
+</histogram>
+
 <histogram name="Net.SqlDiskCache.Backend.MaxSize" units="MB"
-    expires_after="2025-12-09">
+    expires_after="2026-03-22">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -7695,7 +7529,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SqlDiskCache.Backend.SqliteError"
-    enum="SqliteLoggedResultCode" expires_after="2025-12-09">
+    enum="SqliteLoggedResultCode" expires_after="2026-03-22">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -7705,7 +7539,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SqlDiskCache.Backend.TotalSize" units="MB"
-    expires_after="2025-12-09">
+    expires_after="2026-03-22">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -7975,7 +7809,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SSLHandshakeEarlyDataReason"
-    enum="SSLHandshakeEarlyDataReason" expires_after="2026-01-18">
+    enum="SSLHandshakeEarlyDataReason" expires_after="2026-03-22">
   <owner>bashi@chromium.org</owner>
   <owner>trusty-transport@chromium.org</owner>
   <summary>
@@ -7990,7 +7824,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SSLHandshakeEarlyDataReason.Google"
-    enum="SSLHandshakeEarlyDataReason" expires_after="2026-01-18">
+    enum="SSLHandshakeEarlyDataReason" expires_after="2026-03-22">
   <owner>bashi@chromium.org</owner>
   <owner>trusty-transport@chromium.org</owner>
   <summary>
@@ -8110,7 +7944,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.TcpConnectAttempt.Latency.Success" units="ms"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>bashi@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -8253,7 +8087,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Net.TrustTokens.RequestHelperFactoryOutcome.{TrustTokenOperationType}"
-    enum="TrustTokenRequestHelperFactoryOutcome" expires_after="2026-01-18">
+    enum="TrustTokenRequestHelperFactoryOutcome" expires_after="2026-03-22">
   <owner>svaldez@chromium.org</owner>
   <owner>timhuber@google.com</owner>
   <summary>
