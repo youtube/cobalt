@@ -44,6 +44,17 @@
 #include "content/public/browser/web_contents.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
 
+<<<<<<< HEAD
+=======
+// TODO(crbug.com/382447738): Fix tflite defines; this might not build for
+// tflite right now.
+#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
+#include "components/passage_embeddings/core/passage_embeddings_types.h"  // nogncheck
+#include "components/permissions/prediction_service/permissions_aiv4_handler.h"
+#include "components/permissions/prediction_service/prediction_model_handler.h"
+#endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
+
+>>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 namespace {
 using ComputePassagesEmbeddingsCallback =
     ::passage_embeddings::Embedder::ComputePassagesEmbeddingsCallback;

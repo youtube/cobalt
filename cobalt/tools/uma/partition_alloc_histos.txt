@@ -1,0 +1,3 @@
+Memory.PartitionAlloc.MemoryReclaim
+Memory.PartitionAlloc.PartitionRoot.ExtrasSize
+Memory.PartitionAlloc.PeriodicPurge

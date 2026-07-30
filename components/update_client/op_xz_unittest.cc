@@ -2,7 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !defined(IN_MEMORY_UPDATES)
 #include "components/update_client/op_xz.h"
+#if BUILDFLAG(IS_STARBOARD)
+#include "components/update_client/pipeline.h"
+#endif
 
 #include <string>
 #include <vector>
@@ -17,17 +21,46 @@
 #include "base/types/expected.h"
 #include "components/update_client/protocol_definition.h"
 #include "components/update_client/test_utils.h"
-#include "components/update_client/unzip/in_process_unzipper.h"
+#include "components/update_client/unzip/in_process_unzipper.h"  // nogncheck
 #include "components/update_client/unzipper.h"
 #include "components/update_client/update_client_errors.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace update_client {
 
+<<<<<<< HEAD
 class XzOperationTest : public ::testing::TestWithParam<bool> {
  public:
   bool IsForeground() const { return GetParam(); }
 
+=======
+#if BUILDFLAG(IS_STARBOARD)
+// Starboard's XzOperation takes an OperationResult and completes with one.
+// This overload adapts the upstream call sites in this file (which pass a
+// FilePath and expect a FilePath back) so they can stay identical to upstream.
+base::OnceClosure XzOperation(
+    std::unique_ptr<Unzipper> unzipper,
+    base::RepeatingCallback<void(base::DictValue)> event_adder,
+    const base::FilePath& in_file,
+    base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)> callback) {
+  OperationResult op_result;
+  op_result.response = in_file;
+  return XzOperation(
+      std::move(unzipper), event_adder, op_result,
+      base::BindLambdaForTesting(
+          [callback = std::move(callback)](base::expected<OperationResult, CategorizedError> result) mutable {
+            if (result.has_value()) {
+              std::move(callback).Run(result.value().response);
+            } else {
+              std::move(callback).Run(base::unexpected(result.error()));
+            }
+          }));
+}
+#endif
+
+
+class XzOperationTest : public testing::Test {
+>>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
  private:
   // `env_` must be constructed before sequence_checker_.
   base::test::TaskEnvironment env_;
@@ -140,3 +173,4 @@ TEST_P(XzOperationTest, Cancel) {
 }
 
 }  // namespace update_client
+#endif  // !defined(IN_MEMORY_UPDATES)

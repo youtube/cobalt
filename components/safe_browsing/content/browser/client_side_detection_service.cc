@@ -55,8 +55,13 @@
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
 #include "tensorflow_lite_support/cc/port/statusor.h"
+<<<<<<< HEAD
 #include "third_party/tflite_support/src/tensorflow_lite_support/cc/task/vision/image_embedder.h"
 #include "url/gurl.h"
+=======
+#include "third_party/tflite_support/src/tensorflow_lite_support/cc/task/vision/image_embedder.h"  // nogncheck
+#endif
+>>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 using content::BrowserThread;
 

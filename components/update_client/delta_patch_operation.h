@@ -18,6 +18,10 @@
 #include "base/values.h"
 #include "components/update_client/update_client.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "components/update_client/pipeline.h"
+#endif
+
 namespace update_client {
 
 class CrxCache;
@@ -52,9 +56,18 @@ class DeltaPatchOperation
       int expected_success_result,
       const base::FilePath& patch_file,
       int event_type,
+<<<<<<< HEAD
       bool is_foreground,
+=======
+#if BUILDFLAG(IS_STARBOARD)
+      const OperationResult& patch_operation_result,
+      base::OnceCallback<
+          void(base::expected<OperationResult, CategorizedError>)> callback);
+#else
+>>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
           callback);
+#endif  // BUILDFLAG(IS_STARBOARD)
 
   // Runs on the original sequence. Starts the operation.
   void Operation(
@@ -82,7 +95,11 @@ class DeltaPatchOperation
 
   // Runs on the original sequence. Sends event pings and calls the final
   // `callback_`.
+#if BUILDFLAG(IS_STARBOARD)
+  void PatchDone(base::expected<OperationResult, CategorizedError> result);
+#else
   void PatchDone(base::expected<base::FilePath, CategorizedError> result);
+#endif  // BUILDFLAG(IS_STARBOARD)
 
   // Bound to the original sequence.
   SEQUENCE_CHECKER(sequence_checker_);
@@ -95,9 +112,18 @@ class DeltaPatchOperation
   const int expected_success_result_;
   const base::FilePath patch_file_;
   const int event_type_;
+<<<<<<< HEAD
   const bool is_foreground_;
+=======
+#if BUILDFLAG(IS_STARBOARD)
+  const OperationResult patch_operation_result_;
+  base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
+      callback_;
+#else
+>>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
       callback_;
+#endif  // BUILDFLAG(IS_STARBOARD)
   scoped_refptr<base::SequencedTaskRunner> original_sequence_ =
       base::SequencedTaskRunner::GetCurrentDefault();
 

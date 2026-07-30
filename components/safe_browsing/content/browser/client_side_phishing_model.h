@@ -22,8 +22,15 @@
 #include "components/safe_browsing/core/common/fbs/client_model_generated.h"
 #include "components/safe_browsing/core/common/proto/client_model.pb.h"
 #include "components/safe_browsing/core/common/proto/csd.pb.h"
+<<<<<<< HEAD
 #include "third_party/tflite_support/src/tensorflow_lite_support/cc/task/vision/proto/embeddings.pb.h"
 
+=======
+
+#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
+#include "third_party/tflite_support/src/tensorflow_lite_support/cc/task/vision/proto/embeddings.pb.h"  // nogncheck
+#endif
+>>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 namespace optimization_guide {
 class OptimizationGuideModelProvider;
 }  // namespace optimization_guide

@@ -9,6 +9,7 @@
 
 #include "base/android/android_info.h"
 #include "base/check.h"
+#include "base/command_line.h"
 #include "base/containers/span_rust.h"
 #include "base/files/file.h"
 #include "base/files/file_enumerator.h"
@@ -31,6 +32,10 @@
 #include "third_party/blink/public/common/font_unique_name_lookup/icu_fold_case_util.h"
 #include "third_party/icu/source/common/unicode/unistr.h"
 #include "third_party/rust/cxx/v1/cxx.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/base_switches.h"
+#endif
 
 static_assert(BUILDFLAG(IS_ANDROID), "This implementation only works safely "
               "on Android due to the way it assumes font files to be "
@@ -249,6 +254,15 @@ std::vector<base::FilePath> FontUniqueNameLookup::GetFontFilePaths() const {
   if (font_file_paths_for_testing_.size())
     return font_file_paths_for_testing_;
   std::vector<base::FilePath> font_files;
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(IS_COBALT)
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kUseCustomAndroidFontsXml)) {
+    // When Cobalt custom Android fonts XML is enabled, custom fonts are
+    // configured hermetically in Skia. Scanning 200+ Android OS ROM font files
+    // is unnecessary and adds ~950 ms of cold-start indexing overhead.
+    return font_files;
+  }
+#endif
   for (const char* font_dir_path : kAndroidFontPaths) {
     base::FileEnumerator files_enumerator(
         base::MakeAbsoluteFilePath(base::FilePath(font_dir_path)), true,

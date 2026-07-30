@@ -631,11 +631,40 @@ BASE_FEATURE_PARAM(int,
                    /*name=*/"max_global_buffer_size",
                    /*default_value=*/base::MiB(350).InBytes());
 
+<<<<<<< HEAD
 BASE_FEATURE(kNetworkContextDirectReceiver, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool ShouldBindNetworkContextDirectReceiver() {
   return mojo::IsDirectReceiverSupported() && base::CurrentIOThread::IsSet() &&
          base::FeatureList::IsEnabled(features::kNetworkContextDirectReceiver);
 }
+=======
+#if BUILDFLAG(IS_COBALT)
+BASE_FEATURE(kCobaltDynamicMojoPipeSizing,
+             "CobaltDynamicMojoPipeSizing",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltDynamicMojoPipeSizingSubresourceSize,
+                   &kCobaltDynamicMojoPipeSizing,
+                   "subresource_size",
+                   512 * 1024);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltDynamicMojoPipeSizingMediaSize,
+                   &kCobaltDynamicMojoPipeSizing,
+                   "media_size",
+                   512 * 1024);
+
+// Disabled by default on Android, enabled by default on other platforms.
+BASE_FEATURE(kCobaltContentLengthAwareMojoPipeSizing,
+             "CobaltContentLengthAwareMojoPipeSizing",
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#else   // BUILDFLAG(IS_ANDROID)
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_COBALT)
+>>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 }  // namespace network::features

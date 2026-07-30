@@ -21,6 +21,10 @@
 #include "media/filters/frame_processor.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/functional/callback_helpers.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace media {
 
 using base::test::RunClosure;
@@ -61,6 +65,10 @@ void AddVideoTrack(std::unique_ptr<MediaTracks>& t, VideoCodec codec, int id) {
                    MediaTrack::Language());
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+constexpr char kTestMimeType[] = "video/mp4; codecs=\"avc1.4d401f\"";
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 }  // namespace
 
 class SourceBufferStateTest : public ::testing::Test {
@@ -94,6 +102,9 @@ class SourceBufferStateTest : public ::testing::Test {
                       auto media_log) { new_config_cb_ = config_cb; });
     sbs->Init(base::BindOnce(&SourceBufferStateTest::SourceInitDone,
                              base::Unretained(this)),
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+              kTestMimeType,
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
               expected_codecs,
               base::BindRepeating(
                   &SourceBufferStateTest::StreamParserEncryptedInitData,
@@ -136,7 +147,14 @@ class SourceBufferStateTest : public ::testing::Test {
                   /* Indicate successful parse with no uninspected data. */
                   Return(StreamParser::ParseStatus::kSuccess)));
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    // A null runner means `stream_data` is not retained, so the parser is
+    // handed a copy, matching the expectation set above.
+    EXPECT_TRUE(
+        sbs->AppendToParseBuffer(stream_data, base::ScopedClosureRunner()));
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
     EXPECT_TRUE(sbs->AppendToParseBuffer(stream_data));
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     EXPECT_EQ(StreamParser::ParseStatus::kSuccess,
               sbs->RunSegmentParserLoop(t, t, &t));
 
@@ -179,6 +197,9 @@ TEST_F(SourceBufferStateTest, InitSourceBufferWithRelaxedCodecChecks) {
   sbs->Init(
       base::BindOnce(&SourceBufferStateTest::SourceInitDone,
                      base::Unretained(this)),
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      kTestMimeType,
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       std::nullopt,
       base::BindRepeating(&SourceBufferStateTest::StreamParserEncryptedInitData,
                           base::Unretained(this)));
@@ -209,6 +230,10 @@ TEST_F(SourceBufferStateTest, InitSingleAudioTrack) {
   EXPECT_FOUND_CODEC_NAME(Audio, "vorbis");
   EXPECT_CALL(*this, MediaTracksUpdatedMock(_));
   EXPECT_TRUE(AppendDataAndReportTracks(sbs, std::move(tracks)));
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  EXPECT_EQ(demuxer_streams_[0]->audio_decoder_config().mime_type(),
+            kTestMimeType);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 TEST_F(SourceBufferStateTest, InitSingleVideoTrack) {
@@ -221,6 +246,10 @@ TEST_F(SourceBufferStateTest, InitSingleVideoTrack) {
   EXPECT_FOUND_CODEC_NAME(Video, "vp8");
   EXPECT_CALL(*this, MediaTracksUpdatedMock(_));
   EXPECT_TRUE(AppendDataAndReportTracks(sbs, std::move(tracks)));
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  EXPECT_EQ(demuxer_streams_[0]->video_decoder_config().mime_type(),
+            kTestMimeType);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 TEST_F(SourceBufferStateTest, InitMultipleTracks) {

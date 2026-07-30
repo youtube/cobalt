@@ -23,6 +23,7 @@ extern int pkey_free(int pkey) V8_WEAK;
 
 namespace {
 
+#ifdef PKEY_DISABLE_WRITE
 bool KernelHasPkruFix() {
   // PKU was broken on Linux kernels before 5.13 (see
   // https://lore.kernel.org/all/20210623121456.399107624@linutronix.de/).
@@ -42,6 +43,7 @@ bool KernelHasPkruFix() {
          (kernel == 5 && major == 4 && minor >= 182) ||  // 5.4 >= 5.4.182
          (kernel == 5 && major == 10 && minor >= 103);   // 5.10 >= 5.10.103
 }
+#endif
 
 int PkeyAlloc() {
 #ifdef PKEY_DISABLE_WRITE

@@ -390,6 +390,10 @@ struct EnumTraits<media::mojom::RendererType, ::media::RendererType> {
         return media::mojom::RendererType::kContentEmbedderDefined;
       case ::media::RendererType::kTest:
         return media::mojom::RendererType::kTest;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      case ::media::RendererType::kStarboard:
+        return media::mojom::RendererType::kStarboard;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     }
 
     NOTREACHED();
@@ -418,7 +422,17 @@ struct EnumTraits<media::mojom::RendererType, ::media::RendererType> {
       case media::mojom::RendererType::kContentEmbedderDefined:
         return ::media::RendererType::kContentEmbedderDefined;
       case media::mojom::RendererType::kTest:
+<<<<<<< HEAD
         return ::media::RendererType::kTest;
+=======
+        *output = ::media::RendererType::kTest;
+        return true;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      case media::mojom::RendererType::kStarboard:
+        *output = ::media::RendererType::kStarboard;
+        return true;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     }
 
     NOTREACHED();
@@ -443,6 +457,10 @@ struct EnumTraits<media::mojom::DemuxerType, ::media::DemuxerType> {
         return media::mojom::DemuxerType::kStreamProviderDemuxer;
       case ::media::DemuxerType::kManifestDemuxer:
         return media::mojom::DemuxerType::kManifestDemuxer;
+#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+      case ::media::DemuxerType::kUrlPlayerDemuxer:
+        return media::mojom::DemuxerType::kUrlPlayerDemuxer;
+#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
     }
 
     NOTREACHED();
@@ -465,7 +483,17 @@ struct EnumTraits<media::mojom::DemuxerType, ::media::DemuxerType> {
       case media::mojom::DemuxerType::kStreamProviderDemuxer:
         return ::media::DemuxerType::kStreamProviderDemuxer;
       case media::mojom::DemuxerType::kManifestDemuxer:
+<<<<<<< HEAD
         return ::media::DemuxerType::kManifestDemuxer;
+=======
+        *output = ::media::DemuxerType::kManifestDemuxer;
+        return true;
+#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+      case media::mojom::DemuxerType::kUrlPlayerDemuxer:
+        *output = ::media::DemuxerType::kUrlPlayerDemuxer;
+        return true;
+#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     }
 
     NOTREACHED();

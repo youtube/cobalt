@@ -97,8 +97,15 @@ source_set("capture_device_specific") {
     "video/video_frame_receiver_types.h",
   ]
 
+<<<<<<< HEAD
   if (!is_android) {
     sources += [
+=======
+  if (is_cobalt) {
+    sources -= [
+      "video/blob_utils.cc",
+      "video/blob_utils.h",
+>>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       "video/file_video_capture_device.cc",
       "video/file_video_capture_device.h",
       "video/file_video_capture_device_factory.cc",
@@ -180,7 +187,14 @@ component("capture_lib") {
     "//ui/gfx/geometry",
   ]
 
-  if (is_android) {
+  if (is_cobalt) {
+    sources -= [
+      "video/create_video_capture_device_factory.cc",
+      "video/create_video_capture_device_factory.h",
+    ]
+  }
+
+  if (is_android && !is_cobalt) {
     public_deps += [ "video/android" ]
     deps += [ "video/android:capture_jni_headers" ]
   }
@@ -195,6 +209,11 @@ component("capture_lib") {
 
   if (is_linux || is_chromeos) {
     deps += [ "video/linux" ]
+  }
+
+  if (is_cobalt_hermetic_build) {
+    sources +=
+        [ "video/linux/video_capture_device_factory_linux_starboard_stub.cc" ]
   }
 
   if (is_chromeos) {
@@ -255,7 +274,7 @@ source_set("test_support") {
 
   if (is_chromeos) {
     public_deps = [ "video/chromeos:test_support" ]
-  } else if (is_linux) {
+  } else if (is_linux && !is_cobalt_hermetic_build) {
     public_deps = [ "video/linux:test_support" ]
   } else if (is_mac) {
     public_deps = [ "video/mac/test:test_support" ]
@@ -279,6 +298,17 @@ test("capture_unittests") {
     "video/video_capture_metrics_unittest.cc",
     "video_capture_types_unittest.cc",
   ]
+  if (is_cobalt_hermetic_build) {
+    sources += [ "starboard/run_all_unittests.cc" ]
+    sources -= [ "run_all_unittests.cc" ]
+  }
+
+  if (is_cobalt) {
+    sources -= [
+      "video/file_video_capture_device_unittest.cc",
+      "video/video_capture_device_unittest.cc",
+    ]
+  }
 
   if (!is_android) {
     sources += [ "video/file_video_capture_device_unittest.cc" ]

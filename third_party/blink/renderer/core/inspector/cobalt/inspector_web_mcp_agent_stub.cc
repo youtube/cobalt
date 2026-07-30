@@ -1,0 +1,37 @@
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "third_party/blink/renderer/core/inspector/inspector_web_mcp_agent.h"
+
+namespace blink {
+
+void InspectorWebMCPAgent::WebMCPToolAdded(Document*, const ToolData&) {}
+void InspectorWebMCPAgent::WebMCPToolRemoved(Document*, const ToolData&) {}
+void InspectorWebMCPAgent::WebMCPToolExecuted(
+    Document*,
+    const String&,
+    const String& _arguments,
+    const base::UnguessableToken& _id) {}
+void InspectorWebMCPAgent::WebMCPToolResponded(
+    Document*,
+    const String&,
+    const base::UnguessableToken& _id) {}
+void InspectorWebMCPAgent::WebMCPToolFailed(
+    Document*,
+    const ScriptToolError&,
+    const base::UnguessableToken& _id,
+    std::optional<std::pair<ScriptValue, ScriptState*>>) {}
+void InspectorWebMCPAgent::Trace(Visitor*) const {}
+
+}  // namespace blink
