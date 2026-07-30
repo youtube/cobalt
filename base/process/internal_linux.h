@@ -29,6 +29,12 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/threading/platform_thread.h"
+#include "build/build_config.h"
+
+// TODO: b/406511608 - Cobalt: upstream this include, for strcmp.
+#if BUILDFLAG(IS_STARBOARD)
+#include <string.h>
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 namespace base {
 

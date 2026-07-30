@@ -28,11 +28,24 @@
 #include "util/fuchsia/traits.h"
 #endif
 
+#if BUILDFLAG(BUILD_BASE_WITH_CPP17) || BUILDFLAG(IS_PARTNER_TOOLCHAIN)
+#include "base/types/cxx23_to_underlying.h"
+#endif  // BUILDFLAG(BUILD_BASE_WITH_CPP17) || BUILDFLAG(IS_PARTNER_TOOLCHAIN)
+
 namespace crashpad {
 
 namespace {
 
 void UnsetIfNotValidTriState(TriState* value) {
+#if BUILDFLAG(BUILD_BASE_WITH_CPP17) || BUILDFLAG(IS_PARTNER_TOOLCHAIN)
+  switch (base::to_underlying(*value)) {
+    case base::to_underlying(TriState::kUnset):
+    case base::to_underlying(TriState::kEnabled):
+    case base::to_underlying(TriState::kDisabled):
+      return;
+  }
+  LOG(WARNING) << "Unsetting invalid TriState " << base::to_underlying(*value);
+#else
   switch (std::to_underlying(*value)) {
     case std::to_underlying(TriState::kUnset):
     case std::to_underlying(TriState::kEnabled):
@@ -40,6 +53,7 @@ void UnsetIfNotValidTriState(TriState* value) {
       return;
   }
   LOG(WARNING) << "Unsetting invalid TriState " << std::to_underlying(*value);
+#endif  // BUILDFLAG(BUILD_BASE_WITH_CPP17) || BUILDFLAG(IS_PARTNER_TOOLCHAIN)
   *value = TriState::kUnset;
 }
 

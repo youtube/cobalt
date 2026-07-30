@@ -1,0 +1,52 @@
+name: Download Test Artifacts
+description: Downloads and optionally extracts test artifact archives from GCS.
+inputs:
+  test_artifacts_key:
+    description: "Artifact key used to locate test artifacts in GCS."
+    required: true
+  archive_name:
+    description: "Name of the archive file in GCS (e.g. test_artifacts.tar.zstd, cobalt_browsertests_deps.tar.zstd)."
+    required: true
+  destination_path:
+    description: "Directory path to download the archive into."
+    required: false
+    default: "."
+  extract:
+    description: "Whether to extract the downloaded archive."
+    required: false
+    default: "false"
+  extract_path:
+    description: "Directory to extract the archive into if extract is true. Defaults to destination_path."
+    required: false
+    default: ""
+runs:
+  using: "composite"
+  steps:
+    - name: Download Test Artifacts from GCS
+      shell: bash
+      env:
+        TEST_ARTIFACTS_KEY: ${{ inputs.test_artifacts_key }}
+        ARCHIVE_NAME: ${{ inputs.archive_name }}
+        DESTINATION_PATH: ${{ inputs.destination_path }}
+        EXTRACT: ${{ inputs.extract }}
+        EXTRACT_PATH: ${{ inputs.extract_path }}
+      run: |
+        set -eux
+        project_name=$(gcloud config get-value project)
+        mkdir -p "${DESTINATION_PATH}"
+        archive_dir=$(realpath "${DESTINATION_PATH}")
+        archive_file="${archive_dir}/${ARCHIVE_NAME}"
+        gcloud storage cp \
+          "gs://${project_name}-test-artifacts/${TEST_ARTIFACTS_KEY}/${ARCHIVE_NAME}" \
+          "${archive_file}"
+
+        if [[ "${EXTRACT}" == "true" ]]; then
+          extract_dir="${EXTRACT_PATH:-${DESTINATION_PATH}}"
+          mkdir -p "${extract_dir}"
+          if [[ "${ARCHIVE_NAME}" == *.zstd || "${ARCHIVE_NAME}" == *.zst ]]; then
+            tar -I 'zstd -T0' -xf "${archive_file}" -C "${extract_dir}"
+          else
+            tar -xf "${archive_file}" -C "${extract_dir}"
+          fi
+          rm -f "${archive_file}"
+        fi

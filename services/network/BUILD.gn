@@ -379,7 +379,6 @@ component("network_service") {
     "//services/network/public/proto",
     "//services/network/shared_storage",
     "//services/network/tpcd/metadata:manager",
-    "//services/network/trust_tokens",
     "//services/service_manager/public/cpp",
     "//services/service_manager/public/mojom",
     "//third_party/liburlpattern",
@@ -387,7 +386,11 @@ component("network_service") {
     "//url",
   ]
 
-  if (is_linux || is_chromeos) {
+  if (enable_privacy_sandbox_apis) {
+    deps += [ "//services/network/trust_tokens" ]
+  }
+
+  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     deps += [
       ":network_sandbox_hook",
       "//sandbox/linux:sandbox_services",  # TODO(crbug.com/40220505): remove.
@@ -426,7 +429,7 @@ component("network_service") {
   defines = [ "IS_NETWORK_SERVICE_IMPL" ]
 }
 
-if (is_linux || is_chromeos) {
+if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
   source_set("network_sandbox_hook") {
     sources = [
       "network_sandbox_hook_linux.cc",

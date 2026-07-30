@@ -801,7 +801,7 @@ void EmbeddedWorkerInstance::BindCacheStorage(
   BindCacheStorageInternal();
 }
 
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 void EmbeddedWorkerInstance::BindHidService(
     const url::Origin& origin,
     mojo::PendingReceiver<blink::mojom::HidService> receiver) {
@@ -815,8 +815,9 @@ void EmbeddedWorkerInstance::BindHidService(
                        std::move(receiver));
   }
 }
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 
+#if !BUILDFLAG(IS_COBALT)
 void EmbeddedWorkerInstance::BindUsbService(
     const url::Origin& origin,
     mojo::PendingReceiver<blink::mojom::WebUsbService> receiver) {
@@ -830,6 +831,7 @@ void EmbeddedWorkerInstance::BindUsbService(
                               std::move(receiver));
   }
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 base::WeakPtr<EmbeddedWorkerInstance> EmbeddedWorkerInstance::AsWeakPtr() {
   return weak_factory_.GetWeakPtr();

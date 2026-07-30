@@ -1,0 +1,172 @@
+{
+  "title": "Starboard ABI Schema",
+  "description": "This schema validates that a Starboard ABI file contains the required keys, no extras, and that the corresponding values are valid.",
+  "type": "object",
+  "properties": {
+    "sb_api_version": {
+      "type": "integer",
+      "description": "The Starboard API version.",
+      "enum": [12]
+    },
+    "target_arch": {
+      "type": "string",
+      "description": "The targeted architecture.",
+      "enum": ["arm", "arm64", "x86", "x64"]
+    },
+    "target_arch_sub": {
+      "type": "string",
+      "description": "The targeted sub-architecture.",
+      "enum": ["v7a", "v8a", ""]
+    },
+    "word_size": {
+      "type": "integer",
+      "description": "The word size.",
+      "enum": [32, 64]
+    },
+    "endianness": {
+      "type": "string",
+      "description": "The endianness.",
+      "enum": ["big", "little"]
+    },
+    "calling_convention": {
+      "type": "string",
+      "description": "The calling convention.",
+      "enum": ["sysv", "eabi", "windows", "aarch64"]
+    },
+    "floating_point_abi": {
+      "type": "string",
+      "description": "The floating-point ABI.",
+      "enum": ["hard", "softfp", ""]
+    },
+    "floating_point_fpu": {
+      "type": "string",
+      "description": "The floating-point hardware, if available.",
+      "enum": ["vfpv2", "vfpv3", ""]
+    },
+    "signedness_of_char": {
+      "type": "string",
+      "description": "The signedness of the 'char' data type.",
+      "enum": ["signed", "unsigned"]
+    },
+    "signedness_of_enum": {
+      "type": "string",
+      "description": "The signedness of the 'enum' data type.",
+      "enum": ["signed", "unsigned"]
+    },
+    "alignment_char": {
+      "type": "integer",
+      "description": "The alignment of the 'char' data type.",
+      "enum": [1]
+    },
+    "alignment_double": {
+      "type": "integer",
+      "description": "The alignment of the 'double' data type.",
+      "enum": [8]
+    },
+    "alignment_float": {
+      "type": "integer",
+      "description": "The alignment of the 'float' data type.",
+      "enum": [4]
+    },
+    "alignment_int": {
+      "type": "integer",
+      "description": "The alignment of the 'int' data type.",
+      "enum": [4]
+    },
+    "alignment_llong": {
+      "type": "integer",
+      "description": "The alignment of the 'long long' data type.",
+      "enum": [8]
+    },
+    "alignment_long": {
+      "type": "integer",
+      "description": "The alignment of the 'long' data type.",
+      "enum": [4, 8]
+    },
+    "alignment_pointer": {
+      "type": "integer",
+      "description": "The alignment of pointers.",
+      "enum": [4, 8]
+    },
+    "alignment_short": {
+      "type": "integer",
+      "description": "The alignment of the 'short' data type.",
+      "enum": [2]
+    },
+    "size_of_char": {
+      "type": "integer",
+      "description": "The size of the 'char' data type.",
+      "enum": [1]
+    },
+    "size_of_double": {
+      "type": "integer",
+      "description": "The size of the 'double' data type.",
+      "enum": [8]
+    },
+    "size_of_enum": {
+      "type": "integer",
+      "description": "The size of the 'enum' data type.",
+      "enum": [4]
+    },
+    "size_of_float": {
+      "type": "integer",
+      "description": "The size of the 'float' data type.",
+      "enum": [4]
+    },
+    "size_of_int": {
+      "type": "integer",
+      "description": "The size of the 'int' data type.",
+      "enum": [4]
+    },
+    "size_of_llong": {
+      "type": "integer",
+      "description": "The size of the 'long long' data type.",
+      "enum": [8]
+    },
+    "size_of_long": {
+      "type": "integer",
+      "description": "The size of the 'long' data type.",
+      "enum": [4, 8]
+    },
+    "size_of_pointer": {
+      "type": "integer",
+      "description": "The size of pointers.",
+      "enum": [4, 8]
+    },
+    "size_of_short": {
+      "type": "integer",
+      "description": "The size of the 'short' data type.",
+      "enum": [2]
+    }
+  },
+  "required": [
+    "sb_api_version",
+    "target_arch",
+    "target_arch_sub",
+    "word_size",
+    "endianness",
+    "calling_convention",
+    "floating_point_abi",
+    "floating_point_fpu",
+    "signedness_of_char",
+    "signedness_of_enum",
+    "alignment_char",
+    "alignment_double",
+    "alignment_float",
+    "alignment_int",
+    "alignment_llong",
+    "alignment_long",
+    "alignment_pointer",
+    "alignment_short",
+    "size_of_char",
+    "size_of_enum",
+    "size_of_double",
+    "size_of_float",
+    "size_of_int",
+    "size_of_llong",
+    "size_of_long",
+    "size_of_pointer",
+    "size_of_short"
+  ],
+  "additionalProperties": false
+}

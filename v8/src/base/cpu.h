@@ -146,9 +146,6 @@ class V8_BASE_EXPORT CPU final {
   static const unsigned kUnknownVlen = 0;
 
  private:
-#if defined(V8_OS_STARBOARD)
-  bool StarboardDetectCPU();
-#endif
   char vendor_[13];
   int stepping_;
   int model_;
