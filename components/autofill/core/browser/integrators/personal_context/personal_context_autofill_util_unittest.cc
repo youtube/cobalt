@@ -4,8 +4,9 @@
 
 #include "components/autofill/core/browser/integrators/personal_context/personal_context_autofill_util.h"
 
+#include "base/test/scoped_feature_list.h"
+#include "components/autofill/core/common/autofill_features.h"
 #include "components/personal_context/core/personal_context_enablement_service.h"
-#include "components/personal_context/core/personal_context_prefs.h"
 #include "components/personal_context/core/personal_context_types.h"
 #include "components/prefs/testing_pref_service.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -42,7 +43,6 @@ TEST(PersonalContextAutofillUtilTest,
   };
 
   EXPECT_FALSE(check_state(kDisabledNotEligible));
-  EXPECT_TRUE(check_state(kDisabledShouldShowNotice));
   EXPECT_FALSE(check_state(kDisabledNeedsOptIn));
   EXPECT_TRUE(check_state(kDisabledViaPersonalIntelligenceInAutofillToggle));
   EXPECT_TRUE(check_state(kEnabledShouldShowNotice));
@@ -52,23 +52,44 @@ TEST(PersonalContextAutofillUtilTest,
 }
 
 TEST(PersonalContextAutofillUtilTest,
-     PersonalContextInAutofillSettingFlippedOn) {
-  TestingPrefServiceSimple pref_service;
-  personal_context::prefs::RegisterProfilePrefs(pref_service.registry());
+     AreAutofillPersonalContextFeaturesSupported) {
+  // 1. Both disabled
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitWithFeatures(
+        /*enabled_features=*/{},
+        /*disabled_features=*/{features::kAutofillAmbientAutofill,
+                               features::kAutofillAtMemory});
+    EXPECT_FALSE(AreAutofillPersonalContextFeaturesSupported());
+  }
 
-  pref_service.SetBoolean(
-      personal_context::prefs::kPersonalContextInAutofillNoticeShouldBeShown,
-      true);
-  pref_service.SetBoolean(
-      personal_context::prefs::kPersonalContextInAutofillNoticeHasBeenShown,
-      false);
+  // 2. AmbientAutofill enabled
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitWithFeatures(
+        /*enabled_features=*/{features::kAutofillAmbientAutofill},
+        /*disabled_features=*/{features::kAutofillAtMemory});
+    EXPECT_TRUE(AreAutofillPersonalContextFeaturesSupported());
+  }
 
-  PersonalContextInAutofillSettingFlippedOn(&pref_service);
+  // 3. AtMemory enabled
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitWithFeatures(
+        /*enabled_features=*/{features::kAutofillAtMemory},
+        /*disabled_features=*/{features::kAutofillAmbientAutofill});
+    EXPECT_TRUE(AreAutofillPersonalContextFeaturesSupported());
+  }
 
-  EXPECT_FALSE(pref_service.GetBoolean(
-      personal_context::prefs::kPersonalContextInAutofillNoticeShouldBeShown));
-  EXPECT_TRUE(pref_service.GetBoolean(
-      personal_context::prefs::kPersonalContextInAutofillNoticeHasBeenShown));
+  // 4. Both enabled
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitWithFeatures(
+        /*enabled_features=*/{features::kAutofillAmbientAutofill,
+                              features::kAutofillAtMemory},
+        /*disabled_features=*/{});
+    EXPECT_TRUE(AreAutofillPersonalContextFeaturesSupported());
+  }
 }
 
 }  // namespace autofill

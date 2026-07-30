@@ -192,8 +192,10 @@
 #include "net/test/embedded_test_server/http_response.h"
 #include "net/test/embedded_test_server/install_default_websocket_handlers.h"
 #include "net/test/embedded_test_server/request_handler_util.h"
+#include "net/test/quic_simple_test_server.h"
 #include "net/test/test_certificate_data.h"
 #include "net/test/test_data_directory.h"
+#include "net/third_party/quiche/src/quiche/quic/platform/api/quic_flags.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/network_switches.h"
 #include "services/network/public/mojom/network_service.mojom.h"
@@ -3164,7 +3166,7 @@ class SSLUIWorkerFetchTest
     // processes can get re-used under Site Isolation and retain their mixed
     // content status (see crbug.com/41417895). This ensures all error state is
     // cleared.
-    chrome::NewTab(browser());
+    chrome::NewTab(browser(), NewTabTypes::kNoUserAction);
     WebContents* tab = browser()->tab_strip_model()->GetActiveWebContents();
     EXPECT_TRUE(content::WaitForLoadStop(tab));
 
@@ -7712,6 +7714,9 @@ class SSLServerPaddingBrowserTest
   base::test::ScopedFeatureList feature_list_;
 };
 
+using testing::Gt;
+using testing::SizeIs;
+
 IN_PROC_BROWSER_TEST_P(SSLServerPaddingBrowserTest,
                        ValidHandshakeAndHistograms) {
   base::HistogramTester histograms;
@@ -7724,7 +7729,7 @@ IN_PROC_BROWSER_TEST_P(SSLServerPaddingBrowserTest,
 
   // Make sure there's no favicon so that only one request is sent.
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      browser(), https_server.GetURL("/local_network_access/no-favicon.html")));
+      browser(), https_server.GetURL("/no-favicon.html")));
 
   content::FetchHistogramsFromChildProcesses();
   base::test::TestFuture<void> future;
@@ -7733,8 +7738,17 @@ IN_PROC_BROWSER_TEST_P(SSLServerPaddingBrowserTest,
   ASSERT_TRUE(future.Wait());
 
   if (padding_enabled()) {
-    histograms.ExpectTotalCount("Net.SSL_Connection_Latency_ServerPadding", 1);
-    histograms.ExpectTotalCount("Net.HttpTimeToFirstByte.ServerPadding", 1);
+    // Most of the time, there is only one handshake, and so there should be
+    // only one entry. This isn't always true on all platforms, so just
+    // check to make sure we have at least one entry in each histogram.
+    //
+    // See crbug.com/517861023
+    EXPECT_THAT(
+        histograms.GetAllSamples("Net.SSL_Connection_Latency_ServerPadding"),
+        SizeIs(Gt(0)));
+    EXPECT_THAT(
+        histograms.GetAllSamples("Net.HttpTimeToFirstByte.ServerPadding"),
+        SizeIs(Gt(0)));
   } else {
     histograms.ExpectTotalCount("Net.SSL_Connection_Latency_ServerPadding", 0);
     histograms.ExpectTotalCount("Net.HttpTimeToFirstByte.ServerPadding", 0);
@@ -7743,6 +7757,102 @@ IN_PROC_BROWSER_TEST_P(SSLServerPaddingBrowserTest,
 
 INSTANTIATE_TEST_SUITE_P(,
                          SSLServerPaddingBrowserTest,
+                         ::testing::Values(std::optional(128),
+                                           std::optional(0),
+                                           std::nullopt));
+
+class QuicSSLServerPaddingBrowserTest
+    : public SSLUITest,
+      public testing::WithParamInterface<std::optional<int>> {
+ public:
+  QuicSSLServerPaddingBrowserTest() {
+    SetQuicRestartFlag(tls_server_padding_support, true);
+    if (padding_enabled()) {
+      feature_list_.InitAndEnableFeatureWithParameters(
+          net::features::kAddTLSServerHandshakePadding,
+          {{"AddTLSServerHandshakePaddingBytes",
+            base::NumberToString(GetParam().value())}});
+    } else {
+      feature_list_.InitAndDisableFeature(
+          net::features::kAddTLSServerHandshakePadding);
+    }
+  }
+
+  bool padding_enabled() { return GetParam().has_value(); }
+
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    SSLUITest::SetUpCommandLine(command_line);
+    command_line->AppendSwitchASCII(switches::kOriginToForceQuicOn, "*");
+    command_line->AppendSwitch(switches::kEnableQuic);
+    mock_cert_verifier_.SetUpCommandLine(command_line);
+  }
+
+  void SetUpOnMainThread() override {
+    SSLUITest::SetUpOnMainThread();
+    ConfigureMockCertVerifier();
+    ASSERT_TRUE(net::QuicSimpleTestServer::Start());
+    host_resolver()->AddRule("*", "127.0.0.1");
+  }
+
+  void TearDownOnMainThread() override {
+    net::QuicSimpleTestServer::Shutdown();
+    SSLUITest::TearDownOnMainThread();
+  }
+
+ protected:
+  void ConfigureMockCertVerifier() {
+    auto test_cert =
+        net::ImportCertFromFile(net::GetTestCertsDirectory(), "quic-chain.pem");
+    net::CertVerifyResult verify_result;
+    verify_result.verified_cert = test_cert;
+    mock_cert_verifier_.mock_cert_verifier()->AddResultForCert(
+        test_cert, verify_result, net::OK);
+    mock_cert_verifier_.mock_cert_verifier()->set_default_result(net::OK);
+  }
+
+  void SetUpInProcessBrowserTestFixture() override {
+    SSLUITest::SetUpInProcessBrowserTestFixture();
+    mock_cert_verifier_.SetUpInProcessBrowserTestFixture();
+  }
+
+  void TearDownInProcessBrowserTestFixture() override {
+    mock_cert_verifier_.TearDownInProcessBrowserTestFixture();
+    SSLUITest::TearDownInProcessBrowserTestFixture();
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+  content::ContentMockCertVerifier mock_cert_verifier_;
+};
+
+IN_PROC_BROWSER_TEST_P(QuicSSLServerPaddingBrowserTest,
+                       ValidHandshakeAndHistograms) {
+  base::HistogramTester histograms;
+
+  GURL url = net::QuicSimpleTestServer::GetFileURL(
+      net::QuicSimpleTestServer::GetHelloPath());
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+
+  content::FetchHistogramsFromChildProcesses();
+  metrics::SubprocessMetricsProvider::MergeHistogramDeltasForTesting();
+
+  if (padding_enabled()) {
+    EXPECT_THAT(
+        histograms.GetAllSamples("Net.HttpTimeToFirstByte.ServerPadding"),
+        SizeIs(Gt(0)));
+    EXPECT_THAT(histograms.GetAllSamples(
+                    "Net.QuicSession.HandshakeConfirmedTime.ServerPadding"),
+                SizeIs(Gt(0)));
+  } else {
+    histograms.ExpectTotalCount(
+        "Net.QuicSession.HandshakeConfirmedTime.ServerPadding", 0);
+    histograms.ExpectTotalCount("Net.HttpTimeToFirstByte.ServerPadding", 0);
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(QUIC,
+                         QuicSSLServerPaddingBrowserTest,
                          ::testing::Values(std::optional(128),
                                            std::optional(0),
                                            std::nullopt));

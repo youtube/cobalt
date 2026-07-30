@@ -11,6 +11,7 @@
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/webui/favicon_source.h"
 #include "chrome/browser/ui/webui/metrics_reporter/metrics_reporter_service.h"
@@ -62,6 +63,7 @@ TabSearchUI::TabSearchUI(content::WebUI* web_ui)
   static constexpr webui::LocalizedString kStrings[] = {
       // Tab search UI strings
       {"a11yTabClosed", IDS_TAB_SEARCH_A11Y_TAB_CLOSED},
+      {"a11ySplitViewClosed", IDS_TAB_SEARCH_A11Y_SPLIT_VIEW_CLOSED},
       {"a11yFoundTab", IDS_TAB_SEARCH_A11Y_FOUND_TAB},
       {"a11yFoundTabFor", IDS_TAB_SEARCH_A11Y_FOUND_TAB_FOR},
       {"a11yFoundTabs", IDS_TAB_SEARCH_A11Y_FOUND_TABS},
@@ -104,6 +106,8 @@ TabSearchUI::TabSearchUI(content::WebUI* web_ui)
   source->AddBoolean("useRipples", views::PlatformStyle::kUseRipples);
   source->AddBoolean("useTabGroupColorRefresh",
                      features::IsTabGroupColorRefreshEnabled());
+  source->AddBoolean("splitViewTabRestoreEnabled",
+                     base::FeatureList::IsEnabled(tabs::kSplitViewTabRestore));
 
   source->AddLocalizedString("close", IDS_CLOSE);
 

@@ -111,7 +111,7 @@ WebNNContextImpl::WebNNContextImpl(
                       mojo::Receiver<mojom::WebNNContext>>(
           std::move(receiver),
           gpu_task_scheduler->scheduler_task_runner()),
-      has_context_provider_(context_provider != nullptr),
+      has_context_provider_(true),
       context_provider_(std::move(context_provider)),
       properties_(IntersectWithBaseProperties(std::move(properties))),
       options_(std::move(options)),
@@ -281,6 +281,10 @@ void WebNNContextImpl::DestroyAllContextsAndKillGpuProcess() {
   context_provider_->DestroyAllContextsAndKillGpuProcess();
 }
 #endif  // BUILDFLAG(IS_WIN)
+
+void WebNNContextImpl::AddGraphImpl(scoped_refptr<WebNNGraphImpl> graph_impl) {
+  graph_impls_.emplace(std::move(graph_impl));
+}
 
 void WebNNContextImpl::CreateWeightsFile(
     base::OnceCallback<void(base::File)> callback) {

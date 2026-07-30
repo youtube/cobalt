@@ -245,6 +245,7 @@ source_set("unit_tests") {
     "//components/regional_capabilities:switches",
     "//components/signin/public/identity_manager:test_support",
     "//components/supervised_user/core/browser",
+    "//components/supervised_user/core/browser:test_support",
     "//components/supervised_user/core/common",
     "//components/sync_preferences:test_support",
     "//components/ukm",
@@ -277,6 +278,7 @@ source_set("unit_tests") {
     "//ios/chrome/browser/signin/model:fake_system_identity_manager",
     "//ios/chrome/browser/signin/model:test_support",
     "//ios/chrome/browser/supervised_user/model",
+    "//ios/chrome/browser/supervised_user/model:sync_settings_factory",
     "//ios/chrome/test:test_support",
     "//ios/web/common",
     "//ios/web/public",
@@ -449,7 +451,6 @@ source_set("eg2_tests") {
     "//ios/testing/earl_grey:eg_test_support+eg2",
     "//ios/testing/earl_grey:launch_configuration",
     "//ios/web/public/test:element_selector",
-    "//ios/web/public/test/http_server",
     "//net:test_support",
     "//ui/base",
   ]

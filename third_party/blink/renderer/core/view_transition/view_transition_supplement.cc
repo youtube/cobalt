@@ -110,7 +110,7 @@ DOMViewTransition* ViewTransitionSupplement::StartTransition(
   // Disallow script initiated transitions during a navigation initiated
   // transition.
   if (document_transition_ && !document_transition_->IsCreatedViaScriptAPI()) {
-    return ViewTransition::CreateSkipped(&element, callback)
+    return ViewTransition::CreateSkipped(&element, callback, types)
         ->GetScriptDelegate();
   }
 
@@ -133,7 +133,7 @@ DOMViewTransition* ViewTransitionSupplement::StartTransition(
 
   // We need to be connected to a view to have a transition.
   if (!document.View()) {
-    return ViewTransition::CreateSkipped(&element, callback)
+    return ViewTransition::CreateSkipped(&element, callback, types)
         ->GetScriptDelegate();
   }
 
@@ -319,8 +319,7 @@ void ViewTransitionSupplement::OnTransitionFinished(
                   std::move(*pending_navigation_transition_)));
       pending_navigation_transition_.reset();
     }
-  } else {
-    Element* scope = transition->Scope();
+  } else if (Element* scope = transition->Scope()) {
     element_transitions_.erase(scope);
   }
 
@@ -335,13 +334,17 @@ void ViewTransitionSupplement::OnTransitionFinished(
 void ViewTransitionSupplement::OnSkipTransitionWithPendingCallback(
     ViewTransition* transition) {
   CHECK(transition);
-  skipped_with_pending_dom_callback_.insert(transition->Scope(), transition);
+  if (transition->Scope()) {
+    skipped_with_pending_dom_callback_.insert(transition->Scope(), transition);
+  }
 }
 
 void ViewTransitionSupplement::OnSkippedTransitionDOMCallback(
     ViewTransition* transition) {
   CHECK(transition);
-  skipped_with_pending_dom_callback_.erase(transition->Scope());
+  if (transition->Scope()) {
+    skipped_with_pending_dom_callback_.erase(transition->Scope());
+  }
 }
 
 void ViewTransitionSupplement::OnTransitionCaptured(

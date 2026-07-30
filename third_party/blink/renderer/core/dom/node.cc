@@ -2856,6 +2856,10 @@ static void AppendMarkedTree(const String& base_indent,
       if (Element* pseudo = element->GetPseudoElement(kPseudoIdBackdrop))
         AppendMarkedTree(indent_string, pseudo, marked_node1, marked_label1,
                          marked_node2, marked_label2, builder);
+      if (Element* pseudo = element->GetPseudoElement(kPseudoIdSkeleton)) {
+        AppendMarkedTree(indent_string, pseudo, marked_node1, marked_label1,
+                         marked_node2, marked_label2, builder);
+      }
     }
 
     if (ShadowRoot* shadow_root = node.GetShadowRoot()) {
@@ -3706,6 +3710,9 @@ void Node::ParentSlotChanged() {
 
 void Node::FlatTreeParentChanged() {
   DCHECK(isConnected());
+  if (Element* element = DynamicTo<Element>(this)) {
+    element->DetachOverscroll();
+  }
   const ComputedStyle* style =
       IsElementNode() ? To<Element>(this)->GetComputedStyle() : nullptr;
   bool detach = false;
@@ -3761,6 +3768,9 @@ void Node::FlatTreeParentChanged() {
 }
 
 void Node::RemovedFromFlatTree() {
+  if (Element* element = DynamicTo<Element>(this)) {
+    element->DetachOverscroll();
+  }
   StyleEngine& engine = GetDocument().GetStyleEngine();
   StyleEngine::DetachLayoutTreeScope detach_scope(engine);
   // This node was previously part of the flat tree, but due to slot re-

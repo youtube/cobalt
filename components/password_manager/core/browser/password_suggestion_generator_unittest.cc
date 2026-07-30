@@ -239,7 +239,8 @@ Suggestion::PasswordSuggestionDetails PasswordAndMetadataToSuggestionDetails(
     const PasswordAndMetadata& credential) {
   return Suggestion::PasswordSuggestionDetails(
       credential.username_value, credential.password_value,
-      credential.backup_password_value.value());
+      credential.backup_password_value.value(), credential.realm,
+      credential.is_grouped_affiliation);
 }
 class MockPasswordManagerClient : public StubPasswordManagerClient {
  public:
@@ -1150,6 +1151,74 @@ TEST_F(PasswordSuggestionGeneratorTest,
                                   u"third@google.com", u"second",
                                   "https://netflix.com/", u"netflix.com",
                                   /*is_cross_domain=*/true)),
+                          EqualsSuggestion(SuggestionType::kSeparator),
+                          EqualsManagePasswordsSuggestion()));
+}
+
+// Test that the webauthn sign in with another device suggestion is positioned
+// correctly in the manual fallback dropdown, i.e. below a separator and above
+// the manage passwords entry.
+TEST_F(PasswordSuggestionGeneratorTest,
+       WebAuthnSuggestionPositionInManualFallback) {
+  base::test::ScopedFeatureList feature_list{
+      features::kWebAuthnUsePasskeyFromAnotherDeviceInManualFallback};
+  const std::vector<PasskeyCredential> kEmptyPasskeyVector;
+  ON_CALL(credentials_delegate(), GetPasskeys)
+      .WillByDefault(Return(base::ok(&kEmptyPasskeyVector)));
+  ON_CALL(credentials_delegate(), IsSecurityKeyOrHybridFlowAvailable)
+      .WillByDefault(Return(true));
+
+  std::vector<Suggestion> suggestions = GenerateSuggestedPasswordsSection(
+      {password_form()}, IsTriggeredOnPasswordForm(true));
+
+  EXPECT_THAT(
+      suggestions,
+      ElementsAre(
+          EqualsManualFallbackSuggestion(
+              SuggestionType::kPasswordEntry, u"google.com",
+              u"username@example.com", Suggestion::Icon::kGlobe,
+              /*is_acceptable=*/true,
+              Suggestion::FaviconDetails(
+                  /*domain_url=*/GURL("https://google.com")),
+              Suggestion::PasswordSuggestionDetails(
+                  u"username@example.com", u"password", "https://google.com/",
+                  u"google.com",
+                  /*is_cross_domain=*/false)),
+          EqualsSuggestion(SuggestionType::kSeparator),
+          EqualsSuggestion(SuggestionType::kWebauthnSignInWithAnotherDevice,
+                           l10n_util::GetStringUTF16(
+                               IDS_PASSWORD_MANAGER_USE_PASSKEY_OTHER_DEVICE),
+                           Suggestion::Icon::kDevice),
+          EqualsManagePasswordsSuggestion()));
+}
+
+// Test that the webauthn sign in with another device suggestion is not added
+// if the corresponding feature is disabled.
+TEST_F(PasswordSuggestionGeneratorTest,
+       WebAuthnSuggestionPositionInManualFallback_FeatureDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      features::kWebAuthnUsePasskeyFromAnotherDeviceInManualFallback);
+  const std::vector<PasskeyCredential> kEmptyPasskeyVector;
+  ON_CALL(credentials_delegate(), GetPasskeys)
+      .WillByDefault(Return(base::ok(&kEmptyPasskeyVector)));
+  ON_CALL(credentials_delegate(), IsSecurityKeyOrHybridFlowAvailable)
+      .WillByDefault(Return(true));
+
+  std::vector<Suggestion> suggestions = GenerateSuggestedPasswordsSection(
+      {password_form()}, IsTriggeredOnPasswordForm(true));
+
+  EXPECT_THAT(suggestions,
+              ElementsAre(EqualsManualFallbackSuggestion(
+                              SuggestionType::kPasswordEntry, u"google.com",
+                              u"username@example.com", Suggestion::Icon::kGlobe,
+                              /*is_acceptable=*/true,
+                              Suggestion::FaviconDetails(
+                                  /*domain_url=*/GURL("https://google.com")),
+                              Suggestion::PasswordSuggestionDetails(
+                                  u"username@example.com", u"password",
+                                  "https://google.com/", u"google.com",
+                                  /*is_cross_domain=*/false)),
                           EqualsSuggestion(SuggestionType::kSeparator),
                           EqualsManagePasswordsSuggestion()));
 }

@@ -33,12 +33,16 @@ source_set("actor_tool_interface") {
     "actor_tool.mm",
     "actor_tool_java_script_feature_util.h",
     "actor_tool_java_script_feature_util.mm",
+    "actor_tool_request.h",
+    "actor_tool_request.mm",
   ]
 
   deps = [
     "//base",
     "//components/optimization_guide/proto:optimization_guide_proto",
     "//ios/chrome/browser/intelligence/actor/tools/public",
+    "//ios/chrome/browser/intelligence/actor/tools/utils:actor_browser_utils",
+    "//ios/chrome/browser/intelligence/actor/tools/utils:actor_tool_utils",
     "//ios/chrome/browser/shared/model/browser",
     "//ios/chrome/browser/shared/model/web_state_list",
     "//ios/chrome/browser/shared/model/web_state_list:utils",
@@ -138,6 +142,16 @@ optimize_ts("click_tool_ts") {
     ":actor_tool_utils_ts",
     "//ios/chrome/browser/intelligence/proto_wrappers:dom_node_ids_ts",
     "//ios/web/public/js_messaging:gcrweb",
+  ]
+}
+
+optimize_ts("page_stability_ts") {
+  sources = [ "resources/page_stability.ts" ]
+  output_name = "page_stability"
+
+  deps = [
+    "//ios/web/public/js_messaging:gcrweb",
+    "//ios/web/public/js_messaging:util_scripts",
   ]
 }
 
@@ -330,14 +344,6 @@ source_set("page_stability") {
   ]
 }
 
-optimize_ts("page_stability_ts") {
-  sources = [ "resources/page_stability.ts" ]
-  deps = [
-    "//ios/web/public/js_messaging:gcrweb",
-    "//ios/web/public/js_messaging:util_scripts",
-  ]
-}
-
 source_set("actor_tool_java_script_feature_test_base") {
   testonly = true
   sources = [
@@ -362,6 +368,7 @@ source_set("unit_tests") {
     "action_target_java_script_feature_unittest.mm",
     "action_target_js_unittest.mm",
     "actor_tool_factory_unittest.mm",
+    "actor_tool_request_unittest.mm",
     "click_tool_java_script_feature_unittest.mm",
     "click_tool_js_unittest.mm",
     "click_tool_unittest.mm",
@@ -369,6 +376,7 @@ source_set("unit_tests") {
     "navigate_tool_unittest.mm",
     "observation_delay_controller_unittest.mm",
     "page_stability_java_script_feature_unittest.mm",
+    "page_stability_js_unittest.mm",
     "page_stability_monitor_unittest.mm",
     "scroll_to_tool_unittest.mm",
     "scroll_tool_java_script_feature_unittest.mm",

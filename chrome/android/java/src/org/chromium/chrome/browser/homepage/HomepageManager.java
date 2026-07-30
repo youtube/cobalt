@@ -117,6 +117,8 @@ public class HomepageManager
     /** Returns whether the home button removal everywhere is enabled. */
     private static boolean isHomeButtonRemovalEverywhereEnabled() {
         return ChromeFeatureList.sHomeButtonRemovalEverywhere.getValue()
+                && PartnerBrowserCustomizations.isCountryImpacted(
+                        ChromeFeatureList.sHomeButtonRemovalApplyToAllCountries.getValue())
                 && !BottomBarConfigUtils.isBottomBarEnabled(ContextUtils.getApplicationContext());
     }
 
@@ -138,6 +140,8 @@ public class HomepageManager
      */
     private static boolean isHomeButtonRemovalKeepOnNtpEnabled() {
         return ChromeFeatureList.sHomeButtonRemovalKeepOnNtp.getValue()
+                && PartnerBrowserCustomizations.isCountryImpacted(
+                        ChromeFeatureList.sHomeButtonRemovalApplyToAllCountries.getValue())
                 && !BottomBarConfigUtils.isBottomBarEnabled(ContextUtils.getApplicationContext());
     }
 
@@ -607,12 +611,13 @@ public class HomepageManager
         if (currentTab != null) {
             ActorUiTabController actorUiTabController = ActorUiTabController.from(currentTab);
             if (actorUiTabController != null && actorUiTabController.isActorActive()) {
-                Runnable navigateRunnable =
-                        () -> {
-                            currentTab.loadUrl(
-                                    new LoadUrlParams(homePageUrl, PageTransition.HOME_PAGE));
-                        };
-                if (actorUiTabController.showTaskAbortConfirmationDialog(navigateRunnable)) {
+                if (actorUiTabController.showTaskAbortConfirmationDialog(
+                        (confirmed) -> {
+                            if (confirmed) {
+                                currentTab.loadUrl(
+                                        new LoadUrlParams(homePageUrl, PageTransition.HOME_PAGE));
+                            }
+                        })) {
                     return;
                 }
             }

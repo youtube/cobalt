@@ -47,6 +47,7 @@ class GlicPrivateInvokeFunction : public ExtensionFunction {
       extensions::api::glic_private::ErrorCode result);
 
   void OnPromptRetrieved(glic::GlicInvokeOptions options,
+                         api::glic_private::InvocationSource invocation_source,
                          bool in_new_tab,
                          const std::string& document_id,
                          extensions::api::glic_private::ErrorCode result,
@@ -66,6 +67,25 @@ class GlicPrivateHasConversationFunction : public ExtensionFunction {
 
  protected:
   ~GlicPrivateHasConversationFunction() override;
+
+  // ExtensionFunction:
+  ResponseAction Run() override;
+};
+
+class GlicPrivateActivateTabWithConversationFunction
+    : public ExtensionFunction {
+ public:
+  DECLARE_EXTENSION_FUNCTION("glicPrivate.activateTabWithConversation",
+                             GLICPRIVATE_ACTIVATETABWITHCONVERSATION)
+
+  GlicPrivateActivateTabWithConversationFunction();
+  GlicPrivateActivateTabWithConversationFunction(
+      const GlicPrivateActivateTabWithConversationFunction&) = delete;
+  GlicPrivateActivateTabWithConversationFunction& operator=(
+      const GlicPrivateActivateTabWithConversationFunction&) = delete;
+
+ protected:
+  ~GlicPrivateActivateTabWithConversationFunction() override;
 
   // ExtensionFunction:
   ResponseAction Run() override;

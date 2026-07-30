@@ -12,8 +12,11 @@
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
+#include "chrome/browser/devtools/devtools_toggle_action.h"
+#include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
@@ -460,7 +463,8 @@ IN_PROC_BROWSER_TEST_F(WebUIBrowserTest, RealboxSubmitQueryDoesNotCrash) {
             window->browser());
 
   // Call SubmitQuery to trigger the navigation code path.
-  realbox_handler->SubmitQuery("test", 0, false, false, false, false);
+  realbox_handler->SubmitQuery("test", 0, false, false, false, false,
+                               /*is_voice_search=*/false);
 }
 
 IN_PROC_BROWSER_TEST_F(WebUIBrowserTest, SetContentsSizeResizesWindow) {
@@ -522,4 +526,9 @@ IN_PROC_BROWSER_TEST_F(WebUIBrowserTest, SetContentsSizeEarlyResizesWindow) {
   })) << "Window contents size did not update to the expected size."
       << "Window contents size: " << window->GetContentsSize().ToString()
       << ", expected: " << target_size.ToString();
+}
+
+IN_PROC_BROWSER_TEST_F(WebUIBrowserTest, DevToolsWindowDoesNotCrash) {
+  chrome::ToggleDevToolsWindow(browser(), DevToolsToggleAction::Show(),
+                               DevToolsOpenedByAction::kUnknown);
 }

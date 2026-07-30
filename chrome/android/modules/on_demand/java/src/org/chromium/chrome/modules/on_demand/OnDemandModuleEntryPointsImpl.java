@@ -4,10 +4,14 @@
 
 package org.chromium.chrome.modules.on_demand;
 
+import android.content.Context;
+
 import org.chromium.base.ServiceLoaderUtil;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.build.annotations.UsedByReflection;
+import org.chromium.chrome.browser.bricks.BricksCoordinator;
+import org.chromium.chrome.browser.bricks.BricksCoordinatorInterface;
 import org.chromium.chrome.browser.pdf.PdfEntryPoint;
 import org.chromium.chrome.browser.pdf.PdfEntryPointImpl;
 
@@ -15,8 +19,6 @@ import org.chromium.chrome.browser.pdf.PdfEntryPointImpl;
 @NullMarked
 @UsedByReflection("SplitChromeApplication.java")
 public class OnDemandModuleEntryPointsImpl implements OnDemandModuleEntryPoints {
-    private final PdfEntryPoint mPdfEntryPoint = new PdfEntryPointImpl();
-
     @Override
     public @Nullable Object getInternalEntryPoints() {
         return ServiceLoaderUtil.maybeCreate(OnDemandModuleInternalEntryPoints.class);
@@ -24,6 +26,11 @@ public class OnDemandModuleEntryPointsImpl implements OnDemandModuleEntryPoints 
 
     @Override
     public PdfEntryPoint getPdfEntryPoint() {
-        return mPdfEntryPoint;
+        return new PdfEntryPointImpl();
+    }
+
+    @Override
+    public BricksCoordinatorInterface createBricksCoordinator(Context context) {
+        return new BricksCoordinator(context);
     }
 }

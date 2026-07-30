@@ -5,9 +5,10 @@
 /* #css_wrapper_metadata_start
  * #type=style-lit
  * #import=//resources/cr_elements/cr_icons_lit.css.js
+ * #import=//resources/cr_components/composebox/composebox.css.js
  * #import=//resources/cr_components/composebox/composebox_shared_style.css.js
  * #scheme=relative
- * #include=cr-icons-lit composebox-shared-style
+ * #include=cr-icons-lit composebox composebox-shared-style
  * #css_wrapper_metadata_end */
 
 :host {
@@ -47,8 +48,10 @@
   width: 100%;
 }
 
-cr-composebox-input::part(cancel) {
+cr-composebox-input::part(cancel),
+cr-composebox-submit::part(submit) {
   opacity: 1;
+  transition: var(--icon-entry-transition);
 }
 
 :host([show-dropdown][searchbox-next-enabled][searchbox-layout-mode='Compact']) cr-composebox-dropdown {
@@ -64,14 +67,6 @@ cr-composebox-input::part(cancel) {
   color: var(--color-searchbox-results-foreground);
   padding-inline-start: var(--contextual-entrypoint-and-carousel-context-entrypoint-padding-inline-start, 8px);
   padding-inline-end: var(--contextual-entrypoint-and-carousel-context-entrypoint-padding-inline-end, 8px);
-}
-
-:host(:not([file-uploads-complete])) .upload-button {
-  cursor: not-allowed;
-}
-
-:host([upload-button-disabled]) .upload-button {
-  color: var(--color-composebox-upload-button-disabled);
 }
 
 #contextEntrypoint::part(context-menu-entrypoint-icon) {
@@ -93,16 +88,6 @@ cr-composebox-input::part(cancel) {
   top: 10px;
 }
 
-@media (forced-colors: active) {
-  #voiceSearchButton {
-    --cr-icon-button-fill-color: ButtonText;
-  }
-}
-
-#errorScrim {
-  border-radius: inherit;
-}
-
 #composebox[inert] {
   pointer-events: none;
 }
@@ -117,12 +102,6 @@ cr-composebox-input::part(cancel) {
   flex-direction: row;
 }
 
-.carousel-container-inner {
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-}
-
 #carousel {
   box-sizing: border-box;
   margin-bottom: var(--context-non-top-carousel-bottom-margin, 4px);
@@ -133,13 +112,23 @@ cr-composebox-input::part(cancel) {
       var(--context-carousel-inline-end-spacing, 50px));
 }
 
-#toolChipsContainer {
-  padding-bottom: 4px;
-  padding-inline-start: 16px;
-  padding-top: 14px;
+:host([submit-enabled]) cr-composebox-submit::part(submit) {
+  inset-inline-end: 0;
+  margin-block: 12px 2px;
+  margin-inline: auto 10px;
+  position: relative;
 }
 
-:host([searchbox-layout-mode='Compact'][show-dropdown]) .carousel-divider {
-  --contextual-entrypoint-and-carousel-carousel-divider-margin-bottom: 8px;
-  --contextual-entrypoint-and-carousel-carousel-divider-margin-top: 12px;
+:host([in-voice-search-mode]) {
+  box-shadow: 2px 10px 18px -5px rgb(0, 0, 0, 0.1);
+}
+
+cr-composebox-voice-search {
+  z-index: 2;
+}
+
+:host([in-voice-search-mode]) cr-composebox-input::part(cancel),
+:host([in-voice-search-mode]) cr-composebox-submit::part(submit) {
+  opacity: 0;
+  transition: var(--icon-exit-transition);
 }

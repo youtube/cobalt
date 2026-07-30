@@ -34,19 +34,12 @@
 #import "ui/base/l10n/l10n_util.h"
 
 namespace {
-// Constant for section 0.
-const NSInteger kSectionIdentifierEnumZero = 0;
-
-
-// Identifiers for sections in the table view.
-typedef NS_ENUM(NSInteger, SectionIdentifier) {
-  SectionIdentifierCardDetails = kSectionIdentifierEnumZero,
-  SectionIdentifierNickname,
-};
+// Identifier for the single card details section in the table view.
+const NSInteger kSectionIdentifierCardDetails = 0;
 
 // Identifiers for items (rows) in the table view.
 typedef NS_ENUM(NSInteger, ItemType) {
-  ItemTypeCardNumber = kSectionIdentifierEnumZero,
+  ItemTypeCardNumber = 0,
   ItemTypeCardExpireDate,
   ItemTypeCardHolderName,
   ItemTypeCardCVC,
@@ -235,21 +228,20 @@ void StyleButtonForConfirmation(UIButtonConfiguration* config) {
                                           IDS_IOS_AUTOFILL_CARD_NUMBER)
                        textFieldValue:_cardNumber
                          keyboardType:UIKeyboardTypeNumberPad
-                 textFieldPlaceholder:
-                     l10n_util::GetNSString(
-                         IDS_IOS_AUTOFILL_SCAN_CARD_PLACEHOLDER_CARD_NUMBER)];
+                 textFieldPlaceholder:l10n_util::GetNSString(
+                                          IDS_IOS_AUTOFILL_CARD_NUMBER)];
 }
 
 // Creates the expiration date input item.
 - (TableViewTextEditItem*)expirationDateItem {
-  return [self
-      createEditItemWithType:ItemTypeCardExpireDate
-          fieldNameLabelText:l10n_util::GetNSString(IDS_IOS_AUTOFILL_EXP_DATE)
-              textFieldValue:_expirationDate
-                keyboardType:UIKeyboardTypeNumberPad
-        textFieldPlaceholder:
-            l10n_util::GetNSString(
-                IDS_IOS_AUTOFILL_SCAN_CARD_PLACEHOLDER_EXPIRY_DATE)];
+  return [self createEditItemWithType:ItemTypeCardExpireDate
+                   fieldNameLabelText:l10n_util::GetNSString(
+                                          IDS_IOS_AUTOFILL_SCAN_CARD_EXP_DATE)
+                       textFieldValue:_expirationDate
+                         keyboardType:UIKeyboardTypeNumberPad
+                 textFieldPlaceholder:
+                     l10n_util::GetNSString(
+                         IDS_IOS_AUTOFILL_SCAN_CARD_PLACEHOLDER_EXPIRY_DATE)];
 }
 
 // Creates the cardholder name input item.
@@ -259,19 +251,21 @@ void StyleButtonForConfirmation(UIButtonConfiguration* config) {
           fieldNameLabelText:l10n_util::GetNSString(IDS_IOS_AUTOFILL_CARDHOLDER)
               textFieldValue:_cardholderName
                 keyboardType:UIKeyboardTypeDefault
-        textFieldPlaceholder:nil];
+        textFieldPlaceholder:
+            l10n_util::GetNSString(
+                IDS_IOS_AUTOFILL_DIALOG_PLACEHOLDER_CARD_HOLDER_NAME)];
 }
 
 // Creates the CVC input item.
 - (TableViewTextEditItem*)cardCVCItem {
-  return [self createEditItemWithType:ItemTypeCardCVC
-                   fieldNameLabelText:l10n_util::GetNSString(
-                                          IDS_IOS_AUTOFILL_SCAN_CARD_CVC)
-                       textFieldValue:_cardCVC
-                         keyboardType:UIKeyboardTypeNumberPad
-                 textFieldPlaceholder:
-                     l10n_util::GetNSString(
-                         IDS_IOS_AUTOFILL_DIALOG_PLACEHOLDER_CVC_OPTIONAL)];
+  return [self
+      createEditItemWithType:ItemTypeCardCVC
+          fieldNameLabelText:l10n_util::GetNSString(
+                                 IDS_IOS_AUTOFILL_SECURITY_CODE)
+              textFieldValue:_cardCVC
+                keyboardType:UIKeyboardTypeNumberPad
+        textFieldPlaceholder:l10n_util::GetNSString(
+                                 IDS_IOS_AUTOFILL_DIALOG_PLACEHOLDER_OPTIONAL)];
 }
 
 // Creates the nickname input item.
@@ -282,7 +276,7 @@ void StyleButtonForConfirmation(UIButtonConfiguration* config) {
               textFieldValue:_nickname
                 keyboardType:UIKeyboardTypeDefault
         textFieldPlaceholder:l10n_util::GetNSString(
-                                 IDS_IOS_AUTOFILL_DIALOG_PLACEHOLDER_NICKNAME)];
+                                 IDS_IOS_AUTOFILL_DIALOG_PLACEHOLDER_OPTIONAL)];
 }
 
 #pragma mark - UI Setup
@@ -506,10 +500,11 @@ void StyleButtonForConfirmation(UIButtonConfiguration* config) {
   _legalMessages = [legalMessages copy];
   if (self.isViewLoaded) {
     NSDiffableDataSourceSnapshot* snapshot = [_diffableDataSource snapshot];
-    // Reload the Nickname section because its footer view contains both the
+    // Reload the CardDetails section because its footer view contains both the
     // legal messages and the save button. Since this is the last section, it
     // serves as the global form footer.
-    [snapshot reloadSectionsWithIdentifiers:@[ @(SectionIdentifierNickname) ]];
+    [snapshot
+        reloadSectionsWithIdentifiers:@[ @(kSectionIdentifierCardDetails) ]];
     [_diffableDataSource applySnapshot:snapshot animatingDifferences:NO];
   }
 }
@@ -520,7 +515,7 @@ void StyleButtonForConfirmation(UIButtonConfiguration* config) {
     viewForFooterInSection:(NSInteger)section {
   NSNumber* sectionIdentifier =
       [_diffableDataSource sectionIdentifierForIndex:section];
-  if (sectionIdentifier.integerValue == SectionIdentifierNickname) {
+  if (sectionIdentifier.integerValue == kSectionIdentifierCardDetails) {
     UIStackView* footerView = [[UIStackView alloc] initWithFrame:CGRectZero];
     footerView.axis = UILayoutConstraintAxisVertical;
     footerView.spacing = kFooterSpacing;
@@ -761,17 +756,14 @@ void StyleButtonForConfirmation(UIButtonConfiguration* config) {
   NSDiffableDataSourceSnapshot* snapshot =
       [[NSDiffableDataSourceSnapshot alloc] init];
 
-  [snapshot appendSectionsWithIdentifiers:@[
-    @(SectionIdentifierCardDetails), @(SectionIdentifierNickname)
-  ]];
+  [snapshot
+      appendSectionsWithIdentifiers:@[ @(kSectionIdentifierCardDetails) ]];
 
   [snapshot appendItemsWithIdentifiers:@[
-    _cardNumberItem, _expirationDateItem, _cardholderNameItem, _cardCVCItem
+    _cardNumberItem, _expirationDateItem, _cardholderNameItem, _cardCVCItem,
+    _nicknameItem
   ]
-             intoSectionWithIdentifier:@(SectionIdentifierCardDetails)];
-
-  [snapshot appendItemsWithIdentifiers:@[ _nicknameItem ]
-             intoSectionWithIdentifier:@(SectionIdentifierNickname)];
+             intoSectionWithIdentifier:@(kSectionIdentifierCardDetails)];
 
   [_diffableDataSource applySnapshot:snapshot animatingDifferences:NO];
 

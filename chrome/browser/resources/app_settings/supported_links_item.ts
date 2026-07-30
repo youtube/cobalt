@@ -10,8 +10,9 @@ import './icons.html.js';
 import './supported_links_dialog.js';
 import './supported_links_overlapping_apps_dialog.js';
 
+import {WindowMode} from 'chrome://resources/cr_components/app_management/app_management.mojom-webui.js';
 import type {App} from 'chrome://resources/cr_components/app_management/app_management.mojom-webui.js';
-import {BrowserProxy} from 'chrome://resources/cr_components/app_management/browser_proxy.js';
+import {browserProxyFactory} from 'chrome://resources/cr_components/app_management/app_management.mojom-webui.js';
 import type {AppMap} from 'chrome://resources/cr_components/app_management/constants.js';
 import {AppManagementUserAction} from 'chrome://resources/cr_components/app_management/constants.js';
 import {castExists, recordAppManagementUserAction} from 'chrome://resources/cr_components/app_management/util.js';
@@ -21,6 +22,7 @@ import type {CrRadioGroupElement} from 'chrome://resources/cr_elements/cr_radio_
 import {I18nMixinLit} from 'chrome://resources/cr_elements/i18n_mixin_lit.js';
 import {assert} from 'chrome://resources/js/assert.js';
 import {focusWithoutInk} from 'chrome://resources/js/focus_without_ink.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
@@ -127,8 +129,26 @@ export class SupportedLinksItemElement extends SupportedLinksItemElementBase {
   }
 
   protected getPreferredLabel_(): string {
+    if (this.isBrowserTabAppSupportingExistingClient_()) {
+      return this.i18n(
+          'appManagementIntentSharingOpenExistingTabLabel',
+          String(this.app.title));
+    }
     return this.i18n(
         'appManagementIntentSharingOpenAppLabel', String(this.app.title));
+  }
+
+  protected getBrowserLabel_(): string {
+    if (this.isBrowserTabAppSupportingExistingClient_()) {
+      return this.i18n('appManagementIntentSharingOpenNewTabLabel');
+    }
+    return this.i18n('appManagementIntentSharingOpenBrowserLabel');
+  }
+
+  protected isBrowserTabAppSupportingExistingClient_(): boolean {
+    return loadTimeData.getBoolean('updateAppStringsOnSettingsEnabled') &&
+        this.app.windowMode === WindowMode.kBrowser &&
+        !this.app.disableUserChoiceNavigationCapturing;
   }
 
   protected getDisabledExplanation_(): TrustedHTML {
@@ -146,8 +166,8 @@ export class SupportedLinksItemElement extends SupportedLinksItemElementBase {
     let overlappingAppIds: string[] = [];
     try {
       const {appIds: appIds} =
-          await BrowserProxy.getInstance().handler.getOverlappingPreferredApps(
-              this.app.id);
+          await browserProxyFactory.getInstance()
+              .handler.getOverlappingPreferredApps(this.app.id);
       overlappingAppIds = appIds;
     } catch (err) {
       // If we fail to get the overlapping preferred apps, do not
@@ -224,8 +244,8 @@ export class SupportedLinksItemElement extends SupportedLinksItemElementBase {
     let overlappingAppIds: string[] = [];
     try {
       const {appIds: appIds} =
-          await BrowserProxy.getInstance().handler.getOverlappingPreferredApps(
-              this.app.id);
+          await browserProxyFactory.getInstance()
+              .handler.getOverlappingPreferredApps(this.app.id);
       overlappingAppIds = appIds;
     } catch (err) {
       // If we fail to get the overlapping preferred apps, don't prevent the
@@ -273,7 +293,8 @@ export class SupportedLinksItemElement extends SupportedLinksItemElementBase {
   private setAppAsPreferredApp_(preference: PreferenceType): void {
     const newState = preference === PREFERRED_APP_PREF;
 
-    BrowserProxy.getInstance().handler.setPreferredApp(this.app.id, newState);
+    browserProxyFactory.getInstance().handler.setPreferredApp(
+        this.app.id, newState);
 
     const userAction = newState ?
         AppManagementUserAction.PREFERRED_APP_TURNED_ON :

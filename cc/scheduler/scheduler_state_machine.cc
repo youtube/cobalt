@@ -64,6 +64,12 @@ bool ShouldThrottleMainFrameRate(const SchedulerSettings& settings) {
 #endif  // BUILDFLAG(IS_ANDROID)
 }
 
+perfetto::NamedTrack GetTracingTrack(
+    const SchedulerStateMachine* state_machine) {
+  return perfetto::NamedTrack::FromPointer("cc::SchedulerStateMachine",
+                                           state_machine);
+}
+
 }  // namespace
 
 SchedulerStateMachine::SchedulerStateMachine(const SchedulerSettings& settings)
@@ -610,6 +616,13 @@ bool SchedulerStateMachine::ShouldSendBeginMainFrame() const {
 bool SchedulerStateMachine::ShouldThrottleSendBeginMainFrame() const {
   bool result = false;
   auto throttled_interval = MainFrameThrottledInterval();
+
+  if (base::FeatureList::IsEnabled(features::kThrottleRepeatedNoDamageFrames)) {
+    throttled_interval =
+        std::max(throttled_interval,
+                 main_frame_consecutive_no_damage_throttled_interval_);
+  }
+
   if (throttled_interval.is_positive() &&
       last_begin_impl_frame_time_ - last_sent_begin_main_frame_time_ <
           throttled_interval) {
@@ -886,6 +899,13 @@ bool SchedulerStateMachine::CheckWillCommit() const {
 }
 
 void SchedulerStateMachine::WillCommit(bool commit_has_no_updates) {
+  if (commit_has_no_updates) {
+    consecutive_no_damage_main_frames_++;
+  } else {
+    consecutive_no_damage_main_frames_ = 0;
+  }
+  UpdateConsecutiveNoDamageThrottlingInterval();
+
   bool can_have_pending_tree =
       commit_has_no_updates &&
       (settings_.main_frame_before_activation_enabled ||
@@ -1521,7 +1541,7 @@ void SchedulerStateMachine::SetNeedsPrepareTiles() {
 void SchedulerStateMachine::DidSubmitCompositorFrame() {
   if (!base::FeatureList::IsEnabled(features::kNoCompositorFrameAcks)) {
     TRACE_EVENT_BEGIN("cc", "Scheduler:pending_submit_frames",
-                      perfetto::Track::FromPointer(this), "pending_frames",
+                      GetTracingTrack(this), "pending_frames",
                       pending_submit_frames_);
 
     // If we are running with no frame rate limits, the GPU process can submit
@@ -1551,7 +1571,7 @@ void SchedulerStateMachine::DidReceiveCompositorFrameAck() {
     NOTREACHED();
   } else {
     TRACE_EVENT_END("cc", /*"Scheduler:pending_submit_frames"*/
-                    perfetto::Track::FromPointer(this), "pending_frames",
+                    GetTracingTrack(this), "pending_frames",
                     pending_submit_frames_);
     pending_submit_frames_--;
   }
@@ -1757,6 +1777,31 @@ void SchedulerStateMachine::SetShouldThrottleFrameRate(bool flag) {
   if (base::FeatureList::IsEnabled(features::kRenderThrottleFrameRate)) {
     throttle_frame_rate_ = flag;
   }
+}
+
+void SchedulerStateMachine::UpdateConsecutiveNoDamageThrottlingInterval() {
+  if (!base::FeatureList::IsEnabled(
+          features::kThrottleRepeatedNoDamageFrames)) {
+    return;
+  }
+
+  // TODO(thiabaud): Figure out better constants, these ones are just arbitrary.
+  // Maybe make this a Finch parameter?
+  const int count = consecutive_no_damage_main_frames_;
+  base::TimeDelta interval;
+  if (count >= 105) {
+    interval = base::Seconds(1);
+  } else if (count >= 100) {
+    interval = base::Milliseconds(500);
+  } else if (count >= 90) {
+    interval = base::Milliseconds(100);
+  } else if (count >= 60) {
+    interval = base::Milliseconds(32);
+  } else {
+    interval = base::TimeDelta();
+  }
+
+  main_frame_consecutive_no_damage_throttled_interval_ = interval;
 }
 
 void SchedulerStateMachine::SetRequestHighFramerate(bool flag) {

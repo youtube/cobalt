@@ -4,6 +4,8 @@
 
 #include "content/browser/webid/delegation/email_verification_request.h"
 
+#include <optional>
+
 #include "base/barrier_closure.h"
 #include "base/base64url.h"
 #include "base/json/json_reader.h"
@@ -79,11 +81,22 @@ EmailVerificationRequest::EmailVerificationRequest(
       idp_network_manager_(std::move(idp_network_manager)),
       render_frame_host_(render_frame_host.GetWeakPtr()) {}
 
-EmailVerificationRequest::~EmailVerificationRequest() = default;
+EmailVerificationRequest::~EmailVerificationRequest() {
+  observers_.Notify(&Observer::OnRequestDestroyed, this);
+}
+
+void EmailVerificationRequest::AddObserver(Observer* observer) {
+  observers_.AddObserver(observer);
+}
+
+void EmailVerificationRequest::RemoveObserver(Observer* observer) {
+  observers_.RemoveObserver(observer);
+}
 
 sdjwt::Jwt EmailVerificationRequest::CreateRequestToken(
     const std::string& email,
-    const sdjwt::Jwk& public_key) {
+    const sdjwt::Jwk& public_key,
+    const url::Origin& issuer) {
   sdjwt::Header header;
   header.alg = public_key.alg;
   header.typ = "JWT";
@@ -98,11 +111,7 @@ sdjwt::Jwt EmailVerificationRequest::CreateRequestToken(
 
   sdjwt::Payload payload;
   payload.email = email;
-  // TODO(crbug.com/380367784): check if `render_frame_host_` isn't an
-  // opaque origin, or any other validation that might be
-  // necessary.
-  CHECK(render_frame_host_);
-  payload.aud = render_frame_host_->GetLastCommittedOrigin().Serialize();
+  payload.aud = issuer.Serialize();
   payload.exp = expiration;
   payload.iat = now;
 
@@ -121,6 +130,7 @@ sdjwt::Jwt EmailVerificationRequest::CreateRequestToken(
 void EmailVerificationRequest::CheckIfVerifiable(
     const std::string& email,
     EmailVerifier::IsVerifiableCallback callback) {
+  observers_.Notify(&Observer::OnIsVerifiableStart, this);
   if (!render_frame_host_) {
     std::move(callback).Run(std::nullopt);
     return;
@@ -281,11 +291,8 @@ void EmailVerificationRequest::OnWebIdentityWellKnownFetched(
     return;
   }
 
-  // EVP doesn't use client_ids, so it can safely use an empty string one.
-  // TODO(crbug.com/380367784): Allow callers of SendAccountsRequest to not pass
-  // an unnecessary client_id.
   idp_network_manager_->SendAccountsRequest(
-      url::Origin::Create(well_known.accounts), well_known.accounts, "",
+      url::Origin::Create(well_known.accounts), well_known.accounts,
       base::BindOnce(&EmailVerificationRequest::OnAccountsResponseReceived,
                      weak_ptr_factory_.GetWeakPtr(), email, barrier, accounts));
 }
@@ -369,6 +376,7 @@ void EmailVerificationRequest::Verify(
     const EmailVerifier::Result& result,
     const std::string& nonce,
     EmailVerifier::OnEmailVerifiedCallback callback) {
+  observers_.Notify(&Observer::OnVerifyStart, this);
   if (!render_frame_host_) {
     std::move(callback).Run(std::nullopt);
     return;
@@ -406,7 +414,8 @@ void EmailVerificationRequest::Verify(
   std::optional<sdjwt::Jwk> public_key = sdjwt::ExportPublicKey(*private_key);
   CHECK(public_key);
 
-  sdjwt::Jwt jwt = CreateRequestToken(result.email, *public_key);
+  sdjwt::Jwt jwt = CreateRequestToken(
+      result.email, *public_key, url::Origin::Create(result.issuance_endpoint));
 
   auto signer = sdjwt::CreateJwtSigner(*private_key);
   CHECK(jwt.Sign(std::move(signer)));
@@ -450,13 +459,10 @@ void EmailVerificationRequest::Verify(
       base::BindOnce(
           [](scoped_refptr<JwksResultOrError> jwks,
              base::RepeatingClosure closure, FetchStatus status,
-             data_decoder::DataDecoder::ValueOrError result) {
+             std::optional<base::DictValue> result) {
             if (status.parse_status != ParseStatus::kSuccess) {
               jwks->data = base::unexpected(
                   EmailVerificationRequestResult::kJwksHttpNotFound);
-            } else if (!result.has_value() || !result->is_dict()) {
-              jwks->data = base::unexpected(
-                  EmailVerificationRequestResult::kJwksInvalidResponse);
             } else {
               jwks->data = std::move(*result);
             }
@@ -498,9 +504,6 @@ void EmailVerificationRequest::OnTokenAndKeysFetchComplete(
 
   // Step 5.1: The browser parses and verifies if the SD-JWT
   // is valid.
-  // TODO: check if all of the necessary fields of the SD-JWT
-  // are present and valid.
-
   if (!parsed_token) {
     CompleteVerifyRequest(std::move(callback), std::nullopt,
                           EmailVerificationRequestResult::kTokenMalformedSdJwt);
@@ -565,32 +568,21 @@ void EmailVerificationRequest::OnTokenAndKeysFetchComplete(
 
   std::string result = sd_jwt_kb.Serialize();
 
-  EvtVerifier::Verify(
-      result, issuer, std::move(jwks->data.value().GetDict()),
-      render_frame_host_->GetLastCommittedOrigin(), email, nonce,
-      *holder_pub_key,
-      base::BindOnce(
-          [](base::WeakPtr<EmailVerificationRequest> request, std::string token,
-             const url::Origin& issuer,
-             EmailVerifier::OnEmailVerifiedCallback callback,
-             EvtVerifier::Result result) {
-            if (!request) {
-              std::move(callback).Run(std::nullopt);
-              return;
-            }
-            if (result == EvtVerifier::Result::kVerified) {
-              // Step 5.3: the browser notifies the page that
-              // the SD-JWT+KB is ready.
-              request->CompleteVerifyRequest(
-                  std::move(callback), token,
-                  blink::mojom::EmailVerificationRequestResult::kSuccess);
-            } else {
-              request->CompleteVerifyRequest(
-                  std::move(callback), std::nullopt,
-                  VerificationResultToEvpRequestStatus(result));
-            }
-          },
-          weak_ptr_factory_.GetWeakPtr(), result, issuer, std::move(callback)));
+  EvtVerifier::Result verification_result =
+      EvtVerifier::Verify(result, issuer, jwks->data.value(),
+                          render_frame_host_->GetLastCommittedOrigin(), email,
+                          nonce, *holder_pub_key);
+
+  if (verification_result == EvtVerifier::Result::kVerified) {
+    // Step 5.3: the browser notifies the page that
+    // the SD-JWT+KB is ready.
+    CompleteVerifyRequest(std::move(callback), result,
+                          EmailVerificationRequestResult::kSuccess);
+  } else {
+    CompleteVerifyRequest(
+        std::move(callback), std::nullopt,
+        VerificationResultToEvpRequestStatus(verification_result));
+  }
 }
 
 void EmailVerificationRequest::CompleteIsVerifiableRequest(
@@ -598,8 +590,9 @@ void EmailVerificationRequest::CompleteIsVerifiableRequest(
     std::optional<EmailVerifier::Result> response,
     blink::mojom::EmailVerificationRequestResult status) {
   base::UmaHistogramEnumeration("Blink.Evp.Status.IsVerifiable", status);
+  observers_.Notify(&Observer::OnIsVerifiableComplete, this, status);
   if (status != EmailVerificationRequestResult::kSuccess) {
-    AddDevToolsIssue(status);
+    MaybeAddDevToolsIssue(status);
   }
   std::move(callback).Run(std::move(response));
 }
@@ -609,18 +602,94 @@ void EmailVerificationRequest::CompleteVerifyRequest(
     std::optional<std::string> response,
     blink::mojom::EmailVerificationRequestResult status) {
   base::UmaHistogramEnumeration("Blink.Evp.Status.Verify", status);
+  observers_.Notify(&Observer::OnVerifyComplete, this, status);
   if (status != EmailVerificationRequestResult::kSuccess) {
-    AddDevToolsIssue(status);
+    MaybeAddDevToolsIssue(status);
   }
   std::move(callback).Run(std::move(response));
 }
 
-void EmailVerificationRequest::AddDevToolsIssue(
+void EmailVerificationRequest::MaybeAddDevToolsIssue(
     EmailVerificationRequestResult status) {
   DCHECK_NE(status, EmailVerificationRequestResult::kSuccess);
 
   if (!render_frame_host_) {
     return;
+  }
+
+  switch (status) {
+    case EmailVerificationRequestResult::kSuccess:
+      NOTREACHED();
+
+    // Do not report DNS fetch failures to DevTools. This prevents spamming the
+    // DevTools console with issues when the user autofills an email from a
+    // non-EVP-compatible provider (which is currently the common case and
+    // fails the DNS check).
+    case EmailVerificationRequestResult::kDnsFetchFailed:
+      return;
+
+    case EmailVerificationRequestResult::kRpOriginIsOpaque:
+    case EmailVerificationRequestResult::kInvalidEmail:
+    case EmailVerificationRequestResult::kDnsInvalidRecord:
+    case EmailVerificationRequestResult::kWellKnownHttpNotFound:
+    case EmailVerificationRequestResult::kWellKnownNoResponse:
+    case EmailVerificationRequestResult::kWellKnownInvalidResponse:
+    case EmailVerificationRequestResult::kWellKnownListEmpty:
+    case EmailVerificationRequestResult::kWellKnownInvalidContentType:
+    case EmailVerificationRequestResult::kWellKnownMissingIssuanceEndpoint:
+    case EmailVerificationRequestResult::kWellKnownIssuanceEndpointCrossOrigin:
+    case EmailVerificationRequestResult::kWellKnownUnsupportedSigningAlgorithm:
+    case EmailVerificationRequestResult::kTokenHttpNotFound:
+    case EmailVerificationRequestResult::kTokenNoResponse:
+    case EmailVerificationRequestResult::kTokenInvalidResponse:
+    case EmailVerificationRequestResult::kTokenInvalidContentType:
+    case EmailVerificationRequestResult::kTokenMalformedSdJwt:
+    case EmailVerificationRequestResult::kTokenInvalidSdJwt:
+    case EmailVerificationRequestResult::kKeyBindingSigningFailed:
+    case EmailVerificationRequestResult::kWellKnownMissingAccountsEndpoint:
+    case EmailVerificationRequestResult::kUserLoggedOut:
+    case EmailVerificationRequestResult::kWellKnownAccountsEndpointCrossOrigin:
+    case EmailVerificationRequestResult::kAccountsHttpNotFound:
+    case EmailVerificationRequestResult::kAccountsNoResponse:
+    case EmailVerificationRequestResult::kAccountsInvalidResponse:
+    case EmailVerificationRequestResult::kAccountsInvalidContentType:
+    case EmailVerificationRequestResult::kAccountsEmptyList:
+    case EmailVerificationRequestResult::
+        kEmailVerificationWellKnownHttpNotFound:
+    case EmailVerificationRequestResult::kEmailVerificationWellKnownNoResponse:
+    case EmailVerificationRequestResult::
+        kEmailVerificationWellKnownInvalidResponse:
+    case EmailVerificationRequestResult::
+        kEmailVerificationWellKnownInvalidContentType:
+    case EmailVerificationRequestResult::kJwksHttpNotFound:
+    case EmailVerificationRequestResult::kJwksInvalidResponse:
+    case EmailVerificationRequestResult::
+        kTokenVerificationSdJwtUnsupportedHeaderAlg:
+    case EmailVerificationRequestResult::kTokenVerificationSdJwtMissingIss:
+    case EmailVerificationRequestResult::kTokenVerificationSdJwtMissingIat:
+    case EmailVerificationRequestResult::kTokenVerificationSdJwtMissingCnf:
+    case EmailVerificationRequestResult::kTokenVerificationSdJwtMissingEmail:
+    case EmailVerificationRequestResult::kTokenVerificationSdJwtInvalidIssuedAt:
+    case EmailVerificationRequestResult::kTokenVerificationSdJwtInvalidIssuer:
+    case EmailVerificationRequestResult::kTokenVerificationSdJwtJwksMissingKeys:
+    case EmailVerificationRequestResult::kTokenVerificationSdJwtSignatureFailed:
+    case EmailVerificationRequestResult::
+        kTokenVerificationSdJwtInvalidEmailVerified:
+    case EmailVerificationRequestResult::kTokenVerificationSdJwtInvalidEmail:
+    case EmailVerificationRequestResult::
+        kTokenVerificationSdJwtInvalidHolderKey:
+    case EmailVerificationRequestResult::kTokenVerificationKbInvalidTyp:
+    case EmailVerificationRequestResult::kTokenVerificationKbMissingAud:
+    case EmailVerificationRequestResult::kTokenVerificationKbMissingNonce:
+    case EmailVerificationRequestResult::kTokenVerificationKbMissingIat:
+    case EmailVerificationRequestResult::kTokenVerificationKbMissingSdHash:
+    case EmailVerificationRequestResult::kTokenVerificationKbInvalidIssuedAt:
+    case EmailVerificationRequestResult::kTokenVerificationKbInvalidAudience:
+    case EmailVerificationRequestResult::kTokenVerificationKbInvalidNonce:
+    case EmailVerificationRequestResult::kTokenVerificationKbInvalidSdHash:
+    case EmailVerificationRequestResult::kTokenVerificationKbMissingCnf:
+    case EmailVerificationRequestResult::kTokenVerificationKbSignatureFailed:
+      break;
   }
 
   auto details = blink::mojom::InspectorIssueDetails::New();

@@ -129,9 +129,6 @@ class NigoriSyncBridgeImpl : public KeystoreKeysHandler,
   // cryptographer and stores local data.
   void SetExplicitPassphraseDecryptionKeyBag(const NigoriKeyBag& key_bag);
 
-  // Queues keystore rotation or full keystore migration if current state
-  // assumes it should happen.
-  void MaybeTriggerKeystoreReencryption();
 
   // Serializes state of the bridge and sync metadata into the proto.
   sync_pb::NigoriLocalData SerializeAsNigoriLocalData() const;
@@ -146,11 +143,6 @@ class NigoriSyncBridgeImpl : public KeystoreKeysHandler,
   // found (if any). If such applicable commit is found, the corresponding Put()
   // call is issued.
   void PutNextApplicablePendingLocalCommit();
-
-  // Populates keystore keys into `cryptographer` in case it doesn't contain
-  // them already and `passphrase_type` isn't KEYSTORE_PASSPHRASE. This
-  // function only updates local state and doesn't trigger a commit.
-  void MaybePopulateKeystoreKeysIntoCryptographer();
 
   std::unique_ptr<EntityData> GetDataImpl(bool is_for_commit);
 

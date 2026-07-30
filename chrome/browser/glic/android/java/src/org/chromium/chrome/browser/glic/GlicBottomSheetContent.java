@@ -42,6 +42,7 @@ public class GlicBottomSheetContent extends TabBottomSheetContent {
      * @param peekViewHeight The height of the peek view in pixels.
      * @param peekViewContainerId The resource ID for the peek view container.
      * @param emptyPlaceholderContainerId The resource ID for the empty placeholder container.
+     * @param onBackPressed Callback run when the back button/swipe is triggered.
      * @param profile The active user profile for actor task verification.
      */
     public GlicBottomSheetContent(
@@ -51,6 +52,7 @@ public class GlicBottomSheetContent extends TabBottomSheetContent {
             @Px int peekViewHeight,
             @IdRes int peekViewContainerId,
             @IdRes int emptyPlaceholderContainerId,
+            Runnable onBackPressed,
             Profile profile) {
         super(
                 contentView,
@@ -58,23 +60,24 @@ public class GlicBottomSheetContent extends TabBottomSheetContent {
                 backgroundColor,
                 peekViewHeight,
                 peekViewContainerId,
-                emptyPlaceholderContainerId);
+                emptyPlaceholderContainerId,
+                onBackPressed);
         mProfile = profile;
     }
 
     @Override
     public @StringRes int getSheetHalfHeightAccessibilityStringId() {
-        return R.string.tab_bottom_sheet_half_height;
+        return R.string.glic_bottom_sheet_half_height_a11y_label;
     }
 
     @Override
     public @StringRes int getSheetFullHeightAccessibilityStringId() {
-        return R.string.tab_bottom_sheet_full_height;
+        return R.string.glic_bottom_sheet_full_height_a11y_label;
     }
 
     @Override
     public @StringRes int getSheetClosedAccessibilityStringId() {
-        return R.string.tab_bottom_sheet_closed;
+        return R.string.glic_bottom_sheet_closed_a11y_label;
     }
 
     @Override

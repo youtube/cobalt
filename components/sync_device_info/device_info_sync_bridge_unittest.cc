@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <map>
+#include <optional>
 #include <set>
 #include <utility>
 
@@ -16,6 +17,7 @@
 #include "base/notimplemented.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
+#include "base/system/sys_info.h"
 #include "base/test/bind.h"
 #include "base/test/mock_callback.h"
 #include "base/test/protobuf_matchers.h"
@@ -167,7 +169,24 @@ MATCHER_P(ModelEqualsSpecifics, expected_specifics, "") {
          expected_specifics.feature_fields()
                  .glic_experimental_triggering_state() ==
              ToGlicExperimentalTriggeringStateProto(
-                 arg.glic_experimental_triggering_state());
+                 arg.glic_experimental_triggering_state()) &&
+         expected_specifics.feature_fields()
+                 .has_glic_experimental_triggering_version() ==
+             arg.glic_experimental_triggering_version().has_value() &&
+         (!arg.glic_experimental_triggering_version().has_value() ||
+          expected_specifics.feature_fields()
+                  .glic_experimental_triggering_version() ==
+              *arg.glic_experimental_triggering_version()) &&
+         expected_specifics.has_android_os_build_fingerprint_prefix() ==
+             arg.android_os_build_fingerprint_prefix().has_value() &&
+         (!arg.android_os_build_fingerprint_prefix().has_value() ||
+          expected_specifics.android_os_build_fingerprint_prefix() ==
+              *arg.android_os_build_fingerprint_prefix()) &&
+         expected_specifics.has_server_determined_model_name() ==
+             arg.server_determined_model_name().has_value() &&
+         (!arg.server_determined_model_name().has_value() ||
+          expected_specifics.server_determined_model_name() ==
+              *arg.server_determined_model_name());
 }
 
 Matcher<std::unique_ptr<EntityData>> HasSpecifics(
@@ -405,17 +424,21 @@ class TestLocalDeviceInfoProvider : public MutableLocalDeviceInfoProvider {
   ~TestLocalDeviceInfoProvider() override = default;
 
   // MutableLocalDeviceInfoProvider implementation.
-  void Initialize(const std::string& cache_guid,
-                  const std::string& session_name,
-                  const std::string& manufacturer_name,
-                  const std::string& model_name,
-                  const std::string& full_hardware_class,
-                  const DeviceInfo* device_info_restored_from_store) override {
+  void Initialize(
+      const std::string& cache_guid,
+      const std::string& session_name,
+      const std::string& manufacturer_name,
+      const std::string& model_name,
+      const std::string& full_hardware_class,
+      std::optional<std::string> android_os_build_fingerprint_prefix,
+      const DeviceInfo* device_info_restored_from_store) override {
     std::string last_fcm_registration_token;
     DataTypeSet last_interested_data_types;
     DeviceInfo::GlicExperimentalTriggeringState
         glic_experimental_triggering_state =
             DeviceInfo::GlicExperimentalTriggeringState::kUnavailable;
+    std::optional<int> glic_experimental_triggering_version = std::nullopt;
+    std::optional<std::string> server_determined_model_name;
     if (device_info_restored_from_store) {
       last_fcm_registration_token =
           device_info_restored_from_store->fcm_registration_token();
@@ -423,6 +446,11 @@ class TestLocalDeviceInfoProvider : public MutableLocalDeviceInfoProvider {
           device_info_restored_from_store->interested_data_types();
       glic_experimental_triggering_state =
           device_info_restored_from_store->glic_experimental_triggering_state();
+      glic_experimental_triggering_version =
+          device_info_restored_from_store
+              ->glic_experimental_triggering_version();
+      server_determined_model_name =
+          device_info_restored_from_store->server_determined_model_name();
     }
 
     std::set<DeviceInfo::SharingFeature> sharing_enabled_features{
@@ -432,8 +460,8 @@ class TestLocalDeviceInfoProvider : public MutableLocalDeviceInfoProvider {
         cache_guid, session_name, ChromeVersionForSuffix(kLocalSuffix),
         SyncUserAgentForSuffix(kLocalSuffix), kLocalDeviceType, kLocalDeviceOS,
         kLocalDeviceFormFactor, SigninScopedDeviceIdForSuffix(kLocalSuffix),
-        manufacturer_name, model_name, full_hardware_class, base::Time(),
-        DeviceInfoUtil::GetPulseInterval(),
+        manufacturer_name, model_name, server_determined_model_name,
+        full_hardware_class, base::Time(), DeviceInfoUtil::GetPulseInterval(),
         /*send_tab_to_self_receiving_enabled=*/
         true,
         /*send_tab_to_self_receiving_type=*/
@@ -451,7 +479,10 @@ class TestLocalDeviceInfoProvider : public MutableLocalDeviceInfoProvider {
         /*desktop_to_ios_promo_receiving_types=*/
         MobilePromoOnDesktopPromoTypeSet{},
         /*glic_experimental_triggering_state=*/
-        glic_experimental_triggering_state);
+        glic_experimental_triggering_state,
+        /*glic_experimental_triggering_version=*/
+        glic_experimental_triggering_version,
+        android_os_build_fingerprint_prefix);
   }
 
   void Clear() override { local_device_info_.reset(); }
@@ -720,10 +751,6 @@ class DeviceInfoSyncBridgeTest : public testing::Test,
 
   const std::string& local_personalizable_name() const {
     return local_device_name_info_.personalizable_name;
-  }
-
-  const std::string& local_device_model_name() const {
-    return local_device_name_info_.model_name;
   }
 
  private:
@@ -1846,6 +1873,55 @@ TEST_F(DeviceInfoSyncBridgeTest, PulseWithWallClockTimerTransportOnly) {
   EXPECT_CALL(*processor(), Put(_, HasSpecifics(HasLastUpdatedAboutNow()), _));
   ForcePulse();
   EXPECT_EQ(2, change_count());
+}
+
+TEST_F(DeviceInfoSyncBridgeTest, ShouldDeriveAndroidBuildFingerprintPrefix) {
+  InitializeAndMergeInitialData(SyncMode::kFull);
+
+  const DeviceInfo* local_device_info =
+      bridge()->GetLocalDeviceInfoProvider()->GetLocalDeviceInfo();
+  ASSERT_TRUE(local_device_info);
+#if BUILDFLAG(IS_ANDROID)
+  std::string real_fingerprint = base::SysInfo::GetAndroidBuildFingerprint();
+  std::string expected_prefix =
+      DeriveAndroidBuildFingerprintPrefixForTesting(real_fingerprint);
+  EXPECT_EQ(local_device_info->android_os_build_fingerprint_prefix(),
+            expected_prefix);
+#else
+  EXPECT_EQ(local_device_info->android_os_build_fingerprint_prefix(),
+            std::nullopt);
+#endif
+}
+
+TEST(DeriveAndroidBuildFingerprintPrefixTest,
+     DeriveAndroidBuildFingerprintPrefix) {
+  EXPECT_EQ(DeriveAndroidBuildFingerprintPrefixForTesting(
+                "google/redfin/redfin:11/RQ3A.210805.001.A1/7478541:user/"
+                "release-keys"),
+            "google/redfin/redfin");
+  EXPECT_EQ(
+      DeriveAndroidBuildFingerprintPrefixForTesting("google/redfin/redfin"),
+      "google/redfin/redfin");
+  EXPECT_EQ(DeriveAndroidBuildFingerprintPrefixForTesting(""), "");
+}
+
+TEST_F(DeviceInfoSyncBridgeTest,
+       ApplyIncrementalSyncChangesWithServerDeterminedModelName) {
+  InitializeAndMergeInitialData(SyncMode::kFull);
+
+  const std::string kServerDeterminedModelName = "Server Determined Model Name";
+  DeviceInfoSpecifics specifics = CreateSpecifics(1);
+  specifics.set_server_determined_model_name(kServerDeterminedModelName);
+
+  auto error_on_add = bridge()->ApplyIncrementalSyncChanges(
+      bridge()->CreateMetadataChangeList(), EntityAddList({specifics}));
+
+  EXPECT_FALSE(error_on_add);
+  const DeviceInfo* info = bridge()->GetDeviceInfo(specifics.cache_guid());
+  ASSERT_TRUE(info);
+  EXPECT_THAT(*info, ModelEqualsSpecifics(specifics));
+  EXPECT_EQ(kServerDeterminedModelName,
+            info->server_determined_model_name().value_or(""));
 }
 
 }  // namespace

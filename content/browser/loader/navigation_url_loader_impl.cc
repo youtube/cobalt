@@ -2140,11 +2140,6 @@ NavigationURLLoaderImpl::NavigationURLLoaderImpl(
               perfetto::Flow::FromPointer(this));
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
-  TRACE_EVENT_BEGIN("navigation", "Navigation timeToResponseStarted",
-                    perfetto::Track::FromPointer(this),
-                    request_info_->common_params->navigation_start,
-                    "FrameTreeNode id", frame_tree_node_id_);
-
   mojo::PendingRemote<network::mojom::AcceptCHFrameObserver>
       accept_ch_frame_observer;
   // Use |kNavigationNetworkResponse| thread runner. Messages received related
@@ -2295,11 +2290,16 @@ NavigationURLLoaderImpl::CreateNetworkLoaderFactory(
   }
 
   if (header_client) {
+    // A standard frame navigation request does not need network
+    // restrictions id to be passed, so we pass std::nullopt.
+    // Navigations are subjected to Connection Allowlists via the
+    // `NavigationRequest::IsAllowedByConnectionAllowlist` check instead.
     return base::MakeRefCounted<network::WrapperSharedURLLoaderFactory>(
         CreateURLLoaderFactoryWithHeaderClient(
             std::move(header_client), std::move(factory_builder),
             storage_partition, std::move(devtools_cookie_overrides),
-            std::move(cookie_overrides)));
+            std::move(cookie_overrides),
+            /*network_restrictions_id=*/std::nullopt));
   } else {
     if (!devtools_cookie_overrides.empty() || !cookie_overrides.empty()) {
       network::mojom::URLLoaderFactoryParamsPtr params =
@@ -2426,11 +2426,7 @@ void NavigationURLLoaderImpl::NotifyResponseStarted(
     bool is_download,
     network::mojom::URLResponseHeadPtr response_head) {
   TRACE_EVENT("navigation", "NavigationURLLoaderImpl::NotifyResponseStarted",
-              perfetto::Flow::FromPointer(this));
-  // End "Navigation timeToResponseStarted" trace event.
-  TRACE_EVENT_END("navigation", perfetto::Track::FromPointer(this),
-                  "&NavigationURLLoaderImpl", static_cast<void*>(this),
-                  "success", true);
+              perfetto::TerminatingFlow::FromPointer(this));
 
   NavigationURLLoaderDelegate::EarlyHints early_hints;
   if (early_hints_manager_) {
@@ -2473,10 +2469,8 @@ void NavigationURLLoaderImpl::NotifyRequestRedirected(
 
 void NavigationURLLoaderImpl::NotifyRequestFailed(
     const network::URLLoaderCompletionStatus& status) {
-  // End "Navigation timeToResponseStarted" trace event.
-  TRACE_EVENT_END("navigation", perfetto::Track::FromPointer(this),
-                  "&NavigationURLLoaderImpl", static_cast<void*>(this),
-                  "success", false);
+  TRACE_EVENT("navigation", "NavigationURLLoaderImpl::NotifyRequestFailed",
+              perfetto::TerminatingFlow::FromPointer(this));
   delegate_->OnRequestFailed(status);
 }
 
@@ -2488,7 +2482,8 @@ NavigationURLLoaderImpl::CreateURLLoaderFactoryWithHeaderClient(
     network::URLLoaderFactoryBuilder factory_builder,
     StoragePartitionImpl* partition,
     std::optional<net::CookieSettingOverrides> devtools_cookie_overrides,
-    std::optional<net::CookieSettingOverrides> cookie_overrides) {
+    std::optional<net::CookieSettingOverrides> cookie_overrides,
+    const std::optional<base::UnguessableToken>& network_restrictions_id) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   if (url_loader_factory::GetTestingInterceptor()) {
@@ -2502,6 +2497,7 @@ NavigationURLLoaderImpl::CreateURLLoaderFactoryWithHeaderClient(
   params->process_id = network::OriginatingProcessId::browser();
   params->is_trusted = true;
   params->is_orb_enabled = false;
+  params->network_restrictions_id = network_restrictions_id;
   params->disable_web_security =
       base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kDisableWebSecurity);

@@ -5,6 +5,8 @@
 #ifndef COMPONENTS_PAGE_CONTENT_ANNOTATIONS_CONTENT_PAGE_CONTENT_EXTRACTION_SERVICE_H_
 #define COMPONENTS_PAGE_CONTENT_ANNOTATIONS_CONTENT_PAGE_CONTENT_EXTRACTION_SERVICE_H_
 
+#include <stdint.h>
+
 #include <memory>
 #include <optional>
 #include <set>
@@ -89,7 +91,6 @@ enum class PageContentExtractionEnablementReason {
 
 class AnnotatedPageContentRequest;
 struct ExtractedPageContentResult;
-class PageContentCache;
 class PageContentCacheHandler;
 
 class PageContentExtractionService : public KeyedService,
@@ -99,6 +100,9 @@ class PageContentExtractionService : public KeyedService,
       base::OnceCallback<void(std::optional<ExtractedPageContentResult>)>;
   using GetServerUploadEligibilityCallback =
       base::OnceCallback<void(std::optional<bool>)>;
+  using GetPageContentCallback = base::OnceCallback<void(
+      std::optional<optimization_guide::proto::PageContext>)>;
+  using GetAllTabIdsCallback = base::OnceCallback<void(std::vector<int64_t>)>;
 
   class Observer : public base::CheckedObserver {
    public:
@@ -158,13 +162,16 @@ class PageContentExtractionService : public KeyedService,
   // Asynchronous versions of the getter methods above.
   // These methods will resolve immediately if the extraction is already
   // complete, or wait for the initial extraction to finish if there is one
-  // pending, or is not scheduled to occur. If the extraction request is
-  // cleared or reset (e.g. from a navigation or destruction), the callbacks
-  // will resolve with std::nullopt.
+  // pending. If the extraction request is cleared or reset (e.g. from a
+  // navigation or destruction), the callbacks will resolve with std::nullopt.
+  // If the initial extraction has not been triggered, it will be iff
+  // `trigger_if_not_cached` is true. (This is not available for
+  // GetServerUploadEligibilityForPageAsync.)
   // Virtual for testing.
   virtual void GetExtractedPageContentAndEligibilityForPageAsync(
       content::Page& page,
-      GetExtractedPageContentAndEligibilityCallback callback);
+      GetExtractedPageContentAndEligibilityCallback callback,
+      bool trigger_if_not_cached = true);
   virtual void GetServerUploadEligibilityForPageAsync(
       content::Page& page,
       GetServerUploadEligibilityCallback callback);
@@ -200,12 +207,17 @@ class PageContentExtractionService : public KeyedService,
   // entries in the page content cache.
   void RunCleanUpTasksWithActiveTabs(const std::set<int64_t>& all_tab_ids);
 
-  // Disk cache for getting page contents for tabs without webcontents.
-  PageContentCache* GetPageContentCache();
+  bool IsOnDiskCacheEnabled() const;
+
+  // Asynchronously retrieves the on-disk cached page context for a specific
+  // tab. This should be used when a tab is not active and has no WebContents.
+  void GetPageContentFromOnDiskCache(int64_t tab_id,
+                                     GetPageContentCallback callback);
+
+  // Asynchronously retrieves all tab IDs that have cached page content on-disk.
+  void GetOnDiskCachedTabIds(GetAllTabIdsCallback callback);
 
  protected:
-  friend class AnnotatedPageContentRequest;
-
   // Invoked when `page_content` is extracted for `page`, to notify the
   // observers. The `page_content` holds either the APC for a non-PDF page; or
   // the PDF text for a PDF page. `tab_id` for the tab where page is loaded, if
@@ -215,6 +227,10 @@ class PageContentExtractionService : public KeyedService,
       PageContent page_content,
       const std::vector<uint8_t>& screenshot_data,
       std::optional<int> tab_id);
+
+ private:
+  friend class AnnotatedPageContentRequest;
+  friend class PageContentCacheBrowserTest;
 
   AnnotatedPageContentRequest* GetAnnotatedPageContentRequestFromWebContents(
       content::WebContents* web_contents);
@@ -226,7 +242,6 @@ class PageContentExtractionService : public KeyedService,
   const bool is_page_content_cache_enabled_;
   const std::unique_ptr<PageContentCacheHandler> page_content_cache_handler_;
 
- private:
   base::WeakPtrFactory<PageContentExtractionService> weak_ptr_factory_{this};
 };
 

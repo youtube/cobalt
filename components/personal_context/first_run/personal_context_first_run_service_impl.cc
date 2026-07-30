@@ -49,7 +49,7 @@ void PersonalContextFirstRunServiceImpl::MaybeTriggerFirstRun(
       weak_ptr_factory_.GetWeakPtr(), std::move(callback));
 
   switch (state) {
-    case PersonalContextEnablementState::kDisabledShouldShowNotice:
+    case PersonalContextEnablementState::kEnabledShouldShowNotice:
       client_->ShowNotice(web_contents, invocation_source,
                           std::move(wrapped_callback));
       break;
@@ -59,24 +59,8 @@ void PersonalContextFirstRunServiceImpl::MaybeTriggerFirstRun(
 }
 
 void PersonalContextFirstRunServiceImpl::
-    MarkPersonalContextInAutofillNoticeAsShown() {
-  if (pref_service_) {
-    // The notice being shown should enable the feature.
-    pref_service_->SetBoolean(
-        prefs::kPersonalContextInAutofillNoticeHasBeenShown, true);
-    pref_service_->SetBoolean(
-        prefs::kPersonalContextInAutofillSettingsToggleStatus, true);
-  }
-}
-
-void PersonalContextFirstRunServiceImpl::
     MarkPersonalContextInAutofillNoticeAsAcknowledged() {
   if (pref_service_) {
-    pref_service_->SetBoolean(
-        prefs::kPersonalContextInAutofillSettingsToggleStatus, true);
-    // It's guaranteed the notice was shown when the user acknowledges it, hence
-    // no need to manually set the kPersonalContextInAutofillNoticeHasBeenShown
-    // pref.
     pref_service_->SetBoolean(
         prefs::kPersonalContextInAutofillNoticeShouldBeShown, false);
   }
@@ -91,10 +75,8 @@ bool PersonalContextFirstRunServiceImpl::
     return false;
   }
 
-  PersonalContextEnablementState state =
-      enablement_service_->GetEnablementState();
-  return state == PersonalContextEnablementState::kDisabledShouldShowNotice ||
-         state == PersonalContextEnablementState::kEnabledShouldShowNotice;
+  return enablement_service_->GetEnablementState() ==
+         PersonalContextEnablementState::kEnabledShouldShowNotice;
 }
 
 void PersonalContextFirstRunServiceImpl::OnNoticeDialogCompleted(

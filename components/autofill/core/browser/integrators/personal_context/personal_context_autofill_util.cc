@@ -4,8 +4,9 @@
 
 #include "components/autofill/core/browser/integrators/personal_context/personal_context_autofill_util.h"
 
+#include "base/feature_list.h"
+#include "components/autofill/core/common/autofill_features.h"
 #include "components/personal_context/core/personal_context_enablement_service.h"
-#include "components/personal_context/core/personal_context_prefs.h"
 #include "components/personal_context/core/personal_context_types.h"
 #include "components/prefs/pref_service.h"
 
@@ -22,7 +23,6 @@ bool ShouldShowPersonalContextAutofillSetting(
     case kDisabledNotEligible:
     case kDisabledNeedsOptIn:
       return false;
-    case kDisabledShouldShowNotice:
     case kEnabledShouldShowNotice:
     case kDisabledViaPersonalIntelligenceInAutofillToggle:
     case kEnabled:
@@ -30,15 +30,9 @@ bool ShouldShowPersonalContextAutofillSetting(
   }
 }
 
-void PersonalContextInAutofillSettingFlippedOn(PrefService* pref_service) {
-  if (pref_service) {
-    pref_service->SetBoolean(
-        personal_context::prefs::kPersonalContextInAutofillNoticeShouldBeShown,
-        false);
-    pref_service->SetBoolean(
-        personal_context::prefs::kPersonalContextInAutofillNoticeHasBeenShown,
-        true);
-  }
+bool AreAutofillPersonalContextFeaturesSupported() {
+  return base::FeatureList::IsEnabled(features::kAutofillAmbientAutofill) ||
+         base::FeatureList::IsEnabled(features::kAutofillAtMemory);
 }
 
 }  // namespace autofill

@@ -36,12 +36,19 @@ BASE_FEATURE(kPageActionMenu, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGeminiKillSwitch, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Default enabled countries and locales for PageActionMenu, matching Bluebird
-// in chrome/browser/glic/public/glic_enabling.cc. All locales have been
-// converted to lower case with '-' where it's applicable.
-constexpr std::array<std::string_view, 4> kDefaultEnabledCountries = {
-    "us", "ca", "nz", "in"};
+// Default enabled countries for PageActionMenu in Gemini for Chrome
+// Expansion V2.
+constexpr std::array<std::string_view, 53> kDefaultEnabledCountries = {
+    "as", "au", "bd", "bn", "bt", "ca", "cc", "ck", "cx", "fj", "fm",
+    "gu", "hk", "hm", "id", "in", "kh", "ki", "kr", "la", "lk", "mh",
+    "mm", "mn", "mo", "mp", "mv", "my", "nc", "nf", "np", "nr", "nu",
+    "nz", "pf", "pg", "ph", "pk", "pn", "pw", "sb", "sg", "th", "tk",
+    "tl", "to", "tv", "tw", "us", "vn", "vu", "wf", "ws"};
 
+// Default enabled locales for PageActionMenu. Locales are
+// matching Bluebird in chrome/browser/glic/public/glic_enabling.cc.
+// All locales have been converted to lower case with '-' where it's
+// applicable.
 constexpr std::array<std::string_view, 51> kDefaultEnabledLocales = {
     "af", "am",     "bg",    "bn",    "ca",    "cs",    "da",    "de", "el",
     "es", "es-419", "et",    "fi",    "fil",   "fr",    "gu",    "hi", "hr",
@@ -461,6 +468,15 @@ bool IsGeminiLiveEnabled() {
   return base::FeatureList::IsEnabled(kGeminiLive);
 }
 
+BASE_FEATURE(kGeminiLiveDormantReasons, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsGeminiLiveDormantReasonsEnabled() {
+  if (!IsGeminiLiveEnabled()) {
+    return false;
+  }
+  return base::FeatureList::IsEnabled(kGeminiLiveDormantReasons);
+}
+
 BASE_FEATURE(kGeminiCopresence, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsGeminiCopresenceEnabled() {
@@ -584,6 +600,13 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    &kActorTools,
                    base::Seconds(1));
 
+BASE_FEATURE_PARAM(int, kActorPageStabilityMutationCap, &kActorTools, 250);
+
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kActorPageStabilityWindowDuration,
+                   &kActorTools,
+                   base::Milliseconds(4000));
+
 bool IsActorEnabled() {
   return base::FeatureList::IsEnabled(kActorTools);
 }
@@ -608,6 +631,16 @@ base::TimeDelta GetActorPageStabilityMinWait() {
 base::TimeDelta GetActorPageStabilityTimeout() {
   CHECK(IsPageStabilityEnabled());
   return kActorPageStabilityTimeout.Get();
+}
+
+int GetActorPageStabilityMutationCap() {
+  CHECK(IsPageStabilityEnabled());
+  return kActorPageStabilityMutationCap.Get();
+}
+
+base::TimeDelta GetActorPageStabilityWindowDuration() {
+  CHECK(IsPageStabilityEnabled());
+  return kActorPageStabilityWindowDuration.Get();
 }
 
 bool IsToolDisabled(optimization_guide::proto::Action::ActionCase tool) {
@@ -700,7 +733,8 @@ bool IsGeminiBackendMigrationEnabled() {
 BASE_FEATURE(kGeminiActor, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiActorEnabled() {
-  if (!IsPageActionMenuEnabled()) {
+  if (!IsPageActionMenuEnabled() || !IsActorEnabled() ||
+      !IsGeminiClientMigrationEnabled()) {
     return false;
   }
   return base::FeatureList::IsEnabled(kGeminiActor);
@@ -782,6 +816,9 @@ bool IsPageContextIPCOptimizationActionableEnabled() {
 BASE_FEATURE(kGeminiClientMigration, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiClientMigrationEnabled() {
+  if (!IsPageActionMenuEnabled()) {
+    return false;
+  }
   return base::FeatureList::IsEnabled(kGeminiClientMigration);
 }
 

@@ -12,6 +12,7 @@
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/system/sys_info.h"
 #include "build/build_config.h"
@@ -113,40 +114,6 @@ std::pair<int, int> GetTilingInterestAreaSizes() {
       2 * ::features::kDefaultInterestAreaSizeInPixels / 3);
   return {interest_area_size_in_pixels, (2 * interest_area_size_in_pixels) / 3};
 }
-
-#if !BUILDFLAG(IS_ANDROID)
-// Adjusting tile memory size in case a lot more websites need more tile
-// memory than the current calculation.
-BASE_FEATURE(kAdjustTileGpuMemorySize, base::FEATURE_DISABLED_BY_DEFAULT);
-
-constexpr size_t kLargeResolutionMemoryMB = 1152;
-constexpr size_t kDefaultMemoryMB = 512;
-
-constexpr base::FeatureParam<int> kNewLargeResolutionMemoryMB{
-    &kAdjustTileGpuMemorySize, "new_large_resolution_memory_mb",
-    /*default_value=*/kLargeResolutionMemoryMB};
-
-constexpr base::FeatureParam<int> kNewDefaultMemoryMB{
-    &kAdjustTileGpuMemorySize, "new_default_memory_mb",
-    /*default_value=*/kDefaultMemoryMB};
-
-size_t GetLargeResolutionMemoryMB() {
-  if (base::FeatureList::IsEnabled(kAdjustTileGpuMemorySize)) {
-    return kNewLargeResolutionMemoryMB.Get();
-  } else {
-    return kLargeResolutionMemoryMB;
-  }
-}
-
-size_t GetDefaultMemoryMB() {
-  if (base::FeatureList::IsEnabled(kAdjustTileGpuMemorySize)) {
-    return kNewDefaultMemoryMB.Get();
-  } else {
-    return kDefaultMemoryMB;
-  }
-}
-#endif
-
 }  // namespace
 
 // static
@@ -181,6 +148,9 @@ cc::ManagedMemoryPolicy GetGpuMemoryPolicy(
     actual.bytes_limit_when_visible = 256 * 1024 * 1024;
   }
 #else
+  static constexpr size_t kLargeResolutionMemoryMB = 1152;
+  static constexpr size_t kDefaultMemoryMB = 512;
+
   // This calculation will increase the tile memory size. It should apply to
   // the other plateforms if no regression on Mac.
   //
@@ -196,20 +166,18 @@ cc::ManagedMemoryPolicy GetGpuMemoryPolicy(
       std::round(initial_screen_size.width() * initial_device_scale_factor *
                  initial_screen_size.height() * initial_device_scale_factor);
 
-  size_t large_resolution_memory_mb = GetLargeResolutionMemoryMB();
   size_t mb_limit_when_visible =
-      large_resolution_memory_mb * (display_size * 1.0 / kLargeResolution);
+      kLargeResolutionMemoryMB * (display_size * 1.0 / kLargeResolution);
 
   // Cap the memory size to one fourth of the total system memory so it won't
   // consume too much of the system memory. Still keep the minimum to the
   // default of 512MB.
-  size_t default_memory_mb = GetDefaultMemoryMB();
-  size_t memory_cap_mb =
-      base::SysInfo::AmountOfTotalPhysicalMemory().InMiB() / 4;
+  size_t memory_cap_mb = base::checked_cast<size_t>(
+      base::SysInfo::AmountOfTotalPhysicalMemory().InMiB() / 4);
   if (mb_limit_when_visible > memory_cap_mb) {
     mb_limit_when_visible = memory_cap_mb;
-  } else if (mb_limit_when_visible < default_memory_mb) {
-    mb_limit_when_visible = default_memory_mb;
+  } else if (mb_limit_when_visible < kDefaultMemoryMB) {
+    mb_limit_when_visible = kDefaultMemoryMB;
   }
 
   actual.bytes_limit_when_visible = mb_limit_when_visible * 1024 * 1024;
@@ -585,6 +553,9 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
 
   settings.enable_unbounded_element =
       RuntimeEnabledFeatures::UnboundedElementEnabled();
+
+  settings.enable_scroll_performance_timing =
+      RuntimeEnabledFeatures::ScrollPerformanceTimingEnabled();
 
   settings.disable_frame_rate_limit =
       cmd.HasSwitch(::switches::kDisableFrameRateLimit);

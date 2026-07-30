@@ -106,41 +106,12 @@ class MockDevToolsUIBindingsDelegate : public DevToolsUIBindings::Delegate {
 };
 
 TEST_F(DevToolsUIBindingsLoadNetworkResourceTest,
-       BlocksFileSchemeFromRemoteFrontend) {
-  // Simulate a remote frontend URL.
-  GURL remote_url(
-      "https://chrome-devtools-frontend.appspot.com/serve_rev/@12345/"
-      "inspector.html");
-  content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
-                                                             remote_url);
-
-  base::RunLoop run_loop;
-  base::DictValue result;
-
-  CallLoadNetworkResource(
-      "file:///etc/passwd", "", 0,
-      base::BindLambdaForTesting([&](const base::Value* value) {
-        result = value->GetDict().Clone();
-        run_loop.Quit();
-      }));
-  run_loop.Run();
-
-  EXPECT_EQ(result.FindInt("statusCode"), 403);
-  ASSERT_NE(result.FindString("messageOverride"), nullptr);
-  EXPECT_EQ(*result.FindString("messageOverride"),
-            "Local file loading is restricted for remote DevTools. Use "
-            "--allow-unsafe-devtools-remote-file-loading to enable it.");
-}
-
-TEST_F(DevToolsUIBindingsLoadNetworkResourceTest,
        AllowsFileSchemeFromRemoteFrontendWithFlag) {
   base::test::ScopedCommandLine scoped_command_line;
   scoped_command_line.GetProcessCommandLine()->AppendSwitch(
       switches::kAllowUnsafeDevToolsRemoteFileLoading);
 
-  GURL remote_url(
-      "https://chrome-devtools-frontend.appspot.com/serve_rev/@12345/"
-      "inspector.html");
+  GURL remote_url("devtools://devtools/remote/serve_rev/@12345/inspector.html");
   content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
                                                              remote_url);
 
@@ -161,35 +132,42 @@ TEST_F(DevToolsUIBindingsLoadNetworkResourceTest,
 }
 
 TEST_F(DevToolsUIBindingsLoadNetworkResourceTest,
-       AllowsFileSchemeFromLocalFrontend) {
-  GURL local_url("devtools://devtools/bundled/devtools_app.html");
-  content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
-                                                             local_url);
+       AllowsFileSchemeFromLocalFrontends) {
+  std::vector<GURL> local_urls = {
+      GURL("devtools://devtools/bundled/devtools_app.html"),
+      GURL("devtools://devtools/custom/inspector.html"),
+      GURL("devtools://devtools/blank")};
 
-  base::RunLoop run_loop;
-  base::DictValue result;
+  for (const GURL& local_url : local_urls) {
+    content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
+                                                               local_url);
 
-  CallLoadNetworkResource(
-      "file:///etc/passwd", "", 0,
-      base::BindLambdaForTesting([&](const base::Value* value) {
-        result = value->GetDict().Clone();
-        run_loop.Quit();
-      }));
-  run_loop.Run();
+    base::RunLoop run_loop;
+    base::DictValue result;
 
-  auto* msg = result.FindString("messageOverride");
-  EXPECT_EQ(msg, nullptr);
-  EXPECT_NE(result.FindInt("statusCode"), 403);
+    CallLoadNetworkResource(
+        "file:///etc/passwd", "", 0,
+        base::BindLambdaForTesting([&](const base::Value* value) {
+          result = value->GetDict().Clone();
+          run_loop.Quit();
+        }));
+    run_loop.Run();
+
+    auto* msg = result.FindString("messageOverride");
+    EXPECT_EQ(msg, nullptr);
+    EXPECT_NE(result.FindInt("statusCode"), 403);
+  }
 }
 
 TEST_F(DevToolsUIBindingsLoadNetworkResourceTest,
-       BlocksFileSchemeFromRemoteFrontendWithLocalTarget) {
-  GURL remote_url(
-      "https://chrome-devtools-frontend.appspot.com/serve_rev/@12345/"
-      "inspector.html");
-  content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
-                                                             remote_url);
+       BlocksFileSchemeFromUntrustedFrontends) {
+  std::vector<GURL> untrusted_urls = {
+      GURL("devtools://devtools/remote/serve_rev/@12345/inspector.html"),
+      GURL("https://chrome-devtools-frontend.appspot.com/serve_rev/@12345/"
+           "inspector.html"),
+      GURL("https://example.com/index.html")};
 
+  // Set up inspected WebContents to be a local file.
   content::WebContents* inspected_web_contents =
       web_contents_factory_.CreateWebContents(profile_.get());
   content::NavigationSimulator::NavigateAndCommitFromBrowser(
@@ -199,22 +177,27 @@ TEST_F(DevToolsUIBindingsLoadNetworkResourceTest,
       std::make_unique<MockDevToolsUIBindingsDelegate>(inspected_web_contents);
   bindings()->SetDelegate(delegate.release());
 
-  base::RunLoop run_loop;
-  base::DictValue result;
+  for (const GURL& untrusted_url : untrusted_urls) {
+    content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
+                                                               untrusted_url);
 
-  CallLoadNetworkResource(
-      "file:///etc/passwd", "", 0,
-      base::BindLambdaForTesting([&](const base::Value* value) {
-        result = value->GetDict().Clone();
-        run_loop.Quit();
-      }));
-  run_loop.Run();
+    base::RunLoop run_loop;
+    base::DictValue result;
 
-  EXPECT_EQ(result.FindInt("statusCode"), 403);
-  ASSERT_NE(result.FindString("messageOverride"), nullptr);
-  EXPECT_EQ(*result.FindString("messageOverride"),
-            "Local file loading is restricted for remote DevTools. Use "
-            "--allow-unsafe-devtools-remote-file-loading to enable it.");
+    CallLoadNetworkResource(
+        "file:///etc/passwd", "", 0,
+        base::BindLambdaForTesting([&](const base::Value* value) {
+          result = value->GetDict().Clone();
+          run_loop.Quit();
+        }));
+    run_loop.Run();
+
+    EXPECT_EQ(result.FindInt("statusCode"), 403);
+    ASSERT_NE(result.FindString("messageOverride"), nullptr);
+    EXPECT_EQ(*result.FindString("messageOverride"),
+              "Local file loading is restricted for remote DevTools. Use "
+              "--allow-unsafe-devtools-remote-file-loading to enable it.");
+  }
 }
 
 TEST_F(DevToolsUIBindingsTest, SanitizeFrontendURL) {
@@ -1007,6 +990,33 @@ TEST_F(DevToolsUIBindingsHostConfigTest, GetHostConfigWithFeatures) {
       result.FindDict("devToolsAiV2Architecture");
   ASSERT_TRUE(aiv2_arch);
   EXPECT_TRUE(aiv2_arch->FindBool("enabled").value_or(false));
+}
+
+TEST_F(DevToolsUIBindingsHostConfigTest, GetHostConfigGdpProfiles) {
+  base::DictValue config =
+      DevToolsUIBindings::GetHostConfigDictionary(profile_.get());
+
+  const base::DictValue* gdp_profiles = config.FindDict("devToolsGdpProfiles");
+  ASSERT_TRUE(gdp_profiles);
+  std::optional<bool> gdp_enabled = gdp_profiles->FindBool("enabled");
+  ASSERT_TRUE(gdp_enabled.has_value());
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_FALSE(*gdp_enabled);
+#else
+  EXPECT_TRUE(*gdp_enabled);
+#endif
+
+  const base::DictValue* gdp_profiles_availability =
+      config.FindDict("devToolsGdpProfilesAvailability");
+  ASSERT_TRUE(gdp_profiles_availability);
+  std::optional<bool> availability_enabled =
+      gdp_profiles_availability->FindBool("enabled");
+  ASSERT_TRUE(availability_enabled.has_value());
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING) && !BUILDFLAG(IS_ANDROID)
+  EXPECT_TRUE(*availability_enabled);
+#else
+  EXPECT_FALSE(*availability_enabled);
+#endif
 }
 
 TEST_F(DevToolsUIBindingsHostConfigTest, SetChromeFlag) {

@@ -308,6 +308,13 @@ Pour en savoir plus sur la gestion des données pour les fonctionnalités d'IA 
 <translation id="1214639335214075459">Activer le décodage vidéo matériel GPU</translation>
 <translation id="1214942205301731697">Ne pas autoriser l'utilisation du mode développeur sur la page des extensions</translation>
 <translation id="1216919699175573511">Activer la compatibilité avec la fonctionnalité Signed HTTP Exchange (SXG)</translation>
+<translation id="1217033439268053263">Cette règle est obsolète. Utilisez plutôt <ph name="FORCE_YOUTUBE_RESTRICT_POLICY_NAME" />, qui est prioritaire sur cette règle et permet des réglages plus fins.
+
+      Applique le mode restreint modéré sur <ph name="YOUTUBE_PRODUCT_NAME" /> et empêche les utilisateurs de modifier ce paramètre.
+
+      Si ce paramètre est activé, le mode restreint sur <ph name="YOUTUBE_PRODUCT_NAME" /> est au moins modéré.
+
+      Si ce paramètre est désactivé ou si aucune valeur n'est définie, <ph name="PRODUCT_NAME" /> n'applique pas le mode restreint sur <ph name="YOUTUBE_PRODUCT_NAME" />. Toutefois, des règles externes, comme les règles de <ph name="YOUTUBE_PRODUCT_NAME" />, peuvent quand même appliquer le mode restreint.</translation>
 <translation id="1219027971768347970">Utiliser la configuration par défaut pour le bac à sable du processus audio</translation>
 <translation id="1219036692926668273">Utiliser l'algorithme <ph name="HAPPY_EYEBALLS_V3" />.</translation>
 <translation id="1221359380862872747">Charger les URL spécifiées lors de la connexion à la démonstration</translation>
@@ -469,6 +476,7 @@ Si cette règle est désactivée ou n'est pas configurée, les paramètres de re
       Inversement, si elle est activée, ils le sont aussi.
       Si elle n'est pas configurée, elle est désactivée pour les appareils gérés et activée pour les appareils non gérés.
       Notez qu'il s'agit d'une règle temporaire afin que les utilisateurs gérés puissent quand même utiliser les anciens raccourcis obsolètes. Elle prendra fin une fois que des raccourcis clavier personnalisés seront disponibles.</translation>
+<translation id="1359459742455216057">Identifiant unique de l'appli <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" />.</translation>
 <translation id="1361661842732478894">Afficher le bouton Accueil dans la barre d'outils</translation>
 <translation id="1363275621236827384">Activer l'envoi de requêtes de profils matériels à Quirks Server</translation>
 <translation id="1363839375295535439">Si cette règle est activée ou qu'elle n'est pas configurée, le bac à sable LPAC est activé pour les services d'impression lorsque la configuration du système le permet.
@@ -548,6 +556,7 @@ Cette règle ne s'applique pas au mode navigation privée et ne fonctionne pas d
 <translation id="1417888712677507140">Bloquer les boîtes de dialogue JavaScript déclenchées depuis un sous-frame d'une origine différente.</translation>
 <translation id="1418387035898607074">Ignorer les vérifications de la navigation sécurisée visant à autoriser ou non le téléchargement de fichiers provenant d'une source fiable</translation>
 <translation id="1419020637569060510">Ajouter des restrictions à l'utilisation d'un compte géré comme compte secondaire sur Chrome OS</translation>
+<translation id="1423311643274506889">Appliquer SafeSearch dans la recherche Google et le mode restreint au moins modéré sur <ph name="YOUTUBE_PRODUCT_NAME" /></translation>
 <translation id="1423359855587524289">Si la règle est activée ou n'est pas configurée, l'appli peut utiliser l'autorisation des notifications temporaires d'iOS pour afficher des notifications dans le centre de notifications iOS.
 
 Si cette règle est désactivée, l'appli n'utilisera pas les notifications temporaires.</translation>
@@ -2105,6 +2114,7 @@ Si cette règle est activée ou n'est pas définie, l'utilisateur peut définir 
 <translation id="2393862222659066027">Ouvrir une liste d'URL et restaurer la dernière session</translation>
 <translation id="239416486107542256">Les paramètres F11 utilisent le raccourci qui contient les touches de modification Ctrl et Maj</translation>
 <translation id="2394429297128584919">Ne pas autoriser les pages à envoyer des requêtes XHR synchrones pendant leur fermeture</translation>
+<translation id="2398817690049129302">Appliquer le mode sécurisé sur <ph name="YOUTUBE_PRODUCT_NAME" /></translation>
 <translation id="2399987589969059485">Permet de définir quelles variantes peuvent être appliquées dans <ph name="PRODUCT_NAME" />.
 
       Les variantes offrent un moyen de proposer des modifications concernant <ph name="PRODUCT_NAME" /> sans envoyer de nouvelle version du navigateur, en activant ou en désactivant des fonctionnalités déjà disponibles. Pour en savoir plus, consultez cette page : https://support.google.com/chrome/a?p=Manage_the_Chrome_variations_framework.
@@ -2220,6 +2230,14 @@ Cette règle est provisoire et sera supprimée dans la version 157.</translatio
 
       La valeur de cette règle doit être indiquée en jours.</translation>
 <translation id="2466131534462628618">L'authentification de portail captif ignore le proxy</translation>
+<translation id="246680587517417824">https://github.com/WICG/service-worker-auto-preload
+La fonctionnalité ServiceWorkerAutoPreload envoie une requête réseau pour une ressource principale en même temps qu'elle lance le processus d'amorçage ServiceWorker.
+
+Si cette règle est activée ou qu'elle n'est pas configurée, <ph name="PRODUCT_NAME" /> active ServiceWorkerAutoPreload. La requête de navigation est automatiquement distribuée lors du démarrage de ServiceWorker dans certains scénarios, par exemple lorsque ServiceWorker n'est pas en cours d'exécution.
+
+Si cette règle est désactivée, <ph name="PRODUCT_NAME" /> n'activera pas ServiceWorkerAutoPreload. La requête de navigation est toujours distribuée après le démarrage de ServiceWorker.
+
+Cette règle est une mesure temporaire pour contrôler la fonctionnalité et sera supprimée dans M154.</translation>
 <translation id="2467181864598429837">Comportement par défaut du navigateur</translation>
 <translation id="2467896267442150508">Intervalle d'une semaine (au maximum). Si l'heure de début est postérieure à l'heure de fin, l'heure de fin sera décalée au jour suivant.</translation>
 <translation id="2475594733565572760">Cette règle définit le paramètre par défaut pour toutes les fonctionnalités d'IA générative couvertes. Par exemple, si cette règle est définie sur la valeur 1, cette valeur sera le paramètre par défaut pour toutes les fonctionnalités d'IA génératives couvertes. Cela n'aura aucune incidence sur les valeurs de règle définies manuellement. Ce paramètre définira les valeurs par défaut pour les fonctionnalités d'IA générative couvertes dans Chrome. Pour connaître la liste des fonctionnalités couvertes, consultez https://support.google.com/chrome/a?p=generative_ai_settings.
@@ -2564,6 +2582,7 @@ Si cette règle est désactivée ou n'est pas configurée, tous les avertissemen
 Pour connaître les restrictions concernant <ph name="PRIVATE_NETWORK_ACCESS" />, consultez https://wicg.github.io/private-network-access/.</translation>
 <translation id="2600005880585324062">Laisser <ph name="PRODUCT_NAME" /> décider quelles origines isoler des autres origines provenant du même site.</translation>
 <translation id="26023406105317310">Configurer les comptes Kerberos</translation>
+<translation id="2603163741218691337">Ne pas limiter la suppression des cookies <ph name="YOUTUBE_PRODUCT_NAME" /></translation>
 <translation id="2603237557651009842">Bloquer l'API WebPrinting sur ces sites</translation>
 <translation id="2603382859270873566">Activer la prise en charge de l'API PPB_VideoDecoder(Dev).</translation>
 <translation id="2604182581880595781">Configurer les règles associées à la fonctionnalité Partages de fichiers en réseau.</translation>
@@ -3339,6 +3358,7 @@ Si elle est désactivée ou n'est pas définie, le menu d'accessibilité flottan
 <translation id="3142410959002029864">Lorsque cette règle est définie, le mode d'impression recto verso par défaut est ignoré. Si le mode est indisponible, cette règle est ignorée.</translation>
 <translation id="3143203373436771188">Ouvrir dans <ph name="BASIC_EDITOR_NAME" /> les documents Office gérés par <ph name="BASIC_EDITOR_NAME" />, auxquels l'utilisateur accède</translation>
 <translation id="3144173889708944482">Si <ph name="PRINTERS_BLOCKLIST" /> est choisi pour <ph name="DEVICE_PRINTERS_ACCESS_MODE_POLICY_NAME" />, le fait de définir <ph name="DEVICE_PRINTERS_BLOCKLIST_POLICY_NAME" /> indique les imprimantes indisponibles pour les utilisateurs. Toutes les imprimantes sont proposées aux utilisateurs, sauf celles dont les ID sont répertoriés dans cette règle. Ces ID doivent correspondre à ceux indiqués dans les champs <ph name="ID_FIELD" /> ou <ph name="GUID_FIELD" /> du fichier spécifié dans la règle <ph name="DEVICE_PRINTERS_POLICY_NAME" />.</translation>
+<translation id="3144419820067745871"><ph name="YOUTUBE_PRODUCT_NAME" /> (compatible depuis la version 135)</translation>
 <translation id="3146711617256415776">Ne pas autoriser la synthèse vocale améliorée via le réseau pour Sélectionner pour écouter</translation>
 <translation id="315013437951136266">Activer la fonctionnalité <ph name="IP_PROTECTION_NAME" />.</translation>
 <translation id="3150351525324499342">Ne pas afficher par défaut l'icône <ph name="PRODUCT_NAME" /> dans la barre d'outils, mais laisser les utilisateurs choisir</translation>
@@ -3847,7 +3867,7 @@ Si <ph name="NTP_SHORTCUTS_ALLOW_USER_DELETE_NAME" /> est définie sur "True", l
       Si cette règle est définie sur "False", l'appareil n'essaiera pas de contacter Quirks Server pour télécharger les fichiers de configuration.
 
       Si cette règle est définie sur "True" ou si elle n'est pas définie, <ph name="PRODUCT_OS_NAME" /> contactera automatiquement Quirks Server pour télécharger les fichiers de configuration, s'ils sont disponibles, et les enregistrer sur l'appareil  Ces fichiers pourront, par exemple, être utilisés pour améliorer la qualité d'affichage des moniteurs connectés.</translation>
-<translation id="3513864752694608929">Ne pas appliquer les modes de saisie activés</translation>
+<translation id="3513864752694608929">Ne pas imposer les modes de saisie activés</translation>
 <translation id="3515196503924273265">Permet d'activer la fonctionnalité NewBaseUrlInheritanceBehavior</translation>
 <translation id="351654132746710200">Une fois <ph name="LACROS_NAME" /> désactivé, la migration des données n'est pas effectuée. Le dossier <ph name="LACROS_NAME" /> est supprimé, et les utilisateurs continuent d'utiliser les données restantes.</translation>
 <translation id="3518293344797498431">Recharge la batterie à environ 80 % pour maximiser sa durée de vie.</translation>
@@ -4197,6 +4217,7 @@ Si elle est activée ou qu'elle n'est pas configurée, vos utilisateurs pourront
 Cette règle est obsolète depuis la version 144 de <ph name="PRODUCT_NAME" />, en raison de l'abandon de l'API Protected Audience.</translation>
 <translation id="3733014427925403568">Jour de la semaine pour l'intervalle.</translation>
 <translation id="3736879847913515635">Autoriser l'ajout de personnes dans le gestionnaire d'utilisateurs</translation>
+<translation id="3741204225338304131">Appliquer le mode restreint minimal sur <ph name="YOUTUBE_PRODUCT_NAME" /></translation>
 <translation id="3744984310825999317">Autoriser <ph name="PEPPER_NAME" /> à utiliser un nouveau décodeur pour le décodage vidéo avec accélération matérielle.</translation>
 <translation id="3749259744154402564">Non compatible</translation>
 <translation id="3749511622128647337">Désactiver la sortie audio</translation>
@@ -4266,6 +4287,7 @@ Lorsque cette règle est désactivée ou n'est pas configurée, le service SSO f
 <translation id="3778689139323007309">Procéder à des vérifications de la révocation des certificats de serveur qui sont validés et signés par des certificats CA installés localement</translation>
 <translation id="3780152581321609624">Inclure un port non standard dans le SPN Kerberos</translation>
 <translation id="3785423718413114598">Ne pas autoriser les fonctionnalités d'IA générative</translation>
+<translation id="378626615843371785">Configurer les paramètres de <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> (BÊTA)</translation>
 <translation id="3788155044604525647">L'API Direct Sockets permet de communiquer avec des points de terminaison arbitraires via TCP et UDP.
 Pour en savoir plus, veuillez consulter https://github.com/WICG/direct-sockets.
 
@@ -4775,6 +4797,7 @@ Si elle est définie sur False, <ph name="PRODUCT_NAME" /> n'utilisera pas les n
 <translation id="4136603825567209889">Activer les rapports sur les informations d'identification des utilisateurs</translation>
 <translation id="4138655880188755661">Période limite</translation>
 <translation id="4140646780789794190">Désactiver le partage des données de diagnostic avec Plugin VM</translation>
+<translation id="4141430435877011529">Emplacement ou emplacement multirégional de l'appli <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" />. Pour en savoir plus sur l'emplacement de <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" />, consultez https://docs.cloud.google.com/gemini/enterprise/docs/locations.</translation>
 <translation id="4144417751555442768">IA générative</translation>
 <translation id="4145383150978634398">Rendre le mode Bureau unifié accessible à l'utilisateur</translation>
 <translation id="4146319954420095470">(Avertissement : Cette dépendance sera bientôt supprimée, veuillez commencer à utiliser la règle <ph name="GLS_POLICY_NAME" /> à la place). Si cette règle est définie sur <ph name="BLOCK_GEOLOCATION_SETTING" />, les services système <ph name="PRODUCT_OS_NAME" /> et les applications Android ne peuvent pas accéder aux informations de localisation. Si vous attribuez toute autre valeur pour cette règle, ou que vous ne la définissez pas, l'utilisateur doit donner son accord lorsqu'une application Android veut accéder aux informations de localisation.</translation>
@@ -5530,6 +5553,7 @@ Ancien comportement : dans "beforeunload", appeler event.preventDefault() ne d�
       Pour en savoir plus sur les formats d‘<ph name="URL_LABEL" /> valides, veuillez consulter https://chromeenterprise.google/policies/url-patterns. La valeur <ph name="WILDCARD_VALUE" /> n'est pas acceptée pour cette règle.</translation>
 <translation id="4624417808625504735">Empêcher JavaScript d'utiliser le JIT sur ces sites</translation>
 <translation id="46321462262887935">Considérer les touches supérieures comme des touches de fonction, mais autoriser l'utilisateur à modifier ce paramètre</translation>
+<translation id="4635757219046879316">Appliquer au moins le mode restreint modéré sur <ph name="YOUTUBE_PRODUCT_NAME" /></translation>
 <translation id="4636354638176939375">Désactiver la création d'utilisateurs supervisés</translation>
 <translation id="4637701328641064644">Cette règle détermine si les URL blob sont partitionnées lors de l'extraction et de la navigation.
 Si cette règle est activée ou n'est pas configurée, les URL blob sont partitionnées.
@@ -6114,6 +6138,7 @@ Cette règle permet de contrôler la présentation de contenus promotionnels, y 
 
       Consultez <ph name="PINNED_LAUNCHER_APPS_POLICY_NAME" /> pour épingler des applis à l'étagère <ph name="PRODUCT_OS_NAME" />.</translation>
 <translation id="494613465159630803">Récepteur Cast</translation>
+<translation id="4947257516265472776">Appliquer le mode restreint strict sur <ph name="YOUTUBE_PRODUCT_NAME" /></translation>
 <translation id="494924690085329212">Redémarrer en cas de déconnexion de l'utilisateur si Android est lancé.</translation>
 <translation id="4950447493143157880">Ne jamais utiliser le client DNS intégré</translation>
 <translation id="4953541641325278286">Interdire à tous les sites de détecter l'état d'inactivité de l'utilisateur</translation>
@@ -6735,6 +6760,13 @@ Si cette règle est désactivée ou n'est pas configurée, le navigateur déterm
       Si la propriété <ph name="AUTO_SELECT_ALL_SCREENS_NAME" /> est définie dans une requête <ph name="GET_DISPLAY_MEDIA_SET_NAME" />, toutes les surfaces d'écran sont automatiquement capturées sans nécessiter l'autorisation explicite de l'utilisateur.
       Si cette règle n'est pas configurée, <ph name="AUTO_SELECT_ALL_SCREENS_NAME" /> n'est disponible pour aucune application Web.
 Pour améliorer la confidentialité, à partir de la version 116 de <ph name="PRODUCT_NAME" />, cette règle ne sera plus compatible avec l'actualisation dynamique. Cela permettra à l'utilisateur de s'assurer qu'aucune page supplémentaire ne pourra capturer les écrans après la connexion, sauf celles déjà autorisées au début de la session.</translation>
+<translation id="5351894784463048975">Cette règle est obsolète. Veuillez utiliser <ph name="FORCE_GOOGLE_SAFE_SEARCH_POLICY_NAME" /> et <ph name="FORCE_YOUTUBE_RESTRICT_POLICY_NAME" />. Cette règle est ignorée si les règles <ph name="FORCE_GOOGLE_SAFE_SEARCH_POLICY_NAME" />, <ph name="FORCE_YOUTUBE_RESTRICT_POLICY_NAME" /> ou <ph name="FORCE_YOUTUBE_SAFETY_MODE_POLICY_NAME" /> (obsolète) sont configurées.
+
+      Applique SafeSearch aux requêtes de recherche sur le Web Google et empêche les utilisateurs de modifier ce paramètre. Ce paramètre applique également le mode restreint modéré sur <ph name="YOUTUBE_PRODUCT_NAME" />.
+
+      Si vous activez ce paramètre, SafeSearch est toujours activé dans la recherche Google, et le mode restreint modéré est toujours appliqué sur <ph name="YOUTUBE_PRODUCT_NAME" />.
+
+      Si vous désactivez ce paramètre ou qu'aucune valeur n'est définie, SafeSearch n'est pas activé dans la recherche Google, et le mode restreint modéré n'est pas appliqué sur <ph name="YOUTUBE_PRODUCT_NAME" />.</translation>
 <translation id="5361167871898066799">Contrôler la fonctionnalité de correction automatique pour le clavier physique</translation>
 <translation id="5361708558735884308">Cette règle permet d'autoriser l'accès aux URL listées comme exceptions à <ph name="URL_BLOCKLIST_POLICY_NAME" />. Lisez sa description pour connaître le format des entrées listées. Par exemple, définir <ph name="URL_BLOCKLIST_POLICY_NAME" /> sur "*" bloque toutes les requêtes, et vous pouvez appliquer cette règle pour autoriser l'accès à une liste limitée d'URL. Utilisez-la pour définir des exceptions à certains schémas, ports, chemins d'accès spécifiques ou sous-domaines d'autres domaines à l'aide du format spécifié sur https://support.google.com/chrome/a?p=url_blocklist_filter_format. Le filtre le plus spécifique détermine si une URL est bloquée ou autorisée. La règle <ph name="URL_ALLOWLIST_POLICY_NAME" /> prévaut sur <ph name="URL_BLOCKLIST_POLICY_NAME" />. Cette règle est limitée à 1 000 entrées.
 
@@ -7045,6 +7077,7 @@ Consultez également https://wiki.samba.org/index.php/Samba_4.6_Features_added/c
 
       Pour en savoir plus sur les formats d'URL valides, veuillez consulter https://chromeenterprise.google/policies/url-patterns/.</translation>
 <translation id="554903022911579950">Kerberos</translation>
+<translation id="5549325536554939195">Appliquer le mode restreint au moins modéré sur <ph name="YOUTUBE_PRODUCT_NAME" /></translation>
 <translation id="555022085242359084">Activer le contraste élevé sur l'écran de connexion</translation>
 <translation id="555077880566103058">Autoriser tous les sites à exécuter le plug-in "<ph name="FLASH_PLUGIN_NAME" />" automatiquement</translation>
 <translation id="5555361544583789006">Si cette règle est définie sur "True" ou qu'elle n'est pas configurée, <ph name="PRODUCT_NAME" /> présente aux utilisateurs des informations sur le produit en mode Plein onglet.
@@ -7517,6 +7550,15 @@ Si ces deux règles ne sont pas configurées, toutes les authentifications des s
       Dans le cas présent, <ph name="CHROMEOS_VERSION_PROPERTY_NAME" /> peut désigner une version exacte comme "13305.0.0" ou le préfixe d'une version tel que "13305".
       La <ph name="WARNING_PERIOD_PROPERTY_NAME" /> et la <ph name="AUE_WARNING_PERIOD_PROPERTY_NAME" /> sont des valeurs facultatives exprimées en nombre de jours. Elles sont définies par défaut sur 0 jour, ce qui signifie qu'il n'y a pas de période d'avertissement.
       <ph name="UNMANAGED_USER_RESTRICTED_PROPERTY_NAME" /> est une propriété facultative dont la valeur par défaut est "False".</translation>
+<translation id="5876812185674131521">Empêche la suppression manuelle des cookies <ph name="YOUTUBE_PRODUCT_NAME" />.
+
+Cette règle vise à empêcher les utilisateurs d'accéder à <ph name="YOUTUBE_PRODUCT_NAME" /> alors qu'ils n'y sont pas autorisés, après avoir supprimé manuellement les cookies <ph name="YOUTUBE_PRODUCT_NAME" /> à partir de la page des paramètres du site.
+
+Si cette règle est activée, les cookies <ph name="YOUTUBE_PRODUCT_NAME" /> ne peuvent pas être supprimés manuellement.
+
+Si cette règle est désactivée ou qu'elle n'est pas configurée, les cookies <ph name="YOUTUBE_PRODUCT_NAME" /> peuvent être supprimés normalement.
+
+Remarque : Cette règle empêche uniquement la suppression manuelle depuis l'UI des paramètres du site. Elle n'empêche pas la suppression automatique par les règles <ph name="CLEAR_BROWSING_DATA_ON_EXIT_LIST_POLICY_NAME" /> ou <ph name="BROWSING_DATA_LIFETIME_POLICY_NAME" />. De plus, si la règle <ph name="ALLOW_DELETING_BROWSER_HISTORY_POLICY_NAME" /> est activée, les utilisateurs peuvent toujours effacer tous leurs cookies via la boîte de dialogue "Effacer les données de navigation".</translation>
 <translation id="5879014913445067283">Contrôler la découverte des partages de fichiers sur le réseau via <ph name="NETBIOS_NAME" /></translation>
 <translation id="588135807064822874">Activer la fonctionnalité Appuyer pour rechercher</translation>
 <translation id="5882345429632338713">Délai avant le lancement du navigateur secondaire (en millisecondes)</translation>
@@ -7760,6 +7802,7 @@ Cette règle a été abandonnée dans la version M124.</translation>
 <translation id="6035597431797865964">Autoriser la session Invité gérée à conserver les propriétés d'affichage</translation>
 <translation id="6036459377708946958">Jour du mois [1-31] (interprété dans le fuseau horaire local de l'appareil) où la recherche de mises à jour doit être lancée. Utilisé uniquement quand "frequency" est défini sur "MONTHLY". Si le nombre maximal de jours dans un mois donné est dépassé, le dernier jour de ce mois est sélectionné.</translation>
 <translation id="6036523166753287175">Activer la traversée de pare-feu depuis l'hôte d'accès à distance</translation>
+<translation id="6037328895573728112">Limiter la suppression des cookies <ph name="YOUTUBE_PRODUCT_NAME" /></translation>
 <translation id="603768430528561926">Si cette règle est activée ou qu'elle n'est pas configurée, les utilisateurs d'appareils d'entreprise peuvent profiter d'offres via le service d'enregistrement <ph name="PRODUCT_OS_NAME" />.
 
       Si elle est désactivée, ils ne peuvent pas en bénéficier.</translation>
@@ -8470,6 +8513,7 @@ Voir également la règle <ph name="HTTPS_ONLY_MODE_POLICY_NAME" />.</translatio
 Si elle est désactivée, <ph name="SEARCH_SIDE_PANEL_FEATURE_NAME" /> n'est disponible sur aucune page Web.
 
 Les capacités d'IA générative de cette fonctionnalité ne sont pas disponibles pour les comptes Education ou Enterprise.</translation>
+<translation id="6466693757921765054">Cette règle n'a aucun effet sur l'appli <ph name="YOUTUBE_PRODUCT_NAME" /> <ph name="ANDROID_NAME" />. Si le mode sécurisé doit être appliqué sur <ph name="YOUTUBE_PRODUCT_NAME" />, l'installation de l'appli <ph name="YOUTUBE_PRODUCT_NAME" /> <ph name="ANDROID_NAME" /> doit être interdite.</translation>
 <translation id="6467613372414922590">Autoriser les hôtes de messagerie natifs au niveau de l'utilisateur (installés sans l'autorisation d'un administrateur)</translation>
 <translation id="6467707081687600148">Programmer un redémarrage automatique après l'installation des mises à jour de <ph name="PRODUCT_OS_NAME" />.
 
@@ -8892,6 +8936,7 @@ Si elle est activée, les données sont collectées et importées dans la <ph na
 
 Concernant <ph name="PRODUCT_NAME" />, cette règle n'est appliquée que si l'appareil est enregistré avec la règle <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" />.
 Cette règle est toujours appliquée pour <ph name="PRODUCT_OS_NAME" />.</translation>
+<translation id="6714333117401088746">ID du projet <ph name="GOOGLE_CLOUD_PRODUCT_NAME" /> correspondant à l'instance <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> qui doit être activée.</translation>
 <translation id="6720330829631914048">Heures écoulées depuis le début de la journée (format 24 heures).</translation>
 <translation id="6720862827454058309">Remplacer les mappages d'espace d'adressage IP</translation>
 <translation id="6721252203593581486">WebSQL dans des contextes tiers (ex. : les cadres iFrame intersites) est désactivé par défaut à partir de M97 et sera entièrement supprimé dans M101.
@@ -8969,6 +9014,7 @@ Pour en savoir plus sur la gestion des données pour les fonctionnalités d'IA 
 
       L'activation ou la désactivation de cette règle ne change rien au fonctionnement de la page chrome://flags ni à celui de tout autre moyen d'activer ou désactiver des fonctionnalités du navigateur.</translation>
 <translation id="6794273802619210652">Activer la fonctionnalité d'accessibilité de commande par le visage</translation>
+<translation id="6795338611092628062">Ne pas appliquer SafeSearch dans la recherche Google ni le mode restreint sur <ph name="YOUTUBE_PRODUCT_NAME" /></translation>
 <translation id="6795485990775913659">Autoriser l'impression sans code uniquement</translation>
 <translation id="6796215185873669533">Appliquez les paramètres par défaut du navigateur pour la version de la chaîne user-agent.</translation>
 <translation id="6800181452282128474">Ne pas envoyer de requêtes aux serveurs Quirks</translation>
@@ -9294,6 +9340,13 @@ Si cette règle n'est pas configurée, cela revient à la définir sur "<ph name
        Ne configurez pas cette règle si vous avez sélectionné un autre mode pour spécifier les règles de proxy.
 
        Remarque : Pour consulter des exemples détaillés, accédez au site The Chromium Projects ( https://www.chromium.org/developers/design-documents/network-settings#TOC-Command-line-options-for-proxy-sett ).</translation>
+<translation id="7001463504545085491">Cette règle permet d'appliquer le mode restreint minimal sur <ph name="YOUTUBE_PRODUCT_NAME" /> et d'empêcher les utilisateurs de choisir un mode moins restreint. Principe de cette règle :
+
+      * Si vous la définissez sur "Strict", le mode restreint strict sur <ph name="YOUTUBE_PRODUCT_NAME" /> est toujours activé.
+
+      * Si vous la définissez sur "Modéré", l'utilisateur ne peut choisir que le mode restreint modéré ou le mode restreint strict sur <ph name="YOUTUBE_PRODUCT_NAME" /> (il ne peut pas désactiver le mode restreint).
+
+      * Si cette règle est désactivée ou qu'aucune valeur n'est définie, le mode restreint sur <ph name="YOUTUBE_PRODUCT_NAME" /> n'est pas appliqué par Chrome. Toutefois, des règles externes, comme les règles de <ph name="YOUTUBE_PRODUCT_NAME" />, peuvent quand même appliquer le mode restreint.</translation>
 <translation id="7001915679435065291">Si cette règle est définie sur "1", tous les sites Web peuvent afficher des images. Si cette règle est définie sur "2", les sites ne sont pas autorisés à afficher d'images.
 
 Si cette règle n'est pas configurée, l'affichage d'images est autorisé, mais les utilisateurs peuvent modifier ce paramètre.</translation>
@@ -9699,6 +9752,7 @@ Remarque : Si vous utilisez cette règle pour résoudre automatiquement le fuse
 <translation id="7179187054027029272">Si cette règle est définie sur "True" ou qu'elle n'est pas configurée, les utilisateurs, les applications et les extensions peuvent utiliser le mode plein écran (dans lequel seul le contenu Web est affiché) à condition d'avoir les autorisations appropriées.
 
       Si cette règle est définie sur "False", les utilisateurs, les applications et les extensions ne peuvent pas utiliser ce mode.</translation>
+<translation id="7180529638251181928">Ne pas appliquer le mode restreint sur <ph name="YOUTUBE_PRODUCT_NAME" /></translation>
 <translation id="718126088895133062">Cette règle définit l'ID utilisateur attribuant des licences <ph name="PLUGIN_VM_NAME" /> pour cet appareil.</translation>
 <translation id="7185078796915954712">TLS 1.3</translation>
 <translation id="7185630966939835143">Utiliser un service Web Google pour corriger les fautes d'orthographe</translation>
@@ -10187,6 +10241,15 @@ Si cette règle est désactivée, <ph name="PRODUCT_NAME" /> ne se connecte aux 
 
 Si cette règle n'est pas définie, <ph name="PRODUCT_NAME" /> ne se connecte aux appareils Cast que sur les adresses privées décrites dans la RFC 1918 ou la RFC 4193, sauf si la fonctionnalité CastAllowAllIPs est activée.</translation>
 <translation id="7534199150025803530">Cette règle n'a aucun effet sur l'application Google Drive pour Android. Si vous voulez empêcher l'utilisation de Google Drive en cas de connexion au réseau mobile, vous ne devez pas autoriser l'installation de cette application.</translation>
+<translation id="7537404002861344834">Configure les paramètres de connexion pour <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> afin d'améliorer les réponses des fonctionnalités de Gemini dans Chrome.
+
+Si cette règle est configurée, <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> peut être utilisé afin d'améliorer les réponses de Gemini dans Chrome pour les utilisateurs connectés avec un compte géré qui est associé aux identifiants spécifiés pour le projet et l'appli. <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> ne sera pas disponible pour les profils connectés avec des comptes personnels.
+
+Si cette règle n'est pas configurée, <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> ne sera pas utilisé pour améliorer les réponses de Gemini dans Chrome.
+
+Notez que cette règle ne contrôle pas l'intégration générale de <ph name="GOOGLE_GEMINI_PRODUCT_NAME" />, qui peut être contrôlée à l'aide de la règle <ph name="GEMINI_SETTINGS_POLICY_NAME" />.
+
+Tous les paramètres de cette règle doivent correspondre à la configuration du projet <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> dans la console <ph name="GOOGLE_CLOUD_PRODUCT_NAME" />. Toute incohérence entraînera un comportement inattendu lors de l'utilisation de <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" />.</translation>
 <translation id="7538583957913002726">Cette règle est activée par défaut. Elle contrôle les appareils enregistrés et rapporte le modèle, l'architecture et la fréquence d'horloge maximale du processeur (sur les versions M96 et ultérieures, le taux d'utilisation et la température sont également indiqués).
 
       Si cette règle est désactivée, les appareils enregistrés ne communiquent pas ces informations.
@@ -11234,6 +11297,7 @@ Consultez la section 5.2 du document RFC 8828 (https://tools.ietf.org/html/rfc
 <translation id="82530263956734297">Identifiants d'extension à exclure de la liste de blocage</translation>
 <translation id="8254749125469750814">Ne pas valider si une extension peut être installée ou non avec un service cloud.</translation>
 <translation id="8256006033157034334">Cette règle est obsolète et incompatible, veuillez utiliser la règle <ph name="PRINTERS_BULK_ACCESS_MODE_POLICY_NAME_POLICY_NAME" /> à la place.</translation>
+<translation id="8256324351037372224">Ne pas appliquer le mode restreint sur <ph name="YOUTUBE_PRODUCT_NAME" /></translation>
 <translation id="8256688113167012935">Définit quel nom de compte s'affiche sur l'écran de connexion de <ph name="PRODUCT_OS_NAME" /> pour le compte local de l'appareil correspondant.
 
       Si cette règle est définie, l'écran de connexion affiche la chaîne spécifiée dans le sélecteur de comptes reposant sur les images, pour le compte local de l'appareil correspondant.

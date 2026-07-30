@@ -695,15 +695,18 @@ void ChromeBrowsingDataRemoverDelegate::RemoveEmbedderData(
     }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-    if (payments::
-            BrowserBoundKeyDeleterService* browser_bound_key_deleter_service =
-                payments::BrowserBoundKeyDeleterServiceFactory::GetForProfile(
-                    profile_)) {
-      browser_bound_key_deleter_service->RemoveInvalidBBKs();
+    if (filter_builder->MatchesMostOriginsAndDomains()) {
+      if (payments::
+              BrowserBoundKeyDeleterService* browser_bound_key_deleter_service =
+                  payments::BrowserBoundKeyDeleterServiceFactory::GetForProfile(
+                      profile_)) {
+        browser_bound_key_deleter_service->RemoveInvalidBBKs();
+      }
     }
 
 #if BUILDFLAG(IS_CHROMEOS)
-    if (ash::SystemProxyManager::Get()) {
+    if (ash::SystemProxyManager::Get() &&
+        filter_builder->MatchesMostOriginsAndDomains()) {
       // Sends a request to the System-proxy daemon to clear the proxy user
       // credentials. System-proxy retrieves proxy username and password from
       // the NetworkService, but not the creation time of the credentials. The

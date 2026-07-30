@@ -21,18 +21,6 @@ found in the LICENSE file.
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
-        <org.chromium.chrome.browser.tab_ui.TabThumbnailView
-            android:id="@+id/thumbnail"
-            android:layout_width="match_parent"
-            android:layout_height="@dimen/tab_hover_card_thumbnail_height"
-            android:visibility="gone"
-            android:gravity="center_horizontal"
-            android:scaleType="fitCenter"
-            android:importantForAccessibility="no"
-            app:cornerRadiusTopStart="@dimen/tab_hover_card_corner_radius"
-            app:cornerRadiusTopEnd="@dimen/tab_hover_card_corner_radius"
-            android:src="@color/thumbnail_placeholder_on_primary_bg"/>
-
         <TextView
             android:id="@+id/title"
             android:layout_width="match_parent"
@@ -58,7 +46,19 @@ found in the LICENSE file.
             android:textDirection="locale"
             android:textAppearance="@style/TextAppearance.TextSmall.Secondary"/>
 
-        <TextView
+        <org.chromium.chrome.browser.tab_ui.TabThumbnailView
+            android:id="@+id/thumbnail"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/tab_hover_card_thumbnail_height"
+            android:layout_marginBottom="@dimen/tab_hover_card_text_content_margin"
+            android:visibility="gone"
+            android:gravity="center_horizontal"
+            android:scaleType="fitCenter"
+            android:importantForAccessibility="no"
+            android:src="@color/thumbnail_placeholder_on_primary_bg"/>
+
+
+        <org.chromium.components.browser_ui.widget.text.TextViewWithCompoundDrawables
             android:id="@+id/memory_usage"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -69,6 +69,12 @@ found in the LICENSE file.
             android:maxLines="1"
             android:visibility="gone"
             android:textDirection="locale"
+            android:drawableStart="@drawable/ic_speed_24dp"
+            app:chromeDrawableTint="@color/default_icon_color_tint_list"
+            android:drawablePadding="8dp"
+            android:gravity="center_vertical"
+            app:drawableWidth="16dp"
+            app:drawableHeight="16dp"
             android:textAppearance="@style/TextAppearance.TextSmall.Secondary"/>
     </LinearLayout>
 </org.chromium.chrome.browser.compositor.overlays.strip.StripTabHoverCardView>

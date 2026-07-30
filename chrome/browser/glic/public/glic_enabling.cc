@@ -4,6 +4,7 @@
 
 #include "chrome/browser/glic/public/glic_enabling.h"
 
+#include <optional>
 #include <ranges>
 
 #include "base/byte_size.h"
@@ -12,6 +13,7 @@
 #include "base/functional/function_ref.h"
 #include "base/json/json_reader.h"
 #include "base/logging.h"
+#include "base/memory/ptr_util.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
 #include "base/strings/strcat.h"
@@ -19,9 +21,11 @@
 #include "base/strings/string_util.h"
 #include "base/system/sys_info.h"
 #include "base/values.h"
+#include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/enterprise/browser_management/browser_management_service.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
+#include "chrome/browser/glic/actor/glic_actor_policy_checker.h"
 #include "chrome/browser/glic/glic_enums.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/glic_pref_names_internal.h"
@@ -33,6 +37,7 @@
 #include "chrome/browser/glic/host/glic_synthetic_trial_manager.h"
 #include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/global_features.h"
 #include "chrome/browser/metrics/chrome_feature_list_creator.h"
 #include "chrome/browser/profiles/profile.h"
@@ -44,6 +49,7 @@
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/pref_names.h"
+#include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/pdf/common/constants.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
@@ -116,6 +122,8 @@ constexpr char kDefaultEnabledLocales[] =
     ;
 
 namespace {
+
+constexpr int kExperimentalTriggeringVersion = 1;
 
 signin::Tribool CanUseGeminiInChrome(AccountCapabilities& capabilities) {
   return capabilities.can_use_gemini_in_chrome();
@@ -331,8 +339,9 @@ GlicEnabling::ProfileEnablement::~ProfileEnablement() = default;
 
 void GlicEnabling::ProfileEnablement::RecordMetrics(
     const std::string& suffix) const {
+  bool is_enabled = IsEnabled();
   base::UmaHistogramBoolean(
-      base::StrCat({"Glic.ProfileEnablement.IsEnabled.", suffix}), IsEnabled());
+      base::StrCat({"Glic.ProfileEnablement.IsEnabled.", suffix}), is_enabled);
 
   auto record_reason = [&](DisabledReason reason) {
     base::UmaHistogramEnumeration(
@@ -345,9 +354,11 @@ void GlicEnabling::ProfileEnablement::RecordMetrics(
     RecordFeatureDisabledReason(suffix);
   }
 
-  base::UmaHistogramBoolean(
-      base::StrCat({"Glic.ProfileEnablement.IsConsented.", suffix}),
-      fre_is_consented);
+  if (is_enabled) {
+    base::UmaHistogramBoolean(
+        base::StrCat({"Glic.ProfileEnablement.IsConsented.", suffix}),
+        fre_is_consented);
+  }
   base::UmaHistogramBoolean(
       base::StrCat({"Glic.ProfileEnablement.EligibleForLive.", suffix}),
       EligibleForLive());
@@ -382,6 +393,79 @@ void GlicEnabling::ProfileEnablement::RecordFeatureDisabledReason(
   };
 
   RecordFeatureDisabledReasonsWith(*this, record_reason);
+}
+
+void GlicEnabling::ProfileEnablement::RecordStartupMetrics() const {
+  RecordMetrics("Startup");
+}
+
+void GlicEnabling::ProfileEnablement::RecordSteadyStateMetrics() const {
+  RecordMetrics("SteadyState");
+}
+
+bool GlicEnabling::ProfileEnablement::IsProfileEligible() const {
+  return feature_enabled && is_regular_profile;
+}
+
+bool GlicEnabling::ProfileEnablement::IsEnabled() const {
+  bool base_checks = IsProfileEligible() && is_rolled_out &&
+                     primary_account_is_capable && !DisallowedByAdmin() &&
+                     allowed_by_remote_other;
+
+  if (!base_checks) {
+    return false;
+  }
+
+  return allowed_by_country_filter && allowed_by_locale_filter;
+}
+
+bool GlicEnabling::ProfileEnablement::IsEnabledAndConsented() const {
+  return IsEnabled() && fre_is_consented;
+}
+
+bool GlicEnabling::ProfileEnablement::ShouldShowSettingsPage() const {
+  const bool show_ai_settings_for_testing = base::FeatureList::IsEnabled(
+      optimization_guide::features::kAiSettingsPageForceAvailable);
+
+  // If the feature is disabled by enterprise policy, the settings page
+  // should be shown (it will be shown in a policy-disabled state) only if
+  // all other non-enterprise conditions are met: the account has all
+  // appropriate permissions and has previously completed the FRE before the
+  // policy went into effect. The settings page should also be shown if the
+  // settings testing flag is enabled.
+  return show_ai_settings_for_testing ||
+         (IsProfileEligible() && is_rolled_out && primary_account_is_capable &&
+          allowed_by_remote_other && fre_is_consented);
+}
+
+bool GlicEnabling::ProfileEnablement::ShouldShowGlicButton() const {
+  if (!feature_flag_enabled) {
+    return false;
+  }
+  if (IsEnabled()) {
+    return true;
+  }
+  if (anchor_entrypoint_override_active) {
+    return !DisallowedByAdmin() && is_rolled_out;
+  }
+  return false;
+}
+
+bool GlicEnabling::ProfileEnablement::EligibleForLive() const {
+  return IsProfileEligible() && live_allowed;
+}
+
+bool GlicEnabling::ProfileEnablement::EligibleForShareImage() const {
+  return IsProfileEligible() && share_image_allowed;
+}
+
+bool GlicEnabling::ProfileEnablement::EligibleForGeminiEnterpriseSettings()
+    const {
+  return IsProfileEligible() && gemini_enterprise_settings.has_value();
+}
+
+bool GlicEnabling::ProfileEnablement::DisallowedByAdmin() const {
+  return !allowed_by_chrome_policy || !allowed_by_remote_admin;
 }
 
 // static
@@ -442,57 +526,61 @@ GlicEnabling::ProfileEnablement GlicEnabling::EnablementForProfile(
       } else {
         result.primary_account_is_capable = false;
       }
+      result.live_allowed = false;
+      result.share_image_allowed = false;
     } else {
       // Check if the profile is currently paused.
       if (identity_manager->HasAccountWithRefreshTokenInPersistentErrorState(
               primary_account.account_id)) {
         result.primary_account_is_fully_signed_in = false;
       }
+
+      // Check account capabilities.
+      //
+      // TODO(crbug.com/470004757): when cleaning up the
+      // kGlicEligibilitySeparateAccountCapability feature, also remove the
+      // fallback to can_use_model_execution_features().
+      signin::Tribool capability_value =
+          primary_account.capabilities.can_use_model_execution_features();
+      if (base::FeatureList::IsEnabled(
+              switches::kGlicEligibilitySeparateAccountCapability) &&
+          (CanUseGeminiInChrome(primary_account.capabilities) !=
+           signin::Tribool::kUnknown)) {
+        capability_value = CanUseGeminiInChrome(primary_account.capabilities);
+      }
+      result.primary_account_is_capable =
+          (capability_value == signin::Tribool::kTrue);
+
+      // If the feature is overridden by a field trial, and the user's
+      // eligibility is known and different for the two capabilities, add them
+      // to a synthetic trial.
+      base::FieldTrial* field_trial = base::FeatureList::GetFieldTrial(
+          switches::kGlicEligibilitySeparateAccountCapability);
+      if (field_trial &&
+          (CanUseGeminiInChrome(primary_account.capabilities) !=
+           signin::Tribool::kUnknown) &&
+          (primary_account.capabilities.can_use_model_execution_features() !=
+           signin::Tribool::kUnknown) &&
+          (CanUseGeminiInChrome(primary_account.capabilities) !=
+           primary_account.capabilities.can_use_model_execution_features())) {
+        g_browser_process->GetFeatures()
+            ->glic_synthetic_trial_manager()
+            ->SetSyntheticExperimentState(
+                kGlicEligibilitySeparateAccountCapabilitySyntheticTrialName,
+                field_trial->GetGroupNameWithoutActivation());
+      }
+
+      result.live_allowed =
+          primary_account.capabilities.can_use_model_execution_features() ==
+          signin::Tribool::kTrue;
+
+      result.share_image_allowed =
+          primary_account.capabilities.can_use_model_execution_features() ==
+          signin::Tribool::kTrue;
     }
-
-    // Check account capabilities.
-    //
-    // TODO(crbug.com/470004757): when cleaning up the
-    // kGlicEligibilitySeparateAccountCapability feature, also remove the
-    // fallback to can_use_model_execution_features().
-    signin::Tribool capability_value =
-        primary_account.capabilities.can_use_model_execution_features();
-    if (base::FeatureList::IsEnabled(
-            switches::kGlicEligibilitySeparateAccountCapability) &&
-        (CanUseGeminiInChrome(primary_account.capabilities) !=
-         signin::Tribool::kUnknown)) {
-      capability_value = CanUseGeminiInChrome(primary_account.capabilities);
-    }
-    result.primary_account_is_capable =
-        (capability_value == signin::Tribool::kTrue);
-
-    // If the feature is overridden by a field trial, and the user's eligibility
-    // is known and different for the two capabilities, add them to a synthetic
-    // trial.
-    base::FieldTrial* field_trial = base::FeatureList::GetFieldTrial(
-        switches::kGlicEligibilitySeparateAccountCapability);
-    if (field_trial &&
-        (CanUseGeminiInChrome(primary_account.capabilities) !=
-         signin::Tribool::kUnknown) &&
-        (primary_account.capabilities.can_use_model_execution_features() !=
-         signin::Tribool::kUnknown) &&
-        (CanUseGeminiInChrome(primary_account.capabilities) !=
-         primary_account.capabilities.can_use_model_execution_features())) {
-      g_browser_process->GetFeatures()
-          ->glic_synthetic_trial_manager()
-          ->SetSyntheticExperimentState(
-              kGlicEligibilitySeparateAccountCapabilitySyntheticTrialName,
-              field_trial->GetGroupNameWithoutActivation());
-    }
-
-    result.live_allowed =
-        primary_account.capabilities.can_use_model_execution_features() ==
-        signin::Tribool::kTrue;
-
-    result.share_image_allowed =
-        primary_account.capabilities.can_use_model_execution_features() ==
-        signin::Tribool::kTrue;
   }
+
+  result.gemini_enterprise_settings = GetGeminiEnterpriseSettings(profile);
 
   if (profile->GetPrefs()->GetInteger(::prefs::kGeminiSettings) !=
       static_cast<int>(glic::prefs::SettingsPolicyState::kEnabled)) {
@@ -787,6 +875,77 @@ bool GlicEnabling::ShouldShowSettingsPage(Profile* profile) {
   return EnablementForProfile(profile).ShouldShowSettingsPage();
 }
 
+bool GlicEnabling::ShouldShowWebActuationToggle() const {
+  auto* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(::switches::kGlicAlwaysShowWebActuationToggle)) {
+    return true;
+  }
+  if (!base::FeatureList::IsEnabled(features::kGlicWebActuationSetting)) {
+    return false;
+  }
+
+  // If the account is ineligible, hide the toggle.
+  auto* glic_service =
+      glic::GlicKeyedServiceFactory::GetGlicKeyedService(profile_);
+  if (!glic_service) {
+    return false;
+  }
+  if (!glic_service->HasActorPolicyChecker()) {
+    return false;
+  }
+  if (glic_service->actor_policy_checker().CannotActOnWebReason() ==
+      glic::GlicActorPolicyChecker::CannotActReason::
+          kAccountCapabilityIneligible) {
+    return false;
+  }
+
+  bool is_managed = glic::GlicActorPolicyChecker::IsBrowserManaged(*profile_);
+
+  bool is_enterprise_account = false;
+  if (auto* actor_service = actor::ActorKeyedService::Get(profile_)) {
+    is_enterprise_account = glic::GlicActorPolicyChecker::IsEnterpriseAccount(
+        *profile_, actor_service->GetJournal());
+  }
+
+  // Enterprise Case: Align toggle visibility with GlicActorPolicyChecker.
+  if (is_managed || is_enterprise_account) {
+    return glic_service->actor_policy_checker().CanActOnWeb();
+  }
+
+  // Google one User
+  // If not managed, we check consumer subscription tiers.
+  const base::flat_set<int32_t>& allowed_tiers =
+      glic::GlicActorPolicyChecker::GetActorEligibleTiers();
+  // If no tiers are allowed, the toggle should never be shown.
+  if (allowed_tiers.empty()) {
+    return false;
+  }
+
+  // NOTE: kGlicWebActuationSettingsToggle controls toggle visibility based
+  // solely on subscription eligibility. If this feature is disabled, the
+  // toggle remains visible only if the user has previously accepted the
+  // consent card.
+  if (base::FeatureList::IsEnabled(features::kGlicWebActuationSettingsToggle)) {
+    // Always show the toggle for internal dogfooders, mirroring the bypass in
+    // GlicActorPolicyChecker.
+    if (glic::GlicEnabling::IsLikelyDogfoodClient()) {
+      return true;
+    }
+    // Strict subscription check for external users.
+    auto* subscription_service = subscription_eligibility::
+        SubscriptionEligibilityServiceFactory::GetForProfile(profile_);
+    CHECK(subscription_service);
+    return allowed_tiers.contains(
+        subscription_service->GetAiSubscriptionTier());
+  }
+  // Show the toggle if the user has explicitly modified the preference before
+  // (via accepting the consent card).
+  if (!glic_service->enabling().IsUserEnabledActuationOnWebDefault()) {
+    return true;
+  }
+  return false;
+}
+
 bool GlicEnabling::ShouldShowGlicButton(Profile* profile) {
   return EnablementForProfile(profile).ShouldShowGlicButton();
 }
@@ -922,8 +1081,18 @@ GlicEnabling::GetGeminiEnterpriseSettings(Profile* profile) {
   return ParseGeminiEnterpriseSettings(pref_dict);
 }
 
-GlicEnabling::GlicEnabling(Profile* profile,
-                           ProfileAttributesStorage* profile_attributes_storage)
+// static
+std::unique_ptr<GlicEnabling> GlicEnabling::CreateForTesting(  // IN-TEST
+    Profile* profile,
+    ProfileAttributesStorage* profile_attributes_storage) {
+  return std::make_unique<GlicEnabling>(base::PassKey<GlicEnabling>(), profile,
+                                        profile_attributes_storage);
+}
+
+GlicEnabling::GlicEnabling(
+    base::PassKey<GlicKeyedService, GlicEnabling> pass_key,
+    Profile* profile,
+    ProfileAttributesStorage* profile_attributes_storage)
     : profile_(profile),
       profile_attributes_storage_(profile_attributes_storage) {
   pref_registrar_.Init(profile_->GetPrefs());
@@ -1128,6 +1297,14 @@ GlicEnabling::GetExperimentalTriggeringState() const {
   return syncer::DeviceInfo::GlicExperimentalTriggeringState::kNeedsOptIn;
 }
 
+std::optional<int> GlicEnabling::GetExperimentalTriggeringVersion() const {
+  if (GetExperimentalTriggeringState() ==
+      syncer::DeviceInfo::GlicExperimentalTriggeringState::kUnavailable) {
+    return std::nullopt;
+  }
+  return kExperimentalTriggeringVersion;
+}
+
 RequiredExperimentalOptIn GlicEnabling::GetRequiredExperimentalOptIn() const {
   if (!HasConsented()) {
     return RequiredExperimentalOptIn::kGlic;
@@ -1212,6 +1389,8 @@ void GlicEnabling::OnPrimaryAccountChanged(
   if (event_details.GetEventTypeFor(signin::ConsentLevel::kSignin) ==
       signin::PrimaryAccountChangeEvent::Type::kCleared) {
     SetCompletedFre(prefs::FreStatus::kNotStarted);
+    profile_->GetPrefs()->ClearPref(prefs::kGlicUserEnabledActuationOnWeb);
+    profile_->GetPrefs()->ClearPref(prefs::kGlicGeolocationEnabled);
   }
 #endif
   UpdateEnabledStatus();

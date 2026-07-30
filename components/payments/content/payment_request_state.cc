@@ -240,15 +240,6 @@ void PaymentRequestState::SetOptOutOffered() {
     journey_logger_->SetOptOutOffered();
 }
 
-std::optional<base::UnguessableToken>
-PaymentRequestState::GetChromeOSTWAInstanceId() const {
-  if (!payment_request_delegate_) {
-    return std::nullopt;
-  }
-
-  return payment_request_delegate_->GetChromeOSTWAInstanceId();
-}
-
 void PaymentRequestState::OnPaymentResponseReady(
     mojom::PaymentResponsePtr payment_response) {
   if (!delegate_)
@@ -360,12 +351,6 @@ void PaymentRequestState::CheckRequestedMethodsSupported(
   std::move(callback).Run(are_requested_methods_supported_,
                           get_all_payment_apps_error_,
                           get_all_payment_apps_error_reason_);
-}
-
-std::string PaymentRequestState::GetAuthenticatedEmail() const {
-  return payment_request_delegate_
-             ? payment_request_delegate_->GetAuthenticatedEmail()
-             : std::string();
 }
 
 void PaymentRequestState::AddObserver(Observer* observer) {
@@ -525,11 +510,6 @@ autofill::PersonalDataManager* PaymentRequestState::GetPersonalDataManager() {
   return personal_data_manager_;
 }
 
-autofill::RegionDataLoader* PaymentRequestState::GetRegionDataLoader() {
-  return payment_request_delegate_
-             ? payment_request_delegate_->GetRegionDataLoader()
-             : nullptr;
-}
 
 bool PaymentRequestState::IsPaymentAppInvoked() const {
   return !!response_helper_;

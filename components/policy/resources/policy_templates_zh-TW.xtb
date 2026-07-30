@@ -311,6 +311,13 @@
 <translation id="1214639335214075459">啟用 GPU 硬體影片解碼功能</translation>
 <translation id="1214942205301731697">禁止在擴充功能頁面上使用開發人員模式</translation>
 <translation id="1216919699175573511">啟用 Signed HTTP Exchange (SXG) 支援</translation>
+<translation id="1217033439268053263">這項政策已淘汰，建議你使用 <ph name="FORCE_YOUTUBE_RESTRICT_POLICY_NAME" /> 覆寫這項政策，即可進一步微調各項設定。
+
+      強制執行中度 <ph name="YOUTUBE_PRODUCT_NAME" /> 嚴格篩選模式，並禁止使用者變更這項設定。
+
+      如果啟用這項設定，系統將一律強制執行中度以上的 <ph name="YOUTUBE_PRODUCT_NAME" /> 嚴格篩選模式。
+
+      如果停用或未設定值，<ph name="PRODUCT_NAME" /> 就不會強制執行 <ph name="YOUTUBE_PRODUCT_NAME" /> 嚴格篩選模式。不過，外部政策 (例如 <ph name="YOUTUBE_PRODUCT_NAME" /> 政策) 可能仍會強制要求使用嚴格篩選模式。</translation>
 <translation id="1219027971768347970">使用音訊沙箱的預設設定</translation>
 <translation id="1219036692926668273">要使用 <ph name="HAPPY_EYEBALLS_V3" /> 演算法。</translation>
 <translation id="1221359380862872747">在示範登入時載入指定的網址</translation>
@@ -460,6 +467,7 @@
       如果啟用這項政策，系統會啟用經過改善的國際鍵盤快速鍵。
       如果不設定，系統會為受管理的裝置以及消費者擁有的裝置啟用這項政策。
       請注意，這只是一項臨時政策，允許受管理的使用者仍可使用已淘汰的舊版快速鍵。這項政策將在自訂鍵盤快速鍵推出後遭到淘汰。</translation>
+<translation id="1359459742455216057"><ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> 應用程式的專屬 ID。</translation>
 <translation id="1361661842732478894">在工具列上顯示首頁按鈕</translation>
 <translation id="1363275621236827384">允許在 Quirks Server 中查詢硬體設定檔</translation>
 <translation id="1363839375295535439">如果將這項政策設為啟用或不設定，只要系統支援，就會啟用 LPAC 沙箱來執行列印程序。
@@ -537,6 +545,7 @@ Chrome 政策的優先順序高於這項政策，例如擴充功能是否列在 
 <translation id="1417888712677507140">封鎖從不同來源子頁框觸發的 JavaScript 對話方塊。</translation>
 <translation id="1418387035898607074">針對從信任的來源下載的檔案略過安全瀏覽檢查</translation>
 <translation id="1419020637569060510">針對在 Chrome OS 將受管理帳戶做為次要帳戶使用的情況，設定限制條件</translation>
+<translation id="1423311643274506889">強制使用 Google 搜尋的安全搜尋功能和中度以上的 <ph name="YOUTUBE_PRODUCT_NAME" /> 嚴格篩選模式</translation>
 <translation id="1423359855587524289">如果將這項政策設為啟用或不設定，應用程式可能會使用 iOS 的「暫時」通知授權，在 iOS 通知中心顯示通知。
 
 如果將這項政策設為停用，應用程式就不會使用暫時通知。</translation>
@@ -2045,6 +2054,7 @@ Chrome 政策的優先順序高於這項政策，例如擴充功能是否列在 
 <translation id="2393862222659066027">開啟網址清單並還原前次的工作階段</translation>
 <translation id="239416486107542256">F11 設定採用含有 Ctrl 和 Shift 輔助鍵的快速鍵</translation>
 <translation id="2394429297128584919">禁止網頁在關閉時傳送同步 XHR 要求</translation>
+<translation id="2398817690049129302">強制執行 <ph name="YOUTUBE_PRODUCT_NAME" /> 安全模式</translation>
 <translation id="2399987589969059485">設定這項政策後，你可以指定哪些變化版本可套用到 <ph name="PRODUCT_NAME" />。
 
       變化版本可以透過選擇性啟用或停用現有功能的方式，在不推出新版瀏覽器的情況下提供對 <ph name="PRODUCT_NAME" /> 的修改項目。詳情請參閱 https://support.google.com/chrome/a?p=Manage_the_Chrome_variations_framework。
@@ -2160,6 +2170,14 @@ Chrome 政策的優先順序高於這項政策，例如擴充功能是否列在 
 
       指定政策值時需以天為單位。</translation>
 <translation id="2466131534462628618">要求網頁認證入口的驗證機制忽略 Proxy 設定</translation>
+<translation id="246680587517417824">https://github.com/WICG/service-worker-auto-preload
+ServiceWorkerAutoPreload 功能會在開始執行 ServiceWorker 啟動程序時，一併分派主要資源的網路要求。
+
+如果將這項政策設為啟用或不設定，<ph name="PRODUCT_NAME" /> 會啟用 ServiceWorkerAutoPreload。在某些情況下 (例如 ServiceWorker 未執行)，系統會在啟動 ServiceWorker 時自動分派瀏覽要求。
+
+如果停用這項政策，<ph name="PRODUCT_NAME" /> 就不會啟用 ServiceWorkerAutoPreload。瀏覽要求一律會在 ServiceWorker 啟動後分派。
+
+這項政策只是控管此功能的暫時性措施，將在 M154 中移除。</translation>
 <translation id="2467181864598429837">預設瀏覽器行為</translation>
 <translation id="2467896267442150508">最長為期一週的限制時段。如果開始時間設在結束時間之後，限制時段會跨日。</translation>
 <translation id="2475594733565572760">這項政策會定義所有相關生成式 AI 功能的預設設定。舉例來說，如果將這項政策的值設為 1，1 就會是所有相關生成式 AI 功能的預設設定值。這不會影響任何手動設定的政策值。這項設定會定義 Chrome 中涵蓋的生成式 AI 功能預設值。如要查看相關功能的完整清單，請前往 https://support.google.com/chrome/a?p=generative_ai_settings。
@@ -2497,6 +2515,7 @@ PAC 樣式的字串：
 如要瞭解<ph name="PRIVATE_NETWORK_ACCESS" />限制，請前往 https://wicg.github.io/private-network-access/。</translation>
 <translation id="2600005880585324062">由 <ph name="PRODUCT_NAME" /> 決定哪些來源要與同網站的其他來源隔離。</translation>
 <translation id="26023406105317310">設定 Kerberos 帳戶</translation>
+<translation id="2603163741218691337">不限制刪除 <ph name="YOUTUBE_PRODUCT_NAME" /> Cookie</translation>
 <translation id="2603237557651009842">禁止這些網站使用 WebPrinting API</translation>
 <translation id="2603382859270873566">支援 PPB_VideoDecoder(Dev) API。</translation>
 <translation id="2604182581880595781">設定網路檔案共用區相關政策。</translation>
@@ -3255,6 +3274,7 @@ PAC 樣式的字串：
 <translation id="3142410959002029864">如果設定這項政策，將覆寫預設的雙面列印模式。如果系統不支援設定的模式，將會忽略這項政策。</translation>
 <translation id="3143203373436771188">瀏覽由<ph name="BASIC_EDITOR_NAME" />處理的 Office 文件時，在<ph name="BASIC_EDITOR_NAME" />中開啟文件</translation>
 <translation id="3144173889708944482">如果在 <ph name="DEVICE_PRINTERS_ACCESS_MODE_POLICY_NAME" /> 中選擇了 <ph name="PRINTERS_BLOCKLIST" />，系統會根據 <ph name="DEVICE_PRINTERS_BLOCKLIST_POLICY_NAME" /> 的設定指定使用者不能操作的印表機。除了這項政策所列 ID 的印表機外，其他印表機皆可供使用。印表機 ID 必須與 <ph name="DEVICE_PRINTERS_POLICY_NAME" /> 政策指定檔案的 <ph name="ID_FIELD" /> 或 <ph name="GUID_FIELD" /> 欄位值相符。</translation>
+<translation id="3144419820067745871"><ph name="YOUTUBE_PRODUCT_NAME" /> (自 135 版起支援)</translation>
 <translation id="3146711617256415776">禁止在使用隨選朗讀時使用加強型網路文字轉語音功能</translation>
 <translation id="315013437951136266">啟用 <ph name="IP_PROTECTION_NAME" />功能。</translation>
 <translation id="3150351525324499342">預設不在工具列顯示 <ph name="PRODUCT_NAME" /> 圖示，但允許使用者選擇</translation>
@@ -4090,6 +4110,7 @@ SwiftShader 曾在沒有 GPU 加速功能的系統 (例如無頭系統或虛擬�
 Protected Audience API 已淘汰，因此這項政策已在 <ph name="PRODUCT_NAME" /> 144 版淘汰。</translation>
 <translation id="3733014427925403568">限制時段的開始及結束時間分別是星期幾。</translation>
 <translation id="3736879847913515635">允許在使用者管理工具中新增使用者</translation>
+<translation id="3741204225338304131">強制執行最低限度的 <ph name="YOUTUBE_PRODUCT_NAME" /> 嚴格篩選模式</translation>
 <translation id="3744984310825999317">允許 <ph name="PEPPER_NAME" /> 使用新的解碼器進行硬體加速影片解碼。</translation>
 <translation id="3749259744154402564">不支援</translation>
 <translation id="3749511622128647337">停用音訊輸出</translation>
@@ -4159,6 +4180,7 @@ Protected Audience API 已淘汰，因此這項政策已在 <ph name="PRODUCT_NA
 <translation id="3778689139323007309">針對由本機裝載 CA 憑證所簽署並經過成功驗證的伺服器憑證，執行撤銷檢查</translation>
 <translation id="3780152581321609624">Kerberos SPN 包含非標準連接埠</translation>
 <translation id="3785423718413114598">不允許使用生成式 AI 功能</translation>
+<translation id="378626615843371785">調整 <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> 設定 (Beta 版)</translation>
 <translation id="3788155044604525647">Direct Sockets API 可以使用 TCP 和 UDP 與任意端點通訊。
 詳情請參閱 https://github.com/WICG/direct-sockets。
 
@@ -4662,6 +4684,7 @@ Protected Audience API 已淘汰，因此這項政策已在 <ph name="PRODUCT_NA
 <translation id="4136603825567209889">啟用使用者識別資訊報告功能</translation>
 <translation id="4138655880188755661">時間限制</translation>
 <translation id="4140646780789794190">停用將診斷資料共用至 PluginVm</translation>
+<translation id="4141430435877011529"><ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> 應用程式的多區域或地區。如要進一步瞭解 <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> 地區，請前往 https://docs.cloud.google.com/gemini/enterprise/docs/locations。</translation>
 <translation id="4144417751555442768">生成式 AI</translation>
 <translation id="4145383150978634398">允許使用者使用整合桌面模式</translation>
 <translation id="4146319954420095470">(警告！這個依附元件即將停用，請改用 <ph name="GLS_POLICY_NAME" />) 如果這項政策設為 <ph name="BLOCK_GEOLOCATION_SETTING" />，<ph name="PRODUCT_OS_NAME" /> 系統服務和 Android 應用程式將無法存取位置資訊。如果將這項政策設為其他值或不設定，Android 應用程式要存取位置資訊時，會要求使用者授予存取權。</translation>
@@ -5392,6 +5415,7 @@ Protected Audience API 已淘汰，因此這項政策已在 <ph name="PRODUCT_NA
       如要進一步瞭解有效的<ph name="URL_LABEL" />模式，請參閱 https://chromeenterprise.google/policies/url-patterns。<ph name="WILDCARD_VALUE" /> 不是這項政策許可的值。</translation>
 <translation id="4624417808625504735">禁止 JavaScript 在這些網站上使用 JIT</translation>
 <translation id="46321462262887935">將最上排按鍵設為功能鍵，但允許使用者變更</translation>
+<translation id="4635757219046879316">強制執行中度以上的 <ph name="YOUTUBE_PRODUCT_NAME" /> 嚴格篩選模式</translation>
 <translation id="4636354638176939375">停用受監管使用者的建立功能</translation>
 <translation id="4637701328641064644">這項政策可控管系統是否在擷取及瀏覽期間分割 Blob 網址。
 如果將這項政策設為啟用或不設定，系統將會分割 Blob 網址。
@@ -5959,6 +5983,7 @@ https://developers.google.com/privacy-sandbox/cookies/storage-partitioning。</t
 
       如要將應用程式固定到 <ph name="PRODUCT_OS_NAME" /> 檔案櫃，請參閱 <ph name="PINNED_LAUNCHER_APPS_POLICY_NAME" /> 政策。</translation>
 <translation id="494613465159630803">Cast 接收器</translation>
+<translation id="4947257516265472776">強制執行 <ph name="YOUTUBE_PRODUCT_NAME" /> 的高度嚴格篩選模式</translation>
 <translation id="494924690085329212">在 Android 已啟動的前提下，於使用者登出時重新啟動。</translation>
 <translation id="4950447493143157880">永不使用內建 DNS 用戶端</translation>
 <translation id="4953541641325278286">禁止任何網站偵測使用者的閒置狀態</translation>
@@ -6578,6 +6603,13 @@ Attribution Reporting API 已淘汰，因此這項政策已在 <ph name="PRODUCT
       如果在 <ph name="GET_DISPLAY_MEDIA_SET_NAME" /> 要求中定義了 <ph name="AUTO_SELECT_ALL_SCREENS_NAME" /> 屬性，系統會自動擷取所有螢幕的畫面，不必獲得使用者明確授權。
       如果不設定這項政策，則 <ph name="AUTO_SELECT_ALL_SCREENS_NAME" /> 不適用於任何網頁應用程式。
 為進一步保護隱私權，自 <ph name="PRODUCT_NAME" /> 116 版起，這項政策不再支援動態重新整理。因此，使用者可以確定如果在工作階段開始時沒有獲得許可，則在登入後也沒有其他網頁能擷取畫面。</translation>
+<translation id="5351894784463048975">這項政策已淘汰，請改用 <ph name="FORCE_GOOGLE_SAFE_SEARCH_POLICY_NAME" /> 和 <ph name="FORCE_YOUTUBE_RESTRICT_POLICY_NAME" />。如果設定 <ph name="FORCE_GOOGLE_SAFE_SEARCH_POLICY_NAME" />、<ph name="FORCE_YOUTUBE_RESTRICT_POLICY_NAME" /> 或 <ph name="FORCE_YOUTUBE_SAFETY_MODE_POLICY_NAME" /> 政策 (已淘汰)，系統會忽略這項政策。
+
+      系統將強制啟用 Google 網頁搜尋的安全搜尋功能 (而且禁止使用者變更設定)，並在 <ph name="YOUTUBE_PRODUCT_NAME" /> 中強制執行中度嚴格篩選模式。
+
+      如果啟用這項設定，系統會一律啟用 Google 搜尋的安全搜尋功能，以及中度 <ph name="YOUTUBE_PRODUCT_NAME" /> 嚴格篩選模式。
+
+      如果停用或未設定值，系統不會強制執行 Google 搜尋的安全搜尋功能和 <ph name="YOUTUBE_PRODUCT_NAME" /> 嚴格篩選模式。</translation>
 <translation id="5361167871898066799">控制實體鍵盤自動更正功能</translation>
 <translation id="5361708558735884308">如果設定這項政策，使用者可以存取許可清單中的網址，這些網址是 <ph name="URL_BLOCKLIST_POLICY_NAME" /> 的例外項目。請參閱該項政策的說明，瞭解這份清單採用的項目格式。舉例來說，如果將 <ph name="URL_BLOCKLIST_POLICY_NAME" /> 設為「*」，系統會封鎖所有要求。你可以透過這項政策允許使用者存取一些特定的網址。請使用 https://support.google.com/chrome/a?p=url_blocklist_filter_format 網頁中指定的格式，透過這項政策將特定的網路協定、其他網域的子網域、通訊埠或特定路徑設為例外。如要判定是否封鎖某個網址，系統會以條件最精確的篩選器做為判定依據。<ph name="URL_ALLOWLIST_POLICY_NAME" /> 政策的優先順序高於 <ph name="URL_BLOCKLIST_POLICY_NAME" />。這項政策最多只能輸入 1,000 個項目。
 
@@ -6884,6 +6916,7 @@ Microsoft SharePoint 和 OneDrive 資訊卡需要額外的管理員設定。想�
 
       如要進一步瞭解有效的網址模式，請參閱 https://chromeenterprise.google/policies/url-patterns/。</translation>
 <translation id="554903022911579950">Kerberos</translation>
+<translation id="5549325536554939195">強制執行中度以上的 <ph name="YOUTUBE_PRODUCT_NAME" /> 嚴格篩選模式</translation>
 <translation id="555022085242359084">在登入畫面上啟用高對比模式</translation>
 <translation id="555077880566103058">允許所有網站自動執行 <ph name="FLASH_PLUGIN_NAME" /> 外掛程式</translation>
 <translation id="5555361544583789006">如果將這項政策設為 True 或未設定，<ph name="PRODUCT_NAME" /> 將能以整個分頁向使用者顯示產品資訊。
@@ -7333,6 +7366,15 @@ Microsoft SharePoint 和 OneDrive 資訊卡需要額外的管理員設定。想�
       此處的 <ph name="CHROMEOS_VERSION_PROPERTY_NAME" /> 可以指確切版本 (例如「13305.0.0」)，也可以指版本前置字元 (例如「13305」)。
       <ph name="WARNING_PERIOD_PROPERTY_NAME" /> 和 <ph name="AUE_WARNING_PERIOD_PROPERTY_NAME" /> 是選用值，以天數為單位。這兩個期間的預設值是 0 天，表示無警告期。
       <ph name="UNMANAGED_USER_RESTRICTED_PROPERTY_NAME" /> 是選用屬性，預設值為 False。</translation>
+<translation id="5876812185674131521">禁止手動刪除 <ph name="YOUTUBE_PRODUCT_NAME" /> Cookie。
+
+這項政策旨在防止使用者從網站設定頁面手動清除 <ph name="YOUTUBE_PRODUCT_NAME" /> Cookie，之後擅自存取 <ph name="YOUTUBE_PRODUCT_NAME" />。
+
+如果將這項政策設為啟用，使用者就無法手動刪除 <ph name="YOUTUBE_PRODUCT_NAME" /> Cookie。
+
+如果設為停用或未設定，就能正常刪除 <ph name="YOUTUBE_PRODUCT_NAME" /> Cookie。
+
+注意：這項政策只會禁止使用者透過網站設定使用者介面手動刪除，但不會阻止 <ph name="CLEAR_BROWSING_DATA_ON_EXIT_LIST_POLICY_NAME" /> 或 <ph name="BROWSING_DATA_LIFETIME_POLICY_NAME" /> 政策自動刪除資料。此外，如果啟用 <ph name="ALLOW_DELETING_BROWSER_HISTORY_POLICY_NAME" /> 政策，使用者仍可透過「清除瀏覽資料」對話方塊清除所有 Cookie。</translation>
 <translation id="5879014913445067283">控制能否透過 <ph name="NETBIOS_NAME" /> 搜尋網路檔案共用區</translation>
 <translation id="588135807064822874">啟用「輕觸搜尋」功能</translation>
 <translation id="5882345429632338713">在啟動替代瀏覽器前的延遲時間 (以毫秒為單位)</translation>
@@ -7574,6 +7616,7 @@ IP 位址空間覆寫有兩種形式：
 <translation id="6035597431797865964">允許受管理的訪客工作階段保留顯示屬性</translation>
 <translation id="6036459377708946958">每月應執行更新檢查的日期 [1-31] (根據裝置當地時區)，僅適用於「frequency」設為「MONTHLY」的情況。如果這個值大於指定月份的天數上限，系統會選擇當月的最後一天。</translation>
 <translation id="6036523166753287175">允許遠端存取主機穿越防火牆</translation>
+<translation id="6037328895573728112">限制刪除 <ph name="YOUTUBE_PRODUCT_NAME" /> Cookie</translation>
 <translation id="603768430528561926">如果將這項政策設為啟用或不設定，企業裝置使用者可透過 <ph name="PRODUCT_OS_NAME" />註冊兌換優惠。
 
       如果將這項政策設為停用，使用者將無法兌換這類優惠。</translation>
@@ -8254,6 +8297,7 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 如果設為停用，將無法在任何網頁上使用 <ph name="SEARCH_SIDE_PANEL_FEATURE_NAME" />。
 
 教育版或企業版帳戶無法使用這項功能中的 GenAI。</translation>
+<translation id="6466693757921765054">這項政策不會影響 <ph name="ANDROID_NAME" /> 版 <ph name="YOUTUBE_PRODUCT_NAME" /> 應用程式。如要強制啟用 <ph name="YOUTUBE_PRODUCT_NAME" /> 安全模式，請禁止安裝 <ph name="ANDROID_NAME" /> 版 <ph name="YOUTUBE_PRODUCT_NAME" /> 應用程式。</translation>
 <translation id="6467613372414922590">允許使用者層級的內建訊息傳遞主機 (在無管理員權限的情況下安裝)。</translation>
 <translation id="6467707081687600148">在套用 <ph name="PRODUCT_OS_NAME" /> 更新後，安排自動重新啟動。
 
@@ -8675,6 +8719,7 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 
 如果是 <ph name="PRODUCT_NAME" />，裝置必須使用 <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" /> 註冊，這項政策才會生效。
 如果是 <ph name="PRODUCT_OS_NAME" />，這項政策一律會生效。</translation>
+<translation id="6714333117401088746">與要啟用的 <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> 執行個體相對應的 <ph name="GOOGLE_CLOUD_PRODUCT_NAME" /> 專案 ID。</translation>
 <translation id="6720330829631914048">一天開始後經過的小時數 (24 小時制)。</translation>
 <translation id="6720862827454058309">覆寫 IP 位址空間對應關係</translation>
 <translation id="6721252203593581486">在 M97 中，第三方內容中的 WebSQL (例如跨網站 iframe) 預設為關閉狀態，而在 M101 中將全面移除。
@@ -8748,6 +8793,7 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 
       無論這項政策設為啟用或停用，chrome://flags 和其他開啟/關閉瀏覽器功能的方法都能正常運作。</translation>
 <translation id="6794273802619210652">啟用人臉操控無障礙功能</translation>
+<translation id="6795338611092628062">不強制使用 Google 搜尋的安全搜尋功能或 <ph name="YOUTUBE_PRODUCT_NAME" /> 嚴格篩選模式</translation>
 <translation id="6795485990775913659">只在 PIN 碼停用時允許列印</translation>
 <translation id="6796215185873669533">將 User-Agent 字串版本預設為瀏覽器設定值。</translation>
 <translation id="6800181452282128474">不向 Quirks Server 發送查詢</translation>
@@ -9065,6 +9111,13 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
        如果你選擇了透過任何其他模式設定 Proxy 政策，請勿設定這項政策。
 
        注意：如需詳細範例，請前往 Chromium 計畫 (網址為 https://www.chromium.org/developers/design-documents/network-settings#TOC-Command-line-options-for-proxy-sett )。</translation>
+<translation id="7001463504545085491">如果設定這項政策，系統會在 <ph name="YOUTUBE_PRODUCT_NAME" /> 上強制執行最低限度的嚴格篩選模式，並禁止使用者再放寬。可設定的選項如下：
+
+      * 高度：一律在 <ph name="YOUTUBE_PRODUCT_NAME" /> 啟用高度嚴格篩選模式。
+
+      * 中度：使用者只能在 <ph name="YOUTUBE_PRODUCT_NAME" /> 選擇中度和高度的嚴格篩選模式，而且無法關閉。
+
+      * 關閉或未設定值：Chrome 不會強制執行 <ph name="YOUTUBE_PRODUCT_NAME" /> 嚴格篩選模式，但外部政策 (例如 <ph name="YOUTUBE_PRODUCT_NAME" /> 政策) 可能仍會強制要求使用嚴格篩選模式。</translation>
 <translation id="7001915679435065291">如果將這項政策設為 1，所有網站皆可顯示圖片。如果將這項政策設為 2，所有網站都無法顯示圖片。
 
 如果不設定，所有網站皆可顯示圖片，但使用者可以變更這項設定。</translation>
@@ -9458,6 +9511,7 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 <translation id="7179187054027029272">如果將這項政策設為 True 或不設定，具有適當權限的使用者、應用程式和擴充功能將可進入全螢幕模式 (僅顯示網頁內容)。
 
       如果將這項政策設為 False，使用者、應用程式和擴充功能將無法進入全螢幕模式。</translation>
+<translation id="7180529638251181928">不強制執行 <ph name="YOUTUBE_PRODUCT_NAME" /> 嚴格篩選模式</translation>
 <translation id="718126088895133062">這項政策會為這部裝置指定 <ph name="PLUGIN_VM_NAME" /> 授權使用者 ID。</translation>
 <translation id="7185078796915954712">TLS 1.3</translation>
 <translation id="7185630966939835143">使用 Google 網路服務來協助解決拼字錯誤</translation>
@@ -9927,6 +9981,11 @@ Gemini 啟動功能僅支援部分國家/地區和語言。設定這項政策無
 
 如果未設定這項政策，<ph name="PRODUCT_NAME" /> 只會連線至 RFC1918/RFC4193 上的投放裝置，但 CastAllowAllIPs 功能啟用時除外。</translation>
 <translation id="7534199150025803530">這項政策對 Android Google 雲端硬碟應用程式沒有影響。如要禁止透過行動網路連線使用 Google 雲端硬碟，則必須禁止安裝 Android Google 雲端硬碟應用程式。</translation>
+<translation id="7537404002861344834">調整 <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> 的連線設定，提升 Chrome 內建 Gemini 功能的回覆品質。
+
+設定這項政策後，如果使用者登入與指定專案 ID 和應用程式 ID 關聯的代管帳戶，系統就能運用 <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> 強化 Chrome 內建 Gemini 的回覆內容。<ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> 不適用於登入個人帳戶的設定檔。
+
+如果未設定這項政策，系統就不會運用 <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> 強化 Chrome 內建 Gemini 的回覆內容。請注意，這項政策並不控管一般的 <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> 整合功能，該功能是由 <ph name="GEMINI_SETTINGS_POLICY_NAME" /> 政策負責控管。這項政策的所有設定都必須與 <ph name="GOOGLE_CLOUD_PRODUCT_NAME" /> 控制台中 <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> 專案的設定相符。如有不符之處，使用 <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> 時可能會導致非預期的行為。</translation>
 <translation id="7538583957913002726">這項政策預設為啟用，已註冊的裝置會回報 CPU 型號名稱、架構和最高時脈速度；如果搭載 M96 以上版本則會進一步提供 CPU 使用率和溫度資訊。
 
       如果將這項政策設為停用，則已註冊的裝置不會回報任何 CPU 資訊。
@@ -10947,6 +11006,7 @@ Topics API 已淘汰，因此這項政策已在 <ph name="PRODUCT_NAME" /> 144 �
 <translation id="82530263956734297">要從封鎖清單中排除的擴充功能 ID</translation>
 <translation id="8254749125469750814">不要驗證能否透過雲端服務安裝擴充功能。</translation>
 <translation id="8256006033157034334">這項政策已淘汰，因此系統不再支援，請改用 <ph name="PRINTERS_BULK_ACCESS_MODE_POLICY_NAME_POLICY_NAME" />。</translation>
+<translation id="8256324351037372224">不強制執行 <ph name="YOUTUBE_PRODUCT_NAME" /> 嚴格篩選模式</translation>
 <translation id="8256688113167012935">控制 <ph name="PRODUCT_OS_NAME" /> 在登入畫面上顯示的帳戶名稱，以表示相對應的裝置本機帳戶。
 
       如果你設定這項政策，登入畫面就會使用指定的字串，在圖像化的登入選擇器中表示相對應的裝置本機帳戶。

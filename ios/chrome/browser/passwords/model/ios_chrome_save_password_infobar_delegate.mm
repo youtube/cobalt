@@ -7,14 +7,18 @@
 #import <string>
 #import <utility>
 
+#import "base/check.h"
+#import "base/feature_list.h"
 #import "base/memory/ptr_util.h"
 #import "base/metrics/histogram_functions.h"
+#import "base/not_fatal_until.h"
 #import "base/notreached.h"
 #import "base/strings/strcat.h"
 #import "base/strings/sys_string_conversions.h"
 #import "components/autofill/ios/common/features.h"
 #import "components/infobars/core/infobar.h"
 #import "components/infobars/core/infobar_manager.h"
+#import "components/password_manager/core/browser/features/password_features.h"
 #import "components/password_manager/core/browser/password_form.h"
 #import "components/password_manager/core/browser/password_form_manager_for_ui.h"
 #import "components/password_manager/core/browser/password_form_metrics_recorder.h"
@@ -24,7 +28,10 @@
 #import "components/password_manager/core/browser/password_store/stored_credential.h"
 #import "components/password_manager/core/browser/password_ui_utils.h"
 #import "components/strings/grit/components_strings.h"
+#import "components/trusted_vault/trusted_vault_client.h"
+#import "ios/chrome/browser/infobars/model/infobar_ios.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/sync_presenter_commands.h"
 #import "ios/chrome/grit/ios_branded_strings.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ui/base/l10n/l10n_util.h"
@@ -167,6 +174,22 @@ void RecordDurationAtMoment(bool is_update,
                           base::Milliseconds(1), base::Seconds(25), 50);
 }
 
+// Returns an error preventing user from saving passwords in their account, if
+// any.
+password_manager::ActionableError GetPasswordStoreActionableError(
+    password_manager::PasswordStoreInterface* profile_store,
+    password_manager::PasswordStoreInterface* account_store) {
+  password_manager::ActionableError error =
+      password_manager::ActionableError::kNoError;
+  if (account_store) {
+    error = account_store->GetError();
+  }
+  if (error == password_manager::ActionableError::kNoError && profile_store) {
+    error = profile_store->GetError();
+  }
+  return error;
+}
+
 }  // namespace
 
 using password_manager::PasswordFormManagerForUI;
@@ -177,8 +200,11 @@ IOSChromeSavePasswordInfoBarDelegate::IOSChromeSavePasswordInfoBarDelegate(
     password_manager::features_util::PasswordAccountStorageUserState
         account_storage_user_state,
     std::unique_ptr<PasswordFormManagerForUI> form_to_save,
+    ukm::SourceId ukm_source_id,
+    bool is_replacement,
     CommandDispatcher* dispatcher,
-    ukm::SourceId ukm_source_id)
+    password_manager::PasswordStoreInterface* profile_store,
+    password_manager::PasswordStoreInterface* account_store)
     : ukm_source_id_(ukm_source_id),
       dispatcher_(dispatcher),
       form_to_save_(std::move(form_to_save)),
@@ -187,10 +213,13 @@ IOSChromeSavePasswordInfoBarDelegate::IOSChromeSavePasswordInfoBarDelegate(
                         : PasswordInfobarType::kPasswordInfobarTypeSave),
       account_to_store_password_(account_to_store_password),
       account_storage_user_state_(account_storage_user_state),
-      password_update_(password_update) {}
+      password_update_(password_update),
+      is_replacement_(is_replacement),
+      profile_store_(profile_store),
+      account_store_(account_store) {}
 
 IOSChromeSavePasswordInfoBarDelegate::~IOSChromeSavePasswordInfoBarDelegate() {
-  if (IsPresenting()) {
+  if (IsPresenting() && form_to_save_) {
     // If by any reason this delegate gets dealloc before the Infobar UI is
     // dismissed, record the dismissal metrics, which happens when navigating
     // away from the page presenting the infobar.
@@ -267,6 +296,23 @@ std::u16string IOSChromeSavePasswordInfoBarDelegate::GetButtonLabel(
 
 bool IOSChromeSavePasswordInfoBarDelegate::Accept() {
   DCHECK(form_to_save_);
+
+  if (base::FeatureList::IsEnabled(
+          password_manager::features::kInFlowTrustedVaultKeyRetrievalIos)) {
+    password_manager::ActionableError error = GetPasswordStoreActionableError(
+        profile_store_.get(), account_store_.get());
+    if (MaybeHandlePasswordError(error)) {
+      handling_password_error_ = true;
+      return false;
+    }
+  }
+
+  SavePassword();
+  return true;
+}
+
+void IOSChromeSavePasswordInfoBarDelegate::SavePassword() {
+  DCHECK(form_to_save_);
   if (IsPasswordUpdate()) {
     if (const password_manager::StoredCredential*
             changed_credential_with_backup =
@@ -285,7 +331,6 @@ bool IOSChromeSavePasswordInfoBarDelegate::Accept() {
   infobar_response_ = password_manager::metrics_util::CLICKED_ACCEPT;
   password_update_ = true;
   current_password_saved_ = true;
-  return true;
 }
 
 bool IOSChromeSavePasswordInfoBarDelegate::Cancel() {
@@ -315,13 +360,17 @@ void IOSChromeSavePasswordInfoBarDelegate::InfobarPresenting(bool automatic) {
     return;
   }
 
-  RecordPresentationMetrics(form_to_save_.get(), current_password_saved_,
-                            IsUpdateInfobar(infobar_type_), automatic);
+  if (!is_replacement_) {
+    // The infobar was already displayed for this save password flow, log
+    // metrics only once.
+    RecordPresentationMetrics(form_to_save_.get(), current_password_saved_,
+                              IsUpdateInfobar(infobar_type_), automatic);
+  }
   start_timestamp_ = base::TimeTicks::Now();
 }
 
 void IOSChromeSavePasswordInfoBarDelegate::InfobarGone() {
-  if (!IsPresenting()) {
+  if (!form_to_save_ || !IsPresenting()) {
     return;
   }
 
@@ -371,4 +420,78 @@ void IOSChromeSavePasswordInfoBarDelegate::RecordInfobarDuration(
 
 bool IOSChromeSavePasswordInfoBarDelegate::IsPresenting() const {
   return start_timestamp_.has_value();
+}
+
+bool IOSChromeSavePasswordInfoBarDelegate::MaybeHandlePasswordError(
+    password_manager::ActionableError error) {
+  CHECK(dispatcher_, base::NotFatalUntil::M160);
+
+  base::WeakPtr<IOSChromeSavePasswordInfoBarDelegate> weak_this =
+      weak_ptr_factory_.GetWeakPtr();
+  SyncPresenterCompletionCallback completion = ^{
+    if (weak_this) {
+      weak_this->OnPasswordErrorFlowCompleted();
+    }
+  };
+
+  switch (error) {
+    // TODO(crbug.com/464228247): Verify if the logic is correct for all errors.
+    case password_manager::ActionableError::kNoError:
+    case password_manager::ActionableError::kInactionable:
+    case password_manager::ActionableError::kInactionableTemporaryError:
+    case password_manager::ActionableError::kKeychainError:
+    // TODO(crbug.com/464228247): Handle missing passphrase error.
+    case password_manager::ActionableError::kNeedsPassphrase:
+      return false;
+    case password_manager::ActionableError::kSignInNeeded:
+      [HandlerForProtocol(dispatcher_, SyncPresenterCommands)
+          showPrimaryAccountReauthWithDismissalCompletion:completion];
+      break;
+    case password_manager::ActionableError::kTrustedVaultKeyNeeded:
+      // TODO(crbug.com/464228247): Add new UMA trigger.
+      [HandlerForProtocol(dispatcher_, SyncPresenterCommands)
+          showTrustedVaultReauthForFetchKeysWithTrigger:
+              trusted_vault::TrustedVaultUserActionTriggerForUMA::
+                  kPasswordManagerSettings
+                                             completion:completion];
+      break;
+  }
+
+  return true;
+}
+
+bool IOSChromeSavePasswordInfoBarDelegate::IsHandlingPasswordError() const {
+  return handling_password_error_;
+}
+
+void IOSChromeSavePasswordInfoBarDelegate::OnPasswordErrorFlowCompleted() {
+  handling_password_error_ = false;
+  password_manager::ActionableError error = GetPasswordStoreActionableError(
+      profile_store_.get(), account_store_.get());
+  infobars::InfoBar* infobar_ptr = infobar();
+  if (error == password_manager::ActionableError::kNoError) {
+    SavePassword();
+    if (infobar_ptr) {
+      infobar_ptr->RemoveSelf();
+    }
+    return;
+  }
+
+  // The error was not resolved (or there is a new one). Create a new infobar,
+  // so the automatic dismissal timeout kicks in again and the user can retry
+  // fixing the error.
+  if (infobar_ptr && infobar_ptr->owner()) {
+    auto new_delegate = std::make_unique<IOSChromeSavePasswordInfoBarDelegate>(
+        account_to_store_password_, password_update_,
+        account_storage_user_state_, std::move(form_to_save_), ukm_source_id_,
+        /*is_replacement=*/true, dispatcher_, profile_store_.get(),
+        account_store_.get());
+    InfobarType type = IsPasswordUpdate()
+                           ? InfobarType::kInfobarTypePasswordUpdate
+                           : InfobarType::kInfobarTypePasswordSave;
+    auto new_infobar =
+        std::make_unique<InfoBarIOS>(type, std::move(new_delegate),
+                                     /*skip_banner=*/true);
+    infobar_ptr->owner()->ReplaceInfoBar(infobar_ptr, std::move(new_infobar));
+  }
 }

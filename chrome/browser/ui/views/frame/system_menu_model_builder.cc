@@ -56,6 +56,7 @@
 
 namespace {
 
+#if !BUILDFLAG(IS_MAC)
 void AddItemWithIconMaybe(ui::SimpleMenuModel* model,
                           int command_id,
                           int string_id,
@@ -69,6 +70,7 @@ void AddItemWithIconMaybe(ui::SimpleMenuModel* model,
     model->AddItemWithStringId(command_id, string_id);
   }
 }
+#endif  // !BUILDFLAG(IS_MAC)
 
 }  // namespace
 
@@ -139,17 +141,27 @@ void SystemMenuModelBuilder::BuildSystemMenuForBrowserWindow(
   model->AddSeparator(ui::NORMAL_SEPARATOR);
 #endif
   model->AddItemWithStringId(IDC_NEW_TAB, IDS_NEW_TAB);
+  model->SetElementIdentifierAt(model->GetIndexOfCommandId(IDC_NEW_TAB).value(),
+                                kSystemMenuNewTabElementId);
   model->AddItemWithStringId(IDC_RESTORE_TAB, IDS_RESTORE_TAB);
+  model->SetElementIdentifierAt(
+      model->GetIndexOfCommandId(IDC_RESTORE_TAB).value(),
+      kSystemMenuRestoreTabElementId);
 
   if (features::IsTabGroupMenuMoreEntryPointsEnabled()) {
     model->AddItemWithStringId(IDC_GROUP_UNGROUPED_TABS,
                                IDS_GROUP_UNGROUPED_TABS);
   }
 
+#if BUILDFLAG(IS_MAC)
+  model->AddItemWithStringId(IDC_BOOKMARK_ALL_TABS, IDS_BOOKMARK_ALL_TABS);
+  model->AddItemWithStringId(IDC_NAME_WINDOW, IDS_NAME_WINDOW);
+#else
   AddItemWithIconMaybe(model, IDC_BOOKMARK_ALL_TABS, IDS_BOOKMARK_ALL_TABS,
                        kBookmarkAllTabsChromeRefreshOldIcon);
   AddItemWithIconMaybe(model, IDC_NAME_WINDOW, IDS_NAME_WINDOW,
                        kNameWindowOldIcon);
+#endif  // BUILDFLAG(IS_MAC)
 
   if (base::FeatureList::IsEnabled(tabs::kHorizontalTabStripComboButton)) {
     model->AddSeparator(ui::NORMAL_SEPARATOR);
@@ -333,7 +345,7 @@ void SystemMenuModelBuilder::AppendMoveToDesksMenu(ui::SimpleMenuModel* model) {
   move_to_desks_model_ = std::make_unique<chromeos::MoveToDesksMenuModel>(
       std::make_unique<chromeos::MoveToDesksMenuDelegate>(
           views::Widget::GetWidgetForNativeWindow(
-              browser->window()->GetNativeWindow())));
+              browser->GetWindow()->GetNativeWindow())));
   model->AddSubMenuWithStringId(chromeos::MoveToDesksMenuModel::kMenuCommandId,
                                 IDS_MOVE_TO_DESKS_MENU,
                                 move_to_desks_model_.get());
@@ -372,7 +384,7 @@ void SystemMenuModelBuilder::AppendTeleportMenu(ui::SimpleMenuModel* model) {
   auto* window_manager = ash::Shell::Get()->multi_user_window_manager();
   const AccountId account_id =
       multi_user_util::GetAccountIdFromProfile(browser()->profile());
-  aura::Window* window = browser()->window()->GetNativeWindow();
+  aura::Window* window = browser()->GetWindow()->GetNativeWindow();
   if (!account_id.is_valid() || !window ||
       !window_manager->GetWindowOwner(window).is_valid()) {
     return;

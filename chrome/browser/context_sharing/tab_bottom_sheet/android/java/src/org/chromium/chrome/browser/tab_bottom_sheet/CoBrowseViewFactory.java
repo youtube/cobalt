@@ -28,6 +28,7 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.components.embedder_support.contextmenu.ContextMenuPopulatorFactory;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.content_public.browser.selection.SelectionDropdownMenuDelegate;
 import org.chromium.ui.base.WindowAndroid;
 
 /** Factory for creating co-browse content. */
@@ -41,7 +42,7 @@ public class CoBrowseViewFactory {
     private final ActivityLifecycleDispatcher mLifecycleDispatcher;
     private final SnackbarManager mSnackbarManager;
     private final ContextMenuPopulatorFactory mContextMenuPopulatorFactory;
-    private final CoBrowseViewsZoomControl mZoomControl;
+    private final SelectionDropdownMenuDelegate mSelectionDropdownMenuDelegate;
 
     /**
      * Factory responsible for creating co-browse content.
@@ -55,7 +56,8 @@ public class CoBrowseViewFactory {
      * @param snackbarManager The {@link SnackbarManager} for managing snackbar messages.
      * @param contextMenuPopulatorFactory The {@link ContextMenuPopulatorFactory} to show context
      *     menu on the ThinWebView.
-     * @param zoomControl The control for zooming the WebContents.
+     * @param selectionDropdownMenuDelegate The {@link SelectionDropdownMenuDelegate} to handle
+     *     selection dropdown menus.
      */
     public CoBrowseViewFactory(
             Activity activity,
@@ -65,7 +67,7 @@ public class CoBrowseViewFactory {
             ActivityLifecycleDispatcher lifecycleDispatcher,
             SnackbarManager snackbarManager,
             ContextMenuPopulatorFactory contextMenuPopulatorFactory,
-            CoBrowseViewsZoomControl zoomControl) {
+            SelectionDropdownMenuDelegate selectionDropdownMenuDelegate) {
         mActivity = activity;
         mFuseboxConfig = fuseboxConfig;
         mProfileSupplier = profileSupplier;
@@ -73,7 +75,7 @@ public class CoBrowseViewFactory {
         mLifecycleDispatcher = lifecycleDispatcher;
         mSnackbarManager = snackbarManager;
         mContextMenuPopulatorFactory = contextMenuPopulatorFactory;
-        mZoomControl = zoomControl;
+        mSelectionDropdownMenuDelegate = selectionDropdownMenuDelegate;
 
         TabBottomSheetUtils.attachFactoryToWindow(windowAndroid, this);
     }
@@ -107,8 +109,9 @@ public class CoBrowseViewFactory {
                         containerView,
                         mWindowAndroid,
                         mContextMenuPopulatorFactory,
+                        mSelectionDropdownMenuDelegate,
                         backgroundColor,
-                        mZoomControl);
+                        containerType);
         ContextualTasksFusebox fusebox = null;
         if (clientType == TabBottomSheetClientType.CONTEXTUAL_TASKS
                 && ChromeFeatureList.isEnabled(ChromeFeatureList.CONTEXTUAL_TASKS_JAVA_FUSEBOX)) {

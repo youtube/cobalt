@@ -295,6 +295,7 @@ if (_is_default_toolchain) {
 
   android_library("screenshot_provider_java") {
     sources = [
+      "java/src/org/chromium/chrome/browser/screenshotprovider/ScreenshotContentProviderMetrics.java",
       "java/src/org/chromium/chrome/browser/screenshotprovider/ScreenshotInvocationState.java",
       "java/src/org/chromium/chrome/browser/screenshotprovider/ScreenshotUriProvider.java",
     ]
@@ -544,6 +545,7 @@ if (_is_default_toolchain) {
       "//chrome/browser/ui/android/appmenu:java",
       "//chrome/browser/ui/android/bars_common:java",
       "//chrome/browser/ui/android/bottombar:java",
+      "//chrome/browser/ui/android/bricks:bricks_page_java",
       "//chrome/browser/ui/android/cars:java",
       "//chrome/browser/ui/android/default_browser_promo:java",
       "//chrome/browser/ui/android/desktop_site:java",
@@ -602,6 +604,7 @@ if (_is_default_toolchain) {
       "//chrome/browser/ui/side_ui/public:factory_java",
       "//chrome/browser/ui/side_ui/public:java",
       "//chrome/browser/ui/side_ui/public:java_resources",
+      "//chrome/browser/ui/vertical_tabs:java",
       "//chrome/browser/uid/android:java",
       "//chrome/browser/url_constants/android:java",
       "//chrome/browser/usb/android:java",
@@ -693,9 +696,6 @@ if (_is_default_toolchain) {
       "//components/gcm_driver/android:gcm_driver_java",
       "//components/gcm_driver/instance_id/android:instance_id_driver_java",
       "//components/image_fetcher:java",
-      "//components/infobars/android:infobar_android_enums_java",
-      "//components/infobars/android:java",
-      "//components/infobars/core:infobar_enums_java",
       "//components/input/android:java",
       "//components/installedapp/android:java",
       "//components/javascript_dialogs/android:java",
@@ -925,8 +925,10 @@ if (_is_default_toolchain) {
     sources += unmodularized_bookmarks_java_files
 
     if (enable_printing) {
-      sources +=
-          [ "java/src/org/chromium/chrome/browser/printing/TabPrinter.java" ]
+      sources += [
+        "java/src/org/chromium/chrome/browser/printing/PrintHelper.java",
+        "java/src/org/chromium/chrome/browser/printing/TabPrinter.java",
+      ]
       deps += [
         "//base:supplier_java",
         "//printing:printing_java",
@@ -1707,7 +1709,6 @@ if (_is_default_toolchain) {
           "//chrome/browser/tabwindow:java",
           "//components/browser_ui/site_settings/android:java",
           "//components/content_settings/android:content_settings_enums_java",
-          "//components/infobars/android:java",
           "//components/messages/android:java",
           "//components/messages/android/internal:java",
           "//components/messages/android/test:test_support_java",
@@ -2373,7 +2374,6 @@ if (_is_default_toolchain) {
       "//components/browser_ui/widget/android:unit_device_javatests",
       "//components/embedder_support/android:unit_device_javatests",
       "//components/external_intents/android:unit_device_javatests",
-      "//components/infobars/android:unit_device_javatests",
       "//components/installedapp/android:unit_device_javatests",
       "//components/messages/android:unit_device_javatests",
       "//components/messages/android/internal:unit_device_javatests",
@@ -2850,17 +2850,14 @@ if (_is_default_toolchain) {
           # 2) SuperSize adding disassembly to symbols.
           # Save apk and unstripped library because they are needed for collecting
           # disassembly of large symbols.
-          archive_files =
-              mapping_files + [
-                "apks/$_trichrome_library_basename_for_size",
-                "apks/$_trichrome_chrome_basename_for_size",
-                "apks/$_trichrome_chrome_bundle_for_size.unused_resources",
-                "apks/$_trichrome_chrome_bundle_for_size.R.txt",
-                "apks/$_trichrome_webview_basename_for_size",
-                "apks/$_trichrome_webview_bundle_for_size.unused_resources",
-                "apks/$_trichrome_webview_bundle_for_size.R.txt",
-                "${_symbol_dir_for_size}/libmonochrome.so",
-              ]
+          archive_files = mapping_files + [
+                            "apks/$_trichrome_library_basename_for_size",
+                            "apks/$_trichrome_chrome_basename_for_size",
+                            "apks/$_trichrome_chrome_bundle_for_size.R.txt",
+                            "apks/$_trichrome_webview_basename_for_size",
+                            "apks/$_trichrome_webview_bundle_for_size.R.txt",
+                            "${_symbol_dir_for_size}/libmonochrome.so",
+                          ]
           to_resource_sizes_py = {
             apk_name = "apks/$target_name"
             trichrome_library = "apks/$_trichrome_library_basename_for_size"
@@ -3060,7 +3057,6 @@ if (_is_default_toolchain) {
       "java/src/org/chromium/chrome/browser/history/BrowsingHistoryBridge.java",
       "java/src/org/chromium/chrome/browser/history/HistoryDeletionBridge.java",
       "java/src/org/chromium/chrome/browser/history/HistoryDeletionInfo.java",
-      "java/src/org/chromium/chrome/browser/infobar/InfoBarContainer.java",
       "java/src/org/chromium/chrome/browser/init/NativeStartupBridge.java",
       "java/src/org/chromium/chrome/browser/lens/LensPolicyUtils.java",
       "java/src/org/chromium/chrome/browser/login/ChromeHttpAuthHandler.java",
@@ -3255,7 +3251,6 @@ if (_is_default_toolchain) {
       "//chrome/browser/ui/android/toolbar:adaptive_jni_headers",
       "//chrome/browser/ui/android/toolbar:jni_headers",
       "//chrome/browser/ui/android/webid:jni_headers",
-      "//chrome/browser/ui/messages/android:jni_headers",
       "//chrome/browser/ui/plus_addresses/android:jni_headers",
       "//chrome/browser/util:jni_headers",
       "//chrome/browser/webauthn/android:jni_headers",

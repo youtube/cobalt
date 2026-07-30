@@ -12,14 +12,17 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import android.graphics.Bitmap;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.LayerDrawable;
 
-import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.Px;
 
@@ -38,11 +41,12 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.RobolectricUtil;
 import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.profiles.Profile;
-import org.chromium.components.browser_ui.widget.RoundedIconGenerator;
 import org.chromium.components.favicon.LargeIconBridge;
 import org.chromium.components.favicon.LargeIconBridge.LargeIconCallback;
 import org.chromium.components.favicon.LargeIconBridgeJni;
 import org.chromium.components.image_fetcher.ImageFetcher;
+import org.chromium.components.url_formatter.UrlFormatter;
+import org.chromium.components.url_formatter.UrlFormatterJni;
 import org.chromium.ui.test.util.MockitoHelper;
 import org.chromium.url.GURL;
 import org.chromium.url.JUnitTestGURLs;
@@ -63,10 +67,10 @@ public final class OmniboxImageSupplierUnitTest {
 
     private @Mock Bitmap mBitmap1;
     private @Mock Bitmap mBitmap2;
-    private @Mock RoundedIconGenerator mIconGenerator;
     private @Mock LargeIconBridge.Natives mLargeIconBridgeJni;
-    private @Mock Callback<Bitmap> mCallback1;
-    private @Mock Callback<Bitmap> mCallback2;
+    private @Mock UrlFormatter.Natives mUrlFormatterJni;
+    private @Mock Callback<Drawable> mCallback1;
+    private @Mock Callback<Drawable> mCallback2;
     private @Mock Profile mProfile;
     private @Mock ImageFetcher mImageFetcher;
     private @Px int mFaviconSize;
@@ -74,6 +78,7 @@ public final class OmniboxImageSupplierUnitTest {
     @Before
     public void setUp() {
         LargeIconBridgeJni.setInstanceForTesting(mLargeIconBridgeJni);
+        UrlFormatterJni.setInstanceForTesting(mUrlFormatterJni);
 
         var context = ContextUtils.getApplicationContext();
         mFaviconSize =
@@ -81,12 +86,24 @@ public final class OmniboxImageSupplierUnitTest {
                         .getDimensionPixelSize(R.dimen.omnibox_suggestion_favicon_size);
         assertThat(mFaviconSize).isNotEqualTo(0);
         mSupplier = new OmniboxImageSupplier(context);
-        mSupplier.setRoundedIconGeneratorForTesting(mIconGenerator);
 
         doReturn(1L).when(mLargeIconBridgeJni).init();
         doReturn(true)
                 .when(mLargeIconBridgeJni)
                 .getLargeIconForURL(anyLong(), any(), any(), anyInt(), anyInt(), any());
+        doAnswer(
+                        invocation -> {
+                            String url = invocation.getArgument(0);
+                            if (url.contains("one.com")) {
+                                return "www.one.com";
+                            }
+                            if (url.contains("two.com")) {
+                                return "www.two.com";
+                            }
+                            return url;
+                        })
+                .when(mUrlFormatterJni)
+                .formatUrlForDisplayOmitScheme(any());
     }
 
     /**
@@ -96,7 +113,7 @@ public final class OmniboxImageSupplierUnitTest {
      * @param url the url to expect a lookup for
      * @param bitmap the bitmap to return to the caller (may be null)
      */
-    private void verifyLargeIconBridgeRequest(@NonNull GURL url, @Nullable Bitmap bitmap) {
+    private void verifyLargeIconBridgeRequest(GURL url, @Nullable Bitmap bitmap) {
         RobolectricUtil.runAllBackgroundAndUi();
         verify(mLargeIconBridgeJni)
                 .getLargeIconForURL(
@@ -115,19 +132,31 @@ public final class OmniboxImageSupplierUnitTest {
      * @param bitmap The expected bitmap.
      */
     private void verifyReturnedIcon(@Nullable Bitmap bitmap) {
-        verify(mCallback1, times(1)).onResult(eq(bitmap));
+        if (bitmap == null) {
+            verify(mCallback1, times(1)).onResult(eq(null));
+        } else {
+            verifyReturnedImage(mCallback1, bitmap);
+        }
+    }
+
+    private void verifyReturnedImage(Callback<Drawable> callback, Bitmap expectedBitmap) {
+        ArgumentCaptor<Drawable> captor = ArgumentCaptor.forClass(Drawable.class);
+        verify(callback, times(1)).onResult(captor.capture());
+        assertThat(captor.getValue()).isInstanceOf(BitmapDrawable.class);
+        assertThat(((BitmapDrawable) captor.getValue()).getBitmap()).isEqualTo(expectedBitmap);
     }
 
     /**
      * Confirm no unexpected calls were made to any of our data producers or consumers and clear all
      * counters.
      */
+    @SuppressWarnings("unchecked")
     private void verifyNoOtherInteractionsAndClearInteractions() {
         verifyNoMoreInteractions(mLargeIconBridgeJni);
         clearInvocations(mLargeIconBridgeJni);
 
-        verifyNoMoreInteractions(mIconGenerator, mCallback1);
-        clearInvocations(mIconGenerator, mCallback1);
+        verifyNoMoreInteractions(mCallback1);
+        clearInvocations(mCallback1);
     }
 
     @Test
@@ -141,25 +170,35 @@ public final class OmniboxImageSupplierUnitTest {
 
     @Test
     public void generateFavicon_beforeNativeInitialized() {
-        doReturn(mBitmap1).when(mIconGenerator).generateIconForUrl(NAV_URL);
-
         mSupplier.generateFavicon(NAV_URL, mCallback1);
         RobolectricUtil.runAllBackgroundAndUi();
 
-        verifyReturnedIcon(null);
+        verify(mCallback1, times(1)).onResult(eq(null));
         verifyNoOtherInteractionsAndClearInteractions();
     }
 
     @Test
     public void generateFavicon_afterNativeInitialized() {
-        doReturn(mBitmap1).when(mIconGenerator).generateIconForUrl(NAV_URL);
-
         mSupplier.onNativeInitialized();
         mSupplier.generateFavicon(NAV_URL, mCallback1);
         RobolectricUtil.runAllBackgroundAndUi();
 
-        verify(mIconGenerator, times(1)).generateIconForUrl(NAV_URL);
-        verifyReturnedIcon(mBitmap1);
+        ArgumentCaptor<Drawable> drawableCaptor = ArgumentCaptor.forClass(Drawable.class);
+        verify(mCallback1, times(1)).onResult(drawableCaptor.capture());
+        Drawable drawable = drawableCaptor.getValue();
+        assertThat(drawable).isInstanceOf(LayerDrawable.class);
+        verifyNoOtherInteractionsAndClearInteractions();
+    }
+
+    @Test
+    public void generateFavicon_globe() {
+        mSupplier.onNativeInitialized();
+        mSupplier.generateFavicon(NAV_URL, OmniboxImageSupplier.FallbackIconType.GLOBE, mCallback1);
+        RobolectricUtil.runAllBackgroundAndUi();
+
+        ArgumentCaptor<Drawable> drawableCaptor = ArgumentCaptor.forClass(Drawable.class);
+        verify(mCallback1, times(1)).onResult(drawableCaptor.capture());
+        assertThat(drawableCaptor.getValue()).isNotNull();
         verifyNoOtherInteractionsAndClearInteractions();
     }
 
@@ -276,8 +315,8 @@ public final class OmniboxImageSupplierUnitTest {
         callbackCaptor.getValue().onResult(mBitmap1);
 
         // Observe all listeners receiving notification.
-        verify(mCallback1, times(1)).onResult(mBitmap1);
-        verify(mCallback2, times(1)).onResult(mBitmap1);
+        verifyReturnedImage(mCallback1, mBitmap1);
+        verifyReturnedImage(mCallback2, mBitmap1);
     }
 
     @Test
@@ -342,7 +381,7 @@ public final class OmniboxImageSupplierUnitTest {
 
         // Resolve the image. Observe only the first callback receives notification.
         callbackCaptor.getValue().onResult(mBitmap1);
-        verify(mCallback1, times(1)).onResult(mBitmap1);
+        verifyReturnedImage(mCallback1, mBitmap1);
         verifyNoMoreInteractions(mImageFetcher, mCallback1, mCallback2);
 
         // Issue second request. Observe second interaction with ImageFetcher.
@@ -351,7 +390,7 @@ public final class OmniboxImageSupplierUnitTest {
 
         // Resolve the image. Observe only the second callback receives notification.
         callbackCaptor.getValue().onResult(mBitmap2);
-        verify(mCallback2, times(1)).onResult(mBitmap2);
+        verifyReturnedImage(mCallback2, mBitmap2);
         verifyNoMoreInteractions(mImageFetcher, mCallback1, mCallback2);
     }
 
@@ -373,12 +412,12 @@ public final class OmniboxImageSupplierUnitTest {
 
         // Emit first reply.
         captor1.getValue().onResult(mBitmap1);
-        verify(mCallback1, times(1)).onResult(mBitmap1);
+        verifyReturnedImage(mCallback1, mBitmap1);
         verifyNoMoreInteractions(mImageFetcher, mCallback1, mCallback2);
 
         // Emit second reply.
         captor2.getValue().onResult(mBitmap2);
-        verify(mCallback2, times(1)).onResult(mBitmap2);
+        verifyReturnedImage(mCallback2, mBitmap2);
         verifyNoMoreInteractions(mImageFetcher, mCallback1, mCallback2);
     }
 

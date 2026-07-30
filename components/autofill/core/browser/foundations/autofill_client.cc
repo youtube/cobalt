@@ -120,6 +120,10 @@ AutofillClient::GetPasswordManagerFieldClassificationModelHandler() {
   return nullptr;
 }
 
+bool AutofillClient::ShouldShowPersonalContextAutofillNotice() const {
+  return false;
+}
+
 AutofillComposeDelegate* AutofillClient::GetComposeDelegate() {
   return nullptr;
 }
@@ -153,6 +157,11 @@ void AutofillClient::GetAiPageContent(GetAiPageContentCallback callback) {
 }
 
 AutofillAiManager* AutofillClient::GetAutofillAiManager() {
+  return nullptr;
+}
+
+PersonalContextAccessManager*
+AutofillClient::GetPersonalContextAccessManager() {
   return nullptr;
 }
 

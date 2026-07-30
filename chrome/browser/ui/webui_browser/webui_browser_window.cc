@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ui/webui_browser/webui_browser_window.h"
 
+#include "base/check.h"
+#include "base/feature_list.h"
 #include "base/notimplemented.h"
 #include "chrome/browser/app_mode/app_mode_utils.h"
 #include "chrome/browser/profiles/profile.h"
@@ -27,6 +29,7 @@
 #include "chrome/browser/ui/views/zoom/zoom_view_controller.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_extensions_container.h"
+#include "chrome/browser/ui/webui_browser/browser_elements_webui_browser.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_client_view.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_exclusive_access_context.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_modal_dialog_host.h"
@@ -34,15 +37,20 @@
 #include "chrome/browser/ui/webui_browser/webui_browser_ui.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_web_contents_delegate.h"
 #include "chrome/browser/ui/webui_browser/webui_stub_location_bar.h"
+#include "chrome/browser/ui/window_metadata/window_metadata_controller.h"
 #include "chrome/browser/ui/zoom/browser_window_zoom_observer.h"
+#include "chrome/common/channel_info.h"
 #include "chrome/common/chrome_render_frame.mojom.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/input/native_web_keyboard_event.h"
 #include "components/sharing_message/sharing_dialog_data.h"
+#include "components/version_info/channel.h"
+#include "components/version_info/version_info.h"
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
 #include "content/public/browser/keyboard_event_processing_result.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "content/public/common/content_features.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "third_party/blink/public/mojom/page/draggable_region.mojom.h"
 #include "ui/base/hit_test.h"
@@ -114,6 +122,17 @@ class WebUIBrowserWindow::WidgetDelegate : public views::WidgetDelegate {
 };
 
 WebUIBrowserWindow::WebUIBrowserWindow(Browser* browser) : browser_(browser) {
+  // GuestContents is not approved for use in production. Restrict its
+  // proxy content feature kAttachUnownedInnerWebContents to development,
+  // canary, and test builds.
+  if (base::FeatureList::IsEnabled(features::kAttachUnownedInnerWebContents)) {
+    const bool is_development_build = !version_info::IsOfficialBuild();
+    const bool is_canary_or_test_build =
+        chrome::GetChannel() == version_info::Channel::CANARY ||
+        chrome::GetChannel() == version_info::Channel::UNKNOWN;
+    CHECK(is_development_build || is_canary_or_test_build);
+  }
+
   location_bar_ = std::make_unique<WebUIStubLocationBar>(this);
   web_contents_delegate_ =
       std::make_unique<WebUIBrowserWebContentsDelegate>(this);
@@ -134,6 +153,12 @@ WebUIBrowserWindow::WebUIBrowserWindow(Browser* browser) : browser_(browser) {
   widget_->SetNativeWindowProperty(kWebUIBrowserWindowKey, this);
   widget_->MakeCloseSynchronous(base::BindOnce(
       &WebUIBrowserWindow::OnWindowCloseRequested, base::Unretained(this)));
+
+  auto* browser_elements =
+      BrowserElements::From(browser_)->AsA<BrowserElementsWebUiBrowser>();
+  browser_elements->Init(
+      views::Widget::GetWidgetForNativeWindow(GetNativeWindow()));
+
   auto web_view = std::make_unique<views::WebView>(browser_->profile());
 
   auto* ui_web_contents = web_view->GetWebContents();
@@ -267,6 +292,9 @@ void WebUIBrowserWindow::PaintAsActiveChanged() {
   } else {
     browser_->DidBecomeInactive();
   }
+  if (webui_browser::mojom::Page* page = GetWebUIBrowserUI()->page()) {
+    page->OnPaintAsActiveChanged(widget_->ShouldPaintAsActive());
+  }
 }
 
 void WebUIBrowserWindow::ShowInactive() {
@@ -363,7 +391,7 @@ ui::NativeTheme* WebUIBrowserWindow::GetNativeTheme() {
 
 const ui::ThemeProvider* WebUIBrowserWindow::GetThemeProvider() const {
   // Copied from BrowserWidget::GetThemeProvider().
-  auto* app_controller = browser_->app_controller();
+  auto* app_controller = web_app::AppBrowserController::From(browser_);
   // Ignore the system theme for web apps with window-controls-overlay as the
   // display_override so the web contents can blend with the overlay by using
   // the developer-provided theme color for a better experience. Context:
@@ -387,7 +415,7 @@ WebUIBrowserWindow::GetThemeInitializerSupplier() const {
     return nullptr;
   }
 
-  auto* app_controller = browser_->app_controller();
+  auto* app_controller = web_app::AppBrowserController::From(browser_);
   // Ignore the system theme for web apps with window-controls-overlay as the
   // display_override so the web contents can blend with the overlay by using
   // the developer-provided theme color for a better experience. Context:
@@ -405,7 +433,7 @@ ui::ColorProviderKey WebUIBrowserWindow::GetColorProviderKey() const {
   auto key = ui::NativeTheme::GetInstanceForNativeUi()->GetColorProviderKey(
       GetThemeInitializerSupplier());
 
-  key.app_controller = browser_->app_controller();
+  key.app_controller = web_app::AppBrowserController::From(browser_);
 
 #if BUILDFLAG(IS_CHROMEOS)
   // ChromeOS SystemWebApps use the OS theme all the time.
@@ -1177,8 +1205,8 @@ views::ClientView* WebUIBrowserWindow::WidgetDelegate::CreateClientView(
 std::u16string WebUIBrowserWindow::WidgetDelegate::GetWindowTitle() const {
   // TODO(webium):  BrowserView::GetWindowTitle() has some magic for media
   // on Mac.
-  return browser_window_->browser()->GetWindowTitleForCurrentTab(
-      true /* include_app_name */);
+  return WindowMetadataController::From(browser_window_->browser())
+      ->GetWindowTitleForCurrentTab(true /* include_app_name */);
 }
 
 bool WebUIBrowserWindow::WidgetDelegate::ShouldDescendIntoChildForEventHandling(

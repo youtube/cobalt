@@ -49,6 +49,8 @@ class TestDeviceInfoBuilder {
   TestDeviceInfoBuilder& WithModelName(const std::string& model_name);
   TestDeviceInfoBuilder& WithFullHardwareClass(
       const std::string& full_hardware_class);
+  TestDeviceInfoBuilder& WithAndroidBuildFingerprintPrefix(
+      std::optional<std::string> android_os_build_fingerprint_prefix);
   TestDeviceInfoBuilder& WithLastUpdatedTimestamp(
       base::Time last_updated_timestamp);
   TestDeviceInfoBuilder& WithPulseInterval(base::TimeDelta pulse_interval);
@@ -76,6 +78,10 @@ class TestDeviceInfoBuilder {
   TestDeviceInfoBuilder& WithGlicExperimentalTriggeringState(
       DeviceInfo::GlicExperimentalTriggeringState
           glic_experimental_triggering_state);
+  TestDeviceInfoBuilder& WithGlicExperimentalTriggeringVersion(
+      std::optional<int> glic_experimental_triggering_version);
+  TestDeviceInfoBuilder& WithServerDeterminedModelName(
+      const std::optional<std::string>& server_determined_model_name);
 
  private:
   std::string guid_ = "guid";
@@ -89,6 +95,7 @@ class TestDeviceInfoBuilder {
   std::string manufacturer_name_ = "manufacturer";
   std::string model_name_ = "model";
   std::string full_hardware_class_;
+  std::optional<std::string> android_os_build_fingerprint_prefix_;
   base::Time last_updated_timestamp_ = base::Time::Now();
   base::TimeDelta pulse_interval_ = base::Days(1);
   bool send_tab_to_self_receiving_enabled_ = false;
@@ -104,6 +111,8 @@ class TestDeviceInfoBuilder {
   DeviceInfo::GlicExperimentalTriggeringState
       glic_experimental_triggering_state_ =
           DeviceInfo::GlicExperimentalTriggeringState::kUnavailable;
+  std::optional<int> glic_experimental_triggering_version_;
+  std::optional<std::string> server_determined_model_name_;
 };
 
 }  // namespace syncer

@@ -158,6 +158,7 @@ class VIZ_SERVICE_EXPORT Display : public DisplaySchedulerClient,
   // DisplaySchedulerClient implementation.
   bool DrawAndSwap(const DrawAndSwapParams& params) override;
   void DidFinishFrame(const BeginFrameAck& ack) override;
+  int GetCurrentAllocatedBuffers() const override;
 
   // OutputSurfaceClient implementation.
   void DidReceiveSwapBuffersAck(gpu::SwapBuffersCompleteParams params,
@@ -253,8 +254,7 @@ class VIZ_SERVICE_EXPORT Display : public DisplaySchedulerClient,
                 HintSession::BoostType boost_type,
                 int64_t choreographer_vsync_id,
                 int64_t swap_trace_id,
-                std::optional<PossibleDeadline> deadline,
-                std::optional<PossibleDeadline> preferred);
+                std::optional<PossibleDeadline> selected_deadline);
     void OnSwap(gfx::SwapTimings timings, DisplaySchedulerBase* scheduler);
     bool HasSwapped() const { return !swap_timings_.is_null(); }
     void OnPresent(const gfx::PresentationFeedback& feedback);
@@ -267,11 +267,8 @@ class VIZ_SERVICE_EXPORT Display : public DisplaySchedulerClient,
 
     int64_t choreographer_vsync_id() const { return choreographer_vsync_id_; }
     int64_t swap_trace_id() const { return swap_trace_id_; }
-    const std::optional<PossibleDeadline>& deadline() const {
-      return deadline_;
-    }
-    const std::optional<PossibleDeadline>& preferred() const {
-      return preferred_;
+    const std::optional<PossibleDeadline>& selected_deadline() const {
+      return selected_deadline_;
     }
 
    private:
@@ -286,8 +283,7 @@ class VIZ_SERVICE_EXPORT Display : public DisplaySchedulerClient,
     HintSession::BoostType boost_type_;
     int64_t choreographer_vsync_id_ = 0;
     int64_t swap_trace_id_ = 0;
-    std::optional<PossibleDeadline> deadline_;
-    std::optional<PossibleDeadline> preferred_;
+    std::optional<PossibleDeadline> selected_deadline_;
   };
 
   void InitializeRenderer();

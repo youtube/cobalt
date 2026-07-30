@@ -5,9 +5,12 @@
 #ifndef UI_ANDROID_OVERSCROLL_REFRESH_H_
 #define UI_ANDROID_OVERSCROLL_REFRESH_H_
 
+#include <optional>
+
 #include "base/memory/raw_ptr.h"
 #include "third_party/blink/public/common/input/web_gesture_device.h"
 #include "ui/android/ui_android_export.h"
+#include "ui/events/back_gesture_event.h"
 #include "ui/gfx/geometry/size_f.h"
 #include "ui/gfx/geometry/vector2d_f.h"
 
@@ -99,6 +102,7 @@ class UI_ANDROID_EXPORT OverscrollRefresh {
   virtual bool IsAwaitingScrollUpdateAck() const;
 
   void SetTouchpadOverscrollHistoryNavigation(bool enabled);
+  void SetIsGestureNavigationMode(bool is_gesture_navigation_mode);
 
  protected:
   // This constructor is for mocking only.
@@ -106,6 +110,9 @@ class UI_ANDROID_EXPORT OverscrollRefresh {
 
  private:
   void Release(bool allow_refresh);
+
+  // Returns velocity in the active action direction.
+  float GetVelocityInActiveActionDirection(const gfx::Vector2dF& velocity);
 
   bool scrolled_to_top_;
   bool scrolled_to_bottom_;
@@ -130,6 +137,12 @@ class UI_ANDROID_EXPORT OverscrollRefresh {
   const float edge_width_;  // in px
   const raw_ptr<OverscrollRefreshHandler, DanglingUntriaged> handler_;
   bool touchpad_overscroll_history_navigation_enabled_ = false;
+  bool is_gesture_navigation_mode_ = false;
+  struct ActiveAction {
+    OverscrollAction action = OverscrollAction::kNone;
+    std::optional<BackGestureEventSwipeEdge> edge;
+  };
+  std::optional<ActiveAction> active_action_;
 };
 
 }  // namespace ui

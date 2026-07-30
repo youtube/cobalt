@@ -8,14 +8,12 @@
 <translation id="204914487372604757">สร้างทางลัด</translation>
 <translation id="2065911435109240297">คืนค่าเว็บแอป</translation>
 <translation id="2111649875343992405">ตรวจสอบเว็บแอปที่ควรคืนค่า</translation>
-<translation id="2139186145475833000">เพิ่มลงในหน้าจอหลัก</translation>
 <translation id="2172982519592313442">ตรวจสอบเว็บแอป</translation>
 <translation id="2478076885740497414">ติดตั้งแอป</translation>
 <translation id="3470954020960831923">ติดตั้งแอปนี้ไม่ได้</translation>
 <translation id="3789841737615482174">ติดตั้ง</translation>
 <translation id="3910402514791813257">ติดตั้งไม่สำเร็จ</translation>
 <translation id="4250229828105606438">ภาพหน้าจอ</translation>
-<translation id="4338600611020922010">เพิ่มลงในหน้าแรก</translation>
 <translation id="4665282149850138822">เพิ่ม <ph name="NAME" /> ลงในหน้าแรกแล้ว</translation>
 <translation id="5037411519220435935">รอสักครู่\u2026</translation>
 <translation id="5250483651202458397">ภาพหน้าจอ แตะเพื่อปิด</translation>
@@ -25,6 +23,7 @@
 <translation id="5972844218283131174">ยกเลิกการเลือกทั้งหมด</translation>
 <translation id="6838423508083736333">เว็บแอปที่ใช้ในเดือนที่ผ่านมา</translation>
 <translation id="6847654118050428901">ป้อนชื่อทางลัด</translation>
+<translation id="6923899737874692938">ติดตั้งและสร้างทางลัด</translation>
 <translation id="6990079615885386641">รับแอปจาก Google Play Store: <ph name="APP_ACTION" /></translation>
 <translation id="7333031090786104871">ยังเพิ่มไซต์ก่อนหน้าอยู่</translation>
 <translation id="7672888405515738928">เลือกเว็บแอปที่จะคืนค่าในอุปกรณ์นี้ แอปที่แสดงที่นี่จะอิงตามประวัติการเข้าชมใน Chrome</translation>

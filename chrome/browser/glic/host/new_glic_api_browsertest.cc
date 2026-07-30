@@ -10,11 +10,14 @@
 #include "base/values.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
+#include "chrome/browser/glic/glic_enums.h"
 #include "chrome/browser/glic/host/auth_controller.h"
+#include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_features.mojom-features.h"
 #include "chrome/browser/glic/host/glic_web_contents_warming_pool.h"
 #include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/host/webui_contents_container.h"
+#include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
@@ -70,10 +73,13 @@
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/glic/widget/glic_widget.h"
+#include "chrome/browser/media/audio_ducker.h"
 #include "chrome/browser/skills/skills_service_factory.h"
 #include "chrome/browser/skills/skills_ui_tab_controller.h"
-#include "chrome/test/base/ui_test_utils.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/test/base/ui_test_utils.h"
+#include "ui/display/screen.h"
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
@@ -151,6 +157,7 @@ std::vector<std::string> GetTestSuiteNames() {
       "NewGlicApiTestWithProcessCounterAbuseVerdictDisabled",
 #if !BUILDFLAG(IS_ANDROID)
       "NewGlicApiTestWithSkills",
+      "NewGlicApiTestWithNewTabDaisyChain",
 #endif
   };
 
@@ -281,6 +288,30 @@ class NewGlicApiTest : public GlicApiBrowserTest,
     PlatformBrowserTest::CreateIncognitoBrowser();
     CloseBrowserAsynchronously(GetBrowserWindowInterface());
   }
+
+  GlicWidget* GetGlicWidget() {
+    GlicInstanceImpl* instance = GetOnlyGlicInstance();
+    if (!instance) {
+      return nullptr;
+    }
+    views::View* view = instance->GetActiveEmbedderGlicViewForTesting();
+    if (!view) {
+      return nullptr;
+    }
+    return static_cast<GlicWidget*>(view->GetWidget());
+  }
+
+  TestResult<> WaitUntilCanResize(bool can_resize) {
+    return RunUntilEqual(
+        [&]() {
+          auto* widget = GetGlicWidget();
+          return widget
+                     ? (widget->widget_delegate()->CanResize() ? "CanResize"
+                                                               : "CannotResize")
+                     : "NoWidget";
+        },
+        can_resize ? std::string("CanResize") : std::string("CannotResize"));
+  }
 #endif
 
  private:
@@ -310,6 +341,25 @@ class NewGlicApiTestWithFastTimeout : public NewGlicApiTest {
  private:
   base::test::ScopedFeatureList features_fast_timeout_;
 };
+
+#if !BUILDFLAG(IS_ANDROID)
+class NewGlicApiTestWithNewTabDaisyChain : public NewGlicApiTest {
+ public:
+  NewGlicApiTestWithNewTabDaisyChain() {
+    daisy_chain_features_.InitAndEnableFeature(
+        features::kGlicDaisyChainNewTabs);
+  }
+
+  void SetUpOnMainThread() override {
+    NewGlicApiTest::SetUpOnMainThread();
+    GetProfile()->GetPrefs()->SetBoolean(
+        prefs::kGlicKeepSidepanelOpenOnNewTabsEnabled, true);
+  }
+
+ private:
+  base::test::ScopedFeatureList daisy_chain_features_;
+};
+#endif
 
 class NewGlicApiMultiProfileTest : public NewGlicApiTest {
  public:
@@ -632,6 +682,330 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithWebContentsWarming,
   EXPECT_EQ(true, content::EvalJs(web_contents, kCheckReadyScript));
 }
 
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testCreateTabSimple) {
+  ASSERT_OK(OpenGlicForActiveTab());
+  EXPECT_EQ(GetTabListInterface()->GetTabCount(), 1);
+
+  ExecuteJsTest();
+  EXPECT_EQ(GetTabListInterface()->GetTabCount(), 2);
+
+  // The new tab should be active.
+  EXPECT_EQ(GetTabListInterface()->GetActiveIndex(), 1);
+  tabs::TabInterface* active_tab = GetTabListInterface()->GetActiveTab();
+  ASSERT_TRUE(active_tab);
+  ASSERT_THAT(active_tab->GetContents()->GetURL().spec(),
+              testing::EndsWith("#simple"));
+}
+
+// TODO(harringtond): Fix and re-enable on Android.
+// Redundant tab deactivation and reactivation during test tab setup forces
+// Glic to kPeeked/inactive state on Android, which disables Glic API's
+// foreground requests (background request gating intercepts and returns empty
+// response). Also, tab group inheritance is not supported by default on
+// Android.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_testCreateTab DISABLED_testCreateTab
+#define MAYBE_testCreateTabInBackground DISABLED_testCreateTabInBackground
+#define MAYBE_testCreateTabFailsIfNotActive \
+  DISABLED_testCreateTabFailsIfNotActive
+#else
+#define MAYBE_testCreateTab testCreateTab
+#define MAYBE_testCreateTabInBackground testCreateTabInBackground
+#define MAYBE_testCreateTabFailsIfNotActive testCreateTabFailsIfNotActive
+#endif
+
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest, MAYBE_testCreateTab) {
+  ASSERT_OK(OpenGlicForActiveTab());
+  EXPECT_EQ(GetTabListInterface()->GetTabCount(), 1);
+
+  // Add a tab after the active tab to ensure we're not just appending.
+  tabs::TabInterface* second_tab =
+      GetTabListInterface()->OpenTab(GURL("about:blank"), -1);
+  ASSERT_TRUE(second_tab);
+
+  tabs::TabInterface* first_tab = GetTabListInterface()->GetTab(0);
+  ASSERT_TRUE(first_tab);
+  GetTabListInterface()->ActivateTab(first_tab->GetHandle());
+
+  std::optional<tab_groups::TabGroupId> group_id =
+      GetTabListInterface()->CreateTabGroup({first_tab->GetHandle()});
+  ASSERT_TRUE(group_id.has_value());
+
+  ExecuteJsTest();
+  EXPECT_EQ(GetTabListInterface()->GetTabCount(), 3);
+
+  // The new tab should be at index 1 (next to the active tab).
+  EXPECT_EQ(GetTabListInterface()->GetActiveIndex(), 1);
+
+  // The new tab should inherit the tab group.
+  tabs::TabInterface* active_tab = GetTabListInterface()->GetActiveTab();
+  ASSERT_TRUE(active_tab);
+  EXPECT_EQ(active_tab->GetGroup(), group_id);
+}
+
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest,
+                       testCreateTabFailsWithUnsupportedScheme) {
+  ASSERT_OK(OpenGlicForActiveTab());
+  EXPECT_EQ(GetTabListInterface()->GetTabCount(), 1);
+  ExecuteJsTest();
+  EXPECT_EQ(GetTabListInterface()->GetTabCount(), 1);
+}
+
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest, MAYBE_testCreateTabInBackground) {
+  ASSERT_OK(OpenGlicForActiveTab());
+  EXPECT_EQ(GetTabListInterface()->GetTabCount(), 1);
+
+  // Add a tab after the active tab to ensure we're not just appending.
+  tabs::TabInterface* second_tab =
+      GetTabListInterface()->OpenTab(GURL("about:blank"), -1);
+  ASSERT_TRUE(second_tab);
+
+  tabs::TabInterface* first_tab = GetTabListInterface()->GetTab(0);
+  ASSERT_TRUE(first_tab);
+  GetTabListInterface()->ActivateTab(first_tab->GetHandle());
+
+  std::optional<tab_groups::TabGroupId> group_id =
+      GetTabListInterface()->CreateTabGroup({first_tab->GetHandle()});
+  ASSERT_TRUE(group_id.has_value());
+
+  // Creating a new tab via the glic API in the foreground should change the
+  // active tab.
+  ExecuteJsTest();
+  EXPECT_EQ(GetTabListInterface()->GetTabCount(), 3);
+
+  tabs::TabInterface* active_tab = GetTabListInterface()->GetActiveTab();
+  ASSERT_TRUE(active_tab);
+  ASSERT_THAT(active_tab->GetContents()->GetURL().spec(),
+              testing::EndsWith("#foreground"));
+
+  EXPECT_EQ(GetTabListInterface()->GetActiveIndex(), 1);
+  EXPECT_EQ(active_tab->GetGroup(), group_id);
+
+  // Creating a new tab via the glic API in the background should not change the
+  // active tab.
+  ContinueJsTest();
+  EXPECT_EQ(GetTabListInterface()->GetTabCount(), 4);
+
+  active_tab = GetTabListInterface()->GetActiveTab();
+  ASSERT_TRUE(active_tab);
+  ASSERT_THAT(active_tab->GetContents()->GetURL().spec(),
+              testing::EndsWith("#foreground"));
+
+  EXPECT_EQ(GetTabListInterface()->GetActiveIndex(), 1);
+  tabs::TabInterface* background_tab = GetTabListInterface()->GetTab(2);
+  ASSERT_TRUE(background_tab);
+  EXPECT_EQ(background_tab->GetGroup(), group_id);
+}
+
+// TODO(crbug.com/469210106): Re-enable this test on ChromeOS.
+// TODO(crbug.com/508123456): Re-enable this test on Android once tab group
+// inheritance is supported on Android's tab creation.
+// TODO(crbug.com/515495117): Fix and re-enable this test on Mac.
+// TODO(crbug.com/517282139): Fix and re-enable this test on Linux Msan.
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_MAC) || \
+    (BUILDFLAG(IS_LINUX) && defined(MEMORY_SANITIZER))
+#define MAYBE_testCreateTabByClickingOnLink \
+  DISABLED_testCreateTabByClickingOnLink
+#else
+#define MAYBE_testCreateTabByClickingOnLink testCreateTabByClickingOnLink
+#endif
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest, MAYBE_testCreateTabByClickingOnLink) {
+  ASSERT_OK(OpenGlicForActiveTab());
+  EXPECT_EQ(GetTabListInterface()->GetTabCount(), 1);
+
+  // Add a tab after the active tab to ensure we're not just appending.
+  tabs::TabInterface* second_tab =
+      GetTabListInterface()->OpenTab(GURL("about:blank"), -1);
+  ASSERT_TRUE(second_tab);
+
+  tabs::TabInterface* first_tab = GetTabListInterface()->GetTab(0);
+  ASSERT_TRUE(first_tab);
+  GetTabListInterface()->ActivateTab(first_tab->GetHandle());
+
+  std::optional<tab_groups::TabGroupId> group_id =
+      GetTabListInterface()->CreateTabGroup({first_tab->GetHandle()});
+  ASSERT_TRUE(group_id.has_value());
+
+  // Have the test track this tab's glic instance.
+  ASSERT_OK_AND_ASSIGN(auto* guest_frame, WaitForGuest());
+  ExecuteJsTest({.wait_for_guest = false});
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return GetTabListInterface()->GetTabCount() == 3;
+  })) << "Timed out waiting for tab count to increase. Tab count = "
+      << GetTabListInterface()->GetTabCount();
+  // The guest frame shouldn't change.
+  ASSERT_EQ(guest_frame, FindGlicGuestMainFrame());
+
+  // Link click opens next to opener and inherits group.
+  EXPECT_EQ(GetTabListInterface()->GetActiveIndex(), 1);
+  tabs::TabInterface* active_tab = GetTabListInterface()->GetActiveTab();
+  ASSERT_TRUE(active_tab);
+  EXPECT_EQ(active_tab->GetGroup(), group_id);
+
+  // This test is a regression test for b/416464184.
+  // Audio ducking should still work after clicking a link.
+#if !BUILDFLAG(IS_ANDROID)
+  AudioDucker* audio_ducker =
+      AudioDucker::GetForPage(FindGlicGuestMainFrame()->GetPage());
+  ASSERT_TRUE(audio_ducker);
+  ASSERT_EQ(audio_ducker->GetAudioDuckingState(),
+            AudioDucker::AudioDuckingState::kDucking);
+#endif
+
+  ContinueJsTest();
+
+#if !BUILDFLAG(IS_ANDROID)
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return audio_ducker->GetAudioDuckingState() ==
+           AudioDucker::AudioDuckingState::kNoDucking;
+  }));
+#endif
+}
+
+#if !BUILDFLAG(IS_ANDROID)
+IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithNewTabDaisyChain,
+                       testCreateTabByClickingOnLinkDaisyChains) {
+  ASSERT_OK(OpenGlicForActiveTab());
+  EXPECT_EQ(GetTabListInterface()->GetTabCount(), 1);
+
+  ExecuteJsTest();
+}
+#endif
+
+#if !BUILDFLAG(IS_ANDROID)
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testEnableDragResize) {
+  ASSERT_OK(OpenGlicForActiveTabAndDetach());
+  ASSERT_OK(WaitForGlicClient());
+  ASSERT_OK(WaitUntilCanResize(false));
+  ExecuteJsTest();
+  ASSERT_OK(WaitUntilCanResize(true));
+}
+#endif
+
+#if !BUILDFLAG(IS_ANDROID)
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testDisableDragResize) {
+  ASSERT_OK(OpenGlicForActiveTabAndDetach());
+  ASSERT_OK(WaitUntilCanResize(true));
+  ExecuteJsTest();
+  ASSERT_OK(WaitUntilCanResize(false));
+}
+#endif
+
+#if !BUILDFLAG(IS_ANDROID)
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testInitiallyNotResizable) {
+  ASSERT_OK(OpenGlicForActiveTabAndDetach());
+  ExecuteJsTest();
+  ASSERT_OK(WaitUntilCanResize(false));
+}
+#endif
+
+#if !BUILDFLAG(IS_ANDROID)
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testSetMinimumWidgetSize) {
+  ASSERT_OK(OpenGlicForActiveTabAndDetach());
+  ExecuteJsTest();
+  ASSERT_TRUE(step_data().has_value() && step_data()->is_dict());
+  const auto& min_size = step_data()->GetDict();
+  const int width = min_size.FindInt("width").value();
+  const int height = min_size.FindInt("height").value();
+
+  auto expected_size = glic::GlicWidget::GetInitialSize();
+  expected_size.SetToMax(gfx::Size(width, height));
+  GlicWidget* glic_widget = GetGlicWidget();
+  ASSERT_TRUE(glic_widget);
+  EXPECT_EQ(glic_widget->GetMinimumSize(), expected_size);
+
+  ContinueJsTest();
+}
+#endif
+
+#if !BUILDFLAG(IS_ANDROID)
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testManualResizeChanged) {
+  ASSERT_OK(OpenGlicForActiveTabAndDetach());
+  GlicWidget* glic_widget = GetGlicWidget();
+  ASSERT_TRUE(glic_widget);
+  glic_widget->OnNativeWidgetUserResizeStarted();
+
+  // Check that the web client is notified of the beginning of the user
+  // initiated resizing event.
+  ExecuteJsTest();
+
+  glic_widget->OnNativeWidgetUserResizeEnded();
+
+  // Check that the web client is notified of the ending of the user
+  // initiated resizing event.
+  ContinueJsTest();
+}
+#endif
+
+#if !BUILDFLAG(IS_ANDROID)
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testResizeWindowTooSmall) {
+  ASSERT_OK(OpenGlicForActiveTabAndDetach());
+  // Web client requests the window to be resized to 0x0, below the minimum
+  // dimensions, so it gets discarded in favor of the initial size.
+  gfx::Size expected_size = GlicWidget::GetInitialSize();
+  GlicWidget* glic_widget = GetGlicWidget();
+  ASSERT_TRUE(glic_widget);
+
+  ExecuteJsTest();
+
+  gfx::Rect final_widget_bounds = glic_widget->GetWindowBoundsInScreen();
+  ASSERT_EQ(expected_size,
+            glic_widget->WidgetToVisibleBounds(final_widget_bounds).size());
+}
+#endif
+
+#if !BUILDFLAG(IS_ANDROID)
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testResizeWindowTooLarge) {
+  ASSERT_OK(OpenGlicForActiveTabAndDetach());
+  // Web client requests the window to be resized to 20000x20000, above the
+  // maximum dimensions, so it gets discarded in favor of the max size. This max
+  // size is still larger than the display work area so we clamp the dimensions
+  // down to fit on screen.
+  ExecuteJsTest();
+  gfx::Rect display_bounds =
+      display::Screen::Get()->GetPrimaryDisplay().work_area();
+  GlicWidget* glic_widget = GetGlicWidget();
+  ASSERT_TRUE(glic_widget);
+  gfx::Rect final_widget_bounds = glic_widget->GetWindowBoundsInScreen();
+
+  ASSERT_TRUE(display_bounds.Contains(final_widget_bounds));
+}
+#endif
+
+#if !BUILDFLAG(IS_ANDROID)
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testResizeWindowWithinBounds) {
+  ASSERT_OK(OpenGlicForActiveTabAndDetach());
+  // Web client requests the window to be resized to 800x700, which are valid
+  // dimensions.
+  gfx::Size expected_size = gfx::Size(800, 700);
+  ExecuteJsTest(
+      {.params = base::Value(base::DictValue()
+                                 .Set("width", expected_size.width())
+                                 .Set("height", expected_size.height()))});
+  GlicWidget* glic_widget = GetGlicWidget();
+  ASSERT_TRUE(glic_widget);
+  gfx::Rect final_widget_bounds = glic_widget->GetWindowBoundsInScreen();
+  ASSERT_EQ(expected_size,
+            glic_widget->WidgetToVisibleBounds(final_widget_bounds).size());
+}
+#endif
+
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest, MAYBE_testCreateTabFailsIfNotActive) {
+  ASSERT_OK(OpenGlicForActiveTab());
+  ExecuteJsTest();
+}
+
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testCreateTabSucceedsIfInvoking) {
+  ASSERT_OK_AND_ASSIGN(auto* instance, OpenGlicForActiveTab());
+  ASSERT_OK(WaitForGlicClient(instance));
+  instance->host().NotifyIsInvoking(true);
+  auto options = mojom::InvokeOptions::New();
+  options->invocation_source = mojom::InvocationSource::kTopChromeButton;
+  instance->host().GetPrimaryWebClient()->Invoke(std::move(options),
+                                                 base::DoNothing());
+  ExecuteJsTest();
+}
+
 IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testFailureForCapturedApiTestError) {
   ASSERT_OK(OpenGlicForActiveTab());
   const std::string expected_failure =
@@ -654,9 +1028,18 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testShowClientErrorDialog) {
   histogram_tester.ExpectUniqueSample("Glic.Api.Client.ErrorDialogShown",
                                       /*kDisabledByOrganization*/ 1, 1);
 
-  // Verify that the pref was reset.
-  ASSERT_TRUE(base::test::RunUntil(
-      [&]() { return service()->GetAuthController().NeedsSyncForTesting(); }));
+  if (base::FeatureList::IsEnabled(features::kGlicCookieSyncOnError) &&
+      base::FeatureList::IsEnabled(features::kGlicCookieSyncOnTokenChange)) {
+    // Sync will happen automatically if kGlicCookieSyncOnError is enabled.
+    ASSERT_TRUE(base::test::RunUntil([&]() {
+      return !service()->GetAuthController().NeedsSyncForTesting();
+    }));
+  } else {
+    // Verify that the pref was set to true.
+    ASSERT_TRUE(base::test::RunUntil([&]() {
+      return service()->GetAuthController().NeedsSyncForTesting();
+    }));
+  }
 }
 
 IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testReportClientTransientError) {
@@ -672,9 +1055,18 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testReportClientTransientError) {
   histogram_tester.ExpectUniqueSample("Glic.Api.Client.TransientError",
                                       /*kUnauthenticated*/ 16, 1);
 
-  // Verify that the pref was set to true.
-  ASSERT_TRUE(base::test::RunUntil(
-      [&]() { return service()->GetAuthController().NeedsSyncForTesting(); }));
+  if (base::FeatureList::IsEnabled(features::kGlicCookieSyncOnError) &&
+      base::FeatureList::IsEnabled(features::kGlicCookieSyncOnTokenChange)) {
+    // Sync will happen automatically if kGlicCookieSyncOnError is enabled.
+    ASSERT_TRUE(base::test::RunUntil([&]() {
+      return !service()->GetAuthController().NeedsSyncForTesting();
+    }));
+  } else {
+    // Verify that the pref was set to true.
+    ASSERT_TRUE(base::test::RunUntil([&]() {
+      return service()->GetAuthController().NeedsSyncForTesting();
+    }));
+  }
 }
 
 IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testLoadWhileWindowClosed) {
@@ -701,14 +1093,8 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testInitializeFailsWindowClosed) {
   ExecuteJsTest();
 }
 
-// TODO(https://crbug.com/503936424): Flaky on Android.
-#if (defined(MEMORY_SANITIZER) && BUILDFLAG(IS_CHROMEOS)) || BUILDFLAG(IS_MAC)
-#define MAYBE_testInitializeFailsWindowOpen \
-  DISABLED_testInitializeFailsWindowOpen
-#else
-#define MAYBE_testInitializeFailsWindowOpen testInitializeFailsWindowOpen
-#endif
-IN_PROC_BROWSER_TEST_P(NewGlicApiTest, MAYBE_testInitializeFailsWindowOpen) {
+// TODO(https://crbug.com/503936424): Flaky.
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest, DISABLED_testInitializeFailsWindowOpen) {
   ToggleGlicForActiveTab();
   ASSERT_OK(WaitForGlicOpen());
 
@@ -910,7 +1296,9 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testReloadWebUi) {
 // Checks that all tests in new_glic_api_browsertest.ts have a corresponding
 // test case in this file.
 // TODO(crbug.com/460826483): Enable on CrOS.
-#if BUILDFLAG(IS_CHROMEOS)
+// TODO(crbug.com/508123456): Enable on Android once all disabled createTab
+// tests are fixed and re-enabled.
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 #define MAYBE_testAllTestsAreRegistered DISABLED_testAllTestsAreRegistered
 #else
 #define MAYBE_testAllTestsAreRegistered testAllTestsAreRegistered
@@ -929,6 +1317,7 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testDoNothing) {
 }
 
 IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testProcessCounterAbuseVerdict) {
+  glic::GlicHistogramTester histogram_tester;
   ASSERT_OK(OpenGlicForActiveTab());
   ExecuteJsTest();
 
@@ -939,6 +1328,14 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testProcessCounterAbuseVerdict) {
   ASSERT_TRUE(base::test::RunUntil([&]() {
     return chrome_browser_interstitials::IsShowingInterstitial(active_contents);
   }));
+
+  histogram_tester.ExpectUniqueSample(
+      "Glic.Api.ProcessCounterAbuseVerdict.Result",
+      static_cast<int>(glic::GlicProcessCounterAbuseVerdictResult::kSuccess),
+      1);
+  histogram_tester.ExpectUniqueSample(
+      "Glic.Api.ProcessCounterAbuseVerdict.ThreatType",
+      static_cast<int>(glic::mojom::SbThreatType::kSocialEngineering), 1);
 }
 
 // TODO(harringtond): Flaky on windows.
@@ -1527,7 +1924,7 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithSkills, testGetSkillPreviewsSuccess) {
 
 IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithSkills,
                        testDisplaySkillInDialogSuccess) {
-#if !BUILDFLAG(IS_ANDROID)  // TODO(harringtond): Enable skills on Android.
+#if !BUILDFLAG(IS_ANDROID)  // TODO(b/520114620): Enable skills on Android.
   ExecuteJsTest();
   ASSERT_TRUE(base::test::RunUntil([&]() {
     tabs::TabInterface* tab = GetTabListInterface()->GetActiveTab();
@@ -1556,7 +1953,7 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithSkills, testShowBrowseSkillsUi) {
 
 IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithSkills,
                        testSendingContextualSkillsToGlic) {
-#if !BUILDFLAG(IS_ANDROID)  // TODO(harringtond): Enable skills on Android.
+#if !BUILDFLAG(IS_ANDROID)  // TODO(b/520114620): Enable skills on Android.
   SkillsService()->AddSkill(/*source_skill_id=*/"", /*name=*/"user_skill_1",
                             /*icon=*/"user_icon_1",
                             /*prompt=*/"test_prompt_1");
@@ -1598,7 +1995,33 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithSkills,
 
 IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithSkills,
                        testShowManageSkillsUiNoWindow) {
-#if !BUILDFLAG(IS_ANDROID)  // TODO(harringtond): Enable skills on Android.
+#if !BUILDFLAG(IS_ANDROID)  // TODO(b/520114620): Enable skills on Android.
+  ASSERT_OK_AND_ASSIGN(auto* instance, OpenGlicForActiveTabAndDetach());
+  BrowserWindowInterface* browser_to_close = GetBrowserWindowInterface();
+  PlatformBrowserTest::CreateIncognitoBrowser();
+  CloseBrowserAsynchronously(browser_to_close);
+
+  ui_test_utils::WaitForBrowserToClose(browser_to_close);
+
+  ExecuteJsTest({.instance = instance});
+
+  ASSERT_TRUE(base::test::RunUntil([&]() -> bool {
+    auto all_bwis = GetAllBrowserWindowInterfaces();
+    for (auto* bwi : all_bwis) {
+      for (auto* tab : TabListInterface::From(bwi)->GetAllTabs()) {
+        if (tab->GetContents()->GetLastCommittedURL().spec().starts_with(
+                chrome::kChromeUISkillsURL)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }));
+#endif
+}
+
+IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithSkills, testCreateSkillNoWindow) {
+#if !BUILDFLAG(IS_ANDROID)  // TODO(b/520114620): Enable skills on Android.
   ASSERT_OK_AND_ASSIGN(auto* instance, OpenGlicForActiveTabAndDetach());
   BrowserWindowInterface* browser_to_close = GetBrowserWindowInterface();
   PlatformBrowserTest::CreateIncognitoBrowser();
@@ -1696,10 +2119,14 @@ INSTANTIATE_TEST_SUITE_P(,
                          DefaultTestParamSet(),
                          &WithTestParams::PrintTestVariant);
 
-// Skills are not supported yet on Android.
+// TODO(b/520114620): Skills are not supported yet on Android.
 #if !BUILDFLAG(IS_ANDROID)
 INSTANTIATE_TEST_SUITE_P(,
                          NewGlicApiTestWithSkills,
+                         DefaultTestParamSet(),
+                         &WithTestParams::PrintTestVariant);
+INSTANTIATE_TEST_SUITE_P(,
+                         NewGlicApiTestWithNewTabDaisyChain,
                          DefaultTestParamSet(),
                          &WithTestParams::PrintTestVariant);
 #endif
@@ -1727,6 +2154,8 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(NewGlicApiTestForNoWebUiLoader);
 #if !BUILDFLAG(IS_ANDROID)
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(NewGlicApiTestWithSkills);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
+    NewGlicApiTestWithNewTabDaisyChain);
 #endif
 #endif
 }  // namespace glic

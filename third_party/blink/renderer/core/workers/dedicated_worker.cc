@@ -324,9 +324,6 @@ void DedicatedWorker::terminate() {
 
 void DedicatedWorker::ContextDestroyed() {
   DCHECK(GetExecutionContext()->IsContextThread());
-  if (classic_script_loader_) {
-    classic_script_loader_->Cancel();
-  }
   factory_client_.reset();
   terminate();
 }
@@ -335,7 +332,7 @@ bool DedicatedWorker::HasPendingActivity() const {
   DCHECK(!GetExecutionContext() || GetExecutionContext()->IsContextThread());
   // The worker context does not exist while loading, so we must ensure that the
   // worker object is not collected, nor are its event listeners.
-  return context_proxy_->HasPendingActivity() || classic_script_loader_;
+  return context_proxy_->HasPendingActivity();
 }
 
 void DedicatedWorker::OnWorkerHostCreated(
@@ -359,6 +356,7 @@ void DedicatedWorker::OnScriptLoadStarted(
     CrossVariantMojoRemote<
         mojom::blink::BackForwardCacheControllerHostInterfaceBase>
         back_forward_cache_controller_host,
+    std::unique_ptr<WebPolicyContainer> policy_container,
     CrossVariantMojoReceiver<mojom::blink::ReportingObserverInterfaceBase>
         coep_reporting_observer,
     CrossVariantMojoReceiver<mojom::blink::ReportingObserverInterfaceBase>
@@ -371,7 +369,7 @@ void DedicatedWorker::OnScriptLoadStarted(
                 Vector<network::mojom::blink::ContentSecurityPolicyPtr>(),
                 DocumentPolicy::DocumentPolicyBundle{},
                 std::move(back_forward_cache_controller_host),
-                std::move(coep_reporting_observer),
+                std::move(policy_container), std::move(coep_reporting_observer),
                 std::move(dip_reporting_observer));
 }
 
@@ -403,51 +401,6 @@ DedicatedWorker::CreateWebContentSettingsClient() {
   return nullptr;
 }
 
-void DedicatedWorker::OnResponse() {
-  DCHECK(GetExecutionContext()->IsContextThread());
-  probe::DidReceiveScriptResponse(GetExecutionContext(),
-                                  classic_script_loader_->Identifier());
-}
-
-void DedicatedWorker::OnFinished(
-    mojo::PendingRemote<mojom::blink::BackForwardCacheControllerHost>
-        back_forward_cache_controller_host) {
-  DCHECK(GetExecutionContext()->IsContextThread());
-  TRACE_EVENT("blink.worker", "DedicatedWorker::OnFinished");
-  if (classic_script_loader_->Canceled()) {
-    // Do nothing.
-  } else if (classic_script_loader_->Failed()) {
-    context_proxy_->DidFailToFetchScript();
-  } else {
-    network::mojom::ReferrerPolicy referrer_policy =
-        network::mojom::ReferrerPolicy::kDefault;
-    if (!classic_script_loader_->GetReferrerPolicy().IsNull()) {
-      SecurityPolicy::ReferrerPolicyFromHeaderValue(
-          classic_script_loader_->GetReferrerPolicy(),
-          kDoNotSupportReferrerPolicyLegacyKeywords, &referrer_policy);
-    }
-    const KURL script_response_url = classic_script_loader_->ResponseURL();
-    DCHECK(script_request_url_ == script_response_url ||
-           SecurityOrigin::AreSameOrigin(script_request_url_,
-                                         script_response_url));
-    ContinueStart(
-        script_response_url, nullptr /* worker_main_script_load_params */,
-        referrer_policy,
-        classic_script_loader_->GetContentSecurityPolicy()
-            ? mojo::Clone(classic_script_loader_->GetContentSecurityPolicy()
-                              ->GetParsedPolicies())
-            : Vector<network::mojom::blink::ContentSecurityPolicyPtr>(),
-        classic_script_loader_->GetDocumentPolicy(),
-        std::move(back_forward_cache_controller_host),
-        /*coep_reporting_observer=*/mojo::NullReceiver(),
-        /*dip_reporting_observer=*/mojo::NullReceiver());
-    probe::ScriptImported(GetExecutionContext(),
-                          classic_script_loader_->Identifier(),
-                          classic_script_loader_->SourceText());
-  }
-  classic_script_loader_ = nullptr;
-}
-
 void DedicatedWorker::ContinueStart(
     const KURL& script_url,
     std::unique_ptr<WorkerMainScriptLoadParameters>
@@ -458,6 +411,7 @@ void DedicatedWorker::ContinueStart(
     DocumentPolicy::DocumentPolicyBundle response_document_policy,
     mojo::PendingRemote<mojom::blink::BackForwardCacheControllerHost>
         back_forward_cache_controller_host,
+    std::unique_ptr<WebPolicyContainer> policy_container,
     mojo::PendingReceiver<mojom::blink::ReportingObserver>
         coep_reporting_observer,
     mojo::PendingReceiver<mojom::blink::ReportingObserver>
@@ -482,6 +436,7 @@ void DedicatedWorker::ContinueStart(
                      std::move(response_content_security_policies),
                      std::move(response_document_policy),
                      std::move(back_forward_cache_controller_host),
+                     std::move(policy_container),
                      std::move(coep_reporting_observer),
                      std::move(dip_reporting_observer)),
             base::Milliseconds(features::kDedicatedWorkerStartDelayInMs.Get()));
@@ -492,7 +447,8 @@ void DedicatedWorker::ContinueStart(
       std::move(referrer_policy), std::move(response_content_security_policies),
       std::move(response_document_policy),
       std::move(back_forward_cache_controller_host),
-      std::move(coep_reporting_observer), std::move(dip_reporting_observer));
+      std::move(policy_container), std::move(coep_reporting_observer),
+      std::move(dip_reporting_observer));
 }
 
 void DedicatedWorker::ContinueStartInternal(
@@ -505,6 +461,7 @@ void DedicatedWorker::ContinueStartInternal(
     DocumentPolicy::DocumentPolicyBundle document_policy,
     mojo::PendingRemote<mojom::blink::BackForwardCacheControllerHost>
         back_forward_cache_controller_host,
+    std::unique_ptr<WebPolicyContainer> policy_container,
     mojo::PendingReceiver<mojom::blink::ReportingObserver>
         coep_reporting_observer,
     mojo::PendingReceiver<mojom::blink::ReportingObserver>
@@ -522,7 +479,8 @@ void DedicatedWorker::ContinueStartInternal(
       std::move(worker_main_script_load_params), options_, script_url,
       *outside_fetch_client_settings_object_, v8_stack_trace_id_, token_,
       std::move(pending_dedicated_worker_host_),
-      std::move(back_forward_cache_controller_host));
+      std::move(back_forward_cache_controller_host),
+      std::move(policy_container));
 }
 
 namespace {
@@ -691,7 +649,6 @@ void DedicatedWorker::Trace(Visitor* visitor) const {
   visitor->Trace(options_);
   visitor->Trace(outside_fetch_client_settings_object_);
   visitor->Trace(context_proxy_);
-  visitor->Trace(classic_script_loader_);
   AbstractWorker::Trace(visitor);
 }
 

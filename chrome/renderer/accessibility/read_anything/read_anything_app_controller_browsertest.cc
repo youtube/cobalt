@@ -191,6 +191,8 @@ class ReadAnythingAppControllerTest : public ChromeRenderViewTest {
     // Set the page handler for testing.
     controller_->page_handler_.reset();
     controller_->page_handler_.Bind(page_handler_.BindNewPipeAndPassRemote());
+    EXPECT_CALL(page_handler_, OnDistillationStateChanged(testing::_))
+        .Times(testing::AnyNumber());
 
     // Set distiller for testing.
     auto distiller = std::make_unique<MockAXTreeDistiller>(render_frame);
@@ -1753,6 +1755,38 @@ TEST_F(ReadAnythingAppControllerTest, GetUrl) {
   EXPECT_EQ("", controller().GetUrl(6));
 }
 
+TEST_F(ReadAnythingAppControllerTest, GetDocumentUrl) {
+  std::string document_url = "https://www.google.com";
+  ui::AXNodeData root;
+  root.id = 1;
+  root.role = ax::mojom::Role::kRootWebArea;
+  root.AddStringAttribute(ax::mojom::StringAttribute::kUrl, document_url);
+
+  SendUpdateWithNodes({std::move(root)});
+  controller().OnAXTreeDistilled(tree_id_, {});
+
+  EXPECT_EQ(document_url, controller().GetDocumentUrl());
+}
+
+TEST_F(ReadAnythingAppControllerTest, GetHtmlId) {
+  ui::AXNodeData node1;
+  node1.id = 2;
+  node1.AddStringAttribute(ax::mojom::StringAttribute::kHtmlId, "footnote-1");
+
+  ui::AXNodeData node2;
+  node2.id = 3;
+
+  ui::AXNodeData root;
+  root.id = 1;
+  root.child_ids = {node1.id, node2.id};
+  SendUpdateWithNodes({std::move(root), std::move(node1), std::move(node2)});
+
+  controller().OnAXTreeDistilled(tree_id_, {});
+  EXPECT_EQ("footnote-1", controller().GetHtmlId(2));
+  EXPECT_EQ("", controller().GetHtmlId(3));
+  EXPECT_EQ("", controller().GetHtmlId(4));
+}
+
 TEST_F(ReadAnythingAppControllerTest, ShouldBold) {
   ui::AXNodeData overline_node;
   overline_node.id = 2;
@@ -3173,6 +3207,8 @@ TEST_F(ReadAnythingAppControllerTest,
 
 TEST_F(ReadAnythingAppControllerTest,
        OnStringAttributeChanged_ImageFlagDisabled_DoesNothing) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(features::kReadAnythingImagesViaAlgorithm);
   static constexpr ui::AXNodeID kImageNodeId = 2;
   std::string placeholder_src = "data:image/svg+xml,...";
   ui::AXNodeData image_node = test::ImageNode(kImageNodeId, placeholder_src);
@@ -3344,11 +3380,16 @@ class ReadAnythingAppControllerImmersiveTest
     scoped_feature_list_.Reset();
     scoped_feature_list_.InitWithFeatures({features::kImmersiveReadAnything},
                                           {});
+    page_handler_.FlushForTesting();
+    Mock::VerifyAndClearExpectations(&page_handler_);
   }
 };
 
 TEST_F(ReadAnythingAppControllerImmersiveTest,
        OnDistillationStateChanged_CalledAfterDistillationEmpty) {
+  model().set_distillation_state(
+      read_anything::mojom::ReadAnythingDistillationState::kNotAttempted);
+
   EXPECT_CALL(page_handler_,
               OnDistillationStateChanged(
                   read_anything::mojom::ReadAnythingDistillationState::
@@ -3450,6 +3491,8 @@ TEST_F(ReadAnythingAppControllerImmersiveTest,
   EXPECT_FALSE(controller().IsUpdateProcessingPaused());
 
   // Set the distillation state to empty.
+  model().set_distillation_state(
+      read_anything::mojom::ReadAnythingDistillationState::kNotAttempted);
   EXPECT_CALL(page_handler_,
               OnDistillationStateChanged(
                   read_anything::mojom::ReadAnythingDistillationState::
@@ -4905,6 +4948,8 @@ class ReadAnythingAppControllerReadabilityTest
     // Set the page handler for testing.
     controller_->page_handler_.reset();
     controller_->page_handler_.Bind(page_handler_.BindNewPipeAndPassRemote());
+    EXPECT_CALL(page_handler_, OnDistillationStateChanged(testing::_))
+        .Times(testing::AnyNumber());
 
     // Set distiller for testing.
     auto distiller = std::make_unique<MockAXTreeDistiller>(render_frame);
@@ -4941,6 +4986,9 @@ TEST_F(ReadAnythingAppControllerReadabilityTest,
        UpdateContent_EmptyContent_Screen2xUsed) {
   Mock::VerifyAndClearExpectations(distiller_);
   Mock::VerifyAndClearExpectations(&page_handler_);
+
+  EXPECT_CALL(page_handler_, OnDistillationStateChanged(testing::_))
+      .Times(testing::AnyNumber());
 
   EXPECT_CALL(*distiller_, Distill).Times(1);
 
@@ -5272,6 +5320,8 @@ class ReadAnythingAppControllerReadabilitySelectTextTest
         ReadAnythingAppModel::DistillationMethod::kReadability);
     model().set_current_content_distillation_method(
         ReadAnythingAppModel::DistillationMethod::kReadability);
+    page_handler_.FlushForTesting();
+    Mock::VerifyAndClearExpectations(&page_handler_);
   }
 };
 

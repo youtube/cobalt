@@ -493,6 +493,7 @@ base::DictValue SearchboxHandler::GetWebUIDataSourceDict(
       {"voiceStop", IDS_FUSEBOX_VOICE_SEARCH_STOP_TITLE},
       {"voiceDetails", IDS_NEW_TAB_VOICE_DETAILS},
       {"voiceListening", IDS_NEW_TAB_VOICE_LISTENING},
+      {"voiceWaiting", IDS_NEW_TAB_VOICE_WAITING},
       {"voicePermissionError", IDS_NEW_TAB_VOICE_PERMISSION_ERROR},
       {"audioError", IDS_NEW_TAB_VOICE_AUDIO_ERROR},
       {"languageError", IDS_NEW_TAB_VOICE_LANGUAGE_ERROR},
@@ -1128,9 +1129,7 @@ void SearchboxHandler::QueryAutocomplete(const std::u16string& input,
     // Don't set lens params if in "Create Image" with an image present or in
     // "Canvas" mode. This prevents the contextual client from being used in
     // this tool mode.
-    if (GetInputState().active_tool != omnibox::ToolMode::TOOL_MODE_CANVAS) {
-      autocomplete_input.set_lens_overlay_suggest_inputs(*suggest_inputs);
-    }
+    autocomplete_input.set_lens_overlay_suggest_inputs(*suggest_inputs);
   }
   if (controller_->client()->GetContextualInputData().has_value()) {
     auto context_data = controller_->client()->GetContextualInputData().value();
@@ -1427,8 +1426,11 @@ void SearchboxHandler::OnEmbeddedPermissionPromptChanged(
     const gfx::Size& prompt_size) {
   gfx::Size size_with_buffer;
   if (is_showing) {
-    size_with_buffer = gfx::Size(prompt_size.width() + kPromptWidthBuffer,
-                                 prompt_size.height() + kPromptHeightBuffer);
+    const int width = prompt_size.width();
+    const int height = prompt_size.height();
+    // Ensure buffer is not added if height or width is 0.
+    size_with_buffer.SetSize(width > 0 ? width + kPromptWidthBuffer : 0,
+                             height > 0 ? height + kPromptHeightBuffer : 0);
   }
 
   page_->OnEmbeddedPermissionPromptChanged(is_showing, size_with_buffer);

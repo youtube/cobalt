@@ -12,6 +12,7 @@
 
 #include "base/check.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "components/os_crypt/async/browser/test_utils.h"
 #include "components/page_content_annotations/content/page_content_extraction_service.h"
@@ -76,15 +77,12 @@ class EmbedderMock : public passage_embeddings::TestEmbedder {
               (override));
 
   MOCK_METHOD(void,
-              ReprioritizeTasks,
+              ReprioritizeJobs,
               (passage_embeddings::PassagePriority priority,
-               const std::set<passage_embeddings::Embedder::TaskId>& tasks),
+               const std::set<uint64_t>& job_ids),
               (override));
 
-  MOCK_METHOD(bool,
-              TryCancel,
-              (passage_embeddings::Embedder::TaskId task_id),
-              (override));
+  MOCK_METHOD(bool, TryCancel, (uint64_t job_id), (override));
 };
 
 class ObserverMock : public PageEmbeddingsService::Observer {
@@ -359,12 +357,12 @@ TEST_F(PageEmbeddingsServiceTest, EmbeddingsNotPresentOnError) {
 }
 
 // Validates that seeing new page contents while embeddings are still pending
-// results in canceling the previous embedding computation.
-TEST_F(PageEmbeddingsServiceTest, NewPageContentCancelsExistingEmbeddingTask) {
+// results in canceling the previous embedding job.
+TEST_F(PageEmbeddingsServiceTest, NewPageContentCancelsExistingEmbeddingJob) {
   std::unique_ptr<content::WebContents> web_contents =
       CreateTestWebContentsWithVisibility(content::Visibility::HIDDEN);
 
-  // Return the task id and don't compute the embeddings.
+  // Return the job id and don't compute the embeddings.
   ON_CALL(embedder_mock(), ComputePassagesEmbeddings)
       .WillByDefault([this](auto, auto, auto) {
         return passage_embeddings::Embedder::Job(embedder_mock_.GetWeakPtr(),
@@ -591,7 +589,7 @@ TEST_F(PageEmbeddingsServiceTest, PrioritySetBasedOnHighestPriorityObserver) {
 
   EXPECT_CALL(embedder_mock(), ComputePassagesEmbeddings).Times(AnyNumber());
   EXPECT_CALL(embedder_mock(), TryCancel).Times(AnyNumber());
-  EXPECT_CALL(embedder_mock(), ReprioritizeTasks).Times(AnyNumber());
+  EXPECT_CALL(embedder_mock(), ReprioritizeJobs).Times(AnyNumber());
 
   const auto set_priority_expectation =
       [this](passage_embeddings::PassagePriority expected_priority) {
@@ -647,8 +645,8 @@ TEST_F(PageEmbeddingsServiceTest, PrioritySetBasedOnHighestPriorityObserver) {
       base::MakeRefCounted<RefCountedAnnotatedPageContent>());
 }
 
-// Validates that the embedder's tasks are reprioritized as expected.
-TEST_F(PageEmbeddingsServiceTest, TasksReprioritized) {
+// Validates that the embedder's jobs are reprioritized as expected.
+TEST_F(PageEmbeddingsServiceTest, JobsReprioritized) {
   std::unique_ptr<content::WebContents> web_contents1 =
       CreateTestWebContentsWithVisibility(content::Visibility::HIDDEN);
   std::unique_ptr<content::WebContents> web_contents2 =
@@ -699,7 +697,7 @@ TEST_F(PageEmbeddingsServiceTest, TasksReprioritized) {
 
   EXPECT_CALL(
       embedder_mock(),
-      ReprioritizeTasks(passage_embeddings::kUserInitiated, ElementsAre(1, 2)));
+      ReprioritizeJobs(passage_embeddings::kUserInitiated, ElementsAre(1, 2)));
 
   page_embeddings_service().AddObserver(&observer_user_blocking);
 
@@ -708,12 +706,12 @@ TEST_F(PageEmbeddingsServiceTest, TasksReprioritized) {
            passage_embeddings::ComputeEmbeddingsStatus::kExecutionFailure);
 
   EXPECT_CALL(embedder_mock(),
-              ReprioritizeTasks(passage_embeddings::kUrgent, ElementsAre(2)));
+              ReprioritizeJobs(passage_embeddings::kUrgent, ElementsAre(2)));
 
   page_embeddings_service().RemoveObserver(&observer_user_blocking);
 
   EXPECT_CALL(embedder_mock(),
-              ReprioritizeTasks(passage_embeddings::kPassive, ElementsAre(2)));
+              ReprioritizeJobs(passage_embeddings::kPassive, ElementsAre(2)));
 
   page_embeddings_service().RemoveObserver(&observer_urgent);
 }
@@ -731,7 +729,7 @@ TEST_F(PageEmbeddingsServiceTest, ScopedPriority) {
 
   EXPECT_CALL(embedder_mock(), ComputePassagesEmbeddings).Times(AnyNumber());
   EXPECT_CALL(embedder_mock(), TryCancel).Times(AnyNumber());
-  EXPECT_CALL(embedder_mock(), ReprioritizeTasks).Times(AnyNumber());
+  EXPECT_CALL(embedder_mock(), ReprioritizeJobs).Times(AnyNumber());
 
   const auto set_priority_expectation =
       [this](passage_embeddings::PassagePriority expected_priority) {
@@ -790,7 +788,7 @@ TEST_F(PageEmbeddingsServiceTest, ScopedPriorityWithHigherPriorityObserver) {
 
   EXPECT_CALL(embedder_mock(), ComputePassagesEmbeddings).Times(AnyNumber());
   EXPECT_CALL(embedder_mock(), TryCancel).Times(AnyNumber());
-  EXPECT_CALL(embedder_mock(), ReprioritizeTasks).Times(AnyNumber());
+  EXPECT_CALL(embedder_mock(), ReprioritizeJobs).Times(AnyNumber());
 
   const auto set_priority_expectation =
       [this](passage_embeddings::PassagePriority expected_priority) {
@@ -1275,6 +1273,41 @@ TEST_F(PageEmbeddingsServiceTest, BFCacheRaceReproduction) {
            passage_embeddings::ComputeEmbeddingsStatus::kSuccess);
 
   page_embeddings_service().RemoveObserver(&observer);
+}
+
+TEST_F(PageEmbeddingsServiceTest, RecordsHistograms) {
+  base::HistogramTester histogram_tester;
+  std::unique_ptr<content::WebContents> web_contents =
+      CreateTestWebContentsWithVisibility(content::Visibility::HIDDEN);
+  scoped_refptr<RefCountedAnnotatedPageContent> page_content =
+      base::MakeRefCounted<RefCountedAnnotatedPageContent>();
+  page_content->data.mutable_main_frame_data()->set_title("passage text");
+
+  passage_embeddings::Embedder::ComputePassagesEmbeddingsCallback
+      compute_passages_embeddings_callback;
+
+  EXPECT_CALL(embedder_mock(), ComputePassagesEmbeddings)
+      .WillOnce(
+          [&](passage_embeddings::PassagePriority priority,
+              std::vector<std::string> passages,
+              passage_embeddings::Embedder::ComputePassagesEmbeddingsCallback
+                  callback) {
+            compute_passages_embeddings_callback = std::move(callback);
+            return passage_embeddings::Embedder::Job(
+                embedder_mock_.GetWeakPtr(), 1);
+          });
+
+  page_embeddings_service().OnPageContentExtracted(
+      web_contents->GetPrimaryPage(), page_content);
+
+  ASSERT_FALSE(compute_passages_embeddings_callback.is_null());
+
+  std::move(compute_passages_embeddings_callback)
+      .Run({"passage"}, {passage_embeddings::Embedding({1.0f})}, 1,
+           passage_embeddings::ComputeEmbeddingsStatus::kSuccess);
+
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageEmbeddings.Job.TotalDuration.OnDemand.Default", 1);
 }
 
 }  // namespace page_content_annotations

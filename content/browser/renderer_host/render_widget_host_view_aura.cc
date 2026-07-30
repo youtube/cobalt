@@ -627,6 +627,11 @@ void RenderWidgetHostViewAura::HandleBoundsInRootChanged() {
 }
 
 void RenderWidgetHostViewAura::ParentHierarchyChanged() {
+  // The window is being destroyed, so just stop observing the position.
+  if (window_->is_destroying()) {
+    position_in_root_observer_.reset();
+    return;
+  }
   if (window_->parent()) {
     // Track changes of the window relative to the root. This is done to snap
     // `window_` to a pixel boundary, which could change when the bounds
@@ -764,7 +769,13 @@ void RenderWidgetHostViewAura::HideImpl() {
       if (host && legacy_render_widget_host_HWND_) {
         // We reparent the legacy Chrome_RenderWidgetHostHWND window to the
         // global hidden window on the same lines as Windowed plugin windows.
+        // This can spin a nested event loop that could potentially delete this.
+        base::WeakPtr<RenderWidgetHostViewAura> weak_this(
+            weak_ptr_factory_.GetWeakPtr());
         legacy_render_widget_host_HWND_->UpdateParent(ui::GetHiddenWindow());
+        if (!weak_this) {
+          return;
+        }
       }
 #endif
   }
@@ -3199,16 +3210,21 @@ void RenderWidgetHostViewAura::UpdateLegacyWin() {
   if (legacy_window_destroyed_ || !GetHostWindowHWND())
     return;
 
+  // `Create`, `UpdateParent`, and `SetBounds` can all spin a nested message
+  // loop on Windows, potentially destroying `this`.
+  base::WeakPtr<RenderWidgetHostViewAura> weak_this(
+      weak_ptr_factory_.GetWeakPtr());
+
   if (!legacy_render_widget_host_HWND_) {
-    legacy_render_widget_host_HWND_ =
+    LegacyRenderWidgetHostHWND* legacy_window =
         LegacyRenderWidgetHostHWND::Create(GetHostWindowHWND(), this);
+    if (!weak_this) {
+      return;
+    }
+    legacy_render_widget_host_HWND_ = legacy_window;
   }
 
   if (legacy_render_widget_host_HWND_) {
-    // Both UpdateParent and SetBounds can spin a nested message loop on
-    // Windows, potentially destroying `this`.
-    base::WeakPtr<RenderWidgetHostViewAura> weak_this(
-        weak_ptr_factory_.GetWeakPtr());
     legacy_render_widget_host_HWND_->UpdateParent(GetHostWindowHWND());
     if (!weak_this) {
       return;
@@ -3275,10 +3291,12 @@ void RenderWidgetHostViewAura::RemovingFromRootWindow() {
   delegated_frame_host_->DetachFromCompositor();
 
 #if BUILDFLAG(IS_WIN)
-    // Update the legacy window's parent temporarily to the hidden window. It
-    // will eventually get reparented to the right root.
-    if (legacy_render_widget_host_HWND_)
-      legacy_render_widget_host_HWND_->UpdateParent(ui::GetHiddenWindow());
+  // Update the legacy window's parent temporarily to the hidden window. It
+  // will eventually get reparented to the right root. This can spin a nested
+  // event loop that can delete `this`, so do it last.
+  if (legacy_render_widget_host_HWND_) {
+    legacy_render_widget_host_HWND_->UpdateParent(ui::GetHiddenWindow());
+  }
 #endif
 }
 
@@ -3287,7 +3305,9 @@ void RenderWidgetHostViewAura::DetachFromInputMethod(bool is_removed) {
   if (input_method) {
     input_method->DetachTextInputClient(this);
 #if BUILDFLAG(IS_CHROMEOS)
-    wm::RestoreWindowBoundsOnClientFocusLost(window_->GetToplevelWindow());
+    if (!window_->is_destroying()) {
+      wm::RestoreWindowBoundsOnClientFocusLost(window_->GetToplevelWindow());
+    }
 #endif  // BUILDFLAG(IS_CHROMEOS)
   }
 

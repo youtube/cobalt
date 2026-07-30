@@ -1634,6 +1634,10 @@ AXObject* AXObjectCacheImpl::CreateAndInit(Node* node,
   // Eagerly fill out new subtrees.
   new_obj->UpdateChildrenIfNecessary();
 
+  if (auto* canvas = DynamicTo<HTMLCanvasElement>(node)) {
+    canvas->OnAxObjectCreated(new_obj->IsIgnored());
+  }
+
   return new_obj;
 }
 
@@ -1956,13 +1960,12 @@ void AXObjectCacheImpl::Remove(LayoutObject* layout_object,
       MarkSubtreeDirty(node);
     }
 
-    if (IsA<HTMLImageElement>(node)) {
+    if (auto* image_element = DynamicTo<HTMLImageElement>(*node)) {
       // If an image is removed, ensure its entire subtree is deleted as there
       // may have been children supplied via a map.
-      if (auto* layout_image =
-              DynamicTo<LayoutImage>(node->GetLayoutObject())) {
-        if (auto* map = layout_image->ImageMap()) {
-          if (map->ImageElement() == node) {
+      if (IsA<LayoutImage>(node->GetLayoutObject())) {
+        if (auto* map = image_element->GetImageMap()) {
+          if (map->ImageElement() == image_element) {
             RemoveSubtree(map, /*remove_root*/ false);
           }
         }

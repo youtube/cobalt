@@ -62,13 +62,13 @@ enum class WebNNOrtDeviceUma {
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/webnn/enums.xml:WebNNOrtDeviceUma)
 
-void RecordFirstSelectedEP(base::cstring_view ep_name) {
+void RecordFirstSelectedEP(std::string_view ep_name) {
   // It is expected that `ep_name` is one of the execution providers defined in
   // `services/webnn/public/cpp/execution_providers_info.h`. If a new EP is
   // added, it should be added to this map as well. Otherwise, it will be
   // recorded as `kOther`.
   static constexpr auto kEPUmaMap =
-      base::MakeFixedFlatMap<base::cstring_view, WebNNOrtEPUma>({
+      base::MakeFixedFlatMap<std::string_view, WebNNOrtEPUma>({
           {kCPUExecutionProvider, WebNNOrtEPUma::kCPU},
           {kDmlExecutionProvider, WebNNOrtEPUma::kDml},
           {kWebGpuExecutionProvider, WebNNOrtEPUma::kWebGpu},
@@ -196,8 +196,8 @@ ContextImplOrt::ContextImplOrt(
   const OrtEpDevice* first_selected_device =
       session_options_->first_selected_device();
 
-  const char* ep_name = ort_api->EpDevice_EpName(first_selected_device);
-  RecordFirstSelectedEP(UNSAFE_BUFFERS(base::cstring_view(ep_name)));
+  std::string_view ep_name = ort_api->EpDevice_EpName(first_selected_device);
+  RecordFirstSelectedEP(ep_name);
 
   OrtHardwareDeviceType hardware_device_type = ort_api->HardwareDevice_Type(
       ort_api->EpDevice_Device(first_selected_device));
@@ -551,28 +551,16 @@ ContextImplOrt::CreateTensorFromSharedImageImpl(
     mojo::PendingAssociatedReceiver<mojom::WebNNTensor> receiver,
     mojom::TensorInfoPtr tensor_info,
     WebNNTensorImpl::RepresentationPtr representation) {
-  ComPtr<ID3D12Resource> d3d12_buffer;
-  // Shared image is thread-safe, directly get the backend representation.
-  if (representation->is_thread_safe()) {
-    d3d12_buffer = representation->GetD3D12Buffer();
-  } else {
-    // Shared image representation must be retrieved on the main thread. If
-    // WebNN runs on its own thread, a task is posted to the main thread and
-    // waits to retrieve the backend representation. Otherwise, if WebNN is
-    // already running on the main thread, it directly gets the backend
-    // representation.
-    WebNNTensorImpl::RunOrPostTaskAndWaitOnSequence(
-        main_task_runner(),
-        base::BindOnce(
-            [](gpu::WebNNTensorRepresentation* representation,
-               ComPtr<ID3D12Resource>* out_buffer) {
-              *out_buffer = representation->GetD3D12Buffer();
-            },
-            // Safe to use base::Unretained because we must run or wait for the
-            // post task to complete and `representation` cannot destruct while
-            // the task is running.
-            base::Unretained(representation.get()), &d3d12_buffer));
+  // ORT requires a thread-safe shared image representation because it accesses
+  // shared image data on the WebNN sequence.
+  DCHECK(representation->is_thread_safe());
+  if (!representation->is_thread_safe()) {
+    return base::unexpected(
+        mojom::Error::New(mojom::Error::Code::kNotSupportedError,
+                          "WebGPU interop is not supported."));
   }
+
+  ComPtr<ID3D12Resource> d3d12_buffer = representation->GetD3D12Buffer();
 
   CHECK(d3d12_buffer)
       << "[WebNN] Failed to get D3D12 buffer from shared image.";

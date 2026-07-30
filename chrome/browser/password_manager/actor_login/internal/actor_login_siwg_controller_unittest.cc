@@ -21,13 +21,13 @@
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
-#include "chrome/browser/password_manager/actor_login/internal/actor_login_delegate_impl.h"
 #include "chrome/common/actor.mojom.h"
 #include "chrome/common/chrome_render_frame.mojom.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "components/optimization_guide/proto/features/actor_login.pb.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "components/page_content_annotations/content/mojom/page_stability.mojom.h"
+#include "components/password_manager/core/browser/actor_login/internal/actor_login_delegate_impl.h"
 #include "components/password_manager/core/browser/actor_login/internal/actor_login_metrics_helper.h"
 #include "components/password_manager/core/browser/actor_login/test/mock_actor_login_delegate.h"
 #include "components/password_manager/core/browser/actor_login/test/mock_actor_login_permission_service.h"
@@ -40,6 +40,7 @@
 #include "content/public/test/web_contents_tester.h"
 #include "mojo/public/cpp/bindings/associated_receiver_set.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
+#include "pdf/buildflags.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
@@ -138,6 +139,14 @@ class MockChromeRenderFrame : public chrome::mojom::ChromeRenderFrame {
               (const base::UnguessableToken&,
                GetCrossDocumentScriptToolResultCallback),
               (override));
+#if BUILDFLAG(ENABLE_PDF)
+  MOCK_METHOD(void,
+              PdfPageCaptured,
+              (const std::u16string& contents,
+               const std::string& pdf_lang,
+               const GURL& page_url),
+              (override));
+#endif
 
  private:
   mojo::AssociatedReceiverSet<chrome::mojom::ChromeRenderFrame> receivers_;

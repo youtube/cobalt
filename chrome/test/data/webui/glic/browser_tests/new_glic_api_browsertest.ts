@@ -83,6 +83,86 @@ class ApiTests extends ApiTestFixtureBase {
         .waitFor((data) => data && data.invocationSource === expectedSource);
   }
 
+  private async assertCreateTabFails(url: string) {
+    assertDefined(this.host.createTab);
+    await assertRejects(
+        this.host.createTab(url, {openInBackground: false}),
+        {withErrorMessage: 'createTab: failed'});
+  }
+
+  async testCreateTab() {
+    assertDefined(this.host.createTab);
+    // Open a tab pointing to test.html.
+    const url = location.href;
+    const data = await this.host.createTab(url, {openInBackground: false});
+    assertEquals(data.url, url);
+  }
+
+  async testCreateTabSimple() {
+    assertDefined(this.host.createTab);
+    const url = location.href + '#simple';
+    const data = await this.host.createTab(url, {openInBackground: false});
+    assertEquals(data.url, url);
+  }
+
+  async testCreateTabFailsWithUnsupportedScheme() {
+    assertDefined(this.host.createTab);
+
+    this.assertCreateTabFails('chrome://settings');
+    this.assertCreateTabFails('ftps://www.google.com');
+    this.assertCreateTabFails('chrome-extension://www.google.com');
+    this.assertCreateTabFails('mailto:user@google.com');
+    this.assertCreateTabFails(
+        'data:text/html;charset=utf-8,<html>Hello World</html>');
+    this.assertCreateTabFails('file:///tmp/test.html');
+  }
+
+  async testCreateTabInBackground() {
+    assertDefined(this.host.createTab);
+
+    await this.host.createTab(
+        location.href + '#foreground', {openInBackground: false});
+
+    await this.advanceToNextStep();
+
+    await this.host.createTab(
+        location.href + '#background', {openInBackground: true});
+  }
+
+  async testCreateTabByClickingOnLink() {
+    assertDefined(this.host.setAudioDucking);
+    // Check that audio ducking still works after clicking a link.
+    this.host.setAudioDucking(true);
+    const link = document.createElement('a');
+    link.setAttribute('href', 'https://www.chromium.org');
+    link.setAttribute('target', '_blank');
+    document.body.appendChild(link);
+    link.click();
+
+    await this.advanceToNextStep();
+    this.host.setAudioDucking(false);
+  }
+
+  async testCreateTabByClickingOnLinkDaisyChains() {
+    assertDefined(this.host.getFocusedTabStateV2);
+    assertDefined(this.host.getPinnedTabs);
+    const link = document.createElement('a');
+    link.setAttribute('href', 'https://www.chromium.org');
+    link.setAttribute('target', '_blank');
+    document.body.appendChild(link);
+    link.click();
+    // The opened tab should be pinned.
+    await observeSequence(this.host.getPinnedTabs())
+        .waitFor(tabs => tabs.length === 2);
+  }
+
+  async testCreateTabFailsIfNotActive() {
+    assertDefined(this.host.closePanel);
+    assertDefined(this.host.createTab);
+    await this.closePanelAndWaitUntilInactive();
+    this.assertCreateTabFails(location.href);
+  }
+
   async testFailureForCapturedApiTestError() {
     try {
       throw new ApiTestError('Non-throwing test error');
@@ -948,6 +1028,56 @@ class SkillsApiTests extends ApiTests {
     assertDefined(this.host.showManageSkillsUi);
     this.host.showManageSkillsUi();
   }
+
+  async testDisableDragResize() {
+    assertDefined(this.host.enableDragResize);
+    await this.host.enableDragResize(false);
+  }
+
+  async testSetMinimumWidgetSize() {
+    assertDefined(this.host.setMinimumWidgetSize);
+    const minSize = {width: 200, height: 100};
+    await this.host.setMinimumWidgetSize(minSize.width, minSize.height);
+    await this.advanceToNextStep(minSize);
+  }
+
+  async testManualResizeChanged() {
+    assertDefined(this.host.isManuallyResizing);
+    const seq = observeSequence(this.host.isManuallyResizing());
+    await seq.waitForValue(true);
+
+    await this.advanceToNextStep();
+    await seq.waitForValue(false);
+    seq.unsubscribe();
+  }
+
+  async testResizeWindowTooSmall() {
+    assertDefined(this.host.resizeWindow);
+    await this.host.resizeWindow(0, 0);
+  }
+
+  async testResizeWindowTooLarge() {
+    assertDefined(this.host.resizeWindow);
+    await this.host.resizeWindow(20000, 20000);
+  }
+
+  async testResizeWindowWithinBounds() {
+    assertDefined(this.host.resizeWindow);
+    assertDefined(this.testParams);
+    await this.host.resizeWindow(this.testParams.width, this.testParams.height);
+  }
+
+  async testCreateSkillNoWindow() {
+    assertDefined(this.host.createSkill);
+    const request = {
+      id: 'id',
+      name: 'name',
+      icon: 'icon',
+      prompt: 'prompt',
+      source: SkillSource.FIRST_PARTY,
+    };
+    this.host.createSkill(request);
+  }
 }
 
 class ContextCapturingClient extends WebClient {
@@ -982,7 +1112,54 @@ class AdditionalContextQueuedTest extends ApiTestFixtureBase {
   }
 }
 
-const TEST_FIXTURES = [
+class WebClientForCreateTabInInvoke extends WebClient {
+  createTabResult = Promise.withResolvers<TabData>();
+  override async invoke(_options: InvokeOptions): Promise<void> {
+    try {
+      const url = location.href + '#invoking';
+      const data = await this.host!.createTab!(url, {openInBackground: false});
+      this.createTabResult.resolve(data);
+    } catch (e) {
+      this.createTabResult.reject(e as Error);
+    }
+  }
+}
+
+class ApiTestCreateTabInInvoke extends ApiTestFixtureBase {
+  override createWebClient(): WebClient {
+    return new WebClientForCreateTabInInvoke();
+  }
+
+  async testCreateTabSucceedsIfInvoking() {
+    const data = await (this.client as WebClientForCreateTabInInvoke)
+                     .createTabResult.promise;
+    assertEquals(data.url, location.href + '#invoking');
+  }
+}
+
+class InitiallyNotResizableWebClient extends WebClient {
+  override async notifyPanelWillOpen(_panelOpeningData: PanelOpeningData):
+      Promise<OpenPanelInfo> {
+    return {startingMode: WebClientMode.TEXT, canUserResize: false};
+  }
+}
+
+class InitiallyNotResizableTest extends ApiTestFixtureBase {
+  override createWebClient(): WebClient {
+    return new InitiallyNotResizableWebClient();
+  }
+
+  async testInitiallyNotResizable() {
+    await sleep(100);
+  }
+
+  async testEnableDragResize() {
+    assertDefined(this.host.enableDragResize);
+    await this.host.enableDragResize(true);
+  }
+}
+
+const TEST_FIXTURES: Array<typeof ApiTestFixtureBase> = [
   ApiTests,
   AdditionalContextQueuedTest,
   FaviconTest,
@@ -990,11 +1167,12 @@ const TEST_FIXTURES = [
   InvokeTest,
   ApiTestFailsToInitialize,
   TriggeringUpdatesTest,
+  ApiTestCreateTabInInvoke,
 ];
 
 
 if (!navigator.userAgent.includes('Android')) {
-  TEST_FIXTURES.push(SkillsApiTests);
+  TEST_FIXTURES.push(SkillsApiTests, InitiallyNotResizableTest);
 }
 
 testMain(TEST_FIXTURES);

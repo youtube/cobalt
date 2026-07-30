@@ -15,10 +15,11 @@
 #import "base/functional/callback.h"
 #import "base/memory/raw_ptr.h"
 #import "base/strings/sys_string_conversions.h"
+#import "components/actor/public/mojom/actor_types.mojom.h"
 #import "components/optimization_guide/proto/features/actions_data.pb.h"
 #import "ios/chrome/browser/intelligence/actor/model/actor_service.h"
 #import "ios/chrome/browser/intelligence/actor/public/actor_types.h"
-#import "ios/chrome/browser/intelligence/actor/tools/model/actor_tool.h"
+#import "ios/chrome/browser/intelligence/actor/tools/model/actor_tool_request.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/web/public/web_state.h"
 #import "ios/web/public/web_state_id.h"
@@ -126,9 +127,11 @@ void ProcessContextsAndComplete(
 }
 
 // Creates a serialized ActionsResult representing a failure.
-NSData* CreateSerializedFailureActionsResult(const std::string& error_message) {
+NSData* CreateSerializedFailureActionsResult(
+    actor::mojom::ActionResultCode resultCode,
+    const std::string& error_message) {
   optimization_guide::proto::ActionsResult actionsResult;
-  actionsResult.set_action_result(actor::kActionResultFailure);
+  actionsResult.set_action_result(static_cast<int32_t>(resultCode));
   actionsResult.set_error_message(error_message);
   return SerializeProtoToNSData(actionsResult);
 }
@@ -209,21 +212,21 @@ void InjectTabIdIntoAction(optimization_guide::proto::Action& action,
   optimization_guide::proto::ActionsResult actionsResult;
 
   // Populate action results.
-  bool overallSuccess = true;
   int32_t failedActionIndex = -1;
+  actor::mojom::ActionResultCode resultCode =
+      actor::mojom::ActionResultCode::kOk;
   for (size_t i = 0; i < result.action_results.size(); ++i) {
     const auto& actionResult = result.action_results[i];
     if (!actionResult.tool_result.IsOk()) {
-      overallSuccess = false;
       failedActionIndex = i;
+      resultCode = actionResult.tool_result.code();
       actionsResult.set_error_message(
           actor::GetToolExecutionResultMessage(actionResult.tool_result));
       break;
     }
   }
 
-  actionsResult.set_action_result(overallSuccess ? actor::kActionResultSuccess
-                                                 : actor::kActionResultFailure);
+  actionsResult.set_action_result(static_cast<int32_t>(resultCode));
   if (failedActionIndex != -1) {
     actionsResult.set_index_of_failed_action(failedActionIndex);
   }
@@ -292,6 +295,7 @@ void InjectTabIdIntoAction(optimization_guide::proto::Action& action,
   web::WebStateID webStateId = [self webStateIDForTaskID:taskID];
   if (!webStateId.valid()) {
     completionBlock(CreateSerializedFailureActionsResult(
+        actor::mojom::ActionResultCode::kTaskWentAway,
         "Failed to perform actions: Task ID not found."));
     return;
   }
@@ -300,17 +304,20 @@ void InjectTabIdIntoAction(optimization_guide::proto::Action& action,
   for (NSData* data in serializedActionProtos) {
     optimization_guide::proto::Action action;
     if (!action.ParseFromArray([data bytes], [data length])) {
-      completionBlock(
-          CreateSerializedFailureActionsResult("Failed to parse action proto"));
+      completionBlock(CreateSerializedFailureActionsResult(
+          actor::mojom::ActionResultCode::kArgumentsInvalid,
+          "Failed to parse action proto"));
       return;
     }
     InjectTabIdIntoAction(action, webStateId);
     actions.push_back(action);
   }
 
-  auto toolsResult = _actorService->CreateActorTools(actions, taskID);
+  actor::CreateActorToolRequestsResult toolsResult =
+      _actorService->CreateActorToolRequests(actions, taskID);
   if (!toolsResult.has_value()) {
     completionBlock(CreateSerializedFailureActionsResult(
+        toolsResult.error().code(),
         actor::GetToolExecutionResultMessage(toolsResult.error())));
     return;
   }
@@ -327,6 +334,7 @@ void InjectTabIdIntoAction(optimization_guide::proto::Action& action,
             if (!strongSelf) {
               if (completionBlock) {
                 completionBlock(CreateSerializedFailureActionsResult(
+                    actor::mojom::ActionResultCode::kExecutorDestroyed,
                     "Handler destroyed before actions completed"));
               }
               return;

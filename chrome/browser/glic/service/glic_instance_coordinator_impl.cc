@@ -14,8 +14,11 @@
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/rand_util.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/glic/common/future_browser_features.h"
 #include "chrome/browser/glic/common/glic_tab_observer.h"
 #include "chrome/browser/glic/common/instance_independent_hotkey_manager.h"
@@ -39,6 +42,7 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/common/chrome_features.h"
 #include "components/prefs/pref_service.h"
@@ -46,6 +50,7 @@
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
+#include "ui/base/base_window.h"
 
 namespace glic {
 
@@ -69,6 +74,22 @@ GlicTabRestoreData* GetTabRestoreData(const TabCreationEvent& creation_event) {
   return GlicTabRestoreData::FromWebContents(
       creation_event.new_tab->GetContents());
 }
+tabs::TabInterface* GetMostRecentlyActiveTab(
+    const std::vector<tabs::TabInterface*>& tabs) {
+  CHECK(!tabs.empty());
+  tabs::TabInterface* most_recent = tabs[0];
+  base::Time max_active_time = most_recent->GetLastActiveTime();
+
+  for (size_t i = 1; i < tabs.size(); ++i) {
+    base::Time active_time = tabs[i]->GetLastActiveTime();
+    if (active_time > max_active_time) {
+      max_active_time = active_time;
+      most_recent = tabs[i];
+    }
+  }
+  return most_recent;
+}
+
 }  // namespace
 
 BASE_FEATURE(kGlicMaxAwakeInstances, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -263,6 +284,48 @@ bool GlicInstanceCoordinatorImpl::IsConversationPresent(
   return !!GetInstanceImplForConversationId(conversation_id);
 }
 
+GlicInstanceCoordinator::ActivateTabResult
+GlicInstanceCoordinatorImpl::ActivateTabWithConversation(
+    const std::string& conversation_id) {
+  GlicInstanceImpl* instance =
+      GetInstanceImplForConversationId(conversation_id);
+  if (!instance) {
+    return GlicInstanceCoordinator::ActivateTabResult::kConversationNotFound;
+  }
+
+  std::vector<tabs::TabInterface*> target_tabs;
+
+  // Try to get tabs from the actor task manager first.
+  GlicActorTaskManager* task_manager = instance->GetActorTaskManager();
+  if (task_manager) {
+    target_tabs = task_manager->GetLastActedTabs();
+  }
+
+  // If no tabs from actor, fallback to bound tabs.
+  if (target_tabs.empty()) {
+    target_tabs = instance->GetBoundTabs();
+  }
+
+  metrics_.RecordActivateTabCandidateTabCount(target_tabs.size());
+  if (target_tabs.empty()) {
+    return GlicInstanceCoordinator::ActivateTabResult::kNoBoundTabs;
+  }
+
+  tabs::TabInterface* target_tab = GetMostRecentlyActiveTab(target_tabs);
+
+  BrowserWindowInterface* target_browser =
+      target_tab->GetBrowserWindowInterface();
+  if (!target_browser) {
+    return GlicInstanceCoordinator::ActivateTabResult::kTabNotInWindow;
+  }
+
+  auto* tab_list = TabListInterface::From(target_browser);
+  tab_list->ActivateTab(target_tab->GetHandle());
+  target_browser->GetWindow()->Activate();
+
+  return GlicInstanceCoordinator::ActivateTabResult::kSuccess;
+}
+
 GlicInstance* GlicInstanceCoordinatorImpl::GetInstanceForTab(
     const tabs::TabInterface* tab) const {
   return GetInstanceImplForTab(tab);
@@ -327,7 +390,8 @@ void GlicInstanceCoordinatorImpl::Toggle(BrowserWindowInterface* browser,
 }
 
 void GlicInstanceCoordinatorImpl::EnsurePreload() {
-  web_contents_warming_pool_->EnsurePreload();
+  web_contents_warming_pool_->EnsurePreload(
+      GlicWebContentsWarmingPool::ContainerCreationReason::kInitialColdWarming);
 }
 
 void GlicInstanceCoordinatorImpl::Shutdown() {
@@ -347,7 +411,7 @@ void GlicInstanceCoordinatorImpl::Close(const CloseOptions& options) {
 
 void GlicInstanceCoordinatorImpl::RemoveAllInstances() {
   while (!instances_.empty()) {
-    RemoveInstance(instances_.begin()->second.get());
+    RemoveInstance(instances_.begin()->first);
   }
 }
 
@@ -387,42 +451,57 @@ base::WeakPtr<GlicInstance> GlicInstanceCoordinatorImpl::InvokeInternal(
     std::optional<InvokeWithAutoSubmitPasskey> auto_submit_passkey,
     GlicInvokeOptions options,
     GlicInvokeWithAutoSubmitOptions auto_submit_options) {
+  if (const auto* tab_handle =
+          std::get_if<tabs::TabHandle>(&options.target.surface)) {
+    if (tab_handle->raw_value() == tabs::TabHandle::NullValue) {
+      if (options.on_error) {
+        std::move(options.on_error).Run(GlicInvokeError::kInvalidTab);
+      }
+      return nullptr;
+    }
+  }
+
   GlicInvokeHandler::ResolvedTarget resolved_target =
       GlicInvokeHandler::ResolveTargetSurface(profile_, options.target);
-  tabs::TabInterface* tab = resolved_target.tab;
-  options.target.surface = tab;
-
-  if (!tab || !GlicInstanceHelper::From(tab)) {
-    if (options.on_error) {
-      std::move(options.on_error).Run(GlicInvokeError::kInvalidTab);
+  tabs::TabInterface* tab = nullptr;
+  if (const auto* tab_surface =
+          std::get_if<GlicInvokeHandler::TabSurface>(&resolved_target)) {
+    tab = tab_surface->tab;
+    if (!tab || !GlicInstanceHelper::From(tab)) {
+      if (options.on_error) {
+        std::move(options.on_error).Run(GlicInvokeError::kTabClosed);
+      }
+      // TODO(crbug.com/483387751): Show default toast here once implemented.
+      return nullptr;
     }
-    // TODO(crbug.com/483387751): Show default toast here once implemented.
-    return nullptr;
+    options.target.surface = tab->GetHandle();
   }
 
   GlicInstanceImpl* instance = nullptr;
 
   instance = std::visit(
-      absl::Overload{[&](const ConversationId& conv_id) {
-                       if (conv_id.conversation_id.empty()) {
-                         if (options.on_error) {
-                           std::move(options.on_error)
-                               .Run(GlicInvokeError::kInvalidConversationId);
-                         }
-                         // TODO(crbug.com/483387751): Show default toast here
-                         // once implemented.
-                         return static_cast<GlicInstanceImpl*>(nullptr);
-                       }
-                       return GetOrCreateInstanceImplForConversationId(
-                           conv_id.conversation_id, conv_id.turn_id);
-                     },
-                     [&](NewConversation) { return CreateGlicInstance(); },
-                     [&](const InstanceId& id) {
-                       return GetInstanceImplFor(id);
-                     },
-                     [&](DefaultConversation) {
-                       return GetOrCreateGlicInstanceImplForTab(tab);
-                     }},
+      absl::Overload{
+          [&](const ConversationId& conv_id) {
+            if (conv_id.conversation_id.empty()) {
+              if (options.on_error) {
+                std::move(options.on_error)
+                    .Run(GlicInvokeError::kInvalidConversationId);
+              }
+              // TODO(crbug.com/483387751): Show default toast here
+              // once implemented.
+              return static_cast<GlicInstanceImpl*>(nullptr);
+            }
+            return GetOrCreateInstanceImplForConversationId(
+                conv_id.conversation_id, conv_id.turn_id);
+          },
+          [&](NewConversation) { return CreateGlicInstance(); },
+          [&](const InstanceId& id) { return GetInstanceImplFor(id); },
+          [&](DefaultConversation) {
+            if (std::holds_alternative<Floating>(resolved_target)) {
+              return GetOrCreateInstanceImplForFloaty();
+            }
+            return GetOrCreateGlicInstanceImplForTab(tab);
+          }},
       options.target.conversation);
 
   if (!instance) {
@@ -478,7 +557,7 @@ void GlicInstanceCoordinatorImpl::ArchiveInstanceWithFrame(
     content::RenderFrameHost* render_frame_host) {
   for (auto& [id, instance] : instances_) {
     if (instance->host().IsWebContentPresentAndMatches(render_frame_host)) {
-      RemoveInstance(instance.get());
+      RemoveInstance(id);
       return;
     }
   }
@@ -764,23 +843,18 @@ void GlicInstanceCoordinatorImpl::ToggleSidePanel(
   instance->Toggle(std::move(options), prevent_close, source);
 }
 
-void GlicInstanceCoordinatorImpl::RemoveInstance(GlicInstanceImpl* instance) {
-  auto it = instances_.find(instance->id());
+void GlicInstanceCoordinatorImpl::RemoveInstance(InstanceId id) {
+  auto it = instances_.find(id);
   if (it == instances_.end()) {
     // This instance has already been removed, so there's no work to do.
     return;
   }
-  // If an entry exists for this ID, it must be the specific instance we are
-  // removing. We prohibit overwriting instances in the map, so a mismatch
-  // would indicate a logic bug or state corruption (e.g., during restoration).
-  CHECK_EQ(it->second.get(), instance);
-
+  GlicInstanceImpl* instance = it->second.get();
   OnInstanceActivationChanged(instance, false);
 
   // Remove the instance first, and then delete. This way,
   // instances_ will not include the instance being deleted while
   // it's being deleted.
-  InstanceId id = instance->id();
   instance->CloseInstanceAndShutdown();
   if (instance == last_active_instance_) {
     last_active_instance_ = nullptr;
@@ -918,7 +992,6 @@ GlicInstanceCoordinatorImpl::GetSortedRecentInstances(size_t limit) const {
 void GlicInstanceCoordinatorImpl::UnbindTabFromAnyInstance(
     tabs::TabInterface* tab) {
   if (auto* instance = GetInstanceImplForTab(tab)) {
-    // `instance` may be deleted after this call.
     instance->UnbindEmbedder(EmbedderKey(tab));
   }
 }

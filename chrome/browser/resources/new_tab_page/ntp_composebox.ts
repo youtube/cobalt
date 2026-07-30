@@ -4,13 +4,18 @@
 
 import '//resources/cr_components/composebox/composebox_dropdown.js';
 import '//resources/cr_components/composebox/composebox_file_inputs.js';
+import '//resources/cr_components/composebox/composebox_submit.js';
 import '//resources/cr_components/composebox/contextual_entrypoint_and_menu.js';
 import '//resources/cr_components/composebox/composebox_input.js';
 import '//resources/cr_components/composebox/error_scrim.js';
 import '//resources/cr_components/composebox/file_carousel.js';
 import '//resources/cr_components/composebox/composebox_tool_chip.js';
 import '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
+import '//resources/cr_components/composebox/composebox_voice_search.js';
+import '//resources/cr_components/search/animated_glow.js';
+import '//resources/cr_components/localized_link/localized_link.js';
 
+import type {ComposeboxFile} from '//resources/cr_components/composebox/common.js';
 import type {PageHandlerRemote} from '//resources/cr_components/composebox/composebox.mojom-webui.js';
 import type {ComposeboxDropdownElement} from '//resources/cr_components/composebox/composebox_dropdown.js';
 import type {ComposeboxFileInputsElement} from '//resources/cr_components/composebox/composebox_file_inputs.js';
@@ -20,11 +25,13 @@ import {ComposeboxProxyImpl} from '//resources/cr_components/composebox/composeb
 import type {ContextualEntrypointAndMenuElement} from '//resources/cr_components/composebox/contextual_entrypoint_and_menu.js';
 import type {ErrorScrimElement} from '//resources/cr_components/composebox/error_scrim.js';
 import type {ComposeboxFileCarouselElement} from '//resources/cr_components/composebox/file_carousel.js';
+import {GlowAnimationState} from '//resources/cr_components/search/constants.js';
 import {DragAndDropHandler} from '//resources/cr_components/search/drag_drop_handler.js';
 import type {DragAndDropHost} from '//resources/cr_components/search/drag_drop_host.js';
 import {EventTracker} from '//resources/js/event_tracker.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 
 import {getCss} from './ntp_composebox.css.js';
 import {getHtml} from './ntp_composebox.html.js';
@@ -54,11 +61,26 @@ export class NtpComposeboxElement extends ComposeboxEmbedderMixin
     return getHtml.bind(this)();
   }
 
+  static override get properties() {
+    return {
+      /*
+      `expanding_` property is used in composebox.css styles. It is added
+      so that the imported styles work well. Remove this property once each
+      embedder has its own styles.
+      */
+      expanding_: {
+        reflect: true,
+        type: Boolean,
+      },
+    };
+  }
+
   private searchboxCallbackRouter_: SearchboxPageCallbackRouter;
   private pageHandler_: PageHandlerRemote;
   private searchboxHandler_: SearchboxPageHandlerRemote;
   private eventTracker_: EventTracker = new EventTracker();
   protected dragAndDropHandler_: DragAndDropHandler;
+  protected accessor expanding_: boolean = true;
 
   override getPageHandler(): PageHandlerRemote {
     return this.pageHandler_;
@@ -103,6 +125,7 @@ export class NtpComposeboxElement extends ComposeboxEmbedderMixin
 
   override connectedCallback() {
     super.connectedCallback();
+    this.animationState = GlowAnimationState.EXPANDING;
     this.focusInput();
   }
 
@@ -123,6 +146,15 @@ export class NtpComposeboxElement extends ComposeboxEmbedderMixin
       return this.showDropdown;
     }
     return super.shouldShowDivider();
+  }
+
+  override deleteFile(uuidToDelete: UnguessableToken, fromUserAction?: boolean):
+      ComposeboxFile|null {
+    const file = super.deleteFile(uuidToDelete, fromUserAction);
+    if (file) {
+      this.queryAutocomplete(/* clearMatches= */ true);
+    }
+    return file;
   }
 }
 

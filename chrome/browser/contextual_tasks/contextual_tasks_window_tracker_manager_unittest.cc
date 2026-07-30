@@ -6,8 +6,10 @@
 
 #include "chrome/browser/contextual_tasks/contextual_tasks_types.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_window_tracker.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/tab_list/mock_tab_list_interface.h"
 #include "chrome/test/base/testing_profile.h"
+#include "components/contextual_tasks/public/features.h"
 #include "components/tabs/public/mock_tab_interface.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/global_routing_id.h"
@@ -31,7 +33,8 @@ class ContextualTasksWindowTrackerManagerTest
 
   void SetUp() override {
     content::RenderViewHostTestHarness::SetUp();
-    manager_ = std::make_unique<ContextualTasksWindowTrackerManager>();
+    manager_ = std::make_unique<ContextualTasksWindowTrackerManager>(
+        Profile::FromBrowserContext(browser_context()));
   }
 
   void TearDown() override {
@@ -45,9 +48,15 @@ class ContextualTasksWindowTrackerManagerTest
 TEST_F(ContextualTasksWindowTrackerManagerTest, AddAndRemoveTracker) {
   auto tracker = std::make_unique<ContextualTasksWindowTracker>(
       ContextualTaskId(base::Uuid::GenerateRandomV4()),
-      GURL("https://example.com"), nullptr, base::DoNothing());
+      GURL("https://example.com"), content::GlobalRenderFrameHostToken(),
+      nullptr, base::DoNothing());
   auto* tracker_ptr = tracker.get();
   manager_->AddTracker(std::move(tracker));
+  if (!base::FeatureList::IsEnabled(
+          contextual_tasks::kContextualTasksWindowTracking)) {
+    EXPECT_TRUE(manager_->window_trackers_for_testing().empty());
+    return;
+  }
 
   EXPECT_EQ(1U, manager_->window_trackers_for_testing().size());
 
@@ -59,17 +68,23 @@ TEST_F(ContextualTasksWindowTrackerManagerTest,
        MatchAndAssociatePendingTracker_FallbackVectorMatch) {
   GURL url("https://example.com");
   auto tracker = std::make_unique<ContextualTasksWindowTracker>(
-      ContextualTaskId(base::Uuid::GenerateRandomV4()), url, nullptr,
-      base::DoNothing());
+      ContextualTaskId(base::Uuid::GenerateRandomV4()), url,
+      content::GlobalRenderFrameHostToken(), nullptr, base::DoNothing());
   auto* tracker_ptr = tracker.get();
   // Do not add to pending map, only to vector.
   manager_->AddTracker(std::move(tracker));
+  if (!base::FeatureList::IsEnabled(
+          contextual_tasks::kContextualTasksWindowTracking)) {
+    EXPECT_TRUE(manager_->window_trackers_for_testing().empty());
+    return;
+  }
 
   auto web_contents = content::WebContentsTester::CreateTestWebContents(
       browser_context(), content::SiteInstance::Create(browser_context()));
 
   ContextualTasksWindowTracker* matched =
-      manager_->MatchAndAssociatePendingTracker(url, web_contents.get());
+      manager_->MatchAndAssociatePendingTracker(url, web_contents.get(),
+                                                nullptr);
   EXPECT_EQ(matched, tracker_ptr);
 }
 
@@ -80,9 +95,15 @@ TEST_F(ContextualTasksWindowTrackerManagerTest, OnTabAdded_OpenerMatch) {
   GURL url("https://example.com");
   auto tracker = std::make_unique<ContextualTasksWindowTracker>(
       ContextualTaskId(base::Uuid::GenerateRandomV4()), url,
-      initiator_contents->GetWeakPtr(), base::DoNothing());
+      initiator_contents->GetPrimaryMainFrame()->GetGlobalFrameToken(), nullptr,
+      base::DoNothing());
   auto* tracker_ptr = tracker.get();
   manager_->AddTracker(std::move(tracker));
+  if (!base::FeatureList::IsEnabled(
+          contextual_tasks::kContextualTasksWindowTracking)) {
+    EXPECT_TRUE(manager_->window_trackers_for_testing().empty());
+    return;
+  }
 
   // Create source_contents with initiator as opener.
   content::WebContents::CreateParams params(browser_context());
@@ -111,10 +132,15 @@ TEST_F(ContextualTasksWindowTrackerManagerTest, OnTabAdded_OpenerMatch) {
 TEST_F(ContextualTasksWindowTrackerManagerTest, OnTabAdded_UrlMatchFallback) {
   GURL url("https://example.com");
   auto tracker = std::make_unique<ContextualTasksWindowTracker>(
-      ContextualTaskId(base::Uuid::GenerateRandomV4()), url, nullptr,
-      base::DoNothing());
+      ContextualTaskId(base::Uuid::GenerateRandomV4()), url,
+      content::GlobalRenderFrameHostToken(), nullptr, base::DoNothing());
   auto* tracker_ptr = tracker.get();
   manager_->AddTracker(std::move(tracker));
+  if (!base::FeatureList::IsEnabled(
+          contextual_tasks::kContextualTasksWindowTracking)) {
+    EXPECT_TRUE(manager_->window_trackers_for_testing().empty());
+    return;
+  }
 
   auto web_contents = content::WebContentsTester::CreateTestWebContents(
       browser_context(), content::SiteInstance::Create(browser_context()));

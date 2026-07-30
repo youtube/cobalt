@@ -10,7 +10,10 @@ import {ComposeboxProxyImpl} from 'chrome://omnibox-popup.top-chrome/omnibox_pop
 import {ComposeboxFile, TabUploadOrigin} from 'chrome://resources/cr_components/composebox/common.js';
 import {PageCallbackRouter, PageHandlerRemote} from 'chrome://resources/cr_components/composebox/composebox.mojom-webui.js';
 import {ContextUploadErrorType, ContextUploadStatus, InputType, ToolMode} from 'chrome://resources/cr_components/composebox/composebox_query.mojom-webui.js';
+import type {InputState} from 'chrome://resources/cr_components/composebox/composebox_query.mojom-webui.js';
+import type {ComposeboxFileCarouselElement} from 'chrome://resources/cr_components/composebox/file_carousel.js';
 import {WindowProxy} from 'chrome://resources/cr_components/composebox/window_proxy.js';
+import {GlowAnimationState} from 'chrome://resources/cr_components/search/constants.js';
 import {createAutocompleteResultForTesting, createSearchMatchForTesting} from 'chrome://resources/cr_components/searchbox/searchbox_browser_proxy.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import type {PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
@@ -39,14 +42,8 @@ suite('OmniboxComposeboxTest', () => {
     testProxy = new TestSearchboxBrowserProxy();
     testProxy.handler.setPromiseResolveFor('getInputState', {
       state: {
+        ...createDefaultInputState(),
         allowedModels: [1],
-        allowedTools: [],
-        allowedInputTypes: [],
-        activeModel: 0,
-        activeTool: 0,
-        disabledModels: [],
-        disabledTools: [],
-        disabledInputTypes: [],
       },
     });
     SearchboxBrowserProxy.setInstance(testProxy);
@@ -338,6 +335,31 @@ suite('OmniboxComposeboxTest', () => {
     assertEquals(mockToken, omniboxComposebox.addedTabsIds.get(42));
   });
 
+  test('addSearchContext sets input and queries autocomplete', async () => {
+    omniboxComposebox.searchboxNextEnabled = true;
+    await microtasksFinished();
+
+    const initialCallCount =
+        testProxy.handler.getCallCount('queryAutocomplete');
+
+    const context = {
+      input: 'hello world',
+      files: [],
+      attachments: [],
+      toolMode: 0,
+    };
+    omniboxComposebox.addSearchContext(context);
+    await microtasksFinished();
+
+    // Check that input and lastQueriedInput are set.
+    assertEquals(omniboxComposebox.input, 'hello world');
+    assertEquals(omniboxComposebox.lastQueriedInput, 'hello world');
+    // Autocomplete should be queried.
+    assertEquals(
+        initialCallCount + 1,
+        testProxy.handler.getCallCount('queryAutocomplete'));
+  });
+
   test(
       'Carousel renders when files are present, hides when empty', async () => {
         assertFalse(omniboxComposebox.showFileCarousel);
@@ -466,6 +488,40 @@ suite('OmniboxComposeboxTest', () => {
     // overridden but we verify the property is set to a string).
     assertTrue(omniboxComposebox.errorMessage.length > 0);
   });
+
+  test(
+      'Add Attachment with unsupported file type validation error fails',
+      async () => {
+        const mockToken = 'mock-unsupported-error-token';
+        const context = {
+          input: '',
+          attachments: [{
+            fileAttachment: {
+              uuid: mockToken,
+              name: 'test.txt',
+              mimeType: 'text/plain',
+              imageDataUrl: null,
+              errorType: ContextUploadErrorType
+                             .kBrowserProcessingUnsupportedFileTypeError,
+            },
+          }],
+          toolMode: 0,
+        };
+
+        omniboxComposebox.i18n = (key: string) => {
+          if (key === 'composeFileTypesAllowedError') {
+            return 'Unsupported file type error';
+          }
+          return key;
+        };
+
+        omniboxComposebox.addSearchContext(context);
+        await microtasksFinished();
+
+        assertFalse(omniboxComposebox.files.has(mockToken));
+        assertEquals(
+            'Unsupported file type error', omniboxComposebox.errorMessage);
+      });
 
   test('Carousel delete-file event triggers deletion', async () => {
     const mockToken = 'mock-delete-event-token';
@@ -1125,4 +1181,741 @@ suite('OmniboxComposeboxTest', () => {
             glow.classList.contains('embedded-permission-prompt-showing'));
         assertEquals('0', window.getComputedStyle(recordingWave).opacity);
       });
+
+  test('suggestion activity link triggers navigation', async () => {
+    // Mock results to show the link.
+    const matches = [
+      createSearchMatchForTesting({
+        isNoncannedAimSuggestion: true,
+      }),
+    ];
+    testProxy.page.autocompleteResultChanged(
+        createAutocompleteResultForTesting({
+          matches: matches,
+        }));
+    await testProxy.page.$.flushForTesting();
+    await microtasksFinished();
+    await omniboxComposebox.updateComplete;
+
+    const suggestionActivity =
+        omniboxComposebox.shadowRoot.querySelector('#suggestionActivity');
+    assertTrue(!!suggestionActivity);
+    const localizedLink = suggestionActivity.querySelector('localized-link');
+    assertTrue(!!localizedLink);
+
+    const testUrl = 'about:blank?activity';
+    // Simulate the event fired by localized-link.
+    const anchor = document.createElement('a');
+    anchor.href = testUrl;
+
+    let preventDefaultCalled = false;
+    const linkClickedEvent = new CustomEvent('link-clicked', {
+      detail: {
+        event: {
+          preventDefault: () => {
+            preventDefaultCalled = true;
+          },
+          currentTarget: anchor,
+        },
+      },
+    });
+
+    localizedLink.dispatchEvent(linkClickedEvent);
+
+    const url = await mockPageHandler.whenCalled('navigateUrl');
+    assertEquals(testUrl, url);
+    assertTrue(preventDefaultCalled);
   });
+
+  test(
+      'suggestion activity link hidden when suggestions are non canned',
+      async () => {
+        const matches = [
+          createSearchMatchForTesting({
+            isNoncannedAimSuggestion: false,
+          }),
+        ];
+        testProxy.page.autocompleteResultChanged(
+            createAutocompleteResultForTesting({
+              matches: matches,
+            }));
+        await testProxy.page.$.flushForTesting();
+        await microtasksFinished();
+        await omniboxComposebox.updateComplete;
+
+        const suggestionActivity =
+            omniboxComposebox.shadowRoot.querySelector('#suggestionActivity');
+        assertFalse(!!suggestionActivity);
+      });
+
+  function createDragEvent(type: string, files: File[]): DragEvent {
+    const event = new DragEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+    });
+
+    const mockDataTransfer = {
+      files: files,
+      types: ['Files', 'text/plain'],
+      items: files.map(f => ({
+                         kind: 'file',
+                         type: f.type,
+                         getAsFile: () => f,
+                       })),
+      effectAllowed: 'all',
+      dropEffect: 'copy',
+      getData: () => '',
+    };
+
+    Object.defineProperty(event, 'dataTransfer', {
+      value: mockDataTransfer,
+    });
+    return event;
+  }
+
+  async function dispatchDragAndDropEvent(hostElement: Element, files: File[]) {
+    const dropZone = hostElement.shadowRoot!.querySelector('#composebox');
+
+    if (!dropZone) {
+      throw new Error(
+          'dispatchDragAndDropEvent: #composebox drop zone not rendered.');
+    }
+
+    const enterEvent = createDragEvent('dragenter', files);
+    dropZone.dispatchEvent(enterEvent);
+    await microtasksFinished();
+
+    const overEvent = createDragEvent('dragover', files);
+    dropZone.dispatchEvent(overEvent);
+    await microtasksFinished();
+
+    const dropEvent = createDragEvent('drop', files);
+    dropZone.dispatchEvent(dropEvent);
+    await microtasksFinished();
+  }
+
+  function createDefaultInputState(): InputState {
+    return {
+      allowedModels: [],
+      allowedTools: [],
+      allowedInputTypes: [],
+      activeModel: 0,
+      activeTool: 0,
+      disabledModels: [],
+      disabledTools: [],
+      disabledInputTypes: [],
+      toolConfigs: [],
+      modelConfigs: [],
+      inputTypeConfigs: [],
+      toolsSectionConfig: null,
+      modelSectionConfig: null,
+      hintText: '',
+      maxInputsByType: {},
+      maxTotalInputs: 0,
+      isCanvasQuerySubmitted: false,
+    };
+  }
+
+  suite('DragAndDrop', () => {
+    setup(async () => {
+      loadTimeData.overrideValues({
+        'composeboxContextDragAndDropEnabled': true,
+        'composeboxFileMaxCount': 4,
+        'composeboxFileMaxSize': 10000000,
+        'lensSendRawFileMediaTypesEnabled': false,
+      });
+
+      document.body.innerHTML = window.trustedTypes!.emptyHTML;
+      omniboxComposebox = document.createElement('cr-omnibox-composebox');
+      document.body.appendChild(omniboxComposebox);
+      await omniboxComposebox.updateComplete;
+    });
+
+    test('sets is-dragging-file attribute on dragenter', async () => {
+      const dropZone =
+          omniboxComposebox.shadowRoot.querySelector('#composebox');
+      assertTrue(!!dropZone);
+
+      assertFalse(omniboxComposebox.hasAttribute('is-dragging-file'));
+
+      dropZone?.dispatchEvent(new DragEvent('dragenter', {
+        bubbles: true,
+        composed: true,
+      }));
+      await microtasksFinished();
+
+      assertTrue(omniboxComposebox.hasAttribute('is-dragging-file'));
+      assertEquals(
+          GlowAnimationState.DRAGGING, omniboxComposebox.animationState);
+    });
+
+    test('removes is-dragging-file attribute on dragleave', async () => {
+      const dropZone =
+          omniboxComposebox.shadowRoot.querySelector('#composebox');
+      assertTrue(!!dropZone);
+
+      omniboxComposebox.animationState = GlowAnimationState.DRAGGING;
+      dropZone?.dispatchEvent(new DragEvent('dragenter', {
+        bubbles: true,
+        composed: true,
+      }));
+      dropZone?.dispatchEvent(new DragEvent('dragleave', {
+        bubbles: true,
+        composed: true,
+      }));
+      await microtasksFinished();
+
+      assertFalse(omniboxComposebox.hasAttribute('is-dragging-file'));
+      assertEquals(GlowAnimationState.NONE, omniboxComposebox.animationState);
+    });
+
+    test('accepts a dropped file and adds it to the carousel', async () => {
+      const sharedToken = '12345678123412341234123456789ABC';
+      testProxy.handler.setPromiseResolveFor('addFileContext', sharedToken);
+
+      const file = new File(['content'], 'foo.pdf', {type: 'application/pdf'});
+      await dispatchDragAndDropEvent(omniboxComposebox, [file]);
+
+      await testProxy.handler.whenCalled('addFileContext');
+      assertEquals(1, testProxy.handler.getCallCount('addFileContext'));
+      assertFalse(omniboxComposebox.hasAttribute('is-dragging-file'));
+
+      // Simulate backend callback to render file
+      const testFileInfo = {
+        fileName: 'foo.pdf',
+        imageDataUrl: null,
+        mimeType: 'application/pdf',
+        isDeletable: true,
+        selectionTime: new Date(),
+      };
+      testProxy.page.addFileContext(sharedToken, testFileInfo);
+      await testProxy.page.$.flushForTesting();
+      await microtasksFinished();
+      await omniboxComposebox.updateComplete;
+
+      const carousel: ComposeboxFileCarouselElement|null =
+          omniboxComposebox.shadowRoot.querySelector(
+              'cr-composebox-file-carousel');
+
+      assertTrue(!!carousel, 'Carousel should render');
+
+      const carouselFiles = carousel.files;
+      assertEquals(1, carouselFiles.length);
+      assertEquals('foo.pdf', carouselFiles[0]!.name);
+    });
+
+    test('does not accept a dropped file that is too large', async () => {
+      const sampleFileMaxSize = 10;  // bytes
+      loadTimeData.overrideValues({'composeboxFileMaxSize': sampleFileMaxSize});
+
+      // Recreate to pick up new limit
+      document.body.innerHTML = window.trustedTypes!.emptyHTML;
+      omniboxComposebox = document.createElement('cr-omnibox-composebox');
+      document.body.appendChild(omniboxComposebox);
+      await omniboxComposebox.updateComplete;
+
+      const blob = new Blob([new Uint8Array(sampleFileMaxSize + 1)]);
+      const testFile =
+          new File([blob], 'largefile.pdf', {type: 'application/pdf'});
+      await dispatchDragAndDropEvent(omniboxComposebox, [testFile]);
+
+      assertEquals(0, testProxy.handler.getCallCount('addFileContext'));
+    });
+
+    test('does not accept wrong file type', async () => {
+      const testFile =
+          new File(['foo'], 'malware.exe', {type: 'application/x-msdownload'});
+      await dispatchDragAndDropEvent(omniboxComposebox, [testFile]);
+
+      const expectedCallCount =
+          loadTimeData.getBoolean('lensSendRawFileMediaTypesEnabled') ? 1 : 0;
+      assertEquals(
+          expectedCallCount, testProxy.handler.getCallCount('addFileContext'));
+    });
+
+    test('does not accept multiple files if only one allowed', async () => {
+      loadTimeData.overrideValues({'composeboxFileMaxCount': 1});
+
+      // Recreate to pick up new limit
+      document.body.innerHTML = window.trustedTypes!.emptyHTML;
+      omniboxComposebox = document.createElement('cr-omnibox-composebox');
+      document.body.appendChild(omniboxComposebox);
+      await omniboxComposebox.updateComplete;
+
+      const sharedToken = '12345678123412341234123456789ABC';
+      testProxy.handler.setPromiseResolveFor('addFileContext', sharedToken);
+
+      const file1 = new File(['a'], 'a.pdf', {type: 'application/pdf'});
+      const file2 = new File(['b'], 'b.pdf', {type: 'application/pdf'});
+
+      await dispatchDragAndDropEvent(omniboxComposebox, [file1, file2]);
+
+      await testProxy.handler.whenCalled('addFileContext');
+
+      assertEquals(1, testProxy.handler.getCallCount('addFileContext'));
+
+      // Simulate backend callback
+      const testFileInfo = {
+        fileName: 'a.pdf',
+        imageDataUrl: null,
+        mimeType: 'application/pdf',
+        isDeletable: true,
+        selectionTime: new Date(),
+      };
+      testProxy.page.addFileContext(sharedToken, testFileInfo);
+      await testProxy.page.$.flushForTesting();
+      await microtasksFinished();
+      await omniboxComposebox.updateComplete;
+
+      const carousel: ComposeboxFileCarouselElement|null =
+          omniboxComposebox.shadowRoot.querySelector(
+              'cr-composebox-file-carousel');
+
+      assertTrue(!!carousel, 'Carousel should render');
+
+      const carouselFiles = carousel.files;
+      assertEquals(1, carouselFiles.length);
+      assertEquals('a.pdf', carouselFiles[0]?.name);
+    });
+
+    test('Deep Search mode blocks all uploads', async () => {
+      const inputState = createDefaultInputState();
+      inputState.activeTool = ToolMode.kDeepSearch;
+      testProxy.page.onInputStateChanged(inputState);
+      await testProxy.page.$.flushForTesting();
+      await microtasksFinished();
+
+      const imageFile = new File([''], 'test.png', {type: 'image/png'});
+      await dispatchDragAndDropEvent(omniboxComposebox, [imageFile]);
+
+      assertEquals(0, testProxy.handler.getCallCount('addFileContext'));
+    });
+
+    test('Image Gen mode allows images but blocks PDFs', async () => {
+      loadTimeData.overrideValues({
+        'composeboxImageFileTypes': 'image/*',
+        'composeboxAttachmentFileTypes': 'application/pdf',
+      });
+
+      const inputState = createDefaultInputState();
+      inputState.activeTool = ToolMode.kImageGen;
+      inputState.disabledInputTypes = [InputType.kLensFile];
+      inputState.maxInputsByType =
+          {[InputType.kLensImage]: 1, [InputType.kLensFile]: 1};
+      inputState.maxTotalInputs = 2;
+      testProxy.page.onInputStateChanged(inputState);
+      await testProxy.page.$.flushForTesting();
+      await microtasksFinished();
+
+      // 1. Drop a PDF (should be blocked).
+      const pdfFile = new File([''], 'test.pdf', {type: 'application/pdf'});
+      await dispatchDragAndDropEvent(omniboxComposebox, [pdfFile]);
+      assertEquals(0, testProxy.handler.getCallCount('addFileContext'));
+
+      // 2. Drop an image (should be allowed).
+      testProxy.handler.setPromiseResolveFor(
+          'addFileContext', 'ABCDEF00000000000000000000000000');
+      const imageFile = new File(['content'], 'test.png', {type: 'image/png'});
+      await dispatchDragAndDropEvent(omniboxComposebox, [imageFile]);
+      await testProxy.handler.whenCalled('addFileContext');
+      assertEquals(1, testProxy.handler.getCallCount('addFileContext'));
+    });
+
+    test('Canvas mode allows both images and PDFs', async () => {
+      loadTimeData.overrideValues({
+        'composeboxImageFileTypes': 'image/*',
+        'composeboxAttachmentFileTypes': 'application/pdf',
+      });
+
+      const inputState = createDefaultInputState();
+      inputState.activeTool = ToolMode.kCanvas;
+      inputState.maxInputsByType =
+          {[InputType.kLensImage]: 1, [InputType.kLensFile]: 1};
+      inputState.maxTotalInputs = 2;
+      testProxy.page.onInputStateChanged(inputState);
+      await testProxy.page.$.flushForTesting();
+      await microtasksFinished();
+
+      // 1. Drop an image.
+      testProxy.handler.setPromiseResolveFor(
+          'addFileContext', 'ABCDEF00000000000000000000000000');
+      const imageFile = new File(['content'], 'test.png', {type: 'image/png'});
+      await dispatchDragAndDropEvent(omniboxComposebox, [imageFile]);
+      await testProxy.handler.whenCalled('addFileContext');
+      assertEquals(1, testProxy.handler.getCallCount('addFileContext'));
+
+      // 2. Drop a PDF.
+      testProxy.handler.reset();
+      testProxy.handler.setPromiseResolveFor(
+          'addFileContext', 'ABCDEF11111111111111111111111111');
+      const pdfFile =
+          new File(['content'], 'test.pdf', {type: 'application/pdf'});
+      await dispatchDragAndDropEvent(omniboxComposebox, [pdfFile]);
+      await testProxy.handler.whenCalled('addFileContext');
+      assertEquals(1, testProxy.handler.getCallCount('addFileContext'));
+    });
+  });
+
+  async function waitForAddFileCallCount(count: number) {
+    let iterations = 0;
+    while (testProxy.handler.getCallCount('addFileContext') < count) {
+      if (iterations > 100) {
+        throw new Error(
+            `Timeout waiting for addFileContext to be called ${count} times`);
+      }
+      await microtasksFinished();
+      iterations++;
+    }
+  }
+
+  suite('Paste', () => {
+    setup(async () => {
+      loadTimeData.overrideValues({
+        'composeboxContextDragAndDropEnabled': true,
+      });
+
+      // Recreate to pick up drag and drop enabled binding
+      document.body.innerHTML = window.trustedTypes!.emptyHTML;
+      omniboxComposebox = document.createElement('cr-omnibox-composebox');
+      document.body.appendChild(omniboxComposebox);
+      await omniboxComposebox.updateComplete;
+    });
+
+    test('pasting valid files calls addFileContext', async () => {
+      loadTimeData.overrideValues({'composeboxFileMaxCount': 5});
+      testProxy.handler.setPromiseResolveFor(
+          'addFileContext', 'TOKEN123456781234123412345678ABCD');
+
+      const pngFile = new File(['foo'], 'foo.png', {type: 'image/png'});
+      const pdfFile = new File(['foo'], 'foo.pdf', {type: 'application/pdf'});
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(pngFile);
+      dataTransfer.items.add(pdfFile);
+      const pasteEvent = new ClipboardEvent('paste', {
+        clipboardData: dataTransfer,
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+      });
+
+      omniboxComposebox.getInputElement().inputElement.dispatchEvent(
+          pasteEvent);
+      await waitForAddFileCallCount(2);
+
+      assertEquals(2, testProxy.handler.getCallCount('addFileContext'));
+      const argsArray = testProxy.handler.getArgs('addFileContext');
+      assertEquals('foo.png', argsArray[0][0].fileName);
+      assertEquals('foo.pdf', argsArray[1][0].fileName);
+
+      assertTrue(pasteEvent.defaultPrevented);
+    });
+
+    test('pasting too many files prevents paste', async () => {
+      const inputState = createDefaultInputState();
+      inputState.maxInputsByType =
+          {[InputType.kLensImage]: 1, [InputType.kLensFile]: 1};
+      inputState.maxTotalInputs = 2;
+      testProxy.page.onInputStateChanged(inputState);
+      await testProxy.page.$.flushForTesting();
+      await microtasksFinished();
+
+      testProxy.handler.setPromiseResolveFor(
+          'addFileContext', 'TOKEN123456781234123412345678ABCD');
+
+      const pngFile1 = new File(['foo'], 'foo1.png', {type: 'image/png'});
+      const pngFile2 = new File(['foo'], 'foo2.png', {type: 'image/png'});
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(pngFile1);
+      dataTransfer.items.add(pngFile2);
+      const pasteEvent = new ClipboardEvent('paste', {
+        clipboardData: dataTransfer,
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+      });
+
+      omniboxComposebox.getInputElement().inputElement.dispatchEvent(
+          pasteEvent);
+      await waitForAddFileCallCount(1);
+
+      assertEquals(1, testProxy.handler.getCallCount('addFileContext'));
+      assertTrue(pasteEvent.defaultPrevented);
+
+      // Check whether the right error would show up.
+      assertTrue(omniboxComposebox.errorMessage.length > 0);
+    });
+
+    test('pasting unsupported files fires validation error', async () => {
+      const txtFile = new File(['foo'], 'foo.txt', {type: 'text/plain'});
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(txtFile);
+      const pasteEvent = new ClipboardEvent('paste', {
+        clipboardData: dataTransfer,
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+      });
+
+      omniboxComposebox.getInputElement().inputElement.dispatchEvent(
+          pasteEvent);
+      await microtasksFinished();
+
+      assertTrue(omniboxComposebox.errorMessage.length > 0);
+      assertEquals(0, testProxy.handler.getCallCount('addFileContext'));
+      assertTrue(pasteEvent.defaultPrevented);
+    });
+
+    test(
+        'pasting only text does not call addFiles or prevent default',
+        async () => {
+          const dataTransfer = new DataTransfer();
+          dataTransfer.setData('text/plain', 'hello');
+          const pasteEvent = new ClipboardEvent('paste', {
+            clipboardData: dataTransfer,
+            bubbles: true,
+            cancelable: true,
+            composed: true,
+          });
+
+          omniboxComposebox.getInputElement().inputElement.dispatchEvent(
+              pasteEvent);
+          await microtasksFinished();
+
+          assertEquals(0, testProxy.handler.getCallCount('addFileContext'));
+          assertFalse(pasteEvent.defaultPrevented);
+        });
+
+    test('pasting mixed files is processed correctly', async () => {
+      const inputState = createDefaultInputState();
+      inputState.maxInputsByType =
+          {[InputType.kLensImage]: 2, [InputType.kLensFile]: 2};
+      inputState.maxTotalInputs = 5;
+      testProxy.page.onInputStateChanged(inputState);
+      await testProxy.page.$.flushForTesting();
+      await microtasksFinished();
+
+      let i = 0;
+      testProxy.handler.setResultMapperFor('addFileContext', () => {
+        i += 1;
+        return Promise.resolve(`MOCKTOKEN00000000000000000000000${i}`);
+      });
+
+      const pngFile = new File(['foo'], 'foo.png', {type: 'image/png'});
+      const pdfFile = new File(['foo'], 'foo.pdf', {type: 'application/pdf'});
+
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(pngFile);
+      dataTransfer.items.add(pdfFile);
+      const pasteEvent = new ClipboardEvent('paste', {
+        clipboardData: dataTransfer,
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+      });
+
+      omniboxComposebox.getInputElement().inputElement.dispatchEvent(
+          pasteEvent);
+      await waitForAddFileCallCount(2);
+      await microtasksFinished();
+      await omniboxComposebox.updateComplete;
+
+      const carousel: ComposeboxFileCarouselElement|null =
+          omniboxComposebox.shadowRoot.querySelector(
+              'cr-composebox-file-carousel');
+      assertTrue(!!carousel);
+      const files = carousel.files;
+      assertEquals(2, files.length);
+
+      const imageFile =
+          files.find((f: ComposeboxFile) => f.type.includes('image'));
+      const pdfFileInCarousel =
+          files.find((f: ComposeboxFile) => f.type.includes('pdf'));
+
+      assertTrue(!!imageFile);
+      assertTrue(!!pdfFileInCarousel);
+
+      assertTrue(!!imageFile.objectUrl);
+      assertEquals(pdfFileInCarousel.objectUrl, null);
+    });
+  });
+
+  suite('SmartCompose', () => {
+    setup(async () => {
+      loadTimeData.overrideValues({composeboxSmartComposeEnabled: true});
+      document.body.innerHTML = window.trustedTypes!.emptyHTML;
+      omniboxComposebox = document.createElement('cr-omnibox-composebox');
+      document.body.appendChild(omniboxComposebox);
+      await omniboxComposebox.updateComplete;
+    });
+
+    test('Smart Compose hint is hidden during backspacing', async () => {
+      const inputElement = omniboxComposebox.getInputElement();
+      const input = inputElement.inputElement as HTMLTextAreaElement;
+
+      // Provide an input and a hint.
+      input.value = 'tes';
+      input.dispatchEvent(new Event('input'));
+      const hint = 't';
+
+      omniboxComposebox.haveReceivedSynchronousAutocompleteResponse = true;
+      testProxy.page.autocompleteResultChanged(
+          createAutocompleteResultForTesting({
+            input: 'tes',
+            smartComposeInlineHint: hint,
+          }));
+      await testProxy.page.$.flushForTesting();
+      await microtasksFinished();
+
+      // Verify hint is visible.
+      assertTrue(!!inputElement.shadowRoot.querySelector('#smartCompose'));
+
+      // Simulate backspace.
+      input.dispatchEvent(new KeyboardEvent('keydown', {key: 'Backspace'}));
+      await microtasksFinished();
+
+      // Verify hint is hidden.
+      assertFalse(!!inputElement.shadowRoot.querySelector('#smartCompose'));
+
+      // Simulate typing a character.
+      input.dispatchEvent(new KeyboardEvent('keydown', {key: 'a'}));
+      await microtasksFinished();
+
+      // Verify hint is visible again.
+      assertTrue(!!inputElement.shadowRoot.querySelector('#smartCompose'));
+    });
+
+    test(
+        'Smart Compose hint is hidden when it wraps in the middle of a word',
+        async () => {
+          const inputElement = omniboxComposebox.getInputElement();
+          const input = inputElement.inputElement as HTMLTextAreaElement;
+
+          // Mock Canvas measureText and clientWidth.
+          const originalMeasureText =
+              CanvasRenderingContext2D.prototype.measureText;
+          try {
+            CanvasRenderingContext2D.prototype.measureText = function(
+                text: string) {
+              if (text.includes('wrap')) {
+                return {width: 150} as TextMetrics;
+              }
+              return {width: 50} as TextMetrics;
+            };
+            Object.defineProperty(
+                input, 'clientWidth', {configurable: true, get: () => 100});
+
+            // Provide an input ending with a non-space character and a hint.
+            input.value = 'tes.';
+            input.dispatchEvent(new Event('input'));
+            const hint = 'wrap';  // This will trigger width = 150
+
+            omniboxComposebox.haveReceivedSynchronousAutocompleteResponse =
+                true;
+            testProxy.page.autocompleteResultChanged(
+                createAutocompleteResultForTesting({
+                  input: 'tes.',
+                  smartComposeInlineHint: hint,
+                }));
+            await testProxy.page.$.flushForTesting();
+            await microtasksFinished();
+
+            // Trigger re-evaluation by requesting update.
+            inputElement.requestUpdate();
+            await microtasksFinished();
+
+            // Verify hint is hidden.
+            assertFalse(
+                !!inputElement.shadowRoot.querySelector('#smartCompose'));
+          } finally {
+            // Restore mock.
+            CanvasRenderingContext2D.prototype.measureText =
+                originalMeasureText;
+          }
+        });
+
+    test(
+        'Smart Compose hint is NOT hidden when only full hint wraps but first word fits',
+        async () => {
+          const inputElement = omniboxComposebox.getInputElement();
+          const input = inputElement.inputElement as HTMLTextAreaElement;
+
+          // Mock Canvas measureText and clientWidth.
+          const originalMeasureText =
+              CanvasRenderingContext2D.prototype.measureText;
+          try {
+            CanvasRenderingContext2D.prototype.measureText = function(
+                text: string) {
+              if (text.includes('wraps')) {
+                return {width: 150} as TextMetrics;
+              }
+              return {width: 50} as TextMetrics;
+            };
+            Object.defineProperty(
+                input, 'clientWidth', {configurable: true, get: () => 100});
+
+            // Provide an input ending with a non-space character and a hint.
+            input.value = 'tes.';
+            input.dispatchEvent(new Event('input'));
+            const hint = 'fits wraps';
+
+            omniboxComposebox.haveReceivedSynchronousAutocompleteResponse =
+                true;
+            testProxy.page.autocompleteResultChanged(
+                createAutocompleteResultForTesting({
+                  input: 'tes.',
+                  smartComposeInlineHint: hint,
+                }));
+            await testProxy.page.$.flushForTesting();
+            await microtasksFinished();
+
+            // Trigger re-evaluation by requesting update.
+            inputElement.requestUpdate();
+            await microtasksFinished();
+
+            // Verify hint is visible.
+            assertTrue(
+                !!inputElement.shadowRoot.querySelector('#smartCompose'));
+          } finally {
+            // Restore mock.
+            CanvasRenderingContext2D.prototype.measureText =
+                originalMeasureText;
+          }
+        });
+
+    test(
+        'Smart Compose hint is hidden when cursor is not at the end',
+        async () => {
+          const inputElement = omniboxComposebox.getInputElement();
+          const input = inputElement.inputElement as HTMLTextAreaElement;
+
+          // Provide an input and a hint.
+          input.value = 'test';
+          input.dispatchEvent(new Event('input'));
+          const hint = 'a';
+
+          omniboxComposebox.haveReceivedSynchronousAutocompleteResponse = true;
+          testProxy.page.autocompleteResultChanged(
+              createAutocompleteResultForTesting({
+                input: 'test',
+                smartComposeInlineHint: hint,
+              }));
+          await testProxy.page.$.flushForTesting();
+          await microtasksFinished();
+
+          // Verify hint is visible initially.
+          assertTrue(!!inputElement.shadowRoot.querySelector('#smartCompose'));
+
+          // Move cursor to the middle.
+          input.selectionStart = 2;
+          input.selectionEnd = 2;
+
+          // Trigger re-evaluation.
+          inputElement.requestUpdate();
+          await microtasksFinished();
+
+          // Verify hint is hidden.
+          assertFalse(!!inputElement.shadowRoot.querySelector('#smartCompose'));
+        });
+  });
+});

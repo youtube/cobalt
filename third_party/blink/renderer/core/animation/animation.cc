@@ -886,7 +886,7 @@ bool Animation::PreCommit(
                 CalculateAnimationPlayState());
       TRACE_EVENT_INSTANT(
           AnimationTraceCategories(), "Animation",
-          perfetto::Track::FromPointer(this), "data",
+          perfetto::NamedTrack::FromPointer("blink::Animation", this), "data",
           [&](perfetto::TracedValue context) {
             inspector_animation_compositor_event::Data(
                 std::move(context), failure_reasons,
@@ -1801,6 +1801,9 @@ void Animation::PlayInternal(AutoRewind auto_rewind,
   bool has_pending_ready_promise = false;
   bool has_finite_timeline =
       timeline_ && !timeline_->IsMonotonicallyIncreasing();
+  // TODO(crbug.com/451238244): Implement AutoRewind::kForced for
+  // blink::Animation.
+  DCHECK(auto_rewind != AutoRewind::kForced);
   bool enable_seek =
       auto_rewind == AutoRewind::kEnabled && !has_finite_timeline;
 
@@ -3679,25 +3682,26 @@ void Animation::NotifyProbe() {
                      new_play_state == V8AnimationPlayState::Enum::kRunning;
 
     if (!was_active && is_active) {
-      TRACE_EVENT_BEGIN(AnimationTraceCategories(), "Animation",
-                        perfetto::Track::FromPointer(this), "data",
-                        [&](perfetto::TracedValue context) {
-                          inspector_animation_event::Data(std::move(context),
-                                                          *this);
-                        });
+      TRACE_EVENT_BEGIN(
+          AnimationTraceCategories(), "Animation",
+          perfetto::NamedTrack::FromPointer("blink::Animation", this), "data",
+          [&](perfetto::TracedValue context) {
+            inspector_animation_event::Data(std::move(context), *this);
+          });
     } else if (was_active && !is_active) {
       TRACE_EVENT_END(
-          AnimationTraceCategories(), perfetto::Track::FromPointer(this),
+          AnimationTraceCategories(),
+          perfetto::NamedTrack::FromPointer("blink::Animation", this),
           "endData", [&](perfetto::TracedValue context) {
             inspector_animation_state_event::Data(std::move(context), *this);
           });
     } else {
-      TRACE_EVENT_INSTANT(AnimationTraceCategories(), "Animation",
-                          perfetto::Track::FromPointer(this), "data",
-                          [&](perfetto::TracedValue context) {
-                            inspector_animation_state_event::Data(
-                                std::move(context), *this);
-                          });
+      TRACE_EVENT_INSTANT(
+          AnimationTraceCategories(), "Animation",
+          perfetto::NamedTrack::FromPointer("blink::Animation", this), "data",
+          [&](perfetto::TracedValue context) {
+            inspector_animation_state_event::Data(std::move(context), *this);
+          });
     }
   }
 }

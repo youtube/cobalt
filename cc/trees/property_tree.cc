@@ -271,8 +271,7 @@ void TransformTree::UpdateTransforms(
     const ViewportPropertyIds* viewport_property_ids,
     UpdateTransformsData* update_data) {
   TransformNode& node = MutableNode(id);
-  TransformNode* parent_node = MutableParent(&node);
-  CHECK(parent_node);
+  TransformNode& parent_node = MutableParent(node);
   gfx::Transform old_to_parent = node.to_parent;
   gfx::Vector2dF old_snap_amount = node.snap_amount;
   // TODO(flackr): Only dirty when scroll offset changes.
@@ -283,12 +282,12 @@ void TransformTree::UpdateTransforms(
   } else {
     UndoSnapping(&node);
   }
-  UpdateScreenSpaceTransform(&node, *parent_node);
-  UpdateAnimationProperties(&node, *parent_node);
+  UpdateScreenSpaceTransform(&node, parent_node);
+  UpdateAnimationProperties(&node, parent_node);
   UpdateSnapping(&node);
-  UpdateTransformChanged(&node, *parent_node);
-  UpdateNodeAndAncestorsAreAnimatedOrInvertible(&node, *parent_node);
-  UpdateNodeOrAncestorsWillChangeTransform(&node, *parent_node);
+  UpdateTransformChanged(&node, parent_node);
+  UpdateNodeAndAncestorsAreAnimatedOrInvertible(&node, parent_node);
+  UpdateNodeOrAncestorsWillChangeTransform(&node, parent_node);
 
   // If `node` has been depended by a previous node and neither its `to_parent`
   // nor its `snap_amount` is changed, the depending node actually got correct
@@ -346,9 +345,11 @@ void TransformTree::CombineTransformsBetween(int source_id,
   // transform.
   std::vector<int> source_to_destination;
   source_to_destination.push_back(current.id);
-  const TransformNode* current_node = parent(&current);
+  const TransformNode* current_node =
+      HasParent(current) ? &parent(current) : nullptr;
   for (; current_node && current_node->id > dest_id;
-       current_node = parent(current_node)) {
+       current_node = HasParent(*current_node) ? &parent(*current_node)
+                                               : nullptr) {
     source_to_destination.push_back(current_node->id);
   }
 
@@ -608,7 +609,9 @@ gfx::Vector2dF TransformTree::StickyPositionOffset(const TransformNode& node) {
 AnchorPositionScrollData& TransformTree::EnsureAnchorPositionScrollData(
     int node_id) {
   TransformNode& node = MutableNode(node_id);
-  if (node.anchor_position_scroll_data_id == -1) {
+  if (node.anchor_position_scroll_data_id == -1 ||
+      static_cast<size_t>(node.anchor_position_scroll_data_id) >=
+          anchor_position_scroll_data_.size()) {
     node.anchor_position_scroll_data_id = anchor_position_scroll_data_.size();
     anchor_position_scroll_data_.emplace_back();
   }
@@ -618,7 +621,9 @@ AnchorPositionScrollData& TransformTree::EnsureAnchorPositionScrollData(
 const AnchorPositionScrollData* TransformTree::GetAnchorPositionScrollData(
     int node_id) const {
   const TransformNode& node = Node(node_id);
-  if (node.anchor_position_scroll_data_id == -1) {
+  if (node.anchor_position_scroll_data_id == -1 ||
+      static_cast<size_t>(node.anchor_position_scroll_data_id) >=
+          anchor_position_scroll_data_.size()) {
     return nullptr;
   }
   return &anchor_position_scroll_data_[node.anchor_position_scroll_data_id];
@@ -1077,7 +1082,9 @@ bool TransformTree::operator==(const TransformTree& other) const {
 
 StickyPositionNodeData* TransformTree::MutableStickyPositionData(int node_id) {
   const TransformNode& node = Node(node_id);
-  if (node.sticky_position_constraint_id == -1) {
+  if (node.sticky_position_constraint_id == -1 ||
+      static_cast<size_t>(node.sticky_position_constraint_id) >=
+          sticky_position_data_.size()) {
     return nullptr;
   }
   return &sticky_position_data_[node.sticky_position_constraint_id];
@@ -1085,7 +1092,9 @@ StickyPositionNodeData* TransformTree::MutableStickyPositionData(int node_id) {
 
 StickyPositionNodeData& TransformTree::EnsureStickyPositionData(int node_id) {
   TransformNode& node = MutableNode(node_id);
-  if (node.sticky_position_constraint_id == -1) {
+  if (node.sticky_position_constraint_id == -1 ||
+      static_cast<size_t>(node.sticky_position_constraint_id) >=
+          sticky_position_data_.size()) {
     node.sticky_position_constraint_id = sticky_position_data_.size();
     sticky_position_data_.emplace_back();
   }
@@ -1328,7 +1337,7 @@ bool EffectTree::OnBackdropFilterAnimated(
 
 void EffectTree::UpdateEffects(int id) {
   EffectNode& node = MutableNode(id);
-  EffectNode* parent_node = MutableParent(&node);
+  EffectNode* parent_node = HasParent(node) ? &MutableParent(node) : nullptr;
 
   UpdateOpacities(&node, parent_node);
   UpdateSubtreeHidden(&node, parent_node);
@@ -1515,8 +1524,7 @@ bool EffectTree::ContributesToDrawnSurface(int id) const {
   // Exception : Nodes that are hidden and are drawn only for the sake of
   // copy requests.
   const EffectNode& node = Node(id);
-  const EffectNode* parent_node = parent(&node);
-  return node.is_drawn && (!parent_node || parent_node->is_drawn);
+  return node.is_drawn && (!HasParent(node) || parent(node).is_drawn);
 }
 
 void EffectTree::ResetChangeTracking() {
@@ -2626,16 +2634,17 @@ void PropertyTrees::UpdateChangeTracking() {
   for (int id = kContentsRootPropertyNodeId;
        id < static_cast<int>(mutable_effect_tree.size()); ++id) {
     EffectNode& node = mutable_effect_tree.MutableNode(id);
-    EffectNode* parent_node = mutable_effect_tree.MutableParent(&node);
+    EffectNode* parent_node = mutable_effect_tree.HasParent(node)
+                                  ? &mutable_effect_tree.MutableParent(node)
+                                  : nullptr;
     mutable_effect_tree.UpdateEffectChanged(&node, parent_node);
   }
   auto& mutable_transform_tree = transform_tree_mutable();
   for (int i = kContentsRootPropertyNodeId;
        i < static_cast<int>(mutable_transform_tree.size()); ++i) {
     TransformNode& node = mutable_transform_tree.MutableNode(i);
-    TransformNode* parent_node = mutable_transform_tree.MutableParent(&node);
-    DCHECK(parent_node);
-    mutable_transform_tree.UpdateTransformChanged(&node, *parent_node);
+    TransformNode& parent_node = mutable_transform_tree.MutableParent(node);
+    mutable_transform_tree.UpdateTransformChanged(&node, parent_node);
   }
 }
 
@@ -2776,7 +2785,10 @@ const AnimationScaleData& PropertyTrees::GetAnimationScaleData(
   animation_scale.update_number = cached_data_.transform_tree_update_number;
 
   TransformNode& node = transform_tree_mutable().MutableNode(transform_id);
-  TransformNode* parent_node = transform_tree_mutable().MutableParent(&node);
+  TransformNode* parent_node =
+      transform_tree_mutable().HasParent(node)
+          ? &transform_tree_mutable().MutableParent(node)
+          : nullptr;
   const auto* parent_animation_scale =
       parent_node ? &GetAnimationScaleData(parent_node->id) : nullptr;
 

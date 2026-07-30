@@ -239,8 +239,9 @@ struct VectorTypeOperations {
       if (origin != VectorOperationOrigin::kConstruction) {
         // SAFETY: TODO(359904345): VectorTypeOperations should operate on
         // spans.
-        base::span<T> UNSAFE_BUFFERS(elements(
-            dst, static_cast<wtf_size_t>(std::distance(src, src_end))));
+        base::span<T> UNSAFE_BUFFERS(
+            elements(base::unchecked, dst,
+                     static_cast<wtf_size_t>(std::distance(src, src_end))));
         ConstructTraits::NotifyNewElements(elements);
       }
     }
@@ -296,8 +297,9 @@ struct VectorTypeOperations {
       if (origin != VectorOperationOrigin::kConstruction) {
         // SAFETY: TODO(359904345): VectorTypeOperations should operate on
         // spans.
-        base::span<T> UNSAFE_BUFFERS(elements(
-            dst, static_cast<wtf_size_t>(std::distance(src, src_end))));
+        base::span<T> UNSAFE_BUFFERS(
+            elements(base::unchecked, dst,
+                     static_cast<wtf_size_t>(std::distance(src, src_end))));
         ConstructTraits::NotifyNewElements(elements);
       }
     }
@@ -318,15 +320,15 @@ struct VectorTypeOperations {
           AtomicWriteMemcpy<sizeof(T), alignof(T)>(d, s);
           AtomicWriteMemcpy<sizeof(T), alignof(T)>(s, buf);
         });
-        const wtf_size_t len = std::distance(src, src_end);
+        const wtf_size_t len = CheckedDistance(src, src_end);
         if (src_origin != VectorOperationOrigin::kConstruction) {
           // SAFETY: TODO(359904345): VectorTypeOperations should operate on
           // spans.
-          base::span<T> UNSAFE_BUFFERS(elements(src, len));
+          base::span<T> UNSAFE_BUFFERS(elements(base::unchecked, src, len));
           ConstructTraits::NotifyNewElements(elements);
         }
         // SAFETY: TODO(359904345): VectorTypeOperations should operate on spans.
-        base::span<T> UNSAFE_BUFFERS(elements(dst, len));
+        base::span<T> UNSAFE_BUFFERS(elements(base::unchecked, dst, len));
         ConstructTraits::NotifyNewElements(elements);
       } else {
         std::swap_ranges(reinterpret_cast<char*>(src),
@@ -403,7 +405,8 @@ struct VectorTypeOperations {
       if (origin != VectorOperationOrigin::kConstruction) {
         // SAFETY: TODO(359904345): VectorTypeOperations should operate on
         // spans.
-        base::span<T> UNSAFE_BUFFERS(elements(dst_begin, size));
+        base::span<T> UNSAFE_BUFFERS(
+            elements(base::unchecked, dst_begin, size));
         ConstructTraits::NotifyNewElements(elements);
       }
     }
@@ -430,8 +433,9 @@ struct VectorTypeOperations {
         if (origin != VectorOperationOrigin::kConstruction) {
           // SAFETY: TODO(359904345): VectorTypeOperations should operate on
           // spans.
-          base::span<T> UNSAFE_BUFFERS(elements(
-              dst, static_cast<wtf_size_t>(std::distance(dst, dst_end))));
+          base::span<T> UNSAFE_BUFFERS(
+              elements(base::unchecked, dst,
+                       static_cast<wtf_size_t>(std::distance(dst, dst_end))));
           ConstructTraits::NotifyNewElements(elements);
         }
       }
@@ -495,10 +499,11 @@ class GC_PLUGIN_IGNORE("crbug.com/428987863") VectorBufferBase {
 #endif
 
   base::span<T> BufferSpan() {
-    return UNSAFE_TODO(base::span<T>(buffer_, capacity_));
+    return UNSAFE_TODO(base::span<T>(base::unchecked, buffer_, capacity_));
   }
   base::span<const T> BufferSpan() const {
-    return UNSAFE_TODO(base::span<const T>(buffer_, capacity_));
+    return UNSAFE_TODO(
+        base::span<const T>(base::unchecked, buffer_, capacity_));
   }
 
   // PRECONDTIONS: `from` and `to` must point within the same object with
@@ -2093,26 +2098,28 @@ template <typename Range, typename Proj>
   requires VectorCanAssignFromRange<T, InlineCapacity, Allocator, Range, Proj>
 void Vector<T, InlineCapacity, Allocator>::assign(Range&& other, Proj proj) {
   this->RegisterModification();
-  if (std::ranges::size(other) > capacity()) {
+  const wtf_size_t other_size =
+      base::checked_cast<wtf_size_t>(std::ranges::size(other));
+  if (other_size > capacity()) {
     clear();
-    reserve(std::ranges::size(other));
+    reserve(other_size);
     // Note that `size(other)` may become smaller if `other` is a hash table
     // with `WeakMember` keys and `reserve` caused GC which removed some
     // entries from `other`, see crbug.com/40448463. This won't cause problems
     // as long as we won't use the old `size(other)` in the following code.
   } else {
-    if (std::ranges::size(other) < size()) {
-      Shrink(std::ranges::size(other));
+    if (other_size < size()) {
+      Shrink(other_size);
     }
     TypeOperations::Destruct(data(), DataEnd());
   }
 
   MARKING_AWARE_ANNOTATE_CHANGE_SIZE(Allocator, data(), capacity(), size_,
-                                     std::ranges::size(other));
+                                     other_size);
   TypeOperations::UninitializedTransform(
       std::ranges::begin(other), std::ranges::end(other), data(),
       VectorOperationOrigin::kRegularModification, std::move(proj));
-  size_ = std::ranges::size(other);
+  size_ = other_size;
 }
 
 template <typename T, wtf_size_t InlineCapacity, typename Allocator>
@@ -2493,7 +2500,7 @@ void Vector<T, InlineCapacity, Allocator>::Append(const U* data,
   MARKING_AWARE_ANNOTATE_CHANGE_SIZE(Allocator, this->data(), capacity(), size_,
                                      new_size);
   TypeOperations::UninitializedCopy(
-      UNSAFE_TODO(base::span<const U>(data, data_size)),
+      UNSAFE_TODO(base::span<const U>(base::unchecked, data, data_size)),
       CapacitySpan().subspan(size_, data_size),
       VectorOperationOrigin::kRegularModification);
   size_ = new_size;

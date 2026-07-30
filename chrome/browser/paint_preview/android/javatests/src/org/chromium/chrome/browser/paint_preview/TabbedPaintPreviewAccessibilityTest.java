@@ -28,6 +28,9 @@ import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
 import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
 import org.chromium.chrome.test.transit.page.WebPageStation;
+import org.chromium.components.omnibox.AutocompleteInput;
+import org.chromium.components.omnibox.OmniboxFocusReason;
+import org.chromium.components.omnibox.TextSelection;
 import org.chromium.components.paintpreview.player.PlayerManager;
 import org.chromium.content_public.browser.WebContentsAccessibility;
 import org.chromium.ui.accessibility.AccessibilityState;
@@ -138,7 +141,11 @@ public class TabbedPaintPreviewAccessibilityTest {
         String urlBarText = "hello";
 
         ThreadUtils.runOnUiThreadBlocking(
-                () -> toolbarManager.setUrlBarFocusAndText(true, 0, urlBarText));
+                () ->
+                        toolbarManager.beginFuseboxInput(
+                                new AutocompleteInput(OmniboxFocusReason.OMNIBOX_TAP)
+                                        .setUserText(urlBarText)
+                                        .setSelection(TextSelection.SELECT_ALL)));
 
         // Set up a paint preview in the background.
         Tab tab = mPage.getTab();

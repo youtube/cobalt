@@ -57,7 +57,7 @@
 #include "content/browser/browsing_topics/header_util.h"
 #include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/client_hints/client_hints.h"
-#include "content/browser/connection_allowlist_gating.h"
+#include "content/browser/connection_allowlist_utils.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/devtools/network_service_devtools_observer.h"
 #include "content/browser/download/download_manager_impl.h"
@@ -1225,6 +1225,30 @@ const char* BeforeUnloadExecutionModeToString(
 // The sampling rate for UKM.
 constexpr double kUkmSamplingRate = 0.001;
 
+// Builds the final `EmbedderIsolationInfo` for a navigation. `kPdf` is
+// preserved as-is so the PDF renderer carve-out is never lost. Otherwise,
+// a unique-instance EII is inherited from the parent SiteInstance when
+// present, so descendants of a unique-instance frame stay in the same
+// isolation domain.
+EmbedderIsolationInfo ResolveEmbedderIsolationInfo(
+    FrameTreeNode* frame_tree_node,
+    EmbedderIsolationInfo::Mode mode) {
+  if (mode == EmbedderIsolationInfo::Mode::kPdf) {
+    return EmbedderIsolationInfo::CreateForPdf();
+  }
+  // Inherit a unique-instance ancestor's id when present so that a descendant
+  // frame stays in its parent's isolation domain.
+  if (RenderFrameHostImpl* parent =
+          frame_tree_node->GetParentOrOuterDocument()) {
+    const EmbedderIsolationInfo& parent_info =
+        parent->GetSiteInstance()->GetSiteInfo().embedder_isolation_info();
+    if (parent_info.is_unique_instance()) {
+      return parent_info;
+    }
+  }
+  return EmbedderIsolationInfo::CreateNone();
+}
+
 }  // namespace
 
 NavigationRequest::PrerenderActivationNavigationState::
@@ -1244,7 +1268,7 @@ std::unique_ptr<NavigationRequest> NavigationRequest::CreateBrowserInitiated(
     bool is_form_submission,
     std::unique_ptr<NavigationUIData> navigation_ui_data,
     const std::optional<blink::Impression>& impression,
-    bool is_pdf,
+    EmbedderIsolationInfo::Mode embedder_isolation_mode,
     bool is_embedder_initiated_fenced_frame_navigation,
     std::optional<std::u16string> embedder_shared_storage_context) {
   auto request = Create(
@@ -1255,7 +1279,7 @@ std::unique_ptr<NavigationRequest> NavigationRequest::CreateBrowserInitiated(
       extra_headers, frame_entry, entry, is_form_submission,
       std::move(navigation_ui_data), impression,
       /*started_with_transient_activation=*/false,
-      /*started_by_ad=*/false, is_pdf,
+      /*started_by_ad=*/false, embedder_isolation_mode,
       is_embedder_initiated_fenced_frame_navigation,
       /*is_container_initiated=*/false, /*has_rel_opener=*/false,
       embedder_shared_storage_context);
@@ -1282,7 +1306,7 @@ std::unique_ptr<NavigationRequest> NavigationRequest::Create(
     const std::optional<blink::Impression>& impression,
     bool started_with_transient_activation,
     bool started_by_ad,
-    bool is_pdf,
+    EmbedderIsolationInfo::Mode embedder_isolation_mode,
     bool is_embedder_initiated_fenced_frame_navigation,
     bool is_container_initiated,
     bool has_rel_opener,
@@ -1348,7 +1372,7 @@ std::unique_ptr<NavigationRequest> NavigationRequest::Create(
       mojo::NullAssociatedRemote(),
       nullptr /* prefetched_signed_exchange_cache */,
       GetRenderFrameHostForBackForwardCacheRestore(frame_tree_node, entry),
-      initiator_process_id, was_opener_suppressed, is_pdf,
+      initiator_process_id, was_opener_suppressed, embedder_isolation_mode,
       is_embedder_initiated_fenced_frame_navigation,
       mojo::NullReceiver() /* renderer_cancellation_listener */,
       mojo::NullReceiver() /* renderer_ignore_duplicate_navigation_listener */,
@@ -1502,7 +1526,7 @@ std::unique_ptr<NavigationRequest> NavigationRequest::CreateRendererInitiated(
       std::move(prefetched_signed_exchange_cache),
       std::nullopt,  // rfh_restored_from_back_forward_cache
       initiator_process_id,
-      /*was_opener_suppressed=*/false, /*is_pdf=*/false,
+      /*was_opener_suppressed=*/false, EmbedderIsolationInfo::Mode::kNone,
       /*is_embedder_initiated_fenced_frame_navigation=*/false,
       std::move(renderer_cancellation_listener),
       std::move(renderer_ignore_duplicate_navigation_listener),
@@ -1656,7 +1680,7 @@ NavigationRequest::CreateForSynchronousRendererCommit(
       nullptr /* prefetched_signed_exchange_cache */,
       std::nullopt /* rfh_restored_from_back_forward_cache */,
       ChildProcessHost::kInvalidUniqueID /* initiator_process_id */,
-      false /* was_opener_suppressed */, false /* is_pdf */));
+      false /* was_opener_suppressed */, EmbedderIsolationInfo::Mode::kNone));
 
   std::optional<base::UnguessableToken> nonce = render_frame_host->ComputeNonce(
       navigation_request->is_credentialless(),
@@ -1718,7 +1742,7 @@ NavigationRequest::NavigationRequest(
         rfh_restored_from_back_forward_cache,
     int initiator_process_id,
     bool was_opener_suppressed,
-    bool is_pdf,
+    EmbedderIsolationInfo::Mode embedder_isolation_mode,
     bool is_embedder_initiated_fenced_frame_navigation,
     mojo::PendingReceiver<mojom::NavigationRendererCancellationListener>
         renderer_cancellation_listener,
@@ -1785,7 +1809,9 @@ NavigationRequest::NavigationRequest(
       cookie_observers_(std::make_unique<CookieAccessObservers>(
           base::BindRepeating(&NavigationRequest::NotifyCookiesAccessed,
                               base::Unretained(this)))),
-      is_pdf_(is_pdf),
+      embedder_isolation_info_(
+          ResolveEmbedderIsolationInfo(frame_tree_node,
+                                       embedder_isolation_mode)),
       is_embedder_initiated_fenced_frame_navigation_(
           is_embedder_initiated_fenced_frame_navigation),
       fenced_frame_properties_(
@@ -4525,8 +4551,7 @@ UrlInfo NavigationRequest::GetUrlInfo() {
   url_info_init.WithOACHeaderRequest(oac_header_request)
       .WithCOOPSiteIsolation(ShouldRequestSiteIsolationForCOOP())
       .WithWebExposedIsolationInfo(web_exposed_isolation_info)
-      .WithEmbedderIsolationInfo(is_pdf_ ? EmbedderIsolationInfo::CreateForPdf()
-                                         : EmbedderIsolationInfo::CreateNone());
+      .WithEmbedderIsolationInfo(embedder_isolation_info_);
 
   // Compute the CrossOriginIsolationKey for the navigation.
   std::optional<AgentClusterKey::CrossOriginIsolationKey>
@@ -5853,7 +5878,6 @@ void NavigationRequest::OnStartChecksComplete(
 
   // TODO(clamy): Avoid cloning the navigation params and create the
   // ResourceRequest directly here.
-  std::vector<std::unique_ptr<NavigationLoaderInterceptor>> interceptor;
 
   auto loader_type = NavigationURLLoader::LoaderType::kRegular;
   network::mojom::URLResponseHeadPtr cached_response_head = nullptr;
@@ -5931,7 +5955,7 @@ void NavigationRequest::OnStartChecksComplete(
                                    : nullptr,
           devtools_navigation_token(), local_root_rfh->devtools_frame_token(),
           BuildClientSecurityStateForNavigationFetch(),
-          devtools_accepted_stream_types, is_pdf_, GetInitiatorProcessId(),
+          devtools_accepted_stream_types, IsPdf(), GetInitiatorProcessId(),
           initiator_document_token_, std::move(serving_page_metrics_container),
           allow_cookies_from_browser_, navigation_id_,
           shared_storage_writable_eligible_, is_ad_tagged_,
@@ -5943,8 +5967,7 @@ void NavigationRequest::OnStartChecksComplete(
       static_cast<StoragePartitionImpl*>(partition)
           ->CreateURLLoaderNetworkObserverForNavigationRequest(*this),
       NetworkServiceDevToolsObserver::MakeSelfOwned(frame_tree_node_),
-      CreateDeviceBoundSessionObserver(), std::move(cached_response_head),
-      std::move(interceptor));
+      CreateDeviceBoundSessionObserver(), std::move(cached_response_head));
   CHECK(!HasRenderFrameHost());
 
   // If needed, perform an early RenderFrameHost swap after notifying observers
@@ -7514,6 +7537,19 @@ void NavigationRequest::UpdateNavigationHandleTimingsOnResponseReceived(
     navigation_handle_timing_.first_request_connect_delay = connect_delay;
     navigation_handle_timing_.first_request_ssl_delay = ssl_delay;
 
+    const net::LoadTimingInfo::ConnectTiming& connect_timing =
+        response_head_->load_timing.connect_timing;
+    navigation_handle_timing_.first_request_domain_lookup_start_time =
+        connect_timing.domain_lookup_start;
+    navigation_handle_timing_.first_request_domain_lookup_end_time =
+        connect_timing.domain_lookup_end;
+    navigation_handle_timing_.first_request_connect_start_time =
+        connect_timing.connect_start;
+    navigation_handle_timing_.first_request_connect_end_time =
+        connect_timing.connect_end;
+    navigation_handle_timing_.first_request_ssl_start_time =
+        connect_timing.ssl_start;
+
     first_fetch_start_time_ = response_head_->request_start;
   }
 
@@ -7533,10 +7569,24 @@ void NavigationRequest::UpdateNavigationHandleTimingsOnResponseReceived(
   navigation_handle_timing_.final_non_informational_response_start_time =
       response_head_->load_timing.receive_non_informational_headers_start;
   navigation_handle_timing_.final_loader_callback_time = loader_callback_time;
+
   navigation_handle_timing_.final_request_domain_lookup_delay =
       domain_lookup_delay;
   navigation_handle_timing_.final_request_connect_delay = connect_delay;
   navigation_handle_timing_.final_request_ssl_delay = ssl_delay;
+
+  const net::LoadTimingInfo::ConnectTiming& final_connect_timing =
+      response_head_->load_timing.connect_timing;
+  navigation_handle_timing_.final_request_domain_lookup_start_time =
+      final_connect_timing.domain_lookup_start;
+  navigation_handle_timing_.final_request_domain_lookup_end_time =
+      final_connect_timing.domain_lookup_end;
+  navigation_handle_timing_.final_request_connect_start_time =
+      final_connect_timing.connect_start;
+  navigation_handle_timing_.final_request_connect_end_time =
+      final_connect_timing.connect_end;
+  navigation_handle_timing_.final_request_ssl_start_time =
+      final_connect_timing.ssl_start;
 
   if (response_head_->load_timing_internal_info) {
     navigation_handle_timing_.create_stream_delay =
@@ -7663,13 +7713,11 @@ bool NavigationRequest::IsAllowedByConnectionAllowlist(bool is_redirect) {
   const PolicyContainerPolicies* policies =
       policy_container_builder_->InitiatorPolicies();
 
-  // The origin trial status is tied to the existence of allowlists in policy
-  // container. If the initiator doesn't have an enforced allowlist in its
-  // policies, it means either:
-  // 1. the trial was not active for that context.
-  // 2. or the parsed enforced allowlist is null. For example, the
-  // "Connection-Allowlist" header has an empty field value.
-  if (!policies || !policies->connection_allowlists.enforced) {
+  if (!policies) {
+    return true;
+  }
+
+  if (!EnforcesConnectionAllowlist(*policies)) {
     return true;
   }
 
@@ -7677,10 +7725,7 @@ bool NavigationRequest::IsAllowedByConnectionAllowlist(bool is_redirect) {
   // confirming the feature is active for this initiator. Note:
   // redirect_behavior defaults to kBlock if not explicitly set in the
   // Connection-Allowlist header.
-  if (is_redirect &&
-      policies->connection_allowlists.enforced->redirect_behavior ==
-          network::ConnectionAllowlist::RedirectBehavior::kBlock) {
-    // TODO(crbug.com/447954811): Implement reporting.
+  if (is_redirect && !IsRedirectAllowedByConnectionAllowlist(*policies)) {
     return false;
   }
 
@@ -7711,13 +7756,8 @@ bool NavigationRequest::IsAllowedByConnectionAllowlist(bool is_redirect) {
     return true;
   }
 
-  if (network::ConnectionAllowlistMatchesUrl(
-          policies->connection_allowlists.enforced.value(),
-          common_params_->url)) {
-    return true;
-  }
-
-  return false;
+  return ConnectionAllowlistAllowsUrlAndReportIfNeeded(*policies,
+                                                       common_params_->url);
 }
 
 bool NavigationRequest::IsAllowedByCSPDirective(
@@ -9126,9 +9166,9 @@ bool NavigationRequest::NeedsUrlLoader() {
   // If the navigation is for a PDF file, Chrome on Android will render it with
   // a Java NativePage object and the navigation will always be main frame. The
   // NativePage is responsible for reading the file and thus no URLLoader is
-  // needed. If NativePage is not enabled for PDF, |is_pdf_| should never be
+  // needed. If NativePage is not enabled for PDF, `IsPdf()` should never be
   // true.
-  if (is_pdf_) {
+  if (IsPdf()) {
     return false;
   }
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -9424,7 +9464,7 @@ bool NavigationRequest::WasResourceHintsReceived() {
 }
 
 bool NavigationRequest::IsPdf() {
-  return is_pdf_;
+  return embedder_isolation_info_.is_pdf();
 }
 
 bool NavigationRequest::IsLoadDataWithBaseURL() const {

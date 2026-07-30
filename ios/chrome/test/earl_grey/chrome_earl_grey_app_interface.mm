@@ -1046,6 +1046,17 @@ UIViewController* FindBrowserViewController(UIViewController* root) {
   return base::SysUTF8ToNSString(guid);
 }
 
++ (NSString*)addFakeSendTabToSelfEntryWithURL:(NSString*)url
+                                        title:(NSString*)title
+                                 textFragment:(NSString*)textFragment {
+  std::string guid = chrome_test_util::AddSendTabToSelfEntryToFakeSyncServer(
+      GURL(base::SysNSStringToUTF8(url)), base::SysNSStringToUTF8(title),
+      "target_device", "cache_guid_target_device", /*form_fields=*/{},
+      base::SysNSStringToUTF8(textFragment));
+
+  return base::SysUTF8ToNSString(guid);
+}
+
 + (BOOL)hasSendTabToSelfEntryWithGUID:(NSString*)guid {
   ProfileIOS* original_profile = chrome_test_util::GetOriginalProfile();
   send_tab_to_self::SendTabToSelfSyncService* service =
@@ -1442,6 +1453,10 @@ UIViewController* FindBrowserViewController(UIViewController* root) {
 
 + (BOOL)isChromeNextEnabled {
   return IsChromeNextIaEnabled();
+}
+
++ (BOOL)isChromeNextShareIconVisible {
+  return IsChromeNextIaShareIconVisible();
 }
 
 #pragma mark - ContentSettings

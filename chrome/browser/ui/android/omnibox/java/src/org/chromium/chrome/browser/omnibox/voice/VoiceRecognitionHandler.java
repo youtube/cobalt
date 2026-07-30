@@ -26,7 +26,7 @@ import org.chromium.components.omnibox.AutocompleteInput;
 import org.chromium.components.omnibox.AutocompleteMatch;
 import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.components.omnibox.OmniboxFocusReason;
-import org.chromium.components.omnibox.ToolModeUtils;
+import org.chromium.components.omnibox.TextSelection;
 import org.chromium.content_public.browser.NavigationHandle;
 import org.chromium.content_public.browser.RenderFrameHost;
 import org.chromium.content_public.browser.WebContents;
@@ -225,8 +225,7 @@ public class VoiceRecognitionHandler {
                         ? sessionState.getAutocompleteInput().getRequestType()
                         : AutocompleteRequestType.SEARCH;
 
-        if (ToolModeUtils.isAimRequest(requestType)
-                || topResult.getConfidence() < VOICE_SEARCH_CONFIDENCE_NAVIGATE_THRESHOLD) {
+        if (topResult.getConfidence() < VOICE_SEARCH_CONFIDENCE_NAVIGATE_THRESHOLD) {
             beginInputWithVerbatimText(topResultQuery, requestType);
             return;
         }
@@ -245,30 +244,16 @@ public class VoiceRecognitionHandler {
             }
         }
 
-        if (profile == null) return;
-
-        AutocompleteMatch match = AutocompleteCoordinator.classify(profile, topResultQuery);
-
-        GURL url;
-        if (match == null || match.isSearchSuggestion()) {
-            url =
-                    TemplateUrlServiceFactory.getForProfile(profile)
-                            .getUrlForVoiceSearchQuery(topResultQuery);
-        } else {
-            url = match.getUrl();
-        }
-
-        mOmniboxStub.loadUrlFromVoice(url);
+        mOmniboxStub.loadUrlFromVoice(topResultQuery);
     }
 
     private void beginInputWithVerbatimText(
             String query, @AutocompleteRequestType int requestType) {
         AutocompleteInput input =
-                new AutocompleteInput()
+                new AutocompleteInput(OmniboxFocusReason.SEARCH_QUERY)
                         .setUserText(query)
-                        .setSelection(0, query.length())
-                        .setRequestType(requestType)
-                        .setFocusReason(OmniboxFocusReason.SEARCH_QUERY);
+                        .setSelection(TextSelection.SELECT_ALL)
+                        .setRequestType(requestType);
         mOmniboxStub.beginInput(input);
     }
 

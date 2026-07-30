@@ -28,7 +28,7 @@ import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {AutocompleteResult, FileAttachment, PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote, SearchContext, TabAttachment, TabInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 
-import {ComposeboxFile, getLoadTimeBoolean, GlifAnimationState, mapUploadErrorToProcessFilesError, ProcessFilesError, recordBoolean, recordContextAdditionMethod, recordUserAction, TabUploadOrigin} from './common.js';
+import {ComposeboxFile, GlifAnimationState, mapUploadErrorToProcessFilesError, ProcessFilesError, recordBoolean, recordContextAdditionMethod, recordUserAction, TabUploadOrigin} from './common.js';
 import type {TabUpload} from './common.js';
 import {getCss} from './composebox.css.js';
 import {getHtml} from './composebox.html.js';
@@ -219,15 +219,6 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
     return super.shouldShowDivider();
   }
 
-  override computeSubmitEnabled(): boolean {
-    // `submitEnabled` controls the visibility of the submit button.
-    // Since files can be added but technically not be submittable (like
-    // injected inputs), this needs to check if any files are present to show
-    // the submit button. The button will still appear disabled because that is
-    // controlled by `canSubmitFilesAndInput`.
-    return this.hasValidQuery() || this.files.size > 0;
-  }
-
   override getDropdownElement(): ComposeboxDropdownElement {
     return this.$.matches;
   }
@@ -287,9 +278,7 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
 
     // TODO(crbug.com/497887993): Move to contextual tasks composebox when the
     // lens composebox is removed.
-    const smartTabSharingVisible =
-        getLoadTimeBoolean('composeboxSmartTabSharingVisible', false);
-    if (smartTabSharingVisible) {
+    if (this.smartTabSharingVisible) {
       const {active} = await this.pageHandler_.getSmartTabSharingActive();
       this.smartTabSharingActive = active;
       if (active) {
@@ -431,7 +420,7 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
     this.expanding_ = expanding;
   }
 
-
+  // Default logic moved to mixin. This override is for contextual_tasks.
   override hasValidQuery(): boolean {
     // If there is at least one file that supports unimodal search, query is
     // valid.
@@ -458,13 +447,6 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
     }
 
     return false;
-  }
-
-  protected shouldShowSuggestionActivityLink_() {
-    const showActivityLink = this.result && this.showDropdown &&
-        this.result.matches.some((match) => match.isNoncannedAimSuggestion);
-    this.fire('show-suggestion-activity-link', showActivityLink);
-    return showActivityLink;
   }
 
   // TODO(crbug.com/486706573): common logic moved to mixin. Move embedder
@@ -665,16 +647,6 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
       }
     }
     return attachment;
-  }
-
-  protected onLinkClicked_(e: CustomEvent<{ event: Event }>) {
-    // Manually handle navigation to support WebView environments where default
-    // link clicks may be ignored.
-    e.detail.event.preventDefault();
-    const href = (e.detail.event.currentTarget as HTMLAnchorElement).href;
-    if (href) {
-      this.pageHandler_.navigateUrl(href);
-    }
   }
 
   protected onLensClick_() {

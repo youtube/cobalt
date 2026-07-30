@@ -23,6 +23,10 @@ class GlicNudgeController;
 class GlicActorNudgeController;
 }  // namespace glic
 
+namespace actions {
+class ActionItem;
+}  // namespace actions
+
 class ActorUiWindowController;
 class ContextHighlightWindowFeature;
 
@@ -48,6 +52,7 @@ class BrowserWindowInterface;
 class BrowserWindowModalDialogDelegate;
 class BrowserWindowThemeObserver;
 class BrowserWindowZoomObserver;
+class WindowMetadataController;
 class CallToActionLock;
 class ChromeLabsCoordinator;
 class ColorProviderBrowserHelper;
@@ -153,7 +158,6 @@ class BrowserExtensionWindowController;
 class ExtensionBrowserWindowHelper;
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 class ExtensionSidePanelManager;
-class Mv2DisabledDialogController;
 }  // namespace extensions
 
 namespace tabs_api {
@@ -284,15 +288,12 @@ class BrowserWindowFeatures {
   void TearDownPreBrowserWindowDestruction();
 
   BrowserActions* browser_actions() { return browser_actions_.get(); }
+  actions::ActionItem* GetRootActionItem();
 
   chrome::BrowserCommandController* browser_command_controller() const {
     return browser_command_controller_.get();
   }
 
-  extensions::Mv2DisabledDialogController*
-  mv2_disabled_dialog_controller_for_testing() {
-    return mv2_disabled_dialog_controller_.get();
-  }
 
   ImmersiveModeController* immersive_mode_controller() {
     return immersive_mode_controller_.get();
@@ -578,9 +579,6 @@ class BrowserWindowFeatures {
   std::unique_ptr<lens::LensRegionSearchController>
       lens_region_search_controller_;
 
-  std::unique_ptr<extensions::Mv2DisabledDialogController>
-      mv2_disabled_dialog_controller_;
-
   std::unique_ptr<tabs::VerticalTabStripStateController>
       vertical_tab_strip_state_controller_;
 
@@ -849,6 +847,8 @@ class BrowserWindowFeatures {
 
   std::unique_ptr<BrowserWindowModalDialogDelegate>
       browser_window_modal_dialog_delegate_;
+
+  std::unique_ptr<WindowMetadataController> window_metadata_controller_;
 
   // Keep this member last to ensure embedder features are torn down first, in
   // reverse order of initialization.

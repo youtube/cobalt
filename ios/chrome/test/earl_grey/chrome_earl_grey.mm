@@ -1030,6 +1030,15 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration) {
                          formFieldData:formFieldData];
 }
 
+- (NSString*)addFakeSendTabToSelfEntryWithURL:(NSString*)url
+                                        title:(NSString*)title
+                                 textFragment:(NSString*)textFragment {
+  return [ChromeEarlGreyAppInterface
+      addFakeSendTabToSelfEntryWithURL:url
+                                 title:title
+                          textFragment:textFragment];
+}
+
 - (void)waitForSendTabToSelfEntryWithGUID:(NSString*)guid {
   BOOL entrySynced = [[GREYCondition
       conditionWithName:@"Wait for STTS entry to sync to the client"
@@ -1558,6 +1567,10 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration) {
 
 - (BOOL)isChromeNextEnabled {
   return [ChromeEarlGreyAppInterface isChromeNextEnabled];
+}
+
+- (BOOL)isChromeNextShareIconVisible {
+  return [ChromeEarlGreyAppInterface isChromeNextShareIconVisible];
 }
 
 #pragma mark - ContentSettings

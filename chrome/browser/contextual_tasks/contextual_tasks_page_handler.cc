@@ -23,6 +23,10 @@
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/ui/actions/chrome_action_id.h"
+#include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
+#endif
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/side_panel/side_panel_ui.h"
@@ -36,6 +40,7 @@
 #include "components/contextual_tasks/public/contextual_task_context.h"
 #include "components/contextual_tasks/public/features.h"
 #include "components/contextual_tasks/public/prefs.h"
+#include "components/contextual_tasks/public/query_contextualizer.h"
 #include "components/lens/lens_url_utils.h"
 #include "components/omnibox/browser/searchbox.mojom.h"
 #include "components/omnibox/common/composebox_features.h"
@@ -239,15 +244,16 @@ ContextualTasksPageHandler::ContextualTasksPageHandler(
   CHECK(contextual_tasks_service_);
   contextual_tasks_service_observation_.Observe(contextual_tasks_service_);
 
+#if !BUILDFLAG(IS_ANDROID)
   if (contextual_tasks::IsContextualTasksPinButtonInToolbarEnabled()) {
     Profile* profile = web_ui_controller_->GetProfile();
-    pref_change_registrar_.Init(profile->GetPrefs());
-    pref_change_registrar_.Add(
-        prefs::kPinContextualTaskButton,
-        base::BindRepeating(&ContextualTasksPageHandler::OnPrefChanged,
-                            base::Unretained(this)));
-    OnPrefChanged();
+    if (auto* model = PinnedToolbarActionsModel::Get(profile)) {
+      pinned_toolbar_actions_model_observation_.Observe(model);
+      bool is_pinned = model->Contains(kActionSidePanelShowContextualTasks);
+      OnPinStateChanged(is_pinned);
+    }
   }
+#endif
 }
 
 ContextualTasksPageHandler::~ContextualTasksPageHandler() = default;
@@ -275,7 +281,9 @@ void ContextualTasksPageHandler::GetUrlForTask(const base::Uuid& uuid,
                       ->GetOrCreateContextualSessionHandle()) {
             std::string query = lens::ExtractTextQueryParameterValue(url);
             if (!query.empty()) {
-              session_handle->set_previous_query(query);
+              contextual_tasks::ThreadTurn turn;
+              turn.query = query;
+              session_handle->AddThreadTurn(turn);
             }
           }
         }
@@ -367,7 +375,7 @@ void ContextualTasksPageHandler::ShowThreadHistory() {
 
 void ContextualTasksPageHandler::IsShownInTab(IsShownInTabCallback callback) {
   if (contextual_tasks::IsContextualTasksPinButtonInToolbarEnabled()) {
-    OnPrefChanged();
+    OnActionsChanged();
   }
   std::move(callback).Run(web_ui_controller_->IsShownInTab());
 }
@@ -502,7 +510,13 @@ void ContextualTasksPageHandler::OnWebviewMessage(
       ui_service_->OnThreadLinkClicked(
           target_url, web_ui_controller_->GetTaskId().value_or(base::Uuid()),
           tab ? tab->GetWeakPtr() : nullptr,
-          browser ? browser->GetWeakPtr() : nullptr);
+          browser ? browser->GetWeakPtr() : nullptr,
+          /*initiator_origin=*/
+          web_ui_controller_->GetInnerWebContents()
+              ? web_ui_controller_->GetInnerWebContents()
+                    ->GetPrimaryMainFrame()
+                    ->GetLastCommittedOrigin()
+              : url::Origin());
     }
   }
 }
@@ -754,8 +768,12 @@ void ContextualTasksPageHandler::PinSidePanel() {
   if (!contextual_tasks::IsContextualTasksPinButtonInToolbarEnabled()) {
     return;
   }
-  web_ui_controller_->GetProfile()->GetPrefs()->SetBoolean(
-      prefs::kPinContextualTaskButton, true);
+#if !BUILDFLAG(IS_ANDROID)
+  Profile* profile = web_ui_controller_->GetProfile();
+  if (auto* model = PinnedToolbarActionsModel::Get(profile)) {
+    model->UpdatePinnedState(kActionSidePanelShowContextualTasks, true);
+  }
+#endif
 }
 
 void ContextualTasksPageHandler::OnContextMenuOpened() {
@@ -835,17 +853,22 @@ void ContextualTasksPageHandler::UnpinSidePanel() {
   if (!contextual_tasks::IsContextualTasksPinButtonInToolbarEnabled()) {
     return;
   }
-  web_ui_controller_->GetProfile()->GetPrefs()->SetBoolean(
-      prefs::kPinContextualTaskButton, false);
+#if !BUILDFLAG(IS_ANDROID)
+  Profile* profile = web_ui_controller_->GetProfile();
+  if (auto* model = PinnedToolbarActionsModel::Get(profile)) {
+    model->UpdatePinnedState(kActionSidePanelShowContextualTasks, false);
+  }
+#endif
 }
 
 void ContextualTasksPageHandler::OnPinStateChanged(bool is_pinned) {
   web_ui_controller_->GetPageRemote()->OnSidePanelPinStateChanged(is_pinned);
 }
 
-void ContextualTasksPageHandler::OnPrefChanged() {
-  OnPinStateChanged(
+void ContextualTasksPageHandler::OnActionsChanged() {
+  bool effective_pin_state =
       contextual_tasks::IsContextualTasksPinButtonInToolbarEnabled() &&
-      web_ui_controller_->GetProfile()->GetPrefs()->GetBoolean(
-          prefs::kPinContextualTaskButton));
+      contextual_tasks::GetEffectivePinState(
+          web_ui_controller_ ? web_ui_controller_->GetProfile() : nullptr);
+  OnPinStateChanged(effective_pin_state);
 }

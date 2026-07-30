@@ -10,10 +10,17 @@
 
 namespace media {
 
+namespace {
+perfetto::NamedTrack GetTracingTrack(const HlsDataSourceStream* stream) {
+  return perfetto::NamedTrack::FromPointer("media::HlsDataSourceStream",
+                                           stream);
+}
+}  // namespace
+
 HlsDataSourceProvider::~HlsDataSourceProvider() = default;
 
-void HlsDataSourceProvider::ReadFromUrl(UrlDataSegment segment,
-                                        ReadCb callback) {
+void HlsDataSourceProvider::ReadFromUrlForTesting(UrlDataSegment segment,
+                                                  ReadCb callback) {
   base::queue<UrlDataSegment> segments({segment});
   ReadFromCombinedUrlQueue(std::move(segments), std::move(callback));
 }
@@ -54,21 +61,28 @@ HlsDataSourceStream::GetNextSegmentURIAndCacheStatus() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(requires_next_data_source_);
   CHECK(!segments_.empty());
-  const auto& first = segments_.front();
+  GURL new_url;
+  DataSource::CacheMode cache_mode;
+  DataSource::EncodingMode encoding_mode;
   auto range_mode = DataSource::RangeMode::kFullRequest;
-  if (first.range) {
-    range_mode = DataSource::RangeMode::kRangeRequest;
-    read_position_ = first.range->GetOffset();
-    max_read_position_ = first.range->GetEnd();
-  } else {
-    read_position_ = 0;
-    max_read_position_ = std::nullopt;
+  {
+    const auto& first = segments_.front();
+    if (first.range) {
+      range_mode = DataSource::RangeMode::kRangeRequest;
+      read_position_ = first.range->GetOffset();
+      max_read_position_ = first.range->GetEnd();
+    } else {
+      read_position_ = 0;
+      max_read_position_ = std::nullopt;
+    }
+    new_url = std::move(first.uri);
+    cache_mode = first.cache_mode;
+    encoding_mode = first.encoding_mode;
   }
-  GURL new_url = std::move(first.uri);
   segments_.pop();
   requires_next_data_source_ = false;
-  return std::make_tuple(new_url, first.cache_mode, range_mode,
-                         first.encoding_mode);
+  return std::make_tuple(std::move(new_url), cache_mode, range_mode,
+                         encoding_mode);
 }
 
 bool HlsDataSourceStream::CanReadMore() const {
@@ -93,7 +107,7 @@ void HlsDataSourceStream::Clear() {
 base::span<uint8_t> HlsDataSourceStream::LockStreamForWriting(
     size_t ensure_minimum_space) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  TRACE_EVENT_BEGIN("media", "HLS::Read", perfetto::Track::FromPointer(this),
+  TRACE_EVENT_BEGIN("media", "HLS::Read", GetTracingTrack(this),
                     "minimum space", ensure_minimum_space);
   CHECK(!stream_locked_);
   stream_locked_ = true;
@@ -108,8 +122,8 @@ base::span<uint8_t> HlsDataSourceStream::LockStreamForWriting(
 void HlsDataSourceStream::UnlockStreamPostWrite(size_t read_size,
                                                 bool end_of_stream) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  TRACE_EVENT_END("media", perfetto::Track::FromPointer(this), "bytes",
-                  read_size, "eos", end_of_stream);
+  TRACE_EVENT_END("media", GetTracingTrack(this), "bytes", read_size, "eos",
+                  end_of_stream);
   CHECK(stream_locked_);
   write_index_ += read_size;
   read_position_ += read_size;

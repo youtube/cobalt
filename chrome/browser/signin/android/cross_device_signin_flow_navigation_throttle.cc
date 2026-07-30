@@ -13,7 +13,10 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/android/signin_bridge.h"
 #include "chrome/browser/signin/android/signin_bridge_factory.h"
+#include "chrome/browser/signin/identity_manager_factory.h"
+#include "components/signin/public/base/signin_deep_link_metrics.h"
 #include "components/signin/public/base/signin_deep_link_parser.h"
+#include "components/signin/public/identity_manager/identity_manager.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/navigation_throttle_registry.h"
@@ -25,9 +28,11 @@ CrossDeviceSigninFlowNavigationThrottle::
     CrossDeviceSigninFlowNavigationThrottle(
         content::NavigationThrottleRegistry& registry,
         SigninBridge* signin_bridge,
+        signin::IdentityManager* identity_manager,
         signin::SigninDeepLinkParser deep_link_parser)
     : content::NavigationThrottle(registry),
       signin_bridge_(signin_bridge),
+      identity_manager_(identity_manager),
       deep_link_parser_(std::move(deep_link_parser)) {}
 
 content::NavigationThrottle::ThrottleCheckResult
@@ -35,6 +40,11 @@ CrossDeviceSigninFlowNavigationThrottle::WillStartRequest() {
   const GURL& url = navigation_handle()->GetURL();
   const auto payload = deep_link_parser_.Parse(url);
   if (payload.has_value() && payload->HasAllRequiredFields()) {
+    signin_metrics::RecordUrlDetected(
+        payload->entry_point_id_raw_value_for_metrics.value());
+    signin_metrics::RecordInitialAccountsNumber(
+        payload->entry_point_id.value(),
+        identity_manager_->GetAccountsWithRefreshTokens().size());
     content::WebContents* web_contents = navigation_handle()->GetWebContents();
     if (!web_contents) {
       return content::NavigationThrottle::PROCEED;
@@ -118,7 +128,13 @@ void CrossDeviceSigninFlowNavigationThrottle::MaybeCreateAndAdd(
     return;
   }
 
+  auto* identity_manager = IdentityManagerFactory::GetForProfile(profile);
+  if (!identity_manager) {
+    return;
+  }
+
   registry.AddThrottle(
       base::WrapUnique(new CrossDeviceSigninFlowNavigationThrottle(
-          registry, signin_bridge, std::move(parser.value()))));
+          registry, signin_bridge, identity_manager,
+          std::move(parser.value()))));
 }

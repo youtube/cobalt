@@ -466,7 +466,8 @@ void ProfileMenuView::OnOtherProfileSelected(
     // support switching profiles, but also possibly installing the app into a
     // different profile. Regular PWAs can only switch to profiles where the app
     // is already installed.
-    const webapps::AppId& app_id = browser().app_controller()->app_id();
+    const webapps::AppId& app_id =
+        web_app::AppBrowserController::From(&browser())->app_id();
 #if BUILDFLAG(IS_MAC)
     if (app_id != ash::kPasswordManagerAppId) {
       apps::AppShimManager::Get()->LaunchAppInProfile(app_id, profile_path);
@@ -1155,7 +1156,7 @@ void ProfileMenuView::MaybeBuildCloseBrowsersButton() {
       l10n_util::GetPluralStringFUTF16(button_title_id, window_count),
       std::move(callback),
       features::IsRoundedIconsEnabled()
-          ? vector_icons::kCloseSmallIcon
+          ? vector_icons::kCloseIcon
           : vector_icons::kCloseChromeRefreshOldIcon);
 }
 
@@ -1222,12 +1223,13 @@ void ProfileMenuView::GetProfilesForOtherProfilesSection(
 #if BUILDFLAG(IS_MAC)
   const bool is_regular_web_app =
       web_app::AppBrowserController::IsWebApp(&browser()) &&
-      (browser().app_controller()->app_id() != ash::kPasswordManagerAppId);
+      web_app::AppBrowserController::From(&browser())->app_id() !=
+          ash::kPasswordManagerAppId;
   std::set<base::FilePath> available_profile_paths;
   if (is_regular_web_app) {
     available_profile_paths =
         AppShimRegistry::Get()->GetInstalledProfilesForApp(
-            browser().app_controller()->app_id());
+            web_app::AppBrowserController::From(&browser())->app_id());
   }
 #endif
 

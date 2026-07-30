@@ -859,10 +859,16 @@ bool IsFullscreenNextIAEnabled() {
   DCHECK(!_isShutdown);
   _isShutdown = YES;
 
+  _fullscreenUIUpdater = nullptr;
+  _fullscreenController = nullptr;
+  _fullscreenBrowserAgentObserverBridge = nullptr;
+  _fullscreenBrowserAgent = nullptr;
+
   [self.contentArea removeGestureRecognizer:self.contentAreaGestureRecognizer];
 
   [self.toolbarCoordinator stop];
   self.toolbarCoordinator = nil;
+  [self cleanUpToolbarConstraints];
   _sideSwipeCoordinator = nil;
   [_voiceSearchController disconnect];
   [_layoutState removeObserver:self];
@@ -874,10 +880,6 @@ bool IsFullscreenNextIAEnabled() {
   _urlLoadingBrowserAgent = nullptr;
   _tabUsageRecorderBrowserAgent = nullptr;
   _snapshotBrowserAgent = nullptr;
-  _fullscreenUIUpdater = nullptr;
-  _fullscreenController = nullptr;
-  _fullscreenBrowserAgentObserverBridge = nullptr;
-  _fullscreenBrowserAgent = nullptr;
 }
 
 #pragma mark - UIAccessibilityAction
@@ -1084,6 +1086,9 @@ bool IsFullscreenNextIAEnabled() {
 }
 
 - (void)viewWillAppear:(BOOL)animated {
+  if (IsFullscreenRefactoringEnabled()) {
+    [self.view.superview layoutIfNeeded];
+  }
   [super viewWillAppear:animated];
 
   self.visibilityState = BrowserViewVisibilityState::kAppearing;
@@ -1128,6 +1133,7 @@ bool IsFullscreenNextIAEnabled() {
     self.typingShield = nil;
     [self.toolbarCoordinator stop];
     self.toolbarCoordinator = nil;
+    [self cleanUpToolbarConstraints];
     _toolbarsSize = nil;
     [_sideSwipeCoordinator stop];
     _sideSwipeCoordinator = nil;
@@ -1394,18 +1400,28 @@ bool IsFullscreenNextIAEnabled() {
   AppBarPosition position = self.layoutState.appBarPosition;
   switch (position) {
     case AppBarPosition::kLeft:
-      _toolbarLeadingConstraint.constant = kAppBarHeight;
+      _toolbarLeadingConstraint.constant = kAppBarHeightLandscape;
       _toolbarTrailingConstraint.constant = 0;
       break;
     case AppBarPosition::kRight:
       _toolbarLeadingConstraint.constant = 0;
-      _toolbarTrailingConstraint.constant = -kAppBarHeight;
+      _toolbarTrailingConstraint.constant = -kAppBarHeightLandscape;
       break;
     default:
       _toolbarLeadingConstraint.constant = 0;
       _toolbarTrailingConstraint.constant = 0;
       break;
   }
+}
+
+// Cleans up the toolbar constraints.
+- (void)cleanUpToolbarConstraints {
+  self.primaryToolbarOffsetConstraint.active = NO;
+  self.primaryToolbarOffsetConstraint = nil;
+  self.primaryToolbarHeightConstraint.active = NO;
+  self.primaryToolbarHeightConstraint = nil;
+  self.secondaryToolbarHeightConstraint.active = NO;
+  self.secondaryToolbarHeightConstraint = nil;
 }
 
 - (void)addConstraintsToSecondaryToolbar {
@@ -2620,9 +2636,9 @@ bool IsFullscreenNextIAEnabled() {
     UIEdgeInsets insets = UIEdgeInsetsZero;
 
     if (position == AppBarPosition::kLeft) {
-      insets.left = kAppBarHeight;
+      insets.left = kAppBarHeightLandscape;
     } else if (position == AppBarPosition::kRight) {
-      insets.right = kAppBarHeight;
+      insets.right = kAppBarHeightLandscape;
     }
     frameInView = UIEdgeInsetsInsetRect(frameInView, insets);
   }

@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/strings/string_util.h"
 #include "components/exo/data_device.h"
 #include "components/exo/data_device_delegate.h"
@@ -108,6 +109,11 @@ class WaylandDataSourceDelegate : public DataSourceDelegate {
 
   // Overridden from DataSourceDelegate:
   void OnDataSourceDestroying(DataSource* device) override { delete this; }
+
+  base::WeakPtr<DataSourceDelegate> GetWeakPtr() override {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
   bool CanAcceptDataEventsForSurface(Surface* surface) const override {
     return surface &&
            wl_resource_get_client(GetSurfaceResource(surface)) == client_;
@@ -155,6 +161,8 @@ class WaylandDataSourceDelegate : public DataSourceDelegate {
  private:
   const raw_ptr<wl_client> client_;
   const raw_ptr<wl_resource> data_source_resource_;
+
+  base::WeakPtrFactory<WaylandDataSourceDelegate> weak_ptr_factory_{this};
 };
 
 void data_source_offer(wl_client* client,
@@ -190,6 +198,11 @@ class WaylandDataOfferDelegate : public DataOfferDelegate {
 
   // Overridden from DataOfferDelegate:
   void OnDataOfferDestroying(DataOffer* device) override { delete this; }
+
+  base::WeakPtr<DataOfferDelegate> GetWeakPtr() override {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
   void OnOffer(const std::string& mime_type) override {
     wl_data_offer_send_offer(data_offer_resource_, mime_type.c_str());
     wl_client_flush(wl_resource_get_client(data_offer_resource_));
@@ -219,6 +232,8 @@ class WaylandDataOfferDelegate : public DataOfferDelegate {
  private:
   const raw_ptr<wl_client> client_;
   const raw_ptr<wl_resource> data_offer_resource_;
+
+  base::WeakPtrFactory<WaylandDataOfferDelegate> weak_ptr_factory_{this};
 };
 
 void data_offer_accept(wl_client* client,
@@ -329,11 +344,33 @@ class WaylandDataDeviceDelegate : public DataDeviceDelegate {
     wl_client_flush(client_);
   }
 
+  base::WeakPtr<DataDeviceDelegate> GetWeakPtr() override {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
   void StartDrag(DataDevice* data_device,
                  DataSource* source,
                  Surface* origin,
                  Surface* icon,
                  uint32_t serial) {
+    if (!origin) {
+      wl_resource_post_error(data_device_resource_, WL_DATA_DEVICE_ERROR_ROLE,
+                             "origin surface is null");
+      return;
+    }
+    if (!origin->window()->GetRootWindow()) {
+      LOG(ERROR) << "Origin surface has no root window.";
+      if (source) {
+        source->Cancelled();
+      }
+      return;
+    }
+    if (icon && icon->HasSurfaceDelegate()) {
+      wl_resource_post_error(data_device_resource_, WL_DATA_DEVICE_ERROR_ROLE,
+                             "icon surface already has another role");
+      return;
+    }
+
     std::optional<wayland::SerialTracker::EventType> event_type =
         serial_tracker_->GetEventType(serial);
     if (event_type == std::nullopt) {
@@ -344,6 +381,15 @@ class WaylandDataDeviceDelegate : public DataDeviceDelegate {
     const int button_mask = ToMousePressedFlag(event_type.value());
     LOG(ERROR) << "Start Drag Button Mask=" << button_mask
                << ", event type=" << SerialTracker::ToString(*event_type);
+
+    // Ensure that the client requesting the drag currently has pointer focus.
+    // This prevents background clients from initiating drags.
+    if (!CanAcceptDataEventsForSurface(
+            data_device->seat()->GetFocusedSurface())) {
+      LOG(ERROR) << "The client does not have focus to StartDrag.";
+      source->Cancelled();
+      return;
+    }
 
     if (button_mask) {
       if ((aura::Env::GetInstance()->mouse_button_flags() & button_mask) == 0) {
@@ -409,6 +455,8 @@ class WaylandDataDeviceDelegate : public DataDeviceDelegate {
 
   // Owned by Server, which always outlives this delegate.
   const raw_ptr<SerialTracker> serial_tracker_;
+
+  base::WeakPtrFactory<WaylandDataDeviceDelegate> weak_ptr_factory_{this};
 };
 
 void data_device_start_drag(wl_client* client,

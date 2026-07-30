@@ -65,7 +65,7 @@ class ShowAllDownloadsButton : public RichHoverButton {
             /*subtitle_text=*/std::u16string(),
             ui::ImageModel::FromVectorIcon(
                 features::IsRoundedIconsEnabled()
-                    ? vector_icons::kOpenInNewIcon
+                    ? vector_icons::kOpenInNewFlippableIcon
                     : vector_icons::kLaunchChromeRefreshOldIcon,
                 kColorDownloadBubbleShowAllDownloadsIcon,
                 GetLayoutConstant(LayoutConstant::kDownloadIconSize))) {
@@ -153,7 +153,7 @@ void DownloadDialogView::AddHeader() {
           base::BindRepeating(&DownloadDialogView::CloseBubble,
                               base::Unretained(this)),
           features::IsRoundedIconsEnabled()
-              ? vector_icons::kCloseSmallIcon
+              ? vector_icons::kCloseIcon
               : vector_icons::kCloseChromeRefreshOldIcon,
           GetLayoutConstant(LayoutConstant::kDownloadIconSize)));
   InstallCircleHighlightPathGenerator(close_button_);

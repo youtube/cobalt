@@ -13,7 +13,6 @@
 #include "base/no_destructor.h"
 #include "base/notimplemented.h"
 #include "base/trace_event/trace_event.h"
-#include "chrome/browser/glic/fre/glic_fre_controller.h"
 #include "chrome/browser/glic/glic_profile_manager.h"
 #include "chrome/browser/glic/host/context/glic_pin_candidate_provider.h"
 #include "chrome/browser/glic/host/context/glic_screenshot_capturer.h"
@@ -45,6 +44,16 @@
 
 namespace glic {
 BASE_FEATURE(kGlicReloadUsesFreshWebContents, base::FEATURE_ENABLED_BY_DEFAULT);
+
+void Host::EmbedderDelegate::Resize(const gfx::Size& size,
+                                    base::TimeDelta duration,
+                                    base::OnceClosure callback) {
+  std::move(callback).Run();
+}
+
+void Host::EmbedderDelegate::EnableDragResize(bool enabled) {}
+
+void Host::EmbedderDelegate::SetMinimumWidgetSize(const gfx::Size& size) {}
 
 bool EmptyEmbedderDelegate::IsShowing() const {
   return true;
@@ -208,7 +217,6 @@ void Host::CreateContents() {
   TRACE_EVENT("glic", "Host::CreateContents");
   VLOG(1) << "Glic [Host] CreateContents";
 
-  glic_service().fre_controller().RecordFrameworkStartTime();
   contents_ = instance_delegate_->CreateWebUIContentsContainer();
   contents_->AttachToHost(this);
 }

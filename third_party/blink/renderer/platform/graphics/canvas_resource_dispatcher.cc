@@ -46,7 +46,7 @@ CanvasResourceDispatcher::CanvasResourceDispatcher(
         agent_group_scheduler_compositor_task_runner,
     uint32_t client_id,
     uint32_t sink_id,
-    int canvas_id,
+    DOMNodeId canvas_id,
     const gfx::Size& size)
     : frame_sink_id_(viz::FrameSinkId(client_id, sink_id)),
       size_(size),
@@ -62,20 +62,31 @@ CanvasResourceDispatcher::CanvasResourceDispatcher(
                         &CanvasResourceDispatcher::OnFakeFrameTimer) {
   // Frameless canvas pass an invalid |frame_sink_id_|; don't create mojo
   // channel for this special case.
-  if (!frame_sink_id_.is_valid())
-    return;
+  if (frame_sink_id_.is_valid()) {
+    DCHECK(!sink_.is_bound());
+    mojo::Remote<mojom::blink::EmbeddedFrameSinkProvider> provider;
+    Platform::Current()->GetBrowserInterfaceBroker()->GetInterface(
+        provider.BindNewPipeAndPassReceiver());
 
-  DCHECK(!sink_.is_bound());
-  mojo::Remote<mojom::blink::EmbeddedFrameSinkProvider> provider;
-  Platform::Current()->GetBrowserInterfaceBroker()->GetInterface(
-      provider.BindNewPipeAndPassReceiver());
+    DCHECK(provider);
+    provider->CreateCompositorFrameSink(frame_sink_id_,
+                                        receiver_.BindNewPipeAndPassRemote(),
+                                        sink_.BindNewPipeAndPassReceiver());
+    provider->ConnectToEmbedder(frame_sink_id_,
+                                surface_embedder_.BindNewPipeAndPassReceiver());
+  }
 
-  DCHECK(provider);
-  provider->CreateCompositorFrameSink(frame_sink_id_,
-                                      receiver_.BindNewPipeAndPassRemote(),
-                                      sink_.BindNewPipeAndPassReceiver());
-  provider->ConnectToEmbedder(frame_sink_id_,
-                              surface_embedder_.BindNewPipeAndPassReceiver());
+  // `PlaceholderClient` runs callbacks synchronously and lives on the same
+  // thread. Because dispatcher owns client, Unretained is fine.
+  placeholder_client_ = std::make_unique<PlaceholderClient>(
+      placeholder_canvas_id_, agent_group_scheduler_compositor_task_runner_,
+      task_runner_,
+      base::BindRepeating(
+          [](CanvasResourceDispatcher* dispatcher) {
+            dispatcher->SetAnimationState(
+                dispatcher->placeholder_client_->GetAnimationState());
+          },
+          base::Unretained(this)));
 }
 
 CanvasResourceDispatcher::~CanvasResourceDispatcher() = default;
@@ -85,9 +96,15 @@ namespace {
 static void UpdatePlaceholderImage(
     base::WeakPtr<CanvasResourceDispatcher> dispatcher,
     scoped_refptr<base::SingleThreadTaskRunner> task_runner,
-    int placeholder_canvas_id,
+    DOMNodeId placeholder_canvas_id,
     scoped_refptr<blink::ExportedCanvasResource>&& canvas_resource) {
   DCHECK(IsMainThread());
+
+  if (placeholder_canvas_id == OffscreenCanvasPlaceholder::kNoPlaceholderId ||
+      placeholder_canvas_id == kInvalidDOMNodeId) {
+    return;
+  }
+
   OffscreenCanvasPlaceholder* placeholder_canvas =
       OffscreenCanvasPlaceholder::GetPlaceholderCanvasById(
           placeholder_canvas_id);
@@ -101,23 +118,23 @@ static void UpdatePlaceholderImage(
 }
 
 void UpdatePlaceholderDispatcher(
-    base::WeakPtr<CanvasResourceDispatcher> dispatcher,
+    base::WeakPtr<OffscreenCanvasPlaceholder::Client> client,
     scoped_refptr<base::SingleThreadTaskRunner> task_runner,
-    int placeholder_canvas_id) {
+    DOMNodeId placeholder_canvas_id) {
   OffscreenCanvasPlaceholder* placeholder_canvas =
       OffscreenCanvasPlaceholder::GetPlaceholderCanvasById(
           placeholder_canvas_id);
   // Note that the placeholder canvas may be destroyed when this post task get
   // to executed.
   if (placeholder_canvas)
-    placeholder_canvas->SetOffscreenCanvasDispatcher(dispatcher, task_runner);
+    placeholder_canvas->SetClient(client, task_runner);
 }
 
 }  // namespace
 
 void CanvasResourceDispatcher::PostImageToPlaceholderIfNotBlocked(
     scoped_refptr<ExportedCanvasResource> exported_resource) {
-  if (placeholder_canvas_id_ == kInvalidPlaceholderCanvasId ||
+  if (placeholder_canvas_id_ == OffscreenCanvasPlaceholder::kNoPlaceholderId ||
       // `agent_group_scheduler_compositor_task_runner_` may be null if this
       // was created from a SharedWorker.
       !agent_group_scheduler_compositor_task_runner_) {
@@ -286,6 +303,12 @@ void CanvasResourceDispatcher::SetNeedsBeginFrame(bool needs_begin_frame) {
     // Offscreen Canvas can behave in a more synchronous way when it's on the
     // main thread.
     if (needs_begin_frame_ && IsMainThread()) {
+      if (placeholder_canvas_id_ ==
+              OffscreenCanvasPlaceholder::kNoPlaceholderId ||
+          placeholder_canvas_id_ == kInvalidDOMNodeId) {
+        return;
+      }
+
       OffscreenCanvasPlaceholder* placeholder_canvas =
           OffscreenCanvasPlaceholder::GetPlaceholderCanvasById(
               placeholder_canvas_id_);
@@ -302,7 +325,7 @@ void CanvasResourceDispatcher::SetNeedsBeginFrame(bool needs_begin_frame) {
 }
 
 void CanvasResourceDispatcher::SetAnimationState(
-    AnimationState animation_state) {
+    OffscreenCanvasPlaceholder::AnimationState animation_state) {
   if (animation_state_ == animation_state) {
     return;
   }
@@ -321,8 +344,9 @@ void CanvasResourceDispatcher::UpdateBeginFrameSource() {
   }
 
   bool needs_begin_frame = needs_begin_frame_ && !IsAnimationSuspended();
-  if (needs_begin_frame &&
-      animation_state_ == AnimationState::kActiveWithSyntheticTiming) {
+  if (needs_begin_frame && animation_state_ ==
+                               OffscreenCanvasPlaceholder::AnimationState::
+                                   kActiveWithSyntheticTiming) {
     // Generate a synthetic OBF instead of asking viz, if we aren't already.
     sink_->SetNeedsBeginFrame(false);
     if (!fake_frame_timer_.IsActive()) {
@@ -422,25 +446,51 @@ void CanvasResourceDispatcher::Reshape(const gfx::Size& size) {
   }
 }
 
-void CanvasResourceDispatcher::SetPlaceholderCanvasDispatcher(
-    int placeholder_canvas_id) {
+void CanvasResourceDispatcher::PlaceholderClient::RegisterWithPlaceholder() {
   // `agent_group_scheduler_compositor_task_runner_` may be null if this
   // was created from a SharedWorker.
   if (!agent_group_scheduler_compositor_task_runner_)
     return;
+
+  if (placeholder_canvas_id_ == OffscreenCanvasPlaceholder::kNoPlaceholderId ||
+      placeholder_canvas_id_ == kInvalidDOMNodeId) {
+    return;
+  }
 
   // If the offscreencanvas is in the same thread as the canvas, we will update
   // the canvas resource dispatcher directly. So Offscreen Canvas can behave in
   // a more synchronous way when it's on the main thread.
   if (IsMainThread()) {
     UpdatePlaceholderDispatcher(GetWeakPtr(), task_runner_,
-                                placeholder_canvas_id);
+                                placeholder_canvas_id_);
   } else {
     PostCrossThreadTask(
         *agent_group_scheduler_compositor_task_runner_, FROM_HERE,
         CrossThreadBindOnce(UpdatePlaceholderDispatcher, GetWeakPtr(),
-                            task_runner_, placeholder_canvas_id));
+                            task_runner_, placeholder_canvas_id_));
   }
+}
+
+CanvasResourceDispatcher::PlaceholderClient::PlaceholderClient(
+    DOMNodeId placeholder_canvas_id,
+    scoped_refptr<base::SingleThreadTaskRunner>
+        agent_group_scheduler_compositor_task_runner,
+    scoped_refptr<base::SingleThreadTaskRunner> task_runner,
+    base::RepeatingClosure animation_state_callback)
+    : animation_state_callback_(animation_state_callback),
+      placeholder_canvas_id_(placeholder_canvas_id),
+      task_runner_(std::move(task_runner)),
+      agent_group_scheduler_compositor_task_runner_(
+          std::move(agent_group_scheduler_compositor_task_runner)) {
+  RegisterWithPlaceholder();
+}
+
+CanvasResourceDispatcher::PlaceholderClient::~PlaceholderClient() = default;
+
+void CanvasResourceDispatcher::PlaceholderClient::SetAnimationState(
+    OffscreenCanvasPlaceholder::AnimationState animation_state) {
+  animation_state_ = animation_state;
+  animation_state_callback_.Run();
 }
 
 }  // namespace blink

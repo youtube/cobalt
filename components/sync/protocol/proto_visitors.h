@@ -649,6 +649,8 @@ VISIT_PROTO_FIELDS(const sync_pb::DeviceInfoSpecifics& proto) {
   VISIT(google_play_services_version_info);
   VISIT_ENUM(os_type);
   VISIT_ENUM(device_form_factor);
+  VISIT(android_os_build_fingerprint_prefix);
+  VISIT(server_determined_model_name);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::DesktopToMobilePromoMessage& proto) {
@@ -669,6 +671,7 @@ VISIT_PROTO_FIELDS(const sync_pb::FeatureSpecificFields& proto) {
   VISIT(desktop_to_ios_promo_receiving_enabled);
   VISIT_REP(desktop_to_ios_promo_receiving_types);
   VISIT_ENUM(glic_experimental_triggering_state);
+  VISIT(glic_experimental_triggering_version);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::SharingSpecificFields& proto) {
@@ -941,7 +944,6 @@ VISIT_PROTO_FIELDS(const sync_pb::CustomPassphraseKeyDerivationParams& proto) {
 
 VISIT_PROTO_FIELDS(const sync_pb::NigoriModel& proto) {
   VISIT(cryptographer_data);
-  VISIT(current_keystore_key_name);
   VISIT(pending_keys);
   VISIT(passphrase_type);
   VISIT(keystore_migration_time);

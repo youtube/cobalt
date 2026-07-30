@@ -134,11 +134,17 @@ function updateTaskDetailsInUrl(
   }
 
   // Add all the params from the aim URL, except host.
-  new URL(aimUrl).searchParams.forEach((value, key) => {
-    if (key !== CHROME_HOST_PARAM_KEY) {
-      url.searchParams.set(key, value);
+  if (aimUrl) {
+    try {
+      new URL(aimUrl).searchParams.forEach((value, key) => {
+        if (key !== CHROME_HOST_PARAM_KEY) {
+          url.searchParams.set(key, value);
+        }
+      });
+    } catch (e) {
+      console.error('Failed to parse AI thread URL:', aimUrl, e);
     }
-  });
+  }
 
   // Add the task ID to the params.
   if (taskId) {
@@ -617,7 +623,9 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
 
     // <if expr="not is_android">
     // Handle newwindow events with mock webviews.
-    new WindowManager(this.$.threadFrame);
+    if (loadTimeData.getBoolean('windowTrackingEnabled')) {
+      new WindowManager(this.$.threadFrame);
+    }
     // </if>
 
     // Check if the URL that loaded this page has a task attached to it. If it
@@ -1142,6 +1150,9 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
   }
 
   protected isComposeboxHeaderWrapperHidden_(): boolean {
+    if (this.isComposeboxHidden_()) {
+      return true;
+    }
     return (this.enableBasicMode_ && this.isInBasicMode_ &&
             !this.enableBasicModeZOrder_) ||
         this.inNlm_;

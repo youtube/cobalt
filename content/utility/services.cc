@@ -10,6 +10,7 @@
 #include "base/feature_list.h"
 #include "base/no_destructor.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/task/thread_type.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
@@ -66,6 +67,8 @@
 #if BUILDFLAG(IS_WIN)
 #include "base/win/scoped_com_initializer.h"
 #include "sandbox/win/src/sandbox.h"
+#include "services/webnn/public/mojom/webnn_compiler_service.mojom.h"
+#include "services/webnn/webnn_compiler_service_impl.h"
 extern sandbox::TargetServices* g_utility_target_services;
 #endif  // BUILDFLAG(IS_WIN)
 
@@ -291,6 +294,11 @@ auto RunMediaFoundationServiceBroker(
   return std::make_unique<media::MediaFoundationServiceBroker>(
       std::move(receiver), base::BindOnce(&EnsureSandboxedWin));
 }
+
+auto RunWebNNCompilerService(
+    mojo::PendingReceiver<webnn::mojom::WebNNCompilerService> receiver) {
+  return std::make_unique<webnn::WebNNCompilerServiceImpl>(std::move(receiver));
+}
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_ANDROID)
@@ -414,11 +422,15 @@ void RegisterMainThreadServices(mojo::ServiceFactory& services) {
 #endif
 
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
-  services.Add(RunCdmServiceBroker);
+  services.Add(RunCdmServiceBroker,
+               base::FeatureList::IsEnabled(media::kCdmThreadPriorityElevation)
+                   ? base::ThreadType::kPresentation
+                   : base::ThreadType::kDefault);
 #endif
 
 #if BUILDFLAG(IS_WIN)
   services.Add(RunMediaFoundationServiceBroker);
+  services.Add(RunWebNNCompilerService);
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_ANDROID)

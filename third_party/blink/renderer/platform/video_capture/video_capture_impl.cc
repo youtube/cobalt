@@ -283,12 +283,28 @@ bool VideoCaptureImpl::ProcessBuffer(
       // it is not sent cross-process the region does not need to be attached to
       // the frame. See also the case for kReadOnlyShmemRegion.
       if (video_frame_init_data.ready_buffer->info->strides) {
-        CHECK(
-            IsYuvPlanar(
-                video_frame_init_data.ready_buffer->info->pixel_format) &&
-            (media::VideoFrame::NumPlanes(
-                 video_frame_init_data.ready_buffer->info->pixel_format) == 3))
+        CHECK(IsYuvPlanar(
+                  video_frame_init_data.ready_buffer->info->pixel_format) &&
+              (media::VideoFrame::NumPlanes(
+                   video_frame_init_data.ready_buffer->info->pixel_format) ==
+               3) &&
+              IsOpaque(video_frame_init_data.ready_buffer->info->pixel_format))
             << "Currently, only YUV formats support custom strides.";
+        const auto pixel_format =
+            video_frame_init_data.ready_buffer->info->pixel_format;
+        const auto coded_width =
+            video_frame_init_data.ready_buffer->info->coded_size.width();
+        const auto& strides =
+            video_frame_init_data.ready_buffer->info->strides->stride_by_plane;
+        CHECK_GE(static_cast<size_t>(strides[0]),
+                 media::VideoFrame::RowBytes(media::VideoFrame::Plane::kY,
+                                             pixel_format, coded_width));
+        CHECK_GE(static_cast<size_t>(strides[1]),
+                 media::VideoFrame::RowBytes(media::VideoFrame::Plane::kU,
+                                             pixel_format, coded_width));
+        CHECK_GE(static_cast<size_t>(strides[2]),
+                 media::VideoFrame::RowBytes(media::VideoFrame::Plane::kV,
+                                             pixel_format, coded_width));
         const size_t y_size =
             (media::VideoFrame::Rows(
                  media::VideoFrame::Plane::kY,
@@ -310,7 +326,7 @@ bool VideoCaptureImpl::ProcessBuffer(
         auto [u_data, v_data] = uv_data.split_at(u_size);
         CHECK_GE(v_data.size(),
                  (media::VideoFrame::Rows(
-                      media::VideoFrame::Plane::kU,
+                      media::VideoFrame::Plane::kV,
                       video_frame_init_data.ready_buffer->info->pixel_format,
                       video_frame_init_data.ready_buffer->info->coded_size
                           .height()) *

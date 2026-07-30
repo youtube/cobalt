@@ -120,10 +120,24 @@ bool IsCppEnabled() {
 template <typename T>
 T CheckAndReturnRustAndCppResults(const T& rust_result, const T& cpp_result) {
   if (GetRustPolicy() == RustPolicy::kRustAndCpp) {
-    // TODO(crbug.com/482216433): CHECK_EQ doesn't support std::optional types;
-    // comparing those types will need another helper.
     CHECK_EQ(rust_result, cpp_result)
         << "Rust: " << rust_result << " vs C++: " << cpp_result;
+  }
+  // Rust return values get priority.
+  return IsRustEnabled() ? rust_result : cpp_result;
+}
+
+// Similar to the above, but includes a workaround since CHECK_EQ does not
+// support optional<T>.
+template <typename T>
+std::optional<T> CheckAndReturnOptionalRustAndCppResults(
+    const std::optional<T>& rust_result,
+    const std::optional<T>& cpp_result) {
+  if (GetRustPolicy() == RustPolicy::kRustAndCpp) {
+    // Use CHECK rather than CHECK_EQ to support std::optional types.
+    CHECK(rust_result == cpp_result)
+        << "rust_result: " << rust_result.value_or("(none)")
+        << " cpp_result: " << cpp_result.value_or("(none)");
   }
   // Rust return values get priority.
   return IsRustEnabled() ? rust_result : cpp_result;
@@ -1970,17 +1984,13 @@ bool ChildProcessSecurityPolicyImpl::HasPermissionsForFileSystemFile(
     return false;
   }
 
-  int found_permissions = 0;
-  {
-    base::AutoLock lock(lock_);
-    auto found = file_system_policy_map_.find(filesystem_url.type());
-    if (found == file_system_policy_map_.end()) {
-      return false;
-    }
-    found_permissions = found->second;
+  int found_policy = 0;
+  if (!FindPermissionPolicyForFileSystemType(filesystem_url.type(),
+                                             found_policy)) {
+    return false;
   }
 
-  if ((found_permissions & storage::FILE_PERMISSION_READ_ONLY) &&
+  if ((found_policy & storage::FILE_PERMISSION_READ_ONLY) &&
       permissions & ~READ_FILE_GRANT) {
     return false;
   }
@@ -1988,15 +1998,27 @@ bool ChildProcessSecurityPolicyImpl::HasPermissionsForFileSystemFile(
   // Note that HasPermissionsForFile (called below) will internally acquire the
   // |lock_|, therefore the |lock_| has to be released before the call (since
   // base::Lock is not reentrant).
-  if (found_permissions & storage::FILE_PERMISSION_USE_FILE_PERMISSION) {
+  if (found_policy & storage::FILE_PERMISSION_USE_FILE_PERMISSION) {
     return HasPermissionsForFile(child_id, filesystem_url.path(), permissions);
   }
 
-  if (found_permissions & storage::FILE_PERMISSION_SANDBOX) {
+  if (found_policy & storage::FILE_PERMISSION_SANDBOX) {
     return true;
   }
 
   return false;
+}
+
+bool ChildProcessSecurityPolicyImpl::FindPermissionPolicyForFileSystemType(
+    storage::FileSystemType type,
+    int& policy) {
+  base::AutoLock lock(lock_);
+  auto found = file_system_policy_map_.find(type);
+  if (found == file_system_policy_map_.end()) {
+    return false;
+  }
+  policy = found->second;
+  return true;
 }
 
 bool ChildProcessSecurityPolicyImpl::CanReadFileSystemFile(
@@ -2946,6 +2968,12 @@ void ChildProcessSecurityPolicyImpl::RemoveStateForBrowserContext(
   }
 
   {
+    base::AutoLock origins_isolation_opt_in_lock(
+        origins_isolation_opt_in_lock_);
+    origin_isolation_opt_ins_and_outs_.erase(browser_context.UniqueToken());
+  }
+
+  {
     base::AutoLock lock(lock_);
     security_states_.ClearBrowserContextIfMatches(browser_context);
   }
@@ -3205,9 +3233,11 @@ bool ChildProcessSecurityPolicyImpl::
     HasOriginEverRequestedOriginAgentClusterValue(
         BrowserContext* browser_context,
         const url::Origin& origin) {
+  const auto& browser_context_id = browser_context->UniqueToken();
   base::AutoLock origins_isolation_opt_in_lock(origins_isolation_opt_in_lock_);
-  return origin_isolation_opt_ins_and_outs_.contains(browser_context) &&
-         origin_isolation_opt_ins_and_outs_[browser_context].contains(origin);
+  auto it = origin_isolation_opt_ins_and_outs_.find(browser_context_id);
+  return it != origin_isolation_opt_ins_and_outs_.end() &&
+         it->second.contains(origin);
 }
 
 OriginAgentClusterIsolationState*
@@ -3263,10 +3293,13 @@ void ChildProcessSecurityPolicyImpl::AddDefaultIsolatedOriginIfNeeded(
   // avoid unnecessary work, since this is called on every commit. Skip this
   // during global walks and frame removals, since we do want to track the
   // origin's non-isolated status in those cases.
-  if (!is_global_walk_or_frame_removal &&
-      !(origin_isolation_opt_ins_and_outs_.contains(browser_context) &&
-        origin_isolation_opt_ins_and_outs_[browser_context].contains(origin))) {
-    return;
+  if (!is_global_walk_or_frame_removal) {
+    const auto& browser_context_id = browser_context->UniqueToken();
+    auto it = origin_isolation_opt_ins_and_outs_.find(browser_context_id);
+    if (it == origin_isolation_opt_ins_and_outs_.end() ||
+        !it->second.contains(origin)) {
+      return;
+    }
   }
 
   // If |origin| is already in the opt-in-out list, then we don't want to add it
@@ -3347,11 +3380,22 @@ void ChildProcessSecurityPolicyImpl::RemoveAllStateForBrowsingInstanceInternal(
     }
   }
 
-  {
-    base::AutoLock are_v8_optimizations_disabled_lock(
-        are_v8_optimizations_disabled_lock_);
-    are_v8_optimizations_disabled_map_.erase(browsing_instance_id);
-  }
+  EraseV8OptimizationState(browsing_instance_id);
+}
+
+void ChildProcessSecurityPolicyImpl::EraseV8OptimizationState(
+    const BrowsingInstanceId& browsing_instance_id) {
+  RUST_CPP_VOID_FUNCTION(
+      rust::child_process_security_policy::erase_v8_optimization_state(
+          browsing_instance_id.value()),
+      EraseV8OptimizationState_Cpp(browsing_instance_id));
+}
+
+void ChildProcessSecurityPolicyImpl::EraseV8OptimizationState_Cpp(
+    const BrowsingInstanceId& browsing_instance_id) {
+  base::AutoLock are_v8_optimizations_disabled_lock(
+      are_v8_optimizations_disabled_lock_);
+  are_v8_optimizations_disabled_map_.erase(browsing_instance_id);
 }
 
 void ChildProcessSecurityPolicyImpl::SecurityStateMaps::
@@ -3463,12 +3507,14 @@ bool ChildProcessSecurityPolicyImpl::UpdateOriginIsolationOptInListIfNecessary(
 
   base::AutoLock origins_isolation_opt_in_lock(origins_isolation_opt_in_lock_);
 
-  if (origin_isolation_opt_ins_and_outs_.contains(browser_context) &&
-      origin_isolation_opt_ins_and_outs_[browser_context].contains(origin)) {
+  const auto& browser_context_id = browser_context->UniqueToken();
+  auto it = origin_isolation_opt_ins_and_outs_.find(browser_context_id);
+  if (it != origin_isolation_opt_ins_and_outs_.end() &&
+      it->second.contains(origin)) {
     return false;
   }
 
-  origin_isolation_opt_ins_and_outs_[browser_context].insert(origin);
+  origin_isolation_opt_ins_and_outs_[browser_context_id].insert(origin);
   return true;
 }
 
@@ -3496,12 +3542,33 @@ void ChildProcessSecurityPolicyImpl::
         const BrowsingInstanceId& browsing_instance_id,
         const url::Origin& process_lock_origin,
         bool are_v8_optimizations_disabled) {
+  RUST_CPP_VOID_FUNCTION(
+      rust::child_process_security_policy::
+          add_v8_optimization_disabled_state_for_origin_if_not_cached(
+              browsing_instance_id.value(),
+              // Make a copy for Rust to own.
+              std::make_unique<url::Origin>(process_lock_origin),
+              are_v8_optimizations_disabled),
+      AddV8OptimizationDisabledStateForOriginIfNotCached_Cpp(
+          browsing_instance_id, process_lock_origin,
+          are_v8_optimizations_disabled));
+}
+
+void ChildProcessSecurityPolicyImpl::
+    AddV8OptimizationDisabledStateForOriginIfNotCached_Cpp(
+        const BrowsingInstanceId& browsing_instance_id,
+        const url::Origin& process_lock_origin,
+        bool are_v8_optimizations_disabled) {
   if (!IsolatedOriginUtil::IsValidIsolatedOrigin(process_lock_origin)) {
     return;
   }
 
-  if (LookupAreV8OptimizationsDisabled(browsing_instance_id,
-                                       process_lock_origin) != std::nullopt) {
+  // Note that checking if a value is cached and then inserting it below without
+  // holding the lock between the two calls introduces a race condition (another
+  // thread could insert in the meantime). The Rust implementation resolves this
+  // by keeping the CPSP lock held for the entire check and insert block.
+  if (LookupAreV8OptimizationsDisabled_Cpp(
+          browsing_instance_id, process_lock_origin) != std::nullopt) {
     return;
   }
 
@@ -3513,6 +3580,36 @@ void ChildProcessSecurityPolicyImpl::
 
 std::optional<bool>
 ChildProcessSecurityPolicyImpl::LookupAreV8OptimizationsDisabled(
+    const BrowsingInstanceId& browsing_instance_id,
+    const url::Origin& process_lock_origin) {
+  // We cannot use the RUST_CPP_RETURN_FUNCTION macro here because CXX does not
+  // support passing Option/std::optional across the FFI boundary (see
+  // https://github.com/dtolnay/cxx/issues/87). We must use a custom out
+  // parameter FFI bridge and call CheckAndReturnOptionalRustAndCppResults.
+  std::optional<bool> rust_result = std::nullopt;
+
+  if (IsRustEnabled()) {
+    bool result = false;
+    if (rust::child_process_security_policy::
+            lookup_are_v8_optimizations_disabled(
+                browsing_instance_id.value(),
+                // Make a copy for Rust to own.
+                std::make_unique<url::Origin>(process_lock_origin), result)) {
+      rust_result = std::make_optional(result);
+    }
+  }
+
+  std::optional<bool> cpp_result = std::nullopt;
+  if (IsCppEnabled()) {
+    cpp_result = LookupAreV8OptimizationsDisabled_Cpp(browsing_instance_id,
+                                                      process_lock_origin);
+  }
+
+  return CheckAndReturnOptionalRustAndCppResults(rust_result, cpp_result);
+}
+
+std::optional<bool>
+ChildProcessSecurityPolicyImpl::LookupAreV8OptimizationsDisabled_Cpp(
     const BrowsingInstanceId& browsing_instance_id,
     const url::Origin& process_lock_origin) {
   base::AutoLock are_v8_optimizations_disabled_lock(

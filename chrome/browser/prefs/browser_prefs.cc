@@ -240,6 +240,7 @@
 #include "chrome/browser/extensions/commands/command_service.h"
 #include "chrome/browser/extensions/extension_url_overrides.h"
 #include "chrome/browser/extensions/extension_util.h"
+#include "chrome/browser/extensions/preinstalled_apps.h"
 #include "chrome/browser/ui/webui/extensions/extensions_ui_prefs.h"
 #include "extensions/browser/api/runtime/runtime_api.h"
 #include "extensions/browser/extension_prefs.h"
@@ -249,7 +250,6 @@
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/accessibility/animation_policy_prefs.h"
-#include "chrome/browser/extensions/preinstalled_apps.h"
 #include "chrome/browser/ui/extensions/extension_settings_overridden_dialog.h"
 #include "chrome/browser/ui/extensions/settings_api_bubble_helpers.h"
 #include "extensions/browser/api/audio/audio_api.h"
@@ -967,6 +967,17 @@ constexpr char kContextualCueingEnterprisePolicyAllowedDeprecated[] =
     "optimization_guide.model_execution.contextual_cueing_enterprise_policy_"
     "allowed";
 
+// Deprecated 06/2026.
+inline constexpr char kDeleteTimePeriodBasic[] =
+    "browser.clear_data.time_period_basic";
+inline constexpr char kDeleteBrowsingHistoryBasic[] =
+    "browser.clear_data.browsing_history_basic";
+inline constexpr char kDeleteCacheBasic[] = "browser.clear_data.cache_basic";
+inline constexpr char kDeleteCookiesBasic[] =
+    "browser.clear_data.cookies_basic";
+inline constexpr char kLastClearBrowsingDataTab[] =
+    "browser.last_clear_browsing_data_tab";
+
 // Register local state used only for migration (clearing or moving to a new
 // key).
 void RegisterLocalStatePrefsForMigration(PrefRegistrySimple* registry) {
@@ -1294,6 +1305,13 @@ void RegisterProfilePrefsForMigration(
   // Deprecated 05/2026.
   registry->RegisterIntegerPref(
       kContextualCueingEnterprisePolicyAllowedDeprecated, 0);
+
+  // Deprecated 06/2026.
+  registry->RegisterIntegerPref(kDeleteTimePeriodBasic, 0);
+  registry->RegisterBooleanPref(kDeleteBrowsingHistoryBasic, true);
+  registry->RegisterBooleanPref(kDeleteCacheBasic, true);
+  registry->RegisterBooleanPref(kDeleteCookiesBasic, true);
+  registry->RegisterIntegerPref(kLastClearBrowsingDataTab, 0);
 }
 
 }  // namespace
@@ -2023,7 +2041,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   enterprise_signin::RegisterProfilePrefs(registry);
 #endif
 
-#if BUILDFLAG(ENABLE_EXTENSIONS) && !BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE) && !BUILDFLAG(IS_CHROMEOS)
   preinstalled_apps::RegisterProfilePrefs(registry);
 #endif
 
@@ -2047,6 +2065,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
 #endif
 
   registry->RegisterBooleanPref(prefs::kDisableScreenshots, false);
+  registry->RegisterDictionaryPref(prefs::kRealboxContextMenuAnimationState);
   registry->RegisterListPref(
       webauthn::pref_names::kRemoteDesktopAllowedOrigins);
 
@@ -2341,9 +2360,6 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
   profile_prefs->ClearPref(kSessionRestoreTurnOffFromSessionInfoBarTimesShown);
   profile_prefs->ClearPref(kSessionRestorePrefChanged);
 
-  privacy_sandbox::PrivacySandboxNoticeStorage::UpdateNoticeSchemaV2(
-      profile_prefs);
-
   // Check MigrateDeprecatedAutofillPrefs() to see if this is safe to remove.
   autofill::prefs::MigrateDeprecatedAutofillPrefs(profile_prefs);
 
@@ -2557,6 +2573,13 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
 
   // Added 05/2026.
   profile_prefs->ClearPref(kShouldShowRemoteAnnotatorFirstRunInfo);
+
+  // Deprecated 06/2026.
+  profile_prefs->ClearPref(kDeleteTimePeriodBasic);
+  profile_prefs->ClearPref(kDeleteBrowsingHistoryBasic);
+  profile_prefs->ClearPref(kDeleteCacheBasic);
+  profile_prefs->ClearPref(kDeleteCookiesBasic);
+  profile_prefs->ClearPref(kLastClearBrowsingDataTab);
 
   // Please don't delete the following line. It is used by PRESUBMIT.py.
   // END_MIGRATE_OBSOLETE_PROFILE_PREFS

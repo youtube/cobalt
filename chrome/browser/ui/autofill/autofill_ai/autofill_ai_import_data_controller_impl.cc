@@ -41,7 +41,7 @@
 #include "ui/base/l10n/l10n_util.h"
 
 // TODO(crbug.com/441742849): Refactor this class implementation and possibly
-// others to remove `chrome::FindBrowserWithTab()`.
+// others to remove `FindBrowserWithTab()`.
 namespace autofill {
 
 namespace {
@@ -161,7 +161,8 @@ AutofillAiImportDataControllerImpl::GetUpdatedAttributesDetails() const {
 std::u16string AutofillAiImportDataControllerImpl::GetSaveUpdateDialogTitle()
     const {
   return GetPromptTitle(GetSaveUpdateState().new_entity.type().name(),
-                        IsSavePrompt());
+                        IsSavePrompt(),
+                        /*is_server_wallet=*/IsWalletableEntity());
 }
 
 bool AutofillAiImportDataControllerImpl::IsWalletableEntity() const {

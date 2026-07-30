@@ -26,14 +26,11 @@ import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
-import org.chromium.base.FeatureOverrides;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CommandLineFlags;
-import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.Feature;
-import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.chrome.R;
@@ -61,7 +58,6 @@ import java.util.concurrent.TimeoutException;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @Batch(Batch.PER_CLASS)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
-@DisableFeatures(ChromeFeatureList.ANDROID_BOOKMARK_BAR)
 public class KeyboardFocusRowManagerTest {
 
     @Rule
@@ -82,12 +78,6 @@ public class KeyboardFocusRowManagerTest {
     @BeforeClass
     public static void setUpClass() {
         TabbedRootUiCoordinator.setDisableTopControlsAnimationsForTesting(true);
-
-        // Explicitly override FeatureParam for consistency.
-        FeatureOverrides.Builder overrides = FeatureOverrides.newBuilder();
-        overrides =
-                overrides.param(ChromeFeatureList.ANDROID_BOOKMARK_BAR, "show_bookmark_bar", true);
-        overrides.apply();
     }
 
     @Before
@@ -103,19 +93,15 @@ public class KeyboardFocusRowManagerTest {
     @After
     public void tearDown() {
         setUserPrefsShowBookmarksBar(false);
-        setBookmarkBarFeatureParam(false);
     }
 
     @Test
     @SmallTest
     @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     @Feature("KeyboardShortcuts")
-    @DisableIf.Device(DeviceFormFactor.DESKTOP_FREEFORM) // crbug.com/511288498
     public void testSwitchKeyboardFocusRow_withTabletTabStrip() {
         // Put something in the content view so we can focus on it.
-        ChromeTabUtils.newTabFromMenu(
-                InstrumentationRegistry.getInstrumentation(), mActivity, false, true);
-
+        openNewTabAndFocusContent();
         // Switch the first time.
         switchRow();
         assertOnToolbar();
@@ -135,8 +121,7 @@ public class KeyboardFocusRowManagerTest {
     @Feature("KeyboardShortcuts")
     public void testSwitchKeyboardFocusRow_withoutTabletTabStrip() {
         // Put something in the content view so we can focus on it.
-        ChromeTabUtils.newTabFromMenu(
-                InstrumentationRegistry.getInstrumentation(), mActivity, false, true);
+        openNewTabAndFocusContent();
 
         // Switch the first time.
         switchRow();
@@ -151,15 +136,11 @@ public class KeyboardFocusRowManagerTest {
     @SmallTest
     @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     @Feature("KeyboardShortcuts")
-    @EnableFeatures(ChromeFeatureList.ANDROID_BOOKMARK_BAR)
-    @DisableIf.Device(DeviceFormFactor.DESKTOP_FREEFORM) // crbug.com/511288498
     public void testSwitchKeyboardFocusRow_withBookmarksBarOnly() {
-        setBookmarkBarFeatureParam(true);
         setUserPrefsShowBookmarksBar(true);
 
         // Put something in the content view so we can focus on it.
-        ChromeTabUtils.newTabFromMenu(
-                InstrumentationRegistry.getInstrumentation(), mActivity, false, true);
+        openNewTabAndFocusContent();
 
         // Switch the first time.
         switchRow();
@@ -186,14 +167,12 @@ public class KeyboardFocusRowManagerTest {
         ChromeFeatureList.ENABLE_ANDROID_SIDE_PANEL,
         ChromeFeatureList.ENABLE_ANDROID_SIDE_PANEL_DEV_FEATURE
     })
-    @DisableIf.Device(DeviceFormFactor.DESKTOP_FREEFORM) // crbug.com/511288498
     public void testSwitchKeyboardFocusRow_withSidePanelOnly() {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> mTabbedRootUiCoordinator.getSidePanelDevFeatureForTesting().toggle());
 
         // Put something in the content view so we can focus on it.
-        ChromeTabUtils.newTabFromMenu(
-                InstrumentationRegistry.getInstrumentation(), mActivity, false, true);
+        openNewTabAndFocusContent();
 
         // Switch the first time.
         switchRow();
@@ -221,21 +200,17 @@ public class KeyboardFocusRowManagerTest {
     @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     @Feature("KeyboardShortcuts")
     @EnableFeatures({
-        ChromeFeatureList.ANDROID_BOOKMARK_BAR,
         ChromeFeatureList.ENABLE_ANDROID_SIDE_PANEL,
         ChromeFeatureList.ENABLE_ANDROID_SIDE_PANEL_DEV_FEATURE
     })
-    @DisableIf.Device(DeviceFormFactor.DESKTOP_FREEFORM) // crbug.com/511288498
     public void testSwitchKeyboardFocusRow_withBookmarksBarAndSidePanel() {
-        setBookmarkBarFeatureParam(true);
         setUserPrefsShowBookmarksBar(true);
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> mTabbedRootUiCoordinator.getSidePanelDevFeatureForTesting().toggle());
 
         // Put something in the content view so we can focus on it.
-        ChromeTabUtils.newTabFromMenu(
-                InstrumentationRegistry.getInstrumentation(), mActivity, false, true);
+        openNewTabAndFocusContent();
 
         // Switch the first time.
         switchRow();
@@ -267,18 +242,14 @@ public class KeyboardFocusRowManagerTest {
     @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     @Feature("KeyboardShortcuts")
     @EnableFeatures({
-        ChromeFeatureList.ANDROID_BOOKMARK_BAR,
         ChromeFeatureList.ENABLE_ANDROID_SIDE_PANEL,
         ChromeFeatureList.ENABLE_ANDROID_SIDE_PANEL_DEV_FEATURE
     })
-    @DisableIf.Device(DeviceFormFactor.DESKTOP_FREEFORM) // crbug.com/511288498
     public void testSwitchKeyboardFocusRow_withBookmarksBarOnly_sidePanelFeatureEnabled() {
-        setBookmarkBarFeatureParam(true);
         setUserPrefsShowBookmarksBar(true);
 
         // Put something in the content view so we can focus on it.
-        ChromeTabUtils.newTabFromMenu(
-                InstrumentationRegistry.getInstrumentation(), mActivity, false, true);
+        openNewTabAndFocusContent();
 
         // Switch the first time.
         switchRow();
@@ -301,17 +272,14 @@ public class KeyboardFocusRowManagerTest {
     @SmallTest
     @Feature("KeyboardShortcuts")
     @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
-    @EnableFeatures(ChromeFeatureList.ANDROID_BOOKMARK_BAR)
     public void testSwitchKeyboardFocusRow_withBookmarkBarFocus() {
-        setBookmarkBarFeatureParam(true);
         setUserPrefsShowBookmarksBar(true);
 
         ThreadUtils.runOnUiThreadBlocking(
                 mTabbedRootUiCoordinator::initializeBookmarkBarCoordinatorForTesting);
 
         // Put something in the content view so we can focus on it.
-        ChromeTabUtils.newTabFromMenu(
-                InstrumentationRegistry.getInstrumentation(), mActivity, false, true);
+        openNewTabAndFocusContent();
 
         // Start out by using the keyboard shortcut to switch focus rows.
         switchRow();
@@ -330,7 +298,6 @@ public class KeyboardFocusRowManagerTest {
     @SmallTest
     @Feature("KeyboardShortcuts")
     @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
-    @DisableIf.Device(DeviceFormFactor.DESKTOP_FREEFORM) // crbug.com/511288498
     public void testSkipStripIfHidden() {
         ThreadUtils.runOnUiThreadBlocking(
                 () ->
@@ -340,8 +307,7 @@ public class KeyboardFocusRowManagerTest {
                                 .setIsTabStripHiddenByHeightTransition(true));
 
         // Put something in the content view so we can focus on it.
-        ChromeTabUtils.newTabFromMenu(
-                InstrumentationRegistry.getInstrumentation(), mActivity, false, true);
+        openNewTabAndFocusContent();
 
         // Switch the first time.
         switchRow();
@@ -425,6 +391,18 @@ public class KeyboardFocusRowManagerTest {
 
     // Helper methods for readability
 
+    private void openNewTabAndFocusContent() {
+        ChromeTabUtils.newTabFromMenu(
+                InstrumentationRegistry.getInstrumentation(), mActivity, false, true);
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mActivity
+                            .getCompositorViewHolderSupplier()
+                            .get()
+                            .setFocusOnFirstContentViewItem();
+                });
+    }
+
     private void switchRow() {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> mActivity.onMenuOrKeyboardAction(R.id.switch_keyboard_focus_row, false));
@@ -487,12 +465,5 @@ public class KeyboardFocusRowManagerTest {
                                 mActivity.getProfileProviderSupplier().get().getOriginalProfile(),
                                 showBookmarksBar,
                                 /* fromKeyboardShortcut= */ false));
-    }
-
-    private void setBookmarkBarFeatureParam(boolean param) {
-        FeatureOverrides.Builder overrides = FeatureOverrides.newBuilder();
-        overrides =
-                overrides.param(ChromeFeatureList.ANDROID_BOOKMARK_BAR, "show_bookmark_bar", param);
-        overrides.apply();
     }
 }

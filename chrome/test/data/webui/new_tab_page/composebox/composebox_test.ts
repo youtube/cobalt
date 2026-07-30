@@ -31,150 +31,6 @@ suite('NewTabPageComposeboxTest', () => {
     });
   });
 
-  test('ntp composebox uses configured forward submit icon', async () => {
-    createComposeboxElement(testProxy, {
-      searchboxNextEnabled: true,
-      submitButtonIconType: SubmitButtonIconType.FORWARD,
-    });
-    testProxy.element.searchboxLayoutMode = 'Compact';
-    await microtasksFinished();
-
-    testProxy.element.getInputElement().$.input.value = 'test';
-    testProxy.element.getInputElement().$.input.dispatchEvent(
-        new Event('input'));
-    await microtasksFinished();
-
-    const submitIcon = getSubmitIcon(testProxy);
-    assertTrue(submitIcon.classList.contains('icon-arrow-forward'));
-    assertFalse(submitIcon.classList.contains('icon-arrow-upward'));
-  });
-
-  test('composebox defaults to forward submit icon', async () => {
-    createComposeboxElement(testProxy, {
-      searchboxNextEnabled: true,
-    });
-    testProxy.element.searchboxLayoutMode = 'Compact';
-    await microtasksFinished();
-
-    testProxy.element.getInputElement().$.input.value = 'test';
-    testProxy.element.getInputElement().$.input.dispatchEvent(
-        new Event('input'));
-    await microtasksFinished();
-
-    const submitIcon = getSubmitIcon(testProxy);
-    assertTrue(submitIcon.classList.contains('icon-arrow-upward'));
-  });
-
-  test(
-      'submit disabled when tool is Deep Search (default entrypoint)',
-      async () => {
-        createComposeboxElement(testProxy);
-
-        assertEquals(
-            testProxy.searchboxHandler.getCallCount('openAutocompleteMatch'),
-            0);
-
-        // Default: submit is disabled with empty input, clicking does
-        // nothing.
-        getSubmitContainer(testProxy).click();
-        await microtasksFinished();
-        assertEquals(
-            testProxy.searchboxHandler.getCallCount('openAutocompleteMatch'),
-            0);
-
-        // Change tool to Deep Search
-        const inputState = new MockInputState({
-          activeTool: ToolMode.kDeepSearch,
-        });
-        testProxy.searchboxCallbackRouterRemote.onInputStateChanged(inputState);
-        await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
-
-        await microtasksFinished();
-
-        // Submit should still be DISABLED because entrypoint is not
-        // ContextualTasks.
-        getSubmitContainer(testProxy).click();
-        await microtasksFinished();
-        assertEquals(testProxy.searchboxHandler.getCallCount('submitQuery'), 0);
-      });
-
-  test('updates state from state property', async () => {
-    createComposeboxElement(testProxy);
-    testProxy.searchboxHandler.setPromiseResolveFor(
-        ADD_FILE_CONTEXT_FN, {low: BigInt(1), high: BigInt(2)});
-    const composebox = testProxy.element;
-
-    composebox.state = {
-      text: 'hello world',
-      files: [
-        {file: new File(['test'], 'test.pdf', {type: 'application/pdf'})},
-      ],
-      mode: ToolMode.kDeepSearch,
-      model: ModelMode.kGeminiRegular,
-    };
-    await testProxy.searchboxHandler.whenCalled(ADD_FILE_CONTEXT_FN);
-    await composebox.updateComplete;
-    await microtasksFinished();
-
-    assertEquals('hello world', composebox.input);
-    const activeTool =
-        await testProxy.searchboxHandler.whenCalled('setActiveToolMode');
-    assertEquals(ToolMode.kDeepSearch, activeTool);
-    assertEquals(1, composebox.files.size);
-    const activeModel =
-        await testProxy.searchboxHandler.whenCalled('setActiveModelMode');
-    assertEquals(ModelMode.kGeminiRegular, activeModel);
-  });
-
-  test('clear functionality', async () => {
-    createComposeboxElement(testProxy);
-    testProxy.searchboxHandler.setPromiseResolveFor(
-        ADD_FILE_CONTEXT_FN, {low: BigInt(1), high: BigInt(2)});
-
-    // Check submit button disabled.
-    assertStyle(getSubmitContainer(testProxy), 'cursor', 'not-allowed');
-    // Add input.
-    testProxy.element.getInputElement().$.input.value = 'test';
-    testProxy.element.getInputElement().$.input.dispatchEvent(
-        new Event('input'));
-    const dataTransfer = new DataTransfer();
-    dataTransfer.items.add(
-        new File(['foo1'], 'foo1.pdf', {type: 'application/pdf'}));
-    testProxy.element.$.fileInputs.$.fileInput.files = dataTransfer.files;
-    testProxy.element.$.fileInputs.$.fileInput.dispatchEvent(
-        new Event('change'));
-
-    await testProxy.searchboxHandler.whenCalled(ADD_FILE_CONTEXT_FN);
-    await microtasksFinished();
-
-    /* Submit button will not be enabled since frontend has not been
-     * notified that file is done uploading. Carousel should
-     * still have the file marked as added.
-     */
-    assertEquals(testProxy.element.$.carousel.files.length, 1);
-
-    // Clear input.
-    $$<HTMLElement>(
-        testProxy.element.getInputElement(), '#cancelIcon')!.click();
-    await microtasksFinished();
-
-    // Assert
-    assertEquals(testProxy.searchboxHandler.getCallCount('clearFiles'), 1);
-
-    // Check submit button disabled and files empty.
-    assertStyle(getSubmitContainer(testProxy), 'cursor', 'not-allowed');
-    assertFalse(!!$$<HTMLElement>(testProxy.element, '#carousel'));
-
-    // Close composebox.
-    const whenCloseComposebox =
-        eventToPromise<CustomEvent<{composeboxText: string}>>(
-            'close-composebox', testProxy.element);
-    $$<HTMLElement>(
-        testProxy.element.getInputElement(), '#cancelIcon')!.click();
-    await whenCloseComposebox;
-    assertEquals(testProxy.searchboxHandler.getCallCount('clearFiles'), 2);
-  });
-
   test('lens icon click calls handler', async () => {
     createComposeboxElement(testProxy);
 
@@ -201,124 +57,12 @@ suite('NewTabPageComposeboxTest', () => {
     assertTrue(event.defaultPrevented);
   });
 
-  test('set and delete visual selection thumbnail', async () => {
-    createComposeboxElement(testProxy);
-    await microtasksFinished();
-
-    // Initially, carousel is not shown.
-    assertFalse(testProxy.element.hasAttribute('show-file-carousel'));
-
-    // Set a thumbnail.
-    const thumbnailUrl = 'data:image/png;base64,sometestdata';
-    testProxy.searchboxCallbackRouterRemote.addFileContext(FAKE_TOKEN_STRING, {
-      fileName: 'Visual Selection',
-      mimeType: 'image/png',
-      imageDataUrl: thumbnailUrl,
-      isDeletable: true,
-      selectionTime: new Date(),
-    } as SelectedFileInfo);
-    await microtasksFinished();
-
-    // Assert thumbnail is shown.
-    assertTrue(testProxy.element.hasAttribute('show-file-carousel'));
-    const fileCarousel = testProxy.element.$.carousel;
-    await microtasksFinished();
-
-    assertEquals(fileCarousel.files.length, 1);
-    assertDeepEquals(fileCarousel.files[0]!.uuid, FAKE_TOKEN_STRING);
-    assertEquals(fileCarousel.files[0]!.dataUrl, thumbnailUrl);
-    assertTrue(fileCarousel.files[0]!.isDeletable);
-
-    // Delete the thumbnail.
-    const fileThumbnail =
-        fileCarousel.shadowRoot.querySelector('cr-composebox-file-thumbnail');
-    assertTrue(!!fileThumbnail);
-
-    const removeImgButton =
-        fileThumbnail.shadowRoot.querySelector<HTMLElement>('#removeImgButton');
-    removeImgButton!.click();
-    await microtasksFinished();
-
-    // Assert thumbnail is removed.
-    assertEquals(testProxy.searchboxHandler.getCallCount('deleteContext'), 1);
-    const [idArg, fromChip] =
-        testProxy.searchboxHandler.getArgs('deleteContext')[0];
-    assertEquals(idArg, FAKE_TOKEN_STRING);
-    assertFalse(fromChip);
-    // The carousel is removed from the DOM when there are no files, so
-    // assert its absence.
-    assertFalse(!!testProxy.element.shadowRoot.querySelector('#carousel'));
-    assertFalse(testProxy.element.hasAttribute('show-file-carousel'));
-  });
-
-  test('setVisualSelectionThumbnail not deletable', async () => {
-    createComposeboxElement(testProxy);
-    await microtasksFinished();
-
-    // Set a thumbnail that is not deletable.
-    const thumbnailUrl = 'data:image/png;base64,sometestdata';
-    testProxy.searchboxCallbackRouterRemote.addFileContext(FAKE_TOKEN_STRING, {
-      fileName: 'Visual Selection',
-      mimeType: 'image/png',
-      imageDataUrl: thumbnailUrl,
-      isDeletable: false,
-      selectionTime: new Date(),
-    } as SelectedFileInfo);
-    await microtasksFinished();
-
-    // Assert thumbnail is shown.
-    assertTrue(testProxy.element.hasAttribute('show-file-carousel'));
-    const fileCarousel = testProxy.element.$.carousel;
-    assertEquals(fileCarousel.files.length, 1);
-    assertFalse(fileCarousel.files[0]!.isDeletable);
-
-    // Assert delete button is not present.
-    const fileThumbnail =
-        fileCarousel.shadowRoot.querySelector('cr-composebox-file-thumbnail');
-    assertTrue(!!fileThumbnail);
-    const removeButton =
-        fileThumbnail.shadowRoot.querySelector<HTMLElement>('#removeImgButton');
-    assertEquals(null, removeButton);
-  });
-
   test(
       'cr-composebox-submit is rendered when searchboxNextEnabled is false',
       async () => {
         createComposeboxElement(testProxy, {
           searchboxNextEnabled: false,
         });
-        await microtasksFinished();
-
-        const composeboxSubmit =
-            testProxy.element.shadowRoot.querySelector('cr-composebox-submit');
-
-        assertTrue(!!composeboxSubmit);
-      });
-
-  test(
-      'cr-composebox-submit is not rendered when searchboxNextEnabled is true',
-      async () => {
-        createComposeboxElement(testProxy, {
-          searchboxNextEnabled: true,
-        });
-        await microtasksFinished();
-
-        const composeboxSubmit =
-            testProxy.element.shadowRoot.querySelector('cr-composebox-submit');
-
-        assertFalse(!!composeboxSubmit);
-      });
-
-  test(
-      'cr-composebox-submit is rendered when searchboxLayoutMode is Compact',
-      async () => {
-        createComposeboxElement(testProxy, {
-          searchboxNextEnabled: true,
-        });
-        testProxy.element.searchboxLayoutMode = 'Compact';
-        testProxy.element.getInputElement().$.input.value = 'test';
-        testProxy.element.getInputElement().$.input.dispatchEvent(
-            new Event('input'));
         await microtasksFinished();
 
         const composeboxSubmit =
@@ -344,51 +88,6 @@ suite('NewTabPageComposeboxTest', () => {
 
         assertTrue(!!composeboxSubmit);
       });
-
-  test(
-      'cr-composebox-submit is not rendered when there is no input text',
-      async () => {
-        createComposeboxElement(testProxy, {
-          searchboxNextEnabled: true,
-        });
-        testProxy.element.searchboxLayoutMode = 'TallBottomContext';
-        testProxy.element.getInputElement().$.input.value = '';
-        testProxy.element.getInputElement().$.input.dispatchEvent(
-            new Event('input'));
-        await microtasksFinished();
-
-        const composeboxSubmit =
-            testProxy.element.shadowRoot.querySelector('cr-composebox-submit');
-
-        assertFalse(!!composeboxSubmit);
-      });
-
-  test('submit button click leads to handler called', async () => {
-    createComposeboxElement(testProxy);
-    // Assert.
-    assertEquals(
-        testProxy.searchboxHandler.getCallCount('openAutocompleteMatch'), 0);
-
-    // Arrange.
-    testProxy.element.getInputElement().$.input.value = 'test';
-    testProxy.element.getInputElement().$.input.dispatchEvent(
-        new Event('input'));
-    const matches =
-        [createSearchMatchForTesting({allowedToBeDefaultMatch: true})];
-    testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResultForTesting({
-          input: 'test',
-          matches,
-        }));
-    await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
-    await microtasksFinished();
-    getSubmitContainer(testProxy).click();
-    await microtasksFinished();
-
-    // Assert call occurs.
-    assertEquals(
-        testProxy.searchboxHandler.getCallCount('openAutocompleteMatch'), 1);
-  });
 
   test('submit button is a no-op when disabled', async () => {
     createComposeboxElement(testProxy);
@@ -441,54 +140,6 @@ suite('NewTabPageComposeboxTest', () => {
     const submitButton = getSubmitIcon(testProxy);
     assertTrue(submitButton.hasAttribute('disabled'));
   });
-
-  test('keydown submit only works for enter', async () => {
-    createComposeboxElement(testProxy);
-    // Assert.
-    assertEquals(
-        testProxy.searchboxHandler.getCallCount('openAutocompleteMatch'), 0);
-
-    // Arrange.
-    testProxy.element.getInputElement().$.input.value = 'test';
-    testProxy.element.getInputElement().$.input.dispatchEvent(
-        new Event('input'));
-    const matches =
-        [createSearchMatchForTesting({allowedToBeDefaultMatch: true})];
-    testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResultForTesting({
-          input: 'test',
-          matches: matches,
-        }));
-    await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
-    await microtasksFinished();
-    const shiftEnterEvent = new KeyboardEvent('keydown', {
-      key: 'Enter',
-      shiftKey: true,
-      bubbles: true,
-      cancelable: true,
-      composed: true,
-    });
-    testProxy.element.getInputElement().$.input.dispatchEvent(shiftEnterEvent);
-    await microtasksFinished();
-
-    // Assert.
-    assertEquals(
-        testProxy.searchboxHandler.getCallCount('openAutocompleteMatch'), 0);
-
-    const enterEvent = new KeyboardEvent('keydown', {
-      key: 'Enter',
-      bubbles: true,
-      cancelable: true,
-      composed: true,
-    });
-    testProxy.element.getInputElement().$.input.dispatchEvent(enterEvent);
-    await microtasksFinished();
-
-    // Assert call occurs.
-    assertEquals(
-        testProxy.searchboxHandler.getCallCount('openAutocompleteMatch'), 1);
-  });
-
 
   test('isCollapsible attribute sets expanding state when true', async () => {
     createComposeboxElement(testProxy);
@@ -653,34 +304,86 @@ suite('NewTabPageComposeboxTest', () => {
     assertEquals('', collapsibleInput.value, 'Input should be cleared');
   });
 
-  test('delete tool chip', async () => {
-    loadTimeData.overrideValues({composeboxSource: 'NewTabPage'});
+  test(
+      'submit disabled when tool is Deep Search (default entrypoint)',
+      async () => {
+        createComposeboxElement(testProxy);
+
+        assertEquals(
+            testProxy.searchboxHandler.getCallCount('openAutocompleteMatch'),
+            0);
+
+        // Default: submit is disabled with empty input, clicking does
+        // nothing.
+        getSubmitContainer(testProxy).click();
+        await microtasksFinished();
+        assertEquals(
+            testProxy.searchboxHandler.getCallCount('openAutocompleteMatch'),
+            0);
+
+        // Change tool to Deep Search
+        const inputState = new MockInputState({
+          activeTool: ToolMode.kDeepSearch,
+        });
+        testProxy.searchboxCallbackRouterRemote.onInputStateChanged(inputState);
+        await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+
+        await microtasksFinished();
+
+        // Submit should still be DISABLED because entrypoint is not
+        // ContextualTasks.
+        getSubmitContainer(testProxy).click();
+        await microtasksFinished();
+        assertEquals(testProxy.searchboxHandler.getCallCount('submitQuery'), 0);
+      });
+
+  test('clear functionality', async () => {
     createComposeboxElement(testProxy);
+    testProxy.searchboxHandler.setPromiseResolveFor(
+        ADD_FILE_CONTEXT_FN, {low: BigInt(1), high: BigInt(2)});
+
+    // Check submit button disabled.
+    assertStyle(getSubmitContainer(testProxy), 'cursor', 'not-allowed');
+    // Add input.
+    testProxy.element.getInputElement().$.input.value = 'test';
+    testProxy.element.getInputElement().$.input.dispatchEvent(
+        new Event('input'));
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(
+        new File(['foo1'], 'foo1.pdf', {type: 'application/pdf'}));
+    testProxy.element.$.fileInputs.$.fileInput.files = dataTransfer.files;
+    testProxy.element.$.fileInputs.$.fileInput.dispatchEvent(
+        new Event('change'));
+
+    await testProxy.searchboxHandler.whenCalled(ADD_FILE_CONTEXT_FN);
     await microtasksFinished();
 
-    // Set active tool mode to DeepSearch.
-    const inputState = new MockInputState({
-      activeTool: ToolMode.kDeepSearch,
-    });
-    testProxy.searchboxCallbackRouterRemote.onInputStateChanged(inputState);
-    await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+    /* Submit button will not be enabled since frontend has not been
+     * notified that file is done uploading. Carousel should
+     * still have the file marked as added.
+     */
+    assertEquals(testProxy.element.$.carousel.files.length, 1);
+
+    // Clear input.
+    $$<HTMLElement>(
+        testProxy.element.getInputElement(), '#cancelIcon')!.click();
     await microtasksFinished();
 
-    // Click on the same tool mode to deselect/delete it.
-    testProxy.element.handleToolClick(ToolMode.kDeepSearch);
-    await microtasksFinished();
+    // Assert
+    assertEquals(testProxy.searchboxHandler.getCallCount('clearFiles'), 1);
 
-    // Assert tool mode is reset.
-    const activeTool =
-        await testProxy.searchboxHandler.whenCalled('setActiveToolMode');
-    assertEquals(ToolMode.kUnspecified, activeTool);
+    // Check submit button disabled and files empty.
+    assertStyle(getSubmitContainer(testProxy), 'cursor', 'not-allowed');
+    assertFalse(!!$$<HTMLElement>(testProxy.element, '#carousel'));
 
-    const metricName =
-        'ContextualSearch.UserAction.InputStateDeletion.NewTabPage';
-    assertEquals(
-        1,
-        testProxy.metrics.count(
-            metricName, ContextualSearchInputStateDeletionType.TOOL));
+    // Close composebox.
+    const whenCloseComposebox =
+        eventToPromise<CustomEvent<{composeboxText: string}>>(
+            'close-composebox', testProxy.element);
+    $$<HTMLElement>(
+        testProxy.element.getInputElement(), '#cancelIcon')!.click();
+    await whenCloseComposebox;
+    assertEquals(testProxy.searchboxHandler.getCallCount('clearFiles'), 2);
   });
 });
 
@@ -695,6 +398,342 @@ suite('NewTabPageComposeboxTest', () => {
       loadTimeData.overrideValues({
         useNtpComposeboxFork: useForked,
       });
+    });
+
+    test('ntp composebox uses configured forward submit icon', async () => {
+      createComposeboxElement(testProxy, {
+        searchboxNextEnabled: true,
+        submitButtonIconType: SubmitButtonIconType.FORWARD,
+      });
+      testProxy.element.searchboxLayoutMode = 'Compact';
+      await microtasksFinished();
+
+      testProxy.element.getInputElement().$.input.value = 'test';
+      testProxy.element.getInputElement().$.input.dispatchEvent(
+          new Event('input'));
+      await microtasksFinished();
+
+      const submitIcon = getSubmitIcon(testProxy);
+      assertTrue(submitIcon.classList.contains('icon-arrow-forward'));
+      assertFalse(submitIcon.classList.contains('icon-arrow-upward'));
+    });
+
+    test('composebox defaults to forward submit icon', async () => {
+      createComposeboxElement(testProxy, {
+        searchboxNextEnabled: true,
+      });
+      testProxy.element.searchboxLayoutMode = 'Compact';
+      await microtasksFinished();
+
+      testProxy.element.getInputElement().$.input.value = 'test';
+      testProxy.element.getInputElement().$.input.dispatchEvent(
+          new Event('input'));
+      await microtasksFinished();
+
+      const submitIcon = getSubmitIcon(testProxy);
+      assertTrue(submitIcon.classList.contains('icon-arrow-upward'));
+    });
+
+    if (useForked) {
+      test(
+          'submit disabled when tool is Deep Search (default entrypoint) - ntp-composebox only',
+          async () => {
+            createComposeboxElement(testProxy, {
+              searchboxNextEnabled: true,
+            });
+            await microtasksFinished();
+
+            // In modern layout, empty input submit button is omitted from DOM.
+            assertFalse(!!testProxy.element.shadowRoot.querySelector(
+                'cr-composebox-submit'));
+
+            // Change tool to Deep Search
+            const inputState = new MockInputState({
+              activeTool: ToolMode.kDeepSearch,
+            });
+            testProxy.searchboxCallbackRouterRemote.onInputStateChanged(
+                inputState);
+            await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+            await microtasksFinished();
+
+            // Assert button is still not in DOM.
+            assertFalse(!!testProxy.element.shadowRoot.querySelector(
+                'cr-composebox-submit'));
+          });
+    }
+
+    test('updates state from state property', async () => {
+      createComposeboxElement(testProxy);
+      testProxy.searchboxHandler.setPromiseResolveFor(
+          ADD_FILE_CONTEXT_FN, {low: BigInt(1), high: BigInt(2)});
+      const composebox = testProxy.element;
+
+      composebox.state = {
+        text: 'hello world',
+        files: [
+          {file: new File(['test'], 'test.pdf', {type: 'application/pdf'})},
+        ],
+        mode: ToolMode.kDeepSearch,
+        model: ModelMode.kGeminiRegular,
+      };
+      await testProxy.searchboxHandler.whenCalled(ADD_FILE_CONTEXT_FN);
+      await composebox.updateComplete;
+      await microtasksFinished();
+
+      assertEquals('hello world', composebox.input);
+      const activeTool =
+          await testProxy.searchboxHandler.whenCalled('setActiveToolMode');
+      assertEquals(ToolMode.kDeepSearch, activeTool);
+      assertEquals(1, composebox.files.size);
+      const activeModel =
+          await testProxy.searchboxHandler.whenCalled('setActiveModelMode');
+      assertEquals(ModelMode.kGeminiRegular, activeModel);
+    });
+
+    if (useForked) {
+      test('clear functionality - ntp-composebox only', async () => {
+        createComposeboxElement(testProxy, {
+          searchboxNextEnabled: true,
+        });
+        testProxy.searchboxHandler.setPromiseResolveFor(
+            ADD_FILE_CONTEXT_FN, {low: BigInt(1), high: BigInt(2)});
+        await microtasksFinished();
+
+        // Assert submit button is omitted from DOM.
+        assertFalse(!!testProxy.element.shadowRoot.querySelector(
+            'cr-composebox-submit'));
+
+        // Add input and files.
+        testProxy.element.getInputElement().$.input.value = 'test';
+        testProxy.element.getInputElement().$.input.dispatchEvent(
+            new Event('input'));
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(
+            new File(['foo1'], 'foo1.pdf', {type: 'application/pdf'}));
+        testProxy.element.$.fileInputs.$.fileInput.files = dataTransfer.files;
+        testProxy.element.$.fileInputs.$.fileInput.dispatchEvent(
+            new Event('change'));
+
+        await testProxy.searchboxHandler.whenCalled(ADD_FILE_CONTEXT_FN);
+        await microtasksFinished();
+
+        assertEquals(testProxy.element.$.carousel.files.length, 1);
+
+        // Clear input.
+        $$<HTMLElement>(
+            testProxy.element.getInputElement(), '#cancelIcon')!.click();
+        await microtasksFinished();
+        assertEquals(testProxy.searchboxHandler.getCallCount('clearFiles'), 1);
+
+        // Assert button is omitted from DOM after clear.
+        assertFalse(!!testProxy.element.shadowRoot.querySelector(
+            'cr-composebox-submit'));
+        assertFalse(!!$$<HTMLElement>(testProxy.element, '#carousel'));
+      });
+
+      test('suggestion activity link triggers navigation', async () => {
+        createComposeboxElement(testProxy);
+        await microtasksFinished();
+
+        const matches = [
+          createSearchMatchForTesting({
+            isNoncannedAimSuggestion: true,
+          }),
+        ];
+        testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
+            createAutocompleteResultForTesting({
+              matches,
+            }));
+        await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+        await microtasksFinished();
+        await testProxy.element.updateComplete;
+
+        const suggestionActivity =
+            testProxy.element.shadowRoot.querySelector('#suggestionActivity');
+        assertTrue(!!suggestionActivity);
+        const localizedLink =
+            suggestionActivity.querySelector('localized-link');
+        assertTrue(!!localizedLink);
+
+        const testUrl = 'about:blank?activity';
+        const anchor = document.createElement('a');
+        anchor.href = testUrl;
+
+        let preventDefaultCalled = false;
+        const linkClickedEvent = new CustomEvent('link-clicked', {
+          detail: {
+            event: {
+              preventDefault: () => {
+                preventDefaultCalled = true;
+              },
+              currentTarget: anchor,
+            },
+          },
+        });
+        localizedLink.dispatchEvent(linkClickedEvent);
+
+        const url = await testProxy.handler.whenCalled('navigateUrl');
+        assertEquals(testUrl, url);
+        assertTrue(preventDefaultCalled);
+      });
+
+      test(
+          'suggestion activity link hidden when suggestions are non canned',
+          async () => {
+            createComposeboxElement(testProxy);
+            await microtasksFinished();
+
+            const matches = [
+              createSearchMatchForTesting({
+                isNoncannedAimSuggestion: false,
+              }),
+            ];
+            testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
+                createAutocompleteResultForTesting({
+                  matches,
+                }));
+            await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+            await microtasksFinished();
+            await testProxy.element.updateComplete;
+
+            const suggestionActivity =
+                testProxy.element.shadowRoot.querySelector(
+                    '#suggestionActivity');
+            assertFalse(!!suggestionActivity);
+          });
+    }
+
+    test(
+        'cr-composebox-submit is not rendered when searchboxNextEnabled is true',
+        async () => {
+          createComposeboxElement(testProxy, {
+            searchboxNextEnabled: true,
+          });
+          await microtasksFinished();
+
+          const composeboxSubmit = testProxy.element.shadowRoot.querySelector(
+              'cr-composebox-submit');
+
+          assertFalse(!!composeboxSubmit);
+        });
+
+    test(
+        'cr-composebox-submit is rendered when searchboxLayoutMode is Compact',
+        async () => {
+          createComposeboxElement(testProxy, {
+            searchboxNextEnabled: true,
+          });
+          testProxy.element.searchboxLayoutMode = 'Compact';
+          testProxy.element.getInputElement().$.input.value = 'test';
+          testProxy.element.getInputElement().$.input.dispatchEvent(
+              new Event('input'));
+          await microtasksFinished();
+
+          const composeboxSubmit = testProxy.element.shadowRoot.querySelector(
+              'cr-composebox-submit');
+
+          assertTrue(!!composeboxSubmit);
+        });
+
+    test(
+        'cr-composebox-submit is not rendered when there is no input text',
+        async () => {
+          createComposeboxElement(testProxy, {
+            searchboxNextEnabled: true,
+          });
+          testProxy.element.searchboxLayoutMode = 'Compact';
+          testProxy.element.getInputElement().$.input.value = '';
+          testProxy.element.getInputElement().$.input.dispatchEvent(
+              new Event('input'));
+          await microtasksFinished();
+
+          const composeboxSubmit = testProxy.element.shadowRoot.querySelector(
+              'cr-composebox-submit');
+
+          assertFalse(!!composeboxSubmit);
+        });
+
+    test('submit button click leads to handler called', async () => {
+      createComposeboxElement(testProxy, {
+        searchboxNextEnabled: true,
+      });
+      testProxy.element.searchboxLayoutMode = 'Compact';
+      await microtasksFinished();
+      // Assert.
+      assertEquals(
+          testProxy.searchboxHandler.getCallCount('openAutocompleteMatch'), 0);
+
+      // Arrange.
+      testProxy.element.getInputElement().$.input.value = 'test';
+      testProxy.element.getInputElement().$.input.dispatchEvent(
+          new Event('input'));
+      const matches =
+          [createSearchMatchForTesting({allowedToBeDefaultMatch: true})];
+      testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
+          createAutocompleteResultForTesting({
+            input: 'test',
+            matches,
+          }));
+      await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+      await microtasksFinished();
+      getSubmitContainer(testProxy).click();
+      await microtasksFinished();
+
+      // Assert call occurs.
+      assertEquals(
+          testProxy.searchboxHandler.getCallCount('openAutocompleteMatch'), 1);
+    });
+
+    test('keydown submit only works for enter', async () => {
+      createComposeboxElement(testProxy, {
+        searchboxNextEnabled: true,
+      });
+      testProxy.element.searchboxLayoutMode = 'Compact';
+      await microtasksFinished();
+      // Assert.
+      assertEquals(
+          testProxy.searchboxHandler.getCallCount('openAutocompleteMatch'), 0);
+
+      // Arrange.
+      testProxy.element.getInputElement().$.input.value = 'test';
+      testProxy.element.getInputElement().$.input.dispatchEvent(
+          new Event('input'));
+      const matches =
+          [createSearchMatchForTesting({allowedToBeDefaultMatch: true})];
+      testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
+          createAutocompleteResultForTesting({
+            input: 'test',
+            matches: matches,
+          }));
+      await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+      await microtasksFinished();
+      const shiftEnterEvent = new KeyboardEvent('keydown', {
+        key: 'Enter',
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+      });
+      testProxy.element.getInputElement().$.input.dispatchEvent(
+          shiftEnterEvent);
+      await microtasksFinished();
+
+      // Assert.
+      assertEquals(
+          testProxy.searchboxHandler.getCallCount('openAutocompleteMatch'), 0);
+
+      const enterEvent = new KeyboardEvent('keydown', {
+        key: 'Enter',
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+      });
+      testProxy.element.getInputElement().$.input.dispatchEvent(enterEvent);
+      await microtasksFinished();
+
+      // Assert call occurs.
+      assertEquals(
+          testProxy.searchboxHandler.getCallCount('openAutocompleteMatch'), 1);
     });
 
     test('ShowContextMenuDescription', async () => {
@@ -1435,6 +1474,119 @@ suite('NewTabPageComposeboxTest', () => {
       assertTrue(crActionMenu.autoReposition);
       assertTrue(crActionMenu.hasAttribute('auto-reposition'));
     });
+
+    test('set and delete visual selection thumbnail', async () => {
+      createComposeboxElement(testProxy);
+      await microtasksFinished();
+
+      // Initially, carousel is not shown.
+      assertFalse(testProxy.element.hasAttribute('show-file-carousel'));
+
+      // Set a thumbnail.
+      const thumbnailUrl = 'data:image/png;base64,sometestdata';
+      testProxy.searchboxCallbackRouterRemote.addFileContext(
+          FAKE_TOKEN_STRING, {
+            fileName: 'Visual Selection',
+            mimeType: 'image/png',
+            imageDataUrl: thumbnailUrl,
+            isDeletable: true,
+            selectionTime: new Date(),
+          } as SelectedFileInfo);
+      await microtasksFinished();
+
+      // Assert thumbnail is shown.
+      assertTrue(testProxy.element.hasAttribute('show-file-carousel'));
+      const fileCarousel = testProxy.element.$.carousel;
+      await microtasksFinished();
+
+      assertEquals(fileCarousel.files.length, 1);
+      assertDeepEquals(fileCarousel.files[0]!.uuid, FAKE_TOKEN_STRING);
+      assertEquals(fileCarousel.files[0]!.dataUrl, thumbnailUrl);
+      assertTrue(fileCarousel.files[0]!.isDeletable);
+
+      // Delete the thumbnail.
+      const fileThumbnail =
+          fileCarousel.shadowRoot.querySelector('cr-composebox-file-thumbnail');
+      assertTrue(!!fileThumbnail);
+
+      const removeImgButton =
+          fileThumbnail.shadowRoot.querySelector<HTMLElement>(
+              '#removeImgButton');
+      removeImgButton!.click();
+      await microtasksFinished();
+
+      // Assert thumbnail is removed.
+      assertEquals(testProxy.searchboxHandler.getCallCount('deleteContext'), 1);
+      const [idArg, fromChip] =
+          testProxy.searchboxHandler.getArgs('deleteContext')[0];
+      assertEquals(idArg, FAKE_TOKEN_STRING);
+      assertFalse(fromChip);
+      // The carousel is removed from the DOM when there are no files, so
+      // assert its absence.
+      assertFalse(!!testProxy.element.shadowRoot.querySelector('#carousel'));
+      assertFalse(testProxy.element.hasAttribute('show-file-carousel'));
+    });
+
+    test('setVisualSelectionThumbnail not deletable', async () => {
+      createComposeboxElement(testProxy);
+      await microtasksFinished();
+
+      // Set a thumbnail that is not deletable.
+      const thumbnailUrl = 'data:image/png;base64,sometestdata';
+      testProxy.searchboxCallbackRouterRemote.addFileContext(
+          FAKE_TOKEN_STRING, {
+            fileName: 'Visual Selection',
+            mimeType: 'image/png',
+            imageDataUrl: thumbnailUrl,
+            isDeletable: false,
+            selectionTime: new Date(),
+          } as SelectedFileInfo);
+      await microtasksFinished();
+
+      // Assert thumbnail is shown.
+      assertTrue(testProxy.element.hasAttribute('show-file-carousel'));
+      const fileCarousel = testProxy.element.$.carousel;
+      assertEquals(fileCarousel.files.length, 1);
+      assertFalse(fileCarousel.files[0]!.isDeletable);
+
+      // Assert delete button is not present.
+      const fileThumbnail =
+          fileCarousel.shadowRoot.querySelector('cr-composebox-file-thumbnail');
+      assertTrue(!!fileThumbnail);
+      const removeButton = fileThumbnail.shadowRoot.querySelector<HTMLElement>(
+          '#removeImgButton');
+      assertEquals(null, removeButton);
+    });
+
+    test('delete tool chip', async () => {
+      loadTimeData.overrideValues({composeboxSource: 'NewTabPage'});
+      createComposeboxElement(testProxy);
+      await microtasksFinished();
+
+      // Set active tool mode to DeepSearch.
+      const inputState = new MockInputState({
+        activeTool: ToolMode.kDeepSearch,
+      });
+      testProxy.searchboxCallbackRouterRemote.onInputStateChanged(inputState);
+      await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+      await microtasksFinished();
+
+      // Click on the same tool mode to deselect/delete it.
+      testProxy.element.handleToolClick(ToolMode.kDeepSearch);
+      await microtasksFinished();
+
+      // Assert tool mode is reset.
+      const activeTool =
+          await testProxy.searchboxHandler.whenCalled('setActiveToolMode');
+      assertEquals(ToolMode.kUnspecified, activeTool);
+
+      const metricName =
+          'ContextualSearch.UserAction.InputStateDeletion.NewTabPage';
+      assertEquals(
+          1,
+          testProxy.metrics.count(
+              metricName, ContextualSearchInputStateDeletionType.TOOL));
+    });
   });
 });
 
@@ -1493,6 +1645,9 @@ suite('NewTabPageComposeboxResizeObserverTest', () => {
   }
 
   setup(() => {
+    loadTimeData.overrideValues({
+      useNtpComposeboxFork: false,
+    });
     originalResizeObserver = window.ResizeObserver;
     window.ResizeObserver =
         MockResizeObserver as unknown as typeof ResizeObserver;

@@ -210,6 +210,26 @@ void PageActionView::OnPageActionModelWillBeDeleted(
   SetVisible(false);
 }
 
+views::BubbleAnchor PageActionView::GetBubbleAnchor() {
+  return views::BubbleAnchor(this);
+}
+
+std::u16string PageActionView::GetTooltipText() const {
+  return IconLabelBubbleView::GetTooltipText();
+}
+
+std::u16string PageActionView::GetAccessibleName() const {
+  return IconLabelBubbleView::GetAccessibleName();
+}
+
+void PageActionView::SetVisible(bool visible) {
+  IconLabelBubbleView::SetVisible(visible);
+}
+
+IconLabelBubbleView* PageActionView::GetIconLabelBubbleViewNotMigrated() {
+  NOTREACHED();
+}
+
 actions::ActionId PageActionView::GetActionId() const {
   return action_item_->GetActionId().value();
 }
@@ -254,6 +274,10 @@ bool PageActionView::ShouldUpdateInkDropOnClickCanceled() const {
 }
 
 void PageActionView::NotifyClick(const ui::Event& event) {
+  if (IsAnchoredMessageVisible()) {
+    return;
+  }
+
   PageActionTrigger trigger_source;
   if (event.IsMouseEvent()) {
     trigger_source = PageActionTrigger::kMouse;
@@ -276,6 +300,10 @@ void PageActionView::NotifyClick(const ui::Event& event) {
           .SetProperty(kPageActionTriggerKey,
                        static_cast<std::underlying_type_t<PageActionTrigger>>(
                            trigger_source))
+          .SetProperty(
+              kPageActionEntryPointKey,
+              static_cast<std::underlying_type_t<PageActionEntryPoint>>(
+                  PageActionEntryPoint::kSuggestionChip))
           .Build());
 }
 
@@ -370,6 +398,10 @@ bool PageActionView::IsBubbleShowing() const {
 }
 
 bool PageActionView::IsTriggerableEvent(const ui::Event& event) {
+  if (IsAnchoredMessageVisible()) {
+    return false;
+  }
+
   // Returns whether the bubble should be shown given the event. Only trigger an
   // action when action UI isn't already showing (managed at the
   // IconLabelBubbleView level), and if mouse input, when event is a left button
@@ -437,7 +469,9 @@ void PageActionView::CreateAndShowAnchoredMessage(
     anchored_message_widget_->MakeCloseSynchronous(
         base::BindOnce(&PageActionView::OnAnchoredMessageWidgetClose,
                        weak_factory_.GetWeakPtr()));
-    anchored_message_widget_->Show();
+
+    // Don't steal focus when shown
+    anchored_message_widget_->ShowInactive();
   } else {
     anchored_message_ = nullptr;
   }
@@ -449,7 +483,7 @@ void PageActionView::OnAnchoredMessageWidgetClose(
   CHECK(anchored_message_);
   CHECK(anchored_message_widget_);
   anchored_message_ = nullptr;
-  anchored_message_widget_ = nullptr;
+  anchored_message_widget_.reset();
   anchored_message_visibility_changed_callbacks_.Notify(this);
 }
 
@@ -461,6 +495,10 @@ void PageActionView::AnchoredMessageChipClick() {
           .SetProperty(kPageActionTriggerKey,
                        static_cast<std::underlying_type_t<PageActionTrigger>>(
                            PageActionTrigger::kMouse))
+          .SetProperty(
+              kPageActionEntryPointKey,
+              static_cast<std::underlying_type_t<PageActionEntryPoint>>(
+                  PageActionEntryPoint::kAnchoredMessage))
           .Build());
   anchored_message_close_callback_.Run();
 }

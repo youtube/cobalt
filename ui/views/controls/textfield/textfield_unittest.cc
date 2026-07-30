@@ -22,7 +22,6 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
-#include "ui/accessibility/accessibility_features.h"
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/accessibility/platform/ax_platform_for_test.h"
@@ -38,6 +37,7 @@
 #include "ui/base/ime/input_method_base.h"
 #include "ui/base/ime/text_edit_commands.h"
 #include "ui/base/ime/text_input_client.h"
+#include "ui/base/ime/text_input_flags.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -4469,8 +4469,6 @@ TEST_F(TextfieldTest, SetValueAccessibilityEvents) {
 
 #if BUILDFLAG(IS_WIN)
 TEST_F(TextfieldTest, AccessibilityAttributes) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(::features::kUiaProvider);
   InitTextfield();
 
   ViewAXPlatformNodeDelegate* delegate =
@@ -5261,6 +5259,7 @@ TEST_F(TextfieldTest, EmojiItem_FieldWithText) {
 }
 
 #if BUILDFLAG(IS_MAC)
+
 // Tests to see if the BiDi submenu items are updated correctly when the
 // textfield's text direction is changed.
 TEST_F(TextfieldTest, TextServicesContextMenuTextDirectionTest) {
@@ -5327,6 +5326,45 @@ TEST_F(TextfieldTest, SecurePasswordInput) {
   textfield_->OnBlur();
   EXPECT_FALSE(ui::ScopedPasswordInputEnabler::IsPasswordInputEnabled());
 }
+
+TEST_F(TextfieldTest, SecureHasBeenAPasswordInput) {
+  InitTextfield();
+  ASSERT_FALSE(ui::ScopedPasswordInputEnabler::IsPasswordInputEnabled());
+
+  // Shouldn't enable secure input if it's not a password textfield.
+  textfield_->OnFocus();
+  EXPECT_FALSE(ui::ScopedPasswordInputEnabler::IsPasswordInputEnabled());
+
+  textfield_->SetTextInputFlags(textfield_->GetTextInputFlags() |
+                                ui::TEXT_INPUT_FLAG_HAS_BEEN_PASSWORD);
+
+  // Single matched calls immediately update IsPasswordInputEnabled().
+  textfield_->OnFocus();
+  EXPECT_TRUE(ui::ScopedPasswordInputEnabler::IsPasswordInputEnabled());
+
+  textfield_->OnBlur();
+  EXPECT_FALSE(ui::ScopedPasswordInputEnabler::IsPasswordInputEnabled());
+}
+
+TEST_F(TextfieldTest, SecureHasBeenACustomPasswordInput) {
+  InitTextfield();
+  ASSERT_FALSE(ui::ScopedPasswordInputEnabler::IsPasswordInputEnabled());
+
+  // Shouldn't enable secure input if it's not a password textfield.
+  textfield_->OnFocus();
+  EXPECT_FALSE(ui::ScopedPasswordInputEnabler::IsPasswordInputEnabled());
+
+  textfield_->SetTextInputFlags(textfield_->GetTextInputFlags() |
+                                ui::TEXT_INPUT_FLAG_HAS_BEEN_CUSTOM_PASSWORD);
+
+  // Single matched calls immediately update IsPasswordInputEnabled().
+  textfield_->OnFocus();
+  EXPECT_TRUE(ui::ScopedPasswordInputEnabler::IsPasswordInputEnabled());
+
+  textfield_->OnBlur();
+  EXPECT_FALSE(ui::ScopedPasswordInputEnabler::IsPasswordInputEnabled());
+}
+
 #endif  // BUILDFLAG(IS_MAC)
 
 TEST_F(TextfieldTest, AccessibilitySelectionEvents) {
@@ -5645,8 +5683,6 @@ TEST_F(TextfieldTest, AccessibleDefaultActionVerb) {
 
 #if BUILDFLAG(SUPPORTS_AX_TEXT_OFFSETS)
 TEST_F(TextfieldTest, WordOffsets) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(::features::kUiaProvider);
   InitTextfield();
   const ::ui::ScopedAXModeSetter ax_mode_setter(ui::AXMode::kNativeAPIs);
   MockAXModeAdded();
@@ -5666,8 +5702,6 @@ TEST_F(TextfieldTest, WordOffsets) {
 }
 
 TEST_F(TextfieldTest, WordOffsetsAXNotOn) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(::features::kUiaProvider);
   InitTextfield();
   const ::ui::ScopedAXModeSetter ax_mode_setter(ui::AXMode::kNativeAPIs);
   ASSERT_FALSE(textfield_->GetViewAccessibility().is_initialized());
@@ -5715,9 +5749,6 @@ TEST_F(TextfieldTest, AccessibleGraphemeOffsets) {
       {u"ab\U0001D11Ecd", {0, 10, 20, 30, 40, 50}},
   });
 
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(::features::kUiaProvider);
-
   InitTextfield();
   const ::ui::ScopedAXModeSetter ax_mode_setter(ui::AXMode::kNativeAPIs);
   MockAXModeAdded();
@@ -5744,8 +5775,6 @@ TEST_F(TextfieldTest, AccessibleGraphemeOffsets) {
 }
 
 TEST_F(TextfieldTest, AccessibleGraphemeOffsetsObscured) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(::features::kUiaProvider);
   InitTextfield();
   const ::ui::ScopedAXModeSetter ax_mode_setter(ui::AXMode::kNativeAPIs);
   MockAXModeAdded();
@@ -5767,8 +5796,6 @@ TEST_F(TextfieldTest, AccessibleGraphemeOffsetsObscured) {
 }
 
 TEST_F(TextfieldTest, AccessibleGraphemeOffsetsElidedTail) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(::features::kUiaProvider);
   InitTextfield();
   const ::ui::ScopedAXModeSetter ax_mode_setter(ui::AXMode::kNativeAPIs);
   MockAXModeAdded();
@@ -5793,8 +5820,6 @@ TEST_F(TextfieldTest, AccessibleGraphemeOffsetsElidedTail) {
 }
 
 TEST_F(TextfieldTest, AccessibleGraphemeOffsetsIndependentOfDisplayOffset) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(::features::kUiaProvider);
   InitTextfield();
   const ::ui::ScopedAXModeSetter ax_mode_setter(ui::AXMode::kNativeAPIs);
   MockAXModeAdded();

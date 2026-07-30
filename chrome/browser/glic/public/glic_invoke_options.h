@@ -16,7 +16,7 @@
 #include "base/time/time.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/public/context/glic_sharing_manager.h"
-#include "chrome/browser/glic/public/glic_instance.h"
+#include "chrome/browser/glic/public/glic_instance_id.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/global_routing_id.h"
 
@@ -55,13 +55,26 @@ struct NewTab {
   raw_ptr<BrowserWindowInterface> window = nullptr;
   bool open_in_foreground = true;
 };
+
+// Intended for internal use only. If you believe you need access to this
+// option, please reach out to c/b/glic/API_OWNERS.
+struct Floating {
+ private:
+  friend class GlicInstanceImpl;
+  friend class GlicInvokeHandler;
+  Floating() = default;
+};
+
 // The target for the invocation.
 struct Target {
+  using Surface =
+      std::variant<DefaultSurface, NewTab, tabs::TabHandle, Floating>;
+
   Target();
-  explicit Target(tabs::TabInterface* tab);
+  explicit Target(tabs::TabInterface& tab);
   explicit Target(BrowserWindowInterface* window);
   explicit Target(NewTab new_tab);
-  Target(tabs::TabInterface* tab,
+  Target(tabs::TabInterface& tab,
          std::variant<DefaultConversation,
                       NewConversation,
                       ConversationId,
@@ -79,9 +92,9 @@ struct Target {
   //   window, or creates a new window if no browser is specified.
   // - NewTab: Creates a new tab in the specified window, or a new window if
   // null.
-  // - TabInterface*: Targets a specific tab. Must not be null.
-  std::variant<DefaultSurface, NewTab, raw_ptr<tabs::TabInterface>> surface =
-      DefaultSurface();
+  // - TabHandle: Targets a specific tab.
+  // - Floating: Targets the floating panel.
+  Surface surface = DefaultSurface();
 
   // Specifies which conversation to use or create.
   // - DefaultConversation: Uses the conversation already bound to the target

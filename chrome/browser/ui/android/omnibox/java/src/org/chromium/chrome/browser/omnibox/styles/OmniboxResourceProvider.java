@@ -538,26 +538,11 @@ public class OmniboxResourceProvider {
                 .getDimensionPixelSize(R.dimen.omnibox_carousel_suggestion_padding);
     }
 
-    /** Get the top margin for first suggestion in the omnibox with "active color" enabled. */
-    public static @Px int getActiveOmniboxTopSmallMargin(Context context) {
-        return context.getResources()
-                .getDimensionPixelSize(R.dimen.omnibox_suggestion_list_active_top_small_margin);
-    }
-
     /** Gets the start padding for a header suggestion. */
     public static @Px int getHeaderStartPadding(Context context) {
         context = maybeReplaceContextForSmallTabletWindow(context);
         return context.getResources()
                 .getDimensionPixelSize(R.dimen.omnibox_suggestion_header_padding_start);
-    }
-
-    /**
-     * Returns the size of the spacer on the left side of the status view when the omnibox is
-     * focused.
-     */
-    public static @Px int getFocusedStatusViewLeftSpacing(Context context) {
-        return context.getResources()
-                .getDimensionPixelSize(R.dimen.location_bar_status_view_left_space_width_bigger);
     }
 
     /**
@@ -708,6 +693,17 @@ public class OmniboxResourceProvider {
     }
 
     /**
+     * A color scheme version of {@link IncognitoColors#getColorSurfaceContainerHighest(Context,
+     * boolean)}. Used for the activation chip.
+     */
+    public static @ColorInt int getColorSurfaceContainerHighest(
+            Context context, @BrandedColorScheme int brandedColorScheme) {
+        boolean isIncognito =
+                convertBrandedColorSchemeToIncognitoOrDayNightAdaptive(brandedColorScheme);
+        return IncognitoColors.getColorSurfaceContainerHighest(context, isIncognito);
+    }
+
+    /**
      * Resolves the vivid color used for the border of the tool chip when used as a hint to enter AI
      * Mode, as well as the background of the send button.
      */
@@ -724,22 +720,6 @@ public class OmniboxResourceProvider {
         boolean isIncognito =
                 convertBrandedColorSchemeToIncognitoOrDayNightAdaptive(brandedColorScheme);
         return IncognitoColors.getDefaultIconColor(context, isIncognito);
-    }
-
-    /** Resolves the icon tint to be used for all the ai mode icons. This is a vivid color. */
-    public static @ColorInt int getAiModeHintIconTintColor(
-            Context context, @BrandedColorScheme int brandedColorScheme) {
-        boolean isIncognito =
-                convertBrandedColorSchemeToIncognitoOrDayNightAdaptive(brandedColorScheme);
-        return IncognitoColors.getDefaultIconColorSecondary(context, isIncognito);
-    }
-
-    /** Resolves the icon tint to be used for all the ai mode icons. */
-    public static @ColorInt int getAiModeHintBorderColor(
-            Context context, @BrandedColorScheme int brandedColorScheme) {
-        boolean isIncognito =
-                convertBrandedColorSchemeToIncognitoOrDayNightAdaptive(brandedColorScheme);
-        return IncognitoColors.getColorOnSurfaceWithAlpha16(context, isIncognito);
     }
 
     /** Resolves the icon tint color for the icons that should be vivid, such as the + button. */
@@ -788,13 +768,6 @@ public class OmniboxResourceProvider {
         return IncognitoColors.getTextMediumThickPrimary(isIncognito);
     }
 
-    /** Resolves the text appearance for the hint chip, somewhat faded out. */
-    public static @StyleRes int getAiModeHintTextRes(@BrandedColorScheme int brandedColorScheme) {
-        boolean isIncognito =
-                convertBrandedColorSchemeToIncognitoOrDayNightAdaptive(brandedColorScheme);
-        return IncognitoColors.getTextMediumThickSecondary(isIncognito);
-    }
-
     /** Resolves the text appearance for menu items in the popup. */
     public static @StyleRes int getPopupButtonTextRes(@BrandedColorScheme int brandedColorScheme) {
         boolean isIncognito =
@@ -818,7 +791,7 @@ public class OmniboxResourceProvider {
         return IncognitoColors.getTextSmallSecondary(isIncognito);
     }
 
-    /** Returns the drawable that is to go behind the + button in the search box. */
+    /** Returns the drawable that normally goes behind the plus button. */
     public static Drawable getSearchBoxIconBackground(
             Context context, @BrandedColorScheme int brandedColorScheme) {
         Resources res = context.getResources();
@@ -826,6 +799,19 @@ public class OmniboxResourceProvider {
                 convertBrandedColorSchemeToIncognitoOrDayNightAdaptive(brandedColorScheme);
         @Px int size = res.getDimensionPixelSize(R.dimen.small_icon_background_size);
         return DrawableUtils.getIconBackground(context, isIncognito, size, size);
+    }
+
+    /** Returns the drawable that goes behind the plus button when in popover mode. */
+    public static Drawable getPopoverPlusButtonBackground(
+            Context context, @BrandedColorScheme int brandedColorScheme) {
+        boolean isIncognito =
+                convertBrandedColorSchemeToIncognitoOrDayNightAdaptive(brandedColorScheme);
+        @DrawableRes
+        int resId =
+                isIncognito
+                        ? R.drawable.fusebox_popover_plus_button_background_incognito
+                        : R.drawable.fusebox_popover_plus_button_background;
+        return getDrawable(context, resId);
     }
 
     /** Returns the drawable for the popup menu that shows menu items for context and tools. */

@@ -49,6 +49,7 @@ import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
 import org.chromium.chrome.test.transit.omnibox.OmniboxFacility;
 import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.components.omnibox.AutocompleteInput;
+import org.chromium.components.omnibox.OmniboxCapabilities;
 import org.chromium.components.omnibox.OmniboxFocusReason;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.ViewUtils;
@@ -129,8 +130,8 @@ public class LocationBarLayoutTest {
 
     @Test
     @SmallTest
-    @DisabledTest(message = "crbug.com/517514794")
     public void testDeleteButton() {
+        OmniboxCapabilities.setHasDesktopExperienceForTesting(false);
         OmniboxFacility omnibox = mPage.openOmnibox();
         omnibox.setText("testing").clickDelete();
 

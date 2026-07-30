@@ -115,6 +115,7 @@
 #include "components/sync/service/sync_service.h"
 #include "components/sync_device_info/device_count_metrics_provider.h"
 #include "components/ukm/field_trials_provider_helper.h"
+#include "components/ukm/observers/ukm_consent_state_observer.h"
 #include "components/ukm/ukm_service.h"
 #include "components/variations/synthetic_trial_registry.h"
 #include "components/version_info/version_info.h"
@@ -166,7 +167,7 @@
 #include "chrome/browser/metrics/chromeos_system_profile_provider.h"
 #include "chrome/browser/metrics/class_management_enabled_metrics_provider.h"
 #include "chrome/browser/metrics/cros_healthd_metrics_provider.h"
-#include "chrome/browser/metrics/cros_pre_consent_metrics_manager.h"
+#include "chrome/browser/metrics/cros_pre_choice_metrics_manager.h"
 #include "chrome/browser/metrics/family_user_metrics_provider.h"
 #include "chrome/browser/metrics/k12_age_classification_metrics_provider.h"
 #include "chrome/browser/metrics/per_user_state_manager_chromeos.h"
@@ -689,8 +690,8 @@ base::TimeDelta ChromeMetricsServiceClient::GetStandardUploadInterval() {
 std::optional<base::TimeDelta>
 ChromeMetricsServiceClient::GetCustomUploadInterval() const {
 #if BUILDFLAG(IS_CHROMEOS)
-  if (cros_pre_consent_manager_) {
-    return cros_pre_consent_manager_->GetUploadInterval();
+  if (cros_pre_choice_manager_) {
+    return cros_pre_choice_manager_->GetUploadInterval();
   }
 #endif
   return std::nullopt;
@@ -755,12 +756,12 @@ void ChromeMetricsServiceClient::Initialize() {
   // currently in Demo Mode.
   SetIsDemoMode(ash::demo_mode::IsDeviceInDemoMode());
 
-  // Conditionally create the CrOSPreConsentMetricsManager.
+  // Conditionally create the CrOSPreChoiceMetricsManager.
   //
-  // See //chrome/browser/metrics/cros_pre_consent_metrics_manager.cc for all
+  // See //chrome/browser/metrics/cros_pre_choice_metrics_manager.cc for all
   // conditions.
-  cros_pre_consent_manager_ =
-      metrics::CrOSPreConsentMetricsManager::MaybeCreate();
+  cros_pre_choice_manager_ =
+      metrics::CrOSPreChoiceMetricsManager::MaybeCreate();
 #endif
 }
 

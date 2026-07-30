@@ -9,6 +9,8 @@ NSString* const kPopupMenuToolsMenuTableViewId =
 NSString* const kPopupMenuToolsMenuActionListId =
     @"kPopupMenuToolsMenuActionListId";
 
+NSString* const kIdentityGroupName = @"identity_actions";
+
 NSString* const kToolsMenuDownloadsId = @"kToolsMenuDownloadsId";
 NSString* const kToolsMenuReload = @"kToolsMenuReload";
 NSString* const kToolsMenuStop = @"kToolsMenuStop";
@@ -52,6 +54,8 @@ NSString* const kToolsMenuNewTabGroupId = @"kToolsMenuNewTabGroupId";
 NSString* const kToolsMenuMoveTabToGroupId = @"kToolsMenuMoveTabToGroupId";
 NSString* const kToolsMenuAddTabToGroupId = @"kToolsMenuAddTabToGroupId";
 NSString* const kToolsMenuShareId = @"kToolsMenuShareId";
+NSString* const kToolsMenuSigninId = @"kToolsMenuSigninId";
+NSString* const kToolsMenuIdentityId = @"kToolsMenuIdentityId";
 
 const CGFloat kSelectedItemBackgroundAlpha = 0.05;
 const CGFloat kHighlightAnimationDuration = 0.5;

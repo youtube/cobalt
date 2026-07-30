@@ -54,7 +54,7 @@ import org.chromium.components.autofill.EditableOption;
 import org.chromium.components.browser_ui.widget.FadingEdgeScrollView;
 import org.chromium.components.browser_ui.widget.animation.FocusAnimator;
 import org.chromium.components.payments.ui.InputProtector;
-import org.chromium.components.signin.base.CoreAccountInfo;
+import org.chromium.components.signin.base.AccountInfo;
 import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.ui.base.ViewUtils;
 import org.chromium.ui.interpolators.Interpolators;
@@ -531,6 +531,7 @@ public class PaymentRequestUi
         // Create all the possible sections.
         mSectionSeparators = new ArrayList<>();
         mPaymentContainer = mRequestView.findViewById(R.id.option_container);
+        mPaymentContainer.disableScrollbarOnTablet();
         mPaymentContainerLayout = mRequestView.findViewById(R.id.payment_container_layout);
         mRetryErrorView = mRequestView.findViewById(R.id.retry_error);
         mOrderSummarySection =
@@ -1211,8 +1212,7 @@ public class PaymentRequestUi
         IdentityManager identityManager =
                 IdentityServicesProvider.get().getIdentityManager(mProfile);
         if (identityManager == null) return null;
-        CoreAccountInfo info = identityManager.getPrimaryAccountInfo();
-        return CoreAccountInfo.getEmailFrom(info);
+        return AccountInfo.getEmailFrom(identityManager.getPrimaryAccountInfo());
     }
 
     private Callback<SectionInformation> createUpdateSectionCallback(@DataType final int type) {

@@ -8,14 +8,12 @@
 <translation id="204914487372604757">Luo pikakuvake</translation>
 <translation id="2065911435109240297">Palauta verkkosovellukset</translation>
 <translation id="2111649875343992405">Tarkista palautettavat verkkosovellukset</translation>
-<translation id="2139186145475833000">Lisää aloitusnäyttöön</translation>
 <translation id="2172982519592313442">Tarkista verkkosovellukset</translation>
 <translation id="2478076885740497414">Asenna sovellus</translation>
 <translation id="3470954020960831923">Tätä sovellusta ei voi asentaa.</translation>
 <translation id="3789841737615482174">Asenna</translation>
 <translation id="3910402514791813257">Asennus epäonnistui</translation>
 <translation id="4250229828105606438">Kuvakaappaus</translation>
-<translation id="4338600611020922010">Lisää aloitusruutuun</translation>
 <translation id="4665282149850138822"><ph name="NAME" /> lisättiin aloitusnäytölle.</translation>
 <translation id="5037411519220435935">Hetkinen\u2026</translation>
 <translation id="5250483651202458397">Kuvakaappaus. Sulje napauttamalla.</translation>
@@ -25,6 +23,7 @@
 <translation id="5972844218283131174">Poista valinta kaikista</translation>
 <translation id="6838423508083736333">Viimeisen kuukauden aikana käytetyt verkkosovellukset</translation>
 <translation id="6847654118050428901">Lisää pikakuvakkeen nimi</translation>
+<translation id="6923899737874692938">Asenna ja luo pikakuvake</translation>
 <translation id="6990079615885386641">Hanki sovellus Google Play Kaupasta: <ph name="APP_ACTION" /></translation>
 <translation id="7333031090786104871">Edellisen sivuston lisääminen kesken</translation>
 <translation id="7672888405515738928">Valitse tälle laitteelle palautettavat verkkosovellukset. Täällä näkyvät sovellukset perustuvat Chrome-historiaasi.</translation>

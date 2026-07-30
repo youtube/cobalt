@@ -29,6 +29,7 @@ import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_C
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_LAST_APPLY_THEME_TIMESTAMP_MS;
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_LAST_DAILY_REFRESH_TIMESTAMP;
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_PRIMARY_COLOR;
+import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_PRIMARY_COLOR_DARK;
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_PRIMARY_COLOR_FOR_DAILY_REFRESH;
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_THEME_COLOR_ID;
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_THEME_IS_SNACKBAR_SHOWN;
@@ -191,7 +192,11 @@ public class NtpCustomizationUtils {
      * sheet's content description requires special handling beyond this function.
      */
     public static int getSheetContentDescription(
-            @NtpCustomizationCoordinator.BottomSheetType int type) {
+            @Nullable @NtpCustomizationCoordinator.BottomSheetType Integer type) {
+        if (type == null) {
+            return R.string.ntp_customization_main_bottom_sheet;
+        }
+
         switch (type) {
             case MAIN:
                 return R.string.ntp_customization_main_bottom_sheet;
@@ -219,7 +224,11 @@ public class NtpCustomizationUtils {
      * expanded.
      */
     public static int getSheetFullHeightAccessibilityStringId(
-            @NtpCustomizationCoordinator.BottomSheetType int type) {
+            @Nullable @NtpCustomizationCoordinator.BottomSheetType Integer type) {
+        if (type == null) {
+            return R.string.ntp_customization_main_bottom_sheet_opened_full;
+        }
+
         switch (type) {
             case MAIN:
                 return R.string.ntp_customization_main_bottom_sheet_opened_full;
@@ -249,7 +258,11 @@ public class NtpCustomizationUtils {
      * expanded.
      */
     public static int getSheetHalfHeightAccessibilityStringId(
-            @NtpCustomizationCoordinator.BottomSheetType int type) {
+            @Nullable @NtpCustomizationCoordinator.BottomSheetType Integer type) {
+        if (type == null) {
+            return R.string.ntp_customization_main_bottom_sheet_opened_half;
+        }
+
         switch (type) {
             case MAIN:
                 return R.string.ntp_customization_main_bottom_sheet_opened_half;
@@ -330,6 +343,12 @@ public class NtpCustomizationUtils {
                 colorId = ntpThemeDailyRefreshManager.maybeApplyDailyRefreshForChromeColor(colorId);
             }
             return context.getColor(NtpThemeColorUtils.getNtpThemePrimaryColorResId(colorId));
+        } else if (imageType == NtpBackgroundType.COLOR_FROM_HEX) {
+            boolean isNightMode = ColorUtils.inNightMode(context);
+            color =
+                    isNightMode
+                            ? getCustomizedPrimaryColorDarkFromSharedPreference()
+                            : getCustomizedPrimaryColorFromSharedPreference();
         } else if (imageType == NtpBackgroundType.THEME_COLLECTION) {
             if (checkDailyRefresh) {
                 ntpThemeDailyRefreshManager.maybeApplyDailyRefreshForThemeCollection();
@@ -715,6 +734,21 @@ public class NtpCustomizationUtils {
         prefs.removeKey(NTP_BACKGROUND_IMAGE_LANDSCAPE_INFO_FOR_DAILY_REFRESH);
     }
 
+    /** Saves the colors of the given NtpThemeColorFromHexInfo to the ShardPreference. */
+    public static void saveThemeColorFromHexInfoToSharedPreference(
+            NtpThemeColorFromHexInfo colorInfo) {
+        SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
+        prefsManager.writeInt(
+                ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_COLOR,
+                colorInfo.backgroundColorLight);
+        prefsManager.writeInt(
+                ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_COLOR_DARK,
+                colorInfo.backgroundColorDark);
+        prefsManager.writeInt(
+                ChromePreferenceKeys.NTP_CUSTOMIZATION_PRIMARY_COLOR, colorInfo.primaryColorLight);
+        prefsManager.writeInt(NTP_CUSTOMIZATION_PRIMARY_COLOR_DARK, colorInfo.primaryColorDark);
+    }
+
     /**
      * Sets the NTP's background color to the SharedPreference.
      *
@@ -730,6 +764,14 @@ public class NtpCustomizationUtils {
         SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
         return prefsManager.readInt(
                 ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_COLOR, defaultColor);
+    }
+
+    /** Gets the NTP's background color in dark mode from the SharedPreference. */
+    public static @ColorInt int getBackgroundColorDarkFromSharedPreference(
+            @ColorInt int defaultColor) {
+        SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
+        return prefsManager.readInt(
+                ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_COLOR_DARK, defaultColor);
     }
 
     /**
@@ -794,6 +836,20 @@ public class NtpCustomizationUtils {
         prefsManager.writeInt(NTP_CUSTOMIZATION_PRIMARY_COLOR, color);
     }
 
+    /** Gets the customized primary color from the SharedPreference. */
+    public static @ColorInt int getCustomizedPrimaryColorFromSharedPreference() {
+        SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
+        return prefsManager.readInt(
+                NTP_CUSTOMIZATION_PRIMARY_COLOR, NtpThemeColorInfo.COLOR_NOT_SET);
+    }
+
+    /** Gets the customized primary color in dark mode from the SharedPreference. */
+    public static @ColorInt int getCustomizedPrimaryColorDarkFromSharedPreference() {
+        SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
+        return prefsManager.readInt(
+                NTP_CUSTOMIZATION_PRIMARY_COLOR_DARK, NtpThemeColorInfo.COLOR_NOT_SET);
+    }
+
     /**
      * Sets the customized primary color for daily refresh to SharedPreferences.
      *
@@ -803,13 +859,6 @@ public class NtpCustomizationUtils {
             @ColorInt int color) {
         SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
         prefsManager.writeInt(NTP_CUSTOMIZATION_PRIMARY_COLOR_FOR_DAILY_REFRESH, color);
-    }
-
-    /** Gets the customized primary color from the SharedPreference. */
-    public static @ColorInt int getCustomizedPrimaryColorFromSharedPreference() {
-        SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
-        return prefsManager.readInt(
-                NTP_CUSTOMIZATION_PRIMARY_COLOR, NtpThemeColorInfo.COLOR_NOT_SET);
     }
 
     /** Gets the customized primary color for daily refresh from SharedPreferences. */
@@ -947,6 +996,7 @@ public class NtpCustomizationUtils {
     static void resetCustomizedColors() {
         SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
         prefsManager.removeKey(ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_COLOR);
+        prefsManager.removeKey(ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_COLOR_DARK);
         prefsManager.removeKey(ChromePreferenceKeys.NTP_CUSTOMIZATION_THEME_COLOR_ID);
         prefsManager.removeKey(
                 ChromePreferenceKeys.NTP_CUSTOMIZATION_CHROME_COLOR_DAILY_REFRESH_ENABLED);
@@ -956,6 +1006,7 @@ public class NtpCustomizationUtils {
     static void resetCustomizedImage() {
         SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
         prefsManager.removeKey(NTP_CUSTOMIZATION_PRIMARY_COLOR);
+        prefsManager.removeKey(NTP_CUSTOMIZATION_PRIMARY_COLOR_DARK);
         prefsManager.removeKey(NTP_CUSTOMIZATION_PRIMARY_COLOR_FOR_DAILY_REFRESH);
         prefsManager.removeKey(NTP_CUSTOMIZATION_BACKGROUND_INFO);
         prefsManager.removeKey(NTP_CUSTOMIZATION_BACKGROUND_INFO_FOR_DAILY_REFRESH);
@@ -1654,5 +1705,11 @@ public class NtpCustomizationUtils {
     public static void resetThemeTipBottomSheetShownTimestampFromSharedPreferenceForTesting() {
         SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
         prefsManager.removeKey(NTP_CUSTOMIZATION_THEME_TIP_BOTTOM_SHEET_SHOWN_TIMESTAMP_MS);
+    }
+
+    /** Returns whether NTP theme customization sync is enabled. */
+    public static boolean isNTPCustomizationSyncEnabled() {
+        return ChromeFeatureList.sNewTabPageCustomizationV2.isEnabled()
+                && ChromeFeatureList.sNewTabPageCustomizationThemeSync.isEnabled();
     }
 }

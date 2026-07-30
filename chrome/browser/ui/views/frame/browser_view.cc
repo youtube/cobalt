@@ -176,6 +176,7 @@
 #include "chrome/browser/ui/views/incognito_clear_browsing_data_dialog_coordinator.h"
 #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
+#include "chrome/browser/ui/views/interaction/browser_elements_views_impl.h"
 #include "chrome/browser/ui/views/location_bar/intent_chip_button.h"
 #include "chrome/browser/ui/views/location_bar/intent_picker_view.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
@@ -232,6 +233,7 @@
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/webui/top_chrome/webui_contents_preload_manager.h"
 #include "chrome/browser/ui/window_feature_controller/window_feature_controller.h"
+#include "chrome/browser/ui/window_metadata/window_metadata_controller.h"
 #include "chrome/browser/ui/window_sizer/window_sizer.h"
 #include "chrome/browser/ui/zoom/browser_window_zoom_observer.h"
 #include "chrome/browser/user_education/user_education_service.h"
@@ -284,6 +286,7 @@
 #include "components/webapps/browser/banners/installable_web_app_check_result.h"
 #include "components/webapps/browser/banners/web_app_banner_data.h"
 #include "content/public/browser/browser_accessibility_state.h"
+#include "content/public/browser/desktop_capture_pip_utils.h"
 #include "content/public/browser/download_manager.h"
 #include "content/public/browser/keyboard_event_processing_result.h"
 #include "content/public/browser/navigation_handle.h"
@@ -294,9 +297,11 @@
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/drop_data.h"
 #include "extensions/common/command.h"
+#include "media/capture/capture_switches.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/permissions/permission_utils.h"
 #include "ui/accessibility/ax_enums.mojom-shared.h"
@@ -840,6 +845,32 @@ class BrowserView::ExclusiveAccessContextImpl
   base::WeakPtrFactory<ExclusiveAccessContextImpl> weak_ptr_factory_{this};
 };
 
+#if BUILDFLAG(IS_WIN)
+class BrowserView::PipExclusionObserverImpl
+    : public content::desktop_capture::PipScreenCaptureExclusionObserver {
+ public:
+  explicit PipExclusionObserverImpl(views::Widget* widget) : widget_(widget) {
+    CHECK(widget_);
+    content::desktop_capture::AddPipExclusionObserver(this);
+  }
+
+  PipExclusionObserverImpl(const PipExclusionObserverImpl&) = delete;
+  PipExclusionObserverImpl& operator=(const PipExclusionObserverImpl&) = delete;
+
+  ~PipExclusionObserverImpl() override {
+    content::desktop_capture::RemovePipExclusionObserver(this);
+  }
+
+  // content::desktop_capture::PipScreenCaptureExclusionObserver:
+  void OnExcludeFromScreenCaptureChanged(bool is_excluded) override {
+    widget_->SetExcludeFromScreenCapture(is_excluded);
+  }
+
+ private:
+  const raw_ptr<views::Widget> widget_;
+};
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////
 // BrowserView, public:
 
@@ -1303,8 +1334,8 @@ bool BrowserView::ShouldDrawTabStrokes() const {
   return false;
 #else   // BUILDFLAG(IS_CHROMEOS)
 
-  if (browser()->app_controller() &&
-      !browser()->app_controller()->has_tab_strip()) {
+  if (web_app::AppBrowserController::From(browser()) &&
+      !web_app::AppBrowserController::From(browser())->has_tab_strip()) {
     // Web apps only draw strokes when there is a TabStrip.
     return false;
   }
@@ -1553,6 +1584,9 @@ void BrowserView::Show() {
     restore_focus_on_activation_ = true;
   }
 
+  if (base::FeatureList::IsEnabled(features::kArtificialUIDelay)) {
+    base::PlatformThread::Sleep(features::kViewsUIDelayDuration.Get());
+  }
   browser_widget_->Show();
 
   browser()->OnWindowDidShow();
@@ -1593,7 +1627,11 @@ void BrowserView::SetBounds(const gfx::Rect& bounds) {
     return;
   }
 
+  auto weak_ptr = weak_ptr_factory_.GetWeakPtr();
   exclusive_access_context_->ExitFullscreen();
+  if (!weak_ptr) {
+    return;
+  }
 
   // If the BrowserFrameView has been created, give it a chance to handle the
   // BrowserWidget's bounds change.
@@ -2448,13 +2486,13 @@ void BrowserView::LinkOpeningFromGesture(WindowOpenDisposition disposition) {
 }
 
 bool BrowserView::AppUsesWindowControlsOverlay() const {
-  return browser()->app_controller() &&
-         browser()->app_controller()->AppUsesWindowControlsOverlay();
+  auto* const app_controller = web_app::AppBrowserController::From(browser());
+  return app_controller && app_controller->AppUsesWindowControlsOverlay();
 }
 
 bool BrowserView::AppUsesTabbed() const {
-  return browser()->app_controller() &&
-         browser()->app_controller()->AppUsesTabbed();
+  auto* const app_controller = web_app::AppBrowserController::From(browser());
+  return app_controller && app_controller->AppUsesTabbed();
 }
 
 bool BrowserView::IsWindowControlsOverlayEnabled() const {
@@ -2466,9 +2504,12 @@ void BrowserView::UpdateWindowControlsOverlayEnabled() {
 
   // If the toggle is not visible, we can assume that Window Controls Overlay
   // is not enabled.
+  // TODO(crbug.com/515812858): Rename
+  // `should_show_window_controls_overlay_toggle_`.
+  auto* const app_controller = web_app::AppBrowserController::From(browser());
   bool enabled = should_show_window_controls_overlay_toggle_ &&
-                 browser()->app_controller() &&
-                 browser()->app_controller()->IsWindowControlsOverlayEnabled();
+                 app_controller &&
+                 app_controller->IsWindowControlsOverlayEnabled();
 
   if (enabled == window_controls_overlay_enabled_) {
     return;
@@ -2594,8 +2635,9 @@ void BrowserView::UpdateUnframedModeEnabled() {
           status == blink::mojom::PermissionStatus::GRANTED;
     }
 
-    if (unframed_mode_enabled && browser()->app_controller() &&
-        !browser()->app_controller()->UrlMatchesUnframedPattern(
+    auto* const app_controller = web_app::AppBrowserController::From(browser());
+    if (unframed_mode_enabled && app_controller &&
+        !app_controller->UrlMatchesUnframedPattern(
             web_contents->GetVisibleURL())) {
       unframed_mode_enabled = false;
     }
@@ -2659,10 +2701,11 @@ void BrowserView::SetWindowManagementPermissionSubscriptionForUnframedMode(
 }
 
 void BrowserView::ToggleWindowControlsOverlayEnabled(base::OnceClosure done) {
-  browser()->app_controller()->ToggleWindowControlsOverlayEnabled(
-      base::BindOnce(&BrowserView::UpdateWindowControlsOverlayEnabled,
-                     weak_ptr_factory_.GetWeakPtr())
-          .Then(std::move(done)));
+  web_app::AppBrowserController::From(browser())
+      ->ToggleWindowControlsOverlayEnabled(
+          base::BindOnce(&BrowserView::UpdateWindowControlsOverlayEnabled,
+                         weak_ptr_factory_.GetWeakPtr())
+              .Then(std::move(done)));
 }
 
 bool BrowserView::WidgetOwnedByAnchorContainsPoint(
@@ -2699,8 +2742,8 @@ BrowserView* BrowserView::AsBrowserView() {
 }
 
 bool BrowserView::AppUsesUnframedMode() const {
-  return browser()->app_controller() &&
-         browser()->app_controller()->AppUsesUnframedMode();
+  auto* const app_controller = web_app::AppBrowserController::From(browser());
+  return app_controller && app_controller->AppUsesUnframedMode();
 }
 
 bool BrowserView::AreDraggableRegionsEnabled() const {
@@ -2779,7 +2822,7 @@ ui::mojom::WindowShowState BrowserView::GetWindowShowState() const {
 
 void BrowserView::SetResizableFromWebApi(std::optional<bool> resizable) {
   // The API is allowed only for PWAs and IWAs
-  CHECK(browser()->app_controller());
+  CHECK(web_app::AppBrowserController::From(browser()));
   if (resizable == resizable_from_web_api_) {
     return;
   }
@@ -3534,7 +3577,8 @@ bool BrowserView::CanActivate() const {
 
 std::u16string BrowserView::GetWindowTitle() const {
   std::u16string title =
-      browser_->GetWindowTitleForCurrentTab(true /* include_app_name */);
+      WindowMetadataController::From(browser_.get())
+          ->GetWindowTitleForCurrentTab(true /* include_app_name */);
 #if BUILDFLAG(IS_MAC)
   bool any_tab_playing_audio = false;
   bool any_tab_playing_muted_audio = false;
@@ -3577,7 +3621,8 @@ std::u16string BrowserView::GetAccessibleWindowTitleForChannelAndProfile(
         tabs::GetAccessibleTabLabel(browser_->tab_strip_model()->GetActiveTab(),
                                     /*is_for_tab=*/false);
   } else {
-    title = browser_->GetWindowTitleForCurrentTab(false /* include_app_name */);
+    title = WindowMetadataController::From(browser_.get())
+                ->GetWindowTitleForCurrentTab(false /* include_app_name */);
   }
 
   // Add the name of the browser, unless this is an app window.
@@ -3768,7 +3813,7 @@ bool BrowserView::CanChangeWindowIcon() const {
   if (browser_->is_type_devtools()) {
     return false;
   }
-  if (browser_->app_controller()) {
+  if (web_app::AppBrowserController::From(browser_)) {
     return true;
   }
 #if BUILDFLAG(IS_CHROMEOS)
@@ -3808,7 +3853,8 @@ bool BrowserView::ShouldShowWindowIcon() const {
 }
 
 ui::ImageModel BrowserView::GetWindowAppIcon() {
-  web_app::AppBrowserController* app_controller = browser()->app_controller();
+  web_app::AppBrowserController* app_controller =
+      web_app::AppBrowserController::From(browser());
   return app_controller ? app_controller->GetWindowAppIcon() : GetWindowIcon();
 }
 
@@ -3819,7 +3865,8 @@ ui::ImageModel BrowserView::GetWindowIcon() {
   }
 
   // Hosted apps always show their app icon.
-  web_app::AppBrowserController* app_controller = browser()->app_controller();
+  web_app::AppBrowserController* app_controller =
+      web_app::AppBrowserController::From(browser());
   if (app_controller) {
     return app_controller->GetWindowIcon();
   }
@@ -3839,7 +3886,8 @@ ui::ImageModel BrowserView::GetWindowIcon() {
 #endif
 
   if (!browser_->is_type_normal()) {
-    return ui::ImageModel::FromImage(browser_->GetCurrentPageIcon());
+    return ui::ImageModel::FromImage(
+        WindowMetadataController::From(browser_.get())->GetCurrentPageIcon());
   }
 
   return ui::ImageModel();
@@ -4438,7 +4486,8 @@ bool BrowserView::ShouldDescendIntoChildForEventHandling(
     const gfx::Point& location) {
   // Window for PWAs with window-controls-overlay display override should claim
   // mouse events that fall within the draggable region.
-  web_app::AppBrowserController* controller = browser()->app_controller();
+  web_app::AppBrowserController* controller =
+      web_app::AppBrowserController::From(browser());
   if (AreDraggableRegionsEnabled() && controller &&
       controller->draggable_region().has_value()) {
     // Draggable regions are defined relative to the web contents.
@@ -4666,7 +4715,8 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
 
   // For apps with window-controls-overlay or unframed display mode, see if
   // we're in an app defined draggable region so we can return `HTCAPTION`.
-  web_app::AppBrowserController* controller = browser()->app_controller();
+  web_app::AppBrowserController* controller =
+      web_app::AppBrowserController::From(browser());
 
   if (AreDraggableRegionsEnabled() && controller &&
       controller->draggable_region().has_value()) {
@@ -4834,7 +4884,28 @@ void BrowserView::AddedToWidget() {
 
   views::ClientView::AddedToWidget();
 
+#if BUILDFLAG(IS_WIN)
+  // Register for screen capture exclusion updates. This is specific to
+  // Document PiP windows, which are fully-fledged BrowserViews.
+  if (GetIsPictureInPictureType() &&
+      base::FeatureList::IsEnabled(features::kExcludePipFromScreenCapture)) {
+    pip_exclusion_observer_ =
+        std::make_unique<PipExclusionObserverImpl>(GetWidget());
+    bool is_excluded =
+        content::desktop_capture::IsPipExcludedFromScreenCapture();
+    GetWidget()->SetExcludeFromScreenCapture(is_excluded);
+  }
+#endif
+
   widget_observation_.Observe(GetWidget());
+
+  auto* browser_elements =
+      BrowserElements::From(browser_)->AsA<BrowserElementsViewsImpl>();
+  browser_elements->Init(this);
+  browser_elements->AddRetrievalCallback(
+      kActiveContentsWebViewRetrievalId,
+      base::BindRepeating(&BrowserView::GetActiveContentsWebView,
+                          base::Unretained(this)));
 
   // Stow a pointer to this object onto the window handle so that we can get at
   // it later when all we have is a native view.
@@ -5008,6 +5079,10 @@ void BrowserView::AddedToWidget() {
 
 void BrowserView::RemovedFromWidget() {
   CHECK(GetFocusManager());
+#if BUILDFLAG(IS_WIN)
+  pip_exclusion_observer_.reset();
+#endif
+
   focus_manager_observation_.Reset();
 }
 

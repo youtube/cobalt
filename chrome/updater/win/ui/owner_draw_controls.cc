@@ -118,8 +118,8 @@ HWND CaptionButton::Create(HWND parent, const RECT& bounds, int control_id) {
   // custom icon is rendered.
   HWND control_hwnd = ::CreateWindowExW(
       0, L"BUTTON", tool_tip_text_.c_str(),
-      WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW, bounds.left,
-      bounds.top, Width(bounds), Height(bounds), parent,
+      WS_CHILD | WS_VISIBLE | BS_OWNERDRAW, bounds.left, bounds.top,
+      Width(bounds), Height(bounds), parent,
       reinterpret_cast<HMENU>(static_cast<INT_PTR>(control_id)),
       CURRENT_MODULE(), nullptr);
   CHECK(control_hwnd && ::IsWindow(control_hwnd));
@@ -235,7 +235,7 @@ void CaptionButton::DrawItem(LPDRAWITEMSTRUCT draw_item_struct) {
                     is_mouse_hovering_ ? COLOR_HIGHLIGHTTEXT : COLOR_BTNTEXT));
 
   const UINT button_state = draw_item_struct->itemState;
-  if (!(button_state & ODS_FOCUS) || !(button_state & ODS_SELECTED)) {
+  if (!(button_state & ODS_FOCUS)) {
     return;
   }
 
@@ -961,6 +961,292 @@ LRESULT CustomProgressBarCtrl::OnSetBkColor(UINT,
                  RDW_INVALIDATE | RDW_UPDATENOW | RDW_ERASE);
 
   return old_empty_fill_color;
+}
+
+FlatButton::FlatButton() = default;
+FlatButton::~FlatButton() = default;
+
+void FlatButton::SetIsPrimary(bool is_primary) {
+  is_primary_ = is_primary;
+  if (IsWindow()) {
+    ::InvalidateRect(hwnd(), nullptr, FALSE);
+  }
+}
+
+LRESULT FlatButton::OnMouseMessage(UINT msg, WPARAM wparam, LPARAM lparam) {
+  SetMsgHandled(FALSE);
+  return 1;
+}
+
+LRESULT FlatButton::OnMouseMove(UINT, WPARAM, LPARAM) {
+  if (!is_tracking_mouse_events_) {
+    TRACKMOUSEEVENT tme = {};
+    tme.cbSize = sizeof(TRACKMOUSEEVENT);
+    tme.dwFlags = TME_HOVER | TME_LEAVE;
+    tme.hwndTrack = hwnd();
+    tme.dwHoverTime = 1;
+    is_tracking_mouse_events_ = _TrackMouseEvent(&tme);
+  }
+  SetMsgHandled(FALSE);
+  return 0;
+}
+
+LRESULT FlatButton::OnMouseHover(UINT, WPARAM, LPARAM) {
+  if (!is_mouse_hovering_) {
+    is_mouse_hovering_ = true;
+    ::InvalidateRect(hwnd(), nullptr, FALSE);
+    ::UpdateWindow(hwnd());
+  }
+  SetMsgHandled(FALSE);
+  return 0;
+}
+
+LRESULT FlatButton::OnMouseLeave(UINT, WPARAM, LPARAM) {
+  TRACKMOUSEEVENT tme = {};
+  tme.cbSize = sizeof(TRACKMOUSEEVENT);
+  tme.dwFlags = TME_CANCEL | TME_HOVER | TME_LEAVE;
+  tme.hwndTrack = hwnd();
+  _TrackMouseEvent(&tme);
+
+  is_tracking_mouse_events_ = false;
+  is_mouse_hovering_ = false;
+
+  ::InvalidateRect(hwnd(), nullptr, FALSE);
+  ::UpdateWindow(hwnd());
+
+  SetMsgHandled(FALSE);
+  return 0;
+}
+
+LRESULT FlatButton::OnThemeChanged(UINT, WPARAM, LPARAM) {
+  ::InvalidateRect(hwnd(), nullptr, FALSE);
+  SetMsgHandled(FALSE);
+  return 0;
+}
+
+LRESULT FlatButton::OnSysColorChange(UINT, WPARAM, LPARAM) {
+  ::InvalidateRect(hwnd(), nullptr, FALSE);
+  SetMsgHandled(FALSE);
+  return 0;
+}
+
+LRESULT FlatButton::OnEraseBkgnd(UINT, WPARAM, LPARAM) {
+  return 1;
+}
+
+LRESULT FlatButton::OnPaint(UINT, WPARAM, LPARAM) {
+  PAINTSTRUCT ps = {};
+  HDC dc_paint = ::BeginPaint(hwnd(), &ps);
+  RECT rect = {};
+  ::GetClientRect(hwnd(), &rect);
+
+  if (IsRectEmpty(rect)) {
+    ::EndPaint(hwnd(), &ps);
+    return 0;
+  }
+
+  HDC dc = ::CreateCompatibleDC(dc_paint);
+  base::win::ScopedGDIObject<HBITMAP> bmp(
+      ::CreateCompatibleBitmap(dc_paint, Width(rect), Height(rect)));
+  if (!dc || !bmp.is_valid()) {
+    if (dc) {
+      ::DeleteDC(dc);
+    }
+    ::EndPaint(hwnd(), &ps);
+    return 0;
+  }
+  HGDIOBJ old_bmp = ::SelectObject(dc, bmp.get());
+
+  DrawParentBackground(hwnd(), dc, rect);
+
+  const bool is_disabled = !::IsWindowEnabled(hwnd());
+  const bool is_default =
+      (::GetWindowLong(hwnd(), GWL_STYLE) & BS_DEFPUSHBUTTON) != 0;
+  const bool is_pressed =
+      ((::SendMessageW(hwnd(), BM_GETSTATE, 0, 0) & BST_PUSHED) != 0);
+
+  COLORREF bg = CLR_INVALID;
+  COLORREF text = CLR_INVALID;
+  COLORREF border = CLR_INVALID;
+
+  if (IsHighContrastOn()) {
+    const bool is_focused =
+        (::GetFocus() == hwnd()) ||
+        ((::SendMessageW(hwnd(), BM_GETSTATE, 0, 0) & BST_FOCUS) != 0);
+    const bool use_highlight = is_pressed || is_default || is_mouse_hovering_ ||
+                               is_focused || is_primary_;
+
+    bg = use_highlight ? ::GetSysColor(COLOR_HIGHLIGHT)
+                       : ::GetSysColor(COLOR_BTNFACE);
+    text = use_highlight ? ::GetSysColor(COLOR_HIGHLIGHTTEXT)
+                         : ::GetSysColor(COLOR_BTNTEXT);
+    border = ::GetSysColor(COLOR_WINDOWFRAME);
+  } else if (IsDarkModeOn()) {
+    if (is_disabled) {
+      bg = kButtonBgDisabledDark;
+      text = kButtonFgDisabledDark;
+      border = bg;
+    } else if (is_primary_) {
+      bg = is_pressed ? kPrimaryButtonBgDarkPressed
+                      : (is_mouse_hovering_ ? kPrimaryButtonBgDarkHover
+                                            : kPrimaryButtonBgDark);
+      text = kPrimaryButtonFgDark;
+      border = bg;
+    } else {
+      bg = is_pressed ? kSecondaryButtonBgDarkPressed
+                      : (is_mouse_hovering_ ? kSecondaryButtonBgDarkHover
+                                            : kSecondaryButtonBgDark);
+      text = kSecondaryButtonFgDark;
+      border = kSecondaryButtonBorderDark;
+    }
+  } else {
+    if (is_disabled) {
+      bg = kButtonBgDisabled;
+      text = kButtonFgDisabled;
+      border = bg;
+    } else if (is_primary_) {
+      bg = is_pressed ? kPrimaryButtonBgPressed
+                      : (is_mouse_hovering_ ? kPrimaryButtonBgHover
+                                            : kPrimaryButtonBg);
+      text = kPrimaryButtonFg;
+      border = bg;
+    } else {
+      bg = is_pressed ? kSecondaryButtonBgPressed
+                      : (is_mouse_hovering_ ? kSecondaryButtonBgHover
+                                            : kSecondaryButtonBg);
+      text = kSecondaryButtonFg;
+      border = is_mouse_hovering_ ? kSecondaryButtonFg : kSecondaryButtonBorder;
+    }
+  }
+
+  const int dpi = ::GetDpiForWindow(hwnd());
+
+  // Render background and border at 4x scale for high-quality anti-aliasing.
+  constexpr int kScale = 4;
+  const RECT high_res_rect = {0, 0, Width(rect) * kScale,
+                              Height(rect) * kScale};
+
+  HDC dc_hi_res = ::CreateCompatibleDC(dc);
+  base::win::ScopedGDIObject<HBITMAP> bmp_hi_res(::CreateCompatibleBitmap(
+      dc, Width(high_res_rect), Height(high_res_rect)));
+
+  if (dc_hi_res && bmp_hi_res.is_valid()) {
+    HGDIOBJ old_bmp_hi_res = ::SelectObject(dc_hi_res, bmp_hi_res.get());
+
+    // Copy parent background to high-res DC to blend corners beautifully.
+    ::StretchBlt(dc_hi_res, 0, 0, Width(high_res_rect), Height(high_res_rect),
+                 dc, 0, 0, Width(rect), Height(rect), SRCCOPY);
+
+    base::win::ScopedGDIObject<HBRUSH> bg_brush(::CreateSolidBrush(bg));
+    HGDIOBJ old_brush = ::SelectObject(dc_hi_res, bg_brush.get());
+
+    HGDIOBJ old_pen = nullptr;
+    base::win::ScopedGDIObject<HPEN> border_pen;
+    if (border != CLR_INVALID) {
+      const int thickness =
+          std::max(1, ::MulDiv(1, dpi, USER_DEFAULT_SCREEN_DPI)) * kScale;
+      // Use PS_INSIDEFRAME so thick borders draw completely inside the rect
+      // and do not get clipped at the top/left bitmap boundaries.
+      border_pen.reset(::CreatePen(PS_INSIDEFRAME, thickness, border));
+      old_pen = ::SelectObject(dc_hi_res, border_pen.get());
+    } else {
+      old_pen = ::SelectObject(dc_hi_res, ::GetStockObject(NULL_PEN));
+    }
+
+    const int corner_size = Height(high_res_rect);
+    ::RoundRect(dc_hi_res, high_res_rect.left, high_res_rect.top,
+                high_res_rect.right, high_res_rect.bottom, corner_size,
+                corner_size);
+
+    ::SelectObject(dc_hi_res, old_brush);
+    if (old_pen) {
+      ::SelectObject(dc_hi_res, old_pen);
+    }
+
+    // Downscale back to 1x DC using HALFTONE for smooth anti-aliased edges.
+    ::SetStretchBltMode(dc, HALFTONE);
+    ::SetBrushOrgEx(dc, 0, 0, nullptr);
+    ::StretchBlt(dc, 0, 0, Width(rect), Height(rect), dc_hi_res, 0, 0,
+                 Width(high_res_rect), Height(high_res_rect), SRCCOPY);
+
+    ::SelectObject(dc_hi_res, old_bmp_hi_res);
+    ::DeleteDC(dc_hi_res);
+  } else {
+    // Fallback: draw directly at 1x if high-res DC allocation failed.
+    if (dc_hi_res) {
+      ::DeleteDC(dc_hi_res);
+    }
+    base::win::ScopedGDIObject<HBRUSH> bg_brush(::CreateSolidBrush(bg));
+    HGDIOBJ old_brush = ::SelectObject(dc, bg_brush.get());
+
+    HGDIOBJ old_pen = nullptr;
+    base::win::ScopedGDIObject<HPEN> border_pen;
+    if (border != CLR_INVALID) {
+      const int thickness =
+          std::max(1, ::MulDiv(1, dpi, USER_DEFAULT_SCREEN_DPI));
+      border_pen.reset(::CreatePen(PS_INSIDEFRAME, thickness, border));
+      old_pen = ::SelectObject(dc, border_pen.get());
+    } else {
+      old_pen = ::SelectObject(dc, ::GetStockObject(NULL_PEN));
+    }
+
+    const int corner_size = Height(rect);
+    ::RoundRect(dc, rect.left, rect.top, rect.right, rect.bottom, corner_size,
+                corner_size);
+
+    ::SelectObject(dc, old_brush);
+    if (old_pen) {
+      ::SelectObject(dc, old_pen);
+    }
+  }
+
+  if (::GetFocus() == hwnd() && !is_disabled) {
+    RECT focus_rect = rect;
+    ::InflateRect(&focus_rect, -2, -2);
+    const int focus_corner_size = Height(focus_rect);
+    base::win::ScopedGDIObject<HPEN> focus_pen(::CreatePen(PS_DOT, 1, text));
+    HGDIOBJ old_focus_pen = ::SelectObject(dc, focus_pen.get());
+    HGDIOBJ old_focus_brush = ::SelectObject(dc, ::GetStockObject(NULL_BRUSH));
+    const int old_bk_mode = ::SetBkMode(dc, TRANSPARENT);
+    ::RoundRect(dc, focus_rect.left, focus_rect.top, focus_rect.right,
+                focus_rect.bottom, focus_corner_size, focus_corner_size);
+    ::SetBkMode(dc, old_bk_mode);
+    ::SelectObject(dc, old_focus_brush);
+    ::SelectObject(dc, old_focus_pen);
+  }
+
+  wchar_t button_text[256] = {};
+  ::GetWindowTextW(hwnd(), button_text, std::size(button_text));
+
+  if (wcslen(button_text) > 0) {
+    const COLORREF old_text_color = ::SetTextColor(dc, text);
+    const int old_bk_mode = ::SetBkMode(dc, TRANSPARENT);
+
+    HFONT font =
+        reinterpret_cast<HFONT>(::SendMessageW(hwnd(), WM_GETFONT, 0, 0));
+    HFONT old_font = nullptr;
+    if (font) {
+      old_font = static_cast<HFONT>(::SelectObject(dc, font));
+    }
+
+    ::DrawTextW(dc, button_text, -1, &rect,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
+    if (old_font) {
+      ::SelectObject(dc, old_font);
+    }
+    ::SetBkMode(dc, old_bk_mode);
+    ::SetTextColor(dc, old_text_color);
+  }
+
+  ::BitBlt(dc_paint, rect.left, rect.top, Width(rect), Height(rect), dc, 0, 0,
+           SRCCOPY);
+
+  ::SelectObject(dc, old_bmp);
+  ::DeleteDC(dc);
+
+  ::EndPaint(hwnd(), &ps);
+  return 0;
 }
 
 }  // namespace updater::ui

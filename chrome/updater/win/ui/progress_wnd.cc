@@ -131,6 +131,52 @@ void ProgressWnd::SetEventSink(ProgressWndEvents* events) {
   CompleteWnd::SetEventSink(events_sink_);
 }
 
+LRESULT ProgressWnd::OnSetAppLogo(UINT, WPARAM wparam, LPARAM) {
+  SetAppLogo(reinterpret_cast<HBITMAP>(wparam));
+  return 0;
+}
+
+void ProgressWnd::SetAppLogo(HBITMAP bitmap) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!IsWindow()) {
+    return;
+  }
+
+  if (app_logo_bmp_.get() != bitmap) {
+    app_logo_bmp_.reset(bitmap);
+  }
+
+  if (!app_logo_bmp_.is_valid()) {
+    return;
+  }
+
+  // Obtain the original dimensions of the cached bitmap.
+  BITMAP bm = {};
+  if (::GetObject(app_logo_bmp_.get(), sizeof(bm), &bm) == 0) {
+    VLOG(1) << __func__ << " ::GetObject failed";
+    return;
+  }
+
+  const int dpi = ::GetDpiForWindow(hwnd());
+  const int width_pixels = ::MulDiv(bm.bmWidth, dpi, USER_DEFAULT_SCREEN_DPI);
+  const int height_pixels = ::MulDiv(bm.bmHeight, dpi, USER_DEFAULT_SCREEN_DPI);
+
+  if (width_pixels <= 0 || height_pixels <= 0) {
+    VLOG(1) << __func__ << " Invalid logo dimensions: " << width_pixels << "x"
+            << height_pixels;
+    return;
+  }
+
+  HBITMAP scaled_bitmap = reinterpret_cast<HBITMAP>(::CopyImage(
+      app_logo_bmp_.get(), IMAGE_BITMAP, width_pixels, height_pixels, 0));
+
+  if (scaled_bitmap) {
+    base::win::ScopedGDIObject<HBITMAP> old_bitmap(reinterpret_cast<HBITMAP>(
+        ::SendDlgItemMessage(hwnd(), IDC_APP_BITMAP, STM_SETIMAGE, IMAGE_BITMAP,
+                             reinterpret_cast<LPARAM>(scaled_bitmap))));
+  }
+}
+
 LRESULT ProgressWnd::OnInitDialog(UINT, WPARAM, LPARAM) {
   HideWindowChildren(hwnd());
 
@@ -146,6 +192,18 @@ LRESULT ProgressWnd::OnInitDialog(UINT, WPARAM, LPARAM) {
   // shows through behind any bitmap content.
   InstallBitmapStaticSubclass(hwnd(), IDC_APP_BITMAP);
   InstallBitmapStaticSubclass(hwnd(), IDC_ERROR_ILLUSTRATION);
+
+  btn1_.SetIsPrimary(true);
+  btn1_.SubclassWindow(::GetDlgItem(hwnd(), IDC_BUTTON1));
+
+  btn2_.SetIsPrimary(false);
+  btn2_.SubclassWindow(::GetDlgItem(hwnd(), IDC_BUTTON2));
+
+  close_btn_.SetIsPrimary(true);
+  close_btn_.SubclassWindow(::GetDlgItem(hwnd(), IDC_CLOSE));
+
+  get_help_btn_.SetIsPrimary(false);
+  get_help_btn_.SubclassWindow(::GetDlgItem(hwnd(), IDC_GET_HELP));
 
   ChangeControlState();
 
@@ -199,6 +257,14 @@ void ProgressWnd::UpdateWindowRgn() {
   if (rgn) {
     // SetWindowRgn takes ownership of the HRGN object.
     ::SetWindowRgn(hwnd(), rgn, TRUE);
+  }
+}
+
+void ProgressWnd::ApplyDpiScaling(int dpi) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  OmahaWnd::ApplyDpiScaling(dpi);
+  if (app_logo_bmp_.is_valid()) {
+    SetAppLogo(app_logo_bmp_.get());
   }
 }
 

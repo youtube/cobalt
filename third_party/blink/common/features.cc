@@ -113,9 +113,6 @@ BASE_FEATURE(kLowerHighResolutionTimerThreshold,
 BASE_FEATURE(kAllowDatapipeDrainedAsBytesConsumerInBFCache,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kAllowDevToolsMainThreadDebuggerForMultipleMainFrames,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables URN URLs like those produced by Protected Audience auctions to be
 // displayed by iframes (instead of requiring fenced frames).
 BASE_FEATURE(kAllowURNsInIframes, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1059,10 +1056,6 @@ BASE_FEATURE(kFrequencyCappingForOverlayPopupDetection,
 
 BASE_FEATURE(kGMSCoreEmoji, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// If enabled, then display audio track permission failures are ignored.
-BASE_FEATURE(kGetDisplayMediaIgnoreAudioPermissionFailures,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE_PARAM(std::string,
                    kHTMLParserYieldEventNameForPause,
                    &kHTMLParserYieldByUserTiming,
@@ -1081,13 +1074,8 @@ BASE_FEATURE_PARAM(size_t,
                    "timeout_ms",
                    20);
 
-BASE_FEATURE(kIgnoreInputWhileHidden,
-             // TODO(crbug.com/407265465) Some Accessibility tools on Windows
-             // appear to mark the Renderer as Hidden. This feature currently
-             // breaks them. Disabling until the root cause can be identified.
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kImageLoadingPrioritizationFix, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kImageLoadingPrioritizationFix, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kImageReplacement, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -2143,7 +2131,13 @@ BASE_FEATURE(kPreloadingEligibilityCheckOnRenderer,
 const char kPrerender2MaxNumOfRunningSpeculationRules[] =
     "max_num_of_running_speculation_rules";
 
-BASE_FEATURE(kPrerender2MemoryControls, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kPrerender2MemoryControls,
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_DISABLED_BY_DEFAULT
+#else
+             base::FEATURE_ENABLED_BY_DEFAULT
+#endif
+);
 const char kPrerender2MemoryThresholdParamName[] = "memory_threshold_in_mb";
 const char kPrerender2MemoryAcceptablePercentOfSystemMemoryParamName[] =
     "acceptable_percent_of_system_memory";
@@ -2630,9 +2624,6 @@ BASE_FEATURE(kURLPatternDummyURLCanonicalization,
 BASE_FEATURE(kUsePersistentCacheForCodeCache,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enabling this will cause parkable strings to use Snappy for compression iff
-// kCompressParkableStrings is enabled.
-BASE_FEATURE(kUseSnappyForParkableStrings, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Use the zstd compression algorithm for ParkableString compression.
 BASE_FEATURE(kUseZstdForParkableStrings, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -2851,9 +2842,6 @@ bool IsUnloadBlocklisted() {
   return base::FeatureList::IsEnabled(kUnloadBlocklisted);
 }
 
-bool ParkableStringsUseSnappy() {
-  return base::FeatureList::IsEnabled(kUseSnappyForParkableStrings);
-}
 
 bool IsKeepAliveURLLoaderServiceEnabled() {
   return base::FeatureList::IsEnabled(kKeepAliveInBrowserMigration) ||

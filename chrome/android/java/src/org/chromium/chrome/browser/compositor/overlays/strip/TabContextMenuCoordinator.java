@@ -31,7 +31,6 @@ import androidx.annotation.IdRes;
 import androidx.annotation.StringRes;
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.MathUtils;
 import org.chromium.base.Token;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
@@ -75,9 +74,9 @@ import org.chromium.chrome.browser.tasks.tab_management.GroupWindowState;
 import org.chromium.chrome.browser.tasks.tab_management.TabGroupListBottomSheetCoordinator;
 import org.chromium.chrome.browser.tasks.tab_management.TabShareUtils;
 import org.chromium.chrome.browser.tasks.tab_management.TabStripReorderingHelper;
-import org.chromium.chrome.browser.tasks.tab_management.vertical_tabs.VerticalTabUtils;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.signin.SigninAndHistorySyncActivityLauncher;
+import org.chromium.chrome.browser.ui.vertical_tabs.VerticalTabUtils;
 import org.chromium.chrome.browser.url_constants.UrlConstantResolver;
 import org.chromium.chrome.browser.url_constants.UrlConstantResolverFactory;
 import org.chromium.chrome.tab_ui.R;
@@ -86,6 +85,7 @@ import org.chromium.components.browser_ui.bottomsheet.BottomSheetControllerProvi
 import org.chromium.components.browser_ui.device_lock.DeviceLockActivityLauncher;
 import org.chromium.components.browser_ui.device_lock.DeviceLockActivityLauncherSupplier;
 import org.chromium.components.browser_ui.widget.ListItemBuilder;
+import org.chromium.components.browser_ui.widget.MenuOrKeyboardActionController;
 import org.chromium.components.browser_ui.widget.list_view.ListViewTouchTracker;
 import org.chromium.components.collaboration.CollaborationService;
 import org.chromium.components.embedder_support.util.UrlConstants;
@@ -95,6 +95,7 @@ import org.chromium.components.tab_groups.TabGroupColorId;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.ui.base.ActivityResultTracker;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.listmenu.ListItemType;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
@@ -415,7 +416,10 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
                         activityResultTracker,
                         modalDialogManager);
             } else if (menuId == R.id.show_tabs_vertically_menu_id) {
-                // Click/tab behavior will be added in a follow-up.
+                if (activity instanceof MenuOrKeyboardActionController controller) {
+                    controller.onMenuOrKeyboardAction(
+                            R.id.toggle_tab_layout_menu_id, /* fromMenu= */ false);
+                }
             }
         };
     }
@@ -602,7 +606,6 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
                 || modalDialogManager == null) {
             return;
         }
-        ;
 
         SendTabToSelfCoordinator sttsCoordinator =
                 sSendTabToSelfCreator.create(
@@ -700,7 +703,8 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
         // Need to check list is non-empty before calling addAll; otherwise we get assertion error.
         if (!reorderItems.isEmpty()) itemList.addAll(reorderItems);
         itemList.add(buildMenuDivider(isIncognito));
-        if (ShareUtils.shouldEnableShare(tabs.get(0))) {
+        if (!ChromeFeatureList.sAndroidContextMenuDisabledMenuItems.isEnabled()
+                && ShareUtils.shouldEnableShare(tabs.get(0))) {
             // Share is only available for single tab selection.
             itemList.add(createShareItem(isIncognito));
         }
@@ -708,18 +712,24 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
             itemList.add(createDuplicateTabsItem(isIncognito));
         }
         itemList.add(createPinUnpinTabItem(tabs, isIncognito));
-        if (ChromeFeatureList.sMediaIndicatorsAndroid.isEnabled()) {
-            itemList.add(createMuteUnmuteSiteItem(tabs, isIncognito));
+        itemList.add(createMuteUnmuteSiteItem(tabs, isIncognito));
+        if (ChromeFeatureList.sAndroidContextMenuNewActions.isEnabled()) {
+            itemList.add(buildMenuDivider(isIncognito));
+        }
+        if (ChromeFeatureList.sAndroidContextMenuDisabledMenuItems.isEnabled() && !isIncognito) {
+            itemList.add(createAddTabToReadingListItem(anchorInfo));
         }
         if (ChromeFeatureList.sAndroidContextMenuNewActions.isEnabled() && !isIncognito) {
-            itemList.add(createAddTabToReadingListItem(anchorInfo));
             if (shouldShowSendToYourDevicesItem(tabs.get(0))) {
                 itemList.add(createSendToYourDevicesItem());
+                itemList.add(buildMenuDivider(isIncognito));
             }
         }
         addVerticalTabsItems(itemList, isIncognito);
         itemList.add(createCloseItem(isIncognito));
-        itemList.add(createCloseAllTabsItem(isIncognito));
+        if (!ChromeFeatureList.sAndroidContextMenuNewActions.isEnabled()) {
+            itemList.add(createCloseAllTabsItem(isIncognito));
+        }
         if (ChromeFeatureList.sAndroidContextMenuNewActions.isEnabled()) {
             if (getTabModel().getCount() > 1) {
                 itemList.add(createCloseOtherTabsItem(isIncognito));
@@ -749,10 +759,11 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
             itemList.add(createDuplicateTabsItem(isIncognito));
         }
         itemList.add(createPinUnpinTabItem(tabs, isIncognito));
-        if (ChromeFeatureList.sMediaIndicatorsAndroid.isEnabled()) {
-            itemList.add(createMuteUnmuteSiteItem(tabs, isIncognito));
+        itemList.add(createMuteUnmuteSiteItem(tabs, isIncognito));
+        if (ChromeFeatureList.sAndroidContextMenuNewActions.isEnabled()) {
+            itemList.add(buildMenuDivider(isIncognito));
         }
-        if (ChromeFeatureList.sAndroidContextMenuNewActions.isEnabled() && !isIncognito) {
+        if (ChromeFeatureList.sAndroidContextMenuDisabledMenuItems.isEnabled() && !isIncognito) {
             itemList.add(createAddTabToReadingListItem(anchorInfo));
         }
         addVerticalTabsItems(itemList, isIncognito);
@@ -1001,8 +1012,7 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
     }
 
     private ListItem createSendToYourDevicesItem() {
-        String title =
-                mActivity.getResources().getString(R.string.send_tab_to_self_context_menu_title);
+        String title = mActivity.getResources().getString(R.string.send_to_your_devices_menu_item);
 
         return new ListItemBuilder()
                 .withTitle(title)
@@ -1012,7 +1022,10 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
 
     private void addVerticalTabsItems(ModelList itemList, boolean isIncognito) {
         if (VerticalTabUtils.shouldShowVerticalTabsEntryPoint(mActivity)) {
-            itemList.add(buildMenuDivider(isIncognito));
+            if (itemList.isEmpty()
+                    || itemList.get(itemList.size() - 1).type != ListItemType.DIVIDER) {
+                itemList.add(buildMenuDivider(isIncognito));
+            }
             itemList.add(
                     buildListItem(
                             R.string.show_tabs_vertically,
@@ -1087,6 +1100,8 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
         } else if (menuId == R.id.send_to_your_devices_menu_id) {
             recordUserAction("SendToYourDevices", false);
         } else if (menuId == R.id.show_tabs_vertically_menu_id) {
+            // TODO(crbug.com/516961384): Replace show_tabs_vertically_menu_id with
+            // toggle_tab_layout_menu_id once we add context menus to vertical tabs.
             // Force false since switching to a vertical layout is a global UI state toggle
             // and doesn't benefit from distinguishing single vs multi-tab context.
             recordUserAction("ShowTabsVertically", /* isMultipleTabs= */ false);
@@ -1228,10 +1243,7 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
 
     @Override
     protected int getMenuWidth(int anchorViewWidthPx) {
-        return MathUtils.clamp(
-                anchorViewWidthPx,
-                getDimensionPixelSize(R.dimen.tab_strip_context_menu_min_width),
-                getDimensionPixelSize(R.dimen.tab_strip_context_menu_max_width));
+        return getDimensionPixelSize(R.dimen.tab_strip_context_menu_max_width);
     }
 
     @Override

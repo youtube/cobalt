@@ -61,6 +61,10 @@ namespace media {
 
 namespace {
 
+perfetto::NamedTrack GetTracingTrack(const FFmpegDemuxer* demuxer) {
+  return perfetto::NamedTrack::FromPointer("media::FFmpegDemuxer", demuxer);
+}
+
 void SetAVStreamDiscard(AVStream* stream, AVDiscard discard) {
   DCHECK(stream);
   stream->discard = discard;
@@ -275,7 +279,7 @@ FFmpegDemuxerStream::FFmpegDemuxerStream(
           ConvertStreamTimestamp(stream_time_base_, stream->start_time)),
       audio_config_(audio_config.release()),
       video_config_(video_config.release()),
-      media_log_(media_log),
+      media_log_(MediaLog::CloneSafely(media_log)),
       duration_(ConvertStreamTimestamp(stream_time_base_, stream->duration)),
       last_packet_pos_(AV_NOPTS_VALUE),
       last_packet_dts_(AV_NOPTS_VALUE) {
@@ -468,8 +472,7 @@ void FFmpegDemuxerStream::EnqueuePacket(ScopedAVPacket packet) {
     packet_span = packet_span.subspan(data_offset);
 
     if (packet_span.size() < MPEG1AudioStreamParser::kHeaderSize ||
-        !MPEG1AudioStreamParser::ParseHeader(nullptr, nullptr, packet_span,
-                                             nullptr)) {
+        !MPEG1AudioStreamParser::ParseHeader(packet_span)) {
       LIMITED_MEDIA_LOG(INFO, media_log_, num_discarded_packet_warnings_, 5)
           << "Discarding invalid MP3 packet, ts: "
           << ConvertStreamTimestamp(stream_time_base_, packet->pts)
@@ -874,7 +877,7 @@ FFmpegDemuxer::FFmpegDemuxer(
       blocking_task_runner_(base::ThreadPool::CreateSequencedTaskRunner(
           {base::MayBlock(), base::TaskPriority::USER_BLOCKING})),
       data_source_(data_source),
-      media_log_(media_log),
+      media_log_(MediaLog::CloneSafely(media_log)),
       encrypted_media_init_data_cb_(encrypted_media_init_data_cb),
       media_tracks_updated_cb_(std::move(media_tracks_updated_cb)),
       is_local_file_(is_local_file) {
@@ -912,6 +915,8 @@ DemuxerType FFmpegDemuxer::GetDemuxerType() const {
 void FFmpegDemuxer::Initialize(DemuxerHost* host,
                                PipelineStatusCallback init_cb) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  TRACE_EVENT_BEGIN("media", "FFmpegDemuxer::Initialize",
+                    GetTracingTrack(this));
   host_ = host;
   weak_this_ = cancel_pending_seek_factory_.GetWeakPtr();
   init_cb_ = std::move(init_cb);
@@ -1023,8 +1028,7 @@ void FFmpegDemuxer::CancelPendingSeek(base::TimeDelta seek_time) {
 void FFmpegDemuxer::Seek(base::TimeDelta time, PipelineStatusCallback cb) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(!pending_seek_cb_);
-  TRACE_EVENT_BEGIN("media", "FFmpegDemuxer::Seek",
-                    perfetto::Track::FromPointer(this));
+  TRACE_EVENT_BEGIN("media", "FFmpegDemuxer::Seek", GetTracingTrack(this));
   pending_seek_cb_ = std::move(cb);
   SeekInternal(time, base::BindOnce(&FFmpegDemuxer::OnSeekFrameDone,
                                     weak_factory_.GetWeakPtr()));
@@ -1375,7 +1379,7 @@ void FFmpegDemuxer::OnFindStreamInfoDone(int result) {
     // return nullptr if the AVStream is invalid. Validity checks will verify
     // things like: codec, channel layout, sample/pixel format, etc...
     std::unique_ptr<FFmpegDemuxerStream> demuxer_stream =
-        FFmpegDemuxerStream::Create(this, stream, media_log_);
+        FFmpegDemuxerStream::Create(this, stream, media_log_.get());
     if (demuxer_stream.get()) {
       streams_[i] = std::move(demuxer_stream);
     } else {
@@ -1462,7 +1466,7 @@ void FFmpegDemuxer::OnFindStreamInfoDone(int result) {
       VideoDecoderConfig video_config = streams_[i]->video_decoder_config();
 
       RecordVideoCodecStats(glue_->container(), video_config,
-                            stream->codecpar->color_range, media_log_);
+                            stream->codecpar->color_range, media_log_.get());
 
       media_track = media_tracks->AddVideoTrack(
           video_config, stream_enabled, track_id, MediaTrack::Kind("main"),
@@ -1904,7 +1908,7 @@ void FFmpegDemuxer::SetLiveness(StreamLiveness liveness) {
 void FFmpegDemuxer::RunInitCB(PipelineStatus status) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(init_cb_);
-  TRACE_EVENT_END("media", perfetto::Track::FromPointer(this), "status",
+  TRACE_EVENT_END("media", GetTracingTrack(this), "status",
                   PipelineStatusToString(status));
   std::move(init_cb_).Run(status);
 }
@@ -1912,7 +1916,7 @@ void FFmpegDemuxer::RunInitCB(PipelineStatus status) {
 void FFmpegDemuxer::RunPendingSeekCB(PipelineStatus status) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(pending_seek_cb_);
-  TRACE_EVENT_END("media", perfetto::Track::FromPointer(this), "status",
+  TRACE_EVENT_END("media", GetTracingTrack(this), "status",
                   PipelineStatusToString(status));
   std::move(pending_seek_cb_).Run(status);
 }

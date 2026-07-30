@@ -86,52 +86,6 @@ class ApiTests extends ApiTestFixtureBase {
     await Promise.all(rpcUrls.map(url => fetch(url)));
   }
 
-  async testCreateTab() {
-    assertDefined(this.host.createTab);
-    // Open a tab pointing to test.html.
-    const url = location.href;
-    const data = await this.host.createTab(url, {openInBackground: false});
-    assertEquals(data.url, url);
-  }
-
-  async testCreateTabFailsWithUnsupportedScheme() {
-    assertDefined(this.host.createTab);
-
-    this.assertCreateTabFails('chrome://settings');
-    this.assertCreateTabFails('ftps://www.google.com');
-    this.assertCreateTabFails('chrome-extension://www.google.com');
-    this.assertCreateTabFails('mailto:user@google.com');
-    this.assertCreateTabFails(
-        'data:text/html;charset=utf-8,<html>Hello World</html>');
-    this.assertCreateTabFails('file:///tmp/test.html');
-  }
-
-  async testCreateTabInBackground() {
-    assertDefined(this.host.createTab);
-
-    await this.host.createTab(
-        location.href + '#foreground', {openInBackground: false});
-
-    await this.advanceToNextStep();
-
-    await this.host.createTab(
-        location.href + '#background', {openInBackground: true});
-  }
-
-  async testCreateTabByClickingOnLink() {
-    assertDefined(this.host.setAudioDucking);
-    // Check that audio ducking still works after clicking a link.
-    this.host.setAudioDucking(true);
-    const link = document.createElement('a');
-    link.setAttribute('href', 'https://www.chromium.org');
-    link.setAttribute('target', '_blank');
-    document.body.appendChild(link);
-    link.click();
-
-    await this.advanceToNextStep();
-    this.host.setAudioDucking(false);
-  }
-
   async testDialogResponseCallOrder() {
     assertDefined(this.host.uninterruptActorTask);
     assertDefined(this.host.createTask);
@@ -187,36 +141,6 @@ class ApiTests extends ApiTestFixtureBase {
     document.body.appendChild(link);
     link.click();
   }
-
-  async testCreateTabByClickingOnLinkDaisyChains() {
-    assertDefined(this.host.getFocusedTabStateV2);
-    assertDefined(this.host.getPinnedTabs);
-    const link = document.createElement('a');
-    link.setAttribute('href', 'https://www.chromium.org');
-    link.setAttribute('target', '_blank');
-    document.body.appendChild(link);
-    link.click();
-    // The opened tab should be pinned.
-    await observeSequence(this.host.getPinnedTabs())
-        .waitFor(tabs => tabs.length === 2);
-
-    // TODO(wry): Chrome switches tabs correctly, but focus is not updating.
-    // The following code should work:
-
-    // await observeSequence(this.host.getFocusedTabStateV2()).waitFor(update
-    // => {
-    //   return update.hasFocus?.tabData?.url?.includes('chromium.org') ??
-    //   false;
-    // });
-  }
-
-  async testCreateTabFailsIfNotActive() {
-    assertDefined(this.host.closePanel);
-    assertDefined(this.host.createTab);
-    await this.closePanelAndWaitUntilInactive();
-    this.assertCreateTabFails(location.href);
-  }
-
 
 
   async testOpenGlicSettingsPage() {
@@ -473,18 +397,6 @@ class ApiTests extends ApiTestFixtureBase {
     // Close the browser.
     await this.advanceToNextStep();
     assertTrue(!await isBrowserOpen.next());
-  }
-
-  async testEnableDragResize() {
-    assertDefined(this.host.enableDragResize);
-
-    await this.host.enableDragResize(true);
-  }
-
-  async testDisableDragResize() {
-    assertDefined(this.host.enableDragResize);
-
-    await this.host.enableDragResize(false);
   }
 
 
@@ -1146,38 +1058,6 @@ class ApiTests extends ApiTestFixtureBase {
     this.host.setSyntheticExperimentState('TestTrial', 'Group2');
   }
 
-  async testSetMinimumWidgetSize() {
-    assertDefined(this.host.setMinimumWidgetSize);
-    const minSize = {width: 200, height: 100};
-    await this.host.setMinimumWidgetSize(minSize.width, minSize.height);
-    await this.advanceToNextStep(minSize);
-  }
-
-  async testManualResizeChanged() {
-    assertDefined(this.host.isManuallyResizing);
-    const seq = observeSequence(this.host.isManuallyResizing());
-    await seq.waitForValue(true);
-
-    await this.advanceToNextStep();
-    await seq.waitForValue(false);
-    seq.unsubscribe();
-  }
-
-  async testResizeWindowTooSmall() {
-    assertDefined(this.host.resizeWindow);
-    await this.host.resizeWindow(0, 0);
-  }
-
-  async testResizeWindowTooLarge() {
-    assertDefined(this.host.resizeWindow);
-    await this.host.resizeWindow(20000, 20000);
-  }
-
-  async testResizeWindowWithinBounds() {
-    assertDefined(this.host.resizeWindow);
-    assertDefined(this.testParams);
-    await this.host.resizeWindow(this.testParams.width, this.testParams.height);
-  }
 
   async testOpenOsMediaPermissionSettings() {
     assertDefined(this.host.openOsPermissionSettingsMenu);
@@ -1806,14 +1686,6 @@ class ApiTests extends ApiTestFixtureBase {
       await panelStates.waitFor(
           state => state.kind === PanelStateKind.DETACHED);
     }
-  }
-
-
-  private async assertCreateTabFails(url: string) {
-    assertDefined(this.host.createTab);
-    await assertRejects(
-        this.host.createTab(url, {openInBackground: false}),
-        {withErrorMessage: 'createTab: failed'});
   }
 
   async testMaybeRefreshUserStatus() {
@@ -2624,22 +2496,6 @@ class NotifyPanelWillOpenTest extends ApiTestFixtureBase {
   }
 }
 
-class InitiallyNotResizableWebClient extends WebClient {
-  override async notifyPanelWillOpen(_panelOpeningData: PanelOpeningData):
-      Promise<OpenPanelInfo> {
-    return {startingMode: WebClientMode.TEXT, canUserResize: false};
-  }
-}
-
-class InitiallyNotResizableTest extends ApiTestFixtureBase {
-  override createWebClient(): WebClient {
-    return new InitiallyNotResizableWebClient();
-  }
-
-  async testInitiallyNotResizable() {
-    await sleep(100);
-  }
-}
 
 class WebClientWithInvoke extends WebClient {
   invokePromise = Promise.withResolvers<InvokeOptions>();
@@ -2660,41 +2516,14 @@ class ApiTestWithInvoke extends ApiTestFixtureBase {
   }
 }
 
-class WebClientForCreateTabInInvoke extends WebClient {
-  createTabResult = Promise.withResolvers<TabData>();
-  override async invoke(_options: InvokeOptions): Promise<void> {
-    try {
-      const url = location.href + '#invoking';
-      const data = await this.host!.createTab!(url, {openInBackground: false});
-      this.createTabResult.resolve(data);
-    } catch (e) {
-      this.createTabResult.reject(e as Error);
-    }
-  }
-}
-
-class ApiTestCreateTabInInvoke extends ApiTestFixtureBase {
-  override createWebClient(): WebClient {
-    return new WebClientForCreateTabInInvoke();
-  }
-
-  async testCreateTabSucceedsIfInvoking() {
-    const data = await (this.client as WebClientForCreateTabInInvoke)
-                     .createTabResult.promise;
-    assertEquals(data.url, location.href + '#invoking');
-  }
-}
-
 // All test fixtures. We look up tests by name, and the fixture name is ignored.
 // Therefore all tests must have unique names.
 const TEST_FIXTURES = [
   ApiTests,
   DaisyChainApiTests,
   NotifyPanelWillOpenTest,
-  InitiallyNotResizableTest,
   ApiTestWithoutOpen,
   ApiTestWithInvoke,
-  ApiTestCreateTabInInvoke,
 ];
 
 testMain(TEST_FIXTURES);

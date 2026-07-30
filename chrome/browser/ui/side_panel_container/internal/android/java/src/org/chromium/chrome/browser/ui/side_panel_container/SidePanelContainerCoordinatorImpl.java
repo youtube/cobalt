@@ -159,22 +159,6 @@ final class SidePanelContainerCoordinatorImpl
     }
 
     @Override
-    @Px
-    public int getCurrentWidth() {
-        ThreadUtils.assertOnUiThread();
-
-        int currentWidth = mContainerView.getWidth();
-        log(TAG, "getCurrentWidth", currentWidth);
-
-        return currentWidth;
-    }
-
-    @Override
-    public int getMinWidthDp() {
-        return MIN_SIDE_PANEL_WIDTH_DP;
-    }
-
-    @Override
     @AnchorSide
     public int getAnchorSide() {
         log(TAG, "getAnchorSide");

@@ -167,6 +167,12 @@ void AndroidAutofillProvider::RenderFrameDeleted(
     OnHidePopup(session_state_->manager.get());
     session_state_->last_queried_field_rfh_id = {};
   }
+  if (credman_sheet_rfh_id_ == rfh->GetGlobalId()) {
+    // `WebAuthnCredManDelegateFactory` takes care of cleaning up
+    // `GetCredManDelegate(rfh)`.
+    credman_sheet_status_ = CredManBottomSheetLifecycle::kNotShown;
+    credman_sheet_rfh_id_ = {};
+  }
 }
 
 void AndroidAutofillProvider::DidFinishNavigation(
@@ -177,7 +183,23 @@ void AndroidAutofillProvider::DidFinishNavigation(
       !navigation_handle->IsSameDocument()) {
     OnHidePopup(session_state_->manager.get());
     session_state_->last_queried_field_rfh_id = {};
+  }
+
+  if (credman_sheet_rfh_id_ ==
+          navigation_handle->GetPreviousRenderFrameHostId() &&
+      !navigation_handle->IsSameDocument()) {
+    if (content::RenderFrameHost* rfh =
+            content::RenderFrameHost::FromID(credman_sheet_rfh_id_)) {
+      if (WebAuthnCredManDelegate* delegate = GetCredManDelegate(rfh)) {
+        // Clear the callback to prevent a race condition where the platform UI
+        // dismissal (triggered by navigation) calls back and overwrites the
+        // `credman_sheet_status_` to `kClosed` after we reset it to
+        // `kNotShown`.
+        delegate->SetRequestCompletionCallback(base::DoNothing());
+      }
+    }
     credman_sheet_status_ = CredManBottomSheetLifecycle::kNotShown;
+    credman_sheet_rfh_id_ = {};
   }
 }
 
@@ -200,7 +222,13 @@ void AndroidAutofillProvider::OnAskForValuesToFill(
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   if (credman_sheet_status_ == CredManBottomSheetLifecycle::kIsShowing) {
-    return;  // CredMan prevents 3P autofill UI. Start the session on refocus!
+    // While CredMan is active, the user cannot legitimately interact with the
+    // page. We ignore this request to prevent a compromised renderer from
+    // spoofing the session origin (overwriting `current_field`) in the
+    // background. We preserve the session state that triggered CredMan so that
+    // the subsequent fill goes to the correct frame. If the user dismisses
+    // CredMan, a new session will be started on the next focus event.
+    return;
   }
 
   // We need to create session state here outside of StartNewSession because
@@ -498,6 +526,13 @@ void AndroidAutofillProvider::OnSelectControlSelectionChanged(
     AndroidAutofillManager* manager,
     const FormData& form,
     const FormFieldData& field) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  if (credman_sheet_status_ == CredManBottomSheetLifecycle::kIsShowing) {
+    // Ignore selection changes while CredMan is showing to prevent a
+    // compromised renderer from spoofing the session origin (see
+    // crbug.com/518115316).
+    return;
+  }
   if (base::FeatureList::IsEnabled(
           features::kAndroidAutofillFieldsUpdatedOnSelect)) {
     UpdateCurrentField(manager, form, field);
@@ -566,6 +601,11 @@ void AndroidAutofillProvider::OnFocusOnFormField(
           GetRenderFrameHost(manager, field.host_frame());
       ShouldShowCredManForField(field, rfh) &&
       ShowCredManSheet(rfh, form.global_id(), field_to_focus)) {
+    // Proactively update the current field and its origin. Because the
+    // subsequent `OnAskForValuesToFill()` IPC will be ignored while CredMan is
+    // showing (to block spoofing), we must set the correct origin now before
+    // the block takes effect, otherwise the session will retain a stale origin.
+    UpdateCurrentField(manager, form, field);
     return;  // The focus event will be completed after CredMan closes.
   }
   if (field_to_focus) {

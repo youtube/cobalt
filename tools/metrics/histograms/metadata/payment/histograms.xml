@@ -48,7 +48,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PaymentRequest.CheckoutFunnel"
-    enum="PaymentRequestCheckoutFunnelSteps" expires_after="2026-09-27">
+    enum="PaymentRequestCheckoutFunnelSteps" expires_after="2026-11-29">
   <owner>smcgruer@chromium.org</owner>
   <owner>chrome-payments-eng@google.com</owner>
   <summary>
@@ -192,6 +192,19 @@ chromium-metrics-reviews@google.com.
   <owner>chrome-payments-eng@google.com</owner>
   <summary>
     The number of suggestions shown to the user during a payment request.
+  </summary>
+</histogram>
+
+<histogram name="PaymentRequest.Outcome" enum="PaymentRequestOutcome"
+    expires_after="2027-06-01">
+  <owner>darwinyang@chromium.org</owner>
+  <owner>chrome-payments-eng@google.com</owner>
+  <summary>
+    Tracks the final outcome of every Payment Request call. This includes all
+    successful calls, all cases where the Payment Request could not be shown,
+    and all cases where the Payment Request was aborted with detailed abort
+    reasons. Recorded exactly once per Payment Request lifetime when a terminal
+    state is reached.
   </summary>
 </histogram>
 

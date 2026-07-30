@@ -32,7 +32,6 @@
 #include "chrome/browser/devtools/features.h"
 #include "chrome/browser/feedback/public/feedback_source.h"
 #include "chrome/browser/feedback/show_feedback_page.h"
-#include "chrome/browser/glic/fre/glic_fre_controller.h"
 #include "chrome/browser/glic/glic_enums.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/glic_profile_manager.h"
@@ -56,7 +55,6 @@
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_select_file_dialog_controller.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
@@ -372,11 +370,6 @@ BrowserCommandController::BrowserCommandController(BrowserWindowInterface* bwi)
                   base::BindRepeating(
                       &BrowserCommandController::GlicActiveInstanceChanged,
                       base::Unretained(this)));
-      glic_fre_state_change_subscription_ =
-          service->fre_controller().AddWebUiStateChangedCallback(
-              base::BindRepeating(
-                  &BrowserCommandController::GlicFreStateChanged,
-                  base::Unretained(this)));
     }
   }
 
@@ -527,10 +520,6 @@ void BrowserCommandController::GlicActiveInstanceChanged(
   UpdateGlicState();
 }
 
-void BrowserCommandController::GlicFreStateChanged(
-    glic::mojom::FreWebUiState new_state) {
-  UpdateGlicState();
-}
 
 void BrowserCommandController::FindBarVisibilityChanged() {
   // Block find command updates in locked fullscreen mode unless the instance is
@@ -690,7 +679,7 @@ bool BrowserCommandController::ExecuteCommandWithDisposition(
       CloseWindow(browser_);
       break;
     case IDC_NEW_TAB: {
-      NewTab(browser_);
+      NewTab(browser_, NewTabTypes::kNewTabCommand);
       break;
     }
     case IDC_NEW_TAB_TO_RIGHT: {
@@ -834,7 +823,14 @@ bool BrowserCommandController::ExecuteCommandWithDisposition(
       chrome::ToggleAlwaysShowToolbarInFullscreen(browser_);
       break;
     case IDC_TOGGLE_JAVASCRIPT_APPLE_EVENTS: {
-      chrome::ToggleJavaScriptFromAppleEventsAllowed(browser_);
+      content::WebContents* web_contents =
+          browser_->tab_strip_model()->GetActiveWebContents();
+      if (base::FeatureList::IsEnabled(features::kDevToolsShowPolicyDialog) &&
+          !DevToolsWindow::AllowDevToolsFor(profile(), web_contents)) {
+        DevToolsPolicyDialog::Show(web_contents);
+      } else {
+        chrome::ToggleJavaScriptFromAppleEventsAllowed(browser_);
+      }
       break;
     }
 #endif
@@ -1352,9 +1348,10 @@ bool BrowserCommandController::ExecuteCommandWithDisposition(
       break;
     case IDC_WEB_APP_SETTINGS:
 #if !BUILDFLAG(IS_CHROMEOS)
-      CHECK(browser_->app_controller());
-      ShowWebAppSettings(browser_, browser_->app_controller()->app_id(),
-                         web_app::AppSettingsPageEntryPoint::kBrowserCommand);
+      CHECK(web_app::AppBrowserController::From(browser_));
+      ShowWebAppSettings(
+          browser_, web_app::AppBrowserController::From(browser_)->app_id(),
+          web_app::AppSettingsPageEntryPoint::kBrowserCommand);
 #endif
       break;
     case IDC_WEB_APP_MENU_APP_INFO: {
@@ -1620,9 +1617,10 @@ void BrowserCommandController::InitCommandState() {
 
   // Window management commands
   command_updater_.UpdateCommandEnabled(IDC_CLOSE_WINDOW, true);
+  auto* const app_controller = web_app::AppBrowserController::From(browser_);
   command_updater_.UpdateCommandEnabled(
-      IDC_NEW_TAB, !browser_->app_controller() ||
-                       !browser_->app_controller()->ShouldHideNewTabButton());
+      IDC_NEW_TAB,
+      !app_controller || !app_controller->ShouldHideNewTabButton());
   command_updater_.UpdateCommandEnabled(IDC_CLOSE_TAB, true);
   command_updater_.UpdateCommandEnabled(
       IDC_DUPLICATE_TAB, !browser_->is_type_picture_in_picture());
@@ -2065,8 +2063,9 @@ void BrowserCommandController::UpdateCommandsForTabState() {
   UpdateCommandAndActionEnabled(IDC_SHOW_TRANSLATE, kActionShowTranslate,
                                 can_translate);
 
-  bool is_isolated_app = browser_->app_controller() &&
-                         browser_->app_controller()->IsIsolatedWebApp();
+  bool is_isolated_app =
+      web_app::AppBrowserController::From(browser_) &&
+      web_app::AppBrowserController::From(browser_)->IsIsolatedWebApp();
   bool is_pinned_home_tab = web_app::IsPinnedHomeTab(
       browser_->tab_strip_model(), browser_->tab_strip_model()->active_index());
   command_updater_.UpdateCommandEnabled(

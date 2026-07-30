@@ -44,6 +44,8 @@ const DeviceInfo* LocalDeviceInfoProviderImpl::GetLocalDeviceInfo() const {
       sync_client_->GetSendTabToSelfReceivingEnabled());
   local_device_info_->set_glic_experimental_triggering_state(
       sync_client_->GetGlicExperimentalTriggeringState());
+  local_device_info_->set_glic_experimental_triggering_version(
+      sync_client_->GetGlicExperimentalTriggeringVersion());
   local_device_info_->set_send_tab_to_self_receiving_type(
       sync_client_->GetSendTabToSelfReceivingType());
   local_device_info_->set_sharing_info(sync_client_->GetLocalSharingInfo());
@@ -116,6 +118,7 @@ void LocalDeviceInfoProviderImpl::Initialize(
     const std::string& manufacturer_name,
     const std::string& model_name,
     const std::string& full_hardware_class,
+    std::optional<std::string> android_os_build_fingerprint_prefix,
     const DeviceInfo* device_info_restored_from_store) {
   TRACE_EVENT0("sync", "LocalDeviceInfoProviderImpl::Initialize");
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -145,7 +148,7 @@ void LocalDeviceInfoProviderImpl::Initialize(
       cache_guid, client_name, version_, MakeUserAgentForSync(channel_),
       GetLocalDeviceType(), GetLocalDeviceOSType(), GetLocalDeviceFormFactor(),
       sync_client_->GetSigninScopedDeviceId(), manufacturer_name, model_name,
-      full_hardware_class,
+      /*server_determined_model_name=*/std::nullopt, full_hardware_class,
       /*last_updated_timestamp=*/base::Time(),
       DeviceInfoUtil::GetPulseInterval(),
       sync_client_->GetSendTabToSelfReceivingEnabled(),
@@ -156,7 +159,9 @@ void LocalDeviceInfoProviderImpl::Initialize(
       auto_sign_out_last_signin_timestamp,
       sync_client_->GetDesktopToIOSPromoReceivingEnabled(),
       sync_client_->GetDesktopToIOSPromoReceivingTypes(),
-      sync_client_->GetGlicExperimentalTriggeringState());
+      sync_client_->GetGlicExperimentalTriggeringState(),
+      sync_client_->GetGlicExperimentalTriggeringVersion(),
+      android_os_build_fingerprint_prefix);
 
   full_hardware_class_ = full_hardware_class;
 

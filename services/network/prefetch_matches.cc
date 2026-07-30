@@ -33,9 +33,9 @@
 #include "net/filter/source_stream_type.h"
 #include "net/http/http_request_headers.h"
 #include "services/network/public/cpp/data_element.h"
+#include "services/network/public/cpp/request_header_to_enum.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/resource_request_body.h"
-#include "services/network/request_header_to_enum.h"
 #include "services/network/stringify_enum.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
@@ -345,7 +345,7 @@ constexpr std::array kIgnoredFields = {
 // These headers are completely ignored for the purposes of matching when they
 // appear in the `headers` field.
 constexpr auto kIgnoredHeaders = base::MakeFixedFlatSet<std::string_view>({
-    "purpose",
+    // Corresponds to `blink::kSecPurposeHeaderName` but in lower case.
     "sec-purpose",
 });
 using IgnoredHeadersType = decltype(kIgnoredHeaders);

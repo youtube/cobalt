@@ -138,8 +138,6 @@ source_set("formats") {
 
   if (enable_platform_dts_audio) {
     sources += [
-      "dts/dts_stream_parser.cc",
-      "dts/dts_stream_parser.h",
       "dts/dts_util.cc",
       "dts/dts_util.h",
       "mp4/dts.cc",
@@ -232,6 +230,8 @@ source_set("formats") {
     "hls/rendition_group.h",
     "hls/rendition_manager.cc",
     "hls/rendition_manager.h",
+    "hls/security_metadata.cc",
+    "hls/security_metadata.h",
     "hls/segment_stream.cc",
     "hls/segment_stream.h",
     "hls/source_string.cc",

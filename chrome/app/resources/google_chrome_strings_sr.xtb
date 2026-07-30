@@ -67,6 +67,7 @@
 <translation id="1640672724030957280">Преузимање...</translation>
 <translation id="1651617469580841801">Када користите Google објектив, наслов, URL и садржај странице, укључујући PDF-ове, шаљу се Google-у. <ph name="LEARN_MORE" /></translation>
 <translation id="1662146548738125461">О Chrome OS Flex-у</translation>
+<translation id="1665867022636014702">Користите подешавања прегледача која препоручује Google</translation>
 <translation id="1674870198290878346">Отвори линк у Chrome прозору без архи&amp;вирања</translation>
 <translation id="1682634494516646069">Google Chrome не може да чита податке из свог директоријума са подацима нити да их у њих уписује:
 
@@ -78,7 +79,6 @@
 <translation id="177180974022074201">Испробајте са Gemini-јем у Chrome-у</translation>
 <translation id="1786003790898721085">Уверите се да сте пријављени у Chrome на уређају <ph name="TARGET_DEVICE_NAME" /> и пробајте да пошаљете поново.</translation>
 <translation id="1786044937610313874">Пречице се отварају у Chrome-у</translation>
-<translation id="178701303897325119">Овај додатак више није подржан. Chrome препоручује да га уклоните.</translation>
 <translation id="1812689907177901597">Када то укључите, можете да се пријављујете на Google сајтове, као што је Gmail, али се не пријављујете у Chrome</translation>
 <translation id="1821644463306970002">{NUM_TABS,plural, =1{Chrome препоручује да паузирате картицу која успорава прегледач}one{Chrome препоручује да паузирате картице које успоравају прегледач}few{Chrome препоручује да паузирате картице које успоравају прегледач}other{Chrome препоручује да паузирате картице које успоравају прегледач}}</translation>
 <translation id="1832046143430087831">Убрзава сајтове уз Chrome механизам V8, али чини Chrome мало мање отпорним на нападе. Ово подешавање је искључено.</translation>
@@ -96,7 +96,6 @@
 <translation id="1953553007165777902">Преузима се... Још <ph name="MINUTE" /> мин</translation>
 <translation id="1979600810166324878">Будите безбеднији у покрету уз побољшано безбедно прегледање у Chrome-у за iOS</translation>
 <translation id="2001586581944147178">Отежајте онима који имају приступ вашем интернет саобраћају да виде које сајтове посећујете. Chrome користи безбедну везу да би тражио IP адресу сајта у DNS-у (систему имена домена).</translation>
-<translation id="2008942457798486387">{NUM_EXTENSIONS,plural, =1{Овај додатак више није подржан. Chrome препоручује да га уклоните.}one{Ови додаци више нису подржани. Chrome препоручује да их уклоните.}few{Ови додаци више нису подржани. Chrome препоручује да их уклоните.}other{Ови додаци више нису подржани. Chrome препоручује да их уклоните.}}</translation>
 <translation id="2018528049276128029">Сваки профил задржава сопствене Chrome податке, попут обележивача, историје, лозинки и другог садржаја</translation>
 <translation id="2018879682492276940">Инсталација није успела. Пробајте поново.</translation>
 <translation id="2024959665595762054">Да бисте користили и чували Chrome податке на Google налогу, потврдите свој идентитет</translation>
@@ -153,6 +152,7 @@
 <translation id="2580411288591421699">Није могуће инсталирати верзију Google Chrome прегледача која је иста као тренутно покренута верзија. Затворите Google Chrome и покушајте поново.</translation>
 <translation id="2586406160782125153">Овим ћете избрисати податке прегледања са уређаја. Да бисте касније вратили податке, пријавите се у Chrome као <ph name="USER_EMAIL" />.</translation>
 <translation id="259935314519650377">Кеширање преузетог инсталационог програма није успело. Грешка: <ph name="UNPACK_CACHING_ERROR_CODE" />.</translation>
+<translation id="2608461706055011366">Погледајте брз преглед овог документа и постављајте питања помоћу Gemini-ја у Chrome-у</translation>
 <translation id="2620436844016719705">Систем</translation>
 <translation id="263447411082773721">Синхронизујте лозинке, обележиваче и историју на свим уређајима. Ажурирајте подразумевани прегледач на Chrome да бисте лако приступали функцијама које знате и волите. Chrome ће бити закачен на траку задатака ради брзог приступа.</translation>
 <translation id="2645435784669275700">ChromeOS</translation>
@@ -160,6 +160,7 @@
 <translation id="2652691236519827073">Отвори линк у новој Chrome &amp;картици</translation>
 <translation id="2665296953892887393">Помозите нам да побољшамо Google Chrome тако што ћете Google-у слати извештаје о отказивању и <ph name="UMA_LINK" /></translation>
 <translation id="2668094785979141847">Кликните да бисте изашли из Google објектива</translation>
+<translation id="2674238339205910678">ChromeOS Flex није успео да сачува Chrome податке на Google налогу зато што су подаци за пријављивање на налог застарели</translation>
 <translation id="2681444469812712297">Отворите <ph name="URL" /> на новој картици у Google Chrome-у.</translation>
 <translation id="2699790011615497488">Отворите Gemini у Chrome бета верзији</translation>
 <translation id="2712141162840347885">Изаберите било шта за претрагу помоћу Google објектива или притисните Escape да бисте изашли из Google објектива</translation>
@@ -190,6 +191,7 @@
 <translation id="2945997411976714835">Грешка при инсталацији: Процес инсталације није успео.</translation>
 <translation id="2969728957078202736"><ph name="PAGE_TITLE" /> – пријављивање на мрежу – Chrome</translation>
 <translation id="2970681950995291301">Да бисте уклонили Google налог из Chrome-а, одјавите се из Chrome-а на страници Подешавања</translation>
+<translation id="2976869732253036751">Добијајте обавештења о праћењу цена уз Chrome на телефону</translation>
 <translation id="2991167882679440829">Лозинке и други Chrome подаци које сте сачували на Google налогу биће уклоњени са овог уређаја. Да бисте их поново користили у Chrome-у, поново се пријавите.</translation>
 <translation id="2994465299455873643">Пружа услуге шифровања и безбедан начин за опоравак прегледача <ph name="BROWSER_NAME" /> ако постане застарео. Ако је ова услуга онемогућена, <ph name="BROWSER_NAME" /> може да изгуби приступ шифрованим подацима и <ph name="BROWSER_NAME" /> можда неће моћи да се опорави.</translation>
 <translation id="3003694935412297923">Сви задаци</translation>
@@ -386,6 +388,7 @@
 <translation id="5127558335897923940">Задржите Chrome на траци да бисте му брзо приступали у сваком тренутку</translation>
 <translation id="5132929315877954718">Откријте одличне апликације, игре, додатке и теме за Google Chrome.</translation>
 <translation id="5139423532931106058">Прилагодите Chrome профил</translation>
+<translation id="5152381187352661267">Вештине у Chrome-у</translation>
 <translation id="5163087008893166964">Добро дошли у Chrome; отворен је нови прозор прегледача</translation>
 <translation id="5166439563123238795">Chrome-у треба дозвола за праћење руку</translation>
 <translation id="5169778651486082413">Користите лозинке уз Chrome на телефону</translation>
@@ -485,6 +488,7 @@ Google Chrome не може да врати подешавања.</translation>
 <translation id="6070348360322141662">Google Chrome ће шифровати податке ради додатне сигурности</translation>
 <translation id="6075300983329039771">Ваша организација, <ph name="MANAGER" />, захтева да се пријавите у Chrome</translation>
 <translation id="6113794647360055231">Управо смо побољшали Chrome</translation>
+<translation id="6116004140911290070">Омогућите Вештине у Chrome-у</translation>
 <translation id="6116252277240876590">Овај језик се користи за приказивање менија, подешавања, упозорења и другог текста у Chrome-у</translation>
 <translation id="6127237283587442951">Подразумевано користите Chrome и закачите га</translation>
 <translation id="6134085236017727171">Да бисте користили микрофон, одобрите Chrome-у приступ у <ph name="BEGIN_LINK" />подешавањима система<ph name="END_LINK" /></translation>
@@ -538,6 +542,7 @@ Google Chrome не може да врати подешавања.</translation>
 <translation id="6497147134301593682">Chrome је аутоматски затворен</translation>
 <translation id="6506909944137591434">Chrome-у треба дозвола за камеру да би направио 3D мапу окружења</translation>
 <translation id="6515495397637126556"><ph name="PAGE_TITLE" /> – Програмерска верзија Google Chrome-а</translation>
+<translation id="6520608191273161151">ChromeOS Flex није успео да сачува Chrome податке на Google налогу због грешке при пријављивању</translation>
 <translation id="6520670145826811516">Да бисте користили локацију, одобрите Chrome-у приступ у <ph name="BEGIN_LINK" />подешавањима система<ph name="END_LINK" /></translation>
 <translation id="652948702951888897">Историја Chrome-а</translation>
 <translation id="6532945796722480006">Отворите Gemini у Chrome Canary-ју</translation>
@@ -585,6 +590,7 @@ Google Chrome не може да врати подешавања.</translation>
 <translation id="7011190694940573312">Инсталирање није успело зато што ова верзија оперативног система није подржана.</translation>
 <translation id="7024536598735240744">Грешка при отпакивању: <ph name="UNPACK_ERROR" />.</translation>
 <translation id="7025800014283535195">Овде можете да прелазите са једног Chrome профила на други</translation>
+<translation id="7026856149118332950">Кликните на <ph name="BEGIN_BOLD" />Да<ph name="END_BOLD" /> у Windows обавештењу да бисте закачили Chrome на траку задатака ради брзог приступа.</translation>
 <translation id="7047386856539490735">Да ли су ови резултати корисни?</translation>
 <translation id="7051685429025310665">Нисте скоро посећивали сајт. Chrome је уклонио дозволе <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> и <ph name="PERMISSION_3" />.</translation>
 <translation id="7059914902409643750">Прилагодите Chrome себи</translation>
@@ -677,6 +683,7 @@ Google Chrome не може да врати подешавања.</translation>
 <translation id="7890208801193284374">Ако делите рачунар, пријатељи и породица могу засебно да прегледају и да подесе Chrome баш онако како желе.</translation>
 <translation id="7896673875602241923">Неко се претходно пријавио на Chrome на овом рачунару као <ph name="ACCOUNT_EMAIL_LAST" />. Направите новог корисника Chrome-а да би информације биле раздвојене.</translation>
 <translation id="7904985524660297937">Испробајте Gemini у Google Chrome-у</translation>
+<translation id="7905880575591690197">ChromeOS није успео да сачува Chrome податке на Google налогу због грешке при пријављивању</translation>
 <translation id="7917876797003313048">Можете да управљате Google налозима на које сте пријављени. Google налози се користе за Chrome прегледач, Play продавницу, Gmail и друго. Ако желите да додате налог за неког другог, нпр. члана породице, уместо тога додајте нову особу на свој уређај <ph name="DEVICE_TYPE" />. <ph name="LINK_BEGIN" />Сазнајте више<ph name="LINK_END" /></translation>
 <translation id="7936702483636872823">Chrome је блокирао ово преузимање јер је овај фајл обмањујући и може да изврши неочекиване промене на уређај</translation>
 <translation id="7951272445806340501">Треба да рестартујете Chrome OS Flex да бисте применили ажурирање.</translation>
@@ -752,6 +759,7 @@ Google Chrome не може да врати подешавања.</translation>
 <translation id="8624541899164515475">Подешавања, отварају се на новој картици.</translation>
 <translation id="8625237574518804553">{0,plural, =1{Поново ћемо покренути Chrome за 1 минут}one{Поново ћемо покренути Chrome за # минут}few{Поново ћемо покренути Chrome за # минута}other{Поново ћемо покренути Chrome за # минута}}</translation>
 <translation id="8637932705841171563">Да бисте делили прозор, дозволите снимање екрана за Chrome у подешавањима система</translation>
+<translation id="8642497536370021917">Да бисте били сигурни да увек можете да користите и чувате Chrome податке на Google налогу, потврдите свој идентитет</translation>
 <translation id="8656634243791296665">Отворите Gemini у Chrome Dev-у</translation>
 <translation id="8669527147644353129">Google Chrome помоћник</translation>
 <translation id="8679801911857917785">Контролише и страницу која се приказује када покренете Chrome.</translation>
@@ -801,6 +809,7 @@ Google Chrome не може да врати подешавања.</translation>
 <translation id="93760716455950538">Рестартујте Chrome OS Flex</translation>
 <translation id="943390475793766444">Chrome препоручује скенирање овог фајла јер може да буде опасан.</translation>
 <translation id="945522503751344254">Пошаљи повратне информације</translation>
+<translation id="973195869036269770">ChromeOS не може да сачува Chrome податке на Google налогу зато што су подаци за пријављивање на налог застарели</translation>
 <translation id="983803489796659991">Инсталација није успела зато што сервер за ажурирање нема никакве хеширане податке за апликацију.</translation>
 <translation id="989369509083708165">Google Chrome је подразумевани прегледач</translation>
 <translation id="989816563149873169">Помоћу пречице <ph name="SHORTCUT" /> можете да прелазите са једног Chrome профила на други</translation>

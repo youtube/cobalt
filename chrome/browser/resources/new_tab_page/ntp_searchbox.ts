@@ -164,8 +164,6 @@ export class NtpSearchboxElement extends NtpSearchboxElementBase implements
         notify: true,
       },
 
-      showThumbnail: {type: Boolean},
-
       hasVoiceSearchError: {type: Boolean},
 
       isListening: {type: Boolean},
@@ -212,7 +210,6 @@ export class NtpSearchboxElement extends NtpSearchboxElementBase implements
   accessor colorSourceIsBaseline: boolean = false;
   accessor isDark: boolean = false;
   accessor searchboxLayoutMode: string = '';
-  accessor showThumbnail: boolean = false;
   accessor canShowSecondarySide: boolean = false;
   accessor hadSecondarySide: boolean = false;
   accessor hasSecondarySide: boolean = false;
@@ -625,7 +622,8 @@ export class NtpSearchboxElement extends NtpSearchboxElementBase implements
       this.pageHandler().notifySessionStarted();
       this.pageHandler().submitQuery(
           queryText, e.detail.button, false, /* altKey */
-          e.detail.ctrlKey, e.detail.metaKey, e.detail.shiftKey);
+          e.detail.ctrlKey, e.detail.metaKey, e.detail.shiftKey,
+          /* isVoiceSearch */ false);
     } else {
       this.openComposebox_();
     }

@@ -184,6 +184,8 @@ class PLATFORM_EXPORT WidgetBase : public mojom::blink::Widget,
   void ApplyViewportChanges(const cc::ApplyViewportChangesArgs& args) override;
   void UpdateCompositorScrollState(
       const cc::CompositorCommitData& commit_data) override;
+  void UpdateAnimatedImageState(
+      const cc::CompositorCommitData& commit_data) override;
   void BeginMainFrame(const viz::BeginFrameArgs& args) override;
   void OnDeferMainFrameUpdatesChanged(bool) override;
   void OnDeferCommitsChanged(bool defer_status,
@@ -215,6 +217,14 @@ class PLATFORM_EXPORT WidgetBase : public mojom::blink::Widget,
   void ScheduleAnimationForWebTests() override;
   std::unique_ptr<cc::RenderFrameMetadataObserver> CreateRenderFrameObserver()
       override;
+
+  std::unique_ptr<cc::LayerTreeFrameSink> CreateUnboundedFrameSink(
+      CrossVariantMojoRemote<
+          viz::mojom::blink::CompositorFrameSinkInterfaceBase>
+          unbounded_sink_remote,
+      CrossVariantMojoReceiver<
+          viz::mojom::blink::CompositorFrameSinkClientInterfaceBase>
+          unbounded_client_receiver);
 
   // scheduler::WidgetScheduler::Delegate overrides:
   void RequestBeginMainFrameNotExpected(bool) override;

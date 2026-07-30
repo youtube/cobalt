@@ -352,10 +352,6 @@ BASE_FEATURE(kPictureInPictureMuteControl, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kPictureInPictureOcclusionTracking,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables the animation of the Picture-in-Picture window creation.
-BASE_FEATURE(kPictureInPictureShowWindowAnimation,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables video Picture-in-Picture display smoothness optimization.
 //
 // Ensures that the video PiP window title view is properly sized to only fit
@@ -486,19 +482,20 @@ BASE_FEATURE(kPlatformAudioEncoder,
 // Has no effect if ENABLE_CDM_HOST_VERIFICATION buildflag is false.
 BASE_FEATURE(kCdmHostVerification, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Reorders video context menu items if enabled.
-BASE_FEATURE(kContextMenu2026, base::FEATURE_DISABLED_BY_DEFAULT);
+// Elevates the CDM service process' priority to improve media playback
+// performance.
+BASE_FEATURE(kCdmProcessPriorityElevation, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Elevates the CDM service process' main thread priority to improve media
+// playback performance.
+BASE_FEATURE(kCdmThreadPriorityElevation, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables the "Copy Video Frame" context menu item.
-BASE_FEATURE(kContextMenuCopyVideoFrame,
-             base::FEATURE_ENABLED_BY_DEFAULT
-);
+BASE_FEATURE(kContextMenuCopyVideoFrame, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables the "Save Video Frame As" context menu item.
 // On Android, this is "Download Video Frame" context menu item.
-BASE_FEATURE(kContextMenuSaveVideoFrameAs,
-             base::FEATURE_ENABLED_BY_DEFAULT
-);
+BASE_FEATURE(kContextMenuSaveVideoFrameAs, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables the "Search Video Frame with <Search Provider>" context menu item.
 BASE_FEATURE(kContextMenuSearchForVideoFrame, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -834,7 +831,13 @@ BASE_FEATURE(kWebRTCHardwareVideoEncoderFrameDrop,
 
 // Inform webrtc with correct video color space information whenever
 // possible.
-BASE_FEATURE(kWebRTCColorAccuracy, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kWebRTCColorAccuracy,
+#if BUILDFLAG(IS_CHROMEOS)
+             base::FEATURE_DISABLED_BY_DEFAULT
+#else
+             base::FEATURE_ENABLED_BY_DEFAULT
+#endif  // BUILDFLAG(IS_CHROMEOS)
+);
 
 // Enables support for External Clear Key (ECK) key system for testing on
 // supported platforms. On platforms that do not support ECK, this feature has
@@ -1024,12 +1027,6 @@ BASE_FEATURE(kHardwareMediaKeyHandling,
 BASE_FEATURE(kResolutionBasedDecoderPriority, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Allows the AutoPictureInPictureTabHelper to automatically enter
-// picture-in-picture for websites with video playback (instead of only websites
-// using camera or microphone).
-BASE_FEATURE(kAutoPictureInPictureForVideoPlayback,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Allows the AutoPictureInPictureTabHelper to automatically enter
 // picture-in-picture when a webpage is occluded by another window.
 BASE_FEATURE(kAutoPictureInPictureOnWindowOccluded,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1109,11 +1106,6 @@ BASE_FEATURE(kAutoDocPiPPermissionPromptAndroid,
 // This triggers for active video playback or camera/microphone usage on sites
 // that have registered an auto picture-in-picture action.
 BASE_FEATURE(kAutoPictureInPictureAndroid, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables audio power level analysis on Android to determine webcontents
-// audibility changes. This modifies the behavior of the MediaIndicatorsAndroid
-// feature to achieve a more responsive UI update when audio starts or stops.
-BASE_FEATURE(kEnableAudioMonitoringOnAndroid, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables Picture-in-Picture menu item on the video context menu on Android.
 BASE_FEATURE(kContextMenuPictureInPictureAndroid,
@@ -1553,9 +1545,6 @@ const base::FeatureParam<double>
         "dynamic_window_multiplier", 0.0};
 
 BASE_FEATURE(kCastStreamingHardwareHevc, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// TODO(crbug.com/282984511): Remove after M151.
-BASE_FEATURE(kCastStreamingMediaVideoEncoder, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCastStreamingPerformanceOverlay,
              base::FEATURE_DISABLED_BY_DEFAULT);

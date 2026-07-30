@@ -59,13 +59,13 @@ static HTMLDimension ParseDimension(
 
   double value = 0.;
   if (position > digits_start) {
-    bool ok = false;
-    unsigned integer_value = CharactersToUInt(
+    std::optional<unsigned> integer_value = CharactersToUInt(
         characters.subspan(digits_start, position - digits_start),
-        NumberParsingOptions(), &ok);
-    if (!ok)
+        NumberParsingOptions());
+    if (!integer_value) {
       return HTMLDimension(0., HTMLDimension::kRelative);
-    value += integer_value;
+    }
+    value += *integer_value;
 
     if (SkipExactly<CharacterType>(characters, '.', position)) {
       Vector<CharacterType> fraction_numbers;
@@ -79,12 +79,12 @@ static HTMLDimension ParseDimension(
       }
 
       if (fraction_numbers.size()) {
-        double fraction_value = CharactersToUInt(base::span(fraction_numbers),
-                                                 NumberParsingOptions(), &ok);
-        if (!ok)
+        std::optional<unsigned> fraction_value = CharactersToUInt(
+            base::span(fraction_numbers), NumberParsingOptions());
+        if (!fraction_value) {
           return HTMLDimension(0., HTMLDimension::kRelative);
-
-        value += fraction_value /
+        }
+        value += static_cast<double>(*fraction_value) /
                  pow(10., static_cast<double>(fraction_numbers.size()));
       }
     }
@@ -158,13 +158,11 @@ static bool ParseDimensionValue(base::span<const CharacterType> characters,
     // yielding a regular length.) Gecko and Edge does not.
     current = SkipWhile<CharacterType, IsAsciiDigit>(characters, current);
   }
-  bool ok;
-  double value = CSSValueClampingUtils::ClampDouble(CharactersToDouble(
-      characters.subspan(number_start,
-                         static_cast<size_t>(current - number_start)),
-      &ok));
-  if (!ok)
+  std::optional<double> value = CharactersToDouble(
+      characters.subspan(number_start, current - number_start));
+  if (!value) {
     return false;
+  }
   HTMLDimension::HTMLDimensionType type = HTMLDimension::kAbsolute;
   if (current < characters.size()) {
     const auto c = characters[current];
@@ -179,7 +177,7 @@ static bool ParseDimensionValue(base::span<const CharacterType> characters,
       type = HTMLDimension::kRelative;
     }
   }
-  dimension = HTMLDimension(value, type);
+  dimension = HTMLDimension(CSSValueClampingUtils::ClampDouble(*value), type);
   return true;
 }
 

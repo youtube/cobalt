@@ -26,6 +26,7 @@
 #include "content/public/test/web_contents_tester.h"
 #include "mojo/public/cpp/bindings/associated_receiver_set.h"
 #include "mojo/public/cpp/bindings/receiver.h"
+#include "pdf/buildflags.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
@@ -128,6 +129,14 @@ class MockChromeRenderFrame : public chrome::mojom::ChromeRenderFrame {
               (const base::UnguessableToken&,
                GetCrossDocumentScriptToolResultCallback),
               (override));
+#if BUILDFLAG(ENABLE_PDF)
+  MOCK_METHOD(void,
+              PdfPageCaptured,
+              (const std::u16string& contents,
+               const std::string& pdf_lang,
+               const GURL& page_url),
+              (override));
+#endif
 
  private:
   mojo::AssociatedReceiverSet<chrome::mojom::ChromeRenderFrame> receivers_;
@@ -247,7 +256,14 @@ TEST_F(PasswordChangePageStabilityWaiterTest, MonitorDisconnects) {
   EXPECT_TRUE(future.Wait());
 }
 
-TEST_F(PasswordChangePageStabilityWaiterTest, DisconnectDuringNavigation) {
+// TODO(crbug.com/517949256): Disabled on Linux due to excessive flakiness.
+#if BUILDFLAG(IS_LINUX)
+#define MAYBE_DisconnectDuringNavigation DISABLED_DisconnectDuringNavigation
+#else
+#define MAYBE_DisconnectDuringNavigation DisconnectDuringNavigation
+#endif
+TEST_F(PasswordChangePageStabilityWaiterTest,
+       MAYBE_DisconnectDuringNavigation) {
   base::test::TestFuture<void> future;
 
   // We expect two calls to CreatePageStabilityMonitor: one for the initial

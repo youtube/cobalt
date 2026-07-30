@@ -559,9 +559,7 @@ void AutoPictureInPictureTabHelper::MediaSessionActionsChanged(
 void AutoPictureInPictureTabHelper::MaybeEnterAutoPictureInPicture() {
   if (!IsEligibleForAutoPictureInPicture(
           /*should_record_blocking_metrics=*/true)) {
-    if (base::FeatureList::IsEnabled(
-            media::kAutoPictureInPictureForVideoPlayback) &&
-        !IsUsingCameraOrMicrophone() && !has_safe_url_) {
+    if (!IsUsingCameraOrMicrophone() && !has_safe_url_) {
       // This is a media playback case, but we have not checked for URL safety
       // yet. Do not report info changed, as an async check will be triggered
       // which will call this function again.
@@ -577,11 +575,6 @@ void AutoPictureInPictureTabHelper::MaybeEnterAutoPictureInPicture() {
 }
 
 void AutoPictureInPictureTabHelper::MaybeScheduleAsyncTasks() {
-  if (!base::FeatureList::IsEnabled(
-          media::kAutoPictureInPictureForVideoPlayback)) {
-    return;
-  }
-
   StopAndResetAsyncTasks();
 
   // Prevent scheduling asynchronous checks if we are already in picture in
@@ -615,11 +608,6 @@ void AutoPictureInPictureTabHelper::MaybeReportAutoPictureInPictureInfoChanged()
 }
 
 void AutoPictureInPictureTabHelper::StopAndResetAsyncTasks() {
-  if (!base::FeatureList::IsEnabled(
-          media::kAutoPictureInPictureForVideoPlayback)) {
-    return;
-  }
-
   async_tasks_weak_factory_.InvalidateWeakPtrs();
   safe_browsing_checker_client_.reset();
 
@@ -725,11 +713,6 @@ bool AutoPictureInPictureTabHelper::IsEligibleForAutoPictureInPicture(
 }
 
 bool AutoPictureInPictureTabHelper::MeetsVideoPlaybackConditions() const {
-  if (!base::FeatureList::IsEnabled(
-          media::kAutoPictureInPictureForVideoPlayback)) {
-    return false;
-  }
-
   return has_audio_focus_ && is_playing_ && WasRecentlyAudible() &&
          has_safe_url_ && MeetsMediaEngagementConditions();
 }
@@ -921,7 +904,16 @@ AutoPictureInPictureTabHelper::GetAutoPipReason() const {
   }
 
   if (MeetsVideoPlaybackConditions()) {
-    return media::PictureInPictureEventsInfo::AutoPipReason::kMediaPlayback;
+    content::MediaSession* media_session =
+        content::MediaSession::GetIfExists(web_contents());
+    if (media_session) {
+      auto actions = media_session->GetMediaSessionActionsSync();
+      if (std::ranges::find(actions,
+                            media_session::mojom::MediaSessionAction::
+                                kEnterAutoPictureInPicture) != actions.end()) {
+        return media::PictureInPictureEventsInfo::AutoPipReason::kMediaPlayback;
+      }
+    }
   }
 
   return media::PictureInPictureEventsInfo::AutoPipReason::kUnknown;

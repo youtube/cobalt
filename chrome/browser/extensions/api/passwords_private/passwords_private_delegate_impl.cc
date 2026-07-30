@@ -355,8 +355,9 @@ PasswordsPrivateDelegateImpl::PasswordsPrivateDelegateImpl(Profile* profile)
               profile,
               ServiceAccessType::EXPLICIT_ACCESS),
           MaybeGetPasskeyModel(profile)),
-      password_manager_porter_(std::make_unique<PasswordManagerPorter>(
-          profile,
+      password_import_controller_(std::make_unique<PasswordImportController>(
+          &saved_passwords_presenter_)),
+      password_export_controller_(std::make_unique<PasswordExportController>(
           &saved_passwords_presenter_,
           base::BindRepeating(
               &PasswordsPrivateDelegateImpl::OnPasswordsExportProgress,
@@ -799,7 +800,7 @@ void PasswordsPrivateDelegateImpl::ImportPasswords(
             to_store);
   password_manager::PasswordForm::Store store_to_use =
       *ConvertToPasswordFormStores(to_store).begin();
-  password_manager_porter_->Import(
+  password_import_controller_->Import(
       web_contents, store_to_use,
       base::BindOnce(&ConvertImportResults).Then(std::move(results_callback)));
 }
@@ -809,7 +810,7 @@ void PasswordsPrivateDelegateImpl::ContinueImport(
     ImportResultsCallback results_callback,
     content::WebContents* web_contents) {
   if (selected_ids.empty()) {
-    password_manager_porter_->ContinueImport(
+    password_import_controller_->ContinueImport(
         selected_ids, base::BindOnce(&ConvertImportResults)
                           .Then(std::move(results_callback)));
     return;
@@ -832,7 +833,7 @@ void PasswordsPrivateDelegateImpl::ContinueImport(
 }
 
 void PasswordsPrivateDelegateImpl::ResetImporter(bool delete_file) {
-  password_manager_porter_->ResetImporter(delete_file);
+  password_import_controller_->ResetImporter(delete_file);
 }
 
 void PasswordsPrivateDelegateImpl::ExportPasswords(
@@ -856,7 +857,7 @@ void PasswordsPrivateDelegateImpl::ExportPasswords(
 
 api::passwords_private::ExportProgressStatus
 PasswordsPrivateDelegateImpl::GetExportProgressStatus() {
-  return ConvertStatus(password_manager_porter_->GetExportProgressStatus());
+  return ConvertStatus(password_export_controller_->GetExportProgressStatus());
 }
 
 bool PasswordsPrivateDelegateImpl::IsAccountStorageActive() {
@@ -977,17 +978,9 @@ void PasswordsPrivateDelegateImpl::ShowAddShortcutDialog(
           kAddShortcutClicked);
 }
 
-void PasswordsPrivateDelegateImpl::ShowExportedFileInShell(
-    content::WebContents* web_contents,
-    std::string file_path) {
-  BrowserWindowInterface* browser =
-      GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(web_contents);
-  DCHECK(browser);
-  // TODO(b/516745102): Move this logic to PasswordExportController after
-  // splitting PasswordManagerPorter.
-  if (!last_exported_path_.empty()) {
-    platform_util::ShowItemInFolder(browser->GetProfile(), last_exported_path_);
-  }
+void PasswordsPrivateDelegateImpl::ShowLastExportedFileInShell(
+    content::WebContents* web_contents) {
+  password_export_controller_->ShowLastExportedFileInShell(web_contents);
 }
 
 void PasswordsPrivateDelegateImpl::ChangePasswordManagerPin(
@@ -1143,14 +1136,6 @@ void PasswordsPrivateDelegateImpl::MaybeShowPasswordShareButtonIPH(
 
 void PasswordsPrivateDelegateImpl::OnPasswordsExportProgress(
     const password_manager::PasswordExportInfo& progress) {
-  if (progress.status == password_manager::ExportProgressStatus::kSucceeded) {
-#if !BUILDFLAG(IS_WIN)
-    last_exported_path_ = base::FilePath(progress.file_path);
-#else
-    last_exported_path_ = base::FilePath(base::UTF8ToWide(progress.file_path));
-#endif
-  }
-
   PasswordsPrivateEventRouter* router =
       PasswordsPrivateEventRouterFactory::GetForProfile(profile_);
   if (router) {
@@ -1267,7 +1252,7 @@ void PasswordsPrivateDelegateImpl::OnExportPasswordsAuthResult(
     return;
   }
 
-  bool accepted = password_manager_porter_->Export(web_contents);
+  bool accepted = password_export_controller_->Export(web_contents.get());
   std::move(accepted_callback)
       .Run(accepted ? std::string() : kExportInProgress);
 }
@@ -1283,8 +1268,8 @@ void PasswordsPrivateDelegateImpl::OnImportPasswordsAuthResult(
     return;
   }
 
-  CHECK(password_manager_porter_);
-  password_manager_porter_->ContinueImport(
+  CHECK(password_import_controller_);
+  password_import_controller_->ContinueImport(
       selected_ids,
       base::BindOnce(&ConvertImportResults).Then(std::move(results_callback)));
 }

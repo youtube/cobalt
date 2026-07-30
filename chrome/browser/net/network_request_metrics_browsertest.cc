@@ -14,6 +14,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/threading/thread_restrictions.h"
+#include "build/build_config.h"
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/predictors/loading_predictor_config.h"
 #include "chrome/browser/preloading/scoped_prewarm_feature_list.h"
@@ -113,14 +114,13 @@ class NetworkRequestMetricsBrowserTest
       public testing::WithParamInterface<RequestType> {
  public:
   NetworkRequestMetricsBrowserTest() {
-    // TODO(crbug.com/452061489, crbug.com/444358999): Remove
-    // `scoped_feature_list_` when these features are enabled in
-    // fieldtrial_testing_config.json or tip of tree.
+    // Disable InitialWebUI and WebUI Omnibox Popup features to prevent
+    // background preloaded WebUI navigations from flakily recording extra
+    // samples in the test's histograms.
     scoped_feature_list_.InitWithFeatures(
-        {features::kInitialWebUI, features::kWebUIReloadButton,
-         omnibox::internal::kWebUIOmniboxPopup,
-         omnibox::internal::kWebUIOmniboxAimPopup},
-        {});
+        {}, {features::kInitialWebUI, features::kWebUIReloadButton,
+             omnibox::internal::kWebUIOmniboxPopup,
+             omnibox::internal::kWebUIOmniboxAimPopup});
   }
   ~NetworkRequestMetricsBrowserTest() override = default;
 
@@ -444,8 +444,15 @@ IN_PROC_BROWSER_TEST_P(NetworkRequestMetricsBrowserTest,
   CheckHistogramsAfterMainFrameInterruption();
 }
 
+// TODO(crbug.com/520427873): This bug is flaky on ChromeOS most likely due to
+// the comment above the PostTask. Deflake before re-enabling.
+#if BUILDFLAG(IS_CHROMEOS)
+#define MAYBE_InterruptedCancelDuringBody DISABLED_InterruptedCancelDuringBody
+#else
+#define MAYBE_InterruptedCancelDuringBody InterruptedCancelDuringBody
+#endif
 IN_PROC_BROWSER_TEST_P(NetworkRequestMetricsBrowserTest,
-                       InterruptedCancelDuringBody) {
+                       MAYBE_InterruptedCancelDuringBody) {
   TestNavigationObserver navigation_observer(active_web_contents(), 1);
   StartNavigatingAndWaitForRequest();
   SendHeadersPartialBody();

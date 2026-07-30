@@ -7,6 +7,8 @@
 
 #include <stdint.h>
 
+#include <optional>
+
 #include "media/base/media_export.h"
 #include "media/formats/mpeg/mpeg_audio_stream_parser_base.h"
 
@@ -21,50 +23,12 @@ class MEDIA_EXPORT MPEG1AudioStreamParser : public MPEGAudioStreamParserBase {
   // Size of an MPEG-1 frame header in bytes.
   static constexpr size_t kHeaderSize = 4;
 
-  // Versions and layers as defined in ISO/IEC 11172-3.
-  enum Version : uint8_t {
-    kVersion1 = 3,
-    kVersion2 = 2,
-    kVersionReserved = 1,
-    kVersion2_5 = 0,
-  };
-
-  enum Layer : uint8_t {
-    kLayer1 = 3,
-    kLayer2 = 2,
-    kLayer3 = 1,
-    kLayerReserved = 0,
-  };
-
-  struct Header {
-    Version version;
-
-    // Layer as defined in ISO/IEC 11172-3 bitstream specification.
-    Layer layer;
-
-    // Frame size in bytes.
-    int frame_size;
-
-    // Sample frequency.
-    int sample_rate;
-
-    // Channel mode as defined in ISO/IEC 11172-3 bitstream specification.
-    int channel_mode;
-
-    // Channel layout.
-    ChannelLayout channel_layout;
-
-    // Number of samples per frame.
-    int sample_count;
-  };
+  using Header = MPEGAudioStreamParserBase::Header;
 
   // Parses the header starting at |data|.
   // Assumption: size of array |data| should be at least |kHeaderSize|.
   // Returns false if the header is not valid.
-  static bool ParseHeader(MediaLog* media_log,
-                          size_t* media_log_limit,
-                          base::span<const uint8_t> data,
-                          Header* header);
+  static std::optional<Header> ParseHeader(base::span<const uint8_t> data);
 
   MPEG1AudioStreamParser();
 
@@ -75,13 +39,9 @@ class MEDIA_EXPORT MPEG1AudioStreamParser : public MPEGAudioStreamParserBase {
 
  private:
   // MPEGAudioStreamParserBase overrides.
-  int ParseFrameHeader(base::span<const uint8_t> data,
-                       size_t* frame_size,
-                       size_t* sample_rate,
-                       ChannelLayout* channel_layout,
-                       size_t* sample_count,
-                       bool* metadata_frame,
-                       std::vector<uint8_t>* extra_data) override;
+  size_t GetMinHeaderSize() const override;
+  std::optional<Header> ParseFrameHeader(
+      base::span<const uint8_t> data) override;
 
   size_t mp3_parse_error_limit_ = 0;
 };

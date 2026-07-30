@@ -349,6 +349,8 @@ static_library("test_support") {
     "../public/test/scoped_overscroll_modes.h",
     "../public/test/scoped_page_focus_override.cc",
     "../public/test/scoped_page_focus_override.h",
+    "../public/test/scoped_pip_exclusion_override.cc",
+    "../public/test/scoped_pip_exclusion_override.h",
     "../public/test/scoped_time_zone.cc",
     "../public/test/scoped_time_zone.h",
     "../public/test/scoped_web_ui_controller_factory_registration.cc",
@@ -535,6 +537,8 @@ static_library("test_support") {
     "test_page_broadcast.h",
     "test_page_factory.cc",
     "test_page_factory.h",
+    "test_pip_screen_capture_coordinator.cc",
+    "test_pip_screen_capture_coordinator.h",
     "test_render_frame.cc",
     "test_render_frame.h",
     "test_render_frame_host.cc",
@@ -1171,7 +1175,10 @@ static_library("browsertest_support") {
   }
 
   if (is_mac) {
-    sources += [ "../public/test/content_browser_test_utils_mac.mm" ]
+    sources += [
+      "../public/test/content_browser_test_utils_mac.mm",
+      "content_browser_test_utils_internal_mac.mm",
+    ]
     deps += [ "//ui/base/mojom" ]
   }
 
@@ -1577,6 +1584,7 @@ test("content_browsertests") {
     "../browser/file_system_access/file_system_access_file_writer_impl_browsertest.cc",
     "../browser/file_system_access/file_system_access_handle_impl_browsertest_util.cc",
     "../browser/file_system_access/file_system_access_handle_impl_browsertest_util.h",
+    "../browser/file_system_access/file_system_access_security_browsertest.cc",
     "../browser/file_system_access/file_system_access_sync_access_handle_browsertest.cc",
     "../browser/file_system_access/file_system_chooser_browsertest.cc",
     "../browser/find_request_manager_browsertest.cc",
@@ -2783,6 +2791,7 @@ test("content_unittests") {
     "../browser/loader/navigation_early_hints_manager_unittest.cc",
     "../browser/loader/navigation_url_loader_impl_unittest.cc",
     "../browser/loader/navigation_url_loader_unittest.cc",
+    "../browser/loader/prefetch_url_loader_unittest.cc",
     "../browser/locks/lock_manager_unittest.cc",
     "../browser/manifest/manifest_icon_downloader_unittest.cc",
     "../browser/media/audible_metrics_unittest.cc",
@@ -3768,7 +3777,7 @@ test("content_unittests") {
       "../browser/service_worker/service_worker_hid_delegate_observer_unittest.cc",
       "../browser/webauth/authenticator_impl_unittest.cc",
       "../browser/webauth/authenticator_mojom_traits_unittest.cc",
-      "../browser/webauth/webauth_request_security_checker_unittest.cc",
+      "../browser/webauth/webauth_request_security_checker_impl_unittest.cc",
     ]
     deps += [
       "//components/webauthn/core/browser",

@@ -74,10 +74,7 @@ public abstract class BaseSuggestionViewProcessor implements SuggestionProcessor
         mActionChipsProcessor = new ActionChipsProcessor(uiContext.host, uiContext.actionDelegate);
 
         mShouldShowRemoveButton =
-                OmniboxFeatures.sOmniboxImprovementForLFF.isEnabled()
-                        && OmniboxFeatures.sOmniboxImprovementForLFFRemoveSuggestionViaButton
-                                .getValue()
-                        && DeviceFormFactor.isNonMultiDisplayContextOnTablet(mContext)
+                DeviceFormFactor.isNonMultiDisplayContextOnTablet(mContext)
                         && DeviceInput.supportsPrecisionPointer();
     }
 
@@ -248,7 +245,7 @@ public abstract class BaseSuggestionViewProcessor implements SuggestionProcessor
                 () -> onSuggestionLongClicked(suggestion));
         model.set(
                 BaseSuggestionViewProperties.ON_FOCUS_VIA_SELECTION,
-                () -> mSuggestionHost.setOmniboxEditingText(suggestion.getFillIntoEdit()));
+                () -> mSuggestionHost.onSuggestionFocused(suggestion));
         setActionButtons(model, null);
 
         model.set(BaseSuggestionViewProperties.USE_LARGE_DECORATION, false);
@@ -367,8 +364,7 @@ public abstract class BaseSuggestionViewProcessor implements SuggestionProcessor
                     url,
                     icon -> {
                         if (icon != null) {
-                            setOmniboxDrawableState(
-                                    model, OmniboxDrawableState.forFavIcon(mContext, icon));
+                            setOmniboxDrawableState(model, OmniboxDrawableState.forFavIcon(icon));
                         }
                     });
         }
@@ -385,10 +381,9 @@ public abstract class BaseSuggestionViewProcessor implements SuggestionProcessor
         if (mImageSupplier != null) {
             mImageSupplier.fetchImage(
                     imageUrl,
-                    bitmap -> {
-                        if (bitmap != null) {
-                            setOmniboxDrawableState(
-                                    model, OmniboxDrawableState.forImage(mContext, bitmap));
+                    drawable -> {
+                        if (drawable != null) {
+                            setOmniboxDrawableState(model, OmniboxDrawableState.forImage(drawable));
                         }
                     });
         }

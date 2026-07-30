@@ -128,6 +128,10 @@ void IOSTracingController::ResetForTesting() {
   trace_report_to_upload_.reset();
   tracing::TrackNameRecorder::GetInstance()->StopRecording();
   tracing::TraceStartupConfig::ResetForTesting();        // IN-TEST
+  platform_->ResetTaskRunner(base::SingleThreadTaskRunner::GetCurrentDefault());
+  if (base::ThreadPoolInstance::Get()) {
+    base::ThreadPoolInstance::Get()->FlushForTesting();  // IN-TEST
+  }
   perfetto::Tracing::ResetForTesting();                  // IN-TEST
   incognito_tracker_subscription_ = {};
   tracing::CustomEventRecorder::GetInstance()->DetachFromSequence();

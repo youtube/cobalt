@@ -52,10 +52,6 @@
 #include "content/browser/media/session/media_session_android.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_WIN)
-#include "content/public/common/content_features.h"
-#endif  // BUILDFLAG(IS_WIN)
-
 namespace content {
 
 using blink::mojom::MediaSessionPlaybackState;
@@ -833,6 +829,12 @@ MediaSessionImpl::GetMediaSessionMetadata() {
   return metadata_;
 }
 
+std::vector<media_session::mojom::MediaSessionAction>
+MediaSessionImpl::GetMediaSessionActionsSync() const {
+  return std::vector<media_session::mojom::MediaSessionAction>(actions_.begin(),
+                                                               actions_.end());
+}
+
 void MediaSessionImpl::StartDucking() {
   should_unduck_on_focus_gained_ = false;
   if (is_ducking_)
@@ -977,6 +979,7 @@ void MediaSessionImpl::OnSuspendInternal(SuspendType suspend_type,
       it.first.observer->OnSuspend(it.first.player_id, triggered_by_user);
   }
   RebuildAndNotifyMediaSessionInfoChanged();
+  RebuildAndNotifyActionsChanged();
 }
 
 void MediaSessionImpl::OnResumeInternal(SuspendType suspend_type) {
@@ -989,6 +992,7 @@ void MediaSessionImpl::OnResumeInternal(SuspendType suspend_type) {
     it.first.observer->OnResume(it.first.player_id, triggered_by_user);
 
   RebuildAndNotifyMediaSessionInfoChanged();
+  RebuildAndNotifyActionsChanged();
 }
 
 MediaSessionImpl::MediaSessionImpl(WebContents* web_contents)
@@ -1101,12 +1105,12 @@ MediaSessionImpl::GetMediaSessionInfoSync() {
     info->state = MediaSessionInfo::SessionState::kDucking;
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
-  // If this is a webapp, and instanced media controls are on, mark this session
-  // as a pwa session so that the browser sessions can stay isolated. This is
-  // used to differentiate webapp sessions for different handling.
+  // If this is a web app, mark this session so the browser won't
+  // consider it when deciding which media session is "active". Needed because
+  // the browser uses an ActiveMediaSessionController which automatically
+  // follows the "active" media session.
   auto* web_contents_delegate = web_contents()->GetDelegate();
   info->ignore_for_active_session =
-      base::FeatureList::IsEnabled(features::kWebAppSystemMediaControls) &&
       web_contents_delegate &&
       web_contents_delegate->ShouldUseInstancedSystemMediaControls();
 #else

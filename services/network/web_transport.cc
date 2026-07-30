@@ -38,7 +38,11 @@ net::WebTransportParameters CreateParameters(
     const std::vector<mojom::WebTransportCertificateFingerprintPtr>&
         fingerprints,
     std::vector<std::string> application_protocols,
-    mojom::WebTransportCongestionControl congestion_control) {
+    mojom::WebTransportCongestionControl congestion_control,
+    std::optional<uint16_t>
+        anticipated_concurrent_incoming_unidirectional_streams,
+    std::optional<uint16_t>
+        anticipated_concurrent_incoming_bidirectional_streams) {
   net::WebTransportParameters params;
   params.enable_web_transport_http3 = true;
   params.application_protocols = std::move(application_protocols);
@@ -60,6 +64,11 @@ net::WebTransportParameters CreateParameters(
       NOTREACHED();
   }
 
+  params.anticipated_concurrent_incoming_unidirectional_streams =
+      anticipated_concurrent_incoming_unidirectional_streams;
+  params.anticipated_concurrent_incoming_bidirectional_streams =
+      anticipated_concurrent_incoming_bidirectional_streams;
+
   for (const auto& fingerprint : fingerprints) {
     params.server_certificate_fingerprints.push_back(
         quic::CertificateFingerprint{.algorithm = fingerprint->algorithm,
@@ -70,6 +79,11 @@ net::WebTransportParameters CreateParameters(
 
 base::TimeDelta ToTimeDelta(absl::Duration duration) {
   return base::Microseconds(absl::ToInt64Microseconds(duration));
+}
+
+webtransport::StreamPriority ToStreamPriority(
+    const mojom::WebTransportStreamPriority& p) {
+  return {p.send_group_id.value_or(0), p.send_order};
 }
 
 mojom::WebTransportStatsPtr StatsToMojom(
@@ -431,6 +445,10 @@ WebTransport::WebTransport(
         fingerprints,
     const std::vector<std::string>& application_protocols,
     mojom::WebTransportCongestionControl congestion_control,
+    std::optional<uint16_t>
+        anticipated_concurrent_incoming_unidirectional_streams,
+    std::optional<uint16_t>
+        anticipated_concurrent_incoming_bidirectional_streams,
     NetworkContext* context,
     mojo::PendingRemote<mojom::WebTransportHandshakeClient> handshake_client,
     mojo::PendingRemote<mojom::URLLoaderNetworkServiceObserver>
@@ -445,9 +463,12 @@ WebTransport::WebTransport(
           // service layer once a need arises.
           net::handles::kInvalidNetworkHandle,
           context->url_request_context(),
-          CreateParameters(fingerprints,
-                           std::move(application_protocols),
-                           congestion_control))),
+          CreateParameters(
+              fingerprints,
+              std::move(application_protocols),
+              congestion_control,
+              anticipated_concurrent_incoming_unidirectional_streams,
+              anticipated_concurrent_incoming_bidirectional_streams))),
       url_(url),
       origin_(origin),
       context_(context),
@@ -479,6 +500,7 @@ void WebTransport::SendDatagram(base::span<const uint8_t> data,
 void WebTransport::CreateStream(
     mojo::ScopedDataPipeConsumerHandle readable,
     mojo::ScopedDataPipeProducerHandle writable,
+    mojom::WebTransportStreamPriorityPtr priority,
     base::OnceCallback<void(bool, uint32_t)> callback) {
   // |readable| is non-nullable, |writable| is nullable.
   DCHECK(readable);
@@ -503,6 +525,9 @@ void WebTransport::CreateStream(
     quic::WebTransportStream* const stream =
         session->OpenOutgoingBidirectionalStream();
     DCHECK(stream);
+    if (priority) {
+      stream->SetPriority(ToStreamPriority(*priority));
+    }
     streams_.insert(std::make_pair(
         stream->GetStreamId(),
         std::make_unique<Stream>(this, stream, std::move(readable),
@@ -522,6 +547,9 @@ void WebTransport::CreateStream(
   quic::WebTransportStream* const stream =
       session->OpenOutgoingUnidirectionalStream();
   DCHECK(stream);
+  if (priority) {
+    stream->SetPriority(ToStreamPriority(*priority));
+  }
   streams_.insert(std::make_pair(
       stream->GetStreamId(),
       std::make_unique<Stream>(this, stream, std::move(readable))));

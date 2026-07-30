@@ -57,6 +57,10 @@ public final class EventConstants {
     /** The user interacted with the New Tab button on the new bottom bar. */
     public static final String ANDROID_BOTTOM_BAR_NEW_TAB_USED = "android_bottom_bar_new_tab_used";
 
+    /** The user interacted with the promo dialog for the new bottom bar. */
+    public static final String ANDROID_BOTTOM_BAR_PROMO_DIALOG_USED =
+            "android_bottom_bar_promo_dialog_used";
+
     /** A generic event that any startup promo should notify when it is shown. */
     public static final String ANDROID_STARTUP_PROMO_SHOWN = "android_startup_promo_shown";
 
@@ -143,6 +147,10 @@ public final class EventConstants {
 
     /** User has tapped on Identity Disc. */
     public static final String IDENTITY_DISC_USED = "identity_disc_used";
+
+    /** The user tapped the Incognito indicator. */
+    public static final String INCOGNITO_INDICATOR_CLOSE_ALL_WINDOWS_USED =
+            "incognito_indicator_close_all_windows_used";
 
     /** 'Manage windows' menu for multi-instance support feature was tapped. */
     public static final String INSTANCE_SWITCHER_IPH_USED = "instance_switcher_iph_used";

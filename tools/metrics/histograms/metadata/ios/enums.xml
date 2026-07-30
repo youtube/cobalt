@@ -1394,6 +1394,8 @@ chromium-metrics-reviews@google.com.
   <int value="21" label="HideToolbars"/>
   <int value="22" label="Obsolete in M150 - TabGroup"/>
   <int value="23" label="ShareThisPage"/>
+  <int value="24" label="Signin"/>
+  <int value="25" label="Identity"/>
 </enum>
 
 <!-- LINT.ThenChange(
@@ -2795,6 +2797,9 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Failure_TimeSinceActiveLimitNotMet"/>
   <int value="2" label="Failure_MinEligibleFeaturesNotMet"/>
   <int value="3" label="Failure_SessionEndTimeNil"/>
+  <int value="4" label="Failure_FirstRun"/>
+  <int value="5" label="Failure_TrackerInitialization"/>
+  <int value="6" label="Failure_NotResurrectedUser"/>
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/welcome_back/metrics/welcome_back_metrics.h:WelcomeBackPromoRegistrationResult) -->

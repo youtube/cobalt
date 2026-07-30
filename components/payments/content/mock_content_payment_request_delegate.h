@@ -5,7 +5,6 @@
 #ifndef COMPONENTS_PAYMENTS_CONTENT_MOCK_CONTENT_PAYMENT_REQUEST_DELEGATE_H_
 #define COMPONENTS_PAYMENTS_CONTENT_MOCK_CONTENT_PAYMENT_REQUEST_DELEGATE_H_
 
-#include "base/unguessable_token.h"
 #include "components/payments/content/content_payment_request_delegate.h"
 #include "components/payments/content/payment_request.h"
 #include "components/payments/content/payment_ui_observer.h"
@@ -61,10 +60,6 @@ class MockContentPaymentRequestDelegate : public ContentPaymentRequestDelegate {
               (),
               (override, const));
 
-  MOCK_METHOD(std::optional<base::UnguessableToken>,
-              GetChromeOSTWAInstanceId,
-              (),
-              (override, const));
   MOCK_METHOD(std::string,
               GetSecurePaymentConfirmationKeychainAccessGroup,
               (),
@@ -93,9 +88,6 @@ class MockContentPaymentRequestDelegate : public ContentPaymentRequestDelegate {
               GetAddressNormalizer,
               (),
               (override));
-  MOCK_METHOD(autofill::RegionDataLoader*, GetRegionDataLoader, (), (override));
-  MOCK_METHOD(ukm::UkmRecorder*, GetUkmRecorder, (), (override));
-  MOCK_METHOD(std::string, GetAuthenticatedEmail, (), (override, const));
   MOCK_METHOD(PrefService*, GetPrefService, (), (override));
 };
 

@@ -22,6 +22,7 @@
 #include "chrome/browser/glic/public/glic_invoke_options.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/public/glic_passkeys.h"
+#include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
 #include "chrome/browser/glic/test_support/mock_glic_keyed_service.h"
 #include "chrome/browser/indigo/indigo_image_replacement_manager.h"
 #include "chrome/browser/indigo/indigo_prefs.h"
@@ -29,12 +30,14 @@
 #include "chrome/browser/indigo/indigo_service_factory.h"
 #include "chrome/browser/indigo/onboarding/indigo_onboarding_dialog.h"
 #include "chrome/browser/indigo/proto/indigo_prompts.pb.h"
+#include "chrome/browser/indigo/resources/grit/indigo_strings.h"
 #include "chrome/browser/optimization_guide/mock_optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
 #include "chrome/browser/signin/signin_ui_delegate.h"
 #include "chrome/browser/signin/signin_ui_util.h"
+#include "chrome/browser/skills/skills_service_factory.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/page_action/test_support/fake_tab_interface.h"
 #include "chrome/browser/ui/page_action/test_support/mock_page_action_controller.h"
@@ -47,13 +50,19 @@
 #include "components/signin/public/base/signin_buildflags.h"
 #include "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
+#include "components/skills/mocks/mock_skills_service.h"
+#include "components/skills/public/skill.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/navigation_simulator.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/mojom/image_replacement/image_replacement.mojom.h"
+#include "ui/base/l10n/l10n_util.h"
+#include "ui/base/models/image_model.h"
+#include "ui/base/resource/resource_bundle.h"
 #include "ui/base/unowned_user_data/unowned_user_data_host.h"
+#include "ui/gfx/image/image_skia.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "chromeos/ash/components/network/network_handler_test_helper.h"
@@ -123,6 +132,7 @@ class IndigoPageActionControllerTest : public testing::Test {
     tab_interface_.reset();
     mock_optimization_guide_ = nullptr;
     mock_glic_keyed_service_ = nullptr;
+    mock_skills_service_ = nullptr;
     identity_test_env_adaptor_.reset();
     profile_.reset();
     testing_profile_manager_ = nullptr;
@@ -141,6 +151,13 @@ class IndigoPageActionControllerTest : public testing::Test {
                                   -> std::unique_ptr<KeyedService> {
             return std::make_unique<
                 testing::NiceMock<MockOptimizationGuideKeyedService>>();
+          }));
+      builder.AddTestingFactory(
+          skills::SkillsServiceFactory::GetInstance(),
+          base::BindRepeating([](content::BrowserContext* context)
+                                  -> std::unique_ptr<KeyedService> {
+            return std::make_unique<
+                testing::NiceMock<skills::MockSkillsService>>();
           }));
       builder.AddTestingFactory(
           glic::GlicKeyedServiceFactory::GetInstance(),
@@ -172,6 +189,11 @@ class IndigoPageActionControllerTest : public testing::Test {
           static_cast<testing::NiceMock<MockOptimizationGuideKeyedService>*>(
               OptimizationGuideKeyedServiceFactory::GetForProfile(
                   profile_.get()));
+
+      mock_skills_service_ =
+          static_cast<testing::NiceMock<skills::MockSkillsService>*>(
+              skills::SkillsServiceFactory::GetForProfile(profile_.get()));
+      CHECK(mock_skills_service_);
 
       SetModelExecutionCapability(true);
 
@@ -290,6 +312,8 @@ class IndigoPageActionControllerTest : public testing::Test {
   raw_ptr<TestingProfileManager> testing_profile_manager_;
   raw_ptr<testing::NiceMock<glic::MockGlicKeyedService>>
       mock_glic_keyed_service_ = nullptr;
+  raw_ptr<testing::NiceMock<skills::MockSkillsService>> mock_skills_service_ =
+      nullptr;
   std::unique_ptr<TestingProfile> profile_;
   std::unique_ptr<IdentityTestEnvironmentProfileAdaptor>
       identity_test_env_adaptor_;
@@ -395,6 +419,30 @@ TEST_F(IndigoPageActionControllerTest, IgnoresFragmentOnlyNavigation) {
   auto navigation2 = content::NavigationSimulator::CreateRendererInitiated(
       url2, tab_interface_->GetContents()->GetPrimaryMainFrame());
   navigation2->CommitSameDocument();
+}
+
+TEST_F(IndigoPageActionControllerTest, QueriesOptimizationGuideOnReload) {
+  CreateController();
+
+  GURL url("https://example.com");
+
+  ExpectOptimizationGuideDecision(url, OptimizationGuideDecision::kTrue);
+  EXPECT_CALL(*page_action_controller_, Show(kActionIndigo));
+
+  auto navigation1 = content::NavigationSimulator::CreateBrowserInitiated(
+      url, tab_interface_->GetContents());
+  navigation1->Commit();
+
+  testing::Mock::VerifyAndClearExpectations(mock_optimization_guide_);
+  testing::Mock::VerifyAndClearExpectations(page_action_controller_.get());
+
+  // Reloading the same URL should query optimization guide again.
+  ExpectOptimizationGuideDecision(url, OptimizationGuideDecision::kTrue);
+  EXPECT_CALL(*page_action_controller_, Show(kActionIndigo));
+
+  auto navigation2 = content::NavigationSimulator::CreateBrowserInitiated(
+      url, tab_interface_->GetContents());
+  navigation2->Commit();
 }
 
 TEST_F(IndigoPageActionControllerTest,
@@ -522,11 +570,36 @@ TEST_F(IndigoPageActionControllerTest, ShowsAnchoredMessageThenSuggestionChip) {
 
     EXPECT_CALL(
         *page_action_controller_,
+        SetAnchoredMessageText(
+            kActionIndigo, l10n_util::GetStringUTF16(
+                               IDS_INDIGO_ENTRYPOINT_ANCHORED_MESSAGE_TEXT)));
+    gfx::ImageSkia* expected_skia =
+        ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(
+            IDR_GLIC_BUTTON_ALT_ICON);
+    EXPECT_CALL(
+        *page_action_controller_,
+        SetAnchoredMessageIcon(
+            kActionIndigo,
+            testing::Truly([expected_skia](const ui::ImageModel& model) {
+              return expected_skia
+                         ? (model.IsImage() &&
+                            model.GetImage().AsImageSkia().BackedBySameObjectAs(
+                                *expected_skia))
+                         : model.IsEmpty();
+            })));
+    EXPECT_CALL(
+        *page_action_controller_,
         ShowAnchoredMessage(
             kActionIndigo,
             page_actions::AnchoredMessageConfig{
                 .priority =
-                    page_actions::PageActionPriorityCategory::kContextualCue}));
+                    page_actions::PageActionPriorityCategory::kContextualCue}))
+        .WillOnce(testing::InvokeWithoutArgs([&]() {
+          page_actions::PageActionState state;
+          state.action_id = kActionIndigo;
+          state.anchored_message_showing = true;
+          controller_->OnPageActionAnchoredMessageShown(state);
+        }));
     EXPECT_CALL(*page_action_controller_, ShowSuggestionChip(_, _)).Times(0);
 
     auto navigation = content::NavigationSimulator::CreateBrowserInitiated(
@@ -560,7 +633,7 @@ TEST_F(IndigoPageActionControllerTest, InvokeActionTriggersEligibilityCheck) {
             std::move(callback).Run(RemoteEligibility{});
           }));
 
-  controller_->InvokeAction();
+  controller_->InvokeAction(EntryPoint::kSuggestionChip);
   EXPECT_TRUE(fetcher_called.Wait());
 }
 
@@ -697,7 +770,8 @@ TEST_F(IndigoPageActionControllerTest, OnCloseResetsReplacements) {
    public:
     FakeImageReplacement() = default;
     void StartReplacement(
-        mojo::PendingRemote<blink::mojom::ImageReplacementHost> host) override {
+        mojo::PendingRemote<blink::mojom::ImageReplacementHost> host,
+        std::optional<int32_t> tracked_element_feature_id) override {
       // Do nothing.
     }
     void RenderReplacement() override {}
@@ -736,7 +810,7 @@ TEST_F(IndigoPageActionControllerTest,
       url, tab_interface_->GetContents());
   navigation->Commit();
 
-  controller_->InvokeAction();
+  controller_->InvokeAction(EntryPoint::kAnchoredMessage);
 }
 
 TEST_F(IndigoPageActionControllerTest, InvokeActionOpensGlicForSuggestionChip) {
@@ -754,7 +828,13 @@ TEST_F(IndigoPageActionControllerTest, InvokeActionOpensGlicForSuggestionChip) {
   {
     GURL url1("https://example.com/1");
     ExpectOptimizationGuideDecision(url1, OptimizationGuideDecision::kTrue);
-    EXPECT_CALL(*page_action_controller_, ShowAnchoredMessage(_, _));
+    EXPECT_CALL(*page_action_controller_, ShowAnchoredMessage(_, _))
+        .WillOnce(testing::InvokeWithoutArgs([&]() {
+          page_actions::PageActionState state;
+          state.action_id = kActionIndigo;
+          state.anchored_message_showing = true;
+          controller_->OnPageActionAnchoredMessageShown(state);
+        }));
     auto navigation1 = content::NavigationSimulator::CreateBrowserInitiated(
         url1, tab_interface_->GetContents());
     navigation1->Commit();
@@ -769,7 +849,7 @@ TEST_F(IndigoPageActionControllerTest, InvokeActionOpensGlicForSuggestionChip) {
     navigation2->Commit();
   }
 
-  controller_->InvokeAction();
+  controller_->InvokeAction(EntryPoint::kSuggestionChip);
 }
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
@@ -793,7 +873,7 @@ TEST_F(IndigoPageActionControllerTest, InvokeActionTriggerReauthWhenPaused) {
                    /*enable_sync=*/false, signin_metrics::AccessPoint::kIndigo,
                    signin_metrics::PromoAction::PROMO_ACTION_NO_SIGNIN_PROMO));
 
-  controller_->InvokeAction();
+  controller_->InvokeAction(EntryPoint::kSuggestionChip);
 
   histogram_tester.ExpectUniqueSample(
       "Indigo.Transformation.Result",
@@ -827,7 +907,7 @@ TEST_F(IndigoPageActionControllerTest, InvokeActionOpensGlicWithProtoPrompt) {
       url, tab_interface_->GetContents());
   navigation->Commit();
 
-  controller_->InvokeAction();
+  controller_->InvokeAction(EntryPoint::kAnchoredMessage);
 }
 
 TEST_F(IndigoPageActionControllerTest,
@@ -857,7 +937,7 @@ TEST_F(IndigoPageActionControllerTest,
       url, tab_interface_->GetContents());
   navigation->Commit();
 
-  controller_->InvokeAction();
+  controller_->InvokeAction(EntryPoint::kAnchoredMessage);
 }
 
 TEST_F(IndigoPageActionControllerTest,
@@ -884,7 +964,124 @@ TEST_F(IndigoPageActionControllerTest,
       url, tab_interface_->GetContents());
   navigation->Commit();
 
-  controller_->InvokeAction();
+  controller_->InvokeAction(EntryPoint::kAnchoredMessage);
+}
+
+TEST_F(IndigoPageActionControllerTest, InvokeActionOpensGlicWithSkill) {
+  CreateController();
+  SetupEligibleAndOnboarded();
+
+  base::test::ScopedFeatureList local_feature_list;
+  local_feature_list.InitAndEnableFeatureWithParameters(
+      features::kIndigoOpenGlic, {{"indigo_glic_skill_id", "test_skill_id"}});
+
+  // Mock the skill lookup
+  skills::Skill mock_skill;
+  mock_skill.id = "test_skill_id";
+  mock_skill.prompt = "skill test prompt";
+  mock_skill.source = sync_pb::SkillSource::SKILL_SOURCE_FIRST_PARTY;
+
+  EXPECT_CALL(*mock_skills_service_, GetSkillById("test_skill_id"))
+      .WillOnce(testing::Return(&mock_skill));
+
+  // Verify Glic is called with the skill prompt
+  EXPECT_CALL(*mock_glic_keyed_service_,
+              InvokeWithAutoSubmit(_, HasGlicPrompt("skill test prompt")))
+      .WillOnce(::testing::Return(base::WeakPtr<glic::GlicInstance>()));
+
+  GURL url("https://example.com");
+  ExpectOptimizationGuideDecision(url, OptimizationGuideDecision::kTrue);
+  EXPECT_CALL(*page_action_controller_, ShowAnchoredMessage(_, _));
+
+  auto navigation = content::NavigationSimulator::CreateBrowserInitiated(
+      url, tab_interface_->GetContents());
+  navigation->Commit();
+
+  controller_->InvokeAction(EntryPoint::kAnchoredMessage);
+}
+
+TEST_F(IndigoPageActionControllerTest,
+       InvokeActionSuggestionChipRecordsMetrics) {
+  CreateController();
+  base::UserActionTester user_action_tester;
+  controller_->InvokeAction(EntryPoint::kSuggestionChip);
+  EXPECT_EQ(user_action_tester.GetActionCount("Indigo.PageAction.Click"), 1);
+  EXPECT_EQ(user_action_tester.GetActionCount(
+                "Indigo.PageAction.SuggestionChip.Click"),
+            1);
+  EXPECT_EQ(user_action_tester.GetActionCount(
+                "Indigo.PageAction.AnchoredMessage.Click"),
+            0);
+}
+
+TEST_F(IndigoPageActionControllerTest,
+       InvokeActionAnchoredMessageRecordsMetrics) {
+  CreateController();
+  base::UserActionTester user_action_tester;
+  controller_->InvokeAction(EntryPoint::kAnchoredMessage);
+  EXPECT_EQ(user_action_tester.GetActionCount("Indigo.PageAction.Click"), 1);
+  EXPECT_EQ(user_action_tester.GetActionCount(
+                "Indigo.PageAction.SuggestionChip.Click"),
+            0);
+  EXPECT_EQ(user_action_tester.GetActionCount(
+                "Indigo.PageAction.AnchoredMessage.Click"),
+            1);
+}
+
+TEST_F(IndigoPageActionControllerTest, InvokeActionErrorToastRecordsMetrics) {
+  CreateController();
+  base::UserActionTester user_action_tester;
+  controller_->InvokeAction(EntryPoint::kErrorToast);
+  EXPECT_EQ(user_action_tester.GetActionCount(
+                "Indigo.PageAction.SuggestionChip.Click"),
+            0);
+  EXPECT_EQ(user_action_tester.GetActionCount(
+                "Indigo.PageAction.AnchoredMessage.Click"),
+            0);
+  EXPECT_EQ(user_action_tester.GetActionCount("Indigo.ErrorToast.Retry.Click"),
+            1);
+}
+
+TEST_F(IndigoPageActionControllerTest, OnPageActionAnchoredMessageShown) {
+  CreateController();
+
+  auto* service = IndigoServiceFactory::GetForProfile(profile_.get());
+  ASSERT_TRUE(service->CanShowAnchoredMessage());
+
+  base::UserActionTester user_action_tester;
+  EXPECT_EQ(user_action_tester.GetActionCount(
+                "Indigo.PageAction.ShowAnchoredMessage"),
+            0);
+
+  // Navigate to trigger UpdateEntryPointsState and attempt to show the anchored
+  // message.
+  GURL url("https://example.com");
+  ExpectOptimizationGuideDecision(url, OptimizationGuideDecision::kTrue);
+
+  auto navigation = content::NavigationSimulator::CreateBrowserInitiated(
+      url, tab_interface_->GetContents());
+  navigation->Commit();
+
+  // Simply attempting to show the anchored message (via UpdateEntryPointsState
+  // during navigation) should NOT be enough to record the user action or
+  // update the service's state.
+  EXPECT_TRUE(service->CanShowAnchoredMessage());
+  EXPECT_EQ(user_action_tester.GetActionCount(
+                "Indigo.PageAction.ShowAnchoredMessage"),
+            0);
+
+  // Trigger the observer event, simulating the anchored message actually
+  // showing.
+  page_actions::PageActionState state;
+  state.action_id = kActionIndigo;
+  state.anchored_message_showing = true;
+  controller_->OnPageActionAnchoredMessageShown(state);
+
+  // Verify that the service was notified and the action was recorded.
+  EXPECT_FALSE(service->CanShowAnchoredMessage());
+  EXPECT_EQ(user_action_tester.GetActionCount(
+                "Indigo.PageAction.ShowAnchoredMessage"),
+            1);
 }
 
 }  // namespace

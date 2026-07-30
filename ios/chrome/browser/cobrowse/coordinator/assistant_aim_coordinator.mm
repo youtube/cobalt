@@ -12,6 +12,7 @@
 #import "ios/chrome/browser/assistant/ui/assistant_container_layout_utils.h"
 #import "ios/chrome/browser/assistant/ui/assistant_container_view_controller.h"
 #import "ios/chrome/browser/cobrowse/coordinator/assistant_aim_mediator.h"
+#import "ios/chrome/browser/cobrowse/debugger/aim_srp_debugger_breadcrumbs_view_controller.h"
 #import "ios/chrome/browser/cobrowse/model/cobrowse_browser_agent.h"
 #import "ios/chrome/browser/cobrowse/model/cobrowse_context.h"
 #import "ios/chrome/browser/cobrowse/model/ios_contextual_tasks_service_factory.h"
@@ -28,6 +29,8 @@
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
+#import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/tabs/model/tab_helper_filter.h"
 #import "ios/chrome/browser/tabs/model/tab_helper_util.h"
@@ -122,7 +125,10 @@ class AssistantAIMUIStateProvider
             containerHandler:_containerHandler
       contextualTasksService:contextualTasksService
                    URLLoader:UrlLoadingBrowserAgent::FromBrowser(self.browser)];
+
   _mediator.delegate = self;
+  _mediator.sceneHandler =
+      HandlerForProtocol(self.browser->GetCommandDispatcher(), SceneCommands);
   _mediator.consumer = _viewController;
   _viewController.mutator = _mediator;
 
@@ -335,6 +341,20 @@ class AssistantAIMUIStateProvider
   return [_viewController shouldPauseScrollView:scrollView
                                      forGesture:otherGesture
                               isInLargestDetent:isInLargestDetent];
+}
+
+#pragma mark - AssistantAIMViewControllerDelegate
+
+- (void)assistantAIMViewControllerDidRequestSRPLogs:
+    (AssistantAIMViewController*)viewController {
+  NSArray<AimSRPDebuggerEvent*>* events = _mediator.debugEvents;
+  AimSRPDebuggerBreadcrumbsViewController* logsVC =
+      [[AimSRPDebuggerBreadcrumbsViewController alloc] initWithEvents:events];
+  UINavigationController* navController =
+      [[UINavigationController alloc] initWithRootViewController:logsVC];
+  [_viewController presentViewController:navController
+                                animated:YES
+                              completion:nil];
 }
 
 @end

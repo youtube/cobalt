@@ -202,7 +202,7 @@ InfoBarView::InfoBarView(std::unique_ptr<infobars::InfoBarDelegate> delegate)
     views::SetImageFromVectorIconWithColor(
         close_button.get(),
         features::IsRoundedIconsEnabled()
-            ? vector_icons::kCloseSmallIcon
+            ? vector_icons::kCloseIcon
             : vector_icons::kCloseChromeRefreshOldIcon,
         {kColorInfoBarButtonIcon, kColorInfoBarForeground,
          kColorInfoBarButtonIconHovered});
@@ -471,6 +471,11 @@ void InfoBarView::AssignWidthsSorted(Views* views, int available_width) {
   views->back()->SetSize(back_view_size);
   views->pop_back();
   AssignWidthsSorted(views, available_width - back_view_size.width());
+}
+
+void InfoBarView::SetInteriorMargin(const gfx::Insets& margin) {
+  static_cast<views::FlexLayout*>(GetLayoutManager())
+      ->SetInteriorMargin(margin);
 }
 
 void InfoBarView::LinkClicked(const ui::Event& event) {

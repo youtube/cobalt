@@ -22,6 +22,8 @@ suite('WebnnInternalsUITest', function() {
     {
       name: 'Test EP 1',
       vendor: 'Vendor 1',
+      vendorId: '0x5678',
+      deviceId: '0x1234',
       hardwareType: 'GPU',
       version: '1.0',
       firstSelected: true,
@@ -29,6 +31,8 @@ suite('WebnnInternalsUITest', function() {
     {
       name: 'Test EP 2',
       vendor: 'Vendor 2',
+      vendorId: '0x1234',
+      deviceId: '0x5678',
       version: '',
       hardwareType: 'CPU',
       firstSelected: false,
@@ -49,6 +53,12 @@ suite('WebnnInternalsUITest', function() {
     handler.setResultFor('isGraphRecording', Promise.resolve({
       enabled: false,
     }));
+    // </if>
+    // <if expr="is_win">
+    handler.setResultFor(
+        'forceOrtEnvironmentCreationForIntrospection', Promise.resolve({
+          availableExecutionProviders: testExecutionProviders,
+        }));
     // </if>
     handler.setResultFor(
         'requestAvailableExecutionProvidersDetails', Promise.resolve({
@@ -106,23 +116,32 @@ suite('WebnnInternalsUITest', function() {
     const epDetailsList = contextsTab.shadowRoot.querySelectorAll('.ep');
     // The first context has 2 EPs, the second context has no EP, total 2 EPs.
     assertEquals(2, epDetailsList.length);
-    // First EP has 4 details (name, vendor, hardware type, version).
+    // First EP has 6 details (name, vendor, hardware vendor ID, hardware device
+    // ID, hardware type, version).
     let epDetails = epDetailsList[0]!.querySelectorAll('.ep-detail');
-    assertEquals(4, epDetails.length);
+    assertEquals(6, epDetails.length);
     assertEquals('Name: Test EP 1', epDetails[0]!.textContent.trim());
-    assertEquals('Vendor: Vendor 1', epDetails[1]!.textContent.trim());
-    assertEquals('Hardware Type: GPU', epDetails[2]!.textContent.trim());
-    assertEquals('Version: 1.0', epDetails[3]!.textContent.trim());
+    assertEquals('EP Vendor: Vendor 1', epDetails[1]!.textContent.trim());
+    assertEquals(
+        'Hardware Vendor ID: 0x5678', epDetails[2]!.textContent.trim());
+    assertEquals(
+        'Hardware Device ID: 0x1234', epDetails[3]!.textContent.trim());
+    assertEquals('Hardware Type: GPU', epDetails[4]!.textContent.trim());
+    assertEquals('Version: 1.0', epDetails[5]!.textContent.trim());
     // The first EP is marked as first selected, it should have the
     // 'first-selected' class.
     assertTrue(epDetailsList[0]!.classList.contains('first-selected'));
-    // Second EP has 3 details, version may be empty so let's make sure
+    // Second EP has 5 details, version may be empty so let's make sure
     // we don't render the label.
     epDetails = epDetailsList[1]!.querySelectorAll('.ep-detail');
-    assertEquals(3, epDetails.length);
+    assertEquals(5, epDetails.length);
     assertEquals('Name: Test EP 2', epDetails[0]!.textContent.trim());
-    assertEquals('Vendor: Vendor 2', epDetails[1]!.textContent.trim());
-    assertEquals('Hardware Type: CPU', epDetails[2]!.textContent.trim());
+    assertEquals('EP Vendor: Vendor 2', epDetails[1]!.textContent.trim());
+    assertEquals(
+        'Hardware Vendor ID: 0x1234', epDetails[2]!.textContent.trim());
+    assertEquals(
+        'Hardware Device ID: 0x5678', epDetails[3]!.textContent.trim());
+    assertEquals('Hardware Type: CPU', epDetails[4]!.textContent.trim());
     assertFalse(epDetailsList[1]!.classList.contains('first-selected'));
     const noContextText =
         contextsTab.shadowRoot.querySelector<HTMLElement>('.no-context');
@@ -142,7 +161,7 @@ suite('WebnnInternalsUITest', function() {
     assertTrue(!!noContextText);
   });
 
-  function assertGridItemContent(gridItem: Element, expectedValues: string[]) {
+  function assertEpItemContent(gridItem: Element, expectedValues: string[]) {
     const elements = gridItem.querySelectorAll('div');
     assertEquals(expectedValues.length, elements.length);
 
@@ -157,24 +176,32 @@ suite('WebnnInternalsUITest', function() {
     const gridContainer = infoTab.shadowRoot.querySelector<HTMLElement>(
         '.grid-container-available-eps');
     assertTrue(!!gridContainer);
-    const epItems = gridContainer.querySelectorAll('.grid-item');
+    const epItems = gridContainer.querySelectorAll('.item');
     assertEquals(2, epItems.length);
-    assertGridItemContent(epItems[0]!, [
+    assertEpItemContent(epItems[0]!, [
       'Name:',
       'Test EP 1',
-      'Vendor:',
+      'EP Vendor:',
       'Vendor 1',
+      'Hardware Vendor ID:',
+      '0x5678',
+      'Hardware Device ID:',
+      '0x1234',
       'Hardware Type:',
       'GPU',
       'Version:',
       '1.0',
     ]);
     // Test EP 2 has no version so it should not be rendered.
-    assertGridItemContent(epItems[1]!, [
+    assertEpItemContent(epItems[1]!, [
       'Name:',
       'Test EP 2',
-      'Vendor:',
+      'EP Vendor:',
       'Vendor 2',
+      'Hardware Vendor ID:',
+      '0x1234',
+      'Hardware Device ID:',
+      '0x5678',
       'Hardware Type:',
       'CPU',
     ]);
@@ -187,6 +214,8 @@ suite('WebnnInternalsUITest', function() {
         name: 'Test EP 3',
         vendor: 'Vendor 3',
         version: '1.3',
+        vendorId: '0x1234',
+        deviceId: '0x9abc',
         hardwareType: 'NPU',
         firstSelected: false,
       },
@@ -197,13 +226,17 @@ suite('WebnnInternalsUITest', function() {
     const gridContainer = infoTab.shadowRoot.querySelector<HTMLElement>(
         '.grid-container-available-eps');
     assertTrue(!!gridContainer);
-    const epItems = gridContainer.querySelectorAll('.grid-item');
+    const epItems = gridContainer.querySelectorAll('.item');
     assertEquals(1, epItems.length);
-    assertGridItemContent(epItems[0]!, [
+    assertEpItemContent(epItems[0]!, [
       'Name:',
       'Test EP 3',
-      'Vendor:',
+      'EP Vendor:',
       'Vendor 3',
+      'Hardware Vendor ID:',
+      '0x1234',
+      'Hardware Device ID:',
+      '0x9abc',
       'Hardware Type:',
       'NPU',
       'Version:',
@@ -220,9 +253,28 @@ suite('WebnnInternalsUITest', function() {
     const gridContainer = infoTab.shadowRoot.querySelector<HTMLElement>(
         '.grid-container-available-eps');
     assertFalse(!!gridContainer);
-    const noEp = infoTab.shadowRoot.querySelectorAll('.grid-item');
-    assertEquals(1, noEp.length);
+    const noep = infoTab.shadowRoot.querySelectorAll('.noep');
+    assertEquals(1, noep.length);
   });
+
+  // <if expr="is_win">
+  test('ForceOrtEnvironmentCreationForIntrospection', async function() {
+    page.onUpdateAvailableExecutionProvidersDetails([]);
+    await microtasksFinished();
+    const infoTab = app.shadowRoot.querySelector('webnn-internals-info-page');
+    assertTrue(!!infoTab);
+    let gridContainer = infoTab.shadowRoot.querySelector<HTMLElement>(
+        '.grid-container-available-eps');
+    assertFalse(!!gridContainer);
+    const forceButton = infoTab.shadowRoot.querySelector('cr-button');
+    assertTrue(!!forceButton);
+    forceButton.click();
+    await microtasksFinished();
+    gridContainer = infoTab.shadowRoot.querySelector<HTMLElement>(
+        '.grid-container-available-eps');
+    assertTrue(!!gridContainer);
+  });
+  // </if>
 
   // <if expr="not webnn_enable_graph_dump">
   test('GraphRecordingNotSupported', function() {

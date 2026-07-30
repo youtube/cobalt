@@ -34,6 +34,8 @@
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_switches.h"
+#include "content/public/browser/desktop_capture_pip_utils.h"
+#include "media/capture/capture_switches.h"
 #include "ui/base/hit_test.h"
 #include "ui/base/mojom/menu_source_type.mojom-forward.h"
 #include "ui/base/mojom/themes.mojom.h"
@@ -43,6 +45,7 @@
 #include "ui/events/event_handler.h"
 #include "ui/views/controls/menu/menu_runner.h"
 #include "ui/views/widget/native_widget.h"
+#include "ui/wm/core/window_properties.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ui/ash/system_web_apps/system_web_app_ui_utils.h"
@@ -164,6 +167,17 @@ void BrowserWidget::InitBrowserWidget() {
     // https://crbug.com/40273014 for more details.
     params.remove_standard_frame = true;
 #endif  // !BUILDFLAG(IS_WIN)
+
+#if BUILDFLAG(IS_WIN)
+    // Apply screen capture exclusion at initialization. Note that while this
+    // uses Aura window properties, the underlying behavior is currently
+    // Windows-only.
+    if (base::FeatureList::IsEnabled(features::kExcludePipFromScreenCapture) &&
+        content::desktop_capture::IsPipExcludedFromScreenCapture()) {
+      params.init_properties_container.SetProperty(
+          wm::kExcludeFromScreenCaptureKey, true);
+    }
+#endif
   }
 
 #if BUILDFLAG(IS_OZONE)
@@ -307,7 +321,7 @@ bool BrowserWidget::GetAccelerator(int command_id,
 
 const ui::ThemeProvider* BrowserWidget::GetThemeProvider() const {
   Browser* browser = browser_view_->browser();
-  auto* app_controller = browser->app_controller();
+  auto* app_controller = web_app::AppBrowserController::From(browser);
   // Ignore the system theme for web apps with window-controls-overlay as the
   // display_override so the web contents can blend with the overlay by using
   // the developer-provided theme color for a better experience. Context:
@@ -327,7 +341,7 @@ ui::ColorProviderKey::ThemeInitializerSupplier* BrowserWidget::GetCustomTheme()
   }
 
   Browser* browser = browser_view_->browser();
-  auto* app_controller = browser->app_controller();
+  auto* app_controller = web_app::AppBrowserController::From(browser);
   // Ignore the system theme for web apps with window-controls-overlay as the
   // display_override so the web contents can blend with the overlay by using
   // the developer-provided theme color for a better experience. Context:
@@ -443,7 +457,8 @@ void BrowserWidget::OnNativeThemeUpdated(ui::NativeTheme* observed_theme) {
 ui::ColorProviderKey BrowserWidget::GetColorProviderKey() const {
   auto key = Widget::GetColorProviderKey();
 
-  key.app_controller = browser_view_->browser()->app_controller();
+  key.app_controller =
+      web_app::AppBrowserController::From(browser_view_->browser());
 
 #if BUILDFLAG(IS_CHROMEOS)
   // ChromeOS SystemWebApps use the OS theme all the time.

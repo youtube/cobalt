@@ -274,16 +274,6 @@ chromium-metrics-reviews@google.com.
   <int value="8" label="Choice was already applied"/>
 </enum>
 
-<enum name="AndroidSearchEngineLogoEvents">
-  <summary>Events related to Search Engine logo feature.</summary>
-  <int value="0" label="Fetch non-Google logo request"/>
-  <int value="1" label="Fetch failed, null logo url"/>
-  <int value="2" label="Fetch failed, favicon helper error"/>
-  <int value="3" label="Fetch failed, returned bitmap null"/>
-  <int value="4" label="Fetch success, cache hit"/>
-  <int value="5" label="Fetch from network success"/>
-</enum>
-
 <enum name="AndroidSeccompSandboxStatus">
   <int value="0" label="Not Supported"/>
   <int value="1" label="Detection Failed"/>
@@ -755,6 +745,8 @@ chromium-metrics-reviews@google.com.
   <int value="192" label="WebSettingsCompat.clearPrefetchTtl"/>
   <int value="193" label="WebSettingsCompat.clearMaxPrerenders"/>
   <int value="194" label="WebViewCompat.navigate"/>
+  <int value="195" label="WebSettingsCompat.setDownloadFaviconsEnabled"/>
+  <int value="196" label="WebSettingsCompat.getDownloadFaviconsEnabled"/>
 <!-- LINT.ThenChange(/android_webview/support_library/java/src/org/chromium/support_lib_glue/SupportLibWebViewChromiumFactory.java:ApiCall) -->
 
 </enum>
@@ -1427,6 +1419,7 @@ chromium-metrics-reviews@google.com.
   <int value="70" label="KnownInterceptionDisclosure"/>
   <int value="71" label="SendTabToSelf"/>
   <int value="72" label="GlicWindowResized"/>
+  <int value="73" label="ExtensionDevTools"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/messages/android/message_enums.h:MessageIdentifier) -->
@@ -1713,6 +1706,87 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="Root View is NULL"/>
   <int value="1" label="Root View was Focused"/>
   <int value="2" label="Root View was Not Focused (calls Focus())"/>
+</enum>
+
+<enum name="ScreenshotContentProviderEvent">
+  <int value="0" label="REQUEST_STARTED">
+    ScreenshotContentProvider request started.
+  </int>
+  <int value="1" label="REQUEST_FAILED_CURRENT_TAB_CHANGED">
+    ScreenshotContentProvider request failed because the current tab changed.
+  </int>
+  <int value="2" label="REQUEST_FAILED_INVALID_URI">
+    ScreenshotContentProvider request failed because of an invalid or empty URI.
+  </int>
+  <int value="3" label="REQUEST_FAILED_INVALID_ID">
+    ScreenshotContentProvider request failed because of an invalid or expired
+    invocation ID.
+  </int>
+  <int value="4" label="REQUEST_FAILED_TO_GET_CURRENT_TAB">
+    ScreenshotContentProvider request failed because the current tab could not
+    be retrieved or was destroyed.
+  </int>
+  <int value="5" label="REQUEST_FAILED_INVALID_ACTIVITY">
+    ScreenshotContentProvider request failed because no valid Activity was
+    found.
+  </int>
+  <int value="6" label="REQUEST_SUCCEEDED_RETURNED_CAPTURED">
+    ScreenshotContentProvider request succeeded, returning the captured
+    screenshot.
+  </int>
+  <int value="7" label="REQUEST_FAILED_INVALID_MODE">
+    ScreenshotContentProvider request failed because of an unsupported open mode
+    (only 'r' is supported).
+  </int>
+  <int value="8" label="REQUEST_FAILED_EMPTY_RESULT">
+    ScreenshotContentProvider request failed because the captured screenshot
+    result was empty.
+  </int>
+  <int value="9" label="REQUEST_FAILED_CURRENT_TAB_NULL_URL">
+    ScreenshotContentProvider request failed because the current tab's URL was
+    null.
+  </int>
+  <int value="10" label="REQUEST_FAILED_INVALID_WINDOW_ANDROID">
+    ScreenshotContentProvider request failed because WindowAndroid was null.
+  </int>
+  <int value="11" label="REQUEST_FAILED_INTERRUPTED">
+    ScreenshotContentProvider request failed due to Thread interruption.
+  </int>
+  <int value="12" label="REQUEST_FAILED_TIMED_OUT">
+    ScreenshotContentProvider request failed because client timed out waiting
+    for screenshot.
+  </int>
+  <int value="13" label="REQUEST_FAILED_EXCEPTION">
+    ScreenshotContentProvider request failed because of a general Exception.
+  </int>
+  <int value="14" label="REQUEST_FAILED_INVALID_CONTEXT">
+    ScreenshotContentProvider request failed because Context was null.
+  </int>
+  <int value="15" label="REQUEST_FAILED_EMPTY_BITMAP">
+    ScreenshotContentProvider request failed because the captured bitmap was
+    empty or null.
+  </int>
+  <int value="16" label="REQUEST_FAILED_IO_EXCEPTION_WHEN_CREATING_OUTPUT_FILE">
+    ScreenshotContentProvider request failed due to IOException when generating
+    the output stream pipe.
+  </int>
+  <int value="17" label="REQUEST_FAILED_EXECUTION_EXCEPTION">
+    ScreenshotContentProvider request failed with an execution exception.
+  </int>
+</enum>
+
+<enum name="ScreenshotUriProviderEvent">
+  <int value="0" label="GET_CONTENT_URI_FAILED">
+    ScreenshotUriProvider failed to generate or grant read access to a content
+    URI.
+  </int>
+  <int value="1" label="GET_CONTENT_URI_SUCCESS">
+    ScreenshotUriProvider successfully created and granted access to a new
+    content URI.
+  </int>
+  <int value="2" label="GET_CONTENT_URI_REUSED">
+    ScreenshotUriProvider returned a cached/reused content URI.
+  </int>
 </enum>
 
 <!-- LINT.IfChange(ScrimClient) -->

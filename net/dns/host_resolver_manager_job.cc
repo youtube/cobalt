@@ -101,8 +101,11 @@ bool IsAttemptModeSecure(DnsTransactionFactory::AttemptMode attempt_mode) {
 }  // namespace
 
 HostResolverManager::JobKey::JobKey(HostResolver::Host host,
+                                    handles::NetworkHandle target_network,
                                     ResolveContext* resolve_context)
-    : host(std::move(host)), resolve_context(resolve_context->GetWeakPtr()) {}
+    : host(std::move(host)),
+      resolve_context(resolve_context->GetWeakPtr()),
+      target_network(target_network) {}
 
 HostResolverManager::JobKey::~JobKey() = default;
 
@@ -111,13 +114,17 @@ HostResolverManager::JobKey& HostResolverManager::JobKey::operator=(
     const JobKey& other) = default;
 
 bool HostResolverManager::JobKey::operator<(const JobKey& other) const {
+  // Use `GetTargetNetwork()` instead of `target_network` to ensure a consistent
+  // view of a JobKey's target network. This makes sure every piece of code has
+  // a consistent view of a JobKey's target network. See the comments in
+  // `GetTargetNetwork()` for more details.
   return std::forward_as_tuple(query_types.ToEnumBitmask(), flags, source,
                                secure_dns_mode, &*resolve_context, host,
-                               network_anonymization_key) <
-         std::forward_as_tuple(other.query_types.ToEnumBitmask(), other.flags,
-                               other.source, other.secure_dns_mode,
-                               &*other.resolve_context, other.host,
-                               other.network_anonymization_key);
+                               network_anonymization_key, GetTargetNetwork()) <
+         std::forward_as_tuple(
+             other.query_types.ToEnumBitmask(), other.flags, other.source,
+             other.secure_dns_mode, &*other.resolve_context, other.host,
+             other.network_anonymization_key, other.GetTargetNetwork());
 }
 
 bool HostResolverManager::JobKey::operator==(const JobKey& other) const {
@@ -150,8 +157,27 @@ HostCache::Key HostResolverManager::JobKey::ToCacheKey(bool secure) const {
 }
 
 handles::NetworkHandle HostResolverManager::JobKey::GetTargetNetwork() const {
-  return resolve_context ? resolve_context->GetTargetNetwork()
-                         : handles::kInvalidNetworkHandle;
+  // Multi-network support for Cronet and CCT was originally implemented by
+  // creating multiple URLRequestContexts/ResolveContexts. Until this historical
+  // artifact is removed, we need to maintain this compat layer between:
+  // 1) The old way of doing multi-networking, piggybacking on ResolveContext
+  // 2) The new way of doing multi-networking, using the target_network field
+  //    in the JobKey.
+  // TODO(crbug.com/495684670): Clean this up once multi-network Cronet and CCT
+  // no longer depend on network-bound URLRequestContexts.
+
+  // If there is a ResolveContext, and it has a target network, we are in the
+  // "old way of doing multi-networking" scenario. In this case, there should
+  // never be a non-default target_network set in the JobKey.
+  if (resolve_context &&
+      resolve_context->GetTargetNetwork() != handles::kInvalidNetworkHandle) {
+    CHECK_EQ(target_network, handles::kInvalidNetworkHandle);
+    return resolve_context->GetTargetNetwork();
+  }
+
+  // Otherwise, we are in the "new way of doing multi-networking" scenario. We
+  // can just rely on the target_network field in the JobKey.
+  return target_network;
 }
 
 // static
@@ -725,7 +751,7 @@ void HostResolverManager::Job::StartSystemTask() {
   system_task_ = HostResolverSystemTask::Create(
       std::string(key_.host.GetHostnameWithoutBrackets()),
       HostResolver::DnsQueryTypeSetToAddressFamily(key_.query_types),
-      key_.flags, resolver_->host_resolver_system_params_, net_log_,
+      key_.flags, priority(), resolver_->host_resolver_system_params_, net_log_,
       key_.GetTargetNetwork(), std::move(cache_params));
 
   // Start() could be called from within Resolve(), hence it must NOT directly
@@ -810,8 +836,9 @@ void HostResolverManager::Job::StartDnsTask(
   dns_task_ = std::make_unique<HostResolverDnsTask>(
       resolver_->dns_client_.get(), key_.host, key_.network_anonymization_key,
       key_.query_types, &*key_.resolve_context, attempt_mode,
-      key_.secure_dns_mode, this, net_log_, tick_clock_,
-      !tasks_.empty() /* fallback_available */, https_svcb_options_);
+      key_.secure_dns_mode, key_.GetTargetNetwork(), this, net_log_,
+      tick_clock_, !tasks_.empty() /* fallback_available */,
+      https_svcb_options_);
   dns_task_executed_ = true;
   if (secure) {
     secure_dns_attempted_ = true;
@@ -1009,7 +1036,7 @@ void HostResolverManager::Job::StartMdnsTask() {
   int rv = resolver_->GetOrCreateMdnsClient(&client);
   mdns_task_ = std::make_unique<HostResolverMdnsTask>(
       client, std::string(key_.host.GetHostnameWithoutBrackets()),
-      key_.query_types);
+      key_.query_types, priority());
 
   if (rv == OK) {
     mdns_task_->Start(base::BindOnce(&Job::OnMdnsTaskComplete,
@@ -1057,7 +1084,8 @@ void HostResolverManager::Job::StartNat64Task() {
   DCHECK(!nat64_task_);
   nat64_task_ = std::make_unique<HostResolverNat64Task>(
       key_.host.GetHostnameWithoutBrackets(), key_.network_anonymization_key,
-      net_log_, &*key_.resolve_context, resolver_);
+      key_.GetTargetNetwork(), net_log_, &*key_.resolve_context, resolver_,
+      priority());
   nat64_task_->Start(base::BindOnce(&Job::OnNat64TaskComplete,
                                     weak_ptr_factory_.GetWeakPtr(),
                                     tick_clock_->NowTicks()));

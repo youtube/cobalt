@@ -222,6 +222,7 @@ test("components_unittests") {
     "//components/content_settings/core/browser:unit_tests",
     "//components/content_settings/core/common:unit_tests",
     "//components/contextual_search:unit_tests",
+    "//components/contextual_search/footprints:unit_tests",
     "//components/contextual_search/internal:unit_tests",
     "//components/contextual_tasks:unit_tests",
     "//components/country_codes:unit_tests",
@@ -778,12 +779,15 @@ test("components_unittests") {
     ]
   }
 
+  if (!is_ios && !is_fuchsia && !is_castos) {
+    deps += [ "//components/private_ai:unit_tests" ]
+  }
+
   if (!is_android && !is_ios && !is_fuchsia && !is_castos) {
     deps += [
       "//components/accessibility_annotator/content/content_annotator:unit_tests",
       "//components/accessibility_annotator/content/live_tab_context:unit_tests",
       "//components/accessibility_annotator/core/live_tab_context:unit_tests",
-      "//components/private_ai:unit_tests",
     ]
   }
 
@@ -878,7 +882,6 @@ test("components_unittests") {
       "//components/safe_browsing/content/browser/download:unittests",
       "//components/safe_browsing/content/browser/notification_content_detection:unittests",
       "//components/safe_browsing/content/common:file_type_policies_unittest",
-      "//components/safe_browsing/content/common:unit_tests",
       "//components/safe_browsing/core/browser:intelligent_scan_delegate_unittest",
       "//components/safe_browsing/core/browser:referring_app_info_unittest",
       "//components/safe_browsing/core/browser:safe_browsing_hats_delegate_unittest",
@@ -918,6 +921,7 @@ test("components_unittests") {
       "//components/safe_browsing/core/browser/password_protection:unit_tests",
       "//components/safe_browsing/core/browser/sync:unittests",
       "//components/safe_browsing/core/common:unit_tests",
+      "//components/safe_browsing/core/common/phishing_classifier:unit_tests",
     ]
   } else if (safe_browsing_mode == 2) {
     deps += [

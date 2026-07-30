@@ -351,6 +351,11 @@ linux_memory_builder(
                     shards = 15,
                 ),
             ),
+            "sync_integration_tests": targets.mixin(
+                swarming = targets.swarming(
+                    shards = 6,
+                ),
+            ),
         },
     ),
     cores = 32,
@@ -1049,7 +1054,7 @@ ci.builder(
             ),
             "sync_integration_tests": targets.mixin(
                 swarming = targets.swarming(
-                    shards = 3,
+                    shards = 4,
                 ),
             ),
             "unit_tests": targets.mixin(

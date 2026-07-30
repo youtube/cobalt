@@ -35,7 +35,7 @@ try_.defaults.set(
     siso_output_local_strategy = "greedy",
     siso_project = siso.project.DEFAULT_UNTRUSTED,
     siso_remote_jobs = siso.remote_jobs.HIGH_JOBS_FOR_CQ,
-    siso_remote_linking = False,
+    siso_remote_linking = True,
 )
 
 targets.builder_defaults.set(
@@ -1113,6 +1113,9 @@ try_.orchestrator_builder(
         "chromium.enable_cleandead": 100,
     },
     main_list_view = "try",
+    # TODO(crbug.com/20485794): Experimentally disabled. Enable after getting
+    # data from experiment.
+    siso_remote_linking = False,
     # TODO(crbug.com/40241638): Use orchestrator pool once overloaded test pools
     # are addressed
     # use_orchestrator_pool = True,

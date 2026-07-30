@@ -33,8 +33,6 @@ BASE_DECLARE_FEATURE(kDseIntegrity);
 BASE_DECLARE_FEATURE(kFewerUpdateConfirmations);
 #endif
 
-BASE_DECLARE_FEATURE(kEnableExtensionsMenuTeardownFix);
-
 BASE_DECLARE_FEATURE(kImportExportFlags);
 
 BASE_DECLARE_FEATURE(kInfoBarInlineLinks);
@@ -162,6 +160,8 @@ BASE_DECLARE_FEATURE(kPressAndHoldEscToExitBrowserFullscreen);
 BASE_DECLARE_FEATURE(kProcessIsolationSettings);
 #endif  // BUILDFLAG(IS_WIN)
 
+BASE_DECLARE_FEATURE(kRealboxVirtualFocusNavigation);
+
 BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kShowDropTargetForTabDelay);
 
 // Overrides the `kSplitViewTabDraggingUpdates` feature flag if set.
@@ -177,6 +177,7 @@ BASE_DECLARE_FEATURE_PARAM(int, kSplitViewDragAndDropMaxDistanceThreshold);
 BASE_DECLARE_FEATURE(kTabDuplicateMetrics);
 
 BASE_DECLARE_FEATURE(kTabGroupsCollapseFreezing);
+BASE_DECLARE_FEATURE(kCollapseTabGroupDuringDrag);
 
 #if !BUILDFLAG(IS_ANDROID)
 // General improvements to tab group menus
@@ -388,6 +389,8 @@ BASE_DECLARE_FEATURE(kToolbarProfileChipResizing);
 BASE_DECLARE_FEATURE(kToolbarGlicButtonResizing);
 
 // Whether or not OSCryptAsyncAvailabilityInfoBarDelegate is enabled.
+// Currently only used on MacOS as that's the only platform we can
+// be sure the user has an easy remedy. See crbug.com/493148224.
 BASE_DECLARE_FEATURE(kOSCryptAsyncAvailabilityInfoBar);
 
 }  // namespace features

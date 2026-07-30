@@ -58,6 +58,15 @@ import {openTab} from '/_test_resources/test_util/tabs_util.js';
     case 'invoke_server_error':
       tests_runInvokeServerError(documentId);
       return;
+    case 'universal_cart_only':
+      tests_runUniversalCartOnly(documentId);
+      return;
+    case 'promotion_page_only':
+      tests_runPromotionPageOnly(documentId);
+      return;
+    case 'both_access_disabled':
+      tests_runBothAccessDisabled(documentId);
+      return;
     case 'account_mismatch':
       tests_runAccountMismatch(documentId);
       return;
@@ -93,6 +102,33 @@ function tests_runFullyEnabled(documentId) {
       chrome.test.assertTrue(
           state.userEnableActuationOnWeb,
           'userEnableActuationOnWeb should be true');
+      chrome.test.assertFalse(
+          state.invocationSourceEnabled,
+          'invocationSourceEnabled should be false when source is not provided');
+
+      const stateCart = await chrome.glicPrivate.getState(documentId, {
+        invocationSource: 'universal-cart',
+      });
+      chrome.test.assertNoLastError();
+      chrome.test.assertTrue(
+          stateCart.invocationSourceEnabled,
+          'invocationSourceEnabled should be true for universal-cart');
+
+      const statePromo = await chrome.glicPrivate.getState(documentId, {
+        invocationSource: 'promotion-page',
+      });
+      chrome.test.assertNoLastError();
+      chrome.test.assertTrue(
+          statePromo.invocationSourceEnabled,
+          'invocationSourceEnabled should be true for promotion-page');
+
+      const stateUnknown = await chrome.glicPrivate.getState(documentId, {
+        invocationSource: 'unknown',
+      });
+      chrome.test.assertNoLastError();
+      chrome.test.assertFalse(
+          stateUnknown.invocationSourceEnabled,
+          'invocationSourceEnabled should be false for unknown source');
 
       chrome.test.succeed();
     },
@@ -157,14 +193,23 @@ function tests_runFeatureDisabled(documentId) {
 }
 
 function tests_runInvoke(documentId) {
-  chrome.test.runTests([async function invokeSuccess() {
-    await chrome.glicPrivate.invoke({
-      promptId: 'TEST_PROMPT_ID',
-      invocationSource: chrome.glicPrivate.InvocationSource.UNIVERSAL_CART,
-      documentId,
-    });
-    chrome.test.succeed();
-  }]);
+  chrome.test.runTests([
+    async function invokeUniversalCartSuccess() {
+      await chrome.glicPrivate.invoke({
+        promptId: 'TEST_PROMPT_ID',
+        invocationSource: chrome.glicPrivate.InvocationSource.UNIVERSAL_CART,
+        documentId,
+      });
+      chrome.test.succeed();
+    },
+    async function invokePromotionPageSuccess() {
+      await chrome.glicPrivate.invoke({
+        invocationSource: chrome.glicPrivate.InvocationSource.PROMOTION_PAGE,
+        documentId,
+      });
+      chrome.test.succeed();
+    },
+  ]);
 }
 
 function tests_runInvokeDisabled(documentId) {
@@ -245,6 +290,78 @@ function tests_runHasConversationTrue(documentId) {
       const isPresent =
           await chrome.glicPrivate.hasConversation('test_conversation_id');
       chrome.test.assertTrue(isPresent, 'conversation should be present');
+      chrome.test.succeed();
+    },
+  ]);
+}
+
+function tests_runUniversalCartOnly(documentId) {
+  chrome.test.runTests([
+    async function invokeUniversalCartSuccess() {
+      await chrome.glicPrivate.invoke({
+        promptId: 'TEST_PROMPT_ID',
+        invocationSource: chrome.glicPrivate.InvocationSource.UNIVERSAL_CART,
+        documentId,
+      });
+      chrome.test.succeed();
+    },
+    async function invokePromotionPageDisabled() {
+      await chrome.test.assertPromiseRejects(
+          chrome.glicPrivate.invoke({
+            invocationSource:
+                chrome.glicPrivate.InvocationSource.PROMOTION_PAGE,
+            documentId,
+          }),
+          'Error: local-glic-access-from-page-disabled');
+      chrome.test.succeed();
+    },
+  ]);
+}
+
+function tests_runPromotionPageOnly(documentId) {
+  chrome.test.runTests([
+    async function invokeUniversalCartDisabled() {
+      await chrome.test.assertPromiseRejects(
+          chrome.glicPrivate.invoke({
+            promptId: 'TEST_PROMPT_ID',
+            invocationSource:
+                chrome.glicPrivate.InvocationSource.UNIVERSAL_CART,
+            documentId,
+          }),
+          'Error: local-glic-access-from-page-disabled');
+      chrome.test.succeed();
+    },
+    async function invokePromotionPageSuccess() {
+      await chrome.glicPrivate.invoke({
+        invocationSource: chrome.glicPrivate.InvocationSource.PROMOTION_PAGE,
+        documentId,
+      });
+      chrome.test.succeed();
+    },
+  ]);
+}
+
+function tests_runBothAccessDisabled(documentId) {
+  chrome.test.runTests([
+    async function invokeUniversalCartDisabled() {
+      await chrome.test.assertPromiseRejects(
+          chrome.glicPrivate.invoke({
+            promptId: 'TEST_PROMPT_ID',
+            invocationSource:
+                chrome.glicPrivate.InvocationSource.UNIVERSAL_CART,
+            documentId,
+          }),
+          'Error: local-glic-access-from-page-disabled');
+      chrome.test.succeed();
+    },
+    async function invokePromotionPageDisabled() {
+      await chrome.test.assertPromiseRejects(
+          chrome.glicPrivate.invoke({
+            invocationSource:
+                chrome.glicPrivate.InvocationSource.PROMOTION_PAGE,
+            documentId,
+          }),
+          'Error: local-glic-access-from-page-disabled');
       chrome.test.succeed();
     },
   ]);

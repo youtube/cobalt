@@ -44,6 +44,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "components/contextual_tasks/public/features.h"
 #include "components/contextual_tasks/public/prefs.h"
+#include "components/contextual_tasks/public/query_contextualizer.h"
 #include "components/google/core/common/google_util.h"
 #include "components/optimization_guide/core/delivery/model_info.h"
 #include "components/optimization_guide/core/model_quality/model_quality_log_entry.h"
@@ -487,7 +488,7 @@ void ContextualTasksContextService::OnQueryEmbeddingReady(
     int64_t request_id,
     std::vector<std::string> passages,
     std::vector<passage_embeddings::Embedding> embeddings,
-    passage_embeddings::Embedder::TaskId task_id,
+    uint64_t job_id,
     passage_embeddings::ComputeEmbeddingsStatus status) {
   base::UmaHistogramTimes("ContextualTasks.Context.QueryEmbeddingLatency",
                           tick_clock_->NowTicks() - start_time);
@@ -498,16 +499,15 @@ void ContextualTasksContextService::OnQueryEmbeddingReady(
     return;
   }
 
-  base::OnceCallback<void(std::vector<base::WeakPtr<content::WebContents>>)>
-      callback = std::move(request_it->second->callback);
-  pending_requests_.erase(request_id);
-
   // Query embedding was not successfully generated.
   if (status != passage_embeddings::ComputeEmbeddingsStatus::kSuccess) {
     AUTO_CONTEXT_LOG(
         base::StringPrintf("Query embedding for %s failed", query));
     RecordContextDeterminationStatus(
         ContextDeterminationStatus::kQueryEmbeddingFailed);
+    base::OnceCallback<void(std::vector<base::WeakPtr<content::WebContents>>)>
+        callback = std::move(request_it->second->callback);
+    pending_requests_.erase(request_it);
     std::move(callback).Run({});
     return;
   }
@@ -517,6 +517,9 @@ void ContextualTasksContextService::OnQueryEmbeddingReady(
         "Query embedding for %s had unexpected output", query));
     RecordContextDeterminationStatus(
         ContextDeterminationStatus::kQueryEmbeddingOutputMalformed);
+    base::OnceCallback<void(std::vector<base::WeakPtr<content::WebContents>>)>
+        callback = std::move(request_it->second->callback);
+    pending_requests_.erase(request_it);
     std::move(callback).Run({});
     return;
   }
@@ -530,11 +533,12 @@ void ContextualTasksContextService::OnQueryEmbeddingReady(
     AUTO_CONTEXT_LOG("No eligible tabs");
     RecordContextDeterminationStatus(
         ContextDeterminationStatus::kNoEligibleTabs);
+    base::OnceCallback<void(std::vector<base::WeakPtr<content::WebContents>>)>
+        callback = std::move(request_it->second->callback);
+    pending_requests_.erase(request_it);
     std::move(callback).Run({});
     return;
   }
-
-  RecordContextDeterminationStatus(ContextDeterminationStatus::kSuccess);
 
   auto log_entry = std::make_unique<optimization_guide::ModelQualityLogEntry>(
       optimization_guide_keyed_service_->GetModelQualityLogsUploaderService()
@@ -560,7 +564,7 @@ void ContextualTasksContextService::OnQueryEmbeddingReady(
       all_eligible_tabs, explicit_urls,
       base::BindOnce(&ContextualTasksContextService::OnRelevantTabsSelected,
                      weak_ptr_factory_.GetWeakPtr(), query, options, start_time,
-                     explicit_urls, std::move(callback), std::move(log_entry)),
+                     explicit_urls, request_id, std::move(log_entry)),
       quality_log);
 }
 
@@ -569,10 +573,24 @@ void ContextualTasksContextService::OnRelevantTabsSelected(
     const TabSelectionOptions& options,
     base::TimeTicks start_time,
     const std::vector<GURL>& explicit_urls,
-    base::OnceCallback<void(std::vector<base::WeakPtr<content::WebContents>>)>
-        callback,
+    int64_t request_id,
     std::unique_ptr<optimization_guide::ModelQualityLogEntry> log_entry,
     std::vector<base::WeakPtr<content::WebContents>> relevant_tabs) {
+  auto request_it = pending_requests_.find(request_id);
+  if (request_it == pending_requests_.end()) {
+    // We had timed out already and the callback was already invoked.
+    if (log_entry) {
+      optimization_guide::ModelQualityLogEntry::Drop(std::move(log_entry));
+    }
+    return;
+  }
+
+  base::OnceCallback<void(std::vector<base::WeakPtr<content::WebContents>>)>
+      callback = std::move(request_it->second->callback);
+  pending_requests_.erase(request_it);
+
+  RecordContextDeterminationStatus(ContextDeterminationStatus::kSuccess);
+
   AUTO_CONTEXT_LOG(base::StringPrintf(
       "Number of relevant tabs for query %s: %d", query, relevant_tabs.size()));
 
@@ -1035,15 +1053,5 @@ ContextualTasksContextService::PendingRequest::~PendingRequest() = default;
 TabSelectionOptions::TabSelectionOptions() = default;
 TabSelectionOptions::~TabSelectionOptions() = default;
 TabSelectionOptions::TabSelectionOptions(const TabSelectionOptions&) = default;
-
-ThreadTurn::ThreadTurn() = default;
-ThreadTurn::~ThreadTurn() = default;
-ThreadTurn::ThreadTurn(const ThreadTurn&) = default;
-ThreadTurn& ThreadTurn::operator=(const ThreadTurn&) = default;
-
-ConversationThread::ConversationThread() = default;
-ConversationThread::~ConversationThread() = default;
-ConversationThread::ConversationThread(const ConversationThread&) = default;
-ConversationThread& ConversationThread::operator=(const ConversationThread&) = default;
 
 }  // namespace contextual_tasks

@@ -11,6 +11,7 @@
 #include "components/contextual_search/contextual_search_metrics_recorder.h"
 #include "components/contextual_search/contextual_search_service.h"
 #include "components/contextual_search/mock_contextual_search_context_controller.h"
+#include "components/contextual_tasks/public/query_contextualizer.h"
 #include "components/lens/contextual_input.h"
 #include "components/lens/lens_features.h"
 #include "components/prefs/testing_pref_service.h"
@@ -63,6 +64,9 @@ TEST_F(ContextualSearchSessionHandleTest,
                    std::unique_ptr<lens::ContextualInputData> input_data,
                    std::optional<lens::ImageEncodingOptions> image_options) {
         EXPECT_EQ(input_data->primary_content_type, lens::MimeType::kUnknown);
+        EXPECT_EQ(input_data->upload_type,
+                  lens::LensOverlayContextualInputUploadType::
+                      CONTEXTUAL_INPUT_UPLOAD_TYPE_EXPLICIT);
       });
 
   mojo_base::BigBuffer buffer;
@@ -106,6 +110,9 @@ TEST_F(ContextualSearchSessionHandleTest,
         EXPECT_EQ(input_data->drive_id, test_drive_id);
         EXPECT_EQ(input_data->resource_key, test_resource_key);
         EXPECT_EQ(input_data->mime_type_string, test_mime_type);
+        EXPECT_EQ(input_data->upload_type,
+                  lens::LensOverlayContextualInputUploadType::
+                      CONTEXTUAL_INPUT_UPLOAD_TYPE_EXPLICIT);
       });
 
   ContextualSearchSessionHandle::DriveUploadParams params;
@@ -128,6 +135,78 @@ TEST_F(ContextualSearchSessionHandleTest,
   params.mime_type = "type";
   params.file_name = "name";
   handle_->StartDriveContextUploadFlow(token, params);
+}
+
+TEST_F(ContextualSearchSessionHandleTest,
+       StartUrlContextUploadFlow_DoesNotSetUploadType) {
+  base::UnguessableToken token = handle_->CreateContextToken();
+  std::string test_url = "https://www.google.com";
+
+  EXPECT_CALL(*mock_controller_ptr_, StartFileUploadFlow(token, _, _))
+      .WillOnce([&](const base::UnguessableToken& file_token,
+                    std::unique_ptr<lens::ContextualInputData> input_data,
+                    std::optional<lens::ImageEncodingOptions> image_options) {
+        EXPECT_EQ(input_data->primary_content_type, lens::MimeType::kUnknown);
+        EXPECT_EQ(input_data->parsed_url, test_url);
+        EXPECT_FALSE(input_data->upload_type.has_value());
+      });
+
+  handle_->StartUrlContextUploadFlow(token, test_url);
+}
+
+TEST_F(ContextualSearchSessionHandleTest,
+       StartModalityChipUploadFlow_DoesNotSetUploadType) {
+  base::UnguessableToken token = handle_->CreateContextToken();
+  auto modality_chip_props = std::make_unique<lens::ModalityChipProps>();
+
+  EXPECT_CALL(*mock_controller_ptr_, StartFileUploadFlow(token, _, _))
+      .WillOnce([&](const base::UnguessableToken& file_token,
+                    std::unique_ptr<lens::ContextualInputData> input_data,
+                    std::optional<lens::ImageEncodingOptions> image_options) {
+        EXPECT_FALSE(input_data->upload_type.has_value());
+      });
+
+  handle_->StartModalityChipUploadFlow(token, std::move(modality_chip_props));
+}
+
+TEST_F(ContextualSearchSessionHandleTest, PreviousTurnsAppended) {
+  EXPECT_TRUE(handle_->previous_turns().empty());
+
+  contextual_tasks::ThreadTurn turn1;
+  turn1.query = "first query";
+  handle_->AddThreadTurn(turn1);
+  ASSERT_EQ(handle_->previous_turns().size(), 1u);
+  EXPECT_EQ(handle_->previous_turns()[0].query, "first query");
+
+  contextual_tasks::ThreadTurn turn2;
+  turn2.query = "second query";
+  handle_->AddThreadTurn(turn2);
+  ASSERT_EQ(handle_->previous_turns().size(), 2u);
+  EXPECT_EQ(handle_->previous_turns()[0].query, "first query");
+  EXPECT_EQ(handle_->previous_turns()[1].query, "second query");
+}
+
+TEST_F(ContextualSearchSessionHandleTest, GetSubmittedContextTabTitles) {
+  base::UnguessableToken token1 = handle_->CreateContextToken();
+  base::UnguessableToken token2 = handle_->CreateContextToken();
+
+  FileInfo file_info1;
+  file_info1.file_token = token1;
+  file_info1.tab_title = "title 1";
+
+  FileInfo file_info2;
+  file_info2.file_token = token2;
+
+  EXPECT_CALL(*mock_controller_ptr_, GetFileInfo(token1))
+      .WillRepeatedly(testing::Return(&file_info1));
+  EXPECT_CALL(*mock_controller_ptr_, GetFileInfo(token2))
+      .WillRepeatedly(testing::Return(&file_info2));
+
+  handle_->set_submitted_context_tokens({token1, token2});
+
+  std::vector<std::string> tab_titles = handle_->GetSubmittedContextTabTitles();
+  ASSERT_EQ(tab_titles.size(), 1u);
+  EXPECT_EQ(tab_titles[0], "title 1");
 }
 
 }  // namespace contextual_search

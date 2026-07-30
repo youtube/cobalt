@@ -5,11 +5,11 @@
 #include "chrome/browser/password_manager/actor_login/actor_login_service_impl.h"
 
 #include "base/functional/bind.h"
-#include "chrome/browser/password_manager/actor_login/internal/actor_login_delegate_impl.h"
 #include "chrome/browser/password_manager/actor_login/internal/chrome_actor_login_delegate_client.h"
 #include "components/password_manager/content/browser/content_password_manager_driver.h"
 #include "components/password_manager/core/browser/actor_login/actor_login_quality_logger_interface.h"
 #include "components/password_manager/core/browser/actor_login/internal/actor_login_delegate.h"
+#include "components/password_manager/core/browser/actor_login/internal/actor_login_delegate_impl.h"
 #include "components/password_manager/core/browser/actor_login/internal/actor_login_metrics.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
@@ -20,13 +20,18 @@ namespace actor_login {
 namespace {
 
 ActorLoginDelegate* GetOrCreateDelegate(content::WebContents* web_contents) {
-  password_manager::ContentPasswordManagerDriver* driver =
-      password_manager::ContentPasswordManagerDriver::GetForRenderFrameHost(
-          web_contents->GetPrimaryMainFrame());
-  ActorLoginDelegateClient* client =
-      ChromeActorLoginDelegateClient::GetOrCreateForWebContents(web_contents);
-  return ActorLoginDelegateImpl::GetOrCreate(
-      web_contents, client, driver ? driver->client() : nullptr);
+  ActorLoginDelegateImpl* delegate =
+      ActorLoginDelegateImpl::FromUserData(web_contents);
+  if (!delegate) {
+    password_manager::ContentPasswordManagerDriver* driver =
+        password_manager::ContentPasswordManagerDriver::GetForRenderFrameHost(
+            web_contents->GetPrimaryMainFrame());
+    ActorLoginDelegateClient* client =
+        ChromeActorLoginDelegateClient::GetOrCreateForWebContents(web_contents);
+    delegate = ActorLoginDelegateImpl::CreateForUserData(
+        web_contents, client, driver ? driver->client() : nullptr);
+  }
+  return delegate;
 }
 
 void OnGetCredentialsResult(CredentialsOrErrorReply callback,

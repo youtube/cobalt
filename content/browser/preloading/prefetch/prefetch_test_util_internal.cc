@@ -229,6 +229,7 @@ void MakeServableStreamingURLLoaderForTest(
     network::mojom::URLResponseHeadPtr head,
     const std::string body,
     network::URLLoaderCompletionStatus status) {
+  prefetch_container->SimulatePrefetchEligibleForTest();
   prefetch_container->SimulatePrefetchStartedForTest();
 
   const GURL kTestUrl = GURL("https://test.com");
@@ -261,11 +262,14 @@ void MakeServableStreamingURLLoaderForTest(
   CHECK(weak_streaming_loader);
   CHECK(weak_response_reader);
   CHECK(weak_response_reader->Servable(base::TimeDelta::Max()));
+  CHECK_EQ(prefetch_container->GetLoadState(),
+           PrefetchContainer::LoadState::kCompleted);
 }
 
 network::TestURLLoaderFactory::PendingRequest
 MakeManuallyServableStreamingURLLoaderForTest(
     PrefetchContainer* prefetch_container) {
+  prefetch_container->SimulatePrefetchEligibleForTest();
   prefetch_container->SimulatePrefetchStartedForTest();
 
   const GURL kTestUrl = GURL("https://test.com");
@@ -292,6 +296,7 @@ void MakeServableStreamingURLLoaderWithRedirectForTest(
     PrefetchContainer* prefetch_container,
     const GURL& original_url,
     const GURL& redirect_url) {
+  prefetch_container->SimulatePrefetchEligibleForTest();
   prefetch_container->SimulatePrefetchStartedForTest();
 
   network::TestURLLoaderFactory test_url_loader_factory;
@@ -348,12 +353,15 @@ void MakeServableStreamingURLLoaderWithRedirectForTest(
   CHECK(weak_first_response_reader);
   CHECK(weak_second_response_reader);
   CHECK(weak_second_response_reader->Servable(base::TimeDelta::Max()));
+  CHECK_EQ(prefetch_container->GetLoadState(),
+           PrefetchContainer::LoadState::kCompleted);
 }
 
 void MakeServableStreamingURLLoadersWithNetworkTransitionRedirectForTest(
     PrefetchContainer* prefetch_container,
     const GURL& original_url,
     const GURL& redirect_url) {
+  prefetch_container->SimulatePrefetchEligibleForTest();
   prefetch_container->SimulatePrefetchStartedForTest();
 
   network::TestURLLoaderFactory test_url_loader_factory;
@@ -430,6 +438,8 @@ void MakeServableStreamingURLLoadersWithNetworkTransitionRedirectForTest(
   CHECK(weak_second_streaming_loader);
   CHECK(weak_second_response_reader);
   CHECK(weak_second_response_reader->Servable(base::TimeDelta::Max()));
+  CHECK_EQ(prefetch_container->GetLoadState(),
+           PrefetchContainer::LoadState::kCompleted);
 }
 
 PrefetchTestURLLoaderClient::PrefetchTestURLLoaderClient() = default;
@@ -876,8 +886,6 @@ void VerifyCommonRequestState(const GURL& url,
             network::mojom::CredentialsMode::kInclude);
 
   EXPECT_EQ(request.load_flags, net::LOAD_PREFETCH);
-
-  EXPECT_EQ(request.headers.GetHeader(blink::kPurposeHeaderName), std::nullopt);
 
   std::string sec_purpose_header_value;
   if (options.sec_purpose_header_value) {

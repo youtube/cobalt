@@ -236,6 +236,8 @@ should be able to be added at any place in this file.
       summary="Describes the GLIC button added in the bottom bar."/>
   <variant name="_AndroidBottomBarNewTab"
       summary="Describes the new tab button moved down in the bottom bar."/>
+  <variant name="_AndroidBottomBarPromoDialog"
+      summary="For the promo dialog shown to introduce the bottom bar."/>
   <variant name="_AndroidTabDeclutter" summary="For archived tabs on android."/>
   <variant name="_AppRatingPrompt" summary="For App Rating Prompt feature."/>
   <variant name="_AppSpecificHistory"
@@ -471,6 +473,8 @@ should be able to be added at any place in this file.
   <variant name="_HomePageButton" summary="For HomePageButton feature."/>
   <variant name="_HomepageTile" summary="For HomepageTile feature."/>
   <variant name="_IdentityDisc" summary="For IdentityDisc feature."/>
+  <variant name="_IncognitoIndicatorCloseAllWindows"
+      summary="For the Incognito indicator close all windows IPH."/>
   <variant name="_IncognitoWindow" summary="For IncognitoWindow feature."/>
   <variant name="_InstanceSwitcher" summary="For Instance switcher feature."/>
   <variant name="_IntentChip"
@@ -976,7 +980,7 @@ should be able to be added at any place in this file.
   <variant name=".SideBySide" summary="Split View"/>
   <variant name=".SidePanelPinning" summary="Side Panel Pinning"/>
   <variant name=".SyncAccountSettings"
-      summary="Wallet integration in Autofill"/>
+      summary="Wallet integration in Autofill (obsolete)"/>
   <variant name=".TabGroupsSync" summary="Tab Groups Sync (obsolete)"/>
   <variant name=".TabOrganizer" summary="Tab Organizer (obsolete)"/>
   <variant name=".TestDefaultModule" summary="Test default module"/>
@@ -5067,6 +5071,14 @@ should be able to be added at any place in this file.
     User tapped 'Save' on the dialog opened via the tab strip context menu to
     successfully save (with or without changing) the name of a Chrome window and
     dismiss the dialog.
+  </description>
+</action>
+
+<action name="Android.TabStripMenu.ShowTabsVertically">
+  <owner>eleanorlee@google.com</owner>
+  <description>
+    User tapped 'Show tabs vertically' in the tab strip context menu to display
+    the vertical tabs.
   </description>
 </action>
 
@@ -13696,17 +13708,6 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
-<action
-    name="Extensions.Mv2Deprecation.Disabled.ManageExtension.DisabledDialog">
-  <owner>emiliapaz@chomium.org</owner>
-  <owner>extensions-core@chromium.org</owner>
-  <description>
-    Emitted when the user clicked on the manage button in the dialog informing
-    the user that some extensions were disabled during the MV2 'disable with
-    re-enable' experiment stage.
-  </description>
-</action>
-
 <action name="Extensions.Mv2Deprecation.Disabled.RemoveExtension">
   <owner>emiliapaz@chomium.org</owner>
   <owner>extensions-core@chromium.org</owner>
@@ -13714,17 +13715,6 @@ should be able to be added at any place in this file.
     The user clicked on the remove button for an extension in
     chrome://extensions during the MV2 'disable with re-enable' experiment
     stage.
-  </description>
-</action>
-
-<action
-    name="Extensions.Mv2Deprecation.Disabled.RemoveExtension.DisabledDialog">
-  <owner>emiliapaz@chomium.org</owner>
-  <owner>extensions-core@chromium.org</owner>
-  <description>
-    Emitted when the user clicked on the remove button in the dialog informing
-    the user that some extensions were disabled during the MV2 'disable with
-    re-enable' experiment stage.
   </description>
 </action>
 
@@ -13767,17 +13757,6 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
-<action
-    name="Extensions.Mv2Deprecation.Unsupported.ManageExtension.DisabledDialog">
-  <owner>emiliapaz@chomium.org</owner>
-  <owner>extensions-core@chromium.org</owner>
-  <description>
-    Emitted when the user clicked on the manage button in the dialog informing
-    the user that some extensions were disabled during the MV2 'unsupported'
-    experiment stage.
-  </description>
-</action>
-
 <action name="Extensions.Mv2Deprecation.Unsupported.RemoveExtension">
   <owner>emiliapaz@chomium.org</owner>
   <owner>extensions-core@chromium.org</owner>
@@ -13793,17 +13772,6 @@ should be able to be added at any place in this file.
   <description>
     The user clicked on the remove button in the extension's detailed page in
     chrome://extensions during the MV2 'unsupported' experiment stage.
-  </description>
-</action>
-
-<action
-    name="Extensions.Mv2Deprecation.Unsupported.RemoveExtension.DisabledDialog">
-  <owner>emiliapaz@chomium.org</owner>
-  <owner>extensions-core@chromium.org</owner>
-  <description>
-    Emitted when the user clicked on the remove button in the dialog informing
-    the user that some extensions were disabled during the MV2 'unsupported'
-    experiment stage.
   </description>
 </action>
 
@@ -15159,6 +15127,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Glic.Fre.Accept.Onboarding">
+  <obsolete>Stopped recording in June 2026.</obsolete>
   <owner>tommasin@chromium.org</owner>
   <owner>zalmashni@google.com</owner>
   <description>
@@ -15240,6 +15209,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Glic.Fre.Dismissed.Onboarding">
+  <obsolete>Stopped recording in June 2026.</obsolete>
   <owner>tommasin@chromium.org</owner>
   <owner>zalmashni@google.com</owner>
   <description>
@@ -15353,6 +15323,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Glic.Fre.Shown.Onboarding">
+  <obsolete>Stopped recording in June 2026.</obsolete>
   <owner>tommasin@chromium.org</owner>
   <owner>zalmashni@google.com</owner>
   <description>
@@ -15788,6 +15759,15 @@ should be able to be added at any place in this file.
   <owner>birnie@google.com</owner>
   <owner>perrier@google.com</owner>
   <description>The Glic instance WebUI is warmed.</description>
+</action>
+
+<action name="Glic.Onboarding.OptInAccept">
+  <owner>basiaz@google.com</owner>
+  <owner>dewittj@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>
+    Logged when the opt-in is accepted after being shown.
+  </description>
 </action>
 
 <action name="Glic.Onboarding.OptInImpression">
@@ -16880,6 +16860,15 @@ should be able to be added at any place in this file.
   <description>Please enter the description of this user action.</description>
 </action>
 
+<action name="Indigo.ErrorToast.Retry.Click">
+  <owner>jbroman@chromium.org</owner>
+  <owner>adithyas@chromium.org</owner>
+  <owner>baranerf@google.com</owner>
+  <description>
+    User clicked the Indigo try again button from the invocation error toast.
+  </description>
+</action>
+
 <action name="Indigo.Onboarding.Complete">
   <owner>jbroman@chromium.org</owner>
   <owner>adithyas@chromium.org</owner>
@@ -16892,6 +16881,15 @@ should be able to be added at any place in this file.
   <owner>adithyas@chromium.org</owner>
   <owner>baranerf@google.com</owner>
   <description>User triggered the onboarding process.</description>
+</action>
+
+<action name="Indigo.PageAction.AnchoredMessage.Click">
+  <owner>jbroman@chromium.org</owner>
+  <owner>adithyas@chromium.org</owner>
+  <owner>baranerf@google.com</owner>
+  <description>
+    User clicked the Indigo page action from an anchored message.
+  </description>
 </action>
 
 <action name="Indigo.PageAction.Click">
@@ -16914,6 +16912,15 @@ should be able to be added at any place in this file.
   <owner>baranerf@google.com</owner>
   <description>
     The indigo page action was displayed as an anchored message.
+  </description>
+</action>
+
+<action name="Indigo.PageAction.SuggestionChip.Click">
+  <owner>jbroman@chromium.org</owner>
+  <owner>adithyas@chromium.org</owner>
+  <owner>baranerf@google.com</owner>
+  <description>
+    User clicked the Indigo page action from a suggestion chip.
   </description>
 </action>
 
@@ -29004,6 +29011,15 @@ should be able to be added at any place in this file.
   <description>User pressed the 'Homepage' item in the app menu.</description>
 </action>
 
+<action name="MobileMenuIdentityMenu">
+  <owner>jlebel@chromium.org</owner>
+  <owner>chrome-signin-mobile-team@google.com</owner>
+  <description>
+    User pressed the identity details button in the overflow menu to open the
+    account menu.
+  </description>
+</action>
+
 <action name="MobileMenuIncognitoSearch">
   <obsolete>Deprecated as of 3/2023</obsolete>
   <owner>gambard@chromium.org</owner>
@@ -29259,6 +29275,11 @@ should be able to be added at any place in this file.
   <description>User pressed 'Add to Reading List' in the app menu.</description>
 </action>
 
+<action name="MobileMenuRecentEntry">
+  <owner>massan@google.com</owner>
+  <description>User pressed a recent entry in the app menu.</description>
+</action>
+
 <action name="MobileMenuRecentTabs">
   <owner>justincohen@chromium.org</owner>
   <description>User pressed 'Recent tabs' in the app menu.</description>
@@ -29391,6 +29412,14 @@ should be able to be added at any place in this file.
   <description>User pressed 'Show reading list' in the app menu.</description>
 </action>
 
+<action name="MobileMenuSignin">
+  <owner>jlebel@chromium.org</owner>
+  <owner>chrome-signin-mobile-team@google.com</owner>
+  <description>
+    User pressed the identity button in the overflow menu.
+  </description>
+</action>
+
 <action name="MobileMenuSiteInformation">
   <owner>gambard@chromium.org</owner>
   <description>User pressed 'Site Information' in the app menu.</description>
@@ -29460,6 +29489,14 @@ should be able to be added at any place in this file.
   <owner>massan@google.com</owner>
   <description>
     User pressed 'Show / Hide bookmarks bar' in the app menu.
+  </description>
+</action>
+
+<action name="MobileMenuToggleTabLayout">
+  <owner>eleanorlee@google.com</owner>
+  <description>
+    User pressed 'Show tabs vertically' or 'Show tabs horizontally' in 'More
+    tools' in the app menu.
   </description>
 </action>
 
@@ -32984,6 +33021,23 @@ should be able to be added at any place in this file.
   <description>
     User pressed 'Share' on the toolbar from a NTP page. Logged in addition to
     the general metric.
+  </description>
+</action>
+
+<action name="MobileToolbarShowAssistant">
+  <owner>gambard@chromium.org</owner>
+  <owner>ewannpv@chromium.org</owner>
+  <description>
+    User pressed button to show the assistant sheet on the toolbar. iOS only.
+  </description>
+</action>
+
+<action name="MobileToolbarShowAssistantOnNTP">
+  <owner>gambard@chromium.org</owner>
+  <owner>ewannpv@chromium.org</owner>
+  <description>
+    User pressed button to show the assistant sheet on the toolbar while viewing
+    the NTP. iOS only.
   </description>
 </action>
 
@@ -41693,6 +41747,15 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Settings.AiPage.IndigoEntryPointClick">
+  <owner>jbroman@chromium.org</owner>
+  <owner>chrome-browser-privacy-team@google.com</owner>
+  <description>
+    Reported when user clicks on the Indigo row in the chrome://settings/ai
+    page.
+  </description>
+</action>
+
 <action name="Settings.AiPage.PasswordChangeEntryPointClick">
   <owner>vsemeniuk@google.com</owner>
   <owner>rainhard@chromium.org</owner>
@@ -48673,6 +48736,24 @@ should be able to be added at any place in this file.
   <description>
     Recorded when the &quot;Send feedback&quot; Split View menu item was
     clicked.
+  </description>
+</action>
+
+<action name="SplitViewOrientationChanged.TabContextMenu">
+  <owner>kunaldaftari@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the orientation of a Split View within the browser was changed
+    by clicking the tab context menu item.
+  </description>
+</action>
+
+<action name="SplitViewOrientationChanged.ToolbarButton">
+  <owner>kunaldaftari@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the orientation of a Split View within the browser was changed
+    by clicking the toolbar button.
   </description>
 </action>
 

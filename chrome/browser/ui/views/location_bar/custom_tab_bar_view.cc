@@ -20,6 +20,7 @@
 #include "chrome/browser/ui/views/chrome_typography.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
+#include "chrome/browser/ui/window_metadata/window_metadata_controller.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/omnibox/browser/location_bar_model.h"
 #include "components/security_interstitials/content/security_interstitial_tab_helper.h"
@@ -321,7 +322,7 @@ void CustomTabBarView::OnThemeChanged() {
       color_provider->GetColor(kColorPwaToolbarButtonIconDisabled);
   SetImageFromVectorIconWithColor(
       close_button_,
-      features::IsRoundedIconsEnabled() ? vector_icons::kCloseSmallIcon
+      features::IsRoundedIconsEnabled() ? vector_icons::kCloseIcon
                                         : vector_icons::kCloseRoundedOldIcon,
       GetLayoutConstant(LayoutConstant::kLocationBarIconSize),
       {foreground_color, foreground_disabled_color});
@@ -353,7 +354,7 @@ void CustomTabBarView::UpdateContents() {
   // If the toolbar should not be shown don't update the UI, as the toolbar may
   // be animating out and it looks messy.
   web_app::AppBrowserController* const app_controller =
-      browser_->app_controller();
+      web_app::AppBrowserController::From(browser_);
   if (app_controller && !app_controller->ShouldShowCustomTabBar()) {
     return;
   }
@@ -365,7 +366,8 @@ void CustomTabBarView::UpdateContents() {
 
   content::NavigationEntry* entry = contents->GetController().GetVisibleEntry();
   std::u16string title, location;
-  title = Browser::FormatTitleForDisplay(entry->GetTitleForDisplay());
+  title = WindowMetadataController::FormatTitleForDisplay(
+      entry->GetTitleForDisplay());
   if (ShouldDisplayUrl(contents)) {
     location = web_app::AppBrowserController::FormatUrlOrigin(
         contents->GetVisibleURL(), url_formatter::kFormatUrlOmitDefaults);

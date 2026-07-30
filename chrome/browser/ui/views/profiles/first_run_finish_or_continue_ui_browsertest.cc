@@ -19,6 +19,7 @@
 #include "chrome/common/webui_url_constants.h"
 #include "components/signin/public/base/signin_switches.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/page_transition_types.h"
@@ -59,8 +60,12 @@ class FirstRunFinishOrContinuePixelTest
         ProfileManagementFlowController::Step::kIntro,
         /*step_controller_factory=*/
         base::BindRepeating([](ProfilePickerWebContentsHost* host) {
-          return CreateIntroStep(host, base::DoNothing(),
-                                 /*enable_animations=*/false);
+          return CreateIntroStep(
+              host, /*choice_callback=*/base::DoNothing(),
+              /*enable_animations=*/false,
+              /*query_effects_callback=*/base::BindRepeating([] {
+                return false;
+              }));
         }));
     profile_picker_view_tracker_.SetView(view);
     view->ShowAndWait();
@@ -73,6 +78,23 @@ class FirstRunFinishOrContinuePixelTest
         finish_or_continue_url, content::Referrer(),
         ui::PAGE_TRANSITION_AUTO_TOPLEVEL, std::string());
     observer.Wait();
+
+    // Wait for all cr-lotties to initialize to prevent flakiness.
+    EXPECT_EQ(true, content::EvalJs(view->GetPickerContents(), R"(
+      Promise.all(
+        Array.from(document.querySelector('finish-or-continue-app')
+            .shadowRoot.querySelectorAll('cr-lottie')).map(
+          anim => new Promise(resolve => {
+            if (anim.hasAttribute('is-animation-loaded')) {
+              resolve(true);
+            } else {
+              anim.addEventListener('cr-lottie-initialized',
+                                    () => resolve(true));
+            }
+          })
+        )
+      ).then(() => true);
+    )"));
   }
 
   bool VerifyUi() override {

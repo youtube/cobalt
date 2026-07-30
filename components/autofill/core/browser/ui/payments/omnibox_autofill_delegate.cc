@@ -37,6 +37,11 @@ void OmniboxAutofillDelegate::OnFieldTypesDetermined(
     FormGlobalId form_id,
     AutofillManager::Observer::FieldTypeSource source,
     bool small_forms_were_parsed) {
+  if (candidate_form_found_) {
+    // Candidate already found and awaiting user action asynchronously.
+    return;
+  }
+
   // Only run checks using the outermost AutofillManager to avoid having
   // multiple managers triggering the logic flow at once.
   if (!IsOutermostMainFrameActiveAutofillManager(manager)) {
@@ -89,16 +94,28 @@ void OmniboxAutofillDelegate::OnFieldTypesDetermined(
     return;
   }
 
-  // All fields of the form must be either in the main frame or an allowlisted
-  // iframe.
+  // Iterate over all AutofillFields in the FormStructure, paying attention to
+  // the frame they are in (main vs. iframe) as well as ensuring there's only a
+  // single CREDIT_CARD_NUMBER type.
+  bool found_credit_card_number_field = false;
   std::set<url::Origin> iframe_origins;
   for (const std::unique_ptr<AutofillField>& field : form_structure->fields()) {
-    if (FieldIsInMainFrame(manager, *field)) {
-      // Field is in main frame; no need for allowlist check.
-      continue;
+    if (field->Type().GetCreditCardType() == CREDIT_CARD_NUMBER) {
+      if (found_credit_card_number_field) {
+        LogOmniboxAutofillShowChipDecisionPart1(
+            OmniboxAutofillShowChipDecisionPart1::
+                kFoundMultipleCreditCardNumberFields);
+        return;
+      }
+      found_credit_card_number_field = true;
     }
-    iframe_origins.insert(field->origin());
+    if (!FieldIsInMainFrame(manager, *field)) {
+      iframe_origins.insert(field->origin());
+    }
   }
+
+  // All fields of the form must be either in the main frame or an allowlisted
+  // iframe.
   if (!iframe_origins.empty() &&
       !manager.client().GetAutofillOptimizationGuideDecider()) {
     LogOmniboxAutofillShowChipDecisionPart1(
@@ -115,10 +132,20 @@ void OmniboxAutofillDelegate::OnFieldTypesDetermined(
     }
   }
 
-  // More checks to follow as implementation continues...
-
+  // All checks passed! Log the triggering form and field, start the
+  // IntersectionObserver, and prevent this logic from running again.
   LogOmniboxAutofillShowChipDecisionPart1(
       OmniboxAutofillShowChipDecisionPart1::kSuccess);
+  trigger_form_global_id_ = form_structure->global_id();
+  for (const std::unique_ptr<AutofillField>& field : form_structure->fields()) {
+    if (field->Type().GetCreditCardType() == CREDIT_CARD_NUMBER) {
+      trigger_field_global_id_ = field->global_id();
+      break;
+    }
+  }
+  candidate_form_found_ = true;
+
+  // TODO: crbug.com/490214534 - Initiate GetIntersectionObserverInfo(~).
 }
 
 void OmniboxAutofillDelegate::OnAutofillManagerStateChanged(
@@ -138,6 +165,10 @@ void OmniboxAutofillDelegate::OnAfterFormsSeen(
     AutofillManager& manager,
     base::span<const FormGlobalId> updated_forms,
     base::span<const FormGlobalId> removed_forms) {
+  if (!candidate_form_found_) {
+    // Candidate form has not yet been found, so the chip is not being shown.
+    return;
+  }
   for (const FormGlobalId& id : removed_forms) {
     if (id == trigger_form_global_id_) {
       client_->GetPaymentsAutofillClient()->HideOmniboxAutofillChip();

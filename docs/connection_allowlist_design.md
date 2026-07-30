@@ -118,11 +118,10 @@ Blink is the rendering engine running in the renderer process.
     Service Worker. This is done in blink because the renderer directly talks
     to the Service Worker URLLoaderFactory in these cases, not giving the
     document's URLLoaderFactory checks to run, unless the SW decides to
-    fallback on the original fetch.
+    fallback on the original fetch. This applies when the initiating
+    context is either a document, dedicated worker or shared worker.
 
 ### Integration with service workers
-(In-progress CLs: [1](https://chromium-review.googlesource.com/c/chromium/src/+/7597226), [2](https://chromium-review.googlesource.com/c/chromium/src/+/7871179))
-
 Service Workers act as network proxies in the renderer process, intercepting requests
 before they reach the network.
 * **Responsibilities:**
@@ -162,3 +161,18 @@ before they reach the network.
   Connection-Allowlist, the associated navigation preload request will be executed using
   the Service Worker's `URLLoaderFactory` (which is associated with the Service Worker's
   `network_restrictions_id`), thereby enforcing the Service Worker's policies.
+  * **clients.navigate() in Service Workers**: Navigation initiated via
+    clients.navigate() is subject to both the Service Worker's and
+    the document's Connection Allowlists. Since the navigation is
+    initiated from the Service Worker context, the Service Worker's
+    Connection Allowlists apply to the navigation before it is
+    initiated from the Service Worker. In addition, since the
+    navigation is on a window client (which has an associated Document),
+    the Document's Connection Allowlists also apply, and if there is a
+    server redirect, the document's Connection Allowlists' redirect bit
+    will be checked.
+  * **clients.openWindow() in Service Workers**: Navigation initiated via
+    clients.openWindow() is subject to the Service Worker's
+    Connection Allowlists before it is initiated. There is no check on
+    redirect since there is no CA to be checked once the navigation has
+    started.

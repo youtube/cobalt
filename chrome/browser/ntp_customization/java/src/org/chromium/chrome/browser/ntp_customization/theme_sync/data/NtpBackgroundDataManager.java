@@ -117,6 +117,12 @@ public class NtpBackgroundDataManager {
             if (platformTypeOfNewData != PlatformType.ANDROID_LOCAL) {
                 currentGroup.removeIf(item -> item.getPlatformType() == platformTypeOfNewData);
             }
+
+            // If the backgroundData already in local history, removes the existing one.
+            int index = currentGroup.indexOf(backgroundData);
+            if (index != -1) {
+                currentGroup.remove(index);
+            }
             currentGroup.add(0, backgroundData);
             if (currentGroup.size() > MAXIMUM_LOCAL_HISTORY) {
                 currentGroup.remove(currentGroup.size() - 1);
@@ -152,7 +158,7 @@ public class NtpBackgroundDataManager {
      * @param platformType The platform type to get the background data for.
      * @return The background data for the given platform type.
      */
-    NtpBackgroundDataGroup getBackgroundDataGroupFromSharedPreference(
+    public NtpBackgroundDataGroup getBackgroundDataGroupFromSharedPreference(
             @PlatformType int platformType) {
         JSONArray historyDataArray = getJsonArrayFromSharedPreferenceImpl(platformType);
         if (historyDataArray != null) {

@@ -362,6 +362,7 @@ bool IsPaymentMethodSuggestion(const Suggestion& suggestion) {
     case SuggestionType::kFillAutofillAi:
     case SuggestionType::kOneTimePasswordEntry:
     case SuggestionType::kWebauthnSignInWithAnotherDevice:
+    case SuggestionType::kWebauthnPasskeyQrCode:
     case SuggestionType::kLoadingThrobber:
     case SuggestionType::kBnplFootnote:
     case SuggestionType::kAtMemoryInactivityNudge:
@@ -872,7 +873,7 @@ const gfx::VectorIcon& GetExpandableMenuIcon(SuggestionType type) {
                    ? kMoreVertIcon
                    : kBrowserToolsChromeRefreshOldIcon
          : ::features::IsRoundedIconsEnabled()
-             ? vector_icons::kKeyboardArrowRightIcon
+             ? vector_icons::kKeyboardArrowRightFlippableIcon
              : vector_icons::kSubmenuArrowChromeRefreshOldIcon;
 }
 

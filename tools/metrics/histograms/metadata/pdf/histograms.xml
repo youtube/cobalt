@@ -300,7 +300,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="PDF.RenderAndPaintTime" units="ms" expires_after="2026-09-27">
+<histogram name="PDF.RenderAndPaintTime" units="ms" expires_after="2026-11-29">
   <owner>thestig@chromium.org</owner>
   <owner>ask@chromium.org</owner>
   <summary>
@@ -311,7 +311,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PDF.RenderAndPaintVisiblePagesTime" units="ms"
-    expires_after="2026-09-27">
+    expires_after="2026-11-29">
   <owner>thestig@chromium.org</owner>
   <owner>ask@chromium.org</owner>
   <summary>
@@ -321,7 +321,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PDF.RenderPaintAndFlushTime" units="ms"
-    expires_after="2026-09-27">
+    expires_after="2026-11-29">
   <owner>thestig@chromium.org</owner>
   <owner>ask@chromium.org</owner>
   <summary>
@@ -332,7 +332,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PDF.SaveToDrive.BubbleAction"
-    enum="PDFSaveToDriveBubbleAction" expires_after="2026-09-26">
+    enum="PDFSaveToDriveBubbleAction" expires_after="2026-11-29">
   <owner>faizur@google.com</owner>
   <owner>clarkbrian@chromium.org</owner>
   <summary>
@@ -351,7 +351,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PDF.SaveToDrive.FileSize" units="KB"
-    expires_after="2026-09-26">
+    expires_after="2026-11-29">
   <owner>faizur@google.com</owner>
   <owner>clarkbrian@chromium.org</owner>
   <summary>
@@ -393,7 +393,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PDF.SaveToDrive.UploadError" enum="PdfSaveToDriveErrorType"
-    expires_after="2026-09-26">
+    expires_after="2026-11-29">
   <owner>faizur@google.com</owner>
   <owner>clarkbrian@chromium.org</owner>
   <summary>
@@ -413,7 +413,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PDF.SaveToDrive.UploadStatus" enum="PdfSaveToDriveStatus"
-    expires_after="2026-09-26">
+    expires_after="2026-11-29">
   <owner>faizur@google.com</owner>
   <owner>clarkbrian@chromium.org</owner>
   <summary>
@@ -466,7 +466,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="PDF.Version" enum="PDFVersion" expires_after="2026-09-27">
+<histogram name="PDF.Version" enum="PDFVersion" expires_after="2026-11-29">
   <owner>dhoss@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
   <summary>Tracks versions of documents opened in the PDF viewer.</summary>

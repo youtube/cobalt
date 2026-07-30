@@ -1243,6 +1243,7 @@ void LayerTreeHost::ApplyCompositorChanges(CompositorCommitData* commit_data) {
   }
 
   client_->UpdateCompositorScrollState(*commit_data);
+  client_->UpdateAnimatedImageState(*commit_data);
 
   // This needs to happen after scroll deltas have been sent to prevent top
   // controls from clamping the layout viewport both on the compositor and
@@ -1481,10 +1482,11 @@ void LayerTreeHost::SetViewportRectAndScale(
       pending_commit_state()->local_surface_id_from_parent;
   SetLocalSurfaceIdFromParent(local_surface_id_from_parent);
 
+  const auto size_track =
+      perfetto::NamedTrack::FromPointer("LayerTreeHostSize", this);
   TRACE_EVENT_END("cc", /*"LayerTreeHostSize"*/
-                  perfetto::Track::FromPointer(this), "id", id_);
-  TRACE_EVENT_BEGIN("cc", "LayerTreeHostSize",
-                    perfetto::Track::FromPointer(this), "size",
+                  size_track, "id", id_);
+  TRACE_EVENT_BEGIN("cc", "LayerTreeHostSize", size_track, "size",
                     device_viewport_rect.ToString(), "lsid",
                     local_surface_id_from_parent.ToString());
 
@@ -2180,6 +2182,28 @@ void LayerTreeHost::DropActiveScrollDeltaNextCommit(ElementId scroll_element) {
   pending_commit_state()->scrollers_clobbering_active_value.insert(
       scroll_element);
   SetNeedsCommit();
+}
+
+void LayerTreeHost::SetUnboundedFrameSink(
+    std::unique_ptr<LayerTreeFrameSink> unbounded_frame_sink,
+    const viz::LocalSurfaceId& local_surface_id) {
+  DCHECK(settings_.enable_unbounded_element);
+  DCHECK(IsMainThread());
+  proxy_->SetUnboundedFrameSink(std::move(unbounded_frame_sink),
+                                local_surface_id);
+}
+
+void LayerTreeHost::DismissUnboundedFrameSink() {
+  DCHECK(settings_.enable_unbounded_element);
+  DCHECK(IsMainThread());
+  proxy_->DismissUnboundedFrameSink();
+}
+
+void LayerTreeHost::SetUnboundedLocalSurfaceId(
+    const viz::LocalSurfaceId& local_surface_id) {
+  DCHECK(settings_.enable_unbounded_element);
+  DCHECK(IsMainThread());
+  proxy_->SetUnboundedLocalSurfaceId(local_surface_id);
 }
 
 }  // namespace cc

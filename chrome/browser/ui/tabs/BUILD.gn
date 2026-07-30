@@ -251,9 +251,10 @@ if (!is_android) {
       "//chrome/browser/ui/commerce",
       "//chrome/browser/ui/tabs/saved_tab_groups",
       "//chrome/browser/ui/toasts",
+      "//chrome/browser/ui/window_metadata",
       "//components/saved_tab_groups/public",
       "//components/tab_groups",
-      "//components/tabs",
+      "//components/tabs:impl",
     ]
 
     if (is_chromeos) {
@@ -484,6 +485,7 @@ if (!is_android) {
       "//chrome/browser/themes",
       "//chrome/browser/ui:layout_constants",
       "//chrome/browser/ui:ui_features",
+      "//chrome/browser/ui/actions:actions_util",
       "//chrome/browser/ui/autofill",
       "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/commerce",
@@ -503,6 +505,7 @@ if (!is_android) {
       "//chrome/browser/ui/toolbar",
       "//chrome/browser/ui/toolbar/pinned_toolbar",
       "//chrome/browser/ui/user_education",
+      "//chrome/browser/ui/views/commerce",
       "//chrome/browser/ui/views/contextual_tasks",
       "//chrome/browser/ui/views/file_system_access",
       "//chrome/browser/ui/views/intent_picker:intent_picker_page_action",
@@ -537,7 +540,7 @@ if (!is_android) {
       "//components/skills:features",
       "//components/sync_sessions",
       "//components/tab_groups",
-      "//components/tabs",
+      "//components/tabs:impl",
       "//components/wallet/core/common:features",
       "//net",
       "//ui/base/unowned_user_data",

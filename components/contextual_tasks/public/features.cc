@@ -77,6 +77,9 @@ BASE_FEATURE(kEnableNotifyZeroStateRenderedCapability,
 BASE_FEATURE(kContextualTasksSendFullVersionListEnabled,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kContextualTasksSendContextualInputUploadType,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kContextualTasksUrlRedirectToAimUrl,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -133,13 +136,23 @@ BASE_FEATURE(kContextualTasksJavaFusebox, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kContextualTasksOverrideShowBottomSheetOnLargeScreen,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kAimTriggeredThreadLinks, base::FEATURE_DISABLED_BY_DEFAULT);
+// Enables prefetching of cookies for contextual tasks.
+BASE_FEATURE(kContextualTasksCookiePrefetch, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kAimTriggeredThreadLinks, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kContextualTasksWindowTracking, base::FEATURE_ENABLED_BY_DEFAULT);
+
 bool GetIsContextualTasksPdfCitationsEnabled() {
   return base::FeatureList::IsEnabled(kContextualTasksPdfCitations);
 }
 
 bool GetIsContextualTasksLazyFetchClusterInfoEnabled() {
   return base::FeatureList::IsEnabled(kContextualTasksLazyFetchClusterInfo);
+}
+
+bool GetIsContextualTasksWindowTrackingEnabled() {
+  return base::FeatureList::IsEnabled(kContextualTasksWindowTracking);
 }
 
 const base::FeatureParam<bool> kContextualTasksLockAndUnlockInputCapability(
@@ -161,11 +174,6 @@ const base::FeatureParam<bool> kContextualTasksEnableCookieSync(
     &kContextualTasks,
     "ContextualTasksEnableCookieSync",
     true);
-
-const base::FeatureParam<bool> kContextualTasksEnableCookiePrefetch(
-    &kContextualTasks,
-    "ContextualTasksEnableCookiePrefetch",
-    false);
 
 const base::FeatureParam<bool> kOnlyUseTitlesForSimilarity(
     &kContextualTasksContext,
@@ -271,6 +279,13 @@ const base::FeatureParam<double> kContextualTasksContextLoggingSampleRate{
     &kContextualTasksContextLogging, "ContextualTasksContextLoggingSampleRate",
     1.0};
 
+const base::FeatureParam<bool> kSendContextualInputUploadTypeInSearchUrl{
+    &kContextualTasksSendContextualInputUploadType, "send_in_search_url", true};
+
+const base::FeatureParam<bool> kSendContextualInputUploadTypeInAimRequest{
+    &kContextualTasksSendContextualInputUploadType, "send_in_aim_request",
+    true};
+
 // Enables tab auto-chip for contextual tasks.
 const base::FeatureParam<bool> kContextualTasksTabAutoSuggestionChipEnabled(
     &kContextualTasks,
@@ -297,8 +312,6 @@ const base::FeatureParam<std::string> kContextualTasksSignInDomains{
 
 constexpr base::FeatureParam<EntryPointOption>::Option kEntryPointOptions[] = {
     {EntryPointOption::kNoEntryPoint, "no-entry-point"},
-    {EntryPointOption::kToolbarRevisit, "toolbar-revisit"},
-    {EntryPointOption::kToolbarPermanent, "toolbar-permanent"},
     {EntryPointOption::kToolbarEphemeralBranded, "toolbar-ephemeral-branded"}};
 
 const base::FeatureParam<EntryPointOption> kShowEntryPoint(
@@ -337,8 +350,10 @@ const base::FeatureParam<bool> kForceGscInTabMode(
 // Version 2.2: Added UI fixes for NLM.
 // Version 2.3: UI fixes for transitions from search results.
 // Version 2.4: Adds ability to hideInput/restoreInput
+// Version 2.5: Support for link click post messages and window.open calls from
+//              AIM.
 const base::FeatureParam<std::string> kContextualTasksUserAgentSuffix{
-    &kContextualTasks, "contextual-tasks-user-agent-suffix", "Cobrowsing/2.4"};
+    &kContextualTasks, "contextual-tasks-user-agent-suffix", "Cobrowsing/2.5"};
 
 const base::FeatureParam<std::string> kContextualTasksOAuthScopes{
     &kContextualTasksExtraOauthScopes, "ContextualTasksOAuthScopes", ""};
@@ -620,7 +635,7 @@ bool ShouldEnableCookieSync() {
 }
 
 bool ShouldEnableCookiePrefetch() {
-  return kContextualTasksEnableCookiePrefetch.Get();
+  return base::FeatureList::IsEnabled(kContextualTasksCookiePrefetch);
 }
 
 bool ShouldEnableLockAndUnlockInputCapability() {
@@ -686,6 +701,11 @@ const char kContextualTasksOverrideShowBottomSheetOnLargeScreenName[] =
 const char kContextualTasksOverrideShowBottomSheetOnLargeScreenDescription[] =
     "Enables overriding side panel to show Bottom Sheet on large screens for "
     "contextual tasks.";
+
+const char kContextualTasksCookiePrefetchName[] =
+    "Contextual Tasks Cookie Prefetch";
+const char kContextualTasksCookiePrefetchDescription[] =
+    "Enables prefetching of cookies for contextual tasks.";
 
 }  // namespace flag_descriptions
 

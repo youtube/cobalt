@@ -11,6 +11,10 @@ struct WebNNExecutionProviderDetails {
   string vendor;
   // Hardware type of the execution provider, e.g. "CPU", "GPU", "NPU".
   string hardware_type;
+  // Vendor ID of the hardware device used by the execution provider.
+  string vendor_id;
+  // Device ID of the hardware device used by the execution provider.
+  string device_id;
   // Version of the execution provider if provided otherwise empty.
   string version;
   // Indicates if this execution provider is the first selected one, otherwise
@@ -51,5 +55,13 @@ interface WebNNServiceIntrospection {
   // This is backend-specific information and may be empty if the backend does
   // not provide this information.
   GetAvailableExecutionProvidersDetails()
+      => (array<WebNNExecutionProviderDetails> execution_providers);
+
+  // Force the creation of the ONNX Runtime environment for introspection.
+  // This will create the ORT environment if it hasn't been created yet,
+  // force installation of execution providers if applicable so WebNN Internals
+  // can show them. Only available on Windows since ORT is only used on Windows.
+  [EnableIf=is_win]
+  ForceOrtEnvironmentCreationForIntrospection()
       => (array<WebNNExecutionProviderDetails> execution_providers);
 };

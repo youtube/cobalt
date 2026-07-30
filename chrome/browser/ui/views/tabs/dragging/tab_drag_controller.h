@@ -180,6 +180,9 @@ class TabDragController : public views::WidgetObserver,
     return drag_data_.group_header_id();
   }
 
+  // Used to track if tab group header was collapsed from dragging the header.
+  void SetGroupHeaderWasCollapsedFromDrag(bool was_collapsed_from_drag);
+
   bool IsMovingLastTab() const { return is_moving_last_tab_; }
 
   // Call when a tab was just added to the attached tabstrip. May end the drag.
@@ -300,6 +303,17 @@ class TabDragController : public views::WidgetObserver,
     kMaxValue = kAbandoned
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/tab/enums.xml:TabDraggingDestination)
+
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  // LINT.IfChange(TabDragPinnedness)
+  enum class TabDragPinnedness {
+    kAllUnpinned = 0,
+    kAllPinned = 1,
+    kMixed = 2,
+    kMaxValue = kMixed
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/tab/enums.xml:TabDragPinnedness)
 
   // Overridden from views::WidgetObserver:
   void OnWidgetBoundsChanged(views::Widget* widget,

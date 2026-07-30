@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import {I18nMixin} from '//resources/cr_elements/i18n_mixin.js';
+import {skColorToRgba} from '//resources/js/color_utils.js';
 import {EventTracker} from '//resources/js/event_tracker.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import {PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
@@ -15,7 +16,7 @@ import {getTemplate} from './region_selection.html.js';
 import {ScreenshotBitmapBrowserProxyImpl} from './screenshot_bitmap_browser_proxy.js';
 import {renderScreenshot} from './screenshot_utils.js';
 import {RegionSource, SelectionOverlayBaseHandler} from './selection_overlay_base_handler.js';
-import {focusShimmerOnRegion, GestureState, getRelativeCoordinate, ShimmerControlRequester, unfocusShimmer} from './selection_utils.js';
+import {calculateBoundingBox, calculateCenterRotatedBox, focusShimmerOnRegion, GestureState, getRelativeCoordinate, normalizePoints, ShimmerControlRequester, unfocusShimmer} from './selection_utils.js';
 import type {GestureEvent, Point} from './selection_utils.js';
 
 // A simple interface representing a rectangle with normalized values.
@@ -103,6 +104,11 @@ export class RegionSelectionElement extends RegionSelectionElementBase {
         type: Boolean,
         value: () => loadTimeData.getBoolean('enableMultiRegionSelection'),
       },
+      lineSelectionEnabled: {
+        reflectToAttribute: true,
+        type: Boolean,
+        value: () => loadTimeData.getBoolean('lineSelection'),
+      },
       screenshotDataUri: String,
       shaderLayerColorHexes: {
         type: Array,
@@ -155,6 +161,8 @@ export class RegionSelectionElement extends RegionSelectionElementBase {
   declare private displayKeyboardSelection: boolean;
   // Whether multi-region selection is enabled.
   declare private multiRegionSelectionEnabled: boolean;
+  // Whether line selection is enabled.
+  declare private lineSelectionEnabled: boolean;
 
   // The colors used for the gradient stroke of the region selection.
   declare private regionStrokeColor1: string;
@@ -170,6 +178,10 @@ export class RegionSelectionElement extends RegionSelectionElementBase {
       loadTimeData.getBoolean('enableGradientRegionStroke');
   private readonly whiteRegionStrokeEnabled: boolean =
       loadTimeData.getBoolean('enableWhiteRegionStroke');
+  private lineSelectionStrokeWidth: number = 0;
+  private lineSelectionColor1: string = '';
+  private lineSelectionColor2: string = '';
+  private lineSelectionColor3: string = '';
   // The tap region dimensions are the height and width that the region should
   // have when the user taps instead of drag.
   private readonly tapRegionHeight: number =
@@ -178,11 +190,23 @@ export class RegionSelectionElement extends RegionSelectionElementBase {
       loadTimeData.getInteger('tapRegionWidth');
   private readonly enableKeyboardSelection: boolean =
       loadTimeData.getBoolean('enableKeyboardSelection');
+  private currentPolylinePoints: Point[] = [];
 
   override ready() {
     super.ready();
 
     this.context = this.$.regionSelectionCanvas.getContext('2d')!;
+
+    if (this.lineSelectionEnabled) {
+      this.lineSelectionStrokeWidth =
+          loadTimeData.getInteger('lineSelectionStrokeWidth');
+      this.lineSelectionColor1 = skColorToRgba(
+          {value: loadTimeData.getInteger('colorLineSelectionGradient1')});
+      this.lineSelectionColor2 = skColorToRgba(
+          {value: loadTimeData.getInteger('colorLineSelectionGradient2')});
+      this.lineSelectionColor3 = skColorToRgba(
+          {value: loadTimeData.getInteger('colorLineSelectionGradient3')});
+    }
   }
 
   override connectedCallback() {
@@ -217,21 +241,97 @@ export class RegionSelectionElement extends RegionSelectionElementBase {
   handleGestureStart() {
     this.isSelecting = true;
     this.hasSelected = false;
+    this.currentPolylinePoints = [];
   }
 
   // Handles a drag gesture by drawing a bounded box on the canvas.
   handleGestureDrag(event: GestureEvent) {
     this.clearCanvas();
-    this.renderBoundingBox(event);
+    if (this.lineSelectionEnabled) {
+      this.currentPolylinePoints.push({x: event.clientX, y: event.clientY});
+      this.renderPolyline();
+    } else {
+      this.renderBoundingBox(event);
+    }
   }
 
   handleGestureEnd(event: GestureEvent): boolean {
     const isClick = event.state === GestureState.STARTING;
+
+    if (this.lineSelectionEnabled) {
+      if (!isClick && this.currentPolylinePoints.length > 2) {
+        const normalizedPoints = normalizePoints(
+            this.currentPolylinePoints, this.selectionOverlayRect);
+        const bounds = calculateBoundingBox(normalizedPoints);
+        const box: CenterRotatedBox = {
+          ...calculateCenterRotatedBox(normalizedPoints),
+          coordinateType: CenterRotatedBox_CoordinateType.kNormalized,
+        };
+
+        const region = {
+          ...bounds,
+          polyline: normalizedPoints,
+        } as PostSelectionBoundingBox;
+
+        this.baseHandler.adjustPolylineSelected(
+            normalizedPoints, RegionSource.SELECTION);
+
+        this.completeSelection(box, region);
+        return true;
+      }
+
+      this.cancelGesture();
+      return true;
+    }
+
     const box = this.getNormalizedCenterRotatedBoxFromGesture(event);
     const region = this.getPostSelectionRegion(event);
     const interaction = isClick ? RegionSource.CLICK : RegionSource.SELECTION;
     this.issueRequest(box, region, interaction);
     return true;
+  }
+
+  private renderPolyline() {
+    if (this.currentPolylinePoints.length < 2 || !this.selectionOverlayRect) {
+      return;
+    }
+
+    const parentRect = this.selectionOverlayRect;
+    let minX = Infinity;
+    let maxX = -Infinity;
+
+    this.context.beginPath();
+    const firstPoint =
+        getRelativeCoordinate(this.currentPolylinePoints[0], parentRect);
+    this.context.moveTo(firstPoint.x, firstPoint.y);
+    minX = Math.min(minX, firstPoint.x);
+    maxX = Math.max(maxX, firstPoint.x);
+
+    for (let i = 1; i < this.currentPolylinePoints.length; i++) {
+      const point =
+          getRelativeCoordinate(this.currentPolylinePoints[i], parentRect);
+      this.context.lineTo(point.x, point.y);
+      minX = Math.min(minX, point.x);
+      maxX = Math.max(maxX, point.x);
+    }
+
+    if (this.lineSelectionStrokeWidth > 0) {
+      this.context.lineWidth = this.lineSelectionStrokeWidth;
+      this.context.lineCap = 'round';
+      this.context.lineJoin = 'round';
+
+      const gradient = this.context.createLinearGradient(
+          minX, 0, Math.max(minX + 1, maxX), 0);
+      gradient.addColorStop(0, this.lineSelectionColor1);
+      gradient.addColorStop(0.5, this.lineSelectionColor2);
+      gradient.addColorStop(1, this.lineSelectionColor3);
+
+      this.context.save();
+      this.context.globalAlpha = 0.5;
+      this.context.strokeStyle = gradient;
+      this.context.stroke();
+      this.context.restore();
+    }
   }
 
   private onKeyboardSelection(event: Event): boolean {
@@ -251,7 +351,11 @@ export class RegionSelectionElement extends RegionSelectionElementBase {
       source: RegionSource) {
     // Issue the Lens request.
     this.baseHandler.adjustRegionSelected(box.box, source);
+    this.completeSelection(box, region);
+  }
 
+  private completeSelection(
+      box: CenterRotatedBox, region: PostSelectionBoundingBox) {
     // Relinquish control from the shimmer.
     unfocusShimmer(this, ShimmerControlRequester.MANUAL_REGION);
 

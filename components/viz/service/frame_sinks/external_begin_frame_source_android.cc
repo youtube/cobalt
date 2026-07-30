@@ -153,16 +153,16 @@ void ExternalBeginFrameSourceAndroid::AChoreographerImpl::VsyncCallback(
   int64_t frame_time_nanos =
       gfx::AChoreographerCompat33::Get()
           .AChoreographerFrameCallbackData_getFrameTimeNanosFn(callback_data);
-  size_t preferred_index =
+  size_t os_preferred_index =
       gfx::AChoreographerCompat33::Get()
           .AChoreographerFrameCallbackData_getPreferredFrameTimelineIndexFn(
               callback_data);
   size_t size = gfx::AChoreographerCompat33::Get()
                     .AChoreographerFrameCallbackData_getFrameTimelinesLengthFn(
                         callback_data);
-  CHECK_LT(preferred_index, size);
+  CHECK_LT(os_preferred_index, size);
 
-  PossibleDeadlines possible_deadlines(preferred_index);
+  PossibleDeadlines possible_deadlines(os_preferred_index);
   for (size_t i = 0; i < size; ++i) {
     int64_t vsync_id =
         gfx::AChoreographerCompat33::Get()
@@ -184,10 +184,8 @@ void ExternalBeginFrameSourceAndroid::AChoreographerImpl::VsyncCallback(
   (*self)->OnVSync(frame_time_nanos, possible_deadlines, self);
 
   // When `viz` is enabled all the possible deadlines are emitted as trace event
-  // arguments, and in case `viz` is not enabled just
-  // `chrome_preferred_frame_timeline` is populated. Android can provide us
-  // with various deadlines each vsync and we wouldn't want to emit all possible
-  // deadlines for each vsync to save some trace buffer space.
+  // arguments. In case `viz` is not enabled, we do not emit them to save some
+  // trace buffer space.
   TRACE_EVENT_END("toplevel,graphics.pipeline,viz", [&](perfetto::EventContext
                                                             ctx) {
     auto* data = ctx.event<perfetto::protos::pbzero::ChromeTrackEvent>()
@@ -201,31 +199,15 @@ void ExternalBeginFrameSourceAndroid::AChoreographerImpl::VsyncCallback(
                              .InMicroseconds();
     data->set_frame_time_us(frame_time_us);
 
-    // TODO(crbug.com/500826814): Move to appropriate place once chrome chooses
-    // its own preferred deadline.
-    auto populate_timeline =
-        [](perfetto::protos::pbzero::
-               AndroidChoreographerFrameCallbackData_FrameTimeline* timeline,
-           const PossibleDeadline& deadline) {
-          timeline->set_vsync_id(deadline.vsync_id);
-          timeline->set_latch_delta_us(deadline.latch_delta.InMicroseconds());
-          timeline->set_present_delta_us(
-              deadline.present_delta.InMicroseconds());
-        };
-
-    const bool emit_only_preferred_deadline = !viz_enabled;
-    if (emit_only_preferred_deadline) {
-      const auto& deadline = possible_deadlines.deadlines[preferred_index];
-      auto* timeline = data->set_chrome_preferred_frame_timeline();
-      populate_timeline(timeline, deadline);
+    if (!viz_enabled) {
       return;
     }
 
     for (const auto& deadline : possible_deadlines.deadlines) {
       auto* timeline = data->add_frame_timeline();
-      populate_timeline(timeline, deadline);
+      deadline.SetTraceTimelineData(*timeline);
     }
-    data->set_preferred_frame_timeline_index(preferred_index);
+    data->set_preferred_frame_timeline_index(os_preferred_index);
   });
 }
 

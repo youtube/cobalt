@@ -75,7 +75,6 @@ source_set("extensions") {
       "extensions_overrides/simple_overrides.h",
       "hosted_app_browser_controller.h",
       "installation_error_infobar_delegate.h",
-      "mv2_disabled_dialog_controller.h",
       "settings_api_bubble_helpers.h",
       "settings_overridden_dialog_controller.h",
       "settings_overridden_params_providers.h",
@@ -226,7 +225,6 @@ source_set("impl") {
       "extensions_overrides/simple_overrides.cc",
       "hosted_app_browser_controller.cc",
       "installation_error_infobar_delegate.cc",
-      "mv2_disabled_dialog_controller.cc",
       "settings_api_bubble_helpers.cc",
       "settings_overridden_dialog_controller.cc",
       "settings_overridden_params_providers.cc",
@@ -249,6 +247,7 @@ source_set("impl") {
       "//chrome/browser/ui/profiles",
       "//chrome/browser/ui/startup",
       "//chrome/browser/ui/web_applications:launch_utils",
+      "//chrome/browser/ui/window_metadata",
       "//chrome/browser/web_applications",
       "//components/prefs",
       "//components/security_state/content",
@@ -282,7 +281,6 @@ source_set("unit_tests") {
 
   if (!is_android) {
     sources += [
-      "controlled_home_dialog_controller_unittest.cc",
       "extension_post_install_dialog_model_unittest.cc",
       "extension_settings_overridden_dialog_unittest.cc",
       "extensions_overrides/simple_overrides_unittest.cc",
@@ -325,6 +323,7 @@ source_set("browser_tests") {
 
   if (!is_android) {
     sources += [
+      "controlled_home_dialog_controller_browsertest.cc",
       "extension_enable_flow_browsertest.cc",
       "extension_enable_flow_test_delegate.cc",
       "extension_enable_flow_test_delegate.h",
@@ -364,6 +363,7 @@ source_set("browser_tests") {
       "//chrome/common/extensions/api",
       "//chrome/test:test_support",
       "//chrome/test:test_support_ui",
+      "//components/proxy_config",
       "//components/search_engines",
       "//components/search_engines:test_support",
       "//components/sessions",

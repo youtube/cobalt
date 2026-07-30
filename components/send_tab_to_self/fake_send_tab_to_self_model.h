@@ -5,6 +5,7 @@
 #ifndef COMPONENTS_SEND_TAB_TO_SELF_FAKE_SEND_TAB_TO_SELF_MODEL_H_
 #define COMPONENTS_SEND_TAB_TO_SELF_FAKE_SEND_TAB_TO_SELF_MODEL_H_
 
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -31,7 +32,7 @@ class FakeSendTabToSelfModel final : public SendTabToSelfModel {
   // SendTabToSelfModel:
   std::vector<std::string> GetAllGuids() const override;
   const SendTabToSelfEntry* GetEntryByGUID(
-      const std::string& guid) const override;
+      std::string_view guid) const override;
   std::vector<const SendTabToSelfEntry*>
   GetUnopenedEntriesTargetedToLocalDevice() const override;
   const SendTabToSelfEntry* SendEntry(
@@ -42,11 +43,13 @@ class FakeSendTabToSelfModel final : public SendTabToSelfModel {
       NavigationHistory navigation_history,
       base::OnceCallback<void(SendTabToSelfResult)> commit_confirmation)
       override;
-  void DismissEntry(const std::string& guid) override;
-  void MarkEntryOpened(const std::string& guid) override;
+  void DismissEntry(std::string_view guid) override;
+  void MarkEntryOpened(std::string_view guid) override;
   bool IsReady() override;
   bool HasValidTargetDevice() override;
   std::vector<TargetDeviceInfo> GetTargetDeviceInfoSortedList() override;
+  std::optional<TargetDeviceInfo> GetTargetDeviceInfo(
+      std::string_view cache_guid) override;
 
   // Methods to configure the fake behavior:
   void SetIsReady(bool is_ready);
@@ -70,6 +73,9 @@ class FakeSendTabToSelfModel final : public SendTabToSelfModel {
       const PageContext& context,
       NavigationHistory navigation_history);
 
+  // Simulates an entry being removed from a remote device.
+  void RemoveEntryRemotely(const std::string& guid);
+
   const std::string& last_opened_guid() const { return last_opened_guid_; }
   const std::string& last_dismissed_guid() const {
     return last_dismissed_guid_;
@@ -80,7 +86,8 @@ class FakeSendTabToSelfModel final : public SendTabToSelfModel {
   bool has_valid_target_device_ = false;
   std::string local_device_name_ = "device";
   std::string local_cache_guid_ = "";
-  std::map<std::string, std::unique_ptr<SendTabToSelfEntry>> entries_;
+  std::map<std::string, std::unique_ptr<SendTabToSelfEntry>, std::less<>>
+      entries_;
   std::vector<TargetDeviceInfo> devices_;
   std::string last_opened_guid_;
   std::string last_dismissed_guid_;

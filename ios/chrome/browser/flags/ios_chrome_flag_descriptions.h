@@ -24,11 +24,6 @@ inline constexpr char kAIHubNewBadgeName[] = "AI Hub New Badge";
 inline constexpr char kAIHubNewBadgeDescription[] =
     "Enables showing a new badge on the AI Hub button in the toolbar.";
 
-inline constexpr char kAIMCobrowseDebugEntrypointName[] =
-    "AIM Cobrowse debug entrypoint";
-inline constexpr char kAIMCobrowseDebugEntrypointDescription[] =
-    "Enables the AIM Cobrowse debug entrypoint feature.";
-
 inline constexpr char kAIMEligibilityRefreshNTPModulesName[] =
     "AIMEligibilityRefreshNTPModules";
 inline constexpr char kAIMEligibilityRefreshNTPModulesDescription[] =
@@ -138,10 +133,19 @@ inline constexpr char kAutofillAiNoFillingIconsExperimentName[] =
 inline constexpr char kAutofillAiNoFillingIconsExperimentDescription[] =
     "If enabled, Autofill AI filling suggestions do not have an icon.";
 
+inline constexpr char kAutofillAiOrderName[] = "Autofill AI Order entities";
+inline constexpr char kAutofillAiOrderDescription[] =
+    "Enables Autofill AI support for order entities.";
+
 inline constexpr char kAutofillAiReauthRequiredName[] =
     "Autofill AI Reauth Required";
 inline constexpr char kAutofillAiReauthRequiredDescription[] =
     "Enables Autofill AI Reauth Required.";
+
+inline constexpr char kAutofillAiShipmentName[] =
+    "Autofill AI Shipment entities";
+inline constexpr char kAutofillAiShipmentDescription[] =
+    "Enables Autofill AI support for shipment entities.";
 
 inline constexpr char kAutofillAiValuablesIPHName[] =
     "IPH Autofill AI Valuables";
@@ -182,6 +186,11 @@ inline constexpr char kAutofillAiWithDataSchemaName[] =
 inline constexpr char kAutofillAiWithDataSchemaDescription[] =
     "Enables Autofill AI With Data Schema.";
 
+inline constexpr char kAutofillAmbientAutofillName[] =
+    "Autofill Ambient Autofill";
+inline constexpr char kAutofillAmbientAutofillDescription[] =
+    "Enables Ambient Autofill.";
+
 inline constexpr char kAutofillBottomSheetNewBlurName[] =
     "New Blur Method for Autofill Bottom Sheet";
 inline constexpr char kAutofillBottomSheetNewBlurDescription[] =
@@ -218,12 +227,6 @@ inline constexpr char kAutofillEnableBottomSheetScanCardAndFillDescription[] =
     "When enabled, offers a card scanning BottomSheet and allows users to "
     "save and autofill credit cards in autofill forms.";
 
-inline constexpr char kAutofillEnableCardInfoRuntimeRetrievalName[] =
-    "Enable retrieval of card info(with CVC) from issuer for enrolled cards";
-inline constexpr char kAutofillEnableCardInfoRuntimeRetrievalDescription[] =
-    "When enabled, runtime retrieval of CVC along with card number and expiry "
-    "from issuer for enrolled cards will be enabled during form fill.";
-
 inline constexpr char kAutofillEnableGradientGoogleLogosName[] =
     "Enable gradient-style GPay and Wallet logos";
 inline constexpr char kAutofillEnableGradientGoogleLogosDescription[] =
@@ -235,11 +238,6 @@ inline constexpr char
     kAutofillEnablePrefetchingRiskDataForRetrievalDescription[] =
         "When enabled, risk data is prefetched during payments autofill flows "
         "to reduce user-perceived latency.";
-
-inline constexpr char kAutofillEnableSupportForHomeAndWorkName[] =
-    "Enable support for home and work addresses";
-inline constexpr char kAutofillEnableSupportForHomeAndWorkDescription[] =
-    "When enabled, chrome will support home and work addresses from account.";
 
 inline constexpr char kAutofillEnableSupportForNameAndEmailName[] =
     "Support for name and email addresses in Autofill";
@@ -312,12 +310,6 @@ inline constexpr char kAutofillUseRendererIDsName[] =
 inline constexpr char kAutofillUseRendererIDsDescription[] =
     "When enabled, Autofill logic uses unique numeric renderer IDs instead "
     "of string form and field identifiers in form filling logic.";
-
-inline constexpr char kAutofillVcnEnrollStrikeExpiryTimeName[] =
-    "Expiry duration for VCN enrollment strikes";
-inline constexpr char kAutofillVcnEnrollStrikeExpiryTimeDescription[] =
-    "When enabled, changes the amount of time required for VCN enrollment "
-    "prompt strikes to expire.";
 
 inline constexpr char kBWGPromoConsentName[] = "BWG Promo Consent";
 inline constexpr char kBWGPromoConsentDescription[] =
@@ -425,6 +417,11 @@ inline constexpr char kComposeboxDevToolsName[] = "Enable Composebox Dev Tools";
 inline constexpr char kComposeboxDevToolsDescription[] =
     "Enables development tools for the composebox, allowing simulation of "
     "delays and failures.";
+
+inline constexpr char kComposeboxDriveContextMenuOptionName[] =
+    "Enable Composebox Drive option";
+inline constexpr char kComposeboxDriveContextMenuOptionDescription[] =
+    "Enables Google Drive option in the Composebox menu.";
 
 inline constexpr char
     kComposeboxFetchContextualSuggestionsForMultipleAttachmentsName[] =
@@ -822,6 +819,12 @@ inline constexpr char kGeminiFloatyAllPagesDescription[] =
 inline constexpr char kGeminiImageRemixToolName[] = "Gemini Image Remix Tool";
 inline constexpr char kGeminiImageRemixToolDescription[] =
     "Enables the image remix tool in the Gemini floaty.";
+
+inline constexpr char kGeminiLiveDormantReasonsName[] =
+    "Gemini Live Dormant Reasons";
+inline constexpr char kGeminiLiveDormantReasonsDescription[] =
+    "Enables dormant reasons (i.e., reasons to switch to chat) for Gemini Live "
+    "session.";
 
 inline constexpr char kGeminiLiveName[] = "GeminiLive";
 inline constexpr char kGeminiLiveDescription[] = "Enables Gemini Live.";
@@ -1806,6 +1809,11 @@ inline constexpr char kSnapshotDownsampleImageName[] =
 inline constexpr char kSnapshotDownsampleImageDescription[] =
     "Downsamples tab snapshots to half resolution before writing to disk, "
     "reducing storage and I/O while keeping full resolution in memory.";
+
+inline constexpr char kStartSurfaceUserSettingName[] =
+    "Start Surface User Setting";
+inline constexpr char kStartSurfaceUserSettingDescription[] =
+    "Enables the user setting toggle to control the Start Surface.";
 
 inline constexpr char kStrokesAPIEnabledName[] = "Enable Strokes API for Lens";
 inline constexpr char kStrokesAPIEnabledDescription[] =

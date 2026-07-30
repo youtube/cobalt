@@ -1225,6 +1225,7 @@ ci.builder(
         configs = [
             "release_builder",
             "remoteexec",
+            "minimal_symbols",
             "win",
             "x64",
         ],
@@ -1551,6 +1552,7 @@ ci.builder(
         configs = [
             "release_builder",
             "remoteexec",
+            "minimal_symbols",
             "perfetto_zlib",
             "win",
             "x64",
@@ -1898,7 +1900,7 @@ fyi_ios_builder(
             "expand-as-isolated-script",
             "has_native_resultdb_integration",
             "ios_beta_test_pool",
-            "mac_15_arm64",
+            "mac_15_beta_arm64",
             "mac_toolchain",
             "out_dir_arg",
             "xcode_26_beta",
@@ -2342,6 +2344,7 @@ ci.builder(
         configs = [
             "release_builder",
             "remoteexec",
+            "minimal_symbols",
             "win",
             "x64",
         ],

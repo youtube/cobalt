@@ -2,18 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {ActionChipsHandlerRemote, IconType, PageCallbackRouter as ActionChipsPageCallbackRouter} from 'chrome://new-tab-page/action_chips.mojom-webui.js';
-import type {PageRemote as ActionChipsPageRemote, TabInfo} from 'chrome://new-tab-page/action_chips.mojom-webui.js';
-import type {CustomizeButtonsDocumentRemote} from 'chrome://new-tab-page/customize_buttons.mojom-webui.js';
-import {CustomizeButtonsDocumentCallbackRouter, CustomizeButtonsHandlerRemote, SidePanelOpenTrigger} from 'chrome://new-tab-page/customize_buttons.mojom-webui.js';
-import {CustomizeChromeSection} from 'chrome://new-tab-page/customize_chrome.mojom-webui.js';
 import {ActionChipsApiProxyImpl, VoiceSearchAction} from 'chrome://new-tab-page/lazy_load.js';
 import type {Module} from 'chrome://new-tab-page/lazy_load.js';
 import {ActionChipsRetrievalState, ComposeboxProxyImpl, counterfactualLoad, ModuleDescriptor, ModuleRegistry} from 'chrome://new-tab-page/lazy_load.js';
-import {$$, BackgroundManager, BrowserCommandProxy, CONTEXTUAL_ENTRYPOINT_ELEMENT_ID, CUSTOMIZE_CHROME_BUTTON_ELEMENT_ID, CustomizeButtonsProxy, CustomizeDialogPage, GlifAnimationState, NewTabPageProxy, NtpCustomizeChromeEntryPoint, NtpElement, SearchboxBrowserProxy, VoiceAction, WindowProxy} from 'chrome://new-tab-page/new_tab_page.js';
-import type {AppElement, CustomizeButtonsElement, NtpSearchboxElement} from 'chrome://new-tab-page/new_tab_page.js';
-import type {PageRemote} from 'chrome://new-tab-page/new_tab_page.mojom-webui.js';
-import {NtpBackgroundImageSource, PageCallbackRouter, PageHandlerRemote} from 'chrome://new-tab-page/new_tab_page.mojom-webui.js';
+import {ActionChipsHandlerRemote, ActionChipsPageCallbackRouter, IconType} from 'chrome://new-tab-page/new_tab_page.js';
+import type {ActionChipsPageRemote, CustomizeButtonsDocumentRemote, TabInfo} from 'chrome://new-tab-page/new_tab_page.js';
+import {$$, BackgroundManager, BrowserCommandProxy, CONTEXTUAL_ENTRYPOINT_ELEMENT_ID, CUSTOMIZE_CHROME_BUTTON_ELEMENT_ID, CustomizeButtonsDocumentCallbackRouter, CustomizeButtonsHandlerRemote, CustomizeButtonsProxy, CustomizeChromeSection, CustomizeDialogPage, GlifAnimationState, NewTabPageProxy, NtpCustomizeChromeEntryPoint, NtpElement, SearchboxBrowserProxy, SidePanelOpenTrigger, VoiceAction, WindowProxy} from 'chrome://new-tab-page/new_tab_page.js';
+import type {AppElement, CustomizeButtonsElement, NtpSearchboxElement, PageRemote} from 'chrome://new-tab-page/new_tab_page.js';
+import {NtpBackgroundImageSource, PageCallbackRouter, PageHandlerRemote} from 'chrome://new-tab-page/new_tab_page.js';
 import {PageCallbackRouter as ComposeboxPageCallbackRouter, PageHandlerRemote as ComposeboxPageHandlerRemote} from 'chrome://resources/cr_components/composebox/composebox.mojom-webui.js';
 import {ToolMode} from 'chrome://resources/cr_components/composebox/composebox_query.mojom-webui.js';
 import type {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
@@ -70,6 +66,8 @@ suite('NewTabPageAppTest', () => {
     });
     handler.setPromiseResolveFor('getModulesIdNames', {data: []});
     handler.setPromiseResolveFor('getModulesOrder', {data: []});
+    handler.setPromiseResolveFor(
+        'canShowRealboxContextMenuAnimation', {canShow: false});
     windowProxy.setResultMapperFor(
         'matchMedia', (query: string) => ({
                         matches: false,
@@ -2667,6 +2665,8 @@ suite('NewTabPageAppReducedMotionTest', () => {
       moduleIds: [],
     }));
     handler.setResultFor('getModulesOrder', Promise.resolve({moduleIds: []}));
+    handler.setResultFor(
+        'canShowRealboxContextMenuAnimation', Promise.resolve({canShow: true}));
     backgroundManager = installMock(
         BackgroundManager, (mock) => BackgroundManager.setInstance(mock));
     backgroundManager.setResultFor(
@@ -2802,6 +2802,245 @@ suite('NewTabPageAppReducedMotionTest', () => {
                 app.shadowRoot.querySelector('#modules')!, 'animation-name',
                 'none');
           });
+    });
+  });
+});
+
+suite('NewTabPageAppContextMenuAnimationTest', () => {
+  let app: AppElement;
+  let windowProxy: TestMock<WindowProxy>;
+  let handler: TestMock<PageHandlerRemote>;
+
+  function createSetup() {
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    windowProxy =
+        installMock(WindowProxy, (mock) => WindowProxy.setInstance(mock));
+    windowProxy.setResultFor('waitForLazyRender', Promise.resolve());
+    windowProxy.setResultFor('createIframeSrc', '');
+    windowProxy.setResultFor('now', new Date());
+    windowProxy.setResultFor('url', new URL(location.href));
+    windowProxy.setResultFor('matchMedia', {
+      matches: false,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+    });
+    handler = installMock(
+        PageHandlerRemote,
+        mock => NewTabPageProxy.setInstance(mock, new PageCallbackRouter()));
+    handler.setResultFor('getMostVisitedSettings', Promise.resolve({
+      customLinksEnabled: false,
+      shortcutsVisible: false,
+    }));
+    handler.setResultFor('getDoodle', Promise.resolve({
+      doodle: null,
+    }));
+    handler.setResultFor('getModulesIdNames', Promise.resolve({data: []}));
+    handler.setResultFor('getModulesEligibleForRemoval', Promise.resolve({
+      moduleIds: [],
+    }));
+    handler.setResultFor('getModulesOrder', Promise.resolve({moduleIds: []}));
+    handler.setResultFor(
+        'canShowRealboxContextMenuAnimation', Promise.resolve({canShow: true}));
+    installMock(
+        BackgroundManager, (mock) => BackgroundManager.setInstance(mock));
+    const moduleRegistry =
+        installMock(ModuleRegistry, (mock) => ModuleRegistry.setInstance(mock));
+    moduleRegistry.setResultFor(
+        'initializeModules', new PromiseResolver().promise);
+    installMock(
+        ComposeboxPageHandlerRemote,
+        mock => ComposeboxProxyImpl.setInstance(new ComposeboxProxyImpl(
+            mock, new ComposeboxPageCallbackRouter(),
+            new SearchboxPageHandlerRemote(),
+            new SearchboxPageCallbackRouter())));
+    const searchboxHandler = installMock(SearchboxPageHandlerRemote, mock => {
+      ComposeboxProxyImpl.getInstance().searchboxHandler = mock;
+      SearchboxBrowserProxy.getInstance().handler = mock;
+    });
+    searchboxHandler.setResultFor('getRecentTabs', Promise.resolve({tabs: []}));
+    searchboxHandler.setResultFor('getInputState', Promise.resolve({
+      state: {
+        allowedModels: [],
+        allowedTools: [],
+        allowedInputTypes: [],
+        activeModel: 0,
+        activeTool: 0,
+        disabledModels: [],
+        disabledTools: [],
+        disabledInputTypes: [],
+        toolConfigs: [],
+        modelConfigs: [],
+      },
+    }));
+    searchboxHandler.setResultFor(
+        'getPageClassification',
+        Promise.resolve({metricSource: 'NTP_REALBOX'}));
+    installMock(
+        ActionChipsHandlerRemote, mock => ActionChipsApiProxyImpl.setInstance({
+          getHandler: () => mock,
+          getCallbackRouter: () => new ActionChipsPageCallbackRouter(),
+        }));
+  }
+
+  async function createAndAppendApp() {
+    app = document.createElement('ntp-app');
+    document.body.appendChild(app);
+    await microtasksFinished();
+  }
+
+  suite('CappingEnabled', () => {
+    suiteSetup(() => {
+      loadTimeData.overrideValues({
+        ntpRealboxNextEnabled: true,
+        ntpNextFeaturesEnabled: true,
+        actionChipsEnabled: true,
+        realboxContextMenuAnimationCappingEnabled: true,
+      });
+    });
+
+    test('canShow is true and energy effect enabled', async () => {
+      loadTimeData.overrideValues({
+        energyEffectAnimationEnabled: true,
+      });
+      createSetup();
+      handler.setResultFor(
+          'canShowRealboxContextMenuAnimation',
+          Promise.resolve({canShow: true}));
+      await createAndAppendApp();
+
+      assertEquals(
+          GlifAnimationState.STARTED,
+          app.$.searchbox.contextMenuGlifAnimationState);
+      assertEquals(
+          1,
+          handler.getCallCount('recordRealboxContextMenuAnimationImpression'));
+    });
+
+    test('canShow is false and energy effect enabled', async () => {
+      loadTimeData.overrideValues({
+        energyEffectAnimationEnabled: true,
+      });
+      createSetup();
+      handler.setResultFor(
+          'canShowRealboxContextMenuAnimation',
+          Promise.resolve({canShow: false}));
+      await createAndAppendApp();
+
+      assertEquals(
+          GlifAnimationState.INELIGIBLE,
+          app.$.searchbox.contextMenuGlifAnimationState);
+      assertEquals(
+          0,
+          handler.getCallCount('recordRealboxContextMenuAnimationImpression'));
+    });
+
+    test('canShow is true and energy effect disabled', async () => {
+      loadTimeData.overrideValues({
+        energyEffectAnimationEnabled: false,
+      });
+      createSetup();
+      handler.setResultFor(
+          'canShowRealboxContextMenuAnimation',
+          Promise.resolve({canShow: true}));
+      await createAndAppendApp();
+
+      assertEquals(
+          GlifAnimationState.SPINNER_ONLY,
+          app.$.searchbox.contextMenuGlifAnimationState);
+      assertEquals(
+          0,
+          handler.getCallCount('recordRealboxContextMenuAnimationImpression'));
+
+      const actionChips = app.shadowRoot.querySelector('ntp-action-chips');
+      assertTrue(!!actionChips);
+      actionChips.dispatchEvent(new CustomEvent(
+          'action-chips-retrieval-state-changed',
+          {detail: {state: ActionChipsRetrievalState.UPDATED}}));
+      await microtasksFinished();
+      assertEquals(
+          GlifAnimationState.STARTED,
+          app.$.searchbox.contextMenuGlifAnimationState);
+      assertEquals(
+          1,
+          handler.getCallCount('recordRealboxContextMenuAnimationImpression'));
+    });
+
+    test('canShow is false and energy effect disabled', async () => {
+      loadTimeData.overrideValues({
+        energyEffectAnimationEnabled: false,
+      });
+      createSetup();
+      handler.setResultFor(
+          'canShowRealboxContextMenuAnimation',
+          Promise.resolve({canShow: false}));
+      await createAndAppendApp();
+
+      assertEquals(
+          GlifAnimationState.INELIGIBLE,
+          app.$.searchbox.contextMenuGlifAnimationState);
+      assertEquals(
+          0,
+          handler.getCallCount('recordRealboxContextMenuAnimationImpression'));
+    });
+  });
+
+  suite('CappingDisabled', () => {
+    suiteSetup(() => {
+      loadTimeData.overrideValues({
+        ntpRealboxNextEnabled: true,
+        ntpNextFeaturesEnabled: true,
+        actionChipsEnabled: true,
+        realboxContextMenuAnimationCappingEnabled: false,
+      });
+    });
+
+    test('energy effect enabled', async () => {
+      loadTimeData.overrideValues({
+        energyEffectAnimationEnabled: true,
+      });
+      createSetup();
+      await createAndAppendApp();
+
+      assertEquals(
+          GlifAnimationState.STARTED,
+          app.$.searchbox.contextMenuGlifAnimationState);
+      assertEquals(
+          0, handler.getCallCount('canShowRealboxContextMenuAnimation'));
+      assertEquals(
+          0,
+          handler.getCallCount('recordRealboxContextMenuAnimationImpression'));
+    });
+
+    test('energy effect disabled', async () => {
+      loadTimeData.overrideValues({
+        energyEffectAnimationEnabled: false,
+      });
+      createSetup();
+      await createAndAppendApp();
+
+      assertEquals(
+          GlifAnimationState.SPINNER_ONLY,
+          app.$.searchbox.contextMenuGlifAnimationState);
+      assertEquals(
+          0, handler.getCallCount('canShowRealboxContextMenuAnimation'));
+      assertEquals(
+          0,
+          handler.getCallCount('recordRealboxContextMenuAnimationImpression'));
+
+      const actionChips = app.shadowRoot.querySelector('ntp-action-chips');
+      assertTrue(!!actionChips);
+      actionChips.dispatchEvent(new CustomEvent(
+          'action-chips-retrieval-state-changed',
+          {detail: {state: ActionChipsRetrievalState.UPDATED}}));
+      await microtasksFinished();
+      assertEquals(
+          GlifAnimationState.STARTED,
+          app.$.searchbox.contextMenuGlifAnimationState);
+      assertEquals(
+          0,
+          handler.getCallCount('recordRealboxContextMenuAnimationImpression'));
     });
   });
 });

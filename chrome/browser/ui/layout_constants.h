@@ -16,6 +16,10 @@ enum class LayoutConstant {
   // The maximum character length for strings in the app menu.
   kAppMenuMaximumCharacterLength,
 
+  // The horizontal padding between the image and the title of the app menu
+  // button.
+  kAppMenuButtonImageLabelPadding,
+
   // The height of Bookmarks Bar when attached to the toolbar. The height of the
   // Bookmarks Bar is larger than the kBookmarkBarHeight by a fixed
   // amount.
@@ -104,6 +108,14 @@ enum class LayoutConstant {
   // icons have moved to either `kLocationBarLeadingIconSize` or
   // `kLocationBarTrailingIconSize`
   kLocationBarIconSize,
+
+  // Amount of space on either side of the separator that appears after the icon
+  // or label in location bar (if the separator is enabled).
+  kLocationBarIconLabelBubbleSpaceBesideSeparator,
+
+  // Amount of space reserved for the separator that appears after the icon or
+  // label in location bar (if the separator is enabled).
+  kLocationBarIconLabelBubbleSeparatorWidth,
 
   // The size of the leading icons used inside the LocationBar.
   kLocationBarLeadingIconSize,

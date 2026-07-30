@@ -55,6 +55,7 @@ source_set("glic") {
     "public/glic_enabling.h",
     "public/glic_instance.cc",
     "public/glic_instance.h",
+    "public/glic_instance_id.h",
     "public/glic_instance_metrics_backwards_compatibility.h",
     "public/glic_invoke_options.h",
     "public/glic_keyed_service.h",
@@ -605,7 +606,6 @@ mojom("mojo_bindings") {
   webui_module_path = "/"
 
   public_deps = [
-    "//chrome/browser/glic/fre:mojo_bindings",
     "//chrome/common:actor_webui_mojom",
     "//components/content_settings/core/common:content_settings_types",
     "//components/optimization_guide/content/mojom:mojo_interfaces",
@@ -700,8 +700,6 @@ source_set("unit_tests") {
     deps += [
       "//chrome/browser/background",
       "//chrome/browser/glic/browser_ui:unit_tests",
-      "//chrome/browser/glic/fre",
-      "//chrome/browser/glic/fre:unit_tests",
       "//chrome/browser/glic/media:unit_tests",
       "//chrome/browser/glic/suggestions:test_support",
       "//chrome/browser/prefs",
@@ -753,12 +751,12 @@ source_set("browser_tests") {
     "//chrome/browser/glic/actor:test_support",
     "//chrome/browser/glic/common",
     "//chrome/browser/glic/common:browser_tests",
-    "//chrome/browser/glic/fre",
     "//chrome/browser/glic/test_support",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/skills",
     "//chrome/browser/skills:public",
     "//chrome/browser/tab_list",
+    "//chrome/browser/ui/browser_window:create_browser_window",
     "//chrome/browser/ui/navigator",
     "//chrome/common:chrome_features",
     "//chrome/test:test_support",
@@ -853,8 +851,12 @@ source_set("browser_tests") {
   }
 
   if (is_android) {
-    sources += [ "widget/glic_side_panel_coordinator_android_browsertest.cc" ]
+    sources += [
+      "browser_ui/glic_nudge_controller_android_browsertest.cc",
+      "widget/glic_side_panel_coordinator_android_browsertest.cc",
+    ]
     deps += [
+      "//chrome/browser/glic/browser_ui",
       "//chrome/browser/ui/side_panel",
       "//chrome/browser/ui/side_panel/android",
       "//chrome/test:test_support_ui_android",
@@ -937,10 +939,10 @@ if (!is_android) {
       "//chrome/browser/background/glic",
       "//chrome/browser/compose",
       "//chrome/browser/devtools:test_support",
+      "//chrome/browser/download:test_support",
       "//chrome/browser/enterprise/connectors/test:test_support",
       "//chrome/browser/glic:mojo_bindings",
       "//chrome/browser/glic/browser_ui:interactive_ui_tests",
-      "//chrome/browser/glic/fre",
       "//chrome/browser/glic/public:features",
       "//chrome/browser/glic/selection:interactive_ui_tests",
       "//chrome/browser/glic/suggestions",

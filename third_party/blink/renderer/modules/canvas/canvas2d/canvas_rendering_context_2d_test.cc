@@ -586,6 +586,7 @@ class FakeCanvasResourceProvider : public Canvas2DResourceProviderSharedImage {
             GetN32FormatForCanvas(),
             kPremul_SkAlphaType,
             gfx::ColorSpace::CreateSRGB(),
+            gfx::HDRMetadata(),
             SharedGpuContext::ContextProviderWrapper(),
             /*is_accelerated=*/hint != RasterModeHint::kPreferCPU,
             gpu::SHARED_IMAGE_USAGE_DISPLAY_READ |
@@ -608,9 +609,10 @@ class FakeCanvasResourceProvider : public Canvas2DResourceProviderSharedImage {
             /*shared_image_interface_provider=*/nullptr));
   }
   sk_sp<SkSurface> CreateSkSurface() const override {
-    const auto info = SkImageInfo::Make(
-        size_.width(), size_.height(), viz::ToClosestSkColorType(format_),
-        alpha_type_, color_space_.ToSkColorSpace());
+    const auto info =
+        SkImageInfo::Make(Size().width(), Size().height(),
+                          viz::ToClosestSkColorType(GetSharedImageFormat()),
+                          GetAlphaType(), GetColorSpace().ToSkColorSpace());
     return SkSurfaces::Raster(info);
   }
 

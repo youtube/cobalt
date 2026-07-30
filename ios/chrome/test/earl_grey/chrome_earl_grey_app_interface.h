@@ -454,6 +454,12 @@ enum class TipsNotificationType;
                                     (NSDictionary<NSString*, NSString*>*)
                                         formFieldData;
 
+// Adds a fake Send Tab To Self entry with the given text fragment to the fake
+// sync server and returns its GUID.
++ (NSString*)addFakeSendTabToSelfEntryWithURL:(NSString*)url
+                                        title:(NSString*)title
+                                 textFragment:(NSString*)textFragment;
+
 // Checks if the local Send Tab To Self model contains an entry with the given
 // GUID.
 + (BOOL)hasSendTabToSelfEntryWithGUID:(NSString*)guid;
@@ -616,6 +622,9 @@ enum class TipsNotificationType;
 
 // Returns whether chrome next is enabled.
 + (BOOL)isChromeNextEnabled;
+
+// Returns whether the chrome next share icon is visible.
++ (BOOL)isChromeNextShareIconVisible;
 
 #pragma mark - ContentSettings
 

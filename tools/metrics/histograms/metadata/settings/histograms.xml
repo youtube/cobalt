@@ -164,6 +164,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
     <variant name="Compare"/>
     <variant name="Compose"/>
     <variant name="HistorySearch"/>
+    <variant name="Indigo"/>
     <variant name="PasswordChange"/>
     <variant name="Suggestions"/>
   </token>
@@ -201,24 +202,17 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 </histogram>
 
 <histogram name="Settings.ClearBrowsingData.Advanced.TimePeriod"
-    enum="SettingsClearBrowsingDataTimePeriod" expires_after="2026-09-27">
+    enum="SettingsClearBrowsingDataTimePeriod" expires_after="2026-11-29">
   <owner>rainhard@chromium.org</owner>
   <owner>msramek@chromium.org</owner>
   <owner>chrome-privacy-controls@google.com</owner>
   <summary>
     Records the time period that users cleared from the Clear Browsing Data
-    dialog advanced tab.
-  </summary>
-</histogram>
+    dialog.
 
-<histogram name="Settings.ClearBrowsingData.Basic.TimePeriod"
-    enum="SettingsClearBrowsingDataTimePeriod" expires_after="2026-05-24">
-  <owner>rainhard@chromium.org</owner>
-  <owner>msramek@chromium.org</owner>
-  <owner>chrome-privacy-controls@google.com</owner>
-  <summary>
-    Records the time period that users cleared from the Clear Browsing Data
-    dialog basic tab.
+    Note: The `Advanced` refers to the Advanced tab in Clear Browsing Data,
+    which has become the only available tab after DBD dialog revamp
+    (crbug.com/502885275).
   </summary>
 </histogram>
 
@@ -591,7 +585,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 </histogram>
 
 <histogram name="Settings.SafetyCheck.Interactions"
-    enum="SettingsSafetyCheckInteractions" expires_after="2026-09-27">
+    enum="SettingsSafetyCheckInteractions" expires_after="2026-11-29">
   <owner>rainhard@chromium.org</owner>
   <owner>msramek@chromium.org</owner>
   <owner>anaudrey@chromium.org</owner>
@@ -733,7 +727,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 
 <histogram
     name="Settings.SafetyHub.AbusiveNotificationPermissionRevocation.{NotificationRevocationSource}.{RevokedStatus}.PermissionChanged"
-    enum="ContentSetting" expires_after="2026-09-13">
+    enum="ContentSetting" expires_after="2026-11-29">
   <owner>skrakowi@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -790,7 +784,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 </histogram>
 
 <histogram name="Settings.SafetyHub.DashboardWarning"
-    enum="SafetyHubModuleType" expires_after="2026-09-27">
+    enum="SafetyHubModuleType" expires_after="2026-11-29">
   <owner>sideyilmaz@chromium.org</owner>
   <owner>chrome-privacy-controls@google.com</owner>
   <summary>
@@ -1030,7 +1024,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 
 <histogram
     name="Settings.SafetyHub.DisruptiveNotificationRevocations.UserRegrant.{RegrantType}.DaysSinceProposedRevocation"
-    units="days" expires_after="2026-09-06">
+    units="days" expires_after="2026-11-29">
   <owner>olesiamarukhnno@google.com</owner>
   <owner>antoniosartori@chromium.org</owner>
   <summary>
@@ -1069,7 +1063,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 
 <histogram
     name="Settings.SafetyHub.DisruptiveNotificationRevocations.{RevocationState}.FalsePositiveInteraction"
-    enum="DisruptiveNotificationFalsePositiveReason" expires_after="2026-09-06">
+    enum="DisruptiveNotificationFalsePositiveReason" expires_after="2026-11-29">
   <owner>olesiamarukhnno@google.com</owner>
   <owner>antoniosartori@chromium.org</owner>
   <summary>
@@ -1370,7 +1364,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 </histogram>
 
 <histogram name="Settings.SearchEngines.Interactions"
-    enum="SettingsSearchEnginesInteractions" expires_after="2026-09-27">
+    enum="SettingsSearchEnginesInteractions" expires_after="2026-11-29">
   <owner>yoangela@chromium.org</owner>
   <owner>chrome-omnibox-team@google.com</owner>
   <summary>
@@ -1430,9 +1424,9 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 </histogram>
 
 <histogram name="Settings.StartupPageEngineTypes2"
-    enum="OmniboxSearchEngineType" expires_after="2026-05-10">
+    enum="OmniboxSearchEngineType" expires_after="2027-06-02">
   <owner>mpearson@chromium.org</owner>
-  <owner>csharp@chromium.org</owner>
+  <owner>wfh@chromium.org</owner>
   <summary>
     Tries to pretend the startup page URLs are search URLs, and records the
     search engine types of those URLs by comparing the TLD+1s of the URLs with

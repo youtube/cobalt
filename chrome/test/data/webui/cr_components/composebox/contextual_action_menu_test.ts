@@ -8,6 +8,7 @@ import 'chrome://resources/cr_components/composebox/composebox_favicon_group.js'
 
 import type {ComposeboxFaviconGroupElement} from 'chrome://resources/cr_components/composebox/composebox_favicon_group.js';
 import type {ContextualActionMenuElement} from 'chrome://resources/cr_components/composebox/contextual_action_menu.js';
+import {AnchorAlignment} from 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {PluralStringProxyImpl} from 'chrome://resources/js/plural_string_proxy.js';
 import type {TabInfo} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
@@ -28,7 +29,6 @@ suite('ContextualActionMenu', () => {
       composeboxFileMaxCount: 10,
       composeboxShowContextMenuTabPreviews: true,
       ShowContextMenuHeaders: true,
-      composeboxSmartTabSharingVisible: false,
       contextManagementInComposeboxEnabled: false,
     });
 
@@ -36,9 +36,12 @@ suite('ContextualActionMenu', () => {
     PluralStringProxyImpl.setInstance(pluralStringProxy);
 
     actionMenu = document.createElement('cr-composebox-contextual-action-menu');
-    Object.assign(
-        actionMenu,
-        {fileNum: 0, disabledTabIds: new Map(), tabSuggestions: []});
+    Object.assign(actionMenu, {
+      fileNum: 0,
+      disabledTabIds: new Map(),
+      tabSuggestions: [],
+      smartTabSharingVisible: false,
+    });
     document.body.appendChild(actionMenu);
     await microtasksFinished();
   });
@@ -112,7 +115,7 @@ suite('ContextualActionMenu', () => {
     assertTrue(!!$$(actionMenu, `[data-model="${ModelMode.kGeminiPro}"]`));
 
     assertEquals(
-        'menuitem',
+        'menuitemradio',
         $$(actionMenu, `[data-mode="${ToolMode.kDeepSearch}"]`)!
             .getAttribute('role'));
     assertEquals(
@@ -270,6 +273,54 @@ suite('ContextualActionMenu', () => {
 
     assertEquals('false', regularModel.getAttribute('aria-checked'));
     assertEquals('true', thinkingModel.getAttribute('aria-checked'));
+  });
+
+  test('Shows active tool checkmark and does not disable it', async () => {
+    actionMenu.inputState = new MockInputState({
+      allowedTools: [ToolMode.kDeepSearch, ToolMode.kImageGen],
+      activeTool: ToolMode.kDeepSearch,
+      disabledTools: [ToolMode.kDeepSearch],
+      toolConfigs: [
+        {
+          tool: ToolMode.kDeepSearch,
+          menuLabel: 'Deep Search',
+          disableActiveModelSelection: false,
+          chipLabel: '',
+          hintText: '',
+          aimUrlParams: [],
+        },
+        {
+          tool: ToolMode.kImageGen,
+          menuLabel: 'Generate Image',
+          disableActiveModelSelection: false,
+          chipLabel: '',
+          hintText: '',
+          aimUrlParams: [],
+        },
+      ],
+      toolsSectionConfig: {header: ''},
+      modelSectionConfig: {header: ''},
+    });
+    actionMenu.showAt(actionMenu);
+    await microtasksFinished();
+
+    const deepSearch =
+        $$(actionMenu, `[data-mode="${ToolMode.kDeepSearch}"]`) as
+        HTMLButtonElement;
+    const imageGen =
+        $$(actionMenu, `[data-mode="${ToolMode.kImageGen}"]`) as
+        HTMLButtonElement;
+
+    assertEquals('menuitemradio', deepSearch.getAttribute('role'));
+    assertEquals('true', deepSearch.getAttribute('aria-checked'));
+
+    assertEquals('menuitemradio', imageGen.getAttribute('role'));
+    assertEquals('false', imageGen.getAttribute('aria-checked'));
+
+    assertFalse(deepSearch.disabled);
+
+    assertTrue(!!deepSearch.querySelector('cr-icon[icon="cr:check"]'));
+    assertFalse(!!imageGen.querySelector('cr-icon[icon="cr:check"]'));
   });
 
   test('Shows image and file upload when allowed', async () => {
@@ -569,11 +620,11 @@ suite('ContextualActionMenu', () => {
 
   test('Toggling smart tab sharing fires event', async () => {
     loadTimeData.overrideValues({
-      composeboxSmartTabSharingVisible: true,
       contextManagementInComposeboxEnabled: true,
     });
     actionMenu.remove();
     actionMenu = document.createElement('cr-composebox-contextual-action-menu');
+    actionMenu.smartTabSharingVisible = true;
     actionMenu.tabSuggestions = [
       {
         tabId: 1,
@@ -612,11 +663,11 @@ suite('ContextualActionMenu', () => {
 
   test('Clicking smart tab sharing row updates UI', async () => {
     loadTimeData.overrideValues({
-      composeboxSmartTabSharingVisible: true,
       contextManagementInComposeboxEnabled: true,
     });
     actionMenu.remove();
     actionMenu = document.createElement('cr-composebox-contextual-action-menu');
+    actionMenu.smartTabSharingVisible = true;
     actionMenu.tabSuggestions = [
       {
         tabId: 1,
@@ -723,8 +774,43 @@ suite('ContextualActionMenu', () => {
     assertEquals(344, flyout.offsetHeight);
   });
 
-  // TODO(crbug.com/512920161): Reenable this test on Linux and Mac
-  // <if expr="not is_linux and not is_macosx">
+  test(
+      'Constrain height if space below plus menu button is < menu height',
+      async () => {
+    // Arrange: Provide 20 tab suggestions to ensure height exceeds 540px.
+    actionMenu.tabSuggestions = Array(20).fill({
+      tabId: 1,
+      title: 'Tab Item',
+      url: {url: 'about:blank'},
+      lastActiveTime: {internalValue: 0n},
+      showInCurrentTabChip: false,
+      showInPreviousTabChip: false,
+      lastActive: {internalValue: 0n},
+    });
+    actionMenu.inputState = new MockInputState({
+      allowedInputTypes: [InputType.kBrowserTab],
+      toolsSectionConfig: {header: ''},
+      modelSectionConfig: {header: ''},
+    });
+
+    // Act.
+    actionMenu.showAt(actionMenu);
+    await microtasksFinished();
+
+    // Assert: Main menu should be open and its height constrained to 540px (or less if viewport is small).
+    const dialog = actionMenu.$.menu.getDialog();
+    assertTrue(actionMenu.$.menu.open);
+
+    const expectedMaxHeight = Math.min(540, window.innerHeight - 16);
+    assertEquals(expectedMaxHeight, dialog.offsetHeight);
+
+    const style = window.getComputedStyle(dialog);
+    assertEquals('visible', style.overflowY);
+    assertTrue(dialog.scrollHeight > dialog.offsetHeight);
+  });
+
+  // TODO(crbug.com/512920161): Reenable this test on Linux and Mac and Windows
+  // <if expr="not is_linux and not is_macosx and not is_win">
   test('Share tabs flyout keyboard navigation', async () => {
     loadTimeData.overrideValues({
       contextManagementInComposeboxEnabled: true,
@@ -930,12 +1016,12 @@ suite('ContextualActionMenu', () => {
       async () => {
         loadTimeData.overrideValues({
           contextManagementInComposeboxEnabled: true,
-          composeboxSmartTabSharingVisible: true,
         });
 
         actionMenu.remove();
         actionMenu =
             document.createElement('cr-composebox-contextual-action-menu');
+        actionMenu.smartTabSharingVisible = true;
 
         actionMenu.smartTabSharingActive = true;
         actionMenu.tabSuggestions = [];
@@ -1173,6 +1259,7 @@ suite('ContextualActionMenu', () => {
         InputType.kBrowserTab,
       ],
       allowedTools: [ToolMode.kDeepSearch],
+      activeTool: ToolMode.kDeepSearch,
       toolConfigs: [{
         tool: ToolMode.kDeepSearch,
         menuLabel: 'Deep Search',
@@ -1511,13 +1598,13 @@ suite('ContextualActionMenu', () => {
   suite('SmartTabSharingTogglePositioning', () => {
     setup(async () => {
       loadTimeData.overrideValues({
-        composeboxSmartTabSharingVisible: true,
         contextManagementInComposeboxEnabled: true,
       });
 
       actionMenu.remove();
       actionMenu =
           document.createElement('cr-composebox-contextual-action-menu');
+      actionMenu.smartTabSharingVisible = true;
       actionMenu.tabSuggestions = [
         {
           tabId: 1,
@@ -1739,6 +1826,87 @@ suite('ContextualActionMenu', () => {
       // Tab 5 is filtered out because it is not found in tabSuggestions.
       assertEquals(1, selectedTabs.length);
       assertEquals(tab1, selectedTabs[0]);
+    });
+  });
+
+  suite('Positioning', () => {
+    let anchor: HTMLButtonElement;
+    let showAtCalls: any[] = [];
+    let originalShowAt: any;
+
+    setup(() => {
+      anchor = document.createElement('button');
+      document.body.appendChild(anchor);
+
+      showAtCalls = [];
+      originalShowAt = actionMenu.$.menu.showAt.bind(actionMenu.$.menu);
+      actionMenu.$.menu.showAt = (_anchor: HTMLElement, options?: any) => {
+        showAtCalls.push(options);
+        originalShowAt(_anchor, options);
+      };
+    });
+
+    teardown(() => {
+      anchor.remove();
+      actionMenu.$.menu.showAt = originalShowAt;
+    });
+
+    test('Anchors below the button if space below >= 160px', async () => {
+      // Mock window innerHeight
+      Object.defineProperty(window, 'innerHeight', {
+        value: 800,
+        configurable: true,
+      });
+
+      // Mock anchor position (rect.bottom = 500px, spaceBelow = 800 - 500 = 300px >= 160px)
+      anchor.getBoundingClientRect = () => {
+        return {
+          bottom: 500,
+          top: 450,
+          left: 100,
+          right: 200,
+          width: 100,
+          height: 50,
+          x: 100,
+          y: 450,
+        } as DOMRect;
+      };
+
+      actionMenu.showAt(anchor);
+      await microtasksFinished();
+
+      // showAt is called twice: once for natural measurement, once for finalized positioning.
+      assertEquals(2, showAtCalls.length);
+      // The second call is the final positioning alignment.
+      assertEquals(AnchorAlignment.AFTER_END, showAtCalls[1].anchorAlignmentY);
+    });
+
+    test('Anchors above the button if space below < 160px', async () => {
+      // Mock window innerHeight
+      Object.defineProperty(window, 'innerHeight', {
+        value: 600,
+        configurable: true,
+      });
+
+      // Mock anchor position (rect.bottom = 500px, spaceBelow = 600 - 500 = 100px < 160px)
+      anchor.getBoundingClientRect = () => {
+        return {
+          bottom: 500,
+          top: 450,
+          left: 100,
+          right: 200,
+          width: 100,
+          height: 50,
+          x: 100,
+          y: 450,
+        } as DOMRect;
+      };
+
+      actionMenu.showAt(anchor);
+      await microtasksFinished();
+
+      assertEquals(2, showAtCalls.length);
+      assertEquals(AnchorAlignment.BEFORE_START, showAtCalls[1].anchorAlignmentY);
     });
   });
 });

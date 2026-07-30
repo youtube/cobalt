@@ -280,6 +280,13 @@ BASE_FEATURE(kFledgeBidderWorkletThreadPool, base::FEATURE_ENABLED_BY_DEFAULT);
 // Makes FLEDGE worklets on Android not use the main thread for their mojo.
 BASE_FEATURE(kFledgeAndroidWorkletOffMainThread,
              base::FEATURE_ENABLED_BY_DEFAULT);
+// This is a kill switch for focusing the RenderWidgetHostViewAndroid on
+// MouseDown if not focused already, please see crbug.com/515000108. The root
+// view, RWHVA, is always focused for main tabs in Chrome, however this might
+// not be true for WebContents hosted outside of tabs (such as WebView or
+// ThinWebView). Unlike ActionDown focus, this is not disabled on WebView.
+BASE_FEATURE(kFocusRenderWidgetHostViewAndroidOnMouseDown,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 // The scaling factor for calculating the number of bidder worklet threads based
@@ -785,15 +792,6 @@ BASE_FEATURE(kSkipRendererCancellationThrottle,
 // background or the effective binding state is in conflict with low rank
 // processes.
 BASE_FEATURE(kStrictHighRankProcessLRU, base::FEATURE_ENABLED_BY_DEFAULT);
-#endif
-
-#if BUILDFLAG(IS_MAC)
-BASE_FEATURE(kTextInputClient, base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE_PARAM(base::TimeDelta,
-                   kTextInputClientIPCTimeout,
-                   &kTextInputClient,
-                   "ipc_timeout",
-                   base::Milliseconds(1500));
 #endif
 
 // Allows swipe left/right from touchpad change browser navigation.

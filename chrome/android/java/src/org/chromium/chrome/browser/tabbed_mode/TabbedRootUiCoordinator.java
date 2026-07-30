@@ -56,7 +56,6 @@ import org.chromium.chrome.browser.ActivityTabProvider.ActivityTabTabObserver;
 import org.chromium.chrome.browser.ChromeInactivityTracker;
 import org.chromium.chrome.browser.ChromeInactivityTracker.InactivityObserver;
 import org.chromium.chrome.browser.SwipeRefreshHandler;
-import org.chromium.chrome.browser.ZoomController;
 import org.chromium.chrome.browser.accessibility.PageZoomIphController;
 import org.chromium.chrome.browser.actor.ui.ActorOverlayCoordinator;
 import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
@@ -160,8 +159,10 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.read_later.ReadLaterIphController;
 import org.chromium.chrome.browser.readaloud.ReadAloudController;
 import org.chromium.chrome.browser.readaloud.ReadAloudIphController;
+import org.chromium.chrome.browser.readaloud.ReadAloudMetrics.ReasonForStoppingPlayback;
 import org.chromium.chrome.browser.safe_browsing.AdvancedProtectionCoordinator;
 import org.chromium.chrome.browser.search_engines.choice_screen.ChoiceDialogCoordinator;
+import org.chromium.chrome.browser.selection.ChromeSelectionDropdownMenuDelegate;
 import org.chromium.chrome.browser.share.ShareDelegate;
 import org.chromium.chrome.browser.share.link_to_text.LinkToTextIphController;
 import org.chromium.chrome.browser.signin.SigninAndHistorySyncActivityLauncherImpl;
@@ -176,7 +177,6 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabAssociatedApp;
 import org.chromium.chrome.browser.tab.TabFavicon;
 import org.chromium.chrome.browser.tab_bottom_sheet.CoBrowseViewFactory;
-import org.chromium.chrome.browser.tab_bottom_sheet.CoBrowseViewsZoomControl;
 import org.chromium.chrome.browser.tab_bottom_sheet.TabBottomSheetManager;
 import org.chromium.chrome.browser.tab_bottom_sheet.TabBottomSheetManagerImpl;
 import org.chromium.chrome.browser.tab_bottom_sheet.TabBottomSheetUtils;
@@ -201,6 +201,9 @@ import org.chromium.chrome.browser.tasks.tab_management.TabGroupFaviconCluster;
 import org.chromium.chrome.browser.tasks.tab_management.TabGroupListFaviconResolverFactory;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiUtils;
 import org.chromium.chrome.browser.tasks.tab_management.UndoGroupSnackbarController;
+import org.chromium.chrome.browser.tasks.tab_management.vertical_tabs.VerticalTabListCoordinator;
+import org.chromium.chrome.browser.tasks.tab_management.vertical_tabs.VerticalTabsActionDelegate;
+import org.chromium.chrome.browser.tasks.tab_management.vertical_tabs.VerticalTabsSideUiCoordinator;
 import org.chromium.chrome.browser.toolbar.ToolbarButtonInProductHelpController;
 import org.chromium.chrome.browser.toolbar.ToolbarFeatures;
 import org.chromium.chrome.browser.toolbar.ToolbarIntentMetadata;
@@ -242,6 +245,7 @@ import org.chromium.chrome.browser.ui.side_ui.ViewMarginAdjusterForSideUi;
 import org.chromium.chrome.browser.ui.signin.ForcedSigninController;
 import org.chromium.chrome.browser.ui.signin.FullscreenSigninPromoLauncher;
 import org.chromium.chrome.browser.ui.system.StatusBarColorController.StatusBarColorProvider;
+import org.chromium.chrome.browser.ui.vertical_tabs.VerticalTabUtils;
 import org.chromium.chrome.browser.user_education.UserEducationUtils;
 import org.chromium.chrome.browser.user_education.UserEducationUtils.OptionalPromoType;
 import org.chromium.chrome.browser.webapps.PwaRestorePromoUtils;
@@ -260,7 +264,7 @@ import org.chromium.components.feature_engagement.EventConstants;
 import org.chromium.components.feature_engagement.FeatureConstants;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.signin.AccountManagerFacadeProvider;
-import org.chromium.components.signin.base.CoreAccountInfo;
+import org.chromium.components.signin.base.AccountInfo;
 import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.components.tab_group_sync.SavedTabGroup;
 import org.chromium.components.tab_group_sync.TabGroupSyncController;
@@ -269,7 +273,6 @@ import org.chromium.components.tab_group_sync.TabGroupUiActionHandler;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.components.webapps.bottomsheet.PwaBottomSheetController;
 import org.chromium.components.webapps.bottomsheet.PwaBottomSheetControllerFactory;
-import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.common.ContentSwitches;
 import org.chromium.ui.UiUtils;
 import org.chromium.ui.base.ActivityResultTracker;
@@ -372,6 +375,8 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
     private @Nullable ContextualTasksBridge mContextualTasksBridge;
     private @Nullable GlicUiCoordinator mGlicUiCoordinator;
     private @Nullable ForcedSigninController mForcedSigninController;
+    private @Nullable VerticalTabsSideUiCoordinator mVerticalTabsSideUiCoordinator;
+    private final VerticalTabsActionDelegate mVerticalTabsActionDelegate;
 
     // Activity tab observer that updates the current tab used by various UI components.
     private class RootUiTabObserver extends ActivityTabTabObserver {
@@ -475,6 +480,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
      * @param bookmarkManagerOpenerSupplier Supplies {@link BookmarkManagerOpener}.
      * @param xrSpaceModeObservableSupplier Supplies current XR space mode status. True for XR full
      *     space mode, false otherwise.
+     * @param verticalTabsActionDelegate Delegate to handle actions from the vertical tabs UI.
      */
     public TabbedRootUiCoordinator(
             AppCompatActivity activity,
@@ -530,7 +536,8 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             MonotonicObservableSupplier<BookmarkManagerOpener> bookmarkManagerOpenerSupplier,
             NonNullObservableSupplier<Boolean> xrSpaceModeObservableSupplier,
             OneshotSupplier<ChromeInactivityTracker> inactivityTrackerSupplier,
-            @Nullable BottomBarHostManager bottomBarHostManager) {
+            @Nullable BottomBarHostManager bottomBarHostManager,
+            VerticalTabsActionDelegate verticalTabsActionDelegate) {
         super(
                 activity,
                 onOmniboxFocusChangedListener,
@@ -629,6 +636,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
         mSystemBarColorHelperSupplier = systemBarColorHelperSupplier;
         mManualFillingComponentSupplier = manualFillingComponentSupplier;
         mInactivityTrackerSupplier = inactivityTrackerSupplier;
+        mVerticalTabsActionDelegate = verticalTabsActionDelegate;
 
         DataSharingTabGroupsDelegate dataSharingTabGroupsDelegate =
                 createDataSharingTabGroupsDelegate();
@@ -641,7 +649,8 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                     IdentityManager identityManager =
                             IdentityServicesProvider.get().getIdentityManager(profile);
                     assumeNonNull(identityManager);
-                    CoreAccountInfo primaryAccountInfo = identityManager.getPrimaryAccountInfo();
+                    @Nullable AccountInfo primaryAccountInfo =
+                            identityManager.getPrimaryAccountInfo();
                     assert primaryAccountInfo != null;
                     AccountManagerFacadeProvider.getInstance()
                             .updateCredentials(
@@ -1342,9 +1351,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                                 mSnackbarManagerSupplier);
             }
         }
-        if (AndroidSidePanelEnabledFn.isEnabled()) {
-            initializeSideUi(currentlySelectedProfile);
-        }
+        initializeSideUi(currentlySelectedProfile);
     }
 
     /** Creates an instance of {@link IncognitoReauthCoordinatorFactory} for tabbed activity. */
@@ -1880,17 +1887,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                             mActivityLifecycleDispatcher,
                             mSnackbarManagerSupplier.asNonNull().get(),
                             contextMenuPopulatorFactory,
-                            new CoBrowseViewsZoomControl() {
-                                @Override
-                                public boolean zoomIn(WebContents webContents) {
-                                    return ZoomController.zoomIn(webContents);
-                                }
-
-                                @Override
-                                public boolean zoomOut(WebContents webContents) {
-                                    return ZoomController.zoomOut(webContents);
-                                }
-                            });
+                            new ChromeSelectionDropdownMenuDelegate());
         }
         if (TabBottomSheetUtils.isTabBottomSheetEnabled()) {
             mTabBottomSheetManager =
@@ -1904,8 +1901,13 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                     mCallbackController.makeCancelable(
                             (ReadAloudController readAloudController) -> {
                                 if (mTabBottomSheetManager != null) {
-                                    mTabBottomSheetManager.setReadAloudActivePlaybackTabSupplier(
-                                            readAloudController.getActivePlaybackTabSupplier());
+                                    mTabBottomSheetManager.initReadAloudIntegration(
+                                            readAloudController.getActivePlaybackTabSupplier(),
+                                            () -> {
+                                                readAloudController.maybeStopPlayback(
+                                                        null,
+                                                        ReasonForStoppingPlayback.MANUAL_CLOSE);
+                                            });
                                 }
                                 assert mTabBottomSheetReadAloudControllerCallback != null;
                                 mReadAloudControllerSupplier.removeObserver(
@@ -2169,13 +2171,55 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                             mWindowAndroid,
                             mActivityTabProvider);
         }
-
+        if (VerticalTabUtils.isVerticalTabsEligible(mActivity)) {
+            mVerticalTabsSideUiCoordinator =
+                    new VerticalTabsSideUiCoordinator(
+                            mActivity,
+                            mSideUiCoordinator,
+                            new VerticalTabListCoordinator(
+                                    mActivity,
+                                    assumeNonNull(mTabModelSelectorSupplier.get()),
+                                    assumeNonNull(mProfileSupplier.get()),
+                                    mVerticalTabsActionDelegate));
+            mSideUiCoordinator.registerSideUiContainer(mVerticalTabsSideUiCoordinator);
+        }
         mSideUiStateProviderSupplier.set(mSideUiCoordinator);
 
         // TODO(crbug.com/510890983): Add render tests for the secondary container adjustment.
         View secondaryUiContainer = mActivity.findViewById(R.id.secondary_ui_container);
         mSecondaryUiContainerMarginAdjuster = new ViewMarginAdjusterForSideUi(secondaryUiContainer);
         mSideUiCoordinator.addObserver(mSecondaryUiContainerMarginAdjuster);
+
+        // Restore the user's saved tab layout preference upon browser cold launch.
+        if (VerticalTabUtils.isVerticalTabsEligible(mActivity)) {
+            boolean useVerticalLayoutOnLaunch =
+                    ChromeSharedPreferences.getInstance()
+                            .readBoolean(ChromePreferenceKeys.VERTICAL_TABS_ENABLED, false);
+
+            if (useVerticalLayoutOnLaunch) {
+                var transitionCoordinator =
+                        assumeNonNull(mToolbarManager).getTabStripTransitionCoordinator();
+                assumeNonNull(transitionCoordinator).suppressTabStrip(true);
+                assumeNonNull(mVerticalTabsSideUiCoordinator).setVisible(true);
+            }
+        }
+    }
+
+    /** Toggle the visibility between horizontal tab strip and vertical tab list. */
+    public void toggleTabStrip() {
+        var transitionCoordinator =
+                assumeNonNull(mToolbarManager).getTabStripTransitionCoordinator();
+        // TODO(crbug.com/509226293):
+        //    - Coordinate horizontal/vertical tab animation.
+        boolean shouldShowVerticalTabs =
+                !ChromeSharedPreferences.getInstance()
+                        .readBoolean(ChromePreferenceKeys.VERTICAL_TABS_ENABLED, false);
+
+        ChromeSharedPreferences.getInstance()
+                .writeBoolean(ChromePreferenceKeys.VERTICAL_TABS_ENABLED, shouldShowVerticalTabs);
+
+        assumeNonNull(transitionCoordinator).suppressTabStrip(shouldShowVerticalTabs);
+        assumeNonNull(mVerticalTabsSideUiCoordinator).setVisible(shouldShowVerticalTabs);
     }
 
     private void destroySideUi() {
@@ -2528,7 +2572,6 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             }
             return true;
         } else if (id == R.id.toggle_bookmark_bar) {
-            // isActivityStateBookmarkBarCompatible already checks the flag sAndroidBookmarkBar.
             if (BookmarkBarUtils.isActivityStateBookmarkBarCompatible(mActivity)) {
                 if (DeviceInfo.isDesktop()) {
                     // Desktop uses the synced UserPref.

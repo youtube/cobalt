@@ -12,6 +12,15 @@ import {getHtml as getContextMenuHtml} from './ntp_composebox_context_menu.html.
 export function getHtml(this: NtpComposeboxElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
+    <search-animated-glow id="animatedSearchElement"
+        animation-state="${this.animationState}"
+        .coloredTicTacVoiceAnimationEnabled="${this.voiceSearchCoherenceEnabled}"
+        .requiresVoice="${this.shouldShowVoiceSearchAnimation()}"
+        .transcript="${this.transcript}"
+        .receivedSpeech="${this.receivedSpeech}"
+        .isListening="${this.isListening}"
+        exportparts="composebox-background">
+    </search-animated-glow>
     <ntp-error-scrim id="errorScrim" part="error-scrim"
         ?compact-mode="${this.files.size === 0}"
         .errorMessage="${this.errorMessage}"
@@ -71,6 +80,16 @@ export function getHtml(this: NtpComposeboxElement) {
                   </div>
                   ` : ''}
               </div>
+              ${this.shouldShowSubmitButton() ? html`
+              <cr-composebox-submit
+                exportparts="action-icon, submit, submit-icon, submit-overlay"
+                ?disabled="${!this.canSubmitFilesAndInput}"
+                .iconType="${this.submitButtonIconType}"
+                .submitButtonTitle="${this.i18n('composeboxSubmitButtonTitle')}"
+                @submit-click="${this.onSubmitClick}"
+                @submit-focusin="${this.onSubmitFocusin}">
+              </cr-composebox-submit>
+              ` : ''}
             </div>
             ${this.shouldShowDivider() ? html`
             <div class="carousel-divider" part="carousel-divider"></div>
@@ -94,6 +113,31 @@ export function getHtml(this: NtpComposeboxElement) {
         </div>
       </div>
     </div>
+  ${this.shouldShowVoiceSearch() ? html`
+    <cr-composebox-voice-search id="voiceSearch"
+        @voice-permission-changed="${this.onVoicePermissionChanged}"
+        @voice-search-cancel="${this.onVoiceSearchCancel}"
+        @voice-search-final-result="${this.onVoiceSearchFinalResult}"
+        @voice-search-error="${this.onVoiceSearchError}"
+        @transcript-update="${this.onTranscriptUpdate}"
+        @speech-received="${this.onSpeechReceived}"
+        @recording-stopped="${this.onRecordingStopped}"
+        .submitStopButtonsEnabled="${this.voiceSearchCoherenceEnabled}"
+        .liveTranscriptEnabled="${!this.voiceSearchCoherenceEnabled}"
+        .submitButtonIconType="${this.submitButtonIconType}"
+        .dynamicTimeoutEnabled="${false}"
+        .pageCallbackRouter="${this.getSearchboxCallbackRouter()}"
+        exportparts="voice-close-button, voice-details-link, voice-stop-button, voice-submit-button">
+    </cr-composebox-voice-search>
+  ` : ''}
+  ${this.shouldShowSuggestionActivityLink() ? html`
+    <div id="suggestionActivity">
+      <localized-link
+        .localizedString="${this.i18nAdvanced('suggestionActivityLink')}"
+        @link-clicked="${this.onLinkClicked}">
+      </localized-link>
+    </div>
+  `: ''}
   <!--_html_template_end_-->`;
   // clang-format on
 }

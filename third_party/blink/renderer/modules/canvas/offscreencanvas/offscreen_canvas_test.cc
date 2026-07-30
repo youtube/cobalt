@@ -195,7 +195,7 @@ TEST_F(OffscreenCanvasTest, AnimationUsesSyntheticTimerWhenHidden) {
 
   // Without capture, animation should be suspended.
   EXPECT_EQ(GetCanvasElement()->GetAnimationStateForTesting(),
-            CanvasResourceDispatcher::AnimationState::kSuspended);
+            OffscreenCanvasPlaceholder::AnimationState::kSuspended);
 
   // Cause the canvas to believe that it's being captured, and verify that we're
   // now using synthetic timing.
@@ -203,13 +203,12 @@ TEST_F(OffscreenCanvasTest, AnimationUsesSyntheticTimerWhenHidden) {
   GetCanvasElement()->AddListener(listener);
   EXPECT_EQ(
       GetCanvasElement()->GetAnimationStateForTesting(),
-      CanvasResourceDispatcher::AnimationState::kActiveWithSyntheticTiming);
+      OffscreenCanvasPlaceholder::AnimationState::kActiveWithSyntheticTiming);
   GetCanvasElement()->RemoveListener(listener);
 }
 
 TEST_F(OffscreenCanvasTest, SwitchFrameByCanvasImageSource) {
-  auto* canvas = MakeGarbageCollected<OffscreenCanvas>(
-      GetDocument().GetExecutionContext(), gfx::Size(100, 100));
+  auto* canvas = OffscreenCanvas::Create(GetScriptState(), 100, 100);
   // Make sure the canvas has the context.
   ASSERT_TRUE(canvas->GetCanvasRenderingContext(
       GetDocument().GetExecutionContext(),
@@ -224,8 +223,7 @@ TEST_F(OffscreenCanvasTest, SwitchFrameByCanvasImageSource) {
 }
 
 TEST_F(OffscreenCanvasTest, SwitchFrameByImageBitmapSource) {
-  auto* canvas = MakeGarbageCollected<OffscreenCanvas>(
-      GetDocument().GetExecutionContext(), gfx::Size(100, 100));
+  auto* canvas = OffscreenCanvas::Create(GetScriptState(), 100, 100);
   // Make sure the canvas has the context.
   ASSERT_TRUE(canvas->GetCanvasRenderingContext(
       GetDocument().GetExecutionContext(),
@@ -310,8 +308,7 @@ TEST_P(OffscreenCanvasTest, GetRasterModeAutoRecovery) {
 }
 
 TEST_F(OffscreenCanvasTest, BitmapRendererResizePreservesTaint) {
-  auto* canvas = MakeGarbageCollected<OffscreenCanvas>(
-      GetDocument().GetExecutionContext(), gfx::Size(100, 100));
+  auto* canvas = OffscreenCanvas::Create(GetScriptState(), 100, 100);
   CanvasContextCreationAttributesCore attrs;
   auto* context = static_cast<ImageBitmapRenderingContext*>(
       canvas->GetCanvasRenderingContext(

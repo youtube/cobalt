@@ -143,6 +143,7 @@ void CheckSavedPdfRenderingIsBlank200x200(PDFiumEngine* engine) {
   CheckPdfRendering(saved_pdf_data, kPageIndex, kBlankPageSizeInPoints,
                     kBlankPngFilePath);
 }
+
 #endif  // BUILDFLAG(ENABLE_PDF_INK2)
 
 class MockTestClient : public TestClient {
@@ -1528,6 +1529,30 @@ TEST_P(PDFiumEngineDrawSelectionTest, DrawTextSelectionsHelloWorld) {
   EXPECT_EQ("Hello,", engine->GetSelectedText());
   DrawSelectionAndCompareWithPlatformExpectations(
       *engine, kPageIndex, "hello_world_selection_3.png");
+}
+
+TEST_P(PDFiumEngineDrawSelectionTest, DrawTextSelectionsMultipage) {
+  TestClient client(/*use_skia_renderer=*/GetParam());
+  std::unique_ptr<PDFiumEngine> engine =
+      InitializeEngine(&client, FILE_PATH_LITERAL("hello_world2.pdf"));
+  ASSERT_TRUE(engine);
+
+  // Update the plugin size so that all the text is visible by
+  // `SelectionChangeInvalidator`.
+  engine->PluginSizeUpdated({500, 1000});
+
+  // Select text across pages.
+  // - Page 0 selection starts at "Goodbye, world!" (char index 15).
+  // - Page 1 selection ends at "Hello, world!" (char index 13).
+  SetSelection(*engine, /*start_page_index=*/0, /*start_char_index=*/15,
+               /*end_page_index=*/1, /*end_char_index=*/13);
+  EXPECT_EQ(GetPlatformTextExpectation("Goodbye, world!\nHello, world!"),
+            engine->GetSelectedText());
+
+  DrawSelectionAndCompareWithPlatformExpectations(
+      *engine, /*page_index=*/0, "hello_world_multipage_selection_page0.png");
+  DrawSelectionAndCompare(*engine, /*page_index=*/1,
+                          "hello_world_multipage_selection_page1.png");
 }
 
 TEST_P(PDFiumEngineDrawSelectionTest, DrawTextSelectionsBigtableMicro) {
@@ -3629,48 +3654,97 @@ TEST_P(PDFiumEngineInkDrawTextTest, DrawTextSavesMetadata) {
     EXPECT_THAT(GetPageObjectMarkIntParam(mark, "TextboxId"),
                 testing::Optional(1));
 
-    if (i == 0) {
-      // Verify the first text object contains the full textbox metadata.
-      EXPECT_THAT(GetPageObjectMarkIntParam(mark, "Version"),
-                  testing::Optional(kInkTextAnnotationVersion));
-      EXPECT_THAT(GetPageObjectMarkFloatParam(mark, "BoundsX"),
-                  testing::Optional(20.0f));
-      EXPECT_THAT(GetPageObjectMarkFloatParam(mark, "BoundsY"),
-                  testing::Optional(20.0f));
-      EXPECT_THAT(GetPageObjectMarkFloatParam(mark, "BoundsWidth"),
-                  testing::Optional(100.0f));
-      EXPECT_THAT(GetPageObjectMarkFloatParam(mark, "BoundsHeight"),
-                  testing::Optional(100.0f));
-      EXPECT_THAT(
-          GetPageObjectMarkIntParam(mark, "Typeface"),
-          testing::Optional(static_cast<int>(TextTypeface::kSansSerif)));
-      EXPECT_THAT(GetPageObjectMarkIntParam(mark, "Alignment"),
-                  testing::Optional(static_cast<int>(TextAlignment::kLeft)));
-      EXPECT_THAT(GetPageObjectMarkIntParam(mark, "Orientation"),
-                  testing::Optional(0));
-      EXPECT_THAT(GetPageObjectMarkIntParam(mark, "IsBold"),
-                  testing::Optional(1));
-      EXPECT_THAT(GetPageObjectMarkIntParam(mark, "IsItalic"),
-                  testing::Optional(0));
-      EXPECT_THAT(GetPageObjectMarkStringParam(mark, "Text"),
-                  testing::Optional(std::u16string(kExpectedText16)));
-    } else {
-      // Verify the remaining text objects do not have the full metadata.
-      EXPECT_FALSE(GetPageObjectMarkIntParam(mark, "Version").has_value());
-      EXPECT_FALSE(GetPageObjectMarkFloatParam(mark, "BoundsX").has_value());
-      EXPECT_FALSE(GetPageObjectMarkFloatParam(mark, "BoundsY").has_value());
-      EXPECT_FALSE(
-          GetPageObjectMarkFloatParam(mark, "BoundsWidth").has_value());
-      EXPECT_FALSE(
-          GetPageObjectMarkFloatParam(mark, "BoundsHeight").has_value());
-      EXPECT_FALSE(GetPageObjectMarkIntParam(mark, "Typeface").has_value());
-      EXPECT_FALSE(GetPageObjectMarkIntParam(mark, "Alignment").has_value());
-      EXPECT_FALSE(GetPageObjectMarkIntParam(mark, "Orientation").has_value());
-      EXPECT_FALSE(GetPageObjectMarkIntParam(mark, "IsBold").has_value());
-      EXPECT_FALSE(GetPageObjectMarkIntParam(mark, "IsItalic").has_value());
-      EXPECT_FALSE(GetPageObjectMarkStringParam(mark, "Text").has_value());
-    }
+    EXPECT_THAT(GetPageObjectMarkIntParam(mark, "Version"),
+                testing::Optional(kInkTextAnnotationVersion));
+    // Bounds are converted from CSS pixels to PDF points.
+    EXPECT_THAT(GetPageObjectMarkFloatParam(mark, "BoundsX"),
+                testing::Optional(15.0f));
+    EXPECT_THAT(GetPageObjectMarkFloatParam(mark, "BoundsY"),
+                testing::Optional(15.0f));
+    EXPECT_THAT(GetPageObjectMarkFloatParam(mark, "BoundsWidth"),
+                testing::Optional(75.0f));
+    EXPECT_THAT(GetPageObjectMarkFloatParam(mark, "BoundsHeight"),
+                testing::Optional(75.0f));
+    EXPECT_THAT(GetPageObjectMarkIntParam(mark, "Typeface"),
+                testing::Optional(static_cast<int>(TextTypeface::kSansSerif)));
+    EXPECT_THAT(GetPageObjectMarkIntParam(mark, "Alignment"),
+                testing::Optional(static_cast<int>(TextAlignment::kLeft)));
+    EXPECT_THAT(GetPageObjectMarkIntParam(mark, "Orientation"),
+                testing::Optional(0));
+    EXPECT_THAT(GetPageObjectMarkIntParam(mark, "IsBold"),
+                testing::Optional(1));
+    EXPECT_THAT(GetPageObjectMarkIntParam(mark, "IsItalic"),
+                testing::Optional(0));
+    EXPECT_THAT(GetPageObjectMarkStringParam(mark, "Text"),
+                testing::Optional(std::u16string(kExpectedText16)));
   }
+}
+
+TEST_P(PDFiumEngineInkDrawTextTest, DrawTextSaveAndLoad) {
+  NiceMock<TestClient> client(/*use_skia_renderer=*/GetParam());
+  std::unique_ptr<PDFiumEngine> engine =
+      InitializeEngine(&client, FILE_PATH_LITERAL("blank.pdf"));
+  ASSERT_TRUE(engine);
+  int page_count = FPDF_GetPageCount(engine->doc());
+  ASSERT_EQ(page_count, 1);
+
+  constexpr int kPageIndex = 0;
+  PDFiumPage& page = GetPDFiumPage(*engine, kPageIndex);
+  CheckPdfRenderingIsBlank200x200(page.GetPage());
+
+  // Set up default font and mock text data.
+  FontId font_id = AddDefaultFont(engine.get());
+  constexpr std::string_view kTextToDraw = "Hello!";
+  GlyphsAndPositions text_data =
+      GetGlyphsForText(kTextToDraw, /*font_size=*/10.0f);
+  ASSERT_FALSE(text_data.glyphs.empty());
+  ASSERT_FALSE(text_data.glyph_positions.empty());
+
+  // Create a text box offset from the top-left corner in CSS page pixels.
+  constexpr gfx::RectF kOriginalRect(20.0f, 30.0f, 100.0f, 20.0f);
+
+  InkTextBoxAttributes attribute = SampleInkTextBoxAttributes();
+  attribute.rect = kOriginalRect;
+  attribute.text = kTextToDraw;
+
+  // Draw the text annotation.
+  engine->DrawText(
+      kPageIndex, InkTextId(0),
+      {InkTextInfo(font_id, text_data.glyphs, text_data.glyph_positions,
+                   /*location=*/gfx::RectF(0.0f, 0.0f, 100.0f, 20.0f),
+                   /*is_horizontal=*/true)},
+      /*pdf_zoom=*/1.0, attribute);
+
+  // Save the PDF data.
+  std::vector<uint8_t> saved_pdf_data = engine->GetSaveData();
+  ASSERT_FALSE(saved_pdf_data.empty());
+
+  // Load the saved PDF data into a new engine.
+  NiceMock<TestClient> saved_client(/*use_skia_renderer=*/GetParam());
+  std::unique_ptr<PDFiumEngine> saved_engine =
+      InitializeEngineFromData(&saved_client, std::move(saved_pdf_data));
+  ASSERT_TRUE(saved_engine);
+
+  // Load text annotations from the reloaded PDF.
+  DocumentInkTextBoxesMap document_textboxes =
+      saved_engine->LoadTextAnnotationsFromPdf();
+  ASSERT_EQ(1u, document_textboxes.size());
+
+  auto itr = document_textboxes.find(kPageIndex);
+  ASSERT_NE(itr, document_textboxes.end());
+
+  const auto& page_boxes = itr->second;
+  ASSERT_EQ(1u, page_boxes.size());
+  EXPECT_EQ(0u, page_boxes[0].ink_loaded_text_id.value());
+
+  // Verify the loaded attributes have the exact same bounds and properties
+  // as the original drawn annotation.
+  EXPECT_THAT(page_boxes[0].attributes,
+              InkTextBoxAttributesEq(kOriginalRect, attribute.color,
+                                     attribute.css_font_size,
+                                     attribute.typeface, attribute.alignment,
+                                     attribute.orientation, attribute.is_bold,
+                                     attribute.is_italic, attribute.text));
 }
 
 TEST_P(PDFiumEngineInkDrawTextTest, LoadTextAnnotationsFromPdfMultiPages) {
@@ -3680,10 +3754,8 @@ TEST_P(PDFiumEngineInkDrawTextTest, LoadTextAnnotationsFromPdfMultiPages) {
   ASSERT_TRUE(engine);
   ASSERT_EQ(3, engine->GetNumberOfPages());
 
-  size_t next_id = 0;
   DocumentInkTextBoxesMap document_textboxes =
-      engine->LoadTextAnnotationsFromPdf(base::BindLambdaForTesting(
-          [&next_id]() { return InkTextId(next_id++); }));
+      engine->LoadTextAnnotationsFromPdf();
   ASSERT_EQ(2u, document_textboxes.size());
 
   // Page 0 and Page 2 have text annotations; Page 1 is empty and should be
@@ -3722,9 +3794,7 @@ TEST_P(PDFiumEngineInkDrawTextTest, DrawTextAvoidsTextboxIdCollisions) {
 
   // Load existing annotations to populate `existing_textbox_ids_`.
   // ink_text_multi_textboxes.pdf has textbox IDs 0 and 42.
-  size_t next_id = 0;
-  engine->LoadTextAnnotationsFromPdf(base::BindLambdaForTesting(
-      [&next_id]() { return InkTextId(next_id++); }));
+  engine->LoadTextAnnotationsFromPdf();
 
   constexpr int kPageIndex = 0;
   PDFiumPage& page = GetPDFiumPage(*engine, kPageIndex);

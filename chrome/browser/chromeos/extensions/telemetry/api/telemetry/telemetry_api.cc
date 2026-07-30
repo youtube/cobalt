@@ -20,6 +20,8 @@
 #include "chrome/browser/chromeos/extensions/telemetry/api/telemetry/telemetry_api_converters.h"
 #include "chrome/common/chromeos/extensions/api/telemetry.h"
 #include "chromeos/ash/components/dbus/debug_daemon/debug_daemon_client.h"
+#include "chromeos/ash/services/cros_healthd/public/cpp/service_connection.h"
+#include "chromeos/ash/services/cros_healthd/public/mojom/cros_healthd.mojom.h"
 #include "chromeos/crosapi/mojom/probe_service.mojom.h"
 #include "extensions/common/permissions/permissions_data.h"
 
@@ -28,6 +30,12 @@ namespace chromeos {
 namespace {
 namespace cx_telem = api::os_telemetry;
 namespace crosapi = ::crosapi::mojom;
+
+ash::cros_healthd::mojom::CrosHealthdProbeService& GetService() {
+  return CHECK_DEREF(
+      ash::cros_healthd::ServiceConnection::GetInstance()->GetProbeService());
+}
+
 }  // namespace
 
 // TelemetryApiFunctionBase ----------------------------------------------------
@@ -44,14 +52,13 @@ crosapi::TelemetryProbeService* TelemetryApiFunctionBase::GetRemoteService() {
 // OsTelemetryGetAudioInfoFunction ---------------------------------------------
 
 void OsTelemetryGetAudioInfoFunction::RunIfAllowed() {
-  auto cb = base::BindOnce(&OsTelemetryGetAudioInfoFunction::OnResult, this);
-
-  GetRemoteService()->ProbeTelemetryInfo({crosapi::ProbeCategoryEnum::kAudio},
-                                         std::move(cb));
+  GetService().ProbeTelemetryInfo(
+      {ash::cros_healthd::mojom::ProbeCategoryEnum::kAudio},
+      base::BindOnce(&OsTelemetryGetAudioInfoFunction::OnResult, this));
 }
 
 void OsTelemetryGetAudioInfoFunction::OnResult(
-    crosapi::ProbeTelemetryInfoPtr ptr) {
+    ash::cros_healthd::mojom::TelemetryInfoPtr ptr) {
   if (!ptr || !ptr->audio_result || !ptr->audio_result->is_audio_info()) {
     Respond(Error("API internal error"));
     return;
@@ -329,15 +336,14 @@ void OsTelemetryGetOsVersionInfoFunction::OnResult(
 // OsTelemetryGetStatefulPartitionInfoFunction ---------------------------------
 
 void OsTelemetryGetStatefulPartitionInfoFunction::RunIfAllowed() {
-  auto cb = base::BindOnce(
-      &OsTelemetryGetStatefulPartitionInfoFunction::OnResult, this);
-
-  GetRemoteService()->ProbeTelemetryInfo(
-      {crosapi::ProbeCategoryEnum::kStatefulPartition}, std::move(cb));
+  GetService().ProbeTelemetryInfo(
+      {ash::cros_healthd::mojom::ProbeCategoryEnum::kStatefulPartition},
+      base::BindOnce(&OsTelemetryGetStatefulPartitionInfoFunction::OnResult,
+                     this));
 }
 
 void OsTelemetryGetStatefulPartitionInfoFunction::OnResult(
-    crosapi::ProbeTelemetryInfoPtr ptr) {
+    ash::cros_healthd::mojom::TelemetryInfoPtr ptr) {
   if (!ptr || !ptr->stateful_partition_result ||
       !ptr->stateful_partition_result->is_partition_info()) {
     Respond(Error("API internal error"));
@@ -345,6 +351,11 @@ void OsTelemetryGetStatefulPartitionInfoFunction::OnResult(
   }
   auto& stateful_part_info =
       ptr->stateful_partition_result->get_partition_info();
+
+  // Rounding to 100MiB.
+  constexpr uint64_t k100MiB = 100 * 1024 * 1024;
+  stateful_part_info->available_space =
+      stateful_part_info->available_space / k100MiB * k100MiB;
 
   cx_telem::StatefulPartitionInfo result =
       converters::telemetry::ConvertPtr(std::move(stateful_part_info));

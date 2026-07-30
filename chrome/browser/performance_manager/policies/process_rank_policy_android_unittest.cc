@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "base/android/android_info.h"
+#include "base/android/device_info.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
@@ -131,7 +132,12 @@ TEST_F(ProcessRankPolicyAndroidTest, FocusedPage) {
             content::ChildProcessImportance::IMPORTANT);
 }
 
-TEST_F(ProcessRankPolicyAndroidTest, FocusedNotVisiblePage) {
+#if BUILDFLAG(IS_DESKTOP_ANDROID)
+#define MAYBE_FocusedNotVisiblePage DISABLED_FocusedNotVisiblePage
+#else
+#define MAYBE_FocusedNotVisiblePage FocusedNotVisiblePage
+#endif
+TEST_F(ProcessRankPolicyAndroidTest, MAYBE_FocusedNotVisiblePage) {
   graph_->PassToGraph(std::make_unique<ProcessRankPolicyAndroid>());
   MockPageGraph page_graph = CreateDefaultPage();
   DefaultNavigation(page_graph.page.get());
@@ -158,12 +164,11 @@ TEST_F(ProcessRankPolicyAndroidTest,
             content::ChildProcessImportance::MODERATE);
 }
 
-#if BUILDFLAG(IS_DESKTOP_ANDROID)
-#define MAYBE_NonFocusedVisiblePage DISABLED_NonFocusedVisiblePage
-#else
-#define MAYBE_NonFocusedVisiblePage NonFocusedVisiblePage
-#endif
-TEST_F(ProcessRankPolicyAndroidTest, MAYBE_NonFocusedVisiblePage) {
+TEST_F(ProcessRankPolicyAndroidTest, NonFocusedVisiblePage) {
+  if (base::android::device_info::is_desktop()) {
+    GTEST_SKIP()
+        << "ChangeUnfocusedPriority feature is always enabled on desktop";
+  }
   scoped_feature_list_.InitAndDisableFeature(
       chrome::android::kChangeUnfocusedPriority);
   graph_->PassToGraph(std::make_unique<ProcessRankPolicyAndroid>());
@@ -303,7 +308,12 @@ TEST_F(ProcessRankPolicyAndroidTest,
             content::ChildProcessImportance::NOT_PERCEPTIBLE);
 }
 
-TEST_F(ProcessRankPolicyAndroidTest, RecentlyVisiblePage) {
+#if BUILDFLAG(IS_DESKTOP_ANDROID)
+#define MAYBE_RecentlyVisiblePage DISABLED_RecentlyVisiblePage
+#else
+#define MAYBE_RecentlyVisiblePage RecentlyVisiblePage
+#endif
+TEST_F(ProcessRankPolicyAndroidTest, MAYBE_RecentlyVisiblePage) {
   if (!content::IsNotPerceptibleImportanceSupported()) {
     GTEST_SKIP() << "NOT_PERCEPTIBLE importance is not supported.";
   }
@@ -341,7 +351,12 @@ TEST_F(ProcessRankPolicyAndroidTest, AudiblePage) {
             content::ChildProcessImportance::NOT_PERCEPTIBLE);
 }
 
-TEST_F(ProcessRankPolicyAndroidTest, RecentlyAudiblePage) {
+#if BUILDFLAG(IS_DESKTOP_ANDROID)
+#define MAYBE_RecentlyAudiblePage DISABLED_RecentlyAudiblePage
+#else
+#define MAYBE_RecentlyAudiblePage RecentlyAudiblePage
+#endif
+TEST_F(ProcessRankPolicyAndroidTest, MAYBE_RecentlyAudiblePage) {
   if (!content::IsNotPerceptibleImportanceSupported()) {
     GTEST_SKIP() << "NOT_PERCEPTIBLE importance is not supported.";
   }
@@ -709,7 +724,12 @@ TEST_F(ProcessRankPolicyAndroidTest, HadUserEditsPage) {
             content::ChildProcessImportance::NOT_PERCEPTIBLE);
 }
 
-TEST_F(ProcessRankPolicyAndroidTest, NonVisiblePage) {
+#if BUILDFLAG(IS_DESKTOP_ANDROID)
+#define MAYBE_NonVisiblePage DISABLED_NonVisiblePage
+#else
+#define MAYBE_NonVisiblePage NonVisiblePage
+#endif
+TEST_F(ProcessRankPolicyAndroidTest, MAYBE_NonVisiblePage) {
   scoped_feature_list_.InitAndEnableFeature(
       chrome::android::kProtectedTabsAndroid);
   graph_->PassToGraph(std::make_unique<ProcessRankPolicyAndroid>());

@@ -450,7 +450,10 @@ if (is_android) {
       "src/org/chromium/chrome/browser/usage_stats/UsageStatsServiceTest.java",
     ]
 
-    deps = [ ":chrome_junit_tests_helper" ]
+    deps = [
+      ":chrome_junit_tests_helper",
+      "//chrome/browser/tabpersistence:java",
+    ]
   }
 
   robolectric_library(
@@ -1412,6 +1415,7 @@ if (is_android) {
       "//chrome/browser/tab:java",
       "//chrome/browser/tab_group_suggestion:java",
       "//chrome/browser/ui/android/bars_common:java",
+      "//chrome/browser/ui/vertical_tabs:java",
       "//chrome/test/android:chrome_java_transit",
       "//components/sensitive_content:sensitive_content_features_java",
     ]
@@ -1429,6 +1433,8 @@ if (is_android) {
 
     deps = [
       ":chrome_junit_tests_helper",
+      "//chrome/browser/context_sharing/tab_bottom_sheet/android:java",
+      "//chrome/browser/context_sharing/tab_bottom_sheet/public/android:java",
       "//chrome/browser/ui/android/pdf:pdf_utils_java",
       "//chrome/browser/ui/android/toolbar:adaptive_features_java",
       "//chrome/browser/ui/android/toolbar:optional_button_java",
@@ -1535,6 +1541,7 @@ if (is_android) {
       "src/org/chromium/chrome/browser/feedback/ChromeFeedbackCollectorUnitTest.java",
       "src/org/chromium/chrome/browser/feedback/FeedFeedbackCollectorTest.java",
       "src/org/chromium/chrome/browser/feedback/FeedbackPolicyManagerTest.java",
+      "src/org/chromium/chrome/browser/feedback/HelpAndFeedbackLauncherTest.java",
       "src/org/chromium/chrome/browser/feedback/UploadedCrashIdsFeedbackSourceTest.java",
       "src/org/chromium/chrome/browser/findinpage/FindToolbarManagerTest.java",
       "src/org/chromium/chrome/browser/flags/BadFlagsSnackbarManagerTest.java",

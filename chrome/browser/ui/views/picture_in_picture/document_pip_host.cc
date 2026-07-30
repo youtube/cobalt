@@ -8,6 +8,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/views/picture_in_picture/document_pip_contents_view.h"
 #include "chrome/browser/ui/views/picture_in_picture/document_pip_widget_delegate.h"
+#include "chrome/browser/ui/views/picture_in_picture/picture_in_picture_tucker.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/blink/public/mojom/manifest/display_mode.mojom.h"
 #include "ui/views/widget/widget.h"
@@ -36,7 +37,7 @@ void DocumentPipHost::CreatePipWidget(
   child_web_contents->SetDelegate(this);
 
   widget_delegate_ = std::make_unique<DocumentPipWidgetDelegate>(
-      GetProfile(), std::move(child_web_contents));
+      this, std::move(child_web_contents));
 
   views::Widget::InitParams params(
       views::Widget::InitParams::CLIENT_OWNS_WIDGET,
@@ -48,6 +49,7 @@ void DocumentPipHost::CreatePipWidget(
   params.z_order = ui::ZOrderLevel::kFloatingWindow;
   params.visible_on_all_workspaces = true;
   params.remove_standard_frame = true;
+  params.bounds = gfx::Rect(pip_options_.width, pip_options_.height);
 
   widget_ = std::make_unique<views::Widget>();
   widget_->Init(std::move(params));
@@ -111,6 +113,10 @@ void DocumentPipHost::ClosePipWindow() {
     child->SetDelegate(nullptr);
   }
 
+  // Destroy the tucker before the widget, since it references the widget.
+  tucker_.reset();
+  is_tucking_forced_ = false;
+
   // CLIENT_OWNS_WIDGET: synchronously destroy the widget. This tears down the
   // view tree → DocumentPipContentsView (the WebView) → child WebContents.
   // The widget references `widget_delegate_` by raw pointer, so destroy the
@@ -123,3 +129,29 @@ void DocumentPipHost::OnWidgetCloseRequested(
     views::Widget::ClosedReason reason) {
   ClosePipWindow();
 }
+
+void DocumentPipHost::SetForcedTucking(bool tuck) {
+  if (!tucker_ && widget_) {
+    tucker_ = std::make_unique<PictureInPictureTucker>(*widget_);
+  }
+  is_tucking_forced_ = tuck;
+
+  // Attempting to tuck our Widget before it's been shown causes issues since
+  // it may be still adjusting its bounds. Once visible, tucking will be
+  // enforced.
+  if (widget_ && widget_->IsVisible()) {
+    if (is_tucking_forced_) {
+      tucker_->Tuck();
+    } else {
+      tucker_->Untuck();
+    }
+  }
+}
+
+#if BUILDFLAG(IS_MAC)
+void DocumentPipHost::OnAnyBrowserEnteredFullscreen() {
+  if (widget_) {
+    widget_->MoveToActiveFullscreenSpace();
+  }
+}
+#endif

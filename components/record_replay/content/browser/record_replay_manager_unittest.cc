@@ -10,6 +10,7 @@
 #include "base/types/optional_ref.h"
 #include "components/record_replay/core/browser/record_replay_client.h"
 #include "components/record_replay/core/browser/record_replay_driver_factory.h"
+#include "components/record_replay/core/browser/task_definition.pb.h"
 #include "components/record_replay/core/common/record_replay_features.h"
 #include "components/record_replay/core/common/test_support/mock_task_store.h"
 #include "components/tabs/public/mock_tab_interface.h"
@@ -58,6 +59,9 @@ class MockRecordReplayClient : public RecordReplayClient {
     ON_CALL(*this, GetDriverFactory())
         .WillByDefault(ReturnRef(driver_factory_));
     ON_CALL(*this, GetTaskStore()).WillByDefault(Return(&data_manager_));
+    ON_CALL(*this, GetWeakPtr()).WillByDefault([this]() {
+      return weak_ptr_factory_.GetWeakPtr();
+    });
   }
   ~MockRecordReplayClient() override = default;
 
@@ -67,11 +71,18 @@ class MockRecordReplayClient : public RecordReplayClient {
   MOCK_METHOD(GURL, GetPrimaryMainFrameUrl, (), (override));
   MOCK_METHOD(autofill::AutofillClient*, GetAutofillClient, (), (override));
   MOCK_METHOD(void, ReportToUser, (std::string_view message), (override));
+  MOCK_METHOD(base::WeakPtr<RecordReplayClient>, GetWeakPtr, (), (override));
+  MOCK_METHOD(void,
+              OfferExecuting,
+              (const TaskDefinition& definition,
+               const std::vector<TaskParameter>& values),
+              (override));
 
  private:
   MockTaskStore data_manager_;
   RecordReplayManager manager_;
   MockRecordReplayDriverFactory driver_factory_;
+  base::WeakPtrFactory<MockRecordReplayClient> weak_ptr_factory_{this};
 };
 
 class RecordReplayManagerTest : public content::RenderViewHostTestHarness {

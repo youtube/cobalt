@@ -10,9 +10,7 @@
 
 #include <utility>
 
-#include "base/test/scoped_feature_list.h"
 #include "base/win/windows_version.h"
-#include "ui/accessibility/accessibility_features.h"
 #include "ui/accessibility/platform/ax_platform_node_win.h"
 #include "ui/accessibility/platform/ax_system_caret_win.h"
 #include "ui/views/test/desktop_window_tree_host_win_test_api.h"
@@ -231,8 +229,6 @@ TEST_F(DesktopWindowTreeHostWinAccessibilityObjectTest, CaretDoesNotLeak) {
 // This test validates that we do not leak the root accessibility object when
 // handing it out (UIA mode).
 TEST_F(DesktopWindowTreeHostWinAccessibilityObjectTest, UiaRootDoesNotLeak) {
-  base::test::ScopedFeatureList scoped_feature_list(::features::kUiaProvider);
-
   {
     Widget widget;
     Widget::InitParams params =
@@ -269,6 +265,25 @@ TEST_F(DesktopWindowTreeHostWinAccessibilityObjectTest, UiaRootDoesNotLeak) {
 
   // At this point our test reference should be the only one remaining.
   EXPECT_EQ(test_node_->ref_count_for_testing(), 1u);
+}
+
+TEST_F(DesktopWindowTreeHostWinTest, IsInNativeMoveResizeLoop) {
+  Widget widget;
+  Widget::InitParams params = CreateParams(
+      Widget::InitParams::CLIENT_OWNS_WIDGET, Widget::InitParams::TYPE_WINDOW);
+  widget.Init(std::move(params));
+  widget.Show();
+
+  DesktopWindowTreeHostWin* host = static_cast<DesktopWindowTreeHostWin*>(
+      widget.GetNativeWindow()->GetHost());
+  EXPECT_FALSE(host->IsInNativeMoveResizeLoop());
+
+  HWND hwnd = widget.GetNativeWindow()->GetHost()->GetAcceleratedWidget();
+  ::SendMessage(hwnd, WM_ENTERMENULOOP, FALSE, 0);
+  EXPECT_TRUE(host->IsInNativeMoveResizeLoop());
+
+  ::SendMessage(hwnd, WM_EXITMENULOOP, FALSE, 0);
+  EXPECT_FALSE(host->IsInNativeMoveResizeLoop());
 }
 
 }  // namespace test

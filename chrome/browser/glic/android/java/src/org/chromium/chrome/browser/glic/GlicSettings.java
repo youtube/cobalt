@@ -31,6 +31,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.settings.ChromeBaseSettingsFragment;
 import org.chromium.chrome.browser.settings.search.ChromeBaseSearchIndexProvider;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant;
@@ -70,6 +71,9 @@ public class GlicSettings extends ChromeBaseSettingsFragment {
             "https://policies.google.com/terms/generative-ai/use-policy";
     private static final String AUTO_BROWSE_CONSIDER_UNEXPECTED_RESULTS_URL =
             "https://support.google.com/gemini/answer/16821166";
+    private static final String ACTIVITY_URL =
+            "https://myactivity.google.com/product/gemini?utm_source=gemini";
+    private static final String EXTENSIONS_URL = "https://gemini.google.com/apps";
 
     public static final String PREF_KEY_GLIC_PERMISSIONS_ACTIVITY = "glic_permissions_activity";
     public static final String PREF_KEY_GLIC_EXTENSIONS = "glic_extensions";
@@ -175,7 +179,9 @@ public class GlicSettings extends ChromeBaseSettingsFragment {
 
         ChromeExpandableSwitchPreference autoBrowsePref =
                 assertNonNull(findPreference(PERMISSION_AUTO_BROWSE));
-        if (glicService != null) {
+        if (!GlicEnabling.shouldShowWebActuationToggle(getProfile())) {
+            autoBrowsePref.setVisible(false);
+        } else if (glicService != null) {
             boolean value = glicService.getUserEnabledActuationOnWeb();
             mSharedPreferencesManager.writeBoolean(
                     ChromePreferenceKeys.GLIC_AUTO_BROWSE_SETTING_ENABLED, value);
@@ -217,9 +223,7 @@ public class GlicSettings extends ChromeBaseSettingsFragment {
                 assertNonNull(findPreference(PREF_KEY_GLIC_PERMISSIONS_ACTIVITY));
         permissionActivityPref.setOnPreferenceClickListener(
                 preference -> {
-                    customTabLauncher.openUrlInCct(
-                            getActivity(),
-                            getString(R.string.settings_glic_permissions_activity_button_url));
+                    customTabLauncher.openUrlInCct(getActivity(), ACTIVITY_URL);
                     return true;
                 });
 
@@ -227,9 +231,7 @@ public class GlicSettings extends ChromeBaseSettingsFragment {
         if (permissionConnectedAppsPref != null) {
             permissionConnectedAppsPref.setOnPreferenceClickListener(
                     preference -> {
-                        customTabLauncher.openUrlInCct(
-                                getActivity(),
-                                getString(R.string.settings_glic_extensions_button_url));
+                        customTabLauncher.openUrlInCct(getActivity(), EXTENSIONS_URL);
                         return true;
                     });
         }
@@ -514,7 +516,8 @@ public class GlicSettings extends ChromeBaseSettingsFragment {
     public static final ChromeBaseSearchIndexProvider SEARCH_INDEX_DATA_PROVIDER =
             new ChromeBaseSearchIndexProvider(GlicSettings.class.getName(), R.xml.glic_settings) {
                 @Override
-                public void updateDynamicPreferences(Context context, SettingsIndexData indexData) {
+                public void updateDynamicPreferences(
+                        Context context, SettingsIndexData indexData, Profile profile) {
                     String prefFrag = GlicSettings.class.getName();
                     // TODO(crbug.com/503082430): Change to tab strip visibility check once toolbar
                     // Glic supported on LFF
@@ -526,6 +529,11 @@ public class GlicSettings extends ChromeBaseSettingsFragment {
                     if (!ChromeFeatureList.isEnabled(
                             ChromeFeatureList.ACTOR_LOGIN_PERMISSIONS_UI)) {
                         indexData.removeEntryForKey(prefFrag, PERMISSION_ACTOR_LOGIN);
+                    }
+                    boolean shouldShowWebActuation =
+                            GlicEnabling.shouldShowWebActuationToggle(profile);
+                    if (!shouldShowWebActuation) {
+                        indexData.removeEntryForKey(prefFrag, PERMISSION_AUTO_BROWSE);
                     }
                 }
             };

@@ -15,7 +15,7 @@ namespace glic {
 // LINT.IfChange(GlicGetContextFromTabError)
 enum class GlicGetContextFromTabError {
   kUnknown = 0,
-  // Tab context requests when the panel is hidden are now reported as both as
+  // Tab context requests when the panel is hidden are now reported as both
   // "hidden" and "error" in Glic.Api.* histograms.
   kPermissionDeniedWindowNotShowing_DEPRECATED = 1,
   kTabNotFound = 2,
@@ -82,6 +82,18 @@ enum class GlicZoomAction {
   kMaxValue = kReset,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicZoomAction)
+
+// LINT.IfChange(GlicProcessCounterAbuseVerdictResult)
+enum class GlicProcessCounterAbuseVerdictResult {
+  kSuccess = 0,
+  kInvalidVerdict = 1,
+  kNoInterstitialRequested = 2,
+  kUrlMismatch = 3,
+  kUnsupportedThreatType = 4,
+  kInterstitialSkippedAllowlist = 5,
+  kMaxValue = kInterstitialSkippedAllowlist,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicProcessCounterAbuseVerdictResult)
 
 }  // namespace glic
 

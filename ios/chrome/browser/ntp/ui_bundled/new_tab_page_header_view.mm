@@ -21,6 +21,7 @@
 #import "ios/chrome/browser/location_bar/ui_bundled/location_bar_constants.h"
 #import "ios/chrome/browser/ntp/search_engine_logo/mediator/search_engine_logo_mediator.h"
 #import "ios/chrome/browser/ntp/search_engine_logo/ui/search_engine_logo_state.h"
+#import "ios/chrome/browser/ntp/ui_bundled/fake_location_bar_view.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_color_palette.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_constants.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_controller_delegate.h"
@@ -33,6 +34,7 @@
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_shortcuts_handler.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_trait.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_utils.h"
+#import "ios/chrome/browser/ntp/ui_bundled/ntp_identity_disc_button.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_constants.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_presentation_context.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_ui_features.h"
@@ -42,7 +44,6 @@
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/elements/extended_touch_target_button.h"
-#import "ios/chrome/browser/shared/ui/elements/gradient/gradient_view.h"
 #import "ios/chrome/browser/shared/ui/elements/new_feature_badge_view.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
@@ -75,11 +76,6 @@ namespace {
 // Element ID for Fakebox scribble.
 NSString* const kScribbleFakeboxElementId = @"kScribbleFakeboxElementId";
 
-// Fakebox highlight animation duration.
-constexpr CGFloat kFakeboxHighlightDuration = 0.4;
-
-// Fakebox highlight background alpha.
-constexpr CGFloat kFakeboxHighlightAlpha = 0.06;
 
 // The percentage the fakebox's height that should be allowed to overlap the top
 // toolbar area in split toolbar mode before the fakebox begins to resize and
@@ -123,12 +119,6 @@ constexpr CGFloat kButtonSpacing = 9.0;
 // The height of the divider between the mic and lens icons.
 constexpr CGFloat kIconDividerHeight = 13.0;
 
-// The offset of the account error badge from the ADP center.
-constexpr CGFloat kAccountBadgeOffsetFromDiscCenter = 10.0;
-
-// The size of the account error badge that is on top the ADP.
-constexpr CGFloat kErrorSymbolPointSize = 16.0;
-
 // The offset from the center of the customization button for where to show the
 // new feature badge.
 constexpr CGFloat kCustomizationNewBadgeOffset = 14.0;
@@ -137,44 +127,10 @@ constexpr CGFloat kCustomizationNewBadgeOffset = 14.0;
 NSString* const kMIACircleAnimationLightMode = @"mia_circle_animation_no_glow";
 NSString* const kMIACircleAnimationDarkMode = @"mia_glowing_circle_animation";
 
-// Horizontal padding between the edge of the pill and its label.
-const CGFloat kPillHorizontalPadding = 13;
-
-// Vertical padding between the edge of the pill and its label.
-const CGFloat kPillVerticalPadding = 11;
-
-// Multiplier for applying margins on multiple sides
-const CGFloat kMarginMultiplier = 2;
-
-// The maximum point size of the font for the Identity Disc button.
-const CGFloat kIdentityDiscMaxFontSize = 24;
-
-// Returns the top color of the Fakebox's gradient background.
-UIColor* FakeboxTopColor() {
-  return UIAccessibilityIsReduceTransparencyEnabled()
-             ? [UIColor colorNamed:@"fake_omnibox_solid_background_color"]
-             : [UIColor colorNamed:@"fake_omnibox_top_gradient_color"];
-}
-
-// Returns the bottom color of the Fakebox's gradient background.
-UIColor* FakeboxBottomColor() {
-  return UIAccessibilityIsReduceTransparencyEnabled()
-             ? [UIColor colorNamed:@"fake_omnibox_solid_background_color"]
-             : [UIColor colorNamed:@"fake_omnibox_bottom_gradient_color"];
-}
-
 // Returns the background color for the NTP Header view. This is the color
 // that shows when the fakebox is scrolled up.
 UIColor* HeaderBackgroundColor(id<UITraitEnvironment> environment) {
   if (IsSplitToolbarMode(environment)) {
-    return [UIColor colorNamed:kBackgroundColor];
-  } else {
-    return [UIColor colorNamed:@"ntp_background_color"];
-  }
-}
-
-UIColor* AccountParticleDiscBadgeBackgroundColor(UIUserInterfaceStyle style) {
-  if (style == UIUserInterfaceStyleDark) {
     return [UIColor colorNamed:kBackgroundColor];
   } else {
     return [UIColor colorNamed:@"ntp_background_color"];
@@ -226,17 +182,28 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
                                     UIPointerInteractionDelegate>
 
 // The Lens button. May be null if Lens is not available.
-@property(nonatomic, strong, readwrite) ExtendedTouchTargetButton* lensButton;
+@property(nonatomic, strong) ExtendedTouchTargetButton* lensButton;
 // The button that opens multiodal actions in Composebox. May be nil if
 // Composebox or multimodal actions are not enabled.
-@property(nonatomic, strong, readwrite) ExtendedTouchTargetButton* plusButton;
+@property(nonatomic, strong) ExtendedTouchTargetButton* plusButton;
 
 @property(nonatomic, strong) UIView* voiceAndLensDivider;
 
-@property(nonatomic, strong, readwrite)
-    ExtendedTouchTargetButton* voiceSearchButton;
+@property(nonatomic, strong) ExtendedTouchTargetButton* voiceSearchButton;
 
 @property(nonatomic, strong) UIView* separator;
+
+// Private properties moved from header.
+@property(nonatomic, strong) UIButton* toolsMenuButton;
+@property(nonatomic, strong) UIView* cancelButton;
+@property(nonatomic, strong) OmniboxContainerView* omnibox;
+@property(nonatomic, strong) UIView* fakeOmniboxContainer;
+@property(nonatomic, strong) UIButton* fakeTapButton;
+@property(nonatomic, strong)
+    NSLayoutConstraint* fakeLocationBarLeadingConstraint;
+@property(nonatomic, strong)
+    NSLayoutConstraint* fakeLocationBarTrailingConstraint;
+@property(nonatomic, strong) UILabel* searchHintLabel;
 
 // Layout constraints for fake omnibox background image and blur.
 @property(nonatomic, strong) NSLayoutConstraint* fakeLocationBarTopConstraint;
@@ -249,15 +216,9 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
 @property(nonatomic, strong) NSLayoutConstraint* hintLabelLeadingConstraint;
 @property(nonatomic, strong) NSLayoutConstraint* hintLabelTrailingConstraint;
 
-// View used to add on-touch highlight to the fake omnibox.
-@property(nonatomic, strong) UIView* fakeLocationBarHighlightView;
 // View used to simulate the top toolbar when the header is stuck to the top of
 // the NTP.
 @property(nonatomic, strong) UIView* fakeToolbar;
-
-@property(nonatomic, strong) UIImage* identityDiscImage;
-@property(nonatomic, copy) NSString* identityDiscAccessibilityLabel;
-@property(nonatomic, assign) BOOL isSignedIn;
 
 // Constraints for doodle and fake omnibox.
 @property(nonatomic, strong) NSLayoutConstraint* doodleHeightConstraint;
@@ -270,6 +231,7 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
 
 @property(nonatomic, assign) BOOL voiceSearchIsEnabled;
 @property(nonatomic, copy) NSString* defaultSearchEngineName;
+@property(nonatomic, strong) FakeLocationBarView* fakeLocationBar;
 
 @end
 
@@ -280,6 +242,7 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
   BOOL _didNotifyLensBadgeDisplay;
   BOOL _didNotifyCustomizationBadgeDisplay;
   BOOL _lensButtonWithNewBadgeTapped;
+  BOOL _isSignedIn;
   // The current scale of the transform for the hint label. 1 if not currently
   //  scaled.
   CGFloat _currentHintLabelScale;
@@ -287,8 +250,7 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
   UIFont* _hintLabelFontSmall;
   // Stores the big font used for the unpinned fakebox.
   UIFont* _hintLabelFontBig;
-  // Image view of the account disc particle badge.
-  UIImageView* _accountDiscParticleBadgeImageView;
+
   // The New Feature badge on the customization menu's entrypoint.
   UIView* _customizationNewFeatureBadge;
   // A view to contain all the buttons on the trailing side of the fakebox.
@@ -312,22 +274,8 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
   // Whether the omnibox is pinned to the bottom position.
   BOOL _isBottomOmnibox;
 
-  // Location bar view for when it has a colored gradient.
-  GradientView* _fakeLocationBarGradientView;
-  // Location bar view to use for when it should have a blur effect.
-  UIVisualEffectView* _fakeLocationBarBlurEffectView;
-
-  // YES if there is an identity account error to show.
-  BOOL _hasAccountError;
-
   // YES if Google is the default search engine.
   BOOL _isGoogleDefaultSearchEngine;
-
-  // Identity disc constraints.
-  NSLayoutConstraint* _identityDiscWidthConstraint;
-  NSLayoutConstraint* _identityDiscHeightConstraint;
-  NSLayoutConstraint* _identityDiscTrailingConstraint;
-  NSLayoutConstraint* _identityDiscCapsuleWidthConstraint;
 }
 
 #pragma mark - Public
@@ -337,6 +285,7 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
                      (BOOL)useNewBadgeForCustomizationMenu {
   self = [super initWithFrame:CGRectZero];
   if (self) {
+    _fakeLocationBar = [[FakeLocationBarView alloc] init];
     self.clipsToBounds = YES;
     _useNewBadgeForLensButton = useNewBadgeForLensButton;
     _useNewBadgeForCustomizationMenu = useNewBadgeForCustomizationMenu;
@@ -349,7 +298,7 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
       [weakSelf updateUIOnTraitChange:previousCollection];
     };
     [self registerForTraitChanges:@[
-      UITraitHorizontalSizeClass.class,
+      UITraitHorizontalSizeClass.class, UITraitVerticalSizeClass.class,
       UITraitPreferredContentSizeCategory.class, UITraitUserInterfaceStyle.class
     ]
                       withHandler:handler];
@@ -367,20 +316,7 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
                        (updateButtonsForCurrentTraitCollection)];
 
     // Create the identity disc button.
-    _identityDiscButton = [UIButton buttonWithType:UIButtonTypeCustom];
-    _identityDiscButton.accessibilityIdentifier = kNTPFeedHeaderIdentityDisc;
-    _identityDiscButton.pointerInteractionEnabled = YES;
-    _identityDiscButton.pointerStyleProvider = ^UIPointerStyle*(
-        UIButton* button, UIPointerEffect* proposedEffect,
-        UIPointerShape* proposedShape) {
-      CGFloat singleInset =
-          (button.frame.size.width - ntp_home::kIdentityAvatarDimension) / 2;
-      CGRect rect = CGRectInset(button.frame, singleInset, singleInset);
-      UIPointerShape* shape =
-          [UIPointerShape shapeWithRoundedRect:rect
-                                  cornerRadius:rect.size.width / 2];
-      return [UIPointerStyle styleWithEffect:proposedEffect shape:shape];
-    };
+    _identityDiscButton = [[NTPIdentityDiscButton alloc] init];
   }
   return self;
 }
@@ -414,7 +350,7 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
   }
   [self.omnibox.textInput setDefaultPlaceholderText:placeholderText];
   self.searchHintLabel.text = placeholderText;
-  self.accessibilityButton.accessibilityLabel = placeholderText;
+  self.fakeLocationBar.accessibilityLabel = placeholderText;
 }
 
 - (void)updatePlaceholderText {
@@ -449,7 +385,9 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
   [self addSeparatorToSearchField:self.fakeOmniboxContainer];
   [self addCustomizationMenu];
   if (IsChromeNextIaEnabled()) {
-    [self addToolsMenuIfNeeded];
+    if (!CanShowTabStrip(self) && !IsRegularXRegularSizeClass(self)) {
+      [self addToolsMenu];
+    }
   }
 }
 
@@ -460,21 +398,12 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
                               action:@selector(identityDiscWasTapped:)
                     forControlEvents:UIControlEventTouchUpInside];
 
-  _identityDiscWidthConstraint =
-      [self.identityDiscButton.widthAnchor constraintEqualToConstant:0];
-  _identityDiscHeightConstraint =
-      [self.identityDiscButton.heightAnchor constraintEqualToConstant:0];
-  _identityDiscTrailingConstraint = [self.identityDiscButton.trailingAnchor
-      constraintEqualToAnchor:self.safeAreaLayoutGuide.trailingAnchor
-                     constant:0];
-  _identityDiscTrailingConstraint.active = YES;
-  _identityDiscCapsuleWidthConstraint = [self.identityDiscButton.widthAnchor
-      constraintGreaterThanOrEqualToAnchor:self.identityDiscButton.heightAnchor
-                                multiplier:2.0];
+  [self.identityDiscButton
+      setupConstraintsWithTrailingAnchor:self.safeAreaLayoutGuide
+                                             .trailingAnchor];
 
   [self.layoutGuideCenter referenceView:self.identityDiscButton
                               underName:kNTPIdentityDiscButtonGuide];
-  [self updateIdentityDiscConstraints];
 }
 
 - (void)setupFakeOmnibox {
@@ -485,26 +414,19 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
       ntp_home::FakeOmniboxAccessibilityID();
   [self addSubview:self.fakeOmniboxContainer];
 
-  self.accessibilityButton = [[UIButton alloc] init];
-  [self.accessibilityButton addTarget:self.commandHandler
-                               action:@selector(fakeboxTapped)
-                     forControlEvents:UIControlEventTouchUpInside];
-  [self.accessibilityButton addObserver:self
-                             forKeyPath:@"highlighted"
-                                options:NSKeyValueObservingOptionNew
-                                context:NULL];
+  [self.fakeOmniboxContainer
+      addInteraction:[[UIPointerInteraction alloc] initWithDelegate:self]];
 
-  CGFloat fakeOmniboxHeight = content_suggestions::FakeOmniboxHeight();
-  self.accessibilityButton.layer.cornerRadius =
-      (fakeOmniboxHeight - kFakeLocationBarHeightMargin) / 2;
-  self.accessibilityButton.clipsToBounds = YES;
-  self.accessibilityButton.isAccessibilityElement = YES;
-  self.accessibilityButton.accessibilityLabel = self.placeholderText;
-  self.accessibilityButton.accessibilityIdentifier =
+  [self addViewsToFakeOmnibox];
+
+  // Configure accessibility and targets on fakeLocationBar.
+  [self.fakeLocationBar addTarget:self.commandHandler
+                           action:@selector(fakeboxTapped)
+                 forControlEvents:UIControlEventTouchUpInside];
+  self.fakeLocationBar.isAccessibilityElement = YES;
+  self.fakeLocationBar.accessibilityLabel = self.placeholderText;
+  self.fakeLocationBar.accessibilityIdentifier =
       kNTPFakeOmniboxAccessibilityButton;
-  [self.fakeOmniboxContainer addSubview:self.accessibilityButton];
-  self.accessibilityButton.translatesAutoresizingMaskIntoConstraints = NO;
-  AddSameConstraints(self.fakeOmniboxContainer, self.accessibilityButton);
 
   NSMutableArray<UIAccessibilityCustomAction*>* accessibilityCustomActions =
       [[NSMutableArray alloc] init];
@@ -541,13 +463,7 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
                     selector:@selector(openMultimodalActionsMenu)]];
   }
 
-  self.accessibilityButton.accessibilityCustomActions =
-      accessibilityCustomActions;
-
-  [self.fakeOmniboxContainer
-      addInteraction:[[UIPointerInteraction alloc] initWithDelegate:self]];
-
-  [self addViewsToFakeOmnibox];
+  self.fakeLocationBar.accessibilityCustomActions = accessibilityCustomActions;
 
   UIIndirectScribbleInteraction* scribbleInteraction =
       [[UIIndirectScribbleInteraction alloc] initWithDelegate:self];
@@ -967,7 +883,7 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
   CGFloat maxTopMarginDiff = fakeOmniboxHeight - locationBarHeight -
                              kAdaptiveLocationBarVerticalMargin;
   topMarginConstraint.constant =
-      -content_suggestions::SearchFieldTopMargin(self.logoState) -
+      -content_suggestions::SearchFieldTopMargin(self.searchEngineLogoState) -
       maxTopMarginDiff * progress;
   heightConstraint.constant =
       ntp_header::kFakeLocationBarTopConstraint -
@@ -1018,6 +934,8 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
   CHECK(IsSplitToolbarMode(self));
   CHECK(self.layoutGuideCenter);
 
+  widthConstraint.constant = searchFieldNormalWidth;
+
   UIView* topOmniboxView =
       [self.layoutGuideCenter referencedViewUnderName:kTopOmniboxGuide];
 
@@ -1052,7 +970,6 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
     // bottom.
     self.fakeOmniboxContainer.transform = CGAffineTransformIdentity;
   }
-  widthConstraint.constant = searchFieldNormalWidth;
   self.alpha = std::max<CGFloat>(1.0 - progress, 0.01);
 }
 
@@ -1101,55 +1018,6 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
   }
 
   _lastAnimationPercent = percent;
-}
-
-- (void)setFakeboxHighlighted:(BOOL)highlighted {
-  [UIView animateWithDuration:kFakeboxHighlightDuration
-                        delay:0
-                      options:UIViewAnimationOptionCurveEaseOut
-                   animations:^{
-                     CGFloat alpha = highlighted ? kFakeboxHighlightAlpha : 0;
-                     self.fakeLocationBarHighlightView.backgroundColor =
-                         [UIColor colorWithWhite:0 alpha:alpha];
-                   }
-                   completion:nil];
-}
-
-- (void)setIdentityDiscErrorBadge {
-  if (!_identityDiscButton) {
-    return;
-  }
-  _accountDiscParticleBadgeImageView = [[UIImageView alloc]
-      initWithImage:DefaultSymbolWithPointSize(kErrorCircleFillSymbol,
-                                               kErrorSymbolPointSize)];
-  _accountDiscParticleBadgeImageView.translatesAutoresizingMaskIntoConstraints =
-      NO;
-  _accountDiscParticleBadgeImageView.tintColor =
-      [UIColor colorNamed:kRed500Color];
-  _accountDiscParticleBadgeImageView.backgroundColor =
-      AccountParticleDiscBadgeBackgroundColor(
-          self.traitCollection.userInterfaceStyle);
-  _accountDiscParticleBadgeImageView.layer.cornerRadius =
-      _accountDiscParticleBadgeImageView.frame.size.width / 2;
-  _accountDiscParticleBadgeImageView.clipsToBounds = YES;
-  _accountDiscParticleBadgeImageView.accessibilityIdentifier =
-      kNTPFeedHeaderIdentityDiscBadge;
-
-  [_identityDiscButton addSubview:_accountDiscParticleBadgeImageView];
-
-  [NSLayoutConstraint activateConstraints:@[
-    [_accountDiscParticleBadgeImageView.centerXAnchor
-        constraintEqualToAnchor:_identityDiscButton.centerXAnchor
-                       constant:kAccountBadgeOffsetFromDiscCenter],
-    [_accountDiscParticleBadgeImageView.centerYAnchor
-        constraintEqualToAnchor:_identityDiscButton.centerYAnchor
-                       constant:kAccountBadgeOffsetFromDiscCenter],
-  ]];
-}
-
-- (void)removeIdentityDiscErrorBadge {
-  [_accountDiscParticleBadgeImageView removeFromSuperview];
-  _accountDiscParticleBadgeImageView = nil;
 }
 
 - (void)setCustomizationMenuButton:(UIButton*)customizationMenuButton
@@ -1232,8 +1100,10 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
 
 - (void)setToolsMenuButton:(UIButton*)toolsMenuButton {
   CHECK(IsChromeNextIaEnabled());
-  if (_toolsMenuButton) {
+  if (!toolsMenuButton) {
     [_toolsMenuButton removeFromSuperview];
+    _toolsMenuButton = nil;
+    return;
   }
 
   if (IsNTPBackgroundCustomizationEnabled()) {
@@ -1336,54 +1206,6 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
   self.fakeOmniboxContainer.transform = CGAffineTransformIdentity;
 }
 
-#pragma mark - Property accessors
-
-- (UIView*)fakeLocationBar {
-  if (!_fakeLocationBar) {
-    _fakeLocationBar = [[UIView alloc] init];
-    _fakeLocationBar.userInteractionEnabled = NO;
-    _fakeLocationBar.clipsToBounds = YES;
-    _fakeLocationBar.translatesAutoresizingMaskIntoConstraints = NO;
-
-    _fakeLocationBarGradientView =
-        [[GradientView alloc] initWithTopColor:FakeboxTopColor()
-                                   bottomColor:FakeboxBottomColor()];
-    _fakeLocationBarGradientView.userInteractionEnabled = NO;
-    _fakeLocationBarGradientView.translatesAutoresizingMaskIntoConstraints = NO;
-    [_fakeLocationBar addSubview:_fakeLocationBarGradientView];
-    AddSameConstraints(_fakeLocationBar, _fakeLocationBarGradientView);
-
-    if (IsNTPBackgroundCustomizationEnabled()) {
-      UIVisualEffect* blurEffect =
-          [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThickMaterial];
-      _fakeLocationBarBlurEffectView =
-          [[UIVisualEffectView alloc] initWithEffect:blurEffect];
-      _fakeLocationBarBlurEffectView.userInteractionEnabled = NO;
-      _fakeLocationBarBlurEffectView.translatesAutoresizingMaskIntoConstraints =
-          NO;
-      [_fakeLocationBar addSubview:_fakeLocationBarBlurEffectView];
-      AddSameConstraints(_fakeLocationBar, _fakeLocationBarBlurEffectView);
-    }
-
-    _fakeLocationBarHighlightView = [[UIView alloc] init];
-    _fakeLocationBarHighlightView.userInteractionEnabled = NO;
-    _fakeLocationBarHighlightView.backgroundColor = UIColor.clearColor;
-    _fakeLocationBarHighlightView.translatesAutoresizingMaskIntoConstraints =
-        NO;
-    [_fakeLocationBar addSubview:_fakeLocationBarHighlightView];
-    AddSameConstraints(_fakeLocationBar, _fakeLocationBarHighlightView);
-
-    // Make sure the correct background is visible.
-    if (IsNTPBackgroundCustomizationEnabled()) {
-      [self applyBackgroundTheme];
-    } else {
-      _fakeLocationBarGradientView.hidden = NO;
-      _fakeLocationBarBlurEffectView.hidden = YES;
-    }
-  }
-  return _fakeLocationBar;
-}
-
 #pragma mark - NewTabPageHeaderConsumer
 
 - (void)setOmniboxInBottomPosition:(BOOL)isBottomOmnibox {
@@ -1415,41 +1237,31 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
   [self updatePlaceholderText];
 }
 
-- (void)setSearchEngineLogoMediator:
-    (SearchEngineLogoMediator*)searchEngineLogoMediator {
-  if (_searchEngineLogoMediator) {
-    [_searchEngineLogoMediator.view removeFromSuperview];
+- (void)setSearchEngineLogoView:(UIView*)searchEngineLogoView {
+  if (_searchEngineLogoView == searchEngineLogoView) {
+    return;
   }
-  _searchEngineLogoMediator = searchEngineLogoMediator;
-  if (_searchEngineLogoMediator) {
-    _searchEngineLogoMediator.consumer = self;
-    [self insertSubview:_searchEngineLogoMediator.view
-           belowSubview:self.toolBarView];
-    _searchEngineLogoMediator.view.translatesAutoresizingMaskIntoConstraints =
-        NO;
-    _searchEngineLogoMediator.view.accessibilityIdentifier =
+  if (_searchEngineLogoView) {
+    [_searchEngineLogoView removeFromSuperview];
+  }
+  _searchEngineLogoView = searchEngineLogoView;
+  if (_searchEngineLogoView) {
+    [self insertSubview:_searchEngineLogoView belowSubview:self.toolBarView];
+    _searchEngineLogoView.translatesAutoresizingMaskIntoConstraints = NO;
+    _searchEngineLogoView.accessibilityIdentifier =
         ntp_home::NTPLogoAccessibilityID();
-    [self addConstraintsForLogoView:_searchEngineLogoMediator.view
+    [self addConstraintsForLogoView:_searchEngineLogoView
                         fakeOmnibox:self.fakeOmniboxContainer
                       andHeaderView:self];
-    [self applyBackgroundTheme];
   }
 }
 
 - (void)updateADPBadgeWithErrorFound:(BOOL)hasAccountError
                                 name:(NSString*)name
                                email:(NSString*)email {
-  if (hasAccountError == _hasAccountError) {
-    return;
-  }
-
-  _hasAccountError = hasAccountError;
-  if (_hasAccountError) {
-    [self setIdentityDiscErrorBadge];
-  } else {
-    [self removeIdentityDiscErrorBadge];
-  }
-  [self updateIdentityDiscAccessibilityLabelWithName:name email:email];
+  [self.identityDiscButton updateADPBadgeWithErrorFound:hasAccountError
+                                                   name:name
+                                                  email:email];
 }
 
 - (void)setDefaultSearchEngineImage:(UIImage*)image {
@@ -1536,13 +1348,13 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
                       withNewBadge:_useNewBadgeForCustomizationMenu];
 }
 
-// Creates the Tools menu and adds it to the header view (iPhone only)
-- (void)addToolsMenuIfNeeded {
+// Creates the Tools menu and adds it to the header view.
+- (void)addToolsMenu {
   CHECK(IsChromeNextIaEnabled());
-
-  // If the App Bar is not available (iPad), the Tools menu should not be added
-  // to the header view.
-  if (CanShowTabStrip(self)) {
+  CHECK(!IsRegularXRegularSizeClass(self));
+  CHECK(!CanShowTabStrip(self));
+  if (self.toolsMenuButton.superview) {
+    // Tools menu button is already in the view hierarchy.
     return;
   }
 
@@ -1607,44 +1419,15 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
 // Sets the background based on the current NTP background, current color
 // palette, or defaults if neither are set.
 - (void)applyBackgroundTheme {
-  if (self.identityDiscButton && self.identityDiscImage &&
-      self.identityDiscAccessibilityLabel) {
-    [self updateIdentityDiscState];
-  }
+  [self.identityDiscButton
+      updateConfigurationWithPalette:[self.traitCollection
+                                             objectForNewTabPageTrait]];
 
   // Fakebox coloring looks at image/color/default to determine correct colors.
   [self setFakeboxColorsWithProgress:_lastAnimationPercent];
 
-  BOOL hasBlurredBackground =
-      [self.traitCollection boolForNewTabPageImageBackgroundTrait];
 
-  if (IsNTPBackgroundCustomizationEnabled()) {
-    if (hasBlurredBackground) {
-      self.searchEngineLogoMediator.usesMonochromeLogo = YES;
-      self.searchEngineLogoMediator.view.tintColor = UIColor.whiteColor;
-    } else {
-      NewTabPageColorPalette* colorPalette =
-          [self.traitCollection objectForNewTabPageTrait];
-      if (colorPalette) {
-        self.searchEngineLogoMediator.usesMonochromeLogo = YES;
-        self.searchEngineLogoMediator.view.tintColor = colorPalette.tintColor;
-      } else {
-        self.searchEngineLogoMediator.usesMonochromeLogo = NO;
-        self.searchEngineLogoMediator.view.tintColor = nil;
-      }
-    }
-  } else {
-    self.searchEngineLogoMediator.usesMonochromeLogo = NO;
-    self.searchEngineLogoMediator.view.tintColor = nil;
-  }
-
-  if (hasBlurredBackground) {
-    _fakeLocationBarGradientView.hidden = YES;
-    _fakeLocationBarBlurEffectView.hidden = NO;
-  } else {
-    _fakeLocationBarGradientView.hidden = NO;
-    _fakeLocationBarBlurEffectView.hidden = YES;
-  }
+  [self.fakeLocationBar applyBackgroundTheme];
 }
 
 // Empties the fakebox buttons stack.
@@ -1667,8 +1450,8 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
   // Voice search.
   self.voiceSearchButton =
       [ExtendedTouchTargetButton buttonWithType:UIButtonTypeSystem];
-  self.voiceSearchButton.enabled = NO;
-  self.voiceSearchButton.isAccessibilityElement = NO;
+  self.voiceSearchButton.enabled = _voiceSearchIsEnabled;
+  self.voiceSearchButton.isAccessibilityElement = _voiceSearchIsEnabled;
   [_buttonStack addArrangedSubview:self.voiceSearchButton];
 
   // Lens.
@@ -1796,7 +1579,8 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
     if (canShowTabStrip || !isSplitToolbarMode) {
       offset += content_suggestions::FakeOmniboxHeight();
       if (canShowTabStrip) {
-        offset -= content_suggestions::SearchFieldTopMargin(self.logoState);
+        offset -= content_suggestions::SearchFieldTopMargin(
+            self.searchEngineLogoState);
       }
     }
     return offset;
@@ -1824,7 +1608,8 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
             content_suggestions::FakeOmniboxHeight();
 
   if (canShowTabStrip) {
-    offset -= content_suggestions::SearchFieldTopMargin(self.logoState);
+    offset -=
+        content_suggestions::SearchFieldTopMargin(self.searchEngineLogoState);
   } else {
     offset -= self.safeAreaInsets.top + topToolbarHeight;
   }
@@ -1853,19 +1638,11 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
 // Sets the fakebox's colors, based on the current customization settings and
 // the progress towards being pinned at the top.
 - (void)setFakeboxColorsWithProgress:(CGFloat)progress {
-  UIColor* pinnedColor = [UIColor colorNamed:kTextfieldBackgroundColor];
   NewTabPageColorPalette* colorPalette =
       [self.traitCollection objectForNewTabPageTrait];
 
-  // Use a quadratic curve interpolation.
-  progress = progress * progress;
-  [_fakeLocationBarGradientView
-      setStartColor:BlendColors(colorPalette ? colorPalette.omniboxColor
-                                             : FakeboxTopColor(),
-                                pinnedColor, progress)
-           endColor:BlendColors(colorPalette ? colorPalette.omniboxColor
-                                             : FakeboxBottomColor(),
-                                pinnedColor, progress)];
+  [self.fakeLocationBar updateColorsWithProgress:progress
+                                    colorPalette:colorPalette];
 
   UIColor* defaultTintColor =
       content_suggestions::DefaultIconTintColorWithAIMAllowed(_isAIMAllowed);
@@ -1934,15 +1711,33 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
 
 // Updates facets of the UI to reflect the change in the collection of UITraits.
 - (void)updateUIOnTraitChange:(UITraitCollection*)previousTraitCollection {
-  if (previousTraitCollection.horizontalSizeClass !=
-          self.traitCollection.horizontalSizeClass ||
+  BOOL horizontalSizeClassChanged =
+      previousTraitCollection.horizontalSizeClass !=
+      self.traitCollection.horizontalSizeClass;
+  BOOL preferredContentSizeCategoryChanged =
       previousTraitCollection.preferredContentSizeCategory !=
-          self.traitCollection.preferredContentSizeCategory) {
+      self.traitCollection.preferredContentSizeCategory;
+
+  if (horizontalSizeClassChanged || preferredContentSizeCategoryChanged) {
     [self updateFakeboxDisplay];
   }
 
-  if (previousTraitCollection.preferredContentSizeCategory !=
-      self.traitCollection.preferredContentSizeCategory) {
+  if (IsChromeNextIaEnabled()) {
+    if (horizontalSizeClassChanged ||
+        previousTraitCollection.verticalSizeClass !=
+            self.traitCollection.verticalSizeClass) {
+      [self resetSplitToolbarResizing];
+      if (!CanShowTabStrip(self) && !IsRegularXRegularSizeClass(self)) {
+        [self addToolsMenu];
+      } else {
+        // If the Tools menu button is always visible in the toolbar (iPad), the
+        // Tools menu should not be in the header.
+        self.toolsMenuButton = nil;
+      }
+    }
+  }
+
+  if (preferredContentSizeCategoryChanged) {
     [self updateHintLabelFonts];
   }
 
@@ -1952,23 +1747,9 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
     // automatically update when dark/light mode is changed. It needs to be
     // manually updated here.
     [self setFakeboxColorsWithProgress:_lastAnimationPercent];
-
-    if (_accountDiscParticleBadgeImageView) {
-      _accountDiscParticleBadgeImageView.backgroundColor =
-          AccountParticleDiscBadgeBackgroundColor(
-              self.traitCollection.userInterfaceStyle);
-    }
-  }
-
-  if (IsChromeNextIaEnabled()) {
-    [self resetSplitToolbarResizing];
-    [self addToolsMenuIfNeeded];
   }
 }
 
-- (void)dealloc {
-  [self.accessibilityButton removeObserver:self forKeyPath:@"highlighted"];
-}
 
 #pragma mark - helpers
 
@@ -2195,47 +1976,18 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
   return [UIPointerStyle styleWithEffect:effect shape:shape];
 }
 
-- (void)observeValueForKeyPath:(NSString*)keyPath
-                      ofObject:(id)object
-                        change:(NSDictionary*)change
-                       context:(void*)context {
-  if ([@"highlighted" isEqualToString:keyPath]) {
-    [self setFakeboxHighlighted:[object isHighlighted]];
-  } else {
-    [super observeValueForKeyPath:keyPath
-                         ofObject:object
-                           change:change
-                          context:context];
-  }
-}
-
 #pragma mark - UserAccountImageUpdateDelegate
 
 - (void)setSignedOutAccountImage {
-  self.identityDiscImage = DefaultSymbolTemplateWithPointSize(
-      kPersonCropCircleSymbol, ntp_home::kSignedOutIdentityIconSize);
-
-  self.isSignedIn = NO;
-
-  self.identityDiscAccessibilityLabel =
-      l10n_util::GetNSString(IDS_IOS_SIGN_IN_BUTTON_ACCESSIBILITY_LABEL);
-
-  [self updateIdentityDiscState];
+  _isSignedIn = NO;
+  [self.identityDiscButton setSignedOutAccountImage];
 }
 
 - (void)updateAccountImage:(UIImage*)image
                       name:(NSString*)name
                      email:(NSString*)email {
-  DCHECK(image && image.size.width == ntp_home::kIdentityAvatarDimension &&
-         image.size.height == ntp_home::kIdentityAvatarDimension)
-      << base::SysNSStringToUTF8([image description]);
-  DCHECK(email);
-
-  self.identityDiscImage = image;
-
-  self.isSignedIn = YES;
-
-  [self updateIdentityDiscAccessibilityLabelWithName:name email:email];
+  _isSignedIn = YES;
+  [self.identityDiscButton updateAccountImage:image name:name email:email];
 }
 
 #pragma mark - SearchEngineLogoConsumer
@@ -2399,177 +2151,8 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
 }
 
 - (void)updateLogoForOffset:(CGFloat)offset {
-  self.searchEngineLogoMediator.view.alpha =
+  self.searchEngineLogoView.alpha =
       std::max(1 - [self searchFieldProgressForOffset:offset], 0.0);
-}
-
-#pragma mark - Private (Identity Disc)
-
-- (void)setIsSignedIn:(BOOL)isSignedIn {
-  BOOL wasSignedIn = _isSignedIn;
-  _isSignedIn = isSignedIn;
-  if (wasSignedIn != _isSignedIn) {
-    [self updateIdentityDiscConstraints];
-    if (self.identityDiscButton && self.identityDiscImage &&
-        self.identityDiscAccessibilityLabel) {
-      [self updateIdentityDiscState];
-    }
-  }
-}
-
-// Configures `identityDiscButton` with the current state of
-// `identityDiscImage`.
-- (void)updateIdentityDiscState {
-  DCHECK(self.identityDiscImage);
-  DCHECK(self.identityDiscAccessibilityLabel);
-
-  UIButton* button = self.identityDiscButton;
-
-  button.accessibilityLabel = self.identityDiscAccessibilityLabel;
-  button.clipsToBounds = YES;
-
-  if (self.isSignedIn) {
-    UIImage* image = self.identityDiscImage;
-    button.configuration = nil;
-    [button setImage:image forState:UIControlStateNormal];
-    button.backgroundColor = nil;
-    button.imageView.layer.cornerRadius = image.size.width / 2;
-    button.imageView.layer.masksToBounds = YES;
-    button.layer.cornerRadius = image.size.width;
-    return;
-  }
-
-  // Other configuration uses UIButtonConfiguration, not this property.
-  button.layer.cornerRadius = 0;
-
-  if (!IsNTPBackgroundCustomizationEnabled()) {
-    [button setImage:nil forState:UIControlStateNormal];
-    UIButtonConfiguration* buttonConfiguration =
-        [UIButtonConfiguration plainButtonConfiguration];
-    buttonConfiguration.background.backgroundColor =
-        [self defaultButtonBackgroundColor];
-    NSDictionary* attributes = @{
-      NSFontAttributeName : PreferredFontForTextStyle(
-          UIFontTextStyleSubheadline, UIFontWeightSemibold,
-          kIdentityDiscMaxFontSize),
-      NSForegroundColorAttributeName : [UIColor colorNamed:kBlue600Color],
-    };
-    buttonConfiguration.attributedTitle = [[NSAttributedString alloc]
-        initWithString:l10n_util::GetNSString(IDS_IOS_SIGNIN_BUTTON_TEXT)
-            attributes:attributes];
-    buttonConfiguration.cornerStyle = UIButtonConfigurationCornerStyleCapsule;
-    buttonConfiguration.contentInsets = NSDirectionalEdgeInsetsMake(
-        kPillVerticalPadding, kPillHorizontalPadding, kPillVerticalPadding,
-        kPillHorizontalPadding);
-    button.configuration = buttonConfiguration;
-    return;
-  }
-
-  [button setImage:nil forState:UIControlStateNormal];
-
-  UIButtonConfiguration* buttonConfiguration =
-      [UIButtonConfiguration plainButtonConfiguration];
-  UIColor* foregroundColor;
-  if ([self.traitCollection boolForNewTabPageImageBackgroundTrait]) {
-    UIVisualEffect* blurEffect =
-        [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemMaterial];
-    UIVisualEffectView* blurBackgroundView =
-        [[UIVisualEffectView alloc] initWithEffect:blurEffect];
-    buttonConfiguration.background.customView = blurBackgroundView;
-
-    foregroundColor = [UIColor colorNamed:kTextPrimaryColor];
-  } else {
-    NewTabPageColorPalette* colorPalette =
-        [self.traitCollection objectForNewTabPageTrait];
-    foregroundColor = colorPalette ? colorPalette.tintColor
-                                   : [UIColor colorNamed:kBlue600Color];
-
-    UIColor* backgroundColor = colorPalette
-                                   ? colorPalette.headerButtonColor
-                                   : [self defaultButtonBackgroundColor];
-    buttonConfiguration.background.backgroundColor = backgroundColor;
-  }
-
-  buttonConfiguration.cornerStyle = UIButtonConfigurationCornerStyleCapsule;
-  buttonConfiguration.contentInsets =
-      NSDirectionalEdgeInsetsMake(kPillVerticalPadding, kPillHorizontalPadding,
-                                  kPillVerticalPadding, kPillHorizontalPadding);
-
-  NSDictionary* attributes = @{
-    NSFontAttributeName : PreferredFontForTextStyle(UIFontTextStyleSubheadline,
-                                                    UIFontWeightSemibold,
-                                                    kIdentityDiscMaxFontSize),
-    NSForegroundColorAttributeName : foregroundColor,
-  };
-  buttonConfiguration.attributedTitle = [[NSAttributedString alloc]
-      initWithString:l10n_util::GetNSString(IDS_IOS_SIGNIN_BUTTON_TEXT)
-          attributes:attributes];
-
-  button.configuration = buttonConfiguration;
-}
-
-// Activates or deactivates the identity disc constraints based on sign-in
-// state.
-- (void)updateIdentityDiscConstraints {
-  BOOL showSignInButtonWithoutAvatar = !self.isSignedIn;
-
-  CGFloat dimension = ntp_home::kIdentityAvatarDimension +
-                      kMarginMultiplier * ntp_home::kHeaderIconMargin;
-
-  CGFloat identityAvatarPadding = ntp_home::kIdentityAvatarPadding;
-
-  if (showSignInButtonWithoutAvatar) {
-    identityAvatarPadding *= kMarginMultiplier;
-  } else {
-    dimension += ntp_home::kHeaderIconMargin;
-    identityAvatarPadding -= ntp_home::kHeaderIconMargin / 2;
-  }
-
-  _identityDiscWidthConstraint.constant = dimension;
-  _identityDiscHeightConstraint.constant = dimension;
-  if (showSignInButtonWithoutAvatar) {
-    _identityDiscWidthConstraint.active = NO;
-    _identityDiscHeightConstraint.active = NO;
-    _identityDiscCapsuleWidthConstraint.active = YES;
-  } else {
-    _identityDiscCapsuleWidthConstraint.active = NO;
-    _identityDiscWidthConstraint.active = YES;
-    _identityDiscHeightConstraint.active = YES;
-  }
-  _identityDiscTrailingConstraint.constant = -identityAvatarPadding;
-}
-
-// `name` may be nil, `email` must not be nil.
-- (void)updateIdentityDiscAccessibilityLabelWithName:(NSString*)name
-                                               email:(NSString*)email {
-  NSString* accountButtonLabel;
-  if (name) {
-    accountButtonLabel =
-        _hasAccountError
-            ? l10n_util::GetNSStringF(
-                  IDS_IOS_IDENTITY_DISC_WITH_NAME_AND_EMAIL_OPEN_ACCOUNT_MENU_WITH_ERROR,
-                  base::SysNSStringToUTF16(name),
-                  base::SysNSStringToUTF16(email))
-            : l10n_util::GetNSStringF(
-                  IDS_IOS_IDENTITY_DISC_WITH_NAME_AND_EMAIL_OPEN_ACCOUNT_MENU,
-                  base::SysNSStringToUTF16(name),
-                  base::SysNSStringToUTF16(email));
-  } else {
-    accountButtonLabel =
-        _hasAccountError
-            ? l10n_util::GetNSStringF(
-                  IDS_IOS_IDENTITY_DISC_WITH_EMAIL_OPEN_ACCOUNT_MENU_WITH_ERROR,
-                  base::SysNSStringToUTF16(email))
-            : l10n_util::GetNSStringF(
-                  IDS_IOS_IDENTITY_DISC_WITH_EMAIL_OPEN_ACCOUNT_MENU,
-                  base::SysNSStringToUTF16(email));
-  }
-
-  self.identityDiscAccessibilityLabel = accountButtonLabel;
-
-  if (self.identityDiscButton) {
-    [self updateIdentityDiscState];
-  }
 }
 
 // Returns the default background color for buttons based on the current
@@ -2621,7 +2204,7 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
 }
 
 - (void)maybeShowSwitchAccountsIPH {
-  if (!self.isSignedIn) {
+  if (!_isSignedIn) {
     return;
   }
   [self.helpHandler

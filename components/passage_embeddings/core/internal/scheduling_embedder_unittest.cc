@@ -31,7 +31,7 @@ using testing::ElementsAre;
 using ComputePassagesEmbeddingsFuture =
     base::test::TestFuture<std::vector<std::string>,
                            std::vector<Embedding>,
-                           SchedulingEmbedder::TaskId,
+                           uint64_t,
                            ComputeEmbeddingsStatus>;
 
 std::vector<mojom::PassageEmbeddingsResultPtr> GenerateExpectedServiceOutput(
@@ -46,7 +46,7 @@ std::vector<mojom::PassageEmbeddingsResultPtr> GenerateExpectedServiceOutput(
 
 void IgnoreResults(std::vector<std::string>,
                    std::vector<Embedding>,
-                   SchedulingEmbedder::TaskId,
+                   uint64_t,
                    ComputeEmbeddingsStatus) {}
 
 }  // namespace
@@ -136,12 +136,12 @@ TEST_F(SchedulingEmbedderTest, TranslatesServiceOutput) {
       PassagePriority::kPassive, {"test passage 1", "test passage 2"},
       future.GetCallback());
 
-  auto [passages, embeddings, received_task_id, status] = future.Take();
+  auto [passages, embeddings, received_job_id, status] = future.Take();
   EXPECT_THAT(passages, ElementsAre("test passage 1", "test passage 2"));
   ASSERT_EQ(embeddings.size(), 2u);
   EXPECT_THAT(embeddings[0].GetData(), ElementsAre(1.0f, 0.0f));
   EXPECT_THAT(embeddings[1].GetData(), ElementsAre(0.0f, 1.0f));
-  EXPECT_EQ(job.task_id(), received_task_id);
+  EXPECT_EQ(job.id(), received_job_id);
   EXPECT_EQ(status, ComputeEmbeddingsStatus::kSuccess);
 }
 
@@ -172,13 +172,13 @@ TEST_F(SchedulingEmbedderTest, UserInitiatedJobTakesPriority) {
       .WillOnce(save_call_parameters)
       .WillOnce(save_call_parameters);
 
-  // Submit a passive priority task.
+  // Submit a passive priority job.
   Embedder::Job job1 = embedder->ComputePassagesEmbeddings(
       PassagePriority::kPassive, {"test passage 1", "test passage 2"},
       base::BindOnce(&IgnoreResults));
 
-  // Submit a user-initiated priority task. This will suspend the partially
-  // completed passive priority task.
+  // Submit a user-initiated priority job. This will suspend the partially
+  // completed passive priority job.
   Embedder::Job job2 = embedder->ComputePassagesEmbeddings(
       PassagePriority::kUserInitiated, {"query"},
       base::BindOnce(&IgnoreResults));
@@ -343,6 +343,50 @@ TEST_F(SchedulingEmbedderTest, RecordsHistograms) {
   // previous two jobs.
   histogram_tester.ExpectBucketCount("History.Embeddings.ScheduledPassageCount",
                                      3, 1);
+}
+
+TEST_F(SchedulingEmbedderTest, JobCanceledDuringQueueLimitCallback) {
+  auto embedder = std::make_unique<SchedulingEmbedder>(
+      embedder_metadata_provider_.get(),
+      base::BindRepeating(&GetEmbeddingsStub::GetEmbeddings,
+                          base::Unretained(&get_embeddings_stub_)),
+      /*max_jobs=*/2u,
+      /*max_batch_size=*/1u,
+      /*use_performance_scenario=*/false);
+
+  std::vector<SchedulingEmbedder::GetEmbeddingsResultCallback> callbacks;
+  EXPECT_CALL(get_embeddings_stub_, GetEmbeddings)
+      .WillOnce([&](std::vector<std::string> passages, PassagePriority priority,
+                    SchedulingEmbedder::GetEmbeddingsResultCallback callback) {
+        callbacks.push_back(std::move(callback));
+      });
+
+  // Enqueue job1, `in_progress` is true since it's the only job.
+  Embedder::Job job1 = embedder->ComputePassagesEmbeddings(
+      PassagePriority::kPassive, {"test passage 1"},
+      base::BindOnce(&IgnoreResults));
+
+  // Enqueue job2, `in_progress` is false.
+  std::optional<Embedder::Job> job2;
+  bool callback_run = false;
+  job2 = embedder->ComputePassagesEmbeddings(
+      PassagePriority::kPassive, {"test passage 2"},
+      base::BindLambdaForTesting([&](std::vector<std::string> passages,
+                                     std::vector<Embedding> embeddings,
+                                     uint64_t job_id,
+                                     ComputeEmbeddingsStatus status) {
+        EXPECT_EQ(status, ComputeEmbeddingsStatus::kCanceled);
+        job2.reset();
+        callback_run = true;
+      }));
+
+  // Enqueue job3, exceeding queue limit. job2 should be synchronously canceled,
+  // triggering its callback to reset job2.
+  Embedder::Job job3 = embedder->ComputePassagesEmbeddings(
+      PassagePriority::kPassive, {"test passage 3"},
+      base::BindOnce(&IgnoreResults));
+
+  EXPECT_TRUE(callback_run);
 }
 
 TEST_F(SchedulingEmbedderTest, LimitsJobCount) {

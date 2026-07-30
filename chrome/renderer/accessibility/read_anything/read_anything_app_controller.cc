@@ -1053,11 +1053,13 @@ void ReadAnythingAppController::OnAXTreeDistilled(
     distillationsCompleted_++;
   }
 
-  // If there's no distillable content on the active tree, allow child tree
-  // content to be distilled. This is needed to distill content on pages with
-  // a single root node containing an iframe that contains a tree with all
-  // the page's content.
-  model_.AllowChildTreeForActiveTree(model_.content_node_ids().empty());
+  // If there's no distillable content on the active tree or if the page is a
+  // PDF, allow child tree content to be distilled. This is needed to distill
+  // content on pages with a single root node containing an iframe that
+  // contains a tree with all the page's content, as well as for PDFs where
+  // the content is also in a child tree.
+  model_.AllowChildTreeForActiveTree(model_.content_node_ids().empty() ||
+                                     model_.is_pdf());
 
   // Draw the selection in the side panel (if one exists in the main panel).
   if (!PostProcessSelection()) {
@@ -1400,6 +1402,7 @@ gin::ObjectTemplateBuilder ReadAnythingAppController::GetObjectTemplateBuilder(
                    &ReadAnythingAppController::IsPhraseHighlightingEnabled)
       .SetProperty("htmlTitle",
                    &ReadAnythingAppController::GetDomDistillerTitle)
+      .SetProperty("documentUrl", &ReadAnythingAppController::GetDocumentUrl)
       .SetProperty("htmlContent",
                    &ReadAnythingAppController::GetDomDistillerContentHtml)
       .SetProperty("axTreeAnchors",
@@ -1417,6 +1420,7 @@ gin::ObjectTemplateBuilder ReadAnythingAppController::GetObjectTemplateBuilder(
       .SetMethod("getTextContent", &ReadAnythingAppController::GetTextContent)
       .SetMethod("getPrefixText", &ReadAnythingAppController::GetPrefixText)
       .SetMethod("getUrl", &ReadAnythingAppController::GetUrl)
+      .SetMethod("getHtmlId", &ReadAnythingAppController::GetHtmlId)
       .SetMethod("getAltText", &ReadAnythingAppController::GetAltText)
       .SetMethod("shouldBold", &ReadAnythingAppController::ShouldBold)
       .SetMethod("isOverline", &ReadAnythingAppController::IsOverline)
@@ -1930,6 +1934,27 @@ std::string ReadAnythingAppController::GetUrl(ui::AXNodeID ax_node_id) const {
     return url;
   }
   return "";
+}
+
+std::string ReadAnythingAppController::GetDocumentUrl() const {
+  ui::AXSerializableTree* tree = model_.GetActiveTree();
+  if (!tree) {
+    return "";
+  }
+  ui::AXNode* doc_root = tree->root();
+  if (!doc_root) {
+    return "";
+  }
+  return doc_root->GetStringAttribute(ax::mojom::StringAttribute::kUrl);
+}
+
+std::string ReadAnythingAppController::GetHtmlId(
+    ui::AXNodeID ax_node_id) const {
+  ui::AXNode* ax_node = model_.GetAXNode(ax_node_id);
+  if (!ax_node) {
+    return "";
+  }
+  return ax_node->GetStringAttribute(ax::mojom::StringAttribute::kHtmlId);
 }
 
 // TODO(crbug.com/463728166): Remove IsImmersiveReadAnythingEnabled flag when no

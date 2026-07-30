@@ -42,6 +42,9 @@ NET_EXPORT BASE_DECLARE_FEATURE(kCapReferrerToOriginOnCrossOrigin);
 // Enables the built-in DNS resolver.
 NET_EXPORT BASE_DECLARE_FEATURE(kAsyncDns);
 
+// Caches UDP connect() results in AddressSorterPosix.
+NET_EXPORT BASE_DECLARE_FEATURE(kAddressSorterConnectCache);
+
 // Support for altering the parameters used for DNS transaction timeout. See
 // ResolveContext::SecureTransactionTimeout().
 NET_EXPORT BASE_DECLARE_FEATURE(kDnsTransactionDynamicTimeouts);
@@ -193,6 +196,15 @@ NET_EXPORT extern const base::FeatureParam<int> kObservationBufferSize;
 NET_EXPORT extern const base::FeatureParam<base::TimeDelta>
     kEffectiveConnectionTypeRecomputationInterval;
 
+// When disabled, HttpContentDisposition incorrectly handles multiple
+// comma-delimited Content-Disposition lines, treating them all as a single
+// Content-Disposition string.
+//
+// This is a temporary escape valve in case the fix for
+// https://crbug.com/517466133 causes issues.
+// TODO(crbug.com/519218483): Remove this in late Q3/Q4 2026.
+NET_EXPORT BASE_DECLARE_FEATURE(kOnlyParseFirstContentDisposition);
+
 // Splits cache entries by the request's includeCredentials.
 NET_EXPORT BASE_DECLARE_FEATURE(kSplitCacheByIncludeCredentials);
 
@@ -299,21 +311,6 @@ NET_EXPORT BASE_DECLARE_FEATURE(kCookieSameSiteConsidersRedirectChain);
 // SameSite=None cookies should be allowed in sandboxed contexts with 3PC
 // restrictions.
 NET_EXPORT BASE_DECLARE_FEATURE(kAllowSameSiteNoneCookiesInSandbox);
-
-// When this feature is enabled, the network service will wait until First-Party
-// Sets are initialized before issuing requests that use the HTTP cache or
-// cookies.
-NET_EXPORT BASE_DECLARE_FEATURE(kWaitForFirstPartySetsInit);
-
-// Controls the maximum time duration an outermost frame navigation should be
-// deferred by RWS initialization.
-NET_EXPORT extern const base::FeatureParam<base::TimeDelta>
-    kWaitForFirstPartySetsInitNavigationThrottleTimeout;
-
-// When enabled, requestStorageAccessFor will require storage access permissions
-// granted by StorageAccessApi or StorageAccessHeaders to send cookies on
-// requests allowed because of requestStorageAccessFor instead of cors.
-NET_EXPORT BASE_DECLARE_FEATURE(kRequestStorageAccessNoCorsRequired);
 
 // Controls whether static key pinning is enforced.
 NET_EXPORT BASE_DECLARE_FEATURE(kStaticKeyPinningEnforcement);
@@ -725,6 +722,9 @@ NET_EXPORT BASE_DECLARE_FEATURE(kTcpSocketPoolLimitRandomizationForProxy);
 // When enabled, Net Task Scheduler is enabled on the network thread.
 NET_EXPORT BASE_DECLARE_FEATURE(kNetTaskScheduler);
 
+// When enabled, HostResolver and its subtasks use the Net Task Scheduler.
+NET_EXPORT BASE_DECLARE_FEATURE(kNetTaskSchedulerHostResolver);
+
 // When enabled, Net Task Scheduler supports per-net::RequestPriority task
 // queues for each RequestPriority variant.
 //
@@ -857,6 +857,9 @@ NET_EXPORT BASE_DECLARE_FEATURE(
 NET_EXPORT BASE_DECLARE_FEATURE(kSQLitePersistentCookieStoreEarlyInit);
 NET_EXPORT extern const base::FeatureParam<bool>
     kSQLitePersistentCookieStoreEarlyInitCheckDisk;
+
+// If enabled, cookies are loaded early on preconnect requests.
+NET_EXPORT BASE_DECLARE_FEATURE(kEarlyCookieLoadOnPreconnect);
 
 // If enabled, the error code will be propagated for preconnect attempts.
 NET_EXPORT BASE_DECLARE_FEATURE(kEnableErrorCodePropagationForPreconnect);

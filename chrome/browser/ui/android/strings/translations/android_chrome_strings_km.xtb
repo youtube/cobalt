@@ -20,6 +20,7 @@
 <translation id="1070689840697074178">អ្នកអាច​ទាញយក PDF បាន​នៅទីនេះ</translation>
 <translation id="107147699690128016">ប្រសិនបើអ្នក​ប្ដូរកន្ទុយ​ឯកសារ ឯកសារនេះ​អាចបើកនៅក្នុងកម្មវិធី​ផ្សេង និងអាចបង្កគ្រោះថ្នាក់ដល់​ឧបករណ៍​របស់អ្នក។</translation>
 <translation id="1073328695547557412">ចុច​លើរូប Google Lens</translation>
+<translation id="1080116354587839789">តម្រឹមទទឹង</translation>
 <translation id="1086486568852410168">ស្វែងរក​ដោយ​ប្រើ Google Lens</translation>
 <translation id="1087799850623149508">អ្នកអាចចុចឱ្យជាប់ ដើម្បីផ្លាស់ទីរបារអាសយដ្ឋានទៅផ្នែកខាងក្រោម</translation>
 <translation id="1089606299949659462">បញ្ចប់ការពិនិត្យមើលហើយ!</translation>
@@ -76,14 +77,12 @@
 <translation id="1269129608791067105">អ្នក​នឹងឃើញ​ប្រវត្តិ​របស់អ្នក​នៅទីនេះ</translation>
 <translation id="1273937721055267968">ទប់ស្កាត់ <ph name="DOMAIN" /></translation>
 <translation id="1280921956537356716">បើក​ការជូនដំណឹង​អំពី​គន្លឹះ</translation>
-<translation id="1283039547216852943">ចុច​ដើម្បី​ពង្រីក</translation>
 <translation id="1289129165308566697">មើល​ប្រវត្តិ​របស់អ្នក​នៅលើ​ឧបករណ៍​ផ្សេងទៀត</translation>
 <translation id="129553762522093515">បានបិទកន្លងទៅថ្មីៗ</translation>
 <translation id="1298077576058087471">សន្សំសំចៃទិន្នន័យបានរហូតដល់ 60%, អានព័ត៌មាននៅថ្ងៃនេះ</translation>
 <translation id="1303507811548703290"><ph name="DOMAIN" />៖ បាន​ផ្ញើពី <ph name="DEVICE_NAME" /></translation>
 <translation id="1310482092992808703">ដាក់ផ្ទាំងជាក្រុម</translation>
 <translation id="1318262688555255786">ចែករំលែក​តំណ​ទៅកាន់​ទំព័របណ្ដាញ <ph name="PAGE_TITLE" />។ ប្រភព៖ <ph name="PAGE_URL" /></translation>
-<translation id="1320912611264252795">ថតលំហូរនៃការរក្សាទុកចំណាំបានបើក​ពេញ​អេក្រង់</translation>
 <translation id="1327257854815634930">បានបើកប្រវត្តិ​រុករក</translation>
 <translation id="1331212799747679585">Chrome មិន​អាចដំឡើងជំនាន់​បានទេ។ ជម្រើសច្រើនទៀត</translation>
 <translation id="1332501820983677155">ផ្លូវកាត់មុខងារ Google Chrome</translation>
@@ -356,6 +355,7 @@
 <translation id="253498598929009420">គេហទំព័រ​នេះ​នឹង​អាច​មើលឃើញ​ខ្លឹមសារ​​លើ​អេក្រង់​របស់​អ្នក</translation>
 <translation id="2535807170289627159">ផ្ទាំង​ទាំងអស់</translation>
 <translation id="2536728043171574184">កំពុងមើលច្បាប់ចម្លងនៃទំព័រនេះនៅក្រៅបណ្តាញ</translation>
+<translation id="2537574774089209541">ឧបករណ៍​មួយចំនួន​បាន​ផ្លាស់ទី ដើម្បី​ឱ្យអ្នក​ងាយស្រួល​ចូលប្រើ Gemini នៅពេល​អ្នករុករក</translation>
 <translation id="2539002604555291451">Sans serif</translation>
 <translation id="2542094237868555728"><ph name="TAB_TITLE" />, ផ្ទាំងឯកជន​ដែលបាន​បិទសំឡេងដែលបានខ្ទាស់ និង​បាន​ជ្រើសរើស</translation>
 <translation id="2542548955756682219"><ph name="TAB_TITLE" />, ផ្ទាំង</translation>
@@ -404,6 +404,7 @@
 <translation id="2751271371269891762">ដើម្បី​ទទួលបាន​ចំណាំ​របស់អ្នក និង​អ្វីៗជាច្រើនទៀត​នៅលើ​ឧបករណ៍​ទាំងអស់​របស់អ្នក សូម​ចូលគណនីជា <ph name="EMAIL" /></translation>
 <translation id="2760805590727089264">MM / YY</translation>
 <translation id="2762000892062317888">អំបាញ់មិញនេះ</translation>
+<translation id="276378135349383280">បង្ហាញ Gemini ក្នុងរបារឧបករណ៍ខាងក្រោម</translation>
 <translation id="276969039800130567">បានចូលជា <ph name="USER_EMAIL_ADDRESS" />។</translation>
 <translation id="2777555524387840389">នៅសល់ <ph name="SECONDS" /> វិនាទីទៀត</translation>
 <translation id="2779651927720337254">បានបរាជ័យ</translation>
@@ -536,6 +537,7 @@
 <translation id="3285065882678541460">{TAB_COUNT,plural, =1{<ph name="TAB_GROUPS_PART" />, <ph name="TAB_COUNT_ONE" /> ផ្ទាំង}other{<ph name="TAB_GROUPS_PART" />, <ph name="TAB_COUNT_MANY" /> ផ្ទាំង}}</translation>
 <translation id="3286508210927575634">{PASSWORDS_COUNT,plural, =1{ពាក្យសម្ងាត់ 1 ត្រូវបាន​រក្សាទុក​តែនៅលើ​ឧបករណ៍នេះ​ប៉ុណ្ណោះ។ ដើម្បី​ប្រើវា​នៅលើ​ឧបករណ៍​ផ្សេងទៀត​របស់អ្នក សូម​រក្សាទុកវា​នៅក្នុង​គណនី Google របស់អ្នក។}other{ពាក្យសម្ងាត់ # ត្រូវបាន​រក្សាទុក​តែនៅលើ​ឧបករណ៍នេះ​ប៉ុណ្ណោះ។ ដើម្បីប្រើ​ពួកវា​នៅលើ​ឧបករណ៍​ផ្សេងទៀត​របស់អ្នក សូមរក្សាទុក​ពួកវា​នៅក្នុង​គណនី Google របស់អ្នក។}}</translation>
 <translation id="3293181007446299124">ប្រវត្តិ​រុករក​តាមអ៊ីនធឺណិត​របស់​អ្នក​ត្រូវបាន​រក្សាទុក​ជាលក្ខណៈ​ឯកជន​នៅលើ​ឧបករណ៍​របស់​អ្នក ហើយរបាយការណ៍​ត្រូវ​បាន​ផ្ញើ​ដោយមាន​ការពន្យារ​ពេល​ ដើម្បីការពារ​អត្តសញ្ញាណ​របស់​អ្នក</translation>
+<translation id="3301639354590628973">ប្ដូរ​គណនីឬ?</translation>
 <translation id="3301936297336370235">ការបញ្ជាក់​ការណែនាំ​ពាក្យ​សម្ងាត់</translation>
 <translation id="3302615849591357577">ស្ដារ​ក្រុម​ផ្ទាំង <ph name="TITLE_OF_GROUP" />, ពណ៌<ph name="COLOR_NAME" />, ជាក្រុមផ្ទាំង​ផ្ទៃខាងក្រោយ​ថ្មី។</translation>
 <translation id="3303855915957856445">រកមិនឃើញលទ្ធផលស្វែងរកទេ</translation>
@@ -602,6 +604,7 @@
 <translation id="3602290021589620013">ពិនិត្យមើល</translation>
 <translation id="3614126103057878858">ស្ថិតិតម្លៃ</translation>
 <translation id="3616113530831147358">សម្លេង</translation>
+<translation id="3616798734782988169">សូម​ប្រាកដថា​អ្នក​ទុកចិត្ត <ph name="DOWNLOAD_DOMAIN" /></translation>
 <translation id="3619255692378312441">គ្រប់គ្រង​សិទ្ធិចូលប្រើ</translation>
 <translation id="3622349720008044802">គ្រប់គ្រងវិនដូ</translation>
 <translation id="3623240789707551553">{DOMAIN_COUNT,plural, =1{+ គេហទំព័រ 1}other{+ គេហទំព័រ #}}</translation>
@@ -610,6 +613,7 @@
 <translation id="3635073343384702370">Chrome អាចពិនិត្យពាក្យសម្ងាត់របស់អ្នក នៅពេលអ្នករក្សាទុកពាក្យសម្ងាត់ទាំងនោះ</translation>
 <translation id="3636940436873918441">ភាសា​ដែលចង់ប្រើ</translation>
 <translation id="3637744895182738742">ប្រសិនបើអ្នក​ភ្លេចឃ្លាសម្ងាត់​របស់អ្នក ឬ​ចង់ប្ដូរ​ការកំណត់​នេះ សូម<ph name="BEGIN_LINK" />លុប​ទិន្នន័យ Chrome នៅក្នុង​គណនី​របស់អ្នក<ph name="END_LINK" />។</translation>
+<translation id="3649090831059057090"><ph name="WINDOW_TITLE" /> - <ph name="TAB_COUNT" /></translation>
 <translation id="3653111872753786013"><ph name="WEBSITE_TITLE" />៖ <ph name="WEBSITE_URL" /></translation>
 <translation id="3674208116086565128">ចូលទៅកាន់ទំព័រដើមនៅក្នុងកម្មវិធី Google</translation>
 <translation id="368329460027487650">បានចេញពីគណនី។ បើក​ជម្រើស​ចូលគណនី។</translation>
@@ -632,7 +636,9 @@
 <translation id="3738139272394829648">ប៉ះដើម្បីស្វែងរក</translation>
 <translation id="3739455665973395693">គ្មាន​ពាក្យសម្ងាត់​ដែល​រងការលុកលុយ​នៅក្នុង​គណនី Google របស់អ្នក​ទេ</translation>
 <translation id="3739899004075612870">បាន​ដាក់​ចំណាំ​នៅ​ក្នុង <ph name="PRODUCT_NAME" /></translation>
+<translation id="3740290940447881599">សូម​ប្រាកដថា អ្នក​ទុកចិត្ត​គេហទំព័រនេះ</translation>
 <translation id="3740525748616366977">មិនអាចប្រើការស្វែងរក​តាម​សំឡេង​នៅ​លើ​ឧបករណ៍​នេះ​បានទេ</translation>
+<translation id="3756823472711156529">ស្ដារ​ក្រុម</translation>
 <translation id="3763110477555836428">លេខកាតនិម្មិត​នឹង​ត្រូវបាន​បំពេញ នៅពេល​អ្នក​បង់ប្រាក់ចេញ​ដោយប្រើ​កាតនេះ ដើម្បី​ការពារ​ព័ត៌មាន​លម្អិត​ជាក់ស្ដែង​របស់អ្នក។ គ្រប់គ្រង​នៅក្នុង Google Wallet។ <ph name="BEGIN_LINK1" />ស្វែងយល់បន្ថែមអំពីកាតនិម្មិត<ph name="END_LINK1" /></translation>
 <translation id="376561056759077985">ទិន្នន័យ​មួយចំនួន​មិនទាន់​ត្រូវបាន​រក្សាទុក​ទេ</translation>
 <translation id="3770620323585347665">ដាក់ឈ្មោះ​វិនដូ</translation>
@@ -640,6 +646,7 @@
 <translation id="3771290962915251154">ការកំណត់នេះ​ត្រូវបានបិទ ដោយសារ​បើកការគ្រប់គ្រងដោយមាតាបិតា</translation>
 <translation id="3771694256347217732">លក្ខខណ្ឌប្រើប្រាស់ Google</translation>
 <translation id="3777796259512476958">នាំអ្នក​ចេញពីគេហទំព័រ​ភាគច្រើន</translation>
+<translation id="3786379886124795923">អ្នកបាន​ស្កេនកូដ QR ដើម្បី​ចូលគណនី Chrome។ សូម​បញ្ជាក់ថា​អ្នកចង់​យក​ពាក្យសម្ងាត់ ចំណាំ និង​អ្វីៗជា​ច្រើនទៀតពី​កម្រងព័ត៌មាន​នេះ។</translation>
 <translation id="3791957072666773229">{TAB_COUNT,plural, =1{ផ្ទាំង 1}other{ផ្ទាំង #}}</translation>
 <translation id="3792938779249970121">ជ្រើសរើសគណនី</translation>
 <translation id="3795154175078851242">ចម្លងរូបភាពដែលមានតំណ</translation>
@@ -678,6 +685,7 @@
 <translation id="3943322906274039960"><ph name="TAB_TITLE" />, ផ្ទាំងរូបក្នុងរូបដែលបានខ្ទាស់</translation>
 <translation id="3950820424414687140">ចូល</translation>
 <translation id="395377504920307820">ប្រើ​ដោយមិនចាំបាច់​មានគណនី</translation>
+<translation id="3955353672249727801">បានបញ្ចូល​ទំព័រ​ទៅក្នុង​បញ្ជីអាន</translation>
 <translation id="396192773038029076">{NUM_IN_PROGRESS,plural, =1{Chrome នឹងផ្ទុកទំព័រ​របស់អ្នក នៅពេលរួចរាល់}other{Chrome នឹងផ្ទុកទំព័រ​របស់អ្នក នៅពេលរួចរាល់}}</translation>
 <translation id="3969142555815019568">Chrome មិន​អាចពិនិត្យ​ពាក្យសម្ងាត់របស់អ្នកបានទេ</translation>
 <translation id="3969863827134279083">ផ្លាស់ទីទៅលើ</translation>
@@ -712,7 +720,6 @@
 <translation id="4092709865241032354">ដើម្បី​ជួយ​កម្មវិធីគ្រប់គ្រងពាក្យសម្ងាត់​រក្សាទុក​ព័ត៌មាន​ចូលគណនី​របស់​អ្នក សូម​បញ្ចូល​ឈ្មោះអ្នកប្រើប្រាស់​របស់​អ្នក​សម្រាប់​គេហទំព័រ​នេះ</translation>
 <translation id="4095146165863963773">លុបទិន្នន័យកម្មវិធីឬ?</translation>
 <translation id="4095483462103784441">បង្កើតក្រុមផ្ទាំងថ្មី</translation>
-<translation id="4096227151372679484">លំហូរនៃការរក្សាទុកចំណាំបានបើកពាក់កណ្ដាលអេក្រង់</translation>
 <translation id="4105527135143631701">បានបើកការដំឡើងកំណែកម្មវិធីគ្រប់គ្រងពាក្យសម្ងាត់</translation>
 <translation id="4113030288477039509">បានគ្រប់គ្រងដោយអ្នកគ្រប់គ្រងរបស់អ្នក</translation>
 <translation id="4116038641877404294">ទាញយក​ទំព័រ​ដើម្បី​ប្រើ​ពួកវាដោយគ្មានអ៊ីនធឺណិត</translation>
@@ -824,6 +831,7 @@
 <translation id="4532845899244822526">ជ្រើសរើសថតឯកសារ</translation>
 <translation id="4535755320005483982">ក្រុមផ្ទាំង <ph name="GROUP_TITLE" /> ដែលបាន​ចែករំលែក</translation>
 <translation id="4537137366307982887">បានបើក​ការភ្ជាប់​ការជូនដំណឹង​អំពី​គន្លឹះ​ពេញអេក្រង់</translation>
+<translation id="4537987892902330164">អ្នក​បានបន្ត​ចូលគណនីជា <ph name="NAME_OR_EMAIL" />។</translation>
 <translation id="4543131175509360848">គ្មានសន្លឹក​កូដសម្ងាត់ទេ</translation>
 <translation id="4547551584605870320">{TAB_COUNT,plural, =1{ផ្ទាំង <ph name="TAB_COUNT_ONE" />}other{ផ្ទាំង <ph name="TAB_COUNT_MANY" />, ឯកជន <ph name="TAB_COUNT_INCOGNITO" />}}</translation>
 <translation id="4558311620361989323">ផ្លូវកាត់គេហទំព័រ</translation>
@@ -1152,7 +1160,6 @@
 <translation id="59577092665511740">ជ្រើសរើស​គណនី។</translation>
 <translation id="5958275228015807058">ស្វែងរក​ឯកសារ​ និងទំព័ររបស់អ្នកនៅក្នុង ទាញយក</translation>
 <translation id="5962499136121615854">{NUM_REVOKED_PERMISSIONS,plural, =1{Chrome បានបញ្ឈប់​គេហទំព័រ​ដែលអ្នក​មិនបាន​ចូលមើល​ថ្មីៗនេះ​មិនឱ្យ​ផ្ញើការ​ជូនដំណឹង​ទៅអ្នក}other{Chrome បានបញ្ឈប់​គេហទំព័រ​ដែលអ្នក​មិនបាន​ចូលមើល​ថ្មីៗនេះ​មិនឱ្យ​ផ្ញើការ​ជូនដំណឹង​ទៅអ្នក}}</translation>
-<translation id="5962718611393537961">ចុច​ដើម្បី​លាក់</translation>
 <translation id="5964869237734432770">ឈប់យក​ការពណ៌នា​អំពីរូបភាព</translation>
 <translation id="5972844218283131174">ដកការជ្រើសរើសទាំងអស់</translation>
 <translation id="5975083100439434680">បង្រួម</translation>
@@ -1281,6 +1288,7 @@
 <translation id="6411219469806822692">មិនអាចរំកិលទៅខាងលើជាងនេះទៀតបានទេ។ សូមសាកល្បងចាប់ផ្ដើមពីផ្នែកខាងលើជាងនេះនៅលើទំព័រ។</translation>
 <translation id="6412215853589222273"><ph name="TAB_TITLE" />, ផ្ទាំង​ដែលបាន​ជ្រើសរើស​ច្រើន</translation>
 <translation id="641643625718530986">បោះពុម្ព…</translation>
+<translation id="6427723330233512782">ប៉ុន​កម្ពស់</translation>
 <translation id="6433501201775827830">ជ្រើសរើស​ម៉ាស៊ីន​ស្វែងរករបស់អ្នក</translation>
 <translation id="6434309073475700221">កម្ចាត់</translation>
 <translation id="6435307030888827407">បន្ត​ចេញពី​គណនី</translation>
@@ -1434,6 +1442,7 @@
 <translation id="6937524809504266803">ការកំណត់ឱ្យមានលក្ខណៈផ្ទាល់ខ្លួន និងការភ្ជាប់</translation>
 <translation id="6937876069006524083">ឈ្មោះ​ហៅក្រៅ (មិនតម្រូវ)</translation>
 <translation id="6942665639005891494">ប្ដូរ​ទីតាំង​ទាញយក​លំនាំដើម​បាន​គ្រប់ពេល​ដោយ​ប្រើ​ជម្រើ​សម៉ឺនុយ​​ការកំណត់</translation>
+<translation id="6944854424004126054">ស្តារផ្ទាំង</translation>
 <translation id="6945221475159498467">ជ្រើសរើស</translation>
 <translation id="6955535239952325894">ការកំណត់​នេះត្រូវបានបិទនៅលើកម្មវិធីរុករកតាមអ៊ីនធឺណិតដែលស្ថិតក្រោមការគ្រប់គ្រង</translation>
 <translation id="6963766334940102469">លុបចំណាំ</translation>
@@ -1527,6 +1536,7 @@
 <translation id="7291910923717764901">បានបញ្ចូល​ការពណ៌នាអំពី​រូបភាព​សម្រាប់​ទំព័រនេះ</translation>
 <translation id="7293429513719260019">ជ្រើសរើសភាសា</translation>
 <translation id="7298319215489933099"><ph name="TAB_TITLE" />, ផ្ទាំង​ដែលបាន​ខ្ទាស់ និង​បានជ្រើសរើស​ដែលកំពុង​បង្ហាញ</translation>
+<translation id="7304003340539141201">ប្រាប់ Gemini ឱ្យជួយ​ទាក់ទងនឹង​ផ្ទាំង និង​កិច្ចការ​របស់អ្នក</translation>
 <translation id="7311244614769792472">រក​មិន​ឃើញ​លទ្ធផលទេ</translation>
 <translation id="7314734791127433392">មិនអាច​ពិនិត្យមើល​ពាក្យ​សម្ងាត់​បានទេ</translation>
 <translation id="7324354302972299151">ផ្ញើ​សំណើ “Do Not Track”</translation>
@@ -1873,6 +1883,7 @@
 <translation id="8696297579102085705">ផ្ញើទៅឧបករណ៍របស់អ្នក</translation>
 <translation id="8697753151306746444">បង្ហាញ​វិនដូ ឬ​អេក្រង់​ជំនួសវិញ</translation>
 <translation id="8699120352855309748">មិនផ្ដល់ការបកប្រែភាសាទាំងនេះទេ</translation>
+<translation id="8700565880437506364">សូម​ណែនាំ Gemini ក្នុង Chrome</translation>
 <translation id="8712637175834984815">យល់ហើយ</translation>
 <translation id="8715286883001906001">ធ្វើឱ្យ​ពាក្យសម្ងាត់​របស់អ្នក​នៅក្នុង​គណនី Google របស់អ្នក​ខ្លាំង</translation>
 <translation id="8715300232952757586"><ph name="TAB_TITLE" /> នឹងត្រូវ​បានបិទ</translation>
@@ -1940,6 +1951,7 @@
 <translation id="8996847606757455498">ជ្រើសរើស​ក្រុមហ៊ុនផ្ដល់សេវា​ផ្សេងទៀត</translation>
 <translation id="8998837250940831980">មិនអាចបង្រួម​ផ្ទាំងបានទេ។ សូមព្យាយាមម្ដងទៀតនៅពេលក្រោយ។</translation>
 <translation id="9001604755921395912">បើកនៅក្នុងផ្ទាំង Chrome ឯកជន</translation>
+<translation id="9010094279589497751">បើក Gemini យ៉ាង​រហ័ស នៅពេល​ដែលអ្នក​ត្រូវការ</translation>
 <translation id="9012585441087414258">ការពារ​ពី​គេហទំព័រ ការទាញយក និង​កម្មវិធី​បន្ថែម​ដែល​ត្រូវគេស្គាល់ថា​មាន​គ្រោះថ្នាក់។ ប្រសិនបើ​ទំព័រ​ធ្វើ​អ្វី​មួយ​គួរ​ឱ្យ​សង្ស័យ URL និង​ផ្នែក​នៃ​ខ្លឹមសារ​ទំព័រ​ត្រូវ​បាន​ផ្ញើ​ទៅកាន់​ការរុករកដោយសុវត្ថិភាព​នៅលើ Google។</translation>
 <translation id="9019199799064251516">បន្ត​ដោយគ្មាន​ការចាក់​សោកម្រងព័ត៌មាន​រថយន្តឬ?</translation>
 <translation id="9022774213089566801">បានចូលមើល​ជាញឹកញាប់</translation>
@@ -1997,6 +2009,7 @@
 <translation id="9190355771000652811">នៅក្នុង​របារអាសយដ្ឋាន សូមប្រើ​ផ្លូវកាត់​ក្ដារ​ចុចនេះ​ជាមួយ​ផ្លូវ​កាត់​សម្រាប់​ការស្វែងរក​នៅលើ​គេហទំព័រ និង​ម៉ាស៊ីន​ស្វែងរក។</translation>
 <translation id="9197941237799589838"><ph name="TAB_TITLE" />, ផ្ទាំងឯកជន​ដែលបាន​ជ្រើសរើស និង​បានខ្ទាស់</translation>
 <translation id="9199368092038462496">{NUM_MINS,plural, =1{បាន​ពិនិត្យមើល​កាលពី 1 នាទីមុន}other{បាន​ពិនិត្យមើល​កាលពី # នាទីមុន}}</translation>
+<translation id="9202894533863490414">ទាញយកពី​គេហទំព័រ​នេះឬ?</translation>
 <translation id="9204836675896933765">នៅសល់ឯកសារចំនួន 1</translation>
 <translation id="9205933215779845960">រកមិនឃើញទំព័រនោះទេ។ សូមពិនិត្យមើលអក្ខរាវិរុទ្ធរបស់អ្នក ឬសាកល្បងស្វែងរកនៅលើ <ph name="SEARCH_ENGINE" />។</translation>
 <translation id="9206873250291191720">A</translation>
@@ -2014,9 +2027,11 @@
 <translation id="939598580284253335">បញ្ចូលឃ្លាសម្ងាត់</translation>
 <translation id="94161319503679839"><ph name="TAB_TITLE" />, ផ្ទាំងឯកជនរូបក្នុងរូបដែលបានខ្ទាស់</translation>
 <translation id="945522503751344254">ផ្ញើមតិ</translation>
+<translation id="949667118776341807">បង្វិល</translation>
 <translation id="95817756606698420">Chrome អាចប្រើ <ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" /> សម្រាប់ការស្វែងរកនៅក្នុងប្រទេសចិន។ អ្នកអាចផ្លាស់ប្តូរវាបាននៅក្នុង <ph name="BEGIN_LINK" />ការកំណត់<ph name="END_LINK" />។</translation>
 <translation id="961856697154696964">លុប​ទិន្នន័យរុករក</translation>
 <translation id="963246339335003378">បើក​កម្មវិធីគ្រប់គ្រងកិច្ចការ</translation>
+<translation id="966337994629449077">អ្នកបាន​ចូលគណនី​ជា <ph name="FROM_EMAIL" />។\n\nដើម្បី​បន្តពី​កុំព្យូទ័រ​របស់អ្នក សូម​ប្ដូរទៅ <ph name="TO_EMAIL" />។ អ្នកនឹង​ទទួលបាន​ពាក្យ​សម្ងាត់ ចំណាំ និង​អ្វីៗជាច្រើនទៀត​ពីគណនី​នេះ។</translation>
 <translation id="970715775301869095">នៅសល់ <ph name="MINUTES" /> នាទីទៀត</translation>
 <translation id="981121421437150478">ក្រៅបណ្តាញ</translation>
 <translation id="983192555821071799">បិទផ្ទាំងទាំងអស់</translation>

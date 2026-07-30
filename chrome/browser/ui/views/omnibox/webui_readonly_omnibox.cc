@@ -12,6 +12,7 @@
 #include "base/supports_user_data.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_tab_helper.h"
+#include "chrome/browser/ui/views/location_bar/location_bar_util.h"
 #include "chrome/browser/ui/views/location_bar/webui_location_bar.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_closer.h"
 #include "chrome/browser/ui/webui/webui_toolbar/browser_controls_service.h"
@@ -145,6 +146,7 @@ void WebUIReadOnlyOmnibox::SetWindowTextAndCaretPos(const std::u16string& text,
     TextChanged();
   }
 
+  SetAdditionalText(std::u16string());
   RequestUpdateWebUI();
 }
 
@@ -156,11 +158,15 @@ void WebUIReadOnlyOmnibox::SetCaretPos(size_t caret_pos) {
 
 void WebUIReadOnlyOmnibox::SetAdditionalText(
     const std::u16string& additional_text) {
-  NOTIMPLEMENTED();
+  additional_text_ = FormatOmniboxAdditionalText(additional_text);
+  RequestUpdateWebUI();
 }
 
 void WebUIReadOnlyOmnibox::EnterKeywordModeForDefaultSearchProvider() {
-  NOTIMPLEMENTED();
+  controller()->edit_model()->EnterKeywordModeForDefaultSearchProvider(
+      metrics::OmniboxEventProto::KEYBOARD_SHORTCUT);
+  ResetBrowserVersion();
+  RequestUpdateWebUI();
 }
 
 bool WebUIReadOnlyOmnibox::IsSelectAll() const {
@@ -196,7 +202,10 @@ void WebUIReadOnlyOmnibox::RevertAll() {
 }
 
 void WebUIReadOnlyOmnibox::SetFocus(bool is_user_initiated) {
-  NOTIMPLEMENTED();
+  SetFocusWithTarget(
+      is_user_initiated
+          ? toolbar_ui_api::mojom::FocusRequestTarget::kLocationBarUserInitiated
+          : toolbar_ui_api::mojom::FocusRequestTarget::kLocationBar);
 }
 
 bool WebUIReadOnlyOmnibox::AimButtonVisible() const {
@@ -234,6 +243,7 @@ void WebUIReadOnlyOmnibox::OnInlineAutocompleteTextMaybeChanged(
   // but conceptually we're at end of text.
   gfx::Range selection(user_text.size());
   SetTextAndSelectedRange(user_text, inline_autocompletion, selection);
+  SetAdditionalText(std::u16string());
   ResetFormatting();
   EmphasizeURLComponents();
   RequestUpdateWebUI();
@@ -337,6 +347,7 @@ WebUIReadOnlyOmnibox::ComputeMojoState() const {
   }
   state->inline_autocompletion = inline_autocompletion_;
   state->text_is_url = text_is_url_;
+  state->additional_text = additional_text_;
 
   // Figure out all the breakpoints so we can go through text span-by-span.
   std::vector<size_t> breakpoints;
@@ -364,6 +375,17 @@ WebUIReadOnlyOmnibox::ComputeMojoState() const {
   }
 
   return state;
+}
+
+void WebUIReadOnlyOmnibox::SetFocusWithTarget(
+    toolbar_ui_api::mojom::FocusRequestTarget target) {
+  update_propagator_->PropagateFocusRequest(target);
+
+  // If the user attempts to focus the omnibox, and the ctrl key is pressed, we
+  // want to prevent ctrl-enter behavior until the ctrl key is released and
+  // re-pressed. This occurs even if the omnibox is already focused and we
+  // re-request focus (e.g. pressing ctrl-l twice).
+  controller()->edit_model()->ConsumeCtrlKey();
 }
 
 void WebUIReadOnlyOmnibox::RequestUpdateWebUI() {

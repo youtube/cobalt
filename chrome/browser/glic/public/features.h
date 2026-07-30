@@ -32,6 +32,7 @@ extern const base::FeatureParam<bool> kAutoOpenGlicForPdfWithOnboarding;
 extern const base::FeatureParam<base::TimeDelta> kAutoOpenGlicCooldown;
 
 BASE_DECLARE_FEATURE(kGlicInvoke);
+BASE_DECLARE_FEATURE(kGlicOnboardingMetricsMigration);
 
 BASE_DECLARE_FEATURE(kGlicSelectionPrompt);
 extern const base::FeatureParam<bool> kGlicSelectionPromptUpdatesOnly;
@@ -87,6 +88,10 @@ BASE_DECLARE_FEATURE(kGlicGetTabFaviconById);
 
 BASE_DECLARE_FEATURE(kGlicSkipCookieSyncOnOpen);
 BASE_DECLARE_FEATURE(kGlicCookieSyncOnTokenChange);
+BASE_DECLARE_FEATURE(kGlicCookieSyncOnError);
+extern const base::FeatureParam<base::TimeDelta>
+    kGlicCookieSyncOnErrorMinInterval;
+BASE_DECLARE_FEATURE(kGlicCookieSyncOnOpenEvenIfNoSyncNeeded);
 BASE_DECLARE_FEATURE(kGlicShareImageViaInvoke);
 
 BASE_DECLARE_FEATURE(kGlicWebClientLoadTimes);

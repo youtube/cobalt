@@ -755,6 +755,13 @@ class TemplateURL {
   // Generates a favicon URL from the specified url.
   static GURL GenerateFaviconURL(const GURL& url);
 
+  // Returns the suggestion client string for the given search terms args.
+  static std::string GetSuggestionClient(
+      const TemplateURLRef::SearchTermsArgs& search_terms_args);
+
+  // Returns the suggestion path string for the given client name.
+  static std::string GetSuggestionPath(const std::string& client_name);
+
   // Returns true if |t_url| and |data| are equal in all meaningful respects.
   // Static to allow either or both params to be NULL.
   static bool MatchesData(const TemplateURL* t_url,

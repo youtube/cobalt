@@ -206,7 +206,6 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/containers/id_map.h"
-#include "content/browser/webauth/webauth_request_security_checker.h"
 #else
 #include "third_party/blink/public/mojom/hid/hid.mojom-forward.h"
 #endif
@@ -272,6 +271,10 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kDoNotEvictOnAXLocationChange);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kEnforceUserActivationForBeforeUnload);
 }  // namespace features
 
+namespace webauthn {
+class RemoteValidation;
+}
+
 namespace content {
 
 class AgentSchedulingGroupHost;
@@ -310,6 +313,7 @@ class ServiceWorkerClient;
 class SiteInfo;
 class SpeechSynthesisImpl;
 class WebAuthRequestSecurityChecker;
+class WebAuthRequestSecurityCheckerImpl;
 class WebUIImpl;
 struct ResourceTimingInfo;
 
@@ -340,7 +344,8 @@ class CONTENT_EXPORT RenderFrameHostImpl
       public LockManager<storage::BucketId>::Observer,
       public base::trace_event::TraceSessionObserver,
       public BucketContext,
-      public base::PassiveMemoryConsumer {
+      public base::PassiveMemoryConsumer,
+      public blink::mojom::UnboundedSurfaceHost {
  public:
   using BeforeUnloadExecutionMode = NavigationHandle::BeforeUnloadExecutionMode;
   using JavaScriptDialogCallback =
@@ -485,6 +490,8 @@ class CONTENT_EXPORT RenderFrameHostImpl
   RenderFrameHostImpl* GetParentOrOuterDocumentOrEmbedder() const override;
   RenderFrameHostImpl* GetMainFrame() override;
   PageImpl& GetPage() override;
+  scoped_refptr<WebAuthRequestSecurityChecker>
+  GetWebAuthRequestSecurityChecker() override;
   bool IsInPrimaryMainFrame() override;
   RenderFrameHostImpl* GetOutermostMainFrame() override;
   RenderFrameHostImpl* GetOutermostMainFrameOrEmbedder() override;
@@ -767,6 +774,7 @@ class CONTENT_EXPORT RenderFrameHostImpl
   bool ShouldSuppressAXLoadComplete() override;
   WebContentsAccessibility* AccessibilityGetWebContentsAccessibility() override;
   bool AccessibilityIsWebContentSource() override;
+  ui::AXMode GetScopedAccessibilityMode() const override;
 
   // ui::AXNodeIdDelegate:
   ui::AXPlatformNodeId GetOrCreateAXNodeUniqueId(
@@ -2297,7 +2305,7 @@ class CONTENT_EXPORT RenderFrameHostImpl
   // Called when the Activate IPC is sent to the renderer. Puts the
   // MojoPolicyBinderApplier in "loose" mode via PrepareToGrantAll() until
   // DidActivateForPrerending() is called.
-  void RendererWillActivateForPrerenderingOrPreview();
+  void RendererWillActivateForPrerendering();
 
   // Prerender2:
   // Called when the Activate IPC is acknowledged by the renderer. Relinquishes
@@ -2463,8 +2471,8 @@ class CONTENT_EXPORT RenderFrameHostImpl
 
   bool DocumentUsedWebOTP() override;
 
-  scoped_refptr<WebAuthRequestSecurityChecker>
-  GetWebAuthRequestSecurityChecker();
+  scoped_refptr<WebAuthRequestSecurityCheckerImpl>
+  GetWebAuthRequestSecurityCheckerImpl();
 
   base::WeakPtr<RenderFrameHostImpl> GetWeakPtr();
   base::SafeRef<RenderFrameHostImpl> GetSafeRef() const;
@@ -2661,6 +2669,21 @@ class CONTENT_EXPORT RenderFrameHostImpl
           client,
       const gfx::Rect& bounds) override;
   void DismissUnboundedSurface();
+
+  // blink::mojom::UnboundedSurfaceHost overrides:
+  void GetCompositorFrameSink(
+      mojo::PendingReceiver<viz::mojom::CompositorFrameSink> sink,
+      mojo::PendingRemote<viz::mojom::CompositorFrameSinkClient> client)
+      override;
+  void UpdateBounds(const gfx::Rect& bounds) override;
+
+  RenderWidgetHostImpl* active_unbounded_widget() const {
+    return active_unbounded_widget_.get();
+  }
+
+  RenderFrameHostImpl* active_unbounded_frame() const {
+    return active_unbounded_frame_.get();
+  }
 
   // blink::mojom::BackForwardCacheControllerHost:
   void EvictFromBackForwardCache(
@@ -4899,6 +4922,9 @@ class CONTENT_EXPORT RenderFrameHostImpl
   // chrome:// scheme callers).
   mojo::AssociatedRemote<blink::mojom::UnboundedSurfaceClient>
       unbounded_surface_client_;
+  mojo::AssociatedReceiver<blink::mojom::UnboundedSurfaceHost>
+      unbounded_surface_host_receiver_{this};
+  base::WeakPtr<RenderWidgetHostImpl> active_unbounded_widget_;
 
   // Holds the cross-document NavigationRequests that are waiting to commit.
   // These are navigations that have passed ReadyToCommit stage and are waiting
@@ -5266,7 +5292,7 @@ class CONTENT_EXPORT RenderFrameHostImpl
   // (crbug/351953350).
   bool boost_render_process_for_loading_ = false;
 
-  scoped_refptr<WebAuthRequestSecurityChecker>
+  scoped_refptr<WebAuthRequestSecurityCheckerImpl>
       webauth_request_security_checker_;
 
   // Reset immediately before a RenderFrameHost is reused for hosting a new

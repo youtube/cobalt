@@ -230,6 +230,16 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="UMA.ClientIdBackupValidation" enum="ClientIdBackupValidation"
+    expires_after="2027-02-28">
+  <owner>afie@chromium.org</owner>
+  <owner>src/base/metrics/OWNERS</owner>
+  <summary>
+    Records the validation status of the backed up UMA client ID. Recorded when
+    the backup client ID is read from disk.
+  </summary>
+</histogram>
+
 <histogram name="UMA.ClientIdCleared" enum="Boolean" expires_after="2027-02-28">
   <owner>pdyson@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
@@ -737,7 +747,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.PrimaryUserType" enum="UserType"
-    expires_after="2026-09-27">
+    expires_after="2026-11-29">
   <owner>michaelpg@chromium.org</owner>
   <owner>yilkal@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
@@ -989,7 +999,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.StructuredMetrics.NumEventsInUpload" units="count"
-    expires_after="2026-09-27">
+    expires_after="2026-11-29">
   <owner>troywang@google.com</owner>
   <owner>tby@chromium.org</owner>
   <owner>rkaplow@chromium.org</owner>
@@ -1034,7 +1044,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.TPMMetricsProvider.UnknownID" enum="Boolean"
-    expires_after="2026-09-27">
+    expires_after="2026-11-29">
   <owner>psarouthakis@google.com</owner>
   <owner>kristianm@google.com</owner>
   <summary>
@@ -1046,7 +1056,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.TruncatedEvents.UserAction" units="events"
-    expires_after="2027-02-28">
+    expires_after="2026-11-29">
   <owner>rkaplow@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>

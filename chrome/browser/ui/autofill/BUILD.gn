@@ -20,6 +20,11 @@ if (is_android) {
   }
 }
 
+source_set("bubble_controller_base") {
+  public = [ "bubble_controller_base.h" ]
+  public_deps = [ "//base" ]
+}
+
 source_set("autofill_ai_ui_utils") {
   sources = [
     "autofill_ai/autofill_ai_import_string_utils.h",
@@ -57,7 +62,6 @@ source_set("autofill") {
     "autofill_popup_view_delegate.h",
     "autofill_suggestion_controller.h",
     "autofill_suggestion_controller_utils.h",
-    "bubble_controller_base.h",
     "chrome_autofill_client.h",
     "next_idle_barrier.h",
     "popup_controller_common.h",
@@ -66,6 +70,7 @@ source_set("autofill") {
 
   public_deps = [
     ":autofill_ai_ui_utils",
+    ":bubble_controller_base",
     "//base",
     "//base:i18n",
     "//chrome/browser:global_features",
@@ -199,6 +204,7 @@ source_set("impl") {
     "//chrome/browser/password_manager",
     "//chrome/browser/password_manager/factories",
     "//chrome/browser/personal_context",
+    "//chrome/browser/personal_context/first_run",
     "//chrome/browser/plus_addresses",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/signin",
@@ -232,6 +238,7 @@ source_set("impl") {
     "//components/password_manager/core/browser:password_form",
     "//components/password_manager/core/browser/form_parsing",
     "//components/personal_context/core",
+    "//components/personal_context/first_run",
     "//components/profile_metrics",
     "//components/security_state/content",
     "//components/strings:components_strings_grit",

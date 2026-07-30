@@ -3,23 +3,26 @@
 // found in the LICENSE file.
 
 import type {App} from 'chrome://resources/cr_components/app_management/app_management.mojom-webui.js';
-import {AppType, InstallReason, InstallSource, PageCallbackRouter, PageHandlerRemote, PermissionType, RunOnOsLoginMode, TriState, WindowMode} from 'chrome://resources/cr_components/app_management/app_management.mojom-webui.js';
-import type {BrowserProxy} from 'chrome://resources/cr_components/app_management/browser_proxy.js';
+import {AppType, browserProxyFactory, InstallReason, InstallSource, PageHandlerRemote, PermissionType, RunOnOsLoginMode, TriState, WindowMode} from 'chrome://resources/cr_components/app_management/app_management.mojom-webui.js';
+import type {MetricsBrowserProxy} from 'chrome://resources/cr_components/app_management/metrics_browser_proxy.js';
 import {createTriStatePermission} from 'chrome://resources/cr_components/app_management/permission_util.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 import {TestMock} from 'chrome://webui-test/test_mock.js';
 
 export type AppConfig = Partial<App>;
 
-export class TestAppManagementBrowserProxy extends TestBrowserProxy implements
-    BrowserProxy {
-  callbackRouter: PageCallbackRouter;
-  handler: TestMock<PageHandlerRemote>&PageHandlerRemote;
+export function setupMockHandler(): TestMock<PageHandlerRemote>&
+    PageHandlerRemote {
+  const handler = TestMock.fromClass(PageHandlerRemote);
+  const {instance} = browserProxyFactory.createForTest(handler);
+  browserProxyFactory.setInstance(instance);
+  return handler;
+}
 
+export class TestMetricsBrowserProxy extends TestBrowserProxy implements
+    MetricsBrowserProxy {
   constructor() {
     super(['recordEnumerationValue']);
-    this.handler = TestMock.fromClass(PageHandlerRemote);
-    this.callbackRouter = new PageCallbackRouter();
   }
 
   recordEnumerationValue(metricName: string, value: number, enumSize: number) {

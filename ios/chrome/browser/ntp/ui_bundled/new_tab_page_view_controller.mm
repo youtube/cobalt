@@ -37,6 +37,7 @@
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_quick_actions_view_controller.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_shortcuts_handler.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_trait.h"
+#import "ios/chrome/browser/ntp/ui_bundled/ntp_identity_disc_button.h"
 #import "ios/chrome/browser/overscroll_actions/ui_bundled/overscroll_actions_controller.h"
 #import "ios/chrome/browser/shared/model/utils/first_run_util.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
@@ -98,10 +99,6 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
 // Constraint for the height of the container view surrounding the feed.
 @property(nonatomic, strong) NSLayoutConstraint* feedContainerHeightConstraint;
 
-// Whether the NTP is currently transitioning to landscape orientation.
-@property(nonatomic, assign, getter=isTransitioningToLandscape)
-    BOOL transitioningToLandscape;
-
 // `YES` if the NTP starting content offset should be set to a previous scroll
 // state (when navigating away and back), and `NO` if it should be the top of
 // the NTP.
@@ -121,7 +118,7 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
 @property(nonatomic, strong) NSMutableArray<id>* objectsAboveFeed;
 
 // Identity disc shown in the NTP.
-@property(nonatomic, weak) UIButton* identityDiscButton;
+@property(nonatomic, weak) NTPIdentityDiscButton* identityDiscButton;
 
 // Tap gesture recognizer when the omnibox is focused.
 @property(nonatomic, strong) UITapGestureRecognizer* tapGestureRecognizer;
@@ -310,6 +307,9 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
 
 - (void)viewDidAppear:(BOOL)animated {
   [super viewDidAppear:animated];
+  if (!self.objectsAboveFeed) {
+    return;
+  }
   [self.headerView didAppear];
 
   [self updateHeightAboveFeed];
@@ -1209,9 +1209,6 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
 - (void)updateLayoutForSize:(CGSize)size
             previousYOffset:(CGFloat)previousYOffset
     previousHeightAboveFeed:(CGFloat)previousHeightAboveFeed {
-  self.transitioningToLandscape =
-      IsChromeNextIaEnabled() && [self isOrientationLandscapeForSize:size];
-
   [self updateModuleWidthWithWidth:size.width];
   [self handleStickyElementsForScrollPosition:[self scrollPosition] force:YES];
 
@@ -1245,10 +1242,6 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
 // `viewWillTransitionToSize:withTransitionCoordinator:`. Finishes updating the
 // layout of the NTP after a size transition.
 - (void)completeLayoutSizeUpdate {
-  if (IsChromeNextIaEnabled()) {
-    self.transitioningToLandscape = NO;
-  }
-
   [self updateNTPLayout];
 
   if (self.feedVisible) {
@@ -1406,16 +1399,8 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
     // -viewDidLayoutSubviews.  Since self.collectionView and it's superview
     // should always have the same safeArea, this should be safe.
     UIEdgeInsets insets = self.collectionView.superview.safeAreaInsets;
-    CGFloat offset;
-    if (IsChromeNextIaEnabled()) {
-      // Passing 0.0 offset during rotation to landscape because in landscape
-      // orientation the header is fully visible while on the screen.
-      offset = self.isTransitioningToLandscape ? 0.0 : [self adjustedOffset].y;
-    } else {
-      offset = [self adjustedOffset].y;
-    }
 
-    [self.headerView updateFakeOmniboxForOffset:offset
+    [self.headerView updateFakeOmniboxForOffset:[self adjustedOffset].y
                                     screenWidth:width
                                  safeAreaInsets:insets
                          animateScrollAnimation:!self.disableScrollAnimation];

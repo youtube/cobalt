@@ -7,20 +7,25 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "base/android/application_status_listener.h"
+#include "base/containers/span.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/send_tab_to_self/receiving_ui_handler.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_list_observer.h"
-#include "ui/base/window_open_disposition.h"
 
 namespace content {
+class NavigationHandle;
 class WebContents;
-}
+}  // namespace content
+
+struct NavigateParams;
 
 namespace send_tab_to_self {
 
+struct PageContext;
 class SendTabToSelfEntry;
 class SendTabToSelfModel;
 
@@ -47,12 +52,20 @@ class AndroidNotificationHandler : public ReceivingUiHandler,
 
   // ReceivingUiHandler implementation.
   void DisplayNewEntries(
-      const std::vector<const SendTabToSelfEntry*>& new_entries) override;
-  void DismissEntries(const std::vector<std::string>& guids) override;
+      base::span<const SendTabToSelfEntry* const> new_entries) override;
+  void DismissEntries(base::span<const std::string> guids) override;
 
   // TabModelListObserver:
   void OnTabModelAdded(TabModel* tab_model) override;
   void OnTabModelRemoved(TabModel* tab_model) override;
+
+  void OnNavigationStarted(
+      const std::string& guid,
+      const GURL& url,
+      const std::string& device_name,
+      const PageContext& page_context,
+      std::unique_ptr<NavigateParams> nav_params,
+      base::WeakPtr<content::NavigationHandle> navigation_handle);
 
   // Handles application state transitions (e.g., Chrome coming to foreground).
   void HandleApplicationStateChange(base::android::ApplicationState state);

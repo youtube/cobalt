@@ -2239,11 +2239,6 @@ TEST_F(AutocompleteResultTest, ConvertsOpenTabsCorrectly) {
 
 #if BUILDFLAG(IS_ANDROID)
 TEST_F(AutocompleteResultTest, ConvertOpenTabMatches_AttachTabSwitchAction) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeatureWithParameters(
-      omnibox::kOmniboxImprovementForLFF,
-      {{OmniboxFieldTrial::kOmniboxImprovementForLFFSwitchToTabChip.name,
-        "true"}});
 
   AutocompleteResult result;
   ACMatches matches;
@@ -2268,6 +2263,32 @@ TEST_F(AutocompleteResultTest, ConvertOpenTabMatches_AttachTabSwitchAction) {
   EXPECT_EQ(
       action_in_suggest->template_action.action_type(),
       omnibox::SuggestTemplateInfo_TemplateAction_ActionType_CHROME_TAB_SWITCH);
+}
+
+TEST_F(AutocompleteResultTest,
+       ConvertOpenTabMatches_DoNotAttachTabSwitchActionInKeywordMode) {
+
+  AutocompleteResult result;
+  ACMatches matches;
+  AutocompleteMatch match;
+  match.destination_url = GURL("http://this-site-matches.com");
+  match.type = AutocompleteMatchType::OPEN_TAB;
+  match.from_keyword = true;
+  matches.push_back(match);
+  result.AppendMatches(matches);
+
+  // Have IsTabOpenWithURL() return true for the URL.
+  FakeAutocompleteProviderClient client;
+  static_cast<FakeTabMatcher&>(const_cast<TabMatcher&>(client.GetTabMatcher()))
+      .set_url_substring_match("matches");
+
+  AutocompleteInput input(u"query", metrics::OmniboxEventProto::OTHER,
+                          TestSchemeClassifier());
+  result.ConvertOpenTabMatches(&client, &input);
+
+  ASSERT_TRUE(result.match_at(0)->has_tab_match.value_or(false));
+  // Should NOT attach the action because it's OPEN_TAB in keyword mode.
+  EXPECT_EQ(result.match_at(0)->actions.size(), 0u);
 }
 #endif
 

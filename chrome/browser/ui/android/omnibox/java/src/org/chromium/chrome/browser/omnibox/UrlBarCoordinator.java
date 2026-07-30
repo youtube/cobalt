@@ -5,7 +5,6 @@
 package org.chromium.chrome.browser.omnibox;
 
 import android.content.Context;
-import android.util.Range;
 import android.view.ActionMode;
 import android.view.View.OnKeyListener;
 import android.view.View.OnLongClickListener;
@@ -19,6 +18,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.omnibox.UrlBar.ScrollType;
 import org.chromium.chrome.browser.omnibox.UrlBar.UrlBarDelegate;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
+import org.chromium.components.omnibox.TextSelection;
 import org.chromium.ui.KeyboardVisibilityDelegate;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
@@ -144,10 +144,10 @@ public class UrlBarCoordinator
     }
 
     /**
-     * @see UrlBarMediator#setUrlBarData(UrlBarData, int, Range<Integer>)
+     * @see UrlBarMediator#setUrlBarData(UrlBarData, int, TextSelection)
      */
     public boolean setUrlBarData(
-            UrlBarData data, @ScrollType int scrollType, Range<Integer> selection) {
+            UrlBarData data, @ScrollType int scrollType, TextSelection selection) {
         return mMediator.setUrlBarData(data, scrollType, selection);
     }
 
@@ -216,6 +216,11 @@ public class UrlBarCoordinator
     /** Sets whether this {@link UrlBar} should enable bounds ellipsis. */
     public void setBoundsEllipsisEnabled(boolean enabled) {
         mUrlBar.setBoundsEllipsisEnabled(enabled);
+    }
+
+    /** Sets the accessibility warning text. */
+    public void setAccessibilityWarning(@Nullable String warning) {
+        mMediator.setAccessibilityWarning(warning);
     }
 
     /**
@@ -295,7 +300,6 @@ public class UrlBarCoordinator
 
     /* package */ void clearFocus() {
         mUrlBar.clearFocus();
-        restartImfInput();
     }
 
     /* package */ void requestAccessibilityFocus() {
@@ -372,10 +376,6 @@ public class UrlBarCoordinator
             // to update a view that accepts text input.
             imm.viewClicked(mUrlBar);
             mUrlBar.setCursorVisible(true);
-            // Force IME to re-establish InputConnection on focus gain. Some devices
-            // (e.g. Samsung foldables) don't proactively call onCreateInputConnection
-            // after the UrlBar regains focus, causing keyboard input to stop working.
-            restartImfInput();
         } else {
             // Moving focus away from UrlBar(EditText) to a non-editable focus holder, such as
             // ToolbarPhone, won't automatically hide keyboard app, but restart it with TYPE_NULL,
@@ -442,18 +442,5 @@ public class UrlBarCoordinator
         // reparenting and the target post-reparenting focus is false, there is no apparent change
         // from the View's point of view, but the mediator still needs to know.
         mMediator.onUrlFocusChange(postReparentingFocus);
-    }
-
-    /**
-     * Restarts Android input method framework on the UrlBar, resetting any existing input
-     * connection.
-     */
-    void restartImfInput() {
-        InputMethodManager imm =
-                (InputMethodManager)
-                        mUrlBar.getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
-        if (imm != null) {
-            imm.restartInput(mUrlBar);
-        }
     }
 }

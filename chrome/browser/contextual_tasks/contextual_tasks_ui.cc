@@ -520,7 +520,7 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
   source->AddBoolean(
       "isSidePanelPinned",
       contextual_tasks::IsContextualTasksPinButtonInToolbarEnabled() &&
-          profile->GetPrefs()->GetBoolean(prefs::kPinContextualTaskButton));
+          contextual_tasks::GetEffectivePinState(profile));
   source->AddBoolean(
       "showOnboardingTooltip",
       base::FeatureList::IsEnabled(
@@ -576,7 +576,11 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       "enableLockAndUnlockInputCapability",
       contextual_tasks::ShouldEnableLockAndUnlockInputCapability());
   source->AddBoolean("enableFileHint", contextual_tasks::GetEnableFileHint());
+  source->AddBoolean(
+      "windowTrackingEnabled",
+      contextual_tasks::GetIsContextualTasksWindowTrackingEnabled());
   source->AddBoolean("supportsLensButtonInComposebox", !BUILDFLAG(IS_ANDROID));
+  source->AddBoolean("isSystemVoiceSearchEnabled", BUILDFLAG(IS_ANDROID));
   source->AddBoolean("enableComposeboxJumpFix",
                      contextual_tasks::GetEnableComposeboxJumpFix());
   source->AddBoolean("roundedClipPathEnabled",
@@ -720,6 +724,18 @@ void ContextualTasksUI::CreatePageHandler(
     }
   }
 #endif
+  // If a task is already active when the page handler is created (e.g., on
+  // page reload), restore the WebUI state by pushing the task details. If the
+  // inner frame URL is not yet available, fallback to the task's creation URL.
+  if (task_id_ && web_ui() && web_ui()->GetWebContents()) {
+    GURL url = GetInnerFrameUrl();
+    if (url.is_empty() && ui_service_) {
+      url =
+          ui_service_->GetCreationUrlForTask(task_id_.value()).value_or(GURL());
+    }
+    PushTaskDetailsToPage(task_id_, url,
+                          /*replace_navigation_entry=*/true);
+  }
   OnInitComplete();
 }
 
@@ -1247,6 +1263,22 @@ bool ContextualTasksUI::IsLensOverlayShowing() const {
   return is_lens_overlay_showing_;
 }
 
+void ContextualTasksUI::StartPlatformVoiceRecognition() {
+  ui_service_->StartPlatformVoiceRecognition(GetBrowser(),
+                                             GetWebUIWebContents());
+}
+
+void ContextualTasksUI::OnVoiceTranscribed(const std::string& query) {
+  auto& page = GetPageRemote();
+  if (!page.is_bound()) {
+    return;
+  }
+  auto input = contextual_tasks::mojom::InjectedInput::New();
+  input->query_text = query;
+  input->submit_after_injection = true;
+  page->InjectInput(std::move(input));
+}
+
 bool ContextualTasksUI::CanUpdateSuggestedTabContext(
     tabs::TabInterface* tab,
     const GURL& last_committed_url) {
@@ -1540,10 +1572,11 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
     task_info_delegate_->SetTaskId(new_task_id);
     task_info_delegate_->SetThreadId(std::nullopt);
     // Replace state if last committed URL was empty (i.e. the page is
-    // reloaded), otherwise push new state.
+    // reloaded) or if zero state has not changed, otherwise push new state.
     task_info_delegate_->PushTaskDetailsToPage(
         new_task_id, url,
-        /*replace_navigation_entry=*/last_committed_url_was_empty);
+        /*replace_navigation_entry=*/last_committed_url_was_empty ||
+            !has_zero_state_changed);
     task_info_delegate_->SetThreadTitle(std::nullopt);
 
     task_info_delegate_->PrepareForTaskChange();

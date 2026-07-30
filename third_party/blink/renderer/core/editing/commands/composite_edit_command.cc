@@ -117,13 +117,19 @@ bool IsWhitespaceForRebalance(const Text& text_node, UChar character) {
 CompositeEditCommand::CompositeEditCommand(Document& document,
                                            DataTransfer* data_transfer)
     : EditCommand(document), data_transfer_(data_transfer) {
+  FrameSelection& frame_selection = document.GetFrame()->Selection();
+  // Legacy lane: VP-canonicalized at command birth (unchanged behavior).
   const VisibleSelection& visible_selection =
-      document.GetFrame()
-          ->Selection()
-          .ComputeVisibleSelectionInDOMTreeDeprecated();
+      frame_selection.ComputeVisibleSelectionInDomTreeDeprecated();
   SetStartingSelection(
       SelectionForUndoStep::From(visible_selection.AsSelection()));
   SetEndingSelection(starting_selection_);
+  // Raw-DOM lane: seed unconditionally without VP canonicalization.
+  // Migrated commands read this via StartingDomSelection() /
+  // EndingDomSelection() to see the selection as the user authored it.
+  starting_dom_selection_ =
+      SelectionForUndoStep::From(frame_selection.GetSelectionInDOMTree());
+  ending_dom_selection_ = starting_dom_selection_;
 }
 
 CompositeEditCommand::~CompositeEditCommand() {
@@ -206,7 +212,8 @@ UndoStep* CompositeEditCommand::EnsureUndoStep() {
     command = command->Parent();
   if (!command->undo_step_) {
     command->undo_step_ = MakeGarbageCollected<UndoStep>(
-        &GetDocument(), StartingSelection(), EndingSelection());
+        &GetDocument(), StartingSelection(), EndingSelection(),
+        StartingDomSelection(), EndingDomSelection());
   }
   return command->undo_step_.Get();
 }
@@ -1204,6 +1211,10 @@ void CompositeEditCommand::PushAnchorElementDown(Element* anchor_node,
       SelectionInDOMTree::Builder().SelectAllChildren(*anchor_node).Build());
   SetEndingSelection(
       SelectionForUndoStep::From(visible_selection.AsSelection()));
+  if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
+    SetEndingDomSelection(
+        SelectionForUndoStep::From(visible_selection.AsSelection()));
+  }
   ApplyStyledElement(anchor_node, editing_state);
   if (editing_state->IsAborted())
     return;
@@ -1316,7 +1327,11 @@ void CompositeEditCommand::CloneParagraphUnderNewElement(
 // empty or unrendered parents).
 
 void CompositeEditCommand::CleanupAfterDeletion(EditingState* editing_state) {
-  CleanupAfterDeletion(editing_state, VisiblePosition());
+  if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
+    CleanupAfterDeletion(editing_state, Position());
+  } else {
+    CleanupAfterDeletion(editing_state, VisiblePosition());
+  }
 }
 
 void CompositeEditCommand::CleanupAfterDeletion(EditingState* editing_state,
@@ -1368,6 +1383,63 @@ void CompositeEditCommand::CleanupAfterDeletion(EditingState* editing_state,
   }
 }
 
+void CompositeEditCommand::CleanupAfterDeletion(EditingState* editing_state,
+                                                const Position& destination) {
+  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
+
+  const VisiblePosition caret_after_delete =
+      EndingVisibleSelection().VisibleStart();
+  const Position caret_position = caret_after_delete.DeepEquivalent();
+  Node* destination_node = destination.AnchorNode();
+  if (caret_position != destination && IsStartOfParagraph(caret_after_delete) &&
+      IsEndOfParagraph(caret_after_delete)) {
+    // Note: We want the rightmost candidate.
+    Position position = MostForwardCaretPosition(caret_position);
+    if (position.IsNull()) {
+      return;
+    }
+    Node* node = position.AnchorNode();
+    if (!node) {
+      return;
+    }
+
+    // InsertListCommandTest.CleanupNodeSameAsDestinationNode reaches here.
+    ABORT_EDITING_COMMAND_IF(destination_node == node);
+    // Bail if we'd remove an ancestor of our destination.
+    if (destination_node && destination_node->IsDescendantOf(node)) {
+      return;
+    }
+
+    // Normally deletion will leave a br as a placeholder.
+    if (IsA<HTMLBRElement>(*node)) {
+      RemoveNodeAndPruneAncestors(node, editing_state, destination_node);
+
+      // If the selection to move was empty and in an empty block that
+      // doesn't require a placeholder to prop itself open (like a bordered
+      // div or an li), remove it during the move (the list removal code
+      // expects this behavior).
+    } else if (IsEnclosingBlock(node)) {
+      // If caret position after deletion and destination position coincides,
+      // node should not be removed.
+      if (!RendersInDifferentPosition(position, destination)) {
+        Prune(node, editing_state, destination_node);
+        return;
+      }
+      RemoveNodeAndPruneAncestors(node, editing_state, destination_node);
+    } else if (LineBreakExistsAtPosition(position)) {
+      // There is a preserved '\n' at caretAfterDelete.
+      // We can safely assume this is a text node.
+      auto* text_node = To<Text>(node);
+      if (text_node->length() == 1) {
+        RemoveNodeAndPruneAncestors(node, editing_state, destination_node);
+      } else {
+        DeleteTextFromNode(text_node, position.ComputeOffsetInContainerNode(),
+                           1);
+      }
+    }
+  }
+}
+
 // This is a version of moveParagraph that preserves style by keeping the
 // original markup. It is currently used only by IndentOutdentCommand but it is
 // meant to be used in the future by several other commands such as InsertList
@@ -1412,6 +1484,10 @@ void CompositeEditCommand::MoveParagraphWithClones(
 
   SetEndingSelection(SelectionForUndoStep::From(
       SelectionInDOMTree::Builder().Collapse(start).Extend(end).Build()));
+  if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
+    SetEndingDomSelection(SelectionForUndoStep::From(
+        SelectionInDomTree::Builder().Collapse(start).Extend(end).Build()));
+  }
   if (!DeleteSelection(
           editing_state,
           DeleteSelectionOptions::Builder().SetSanitizeMarkup(true).Build()))
@@ -1619,11 +1695,19 @@ void CompositeEditCommand::MoveParagraphs(
           RemoveSelectionCanonicalizationInMoveParagraphEnabled()) {
     SetEndingSelection(SelectionForUndoStep::From(
         SelectionInDOMTree::Builder().Collapse(start).Extend(end).Build()));
+    if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
+      SetEndingDomSelection(SelectionForUndoStep::From(
+          SelectionInDomTree::Builder().Collapse(start).Extend(end).Build()));
+    }
   } else {
     const VisibleSelection& selection_to_delete = CreateVisibleSelection(
         SelectionInDOMTree::Builder().Collapse(start).Extend(end).Build());
     SetEndingSelection(
         SelectionForUndoStep::From(selection_to_delete.AsSelection()));
+    if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
+      SetEndingDomSelection(
+          SelectionForUndoStep::From(selection_to_delete.AsSelection()));
+    }
   }
 
   if (RuntimeEnabledFeatures::
@@ -1644,7 +1728,11 @@ void CompositeEditCommand::MoveParagraphs(
   }
 
   DCHECK(destination.DeepEquivalent().IsConnected()) << destination;
-  CleanupAfterDeletion(editing_state, destination);
+  if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
+    CleanupAfterDeletion(editing_state, destination.DeepEquivalent());
+  } else {
+    CleanupAfterDeletion(editing_state, destination);
+  }
   if (editing_state->IsAborted())
     return;
   DCHECK(destination.DeepEquivalent().IsConnected()) << destination;
@@ -1701,6 +1789,10 @@ void CompositeEditCommand::MoveParagraphs(
   }
   SetEndingSelection(
       SelectionForUndoStep::From(destination_selection.AsSelection()));
+  if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
+    SetEndingDomSelection(
+        SelectionForUndoStep::From(destination_selection.AsSelection()));
+  }
   ReplaceSelectionCommand::CommandOptions options =
       ReplaceSelectionCommand::kSelectReplacement |
       ReplaceSelectionCommand::kMovingParagraph;
@@ -1757,6 +1849,10 @@ void CompositeEditCommand::MoveParagraphs(
                                  .Build());
   SetEndingSelection(
       SelectionForUndoStep::From(visible_selection.AsSelection()));
+  if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
+    SetEndingDomSelection(
+        SelectionForUndoStep::From(visible_selection.AsSelection()));
+  }
 }
 
 // FIXME: Send an appropriate shouldDeleteRange call.
@@ -1874,6 +1970,12 @@ bool CompositeEditCommand::BreakOutOfEmptyListItem(
       SelectionInDOMTree::Builder()
           .Collapse(Position::FirstPositionInNode(*new_block))
           .Build()));
+  if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
+    SetEndingDomSelection(SelectionForUndoStep::From(
+        SelectionInDomTree::Builder()
+            .Collapse(Position::FirstPositionInNode(*new_block))
+            .Build()));
+  }
 
   style->PrepareToApplyAt(EndingSelection().Start());
   if (!style->IsEmpty()) {
@@ -1936,6 +2038,12 @@ bool CompositeEditCommand::BreakOutOfEmptyMailBlockquotedParagraph(
       SelectionInDOMTree::Builder()
           .Collapse(at_br.ToPositionWithAffinity())
           .Build()));
+  if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
+    SetEndingDomSelection(
+        SelectionForUndoStep::From(SelectionInDomTree::Builder()
+                                       .Collapse(at_br.ToPositionWithAffinity())
+                                       .Build()));
+  }
 
   // If this is an empty paragraph there must be a line break here.
   if (!LineBreakExistsAtVisiblePosition(caret))
@@ -2117,12 +2225,40 @@ void CompositeEditCommand::SetEndingSelection(
   }
 }
 
+void CompositeEditCommand::SetStartingDomSelection(
+    const SelectionForUndoStep& selection) {
+  for (CompositeEditCommand* command = this;; command = command->Parent()) {
+    if (UndoStep* undo_step = command->GetUndoStep()) {
+      DCHECK(command->IsTopLevelCommand());
+      undo_step->SetStartingDomSelection(selection);
+    }
+    command->starting_dom_selection_ = selection;
+    if (!command->Parent() || command->Parent()->IsFirstCommand(command))
+      break;
+  }
+}
+
+void CompositeEditCommand::SetEndingDomSelection(
+    const SelectionForUndoStep& selection) {
+  for (CompositeEditCommand* command = this; command;
+       command = command->Parent()) {
+    if (UndoStep* undo_step = command->GetUndoStep()) {
+      DCHECK(command->IsTopLevelCommand());
+      undo_step->SetEndingDomSelection(selection);
+    }
+    command->ending_dom_selection_ = selection;
+  }
+}
+
 void CompositeEditCommand::SetParent(CompositeEditCommand* parent) {
   EditCommand::SetParent(parent);
   if (!parent)
     return;
   starting_selection_ = parent->ending_selection_;
   ending_selection_ = parent->ending_selection_;
+  // Child inherits dom lane from parent's ending (only non-seed inheritance).
+  starting_dom_selection_ = parent->ending_dom_selection_;
+  ending_dom_selection_ = parent->ending_dom_selection_;
 }
 
 // Determines whether a node is inside a range or visibly starts and ends at the
@@ -2161,6 +2297,8 @@ void CompositeEditCommand::Trace(Visitor* visitor) const {
   visitor->Trace(commands_);
   visitor->Trace(starting_selection_);
   visitor->Trace(ending_selection_);
+  visitor->Trace(starting_dom_selection_);
+  visitor->Trace(ending_dom_selection_);
   visitor->Trace(undo_step_);
   visitor->Trace(data_transfer_);
   EditCommand::Trace(visitor);
@@ -2209,6 +2347,10 @@ void CompositeEditCommand::AppliedEditing() {
     }
     last_edit_command->EnsureUndoStep()->SetEndingSelection(
         EnsureUndoStep()->EndingSelection());
+    if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
+      last_edit_command->EnsureUndoStep()->SetEndingDomSelection(
+          EnsureUndoStep()->EndingDomSelection());
+    }
     last_edit_command->GetUndoStep()->SetSelectionIsDirectional(
         GetUndoStep()->SelectionIsDirectional());
     editor.GetUndoStack().DidSetEndingSelection(

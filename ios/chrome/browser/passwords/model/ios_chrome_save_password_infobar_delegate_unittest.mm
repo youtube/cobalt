@@ -13,20 +13,29 @@
 #import "base/test/task_environment.h"
 #import "components/autofill/ios/common/features.h"
 #import "components/infobars/core/confirm_infobar_delegate.h"
+#import "components/infobars/core/infobar.h"
 #import "components/infobars/core/infobar_delegate.h"
+#import "components/infobars/core/infobar_manager.h"
 #import "components/metrics/profile_metrics_service.h"
+#import "components/password_manager/core/browser/features/password_features.h"
 #import "components/password_manager/core/browser/mock_password_form_manager_for_ui.h"
 #import "components/password_manager/core/browser/password_form.h"
 #import "components/password_manager/core/browser/password_form_metrics_recorder.h"
 #import "components/password_manager/core/browser/password_manager_metrics_util.h"
+#import "components/password_manager/core/browser/password_store/mock_password_store_interface.h"
 #import "components/password_manager/core/browser/password_store/password_form_converters.h"
 #import "components/password_manager/core/browser/password_store/stored_credential.h"
+#import "components/trusted_vault/trusted_vault_client.h"
 #import "components/ukm/test_ukm_recorder.h"
+#import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/sync_presenter_commands.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "services/metrics/public/cpp/ukm_recorder.h"
 #import "services/metrics/public/cpp/ukm_source_id.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
+#import "third_party/ocmock/OCMock/OCMock.h"
+#import "third_party/ocmock/gtest_support.h"
 #import "ui/base/l10n/l10n_util.h"
 #import "url/gurl.h"
 
@@ -34,6 +43,27 @@ namespace {
 
 using password_manager::features_util::PasswordAccountStorageUserState::
     kSignedInAccountStoreUser;
+using ::testing::Const;
+using ::testing::IsEmpty;
+using ::testing::NiceMock;
+using ::testing::Return;
+using ::testing::ReturnRef;
+using ::testing::SizeIs;
+
+class MockInfoBarManager : public infobars::InfoBarManager {
+ public:
+  MockInfoBarManager() = default;
+  ~MockInfoBarManager() override = default;
+
+  MOCK_METHOD(void, RemoveInfoBar, (infobars::InfoBar * infobar), (override));
+  MOCK_METHOD(int, GetActiveEntryID, (), (override));
+  MOCK_METHOD(void,
+              OpenURL,
+              (const GURL& url,
+               WindowOpenDisposition disposition,
+               const std::string& text_fragment),
+              (override));
+};
 
 NSString* const kUsernameValue = @"user1";
 NSString* const kPasswordValue = @"pass1";
@@ -48,11 +78,33 @@ class IOSChromeSavePasswordInfoBarDelegateTest : public PlatformTest {
  public:
   void SetUp() override { InitializeDelegate(/*password_update=*/false); }
 
+  void TearDown() override {
+    EXPECT_OCMOCK_VERIFY(mock_sync_presenter_);
+    PlatformTest::TearDown();
+  }
+
  protected:
   // Initializes that password infobar delegate and surrounding objects. Can be
   // called again in-test to reinitialize the delegate with different
   // parameters.
-  void InitializeDelegate(bool password_update) {
+  void InitializeDelegate(bool password_update,
+                          password_manager::ActionableError error =
+                              password_manager::ActionableError::kNoError) {
+    delegate_.reset();
+    profile_store_ = base::MakeRefCounted<
+        NiceMock<password_manager::MockPasswordStoreInterface>>();
+    account_store_ = base::MakeRefCounted<
+        NiceMock<password_manager::MockPasswordStoreInterface>>();
+    ON_CALL(*profile_store_, GetError).WillByDefault(Return(error));
+    ON_CALL(*account_store_, GetError)
+        .WillByDefault(Return(password_manager::ActionableError::kNoError));
+
+    dispatcher_ = [[CommandDispatcher alloc] init];
+    mock_sync_presenter_ =
+        OCMStrictProtocolMock(@protocol(SyncPresenterCommands));
+    [dispatcher_ startDispatchingToTarget:mock_sync_presenter_
+                              forProtocol:@protocol(SyncPresenterCommands)];
+
     url_ = GURL(kUrl);
 
     auto form_manager =
@@ -66,14 +118,12 @@ class IOSChromeSavePasswordInfoBarDelegateTest : public PlatformTest {
     form_.scheme = password_manager::PasswordForm::Scheme::kHtml;
     form_.type = password_manager::PasswordForm::Type::kApi;
 
-    ON_CALL(testing::Const(*form_manager), GetPendingCredentials)
-        .WillByDefault(testing::ReturnRef(form_));
-    ON_CALL(testing::Const(*form_manager), GetURL)
-        .WillByDefault(testing::ReturnRef(url_));
-    ON_CALL(testing::Const(*form_manager), GetCredentialSource)
-        .WillByDefault(
-            testing::Return(password_manager::metrics_util::
-                                CredentialSourceType::kPasswordManager));
+    ON_CALL(Const(*form_manager), GetPendingCredentials)
+        .WillByDefault(ReturnRef(form_));
+    ON_CALL(Const(*form_manager), GetURL).WillByDefault(ReturnRef(url_));
+    ON_CALL(Const(*form_manager), GetCredentialSource)
+        .WillByDefault(Return(password_manager::metrics_util::
+                                  CredentialSourceType::kPasswordManager));
 
     ukm_source_id_ = ukm::UkmRecorder::GetNewSourceID();
     metrics_recorder_ =
@@ -81,13 +131,13 @@ class IOSChromeSavePasswordInfoBarDelegateTest : public PlatformTest {
             /*is_main_frame_secure=*/true, ukm_source_id_,
             /*pref_service=*/nullptr, &profile_metrics_service_);
 
-    ON_CALL(testing::Const(*form_manager), GetMetricsRecorder)
-        .WillByDefault(testing::Return(metrics_recorder_.get()));
+    ON_CALL(Const(*form_manager), GetMetricsRecorder)
+        .WillByDefault(Return(metrics_recorder_.get()));
 
     delegate_ = std::make_unique<IOSChromeSavePasswordInfoBarDelegate>(
         kAccountToStorePassword, password_update, kSignedInAccountStoreUser,
-        std::move(form_manager),
-        /*dispatcher=*/nullptr, ukm_source_id_);
+        std::move(form_manager), ukm_source_id_, /*is_replacement=*/false,
+        dispatcher_, profile_store_.get(), account_store_.get());
     const int different_nav_entry_id = kNavEntryId - 1;
     delegate_->set_nav_entry_id(different_nav_entry_id);
   }
@@ -95,6 +145,8 @@ class IOSChromeSavePasswordInfoBarDelegateTest : public PlatformTest {
   base::test::TaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   metrics::ProfileMetricsService profile_metrics_service_;
+  scoped_refptr<password_manager::MockPasswordStoreInterface> profile_store_;
+  scoped_refptr<password_manager::MockPasswordStoreInterface> account_store_;
   // Password form metrics recorder.
   scoped_refptr<password_manager::PasswordFormMetricsRecorder>
       metrics_recorder_;
@@ -118,6 +170,8 @@ class IOSChromeSavePasswordInfoBarDelegateTest : public PlatformTest {
   // Pointer to the infobar's form manager.
   raw_ptr<password_manager::MockPasswordFormManagerForUI, DanglingUntriaged>
       form_manager_ptr_;
+  CommandDispatcher* dispatcher_;
+  id mock_sync_presenter_;
 };
 
 TEST_F(IOSChromeSavePasswordInfoBarDelegateTest, GetUserNameText) {
@@ -262,7 +316,7 @@ TEST_F(IOSChromeSavePasswordInfoBarDelegateTest,
        GetButtonLabel_ButtonCancel_WhenUpdate) {
   InitializeDelegate(/*password_update=*/true);
   EXPECT_THAT(delegate_->GetButtonLabel(ConfirmInfoBarDelegate::BUTTON_CANCEL),
-              testing::IsEmpty());
+              IsEmpty());
 }
 
 TEST_F(IOSChromeSavePasswordInfoBarDelegateTest, Accept_WhenSave) {
@@ -294,7 +348,7 @@ TEST_F(IOSChromeSavePasswordInfoBarDelegateTest, Accept_WhenSave) {
   // Verify UKMs.
   const auto& entries = test_ukm_recorder.GetEntriesByName(
       ukm::builders::PasswordForm::kEntryName);
-  ASSERT_THAT(entries, testing::SizeIs(1));
+  ASSERT_THAT(entries, SizeIs(1));
   const ukm::mojom::UkmEntry* entry = entries.front();
   test_ukm_recorder.ExpectEntryMetric(
       entry, ukm::builders::PasswordForm::kSaving_Prompt_InteractionName,
@@ -333,7 +387,7 @@ TEST_F(IOSChromeSavePasswordInfoBarDelegateTest, Accept_WhenUpdate) {
   // Verify UKMs.
   const auto& entries = test_ukm_recorder.GetEntriesByName(
       ukm::builders::PasswordForm::kEntryName);
-  ASSERT_THAT(entries, testing::SizeIs(1));
+  ASSERT_THAT(entries, SizeIs(1));
   const ukm::mojom::UkmEntry* entry = entries.front();
   test_ukm_recorder.ExpectEntryMetric(
       entry, ukm::builders::PasswordForm::kUpdating_Prompt_InteractionName,
@@ -370,7 +424,7 @@ TEST_F(IOSChromeSavePasswordInfoBarDelegateTest, Cancel_WhenSave) {
   // Verify UKMs.
   const auto& entries = test_ukm_recorder.GetEntriesByName(
       ukm::builders::PasswordForm::kEntryName);
-  ASSERT_THAT(entries, testing::SizeIs(1));
+  ASSERT_THAT(entries, SizeIs(1));
   const ukm::mojom::UkmEntry* entry = entries.front();
   test_ukm_recorder.ExpectEntryMetric(
       entry, ukm::builders::PasswordForm::kSaving_Prompt_InteractionName,
@@ -404,7 +458,7 @@ TEST_F(IOSChromeSavePasswordInfoBarDelegateTest, Dismiss_WhenSave) {
   // Verify UKMs.
   const auto& entries = test_ukm_recorder.GetEntriesByName(
       ukm::builders::PasswordForm::kEntryName);
-  ASSERT_THAT(entries, testing::SizeIs(1));
+  ASSERT_THAT(entries, SizeIs(1));
   const ukm::mojom::UkmEntry* entry = entries.front();
   test_ukm_recorder.ExpectEntryMetric(
       entry, ukm::builders::PasswordForm::kSaving_Prompt_InteractionName,
@@ -437,7 +491,7 @@ TEST_F(IOSChromeSavePasswordInfoBarDelegateTest, Dismiss_WhenUpdate) {
   // Verify UKMs.
   const auto& entries = test_ukm_recorder.GetEntriesByName(
       ukm::builders::PasswordForm::kEntryName);
-  ASSERT_THAT(entries, testing::SizeIs(1));
+  ASSERT_THAT(entries, SizeIs(1));
   const ukm::mojom::UkmEntry* entry = entries.front();
   test_ukm_recorder.ExpectEntryMetric(
       entry, ukm::builders::PasswordForm::kUpdating_Prompt_InteractionName,
@@ -465,7 +519,7 @@ TEST_F(IOSChromeSavePasswordInfoBarDelegateTest, NoAction_WhenSave) {
   // Verify UKMs.
   const auto& entries = test_ukm_recorder.GetEntriesByName(
       ukm::builders::PasswordForm::kEntryName);
-  ASSERT_THAT(entries, testing::SizeIs(1));
+  ASSERT_THAT(entries, SizeIs(1));
   const ukm::mojom::UkmEntry* entry = entries.front();
   test_ukm_recorder.ExpectEntryMetric(
       entry, ukm::builders::PasswordForm::kSaving_Prompt_InteractionName,
@@ -495,7 +549,7 @@ TEST_F(IOSChromeSavePasswordInfoBarDelegateTest, NoAction_WhenUpdate) {
   // Verify UKMs.
   const auto& entries = test_ukm_recorder.GetEntriesByName(
       ukm::builders::PasswordForm::kEntryName);
-  ASSERT_THAT(entries, testing::SizeIs(1));
+  ASSERT_THAT(entries, SizeIs(1));
   const ukm::mojom::UkmEntry* entry = entries.front();
   test_ukm_recorder.ExpectEntryMetric(
       entry, ukm::builders::PasswordForm::kUpdating_Prompt_InteractionName,
@@ -529,7 +583,7 @@ TEST_F(IOSChromeSavePasswordInfoBarDelegateTest,
 
   const auto& entries = test_ukm_recorder.GetEntriesByName(
       ukm::builders::PasswordForm::kEntryName);
-  ASSERT_THAT(entries, testing::SizeIs(1));
+  ASSERT_THAT(entries, SizeIs(1));
   const ukm::mojom::UkmEntry* entry = entries.front();
 
   test_ukm_recorder.ExpectEntryMetric(
@@ -559,7 +613,7 @@ TEST_F(IOSChromeSavePasswordInfoBarDelegateTest,
   // Verify UKMs.
   const auto& entries = test_ukm_recorder.GetEntriesByName(
       ukm::builders::PasswordForm::kEntryName);
-  ASSERT_THAT(entries, testing::SizeIs(1));
+  ASSERT_THAT(entries, SizeIs(1));
   const ukm::mojom::UkmEntry* entry = entries.front();
   test_ukm_recorder.ExpectEntryMetric(
       entry, ukm::builders::PasswordForm::kSaving_Prompt_TriggerName,
@@ -591,7 +645,7 @@ TEST_F(IOSChromeSavePasswordInfoBarDelegateTest,
   // Verify UKMs.
   const auto& entries = test_ukm_recorder.GetEntriesByName(
       ukm::builders::PasswordForm::kEntryName);
-  ASSERT_THAT(entries, testing::SizeIs(1));
+  ASSERT_THAT(entries, SizeIs(1));
   const ukm::mojom::UkmEntry* entry = entries.front();
   test_ukm_recorder.ExpectEntryMetric(
       entry, ukm::builders::PasswordForm::kUpdating_Prompt_TriggerName,
@@ -622,7 +676,7 @@ TEST_F(IOSChromeSavePasswordInfoBarDelegateTest,
   // Verify UKMs.
   const auto& entries = test_ukm_recorder.GetEntriesByName(
       ukm::builders::PasswordForm::kEntryName);
-  ASSERT_THAT(entries, testing::SizeIs(1));
+  ASSERT_THAT(entries, SizeIs(1));
   const ukm::mojom::UkmEntry* entry = entries.front();
   test_ukm_recorder.ExpectEntryMetric(
       entry, ukm::builders::PasswordForm::kUpdating_Prompt_TriggerName,
@@ -806,6 +860,181 @@ TEST_F(IOSChromeSavePasswordInfoBarDelegateTest,
   EXPECT_FALSE(delegate_->IsCurrentPasswordSaved());
 }
 
+TEST_F(IOSChromeSavePasswordInfoBarDelegateTest,
+       Accept_ActionableError_SignInNeeded) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      password_manager::features::kInFlowTrustedVaultKeyRetrievalIos);
+
+  InitializeDelegate(
+      /*password_update=*/false,
+      password_manager::ActionableError::kSignInNeeded);
+
+  // Verify that the password manager does NOT save.
+  EXPECT_CALL(*form_manager_ptr_, Save).Times(0);
+
+  OCMExpect([mock_sync_presenter_
+      showPrimaryAccountReauthWithDismissalCompletion:[OCMArg any]]);
+
+  // Tap on "Accept".
+  EXPECT_FALSE(delegate_->Accept());
+}
+
+TEST_F(IOSChromeSavePasswordInfoBarDelegateTest,
+       Accept_ActionableError_NoError) {
+  InitializeDelegate(
+      /*password_update=*/false, password_manager::ActionableError::kNoError);
+
+  // Verify that the password manager saves.
+  EXPECT_CALL(*form_manager_ptr_, Save).Times(1);
+
+  // Tap on "Accept".
+  EXPECT_TRUE(delegate_->Accept());
+}
+
+TEST_F(IOSChromeSavePasswordInfoBarDelegateTest,
+       Accept_ActionableError_TrustedVaultKeyNeeded) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      password_manager::features::kInFlowTrustedVaultKeyRetrievalIos);
+
+  InitializeDelegate(
+      /*password_update=*/false,
+      password_manager::ActionableError::kTrustedVaultKeyNeeded);
+
+  // Verify that the password manager does NOT save.
+  EXPECT_CALL(*form_manager_ptr_, Save).Times(0);
+
+  OCMExpect([mock_sync_presenter_
+      showTrustedVaultReauthForFetchKeysWithTrigger:
+          trusted_vault::TrustedVaultUserActionTriggerForUMA::
+              kPasswordManagerSettings
+                                         completion:[OCMArg any]]);
+
+  // Tap on "Accept".
+  EXPECT_FALSE(delegate_->Accept());
+}
+
+TEST_F(IOSChromeSavePasswordInfoBarDelegateTest,
+       Accept_ActionableError_SignInNeeded_FeatureDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      password_manager::features::kInFlowTrustedVaultKeyRetrievalIos);
+
+  InitializeDelegate(
+      /*password_update=*/false,
+      password_manager::ActionableError::kSignInNeeded);
+
+  // Verify that the password manager saves because error handling is disabled.
+  EXPECT_CALL(*form_manager_ptr_, Save).Times(1);
+
+  // Tap on "Accept".
+  EXPECT_TRUE(delegate_->Accept());
+}
+
+TEST_F(IOSChromeSavePasswordInfoBarDelegateTest,
+       Accept_ActionableError_SignInNeeded_ResolveErrorOnCompletion) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      password_manager::features::kInFlowTrustedVaultKeyRetrievalIos);
+
+  InitializeDelegate(
+      /*password_update=*/false,
+      password_manager::ActionableError::kSignInNeeded);
+
+  IOSChromeSavePasswordInfoBarDelegate* delegate_ptr = delegate_.get();
+  testing::NiceMock<MockInfoBarManager> mock_infobar_manager;
+  infobars::InfoBar* infobar = mock_infobar_manager.AddInfoBar(
+      std::make_unique<infobars::InfoBar>(std::move(delegate_)));
+
+  __block SyncPresenterCompletionCallback captured_completion;
+  OCMExpect(
+      [mock_sync_presenter_ showPrimaryAccountReauthWithDismissalCompletion:
+                                [OCMArg checkWithBlock:^BOOL(id obj) {
+                                  captured_completion = obj;
+                                  return YES;
+                                }]]);
+
+  // Tap on "Accept" -> starts reauth and returns false.
+  EXPECT_FALSE(delegate_ptr->Accept());
+  ASSERT_TRUE(captured_completion);
+
+  // Simulate error resolved on reauth completion.
+  ON_CALL(*profile_store_, GetError)
+      .WillByDefault(Return(password_manager::ActionableError::kNoError));
+
+  // The password manager should save and the infobar should be removed.
+  EXPECT_CALL(*form_manager_ptr_, Save).Times(1);
+  EXPECT_CALL(mock_infobar_manager, RemoveInfoBar(infobar)).Times(1);
+  captured_completion();
+}
+
+TEST_F(IOSChromeSavePasswordInfoBarDelegateTest,
+       Accept_ActionableError_SignInNeeded_ErrorUnresolvedOnCompletion) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      password_manager::features::kInFlowTrustedVaultKeyRetrievalIos);
+
+  InitializeDelegate(
+      /*password_update=*/false,
+      password_manager::ActionableError::kSignInNeeded);
+
+  IOSChromeSavePasswordInfoBarDelegate* delegate_ptr = delegate_.get();
+  testing::NiceMock<MockInfoBarManager> mock_infobar_manager;
+  infobars::InfoBar* infobar = mock_infobar_manager.AddInfoBar(
+      std::make_unique<infobars::InfoBar>(std::move(delegate_)));
+
+  __block SyncPresenterCompletionCallback captured_completion;
+  OCMExpect(
+      [mock_sync_presenter_ showPrimaryAccountReauthWithDismissalCompletion:
+                                [OCMArg checkWithBlock:^BOOL(id obj) {
+                                  captured_completion = obj;
+                                  return YES;
+                                }]]);
+
+  // Tap on "Accept" -> starts reauth and returns false.
+  EXPECT_FALSE(delegate_ptr->Accept());
+  ASSERT_TRUE(captured_completion);
+
+  // Simulate error still present on reauth completion.
+  ON_CALL(*profile_store_, GetError)
+      .WillByDefault(Return(password_manager::ActionableError::kSignInNeeded));
+
+  // Verify that the password manager does NOT save, and the infobar is NOT
+  // removed.
+  EXPECT_CALL(*form_manager_ptr_, Save).Times(0);
+  EXPECT_CALL(mock_infobar_manager, RemoveInfoBar(infobar)).Times(0);
+  captured_completion();
+}
+
+TEST_F(IOSChromeSavePasswordInfoBarDelegateTest, IsHandlingPasswordError) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      password_manager::features::kInFlowTrustedVaultKeyRetrievalIos);
+
+  InitializeDelegate(
+      /*password_update=*/false,
+      password_manager::ActionableError::kSignInNeeded);
+  EXPECT_FALSE(delegate_->IsHandlingPasswordError());
+
+  __block SyncPresenterCompletionCallback captured_completion;
+  OCMExpect(
+      [mock_sync_presenter_ showPrimaryAccountReauthWithDismissalCompletion:
+                                [OCMArg checkWithBlock:^BOOL(id obj) {
+                                  captured_completion = obj;
+                                  return YES;
+                                }]]);
+
+  // After clicking accept, `IsHandlingPasswordError` should return true.
+  EXPECT_FALSE(delegate_->Accept());
+  ASSERT_TRUE(captured_completion);
+  EXPECT_TRUE(delegate_->IsHandlingPasswordError());
+
+  // After completing error flow, the state should be reset.
+  captured_completion();
+  EXPECT_FALSE(delegate_->IsHandlingPasswordError());
+}
+
 // Test fixture for the password recovery flow during a password update.
 class IOSChromeSavePasswordInfoBarDelegateRecoveryFlowTest
     : public IOSChromeSavePasswordInfoBarDelegateTest,
@@ -840,10 +1069,10 @@ TEST_P(IOSChromeSavePasswordInfoBarDelegateRecoveryFlowTest,
   forms.push_back(password_manager::FromPasswordForm(std::move(primary_form)));
 
   ON_CALL(*form_manager_ptr_, GetBestMatches)
-      .WillByDefault(testing::Return(
-          base::span<const password_manager::StoredCredential>(forms)));
-  ON_CALL(testing::Const(*form_manager_ptr_), GetPendingCredentials)
-      .WillByDefault(testing::ReturnRef(updated_form));
+      .WillByDefault(
+          Return(base::span<const password_manager::StoredCredential>(forms)));
+  ON_CALL(Const(*form_manager_ptr_), GetPendingCredentials)
+      .WillByDefault(ReturnRef(updated_form));
 
   // Set the expectations.
   EXPECT_CALL(*form_manager_ptr_, Save).Times(1);

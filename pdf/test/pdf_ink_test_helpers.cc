@@ -106,11 +106,54 @@ base::span<const InkTestVariation> GetAllInkTestVariations() {
 
 void PrintTo(const InkTextInfo& info, std::ostream* os) {
   *os << "{\n  font_id=" << info.font_id
-      << ", is_horizontal=" << base::ToString(info.is_horizontal)
+      << ",\n  is_horizontal=" << base::ToString(info.is_horizontal)
       << ",\n  location=" << info.location.ToString()
       << ",\n  glyphs=" << testing::PrintToString(info.glyphs)
       << ",\n  glyph_positions=" << testing::PrintToString(info.glyph_positions)
       << "\n}";
+}
+
+void PrintTo(const InkTextBoxAttributes& info, std::ostream* os) {
+  std::string_view typeface;
+  switch (info.typeface) {
+    case TextTypeface::kSansSerif:
+      typeface = "Sans Serif (0)";
+      break;
+    case TextTypeface::kSerif:
+      typeface = "Serif (1)";
+      break;
+    case TextTypeface::kMonospace:
+      typeface = "Monospace (2)";
+      break;
+    default:
+      NOTREACHED();
+  }
+
+  std::string_view alignment;
+  switch (info.alignment) {
+    case TextAlignment::kLeft:
+      alignment = "Left (0)";
+      break;
+    case TextAlignment::kCenter:
+      alignment = "Center (1)";
+      break;
+    case TextAlignment::kRight:
+      alignment = "Right (2)";
+      break;
+    default:
+      NOTREACHED();
+  }
+
+  const SkColor color = info.color;
+  *os << "{\n  rect=" << info.rect.ToString() << ",\n  color (RGBA)=("
+      << SkColorGetR(color) << ", " << SkColorGetG(color) << ", "
+      << SkColorGetB(color) << ", " << SkColorGetA(color) << ")"
+      << ",\n  css_font_size=" << info.css_font_size
+      << ",\n  typeface=" << typeface << ",\n  alignment=" << alignment
+      << ",\n  orientation=" << info.orientation
+      << ",\n  is_bold=" << base::ToString(info.is_bold)
+      << ",\n  is_italic=" << base::ToString(info.is_italic)
+      << ",\n  text=" << info.text << "\n}";
 }
 
 }  // namespace chrome_pdf

@@ -16,6 +16,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
+#include "components/autofill/core/browser/integrators/password_manager/password_manager_delegate.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/suggestions/suggestion_hiding_reason.h"
 #include "components/autofill/core/browser/ui/popup_open_enums.h"
@@ -38,6 +39,9 @@
 namespace password_manager {
 
 namespace {
+// The length of the password preview label for the cross-domain credentials.
+static constexpr size_t kCrossDomainPasswordPreviewLabelLength = 8;
+
 using autofill::Suggestion;
 
 // If `label` was made for an empty username, then return the empty string,
@@ -134,6 +138,7 @@ bool PasswordManualFallbackFlow::SupportsSuggestionType(
     case autofill::SuggestionType::kFillPassword:
     case autofill::SuggestionType::kViewPasswordDetails:
     case autofill::SuggestionType::kAllSavedPasswordsEntry:
+    case autofill::SuggestionType::kWebauthnSignInWithAnotherDevice:
       return true;
     default:
       return false;
@@ -228,12 +233,18 @@ void PasswordManualFallbackFlow::DidSelectSuggestion(
           form->username_element_renderer_id,
           form->password_element_renderer_id,
           GetUsernameFromLabel(suggestion.labels[0][0].value),
-          std::u16string(payload.password.length(), '*'));
+          std::u16string(kCrossDomainPasswordPreviewLabelLength, '*'));
       break;
     }
     case autofill::SuggestionType::kPasswordFieldByFieldFilling:
       password_manager_driver_->PreviewField(field_id_,
                                              suggestion.main_text.value);
+      break;
+    case autofill::SuggestionType::kWebauthnSignInWithAnotherDevice:
+      if (auto* password_manager_delegate =
+              password_manager_driver_->GetPasswordManagerDelegate()) {
+        password_manager_delegate->SelectSuggestion(suggestion);
+      }
       break;
     case autofill::SuggestionType::kFillPassword:
     case autofill::SuggestionType::kViewPasswordDetails:
@@ -334,6 +345,12 @@ void PasswordManualFallbackFlow::DidAcceptSuggestion(
       metrics_util::LogPasswordSuggestionSelected(
           metrics_util::PasswordDropdownSelectedOption::kShowAll,
           password_client_->IsOffTheRecord());
+      break;
+    case autofill::SuggestionType::kWebauthnSignInWithAnotherDevice:
+      if (auto* password_manager_delegate =
+              password_manager_driver_->GetPasswordManagerDelegate()) {
+        password_manager_delegate->AcceptSuggestion(suggestion, metadata);
+      }
       break;
     default:
       // Other suggestion types are not supported.

@@ -1007,7 +1007,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 
 <histogram
     name="Extensions.Database.Local.StatusCodeByOperation.{StorageOperation}"
-    enum="ValueStoreStatusCode" expires_after="2026-08-31">
+    enum="ValueStoreStatusCode" expires_after="2026-11-29">
   <owner>jlulejian@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
   <summary>
@@ -1452,7 +1452,9 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.DeclarativeNetRequest.UpdateDynamicRulesStatus"
-    enum="UpdateDynamicRulesStatus" expires_after="2026-07-04">
+    enum="UpdateDynamicRulesStatus" expires_after="never">
+<!-- expires-never: Used for monitoring core extension API health. -->
+
   <owner>rdevlin.cronin@chromium.org</owner>
   <owner>kelvinjiang@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
@@ -2715,7 +2717,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.Functions.ExtensionMV3Calls"
-    enum="ExtensionFunctions" expires_after="2026-09-27">
+    enum="ExtensionFunctions" expires_after="2026-11-29">
   <owner>tjudkins@chromium.org</owner>
   <owner>rdevlin.cronin@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
@@ -2921,7 +2923,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.GreylistedForceInstalled.{TrustLevel}.Enabled"
-    enum="Boolean" expires_after="2026-09-13">
+    enum="Boolean" expires_after="2026-11-29">
   <owner>anunoy@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -3505,7 +3507,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.LoadType2" enum="ExtensionType"
-    expires_after="2026-09-27">
+    expires_after="2026-11-29">
   <owner>rdevlin.cronin@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
   <summary>
@@ -3969,6 +3971,22 @@ This is emitted for two scenarios when a worker may be unregistered:
     and only if the RuntimeHostPermissions feature is enabled and the extension
     has had host permissions withheld. See also
     Extensions.RuntimeHostPermissions.ExtensionHasWithheldHosts.
+  </summary>
+</histogram>
+
+<histogram name="Extensions.RuntimeSetUnistallURL.Host"
+    enum="ExtensionRuntimeUninstallURLHost" expires_after="M155">
+  <owner>rdevlin.cronin@chromium.org</owner>
+  <owner>bershanskyi@gmail.com</owner>
+  <owner>extensions-core@chromium.org</owner>
+  <summary>
+    The number of extensions which have uninstall URL with given security
+    properties: HTTPS protocol, HTTP protocol and local hostname, or HTTP
+    protocol and non-local hostname. This histogram may allow us to deprecate
+    support for insecure remote unistall URLs. For purposes of this histogram,
+    any non-local domain name is considered non-local even if it resolves to a
+    local IP. Recorded on extension load if an extension has a valid uninstall
+    URL set.
   </summary>
 </histogram>
 
@@ -4477,7 +4495,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 
 <histogram
     name="Extensions.SettingsOverridden.BackToGoogleSearchOverriddenDialogResult"
-    enum="SettingsOverriddenDialogResult" expires_after="2026-09-27">
+    enum="SettingsOverriddenDialogResult" expires_after="2026-11-29">
   <owner>rdevlin.cronin@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
@@ -4492,7 +4510,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 
 <histogram
     name="Extensions.SettingsOverridden.BackToOtherSearchOverriddenDialogResult"
-    enum="SettingsOverriddenDialogResult" expires_after="2026-09-27">
+    enum="SettingsOverriddenDialogResult" expires_after="2026-11-29">
   <owner>rdevlin.cronin@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
@@ -4521,7 +4539,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 
 <histogram
     name="Extensions.SettingsOverridden.GenericSearchOverriddenDialogResult"
-    enum="SettingsOverriddenDialogResult" expires_after="2026-09-27">
+    enum="SettingsOverriddenDialogResult" expires_after="2026-11-29">
   <owner>rdevlin.cronin@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
@@ -4541,19 +4559,6 @@ This is emitted for two scenarios when a worker may be unregistered:
   <summary>
     Records whether any search parameters are missing when populating the values
     for the Explicit Choice dialog.
-  </summary>
-</histogram>
-
-<histogram name="Extensions.StartupPagesOverrides2" units="units"
-    expires_after="2027-05-15">
-  <owner>rdevlin.cronin@chromium.org</owner>
-  <owner>kelvinjiang@chromium.org</owner>
-  <owner>junhaohuang@microsoft.com</owner>
-  <summary>
-    The number of enabled extensions with startup page overrides specified in
-    their manifest. Recorded once per &quot;user profile&quot; (profiles where
-    people can install extensions, specifically profiles that can have
-    non-component extensions installed) at profile initialization.
   </summary>
 </histogram>
 
@@ -4596,7 +4601,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.Toolbar.InvocationSource"
-    enum="ExtensionActionInvocationSource" expires_after="2026-09-27">
+    enum="ExtensionActionInvocationSource" expires_after="2026-11-29">
   <owner>rdevlin.cronin@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
   <summary>

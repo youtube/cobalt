@@ -382,8 +382,6 @@ source_set("eg_test_support+eg2") {
     "scoped_block_popups_pref.mm",
     "scoped_disable_timer_tracking.h",
     "scoped_disable_timer_tracking.mm",
-    "web_http_server_chrome_test_case.h",
-    "web_http_server_chrome_test_case.mm",
   ]
 
   public_deps = [
@@ -426,7 +424,6 @@ source_set("eg_test_support+eg2") {
     "//ios/third_party/gtx:gtx+link",
     "//ios/web/common:features",
     "//ios/web/public/test:element_selector",
-    "//ios/web/public/test/http_server",
     "//net:test_support",
     "//third_party/metrics_proto",
     "//ui/base",

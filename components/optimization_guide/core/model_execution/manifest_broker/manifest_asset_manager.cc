@@ -22,11 +22,13 @@
 #include "base/notimplemented.h"
 #include "base/power_monitor/power_monitor.h"
 #include "base/sequence_checker.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/thread_annotations.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "base/version.h"
+#include "components/crx_file/id_util.h"
 #include "components/optimization_guide/core/model_execution/manifest_broker/manifest.h"
 #include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
 #include "components/optimization_guide/core/model_execution/model_execution_util.h"
@@ -309,8 +311,13 @@ ManifestAssetManager::ManifestAssetManager(
     PrefService& local_state,
     UsageTracker& usage_tracker,
     Delegate& delegate,
+    component_updater::ComponentUpdateService* component_update_service,
     std::unique_ptr<ManifestSolutionFactory> factory)
-    : usage_tracker_(usage_tracker), delegate_(delegate), ledger_(local_state) {
+    : local_state_(local_state),
+      usage_tracker_(usage_tracker),
+      delegate_(delegate),
+      component_update_service_(component_update_service),
+      ledger_(local_state) {
   // Load persistent state from the ledger immediately on startup.
   ledger_.Load();
 
@@ -325,6 +332,43 @@ ManifestAssetManager::~ManifestAssetManager() {
   TRACE_EVENT("optimization_guide",
               "ManifestAssetManager::~ManifestAssetManager",
               perfetto::TerminatingFlow::FromPointer(this));
+}
+
+void ManifestAssetManager::AddDownloadProgressObserver(
+    const std::string& use_case,
+    mojo::PendingRemote<on_device_model::mojom::DownloadObserver> observer) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!factory_) {
+    return;
+  }
+
+  std::optional<absl::flat_hash_set<Manifest::AssetId>> required_assets =
+      factory_->manifest().GetRequiredAssets(use_case);
+
+  if (!required_assets) {
+    return;
+  }
+
+  base::flat_set<std::string> component_ids;
+  for (const auto& asset_id : *required_assets) {
+    const auto& on_demand_components =
+        factory_->manifest().GetAssets().on_demand_components();
+    auto it = on_demand_components.find(asset_id);
+    if (it != on_demand_components.end()) {
+      std::vector<uint8_t> public_key_hash;
+      if (base::HexStringToBytes(it->second.public_key(), &public_key_hash)) {
+        component_ids.insert(
+            crx_file::id_util::GenerateIdFromHash(public_key_hash));
+      }
+    }
+  }
+
+  auto& progress_manager = progress_managers_[use_case];
+  if (!progress_manager) {
+    progress_manager = std::make_unique<OnDeviceModelDownloadProgressManager>(
+        component_update_service_, std::move(component_ids));
+  }
+  progress_manager->AddObserver(std::move(observer));
 }
 
 void ManifestAssetManager::UpdateSolutionFactory(
@@ -368,6 +412,37 @@ void ManifestAssetManager::RefreshSolutions() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (factory_) {
     factory_->UpdateSolutions();
+  }
+}
+
+void ManifestAssetManager::UninstallModels() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  model_execution::prefs::ClearAllUseCaseUsages(&*local_state_);
+  active_assets_by_id_.clear();
+  background_download_assets_by_id_.clear();
+
+  std::vector<std::string> keys_to_save;
+  for (auto& [public_key, context] : ledger_.GetMutableContexts()) {
+    if (context.state() == ComponentState::kRegistering ||
+        context.state() == ComponentState::kUninstalling) {
+      // Can't do anything right now during
+      // registering/uninstalling, wait for callbacks.
+      continue;
+    }
+    if (context.NeedsCleanup()) {
+      context.SetUninstalling();
+      keys_to_save.push_back(public_key);
+      // Uninstall the component which will delete the model files, after a
+      // short delay to give time for the consumers to unload the model.
+      base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+          FROM_HERE,
+          base::BindOnce(&ManifestAssetManager::UninstallComponent,
+                         weak_ptr_factory_.GetWeakPtr(), public_key),
+          kUninstallDelay);
+    }
+  }
+  if (!keys_to_save.empty()) {
+    ledger_.SaveContexts(keys_to_save);
   }
 }
 

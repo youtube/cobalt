@@ -33,10 +33,6 @@ BASE_FEATURE(kAbortNavigationsFromTabClosures,
 // IME sends composition texts.
 BASE_FEATURE(kAndroidCaptureKeyEvents, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables the caret browsing a11y feature - can use arrow keys to navigate
-// through web pages.
-BASE_FEATURE(kAndroidCaretBrowsing, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // DevTools frontend for Android.
 BASE_FEATURE(kAndroidDevToolsFrontend, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -178,7 +174,7 @@ BASE_FEATURE(kBackForwardCacheEntryTimeout, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // BackForwardCache is disabled on low memory devices. The threshold is defined
 // via a field trial param: "memory_threshold_for_back_forward_cache_in_mb"
-// It is compared against base::SysInfo::AmountOfPhysicalMemoryMB().
+// It is compared against base::SysInfo::AmountOfTotalPhysicalMemory().
 
 // "BackForwardCacheMemoryControls" is checked before "BackForwardCache". It
 // means the low memory devices will activate neither the control group nor the
@@ -573,7 +569,25 @@ BASE_FEATURE_PARAM(bool,
                    kInitialWebUIWithoutTranslate,
                    &features::kInitialWebUI,
                    "without_translate",
-                   false);
+                   true);
+
+// Used to add an artificial delay for UI rendering during testing and
+// debugging.
+BASE_FEATURE(kArtificialUIDelay, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// The duration of the artificial delay injected into WebUI HTML UI rendering.
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kInitialWebUIDelayDuration,
+                   &features::kArtificialUIDelay,
+                   "initial_web_ui_delay_duration",
+                   base::Seconds(3));
+
+// The duration of the artificial delay injected into views UI rendering.
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kViewsUIDelayDuration,
+                   &features::kArtificialUIDelay,
+                   "views_ui_delay_duration",
+                   base::Seconds(3));
 
 // Whether initial WebUI navigations should synchronously go from navigation
 // start to commit, by doing e.g. in-renderer body loading.
@@ -746,7 +760,7 @@ const base::FeatureParam<bool>
 
 // Use code paths for prefetch/prerender integration.
 // See also `kPrerender2FallbackPrefetchSpecRules`.
-BASE_FEATURE(kPrefetchPrerenderIntegration, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kPrefetchPrerenderIntegration, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If explicitly disabled, prefetch proxy is not used.
 BASE_FEATURE(kPrefetchProxy, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1185,19 +1199,6 @@ BASE_FEATURE(kV8VmFuture, base::FEATURE_DISABLED_BY_DEFAULT);
 // based on the evolution of V8's performance features for high-end devices.
 BASE_FEATURE(kV8AndroidDesktopHighEndConfig, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
-
-// Enables per PWA System Media Controls. Only supported on Windows and macOS.
-BASE_FEATURE(kWebAppSystemMediaControls,
-#if BUILDFLAG(IS_WIN)
-             // Windows enabled since 124.
-             base::FEATURE_ENABLED_BY_DEFAULT);
-#elif BUILDFLAG(IS_MAC)
-             // macOS enabled in 130. If a kill switch is needed, it should be
-             // safe to only disable the failing platform (ie. macOS here).
-             base::FEATURE_ENABLED_BY_DEFAULT);
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_WIN)
 
 // Enable WebAssembly baseline compilation (Liftoff).
 BASE_FEATURE(kWebAssemblyBaseline, base::FEATURE_ENABLED_BY_DEFAULT);

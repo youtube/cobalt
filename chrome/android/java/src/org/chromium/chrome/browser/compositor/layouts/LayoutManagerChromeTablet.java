@@ -25,7 +25,6 @@ import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutHelperMa
 import org.chromium.chrome.browser.data_sharing.DataSharingTabManager;
 import org.chromium.chrome.browser.device.DeviceClassManager;
 import org.chromium.chrome.browser.glic.GlicButtonDelegate;
-import org.chromium.chrome.browser.glic.GlicKeyedService;
 import org.chromium.chrome.browser.hub.HubLayoutDependencyHolder;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
@@ -71,7 +70,7 @@ public class LayoutManagerChromeTablet extends LayoutManagerChrome {
     private final @Nullable XrSceneCoreSessionManager mXrSceneCoreSessionManager;
 
     /**
-     * Creates an instance of a LayoutManagerChromePhone.
+     * Creates an instance of a LayoutManagerChromeTablet.
      *
      * @param host A LayoutManagerHost instance.
      * @param contentContainer A ViewGroup for Android views to be bound to.
@@ -86,7 +85,7 @@ public class LayoutManagerChromeTablet extends LayoutManagerChrome {
      *     drag and drop.
      * @param dragAndDropDelegate DragAndDropDelegate passed to StripLayoutHelperManager to initiate
      *     tab drag and drop.
-     * @param toolbarContainerView View passed to StripLayoutHelper to support tab drag and drop.
+     * @param controlContainerView View passed to StripLayoutHelper to support tab drag and drop.
      * @param tabHoverCardViewStub The ViewStub representing the strip tab hover card.
      * @param windowAndroid The @{@link WindowAndroid} instance to access Activity.
      * @param toolbarManager The ToolbarManager instance.
@@ -116,7 +115,7 @@ public class LayoutManagerChromeTablet extends LayoutManagerChrome {
             HubLayoutDependencyHolder hubLayoutDependencyHolder,
             MultiInstanceManager multiInstanceManager,
             DragAndDropDelegate dragAndDropDelegate,
-            View toolbarContainerView,
+            View controlContainerView,
             ViewStub tabHoverCardViewStub,
             WindowAndroid windowAndroid,
             ToolbarManager toolbarManager,
@@ -130,8 +129,7 @@ public class LayoutManagerChromeTablet extends LayoutManagerChrome {
             BackPressManager backPressManager,
             SnackbarManager snackbarManager,
             ActivityResultTracker activityResultTracker,
-            GlicButtonDelegate glicClickHandler,
-            @Nullable GlicKeyedService glicKeyedService) {
+            GlicButtonDelegate glicClickHandler) {
         super(
                 host,
                 contentContainer,
@@ -158,7 +156,7 @@ public class LayoutManagerChromeTablet extends LayoutManagerChrome {
                         lifecycleDispatcher,
                         multiInstanceManager,
                         dragAndDropDelegate,
-                        toolbarContainerView,
+                        controlContainerView,
                         tabHoverCardViewStub,
                         tabContentManagerSupplier,
                         browserControlsStateProvider,
@@ -174,8 +172,7 @@ public class LayoutManagerChromeTablet extends LayoutManagerChrome {
                         backPressManager,
                         snackbarManager,
                         activityResultTracker,
-                        glicClickHandler,
-                        glicKeyedService);
+                        glicClickHandler);
         addSceneOverlay(mTabStripLayoutHelperManager);
         addObserver(mTabStripLayoutHelperManager.getTabSwitcherObserver());
         mDesktopWindowStateManager = desktopWindowStateManager;

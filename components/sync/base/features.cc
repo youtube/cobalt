@@ -56,10 +56,6 @@ BASE_FEATURE(kUnoPhase2FollowUp,
 );
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
-// If enabled, shows a user-actionable error when the bookmarks count limit is
-// exceeded.
-BASE_FEATURE(kSyncShowBookmarksLimitExceededError,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSyncEnableContactInfoDataTypeForCustomPassphraseUsers,
 #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID)
@@ -213,6 +209,8 @@ BASE_FEATURE(kSyncInvalidationsBypassScheduler,
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kSyncSearchEnginesAndroidLFF, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kAlwaysRegisterSessionsInvalidationsAndroid,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kSyncUploadAndroidBuildFingerprintPrefix,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 

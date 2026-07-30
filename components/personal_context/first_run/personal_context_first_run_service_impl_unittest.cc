@@ -80,7 +80,7 @@ class PersonalContextFirstRunServiceImplTest : public testing::Test {
 TEST_F(PersonalContextFirstRunServiceImplTest, SetsPrefOnAcknowledge) {
   EXPECT_CALL(*enablement_service(), GetEnablementState())
       .WillOnce(
-          Return(PersonalContextEnablementState::kDisabledShouldShowNotice));
+          Return(PersonalContextEnablementState::kEnabledShouldShowNotice));
 
   EXPECT_CALL(*client(), ShowNotice)
       .WillOnce([](content::WebContents*, FirstRunInvocationSource,
@@ -101,7 +101,7 @@ TEST_F(PersonalContextFirstRunServiceImplTest, SetsPrefOnAcknowledge) {
 TEST_F(PersonalContextFirstRunServiceImplTest, DoesNotSetPrefOnDismiss) {
   EXPECT_CALL(*enablement_service(), GetEnablementState())
       .WillOnce(
-          Return(PersonalContextEnablementState::kDisabledShouldShowNotice));
+          Return(PersonalContextEnablementState::kEnabledShouldShowNotice));
 
   EXPECT_CALL(*client(), ShowNotice)
       .WillOnce([](content::WebContents*, FirstRunInvocationSource,
@@ -161,7 +161,7 @@ TEST_F(PersonalContextFirstRunServiceImplTest, DoesNotTriggerWhenNeedsOptIn) {
 TEST_F(PersonalContextFirstRunServiceImplTest, TriggersWhenShouldShowNotice) {
   EXPECT_CALL(*enablement_service(), GetEnablementState())
       .WillOnce(
-          Return(PersonalContextEnablementState::kDisabledShouldShowNotice));
+          Return(PersonalContextEnablementState::kEnabledShouldShowNotice));
 
   EXPECT_CALL(*client(), ShowNotice).Times(1);
 
@@ -170,31 +170,12 @@ TEST_F(PersonalContextFirstRunServiceImplTest, TriggersWhenShouldShowNotice) {
 }
 
 TEST_F(PersonalContextFirstRunServiceImplTest,
-       MarkPersonalContextInAutofillNoticeAsShownSetsPrefs) {
-  pref_service()->SetBoolean(
-      prefs::kPersonalContextInAutofillSettingsToggleStatus, false);
-  pref_service()->SetBoolean(
-      prefs::kPersonalContextInAutofillNoticeHasBeenShown, false);
-
-  service()->MarkPersonalContextInAutofillNoticeAsShown();
-
-  EXPECT_TRUE(pref_service()->GetBoolean(
-      prefs::kPersonalContextInAutofillSettingsToggleStatus));
-  EXPECT_TRUE(pref_service()->GetBoolean(
-      prefs::kPersonalContextInAutofillNoticeHasBeenShown));
-}
-
-TEST_F(PersonalContextFirstRunServiceImplTest,
        MarkPersonalContextInAutofillNoticeAsAcknowledgedSetsPrefs) {
-  pref_service()->SetBoolean(
-      prefs::kPersonalContextInAutofillSettingsToggleStatus, false);
   pref_service()->SetBoolean(
       prefs::kPersonalContextInAutofillNoticeShouldBeShown, true);
 
   service()->MarkPersonalContextInAutofillNoticeAsAcknowledged();
 
-  EXPECT_TRUE(pref_service()->GetBoolean(
-      prefs::kPersonalContextInAutofillSettingsToggleStatus));
   EXPECT_FALSE(pref_service()->GetBoolean(
       prefs::kPersonalContextInAutofillNoticeShouldBeShown));
 }
@@ -207,7 +188,7 @@ TEST_F(PersonalContextFirstRunServiceImplTest,
 
   EXPECT_CALL(*enablement_service(), GetEnablementState())
       .WillRepeatedly(
-          Return(PersonalContextEnablementState::kDisabledShouldShowNotice));
+          Return(PersonalContextEnablementState::kEnabledShouldShowNotice));
 
   EXPECT_FALSE(service()->ShouldShowPersonalContextAutofillNotice());
 }
@@ -217,12 +198,6 @@ TEST_F(PersonalContextFirstRunServiceImplTest,
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndEnableFeature(
       features::kPersonalContextFirstRunNoticePhase2);
-
-  // Test kDisabledShouldShowNotice
-  EXPECT_CALL(*enablement_service(), GetEnablementState())
-      .WillOnce(
-          Return(PersonalContextEnablementState::kDisabledShouldShowNotice));
-  EXPECT_TRUE(service()->ShouldShowPersonalContextAutofillNotice());
 
   // Test kEnabledShouldShowNotice
   EXPECT_CALL(*enablement_service(), GetEnablementState())

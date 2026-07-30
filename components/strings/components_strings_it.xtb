@@ -149,6 +149,7 @@ In caso contrario l'uso sarà bloccato dalle impostazioni sulla privacy. I conte
 <translation id="1227224963052638717">Norma sconosciuta.</translation>
 <translation id="1227677022489889280">Specifica il motivo dello spostamento (obbligatorio)</translation>
 <translation id="1228893227497259893">Identificatore entità errato</translation>
+<translation id="122989279399348496">Quando hai effettuato l'accesso, <ph name="DOMAIN" /> può verificare <ph name="EMAIL" /> sui siti supportati, così non dovrai controllare la posta in arrivo</translation>
 <translation id="1230244617745022071"><ph name="SOURCE" /> (rilevamento automatico)</translation>
 <translation id="1232569758102978740">Senza titolo</translation>
 <translation id="1234539281285007945">Il campo <ph name="FIELD_1" /> è obbligatorio</translation>
@@ -305,6 +306,7 @@ In caso contrario l'uso sarà bloccato dalle impostazioni sulla privacy. I conte
 <translation id="1458140305240870199">Biancheria intima</translation>
 <translation id="1458770162980644530">Schermata dei Termini di servizio di Buy now, pay later. Tastiera nascosta.</translation>
 <translation id="1459693405370120464">Meteo</translation>
+<translation id="1460317464907341501">Verificare automaticamente questa email?</translation>
 <translation id="1461041542809785877">Prestazioni</translation>
 <translation id="1462245070427461050">JIS B9</translation>
 <translation id="1462951478840426066">Usare i caratteri installati sul computer per consentirti di creare contenuti ad alta fedeltà</translation>
@@ -510,6 +512,7 @@ In caso contrario l'uso sarà bloccato dalle impostazioni sulla privacy. I conte
 <translation id="1798447301915465742"><ph name="MULTIPLE_ACTIONS_FOCUSED_FRIENDLY_MATCH_TEXT" />, sono disponibili diverse azioni; premi Tab per scorrerle</translation>
 <translation id="1800473098294731951">B9</translation>
 <translation id="1801812870656502108">Dati della carta virtuale</translation>
+<translation id="1802420021606590788">Chrome elabora i titoli delle pagine e gli URL in uno spazio privato nel cloud</translation>
 <translation id="1803254472779303354">Blocco del mouse consentito</translation>
 <translation id="1803351196216024260">Può richiedere l'autorizzazione per utilizzare il microfono</translation>
 <translation id="1804258830776932716">Attiva Pix collegando rapidamente il tuo account</translation>
@@ -847,7 +850,6 @@ In caso contrario l'uso sarà bloccato dalle impostazioni sulla privacy. I conte
 <translation id="2316087952091171402">Meno di <ph name="UPPER_ESTIMATE" />. Alcuni siti potrebbero caricarsi più lentamente alla prossima visita.</translation>
 <translation id="2316090909467242775">Prova questa password di recupero</translation>
 <translation id="2316159751672436664">Personalizza i tuoi strumenti di accessibilità nelle impostazioni di ChromeOS</translation>
-<translation id="2316887270356262533">Consente di liberare meno di 1 MB. Alcuni siti potrebbero caricarsi più lentamente alla prossima visita.</translation>
 <translation id="2317259163369394535"><ph name="DOMAIN" /> richiede un nome utente e una password.</translation>
 <translation id="2318594867107319532">Timestamp ultimo aggiornamento delle norme:</translation>
 <translation id="2320564945062300737">Prodotti per la cura del viso</translation>
@@ -873,6 +875,7 @@ In caso contrario l'uso sarà bloccato dalle impostazioni sulla privacy. I conte
 <translation id="2354001756790975382">Altri preferiti</translation>
 <translation id="2355395290879513365">Gli attaccanti potrebbero riuscire a vedere le immagini che visualizzi in questo sito e ingannarti modificandole.</translation>
 <translation id="2356941001189392209">Un elenco limitato di URL di pagine visitate in cui si verificano eventi tecnologici legacy</translation>
+<translation id="2357312461142072202">{NUM_TABS,plural, =1{Verrà condivisa 1 scheda}other{Verranno condivise {NUM_TABS} schede}}</translation>
 <translation id="2357481397660644965">Il tuo dispositivo è gestito da <ph name="DEVICE_MANAGER" /> e il tuo account da <ph name="ACCOUNT_MANAGER" />.</translation>
 <translation id="2359629602545592467">Multiple</translation>
 <translation id="2359808026110333948">Continua</translation>
@@ -1384,6 +1387,7 @@ Per nascondere le opzioni di pagamento posticipato, vai alle <ph name="BEGIN_LIN
 <translation id="3158539265159265653">Disco</translation>
 <translation id="3162070126914310576">Al momento non è possibile registrare questo dispositivo perché l'unità organizzativa ha raggiunto il limite di registrazione iniziale. Per ricevere assistenza, contatta l'amministratore.</translation>
 <translation id="3162559335345991374">La rete Wi-Fi in uso potrebbe richiedere la visita della relativa pagina di accesso.</translation>
+<translation id="316542773973815724">Navigazione</translation>
 <translation id="316638481603975524">Può chiedere di installare le app web</translation>
 <translation id="3166788340998560642">Chrome ti proporrà di salvarle in <ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE" /> la prossima volta che le utilizzerai</translation>
 <translation id="3168744840365648658">Apparecchiature radio</translation>
@@ -1999,6 +2003,7 @@ Per nascondere le opzioni di pagamento posticipato, vai alle <ph name="BEGIN_LIN
 <translation id="412601465078863288">Timeout del caricamento</translation>
 <translation id="4127317221386336246">Accessori di abbigliamento</translation>
 <translation id="4129401438321186435">{COUNT,plural, =1{1 altro}other{# altri}}</translation>
+<translation id="4129810348470013900">Si è verificato un problema. Controlla la connessione a internet e riprova.</translation>
 <translation id="4129992181550680635">Risorse didattiche</translation>
 <translation id="4130226655945681476">Controllare i cavi di rete, il modem e il router</translation>
 <translation id="4132448310531350254">Gestori duplicati per file_extension "<ph name="FILE_EXTENSION" />" indicati dalle app "<ph name="POLICY_IDS_LIST" />".</translation>
@@ -3007,7 +3012,7 @@ Per nascondere le opzioni di pagamento posticipato, vai alle <ph name="BEGIN_LIN
 <translation id="5717509257172454543">Pattinaggio su ghiaccio</translation>
 <translation id="5718601519531438273">Include informazioni come passaporti e patenti di guida</translation>
 <translation id="5720705177508910913">Utente corrente</translation>
-<translation id="5720895412771013401">Computer desktop</translation>
+<translation id="5720895412771013401">Computer</translation>
 <translation id="5721367770070844253">{count,plural, =1{{website_1}}=2{{website_1}, {website_2}}=3{{website_1}, {website_2} e 1 altro}other{{website_1}, {website_2} e altri {more_count}}}</translation>
 <translation id="572328651809341494">Schede recenti</translation>
 <translation id="5723873695528696965">Controllare e riprogrammare i tuoi dispositivi MIDI</translation>
@@ -3016,6 +3021,7 @@ Per nascondere le opzioni di pagamento posticipato, vai alle <ph name="BEGIN_LIN
 <translation id="5728246486828755318">Può chiedere di utilizzare le funzionalità avanzate della stampante</translation>
 <translation id="5729442113829771034">Educazione della prima infanzia</translation>
 <translation id="5730040223043577876">Chrome ti consiglia di reimpostare la password, se l'hai utilizzata su altri siti.</translation>
+<translation id="5735174108294025227">Gli indirizzi email verificati verranno visualizzati qui</translation>
 <translation id="573555826359077410">Pulsante Crea modulo, attiva per creare rapidamente un nuovo modulo in Moduli Google</translation>
 <translation id="5738385766833540397">Gestisci la modalità di ricezione degli avvisi relativi ai cali di prezzo dei prodotti monitorati</translation>
 <translation id="5739619009927381786">Sblocca lo schermo nel passaggio successivo, in genere usando la tua impronta. In alternativa, puoi ricorrere a un <ph name="BEGIN_LINK" />altro metodo di verifica<ph name="END_LINK" />.</translation>
@@ -3024,6 +3030,7 @@ Per nascondere le opzioni di pagamento posticipato, vai alle <ph name="BEGIN_LIN
 <translation id="5742806904559466333">Bar, locali e vita notturna</translation>
 <translation id="5743684619253032786">Prodotti per la cura delle unghie</translation>
 <translation id="574392208103952083">Medio</translation>
+<translation id="5745586894920491759">Chrome elabora i titoli delle pagine e gli URL nel cloud</translation>
 <translation id="5745733273847572235">Può chiedere la tua posizione</translation>
 <translation id="5750869797196646528">Tracciamento delle mani</translation>
 <translation id="5752327398324808817">Inserisci una o due parole</translation>
@@ -3392,7 +3399,6 @@ Per nascondere le opzioni di pagamento posticipato, vai alle <ph name="BEGIN_LIN
 <translation id="633348045801643466">Mostra le opzioni di <ph name="PAY_LATER_OPTIONS_HELP_LINK_BEGIN" />pagamento posticipato<ph name="PAY_LATER_OPTIONS_HELP_LINK_END" /> in fase di pagamento</translation>
 <translation id="6335029926534404762">Scarpe da atletica</translation>
 <translation id="6336948221660696475">VR non consentita</translation>
-<translation id="6337133576188860026">Consente di liberare meno di <ph name="SIZE" />. Alcuni siti potrebbero caricarsi più lentamente alla prossima visita.</translation>
 <translation id="6337534724793800597">Filtra le policy per nome</translation>
 <translation id="633770708279464947">Il valore <ph name="SECURE_DNS_SALT" /> non è valido e non verrà utilizzato.</translation>
 <translation id="6338645927051849741">Password • Gestore delle password di Google</translation>
@@ -3417,6 +3423,7 @@ Per nascondere le opzioni di pagamento posticipato, vai alle <ph name="BEGIN_LIN
 <translation id="6361757823711327522">B7</translation>
 <translation id="6363786367719063276">Visualizza log</translation>
 <translation id="6364095313648930329"><ph name="BEGIN_LINK" />Controllare la configurazione del proxy, del firewall e del sistema DNS sicuro<ph name="END_LINK" /></translation>
+<translation id="6365513578140103119">Conferma automaticamente le email</translation>
 <translation id="6366710531182496394">Doppia pinzatura a sinistra</translation>
 <translation id="6367196786591004737">Elimina voce</translation>
 <translation id="6370022303958842211">Azioni di accesso ai dispositivi, ad esempio accessi (inclusi i motivi di accesso non riuscito), uscite, blocchi e sblocchi</translation>
@@ -3749,7 +3756,6 @@ Per nascondere le opzioni di pagamento posticipato, vai alle <ph name="BEGIN_LIN
 <translation id="6893057134494550310">Pellicola laminata</translation>
 <translation id="6893204630281237373">Per disattivare l'app per pagamenti in Chrome, vai alle <ph name="BEGIN_LINK1" />impostazioni di pagamento<ph name="END_LINK1" /></translation>
 <translation id="6895330447102777224">La carta è stata confermata</translation>
-<translation id="6895573608763679343"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />, <ph name="MATCH_POSITION" /> di <ph name="NUM_MATCHES_IN_GROUP" /> nel gruppo <ph name="GROUP_HEADER" />.</translation>
 <translation id="6896758677409633944">Copia</translation>
 <translation id="6897140037006041989">User-agent</translation>
 <translation id="6898699227549475383">Organizzazione (O)</translation>
@@ -3942,7 +3948,6 @@ Per nascondere le opzioni di pagamento posticipato, vai alle <ph name="BEGIN_LIN
 <translation id="718872491229180389">Cheerleading</translation>
 <translation id="7188840756966467339">Riavvia e applica policy</translation>
 <translation id="7192188280913829296">È necessario specificare anche l'attributo "vendor_id".</translation>
-<translation id="7192203810768312527">Libera <ph name="SIZE" />. Alcuni siti potrebbero caricarsi più lentamente alla prossima visita.</translation>
 <translation id="7192537357091279678">Unità e dispositivi di archiviazione per computer</translation>
 <translation id="7193661028827781021">Consultazione</translation>
 <translation id="719464814642662924">Visa</translation>
@@ -4114,7 +4119,6 @@ Ulteriori dettagli:
 <translation id="7450577240311017924">Pulsante Gestisci sincronizzazione, attiva per gestire le informazioni da sincronizzare nelle impostazioni di Chrome</translation>
 <translation id="7451311239929941790"><ph name="BEGIN_LINK" />Leggere ulteriori informazioni<ph name="END_LINK" /> sul problema.</translation>
 <translation id="745208957946308667">Gioco Dino, premi la barra spaziatrice per giocare</translation>
-<translation id="74521886886364465"><ph name="SUGGESTION_TITLE" />, <ph name="MATCH_POSITION" /> di <ph name="NUM_MATCHES_IN_GROUP" /> nel gruppo <ph name="GROUP_HEADER" />.</translation>
 <translation id="7453032093368223821">Gestisci altri dati</translation>
 <translation id="7453849010505253492">Questo server non è riuscito a dimostrare che si tratta di <ph name="DOMAIN" /> perché utilizza un certificato di sicurezza non considerato attendibile da Chrome o dalla configurazione di sistema per la crittografia del traffico web. Il problema potrebbe essere dovuto a un'errata configurazione o a un attaccante che intercetta la connessione. <ph name="BEGIN_VIEW_CERTIFICATE_LINK" />Visualizza certificato<ph name="END_VIEW_CERTIFICATE_LINK" /></translation>
 <translation id="7454377933424667109">Account cloud</translation>
@@ -5057,6 +5061,7 @@ Ulteriori dettagli:
 <translation id="8963117664422609631">Vai alle Impostazioni sito</translation>
 <translation id="8963213021028234748"><ph name="MARKUP_1" />Suggerimenti.<ph name="MARKUP_2" />Assicurati di avere una connessione dati<ph name="MARKUP_3" />Ricarica la pagina web in un secondo momento<ph name="MARKUP_4" />Controlla l'indirizzo inserito<ph name="MARKUP_5" /></translation>
 <translation id="8963969435440878110">I tuoi file locali verranno eliminati tra <ph name="HOURS" /> ore</translation>
+<translation id="8964904785315870349">Email verificata</translation>
 <translation id="8968766641738584599">Salva carta</translation>
 <translation id="8970887620466824814">C'è stato un problema.</translation>
 <translation id="8971063699422889582">Il certificato del server è scaduto.</translation>

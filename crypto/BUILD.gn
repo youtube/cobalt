@@ -174,7 +174,9 @@ component("crypto") {
     libs = [
       "crypt32.lib",
       "ncrypt.lib",
+      "tbs.lib",
     ]
+    ldflags = [ "/DELAYLOAD:tbs.dll" ]
   }
 
   # Some files are built when NSS is used for the platform certificate library.
@@ -253,12 +255,14 @@ test("crypto_unittests") {
     "sha2_unittest.cc",
     "sign_unittest.cc",
     "signature_verifier_unittest.cc",
+    "unexportable_key_metrics_unittest.cc",
     "unexportable_key_unittest.cc",
   ]
 
   deps = [
     ":crypto",
     ":test_support",
+    ":tpm",
     ":tpm_unittests",
     "//base",
     "//base/test:run_all_unittests",
@@ -267,10 +271,6 @@ test("crypto_unittests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
-
-  if (is_win || is_mac) {
-    sources += [ "unexportable_key_metrics_unittest.cc" ]
-  }
 
   if (is_apple) {
     if (!(is_ios && target_platform == "tvos")) {

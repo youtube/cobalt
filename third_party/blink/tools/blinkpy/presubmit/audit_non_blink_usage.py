@@ -123,6 +123,7 @@ _CONFIG = [
             'base::MatchPattern',
             'base::MaxThreadType',
             'base::MemoryConsumer',
+            'base::MemoryConsumerTraits',
             'base::MemoryPressureListener',
             'base::MemoryPressureListenerTag',
             'base::MessagePump',
@@ -1309,6 +1310,14 @@ _CONFIG = [
         ]
     },
     {
+        'paths': [
+            'third_party/blink/renderer/core/html/anchor_element_utils.cc',
+        ],
+        'allowed': [
+            'base::CommandLine',
+        ]
+    },
+    {
         'paths': ['third_party/blink/renderer/core/frame/dom_window.cc'],
         'allowed': [
             'base::MakeFixedFlatMap',
@@ -1332,8 +1341,11 @@ _CONFIG = [
             'cc::SwapPromise',
             'stylus_handwriting::win::IsStylusHandwritingWinEnabled',
             'stylus_handwriting::win::ProximateBoundsCollectionHalfLimit',
+            'viz::CompositorFrame',
             'viz::CompositorFrameMetadata',
             'viz::FrameTimingDetails',
+            'viz::ReturnedResource',
+            'viz::TransferableResource',
         ],
     },
     {
@@ -1341,6 +1353,9 @@ _CONFIG = [
         ['third_party/blink/renderer/core/frame/web_frame_widget_impl.h'],
         'allowed': [
             'cc::CompositorCommitData',
+            'viz::CompositorFrame',
+            'viz::ReturnedResource',
+            'viz::TransferableResource',
         ],
     },
     {
@@ -1940,6 +1955,14 @@ _CONFIG = [
             'base::SplitStringPiece',
             'base::StringPiece',
             'base::TRIM_WHITESPACE',
+        ]
+    },
+    {
+        'paths': [
+            'third_party/blink/renderer/core/timing/performance.cc',
+        ],
+        'allowed': [
+            'base::Value',
         ]
     },
     {
@@ -2609,6 +2632,15 @@ _CONFIG = [
             'base::LapTimer',
             'cc::frame_viewer_instrumentation::IsTracingLayerTreeSnapshots',
         ],
+    },
+    {
+        'paths': [
+            'third_party/blink/renderer/core/frame/local_frame_view.cc',
+            'third_party/blink/renderer/core/frame/local_frame_view.h',
+            'third_party/blink/renderer/core/html/canvas/html_canvas_element.cc',
+            'third_party/blink/renderer/core/html/canvas/html_canvas_element.h',
+        ],
+        'allowed': ['cc::AnimatedImageFrameIndexMap'],
     },
     {
         'paths': [

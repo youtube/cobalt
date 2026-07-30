@@ -136,8 +136,8 @@ Document& FrameSelection::GetDocument() const {
   return *document_.Get();
 }
 
-VisibleSelection FrameSelection::ComputeVisibleSelectionInDOMTree() const {
-  return selection_editor_->ComputeVisibleSelectionInDOMTree();
+VisibleSelection FrameSelection::ComputeVisibleSelectionInDomTree() const {
+  return selection_editor_->ComputeVisibleSelectionInDomTree();
 }
 
 VisibleSelectionInFlatTree FrameSelection::ComputeVisibleSelectionInFlatTree()
@@ -145,8 +145,12 @@ VisibleSelectionInFlatTree FrameSelection::ComputeVisibleSelectionInFlatTree()
   return selection_editor_->ComputeVisibleSelectionInFlatTree();
 }
 
-const SelectionInDOMTree& FrameSelection::GetSelectionInDOMTree() const {
+const SelectionInDomTree& FrameSelection::GetSelectionInDomTree() const {
   return selection_editor_->GetSelectionInDOMTree();
+}
+
+const SelectionInDOMTree& FrameSelection::GetSelectionInDOMTree() const {
+  return GetSelectionInDomTree();
 }
 
 Element* FrameSelection::RootEditableElementOrDocumentElement() const {
@@ -155,7 +159,7 @@ Element* FrameSelection::RootEditableElementOrDocumentElement() const {
   GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kSelection);
 
   Element* selection_root =
-      ComputeVisibleSelectionInDOMTree().RootEditableElement();
+      ComputeVisibleSelectionInDomTree().RootEditableElement();
   // Note that RootEditableElementOrDocumentElement can return null if the
   // documentElement is null.
   return selection_root ? selection_root : GetDocument().documentElement();
@@ -176,12 +180,12 @@ wtf_size_t FrameSelection::CharacterIndexForPoint(
   return plain_text_range.Start();
 }
 
-VisibleSelection FrameSelection::ComputeVisibleSelectionInDOMTreeDeprecated()
+VisibleSelection FrameSelection::ComputeVisibleSelectionInDomTreeDeprecated()
     const {
   // TODO(editing-dev): Hoist UpdateStyleAndLayout
   // to caller. See http://crbug.com/590369 for more details.
-  Position anchor = GetSelectionInDOMTree().Anchor();
-  Position focus = GetSelectionInDOMTree().Focus();
+  Position anchor = GetSelectionInDomTree().Anchor();
+  Position focus = GetSelectionInDomTree().Focus();
   std::optional<DisplayLockUtilities::ScopedForcedUpdate> force_locks;
   if (anchor != focus && anchor.ComputeContainerNode() &&
       focus.ComputeContainerNode()) {
@@ -193,14 +197,14 @@ VisibleSelection FrameSelection::ComputeVisibleSelectionInDOMTreeDeprecated()
         anchor.AnchorNode(), DisplayLockContext::ForcedPhase::kLayout);
   }
   GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kSelection);
-  return ComputeVisibleSelectionInDOMTree();
+  return ComputeVisibleSelectionInDomTree();
 }
 
 void FrameSelection::MoveCaretSelection(const gfx::Point& point) {
   DCHECK(!GetDocument().NeedsLayoutTreeUpdate());
 
   Element* const editable =
-      ComputeVisibleSelectionInDOMTree().RootEditableElement();
+      ComputeVisibleSelectionInDomTree().RootEditableElement();
   if (!editable)
     return;
 
@@ -373,7 +377,7 @@ void FrameSelection::DidSetSelectionDeprecated(
   // https://w3c.github.io/selection-api/#selectionchange-event
   if (RuntimeEnabledFeatures::DispatchSelectionchangeEventPerElementEnabled()) {
     TextControlElement* text_control =
-        EnclosingTextControl(GetSelectionInDOMTree().Anchor());
+        EnclosingTextControl(GetSelectionInDomTree().Anchor());
     if (text_control && !text_control->IsInShadowTree()) {
       text_control->ScheduleSelectionchangeEvent();
     } else {
@@ -495,17 +499,18 @@ bool FrameSelection::Modify(SelectionModifyAlteration alter,
                             SelectionModifyDirection direction,
                             TextGranularity granularity,
                             SetSelectionBy set_selection_by) {
-  SelectionModifier selection_modifier(*GetFrame(), GetSelectionInDOMTree(),
+  SelectionModifier selection_modifier(*GetFrame(), GetSelectionInDomTree(),
                                        x_pos_for_vertical_arrow_navigation_);
   selection_modifier.SetSelectionIsDirectional(IsDirectional());
   const bool modified =
       selection_modifier.Modify(alter, direction, granularity);
   if (set_selection_by == SetSelectionBy::kUser &&
-      selection_modifier.Selection().IsRange() &&
-      ComputeVisibleSelectionInDOMTree().IsCaret() &&
-      DispatchSelectStart(ComputeVisibleSelectionInDOMTree()) !=
-          DispatchEventResult::kNotCanceled) {
-    return false;
+      selection_modifier.Selection().IsRange()) {
+    auto visible_selection = ComputeVisibleSelectionInDomTree();
+    if (visible_selection.IsCaret() && DispatchSelectStart(visible_selection) !=
+                                           DispatchEventResult::kNotCanceled) {
+      return false;
+    }
   }
 
   // |DispatchSelectStart()| can change document hosted by |frame_|.
@@ -674,13 +679,14 @@ bool FrameSelection::IsHidden() const {
     return false;
 
   const Node* start =
-      ComputeVisibleSelectionInDOMTree().Start().ComputeContainerNode();
+      ComputeVisibleSelectionInDomTree().Start().ComputeContainerNode();
   if (!start)
     return true;
 
   // The selection doesn't have focus, so hide everything but range selections.
-  if (!GetSelectionInDOMTree().IsRange())
+  if (!GetSelectionInDomTree().IsRange()) {
     return true;
+  }
 
   // Here we know we have an unfocused range selection. Let's say that
   // selection resides inside a text control. Since the selection doesn't have
@@ -728,8 +734,8 @@ bool FrameSelection::ShouldPaintCaret(const LayoutBlock& block) const {
             DocumentLifecycle::kLayoutClean);
   bool result = frame_caret_->ShouldPaintCaret(block);
   DCHECK(!result ||
-         (ComputeVisibleSelectionInDOMTree().IsCaret() &&
-          (IsEditablePosition(ComputeVisibleSelectionInDOMTree().Start()) ||
+         (ComputeVisibleSelectionInDomTree().IsCaret() &&
+          (IsEditablePosition(ComputeVisibleSelectionInDomTree().Start()) ||
            frame_->IsCaretBrowsingEnabled())));
   return result;
 }
@@ -740,14 +746,14 @@ bool FrameSelection::ShouldPaintCaret(
             DocumentLifecycle::kLayoutClean);
   bool result = frame_caret_->ShouldPaintCaret(box_fragment);
   DCHECK(!result ||
-         (ComputeVisibleSelectionInDOMTree().IsCaret() &&
-          (IsEditablePosition(ComputeVisibleSelectionInDOMTree().Start()) ||
+         (ComputeVisibleSelectionInDomTree().IsCaret() &&
+          (IsEditablePosition(ComputeVisibleSelectionInDomTree().Start()) ||
            frame_->IsCaretBrowsingEnabled())));
   return result;
 }
 
 gfx::Rect FrameSelection::AbsoluteCaretBounds() const {
-  DCHECK(ComputeVisibleSelectionInDOMTree().IsValidFor(*frame_->GetDocument()));
+  DCHECK(ComputeVisibleSelectionInDomTree().IsValidFor(*frame_->GetDocument()));
   return frame_caret_->AbsoluteCaretBounds();
 }
 
@@ -757,13 +763,14 @@ CaretShape FrameSelection::GetCaretShape() const {
 
 bool FrameSelection::ComputeAbsoluteBounds(gfx::Rect& anchor,
                                            gfx::Rect& focus) const {
-  if (!IsAvailable() || GetSelectionInDOMTree().IsNone())
+  if (!IsAvailable() || GetSelectionInDomTree().IsNone()) {
     return false;
+  }
 
   // TODO(editing-dev): The use of UpdateStyleAndLayout
   // needs to be audited.  See http://crbug.com/590369 for more details.
   frame_->GetDocument()->UpdateStyleAndLayout(DocumentUpdateReason::kSelection);
-  if (ComputeVisibleSelectionInDOMTree().IsNone()) {
+  if (ComputeVisibleSelectionInDomTree().IsNone()) {
     // plugins/mouse-capture-inside-shadow.html reaches here.
     return false;
   }
@@ -785,12 +792,12 @@ bool FrameSelection::Contains(const PhysicalOffset& point) {
     return false;
 
   // This is a workaround of the issue that we sometimes get null from
-  // ComputeVisibleSelectionInDOMTree(), but non-null from flat tree.
+  // ComputeVisibleSelectionInDomTree(), but non-null from flat tree.
   // By running this, in case we get null, we also set the cached result in flat
   // tree into null, so that this function can return false correctly.
   // See crbug.com/846527 for details.
   // TODO(editing-dev): Fix the inconsistency and then remove this call.
-  ComputeVisibleSelectionInDOMTree();
+  ComputeVisibleSelectionInDomTree();
 
   // Treat a collapsed selection like no selection.
   const VisibleSelectionInFlatTree& visible_selection =
@@ -803,7 +810,7 @@ bool FrameSelection::Contains(const PhysicalOffset& point) {
   HitTestResult result(request, location);
   GetDocument().GetLayoutView()->HitTest(location, result);
   const PositionInFlatTreeWithAffinity pos_with_affinity =
-      FromPositionInDOMTree<EditingInFlatTreeStrategy>(result.GetPosition());
+      FromPositionInDomTree<EditingInFlatTreeStrategy>(result.GetPosition());
   if (pos_with_affinity.IsNull())
     return false;
 
@@ -836,17 +843,18 @@ void FrameSelection::SelectFrameElementInParentIfFullySelected() {
 
   // Check if the selection contains the entire frame contents; if not, then
   // there is nothing to do.
-  if (!GetSelectionInDOMTree().IsRange())
+  if (!GetSelectionInDomTree().IsRange()) {
     return;
+  }
 
   // TODO(editing-dev): The use of UpdateStyleAndLayout
   // needs to be audited.  See http://crbug.com/590369 for more details.
   GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kSelection);
-
-  if (!IsStartOfDocument(ComputeVisibleSelectionInDOMTree().VisibleStart()))
+  auto visible_selection = ComputeVisibleSelectionInDomTree();
+  if (!IsStartOfDocument(visible_selection.VisibleStart()) ||
+      !IsEndOfDocument(visible_selection.VisibleEnd())) {
     return;
-  if (!IsEndOfDocument(ComputeVisibleSelectionInDOMTree().VisibleEnd()))
-    return;
+  }
 
   // FIXME: This is not yet implemented for cross-process frame relationships.
   auto* parent_local_frame = DynamicTo<LocalFrame>(parent);
@@ -914,21 +922,24 @@ void FrameSelection::SelectAll(SetSelectionBy set_selection_by,
     // triggered SelectAll should act as if there is no selection.
     root = GetDocument().documentElement();
     select_start_target = GetDocument().body();
-  } else if (ComputeVisibleSelectionInDOMTree().IsContentEditable()) {
-    root = HighestEditableRoot(ComputeVisibleSelectionInDOMTree().Start());
-    if (Node* shadow_root = NonBoundaryShadowTreeRootNode(
-            ComputeVisibleSelectionInDOMTree().Start()))
-      select_start_target = shadow_root->OwnerShadowHost();
-    else
-      select_start_target = root;
   } else {
-    root = NonBoundaryShadowTreeRootNode(
-        ComputeVisibleSelectionInDOMTree().Start());
-    if (root) {
-      select_start_target = root->OwnerShadowHost();
+    auto visible_selection = ComputeVisibleSelectionInDomTree();
+    if (visible_selection.IsContentEditable()) {
+      root = HighestEditableRoot(visible_selection.Start());
+      if (Node* shadow_root =
+              NonBoundaryShadowTreeRootNode(visible_selection.Start())) {
+        select_start_target = shadow_root->OwnerShadowHost();
+      } else {
+        select_start_target = root;
+      }
     } else {
-      root = GetDocument().documentElement();
-      select_start_target = GetDocument().body();
+      root = NonBoundaryShadowTreeRootNode(visible_selection.Start());
+      if (root) {
+        select_start_target = root->OwnerShadowHost();
+      } else {
+        root = GetDocument().documentElement();
+        select_start_target = GetDocument().body();
+      }
     }
   }
   if (!root || EditingIgnoresContent(*root))
@@ -1010,7 +1021,7 @@ void FrameSelection::NotifyAccessibilityForSelectionChange() {
   AXObjectCache* cache = GetDocument().ExistingAXObjectCache();
   if (!cache)
     return;
-  Node* anchor = GetSelectionInDOMTree().Focus().ComputeContainerNode();
+  Node* anchor = GetSelectionInDomTree().Focus().ComputeContainerNode();
   if (anchor) {
     cache->SelectionChanged(anchor);
   } else {
@@ -1112,7 +1123,7 @@ void FrameSelection::UpdateAppearance() {
 void FrameSelection::NotifyTextControlOfSelectionChange(
     SetSelectionBy set_selection_by) {
   TextControlElement* text_control =
-      EnclosingTextControl(GetSelectionInDOMTree().Anchor());
+      EnclosingTextControl(GetSelectionInDomTree().Anchor());
   if (!text_control)
     return;
   text_control->SelectionChanged(set_selection_by == SetSelectionBy::kUser);
@@ -1132,13 +1143,12 @@ void FrameSelection::SetFocusedNodeIfNeeded() {
   // TODO(editing-dev): The use of UpdateStyleAndLayout
   // needs to be audited.  See http://crbug.com/590369 for more details.
   GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kSelection);
-
-  if (ComputeVisibleSelectionInDOMTree().IsNone() || !FrameIsFocused()) {
+  auto visible_selection = ComputeVisibleSelectionInDomTree();
+  if (visible_selection.IsNone() || !FrameIsFocused()) {
     return;
   }
 
-  if (Element* target =
-          ComputeVisibleSelectionInDOMTree().RootEditableElement()) {
+  if (Element* target = visible_selection.RootEditableElement()) {
     // Walk up the DOM tree to search for a node to focus.
     GetDocument().UpdateStyleAndLayoutTree();
     while (target) {
@@ -1181,7 +1191,7 @@ static EphemeralRangeInFlatTree ComputeRangeForSerialization(
 static String ExtractSelectedText(const FrameSelection& selection,
                                   TextIteratorBehavior behavior) {
   const EphemeralRangeInFlatTree& range =
-      ComputeRangeForSerialization(selection.GetSelectionInDOMTree());
+      ComputeRangeForSerialization(selection.GetSelectionInDomTree());
   // We remove '\0' characters because they are not visibly rendered to the
   // user.
   return PlainText(range, behavior).Replace(0, "");
@@ -1189,7 +1199,7 @@ static String ExtractSelectedText(const FrameSelection& selection,
 
 String FrameSelection::SelectedHTMLForClipboard() const {
   const EphemeralRangeInFlatTree& range =
-      ComputeRangeForSerialization(GetSelectionInDOMTree());
+      ComputeRangeForSerialization(GetSelectionInDomTree());
   return CreateMarkup(range.StartPosition(), range.EndPosition(),
                       CreateMarkupOptions::Builder()
                           .SetShouldAnnotateForInterchange(true)
@@ -1222,7 +1232,7 @@ String FrameSelection::SelectedTextForClipboard() const {
 
 bool FrameSelection::HasVisibleText() const {
   const EphemeralRange range =
-      ComputeVisibleSelectionInDOMTree().ToNormalizedEphemeralRange();
+      ComputeVisibleSelectionInDomTree().ToNormalizedEphemeralRange();
   return !PlainText(range, TextIteratorBehavior()).empty();
 }
 
@@ -1238,7 +1248,7 @@ PhysicalRect FrameSelection::AbsoluteUnclippedBounds() const {
 
 gfx::Rect FrameSelection::ComputeRectToScroll(
     RevealExtentOption reveal_extent_option) {
-  const VisibleSelection& selection = ComputeVisibleSelectionInDOMTree();
+  const VisibleSelection& selection = ComputeVisibleSelectionInDomTree();
   if (selection.IsCaret())
     return AbsoluteCaretBounds();
   DCHECK(selection.IsRange());
@@ -1261,7 +1271,7 @@ void FrameSelection::RevealSelection(
   // Calculation of absolute caret bounds requires clean layout.
   GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kSelection);
 
-  const VisibleSelection& selection = ComputeVisibleSelectionInDOMTree();
+  const VisibleSelection& selection = ComputeVisibleSelectionInDomTree();
   if (selection.IsNone())
     return;
 
@@ -1299,7 +1309,7 @@ void FrameSelection::SetSelectionFromNone() {
   GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kSelection);
 
   Document* document = frame_->GetDocument();
-  if (!ComputeVisibleSelectionInDOMTree().IsNone() ||
+  if (!ComputeVisibleSelectionInDomTree().IsNone() ||
       !(blink::IsEditable(*document))) {
     return;
   }
@@ -1323,7 +1333,7 @@ void FrameSelection::ShowTreeForThis() const {
   // needs to be audited.  See http://crbug.com/590369 for more details.
   GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kSelection);
 
-  ComputeVisibleSelectionInDOMTree().ShowTreeForThis();
+  ComputeVisibleSelectionInDomTree().ShowTreeForThis();
 }
 
 #endif
@@ -1420,8 +1430,9 @@ GranularityStrategy* FrameSelection::GetGranularityStrategy() {
 
 void FrameSelection::MoveRangeSelectionExtent(
     const gfx::Point& contents_point) {
-  if (ComputeVisibleSelectionInDOMTree().IsNone())
+  if (ComputeVisibleSelectionInDomTree().IsNone()) {
     return;
+  }
 
   SetSelection(
       SelectionInDOMTree::Builder(
@@ -1572,7 +1583,7 @@ EphemeralRange FrameSelection::GetSelectionRangeAroundCaret(
          text_granularity == TextGranularity::kSentence)
       << "Only word and sentence granularities are supported for now";
 
-  const VisibleSelection& selection = ComputeVisibleSelectionInDOMTree();
+  const VisibleSelection& selection = ComputeVisibleSelectionInDomTree();
   // TODO(editing-dev): The use of VisibleSelection needs to be audited. See
   // http://crbug.com/657237 for more details.
   if (!selection.IsCaret()) {

@@ -4,6 +4,7 @@
 
 #include "components/send_tab_to_self/fake_send_tab_to_self_model.h"
 
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <string>
@@ -34,9 +35,8 @@ std::vector<std::string> FakeSendTabToSelfModel::GetAllGuids() const {
 }
 
 const SendTabToSelfEntry* FakeSendTabToSelfModel::GetEntryByGUID(
-    const std::string& guid) const {
-  std::map<std::string, std::unique_ptr<SendTabToSelfEntry>>::const_iterator
-      it = entries_.find(guid);
+    std::string_view guid) const {
+  auto it = entries_.find(guid);
   return it != entries_.end() ? it->second.get() : nullptr;
 }
 
@@ -91,19 +91,17 @@ const SendTabToSelfEntry* FakeSendTabToSelfModel::SendEntry(
   return result;
 }
 
-void FakeSendTabToSelfModel::DismissEntry(const std::string& guid) {
-  last_dismissed_guid_ = guid;
-  std::map<std::string, std::unique_ptr<SendTabToSelfEntry>>::iterator it =
-      entries_.find(guid);
+void FakeSendTabToSelfModel::DismissEntry(std::string_view guid) {
+  last_dismissed_guid_ = std::string(guid);
+  auto it = entries_.find(guid);
   if (it != entries_.end()) {
     it->second->SetNotificationDismissed(true);
   }
 }
 
-void FakeSendTabToSelfModel::MarkEntryOpened(const std::string& guid) {
-  last_opened_guid_ = guid;
-  std::map<std::string, std::unique_ptr<SendTabToSelfEntry>>::iterator it =
-      entries_.find(guid);
+void FakeSendTabToSelfModel::MarkEntryOpened(std::string_view guid) {
+  last_opened_guid_ = std::string(guid);
+  auto it = entries_.find(guid);
   if (it != entries_.end()) {
     it->second->MarkOpened(base::Time::Now());
     for (auto& observer : observers_) {
@@ -123,6 +121,13 @@ bool FakeSendTabToSelfModel::HasValidTargetDevice() {
 std::vector<TargetDeviceInfo>
 FakeSendTabToSelfModel::GetTargetDeviceInfoSortedList() {
   return devices_;
+}
+
+std::optional<TargetDeviceInfo> FakeSendTabToSelfModel::GetTargetDeviceInfo(
+    std::string_view cache_guid) {
+  auto it =
+      std::ranges::find(devices_, cache_guid, &TargetDeviceInfo::cache_guid);
+  return it != devices_.end() ? std::make_optional(*it) : std::nullopt;
 }
 
 void FakeSendTabToSelfModel::SetIsReady(bool is_ready) {
@@ -184,6 +189,16 @@ const SendTabToSelfEntry* FakeSendTabToSelfModel::AddEntryRemotely(
   }
 
   return result;
+}
+
+void FakeSendTabToSelfModel::RemoveEntryRemotely(const std::string& guid) {
+  auto it = entries_.find(guid);
+  if (it != entries_.end()) {
+    for (auto& observer : observers_) {
+      observer.OnEntriesRemovedRemotely({guid});
+    }
+    entries_.erase(it);
+  }
 }
 
 }  // namespace send_tab_to_self

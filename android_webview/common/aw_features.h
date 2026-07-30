@@ -37,10 +37,7 @@ BASE_DECLARE_FEATURE(kWebViewRenderDocument);
 BASE_DECLARE_FEATURE(kWebViewTestFeature);
 BASE_DECLARE_FEATURE(kWebViewUseMetricsUploadServiceOnlySdkRuntime);
 BASE_DECLARE_FEATURE(kWebViewPropagateNetworkChangeSignals);
-BASE_DECLARE_FEATURE(kWebViewStartupTasksYieldToNative);
 BASE_DECLARE_FEATURE(kWebViewUnreducedProductVersion);
-BASE_DECLARE_FEATURE(kWebViewUseStartupTasksLogic);
-BASE_DECLARE_FEATURE(kWebViewUseStartupTasksLogicP2);
 BASE_DECLARE_FEATURE(kWebViewReduceUAAndroidVersionDeviceModel);
 BASE_DECLARE_FEATURE(kWebViewEnableCrash);
 BASE_DECLARE_FEATURE(kWebViewPrefetchAheadOfPrerender);
@@ -51,7 +48,6 @@ BASE_DECLARE_FEATURE(kWebViewPrefetchOffTheMainThread);
 BASE_DECLARE_FEATURE(kWebViewPreloadServingMetrics);
 BASE_DECLARE_FEATURE(kWebViewSkipInterceptsForPrefetch);
 BASE_DECLARE_FEATURE(kWebViewHyperlinkContextMenu);
-BASE_DECLARE_FEATURE(kCreateSpareRendererOnBrowserContextCreation);
 BASE_DECLARE_FEATURE(kWebViewVizDirectCompositorThreadIpcFrameSinkManager);
 BASE_DECLARE_FEATURE(kWebViewInterceptedCookieHeader);
 BASE_DECLARE_FEATURE(kWebViewInterceptedCookieHeaderReadWrite);
@@ -83,6 +79,7 @@ BASE_DECLARE_FEATURE(kPostChromiumStartupInWebViewConstructor);
 BASE_DECLARE_FEATURE(kWebViewPersistHttpServerProperties);
 BASE_DECLARE_FEATURE(kWebViewRemoveInstantAppSupport);
 BASE_DECLARE_FEATURE(kWebViewNavigate);
+BASE_DECLARE_FEATURE(kWebViewSetDownloadFaviconsEnabled);
 }  // namespace android_webview::features
 
 #endif  // ANDROID_WEBVIEW_COMMON_AW_FEATURES_H_

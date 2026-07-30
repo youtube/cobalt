@@ -129,14 +129,6 @@ bool IsImageDescriptionsAlternateRoutingEnabled() {
       ::features::kImageDescriptionsAlternateRouting);
 }
 
-BASE_FEATURE(kEnableAccessibilityLanguageDetection,
-             "AccessibilityLanguageDetection",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-bool IsAccessibilityLanguageDetectionEnabled() {
-  return base::FeatureList::IsEnabled(
-      ::features::kEnableAccessibilityLanguageDetection);
-}
-
 BASE_FEATURE(kExtensionManifestV3NetworkSpeechSynthesis,
              base::FEATURE_ENABLED_BY_DEFAULT);
 bool IsExtensionManifestV3NetworkSpeechSynthesisEnabled() {
@@ -210,8 +202,6 @@ bool IsIChromeAccessibleEnabled() {
 }
 
 BASE_FEATURE(kUiaDisconnectRootProviders, base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kUiaProvider, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kUiaEventOptimization, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -343,6 +333,11 @@ bool IsAccessibilityMagnificationFollowsFocusEnabled() {
       ::features::kAccessibilityMagnificationFollowsFocus);
 }
 
+BASE_FEATURE(kReadAloudNative, base::FEATURE_DISABLED_BY_DEFAULT);
+bool IsReadAloudNativeEnabled() {
+  return base::FeatureList::IsEnabled(::features::kReadAloudNative);
+}
+
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -360,7 +355,7 @@ bool IsScreenAIOCREnabled() {
   return base::FeatureList::IsEnabled(ax::mojom::features::kScreenAIOCREnabled);
 }
 
-BASE_FEATURE(kImmersiveReadAnything, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kImmersiveReadAnything, base::FEATURE_ENABLED_BY_DEFAULT);
 bool IsImmersiveReadAnythingEnabled() {
   return base::FeatureList::IsEnabled(::features::kImmersiveReadAnything);
 }
@@ -428,8 +423,7 @@ bool IsHatsReadingModeSurveyEnabled() {
   return base::FeatureList::IsEnabled(::features::kHatsReadingModeSurvey);
 }
 
-BASE_FEATURE(kReadAnythingImagesViaAlgorithm,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kReadAnythingImagesViaAlgorithm, base::FEATURE_ENABLED_BY_DEFAULT);
 bool IsReadAnythingImagesViaAlgorithmEnabled() {
   return base::FeatureList::IsEnabled(
       ::features::kReadAnythingImagesViaAlgorithm);

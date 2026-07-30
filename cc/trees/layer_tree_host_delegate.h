@@ -15,6 +15,7 @@
 #include "cc/trees/paint_holding_reason.h"
 #include "cc/trees/property_tree.h"
 #include "components/viz/common/frame_timing_details.h"
+#include "components/viz/common/quads/compositor_frame.h"
 #include "ui/gfx/geometry/vector2d_f.h"
 
 namespace viz {
@@ -158,6 +159,12 @@ class CC_EXPORT LayerTreeHostDelegate {
   // Notifies the client about scroll and input related changes that occurred in
   // the LayerTreeHost since the last commit.
   virtual void UpdateCompositorScrollState(
+      const CompositorCommitData& commit_data) = 0;
+
+  // Notifies the client about the current frame index of animated images
+  // running the compositor, and animated image client elements who should be
+  // notified that an animated image has advanced.
+  virtual void UpdateAnimatedImageState(
       const CompositorCommitData& commit_data) = 0;
 
   // Request a LayerTreeFrameSink from the client. When the client has one it

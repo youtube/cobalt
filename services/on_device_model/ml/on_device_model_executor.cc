@@ -113,17 +113,18 @@ int CalculateTokensPerSecond(int num_tokens, base::TimeDelta duration) {
 // If `pieces` ends with ml::Token::kModel and then a text piece, returns the
 // final text piece.
 std::optional<std::string> GetModelResponsePrefix(
-    const std::vector<InputPiece>& pieces) {
+    const std::vector<odmm::InputPiecePtr>& pieces) {
   if (pieces.size() < 2) {
     return std::nullopt;
   }
-  if (const ml::Token* token =
-          std::get_if<ml::Token>(&pieces[pieces.size() - 2]);
-      !token || *token != ml::Token::kModel) {
+  const auto& token_piece = pieces[pieces.size() - 2];
+  if (!token_piece->is_token() ||
+      token_piece->get_token() != ml::Token::kModel) {
     return std::nullopt;
   }
-  if (const std::string* text = std::get_if<std::string>(&pieces.back())) {
-    return *text;
+  const auto& text_piece = pieces.back();
+  if (text_piece->is_text()) {
+    return text_piece->get_text();
   }
   return std::nullopt;
 }
@@ -534,6 +535,7 @@ SessionImpl::~SessionImpl() = default;
 void SessionImpl::Append(
     on_device_model::mojom::AppendOptionsPtr options,
     mojo::PendingRemote<on_device_model::mojom::ContextClient> client,
+    mojo::ReportBadMessageCallback bad_message_callback,
     base::OnceClosure on_complete) {
   TRACE_EVENT("optimization_guide", "SessionImpl::Append");
   model_response_prefix_ = GetModelResponsePrefix(options->input->pieces);
@@ -542,10 +544,10 @@ void SessionImpl::Append(
     if (has_tool_declarations_ && !awaiting_tool_responses_) {
       break;
     }
-    if (std::holds_alternative<ml::ToolDeclaration>(piece)) {
+    if (piece->is_tool_declaration()) {
       has_tool_declarations_ = true;
     }
-    if (std::holds_alternative<ml::ToolResponse>(piece)) {
+    if (piece->is_tool_response()) {
       // TODO(crbug.com/422803232): Tally expected tool responses and validate
       // call_ids instead of clearing on any tool response.
       awaiting_tool_responses_ = false;
@@ -564,8 +566,9 @@ void SessionImpl::Append(
 
   TRACE_EVENT_BEGIN("optimization_guide", "Prefill",
                     context_holder->perfetto_id());
-  *context_holder->GetCancelFn() = session_->Append(
-      context_holder->perfetto_id(), std::move(options), context_saved_fn);
+  *context_holder->GetCancelFn() =
+      session_->Append(context_holder->perfetto_id(), std::move(options),
+                       std::move(bad_message_callback), context_saved_fn);
 
   context_holders_.insert(std::move(context_holder));
 }
@@ -606,10 +609,12 @@ void SessionImpl::Generate(
       executor_->GetConstraintFactory(), model_response_prefix_, output_fn);
 }
 
-void SessionImpl::SizeInTokens(on_device_model::mojom::InputPtr input,
-                               base::OnceCallback<void(uint32_t)> callback) {
+void SessionImpl::SizeInTokens(
+    on_device_model::mojom::InputPtr input,
+    mojo::ReportBadMessageCallback bad_message_callback,
+    base::OnceCallback<void(uint32_t)> callback) {
   TRACE_EVENT("optimization_guide", "SessionImpl::SizeInTokens");
-  session_->SizeInTokens(std::move(input),
+  session_->SizeInTokens(std::move(input), std::move(bad_message_callback),
                          ConvertCallbackToFn(std::move(callback)));
 }
 

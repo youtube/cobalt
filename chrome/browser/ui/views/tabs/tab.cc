@@ -31,7 +31,6 @@
 #include "chrome/browser/glic/browser_ui/tab_underline_view.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/themes/theme_properties.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -61,6 +60,7 @@
 #include "chrome/browser/ui/views/tabs/tab_slot_view.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/browser/ui/views/tabs/tab_style_views.h"
+#include "chrome/browser/ui/window_metadata/window_metadata_controller.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/theme_resources.h"
@@ -488,6 +488,11 @@ void Tab::Layout(PassKey) {
 
   // Size the title to fill the remaining width and use all available height.
   bool show_title = ShouldRenderAsNormalTab();
+
+  if (features::IsTabStripDeclutterEnabled() && center_icon_) {
+    show_title = false;
+  }
+
   if (show_title) {
     int title_left = start;
     if (showing_icon_) {
@@ -1210,16 +1215,14 @@ void Tab::UpdateIconVisibility() {
   }
 
   if (!closing_ && features::IsTabStripDeclutterEnabled()) {
-    const int title_padding =
-        showing_icon_ ? GetLayoutConstant(LayoutConstant::kTabPreTitlePadding)
-                      : 0;
-    const int title_width =
-        available_width - title_padding -
+    const int max_width_to_center_icon =
+        GetLayoutConstant(LayoutConstant::kTabPreTitlePadding) +
         GetLayoutConstant(LayoutConstant::kTabAfterTitlePadding);
-    const bool show_title = ShouldRenderAsNormalTab() && title_width > 0;
-    const int num_elements = showing_icon_ + showing_alert_indicator_ +
-                             showing_close_button_ + show_title;
-    if (num_elements == 1) {
+
+    const int num_icons_showing =
+        showing_icon_ + showing_alert_indicator_ + showing_close_button_;
+
+    if (available_width < max_width_to_center_icon && num_icons_showing == 1) {
       center_icon_ = true;
     }
   }
@@ -1349,7 +1352,7 @@ void Tab::OnTabDataChanged(TabChangeType tab_change_type,
                 ? l10n_util::GetStringUTF16(IDS_TAB_LOADING_TITLE)
                 : CoreTabHelper::GetDefaultTitle();
   } else {
-    title = Browser::FormatTitleForDisplay(title);
+    title = WindowMetadataController::FormatTitleForDisplay(title);
   }
   did_title_change = title != old_title;
   if (did_title_change) {

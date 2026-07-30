@@ -45,25 +45,20 @@ class AccessibilityQueryService : public KeyedService {
 
   // Executes a query and returns suggestions via `update_callback`.
   // @param query The search string provided by the user.
-  // @param full_search True for an explicit, complete search (e.g., on Enter)
-  // or false for a quick search as the user types.
   // @param update_callback Invoked with search results. May be called multiple
   // times for streaming updates, providing results from different data sources.
   virtual void Query(
       std::u16string_view query,
-      bool full_search,
       base::RepeatingCallback<void(MemorySearchResults)> update_callback);
 
  private:
   void OnClassificationComplete(
       std::u16string query,
-      bool full_search,
       base::RepeatingCallback<void(MemorySearchResults)> update_callback,
       ClassifiedQuery classified_query);
 
   void OnDataRetrieved(
       std::u16string query,
-      bool full_search,
       ClassifiedQuery classified_query,
       base::RepeatingCallback<void(MemorySearchResults)> update_callback,
       std::vector<std::vector<MemorySearchResult>> entries_list);

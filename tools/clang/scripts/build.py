@@ -73,6 +73,11 @@ BUG_REPORT_URL = ('https://crbug.com in the Tools>LLVM component,'
 LIBXML2_VERSION = 'libxml2-v2.9.12'
 ZSTD_VERSION = 'zstd-1.5.5'
 
+# This must be less than or equal to the lowest target used in Chromium. See
+# e.g. mac_deployment_target in //build/config/mac/mac_sdk.gni and min_version
+# in //chrome/installer/gcapi_mac/BUILD.gn.
+DEFAULT_MACOSX_DEPLOYMENT_TARGET = '10.12'
+
 win_sdk_dir = None
 def GetWinSDKDir():
   """Get the location of the current SDK."""
@@ -1027,7 +1032,7 @@ def main():
     base_cmake_args.append('-DLLVM_WINSYSROOT="%s"' %
                            os.path.dirname(os.path.dirname(GetWinSDKDir())))
 
-  deployment_target = '10.12'
+  deployment_target = DEFAULT_MACOSX_DEPLOYMENT_TARGET
 
   # Statically link libxml2 to make lld-link not require mt.exe on Windows,
   # and to make sure lld-link output on other platforms is identical to

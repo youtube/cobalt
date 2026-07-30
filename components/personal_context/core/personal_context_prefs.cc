@@ -12,11 +12,8 @@ void RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(kPersonalContextInAutofillNoticeShouldBeShown,
                                 true);
 
-  registry->RegisterBooleanPref(kPersonalContextInAutofillNoticeHasBeenShown,
-                                false);
-
   registry->RegisterBooleanPref(kPersonalContextInAutofillSettingsToggleStatus,
-                                false);
+                                true);
 }
 
 }  // namespace personal_context::prefs

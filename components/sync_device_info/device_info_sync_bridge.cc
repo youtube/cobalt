@@ -19,8 +19,10 @@
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "base/memory/ptr_util.h"
 #include "base/observer_list.h"
 #include "base/run_loop.h"
+#include "base/strings/string_split.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
@@ -184,6 +186,14 @@ SpecificsToGlicExperimentalTriggeringState(
   return DeviceInfo::GlicExperimentalTriggeringState::kUnavailable;
 }
 
+std::optional<int> SpecificsToGlicExperimentalTriggeringVersion(
+    const DeviceInfoSpecifics& specifics) {
+  if (specifics.feature_fields().has_glic_experimental_triggering_version()) {
+    return specifics.feature_fields().glic_experimental_triggering_version();
+  }
+  return std::nullopt;
+}
+
 // Converts DeviceInfoSpecifics into DeviceInfo.
 DeviceInfo SpecificsToModel(const DeviceInfoSpecifics& specifics) {
   const DeviceInfo::FormFactor device_form_factor =
@@ -195,12 +205,22 @@ DeviceInfo SpecificsToModel(const DeviceInfoSpecifics& specifics) {
           ? ToDeviceInfoOsType(specifics.os_type())
           : DeriveOsFromDeviceType(specifics.device_type(),
                                    specifics.manufacturer());
+
+  std::optional<std::string> android_os_build_fingerprint_prefix;
+  if (specifics.has_android_os_build_fingerprint_prefix()) {
+    android_os_build_fingerprint_prefix =
+        specifics.android_os_build_fingerprint_prefix();
+  }
+
   return DeviceInfo(
       specifics.cache_guid(), specifics.client_name(),
       GetVersionNumberFromSpecifics(specifics), specifics.sync_user_agent(),
       ToDeviceInfoDeviceType(specifics.device_type()), os_type,
       device_form_factor, specifics.signin_scoped_device_id(),
       specifics.manufacturer(), specifics.model(),
+      specifics.has_server_determined_model_name()
+          ? std::make_optional(specifics.server_determined_model_name())
+          : std::nullopt,
       specifics.full_hardware_class(),
       ProtoTimeToTime(specifics.last_updated_timestamp()),
       GetPulseIntervalFromSpecifics(specifics),
@@ -215,7 +235,9 @@ DeviceInfo SpecificsToModel(const DeviceInfoSpecifics& specifics) {
       SpecificsToAutoSignOutLastSigninTimestamp(specifics),
       specifics.feature_fields().desktop_to_ios_promo_receiving_enabled(),
       SpecificsToDesktopToIOSPromoReceivingTypes(specifics),
-      SpecificsToGlicExperimentalTriggeringState(specifics));
+      SpecificsToGlicExperimentalTriggeringState(specifics),
+      SpecificsToGlicExperimentalTriggeringVersion(specifics),
+      android_os_build_fingerprint_prefix);
 }
 
 // Allocate a EntityData and copies |specifics| into it.
@@ -257,6 +279,17 @@ std::unique_ptr<DeviceInfoSpecifics> MakeLocalDeviceSpecifics(
   specifics->set_signin_scoped_device_id(info.signin_scoped_device_id());
   specifics->set_manufacturer(info.manufacturer_name());
   specifics->set_model(info.model_name());
+
+#if BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(kSyncUploadAndroidBuildFingerprintPrefix)) {
+    const std::optional<std::string>& android_os_build_fingerprint_prefix =
+        info.android_os_build_fingerprint_prefix();
+    if (android_os_build_fingerprint_prefix.has_value()) {
+      specifics->set_android_os_build_fingerprint_prefix(
+          *android_os_build_fingerprint_prefix);
+    }
+  }
+#endif
 
   const std::string full_hardware_class = info.full_hardware_class();
   if (!full_hardware_class.empty()) {
@@ -302,6 +335,15 @@ std::unique_ptr<DeviceInfoSpecifics> MakeLocalDeviceSpecifics(
   feature_fields->set_glic_experimental_triggering_state(
       ToGlicExperimentalTriggeringStateProto(
           info.glic_experimental_triggering_state()));
+  if (info.glic_experimental_triggering_version().has_value()) {
+    feature_fields->set_glic_experimental_triggering_version(
+        *info.glic_experimental_triggering_version());
+  } else {
+    // Clear the field if the local device does not have a version, ensuring
+    // the local device's state (unavailable) is authoritatively reflected in
+    // the synced proto.
+    feature_fields->clear_glic_experimental_triggering_version();
+  }
   const std::optional<DeviceInfo::SharingInfo>& sharing_info =
       info.sharing_info();
   if (sharing_info) {
@@ -353,8 +395,8 @@ bool ArePaaskInfosEqual(
 
 // Returns true if |stored| is similar enough to |current| that |current|
 // needn't be uploaded.
-bool StoredDeviceInfoStillAccurate(const DeviceInfo* stored,
-                                   const DeviceInfo* current) {
+bool IsStoredLocalDeviceInfoStillAccurate(const DeviceInfo* stored,
+                                          const DeviceInfo* current) {
   return current->guid() == stored->guid() &&
          current->client_name() == stored->client_name() &&
          current->chrome_version() == stored->chrome_version() &&
@@ -383,7 +425,9 @@ bool StoredDeviceInfoStillAccurate(const DeviceInfo* stored,
          current->auto_sign_out_last_signin_timestamp() ==
              stored->auto_sign_out_last_signin_timestamp() &&
          current->glic_experimental_triggering_state() ==
-             stored->glic_experimental_triggering_state();
+             stored->glic_experimental_triggering_state() &&
+         current->glic_experimental_triggering_version() ==
+             stored->glic_experimental_triggering_version();
 }
 
 int CalculateMaxConcurrentEvents(const std::multimap<base::Time, int>& events) {
@@ -396,6 +440,16 @@ int CalculateMaxConcurrentEvents(const std::multimap<base::Time, int>& events) {
   }
   DCHECK_EQ(overlapping, 0);
   return max_overlapping;
+}
+
+std::string DeriveAndroidBuildFingerprintPrefix(
+    const std::string& fingerprint) {
+  std::optional<std::pair<std::string_view, std::string_view>> split =
+      base::SplitStringOnce(fingerprint, ':');
+  if (split) {
+    return std::string(split->first);
+  }
+  return fingerprint;
 }
 
 }  // namespace
@@ -479,7 +533,6 @@ void DeviceInfoSyncBridge::OnSyncStarting(
   ReconcileLocalAndStored();
 }
 
-
 std::optional<ModelError> DeviceInfoSyncBridge::MergeFullSyncData(
     std::unique_ptr<MetadataChangeList> metadata_change_list,
     EntityChangeList entity_data) {
@@ -488,11 +541,18 @@ std::optional<ModelError> DeviceInfoSyncBridge::MergeFullSyncData(
   DCHECK(all_data_.empty());
   DCHECK(!local_cache_guid_.empty());
 
+  std::optional<std::string> android_os_build_fingerprint_prefix;
+  if (local_device_name_info_.android_build_fingerprint.has_value()) {
+    android_os_build_fingerprint_prefix = DeriveAndroidBuildFingerprintPrefix(
+        *local_device_name_info_.android_build_fingerprint);
+  }
+
   local_device_info_provider_->Initialize(
       local_cache_guid_, GetLocalClientName(),
       local_device_name_info_.manufacturer_name,
       local_device_name_info_.model_name,
       local_device_name_info_.full_hardware_class,
+      android_os_build_fingerprint_prefix,
       /*device_info_restored_from_store=*/nullptr);
 
   std::unique_ptr<WriteBatch> batch =
@@ -943,11 +1003,18 @@ void DeviceInfoSyncBridge::OnReadAllMetadata(
   auto iter = all_data_.find(local_cache_guid_);
   CHECK(iter != all_data_.end());
 
+  std::optional<std::string> android_os_build_fingerprint_prefix;
+  if (local_device_name_info_.android_build_fingerprint.has_value()) {
+    android_os_build_fingerprint_prefix = DeriveAndroidBuildFingerprintPrefix(
+        *local_device_name_info_.android_build_fingerprint);
+  }
+
   local_device_info_provider_->Initialize(
       local_cache_guid_, GetLocalClientName(),
       local_device_name_info_.manufacturer_name,
       local_device_name_info_.model_name,
-      local_device_name_info_.full_hardware_class, &iter->second.device_info());
+      local_device_name_info_.full_hardware_class,
+      android_os_build_fingerprint_prefix, &iter->second.device_info());
 
   // This probably isn't strictly needed, but in case the cache_guid has changed
   // we save the new one to prefs.
@@ -983,7 +1050,8 @@ bool DeviceInfoSyncBridge::ReconcileLocalAndStored() {
 
   // Convert |iter->second| to a DeviceInfo for comparison.
   const DeviceInfo& previous_device_info = iter->second.device_info();
-  if (StoredDeviceInfoStillAccurate(&previous_device_info, current_info) &&
+  if (IsStoredLocalDeviceInfoStillAccurate(&previous_device_info,
+                                           current_info) &&
       !force_reupload_for_test_) {
     if (pulse_timer_.IsRunning() || wall_clock_pulse_timer_.IsRunning()) {
       // No need to update the |pulse_timer| since nothing has changed.
@@ -1159,6 +1227,11 @@ void DeviceInfoSyncBridge::ExpireOldEntries() {
     change_processor()->UntrackEntityForStorageKey(cache_guid);
   }
   CommitAndNotify(std::move(batch), /*should_notify=*/true);
+}
+
+std::string DeriveAndroidBuildFingerprintPrefixForTesting(  // IN-TEST
+    const std::string& fingerprint) {
+  return DeriveAndroidBuildFingerprintPrefix(fingerprint);
 }
 
 }  // namespace syncer

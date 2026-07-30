@@ -105,11 +105,17 @@ class VIEWS_EXPORT HWNDMessageHandler : public gfx::WindowImpl,
 
   ~HWNDMessageHandler() override;
 
+  base::WeakPtr<HWNDMessageHandler> GetWeakPtr() {
+    return msg_handler_weak_factory_.GetWeakPtr();
+  }
+
   virtual void Init(HWND parent, const gfx::Rect& bounds);
   virtual void InitModalType(ui::mojom::ModalType modal_type);
 
   virtual void Close();
   virtual void CloseNow();
+
+  void DestroyHandler();
 
   virtual gfx::Rect GetWindowBoundsInScreen() const;
   virtual gfx::Rect GetClientAreaBoundsInScreen() const;
@@ -166,6 +172,12 @@ class VIEWS_EXPORT HWNDMessageHandler : public gfx::WindowImpl,
   virtual bool RunMoveLoop(const gfx::Vector2d& drag_offset,
                            bool hide_on_escape);
   virtual void EndMoveLoop();
+
+  // Returns true if any HWndMessageHandler is in a native move/resize loop.
+  static bool IsInNativeMoveResizeLoop();
+
+  // Returns true if this HWNDMessageHandler is in a native menu loop.
+  bool IsInNativeMenuLoop() const { return menu_depth_ > 0; }
 
   // Tells the HWND its client area has changed.
   virtual void SendFrameChanged();
@@ -271,11 +283,6 @@ class VIEWS_EXPORT HWNDMessageHandler : public gfx::WindowImpl,
 
   // Returns true if IsFrameSystemDrawn() and there's actually a frame to draw.
   bool HasSystemFrame() const;
-
-  // Allow WeakPtr use in subclasses.
-  base::WeakPtr<HWNDMessageHandler> GetWeakPtr() {
-    return msg_handler_weak_factory_.GetWeakPtr();
-  }
 
  private:
   friend class ::views::test::DesktopWindowTreeHostWinTestApi;
@@ -917,6 +924,12 @@ class VIEWS_EXPORT HWNDMessageHandler : public gfx::WindowImpl,
 
   base::ScopedObservation<ui::InputMethod, ui::InputMethodObserver>
       observation_{this};
+
+  bool delete_pending_ = false;
+
+  // Returns true if the message handler has been destroyed, and CHECKs that
+  // kDeferHWNDMessageHandlerDestruction is not enabled in that case.
+  static bool IsDestroyed(const base::WeakPtr<HWNDMessageHandler>& ref);
 
   // The WeakPtrFactories below (one inside the
   // CR_MSG_MAP_CLASS_DECLARATIONS macro and autohide_factory_) must

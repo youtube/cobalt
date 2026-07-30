@@ -148,13 +148,9 @@ SuggestionIconType GetSuggestionIconType(const Suggestion& suggestion,
        suggestion.icon == Suggestion::Icon::kUndo) &&
       base::FeatureList::IsEnabled(kAutofillUndoIos)) {
     return SuggestionIconType::kUndoAutofill;
-  } else if (suggestion.icon == Suggestion::Icon::kHome && hasValue &&
-             base::FeatureList::IsEnabled(
-                 autofill::features::kAutofillEnableSupportForHomeAndWork)) {
+  } else if (suggestion.icon == Suggestion::Icon::kHome && hasValue) {
     return SuggestionIconType::kAccountHome;
-  } else if (suggestion.icon == Suggestion::Icon::kWork && hasValue &&
-             base::FeatureList::IsEnabled(
-                 autofill::features::kAutofillEnableSupportForHomeAndWork)) {
+  } else if (suggestion.icon == Suggestion::Icon::kWork && hasValue) {
     return SuggestionIconType::kAccountWork;
   }
   return SuggestionIconType::kNone;
@@ -727,6 +723,7 @@ bool HasGuid(const Suggestion::Payload& payload) {
       case SuggestionType::kIdentityCredential:
       case SuggestionType::kWebauthnCredential:
       case SuggestionType::kWebauthnSignInWithAnotherDevice:
+      case SuggestionType::kWebauthnPasskeyQrCode:
       case SuggestionType::kPendingStateSignin:
       case SuggestionType::kLoadingThrobber:
       case SuggestionType::kAtMemorySearchResult:

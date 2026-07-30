@@ -58,7 +58,8 @@ sys.path.append(
 from build import (AddCMakeToPath, AddZlibToPath, CheckoutGitRepo, CopyFile,
                    DownloadDebianSysroot, GetLibXml2Dirs, GitCherryPick,
                    GitRevert, LLVM_DIR, IsGitAncestorToHead,
-                   LLVM_BUILD_TOOLS_DIR, RunCommand)
+                   LLVM_BUILD_TOOLS_DIR, RunCommand,
+                   DEFAULT_MACOSX_DEPLOYMENT_TARGET)
 from update import (CHROMIUM_DIR, DownloadAndUnpack, EnsureDirExists,
                     GetDefaultHostOs, RmTree, ReadStampFile, WriteStampFile,
                     UpdatePackage, STAMP_FILENAME as LLVM_STAMP_FILENAME,
@@ -369,10 +370,8 @@ class XPy:
             # `SDKROOT`.
             self._env['SDKROOT'] = sdk_path
 
-            # We don't have an official policy of which platforms we support
-            # building chromium on, but we generally expect builders to be
-            # recent, so this should track the OS versions on our buildbots.
-            self._env['MACOSX_DEPLOYMENT_TARGET'] = '15.6'
+            self._env[
+                'MACOSX_DEPLOYMENT_TARGET'] = DEFAULT_MACOSX_DEPLOYMENT_TARGET
 
         if zlib_path:
             self._env['CFLAGS'] += f' -I{zlib_path}'
@@ -652,6 +651,17 @@ def GitApplyCherryPicks():
     # cherry-pick fixes into it, then point RUST_SRC_DIR at that fork
     # with `GitMoveSubmoduleBranch()`.
     #############################
+
+    # TODO(crbug.com/517133968): Remove once the situation around
+    # https://github.com/rust-lang/rust/pull/157055 gets resolved.
+    GitCherryPick(RUST_SRC_DIR, '4919940fad92a2a503e3fe7fc6a5594fb9771e72',
+                  'https://github.com/zmodem/rust.git')
+
+    # TODO(crbug.com/520277971): Cherry-pick
+    # https://github.com/rust-lang/rust/pull/157476 until it lands.
+    GitCherryPick(RUST_SRC_DIR, 'ca00de5a8aad4b6be672a260882460cee5fb8286',
+                  'https://github.com/rust-lang/rust.git')
+
 
     print('Finished applying cherry-picks.')
 

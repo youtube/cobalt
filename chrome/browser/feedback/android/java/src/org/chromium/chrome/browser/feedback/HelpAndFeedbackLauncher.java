@@ -6,6 +6,8 @@ package org.chromium.chrome.browser.feedback;
 
 import android.app.Activity;
 
+import androidx.annotation.StringRes;
+
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 
@@ -28,6 +30,10 @@ public interface HelpAndFeedbackLauncher {
     /**
      * Starts an activity prompting the user to enter feedback.
      *
+     * <p>Note: Please check the isUserFeedbackAllowed policy (via {@link
+     * FeedbackPolicyManager#isUserFeedbackAllowed()}) when adding a UI entry to send feedback. See
+     * crbug.com/467060116 for more details.
+     *
      * @param activity The activity to use for starting the feedback activity and to take a
      *     screenshot of.
      * @param url the current URL. May be null.
@@ -47,6 +53,10 @@ public interface HelpAndFeedbackLauncher {
     /**
      * Starts an activity prompting the user to enter feedback.
      *
+     * <p>Note: Please check the isUserFeedbackAllowed policy (via {@link
+     * FeedbackPolicyManager#isUserFeedbackAllowed()}) when adding a UI entry to send feedback. See
+     * crbug.com/467060116 for more details.
+     *
      * @param activity The activity to use for starting the feedback activity and to take a
      *     screenshot of.
      * @param url the current URL. May be null.
@@ -60,6 +70,10 @@ public interface HelpAndFeedbackLauncher {
     /**
      * Starts an activity prompting the user to enter feedback for the interest feed.
      *
+     * <p>Note: Please check the isUserFeedbackAllowed policy (via {@link
+     * FeedbackPolicyManager#isUserFeedbackAllowed()}) when adding a UI entry to send feedback. See
+     * crbug.com/467060116 for more details.
+     *
      * @param activity The activity to use for starting the feedback activity and to take a
      *     screenshot of.
      * @param categoryTag The category that this feedback report falls under. Before making any
@@ -72,4 +86,13 @@ public interface HelpAndFeedbackLauncher {
             @Nullable String url,
             final @Nullable String categoryTag,
             final @Nullable Map<String, String> feedContext);
+
+    /**
+     * @return The resource ID of the help string that is valid for the current policy.
+     */
+    static @StringRes int getHelpMenuStringRes() {
+        return FeedbackPolicyManager.getInstance().isUserFeedbackAllowed()
+                ? R.string.menu_help
+                : R.string.menu_help_no_feedback;
+    }
 }

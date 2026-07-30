@@ -76,6 +76,7 @@ class AtMemoryBottomSheetBridge;
 #endif
 
 class ActorKeyMetricsRecorder;
+class PersonalContextAccessManager;
 class AutofillOptimizationGuideDecider;
 class EmailVerificationPopupController;
 class EmailVerifierDelegate;
@@ -147,6 +148,7 @@ class ChromeAutofillClient : public ContentAutofillClient {
   EntityDataManager* GetEntityDataManager() final;
   WalletPassAccessManager* GetWalletPassAccessManager() final;
   SingleFieldFillRouter& GetSingleFieldFillRouter() final;
+  bool ShouldShowPersonalContextAutofillNotice() const override;
   AutocompleteHistoryManager* GetAutocompleteHistoryManager() final;
   AutofillComposeDelegate* GetComposeDelegate() final;
   accessibility_annotator::AccessibilityQueryService*
@@ -157,6 +159,7 @@ class ChromeAutofillClient : public ContentAutofillClient {
       const FieldGlobalId& field_id) final;
   void GetAiPageContent(GetAiPageContentCallback callback) final;
   AutofillAiManager* GetAutofillAiManager() final;
+  PersonalContextAccessManager* GetPersonalContextAccessManager() final;
   AutofillAiModelCache* GetAutofillAiModelCache() final;
   AutofillAiModelExecutor* GetAutofillAiModelExecutor() final;
   consent_auditor::ConsentAuditor* GetConsentAuditor() final;

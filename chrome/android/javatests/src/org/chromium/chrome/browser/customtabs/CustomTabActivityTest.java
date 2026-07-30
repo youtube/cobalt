@@ -205,6 +205,7 @@ import org.chromium.content_public.browser.test.util.PrefetchTestUtil;
 import org.chromium.content_public.common.ContentSwitches;
 import org.chromium.net.test.EmbeddedTestServer;
 import org.chromium.net.test.util.TestWebServer;
+import org.chromium.ui.base.AcceleratorManager;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.mojom.WindowOpenDisposition;
 import org.chromium.ui.test.util.BlankUiTestActivity;
@@ -232,8 +233,7 @@ import java.util.function.Consumer;
 @Features.DisableFeatures({ChromeFeatureList.EDGE_TO_EDGE_EVERYWHERE})
 @DisableLeakChecks({
     "crbug.com/512492806 (NavigationInfoCaptureTrigger)",
-    "crbug.com/512492857 (NavigationInfoCaptureTrigger)",
-    "crbug.com/512491482 (BaseCustomTabActivity$2)"
+    "crbug.com/512492857 (NavigationInfoCaptureTrigger)"
 })
 public class CustomTabActivityTest {
     private static final int TIMEOUT_PAGE_LOAD_SECONDS = 10;
@@ -3189,5 +3189,17 @@ public class CustomTabActivityTest {
         mCustomTabActivityTestRule.startCustomTabActivityWithIntent(intent);
         var tab = getActivity().getActivityTab();
         assertFalse(tab.getWebContents().getCanAcceptLoadDropsForTesting());
+    }
+
+    @Test
+    @SmallTest
+    public void testAcceleratorManagerInitialized() {
+        Intent intent = createMinimalCustomTabIntent();
+        mCustomTabActivityTestRule.startCustomTabActivityWithIntent(intent);
+        CustomTabActivity activity = mCustomTabActivityTestRule.getActivity();
+        var manager =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> AcceleratorManager.fromForTesting(activity.getWindowAndroid()));
+        assertNotNull("AcceleratorManager should be initialized for CustomTabActivity", manager);
     }
 }

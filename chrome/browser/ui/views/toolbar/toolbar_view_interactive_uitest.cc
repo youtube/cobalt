@@ -168,10 +168,8 @@ class ToolbarViewTest : public ToolbarAccessibilityTest {
 
     return Steps(NameDescendantViewByType<Tab>(kTabStripElementId, kTabToHover,
                                                tab_index),
-                 MoveMouseTo(kTabToHover),
-                 MayInvolveNativeContextMenu(
-                     ClickMouse(ui_controls::RIGHT),
-                     SelectMenuItem(TabMenuModel::kSplitTabsMenuItem)));
+                 MoveMouseTo(kTabToHover), ClickMouse(ui_controls::RIGHT),
+                 SelectMenuItem(TabMenuModel::kSplitTabsMenuItem));
   }
 
  private:
@@ -199,7 +197,7 @@ void ToolbarViewTest::RunToolbarCycleFocusTest(Browser* browser) {
   browser->command_controller()->ExecuteCommand(IDC_BACK);
   back_nav_observer.Wait();
 
-  gfx::NativeWindow window = browser->window()->GetNativeWindow();
+  gfx::NativeWindow window = browser->GetWindow()->GetNativeWindow();
   views::Widget* widget = views::Widget::GetWidgetForNativeWindow(window);
 
   ToolbarButtonProvider* toolbar_button_provider =

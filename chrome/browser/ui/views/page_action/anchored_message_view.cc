@@ -17,6 +17,7 @@
 #include "chrome/browser/ui/views/page_action/multi_icon_button.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_ink_drop_util.h"
 #include "chrome/grit/branded_strings.h"
+#include "chrome/grit/generated_resources.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/vector_icons/vector_icons.h"
 #include "ui/accessibility/ax_enums.mojom.h"
@@ -144,6 +145,7 @@ AnchoredMessageBubbleView::AnchoredMessageBubbleView(
                            true),
       menu_model_(model.GetAnchoredMessageMenuModel()),
       delegate_(delegate) {
+  set_close_on_deactivate(false);
   SetProperty(views::kElementIdentifierKey, kAnchoredMessageBubbleId);
   SetButtons(static_cast<int>(ui::mojom::DialogButton::kNone));
   SetBackgroundColor(ui::kColorSysSurface);
@@ -200,11 +202,12 @@ AnchoredMessageBubbleView::AnchoredMessageBubbleView(
       std::make_unique<views::ImageButton>(base::BindRepeating(
           &AnchoredMessageBubbleView::Delegate::CloseAnchoredMessage,
           base::Unretained(delegate_))));
+  close_button_->SetFocusBehavior(views::View::FocusBehavior::ALWAYS);
   close_button_->SetImageModel(
       views::Button::STATE_NORMAL,
       ui::ImageModel::FromVectorIcon(
           features::IsRoundedIconsEnabled()
-              ? vector_icons::kCloseSmallIcon
+              ? vector_icons::kCloseIcon
               : vector_icons::kCloseChromeRefreshOldIcon,
           ui::kColorIcon, kAnchoredMessageIconSize));
   close_button_->SetTooltipText(l10n_util::GetStringUTF16(IDS_CLOSE));
@@ -216,6 +219,7 @@ AnchoredMessageBubbleView::AnchoredMessageBubbleView(
   menu_button_ = top_row_->AddChildView(std::make_unique<views::MenuButton>(
       base::BindRepeating(&AnchoredMessageBubbleView::MenuButtonPressed,
                           base::Unretained(this))));
+  menu_button_->SetFocusBehavior(views::View::FocusBehavior::ALWAYS);
   ConfigureInkDrop(menu_button_);
   menu_button_->SetTooltipText(
       l10n_util::GetStringUTF16(IDS_ANCHORED_MESSAGE_MENU_TOOLTIP));
@@ -306,6 +310,10 @@ void AnchoredMessageBubbleView::UpdateContent(
       }
     }
     expand_button_->Update(icons);
+    expand_button_tooltip_override_ = expandable_content->expand_button_tooltip;
+    collapse_button_tooltip_override_ =
+        expandable_content->collapse_button_tooltip;
+    UpdateExpandButtonTooltip();
     expand_button_->SetVisible(true);
 
     bottom_container_->RemoveAllChildViews();
@@ -320,6 +328,11 @@ void AnchoredMessageBubbleView::UpdateContent(
       title_label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
       title_label->SetTextStyle(views::style::STYLE_BODY_4_MEDIUM);
       title_label->SetEnabledColor(ui::kColorSysOnSurface);
+      title_label->SetElideBehavior(gfx::ELIDE_TAIL);
+      // Set width to 0 so the text will fill available space, but not stretch
+      // the bubble.
+      title_label->SetPreferredSize(
+          gfx::Size(0, title_label->GetPreferredSize().height()));
     }
 
     for (const auto& item : expandable_content->items) {
@@ -345,8 +358,12 @@ void AnchoredMessageBubbleView::UpdateContent(
       item_label->SetTextStyle(views::style::STYLE_BODY_4);
       item_label->SetEnabledColor(ui::kColorSysOnSurface);
       item_label->SetMultiLine(false);
-      item_label->SetMaximumWidthSingleLine(450);
       item_label->SetElideBehavior(gfx::ELIDE_TAIL);
+      // Set width to 0 so the text will fill available space, but not stretch
+      // the bubble.
+      item_label->SetPreferredSize(
+          gfx::Size(0, item_label->GetPreferredSize().height()));
+      item_layout->SetFlexForView(item_label, 1);
     }
   } else {
     expand_button_->SetVisible(false);
@@ -372,7 +389,7 @@ void AnchoredMessageBubbleView::OnThemeChanged() {
         views::Button::STATE_NORMAL,
         ui::ImageModel::FromVectorIcon(
             features::IsRoundedIconsEnabled()
-                ? vector_icons::kCloseSmallIcon
+                ? vector_icons::kCloseIcon
                 : vector_icons::kCloseChromeRefreshOldIcon,
             color_provider->GetColor(ui::kColorSysOnSurfaceVariant),
             kAnchoredMessageIconSize));
@@ -390,7 +407,7 @@ void AnchoredMessageBubbleView::OnThemeChanged() {
 }
 
 bool AnchoredMessageBubbleView::CanActivate() const {
-  return false;  // This widget should not take focus
+  return true;  // Needed for the widget buttons to work on Windows
 }
 
 views::View* AnchoredMessageBubbleView::GetContentsView() {
@@ -412,6 +429,7 @@ AnchoredMessageBubbleView::~AnchoredMessageBubbleView() {
 void AnchoredMessageBubbleView::OnExpandButtonPressed() {
   expanded_ = !expanded_;
   bottom_container_->SetVisible(expanded_);
+  UpdateExpandButtonTooltip();
   SizeToContents();
   if (expanded_) {
     delegate_->AnchoredMessageExpanded();
@@ -451,6 +469,26 @@ void AnchoredMessageBubbleView::OnWidgetDestroying(views::Widget* widget) {
   }
   menu_runner_ = nullptr;
   BubbleDialogDelegate::OnWidgetDestroying(widget);
+}
+
+void AnchoredMessageBubbleView::UpdateExpandButtonTooltip() {
+  if (!expand_button_) {
+    return;
+  }
+  std::u16string tooltip_text;
+  if (expanded_) {
+    tooltip_text = collapse_button_tooltip_override_
+                       ? *collapse_button_tooltip_override_
+                       : l10n_util::GetStringUTF16(
+                             IDS_ANCHORED_MESSAGE_COLLAPSE_BUTTON_TOOLTIP);
+  } else {
+    tooltip_text = expand_button_tooltip_override_
+                       ? *expand_button_tooltip_override_
+                       : l10n_util::GetStringUTF16(
+                             IDS_ANCHORED_MESSAGE_EXPAND_BUTTON_TOOLTIP);
+  }
+  expand_button_->SetTooltipText(tooltip_text);
+  expand_button_->SetAccessibleName(tooltip_text);
 }
 
 BEGIN_METADATA(AnchoredMessageBubbleView)

@@ -1011,6 +1011,8 @@ EVENT_TYPE(TCP_CONNECT_JOB_CREATE_SECOND_CONNECTOR)
 //     "selected_trust_anchor_ids_for_retry": <Optional: comma-separated trust
 //                                             anchor IDs sent in the TLS
 //                                             ClientHello on retry>,
+//     "requested_server_padding": <Optional: Amount of server padding
+//                                  requested>,
 //   }
 EVENT_TYPE(SSL_CONNECT_JOB_SSL_CONNECT)
 
@@ -2529,6 +2531,7 @@ EVENT_TYPE(QUIC_SESSION_POOL_JOB_RESULT)
 //                                   DNS record>,
 //     "selected_trust_anchor_ids": <trust anchor IDs sent in the TLS
 //                                   ClientHello>,
+//     "server_padding": <optional, amount of server padding requested>
 //   }
 EVENT_TYPE(QUIC_SESSION)
 

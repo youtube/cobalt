@@ -1979,7 +1979,8 @@ void OmniboxEditModel::ResetPopupToInitialState() {
 }
 
 OmniboxPopupSelection OmniboxEditModel::GetPopupSelection() const {
-  DCHECK(BUILDFLAG(IS_ANDROID) || popup_view_);
+  DCHECK(BUILDFLAG(IS_ANDROID) || popup_view_ ||
+         base::FeatureList::IsEnabled(omnibox::kEverywhereOmnibox));
   return popup_selection_;
 }
 
@@ -1987,8 +1988,8 @@ void OmniboxEditModel::SetPopupSelection(OmniboxPopupSelection new_selection,
                                          bool reset_to_default,
                                          bool force_update_ui,
                                          bool native_update) {
-  DCHECK(BUILDFLAG(IS_ANDROID) || popup_view_);
-
+  DCHECK(BUILDFLAG(IS_ANDROID) || popup_view_ ||
+         base::FeatureList::IsEnabled(omnibox::kEverywhereOmnibox));
   // Special case for updating the focus ring around the AIM button.
   if (view_) {
     view_->ApplyFocusRingToAimButton(new_selection.state ==
@@ -2073,7 +2074,8 @@ void OmniboxEditModel::SetPopupSelection(OmniboxPopupSelection new_selection,
 }
 
 bool OmniboxEditModel::IsPopupSelectionOnInitialLine() const {
-  DCHECK(BUILDFLAG(IS_ANDROID) || popup_view_);
+  DCHECK(BUILDFLAG(IS_ANDROID) || popup_view_ ||
+         base::FeatureList::IsEnabled(omnibox::kEverywhereOmnibox));
   size_t initial_line = autocomplete_controller()->result().default_match()
                             ? 0
                             : OmniboxPopupSelection::kNoMatch;
@@ -2082,12 +2084,14 @@ bool OmniboxEditModel::IsPopupSelectionOnInitialLine() const {
 
 bool OmniboxEditModel::IsPopupControlPresentOnMatch(
     OmniboxPopupSelection selection) const {
-  DCHECK(BUILDFLAG(IS_ANDROID) || popup_view_);
+  DCHECK(BUILDFLAG(IS_ANDROID) || popup_view_ ||
+         base::FeatureList::IsEnabled(omnibox::kEverywhereOmnibox));
   return selection.IsControlPresentOnMatch(autocomplete_controller()->result());
 }
 
 void OmniboxEditModel::TryDeletingPopupLine(size_t line) {
-  DCHECK(BUILDFLAG(IS_ANDROID) || popup_view_);
+  DCHECK(BUILDFLAG(IS_ANDROID) || popup_view_ ||
+         base::FeatureList::IsEnabled(omnibox::kEverywhereOmnibox));
 
   // When called with line == GetPopupSelection().line, we could use
   // GetInfoForCurrentText() here, but it seems better to try and delete the
@@ -3414,7 +3418,15 @@ void OmniboxEditModel::
   auto* chrome_omnibox_client =
       static_cast<ChromeOmniboxClient*>(controller_->client());
 
-  if (session_handle) {
+  auto* profile = chrome_omnibox_client->profile();
+  // Create session handle so metrics can get recorded when a user enters AI
+  // mode through the omnibox entrypoint.
+  auto* active_session_handle = session_handle.get();
+  if (!active_session_handle) {
+    active_session_handle = GetOrCreateContextualSearchSessionHandle(profile);
+  }
+
+  if (active_session_handle) {
     auto request_info =
         std::make_unique<contextual_search::ContextualSearchContextController::
                              CreateSearchUrlRequestInfo>();
@@ -3427,13 +3439,13 @@ void OmniboxEditModel::
     request_info->invocation_source =
         lens::LensOverlayInvocationSource::kOmniboxContextualQuery;
 
-    session_handle->CreateSearchUrl(
+    active_session_handle->CreateSearchUrl(
         std::move(request_info),
         base::BindOnce(
             &OmniboxEditModel::
                 NavigateToAiModeWithContextualizerNavigateToUrlWithSession,
-            weak_factory_.GetWeakPtr(), std::move(session_handle), query_text,
-            disposition));
+            weak_factory_.GetWeakPtr(), active_session_handle->AsWeakPtr(),
+            query_text, disposition));
     return;
   }
 
@@ -3506,7 +3518,7 @@ void OmniboxEditModel::
       view_->RevertAll();
     }
   } else {
-    chrome_omnibox_client->OpenUrl(url);
+    chrome_omnibox_client->OpenUrl(url, disposition);
   }
 #endif
 }

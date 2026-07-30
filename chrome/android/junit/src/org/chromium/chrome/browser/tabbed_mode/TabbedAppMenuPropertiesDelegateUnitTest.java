@@ -70,6 +70,7 @@ import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ActivityTabProvider;
+import org.chromium.chrome.browser.RecentlyClosedEntriesManager;
 import org.chromium.chrome.browser.app.appmenu.AppMenuPropertiesDelegateImpl;
 import org.chromium.chrome.browser.app.appmenu.AppMenuPropertiesDelegateImpl.MenuGroup;
 import org.chromium.chrome.browser.bookmarks.BookmarkImageFetcher;
@@ -83,7 +84,10 @@ import org.chromium.chrome.browser.enterprise.util.ManagedBrowserUtilsJni;
 import org.chromium.chrome.browser.feed.FeedFeatures;
 import org.chromium.chrome.browser.feed.FeedServiceBridge;
 import org.chromium.chrome.browser.feed.FeedServiceBridgeJni;
+import org.chromium.chrome.browser.feedback.FeedbackPolicyManager;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.glic.GlicEnabling;
+import org.chromium.chrome.browser.glic.GlicEnablingJni;
 import org.chromium.chrome.browser.homepage.HomepageManager;
 import org.chromium.chrome.browser.hub.HubManager;
 import org.chromium.chrome.browser.hub.Pane;
@@ -97,6 +101,10 @@ import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.multiwindow.MultiWindowModeStateDispatcher;
 import org.chromium.chrome.browser.multiwindow.MultiWindowTestUtils;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
+import org.chromium.chrome.browser.ntp.RecentlyClosedEntry;
+import org.chromium.chrome.browser.ntp.RecentlyClosedGroup;
+import org.chromium.chrome.browser.ntp.RecentlyClosedTab;
+import org.chromium.chrome.browser.ntp.RecentlyClosedWindow;
 import org.chromium.chrome.browser.offlinepages.OfflinePageUtils;
 import org.chromium.chrome.browser.omaha.UpdateMenuItemHelper;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
@@ -121,6 +129,7 @@ import org.chromium.chrome.browser.ui.appmenu.AppMenuDelegate;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuHandler;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuItemProperties;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuItemWithSubmenuProperties;
+import org.chromium.chrome.browser.ui.appmenu.AppMenuRecentEntryItemProperties;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuTabItemProperties;
 import org.chromium.chrome.browser.ui.default_browser_promo.DefaultBrowserPromoUtils;
 import org.chromium.chrome.browser.ui.extensions.ExtensionsBuildflags;
@@ -185,7 +194,6 @@ import java.util.function.BiConsumer;
     ChromeFeatureList.LENS_OVERLAY_ANDROID,
     ChromeFeatureList.TASK_MANAGER_CLANK,
     ContentFeatureList.ANDROID_DEV_TOOLS_FRONTEND,
-    DomDistillerFeatures.READER_MODE_IMPROVEMENTS,
     DomDistillerFeatures.READER_MODE_DISTILL_IN_APP,
     // TODO(crbug.com/504757384): Add test for three dot menu flag.
     ChromeFeatureList.THREE_DOT_MENU_BACK_BUTTON,
@@ -239,6 +247,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     @Mock private View mDecorView;
     @Mock private LayoutStateProvider mLayoutStateProvider;
     @Mock private ManagedBrowserUtils.Natives mManagedBrowserUtilsJniMock;
+    @Mock private GlicEnabling.Natives mGlicEnablingJniMock;
     @Mock private Profile mProfile;
     @Mock private AppMenuDelegate mAppMenuDelegate;
     @Mock private ModalDialogManager mDialogManager;
@@ -269,6 +278,8 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     @Mock private Pane mPane;
     @Mock private BookmarkImageFetcher mBookmarkImageFetcher;
     @Mock private FaviconHelper.Natives mFaviconHelperJniMock;
+    @Mock private FeedbackPolicyManager mFeedbackPolicyManager;
+    @Mock private RecentlyClosedEntriesManager mRecentlyClosedEntriesManager;
 
     private ShadowPackageManager mShadowPackageManager;
 
@@ -337,6 +348,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         when(mIncognitoTabModel.isIncognito()).thenReturn(true);
         when(mTabModel.getProfile()).thenReturn(mProfile);
         ManagedBrowserUtilsJni.setInstanceForTesting(mManagedBrowserUtilsJniMock);
+        GlicEnablingJni.setInstanceForTesting(mGlicEnablingJniMock);
         ProfileManager.setLastUsedProfileForTesting(mProfile);
         WebsitePreferenceBridgeJni.setInstanceForTesting(mWebsitePreferenceBridgeJniMock);
         OfflinePageUtils.setInstanceForTesting(mOfflinePageUtils);
@@ -358,6 +370,8 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         Mockito.when(mAppBannerManagerJniMock.getInstallableWebAppManifestId(any()))
                 .thenReturn(null);
         UserPrefsJni.setInstanceForTesting(mUserPrefsNatives);
+        FeedbackPolicyManager.setInstanceForTesting(mFeedbackPolicyManager);
+        when(mFeedbackPolicyManager.isUserFeedbackAllowed()).thenReturn(true);
         when(mUserPrefsNatives.get(mProfile)).thenReturn(mPrefService);
 
         SyncServiceFactory.setInstanceForTesting(mSyncService);
@@ -401,6 +415,9 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         FaviconHelperJni.setInstanceForTesting(mFaviconHelperJniMock);
         when(mFaviconHelperJniMock.init()).thenReturn(1L);
 
+        when(mRecentlyClosedEntriesManager.getRecentlyClosedEntries())
+                .thenReturn(new ArrayList<>());
+
         TabbedAppMenuPropertiesDelegate delegate =
                 new TabbedAppMenuPropertiesDelegate(
                         context,
@@ -418,7 +435,9 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                         mReadAloudControllerSupplier,
                         mPageZoomManagerMock,
                         mHubManagerSupplier,
-                        /* openInAppMenuItemProvider= */ null);
+                        /* openInAppMenuItemProvider= */ null,
+                        /* recentlyClosedEntriesManagerSupplier= */ () ->
+                                mRecentlyClosedEntriesManager);
         RobolectricUtil.runAllBackgroundAndUi();
         mTabbedAppMenuPropertiesDelegate = Mockito.spy(delegate);
 
@@ -2433,7 +2452,6 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     }
 
     @Test
-    @EnableFeatures(DomDistillerFeatures.READER_MODE_IMPROVEMENTS + ":always_on_entry_point/false")
     public void readerModeEntryPointDisabled() {
         setUpMocksForPageMenu();
         when(mTab.getUrl()).thenReturn(JUnitTestGURLs.EXAMPLE_URL);
@@ -2445,7 +2463,6 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     }
 
     @Test
-    @DisableFeatures(DomDistillerFeatures.READER_MODE_IMPROVEMENTS + ":always_on_entry_point/false")
     @EnableFeatures(DomDistillerFeatures.READER_MODE_DISTILL_IN_APP)
     public void readerModeEntryPointEnabledWhenDistillingInApp() {
         setUpMocksForPageMenu();
@@ -2461,7 +2478,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     }
 
     @Test
-    @EnableFeatures(DomDistillerFeatures.READER_MODE_IMPROVEMENTS + ":always_on_entry_point/true")
+    @EnableFeatures(DomDistillerFeatures.READER_MODE_DISTILL_IN_APP)
     public void readerModeEntryPointEnabled_ShowReadingMode() {
         setUpMocksForPageMenu();
         when(mTab.getUrl()).thenReturn(JUnitTestGURLs.EXAMPLE_URL);
@@ -2479,7 +2496,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     }
 
     @Test
-    @EnableFeatures(DomDistillerFeatures.READER_MODE_IMPROVEMENTS + ":always_on_entry_point/true")
+    @EnableFeatures(DomDistillerFeatures.READER_MODE_DISTILL_IN_APP)
     public void readerModeEntryPointEnabled_HideReadingMode() {
         setUpMocksForPageMenu();
         when(mTab.getUrl()).thenReturn(JUnitTestGURLs.CHROME_DISTILLER_EXAMPLE_URL);
@@ -3752,11 +3769,57 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     }
 
     @Test
+    public void testHelpMenuItem_PolicyDisabled() {
+        setUpMocksForPageMenu();
+        when(mFeedbackPolicyManager.isUserFeedbackAllowed()).thenReturn(false);
+
+        ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
+        ListItem helpParentItem = findItemById(modelList, R.id.help_parent_menu_id);
+        assertNotNull(helpParentItem);
+
+        assertTrue(
+                helpParentItem.model.containsKey(
+                        AppMenuItemWithSubmenuProperties.SUBMENU_PROVIDER));
+        List<ListItem> subItems =
+                helpParentItem.model.get(AppMenuItemWithSubmenuProperties.SUBMENU_PROVIDER).get();
+        assertNotNull(subItems);
+
+        // Should contain "About Chrome" and "Help Center", but NOT "Report an issue".
+        assertNotNull(findItemById(subItems, R.id.about_chrome_menu_id));
+        assertNotNull(findItemById(subItems, R.id.help_id));
+        assertNull(findItemById(subItems, R.id.report_issue_menu_id));
+    }
+
+    @Test
+    public void testHelpMenuItem_PolicyEnabled() {
+        setUpMocksForPageMenu();
+        when(mFeedbackPolicyManager.isUserFeedbackAllowed()).thenReturn(true);
+
+        ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
+        ListItem helpParentItem = findItemById(modelList, R.id.help_parent_menu_id);
+        assertNotNull(helpParentItem);
+
+        assertTrue(
+                helpParentItem.model.containsKey(
+                        AppMenuItemWithSubmenuProperties.SUBMENU_PROVIDER));
+        List<ListItem> subItems =
+                helpParentItem.model.get(AppMenuItemWithSubmenuProperties.SUBMENU_PROVIDER).get();
+        assertNotNull(subItems);
+
+        // Should contain "About Chrome", "Help Center" and "Report an issue".
+        assertNotNull(findItemById(subItems, R.id.about_chrome_menu_id));
+        assertNotNull(findItemById(subItems, R.id.help_id));
+        assertNotNull(findItemById(subItems, R.id.report_issue_menu_id));
+    }
+
+    @Test
     @EnableFeatures(ChromeFeatureList.GLIC)
     public void glicItemEnabled() {
         setUpMocksForPageMenu();
         when(mTab.getUrl()).thenReturn(JUnitTestGURLs.EXAMPLE_URL);
         when(mTab.isIncognito()).thenReturn(false);
+        // TODO (crbug.com/518937617): Use GlicEnabling.setEnabledForTesting
+        when(mGlicEnablingJniMock.isEnabledForProfile(any())).thenReturn(true);
 
         ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
 
@@ -3769,6 +3832,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         setUpMocksForPageMenu();
         when(mTab.getUrl()).thenReturn(JUnitTestGURLs.EXAMPLE_URL);
         when(mTab.isIncognito()).thenReturn(true);
+        when(mGlicEnablingJniMock.isEnabledForProfile(any())).thenReturn(true);
 
         ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
 
@@ -3781,6 +3845,20 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         setUpMocksForPageMenu();
         when(mTab.getUrl()).thenReturn(JUnitTestGURLs.EXAMPLE_URL);
         when(mTab.isIncognito()).thenReturn(false);
+        when(mGlicEnablingJniMock.isEnabledForProfile(any())).thenReturn(false);
+
+        ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
+
+        assertFalse(isMenuVisible(modelList, R.id.glic_menu_id));
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.GLIC)
+    public void glicItemDisabled_EnterpriseDisallowed() {
+        setUpMocksForPageMenu();
+        when(mTab.getUrl()).thenReturn(JUnitTestGURLs.EXAMPLE_URL);
+        when(mTab.isIncognito()).thenReturn(false);
+        when(mGlicEnablingJniMock.isEnabledForProfile(any())).thenReturn(false);
 
         ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
 
@@ -4254,6 +4332,356 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
         ListItem homepageItem = findItemById(modelList, R.id.homepage_menu_id);
         assertNull("Homepage menu item should not be visible", homepageItem);
+    }
+
+    @Test
+    public void testHistorySubmenu_WithRecentEntries() {
+        setUpMocksForPageMenu();
+
+        List<RecentlyClosedEntry> entries = new ArrayList<>();
+        RecentlyClosedTab tab1 =
+                new RecentlyClosedTab(
+                        /* sessionId= */ 1,
+                        /* timestamp= */ 0,
+                        "Title 1",
+                        JUnitTestGURLs.URL_1,
+                        /* tabGroupId= */ null);
+        RecentlyClosedTab tab2 =
+                new RecentlyClosedTab(
+                        /* sessionId= */ 2,
+                        /* timestamp= */ 0,
+                        "Title 2",
+                        JUnitTestGURLs.URL_2,
+                        /* tabGroupId= */ null);
+        entries.add(tab1);
+        entries.add(tab2);
+        when(mRecentlyClosedEntriesManager.getRecentlyClosedEntries()).thenReturn(entries);
+
+        List<MenuItem> expectedSubmenu =
+                new ArrayList<>(
+                        Arrays.asList(
+                                item(R.id.open_history_menu_id),
+                                item(R.id.recent_tabs_menu_id),
+                                item(R.id.quick_delete_menu_id),
+                                item(R.id.divider_line_id),
+                                item(R.id.recent_entry_tab_menu_item),
+                                item(R.id.recent_entry_tab_menu_item)));
+
+        List<ListItem> items =
+                findItemById(
+                                mTabbedAppMenuPropertiesDelegate.getMenuItems(),
+                                R.id.history_parent_menu_id)
+                        .model
+                        .get(AppMenuItemWithSubmenuProperties.SUBMENU_PROVIDER)
+                        .get();
+
+        assertMenuTreesAreEqual(
+                items,
+                expectedSubmenu,
+                (item, expectedId) -> {
+                    assertEquals(
+                            "Mismatched item id",
+                            expectedId,
+                            item.model.get(AppMenuItemProperties.MENU_ITEM_ID));
+                });
+    }
+
+    @Test
+    public void testHistorySubmenu_WithRecentlyClosedWindow() {
+        setUpMocksForPageMenu();
+
+        List<RecentlyClosedEntry> entries = new ArrayList<>();
+        RecentlyClosedWindow closedWindow =
+                new RecentlyClosedWindow(
+                        /* timestamp= */ 0,
+                        /* instanceId= */ 1,
+                        JUnitTestGURLs.URL_1.getSpec(),
+                        /* title= */ "Custom Window",
+                        "Active Tab Title",
+                        /* tabCount= */ 3);
+        entries.add(closedWindow);
+        when(mRecentlyClosedEntriesManager.getRecentlyClosedEntries()).thenReturn(entries);
+
+        RecentlyClosedTab tab1 =
+                new RecentlyClosedTab(
+                        /* sessionId= */ 10,
+                        /* timestamp= */ 0,
+                        "Tab 1 Title",
+                        JUnitTestGURLs.URL_1,
+                        /* tabGroupId= */ null);
+        RecentlyClosedTab tab2 =
+                new RecentlyClosedTab(
+                        /* sessionId= */ 20,
+                        /* timestamp= */ 0,
+                        "Tab 2 Title",
+                        JUnitTestGURLs.URL_2,
+                        /* tabGroupId= */ null);
+        when(mRecentlyClosedEntriesManager.getTabsForClosedWindow(closedWindow))
+                .thenReturn(List.of(tab1, tab2));
+
+        List<MenuItem> expectedSubmenu =
+                new ArrayList<>(
+                        Arrays.asList(
+                                item(R.id.open_history_menu_id),
+                                item(R.id.recent_tabs_menu_id),
+                                item(R.id.quick_delete_menu_id),
+                                item(R.id.divider_line_id),
+                                item(
+                                        R.id.recent_entry_menu_item,
+                                        item(R.id.recent_entry_window_menu_item),
+                                        item(R.id.divider_line_id),
+                                        item(R.id.recent_entry_tab_menu_item),
+                                        item(R.id.recent_entry_tab_menu_item))));
+
+        List<ListItem> items =
+                findItemById(
+                                mTabbedAppMenuPropertiesDelegate.getMenuItems(),
+                                R.id.history_parent_menu_id)
+                        .model
+                        .get(AppMenuItemWithSubmenuProperties.SUBMENU_PROVIDER)
+                        .get();
+
+        assertMenuTreesAreEqual(
+                items,
+                expectedSubmenu,
+                (item, expectedId) -> {
+                    assertEquals(
+                            "Mismatched item id",
+                            expectedId,
+                            item.model.get(AppMenuItemProperties.MENU_ITEM_ID));
+                });
+
+        Context context = ContextUtils.getApplicationContext();
+        String tabsText =
+                context.getResources()
+                        .getQuantityString(R.plurals.recent_tabs_group_closure_without_title, 3, 3);
+        String restoreText = context.getString(R.string.menu_recent_entry_restore_window);
+
+        List<MenuItem> expectedTitles =
+                new ArrayList<>(
+                        Arrays.asList(
+                                item(R.string.menu_history),
+                                item(R.string.menu_recent_tabs),
+                                item(R.string.menu_quick_delete),
+                                item(0),
+                                item(
+                                        context.getString(
+                                                R.string.menu_window_title_with_tab_count,
+                                                "Custom Window",
+                                                tabsText),
+                                        item(restoreText),
+                                        item(0),
+                                        item("Tab 1 Title"),
+                                        item("Tab 2 Title"))));
+
+        assertMenuTitlesAreEqual(items, expectedTitles);
+
+        // Index 4 is the first recently closed entry in the submenu (after the default history
+        // actions: History, Recent Tabs, Quick Delete, and the Divider).
+        ListItem windowItem = items.get(4);
+        List<ListItem> windowSubmenu =
+                windowItem.model.get(AppMenuItemWithSubmenuProperties.SUBMENU_PROVIDER).get();
+        ListItem restoreItem = windowSubmenu.get(0);
+        assertEquals(
+                closedWindow, restoreItem.model.get(AppMenuRecentEntryItemProperties.RECENT_ENTRY));
+    }
+
+    @Test
+    public void testHistorySubmenu_WithUnnamedRecentlyClosedWindow() {
+        setUpMocksForPageMenu();
+
+        List<RecentlyClosedEntry> entries = new ArrayList<>();
+        RecentlyClosedWindow closedWindow =
+                new RecentlyClosedWindow(
+                        /* timestamp= */ 0,
+                        /* instanceId= */ 1,
+                        JUnitTestGURLs.URL_1.getSpec(),
+                        /* title= */ null,
+                        "Active Tab Title",
+                        /* tabCount= */ 3);
+        entries.add(closedWindow);
+        when(mRecentlyClosedEntriesManager.getRecentlyClosedEntries()).thenReturn(entries);
+
+        List<MenuItem> expectedSubmenu =
+                new ArrayList<>(
+                        Arrays.asList(
+                                item(R.id.open_history_menu_id),
+                                item(R.id.recent_tabs_menu_id),
+                                item(R.id.quick_delete_menu_id),
+                                item(R.id.divider_line_id),
+                                item(
+                                        R.id.recent_entry_menu_item,
+                                        item(R.id.recent_entry_window_menu_item))));
+
+        List<ListItem> items =
+                findItemById(
+                                mTabbedAppMenuPropertiesDelegate.getMenuItems(),
+                                R.id.history_parent_menu_id)
+                        .model
+                        .get(AppMenuItemWithSubmenuProperties.SUBMENU_PROVIDER)
+                        .get();
+
+        assertMenuTreesAreEqual(
+                items,
+                expectedSubmenu,
+                (item, expectedId) -> {
+                    assertEquals(
+                            "Mismatched item id",
+                            expectedId,
+                            item.model.get(AppMenuItemProperties.MENU_ITEM_ID));
+                });
+
+        Context context = ContextUtils.getApplicationContext();
+        String tabsText =
+                context.getResources()
+                        .getQuantityString(R.plurals.recent_tabs_group_closure_without_title, 3, 3);
+        String restoreText = context.getString(R.string.menu_recent_entry_restore_window);
+
+        List<MenuItem> expectedTitles =
+                new ArrayList<>(
+                        Arrays.asList(
+                                item(R.string.menu_history),
+                                item(R.string.menu_recent_tabs),
+                                item(R.string.menu_quick_delete),
+                                item(0),
+                                item(tabsText, item(restoreText))));
+
+        assertMenuTitlesAreEqual(items, expectedTitles);
+
+        // Verify the recent entry itself in the model.
+        // Index 4 is the first recently closed entry in the submenu (after the default history
+        // actions: History, Recent Tabs, Quick Delete, and the Divider).
+        ListItem windowItem = items.get(4);
+        List<ListItem> windowSubmenu =
+                windowItem.model.get(AppMenuItemWithSubmenuProperties.SUBMENU_PROVIDER).get();
+        ListItem restoreItem = windowSubmenu.get(0);
+        assertEquals(
+                closedWindow, restoreItem.model.get(AppMenuRecentEntryItemProperties.RECENT_ENTRY));
+    }
+
+    private void runHistorySubmenuWithRecentlyClosedGroupTest(
+            String title, List<MenuItem> expectedTitles) {
+        setUpMocksForPageMenu();
+
+        RecentlyClosedGroup closedGroup =
+                new RecentlyClosedGroup(
+                        /* sessionId= */ 1, /* timestamp= */ 0, title, /* color= */ 0);
+        RecentlyClosedTab tab1 =
+                new RecentlyClosedTab(
+                        /* sessionId= */ 10,
+                        /* timestamp= */ 0,
+                        "Tab 1 Title",
+                        JUnitTestGURLs.URL_1,
+                        /* tabGroupId= */ null);
+        RecentlyClosedTab tab2 =
+                new RecentlyClosedTab(
+                        /* sessionId= */ 20,
+                        /* timestamp= */ 0,
+                        "Tab 2 Title",
+                        JUnitTestGURLs.URL_2,
+                        /* tabGroupId= */ null);
+        closedGroup.getTabs().add(tab1);
+        closedGroup.getTabs().add(tab2);
+
+        List<RecentlyClosedEntry> entries = new ArrayList<>();
+        entries.add(closedGroup);
+        when(mRecentlyClosedEntriesManager.getRecentlyClosedEntries()).thenReturn(entries);
+
+        List<MenuItem> expectedSubmenu =
+                new ArrayList<>(
+                        Arrays.asList(
+                                item(R.id.open_history_menu_id),
+                                item(R.id.recent_tabs_menu_id),
+                                item(R.id.quick_delete_menu_id),
+                                item(R.id.divider_line_id),
+                                item(
+                                        R.id.recent_entry_menu_item,
+                                        item(R.id.recent_entry_group_menu_item),
+                                        item(R.id.divider_line_id),
+                                        item(R.id.recent_entry_tab_menu_item),
+                                        item(R.id.recent_entry_tab_menu_item))));
+
+        List<ListItem> items =
+                findItemById(
+                                mTabbedAppMenuPropertiesDelegate.getMenuItems(),
+                                R.id.history_parent_menu_id)
+                        .model
+                        .get(AppMenuItemWithSubmenuProperties.SUBMENU_PROVIDER)
+                        .get();
+
+        assertMenuTreesAreEqual(
+                items,
+                expectedSubmenu,
+                (item, expectedId) -> {
+                    assertEquals(
+                            "Mismatched item id",
+                            expectedId,
+                            item.model.get(AppMenuItemProperties.MENU_ITEM_ID));
+                });
+
+        assertMenuTitlesAreEqual(items, expectedTitles);
+
+        // Verify the recent entry itself in the model.
+        // Index 4 is the first recently closed entry in the submenu.
+        ListItem groupItem = items.get(4);
+        List<ListItem> groupSubmenu =
+                groupItem.model.get(AppMenuItemWithSubmenuProperties.SUBMENU_PROVIDER).get();
+        ListItem restoreItem = groupSubmenu.get(0);
+        assertEquals(
+                closedGroup, restoreItem.model.get(AppMenuRecentEntryItemProperties.RECENT_ENTRY));
+    }
+
+    @Test
+    public void testHistorySubmenu_WithRecentlyClosedNamedGroup() {
+        Context context = ContextUtils.getApplicationContext();
+        String tabsText =
+                context.getResources()
+                        .getQuantityString(R.plurals.recent_tabs_group_closure_without_title, 2, 2);
+        String restoreText = context.getString(R.string.menu_recent_entry_restore_group);
+
+        List<MenuItem> expectedTitles =
+                new ArrayList<>(
+                        Arrays.asList(
+                                item(R.string.menu_history),
+                                item(R.string.menu_recent_tabs),
+                                item(R.string.menu_quick_delete),
+                                item(0),
+                                item(
+                                        context.getString(
+                                                R.string.menu_window_title_with_tab_count,
+                                                "Custom Group",
+                                                tabsText),
+                                        item(restoreText),
+                                        item(0),
+                                        item("Tab 1 Title"),
+                                        item("Tab 2 Title"))));
+
+        runHistorySubmenuWithRecentlyClosedGroupTest("Custom Group", expectedTitles);
+    }
+
+    @Test
+    public void testHistorySubmenu_WithRecentlyClosedUnnamedGroup() {
+        Context context = ContextUtils.getApplicationContext();
+        String tabsText =
+                context.getResources()
+                        .getQuantityString(R.plurals.recent_tabs_group_closure_without_title, 2, 2);
+        String restoreText = context.getString(R.string.menu_recent_entry_restore_group);
+
+        List<MenuItem> expectedTitles =
+                new ArrayList<>(
+                        Arrays.asList(
+                                item(R.string.menu_history),
+                                item(R.string.menu_recent_tabs),
+                                item(R.string.menu_quick_delete),
+                                item(0),
+                                item(
+                                        tabsText,
+                                        item(restoreText),
+                                        item(0),
+                                        item("Tab 1 Title"),
+                                        item("Tab 2 Title"))));
+
+        runHistorySubmenuWithRecentlyClosedGroupTest("", expectedTitles);
     }
 
     private static MenuItem item(Object id, MenuItem... subItems) {

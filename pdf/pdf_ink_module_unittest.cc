@@ -358,7 +358,7 @@ class FakeClient : public PdfInkModuleClient {
 
   MOCK_METHOD(DocumentInkTextBoxesMap,
               LoadTextAnnotationsFromPdf,
-              (GenerateTextIdCallback generate_text_id_callback),
+              (),
               (override));
 
   MOCK_METHOD(PdfInkModuleClient::DocumentV2InkPathShapesMap,
@@ -409,7 +409,7 @@ class FakeClient : public PdfInkModuleClient {
 
   MOCK_METHOD(void,
               UpdateTextActiveAndInvalidate,
-              (InkTextId id, bool active),
+              (TextId id, bool active),
               (override));
 
   int VisiblePageIndexFromPoint(const gfx::PointF& point) override {
@@ -564,7 +564,7 @@ TEST_P(PdfInkModuleTest, HandleGetAllTextAnnotationsMessage) {
   DocumentInkTextBoxesMap map;
   map[0] = std::move(test_boxes);
 
-  EXPECT_CALL(client(), LoadTextAnnotationsFromPdf(_))
+  EXPECT_CALL(client(), LoadTextAnnotationsFromPdf())
       .WillOnce(Return(std::move(map)));
 
   EXPECT_CALL(client(), PostMessage).WillOnce([](const base::DictValue& dict) {
@@ -1159,8 +1159,8 @@ TEST_F(PdfInkModuleTextTest, HandleEditTextAnnotationMessage) {
   }
 
   {
-    EXPECT_CALL(client(),
-                UpdateTextActiveAndInvalidate(kBackendId, /*active=*/false));
+    EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kBackendId),
+                                                        /*active=*/false));
     EXPECT_CALL(client(), AddFont(_, _)).Times(0);
     EXPECT_CALL(client(), DrawText(_, _, _, _, _)).Times(0);
 
@@ -1234,8 +1234,8 @@ TEST_F(PdfInkModuleTextTest, HandleFinishTextAnnotationMessageNoEdit) {
                                                           kPageIndex, kPdfZoom);
     data.Set("isEdited", false);
 
-    EXPECT_CALL(client(),
-                UpdateTextActiveAndInvalidate(kTextId0, /*active=*/true));
+    EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kTextId0),
+                                                        /*active=*/true));
     EXPECT_CALL(client(), AddFont(_, _)).Times(0);
     EXPECT_CALL(client(), DiscardText(_)).Times(0);
     EXPECT_CALL(client(), DrawText(_, _, _, _, _)).Times(0);
@@ -1283,8 +1283,8 @@ TEST_F(PdfInkModuleTextTest, HandleFinishTextAnnotationMessageEdit) {
                                                           kPageIndex, kPdfZoom);
     data.Set("text", "ah");
 
-    EXPECT_CALL(client(),
-                UpdateTextActiveAndInvalidate(kTextId0, /*active=*/false));
+    EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kTextId0),
+                                                        /*active=*/false));
     EXPECT_CALL(client(), DiscardText(kTextId0));
     EXPECT_CALL(
         client(),
@@ -1345,8 +1345,8 @@ TEST_F(PdfInkModuleTextTest, HandleFinishTextAnnotationMessageDelete) {
     data.Set("text", "");
 
     InSequence seq;
-    EXPECT_CALL(client(),
-                UpdateTextActiveAndInvalidate(kTextId, /*active=*/false));
+    EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kTextId),
+                                                        /*active=*/false));
     EXPECT_CALL(client(), DiscardText(kTextId));
     EXPECT_CALL(client(), AddFont(_, _)).Times(0);
     EXPECT_CALL(client(), DrawText(_, _, _, _, _)).Times(0);
@@ -1399,8 +1399,8 @@ TEST_F(PdfInkModuleTextTest,
     data.Set("text", "");
 
     InSequence seq;
-    EXPECT_CALL(client(),
-                UpdateTextActiveAndInvalidate(kTextId0, /*active=*/false));
+    EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kTextId0),
+                                                        /*active=*/false));
     EXPECT_CALL(client(), DiscardText(kTextId0));
     EXPECT_CALL(client(), AddFont(_, _)).Times(0);
     EXPECT_CALL(client(), DrawText(_, _, _, _, _)).Times(0);
@@ -1438,8 +1438,8 @@ TEST_F(PdfInkModuleTextTest,
                                                           kPageIndex, kPdfZoom);
 
     InSequence seq;
-    EXPECT_CALL(client(),
-                UpdateTextActiveAndInvalidate(kTextId0, /*active=*/false));
+    EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kTextId0),
+                                                        /*active=*/false));
     EXPECT_CALL(client(), DiscardText(kTextId0));
     EXPECT_CALL(client(),
                 DrawText(kPageIndex, kTextId1,
@@ -1459,8 +1459,8 @@ TEST_F(PdfInkModuleTextTest,
         kFrontendId, kFontId, kPageIndex, kPdfZoom, /*source=*/"undo");
 
     InSequence seq;
-    EXPECT_CALL(client(),
-                UpdateTextActiveAndInvalidate(kTextId1, /*active=*/false));
+    EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kTextId1),
+                                                        /*active=*/false));
     EXPECT_CALL(client(), DiscardText(kTextId1));
     EXPECT_CALL(client(),
                 DrawText(kPageIndex, kTextId0,
@@ -1482,8 +1482,8 @@ TEST_F(PdfInkModuleTextTest,
     data.Set("text", "");
 
     InSequence seq;
-    EXPECT_CALL(client(),
-                UpdateTextActiveAndInvalidate(kTextId0, /*active=*/false));
+    EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kTextId0),
+                                                        /*active=*/false));
     EXPECT_CALL(client(), DiscardText(kTextId0));
     EXPECT_CALL(client(), AddFont(_, _)).Times(0);
     EXPECT_CALL(client(), DrawText(_, _, _, _, _)).Times(0);
@@ -1556,8 +1556,8 @@ TEST_F(PdfInkModuleTextTest,
     data.Set("text", "");
 
     InSequence seq;
-    EXPECT_CALL(client(),
-                UpdateTextActiveAndInvalidate(kTextId0, /*active=*/false));
+    EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kTextId0),
+                                                        /*active=*/false));
     EXPECT_CALL(client(), DiscardText(kTextId0));
     EXPECT_CALL(client(), AddFont(_, _)).Times(0);
     EXPECT_CALL(client(), DrawText(_, _, _, _, _)).Times(0);
@@ -1593,11 +1593,118 @@ TEST_F(PdfInkModuleTextTest,
     data.Set("text", "");
 
     InSequence seq;
-    EXPECT_CALL(client(),
-                UpdateTextActiveAndInvalidate(kTextId0, /*active=*/false));
+    EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kTextId0),
+                                                        /*active=*/false));
     EXPECT_CALL(client(), DiscardText(kTextId0));
     EXPECT_CALL(client(), AddFont(_, _)).Times(0);
     EXPECT_CALL(client(), DrawText(_, _, _, _, _)).Times(0);
+
+    EXPECT_TRUE(ink_module().OnMessage(
+        CreateFinishTextAnnotationMessage(std::move(data))));
+    PerformRedo();
+    testing::Mock::VerifyAndClearExpectations(this);
+  }
+}
+
+TEST_F(PdfInkModuleTextTest,
+       HandleFinishTextAnnotationMessageLoadedModifyUndoRedo) {
+  static constexpr int kFrontendId = 0;
+  static constexpr int kPageIndex = 3;
+  static constexpr FontId kFontId(123);
+  static constexpr double kPdfZoom = 2.0;
+  static constexpr InkLoadedTextId kLoadedTextId(0);
+  static constexpr InkTextId kNewTextId(0);
+  static constexpr char kOriginalText[] = "hi";
+  static constexpr char kModifiedText[] = "modified";
+
+  {
+    // Load text annotations.
+    std::vector<gfx::RectF> layouts(4, gfx::RectF(0, 0, 100, 100));
+    client().set_page_layouts(layouts);
+
+    std::vector<InkTextBox> test_boxes;
+    InkTextBox test_box(
+        /*id=*/42, InkTextBoxAttributes(
+                       /*rect=*/gfx::RectF(10.0f, 20.0f, 100.0f, 15.0f),
+                       /*color=*/SkColorSetRGB(255, 111, 99),
+                       /*css_font_size=*/12.0f,
+                       /*typeface=*/TextTypeface::kSerif,
+                       /*alignment=*/TextAlignment::kCenter,
+                       /*orientation=*/1,
+                       /*is_bold=*/true,
+                       /*is_italic=*/true,
+                       /*text=*/kOriginalText));
+    test_box.ink_loaded_text_id = kLoadedTextId;
+    test_boxes.push_back(std::move(test_box));
+
+    DocumentInkTextBoxesMap map;
+    map[kPageIndex] = std::move(test_boxes);
+
+    EXPECT_CALL(client(), LoadTextAnnotationsFromPdf())
+        .WillOnce(Return(std::move(map)));
+
+    base::DictValue message = base::DictValue()
+                                  .Set("type", "getAllTextAnnotations")
+                                  .Set("messageId", "bar");
+    EXPECT_TRUE(ink_module().OnMessage(message));
+    testing::Mock::VerifyAndClearExpectations(this);
+  }
+
+  {
+    // Modify the loaded text annotation (User action).
+    base::DictValue data = SampleFinishTextAnnotationData(kFrontendId, kFontId,
+                                                          kPageIndex, kPdfZoom);
+    data.Set("text", kModifiedText);
+
+    InSequence seq;
+    // Deactivate loaded text and draw new text.
+    EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kLoadedTextId),
+                                                        /*active=*/false));
+    EXPECT_CALL(client(), DrawText(kPageIndex, kNewTextId, _, kPdfZoom, _));
+    EXPECT_CALL(client(), AddFont(_, _)).Times(0);
+    EXPECT_CALL(client(), DiscardText(_)).Times(0);
+
+    EXPECT_TRUE(ink_module().OnMessage(
+        CreateFinishTextAnnotationMessage(std::move(data))));
+    testing::Mock::VerifyAndClearExpectations(this);
+  }
+
+  {
+    // Undo the modification (Non-user action).
+    base::DictValue data = SampleFinishTextAnnotationDataWithSource(
+        kFrontendId, kFontId, kPageIndex, kPdfZoom, /*source=*/"undo");
+    data.Remove("mojoTextInfo");
+    data.Set("text", kOriginalText);
+
+    InSequence seq;
+    // Deactivate new text and reactivate loaded text.
+    EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kNewTextId),
+                                                        /*active=*/false));
+    EXPECT_CALL(client(), DiscardText(kNewTextId));
+    EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kLoadedTextId),
+                                                        /*active=*/true));
+    EXPECT_CALL(client(), AddFont(_, _)).Times(0);
+    EXPECT_CALL(client(), DrawText(_, _, _, _, _)).Times(0);
+
+    EXPECT_TRUE(ink_module().OnMessage(
+        CreateFinishTextAnnotationMessage(std::move(data))));
+    PerformUndo();
+    testing::Mock::VerifyAndClearExpectations(this);
+  }
+
+  {
+    // Redo the modification (Non-user action).
+    base::DictValue data = SampleFinishTextAnnotationDataWithSource(
+        kFrontendId, kFontId, kPageIndex, kPdfZoom, /*source=*/"redo");
+    data.Set("text", kModifiedText);
+
+    InSequence seq;
+    // Deactivate loaded text and draw new text.
+    EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kLoadedTextId),
+                                                        /*active=*/false));
+    EXPECT_CALL(client(), DrawText(kPageIndex, kNewTextId, _, kPdfZoom, _));
+    EXPECT_CALL(client(), AddFont(_, _)).Times(0);
+    EXPECT_CALL(client(), DiscardText(_)).Times(0);
 
     EXPECT_TRUE(ink_module().OnMessage(
         CreateFinishTextAnnotationMessage(std::move(data))));

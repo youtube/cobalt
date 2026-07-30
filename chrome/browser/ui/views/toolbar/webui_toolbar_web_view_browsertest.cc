@@ -39,6 +39,7 @@
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
+#include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
 #include "chrome/browser/ui/interaction/browser_elements.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry.h"
@@ -57,8 +58,11 @@
 #include "chrome/browser/ui/views/toolbar/home_button.h"
 #include "chrome/browser/ui/views/toolbar/reload_button.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
+#include "chrome/browser/ui/views/toolbar/webui_avatar_toolbar_button.h"
 #include "chrome/browser/ui/views/toolbar/webui_pinned_toolbar_actions.h"
+#include "chrome/browser/ui/views/toolbar/webui_reload_control.h"
 #include "chrome/browser/ui/views/toolbar/webui_test_utils.h"
+#include "chrome/browser/ui/waap/initial_web_ui_manager.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/browser/ui/webui/webui_toolbar/utils/toolbar_button_utils.h"
 #include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_ui.h"
@@ -92,6 +96,7 @@
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/scoped_accessibility_mode.h"
+#include "content/public/browser/site_instance.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/common/content_features.h"
@@ -1154,14 +1159,8 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
 // Either button, if clicked, triggers a navigation, but neither button should
 // treat this as a click. Since this test moves the pointer horizontally and
 // does so instantly, it should not trigger the long press logic.
-// TODO(crbug.com/514610392): Flaky on Mac 13.
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_PointerDownOnOneUpOnAnother DISABLED_PointerDownOnOneUpOnAnother
-#else
-#define MAYBE_PointerDownOnOneUpOnAnother PointerDownOnOneUpOnAnother
-#endif
 IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
-                       MAYBE_PointerDownOnOneUpOnAnother) {
+                       PointerDownOnOneUpOnAnother) {
   WebUIToolbarWebView* webui_toolbar_view = SetUpAndPinHomeButton(browser());
   views::WebView* web_view = webui_toolbar_view->GetWebViewForTesting();
 
@@ -1171,56 +1170,82 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
   std::string script = base::StringPrintf(
       R"((() => {
           const home = %s;
-          const home_rect = home.getBoundingClientRect();
+          const home_button = %s;
+          const home_rect = home_button.getBoundingClientRect();
           const home_x = home_rect.left + home_rect.width / 2;
           const home_y = home_rect.top + home_rect.height / 2;
           // The home button is where the down event occurs, so should be the
           // one with the usual mock pointer functions.
           %s
 
-          const reload = %s;
-          const reload_rect = reload.getBoundingClientRect();
+          const reload_button = %s;
+          const reload_rect = reload_button.getBoundingClientRect();
           const reload_x = reload_rect.left + reload_rect.width / 2;
           const reload_y = reload_rect.top + reload_rect.height / 2;
-          // The reload button should check for pointer capture, but then do
-          // nothing, since it doesn't have capture.
-          reload.setPointerCapture = () => {
-            throw 'setPointerCapture should not be called';
-          };
-          reload.hasPointerCapture = () => { return false; };
-          reload.releasePointerCapture = () => {
-            throw 'releasePointerCapture should not be called';
+
+          // Detect attempts to show a context menu, so can fail on them.
+          // Fail if the method does not exist.
+          if (!home.browserProxy_.toolbarUIHandler.showContextMenu) {
+            throw "showContextMenu function missing";
+          }
+          home.unexpectedContextMenu = false;
+          // This does catch any button trying to show a context menu, but that
+          // should be fine. Can't replace onLongPress_(), because that is
+          // bound and passed to the PressHandler.
+          home.browserProxy_.toolbarUIHandler.showContextMenu = () => {
+            home.unexpectedContextMenu = true;
           };
 
           // Down on the home button.
-          home.dispatchEvent(new PointerEvent('pointerdown',
+          home_button.dispatchEvent(new PointerEvent('pointerdown',
               {bubbles: true, cancelable: true, view: window,
                 pointerType: 'mouse', detail: 1, button: 0,
                 clientX: home_x, clientY: home_y}));
 
           // Move to the edge of the home button, and then to the center of the
-          // reload button
-          home.dispatchEvent(new PointerEvent('pointermove',
+          // reload button. Since the home button has capture, it will receive
+          // all mouse events.
+          home_button.dispatchEvent(new PointerEvent('pointermove',
               {bubbles: true, cancelable: true, view: window,
                 pointerType: 'mouse',
                 clientX: home_x + home_rect.width / 2 - 1, clientY: home_y}));
-          reload.dispatchEvent(new PointerEvent('pointermove',
+          home_button.dispatchEvent(new PointerEvent('pointermove',
               {bubbles: true, cancelable: true, view: window,
                 pointerType: 'mouse',
                 clientX: reload_x, clientY: reload_y}));
 
-          // Up on the reload button.
-          reload.dispatchEvent(new PointerEvent('pointerup',
+          // Up on the reload button, though event should be received by the
+          // home button.
+          home_button.dispatchEvent(new PointerEvent('pointerup',
               {bubbles: true, cancelable: true, view: window,
                 pointerType: 'mouse', detail: 1, button: 0,
                 clientX: reload_x, clientY: reload_y}));
       })();)",
-      GetButtonIconJS(kHomeSelector),
-      AddMockPointerCaptureFunctions("home").c_str(),
+      GetButtonAppJS(kHomeSelector), GetButtonIconJS(kHomeSelector),
+      AddMockPointerCaptureFunctions("home_button").c_str(),
       GetButtonIconJS(kReloadButtonSelector));
   EXPECT_TRUE(content::ExecJs(web_view->GetWebContents(), script));
 
+  // Wait two seconds before making sure nothing happened. Two seconds is 4
+  // times the long press timeout, so its long enough that if the long press
+  // timer were going to be triggered, it likely would be before the timeout
+  // passes.
+  base::RunLoop delay_loop;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+      FROM_HERE, delay_loop.QuitClosure(), base::Seconds(2));
+  delay_loop.Run();
+
   nav_observer.WaitForNoNavigations();
+  // Check for unexpected attempt to show context menu. Easier to check in
+  // Javascript than to set up a C++ observer.
+  EXPECT_EQ(content::EvalJs(web_view->GetWebContents(),
+                            base::StringPrintf(
+                                R"((() => {
+                                  const home = %s;
+                                  return home.unexpectedContextMenu;
+                                })();)",
+                                GetButtonAppJS(kHomeSelector))),
+            false);
 }
 
 class WebUIToolbarWebViewStabilityTest : public InProcessBrowserTest {
@@ -1433,6 +1458,274 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewRaceTest,
   std::ignore = nav_manager.WaitForNavigationFinished();
 }
 
+class WebUIToolbarLifecycleBrowserTest : public InProcessBrowserTest {
+ public:
+  WebUIToolbarLifecycleBrowserTest() = default;
+  ~WebUIToolbarLifecycleBrowserTest() override = default;
+
+ protected:
+  void SetUpFeatureList(bool prewarm, bool overhead_experiment) {
+    std::vector<base::test::FeatureRefAndParams> enabled_features;
+    std::vector<base::test::FeatureRef> disabled_features;
+
+    // Base features
+    enabled_features.push_back(
+        {features::kWebUIInProcessResourceLoadingV2, {}});
+    enabled_features.push_back(
+        {features::kSkipIPCChannelPausingForNonGuests, {}});
+
+    // Overhead experiment state
+    if (overhead_experiment) {
+      enabled_features.push_back(
+          {features::kWebUIToolbarProcessOverheadExperiment, {}});
+      disabled_features.push_back(features::kInitialWebUI);
+    } else {
+      enabled_features.push_back({features::kInitialWebUI, {}});
+      enabled_features.push_back({features::kWebUIAvatarButton, {}});
+      // Prewarm state
+      enabled_features.push_back(
+          {features::kWebUIReloadButton,
+           {{"WebUIReloadButtonPrewarmWebUI", prewarm ? "true" : "false"}}});
+    }
+
+    // Disable standard PreloadTopChromeWebUI for the default window to prevent
+    // startup crashes.
+    disabled_features.push_back(features::kPreloadTopChromeWebUI);
+
+    feature_list_.InitWithFeaturesAndParameters(enabled_features,
+                                                disabled_features);
+  }
+
+  void WaitForButtonControlsAndVerify(WebUIToolbarWebView* webui_toolbar) {
+    ASSERT_TRUE(base::test::RunUntil([&]() {
+      if (features::IsWebUIReloadButtonEnabled()) {
+        auto* reload_button =
+            static_cast<WebUIReloadControl*>(webui_toolbar->GetReloadControl());
+        if (!reload_button || !reload_button->is_initialized()) {
+          return false;
+        }
+      }
+      if (features::IsWebUIAvatarButtonEnabled()) {
+        auto* avatar_button = static_cast<WebUIAvatarToolbarButton*>(
+            webui_toolbar->GetAvatarToolbarButtonInterface());
+        if (!avatar_button || !avatar_button->is_initialized()) {
+          return false;
+        }
+      }
+      return true;
+    }));
+
+    auto* avatar_control = static_cast<WebUIAvatarToolbarButton*>(
+        webui_toolbar->GetAvatarToolbarButtonInterface());
+    EXPECT_TRUE(avatar_control->is_initialized());
+  }
+
+  class TestBrowserElements : public BrowserElements {
+   public:
+    explicit TestBrowserElements(BrowserWindowInterface& browser,
+                                 ui::ElementContext context)
+        : BrowserElements(browser), context_(context) {}
+    ui::ElementContext GetContext() override { return context_; }
+    const char* GetSafeCastableClassName() const override {
+      return "TestBrowserElements";
+    }
+    bool CheckImplementationHierarchy(
+        SafeCastTargetIdentifier id) const override {
+      return false;
+    }
+
+   private:
+    ui::ElementContext context_;
+  };
+
+  struct LifecycleTestSetup {
+    explicit LifecycleTestSetup(Browser* browser) {
+      profile = browser->profile();
+      EXPECT_CALL(mock_browser, GetProfile())
+          .WillRepeatedly(testing::Return(profile));
+      EXPECT_CALL(testing::Const(mock_browser), GetProfile())
+          .WillRepeatedly(testing::Return(profile));
+      EXPECT_CALL(mock_browser, GetUnownedUserDataHost())
+          .WillRepeatedly(testing::ReturnRef(user_data_host));
+      EXPECT_CALL(mock_browser, GetFeatures())
+          .WillRepeatedly(testing::ReturnRef(browser->GetFeatures()));
+      EXPECT_CALL(mock_browser, GetBrowserForMigrationOnly())
+          .WillRepeatedly(testing::Return(browser));
+
+      browser_elements = std::make_unique<TestBrowserElements>(
+          mock_browser, BrowserElements::From(browser)->GetContext());
+    }
+
+    raw_ptr<Profile> profile;
+    testing::NiceMock<MockBrowserWindowInterface> mock_browser;
+    ui::UnownedUserDataHost user_data_host;
+    std::unique_ptr<TestBrowserElements> browser_elements;
+  };
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+class WebUIToolbarLifecyclePrewarmedBrowserTest
+    : public WebUIToolbarLifecycleBrowserTest {
+ public:
+  WebUIToolbarLifecyclePrewarmedBrowserTest() {
+    SetUpFeatureList(/*prewarm=*/true, /*overhead_experiment=*/false);
+  }
+};
+
+class WebUIToolbarLifecycleNonPrewarmedBrowserTest
+    : public WebUIToolbarLifecycleBrowserTest {
+ public:
+  WebUIToolbarLifecycleNonPrewarmedBrowserTest() {
+    SetUpFeatureList(/*prewarm=*/false, /*overhead_experiment=*/false);
+  }
+};
+
+class WebUIToolbarLifecycleOverheadBrowserTest
+    : public WebUIToolbarLifecycleBrowserTest {
+ public:
+  WebUIToolbarLifecycleOverheadBrowserTest() {
+    SetUpFeatureList(/*prewarm=*/true, /*overhead_experiment=*/true);
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(WebUIToolbarLifecycleOverheadBrowserTest,
+                       ContentsDestroyedWithoutView) {
+  EXPECT_FALSE(features::IsWebUIReloadButtonEnabled());
+  EXPECT_FALSE(features::IsWebUIAvatarButtonEnabled());
+  EXPECT_FALSE(features::IsWebUIToolbarEnabled());
+
+  LifecycleTestSetup setup(browser());
+
+  content::TestNavigationObserver observer(
+      (GURL(chrome::kChromeUIWebUIToolbarURL)));
+  observer.StartWatchingNewWebContents();
+
+  auto manager = std::make_unique<InitialWebUIManager>(&setup.mock_browser);
+  observer.Wait();
+
+  manager.reset();
+}
+
+IN_PROC_BROWSER_TEST_F(WebUIToolbarLifecycleOverheadBrowserTest,
+                       ViewDestroyedBeforeWidget) {
+  EXPECT_FALSE(features::IsWebUIReloadButtonEnabled());
+  EXPECT_FALSE(features::IsWebUIAvatarButtonEnabled());
+  EXPECT_FALSE(features::IsWebUIToolbarEnabled());
+
+  LifecycleTestSetup setup(browser());
+
+  content::TestNavigationObserver observer(
+      (GURL(chrome::kChromeUIWebUIToolbarURL)));
+  observer.StartWatchingNewWebContents();
+
+  auto manager = std::make_unique<InitialWebUIManager>(&setup.mock_browser);
+  observer.Wait();
+
+  auto toolbar_view = std::make_unique<WebUIToolbarWebView>(
+      &setup.mock_browser, browser()->command_controller(),
+      /*location_bar=*/nullptr);
+  toolbar_view.reset();
+}
+
+IN_PROC_BROWSER_TEST_F(WebUIToolbarLifecyclePrewarmedBrowserTest,
+                       EarlyLoadRace) {
+  LifecycleTestSetup setup(browser());
+
+  content::TestNavigationObserver observer(
+      (GURL(chrome::kChromeUIWebUIToolbarURL)));
+  observer.StartWatchingNewWebContents();
+
+  auto manager = std::make_unique<InitialWebUIManager>(&setup.mock_browser);
+  observer.Wait();
+
+  auto toolbar_view = std::make_unique<WebUIToolbarWebView>(
+      &setup.mock_browser, browser()->command_controller(),
+      /*location_bar=*/nullptr);
+
+  auto widget = std::make_unique<views::Widget>();
+  views::Widget::InitParams widget_params(
+      views::Widget::InitParams::CLIENT_OWNS_WIDGET,
+      views::Widget::InitParams::TYPE_WINDOW);
+  widget_params.context = browser()->window()->GetNativeWindow();
+  widget_params.bounds = gfx::Rect(0, 0, 100, 100);
+  widget->Init(std::move(widget_params));
+
+  WebUIToolbarWebView* webui_toolbar = toolbar_view.get();
+
+  widget->GetContentsView()->AddChildView(std::move(toolbar_view));
+
+  WaitForButtonControlsAndVerify(webui_toolbar);
+
+  widget->CloseNow();
+}
+
+IN_PROC_BROWSER_TEST_F(WebUIToolbarLifecyclePrewarmedBrowserTest,
+                       StandardLoad) {
+  LifecycleTestSetup setup(browser());
+
+  content::TestNavigationObserver observer(
+      (GURL(chrome::kChromeUIWebUIToolbarURL)));
+  observer.StartWatchingNewWebContents();
+
+  auto manager = std::make_unique<InitialWebUIManager>(&setup.mock_browser);
+
+  auto toolbar_view = std::make_unique<WebUIToolbarWebView>(
+      &setup.mock_browser, browser()->command_controller(),
+      /*location_bar=*/nullptr);
+
+  auto widget = std::make_unique<views::Widget>();
+  views::Widget::InitParams widget_params(
+      views::Widget::InitParams::CLIENT_OWNS_WIDGET,
+      views::Widget::InitParams::TYPE_WINDOW);
+  widget_params.context = browser()->window()->GetNativeWindow();
+  widget_params.bounds = gfx::Rect(0, 0, 100, 100);
+  widget->Init(std::move(widget_params));
+
+  WebUIToolbarWebView* webui_toolbar = toolbar_view.get();
+
+  widget->GetContentsView()->AddChildView(std::move(toolbar_view));
+
+  observer.Wait();
+
+  WaitForButtonControlsAndVerify(webui_toolbar);
+
+  widget->CloseNow();
+}
+
+IN_PROC_BROWSER_TEST_F(WebUIToolbarLifecycleNonPrewarmedBrowserTest,
+                       DynamicLoad) {
+  LifecycleTestSetup setup(browser());
+
+  auto manager = std::make_unique<InitialWebUIManager>(&setup.mock_browser);
+
+  auto toolbar_view = std::make_unique<WebUIToolbarWebView>(
+      &setup.mock_browser, browser()->command_controller(),
+      /*location_bar=*/nullptr);
+
+  auto widget = std::make_unique<views::Widget>();
+  views::Widget::InitParams widget_params(
+      views::Widget::InitParams::CLIENT_OWNS_WIDGET,
+      views::Widget::InitParams::TYPE_WINDOW);
+  widget_params.context = browser()->window()->GetNativeWindow();
+  widget_params.bounds = gfx::Rect(0, 0, 100, 100);
+  widget->Init(std::move(widget_params));
+
+  WebUIToolbarWebView* webui_toolbar = toolbar_view.get();
+
+  content::TestNavigationObserver non_prewarm_observer(
+      webui_toolbar->web_contents());
+
+  widget->GetContentsView()->AddChildView(std::move(toolbar_view));
+
+  non_prewarm_observer.Wait();
+
+  WaitForButtonControlsAndVerify(webui_toolbar);
+
+  widget->CloseNow();
+}
+
 // Verify that the crash is recovered by reloading the page until it hits the
 // limit set in `WebUIReloadButtonMaxCrashRecoveryTimes`, after that it will
 // remain crashed.
@@ -1632,7 +1925,7 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewStabilityTest,
     views::Widget::InitParams params(
         views::Widget::InitParams::CLIENT_OWNS_WIDGET,
         views::Widget::InitParams::TYPE_WINDOW);
-    params.context = browser()->window()->GetNativeWindow();
+    params.context = browser()->GetWindow()->GetNativeWindow();
     params.bounds = gfx::Rect(0, 0, 100, 100);
     widget->Init(std::move(params));
     return widget;
@@ -1686,6 +1979,25 @@ class WebUIToolbarWebViewBrowserTest : public InProcessBrowserTest {
 
   base::test::ScopedFeatureList feature_list_;
 };
+
+class WebUIAppMenuBrowserTest : public WebUIToolbarWebViewBrowserTest {
+ public:
+  WebUIAppMenuBrowserTest()
+      : WebUIToolbarWebViewBrowserTest(
+            {features::kInitialWebUI, features::kWebUIAppMenuButton},
+            {}) {}
+};
+
+// Basic test for the WebUI App Menu state.
+IN_PROC_BROWSER_TEST_F(WebUIAppMenuBrowserTest, AppMenuState) {
+  WebUIToolbarWebView* webui_toolbar_view = GetWebUIToolbarWebView(browser());
+  ASSERT_TRUE(webui_toolbar_view);
+  const auto& state = webui_toolbar_view->GetState().app_menu_control_state;
+  ASSERT_TRUE(state);
+  EXPECT_EQ(state->severity, toolbar_ui_api::mojom::AppMenuSeverity::kNone);
+  EXPECT_FALSE(state->accessibility_text.empty());
+  EXPECT_FALSE(state->tooltip.empty());
+}
 
 struct ButtonVisibilityToggleTestParam {
   const char* test_name;

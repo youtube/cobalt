@@ -85,8 +85,16 @@ PossibleDeadline& PossibleDeadline::operator=(const PossibleDeadline& other) =
 PossibleDeadline& PossibleDeadline::operator=(PossibleDeadline&& other) =
     default;
 
-PossibleDeadlines::PossibleDeadlines(size_t preferred_index)
-    : preferred_index(preferred_index) {}
+void PossibleDeadline::SetTraceTimelineData(
+    perfetto::protos::pbzero::
+        AndroidChoreographerFrameCallbackData_FrameTimeline& timeline) const {
+  timeline.set_vsync_id(vsync_id);
+  timeline.set_latch_delta_us(latch_delta.InMicroseconds());
+  timeline.set_present_delta_us(present_delta.InMicroseconds());
+}
+
+PossibleDeadlines::PossibleDeadlines(size_t os_preferred_index)
+    : os_preferred_index(os_preferred_index) {}
 PossibleDeadlines::PossibleDeadlines(const PossibleDeadlines& other) = default;
 PossibleDeadlines::PossibleDeadlines(PossibleDeadlines&& other) = default;
 PossibleDeadlines::~PossibleDeadlines() = default;
@@ -95,8 +103,8 @@ PossibleDeadlines& PossibleDeadlines::operator=(
 PossibleDeadlines& PossibleDeadlines::operator=(PossibleDeadlines&& other) =
     default;
 
-const PossibleDeadline& PossibleDeadlines::GetPreferredDeadline() const {
-  return deadlines[preferred_index];
+const PossibleDeadline& PossibleDeadlines::GetOSPreferredDeadline() const {
+  return deadlines[os_preferred_index];
 }
 
 BeginFrameArgs::BeginFrameArgs()

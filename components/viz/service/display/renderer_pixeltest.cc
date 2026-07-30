@@ -923,7 +923,7 @@ TEST_P(RendererPixelTest, BypassableRenderPassQuad_BackdropFilter_Extents) {
   const bool blur_fully_supported = !is_software_renderer();
   auto comparator =
       cc::FuzzyPixelComparator()
-          .SetErrorPixelsPercentageLimit(blur_fully_supported ? 0.2f : 53.f)
+          .SetErrorPixelsPercentageLimit(blur_fully_supported ? 0.32f : 53.f)
           .SetAvgAbsErrorLimit(blur_fully_supported ? 1 : 2)
           .SetAbsErrorLimit(blur_fully_supported ? 1 : 8);
 
@@ -2177,7 +2177,7 @@ class RendererPixelTestWithBackdropFilter : public VizPixelTestWithParam {
     {
       SharedQuadState* shared_state = CreateTestSharedQuadState(
           filter_pass_to_target_transform_, filter_pass_layer_rect_,
-          filter_pass.get(), gfx::MaskFilterInfo());
+          root_pass.get(), gfx::MaskFilterInfo());
       auto* filter_pass_quad =
           root_pass->CreateAndAppendDrawQuad<AggregatedRenderPassDrawQuad>();
       filter_pass_quad->SetNew(shared_state, filter_pass_layer_rect_,

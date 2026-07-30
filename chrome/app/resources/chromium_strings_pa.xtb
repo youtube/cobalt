@@ -22,6 +22,7 @@
 <ph name="EXTENSION_NAME" /></translation>
 <translation id="1184145431117212167">Windows ਦਾ ਤੁਹਾਡਾ ਵਰਜਨ ਸਮਰਥਿਤ ਨਾ ਹੋਣ ਕਰਕੇ ਸਥਾਪਨਾ ਅਸਫਲ ਰਹੀ।</translation>
 <translation id="1185134272377778587">Chromium ਬਾਰੇ</translation>
+<translation id="1186645291482254714">ਆਪਣੇ ਫ਼ੋਨ 'ਤੇ Chromium ਨਾਲ ਕੀਮਤ ਸੰਬੰਧੀ ਟਰੈਕਿੰਗ ਅਲਰਟ ਪ੍ਰਾਪਤ ਕਰੋ</translation>
 <translation id="1203500561924088507">ਸਥਾਪਨਾ ਕਰਨ ਲਈ ਧੰਨਵਾਦ। <ph name="BUNDLE_NAME" /> ਦੀ ਵਰਤੋਂ ਕਰਨ ਤੋਂ ਪਹਿਲਾਂ ਤੁਹਾਡੇ ਵੱਲੋਂ ਆਪਣੇ ਬ੍ਰਾਊਜ਼ਰ ਨੂੰ ਮੁੜ-ਸ਼ੁਰੂ ਕਰਨਾ ਲਾਜ਼ਮੀ ਹੈ।</translation>
 <translation id="1232234696885483911">ਜਦੋਂ ਤੁਸੀਂ 'ਚਿੱਤਰ ਖੋਜ' ਵਿਸ਼ੇਸ਼ਤਾ ਖੋਲ੍ਹਦੇ ਹੋ, ਤਾਂ ਪੰਨਾ ਸਿਰਲੇਖ, URL ਅਤੇ ਸਮੱਗਰੀ ਸਰਵਰ ਨੂੰ ਸਵੈਚਲਿਤ ਤੌਰ 'ਤੇ ਭੇਜੀ ਜਾਵੇਗੀ, ਇਸ ਵਿੱਚ PDF ਵੀ ਸ਼ਾਮਲ ਹੈ। <ph name="LEARN_MORE" /></translation>
 <translation id="123265588161106468">ਜਦੋਂ ਤੁਸੀਂ ਸਾਈਨ-ਇਨ ਹੁੰਦੇ ਹੋ, ਤਾਂ ਤੁਸੀਂ Chromium ਵਿੱਚ ਆਪਣੇ Google ਖਾਤੇ ਤੋਂ ਆਪਣੇ ਪਾਸਵਰਡ ਅਤੇ ਹੋਰ ਬਹੁਤ ਕੁਝ ਦੀ ਵਰਤੋਂ ਕਰ ਸਕਦੇ ਹੋ। ਇਸਨੂੰ ਬਦਲਣ ਲਈ, “Chromium ਵਿੱਚ ਤੁਹਾਡਾ ਖਾਤਾ” 'ਤੇ ਜਾਓ।</translation>
@@ -36,6 +37,7 @@
 <translation id="1324107359134968521">ਬਲੂਟੁੱਥ ਡੀਵਾਈਸਾਂ ਦੀ ਪੜਚੋਲ ਕਰਨ ਲਈ Chromium ਨੂੰ ਬਲੂਟੁੱਥ ਪਹੁੰਚ 
  ਦੀ ਲੋੜ ਹੈ। <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">ਭਾਸ਼ਾ ਦਾ ਪਤਾ ਲਗਾਓ</translation>
+<translation id="1330742950061766891">Chromium ਦੀਆਂ ਸਿਫ਼ਾਰਸ਼ੀ ਬ੍ਰਾਊਜ਼ਰ ਸੈਟਿੰਗਾਂ ਦੀ ਵਰਤੋਂ ਕਰੋ</translation>
 <translation id="1342274909142618978">ਨਾਲ ਹੀ Chromium (<ph name="URL" />) ਤੋਂ ਡਾਟਾ ਮਿਟਾਓ</translation>
 <translation id="1345251407431278948">ਪਿੰਨ ਕੀਤਾ ਗਿਆ! ਤੁਸੀਂ ਟੂਲਬਾਰ 'ਤੇ ਦਿੱਤੇ ਨਵੇਂ ਬਟਨ ਨਾਲ 'ਚਿੱਤਰ ਖੋਜ' ਤੱਕ ਦੁਬਾਰਾ ਪਹੁੰਚ ਕਰ ਸਕਦੇ ਹੋ</translation>
 <translation id="1356661055722410047">ਨਵਾਂ! ਤੁਸੀਂ ਆਪਣੀ ਸਕ੍ਰੀਨ 'ਤੇ ਲਿਖਤ ਅਤੇ ਚਿੱਤਰਾਂ, ਦੋਵਾਂ ਦਾ ਅਨੁਵਾਦ ਕਰ ਸਕਦੇ ਹੋ</translation>
@@ -51,7 +53,6 @@
 <translation id="154404805518949443">Chromium ਵਿੱਚ ਸਾਈਨ-ਇਨ ਕਰੋ</translation>
 <translation id="1547469039832541117">ਉਜਾਗਰ ਕੀਤੇ ਕਾਰਜ ਨੂੰ ਸਮਾਪਤ ਕਰਦਾ ਹੈ।</translation>
 <translation id="1553461853655228091">Chromium ਨੂੰ ਤੁਹਾਡੇ ਆਲੇ-ਦੁਆਲੇ ਦਾ 3D ਨਕਸ਼ਾ ਬਣਾਉਣ ਵਾਸਤੇ ਤੁਹਾਡੇ ਕੈਮਰੇ ਤੱਕ ਪਹੁੰਚ ਕਰਨ ਲਈ ਇਜਾਜ਼ਤ ਦੀ ਲੋੜ ਹੈ</translation>
-<translation id="1555494096857516577">{NUM_EXTENSIONS,plural, =1{ਇਹ ਐਕਸਟੈਂਸ਼ਨ ਹੁਣ ਸਮਰਥਿਤ ਨਹੀਂ ਹੈ। Chromium ਸਿਫ਼ਾਰਸ਼ ਕਰਦਾ ਹੈ ਕਿ ਤੁਸੀਂ ਇਸਨੂੰ ਹਟਾ ਦਿਓ।}one{ਇਹ ਐਕਸਟੈਂਸ਼ਨ ਹੁਣ ਸਮਰਥਿਤ ਨਹੀਂ ਹੈ। Chromium ਸਿਫ਼ਾਰਸ਼ ਕਰਦਾ ਹੈ ਕਿ ਤੁਸੀਂ ਇਸਨੂੰ ਹਟਾ ਦਿਓ।}other{ਇਹ ਐਕਸਟੈਂਸ਼ਨਾਂ ਹੁਣ ਸਮਰਥਿਤ ਨਹੀਂ ਹਨ। Chromium ਸਿਫ਼ਾਰਸ਼ ਕਰਦਾ ਹੈ ਕਿ ਤੁਸੀਂ ਇਨ੍ਹਾਂ ਨੂੰ ਹਟਾ ਦਿਓ।}}</translation>
 <translation id="1562320819937089394">Chromium ਨੂੰ ਪਿੰਨ ਕਰੋ</translation>
 <translation id="1574377791422810894">Chromium ਦੇ ਸੁਰੱਖਿਆ ਸੰਬੰਧੀ ਟੂਲ</translation>
 <translation id="1594928384848033697">Chromium ਤੁਹਾਡੇ Password Manager ਡਾਟੇ ਨੂੰ ਮਿਟਾਉਣਾ ਚਾਹੁੰਦਾ ਹੈ। ਇਸਦੀ ਆਗਿਆ ਦੇਣ ਲਈ ਆਪਣਾ Windows ਪਾਸਵਰਡ ਟਾਈਪ ਕਰੋ।</translation>
@@ -69,6 +70,7 @@
 <translation id="1749104137266986751">HTTPS ਦੇ ਉਪਲਬਧ ਨਾ ਹੋਣ 'ਤੇ, Chromium ਤੁਹਾਨੂੰ ਚਿਤਾਵਨੀ ਦਿੱਤੇ ਬਿਨਾਂ ਕਿਸੇ ਅਸੁਰੱਖਿਅਤ ਕਨੈਕਸ਼ਨ ਦੀ ਵਰਤੋਂ ਕਰੇਗਾ</translation>
 <translation id="1774152462503052664">ਆਓ ਪਿਛੋਕੜ ਵਿੱਚ Chromium ਚਲਾਈਏ</translation>
 <translation id="1779356040007214683">Chromium ਨੂੰ ਵੱਧ ਸੁਰੱਖਿਅਤ ਬਣਾਉਣ ਲਈ, ਅਸੀਂ ਕੁਝ ਐਕਸਟੈਂਸ਼ਨਾਂ ਅਸਮਰਥਿਤ ਕੀਤੀਆਂ ਹਨ, ਜੋ <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> ਵਿੱਚ ਸੂਚੀਬੱਧ ਨਹੀਂ ਹਨ ਅਤੇ ਤੁਹਾਡੀ ਜਾਣਕਾਰੀ ਤੋਂ ਬਿਨਾਂ ਜੋੜੀਆਂ ਗਈਆਂ ਹੋ ਸਕਦੀਆਂ ਹਨ।</translation>
+<translation id="1793486931176048546">ਤਤਕਾਲ ਪਹੁੰਚ ਲਈ Chromium ਨੂੰ ਆਪਣੀ ਟਾਸਕਬਾਰ 'ਤੇ ਪਿੰਨ ਕਰਨ ਵਾਸਤੇ Windows ਸੂਚਨਾ ਵਿੱਚ <ph name="BEGIN_BOLD" />ਹਾਂ<ph name="END_BOLD" /> 'ਤੇ ਕਲਿੱਕ ਕਰੋ।</translation>
 <translation id="1808667845054772817">Chromium ਨੂੰ ਮੁੜ ਇੰਸਟੌਲ ਕਰੋ</translation>
 <translation id="1820835682567584003">Chromium ਵੱਲੋਂ <ph name="AUTHENTICATION_PURPOSE" /> ਦੀ ਕੋਸ਼ਿਸ਼ ਕੀਤੀ ਜਾ ਰਹੀ ਹੈ</translation>
 <translation id="183031085822326697">ਅਗਲੀ ਵਾਰ ਜਦੋਂ ਤੁਸੀਂ ਆਪਣੇ <ph name="DEVICE_TYPE" /> 'ਤੇ Chromium ਖੋਲ੍ਹੋਗੇ, ਤਾਂ ਤੁਹਾਨੂੰ Google Password Manager ਦੀ ਵਰਤੋਂ ਕਰਨ ਲਈ ਇੱਕ ਪ੍ਰੋਂਪਟ ਦਿਖਾਈ ਦੇਵੇਗਾ।</translation>
@@ -382,8 +384,10 @@
 <translation id="5294316920224716406">ਇਨਕੋਗਨਿਟੋ ਮੋਡ ਵਿੱਚ ਬ੍ਰਾਊਜ਼ਿੰਗ ਕਰਨ ਵੇਲੇ, ਅਸੁਰੱਖਿਅਤ ਕਨੈਕਸ਼ਨ ਦੀ ਵਰਤੋਂ ਕਰ ਕੇ ਕਿਸੇ ਸਾਈਟ ਨੂੰ ਲੋਡ ਕਰਨ ਤੋਂ ਪਹਿਲਾਂ Chromium ਤੁਹਾਨੂੰ ਚਿਤਾਵਨੀ ਦੇਵੇਗਾ</translation>
 <translation id="5313228254328109263">Chromium ਅੱਪਡੇਟਰ ਅੰਦਰੂਨੀ ਸੇਵਾ</translation>
 <translation id="5346389065299425353">ਇੱਕ ਤੋਂ ਵੱਧ ਟੈਬਾਂ, ਫ਼ਾਈਲਾਂ ਅਤੇ ਟੂਲਾਂ ਨੂੰ ਸ਼ਾਮਲ ਕਰ ਕੇ ਆਪਣੀ ਖੋਜ ਨੂੰ ਬਿਹਤਰ ਬਣਾਓ</translation>
+<translation id="5348677704241861105">Chromium ਵਿੱਚ Gemini ਨਾਲ ਇਸ ਦਸਤਾਵੇਜ਼ ਦੀ ਤਤਕਾਲ ਰੂਪ-ਰੇਖਾ ਪ੍ਰਾਪਤ ਕਰੋ ਅਤੇ ਸਵਾਲ ਪੁੱਛੋ</translation>
 <translation id="5352264705793813212">Chromium ਨੂੰ ਤੁਹਾਡੀ ਸਮੀਖਿਆ ਲਈ ਕੁਝ ਸੁਰੱਖਿਆ ਸਿਫ਼ਾਰਸ਼ਾਂ ਮਿਲੀਆਂ ਹਨ</translation>
 <translation id="5352361688875342522">ਹੋਰ Chromium ਪ੍ਰੋਫਾਈਲਾਂ</translation>
+<translation id="535243042947607642">ChromiumOS ਤੁਹਾਡੇ Google ਖਾਤੇ ਵਿੱਚ Chromium ਡਾਟਾ ਰੱਖਿਅਤ ਨਹੀਂ ਕਰ ਸਕਿਆ ਕਿਉਂਕਿ ਤੁਹਾਡੇ ਖਾਤੇ ਦੇ ਸਾਈਨ-ਇਨ ਵੇਰਵੇ ਪੁਰਾਣੇ ਹਨ</translation>
 <translation id="5358375970380395591">ਤੁਸੀਂ ਇੱਕ ਪ੍ਰਬੰਧਿਤ ਕੀਤੇ ਖਾਤੇ ਨਾਲ ਸਾਈਨ-ਇਨ ਕਰ ਰਹੇ ਹੋ ਅਤੇ ਇਸ ਦੇ ਪ੍ਰਸ਼ਾਸਕ ਨੂੰ ਆਪਣੇ Chromium ਪ੍ਰੋਫਾਈਲ ਦਾ ਕੰਟਰੋਲ ਦੇ ਰਹੇ ਹੋ। ਤੁਹਾਡਾ Chromium ਡਾਟਾ, ਜਿਵੇਂ ਕਿ ਤੁਹਾਡੀਆਂ ਐਪਾਂ, ਬੁੱਕਮਾਰਕ, ਇਤਿਹਾਸ, ਪਾਸਵਰਡ, ਅਤੇ ਹੋਰ ਸੈਟਿੰਗਾਂ <ph name="USER_NAME" /> ਨਾਲ ਸਥਾਈ ਤੌਰ 'ਤੇ ਜੋੜੇ ਜਾਣਗੇ। ਤੁਸੀਂ ਇਸ ਡਾਟੇ ਨੂੰ Google ਖਾਤੇ ਡੈਸ਼ਬੋਰਡ ਰਾਹੀਂ ਮਿਟਾ ਸਕੋਗੇ, ਪਰ ਤੁਸੀਂ ਇਸ ਡਾਟੇ ਨੂੰ ਦੂਜੇ ਖਾਤੇ ਨਾਲ ਨਹੀਂ ਜੋੜ ਸਕੋਗੇ। <ph name="LEARN_MORE" /></translation>
 <translation id="5368118228313795342">ਵਾਧੂ ਕੋਡ: <ph name="EXTRA_CODE" />.</translation>
 <translation id="5377622451696208284">ਵਿਅਕਤੀਗਤਕਰਨ ਲਈ, 'ਵੈੱਬ ਅਤੇ ਐਪ ਸਰਗਰਮੀ' ਵਿੱਚ Chromium ਸ਼ਾਮਲ ਕਰੋ</translation>
@@ -489,6 +493,7 @@
 <translation id="6390800440335263989">ਜਾਰੀ ਰੱਖਣ ਲਈ, Chromium 'ਤੇ <ph name="EMAIL" /> ਵਜੋਂ ਸਾਈਨ-ਇਨ ਕਰੋ। ਇਸ ਨਾਲ ਇਹ ਪੱਕਾ ਹੁੰਦਾ ਹੈ ਕਿ ਤੁਸੀਂ ਆਪਣੀ ਸੰਸਥਾ ਦੀਆਂ ਨੀਤੀਆਂ ਨੂੰ ਸਮਝ ਲਿਆ ਹੈ।</translation>
 <translation id="6400112897226594999">ਕਿਸੇ ਕੰਪਿਊਟਰ ਸਕ੍ਰੀਨ ਦੇ ਅੰਦਰ Chromium ਲੋਗੋ।</translation>
 <translation id="6403826409255603130">Chromium ਇੱਕ ਵੈੱਬ ਬ੍ਰਾਊਜ਼ਰ ਹੈ ਜੋ ਵੈੱਬ-ਪੰਨਿਆਂ ਅਤੇ ਐਪਲੀਕੇਸ਼ਨਾਂ ਨੂੰ ਬਹੁਤ ਤੇਜ਼ ਚਲਾਉਂਦਾ ਹੈ। ਇਹ ਤੇਜ਼, ਸਥਿਰ ਅਤੇ ਵਰਤੋਂ ਵਿੱਚ ਆਸਾਨ ਹੈ। Chromium ਵਿੱਚ ਪਹਿਲਾਂ ਤੋਂ ਮੌਜੂਦ ਮਲਵੇਅਰ ਅਤੇ ਫਿਸ਼ਿੰਗ ਸੁਰੱਖਿਆ ਨਾਲ ਵੱਧ ਸੁਰੱਖਿਅਤ ਤਰੀਕੇ ਨਾਲ ਵੈੱਬ ਬ੍ਰਾਊਜ਼ ਕਰੋ।</translation>
+<translation id="6414624068245092115">ਇਹ ਪੱਕਾ ਕਰਨ ਲਈ ਕਿ ਤੁਸੀਂ ਆਪਣੇ Google ਖਾਤੇ ਵਿੱਚ ਕਦੇ ਵੀ Chromium ਡਾਟਾ ਵਰਤ ਸਕੋ ਅਤੇ ਰੱਖਿਅਤ ਕਰ ਸਕੋ, ਆਪਣੀ ਪਛਾਣ ਦੀ ਪੁਸ਼ਟੀ ਕਰੋ</translation>
 <translation id="642132557830635295">Chromium ਤੇਜ਼ੀ ਨਾਲ ਕੰਮ ਕਰਦਾ ਹੈ ਅਤੇ JavaScript ਦੀ ਵਰਤੋਂ ਕਰਨ ਵਾਲੀਆਂ ਵਿਸ਼ੇਸ਼ਤਾਵਾਂ ਨੂੰ ਡਿਜ਼ਾਈਨ ਮੁਤਾਬਕ ਕੰਮ ਕਰਨਾ ਚਾਹੀਦਾ ਹੈ</translation>
 <translation id="6436260184216827876">'ਚਿੱਤਰ ਖੋਜ' ਉਪਲਬਧ ਨਹੀਂ ਹੈ। ਬਾਅਦ ਵਿੱਚ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।</translation>
 <translation id="6442900851116057561">ChromiumOS ਨੂੰ ਮੁੜ-ਸ਼ੁਰੂ ਕਰੋ</translation>
@@ -583,7 +588,6 @@ Chromium ਤੁਹਾਡੀਆਂ ਸੈਟਿੰਗਾਂ ਮੁੜ-ਹਾਸ�
 <translation id="7368826207863345663">Chromium ਸੰਬੰਧੀ ਭਵਿੱਖੀ ਅੱਪਡੇਟ ਪ੍ਰਾਪਤ ਕਰਨ ਲਈ, ਤੁਹਾਨੂੰ macOS 13 ਜਾਂ ਇਸ ਤੋਂ ਬਾਅਦ ਵਾਲੇ ਵਰਜਨ ਦੀ ਲੋੜ ਪਵੇਗੀ। ਇਸ ਕੰਪਿਊਟਰ 'ਤੇ macOS 12 ਵਰਜਨ ਵਰਤਿਆ ਜਾ ਰਿਹਾ ਹੈ।</translation>
 <translation id="7376384068949534168">ਜਿਨ੍ਹਾਂ 'ਤੇ ਤੁਸੀਂ ਹਾਲ ਹੀ ਵਿੱਚ ਨਹੀਂ ਗਏ ਹੋ। Chromium ਨੇ <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ਨੂੰ ਹਟਾ ਦਿੱਤਾ ਹੈ।</translation>
 <translation id="73786666777299047">'Chrome ਵੈੱਬ ਸਟੋਰ' ਖੋਲ੍ਹੋ</translation>
-<translation id="7384121030444253939">ਇਹ ਐਕਸਟੈਂਸ਼ਨ ਹੁਣ ਸਮਰਥਿਤ ਨਹੀਂ ਹੈ। Chromium ਸਿਫ਼ਾਰਸ਼ ਕਰਦਾ ਹੈ ਕਿ ਇਸਦੀ ਬਜਾਏ ਤੁਸੀਂ ਇਸਨੂੰ ਹਟਾ ਦਿਓ।</translation>
 <translation id="7407655596887111931">Chromium ਹੁਣ ਤੁਹਾਡਾ ਪੂਰਵ-ਨਿਰਧਾਰਿਤ ਬ੍ਰਾਊਜ਼ਰ ਹੈ</translation>
 <translation id="7413153308467572558">ਜਿੱਥੇ ਤੁਸੀਂ ਛੱਡਿਆ ਸੀ ਉੱਥੋਂ ਜਾਰੀ ਰੱਖੋ: ਜਦੋਂ ਵੀ ਤੁਸੀਂ ਮੁੜ-ਸ਼ੁਰੂ ਕਰਦੇ ਹੋ, ਹਰੇਕ ਵਾਰ Chromium ਤੁਹਾਡੀਆਂ ਟੈਬਾਂ ਨੂੰ ਮੁੜ-ਬਹਾਲ ਕਰਦਾ ਹੈ। ਇਸਨੂੰ ਬੰਦ ਕਰਨ ਲਈ, ਇੱਥੇ ਜਾਓ</translation>
 <translation id="7427879960656355200">Chromium ਤੋਂ ਪਾਸਵਰਡ ਆਯਾਤ ਕਰੋ</translation>
@@ -718,6 +722,7 @@ Chromium ਤੁਹਾਡੀਆਂ ਸੈਟਿੰਗਾਂ ਮੁੜ-ਹਾਸ�
 <translation id="8852026904190808918">ਇਸ ਭਾਸ਼ਾ ਦੀ ਵਰਤੋਂ Chromium ਵਿੱਚ ਮੀਨੂ, ਸੈਟਿੰਗਾਂ, ਅਲਰਟ ਅਤੇ ਹੋਰ ਲਿਖਤ ਦਿਖਾਉਣ ਲਈ ਕੀਤੀ ਜਾਂਦੀ ਹੈ</translation>
 <translation id="8862326446509486874">ਤੁਹਾਡੇ ਕੋਲ ਸਿਸਟਮ-ਪੱਧਰ ਸਥਾਪਤ ਕਰਨ ਲਈ ਉਚਿਤ ਅਧਿਕਾਰ ਨਹੀਂ ਹਨ। ਪ੍ਰਬੰਧਕ ਦੇ ਤੌਰ 'ਤੇ ਦੁਬਾਰਾ ਸਥਾਪਨਾਕਾਰ ਚਲਾਉਣ ਦੀ ਕੋਸ਼ਿਸ਼ ਕਰੋ।</translation>
 <translation id="8876044221123442390">Chromium ਪ੍ਰੋਫਾਈਲ ਸ਼ਾਮਲ ਕਰੋ</translation>
+<translation id="8890569919834781711">ਸਾਈਨ-ਇਨ ਕਰਨ ਵੇਲੇ ਗੜਬੜ ਹੋਣ ਕਰਕੇ ChromiumOS ਤੁਹਾਡੇ Google ਖਾਤੇ ਵਿੱਚ Chromium ਡਾਟਾ ਰੱਖਿਅਤ ਨਹੀਂ ਕਰ ਸਕਿਆ</translation>
 <translation id="8891709362986793894">ਤੁਹਾਡੀ ਸੰਸਥਾ ਲਈ ਤੁਹਾਨੂੰ Chromium ਵਿੱਚ ਸਾਈਨ-ਇਨ ਕਰਨ ਦੀ ਲੋੜ ਹੈ</translation>
 <translation id="8907580949721785412">Chromium ਪਾਸਵਰਡ ਦਿਖਾਉਣ ਦੀ ਕੋਸ਼ਿਸ਼ ਕਰ ਰਿਹਾ ਹੈ। ਇਸਦੀ ਆਗਿਆ ਦੇਣ ਲਈ ਆਪਣਾ Windows ਪਾਸਵਰਡ ਟਾਈਪ ਕਰੋ।</translation>
 <translation id="8932992523185907506">Chromium ਹੁਣ ਤੁਹਾਡਾ ਪੂਰਵ-ਨਿਰਧਾਰਿਤ ਬ੍ਰਾਊਜ਼ਰ ਨਹੀਂ ਹੈ। ਕੀ Chromium ਨੂੰ ਪੂਰਵ-ਨਿਰਧਾਰਿਤ ਬ੍ਰਾਊਜ਼ਰ ਬਣਾਉਣਾ ਹੈ?</translation>

@@ -217,7 +217,10 @@ AILanguageModel::Context::ContextItem SimpleContextItem(std::string text,
   auto item = AILanguageModel::Context::ContextItem();
   item.tokens = size;
   item.input = on_device_model::mojom::Input::New();
-  item.input->pieces = {ml::Token::kSystem, text};
+  item.input->pieces.push_back(
+      on_device_model::mojom::InputPiece::NewToken(ml::Token::kSystem));
+  item.input->pieces.push_back(
+      on_device_model::mojom::InputPiece::NewText(std::move(text)));
   return item;
 }
 
@@ -237,16 +240,27 @@ const char* FormatToken(ml::Token token) {
 
 // Convert an Input to a string for expectation matching.
 std::string FormatInput(const on_device_model::mojom::Input& input) {
+  using Tag = on_device_model::mojom::InputPiece::Tag;
   std::string str;
   for (const auto& piece : input.pieces) {
-    if (std::holds_alternative<ml::Token>(piece)) {
-      str += FormatToken(std::get<ml::Token>(piece));
-    } else if (std::holds_alternative<std::string>(piece)) {
-      str += std::get<std::string>(piece);
-    } else if (std::holds_alternative<SkBitmap>(piece)) {
-      str += "<image>";
-    } else if (std::holds_alternative<ml::AudioBuffer>(piece)) {
-      str += "<audio>";
+    switch (piece->which()) {
+      case Tag::kToken:
+        str += FormatToken(piece->get_token());
+        break;
+      case Tag::kText:
+        str += piece->get_text();
+        break;
+      case Tag::kBitmap:
+        str += "<image>";
+        break;
+      case Tag::kAudio:
+        str += "<audio>";
+        break;
+      case Tag::kToolDeclaration:
+      case Tag::kToolResponse:
+      case Tag::kUnknownType:
+        // Not exercised by tests that format input for expectation matching.
+        break;
     }
   }
   return str;
@@ -305,10 +319,13 @@ class AILanguageModelTest : public AITestUtils::AITestBase {
 
   mojo::Remote<blink::mojom::AILanguageModel> CreateSession(
       blink::mojom::AILanguageModelCreateOptionsPtr options =
-          blink::mojom::AILanguageModelCreateOptions::New()) {
+          blink::mojom::AILanguageModelCreateOptions::New(),
+      mojo::PendingRemote<on_device_model::mojom::DownloadObserver> monitor =
+          mojo::NullRemote()) {
     TestCreateLanguageModelClient language_model_client;
     GetAIManagerRemote()->CreateLanguageModel(
-        language_model_client.BindNewPipeAndPassRemote(), std::move(options));
+        language_model_client.BindNewPipeAndPassRemote(), std::move(options),
+        /*monitor=*/std::move(monitor));
 
     auto result = language_model_client.result().Take();
     EXPECT_OK(result);
@@ -351,7 +368,8 @@ class AILanguageModelTest : public AITestUtils::AITestBase {
 
     TestCreateLanguageModelClient language_model_client;
     GetAIManagerRemote()->CreateLanguageModel(
-        language_model_client.BindNewPipeAndPassRemote(), std::move(options));
+        language_model_client.BindNewPipeAndPassRemote(), std::move(options),
+        /*monitor=*/mojo::NullRemote());
 
     auto result = language_model_client.result().Take();
     EXPECT_OK(result);
@@ -685,7 +703,8 @@ TEST_F(AILanguageModelTest, InitialPromptsInstanceInfo) {
   auto options = blink::mojom::AILanguageModelCreateOptions::New();
   options->initial_prompts.push_back(MakePrompt(Role::kSystem, "hi"));
   GetAIManagerRemote()->CreateLanguageModel(
-      language_model_client.BindNewPipeAndPassRemote(), std::move(options));
+      language_model_client.BindNewPipeAndPassRemote(), std::move(options),
+      /*monitor=*/mojo::NullRemote());
 
   auto result = language_model_client.result().Take();
   ASSERT_OK(result);
@@ -702,7 +721,8 @@ TEST_F(AILanguageModelTest, InitialPromptsTooLarge) {
 
   TestCreateLanguageModelClient language_model_client;
   GetAIManagerRemote()->CreateLanguageModel(
-      language_model_client.BindNewPipeAndPassRemote(), std::move(options));
+      language_model_client.BindNewPipeAndPassRemote(), std::move(options),
+      /*monitor=*/mojo::NullRemote());
 
   auto result = language_model_client.result().Take();
   EXPECT_FALSE(result.has_value());
@@ -721,7 +741,8 @@ TEST_F(AILanguageModelTest, CreateResolvesAfterInitialPromptsAreAppended) {
 
   TestCreateLanguageModelClient language_model_client;
   GetAIManagerRemote()->CreateLanguageModel(
-      language_model_client.BindNewPipeAndPassRemote(), std::move(options));
+      language_model_client.BindNewPipeAndPassRemote(), std::move(options),
+      /*monitor=*/mojo::NullRemote());
 
   // Creation will not be complete yet, because Append is delayed.
   task_environment()->FastForwardBy(base::Seconds(1));
@@ -974,7 +995,8 @@ TEST_P(AILanguageModelTestWithLanguageParams, PromptWithEnabledLanguages) {
 
   TestCreateLanguageModelClient language_model_client;
   GetAIManagerRemote()->CreateLanguageModel(
-      language_model_client.BindNewPipeAndPassRemote(), std::move(options));
+      language_model_client.BindNewPipeAndPassRemote(), std::move(options),
+      /*monitor=*/mojo::NullRemote());
 
   auto result = language_model_client.result().Take();
   if (GetParam().expect_error) {
@@ -1010,7 +1032,8 @@ TEST_F(AILanguageModelTest, UnsupportedInputCapability) {
   options->expected_inputs.emplace();
   options->expected_inputs->push_back(std::move(expected_input));
   GetAIManagerRemote()->CreateLanguageModel(
-      language_model_client.BindNewPipeAndPassRemote(), std::move(options));
+      language_model_client.BindNewPipeAndPassRemote(), std::move(options),
+      /*monitor=*/mojo::NullRemote());
 
   auto result = language_model_client.result().Take();
   EXPECT_FALSE(result.has_value());
@@ -1027,7 +1050,8 @@ TEST_F(AILanguageModelTest, UnsupportedOutputCapability) {
   options->expected_outputs->push_back(std::move(expected_output));
   TestCreateLanguageModelClient language_model_client;
   GetAIManagerRemote()->CreateLanguageModel(
-      language_model_client.BindNewPipeAndPassRemote(), std::move(options));
+      language_model_client.BindNewPipeAndPassRemote(), std::move(options),
+      /*monitor=*/mojo::NullRemote());
 
   auto result = language_model_client.result().Take();
   EXPECT_FALSE(result.has_value());
@@ -1159,8 +1183,10 @@ TEST_F(AILanguageModelTest, MultimodalInput) {
 
 TEST_F(AILanguageModelTest, ModelDownload) {
   MockDownloadProgressObserver observer;
-  GetAIManagerInterface()->AddModelDownloadProgressObserver(
-      observer.BindNewPipeAndPassRemote());
+  blink::mojom::AILanguageModelCreateOptionsPtr options =
+      blink::mojom::AILanguageModelCreateOptions::New();
+  auto session =
+      CreateSession(std::move(options), observer.BindNewPipeAndPassRemote());
   fake_broker_->component_state().WaitForDownloadObserver();
 
   // Receives the zero update.
@@ -1200,7 +1226,8 @@ TEST_F(AILanguageModelTest, TextSafetyInitialPrompts) {
 
   TestCreateLanguageModelClient language_model_client;
   GetAIManagerRemote()->CreateLanguageModel(
-      language_model_client.BindNewPipeAndPassRemote(), std::move(options));
+      language_model_client.BindNewPipeAndPassRemote(), std::move(options),
+      mojo::NullRemote());
   auto result = language_model_client.result().Take();
   EXPECT_FALSE(result.has_value());
   EXPECT_EQ(result.error().error,
@@ -1625,7 +1652,8 @@ TEST_F(AILanguageModelTest, CreateLanguageModelModelNotEligible) {
   auto options = blink::mojom::AILanguageModelCreateOptions::New();
   TestCreateLanguageModelClient language_model_client;
   GetAIManagerRemote()->CreateLanguageModel(
-      language_model_client.BindNewPipeAndPassRemote(), std::move(options));
+      language_model_client.BindNewPipeAndPassRemote(), std::move(options),
+      /*monitor=*/mojo::NullRemote());
 
   auto result = language_model_client.result().Take();
   EXPECT_FALSE(result.has_value());
@@ -1639,7 +1667,8 @@ TEST_F(AILanguageModelTest, CreateLanguageModelWaitsForBaseModel) {
   auto options = blink::mojom::AILanguageModelCreateOptions::New();
   TestCreateLanguageModelClient language_model_client;
   GetAIManagerRemote()->CreateLanguageModel(
-      language_model_client.BindNewPipeAndPassRemote(), std::move(options));
+      language_model_client.BindNewPipeAndPassRemote(), std::move(options),
+      /*monitor=*/mojo::NullRemote());
 
   auto& future = language_model_client.result();
   task_environment()->FastForwardBy(base::Hours(1));
@@ -1659,7 +1688,8 @@ TEST_F(AILanguageModelTest, CreateLanguageModelWaitsForModelAdaptation) {
   auto options = blink::mojom::AILanguageModelCreateOptions::New();
   TestCreateLanguageModelClient language_model_client;
   GetAIManagerRemote()->CreateLanguageModel(
-      language_model_client.BindNewPipeAndPassRemote(), std::move(options));
+      language_model_client.BindNewPipeAndPassRemote(), std::move(options),
+      /*monitor=*/mojo::NullRemote());
 
   auto& future = language_model_client.result();
   task_environment()->FastForwardBy(base::Hours(1));
@@ -1680,7 +1710,8 @@ TEST_F(AILanguageModelTest, CreateLanguageModelWaitsForTextSafetyModel) {
   auto options = blink::mojom::AILanguageModelCreateOptions::New();
   TestCreateLanguageModelClient language_model_client;
   GetAIManagerRemote()->CreateLanguageModel(
-      language_model_client.BindNewPipeAndPassRemote(), std::move(options));
+      language_model_client.BindNewPipeAndPassRemote(), std::move(options),
+      /*monitor=*/mojo::NullRemote());
 
   auto& future = language_model_client.result();
   task_environment()->FastForwardBy(base::Hours(1));
@@ -1708,7 +1739,8 @@ TEST_F(AILanguageModelTest, CreateLanguageModelSafetyConfigNotAvailable) {
   auto options = blink::mojom::AILanguageModelCreateOptions::New();
   TestCreateLanguageModelClient language_model_client;
   GetAIManagerRemote()->CreateLanguageModel(
-      language_model_client.BindNewPipeAndPassRemote(), std::move(options));
+      language_model_client.BindNewPipeAndPassRemote(), std::move(options),
+      /*monitor=*/mojo::NullRemote());
 
   auto result = language_model_client.result().Take();
   EXPECT_FALSE(result.has_value());
@@ -2301,7 +2333,8 @@ TEST_F(AILanguageModelOpenLoopToolTest, RejectCreateWithFlagDisabled) {
 
   TestCreateLanguageModelClient client;
   GetAIManagerRemote()->CreateLanguageModel(client.BindNewPipeAndPassRemote(),
-                                            std::move(options));
+                                            std::move(options),
+                                            /*monitor=*/mojo::NullRemote());
   auto result = client.result().Take();
   ASSERT_FALSE(result.has_value());
   EXPECT_EQ(result.error().error,
@@ -2348,7 +2381,8 @@ TEST_F(AILanguageModelTest, CreatePermissionsPolicyDisabled) {
   TestCreateLanguageModelClient language_model_client;
   GetAIManagerRemote()->CreateLanguageModel(
       language_model_client.BindNewPipeAndPassRemote(),
-      blink::mojom::AILanguageModelCreateOptions::New());
+      blink::mojom::AILanguageModelCreateOptions::New(),
+      /*monitor=*/mojo::NullRemote());
   EXPECT_EQ(observer.WaitForBadMessage(), "Policy or user setting disabled");
 }
 
@@ -2364,7 +2398,8 @@ TEST_F(AILanguageModelTest, CreateBuiltInAIAPIsEnterprisePolicyDisabled) {
   TestCreateLanguageModelClient language_model_client;
   GetAIManagerRemote()->CreateLanguageModel(
       language_model_client.BindNewPipeAndPassRemote(),
-      blink::mojom::AILanguageModelCreateOptions::New());
+      blink::mojom::AILanguageModelCreateOptions::New(),
+      /*monitor=*/mojo::NullRemote());
   EXPECT_EQ(observer.WaitForBadMessage(), "Policy or user setting disabled");
   SetBuiltInAIAPIsEnterprisePolicy(true);
 }
@@ -2381,7 +2416,8 @@ TEST_F(AILanguageModelTest, CreateGenAILocalEnterprisePolicyDisabled) {
   TestCreateLanguageModelClient language_model_client;
   GetAIManagerRemote()->CreateLanguageModel(
       language_model_client.BindNewPipeAndPassRemote(),
-      blink::mojom::AILanguageModelCreateOptions::New());
+      blink::mojom::AILanguageModelCreateOptions::New(),
+      /*monitor=*/mojo::NullRemote());
   EXPECT_EQ(observer.WaitForBadMessage(), "Policy or user setting disabled");
   SetGenAILocalEnterprisePolicy(true);
 }
@@ -2398,7 +2434,8 @@ TEST_F(AILanguageModelTest, CreateOnDeviceAiUserSettingDisabled) {
   TestCreateLanguageModelClient language_model_client;
   GetAIManagerRemote()->CreateLanguageModel(
       language_model_client.BindNewPipeAndPassRemote(),
-      blink::mojom::AILanguageModelCreateOptions::New());
+      blink::mojom::AILanguageModelCreateOptions::New(),
+      /*monitor=*/mojo::NullRemote());
   EXPECT_EQ(observer.WaitForBadMessage(), "Policy or user setting disabled");
   SetOnDeviceAiUserSetting(true);
 }
@@ -2522,7 +2559,8 @@ TEST_F(AILanguageModelManifestTest, CanCreateAndCreateWithManifestGemma4) {
   TestCreateLanguageModelClient language_model_client;
   GetAIManagerRemote()->CreateLanguageModel(
       language_model_client.BindNewPipeAndPassRemote(),
-      blink::mojom::AILanguageModelCreateOptions::New());
+      blink::mojom::AILanguageModelCreateOptions::New(),
+      /*monitor=*/mojo::NullRemote());
 
   auto result = language_model_client.result().Take();
   EXPECT_TRUE(result.has_value());

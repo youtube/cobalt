@@ -11,21 +11,14 @@
 
 namespace blink {
 
-TEST(StringToNumberTest, CharactersToInt) {
-#define EXPECT_VALID(string, options, expectedValue)                   \
-  do {                                                                 \
-    bool ok;                                                           \
-    int value = CharactersToInt(String(string).Span8(), options, &ok); \
-    EXPECT_TRUE(ok);                                                   \
-    EXPECT_EQ(value, expectedValue);                                   \
-  } while (false)
+#define EXPECT_PARSED_VALUE(parser, string, options, expected_value) \
+  EXPECT_EQ(parser(String(string).Span8(), options), expected_value)
 
-#define EXPECT_INVALID(string, options)                    \
-  do {                                                     \
-    bool ok;                                               \
-    CharactersToInt(String(string).Span8(), options, &ok); \
-    EXPECT_FALSE(ok);                                      \
-  } while (false)
+TEST(StringToNumberTest, CharactersToInt) {
+#define EXPECT_VALID(string, options, expected_value) \
+  EXPECT_PARSED_VALUE(CharactersToInt, string, options, expected_value)
+#define EXPECT_INVALID(string, options) \
+  EXPECT_PARSED_VALUE(CharactersToInt, string, options, std::nullopt)
 
   constexpr auto kStrict = NumberParsingOptions::Strict();
   EXPECT_VALID("1", kStrict, 1);
@@ -93,20 +86,10 @@ TEST(StringToNumberTest, CharactersToInt) {
 }
 
 TEST(StringToNumberTest, CharactersToUInt) {
-#define EXPECT_VALID(string, options, expectedValue)                         \
-  do {                                                                       \
-    bool ok;                                                                 \
-    unsigned value = CharactersToUInt(String(string).Span8(), options, &ok); \
-    EXPECT_TRUE(ok);                                                         \
-    EXPECT_EQ(value, expectedValue);                                         \
-  } while (false)
-
-#define EXPECT_INVALID(string, options)                     \
-  do {                                                      \
-    bool ok;                                                \
-    CharactersToUInt(String(string).Span8(), options, &ok); \
-    EXPECT_FALSE(ok);                                       \
-  } while (false)
+#define EXPECT_VALID(string, options, expected_value) \
+  EXPECT_PARSED_VALUE(CharactersToUInt, string, options, expected_value)
+#define EXPECT_INVALID(string, options) \
+  EXPECT_PARSED_VALUE(CharactersToUInt, string, options, std::nullopt)
 
   constexpr auto kStrict = NumberParsingOptions::Strict();
   constexpr auto kAcceptMinusZeroForUnsigned =
@@ -174,22 +157,12 @@ TEST(StringToNumberTest, CharactersToUInt) {
 }
 
 TEST(StringToNumberTest, HexCharactersToUInt) {
-#define EXPECT_VALID(string, expectedValue)                                    \
-  do {                                                                         \
-    bool ok;                                                                   \
-    unsigned value = HexCharactersToUInt(String(string).Span8(),               \
-                                         NumberParsingOptions::Strict(), &ok); \
-    EXPECT_TRUE(ok);                                                           \
-    EXPECT_EQ(value, expectedValue);                                           \
-  } while (false)
-
-#define EXPECT_INVALID(string)                                \
-  do {                                                        \
-    bool ok;                                                  \
-    HexCharactersToUInt(String(string).Span8(),               \
-                        NumberParsingOptions::Strict(), &ok); \
-    EXPECT_FALSE(ok);                                         \
-  } while (false)
+#define EXPECT_VALID(string, expected_value)       \
+  EXPECT_PARSED_VALUE(HexCharactersToUInt, string, \
+                      NumberParsingOptions::Strict(), expected_value)
+#define EXPECT_INVALID(string)                     \
+  EXPECT_PARSED_VALUE(HexCharactersToUInt, string, \
+                      NumberParsingOptions::Strict(), std::nullopt)
 
   EXPECT_VALID("1", 1u);
   EXPECT_VALID("a", 0xAu);
@@ -239,16 +212,13 @@ TEST(StringToNumberTest, NumberParsingState) {
 }
 
 void ParseDouble(const String& str, double expected_value) {
-  bool ok;
-  double value = CharactersToDouble(str.Span8(), &ok);
-  EXPECT_TRUE(ok) << "\"" << str << "\"";
-  EXPECT_EQ(expected_value, value);
+  EXPECT_EQ(expected_value, CharactersToDouble(str.Span8()))
+      << "\"" << str << "\"";
 }
 
 void FailToParseDouble(const String& str) {
-  bool ok;
-  CharactersToDouble(str.Span8(), &ok);
-  EXPECT_FALSE(ok) << "\"" << str << "\"";
+  EXPECT_FALSE(CharactersToDouble(str.Span8()).has_value())
+      << "\"" << str << "\"";
 }
 
 TEST(StringToNumberTest, CharactersToDouble) {
@@ -306,16 +276,13 @@ TEST(StringToNumberTest, CharactersToDoubleParsedLength) {
 }
 
 void ParseFloat(const String& str, float expected_value) {
-  bool ok;
-  float value = CharactersToFloat(str.Span8(), &ok);
-  EXPECT_TRUE(ok) << "\"" << str << "\"";
-  EXPECT_EQ(expected_value, value);
+  EXPECT_EQ(expected_value, CharactersToFloat(str.Span8()))
+      << "\"" << str << "\"";
 }
 
 void FailToParseFloat(const String& str) {
-  bool ok;
-  CharactersToFloat(str.Span8(), &ok);
-  EXPECT_FALSE(ok) << "\"" << str << "\"";
+  EXPECT_FALSE(CharactersToFloat(str.Span8()).has_value())
+      << "\"" << str << "\"";
 }
 
 TEST(StringToNumberTest, CharactersToFloat) {
@@ -373,5 +340,7 @@ TEST(StringToNumberTest, CharactersToFloatParsedLength) {
   EXPECT_EQ(5u, ParseFloat("1.234e"));
   EXPECT_EQ(7u, ParseFloat("1.234e1"));
 }
+
+#undef EXPECT_PARSED_VALUE
 
 }  // namespace blink
