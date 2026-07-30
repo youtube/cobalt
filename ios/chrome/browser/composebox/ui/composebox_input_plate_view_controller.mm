@@ -67,14 +67,17 @@ const CGFloat kOmniboxMinHeight = 44.0;
 const CGFloat kInputPlateStackViewVerticalPadding = 0.0f;
 /// The top padding with the expanded input plate when there are attachments.
 const CGFloat kInputPlateStackViewExpandedWithAttachmentsTopPadding = 10.0f;
-/// The bottom padding with the expanded input plate.
+/// The bottom padding with the expanded input plate when AIM is available.
 const CGFloat kInputPlateStackViewExpandedBottomPadding = 10.0f;
 /// The horizontal padding for the input plate stack view.
-const CGFloat kInputPlateStackViewHorizontalPadding = 10.0f;
+const CGFloat kInputPlateStackViewHorizontalPadding = 2.0f;
+/// The side padding for the input plate stack view content (e.g. omnibox,
+/// toolbar).
+const CGFloat kInputPlateSidePadding = 8.0f;
 /// The font size for the AIM mode button title.
 const CGFloat kAIMButtonFontSize = 14.0f;
 /// The point size for the symbols in the AIM mode button.
-const CGFloat kAIMButtonSymbolPointSize = 12;
+const CGFloat kAIMButtonSymbolPointSize = 14;
 /// The width of the buttons created with `createButtonWithImage:`.
 const CGFloat kGenericButtonWidth = 24.0f;
 /// The height of the buttons created with `createButtonWithImage:`.
@@ -93,7 +96,7 @@ const CGFloat kFadeViewWidth = 30.0f;
 const CGFloat kCloseModeButtonMargin = 6;
 
 /// The size of the close icon in the context indicator buttons.
-const CGFloat kCloseIndicatorSize = 10.0f;
+const CGFloat kCloseIndicatorSize = 12.0f;
 
 /// The index of the attachment section in the carousel.
 const NSInteger kCarouselAttachmentSectionIndex = 0;
@@ -147,6 +150,15 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
       _dataSource;
   /// The view containing the input text field and action buttons.
   UIView* _inputPlateContainerView;
+  /// The view containing containing the plusButton, mic, send, etc.. in
+  /// expanded mode.
+  UIView* _toolbarView;
+  /// An internal container that clips its bounds. This ensures extra AIM
+  /// attachments do not overflow their container, and allows the input to flow
+  /// closer to the edge of the box. Note that the external container still has
+  /// shadows and glow effects attached; the use of a child view avoids
+  /// interference with those.
+  UIView* _inputPlateInternalContainerView;
   /// The button to toggle AI mode.
   UIButton* _aimButton;
   UIImageView* _aimButtonXIndicator;
@@ -158,14 +170,16 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   UIButton* _plusButton;
   /// The mic button for voice search.
   UIButton* _micButton;
-  /// The lens button.
-  UIButton* _lensButton;
+  /// The camera scanner button, either to Lens or QR scanner.
+  UIButton* _visualSearchButton;
   /// The fade view for the carousel's leading edge.
   UIView* _leadingCarouselFadeView;
   /// The fade view for the carousel's trailing edge.
   UIView* _trailingCarouselFadeView;
   /// The carousel container.
   UIView* _carouselContainer;
+  /// Controls that should be visible.
+  ComposeboxInputPlateControls _visibleControls;
   /// Attach current tab action state.
   BOOL _attachCurrentTabActionHidden;
   /// Attach tabs actions state.
@@ -235,7 +249,7 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   _omniboxContainer.translatesAutoresizingMaskIntoConstraints = NO;
 
   _micButton = [self createMicrophoneButton];
-  _lensButton = [self createLensButton];
+  _visualSearchButton = [self createVisualSearchButton];
   _plusButton = [self createPlusButton];
   _sendButton = [self createSendButton];
   _aimButton = [self createAIMButton];
@@ -246,19 +260,19 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   _inputPlateStackView =
       [[UIStackView alloc] initWithArrangedSubviews:@[ _omniboxContainer ]];
   _inputPlateStackView.translatesAutoresizingMaskIntoConstraints = NO;
-  [_inputPlateContainerView addSubview:_inputPlateStackView];
+  [_inputPlateInternalContainerView addSubview:_inputPlateStackView];
 
   _bottomPaddingConstraint = [_inputPlateStackView.bottomAnchor
-      constraintEqualToAnchor:_inputPlateContainerView.bottomAnchor
+      constraintEqualToAnchor:_inputPlateInternalContainerView.bottomAnchor
                      constant:-kInputPlateStackViewVerticalPadding];
   _topPaddingConstraint = [_inputPlateStackView.topAnchor
-      constraintEqualToAnchor:_inputPlateContainerView.topAnchor
+      constraintEqualToAnchor:_inputPlateInternalContainerView.topAnchor
                      constant:kInputPlateStackViewVerticalPadding];
   [NSLayoutConstraint
       activateConstraints:@[ _bottomPaddingConstraint, _topPaddingConstraint ]];
 
   AddSameConstraintsToSidesWithInsets(
-      _inputPlateStackView, _inputPlateContainerView,
+      _inputPlateStackView, _inputPlateInternalContainerView,
       (LayoutSides::kLeading | LayoutSides::kTrailing),
       NSDirectionalEdgeInsetsMake(0, kInputPlateStackViewHorizontalPadding, 0,
                                   kInputPlateStackViewHorizontalPadding));
@@ -281,6 +295,8 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   if (self.compact) {
     _inputPlateContainerView.layer.cornerRadius =
         _inputPlateContainerView.frame.size.height / 2;
+    _inputPlateInternalContainerView.layer.cornerRadius =
+        _inputPlateContainerView.layer.cornerRadius;
   }
   [self updateCarouselFade];
 }
@@ -301,7 +317,16 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   _editView.minimumHeight = kOmniboxMinHeight;
   _editView.accessibilityIdentifier = kComposeboxAccessibilityIdentifier;
   [_omniboxContainer addSubview:editView];
-  AddSameConstraints(_editView, _omniboxContainer);
+  [NSLayoutConstraint activateConstraints:@[
+    [_editView.leadingAnchor
+        constraintEqualToAnchor:_omniboxContainer.layoutMarginsGuide
+                                    .leadingAnchor],
+    [_editView.trailingAnchor
+        constraintEqualToAnchor:_omniboxContainer.layoutMarginsGuide
+                                    .trailingAnchor],
+  ]];
+  AddSameConstraintsToSides(_editView, _omniboxContainer,
+                            LayoutSides::kTop | LayoutSides::kBottom);
 
   [self.mutator requestUIRefresh];
 }
@@ -395,19 +420,18 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
 }
 
 - (void)updateVisibleControls:(ComposeboxInputPlateControls)controls {
-  _plusButton.hidden = !(controls & ComposeboxInputPlateControls::kPlus);
-  _micButton.hidden = !(controls & ComposeboxInputPlateControls::kVoice);
-  _lensButton.hidden = !(controls & ComposeboxInputPlateControls::kLens);
+  using enum ComposeboxInputPlateControls;
+  _visibleControls = controls;
+  _plusButton.hidden = !(controls & kPlus);
+  _micButton.hidden = !(controls & kVoice);
+  [self updateCameraButton];
 
-  [self animateButton:_aimButton
-               hidden:!(controls & ComposeboxInputPlateControls::kAIM)];
-  [self animateButton:_sendButton
-               hidden:!(controls & ComposeboxInputPlateControls::kSend)];
-  [self animateButton:_imageGenerationButton
-               hidden:!(controls & ComposeboxInputPlateControls::kCreateImage)];
-  [self
-      animateLeadingImageHidden:!(controls &
-                                  ComposeboxInputPlateControls::kLeadingImage)];
+  [self updateToolbarVisibility];
+
+  [self animateButton:_aimButton hidden:!(controls & kAIM)];
+  [self animateButton:_sendButton hidden:!(controls & kSend)];
+  [self animateButton:_imageGenerationButton hidden:!(controls & kCreateImage)];
+  [self animateLeadingImageHidden:!(controls & kLeadingImage)];
 }
 
 - (void)animateReveal:(void (^)(void))animations {
@@ -418,17 +442,37 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
                    completion:nil];
 }
 
+/// Whether `view` is visible in `self.view` hierarchy.
+- (BOOL)isVisibleInHierarchy:(UIView*)view {
+  UIView* controllingVisibility = view;
+  do {
+    if (controllingVisibility.hidden) {
+      return NO;
+    }
+    if (controllingVisibility == self.view) {
+      return YES;
+    }
+    controllingVisibility = controllingVisibility.superview;
+  } while (controllingVisibility);
+  return NO;
+}
+
 - (void)animateButton:(UIButton*)button hidden:(BOOL)hidden {
   BOOL alreadyHidden = button.hidden;
   button.hidden = hidden;
   // Only the appear sequence is animated.
   BOOL isAppearing = alreadyHidden && !hidden;
-  if (isAppearing) {
-    button.alpha = 0;
-    [self animateReveal:^{
-      button.alpha = 1;
-    }];
+  if (!isAppearing) {
+    return;
   }
+  // If hidden indirectly by a superview, early return without animation.
+  if (![self isVisibleInHierarchy:button]) {
+    return;
+  }
+  button.alpha = 0;
+  [self animateReveal:^{
+    button.alpha = 1;
+  }];
 }
 
 - (void)animateLeadingImageHidden:(BOOL)hidden {
@@ -600,8 +644,15 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   [self.delegate composeboxViewController:self didTapMicButton:_micButton];
 }
 
-- (void)lensButtonTapped {
-  [self.delegate composeboxViewController:self didTapLensButton:_lensButton];
+- (void)visualSearchButtonTapped {
+  using enum ComposeboxInputPlateControls;
+  if ((_visibleControls & kLens) != kNone) {
+    [self.delegate composeboxViewController:self
+                           didTapLensButton:_visualSearchButton];
+  } else if ((_visibleControls & kQRScanner) != kNone) {
+    [self.delegate composeboxViewController:self
+                      didTapQRScannerButton:_visualSearchButton];
+  }
 }
 
 - (void)sendButtonTapped {
@@ -888,6 +939,17 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
 
 - (UIButton*)createAIMButton {
   UIButton* button = [UIButton buttonWithType:UIButtonTypeSystem];
+  button.configurationUpdateHandler = ^(UIButton* updatedButton) {
+    BOOL isHighlighted = updatedButton.state == UIControlStateHighlighted;
+    CGFloat scale = isHighlighted ? 0.95 : 1.0;
+    CGFloat alpha = isHighlighted ? 0.85 : 1.0;
+    [UIView animateWithDuration:0.1
+                     animations:^{
+                       updatedButton.alpha = alpha;
+                       updatedButton.transform =
+                           CGAffineTransformMakeScale(scale, scale);
+                     }];
+  };
   button.translatesAutoresizingMaskIntoConstraints = NO;
   [button addTarget:self
                 action:@selector(aimButtonTapped)
@@ -927,6 +989,8 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   plusButton.translatesAutoresizingMaskIntoConstraints = NO;
   plusButton.imageView.contentMode = UIViewContentModeScaleAspectFit;
   plusButton.tintColor = [UIColor colorNamed:kTextPrimaryColor];
+  plusButton.accessibilityLabel = l10n_util::GetNSString(
+      IDS_IOS_COMPOSEBOX_ADD_ATTACHMENT_BUTTON_ACCESSIBILITY_LABEL);
   plusButton.accessibilityIdentifier =
       kComposeboxPlusButtonAccessibilityIdentifier;
 
@@ -970,6 +1034,8 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   };
   sendButton.accessibilityIdentifier =
       kComposeboxSendButtonAccessibilityIdentifier;
+  sendButton.accessibilityLabel =
+      l10n_util::GetNSString(IDS_IOS_TOOLBAR_SEARCH);
 
   [sendButton addTarget:self
                  action:@selector(sendButtonTapped)
@@ -987,6 +1053,8 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   micButton.imageView.contentMode = UIViewContentModeScaleAspectFit;
   micButton.accessibilityIdentifier =
       kComposeboxMicButtonAccessibilityIdentifier;
+  micButton.accessibilityLabel =
+      l10n_util::GetNSString(IDS_IOS_ACCNAME_VOICE_SEARCH);
 
   [micButton addTarget:self
                 action:@selector(micButtonTapped)
@@ -994,20 +1062,57 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   return micButton;
 }
 
-/// Returns the lens button.
-- (UIButton*)createLensButton {
-  UIButton* lensButton = [self
-      createButtonWithImage:CustomSymbolWithPointSize(kCameraLensSymbol,
-                                                      kSymbolActionPointSize)];
-  lensButton.imageView.contentMode = UIViewContentModeScaleAspectFit;
-  lensButton.accessibilityIdentifier =
-      kComposeboxLensButtonAccessibilityIdentifier;
+/// Returns the visual search button (Lens or QR Code).
+- (UIButton*)createVisualSearchButton {
+  UIButton* visualSearchButton = [self createButtonWithImage:nil];
+  visualSearchButton.imageView.contentMode = UIViewContentModeScaleAspectFit;
 
-  [lensButton addTarget:self
-                 action:@selector(lensButtonTapped)
-       forControlEvents:UIControlEventTouchUpInside];
+  [visualSearchButton addTarget:self
+                         action:@selector(visualSearchButtonTapped)
+               forControlEvents:UIControlEventTouchUpInside];
 
-  return lensButton;
+  return visualSearchButton;
+}
+
+/// Updates the toolbar visiblity depending on state of the buttons that should
+/// be visible.
+- (void)updateToolbarVisibility {
+  using enum ComposeboxInputPlateControls;
+  ComposeboxInputPlateControls requiredControlsForVisibility =
+      (kPlus | kVoice | kLens | kSend);
+  _toolbarView.hidden = !(_visibleControls & requiredControlsForVisibility);
+
+  if (!self.compact) {
+    _bottomPaddingConstraint.constant =
+        _toolbarView.hidden ? 0 : -kInputPlateStackViewExpandedBottomPadding;
+  }
+}
+
+- (void)updateCameraButton {
+  using enum ComposeboxInputPlateControls;
+  if ((_visibleControls & kLens) != kNone) {
+    _visualSearchButton.hidden = NO;
+    [_visualSearchButton setImage:CustomSymbolWithPointSize(
+                                      kCameraLensSymbol, kSymbolActionPointSize)
+                         forState:UIControlStateNormal];
+    _visualSearchButton.accessibilityIdentifier =
+        kComposeboxLensButtonAccessibilityIdentifier;
+    _visualSearchButton.accessibilityLabel =
+        l10n_util::GetNSString(IDS_IOS_ACCNAME_LENS);
+  } else if ((_visibleControls & kQRScanner) != kNone) {
+    _visualSearchButton.hidden = NO;
+    [_visualSearchButton
+        setImage:DefaultSymbolWithPointSize(kQRCodeFinderActionSymbol,
+                                            kSymbolActionPointSize)
+        forState:UIControlStateNormal];
+
+    _visualSearchButton.accessibilityIdentifier =
+        kComposeboxQRCodeButtonAccessibilityIdentifier;
+    _visualSearchButton.accessibilityLabel =
+        l10n_util::GetNSString(IDS_IOS_KEYBOARD_ACCESSORY_VIEW_QR_CODE_SEARCH);
+  } else {
+    _visualSearchButton.hidden = YES;
+  }
 }
 
 /// Creates and returns the toolbar view containing action buttons.
@@ -1027,7 +1132,7 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   UIStackView* buttonsStackView =
       [[UIStackView alloc] initWithArrangedSubviews:@[
         _plusButton, _aimButton, _imageGenerationButton, spacerView,
-        _sendButton, _micButton, _lensButton
+        _sendButton, _micButton, _visualSearchButton
       ]];
   buttonsStackView.translatesAutoresizingMaskIntoConstraints = NO;
   [buttonsStackView setCustomSpacing:kShortcutsSpacing afterView:_micButton];
@@ -1038,6 +1143,9 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
     [buttonsStackView.heightAnchor
         constraintEqualToConstant:kButtonStackViewDimension]
   ]];
+  buttonsStackView.layoutMarginsRelativeArrangement = YES;
+  buttonsStackView.layoutMargins =
+      UIEdgeInsetsMake(0, kInputPlateSidePadding, 0, kInputPlateSidePadding);
   return buttonsStackView;
 }
 
@@ -1220,6 +1328,11 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   _carouselView.delegate = self;
   [_carouselView.heightAnchor constraintEqualToConstant:kCarouselHeight]
       .active = YES;
+  // The outer view has minimal padding to allow the carousel space for multiple
+  // attachments when they overflow. This ensures that there's still some
+  // padding when the carousel is scrolled to either end.
+  _carouselView.contentInset =
+      UIEdgeInsetsMake(0, kInputPlateSidePadding, 0, kInputPlateSidePadding);
   _carouselView.showsHorizontalScrollIndicator = NO;
 
   _carouselContainer = [[UIView alloc] init];
@@ -1275,6 +1388,15 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   _inputPlateContainerView.backgroundColor = _theme.inputPlateBackgroundColor;
   _inputPlateContainerView.layer.cornerRadius = kInputPlateCornerRadius;
 
+  _inputPlateInternalContainerView = [[UIView alloc] init];
+  _inputPlateInternalContainerView.clipsToBounds = YES;
+  _inputPlateInternalContainerView.layer.cornerRadius = kInputPlateCornerRadius;
+  _inputPlateInternalContainerView.translatesAutoresizingMaskIntoConstraints =
+      NO;
+  [_inputPlateContainerView addSubview:_inputPlateInternalContainerView];
+  AddSameConstraints(_inputPlateInternalContainerView,
+                     _inputPlateContainerView);
+
   [self updateDepthShadowAppearance];
   [self.view addSubview:_inputPlateContainerView];
 
@@ -1298,11 +1420,12 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
       [arrangedSubview removeFromSuperview];
     }
   }
+  _toolbarView = nil;
 
   if (self.compact) {
     [_inputPlateStackView insertArrangedSubview:_plusButton atIndex:0];
     [_inputPlateStackView addArrangedSubview:_micButton];
-    [_inputPlateStackView addArrangedSubview:_lensButton];
+    [_inputPlateStackView addArrangedSubview:_visualSearchButton];
 
     _inputPlateStackView.axis = UILayoutConstraintAxisHorizontal;
     _inputPlateStackView.spacing = 0;
@@ -1311,16 +1434,27 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
     [_inputPlateStackView setCustomSpacing:kShortcutsSpacing
                                  afterView:_micButton];
     _bottomPaddingConstraint.constant = -kInputPlateStackViewVerticalPadding;
+    _inputPlateStackView.layoutMarginsRelativeArrangement = YES;
+    // Ensure we do not lose the margins on the sides when in compact mode.
+    _inputPlateStackView.layoutMargins =
+        UIEdgeInsetsMake(0, kInputPlateSidePadding, 0, kInputPlateSidePadding);
+    // Margins are applied on the input plate, remove the margins on the
+    // omnibox.
+    _omniboxContainer.directionalLayoutMargins = NSDirectionalEdgeInsetsZero;
   } else {
-    UIView* toolbarView = [self createToolbarView];
+    _toolbarView = [self createToolbarView];
     [_inputPlateStackView insertArrangedSubview:_carouselContainer atIndex:0];
-    [_inputPlateStackView addArrangedSubview:toolbarView];
+    [_inputPlateStackView addArrangedSubview:_toolbarView];
     _inputPlateStackView.axis = UILayoutConstraintAxisVertical;
     _inputPlateStackView.spacing = kInputPlateStackViewSpacing;
-
-    _bottomPaddingConstraint.constant =
-        -kInputPlateStackViewExpandedBottomPadding;
+    // `_bottomPaddingConstraint` is updated in `updateToolbarVisibility`.
+    [self updateToolbarVisibility];
     _inputPlateContainerView.layer.cornerRadius = kInputPlateCornerRadius;
+    _inputPlateInternalContainerView.layer.cornerRadius =
+        kInputPlateCornerRadius;
+    _inputPlateStackView.layoutMarginsRelativeArrangement = NO;
+    _omniboxContainer.directionalLayoutMargins = NSDirectionalEdgeInsetsMake(
+        0, kInputPlateSidePadding, 0, kInputPlateSidePadding);
   }
   [self updateInputPlateStackViewTopConstraint];
 }

@@ -4,6 +4,8 @@
 
 import type {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
+import {LineFocusType} from '../content/read_anything_types.js';
+
 // Constants for styling the app when page zoom changes.
 const OVERFLOW_X_TYPICAL = 'hidden';
 const OVERFLOW_X_SCROLL = 'scroll';
@@ -34,6 +36,16 @@ const HIGHLIGHT_PREVIOUS_CUSTOM =
 // Link colors.
 const LINK_DEFAULT = 'var(--color-read-anything-link-default';
 const LINK_VISITED = 'var(--color-read-anything-link-visited';
+// Line focus styles.
+// Determined by experimentation to balance visibility without risking
+// obstructing any text.
+const LINE_FOCUS_LINE_HEIGHT_SCALE = 2;
+const LINE_FOCUS_BOX_SHADOW_LINE = 'none';
+const LINE_FOCUS_BOX_SHADOW_WINDOW =
+    '0 0 0 9999px var(--color-sys-state-scrim)';
+const LINE_FOCUS_BG_LINE_DEFAULT = 'var(--color-sys-state-focus-ring)';
+const LINE_FOCUS_BG_LINE_CUSTOM = 'var(--color-read-anything-line-focus';
+const LINE_FOCUS_BG_WINDOW = 'none';
 
 // Suffixes used in combination with the color vars above to get the color
 // values for the current theme.
@@ -59,6 +71,49 @@ export class AppStyleUpdater {
 
   setMaxLineWidth() {
     this.setStyle_('--max-width', `${chrome.readingMode.maxLineWidth}ch`);
+  }
+
+  setLineFocusPos(y: number, height: number|null, container: HTMLElement) {
+    const containerTop = container.offsetTop;
+    const containerHeight = container.offsetHeight;
+    this.setStyle_('--line-focus-y', `${y}px`);
+    this.setStyle_('--line-focus-clip-top', `-${y - containerTop}px`);
+    if (height) {
+      this.setStyle_('--line-focus-height', `${height}px`);
+      this.setStyle_(
+          '--line-focus-clip-bottom',
+          `${- (containerHeight - y - height + containerTop)}px`);
+    }
+  }
+
+  setLineFocusStyle(type?: LineFocusType) {
+    if (type === undefined || !chrome.readingMode.isLineFocusEnabled ||
+        type === LineFocusType.NONE) {
+      this.setStyle_('--line-focus-display', 'none');
+      return;
+    }
+
+    const isWindow = type === LineFocusType.WINDOW;
+    if (!isWindow) {
+      this.setLineFocusHeight();
+    }
+    this.setStyle_(
+        '--line-focus-shadow',
+        isWindow ? LINE_FOCUS_BOX_SHADOW_WINDOW : LINE_FOCUS_BOX_SHADOW_LINE);
+    const lineFocusBgLine =
+        this.getLineFocusColor_(this.getCurrentColorSuffix_());
+    this.setStyle_(
+        '--line-focus-bg', isWindow ? LINE_FOCUS_BG_WINDOW : lineFocusBgLine);
+    this.setStyle_('--line-focus-display', 'block');
+  }
+
+  setLineFocusHeight() {
+    // The height of the line focus underline should be dependent on the font
+    // size. This height should be overridden dynamically if the line focus is a
+    // window.
+    this.setStyle_(
+        '--line-focus-height',
+        `${chrome.readingMode.fontSize * LINE_FOCUS_LINE_HEIGHT_SCALE}px`);
   }
 
   setAllTextStyles() {
@@ -128,12 +183,13 @@ export class AppStyleUpdater {
         this.getPreviousHighlightColor_(colorSuffix));
     this.setStyle_(
         '--sp-empty-state-heading-color',
-        EMPTY_STATE_HEADING + `${colorSuffix})`);
+        `${EMPTY_STATE_HEADING}${colorSuffix})`);
     this.setStyle_(
         '--sp-empty-state-body-color',
         this.getEmptyStateBodyColor_(colorSuffix));
-    this.setStyle_('--link-color', LINK_DEFAULT + `${colorSuffix})`);
-    this.setStyle_('--visited-link-color', LINK_VISITED + `${colorSuffix})`);
+    this.setStyle_('--link-color', `${LINK_DEFAULT}${colorSuffix})`);
+    this.setStyle_('--visited-link-color', `${LINK_VISITED}${colorSuffix})`);
+    this.setStyle_('--line-focus-bg', this.getLineFocusColor_(colorSuffix));
 
     document.documentElement.style.setProperty(
         '--selection-color', this.getSelectionColor_(colorSuffix));
@@ -219,5 +275,11 @@ export class AppStyleUpdater {
     return (window.matchMedia('(prefers-color-scheme: dark)').matches) ?
         SELECTION_FOREGROUND_DARK :
         SELECTION_FOREGROUND_LIGHT;
+  }
+
+  private getLineFocusColor_(colorSuffix: ColorSuffix): string {
+    return (colorSuffix === ColorSuffix.DEFAULT) ?
+        LINE_FOCUS_BG_LINE_DEFAULT :
+        (LINE_FOCUS_BG_LINE_CUSTOM + `${colorSuffix})`);
   }
 }

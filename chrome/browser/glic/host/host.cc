@@ -27,13 +27,15 @@
 #include "chrome/browser/glic/widget/glic_window_controller.h"
 #include "chrome/common/chrome_features.h"
 #include "components/autofill/core/browser/integrators/glic/actor_form_filling_types.h"
-#include "components/guest_view/browser/guest_view_base.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
-#include "extensions/browser/guest_view/web_view/web_view_guest.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
-#include "third_party/skia/include/core/SkRegion.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "components/guest_view/browser/guest_view_base.h"
+#include "extensions/browser/guest_view/web_view/web_view_guest.h"
+#endif
 
 namespace glic {
 
@@ -155,9 +157,9 @@ void Host::PanelWillOpen(mojom::InvocationSource invocation_source,
         glic_instance_
             ? mojom::PanelOpeningData::New(
                   glic_instance_->GetPanelState().Clone(), invocation_source,
-                  std::move(options.conversation_id),
                   std::move(options.prompt_suggestion),
-                  std::move(options.recently_active_conversations))
+                  std::move(options.recently_active_conversations),
+                  std::move(options.conversation_info))
             : mojom::PanelOpeningData::New(),
         base::BindOnce(
             &Host::PanelWillOpenComplete,
@@ -318,24 +320,28 @@ void Host::SetWebClient(GlicWebClientAccess* web_client) {
   CHECK(web_client);
   handler_info_->web_client = web_client;
   if (invocation_source_ && web_client) {
-    std::optional<std::string> conversation_id, prompt_suggestion;
+    std::optional<std::string> prompt_suggestion;
     std::optional<std::vector<mojom::ConversationInfoPtr>>
         recently_active_conversations;
+    auto conversation_info = mojom::ConversationInfo::New();
+
     if (pending_panel_open_options_) {
-      conversation_id = std::move(pending_panel_open_options_->conversation_id);
       prompt_suggestion =
           std::move(pending_panel_open_options_->prompt_suggestion);
       recently_active_conversations =
           std::move(pending_panel_open_options_->recently_active_conversations);
+      conversation_info =
+          std::move(pending_panel_open_options_->conversation_info);
       pending_panel_open_options_.reset();
     }
+
     web_client->PanelWillOpen(
         mojom::PanelOpeningData::New(
             glic_instance_ ? glic_instance_->GetPanelState().Clone()
                            : mojom::PanelState::New(),
-            *invocation_source_, std::move(conversation_id),
-            std::move(prompt_suggestion),
-            std::move(recently_active_conversations)),
+            *invocation_source_, std::move(prompt_suggestion),
+            std::move(recently_active_conversations),
+            std::move(conversation_info)),
         base::BindOnce(
             &Host::PanelWillOpenComplete,
             // Unretained is safe because web client is owned by `contents_`.
@@ -458,12 +464,6 @@ void Host::NotifyZeroStateSuggestion(
   }
 }
 
-void Host::SendViewChangeRequest(mojom::ViewChangeRequestPtr change_request) {
-  if (GetPrimaryWebClient()) {
-    GetPrimaryWebClient()->RequestViewChange(std::move(change_request));
-  }
-}
-
 void Host::NotifyInstanceActivationChanged(bool is_active) {
   if (handler_info_ && handler_info_->web_client) {
     handler_info_->web_client->NotifyInstanceActivationChanged(is_active);
@@ -474,6 +474,15 @@ void Host::NotifyAdditionalContext(mojom::AdditionalContextPtr context) {
   if (auto* client = GetPrimaryWebClient()) {
     client->NotifyAdditionalContext(std::move(context));
   }
+}
+
+content::RenderProcessHost* Host::GetWebClientRenderProcessHost() const {
+  if (content::WebContents* contents = web_client_contents()) {
+    if (content::RenderFrameHost* rfh = contents->GetPrimaryMainFrame()) {
+      return rfh->GetProcess();
+    }
+  }
+  return nullptr;
 }
 
 void Host::OnViewChanged(GlicWebClientAccess* client,
@@ -531,10 +540,6 @@ void Host::SetPanelDraggableAreas(
   if (handler_info_ && handler_info_->page_handler == page_handler) {
     delegate_->SetDraggableAreas(draggable_areas);
   }
-}
-
-void Host::SetPanelDraggableRegion(const SkRegion& draggable_region) {
-  delegate_->SetDraggableRegion(draggable_region);
 }
 
 void Host::SetMinimumWidgetSize(GlicPageHandler* page_handler,
@@ -646,8 +651,10 @@ void HostManager::Shutdown() {
 }
 
 void HostManager::GuestAdded(content::WebContents* guest_contents) {
+#if !BUILDFLAG(IS_ANDROID)
   content::WebContents* top =
       guest_view::GuestViewBase::GetTopLevelWebContents(guest_contents);
+#endif
 
   for (Host* host : GetPrimaryHosts()) {
     if (!host->webui_contents()) {
@@ -656,11 +663,15 @@ void HostManager::GuestAdded(content::WebContents* guest_contents) {
 
     host->GuestAdded(guest_contents);
 
+#if !BUILDFLAG(IS_ANDROID)
     // TODO(harringtond): This looks wrong, either fix or document this.
     blink::web_pref::WebPreferences prefs(top->GetOrCreateWebPreferences());
     prefs.default_font_size =
         host->webui_contents()->GetOrCreateWebPreferences().default_font_size;
     top->SetWebPreferences(prefs);
+#else
+    // TODO(b/470059315): What do we do for Android?
+#endif
     return;
   }
 }

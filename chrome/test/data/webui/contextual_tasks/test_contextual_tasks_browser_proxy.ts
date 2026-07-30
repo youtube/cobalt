@@ -20,14 +20,16 @@ class MockPage extends TestBrowserProxy implements PageInterface {
 
   constructor() {
     super([
-      'setThreadTitle',
+      'hideInput',
       'postMessageToWebview',
+      'onAiPageStatusChanged',
+      'onContextUpdated',
       'onHandshakeComplete',
       'onSidePanelStateChanged',
-      'setOAuthToken',
-      'onContextUpdated',
-      'hideInput',
       'restoreInput',
+      'setOAuthToken',
+      'setTaskDetails',
+      'setThreadTitle',
     ]);
   }
 
@@ -73,6 +75,18 @@ class MockPage extends TestBrowserProxy implements PageInterface {
   restoreInput() {
     this.methodCalled('restoreInput');
   }
+
+  onZeroStateChange() {
+    this.methodCalled('onZeroStateChange');
+  }
+
+  onAiPageStatusChanged(isAiPage: boolean) {
+    this.methodCalled('onAiPageStatusChanged', isAiPage);
+  }
+
+  setTaskDetails(taskId: Uuid, threadId: string, turnId: string) {
+    this.methodCalled('setTaskDetails', taskId, threadId, turnId);
+  }
 }
 
 /**
@@ -87,22 +101,24 @@ class TestContextualTasksPageHandler extends TestBrowserProxy implements
 
   constructor(url: string, page: MockPage) {
     super([
+      'closeSidePanel',
+      'getCommonSearchParams',
+      'getRecentTabs',
+      'getSearchUrl',
       'getThreadUrl',
       'getUrlForTask',
+      'isShownInTab',
+      'moveTaskUiToNewTab',
+      'onboardingTooltipDismissed',
+      'onTabClickedFromSourcesMenu',
+      'onWebviewMessage',
+      'openHelpUi',
+      'openMyActivityUi',
+      'openOnboardingHelpUi',
       'setTaskId',
       'setThreadTitle',
-      'closeSidePanel',
       'showThreadHistory',
-      'isShownInTab',
-      'openMyActivityUi',
-      'openHelpUi',
-      'moveTaskUiToNewTab',
-      'onTabClickedFromSourcesMenu',
-      'getSearchUrl',
-      'onWebviewMessage',
       'submitQuery',
-      'getRecentTabs',
-      'getCommonSearchParams',
     ]);
 
     this.url_ = {url};
@@ -150,6 +166,14 @@ class TestContextualTasksPageHandler extends TestBrowserProxy implements
 
   openHelpUi() {
     this.methodCalled('openHelpUi');
+  }
+
+  openOnboardingHelpUi() {
+    this.methodCalled('openOnboardingHelpUi');
+  }
+
+  onboardingTooltipDismissed() {
+    this.methodCalled('onboardingTooltipDismissed');
   }
 
   moveTaskUiToNewTab() {

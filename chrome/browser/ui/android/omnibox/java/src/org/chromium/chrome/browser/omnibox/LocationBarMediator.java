@@ -143,7 +143,7 @@ class LocationBarMediator
     private static final long NTP_KEYBOARD_FOCUS_DURATION_MS = 200;
     private static final int WIDTH_CHANGE_ANIMATION_DURATION_MS = 225;
     private static final int WIDTH_CHANGE_ANIMATION_DELAY_MS = 75;
-    private static @Nullable Boolean sLastCachedIsLensOnOmniboxEnabled;
+    private @Nullable Boolean mIsLensOnOmniboxEnabled;
 
     /** Uma methods for omnibox. */
     public interface OmniboxUma {
@@ -543,7 +543,7 @@ class LocationBarMediator
     }
 
     void resetLastCachedIsLensOnOmniboxEnabledForTesting() {
-        sLastCachedIsLensOnOmniboxEnabled = null;
+        mIsLensOnOmniboxEnabled = null;
     }
 
     /* package */ void setIsUrlBarFocusedWithoutAnimationsForTesting(
@@ -1626,12 +1626,11 @@ class LocationBarMediator
     }
 
     private boolean isLensOnOmniboxEnabled() {
-        if (sLastCachedIsLensOnOmniboxEnabled == null) {
-            sLastCachedIsLensOnOmniboxEnabled =
-                    Boolean.valueOf(isLensEnabled(LensEntryPoint.OMNIBOX));
+        if (mIsLensOnOmniboxEnabled == null) {
+            mIsLensOnOmniboxEnabled = Boolean.valueOf(isLensEnabled(LensEntryPoint.OMNIBOX));
         }
 
-        return sLastCachedIsLensOnOmniboxEnabled.booleanValue();
+        return mIsLensOnOmniboxEnabled.booleanValue();
     }
 
     private boolean shouldShowPageActionButtons() {
@@ -1656,14 +1655,10 @@ class LocationBarMediator
 
     @SuppressLint("GestureBackNavigation")
     private boolean handleKeyEvent(View view, int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_ESCAPE) return false;
         boolean isRtl = view.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL;
         if (mAutocompleteCoordinator.handleKeyEvent(keyCode, event)) {
             return true;
-        } else if (keyCode == KeyEvent.KEYCODE_ESCAPE) {
-            if (KeyNavigationUtil.isActionDown(event) && event.getRepeatCount() == 0) {
-                revertChanges();
-                return true;
-            }
         } else if ((!isRtl && KeyNavigationUtil.isGoRight(event))
                 || (isRtl && KeyNavigationUtil.isGoLeft(event))) {
             // Ensures URL bar doesn't lose focus, when RIGHT or LEFT (RTL) key is pressed while
@@ -1672,6 +1667,20 @@ class LocationBarMediator
             return tv.getSelectionStart() == tv.getSelectionEnd()
                     && tv.getSelectionEnd() == tv.getText().length();
         }
+        return false;
+    }
+
+    @Override
+    public Boolean handleEscPress() {
+        KeyEvent event = new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ESCAPE);
+        if (!mAutocompleteCoordinator.handleKeyEvent(KeyEvent.KEYCODE_ESCAPE, event)) {
+            revertChanges();
+        }
+        return true;
+    }
+
+    @Override
+    public boolean invokeBackActionOnEscape() {
         return false;
     }
 
@@ -1694,7 +1703,7 @@ class LocationBarMediator
 
     @Override
     public void onIncognitoStateChanged() {
-        sLastCachedIsLensOnOmniboxEnabled = Boolean.valueOf(isLensEnabled(LensEntryPoint.OMNIBOX));
+        mIsLensOnOmniboxEnabled = Boolean.valueOf(isLensEnabled(LensEntryPoint.OMNIBOX));
         updateButtonVisibility();
         updateSearchEngineStatusIconShownState();
         // Update the visuals to use correct incognito colors.
@@ -1807,7 +1816,7 @@ class LocationBarMediator
     // TemplateUrlService.TemplateUrlServiceObserver implementation
     @Override
     public void onTemplateURLServiceChanged() {
-        sLastCachedIsLensOnOmniboxEnabled = Boolean.valueOf(isLensEnabled(LensEntryPoint.OMNIBOX));
+        mIsLensOnOmniboxEnabled = Boolean.valueOf(isLensEnabled(LensEntryPoint.OMNIBOX));
     }
 
     // OmniboxStub implementation.

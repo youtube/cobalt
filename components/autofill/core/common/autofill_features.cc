@@ -225,6 +225,10 @@ BASE_FEATURE(kAutofillAiNationalIdCard, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kAutofillAiPreferModelResponseOverHeuristics,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// If enabled, AutofillAi requires re-auth when filling obfuscated fields.
+// TODO(crbug.com/468236932): Remove once feature is launched.
+BASE_FEATURE(kAutofillAiReauthRequired, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // If enabled, AutofillAi supports redress number.
 BASE_FEATURE(kAutofillAiRedressNumber, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -544,6 +548,12 @@ BASE_FEATURE(kAutofillEnableFillingPhoneCountryCodesByAddressCountryCodes,
 BASE_FEATURE(kAutofillEnableGermanTransliteration,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If enabled, the import of unchanged values for ADDRESS_HOME_COUNTRY and
+// ADDRESS_HOME_STATE fields is enabled.
+// TODO(crbug.com/40137859): Remove once launched.
+BASE_FEATURE(kAutofillEnableImportOfUnchangedValuesForCountryAndState,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Controls whether to save the first number in a form with multiple phone
 // numbers instead of aborting the import.
 // TODO(crbug.com/40742746) Remove once launched.
@@ -634,6 +644,12 @@ BASE_FEATURE(kAutofillExtractOnlyNonAdFrames,
 // When enabled, adds stricter conditions to trigger refills in order to avoid
 // trivial refill operations, which are refills that do not modify any field.
 BASE_FEATURE(kAutofillFewerTrivialRefills, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, improves heuristic regexes for state classification to avoid
+// misclassification as civil state.
+// TODO(crbug.com/465491175): Cleanup when launched.
+BASE_FEATURE(kAutofillFixCivilStateMisclassificationForESPT,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Kill switch: Changes the behavior of Form[Field]Data::DeepEqual().
 // TODO(crbug.com/40183094): Turn this into a kill switch after a few
@@ -975,6 +991,35 @@ BASE_FEATURE(kFieldClassificationModelCaching,
 // If enabled, Autofill will retrieve one-time passwords from Gmail.
 // TODO(crbug.com/452607505): Clean up when launched.
 BASE_FEATURE(kGmailOtpRetrievalService, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, a HaTS survey is shown after the user visited "Contact info"
+// settings page.
+BASE_FEATURE(kManageContactInfoPerceptionSurvey,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, a HaTS survey is shown after the user visited "Identity docs"
+// settings page.
+BASE_FEATURE(kManageIdentityDocsPerceptionSurvey,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, a HaTS survey is shown after the user visited Password Manager
+// management surface.
+BASE_FEATURE(kManagePasswordsPerceptionSurvey,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, a HaTS survey is shown after the user visited "Payments"
+// settings page.
+BASE_FEATURE(kManagePaymentsPerceptionSurvey,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, a HaTS survey is shown after the user visited "Travel"
+// settings page.
+BASE_FEATURE(kManageTravelPerceptionSurvey, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, a HaTS survey is shown after the user visited "Your saved info"
+// settings page.
+BASE_FEATURE(kManageYourSavedInfoPerceptionSurvey,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, a HaTS survey is shown after the successful first time creation
 // flow.

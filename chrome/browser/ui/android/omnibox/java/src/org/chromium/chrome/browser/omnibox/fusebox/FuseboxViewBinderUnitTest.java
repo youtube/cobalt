@@ -322,7 +322,7 @@ public class FuseboxViewBinderUnitTest {
 
         mModel.set(FuseboxProperties.AUTOCOMPLETE_REQUEST_TYPE_CHANGEABLE, true);
         FuseboxViewBinder.updateButtonsVisibilityAndStyling(mModel, mViewHolder);
-        assertEquals(View.GONE, mPopup.mAiModeButton.getVisibility());
+        assertEquals(View.VISIBLE, mPopup.mAiModeButton.getVisibility());
 
         mModel.set(FuseboxProperties.AUTOCOMPLETE_REQUEST_TYPE_CHANGEABLE, false);
         mModel.set(FuseboxProperties.SHOW_DEDICATED_MODE_BUTTON, false);
@@ -367,8 +367,8 @@ public class FuseboxViewBinderUnitTest {
         mModel.set(FuseboxProperties.POPUP_CREATE_IMAGE_BUTTON_VISIBLE, false);
         mModel.set(FuseboxProperties.SHOW_DEDICATED_MODE_BUTTON, true);
         FuseboxViewBinder.updateButtonsVisibilityAndStyling(mModel, mViewHolder);
-        assertEquals(View.GONE, mPopup.mRequestTypeDivider.getVisibility());
-        assertEquals(View.GONE, mPopup.mAiModeButton.getVisibility());
+        assertEquals(View.VISIBLE, mPopup.mRequestTypeDivider.getVisibility());
+        assertEquals(View.VISIBLE, mPopup.mAiModeButton.getVisibility());
         assertEquals(View.GONE, mPopup.mCreateImageButton.getVisibility());
 
         mModel.set(FuseboxProperties.SHOW_DEDICATED_MODE_BUTTON, false);
@@ -381,7 +381,7 @@ public class FuseboxViewBinderUnitTest {
         mModel.set(FuseboxProperties.POPUP_CREATE_IMAGE_BUTTON_VISIBLE, true);
         FuseboxViewBinder.updateButtonsVisibilityAndStyling(mModel, mViewHolder);
         assertEquals(View.VISIBLE, mPopup.mRequestTypeDivider.getVisibility());
-        assertEquals(View.GONE, mPopup.mAiModeButton.getVisibility());
+        assertEquals(View.VISIBLE, mPopup.mAiModeButton.getVisibility());
         assertEquals(View.VISIBLE, mPopup.mCreateImageButton.getVisibility());
 
         mModel.set(FuseboxProperties.SHOW_DEDICATED_MODE_BUTTON, false);
@@ -417,5 +417,27 @@ public class FuseboxViewBinderUnitTest {
         assertNull(mViewHolder.requestType.getCompoundDrawablesRelative()[1]);
         assertNotNull(mViewHolder.requestType.getCompoundDrawablesRelative()[2]);
         assertNull(mViewHolder.requestType.getCompoundDrawablesRelative()[3]);
+    }
+
+    @Test
+    public void sendButtonA11y_setsContentDescription() {
+        var res = mActivityController.get().getResources();
+
+        mModel.set(FuseboxProperties.AUTOCOMPLETE_REQUEST_TYPE, AutocompleteRequestType.AI_MODE);
+        assertEquals(
+                res.getString(R.string.acc_send_button_send_to_ai),
+                mViewHolder.navigateButton.getContentDescription());
+
+        mModel.set(
+                FuseboxProperties.AUTOCOMPLETE_REQUEST_TYPE,
+                AutocompleteRequestType.IMAGE_GENERATION);
+        assertEquals(
+                res.getString(R.string.acc_send_button_create_image),
+                mViewHolder.navigateButton.getContentDescription());
+
+        mModel.set(FuseboxProperties.AUTOCOMPLETE_REQUEST_TYPE, AutocompleteRequestType.SEARCH);
+        assertEquals(
+                res.getString(R.string.acc_send_button_search_or_navigate),
+                mViewHolder.navigateButton.getContentDescription());
     }
 }

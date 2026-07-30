@@ -3771,7 +3771,7 @@ CSSValue* ComputedStyleUtils::ValueForShadowData(const ShadowData& shadow,
                                                  CSSValuePhase value_phase) {
   CSSPrimitiveValue* x = ZoomAdjustedPixelValue(shadow.X(), style);
   CSSPrimitiveValue* y = ZoomAdjustedPixelValue(shadow.Y(), style);
-  CSSPrimitiveValue* blur = ZoomAdjustedPixelValue(shadow.Blur(), style);
+  CSSPrimitiveValue* blur = ZoomAdjustedPixelValue(shadow.BlurValue(), style);
   CSSPrimitiveValue* spread =
       use_spread ? ZoomAdjustedPixelValue(shadow.Spread(), style) : nullptr;
   CSSIdentifierValue* shadow_style =
@@ -4054,16 +4054,16 @@ CSSValueList* ComputedStyleUtils::ValuesForGapDecorationRuleInsetShorthand(
   CHECK_EQ(shorthand.length(), 4u);
   CHECK(shorthand.properties()[0]->IDEquals(
       CSSGapDecorationUtils::GetLonghandProperty(
-          direction, CSSGapDecorationPropertyType::kEdgeStartInset)));
+          direction, CSSGapDecorationPropertyType::kEdgeInsetStart)));
   CHECK(shorthand.properties()[1]->IDEquals(
       CSSGapDecorationUtils::GetLonghandProperty(
-          direction, CSSGapDecorationPropertyType::kEdgeEndInset)));
+          direction, CSSGapDecorationPropertyType::kEdgeInsetEnd)));
   CHECK(shorthand.properties()[2]->IDEquals(
       CSSGapDecorationUtils::GetLonghandProperty(
-          direction, CSSGapDecorationPropertyType::kInteriorStartInset)));
+          direction, CSSGapDecorationPropertyType::kInteriorInsetStart)));
   CHECK(shorthand.properties()[3]->IDEquals(
       CSSGapDecorationUtils::GetLonghandProperty(
-          direction, CSSGapDecorationPropertyType::kInteriorEndInset)));
+          direction, CSSGapDecorationPropertyType::kInteriorInsetEnd)));
 
   const CSSValue* rule_edge_start_inset_value =
       shorthand.properties()[0]->CSSValueFromComputedStyle(

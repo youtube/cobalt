@@ -31,6 +31,7 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/scoped_browser_locale.h"
 #include "chrome/test/base/search_test_utils.h"
+#include "components/contextual_tasks/public/features.h"
 #include "components/omnibox/browser/aim_eligibility_service.h"
 #include "components/omnibox/browser/omnibox_prefs.h"
 #include "components/prefs/pref_service.h"
@@ -159,12 +160,12 @@ class AimEligibilityServiceFriend {
       AimEligibilityService* service,
       RequestSource request_source,
       int response_code,
-      bool was_fetched_via_cache,
+      EligibilityRequestStatus request_status,
       int num_retries,
       std::optional<std::string> response_string) {
-    service->ProcessServerEligibilityResponse(
-        request_source, response_code, was_fetched_via_cache, num_retries,
-        std::move(response_string));
+    service->ProcessServerEligibilityResponse(request_source, response_code,
+                                              request_status, num_retries,
+                                              std::move(response_string));
   }
 };
 
@@ -195,8 +196,6 @@ class ChromeAimEligibilityServiceBrowserTest
 
     // Needed for bots with field trial testing configs explicitly disabled.
     enabled_features.push_back(
-        {omnibox::kAimServerEligibilityChangedNotification, {}});
-    enabled_features.push_back(
         {omnibox::kAimServerEligibilityForPrimaryAccountEnabled, {}});
     enabled_features.push_back(
         {omnibox::kAimServerRequestOnStartupEnabled, {}});
@@ -206,6 +205,7 @@ class ChromeAimEligibilityServiceBrowserTest
           {"request_on_primary_account_changes", "false"}}});
     disabled_features.push_back(
         omnibox::kAimStartupRequestDelayedUntilNetworkAvailableEnabled);
+    disabled_features.push_back(contextual_tasks::kContextualTasks);
 
     if (!server_eligibility_enabled) {
       disabled_features.push_back(omnibox::kAimServerEligibilityEnabled);
@@ -625,12 +625,11 @@ class ChromeAimEligibilityServiceStartupRequestBrowserTest
     feature_list_.InitWithFeatures(
         // Enabled features.
         {omnibox::kAimEnabled,
-         omnibox::kAimServerEligibilityChangedNotification,
          omnibox::kAimServerEligibilityEnabled,
          omnibox::kAimServerRequestOnStartupEnabled,
          omnibox::kAimStartupRequestDelayedUntilNetworkAvailableEnabled},
         // Disabled features.
-        {});
+        {contextual_tasks::kContextualTasks});
 
     InProcessBrowserTest::SetUp();
   }
@@ -804,12 +803,11 @@ class ChromeAimEligibilityServiceRetryRequestBrowserTest
     feature_list_.InitWithFeatures(
         // Enabled features.
         {omnibox::kAimEnabled,
-         omnibox::kAimServerEligibilityChangedNotification,
          omnibox::kAimServerEligibilityEnabled,
          omnibox::kAimServerRequestOnStartupEnabled,
          omnibox::kAimServerEligibilityCustomRetryPolicyEnabled},
         // Disabled features.
-        {});
+        {contextual_tasks::kContextualTasks});
 
     InProcessBrowserTest::SetUp();
   }
@@ -934,11 +932,10 @@ class ChromeAimEligibilityServiceCacheBrowserTest
     feature_list_.InitWithFeatures(
         // Enabled features.
         {omnibox::kAimEnabled,
-         omnibox::kAimServerEligibilityChangedNotification,
          omnibox::kAimServerEligibilityEnabled,
          omnibox::kAimServerRequestOnStartupEnabled},
         // Disabled features.
-        {});
+        {contextual_tasks::kContextualTasks});
 
     InProcessBrowserTest::SetUp();
   }
@@ -972,7 +969,8 @@ IN_PROC_BROWSER_TEST_F(ChromeAimEligibilityServiceCacheBrowserTest,
   AimEligibilityServiceFriend aim_eligibility_service_friend;
   aim_eligibility_service_friend.ProcessServerEligibilityResponse(
       service, AimEligibilityServiceFriend::RequestSource::kStartup, 200,
-      /*was_fetched_via_cache=*/true,
+      AimEligibilityServiceFriend::EligibilityRequestStatus::
+          kSuccessBrowserCache,
       /*num_retries=*/0, std::move(response_string));
   service->IsAimEligible();
 
@@ -998,7 +996,8 @@ class ChromeAimEligibilityServiceOffTheRecordBrowserTest
         // Enabled features.
         {omnibox::kAimEnabled},
         // Disabled features.
-        {omnibox::kAimServerEligibilityEnabled});
+        {contextual_tasks::kContextualTasks,
+         omnibox::kAimServerEligibilityEnabled});
     InProcessBrowserTest::SetUp();
   }
 

@@ -22,7 +22,8 @@ import androidx.preference.Preference;
 import androidx.preference.Preference.OnPreferenceClickListener;
 
 import org.chromium.base.supplier.ObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableObservableSupplier;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -79,7 +80,8 @@ public class TrackingProtectionSettings extends PrivacySandboxBaseFragment
 
     private TrackingProtectionDelegate mDelegate;
 
-    private final ObservableSupplierImpl<String> mPageTitle = new ObservableSupplierImpl<>();
+    private final SettableObservableSupplier<String> mPageTitle =
+            ObservableSuppliers.createMonotonic();
 
     @Override
     public void onCreatePreferences(@Nullable Bundle savedInstanceState, @Nullable String rootKey) {
@@ -164,7 +166,7 @@ public class TrackingProtectionSettings extends PrivacySandboxBaseFragment
                 menu.add(Menu.NONE, R.id.menu_id_site_settings_help, Menu.NONE, R.string.menu_help);
         help.setIcon(
                 TraceEventVectorDrawableCompat.create(
-                        getResources(), R.drawable.ic_help_and_feedback, getContext().getTheme()));
+                        getResources(), R.drawable.ic_help_24dp, getContext().getTheme()));
     }
 
     @Override

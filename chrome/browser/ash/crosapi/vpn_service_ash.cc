@@ -12,7 +12,6 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/types/cxx23_to_underlying.h"
 #include "base/uuid.h"
 #include "base/values.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
@@ -79,62 +78,6 @@ void VpnServiceForExtensionAsh::BindReceiverAndObserver(
   observers_.Add(std::move(observer));
 }
 
-void VpnServiceForExtensionAsh::CreateConfiguration(
-    const std::string& configuration_name,
-    CreateConfigurationCallback callback) {
-  if (configuration_name.empty()) {
-    RunFailureCallback(std::move(callback), /*error_name=*/{},
-                       "Empty name not supported.");
-    return;
-  }
-
-  const std::string key = GetKey(extension_id(), configuration_name);
-  if (base::Contains(controller_->key_to_configuration_map_, key)) {
-    RunFailureCallback(std::move(callback), /*error_name=*/{},
-                       "Name not unique.");
-    return;
-  }
-
-  // Since the API is only designed to be used with the primary profile, it's
-  // safe to get the hash of the primary profile here.
-  const ash::NetworkProfile* profile =
-      ash::NetworkHandler::Get()
-          ->network_profile_handler()
-          ->GetProfileForUserhash(ash::ProfileHelper::GetUserIdHashFromProfile(
-              ProfileManager::GetPrimaryUserProfile()));
-  if (!profile) {
-    RunFailureCallback(std::move(callback), /*error_name=*/{},
-                       "No user profile for unshared network configuration.");
-    return;
-  }
-
-  VpnConfiguration* configuration = controller_->CreateConfigurationInternal(
-      extension_id(), configuration_name);
-
-  auto properties =
-      base::Value::Dict()
-          .Set(shill::kTypeProperty, shill::kTypeVPN)
-          .Set(shill::kNameProperty, configuration_name)
-          .Set(shill::kProviderHostProperty, extension_id())
-          .Set(shill::kObjectPathSuffixProperty, key)
-          .Set(shill::kProviderTypeProperty, shill::kProviderThirdPartyVpn)
-          .Set(shill::kProfileProperty, profile->path)
-          .Set(shill::kGuidProperty,
-               base::Uuid::GenerateRandomV4().AsLowercaseString());
-
-  auto [success, failure] = AdaptCallback(std::move(callback));
-  ash::NetworkHandler::Get()
-      ->network_configuration_handler()
-      ->CreateShillConfiguration(
-          std::move(properties),
-          base::BindOnce(
-              &VpnServiceForExtensionAsh::OnCreateConfigurationSuccess,
-              weak_factory_.GetWeakPtr(), std::move(success), configuration),
-          base::BindOnce(
-              &VpnServiceForExtensionAsh::OnCreateConfigurationFailure,
-              weak_factory_.GetWeakPtr(), std::move(failure), configuration));
-}
-
 void VpnServiceForExtensionAsh::DestroyConfiguration(
     const std::string& configuration_name,
     DestroyConfigurationCallback callback) {
@@ -160,7 +103,7 @@ void VpnServiceForExtensionAsh::DestroyConfiguration(
 
   if (active_configuration_ == configuration) {
     configuration->OnPlatformMessage(
-        base::to_underlying(api_vpn::PlatformMessage::kDisconnected));
+        std::to_underlying(api_vpn::PlatformMessage::kDisconnected));
   }
 
   DestroyConfigurationInternal(configuration);
@@ -182,9 +125,9 @@ void VpnServiceForExtensionAsh::DestroyConfiguration(
 void VpnServiceForExtensionAsh::OnConfigurationRemoved(
     const std::string& service_path,
     const std::string& guid) {
-  VpnConfiguration* configuration =
-      base::FindPtrOrNull(service_path_to_configuration_map_, service_path);
-  if (!configuration) {
+  VpnConfiguration* configuration = base::FindPtrOrNull(
+      controller_->service_path_to_configuration_map_, service_path);
+  if (!configuration || configuration->extension_id() != extension_id()) {
     // Ignore removal of a configuration unknown to VPN service, which means
     // the configuration was created internally by the platform or already
     // removed by the extension.
@@ -203,32 +146,17 @@ VpnServiceForExtensionAsh::GetActiveConfigurationObjectPath() const {
   return std::nullopt;
 }
 
-bool VpnServiceForExtensionAsh::HasConfigurationForServicePath(
-    const std::string& service_path) const {
-  return base::Contains(service_path_to_configuration_map_, service_path);
-}
-
 void VpnServiceForExtensionAsh::DestroyAllConfigurations() {
   std::vector<std::string> to_be_destroyed;
   for (const auto& [key, configuration] :
        controller_->key_to_configuration_map_) {
-    to_be_destroyed.push_back(configuration->configuration_name());
+    if (configuration->extension_id() == extension_id()) {
+      to_be_destroyed.push_back(configuration->configuration_name());
+    }
   }
   for (const auto& configuration_name : to_be_destroyed) {
     DestroyConfiguration(configuration_name, base::DoNothing());
   }
-}
-
-void VpnServiceForExtensionAsh::CreateConfigurationWithServicePath(
-    const std::string& configuration_name,
-    const std::string& service_path) {
-  DCHECK(!HasConfigurationForServicePath(service_path));
-  VpnConfiguration* configuration = controller_->CreateConfigurationInternal(
-      extension_id(), configuration_name);
-  configuration->set_service_path(service_path);
-  service_path_to_configuration_map_[service_path] = configuration;
-  ash::ShillThirdPartyVpnDriverClient::Get()->AddShillThirdPartyVpnObserver(
-      configuration->object_path(), configuration);
 }
 
 void VpnServiceForExtensionAsh::DispatchConfigRemovedEvent(
@@ -278,20 +206,8 @@ void VpnServiceForExtensionAsh::DestroyConfigurationInternal(
           configuration->service_path()) {
     ash::ShillThirdPartyVpnDriverClient::Get()
         ->RemoveShillThirdPartyVpnObserver(configuration->object_path());
-    service_path_to_configuration_map_.erase(*service_path);
+    controller_->service_path_to_configuration_map_.erase(*service_path);
   }
-}
-
-void VpnServiceForExtensionAsh::OnCreateConfigurationSuccess(
-    SuccessCallback callback,
-    VpnConfiguration* configuration,
-    const std::string& service_path,
-    const std::string& guid) {
-  configuration->set_service_path(service_path);
-  service_path_to_configuration_map_[service_path] = configuration;
-  ash::ShillThirdPartyVpnDriverClient::Get()->AddShillThirdPartyVpnObserver(
-      configuration->object_path(), configuration);
-  std::move(callback).Run();
 }
 
 void VpnServiceForExtensionAsh::OnCreateConfigurationFailure(
@@ -318,17 +234,7 @@ void VpnServiceForExtensionAsh::SetActiveConfiguration(
   active_configuration_ = configuration;
 }
 
-VpnServiceAsh::VpnServiceAsh() {
-  // Can be false in unit tests.
-  if (!ash::NetworkHandler::IsInitialized()) {
-    return;
-  }
-
-  network_state_handler_observer_.Observe(
-      ash::NetworkHandler::Get()->network_state_handler());
-
-  vpn_providers_observer_ = std::make_unique<ash::VpnProvidersObserver>(this);
-}
+VpnServiceAsh::VpnServiceAsh() = default;
 
 VpnServiceAsh::~VpnServiceAsh() = default;
 
@@ -356,72 +262,13 @@ void VpnServiceAsh::MaybeFailActiveConnectionAndDestroyConfigurations(
   if (std::optional<std::string> object_path =
           service->GetActiveConfigurationObjectPath()) {
     ash::ShillThirdPartyVpnDriverClient::Get()->UpdateConnectionState(
-        *object_path,
-        base::to_underlying(api_vpn::VpnConnectionState::kFailure),
+        *object_path, std::to_underlying(api_vpn::VpnConnectionState::kFailure),
         base::DoNothing(), base::DoNothing());
   }
 
   if (destroy_configurations) {
     service->DestroyAllConfigurations();
   }
-}
-
-void VpnServiceAsh::NetworkListChanged() {
-  ash::NetworkStateHandler::NetworkStateList network_list;
-
-  auto* network_handler = ash::NetworkHandler::Get();
-  network_handler->network_state_handler()->GetVisibleNetworkListByType(
-      ash::NetworkTypePattern::VPN(), &network_list);
-
-  for (auto* network_state : network_list) {
-    network_handler->network_configuration_handler()->GetShillProperties(
-        network_state->path(),
-        base::BindOnce(&VpnServiceAsh::OnGetShillProperties,
-                       weak_factory_.GetWeakPtr()));
-  }
-}
-
-void VpnServiceAsh::OnVpnExtensionsChanged(
-    base::flat_set<std::string> vpn_extensions) {
-  // No changes to the existing set?
-  if (vpn_extensions_ == vpn_extensions) {
-    return;
-  }
-  vpn_extensions_ = std::move(vpn_extensions);
-  NetworkListChanged();
-}
-
-void VpnServiceAsh::OnGetShillProperties(
-    const std::string& service_path,
-    std::optional<base::Value::Dict> configuration_properties) {
-  if (!configuration_properties) {
-    return;
-  }
-  const std::string* vpn_type =
-      configuration_properties->FindStringByDottedPath(
-          shill::kProviderTypeProperty);
-  const std::string* extension_id =
-      configuration_properties->FindStringByDottedPath(
-          shill::kProviderHostProperty);
-  const std::string* type =
-      configuration_properties->FindStringByDottedPath(shill::kTypeProperty);
-  const std::string* configuration_name =
-      configuration_properties->FindStringByDottedPath(shill::kNameProperty);
-  if (!vpn_type || !extension_id || !type || !configuration_name ||
-      *vpn_type != shill::kProviderThirdPartyVpn || *type != shill::kTypeVPN) {
-    return;
-  }
-
-  if (!base::Contains(vpn_extensions_, *extension_id)) {
-    return;
-  }
-
-  auto* service = GetVpnServiceForExtension(*extension_id);
-  if (service->HasConfigurationForServicePath(service_path)) {
-    return;
-  }
-  service->CreateConfigurationWithServicePath(*configuration_name,
-                                              service_path);
 }
 
 VpnServiceForExtensionAsh* VpnServiceAsh::GetVpnServiceForExtension(

@@ -16,6 +16,7 @@
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
+#include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "build/config/linux/dbus/buildflags.h"
 #include "components/headless/test/shared_test_util.h"
@@ -27,6 +28,7 @@
 #include "services/network/public/cpp/network_switches.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/common/features_generated.h"
 #include "third_party/blink/public/common/permissions/permission_utils.h"
 
 namespace headless {
@@ -79,7 +81,7 @@ void HeadlessProtocolBrowserTest::SetUpCommandLine(
                                   "MAP *.test 127.0.0.1");
   HeadlessDevTooledBrowserTest::SetUpCommandLine(command_line);
 
-  test_meta_info_.AppendToCommandLine(*command_line);
+  feature_list_ = test_meta_info_.ProcessCommandLineSwitches(*command_line);
 }
 
 base::Value::Dict HeadlessProtocolBrowserTest::GetPageUrlExtraParams() {
@@ -717,5 +719,8 @@ HEADLESS_PROTOCOL_TEST(WindowWithNewContext,
 
 HEADLESS_PROTOCOL_TEST(SetZoomedWindowBounds,
                        "shared/set-zoomed-window-bounds.js")
+
+HEADLESS_PROTOCOL_TEST(RangeMouseEventAfterNodeRemoval,
+                       "shared/range-mouse-event-after-node-removal.js")
 
 }  // namespace headless

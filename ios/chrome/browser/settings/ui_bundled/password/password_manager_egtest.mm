@@ -1186,7 +1186,8 @@ void OpenPasswordManagerWidgetPromoInstructions() {
 }
 
 // Checks that deleting a password from password details can be cancelled.
-- (void)testCancelDeletionInDetailView {
+// TODO(crbug.com/468309777): This test is flaky.
+- (void)FLAKY_testCancelDeletionInDetailView {
   // Save form to be deleted later.
   SavePasswordFormToProfileStore();
 
@@ -3641,7 +3642,9 @@ void OpenPasswordManagerWidgetPromoInstructions() {
 
 // Checks opening the password manager with a failed reauthentication does not
 // show passwords and closes the Password Manager.
-- (void)testOpenPasswordManagerWithFailedAuth {
+//
+// TODO(crbug.com/468305089): This test is flaky.
+- (void)FLAKY_testOpenPasswordManagerWithFailedAuth {
   [PasswordSettingsAppInterface mockReauthenticationModuleExpectedResult:
                                     ReauthenticationResult::kFailure];
   // Delay the auth result to be able to validate that the passwords are not

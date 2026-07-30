@@ -44,16 +44,19 @@ public class UrlConstantResolver {
     private final Map<String, UrlConstantOverride> mUrlConstantOverrides = new HashMap<>();
     private final Map<String, PreNativeGurlHolder> mPreNativeGurls = new HashMap<>();
 
+    /** Returns the potentially overridden URL for the New Tab Page. */
     public String getNtpUrl() {
-        return getUrlOverrideIfPresent(UrlConstants.NTP_URL);
+        return getUrlOverrideIfPresent(getOriginalNativeNtpUrl());
     }
 
+    /** Returns the potentially overridden URL for the bookmarks page. */
     public String getBookmarksPageUrl() {
-        return getUrlOverrideIfPresent(UrlConstants.BOOKMARKS_NATIVE_URL);
+        return getUrlOverrideIfPresent(getOriginalNativeBookmarksUrl());
     }
 
+    /** Returns the potentially overridden URL for the history page. */
     public String getHistoryPageUrl() {
-        return getUrlOverrideIfPresent(UrlConstants.NATIVE_HISTORY_URL);
+        return getUrlOverrideIfPresent(getOriginalNativeHistoryUrl());
     }
 
     private String getUrlOverrideIfPresent(String url) {
@@ -114,8 +117,38 @@ public class UrlConstantResolver {
      * completion since a hardcoded, serialized string is used.
      */
     public GURL getNtpGurl() {
-        GURL ntpGurl = getPreNativeGurl(UrlConstants.NTP_URL);
+        GURL ntpGurl = getPreNativeGurl(getOriginalNativeNtpUrl());
         assert ntpGurl != null;
         return ntpGurl;
+    }
+
+    /** Returns the native URL for the New Tab Page, ignoring any overrides. */
+    public static String getOriginalNativeNtpUrl() {
+        return UrlConstants.NTP_URL;
+    }
+
+    /** Returns the native URL for the bookmarks page, ignoring any overrides. */
+    public static String getOriginalNativeBookmarksUrl() {
+        return UrlConstants.BOOKMARKS_NATIVE_URL;
+    }
+
+    /** Returns the native URL for the history page, ignoring any overrides. */
+    public static String getOriginalNativeHistoryUrl() {
+        return UrlConstants.NATIVE_HISTORY_URL;
+    }
+
+    /** Returns the non-native URL for the New Tab Page, ignoring any overrides. */
+    public static String getOriginalNonNativeNtpUrl() {
+        return UrlConstants.NTP_NON_NATIVE_URL;
+    }
+
+    /** Returns the non-native URL for the bookmarks page, ignoring any overrides. */
+    public static String getOriginalNonNativeBookmarksUrl() {
+        return UrlConstants.BOOKMARKS_URL;
+    }
+
+    /** Returns the non-native URL for the history page, ignoring any overrides. */
+    public static String getOriginalNonNativeHistoryUrl() {
+        return UrlConstants.HISTORY_URL;
     }
 }

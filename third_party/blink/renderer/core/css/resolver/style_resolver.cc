@@ -499,6 +499,9 @@ void ApplyLengthConversionFlags(StyleResolverState& state) {
   if (flags & static_cast<Flags>(Flag::kSiblingRelative)) {
     builder.SetHasSiblingFunctions();
   }
+  if (flags & static_cast<Flags>(Flag::kElementDependentRandom)) {
+    builder.SetHasElementDependentRandomFunctions();
+  }
 }
 
 void ApplyInertness(StyleResolverState& state) {
@@ -1746,17 +1749,17 @@ void StyleResolver::ApplyBaseStyleNoCache(
           {.origin = CascadeOrigin::kUserAgent});
     }
 
-    // UA rule: * { overlay: none !important }
-    // and
-    // UA rule: ::scroll-marker-group { contain: size !important; }
-    // Implemented here because DCHECKs ensures we don't add universal rules to
-    // the UA sheets. Note that this is a universal rule in any namespace.
-    // Adding this to the html.css would only do the override in the HTML
-    // namespace since the sheet has a default namespace.
-    cascade.MutableMatchResult().AddMatchedProperties(
-        UniversalOverlayUserAgentDeclaration(),
-        /*mixin_parameter_bindings=*/nullptr,
-        {.origin = CascadeOrigin::kUserAgent});
+    if (RuntimeEnabledFeatures::OverlayPropertyEnabled()) {
+      // UA rule: * { overlay: none !important }
+      // Implemented here because DCHECKs ensures we don't add universal rules
+      // to the UA sheets. Note that this is a universal rule in any namespace.
+      // Adding this to the html.css would only do the override in the HTML
+      // namespace since the sheet has a default namespace.
+      cascade.MutableMatchResult().AddMatchedProperties(
+          UniversalOverlayUserAgentDeclaration(),
+          /*mixin_parameter_bindings=*/nullptr,
+          {.origin = CascadeOrigin::kUserAgent});
+    }
 
     // This adds a CSSInitialColorValue to the cascade for the document
     // element. The CSSInitialColorValue will resolve to a color-scheme
@@ -3666,6 +3669,10 @@ void StyleResolver::ApplyTriggerData(StyleResolverState& state) {
     // cleaner solution to this than making an exception here.
     return;
   }
+
+  // TODO(crbug.com/467727342): Move this to a safer location. This function
+  // is called during ResolveStyle which might not correspond to an actual
+  // change in the affected element's style.
   CSSAnimations::UpdateNamedTriggers(
       state.StyleBuilder(), state.AnimationUpdate(), state.GetElement());
 }

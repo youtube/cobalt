@@ -27,6 +27,10 @@ namespace prefs {
 inline constexpr char kSafeBrowsingCsdPingTimestamps[] =
     "safebrowsing.csd_ping_timestamps";
 
+// A list of times at which intelligent scans were sent.
+inline constexpr char kSafeBrowsingCsdIntelligentScanTimestamps[] =
+    "safebrowsing.csd_intelligent_scan_timestamps";
+
 // Boolean that is true when deep scanning is allowed.
 inline constexpr char kSafeBrowsingDeepScanningEnabled[] =
     "safebrowsing.deep_scanning_enabled";
@@ -203,6 +207,12 @@ inline constexpr char kTailoredSecuritySyncFlowObservedOutcomeUnsetTimestamp[] =
 inline constexpr char kAccountTailoredSecurityShownNotification[] =
     "safebrowsing.aesb_shown_notification";
 
+// Whether a profile has been checked as to whether it should be migrated to
+// the enhanced security bundle. The migration checking is triggered by the
+// kMigrateEnhancedSbUserToEnhancedBundle experiment.
+inline constexpr char kBundledSettingsCheckedMigrateUserToEnhancedBundle[] =
+    "safebrowsing.bundled_settings.checked_migrate_user_to_enhanced_bundle";
+
 // A boolean indicating if Enhanced Protection was enabled in sync with
 // account tailored security. This value will only ever be true if Enhanced
 // Protection is enabled and it was enabled through the Tailored Security flow.
@@ -372,7 +382,8 @@ enum PasswordProtectionTrigger {
 //
 // Must be kept in sync with the SafeBrowsingSetting enum located in
 // chrome/browser/resources/settings/privacy_page/security/security_page.ts
-// and chrome/browser/resources/settings/privacy_page/safe_browsing_types.ts
+// and
+// chrome/browser/resources/settings/privacy_page/security/safe_browsing_types.ts
 // LINT.IfChange(SafeBrowsingState)
 enum class SafeBrowsingState {
   // The user is not opted into Safe Browsing.
@@ -385,7 +396,7 @@ enum class SafeBrowsingState {
   kMaxValue = ENHANCED_PROTECTION,
 };
 
-// LINT.ThenChange(/chrome/browser/resources/settings/privacy_page/safe_browsing_types.ts:SafeBrowsingSetting)
+// LINT.ThenChange(/chrome/browser/resources/settings/privacy_page/security/safe_browsing_types.ts:SafeBrowsingSetting)
 
 // Must be kept in sync with the SecuritySettingsBundle enum located in
 // chrome/browser/resources/settings/privacy_page/security/security_page_v2.js.
@@ -402,6 +413,10 @@ enum class SecuritySettingsBundleSetting {
 // settings controlled by the bundle from the bundle defaults.
 SecuritySettingsBundleSetting GetSecurityBundleSetting(
     const PrefService& prefs);
+
+// Set the user's security-settings-bundle.
+void SetSecurityBundleSetting(PrefService& prefs,
+                              SecuritySettingsBundleSetting bundle);
 
 SafeBrowsingState GetSafeBrowsingState(const PrefService& prefs);
 

@@ -18,6 +18,7 @@
 class BrowserWindowInterface;
 class ContextualTasksUI;
 class Profile;
+class TabStripModel;
 
 namespace base {
 class Uuid;
@@ -112,13 +113,13 @@ class ContextualTasksUiService : public KeyedService {
   // loaded in the absence of any other context.
   virtual GURL GetDefaultAiPageUrl();
 
-  // Called when the side panel in a given browser window started showing a new
-  // task. If |task_id| is invalid, the panel is in a zero-state that is waiting
-  // for user to create a new task.
-  virtual void OnTaskChangedInPanel(
-      BrowserWindowInterface* browser_window_interface,
-      content::WebContents* web_contents,
-      const base::Uuid& task_id);
+  // Called when a UI in a given browser window started showing a new task,
+  // either in a full tab or in the side panel. If |task_id| is invalid, the
+  // UI is in a zero-state that is waiting for user to create a new task.
+  virtual void OnTaskChanged(BrowserWindowInterface* browser_window_interface,
+                             content::WebContents* web_contents,
+                             const base::Uuid& task_id,
+                             bool is_shown_in_tab);
 
   // Opens the contextual tasks side panel and creates a new task with the given
   // URL as its initial thread URL.
@@ -132,8 +133,11 @@ class ContextualTasksUiService : public KeyedService {
   // Returns whether the provided URL is to an AI page.
   bool IsAiUrl(const GURL& url);
 
+  // Returns whether the provided URL is to a contextual tasks WebUI page.
+  bool IsContextualTasksUrl(const GURL& url);
+
   // Returns whether the provided URL is for the search results page.
-  bool IsSearchResultsPage(const GURL& url);
+  bool IsValidSearchResultsPage(const GURL& url);
 
   // Associates a WebContents with a task, assuming the URL of the WebContents'
   // main frame or side panel is a contextual task URL.
@@ -172,7 +176,17 @@ class ContextualTasksUiService : public KeyedService {
   // Returns whether the provided URL is for the primary account in Chrome.
   virtual bool IsUrlForPrimaryAccount(const GURL& url);
 
+  // Return whether there is a user is either signed into the browser or has
+  // an account tied to the provided URL.
+  virtual bool IsSignedInToBrowser(const GURL& url);
+
  private:
+  // Focus an existing tab based on the provided URL if it exists. The URLs must
+  // be identical in order for the existing tab to be selected.
+  bool MaybeFocusExistingOpenTab(const GURL& url,
+                                 TabStripModel* tab_strip_model,
+                                 const base::Uuid& task_id);
+
   const raw_ptr<Profile> profile_;
 
   raw_ptr<contextual_tasks::ContextualTasksContextController>

@@ -109,6 +109,7 @@ chrome_java_sources = [
   "java/src/org/chromium/chrome/browser/app/tabmodel/HeadlessTabCreator.java",
   "java/src/org/chromium/chrome/browser/app/tabmodel/HeadlessTabDelegateFactory.java",
   "java/src/org/chromium/chrome/browser/app/tabmodel/HeadlessTabModelOrchestrator.java",
+  "java/src/org/chromium/chrome/browser/app/tabmodel/ModelTrackingOrchestrator.java",
   "java/src/org/chromium/chrome/browser/app/tabmodel/TabGroupSyncDepsProvider.java",
   "java/src/org/chromium/chrome/browser/app/tabmodel/TabModelOrchestrator.java",
   "java/src/org/chromium/chrome/browser/app/tabmodel/TabRestorer.java",
@@ -132,8 +133,6 @@ chrome_java_sources = [
   "java/src/org/chromium/chrome/browser/autofill/CreditCardScanner.java",
   "java/src/org/chromium/chrome/browser/autofill/CreditCardScannerBridge.java",
   "java/src/org/chromium/chrome/browser/autofill/GoogleWalletLauncher.java",
-  "java/src/org/chromium/chrome/browser/autofill/SaveUpdateAddressProfilePrompt.java",
-  "java/src/org/chromium/chrome/browser/autofill/SaveUpdateAddressProfilePromptController.java",
   "java/src/org/chromium/chrome/browser/autofill/WebContentsViewRectProvider.java",
   "java/src/org/chromium/chrome/browser/autofill/iban/AutofillSaveIbanBottomSheetBridge.java",
   "java/src/org/chromium/chrome/browser/autofill/iban/AutofillSaveIbanBottomSheetContent.java",
@@ -810,6 +809,7 @@ chrome_java_sources = [
   "java/src/org/chromium/chrome/browser/ntp/IncognitoDescriptionView.java",
   "java/src/org/chromium/chrome/browser/ntp/IncognitoNewTabPage.java",
   "java/src/org/chromium/chrome/browser/ntp/IncognitoNewTabPageView.java",
+  "java/src/org/chromium/chrome/browser/ntp/IncognitoNtpMetrics.java",
   "java/src/org/chromium/chrome/browser/ntp/IncognitoNtpOmniboxAutofocusManager.java",
   "java/src/org/chromium/chrome/browser/ntp/IncognitoNtpOmniboxAutofocusTracker.java",
   "java/src/org/chromium/chrome/browser/ntp/IncognitoNtpUtils.java",
@@ -1274,6 +1274,7 @@ chrome_java_sources = [
 
 if (enable_screen_capture) {
   chrome_java_sources += [
+    "java/src/org/chromium/chrome/browser/media/MediaCapturePickerDelegate.java",
     "java/src/org/chromium/chrome/browser/media/MediaCapturePickerDialog.java",
     "java/src/org/chromium/chrome/browser/media/MediaCapturePickerHeadlessFragment.java",
     "java/src/org/chromium/chrome/browser/media/MediaCapturePickerInvoker.java",

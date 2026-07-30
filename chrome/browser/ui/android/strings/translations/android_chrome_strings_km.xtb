@@ -114,7 +114,6 @@
 <translation id="1413446866325418126">រក្សាទុក​ទិន្នន័យ​នៅក្នុង​គណនី Google របស់អ្នក</translation>
 <translation id="1414919006379339073">បិទ​វិនដូ​បច្ចុប្បន្ន</translation>
 <translation id="1416550906796893042">កំណែកម្មវិធី</translation>
-<translation id="1419753403124156396">ចាប់ផ្ដើម Chrome ឡើងវិញឬ?</translation>
 <translation id="1428770807407000502">បិទ​សមកាលកម្មឬ?</translation>
 <translation id="1430915738399379752">បោះពុម្ព</translation>
 <translation id="1435593198351412143">បើក PDF ដោយ​ស្វ័យប្រវត្តិ</translation>
@@ -247,10 +246,8 @@
 <translation id="2063047797624276601">ស្ថាប័ន​របស់អ្នក​បានបើក​ការរុករក​ដោយសុវត្ថិភាពបន្ថែម</translation>
 <translation id="2065944887543506430">{FILE_COUNT,plural, =1{ការទាញយក 1 បាន​បរាជ័យ}other{ការទាញយក # បាន​បរាជ័យ}}</translation>
 <translation id="2067805253194386918">អត្ថបទ</translation>
-<translation id="2072027001582274150">ផ្ទាំង​ស្ទួន ឬ​មិនបានប្រើ</translation>
 <translation id="2079545284768500474">ត្រឡប់វិញ</translation>
 <translation id="2082238445998314030">លទ្ធផល <ph name="RESULT_NUMBER" /> នៃ <ph name="TOTAL_RESULTS" /></translation>
-<translation id="2088833076121753253">ដើម្បីបញ្ចប់​ការរៀបចំការបំពេញស្វ័យប្រវត្តិ សូមចាប់ផ្ដើម Chrome ឡើងវិញឥឡូវនេះ។ ផ្ទាំងរបស់អ្នកនឹងបើកឡើងវិញដោយស្វ័យប្រវត្តិ។</translation>
 <translation id="2091863218454846791">បង្ហាញទិដ្ឋភាពចង្អៀតខ្លាំង</translation>
 <translation id="2093731487903423814">15 នាទី​ចុងក្រោយ</translation>
 <translation id="2096577711562668473">ប្ដូរ​សេវាកម្ម​បំពេញ​ស្វ័យប្រវត្តិ​ដែរទេ?</translation>
@@ -428,6 +425,7 @@
 <translation id="2854916915045135148">ចុចឱ្យ​ជាប់ ដើម្បី​ប្ដូរទៅ​មុខងារ​ឯកជន</translation>
 <translation id="2860954141821109167">សូមប្រាកដថា កម្មវិធី​ទូរសព្ទត្រូវបានបើក​នៅលើឧបករណ៍នេះ</translation>
 <translation id="2861923151411510142">មុខងារ Chrome មួយចំនួន​នឹង​មិន​អាច​ប្រើ​បាន​ទៀតទេ</translation>
+<translation id="2869416538780777323">{OTHER_TAB_COUNT,plural, =1{<ph name="URL" /> និង 1 ផ្ទាំង​ផ្សេងទៀត}other{<ph name="URL" /> និង <ph name="TAB_COUNT_MANY" /> ផ្ទាំង​ផ្សេង​ទៀត}}</translation>
 <translation id="2869430948265924908">ដើម្បីការពារ​ខ្លឹមសារ​រសើប​របស់អ្នក​នៅ​ក្នុង​រថយន្ដ អ្នក​ត្រូវ​តែ​បង្កើត​ការចាក់​សោកម្រងព័ត៌មាន​រថយន្ដ។  អ្នក​អាច​ធ្វើ​បែបនេះ​បាន​ដោយប្រើ​កូដ pin, លេខកូដ ឬ​ពាក្យសម្ងាត់។</translation>
 <translation id="2870560284913253234">គេហទំព័រ</translation>
 <translation id="2871733351037274014">ផ្ទុកទំព័រ​ជាមុន</translation>
@@ -446,6 +444,7 @@
 <translation id="2904414404539560095">បានបើក​ពេញអេក្រង់នូវបញ្ជីឧបករណ៍​ដែលត្រូវ​ចែករំលែក​ផ្ទាំងជាមួយ​។</translation>
 <translation id="2908243544703713905">អត្ថបទដែលមិនទាន់អានត្រៀមរួចរាល់ហើយ</translation>
 <translation id="2909615210195135082">Google Notifications Platform</translation>
+<translation id="2912247081180973411">បិទវិនដូ</translation>
 <translation id="2912345083818861431">ប្រើ​ការចាក់សោអេក្រង់ ដើម្បីមើលឃើញ​ផ្ទាំងឯកជនដែលបើក</translation>
 <translation id="2918484639460781603">ចូលទៅកាន់​ការកំណត់</translation>
 <translation id="2920713489113095380"><ph name="TAB_TITLE" />, ផ្ទាំង​ដែលបាន​បិទសំឡេង</translation>
@@ -503,7 +502,6 @@
 <translation id="3159335509547415276">ស្វែងយល់អំពីគណនីដែលត្រូវបានទប់ស្កាត់</translation>
 <translation id="3161699713309727585"><ph name="BUTTON_TEXT" />, បើកក្នុងផ្ទាំងថ្មី</translation>
 <translation id="3166827708714933426">ផ្លូវកាត់ផ្ទាំង និងផ្ទាំងវិនដូ</translation>
-<translation id="316694332262407393">Chrome កំពុងដំណើរការនៅទីនេះហើយ។</translation>
 <translation id="3167258285411721858">អ្នកអាចស្នើសុំគេហទំព័រសម្រាប់​ឧបករណ៍​ចល័តសម្រាប់ <ph name="HOST_NAME" /></translation>
 <translation id="3169472444629675720">Discover</translation>
 <translation id="3181145110929454111"><ph name="TAB_TITLE" />, ផ្ទាំងឯកជន​ដែលបានបិទសំឡេងដែលបាន​ខ្ទាស់ និងបានជ្រើសរើស​ច្រើន</translation>
@@ -851,7 +849,6 @@
 <translation id="468924408576231679">ចម្លង​តំណ​ទៅកាន់​ទំព័របណ្ដាញ <ph name="PAGE_TITLE" />។ ប្រភព៖ <ph name="PAGE_URL" /></translation>
 <translation id="469286762610133730">ទទួលបាន​ខ្លឹមសារ​ប្រសើរ​ជាងមុន</translation>
 <translation id="4695891336199304370">{SHIPPING_OPTIONS,plural, =1{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 និង <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> ទៀត}other{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 និង <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> ទៀត}}</translation>
-<translation id="4698061626562952596">ពិនិត្យមើលផ្ទាំងអសកម្មរបស់អ្នកនៅទីនេះ</translation>
 <translation id="4698757800236023795">សកម្ម (<ph name="ITEM_COUNT" />)</translation>
 <translation id="4699172675775169585">រូបភាព និងឯកសារដែលផ្ទុកក្នុងឃ្លាំងសម្ងាត់</translation>
 <translation id="4710167854527459075">តម្រៀប​តាម​ថ្មីបំផុត</translation>
@@ -950,6 +947,7 @@
 <translation id="5039678609803776426">{TAB_COUNT,plural, =1{<ph name="TAB_COUNT_ONE" /> ផ្ទាំង - <ph name="URL_LIST" />}other{<ph name="TAB_COUNT_MANY" /> ផ្ទាំង - <ph name="URL_LIST" />}}</translation>
 <translation id="5040262127954254034">ឯកជនភាព</translation>
 <translation id="504456571576643789">ចំណុច​ដែលត្រូវ​ពិចារណា</translation>
+<translation id="5052017727857614804">{WINDOW_COUNT,plural, =1{បាន​ជ្រើសរើស​វិនដូ <ph name="WINDOW_COUNT_ONE" />}other{បាន​ជ្រើសរើស​វិនដូ <ph name="WINDOW_COUNT_NORMAL" />}}</translation>
 <translation id="5056587122125565772">បង្កើត​រូបភាព</translation>
 <translation id="506254248375231072">គ្មានផ្ទាំងទេ</translation>
 <translation id="5075939510584558547">រក្សាទុក​ដោយមិន​អ៊ីនគ្រីប</translation>
@@ -966,7 +964,6 @@
 <translation id="5123685120097942451">ផ្ទាំង​អនាមិក</translation>
 <translation id="5142281402488957685">ដើម្បីមើល​អត្ថបទ​ថ្មីៗ សូមទាញចុះ​ក្រោម ដើម្បី​ផ្ទុកឡើងវិញ</translation>
 <translation id="5144385790872094440">ទំព័រមួយចំនួន​ដែលអ្នកចូលមើល​ត្រូវបានផ្ទុកជាមុន។ ទំព័រ​អាចត្រូវបាន​ផ្ទុកជាមុន​តាមរយៈ​ម៉ាស៊ីនមេ Google នៅពេលភ្ជាប់​ពីកម្មវិធី ឬ​គេហទំព័រ Google។</translation>
-<translation id="5145887002054615868">ផ្ទាំងស្ទួន ឬផ្ទាំង​ដែលមិន​បានប្រើ​រយៈពេល <ph name="DAYS_INACTIVE" /> ថ្ងៃ​ត្រូវបាន​ផ្លាស់ទី​មកទីនេះ<ph name="AUTODELETE_SECTION" />។ អ្នក​អាច​ផ្លាស់ប្ដូរ​លក្ខណៈនេះ​នៅពេលណាក៏បាននៅ​ក្នុង<ph name="DECLUTTER_SETTINGS_TITLE" />។</translation>
 <translation id="5152843274749979095">មិន​មាន​ការ​ដំឡើង​កម្មវិធី​ដែលស្គាល់ទេ</translation>
 <translation id="5161254044473106830">ត្រូវមានចំណងជើង</translation>
 <translation id="5161262286013276579">បានបើក​សន្លឹក​បញ្ជាក់​កូដសម្ងាត់</translation>
@@ -1041,6 +1038,7 @@
 <translation id="5469852975082458401">អ្នកអាចរុករក​ទំព័រដោយប្រើ​ទស្សន៍ទ្រនិចអក្សរ។ សូមចុច F7 ដើម្បីបិទ។</translation>
 <translation id="5471273988133666918">មិនអាច​ផ្លាស់ទី​ផ្ទាំង <ph name="TAB_TITLE" /> បានទេ</translation>
 <translation id="548278423535722844">បើកនៅក្នុងកម្មវិធីផែនទី</translation>
+<translation id="5494920125229734069">ជ្រើសរើសទាំងអស់</translation>
 <translation id="549660026907543296">ចូលរួមក្នុងនាមជា <ph name="MEMBER_FULL_NAME" /></translation>
 <translation id="5517326820028369152">សន្លឹក​ខាងក្រោម​សកម្មភាពថ្មីៗ</translation>
 <translation id="5526281268548144413">មិនអាចបិទ​នៅលើ​វិនដូ​ច្រើន​បានទេ</translation>
@@ -1149,6 +1147,7 @@
 <translation id="5958275228015807058">ស្វែងរក​ឯកសារ​ និងទំព័ររបស់អ្នកនៅក្នុង ទាញយក</translation>
 <translation id="5962718611393537961">ចុច​ដើម្បី​លាក់</translation>
 <translation id="5964869237734432770">ឈប់យក​ការពណ៌នា​អំពីរូបភាព</translation>
+<translation id="5972844218283131174">ដកការជ្រើសរើសទាំងអស់</translation>
 <translation id="5975083100439434680">បង្រួម</translation>
 <translation id="5977976211062815271">នៅលើ​ឧបករណ៍​នេះ</translation>
 <translation id="5978661847409534366">{ITEMS_COUNT,plural, =1{1 ទំព័រនៅលើ​បញ្ជីអាន​របស់អ្នក}other{# ទំព័រនៅលើ​បញ្ជីអានរបស់អ្នក}}</translation>
@@ -1721,12 +1720,14 @@
 <translation id="8137562778192957619">អ្នកនឹង​មិនចាំបាច់​ចងចាំ​ពាក្យសម្ងាត់​នេះទេ។ ពាក្យសម្ងាត់នេះ​នឹងត្រូវបានរក្សាទុក​ទៅក្នុងកម្មវិធីគ្រប់គ្រងពាក្យសម្ងាត់។</translation>
 <translation id="8152331954420209374">ចូលទៅកាន់ Lens</translation>
 <translation id="8153206878708357851">បិទ/បើក caret browsing</translation>
+<translation id="8154784523622173959">កំណត់​ផ្ទៃខាងក្រោយ​ទំព័រនេះ​ឱ្យមាន​លក្ខណៈ​ផ្ទាល់ខ្លួន</translation>
 <translation id="8163820386638255770">ដើម្បីប្រើ និងរក្សាទុកពាក្យ​សម្ងាត់នៅក្នុងគណនី Google របស់អ្នក សូមផ្ទៀងផ្ទាត់ថាជាអ្នក</translation>
 <translation id="8175940240143658258">{ARCHIVED_TAB_COUNT,plural, =1{ធាតុ​អសកម្ម (1)}other{ធាតុ​អសកម្ម (#)}}</translation>
 <translation id="8186512483418048923">នៅសល់ឯកសារចំនួន <ph name="FILES" /></translation>
 <translation id="8190358571722158785">នៅសល់ 1 ថ្ងៃទៀត</translation>
 <translation id="8192765420340770300">បានបើក​សន្លឹក​ខាងក្រោម​សម្រាប់​ចូលគណនី​ពេញអេក្រង់</translation>
 <translation id="8193953846147532858"><ph name="BEGIN_LINK" />ឧបករណ៍របស់អ្នក<ph name="END_LINK" /> · <ph name="EMAIL" /></translation>
+<translation id="8201752259339925400">សម្អាត​សំណួរ​ស្វែងរក</translation>
 <translation id="820568752112382238">គេហទំព័រ​ដែលចូលមើល​ញឹកញាប់បំផុត</translation>
 <translation id="8207867836430106322">{NUM_OTHER_MEMBERS,plural, =1{ចូលរួម​ក្រុមផ្ទាំង​ជាមួយ <ph name="OWNER_FIRST_NAME" /> និង <ph name="NUMBER_OF_OTHER_MEMBERS" /> នាក់​ផ្សេងទៀត}other{ចូលរួម​ក្រុមផ្ទាំង​ជាមួយ <ph name="OWNER_FIRST_NAME" /> និង <ph name="NUMBER_OF_OTHER_MEMBERS" /> នាក់​ផ្សេងទៀត}}</translation>
 <translation id="8209050860603202033">បើករូបភាព</translation>

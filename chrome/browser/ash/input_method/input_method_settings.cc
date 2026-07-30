@@ -16,6 +16,7 @@
 #include "chrome/browser/ash/input_method/assistive_prefs.h"
 #include "chrome/browser/ash/input_method/autocorrect_enums.h"
 #include "chrome/browser/ash/input_method/autocorrect_prefs.h"
+#include "chrome/browser/ash/input_method/input_method_settings_consts.h"
 #include "chrome/browser/ash/input_method/japanese/japanese_settings.h"
 #include "chrome/common/pref_names.h"
 #include "components/prefs/scoped_user_pref_update.h"
@@ -29,48 +30,6 @@ namespace mojom = ::ash::ime::mojom;
 
 constexpr std::string_view kJapaneseEngineId = "nacl_mozc_jp";
 constexpr std::string_view kJapaneseUsEngineId = "nacl_mozc_us";
-
-// The values here should be kept in sync with
-// chrome/browser/resources/ash/settings/os_languages_page/input_method_util.js
-// Although these strings look like UI strings, they are the actual internal
-// values stored inside prefs. Therefore, it is important to make sure these
-// strings match the settings page exactly.
-constexpr char kKoreanPrefsLayoutDubeolsik[] = "2 Set / 두벌식";
-constexpr char kKoreanPrefsLayoutDubeolsikOldHangeul[] =
-    "2 Set (Old Hangul) / 두벌식 (옛글)";
-constexpr char kKoreanPrefsLayoutSebeolsik390[] = "3 Set (390) / 세벌식 (390)";
-constexpr char kKoreanPrefsLayoutSebeolsikFinal[] =
-    "3 Set (Final) / 세벌식 (최종)";
-constexpr char kKoreanPrefsLayoutSebeolsikNoShift[] =
-    "3 Set (No Shift) / 세벌식 (순아래)";
-constexpr char kKoreanPrefsLayoutSebeolsikOldHangeul[] =
-    "3 Set (Old Hangul) / 세벌식 (옛글)";
-
-// The values here should be kept in sync with
-// chrome/browser/resources/ash/settings/os_languages_page/input_method_util.js
-constexpr char kPinyinPrefsLayoutUsQwerty[] = "US";
-constexpr char kPinyinPrefsLayoutDvorak[] = "Dvorak";
-constexpr char kPinyinPrefsLayoutColemak[] = "Colemak";
-
-// The values here should be kept in sync with
-// chrome/browser/resources/ash/settings/os_languages_page/input_method_util.js
-constexpr char kZhuyinPrefsLayoutStandard[] = "Default";
-constexpr char kZhuyinPrefsLayoutIbm[] = "IBM";
-constexpr char kZhuyinPrefsLayoutEten[] = "Eten";
-
-// The values here should be kept in sync with
-// chrome/browser/resources/ash/settings/os_languages_page/input_method_util.js
-constexpr char kZhuyinPrefsSelectionKeys1234567890[] = "1234567890";
-constexpr char kZhuyinPrefsSelectionKeysAsdfghjkl[] = "asdfghjkl;";
-constexpr char kZhuyinPrefsSelectionKeysAsdfzxcv89[] = "asdfzxcv89";
-constexpr char kZhuyinPrefsSelectionKeysAsdfjkl789[] = "asdfjkl789";
-constexpr char kZhuyinPrefsSelectionKeys1234Qweras[] = "1234qweras";
-
-// The values here should be kept in sync with
-// chrome/browser/resources/ash/settings/os_languages_page/input_method_util.js
-constexpr char kZhuyinPrefsPageSize10[] = "10";
-constexpr char kZhuyinPrefsPageSize9[] = "9";
-constexpr char kZhuyinPrefsPageSize8[] = "8";
 
 std::string ValueOrEmpty(const std::string* str) {
   return str ? *str : "";
@@ -421,33 +380,6 @@ mojom::InputMethodSettingsPtr CreateSettingsFromPrefs(
   }
 
   return nullptr;
-}
-
-const base::Value* GetLanguageInputMethodSpecificSetting(
-    PrefService& prefs,
-    const std::string& engine_id,
-    const std::string& preference_name) {
-  return prefs.GetDict(::prefs::kLanguageInputMethodSpecificSettings)
-      .FindByDottedPath(base::StrCat({engine_id, ".", preference_name}));
-}
-
-void SetLanguageInputMethodSpecificSetting(PrefService& prefs,
-                                           const std::string& engine_id,
-                                           const base::Value::Dict& values) {
-  // This creates a dictionary where any changes to the dictionary will notify
-  // the prefs service (and its observers).
-  ScopedDictPrefUpdate update(&prefs,
-                              ::prefs::kLanguageInputMethodSpecificSettings);
-
-  // The "update" dictionary contains nested dictionaries of engine_id -> Dict.
-  // This partial dictionary contains all the new updated files set up in the
-  // same schema so it can be merged.
-  base::Value::Dict partial_dict;
-  partial_dict.Set(engine_id, values.Clone());
-
-  // Does a nested dictionary merge to the "update" dictionary. This does not
-  // modify any existing values that are not inside the partial_dict.
-  update->Merge(std::move(partial_dict));
 }
 
 bool IsAutocorrectSupported(const std::string& engine_id) {

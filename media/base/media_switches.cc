@@ -359,6 +359,11 @@ BASE_FEATURE(kPictureInPictureShowWindowAnimation,
 // the favicon and origin.
 BASE_FEATURE(kVideoPipDisplaySmoothnessOptimization,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Forces video Picture-in-Picture windows to be treated as trusted for media
+// playback. Used for debugging.
+BASE_FEATURE(kVideoPipForceTrustedForMediaPlaybackForTesting,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 // Enables user control over muting tab audio from the tab strip.
@@ -975,9 +980,9 @@ BASE_FEATURE(kAutoPictureInPicturePageInfoDetails,
 BASE_FEATURE(kUsePostBodyForUrlProvisionFetcher,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Treats H.264 SEI recovery points with a `recovery_frame_cnt=0` as keyframes.
-BASE_FEATURE(kTreatSEIRecoveryPointAsKeyframe,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+// Causes the AVC parser to additionally parse and indicate when an SEI
+// recovery point with `recovery_frame_cnt=0` has been found.
+BASE_FEATURE(kParseSEIRecoveryPoints, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Whether we should show a setting to disable autoplay policy.
 BASE_FEATURE(kAutoplayDisableSettings, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1264,7 +1269,7 @@ BASE_FEATURE(kUseOutOfProcessVideoDecoding,
 // Use shared image interface to transport video frame resources.
 // TODO(crbug.com/457296322): Enable after fixing issue where SharedImages are
 // missing from the SharedImageManager.
-BASE_FEATURE(kUseSharedImageInOOPVDProcess, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kUseSharedImageInOOPVDProcess, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)

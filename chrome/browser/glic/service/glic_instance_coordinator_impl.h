@@ -32,7 +32,6 @@
 #include "ui/views/widget/widget_observer.h"
 
 class Browser;
-class SkRegion;
 
 namespace tabs {
 class TabInterface;
@@ -46,6 +45,11 @@ namespace contextual_cueing {
 class ContextualCueingService;
 }
 namespace glic {
+
+BASE_FEATURE(kGlicHibernateAllOnMemoryPressure,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_DECLARE_FEATURE(kGlicHibernateOnMemoryUsage);
 
 // An interface to GlicInstanceCoordinatorImpl. Should be used instead of direct
 // access to GlicInstanceCoordinatorImpl to allow for test fakes.
@@ -112,10 +116,10 @@ class GlicInstanceCoordinatorImpl
       content::RenderFrameHost* render_frame_host) override;
   void CloseAndShutdownInstanceWithFrame(
       content::RenderFrameHost* render_frame_host) override;
-
+  void ArchiveInstanceWithFrame(
+      content::RenderFrameHost* render_frame_host) override;
   void AddGlobalStateObserver(StateObserver* observer) override;
   void RemoveGlobalStateObserver(StateObserver* observer) override;
-  void SetDraggableRegion(const SkRegion& draggable_region) override;
 
   bool IsDetached() const override;
   bool IsPanelShowingForBrowser(
@@ -173,6 +177,7 @@ class GlicInstanceCoordinatorImpl
   void CloseFloaty();
 
   void OnMemoryPressure(base::MemoryPressureLevel level) override;
+  void CheckMemoryUsage();
 
   void RemoveInstance(GlicInstanceImpl* instance) override;
 
@@ -201,6 +206,7 @@ class GlicInstanceCoordinatorImpl
 
   base::MemoryPressureListenerRegistration
       memory_pressure_listener_registration_;
+  base::RepeatingTimer memory_monitor_timer_;
 
   bool warming_enabled_ = true;
 

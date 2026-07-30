@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.multiwindow;
 
 import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
+import static org.chromium.chrome.browser.multiwindow.MultiWindowUtils.INVALID_TASK_ID;
 import static org.chromium.chrome.browser.multiwindow.MultiWindowUtils.isRestorableInstance;
 import static org.chromium.chrome.browser.tabwindow.TabWindowManager.INVALID_WINDOW_ID;
 
@@ -54,6 +55,9 @@ import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.incognito.IncognitoUtils;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.InstanceStateObserver;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.NewWindowAppSource;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceState.MultiInstanceStateObserver;
 import org.chromium.chrome.browser.multiwindow.UiUtils.NameWindowDialogSource;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
@@ -93,6 +97,7 @@ import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -227,7 +232,7 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
     @Override
     public void closeInstance(int instanceId) {
         RecordUserAction.record("MobileMenuWindowManagerCloseInstance");
-        closeWindow(instanceId, CloseWindowAppSource.WINDOW_MANAGER);
+        closeWindows(Collections.singletonList(instanceId), CloseWindowAppSource.WINDOW_MANAGER);
     }
 
     @Override
@@ -664,7 +669,7 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
             @InstanceInfo.Type int type = InstanceInfo.Type.OTHER;
             Activity a = getActivityById(i);
             int persistedTaskId = MultiInstancePersistentStore.readTaskId(i);
-            if (a != null) {
+            if (a != null && !a.isFinishing()) {
                 // The task for the activity must match the persisted task.
                 int activityTaskId = a.getTaskId();
                 String error =
@@ -693,7 +698,9 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
             if (ChromeFeatureList.sDisableInstanceLimit.isEnabled()
                     && isOlderThanSixMonths(lastAccessedTime)
                     && type != InstanceInfo.Type.CURRENT) {
-                closeWindow(i, CloseWindowAppSource.RETENTION_PERIOD_EXPIRATION);
+                closeWindows(
+                        Collections.singletonList(i),
+                        CloseWindowAppSource.RETENTION_PERIOD_EXPIRATION);
                 continue;
             }
             result.add(
@@ -764,6 +771,9 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
         // Explicitly specified window ID should be preferred. This comes from user selecting
         // a certain instance on UI when no task is present for it.
         // When out of range, ignore the ID and apply the normal allocation logic below.
+        // TODO(crbug.com/444681038): Block allocation if an activity for this windowId is currently
+        //  finishing. This prevents a race condition where the same ID is assigned to a new
+        //  activity before the previous one is fully destroyed.
         if (windowId >= 0 && instanceId == INVALID_WINDOW_ID) {
             Log.i(TAG_MULTI_INSTANCE, "Existing Instance - selected Id allocated: " + windowId);
             profileType = getProfileType(windowId, isIncognitoIntent);
@@ -1096,6 +1106,16 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
                 : "To filter both ACTIVE and INACTIVE instance types, use"
                         + " PersistedInstanceType.ANY.";
         for (Integer id : allIds) {
+            Activity activity = getActivityById(id);
+            // Since activity destruction is asynchronous and lacks a reliable completion callback.
+            // we will preemptively clean up the TaskId and update lastAccessedTime to ensure
+            // surfaces like the Recent Tabs page receive an accurate list of inactive instances in
+            // real time.
+            if (activity != null && activity.isFinishing()) {
+                MultiInstancePersistentStore.writeLastAccessedTime(id);
+                MultiInstancePersistentStore.removeTaskId(id);
+            }
+
             int persistedTaskId = MultiInstancePersistentStore.readTaskId(id);
 
             // Exclude ids not satisfying requirements.
@@ -1357,46 +1377,64 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
                         openAdjacently,
                         /* addTrustedIntentExtras= */ true,
                         source);
+        MultiInstancePersistentStore.writeMarkedForDeletion(
+                instanceId, /* markedForDeletion= */ false);
         mActivity.startActivity(intent);
     }
 
     @Override
-    public void closeWindow(int instanceId, @CloseWindowAppSource int source) {
-        if (!isUserInitiatedClosure(source)) {
-            removeInstanceInfo(instanceId, source);
-            TabModelSelector selector =
-                    TabWindowManagerSingleton.getInstance().getTabModelSelectorById(instanceId);
-            if (selector != null) {
-                // Commit all already pending tab closures to ensure that any in-flight closures
-                // complete and we don't get back-from-the-dead tabs.
-                selector.commitAllTabClosures();
+    public void closeWindows(List<Integer> instanceIds, @CloseWindowAppSource int source) {
+        for (int instanceId : instanceIds) {
+            boolean shouldPermanentlyDelete = !isUserInitiatedClosure(source);
+            if (shouldPermanentlyDelete) {
+                removeInstanceInfo(instanceId, source);
+                TabModelSelector selector =
+                        TabWindowManagerSingleton.getInstance().getTabModelSelectorById(instanceId);
+                if (selector != null) {
+                    // Commit all already pending tab closures to ensure that any in-flight closures
+                    // complete and we don't get back-from-the-dead tabs.
+                    selector.commitAllTabClosures();
 
-                // Close all tabs as the window is closing. This ensures the tabs are added to the
-                // recent tabs page.
-                //
-                // TODO(crbug.com/40826734): This only works for windows with live activities. It is
-                // non-trivial to add recent tab entries without an active {@link Tab} instance.
-                TabClosureParams params =
-                        TabClosureParams.closeAllTabs().uponExit(true).hideTabGroups(true).build();
-                selector.getModel(true).getTabRemover().closeTabs(params, /* allowDialog= */ false);
-                selector.getModel(false)
-                        .getTabRemover()
-                        .closeTabs(params, /* allowDialog= */ false);
+                    // Close all tabs as the window is closing. This ensures the tabs are added to
+                    // the recent tabs page.
+                    //
+                    // TODO(crbug.com/40826734): This only works for windows with live activities.
+                    // It is non-trivial to add recent tab entries without an active {@link Tab}
+                    // instance.
+                    TabClosureParams params =
+                            TabClosureParams.closeAllTabs()
+                                    .uponExit(true)
+                                    .hideTabGroups(true)
+                                    .build();
+                    selector.getModel(true)
+                            .getTabRemover()
+                            .closeTabs(params, /* allowDialog= */ false);
+                    selector.getModel(false)
+                            .getTabRemover()
+                            .closeTabs(params, /* allowDialog= */ false);
+                }
+                mTabModelOrchestratorSupplier.get().cleanupInstance(instanceId);
+            } else {
+                MultiInstancePersistentStore.writeMarkedForDeletion(
+                        instanceId, /* markedForDeletion= */ true);
+                MultiInstancePersistentStore.writeLastAccessedTime(instanceId);
+                MultiInstancePersistentStore.removeTaskId(instanceId);
             }
-            mTabModelOrchestratorSupplier.get().cleanupInstance(instanceId);
-        } else {
-            MultiInstancePersistentStore.writeMarkedForDeletion(
-                    instanceId, /* markedForDeletion= */ true);
-        }
-        Activity activity = getActivityById(instanceId);
-        if (activity != null) activity.finishAndRemoveTask();
+            Activity activity = getActivityById(instanceId);
+            if (activity != null) {
+                activity.finishAndRemoveTask();
+            }
 
-        if (!isUserInitiatedClosure(source) && mInstanceId != instanceId) {
-            // Initiate synced tab groups cleanup only if the closed instance is not the
-            // current one. If after closure of the current, second to last instance, a
-            // single instance remains, this cleanup will be initiated on activity
-            // startup of that instance.
-            cleanupSyncedTabGroupsIfLastInstance();
+            if (shouldPermanentlyDelete && mInstanceId != instanceId) {
+                // Initiate synced tab groups cleanup only if the closed instance is not the
+                // current one. If after closure of the current, second to last instance, a
+                // single instance remains, this cleanup will be initiated on activity
+                // startup of that instance.
+                cleanupSyncedTabGroupsIfLastInstance();
+            }
+        }
+        for (InstanceStateObserver instanceStateObserver : mInstanceStateObservers) {
+            instanceStateObserver.onInstanceClosed();
         }
     }
 
@@ -1501,12 +1539,19 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
         // more accurate ordering of inactive instances displayed on surfaces like the instance
         // switcher dialog and Recent Tabs.
         removeInvalidInstanceData(/* cleanupApplicationStatus= */ false);
+
+        // TODO:(crbug.com/469786540) Consider removeTaskId here.
         MultiInstancePersistentStore.writeLastAccessedTime(mInstanceId);
+
         if (mInstanceId != INVALID_WINDOW_ID) {
             ApplicationStatus.unregisterActivityStateListener(this);
         }
         if (sState != null) {
-            if (getAllRunningActivities().isEmpty()) {
+            List<Activity> activities = getAllRunningActivities();
+            // We're called before the corresponding activity is actually destroyed, so there should
+            // be at least one running activity.
+            assert !activities.isEmpty();
+            if (activities.size() == 1) {
                 sState.clear();
             } else {
                 sState.removeObserver(mOnMultiInstanceStateChanged);
@@ -1756,7 +1801,9 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
             // ones left so as to close if it is empty.
             if (selector != null && selector.getTotalTabCount() == 0) {
                 Log.i(TAG, "Closing empty Chrome instance as no tabs exist.");
-                closeWindow(instanceId, CloseWindowAppSource.NO_TABS_IN_WINDOW);
+                closeWindows(
+                        Collections.singletonList(instanceId),
+                        CloseWindowAppSource.NO_TABS_IN_WINDOW);
                 return true;
             }
         }

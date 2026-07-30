@@ -23,6 +23,7 @@ import androidx.core.view.WindowInsetsCompat;
 import org.chromium.base.Callback;
 import org.chromium.base.DeviceInfo;
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
@@ -124,7 +125,7 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
     private final ObservableSupplierImpl<Integer> mBrowserControlsOffsetSupplier;
     private final View mToolbarProgressBarContainer;
     private final KeyboardVisibilityDelegate mKeyboardVisibilityDelegate;
-    private final ObservableSupplier<Integer> mKeyboardAccessoryHeightSupplier;
+    private final NonNullObservableSupplier<Integer> mKeyboardAccessoryHeightSupplier;
     private final ObservableSupplier<Integer> mControlContainerTranslationSupplier;
     private final ObservableSupplier<Integer> mControlContainerHeightSupplier;
     private final ObservableSupplier<TopInsetCoordinator> mTopInsetCoordinatorSupplier;
@@ -154,7 +155,7 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
     private int mTopInset;
 
     private final SettableNonNullObservableSupplier<Integer> mCurrentPosition;
-    private final ObservableSupplier<Integer> mKeyboardHeightSupplier;
+    private final NonNullObservableSupplier<Integer> mKeyboardHeightSupplier;
     private final WindowAndroid mWindowAndroid;
     private final int mHairlineHeight;
 
@@ -194,7 +195,7 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
             ObservableSupplier<Boolean> isOmniboxFocusedSupplier,
             ObservableSupplier<Boolean> isFormFieldFocusedSupplier,
             ObservableSupplier<Boolean> isFindInPageShowingSupplier,
-            ObservableSupplier<Integer> keyboardAccessoryHeightSupplier,
+            NonNullObservableSupplier<Integer> keyboardAccessoryHeightSupplier,
             KeyboardVisibilityDelegate keyboardVisibilityDelegate,
             ControlContainer controlContainer,
             ToolbarLayout toolbarLayout,
@@ -208,7 +209,7 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
             Context context,
             SettableNonNullObservableSupplier<Integer> controlsPosition,
             ObservableSupplier<Profile> profileSupplier,
-            ObservableSupplier<Integer> keyboardHeightSupplier,
+            NonNullObservableSupplier<Integer> keyboardHeightSupplier,
             WindowAndroid windowAndroid) {
         mBrowserControlsSizer = browserControlsSizer;
         mIsNtpWithFakeboxShowingSupplier = isNtpWithFakeboxShowingSupplier;
@@ -629,8 +630,11 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
             // the settings UI.
             int positionAndSource = computeToolbarPositionAndSource();
             boolean animate =
-                    positionAndSource == ToolbarPositionAndSource.TOP_LONG_PRESS
-                            || positionAndSource == ToolbarPositionAndSource.BOTTOM_LONG_PRESS;
+                    !isOmniboxFocused
+                            && !ntpShowing
+                            && (positionAndSource == ToolbarPositionAndSource.TOP_LONG_PRESS
+                                    || positionAndSource
+                                            == ToolbarPositionAndSource.BOTTOM_LONG_PRESS);
             if (animate) {
                 return switchingToBottom
                         ? StateTransition.ANIMATE_TO_BOTTOM

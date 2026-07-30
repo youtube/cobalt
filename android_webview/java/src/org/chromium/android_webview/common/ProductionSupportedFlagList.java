@@ -434,6 +434,9 @@ public final class ProductionSupportedFlagList {
                 "Allows creating WebRTC Encoded Transforms without the "
                         + "encodedInsertableStreams RTCPeerConnection Parameter."),
         Flag.baseFeature(
+                "IdbSqliteBackingStoreInMemoryContexts",
+                "Enables the SQLite backing store for in-memory contexts."),
+        Flag.baseFeature(
                 "WebRtcEncodedTransformDirectCallback",
                 "Directly invoke WebRTC Encoded Transform callbacks in a worker."),
         Flag.baseFeature(
@@ -710,7 +713,6 @@ public final class ProductionSupportedFlagList {
                 "DoNotEvictOnAXLocationChange",
                 "When enabled, do not evict the bfcache entry even when AXLocationChange happens."),
         Flag.baseFeature("PassHistogramSharedMemoryOnLaunch"),
-        Flag.baseFeature("PumpFastToSleepAndroid"),
         Flag.baseFeature(
                 BlinkFeatures.NO_THROTTLING_VISIBLE_AGENT,
                 "Do not throttle Javascript timers to 1Hz on hidden cross-origin frames that are"
@@ -1124,6 +1126,13 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 ContentFeatures.ANDROID_PK_AUTOCORRECT_UNDERLINE,
                 "When enabled, physical keyboard autocorrect underline will display"),
+        Flag.baseFeature(
+                ContentFeatures.ANDROID_SPELLING_UNDERLINE_IN_COMPOSITION_MODE,
+                "When enabled, misspelling / grammar underline could be shown when entering"
+                        + " composition mode"),
+        Flag.baseFeature(
+                BaseFeatures.PARTITION_ALLOC_FREE_WITH_SIZE,
+                "Enables PartitionAlloc with the optimization of sized deallocation"),
         // Add new commandline switches and features above. The final entry should have a
         // trailing comma for cleaner diffs.
 

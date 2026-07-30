@@ -429,12 +429,24 @@ chromium-metrics-reviews@google.com.
 
 <enum name="AndroidWebViewRenderProcessGoneResult">
   <int value="0" label="Java Exception thrown inside onRenderProcessGone()"/>
-  <int value="1" label="Renderer crash not handled"/>
-  <int value="2" label="Renderer kill (OOM or update) not handled"/>
-  <int value="3" label="Crash or kill was handled for all WebViews"/>
+  <int value="1" label="Renderer crash not handled (deprecated)"/>
+  <int value="2"
+      label="Renderer kill (OOM or update) not handled (deprecated)"/>
+  <int value="3"
+      label="Crash or kill was handled for all WebViews (deprecated)"/>
   <int value="4" label="Renderer crash was handled for all WebViews"/>
   <int value="5"
       label="Renderer kill (OOM or update) was handled for all WebViews"/>
+  <int value="6"
+      label="Renderer crash not handled (app process visible to user)"/>
+  <int value="7"
+      label="Renderer crash not handled (app process in background)"/>
+  <int value="8"
+      label="Renderer kill (OOM or update) not handled (app process visible
+             to user)"/>
+  <int value="9"
+      label="Renderer kill (OOM or update) not handled (app process in
+             background)"/>
 </enum>
 
 <enum name="AndroidWebViewSafeModeActionName">
@@ -911,6 +923,7 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Window manager"/>
   <int value="2" label="Instance retention period expiration"/>
   <int value="3" label="No tabs in window"/>
+  <int value="4" label="Recent Tabs page"/>
 </enum>
 
 <enum name="ContactsPickerDialogAction">
@@ -1322,6 +1335,7 @@ chromium-metrics-reviews@google.com.
   <int value="64" label="ReloadPage"/>
   <int value="65" label="MultiInstanceCreationLimit"/>
   <int value="66" label="PermissionPromptLoud"/>
+  <int value="67" label="SaveUpdateEntity"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/messages/android/message_enums.h:MessageIdentifier) -->
@@ -1397,6 +1411,9 @@ chromium-metrics-reviews@google.com.
 <enum name="NewWindowAppSource">
   <int value="0" label="Undefined app source."/>
   <int value="1" label="Menu option (eg. app menu, context menu, etc.)"/>
+  <int value="2" label="Window Manager in app menu."/>
+  <int value="3" label="Keyboard shortcut."/>
+  <int value="4" label="Recent Tabs page."/>
 </enum>
 
 <enum name="NightMode">
@@ -2374,6 +2391,15 @@ chromium-metrics-reviews@google.com.
   <int value="12" label="WebView.onFinishTemporaryDetach"/>
   <int value="13" label="WebView.onCheckIsTextEditor"/>
   <int value="14" label="WebView.onWindowFocusChanged"/>
+</enum>
+
+<enum name="WebViewApiCallTracingController">
+<!-- LINT.IfChange(WebViewApiCallTracingController) -->
+
+  <int value="0" label="WebView.TracingStart"/>
+  <int value="1" label="WebView.TracingStartWithMemoryDump"/>
+<!-- LINT.ThenChange(/android_webview/browser/tracing/aw_tracing_controller.h:WebViewApiCallTracingController) -->
+
 </enum>
 
 <enum name="WebViewCallbackType">

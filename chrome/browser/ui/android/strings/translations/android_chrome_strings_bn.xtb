@@ -114,7 +114,6 @@
 <translation id="1413446866325418126">আপনার Google অ্যাকাউন্টে ডেটা সেভ করুন</translation>
 <translation id="1414919006379339073">বর্তমান উইন্ডো বন্ধ করুন</translation>
 <translation id="1416550906796893042">অ্যাপ্লিকেশন ভার্সন</translation>
-<translation id="1419753403124156396">Chrome রিস্টার্ট করতে চান?</translation>
 <translation id="1428770807407000502">সিঙ্ক করা বন্ধ করতে চান?</translation>
 <translation id="1430915738399379752">প্রিন্ট</translation>
 <translation id="1435593198351412143">পিডিএফ অটোমেটিক খোলার সুবিধা</translation>
@@ -247,10 +246,8 @@
 <translation id="2063047797624276601">আপনার সংস্থা উন্নত Safe Browsing চালু করেছে</translation>
 <translation id="2065944887543506430">{FILE_COUNT,plural, =1{১টি ডাউনলোড করা যায়নি}one{#টি ডাউনলোড করা যায়নি}other{#টি ডাউনলোড করা যায়নি}}</translation>
 <translation id="2067805253194386918">টেক্সট</translation>
-<translation id="2072027001582274150">ব্যবহার করা হয়নি বা ডুপ্লিকেট ট্যাব</translation>
 <translation id="2079545284768500474">আগের অবস্থায় ফিরুন</translation>
 <translation id="2082238445998314030"><ph name="TOTAL_RESULTS" /> এর মধ্যে <ph name="RESULT_NUMBER" /> টি ফলাফল</translation>
-<translation id="2088833076121753253">অটোফিল সেট আপ করা সম্পূর্ণ করতে, এখন Chrome রিস্টার্ট করুন। আপনার ট্যাব অটোমেটিক আবার খুলবে।</translation>
 <translation id="2091863218454846791">কম্প্যাক্ট ভিউ দেখানো হচ্ছে</translation>
 <translation id="2093731487903423814">গত ১৫ মিনিটে</translation>
 <translation id="2096577711562668473">অটোফিল পরিষেবা পরিবর্তন করবেন?</translation>
@@ -428,6 +425,7 @@
 <translation id="2854916915045135148">ছদ্মবেশী মোডে পরিবর্তন করতে স্পর্শ করে ধরে রাখুন</translation>
 <translation id="2860954141821109167">এই ডিভাইসে ফোন অ্যাপ চালু করা আছে কিনা দেখে নিন</translation>
 <translation id="2861923151411510142">কিছু Chrome-এর ফিচার আর ব্যবহার করা যাবে না</translation>
+<translation id="2869416538780777323">{OTHER_TAB_COUNT,plural, =1{<ph name="URL" /> এবং অন্য ১টি ট্যাব}one{<ph name="URL" /> এবং অন্য <ph name="TAB_COUNT_MANY" />টি ট্যাব}other{<ph name="URL" /> এবং অন্য <ph name="TAB_COUNT_MANY" />টি ট্যাব}}</translation>
 <translation id="2869430948265924908">গাড়িতে থাকা সংবেদনশীল কন্টেন্টের সুরক্ষা করতে, আপনাকে গাড়ির জন্য প্রোফাইল লক তৈরি করতে হবে।  এর জন্য আপনি পিন, কোড বা পাসওয়ার্ড ব্যবহার করতে পারেন।</translation>
 <translation id="2870560284913253234">সাইট</translation>
 <translation id="2871733351037274014">পৃষ্ঠা প্রিলোড করা</translation>
@@ -446,6 +444,7 @@
 <translation id="2904414404539560095">ট্যাব শেয়ার করা যাবে এমন ডিভাইসের সূচি সম্পূর্ণ স্ক্রিন জুড়ে খোলা হয়েছে।</translation>
 <translation id="2908243544703713905">পড়া হয়নি এমন কন্টেন্ট রেডি আছে</translation>
 <translation id="2909615210195135082">Google বিজ্ঞপ্তি প্ল্যাটফর্ম</translation>
+<translation id="2912247081180973411">উইন্ডো বন্ধ করুন</translation>
 <translation id="2912345083818861431">খোলা 'ছদ্মবেশী' ট্যাব দেখার জন্য স্ক্রিন লক ব্যবহার করুন</translation>
 <translation id="2918484639460781603">সেটিংসে যান</translation>
 <translation id="2920713489113095380"><ph name="TAB_TITLE" />, মিউট করা ট্যাব</translation>
@@ -503,7 +502,6 @@
 <translation id="3159335509547415276">ব্লক করা অ্যাকাউন্ট সম্পর্কে জানুন</translation>
 <translation id="3161699713309727585"><ph name="BUTTON_TEXT" /> নতুন ট্যাবে খোলে</translation>
 <translation id="3166827708714933426">ট্যাব এবং উইন্ডোর শর্টকাটগুলি</translation>
-<translation id="316694332262407393">এখানে আগে থেকেই Chrome চলছে।</translation>
 <translation id="3167258285411721858"><ph name="HOST_NAME" />-এর জন্য আপনি মোবাইল সাইটের অনুরোধ করতে পারেন</translation>
 <translation id="3169472444629675720">আবিষ্কার করুন</translation>
 <translation id="3181145110929454111"><ph name="TAB_TITLE" />, একাধিক বেছে নেওয়া পিন করা ও মিউট করা ছদ্মবেশী ট্যাব</translation>
@@ -851,7 +849,6 @@
 <translation id="468924408576231679"><ph name="PAGE_TITLE" /> ওয়েবপেজে লিঙ্ক কপি করুন। সোর্স: <ph name="PAGE_URL" /></translation>
 <translation id="469286762610133730">আরও ভালো কন্টেন্ট পান</translation>
 <translation id="4695891336199304370">{SHIPPING_OPTIONS,plural, =1{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 এবং <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> আরও অনেক}one{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 এবং <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> আরও অনেক}other{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 এবং <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> আরও অনেক}}</translation>
-<translation id="4698061626562952596">এখানে আপনার ইনঅ্যাক্টিভ ট্যাবের পর্যালোচনা করুন</translation>
 <translation id="4698757800236023795">চালু আছে (<ph name="ITEM_COUNT" />)</translation>
 <translation id="4699172675775169585">ক্যাশে করা ছবি এবং ফাইলগুলি</translation>
 <translation id="4710167854527459075">নতুন অনুযায়ী সাজান</translation>
@@ -950,6 +947,7 @@
 <translation id="5039678609803776426">{TAB_COUNT,plural, =1{<ph name="TAB_COUNT_ONE" />টি ট্যাব - <ph name="URL_LIST" />}one{<ph name="TAB_COUNT_MANY" />টি ট্যাব - <ph name="URL_LIST" />}other{<ph name="TAB_COUNT_MANY" />টি ট্যাব - <ph name="URL_LIST" />}}</translation>
 <translation id="5040262127954254034">গোপনীয়তা</translation>
 <translation id="504456571576643789">যা যা দেখে নেওয়া প্রয়োজন</translation>
+<translation id="5052017727857614804">{WINDOW_COUNT,plural, =1{<ph name="WINDOW_COUNT_ONE" />টি উইন্ডো বেছে নেওয়া হয়েছে}one{<ph name="WINDOW_COUNT_NORMAL" />টি উইন্ডো বেছে নেওয়া হয়েছে}other{<ph name="WINDOW_COUNT_NORMAL" />টি উইন্ডো বেছে নেওয়া হয়েছে}}</translation>
 <translation id="5056587122125565772">ছবি তৈরি করুন</translation>
 <translation id="506254248375231072">কোনও ট্যাব নেই</translation>
 <translation id="5075939510584558547">এনক্রিপশন না করে সেভ করুন</translation>
@@ -966,7 +964,6 @@
 <translation id="5123685120097942451">ছদ্মবেশী ট্যাব</translation>
 <translation id="5142281402488957685">নতুন খবরের জন্য, রিফ্রেশ করতে নিচের দিকে সোয়াইপ করুন</translation>
 <translation id="5144385790872094440">আপনি যেসব পৃষ্ঠা দেখেন সেগুলির মধ্যে কয়েকটি প্রিলোড করা হয়েছে। Google সাইট বা অ্যাপের সাথে লিঙ্ক করা হলে, Google সার্ভারের মাধ্যমে পৃষ্ঠা প্রিলোড করা হতে পারে।</translation>
-<translation id="5145887002054615868">ডুপ্লিকেট ট্যাব অথবা <ph name="DAYS_INACTIVE" /> দিন ধরে ব্যবহার করা হয়নি এমন ট্যাব এখানে সরানো হয়েছে<ph name="AUTODELETE_SECTION" />। আপনি যেকোনও সময় <ph name="DECLUTTER_SETTINGS_TITLE" /> থেকে এটি পরিবর্তন করতে পারবেন।</translation>
 <translation id="5152843274749979095">কোনো সমর্থিত অ্যাপ্লিকেশান ইনস্টল করা নেই</translation>
 <translation id="5161254044473106830">শিরোনাম প্রয়োজন</translation>
 <translation id="5161262286013276579">পাসকী কনফার্মেশন শিট খোলা হয়েছে</translation>
@@ -1041,6 +1038,7 @@
 <translation id="5469852975082458401">টেক্সট কার্সরের মাধ্যমে আপনি একটি পৃষ্ঠা থেকে অন্য পৃষ্ঠাতে নেভিগেট করতে পারবেন। ক্যারেট ব্রাউজিং বন্ধ করার জন্য F7 শর্টকাট প্রেস করুন।</translation>
 <translation id="5471273988133666918"><ph name="TAB_TITLE" /> ট্যাব সরানো যাবে না</translation>
 <translation id="548278423535722844">ম্যাপ অ্যাপ্লিকেশানে খুলুন</translation>
+<translation id="5494920125229734069">সকল বেছে নিন</translation>
 <translation id="549660026907543296"><ph name="MEMBER_FULL_NAME" /> হিসেবে যোগ দিন</translation>
 <translation id="5517326820028369152">সাম্প্রতিক কার্যকলাপের স্ক্রিনের নিচে অ্যাটাচ করা শিট</translation>
 <translation id="5526281268548144413">একাধিক উইন্ডো জুড়ে ট্যাব বন্ধ করা যাবে না</translation>
@@ -1149,6 +1147,7 @@
 <translation id="5958275228015807058">ডাউনলোড ফোল্ডার থেকে আপনার সমস্ত ফাইল ও পৃষ্ঠাগুলি খুঁজে নিন</translation>
 <translation id="5962718611393537961">সঙ্কুচিত করতে আলতো চাপুন</translation>
 <translation id="5964869237734432770">ছবির বিবরণ বন্ধ করুন</translation>
+<translation id="5972844218283131174">সবগুলি অনির্বাচন করুন</translation>
 <translation id="5975083100439434680">ছোট করুন</translation>
 <translation id="5977976211062815271">এই ডিভাইসে</translation>
 <translation id="5978661847409534366">{ITEMS_COUNT,plural, =1{আপনার পড়ার তালিকায় ১টি পৃষ্ঠা রয়েছে}one{আপনার পড়ার তালিকায় #টি পৃষ্ঠা রয়েছে}other{আপনার পড়ার তালিকায় #টি পৃষ্ঠা রয়েছে}}</translation>
@@ -1721,12 +1720,14 @@
 <translation id="8137562778192957619">আপনাকে এই পাসওয়ার্ড মনে রাখতে হবে না। এটি Google Password Manager-এ সেভ হয়ে যাবে।</translation>
 <translation id="8152331954420209374">Lens-এ যান</translation>
 <translation id="8153206878708357851">ক্যারেট ব্রাউজিং টগল করুন</translation>
+<translation id="8154784523622173959">এই পৃষ্ঠার ব্যাকগ্রাউন্ড পছন্দমতো সাজান</translation>
 <translation id="8163820386638255770">আপনার Google অ্যাকাউন্টের পাসওয়ার্ড সেভ ও ব্যবহার করতে, আপনার পরিচয় যাচাই করুন</translation>
 <translation id="8175940240143658258">{ARCHIVED_TAB_COUNT,plural, =1{(১টি) ইনঅ্যাক্টিভ আইটেম}one{(#টি) ইনঅ্যাক্টিভ আইটেম}other{(#টি) ইনঅ্যাক্টিভ আইটেম}}</translation>
 <translation id="8186512483418048923"><ph name="FILES" />টি ফাইল বাকি</translation>
 <translation id="8190358571722158785">১ দিন বাকি আছে</translation>
 <translation id="8192765420340770300">সাইন-ইন করার জন্য স্ক্রিনের নিচে অ্যাটাচ করা শিট সম্পূর্ণ স্ক্রিন জুড়ে খুলেছে</translation>
 <translation id="8193953846147532858"><ph name="BEGIN_LINK" />আপনার ডিভাইস<ph name="END_LINK" /> · <ph name="EMAIL" /></translation>
+<translation id="8201752259339925400">সার্চ কোয়েরি মুছুন</translation>
 <translation id="820568752112382238">সবচেয়ে বেশিবার দেখা সাইট</translation>
 <translation id="8207867836430106322">{NUM_OTHER_MEMBERS,plural, =1{<ph name="OWNER_FIRST_NAME" /> এবং অন্য <ph name="NUMBER_OF_OTHER_MEMBERS" /> জনের সাথে ট্যাব গ্রুপে যোগ দিন}one{<ph name="OWNER_FIRST_NAME" /> এবং অন্য <ph name="NUMBER_OF_OTHER_MEMBERS" /> জনের সাথে ট্যাব গ্রুপে যোগ দিন}other{<ph name="OWNER_FIRST_NAME" /> এবং অন্য <ph name="NUMBER_OF_OTHER_MEMBERS" /> জনের সাথে ট্যাব গ্রুপে যোগ দিন}}</translation>
 <translation id="8209050860603202033">ছবি খুলুন</translation>

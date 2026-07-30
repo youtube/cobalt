@@ -25,14 +25,12 @@
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/content_settings_pattern.h"
 #include "components/content_settings/core/common/content_settings_utils.h"
-#include "components/content_settings/core/common/cookie_blocking_3pcd_status.h"
 #include "components/content_settings/core/common/cookie_controls_enforcement.h"
 #include "components/content_settings/core/common/cookie_controls_state.h"
 #include "components/content_settings/core/common/features.h"
 #include "components/content_settings/core/common/pref_names.h"
 #include "components/content_settings/core/common/third_party_site_data_access_type.h"
 #include "components/prefs/pref_service.h"
-#include "components/privacy_sandbox/tracking_protection_settings.h"
 #include "components/site_engagement/content/site_engagement_service.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
@@ -122,25 +120,19 @@ CookieControlsController::CookieControlsController(
     scoped_refptr<CookieSettings> cookie_settings,
     scoped_refptr<CookieSettings> original_cookie_settings,
     HostContentSettingsMap* settings_map,
-    privacy_sandbox::TrackingProtectionSettings* tracking_protection_settings,
     bool is_incognito_profile)
     : cookie_settings_(cookie_settings),
       original_cookie_settings_(original_cookie_settings),
-      settings_map_(settings_map),
-      tracking_protection_settings_(tracking_protection_settings) {
+      settings_map_(settings_map) {
   CHECK(cookie_settings_);
-  CHECK(tracking_protection_settings_);
   cookie_observation_.Observe(cookie_settings_.get());
 }
 
-CookieControlsController::Status::Status(
-    CookieControlsState controls_state,
-    CookieControlsEnforcement enforcement,
-    CookieBlocking3pcdStatus blocking_status,
-    base::Time expiration)
+CookieControlsController::Status::Status(CookieControlsState controls_state,
+                                         CookieControlsEnforcement enforcement,
+                                         base::Time expiration)
     : controls_state(controls_state),
       enforcement(enforcement),
-      blocking_status(blocking_status),
       expiration(expiration) {}
 CookieControlsController::Status::~Status() = default;
 
@@ -171,10 +163,9 @@ void CookieControlsController::Update(content::WebContents* web_contents) {
       ShouldHighlightUserBypass(status.controls_state);
   for (auto& observer : observers_) {
     observer.OnStatusChanged(status.controls_state, status.enforcement,
-                             status.blocking_status, status.expiration);
+                             status.expiration);
     observer.OnCookieControlsIconStatusChanged(
-        icon_visible, status.controls_state, status.blocking_status,
-        should_highlight);
+        icon_visible, status.controls_state, should_highlight);
   }
 }
 
@@ -182,32 +173,21 @@ CookieControlsController::Status CookieControlsController::GetStatus(
     content::WebContents* web_contents) {
   if (!cookie_settings_->ShouldBlockThirdPartyCookies()) {
     return {CookieControlsState::kHidden,
-            CookieControlsEnforcement::kNoEnforcement,
-            CookieBlocking3pcdStatus::kNotIn3pcd, base::Time()};
+            CookieControlsEnforcement::kNoEnforcement, base::Time()};
   }
 
   const GURL& url = web_contents->GetLastCommittedURL();
   if (url.SchemeIs(content::kChromeUIScheme) ||
       url.SchemeIs(kExtensionScheme)) {
     return {CookieControlsState::kHidden,
-            CookieControlsEnforcement::kNoEnforcement,
-            CookieBlocking3pcdStatus::kNotIn3pcd, base::Time()};
-  }
-
-  auto blocking_status = CookieBlocking3pcdStatus::kNotIn3pcd;
-  if (tracking_protection_settings_->IsTrackingProtection3pcdEnabled()) {
-    blocking_status =
-        tracking_protection_settings_->AreAllThirdPartyCookiesBlocked()
-            ? CookieBlocking3pcdStatus::kAll
-            : CookieBlocking3pcdStatus::kLimited;
+            CookieControlsEnforcement::kNoEnforcement, base::Time()};
   }
 
   SettingInfo info;
   bool cookies_allowed =
       cookie_settings_->IsThirdPartyAccessAllowed(url, &info);
   CookieControlsEnforcement enforcement =
-      GetEnforcementForThirdPartyCookieBlocking(blocking_status, url, info,
-                                                cookies_allowed);
+      GetEnforcementForThirdPartyCookieBlocking(url, info, cookies_allowed);
 
   CookieControlsState controls_state;
   if (enforcement == CookieControlsEnforcement::kEnforcedByTpcdGrant) {
@@ -217,13 +197,11 @@ CookieControlsController::Status CookieControlsController::GetStatus(
                                      : CookieControlsState::kBlocked3pc;
   }
 
-  return {controls_state, enforcement, blocking_status,
-          info.metadata.expiration()};
+  return {controls_state, enforcement, info.metadata.expiration()};
 }
 
 CookieControlsEnforcement
 CookieControlsController::GetEnforcementForThirdPartyCookieBlocking(
-    CookieBlocking3pcdStatus status,
     const GURL url,
     const SettingInfo& info,
     bool cookies_allowed) {
@@ -250,10 +228,7 @@ CookieControlsController::GetEnforcementForThirdPartyCookieBlocking(
         original_info.secondary_pattern != ContentSettingsPattern::Wildcard();
   }
 
-  if (info.source == SettingSource::kTpcdGrant &&
-      status == CookieBlocking3pcdStatus::kLimited) {
-    return CookieControlsEnforcement::kEnforcedByTpcdGrant;
-  } else if (info.source == SettingSource::kPolicy) {
+  if (info.source == SettingSource::kPolicy) {
     return CookieControlsEnforcement::kEnforcedByPolicy;
   } else if (info.source == SettingSource::kExtension) {
     return CookieControlsEnforcement::kEnforcedByExtension;
@@ -375,8 +350,7 @@ void CookieControlsController::UpdateUserBypass() {
       ShouldHighlightUserBypass(status.controls_state);
   for (auto& observer : observers_) {
     observer.OnCookieControlsIconStatusChanged(
-        icon_visible, status.controls_state, status.blocking_status,
-        should_highlight);
+        icon_visible, status.controls_state, should_highlight);
   }
 }
 
@@ -476,15 +450,9 @@ void CookieControlsController::RecordActivationMetrics() {
   const GURL& url = GetWebContents()->GetLastCommittedURL();
 
   // Metrics, related to confidence signals:
-  base::UmaHistogramBoolean(
-      "Privacy.CookieControlsActivated.SaaRequested",
-      cookie_settings_->HasAnyFrameRequestedStorageAccess(url));
   base::UmaHistogramCounts100(
       "Privacy.CookieControlsActivated.PageRefreshCount",
       recent_reloads_count_);
-  base::UmaHistogramExactLinear(
-      "Privacy.CookieControlsActivated.SiteEngagementScore",
-      GetSiteEngagementScore(), 100);
 
   auto site_data_access_type =
       GetSiteDataAccessType(GetAllowedThirdPartyCookiesSitesCount(),

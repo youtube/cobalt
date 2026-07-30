@@ -46,7 +46,6 @@
 #include "chrome/browser/devtools/features.h"
 #include "chrome/browser/devtools/url_constants.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
-#include "chrome/browser/privacy_sandbox/tracking_protection_settings_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_avatar_icon_util.h"
 #include "chrome/browser/search/search.h"
@@ -71,7 +70,6 @@
 #include "components/policy/core/common/policy_service.h"
 #include "components/policy/policy_constants.h"
 #include "components/prefs/scoped_user_pref_update.h"
-#include "components/privacy_sandbox/tracking_protection_settings.h"
 #include "components/search_engines/util.h"
 #include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/account_info.h"
@@ -1737,7 +1735,6 @@ void DevToolsUIBindings::GetHostConfig(DispatchCallback callback) {
     base::Value::Dict freestyler_dict;
     freestyler_dict.Set("enabled", base::FeatureList::IsEnabled(
                                        ::features::kDevToolsFreestyler));
-    freestyler_dict.Set("featureName", ::features::kDevToolsFreestyler.name);
     freestyler_dict.Set("modelId", features::kDevToolsFreestylerModelId.Get());
     freestyler_dict.Set("temperature",
                         features::kDevToolsFreestylerTemperature.Get());
@@ -1765,8 +1762,6 @@ void DevToolsUIBindings::GetHostConfig(DispatchCallback callback) {
     network_agent_dict.Set("enabled",
                            base::FeatureList::IsEnabled(
                                ::features::kDevToolsAiAssistanceNetworkAgent));
-    network_agent_dict.Set("featureName",
-                           ::features::kDevToolsAiAssistanceNetworkAgent.name);
     network_agent_dict.Set(
         "modelId", features::kDevToolsAiAssistanceNetworkAgentModelId.Get());
     network_agent_dict.Set(
@@ -1786,8 +1781,6 @@ void DevToolsUIBindings::GetHostConfig(DispatchCallback callback) {
     ai_assistance_performance_agent_dict.Set(
         "enabled", base::FeatureList::IsEnabled(
                        ::features::kDevToolsAiAssistancePerformanceAgent));
-    ai_assistance_performance_agent_dict.Set(
-        "featureName", ::features::kDevToolsAiAssistancePerformanceAgent.name);
     ai_assistance_performance_agent_dict.Set(
         "modelId",
         features::kDevToolsAiAssistancePerformanceAgentModelId.Get());
@@ -1811,8 +1804,6 @@ void DevToolsUIBindings::GetHostConfig(DispatchCallback callback) {
     ai_assistance_file_agent_dict.Set(
         "enabled", base::FeatureList::IsEnabled(
                        ::features::kDevToolsAiAssistanceFileAgent));
-    ai_assistance_file_agent_dict.Set("featureName",
-                                       ::features::kDevToolsAiAssistanceFileAgent.name);
     ai_assistance_file_agent_dict.Set(
         "modelId", features::kDevToolsAiAssistanceFileAgentModelId.Get());
     ai_assistance_file_agent_dict.Set(
@@ -1891,8 +1882,8 @@ void DevToolsUIBindings::GetHostConfig(DispatchCallback callback) {
     base::Value::Dict third_party_cookie_controls_dict;
     third_party_cookie_controls_dict.Set(
         "thirdPartyCookieRestrictionEnabled",
-        TrackingProtectionSettingsFactory::GetForProfile(profile())
-            ->IsTrackingProtection3pcdEnabled());
+        base::FeatureList::IsEnabled(
+            content_settings::features::kTrackingProtection3pcd));
 
     third_party_cookie_controls_dict.Set(
         "thirdPartyCookieMetadataEnabled",
@@ -1974,22 +1965,6 @@ void DevToolsUIBindings::GetHostConfig(DispatchCallback callback) {
       "verticalDrawerEnabled",
       base::FeatureList::IsEnabled(::features::kDevToolsVerticalDrawer));
   response_dict.Set("devToolsFlexibleLayout", std::move(flexible_layout_dict));
-
-  base::Value::Dict ai_submenu_prompts_dict;
-  ai_submenu_prompts_dict.Set(
-      "enabled", base::FeatureList::IsEnabled(
-                     ::features::kDevToolsAiSubmenuPrompts));
-  ai_submenu_prompts_dict.Set("featureName",
-                              ::features::kDevToolsAiSubmenuPrompts.name);
-  response_dict.Set("devToolsAiSubmenuPrompts",
-                    std::move(ai_submenu_prompts_dict));
-
-  base::Value::Dict ai_debug_with_ai_dict;
-  ai_debug_with_ai_dict.Set("enabled", base::FeatureList::IsEnabled(
-                                           ::features::kDevToolsAiDebugWithAi));
-  ai_debug_with_ai_dict.Set("featureName",
-                            ::features::kDevToolsAiDebugWithAi.name);
-  response_dict.Set("devToolsAiDebugWithAi", std::move(ai_debug_with_ai_dict));
 
   if (base::FeatureList::IsEnabled(::features::kDevToolsGlobalAiButton)) {
     base::Value::Dict global_ai_button_dict;

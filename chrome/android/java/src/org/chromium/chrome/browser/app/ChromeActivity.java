@@ -212,6 +212,7 @@ import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTaskTrackerFac
 import org.chromium.chrome.browser.ui.device_lock.MissingDeviceLockLauncher;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
+import org.chromium.chrome.browser.ui.extensions.windowing.ExtensionWindowControllerBridge;
 import org.chromium.chrome.browser.ui.extensions.windowing.ExtensionWindowControllerBridgeFactory;
 import org.chromium.chrome.browser.ui.messages.snackbar.Snackbar;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
@@ -261,7 +262,7 @@ import org.chromium.printing.PrintingController;
 import org.chromium.printing.PrintingControllerImpl;
 import org.chromium.ui.UiUtils;
 import org.chromium.ui.base.ActivityWindowAndroid;
-import org.chromium.ui.base.ApplicationViewportInsetSupplier;
+import org.chromium.ui.base.ApplicationViewportInsetTracker;
 import org.chromium.ui.base.Clipboard;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.PageTransition;
@@ -373,8 +374,8 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
 
     private TabModelOrchestrator mTabModelOrchestrator;
     private TabModelSelectorTabObserver mTabModelSelectorTabObserver;
-    private ObservableSupplierImpl<TabContentManager> mTabContentManagerSupplier =
-            new ObservableSupplierImpl<>();
+    private SettableObservableSupplier<TabContentManager> mTabContentManagerSupplier =
+            ObservableSuppliers.createMonotonic();
     private TabContentManager mTabContentManager;
 
     private UmaActivityObserver mUmaActivityObserver;
@@ -693,7 +694,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
 
             mBottomContainer.initialize(
                     getBrowserControlsManager(),
-                    getWindowAndroid().getApplicationBottomInsetSupplier(),
+                    getWindowAndroid().getApplicationBottomInsetTracker().getSupplier(),
                     getEdgeToEdgeSupplier());
 
             ShareDelegate shareDelegate =
@@ -1071,11 +1072,9 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
                             pendingId);
 
             // 2. Add windowing features.
-            ChromeAndroidTaskFeature extensionWindowControllerBridge =
-                    ExtensionWindowControllerBridgeFactory.create(chromeAndroidTask);
-            if (extensionWindowControllerBridge != null) {
-                chromeAndroidTask.addFeature(extensionWindowControllerBridge);
-            }
+            chromeAndroidTask.addFeature(
+                    ExtensionWindowControllerBridge.class,
+                    () -> ExtensionWindowControllerBridgeFactory.create(chromeAndroidTask));
 
             // 3. Make the ChromeAndroidTask available via OneshotSupplier.
             mChromeAndroidTaskSupplier.set(chromeAndroidTask);
@@ -1914,7 +1913,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
                 new ModalDialogManager(
                         new AppModalPresenter(this),
                         ModalDialogManager.ModalDialogType.APP,
-                        getEdgeToEdgeStateProvider(),
+                        getEdgeToEdgeStateProvider().getSupplier(),
                         EdgeToEdgeUtils.isEdgeToEdgeEverywhereEnabled());
         return dialogManager;
     }
@@ -2327,8 +2326,8 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         compositorViewHolder.setBrowserControlsManager(mBrowserControlsManagerSupplier.get());
         compositorViewHolder.setUrlBar(urlBar);
 
-        ApplicationViewportInsetSupplier insetSupplier =
-                getWindowAndroid().getApplicationBottomInsetSupplier();
+        ApplicationViewportInsetTracker insetSupplier =
+                getWindowAndroid().getApplicationBottomInsetTracker();
         insetSupplier.setKeyboardInsetSupplier(getInsetObserver().getSupplierForKeyboardInset());
         insetSupplier.setKeyboardAccessoryInsetSupplier(
                 mManualFillingComponentSupplier.get().getBottomInsetSupplier());
@@ -2444,12 +2443,13 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     }
 
     /**
-     * Called by the system when the activity changes from fullscreen mode to multi-window mode
-     * and visa-versa.
+     * Called by the system when the activity changes from fullscreen mode to multi-window mode and
+     * visa-versa.
+     *
      * @param isInMultiWindowMode True if the activity is in multi-window mode.
      */
     @Override
-    public void onMultiWindowModeChanged(boolean isInMultiWindowMode) {
+    public void handleMultiWindowModeChanged(boolean isInMultiWindowMode) {
         // If native is not initialized, the multi-window user action will be recorded in
         // #onDeferredStartupForMultiWindowMode() and CachedFeatureFlags#setIsInMultiWindowMode()
         // will be called in #onResumeWithNative(). Both of these methods require native to be
@@ -2474,7 +2474,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
                         MultiWindowUtils.getInstance().isInMultiWindowMode(this));
             }
         }
-        super.onMultiWindowModeChanged(isInMultiWindowMode);
+        super.handleMultiWindowModeChanged(isInMultiWindowMode);
     }
 
     /**

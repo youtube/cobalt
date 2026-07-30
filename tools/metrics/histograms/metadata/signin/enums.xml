@@ -797,6 +797,8 @@ chromium-metrics-reviews@google.com.
   <int value="82" label="Ash Drive Integration"/>
   <int value="83" label="Ash Boca Classroom Page Handler"/>
   <int value="84" label="Ash Scanner Keyed Service"/>
+  <int value="85" label="Autotest Private Api"/>
+  <int value="86" label="Sync Device Statistics Metrics"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/signin/public/base/oauth_consumer_id.h:OAuthConsumerId) -->
@@ -1280,7 +1282,7 @@ chromium-metrics-reviews@google.com.
   </int>
   <int value="26" label="User tapped on undo right after signin">
     User tapped on the 'Undo' button in a snackbar shown right after signin
-    through promo in bookmarks and reading list page.
+    through promo in bookmarks and reading list page. (iOS only).
   </int>
   <int value="27" label="User declined history sync after dedicated sign-in">
     User has signed-in previously for the sole purpose of enabling history sync
@@ -1356,6 +1358,21 @@ chromium-metrics-reviews@google.com.
     The user was signed out because they were a DICe user and they didn't accept
     or see the migration dialog.
   </int>
+  <int value="42"
+      label="User tapped on undo right after signin through bookmarks promo">
+    User tapped on the 'Undo' button in a snackbar shown right after signin
+    through bookmarks promo. (Android only).
+  </int>
+  <int value="43"
+      label="User tapped on undo right after signin through ntp promo">
+    User tapped on the 'Undo' button in a snackbar shown right after signin
+    through ntp promo. (Android only).
+  </int>
+  <int value="44"
+      label="User tapped on undo right after signin through recent tabs promo">
+    User tapped on the 'Undo' button in a snackbar shown right after signin
+    through recent tabs promo. (Android only).
+  </int>
 </enum>
 
 <enum name="SigninSSOIdentityListRequestCacheState">
@@ -1369,12 +1386,27 @@ chromium-metrics-reviews@google.com.
   <int value="2"
       label="SSO identity cache is not populated, the identity list is
              synchronously fetched and then returned."/>
+  <int value="3"
+      label="The ios_internal identity list cache is not populated."/>
+  <int value="4" label="The ios_internal identity list cache is valid."/>
 </enum>
 
 <enum name="SigninSSOWKWebViewGetAllCookiesRequest">
   <int value="0" label="Started"/>
   <int value="1" label="Finished"/>
 </enum>
+
+<!-- LINT.IfChange(SigninSurveyTrigger) -->
+
+<enum name="SigninSurveyTrigger">
+  <int value="0" label="First Run"/>
+  <int value="1" label="Web Sign-in"/>
+  <int value="2" label="Ntp Avatar Sign-in"/>
+  <int value="3" label="Ntp Promo Sign-in"/>
+  <int value="4" label="Bookmark Promo Sign-in"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/ui/android/signin/java/src/org/chromium/chrome/browser/ui/signin/SigninSurveyController.java:SigninSurveyTrigger) -->
 
 <!-- LINT.IfChange(SigninTokenTableGetAllWrappedBindingKeysResult) -->
 

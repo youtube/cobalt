@@ -27,7 +27,6 @@
 
 #include "base/check_op.h"
 #include "base/dcheck_is_on.h"
-#include "base/gtest_prod_util.h"
 #include "base/types/pass_key.h"
 #include "third_party/blink/public/common/input/pointer_id.h"
 #include "third_party/blink/public/common/metrics/document_update_reason.h"
@@ -35,7 +34,6 @@
 #include "third_party/blink/public/mojom/scroll/scroll_into_view_params.mojom-blink-forward.h"
 #include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_typedefs.h"
-#include "third_party/blink/renderer/core/animation/animatable.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/css_primitive_value.h"
 #include "third_party/blink/renderer/core/css/css_property_value.h"
@@ -80,11 +78,14 @@ namespace blink {
 
 class AnchorElementObserver;
 class AnchorPositionScrollData;
+class Animation;
 class AnimationTrigger;
 class AriaNotificationOptions;
 class Attr;
 class Attribute;
+class CheckVisibilityOptions;
 class ColumnPseudoElement;
+class ComputedStyleBuilder;
 class ContainerQueryData;
 class ContainerQueryEvaluator;
 class ContentData;
@@ -94,41 +95,44 @@ class CSSPseudoElement;
 class CSSStyleDeclaration;
 class CustomElementDefinition;
 class CustomElementRegistry;
+class DisplayLockContext;
+class DisplayStyle;
+class Document;
 class DOMRect;
 class DOMRectList;
 class DOMStringMap;
 class DOMTokenList;
-class DisplayLockContext;
-class DisplayStyle;
-class Document;
 class EditContext;
+class Element;
 class ElementAnimations;
 class ElementInternals;
 class ElementIntersectionObserverData;
 class ElementRareDataVector;
 class ExceptionState;
 class FocusOptions;
+class GetAnimationsOptions;
 class HTMLElement;
 class HTMLTemplateElement;
 class Image;
+class IndexedPseudoElement;
 class InputDeviceCapabilities;
-class InvokerData;
 class InterestInvokerTargetData;
+class InvokerData;
 class KURL;
 class Locale;
 class MutableCSSPropertyValueSet;
 class NamedNodeMap;
 class OverscrollAreaTracker;
-class Patch;
 class PointerLockOptions;
 class PopoverData;
 class PseudoElement;
 class ResizeObservation;
 class ResizeObserver;
 class ResizeObserverSize;
-class ScrollIntoViewOptions;
-class CheckVisibilityOptions;
 class ScopedCSSName;
+class ScriptState;
+class ScriptValue;
+class ScrollIntoViewOptions;
 class ScrollMarkerGroupData;
 class ScrollMarkerPseudoElement;
 class ScrollToOptions;
@@ -137,6 +141,7 @@ class SetHTMLUnsafeOptions;
 class ShadowRoot;
 class ShadowRootInit;
 class SpaceSplitString;
+class StyleAdjuster;
 class StyleEngine;
 class StyleHighlightData;
 class StylePropertyMap;
@@ -145,10 +150,9 @@ class StyleRecalcContext;
 class StyleScopeData;
 class TextVisitor;
 class V8UnionBooleanOrScrollIntoViewOptions;
+class V8UnionKeyframeAnimationOptionsOrUnrestrictedDouble;
 class V8UnionStringLegacyNullToEmptyStringOrTrustedHTML;
 class V8UnionStringOrTrustedHTML;
-class ComputedStyleBuilder;
-class StyleAdjuster;
 
 template <typename IDLType>
 class FrozenArray;
@@ -172,6 +176,8 @@ using AttributeNamesView =
     bindings::TransformedView<AttributeCollection, AttributeToNameTransform>;
 
 using ColumnPseudoElementsVector = GCedHeapVector<Member<ColumnPseudoElement>>;
+using OverscrollAreaParentPseudoElementsVector =
+    HeapVector<Member<IndexedPseudoElement>>;
 
 enum SpellcheckAttributeState {
   kSpellcheckAttributeTrue,
@@ -263,6 +269,8 @@ enum class CommandEventType {
   kPageBlockEnd,
   kPageInlineStart,
   kPageInlineEnd,
+  // Overscroll,
+  kToggleOverscroll,
 };
 
 // Defaults for the `interestfor` API's `normal` value.
@@ -271,11 +279,15 @@ static constexpr double kDefaultInterestDelayEndSeconds = 0.25;
 
 typedef HeapVector<Member<Attr>> AttrNodeList;
 
+struct GetAnimationsOptionsResolved {
+  bool use_subtree;
+};
+
 // https://w3c.github.io/trusted-types/dist/spec/#abstract-opdef-get-trusted-type-data-for-attribute
 typedef HashMap<AtomicString, std::pair<SpecificTrustedType, AtomicString>>
     AttrNameToTrustedType;
 
-class CORE_EXPORT Element : public ContainerNode, public Animatable {
+class CORE_EXPORT Element : public ContainerNode {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
@@ -297,7 +309,25 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   };
 
   // Animatable implementation.
-  Element* GetAnimationTarget() override;
+  // https://drafts.csswg.org/web-animations-1/#the-animatable-interface-mixin
+
+  // Returns the target element of the animation that these methods are being
+  // called on.
+  Element* GetAnimationTarget();
+
+  Animation* animate(
+      ScriptState* script_state,
+      const ScriptValue& keyframes,
+      const V8UnionKeyframeAnimationOptionsOrUnrestrictedDouble* options,
+      ExceptionState& exception_state);
+
+  Animation* animate(ScriptState*, const ScriptValue&, ExceptionState&);
+
+  HeapVector<Member<Animation>> getAnimations(
+      GetAnimationsOptions* options = nullptr);
+
+  HeapVector<Member<Animation>> GetAnimationsInternal(
+      GetAnimationsOptionsResolved options);
 
   DEFINE_ATTRIBUTE_EVENT_LISTENER(beforecopy, kBeforecopy)
   DEFINE_ATTRIBUTE_EVENT_LISTENER(beforecut, kBeforecut)
@@ -1014,7 +1044,9 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   ShadowRoot& AttachShadowRootForTesting(ShadowRootMode type);
 
   // Returns the shadow root attached to this element if it is a shadow host.
-  ShadowRoot* GetShadowRoot() const;
+  ALWAYS_INLINE ShadowRoot* GetShadowRoot() const {
+    return HasShadowRoot() ? GetShadowRootInternal() : nullptr;
+  }
   ShadowRoot* OpenShadowRoot() const;
   ShadowRoot* ClosedShadowRoot() const;
   ShadowRoot* AuthorShadowRoot() const;
@@ -1120,7 +1152,7 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   void FocusWithinStateChanged();
   void ActiveViewTransitionStateChanged();
   void ActiveViewTransitionTypeStateChanged();
-  void PatchStateChanged();
+  void OverscrollTargetStateChanged();
   void SetDragged(bool) override;
 
   void UpdateSelectionOnFocus(SelectionBehaviorOnFocus);
@@ -1187,8 +1219,7 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   // script source. For more see:
   // https://explainers-by-googlers.github.io/user-dictionary-leaks/
   bool WasLastFocusFromUserGesture() const {
-    return last_focus_type_ != mojom::blink::FocusType::kNone &&
-           last_focus_type_ != mojom::blink::FocusType::kScript;
+    return RareData() && WasLastFocusFromUserGestureInternal();
   }
 
   // Returns false if the event was canceled, and true otherwise.
@@ -1219,6 +1250,10 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
            command == CommandEventType::kPageBlockEnd ||
            command == CommandEventType::kPageInlineStart ||
            command == CommandEventType::kPageInlineEnd;
+  }
+
+  static bool IsOverscrollCommand(CommandEventType command) {
+    return command == CommandEventType::kToggleOverscroll;
   }
 
   // This allows customization of how Invoker Commands are handled, per element.
@@ -1633,9 +1668,6 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   void setEditContext(EditContext* editContext, ExceptionState&);
   EditContext* editContext() const;
 
-  // https://github.com/WICG/declarative-partial-updates
-  Patch* currentPatch();
-
   // Helpers for V8DOMActivityLogger::logEvent.  They call logEvent only if
   // the element is isConnected() and the context is an isolated world.
   void LogAddElementIfIsolatedWorldAndInDocument(const char element[],
@@ -1737,6 +1769,8 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
       wtf_size_t index,
       const PhysicalRect& column_rect);
   const ColumnPseudoElementsVector* GetColumnPseudoElements() const;
+  const OverscrollAreaParentPseudoElementsVector*
+  GetOverscrollAreaParentPseudoElements() const;
 
   // Clear all ::column pseudo-elements, except for the leading `to_keep` ones.
   void ClearColumnPseudoElements(wtf_size_t to_keep = 0);
@@ -1965,6 +1999,10 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   OverscrollAreaTracker& EnsureOverscrollAreaTracker();
   OverscrollAreaTracker* OverscrollAreaTracker() const;
 
+  Element* OverscrollContainer() const;
+  void SetOverscrollContainer(Element*);
+  void ClearOverscrollContainer();
+
  protected:
   bool HasElementData() const { return static_cast<bool>(element_data_); }
   const ElementData* GetElementData() const { return element_data_.Get(); }
@@ -2087,6 +2125,8 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   friend class AXObject;
   friend class KeyboardEventManager;
   struct AffectedByPseudoStateChange;
+
+  ShadowRoot* GetShadowRootInternal() const;
 
   template <typename Functor>
   bool PseudoElementStylesDependOnFunc(Functor& func) const;
@@ -2230,6 +2270,9 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
       PseudoId,
       const StyleRecalcContext&,
       const AtomicString& pseudo_argument = g_null_atom);
+
+  ALWAYS_INLINE bool SetAssociatedPseudoElement(PseudoElement* pseudo_element,
+                                                const StyleRecalcContext&);
 
   // For document element scroll control pseudo-elements become not layout
   // siblings, but layout children.
@@ -2426,6 +2469,8 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   void CancelSelectionAfterLayout();
   virtual int DefaultTabIndex() const;
 
+  bool WasLastFocusFromUserGestureInternal() const;
+
   inline void UpdateCallbackSelectors(const ComputedStyle* old_style,
                                       const ComputedStyle* new_style);
   inline void NotifyIfMatchedDocumentRulesSelectorsChanged(
@@ -2554,10 +2599,10 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   // filter, except for the values of class="".
   uint32_t attribute_or_class_bloom_ = 0;
 
-  // This records the last type of a focus on this element via `SetFocused`.
-  // For more see:
-  // https://explainers-by-googlers.github.io/user-dictionary-leaks/
-  mojom::blink::FocusType last_focus_type_ = mojom::blink::FocusType::kNone;
+  // Do not add new members to Element without a good reason; prefer to
+  // add to ElementRareData unless it is performance-critical. Element
+  // is 88 bytes on typical 64-bit platforms, and growing it can cause
+  // both memory and performance regressions if you are not careful.
 };
 
 template <>

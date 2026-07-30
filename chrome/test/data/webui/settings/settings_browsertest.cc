@@ -149,6 +149,10 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, AutofillAiAddOrEditDialog) {
   RunTest("settings/autofill_ai_add_or_edit_dialog_test.js", "mocha.run()");
 }
 
+IN_PROC_BROWSER_TEST_F(SettingsTest, WalletablePassDetectionToggle) {
+  RunTest("settings/walletable_pass_detection_toggle_test.js", "mocha.run()");
+}
+
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
 IN_PROC_BROWSER_TEST_F(SettingsTest, AxAnnotationsSection) {
   RunTest("settings/ax_annotations_section_test.js", "mocha.run()");
@@ -308,7 +312,7 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, DISABLED_MainPage) {
 }
 
 // TODO(crbug.com/454213441): Flaky on Linux debug builds.
-#if (BUILDFLAG(IS_LINUX) && !defined(NDEBUG))
+#if BUILDFLAG(IS_LINUX)
 #define MAYBE_SettingsMain DISABLED_SettingsMain
 #else
 #define MAYBE_SettingsMain SettingsMain
@@ -582,7 +586,7 @@ class SettingsGlicSubPageWebActuationToggleTest : public SettingsBrowserTest {
         glic::prefs::kGlicUserEnabledActuationOnWeb, false);
     actor::ActorKeyedService::Get(browser()->profile())
         ->GetPolicyChecker()
-        .SetActOnWebForTesting(true);
+        .set_act_on_web_for_testing(true);
   }
 
  private:
@@ -1052,11 +1056,6 @@ IN_PROC_BROWSER_TEST_F(SettingsCookiesPageTest, ExceptionsList) {
   RunTest("settings/cookies_page_test.js", "runMochaSuite('ExceptionsList')");
 }
 
-IN_PROC_BROWSER_TEST_F(SettingsCookiesPageTest, TrackingProtectionSettings) {
-  RunTest("settings/cookies_page_test.js",
-          "runMochaSuite('TrackingProtectionSettings')");
-}
-
 // Test with --enable-pixel-output-in-tests enabled, required by fingerprint
 // element test using HTML canvas.
 class SettingsWithPixelOutputTest : public SettingsBrowserTest {
@@ -1175,7 +1174,7 @@ IN_PROC_BROWSER_TEST_F(SettingsPrivacyGuideTest, HistorySyncCardNavigations) {
           "runMochaSuite('HistorySyncCardNavigations')");
 }
 
-IN_PROC_BROWSER_TEST_F(SettingsPrivacyGuideTest, afeBrowsingCardNavigations) {
+IN_PROC_BROWSER_TEST_F(SettingsPrivacyGuideTest, SafeBrowsingCardNavigations) {
   RunTest("settings/privacy_guide_page_test.js",
           "runMochaSuite('SafeBrowsingCardNavigations')");
 }
@@ -1193,16 +1192,6 @@ IN_PROC_BROWSER_TEST_F(SettingsPrivacyGuideTest, AdTopicsCardNavigations) {
 IN_PROC_BROWSER_TEST_F(SettingsPrivacyGuideTest, PrivacyGuideDialog) {
   RunTest("settings/privacy_guide_page_test.js",
           "runMochaSuite('PrivacyGuideDialog')");
-}
-
-// TODO(crbug.com/40942110): Re-enable when no longer flaky.
-#if (BUILDFLAG(IS_LINUX) && !defined(NDEBUG))
-#define MAYBE_3pcdOff DISABLED_3pcdOff
-#else
-#define MAYBE_3pcdOff 3pcdOff
-#endif
-IN_PROC_BROWSER_TEST_F(SettingsPrivacyGuideTest, MAYBE_3pcdOff) {
-  RunTest("settings/privacy_guide_page_test.js", "runMochaSuite('3pcdOff')");
 }
 
 IN_PROC_BROWSER_TEST_F(SettingsPrivacyGuideTest, Integration) {

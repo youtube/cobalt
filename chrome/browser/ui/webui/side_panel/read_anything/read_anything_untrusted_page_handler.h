@@ -7,6 +7,7 @@
 
 #include <deque>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/functional/callback_helpers.h"
@@ -21,6 +22,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/browser/ui/webui/side_panel/read_anything/read_anything_screenshotter.h"
 #include "chrome/common/read_anything/read_anything.mojom.h"
+#include "components/dom_distiller/core/task_tracker.h"
 #include "components/translate/core/browser/translate_client.h"
 #include "components/translate/core/browser/translate_driver.h"
 #include "content/public/browser/tts_controller.h"
@@ -141,6 +143,14 @@ class ReadAnythingUntrustedPageHandler :
       const ReadAnythingUntrustedPageHandler&) = delete;
   ~ReadAnythingUntrustedPageHandler() override;
 
+  // For testing.
+  const std::optional<std::string>& distilled_title_for_testing() const {
+    return distilled_title_for_testing_;
+  }
+  const std::optional<std::string>& distilled_content_for_testing() const {
+    return distilled_content_for_testing_;
+  }
+
   static const int kMaxWordsDistilled = 25000;
   static const int kWordsDistilledBuckets = 100;
 
@@ -156,6 +166,7 @@ class ReadAnythingUntrustedPageHandler :
   bool CheckForPdfContentAfterLoad();
 
   // read_anything::mojom::UntrustedPageHandler:
+  void GetPresentationState() override;
   void OnVoiceChange(const std::string& voice,
                      const std::string& lang) override;
   void OnLanguagePrefChange(const std::string& lang, bool enabled) override;
@@ -174,6 +185,7 @@ class ReadAnythingUntrustedPageHandler :
   void OnColorChange(read_anything::mojom::Colors color) override;
   void OnHighlightGranularityChanged(
       read_anything::mojom::HighlightGranularity granularity) override;
+  void OnLineFocusChanged(read_anything::mojom::LineFocus line_focus) override;
   void GetVoicePackInfo(const std::string& language) override;
   void InstallVoicePack(const std::string& language) override;
   void UninstallVoice(const std::string& language) override;
@@ -190,6 +202,7 @@ class ReadAnythingUntrustedPageHandler :
   void OnTabWillDetach() override;
   void Activate(bool active,
                 std::optional<ReadAnythingOpenTrigger> open_trigger) override;
+  void OnReadingModePresenterChanged() override;
 
   // Logs the extension installation state. Intended to get more information
   // on system voice usage.
@@ -250,6 +263,7 @@ class ReadAnythingUntrustedPageHandler :
                      ui::AXNodeID target_node_id) override;
   void ScrollToTargetNode(const ui::AXTreeID& target_tree_id,
                           ui::AXNodeID target_node_id) override;
+  void CloseUI() override;
   void OnSelectionChange(const ui::AXTreeID& target_tree_id,
                          ui::AXNodeID anchor_node_id,
                          int anchor_offset,
@@ -265,6 +279,8 @@ class ReadAnythingUntrustedPageHandler :
   void SetLanguageCode(const std::string& code);
 
   void SetUpPdfObserver();
+
+  void OnGetPresentationState();
 
   void OnGetVoicePackInfo(read_anything::mojom::VoicePackInfoPtr info);
 
@@ -288,6 +304,15 @@ class ReadAnythingUntrustedPageHandler :
       GetDependencyParserModelCallback callback,
       bool is_available);
 
+  // Called if IsReadAnythingWithReadabilityEnabled is enabled. Triggers
+  // DomDistiller Distillation for the current page.
+  void RequestDomDistillerDistillation(content::WebContents* contents);
+
+  // Called by the DistillerDelegate with the result of a DomDistiller
+  // distillation.
+  void ProcessDistilledArticle(
+      const dom_distiller::DistilledArticleProto* article_proto);
+
   // The Reading Mode controller for both immersive and side-panel reading mode,
   // used when the immersive reading mode flag is enabled.
   raw_ptr<ReadAnythingController> read_anything_controller_;
@@ -310,6 +335,11 @@ class ReadAnythingUntrustedPageHandler :
   // `web_screenshotter_` is used to capture a screenshot of the main web
   // contents requested.
   std::unique_ptr<ReadAnythingScreenshotter> web_screenshotter_;
+
+  // Private implementation for dom_distiller::ViewRequestDelegate, not part of
+  // the public API.
+  class DistillerDelegate;
+  std::unique_ptr<DistillerDelegate> distiller_delegate_;
 
   const mojo::Receiver<read_anything::mojom::UntrustedPageHandler> receiver_;
   const mojo::Remote<read_anything::mojom::UntrustedPage> page_;
@@ -358,6 +388,10 @@ class ReadAnythingUntrustedPageHandler :
   // Otherwise, it may incorrectly return that the page is not a pdf if
   // reading mode checks if a page is a pdf immediately after loading.
   base::OneShotTimer timer_;
+
+  // Used for readability distillation tests.
+  std::optional<std::string> distilled_title_for_testing_;
+  std::optional<std::string> distilled_content_for_testing_;
 
   base::WeakPtrFactory<ReadAnythingUntrustedPageHandler> weak_factory_{this};
 };

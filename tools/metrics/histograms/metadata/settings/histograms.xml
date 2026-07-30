@@ -90,7 +90,9 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
   <variant name="IdleDetection"/>
   <variant name="KeyboardLock"/>
   <variant name="LocalFonts"/>
+  <variant name="LocalNetwork"/>
   <variant name="LocalNetworkAccess"/>
+  <variant name="LoopbackNetwork"/>
   <variant name="MidiSysEx"/>
   <variant name="MultipleDownload"/>
   <variant name="Nfc"/>
@@ -178,7 +180,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 </histogram>
 
 <histogram name="Settings.AiPage.HistorySearch.Interactions"
-    enum="SettingsAiPageHistorySearchInteractions" expires_after="2026-04-12">
+    enum="SettingsAiPageHistorySearchInteractions" expires_after="2026-06-21">
   <owner>zalmashni@google.com</owner>
   <owner>rainhard@chromium.org</owner>
   <owner>chrome-browser-privacy-team@google.com</owner>
@@ -189,7 +191,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 </histogram>
 
 <histogram name="Settings.AiPage.Interactions"
-    enum="SettingsAiPageInteractions" expires_after="2026-04-12">
+    enum="SettingsAiPageInteractions" expires_after="2026-06-21">
   <owner>zalmashni@google.com</owner>
   <owner>rainhard@chromium.org</owner>
   <owner>chrome-browser-privacy-team@google.com</owner>
@@ -296,7 +298,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 </histogram>
 
 <histogram name="Settings.FragmentAttached"
-    enum="AndroidSettingsFragmentHashes" expires_after="2026-04-12">
+    enum="AndroidSettingsFragmentHashes" expires_after="2026-06-14">
   <owner>dullweber@chromium.org</owner>
   <owner>chrome-browser-privacy@google.com</owner>
   <summary>
@@ -1193,7 +1195,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 </histogram>
 
 <histogram name="Settings.SafetyHub.HasDashboardShowAnyWarning"
-    enum="BooleanVisible" expires_after="2026-04-12">
+    enum="BooleanVisible" expires_after="2026-06-21">
   <owner>sideyilmaz@chromium.org</owner>
   <owner>chrome-privacy-controls@google.com</owner>
   <summary>
@@ -1690,17 +1692,6 @@ useful for Chirp alerts (go/crca-alerts). -->
     HMAC fallback reset flow had the config allowed it. Only emitted if the
     encrypted hash verification is not available causing the verification to
     fallback to HMAC-based verification.
-  </summary>
-</histogram>
-
-<histogram name="Settings.TrackingProtection.BlockAllThirdParty" enum="Boolean"
-    expires_after="2026-05-03">
-  <owner>fmacintosh@google.com</owner>
-  <owner>koilos@google.com</owner>
-  <summary>
-    Records the state of the pref that represents whether the user has chosen to
-    block all third-party cookies on the Tracking Protection settings page.
-    Logged on startup.
   </summary>
 </histogram>
 

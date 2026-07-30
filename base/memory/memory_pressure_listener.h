@@ -11,7 +11,6 @@
 #define BASE_MEMORY_MEMORY_PRESSURE_LISTENER_H_
 
 #include <memory>
-#include <variant>
 
 #include "base/base_export.h"
 #include "base/functional/callback_forward.h"
@@ -25,6 +24,7 @@
 
 namespace base {
 
+class MemoryPressureListenerRegistry;
 class SingleThreadTaskRunner;
 
 enum class MemoryPressureListenerTag {
@@ -157,18 +157,29 @@ class BASE_EXPORT MemoryPressureListener : public CheckedObserver {
 // Used for listeners that live on the main thread and must be called
 // synchronously. Prefer using MemoryPressureListenerRegistration as this will
 // eventually be removed.
-class BASE_EXPORT SyncMemoryPressureListenerRegistration {
+class BASE_EXPORT MemoryPressureListenerRegistration {
  public:
-  SyncMemoryPressureListenerRegistration(
+  MemoryPressureListenerRegistration(
       MemoryPressureListenerTag,
       MemoryPressureListener* memory_pressure_listener);
 
-  SyncMemoryPressureListenerRegistration(
-      const SyncMemoryPressureListenerRegistration&) = delete;
-  SyncMemoryPressureListenerRegistration& operator=(
-      const SyncMemoryPressureListenerRegistration&) = delete;
+  // Deprecated constructor that takes location as a parameter. Not removed just
+  // to avoid a mass-refactoring. This class will eventually be deleted in favor
+  // of the memory coordinator API (base::MemoryConsumer).
+  MemoryPressureListenerRegistration(
+      const Location& creation_location,
+      MemoryPressureListenerTag,
+      MemoryPressureListener* memory_pressure_listener);
 
-  ~SyncMemoryPressureListenerRegistration();
+  MemoryPressureListenerRegistration(
+      const MemoryPressureListenerRegistration&) = delete;
+  MemoryPressureListenerRegistration& operator=(
+      const MemoryPressureListenerRegistration&) = delete;
+
+  ~MemoryPressureListenerRegistration();
+
+  // Called by the registry to notify its impending destruction.
+  void OnBeforeMemoryPressureListenerRegistryDestroyed();
 
   void Notify(MemoryPressureLevel memory_pressure_level);
 
@@ -180,6 +191,9 @@ class BASE_EXPORT SyncMemoryPressureListenerRegistration {
   raw_ptr<MemoryPressureListener> memory_pressure_listener_
       GUARDED_BY_CONTEXT(thread_checker_);
 
+  raw_ptr<MemoryPressureListenerRegistry> registry_
+      GUARDED_BY_CONTEXT(thread_checker_);
+
   THREAD_CHECKER(thread_checker_);
 };
 
@@ -188,7 +202,7 @@ class BASE_EXPORT SyncMemoryPressureListenerRegistration {
 class BASE_EXPORT AsyncMemoryPressureListenerRegistration {
  public:
   AsyncMemoryPressureListenerRegistration(
-      const base::Location& creation_location,
+      const Location& creation_location,
       MemoryPressureListenerTag tag,
       MemoryPressureListener* memory_pressure_listener);
 
@@ -215,35 +229,12 @@ class BASE_EXPORT AsyncMemoryPressureListenerRegistration {
   std::unique_ptr<MainThread> main_thread_
       GUARDED_BY_CONTEXT(sequence_checker_);
 
-  const base::Location creation_location_ GUARDED_BY_CONTEXT(sequence_checker_);
+  const Location creation_location_ GUARDED_BY_CONTEXT(sequence_checker_);
 
   SEQUENCE_CHECKER(sequence_checker_);
 
   WeakPtrFactory<AsyncMemoryPressureListenerRegistration> weak_ptr_factory_{
       this};
-};
-
-// Used for listeners that live on the main thread. Can be call synchronously or
-// asynchronously.
-// Note: In the future, this will be always called synchronously.
-class BASE_EXPORT MemoryPressureListenerRegistration {
- public:
-  MemoryPressureListenerRegistration(
-      const Location& creation_location,
-      MemoryPressureListenerTag tag,
-      MemoryPressureListener* memory_pressure_listener);
-
-  MemoryPressureListenerRegistration(
-      const MemoryPressureListenerRegistration&) = delete;
-  MemoryPressureListenerRegistration& operator=(
-      const MemoryPressureListenerRegistration&) = delete;
-
-  ~MemoryPressureListenerRegistration();
-
- private:
-  std::variant<SyncMemoryPressureListenerRegistration,
-               AsyncMemoryPressureListenerRegistration>
-      listener_;
 };
 
 }  // namespace base

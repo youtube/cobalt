@@ -79,7 +79,9 @@ class TabModelJniBridge : public TabModel {
 
   void CreateTab(TabAndroid* parent,
                  content::WebContents* web_contents,
-                 bool select) override;
+                 int index,
+                 bool select,
+                 bool should_pin) override;
   void HandlePopupNavigation(TabAndroid* parent,
                              NavigateParams* params) override;
 
@@ -111,6 +113,7 @@ class TabModelJniBridge : public TabModel {
 
   // TODO(crbug.com/415351293): Implement these.
   // TabListInterface implementation.
+  void ActivateTab(tabs::TabHandle tab) override;
   tabs::TabInterface* OpenTab(const GURL& url, int index) override;
   void DiscardTab(tabs::TabHandle tab) override;
   tabs::TabInterface* DuplicateTab(tabs::TabHandle tab) override;
@@ -123,6 +126,8 @@ class TabModelJniBridge : public TabModel {
   std::vector<tabs::TabInterface*> GetAllTabs() override;
   void PinTab(tabs::TabHandle tab) override;
   void UnpinTab(tabs::TabHandle tab) override;
+  bool ContainsTabGroup(tab_groups::TabGroupId group_id) override;
+  std::vector<tab_groups::TabGroupId> ListTabGroups() override;
   std::optional<tab_groups::TabGroupId> AddTabsToGroup(
       std::optional<tab_groups::TabGroupId> group_id,
       const std::set<tabs::TabHandle>& tabs) override;

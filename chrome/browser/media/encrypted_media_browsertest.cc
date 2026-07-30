@@ -519,6 +519,9 @@ class ECKEncryptedMediaReportMetricsTest : public EncryptedMediaTestBase,
         {
             Media_EME_CdmMetrics::kCertificateSerialNumberName,
             Media_EME_CdmMetrics::kDecoderBypassBlockCountName,
+            Media_EME_CdmMetrics::kDecoderCheck1SuccessCountName,
+            Media_EME_CdmMetrics::kDecoderCheck1WarningCountName,
+            Media_EME_CdmMetrics::kDecoderCheck1ErrorCountName,
             Media_EME_CdmMetrics::kLicenseSdkVersionName,
             Media_EME_CdmMetrics::kNumberOfOnMessageEventsName,
             Media_EME_CdmMetrics::kNumberOfUpdateCallsName,
@@ -540,7 +543,8 @@ class ECKEncryptedMediaReportMetricsTest : public EncryptedMediaTestBase,
           UnorderedElementsAre(
               Pair(Media_EME_CdmMetrics::kLicenseSdkVersionName, 12345),
               Pair(Media_EME_CdmMetrics::kNumberOfOnMessageEventsName, 1),
-              Pair(Media_EME_CdmMetrics::kNumberOfUpdateCallsName, 1)));
+              Pair(Media_EME_CdmMetrics::kNumberOfUpdateCallsName, 1),
+              Pair(Media_EME_CdmMetrics::kDecoderCheck1SuccessCountName, 1)));
     } else {
       EXPECT_EQ(report_metric_entries.size(), 0u);
     }
@@ -1306,10 +1310,10 @@ IN_PROC_BROWSER_TEST_P(ECKEncryptedMediaTest, DecryptOnly_VideoOnly_MP4_VP9) {
 #if BUILDFLAG(USE_PROPRIETARY_CODECS)
 
 IN_PROC_BROWSER_TEST_P(ECKEncryptedMediaTest, DecryptOnly_VideoOnly_MP4_CBCS) {
-  // 'cbcs' decryption is only supported on CDM 10 or later as long as
-  // the appropriate buildflag is enabled.
-  std::string expected_result =
-      GetCdmInterfaceVersion() >= 10 ? media::kEndedTitle : media::kErrorTitle;
+  // 'cbcs' decryption is supported on CDM 10 or later as long as the
+  // appropriate buildflag is enabled.
+  std::string expected_result = media::kEndedTitle;
+
   RunEncryptedMediaTest(kDefaultEmePlayer, "bear-640x360-v_frag-cbcs.mp4",
                         media::kExternalClearKeyDecryptOnlyKeySystem,
                         SrcType::MSE, kNoSessionToLoad, false, PlayCount::ONCE,
@@ -1337,10 +1341,10 @@ IN_PROC_BROWSER_TEST_P(ECKEncryptedMediaTest, Playback_Encryption_CENS) {
 }
 
 IN_PROC_BROWSER_TEST_P(ECKEncryptedMediaTest, Playback_Encryption_CBCS) {
-  // 'cbcs' decryption is only supported on CDM 10 or later as long as
-  // the appropriate buildflag is enabled.
-  std::string expected_result =
-      GetCdmInterfaceVersion() >= 10 ? media::kEndedTitle : media::kErrorTitle;
+  // 'cbcs' decryption is supported on CDM 10 or later as long as the
+  // appropriate buildflag is enabled.
+  std::string expected_result = media::kEndedTitle;
+
   RunEncryptedMediaMultipleFileTest(
       media::kExternalClearKeyKeySystem, "bear-640x360-v_frag-cbcs.mp4",
       "bear-640x360-a_frag-cbcs.mp4", expected_result);

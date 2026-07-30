@@ -18,6 +18,7 @@ import {MetricsReporterImpl} from '//resources/js/metrics_reporter/metrics_repor
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 import type {AutocompleteResult, OmniboxPopupSelection, PageCallbackRouter, PageHandlerInterface, TabInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {Url} from '//resources/mojo/url/mojom/url.mojom-webui.js';
 
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
@@ -90,6 +91,7 @@ export class OmniboxPopupAppElement extends I18nMixinLit
       showContextEntrypoint_: {type: Boolean},
       isLensSearchEnabled_: {type: Boolean},
       isLensSearchEligible_: {type: Boolean},
+      isAimEligible_: {type: Boolean},
       tabSuggestions_: {type: Array},
     };
   }
@@ -107,6 +109,7 @@ export class OmniboxPopupAppElement extends I18nMixinLit
   protected accessor isLensSearchEnabled_: boolean =
       loadTimeData.getBoolean('composeboxShowLensSearchChip');
   protected accessor isLensSearchEligible_: boolean = false;
+  protected accessor isAimEligible_: boolean = false;
   protected accessor tabSuggestions_: TabInfo[] = [];
 
   private callbackRouter_: PageCallbackRouter;
@@ -124,6 +127,9 @@ export class OmniboxPopupAppElement extends I18nMixinLit
 
   override connectedCallback() {
     super.connectedCallback();
+    // TODO(b:468113419): the handlers and their definitions are not ordered the
+    // same as the
+    //   mojom file.
     this.listenerIds_ = [
       this.callbackRouter_.autocompleteResultChanged.addListener(
           this.onAutocompleteResultChanged_.bind(this)),
@@ -140,6 +146,10 @@ export class OmniboxPopupAppElement extends I18nMixinLit
           }),
       this.callbackRouter_.onTabStripChanged.addListener(
           this.refreshTabSuggestions_.bind(this)),
+      this.callbackRouter_.updateAimEligibility.addListener(
+          (eligible: boolean) => {
+            this.isAimEligible_ = eligible;
+          }),
     ];
     canShowSecondarySideMediaQueryList.addEventListener(
         'change', this.onCanShowSecondarySideChanged_.bind(this));
@@ -176,7 +186,8 @@ export class OmniboxPopupAppElement extends I18nMixinLit
           this.result_?.matches.some(match => !match.isHidden) ?? false;
     }
 
-    if (changedPrivateProperties.has('searchboxLayoutMode_') ||
+    if (changedPrivateProperties.has('isAimEligible_') ||
+        changedPrivateProperties.has('searchboxLayoutMode_') ||
         changedPrivateProperties.has('isInKeywordMode_')) {
       this.showContextEntrypoint_ = this.computeShowContextEntrypoint_();
     }
@@ -191,8 +202,7 @@ export class OmniboxPopupAppElement extends I18nMixinLit
 
   private computeShowContextEntrypoint_(): boolean {
     const isTallSearchbox = this.searchboxLayoutMode_.startsWith('Tall');
-    return loadTimeData.getBoolean('showContextMenuEntrypoint') &&
-        isTallSearchbox && !this.isInKeywordMode_;
+    return this.isAimEligible_ && isTallSearchbox && !this.isInKeywordMode_;
   }
 
   private onCanShowSecondarySideChanged_(e: MediaQueryListEvent) {
@@ -257,6 +267,33 @@ export class OmniboxPopupAppElement extends I18nMixinLit
   protected async refreshTabSuggestions_() {
     const {tabs} = await this.pageHandler_.getRecentTabs();
     this.tabSuggestions_ = [...tabs];
+  }
+
+  protected onLensSearchChipClicked_() {
+    this.pageHandler_.openLensSearch();
+  }
+
+  protected addTabContext_(e: CustomEvent<{
+    id: number,
+    title: string,
+    url: Url,
+    delayUpload: boolean,
+  }>) {
+    this.pageHandler_.addTabContext(e.detail.id, e.detail.delayUpload);
+  }
+
+  protected computeShowRecentTabChip_() {
+    const input = this.result_?.input;
+    let recentTabForChip =
+        this.tabSuggestions_.find(tab => tab.showInCurrentTabChip) || null;
+    if (!recentTabForChip) {
+      recentTabForChip =
+          this.tabSuggestions_.find(tab => tab.showInPreviousTabChip) || null;
+    }
+    return loadTimeData.getBoolean('composeboxShowRecentTabChip') &&
+        (input?.length === 0 || recentTabForChip?.showInPreviousTabChip ||
+         input ===
+             recentTabForChip?.url.url.replace(/^https?:\/\/(?:www\.)?/, ''));
   }
 }
 

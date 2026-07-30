@@ -537,9 +537,15 @@ chromium-metrics-reviews@google.com.
   <variant name="WalletablePassDetectionBoardingPassAllowlist"
       summary="This optimization provides information about whether a URL is
                eligible for walletable boarding pass detection."/>
+  <variant name="WalletablePassDetectionEventPassAllowlist"
+      summary="This optimization provides information about whether a URL is
+               eligible for walletable event pass detection."/>
   <variant name="WalletablePassDetectionLoyaltyAllowlist"
       summary="This optimization provides information about whether a URL is
                eligible for walletable loyalty pass detection."/>
+  <variant name="WalletablePassDetectionTransitTicketAllowlist"
+      summary="This optimization provides information about whether a URL is
+               eligible for walletable transit ticket pass detection."/>
 </variants>
 
 <variants name="PageContentAnnotationsStorageType">
@@ -586,7 +592,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.AIPageContent.RendererLatency.{FrameType}"
-    units="ms" expires_after="2026-04-19">
+    units="ms" expires_after="2026-06-21">
   <owner>khushalsagar@chromium.org</owner>
   <owner>abigailbklein@google.com</owner>
   <summary>
@@ -691,7 +697,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.ApplyDecision.{OptimizationType}"
-    enum="OptimizationGuideOptimizationTypeDecision" expires_after="2026-04-12">
+    enum="OptimizationGuideOptimizationTypeDecision" expires_after="2026-06-14">
   <owner>rajendrant@chromium.org</owner>
   <owner>catliu@chromium.org</owner>
   <summary>
@@ -793,7 +799,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.HintsFetcher.GetHintsRequest.HostCount.{RequestContext}"
-    units="total host count" expires_after="2025-12-21">
+    units="total host count" expires_after="2026-12-21">
   <owner>rajendrant@chromium.org</owner>
   <owner>catliu@chromium.org</owner>
   <summary>
@@ -816,7 +822,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.HintsFetcher.GetHintsRequest.RequestStatus.{RequestContext}"
-    enum="OptimizationGuideFetcherRequestStatus" expires_after="2025-12-14">
+    enum="OptimizationGuideFetcherRequestStatus" expires_after="2026-12-14">
   <owner>rajendrant@chromium.org</owner>
   <owner>catliu@chromium.org</owner>
   <summary>
@@ -1948,7 +1954,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.PredictionManager.ModelDeliveryEvents.{OptimizationTarget}"
-    enum="OptimizationGuideModelDeliveryEvent" expires_after="2026-04-12">
+    enum="OptimizationGuideModelDeliveryEvent" expires_after="2026-06-14">
   <owner>rajendrant@chromium.org</owner>
   <owner>wittman@chromium.org</owner>
   <summary>
@@ -1976,7 +1982,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.PredictionModelDownloadManager.DownloadStartLatency.{OptimizationTarget}"
-    units="ms" expires_after="2026-04-12">
+    units="ms" expires_after="2026-06-21">
   <owner>rajendrant@chromium.org</owner>
   <owner>wittman@chromium.org</owner>
   <summary>

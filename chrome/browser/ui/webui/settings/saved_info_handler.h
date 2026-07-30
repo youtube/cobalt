@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_UI_WEBUI_SETTINGS_SAVED_INFO_HANDLER_H_
 #define CHROME_BROWSER_UI_WEBUI_SETTINGS_SAVED_INFO_HANDLER_H_
 
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/ui/webui/settings/settings_page_ui_handler.h"
@@ -34,9 +35,7 @@ class SavedInfoHandler
   void OnJavascriptDisallowed() override;
 
  private:
-  friend class TestSavedInfoHandler;
-  FRIEND_TEST_ALL_PREFIXES(SavedInfoHandlerTest, HandleGetPasswordCount);
-  FRIEND_TEST_ALL_PREFIXES(SavedInfoHandlerTest, HandleGetLoyaltyCardsCount);
+  friend class SavedInfoHandlerTestApi;
 
   // password_manager::SavedPasswordsPresenter::Observer:
   void OnSavedPasswordsChanged(
@@ -56,6 +55,8 @@ class SavedInfoHandler
 
   void HandleGetLoyaltyCardsCount(const base::Value::List& args);
   base::Value GetLoyaltyCardsCount();
+
+  void HandleRequestDataManagementSurvey(const base::Value::List& args);
 
   raw_ptr<Profile> profile_;
 

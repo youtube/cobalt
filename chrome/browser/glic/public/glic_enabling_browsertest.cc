@@ -11,6 +11,7 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/glic/glic_metrics_provider.h"
 #include "chrome/browser/glic/glic_pref_names.h"
+#include "chrome/browser/glic/test_support/glic_test_environment.h"
 #include "chrome/browser/glic/test_support/glic_test_util.h"
 #include "chrome/browser/global_features.h"
 #include "chrome/browser/profiles/profile.h"
@@ -50,18 +51,10 @@ class GlicEnablingTest : public InProcessBrowserTest {
     InProcessBrowserTest::SetUp();
   }
 
-  void TearDown() override {
-    scoped_feature_list_.Reset();
-    InProcessBrowserTest::TearDown();
-  }
-
  protected:
   virtual void InitializeFeatureList() {
     scoped_feature_list_.InitWithFeatures(
         {
-            features::kGlic,
-            features::kTabstripComboButton,
-            features::kGlicRollout,
 #if BUILDFLAG(IS_CHROMEOS)
             chromeos::features::kFeatureManagementGlic,
 #endif  // BUILDFLAG(IS_CHROMEOS)
@@ -77,19 +70,20 @@ class GlicEnablingTest : public InProcessBrowserTest {
     return profile_manager()->GetProfileAttributesStorage();
   }
 
+  GlicTestEnvironment glic_test_env_;
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(GlicEnablingTest, EnabledForProfileTest) {
   ASSERT_FALSE(GlicEnabling::IsEnabledForProfile(nullptr));
 
-  ASSERT_FALSE(GlicEnabling::IsEnabledForProfile(profile()));
-  ForceSigninAndGlicCapability(profile());
   ASSERT_TRUE(GlicEnabling::IsEnabledForProfile(profile()));
 }
 
 IN_PROC_BROWSER_TEST_F(GlicEnablingTest, AttributeEntryUpdatesOnChange) {
-  SigninWithPrimaryAccount(profile());
+  SetGlicCapability(profile(), false);
+  glic_test_env_.GetService(profile())->SetFRECompletion(
+      prefs::FreStatus::kIncomplete);
   ASSERT_FALSE(GlicEnabling::IsEnabledForProfile(profile()));
 
   ProfileAttributesEntry* entry =
@@ -143,8 +137,6 @@ IN_PROC_BROWSER_TEST_F(GlicEnablingWithSeparateAccountCapabilityTest,
                        EnabledForProfileTest) {
   ASSERT_FALSE(GlicEnabling::IsEnabledForProfile(nullptr));
 
-  ASSERT_FALSE(GlicEnabling::IsEnabledForProfile(profile()));
-  ForceSigninAndGlicCapability(profile());
   ASSERT_TRUE(GlicEnabling::IsEnabledForProfile(profile()));
 }
 
@@ -157,10 +149,6 @@ IN_PROC_BROWSER_TEST_F(GlicEnablingWithSeparateAccountCapabilityTest,
                                 ->GetSyntheticTrialRegistry()
                                 ->GetCurrentSyntheticFieldTrialsForTest()
                                 .size();
-
-  //  Sign in the user, and mark them as eligible via the new account
-  // capability.
-  ForceSigninAndGlicCapability(profile());
 
   // Set the legacy account capability to true, so that their eligibility is not
   // affected by the experiment.
@@ -186,10 +174,6 @@ IN_PROC_BROWSER_TEST_F(GlicEnablingWithSeparateAccountCapabilityTest,
                                 ->GetCurrentSyntheticFieldTrialsForTest()
                                 .size();
 
-  //  Sign in the user, and mark them as eligible via the new account
-  // capability.
-  ForceSigninAndGlicCapability(profile());
-
   // Set the legacy account capability to false, so that their eligibility is
   // affected by the experiment.
   SetLegacyAccountCapability(false);
@@ -208,6 +192,30 @@ IN_PROC_BROWSER_TEST_F(GlicEnablingWithSeparateAccountCapabilityTest,
                 kGlicEligibilitySeparateAccountCapabilitySyntheticTrialName));
 }
 
+IN_PROC_BROWSER_TEST_F(GlicEnablingWithSeparateAccountCapabilityTest,
+                       SeparateAccountCapabilityUnknownTest) {
+  // Sign in with a different account (this resets all account capabilities to
+  // unknown).
+  auto* const identity_manager =
+      IdentityManagerFactory::GetForProfile(profile());
+  auto account_info = signin::MakePrimaryAccountAvailable(
+      identity_manager, "glic-test-2@example.com",
+      signin::ConsentLevel::kSignin);
+  account_info.full_name = "Glic 2 Testing";
+  account_info.given_name = "Glic 2";
+  signin::UpdateAccountInfoForAccount(identity_manager, account_info);
+  ASSERT_FALSE(GlicEnabling::IsEnabledForProfile(profile()));
+
+  // If the "can_use_gemini_in_chrome" capability is unknown, we should fall
+  // back to the legacy "can_use_model_execution_features" capability.
+  //
+  // This is important during rollout, where existing users may not yet hav
+  // fetched the new capability and it would be undesirable to disable GLIC for
+  // them.
+  SetLegacyAccountCapability(true);
+  EXPECT_TRUE(GlicEnabling::IsEnabledForProfile(profile()));
+}
+
 IN_PROC_BROWSER_TEST_F(
     GlicEnablingWithSeparateAccountCapabilityTest,
     AffectedUserAddedToSyntheticFieldTrial_EligibilityChanges) {
@@ -218,10 +226,6 @@ IN_PROC_BROWSER_TEST_F(
                                 ->GetSyntheticTrialRegistry()
                                 ->GetCurrentSyntheticFieldTrialsForTest()
                                 .size();
-
-  //  Sign in the user, and mark them as eligible via the new account
-  // capability.
-  ForceSigninAndGlicCapability(profile());
 
   // Set the legacy account capability to false, so that their eligibility is
   // affected by the experiment. This adds the user to a synthetic field trial.
@@ -294,11 +298,12 @@ class GlicEnablingTieredRolloutTest : public GlicEnablingTest {
         ->GetDelegatingProviderForTesting()
         ->ProvideCurrentSessionData(&uma_proto);
   }
+
+ protected:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(GlicEnablingTieredRolloutTest, EnabledForProfileTest) {
-  ForceSigninAndGlicCapability(profile());
-
   // Should not be enabled as profile not eligible for tiered rollout.
   EXPECT_FALSE(GlicEnabling::IsEnabledForProfile(profile()));
 
@@ -313,6 +318,7 @@ IN_PROC_BROWSER_TEST_F(GlicEnablingTieredRolloutTest, EnabledForProfileTest) {
 
 IN_PROC_BROWSER_TEST_F(GlicEnablingTieredRolloutTest,
                        InTieredRolloutGroupOtherCriteriaNotPassing) {
+  glic_test_env_.GetService(profile())->SetModelExecutionCapability(false);
   // Should be enabled as profile.
   SetTieredRolloutEligibilityForProfile(/*is_eligible=*/true);
   EXPECT_FALSE(GlicEnabling::IsEnabledForProfile(profile()));
@@ -345,8 +351,6 @@ class GlicEnablingSimultaneousRolloutTest
 
 IN_PROC_BROWSER_TEST_F(GlicEnablingSimultaneousRolloutTest,
                        EnabledForProfileTest) {
-  ForceSigninAndGlicCapability(profile());
-
   // Eligible for tiered rollout. Profile enabled for GLIC.
   SetTieredRolloutEligibilityForProfile(/*is_eligible=*/true);
   ASSERT_TRUE(GlicEnabling::IsEnabledForProfile(profile()));
@@ -368,7 +372,6 @@ IN_PROC_BROWSER_TEST_F(GlicEnablingSimultaneousRolloutTest,
   base::FilePath new_path = profile_manager->GenerateNextProfileDirectoryPath();
   Profile* second_profile =
       &profiles::testing::CreateProfileSync(profile_manager, new_path);
-  ForceSigninAndGlicCapability(second_profile);
   ASSERT_TRUE(GlicEnabling::IsEnabledForProfile(second_profile));
 
   {

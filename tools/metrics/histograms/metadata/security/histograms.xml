@@ -174,7 +174,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Security.GwpAsan.Activated.{Allocator}.{Process}"
-    enum="Boolean" expires_after="2026-04-19">
+    enum="Boolean" expires_after="2026-06-21">
   <owner>mpdenton@chromium.org</owner>
   <owner>kdlee@chromium.org</owner>
   <owner>memory-safety-dev@chromium.org</owner>
@@ -197,7 +197,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Security.GwpAsan.AllocatorOom.{Allocator}.{Process}"
-    units="allocations" expires_after="2026-04-19">
+    units="allocations" expires_after="2026-06-21">
   <owner>mpdenton@chromium.org</owner>
   <owner>kdlee@chromium.org</owner>
   <owner>memory-safety-dev@chromium.org</owner>
@@ -361,26 +361,6 @@ chromium-metrics-reviews@google.com.
     Records whether the HTTPS-First Mode got enabled or disabled on a site due
     to its HTTP and HTTPS site engagement scores. Only recorded if the enabled
     state changes. Recorded even for sites allowlisted to load over HTTP.
-  </summary>
-</histogram>
-
-<histogram name="Security.JSONParser.ParsingTime" units="microseconds"
-    expires_after="2026-01-25">
-  <owner>djmitche@chromium.org</owner>
-  <owner>chrome-platform-security@google.com</owner>
-  <summary>
-    Records the time spent actually parsing JSON, excluding any time spent on
-    IPC. This histogram is emitted for each parse of a JSON value, regardless of
-    the size or complexity of that JSON.
-
-    The metric is reported for only clients with high-resolution clocks (i.e.
-    excludes a small percentage of Windows users population - see the
-    Windows.HasHighResolutionTimeTicks metric). This is okay, because we are
-    mostly interested in comparing C++ vs Rust and it seems okay to assume that
-    such comparison would give similar results for the filtered and non-filtered
-    population.
-
-    Data for this metric is missing before M122.
   </summary>
 </histogram>
 
@@ -895,7 +875,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SiteIsolation.BrowsingInstanceCount" units="units"
-    expires_after="2026-04-13">
+    expires_after="2026-06-21">
   <owner>alexmos@chromium.org</owner>
   <owner>creis@chromium.org</owner>
   <summary>
@@ -1053,7 +1033,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SiteIsolation.OutOfProcessIframes" units="oopifs"
-    expires_after="2026-04-12">
+    expires_after="2026-06-21">
   <owner>alexmos@chromium.org</owner>
   <owner>creis@chromium.org</owner>
   <owner>lukasza@chromium.org</owner>
@@ -1088,7 +1068,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SiteIsolation.ProxyCount" units="proxies"
-    expires_after="2026-04-12">
+    expires_after="2026-06-14">
   <owner>alexmos@chromium.org</owner>
   <owner>creis@chromium.org</owner>
   <owner>lukasza@chromium.org</owner>
@@ -1162,7 +1142,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SiteIsolation.SavedUserTriggeredIsolatedOrigins.Size"
-    units="origins" expires_after="2026-04-20">
+    units="origins" expires_after="2026-06-21">
   <owner>alexmos@chromium.org</owner>
   <owner>creis@chromium.org</owner>
   <owner>lukasza@chromium.org</owner>
@@ -1188,7 +1168,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SiteIsolation.SiteInstancesPerBrowsingInstance" units="units"
-    expires_after="2026-04-13">
+    expires_after="2026-06-21">
   <owner>alexmos@chromium.org</owner>
   <owner>creis@chromium.org</owner>
   <owner>lukasza@chromium.org</owner>

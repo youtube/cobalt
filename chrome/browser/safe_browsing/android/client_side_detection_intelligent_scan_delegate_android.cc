@@ -6,6 +6,7 @@
 
 #include "base/command_line.h"
 #include "base/debug/dump_without_crashing.h"
+#include "base/json/values_util.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
@@ -14,9 +15,11 @@
 #include "components/optimization_guide/core/model_execution/model_broker_client.h"
 #include "components/optimization_guide/core/model_execution/remote_model_executor.h"
 #include "components/optimization_guide/core/model_quality/model_quality_log_entry.h"
+#include "components/optimization_guide/core/optimization_guide_util.h"
 #include "components/optimization_guide/public/mojom/model_broker.mojom-shared.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_service.h"
+#include "components/prefs/scoped_user_pref_update.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/safe_browsing/core/common/proto/csd.pb.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
@@ -80,8 +83,8 @@ void ClientSideDetectionIntelligentScanDelegateAndroid::Inquiry::Start(
       << "Start() should only be called once per inquiry.";
   was_start_called_ = true;
 
-  if (base::FeatureList::IsEnabled(
-          kClientSideDetectionServerModelForScamDetectionAndroid)) {
+  if (parent_->is_server_model_enabled_) {
+    parent_->AddIntelligentScanQuota();
     ScamDetectionRequest request;
     request.set_rendered_text(rendered_texts);
     parent_->remote_model_executor_->ExecuteModel(
@@ -90,6 +93,8 @@ void ClientSideDetectionIntelligentScanDelegateAndroid::Inquiry::Start(
         base::BindOnce(&ClientSideDetectionIntelligentScanDelegateAndroid::
                            Inquiry::RemoteExecutionCallback,
                        weak_factory_.GetWeakPtr()));
+    // Do not access `parent_` at this point. The callback may be called
+    // immediately and this object will delete itself.
     return;
   }
 
@@ -216,8 +221,13 @@ ClientSideDetectionIntelligentScanDelegateAndroid::
       remote_model_executor_(remote_model_executor),
       is_feature_enabled_(
           !base::FeatureList::IsEnabled(kClientSideDetectionKillswitch) &&
-          base::FeatureList::IsEnabled(
-              kClientSideDetectionSendIntelligentScanInfoAndroid)) {
+          (base::FeatureList::IsEnabled(
+               kClientSideDetectionSendIntelligentScanInfoAndroid) ||
+           kCsdImageEmbeddingMatchWithIntelligentScan.Get() ||
+           base::FeatureList::IsEnabled(
+               kClientSideDetectionServerModelForScamDetectionAndroid))),
+      is_server_model_enabled_(base::FeatureList::IsEnabled(
+          kClientSideDetectionServerModelForScamDetectionAndroid)) {
   if (!is_feature_enabled_) {
     return;
   }
@@ -242,6 +252,12 @@ bool ClientSideDetectionIntelligentScanDelegateAndroid::
   if (!IsEnhancedProtectionEnabled(*pref_)) {
     return false;
   }
+  if (verdict->client_side_detection_type() ==
+          ClientSideDetectionType::IMAGE_EMBEDDING_MATCH &&
+      verdict->is_phishing() &&
+      kCsdImageEmbeddingMatchWithIntelligentScan.Get()) {
+    return true;
+  }
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kScamDetectionKeyboardLockTriggerAndroid) &&
       verdict->client_side_detection_type() ==
@@ -259,8 +275,7 @@ bool ClientSideDetectionIntelligentScanDelegateAndroid::
   if (!is_feature_enabled_) {
     return false;
   }
-  if (base::FeatureList::IsEnabled(
-          kClientSideDetectionServerModelForScamDetectionAndroid)) {
+  if (is_server_model_enabled_) {
     return !!remote_model_executor_;
   }
   if (!model_broker_client_) {
@@ -290,7 +305,10 @@ std::optional<base::UnguessableToken>
 ClientSideDetectionIntelligentScanDelegateAndroid::StartIntelligentScan(
     std::string rendered_texts,
     IntelligentScanDoneCallback callback) {
-  if (!IsIntelligentScanAvailable(/*log_failed_eligibility_reason=*/false)) {
+  if (!IsIntelligentScanAvailable(/*log_failed_eligibility_reason=*/false) ||
+      IsAtIntelligentScanQuota()) {
+    // TODO(crbug.com/462643935): Log a metric for quota exceeded. Add a new
+    // IntelligentScanResult for quota exceeded.
     std::move(callback).Run(IntelligentScanResult::Failure(
         IntelligentScanResult::kModelVersionUnavailable));
     return std::nullopt;
@@ -329,7 +347,9 @@ bool ClientSideDetectionIntelligentScanDelegateAndroid::ShouldShowScamWarning(
   }
 
   if (!base::FeatureList::IsEnabled(
-          kClientSideDetectionShowScamVerdictWarningAndroid)) {
+          kClientSideDetectionShowScamVerdictWarningAndroid) &&
+      !base::FeatureList::IsEnabled(
+          kClientSideDetectionServerModelForScamDetectionAndroid)) {
     return false;
   }
 
@@ -337,6 +357,15 @@ bool ClientSideDetectionIntelligentScanDelegateAndroid::ShouldShowScamWarning(
          *verdict == IntelligentScanVerdict::SCAM_EXPERIMENT_VERDICT_2 ||
          *verdict ==
              IntelligentScanVerdict::SCAM_EXPERIMENT_CATCH_ALL_ENFORCEMENT;
+}
+
+void ClientSideDetectionIntelligentScanDelegateAndroid::OnScamWarningShown() {
+  if (!is_server_model_enabled_) {
+    return;
+  }
+
+  // The scan shows a warning and is effective, so we refund the quota.
+  RemoveLastIntelligentScanQuota();
 }
 
 void ClientSideDetectionIntelligentScanDelegateAndroid::Shutdown() {
@@ -358,8 +387,7 @@ void ClientSideDetectionIntelligentScanDelegateAndroid::OnPrefsUpdated() {
   }
   // No need to download the on-device model if we are using the server
   // model.
-  if (!base::FeatureList::IsEnabled(
-          kClientSideDetectionServerModelForScamDetectionAndroid)) {
+  if (!is_server_model_enabled_) {
     StartModelDownload();
   }
 }
@@ -380,6 +408,46 @@ void ClientSideDetectionIntelligentScanDelegateAndroid::StartModelDownload() {
             }
           },
           base::TimeTicks::Now()));
+}
+
+bool ClientSideDetectionIntelligentScanDelegateAndroid::
+    IsAtIntelligentScanQuota() {
+  if (!is_server_model_enabled_) {
+    return false;
+  }
+  // Clear the expired timestamps
+  ScopedListPrefUpdate update(pref_.get(),
+                              prefs::kSafeBrowsingCsdIntelligentScanTimestamps);
+  update->EraseIf([&](const base::Value& timestamp_value) {
+    constexpr base::TimeDelta kIntelligentScanQuotaInterval = base::Days(1);
+    std::optional<base::Time> report_time = base::ValueToTime(timestamp_value);
+    if (!report_time.has_value()) {
+      // If the value cannot be converted to a time, consider it invalid and
+      // remove it.
+      return true;
+    }
+    return *report_time + kIntelligentScanQuotaInterval < base::Time::Now();
+  });
+  return update->size() >=
+         static_cast<size_t>(
+             kClientSideDetectionServerModelMaxScansPerDay.Get());
+}
+
+void ClientSideDetectionIntelligentScanDelegateAndroid::
+    AddIntelligentScanQuota() {
+  ScopedListPrefUpdate update(pref_.get(),
+                              prefs::kSafeBrowsingCsdIntelligentScanTimestamps);
+  update->Append(base::TimeToValue(base::Time::Now()));
+}
+
+void ClientSideDetectionIntelligentScanDelegateAndroid::
+    RemoveLastIntelligentScanQuota() {
+  ScopedListPrefUpdate update(pref_.get(),
+                              prefs::kSafeBrowsingCsdIntelligentScanTimestamps);
+  // TODO(crbug.com/462643935): Add a metric on how often update is empty.
+  if (!update->empty()) {
+    update->erase(update.Get().end() - 1);
+  }
 }
 
 }  // namespace safe_browsing

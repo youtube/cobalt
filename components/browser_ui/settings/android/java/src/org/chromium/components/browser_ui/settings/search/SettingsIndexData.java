@@ -4,6 +4,7 @@
 
 package org.chromium.components.browser_ui.settings.search;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.text.TextUtils;
 
@@ -41,6 +42,12 @@ public class SettingsIndexData {
             "org.chromium.chrome.browser.settings.MainSettings";
 
     // LINT.ThenChange(//chrome/android/chrome_java_sources.gni:MainSettingsBuildRule)
+
+    // Whether the search results needs refreshing when coming back from result-browsing state
+    // to search state. It is possible for the index to be modified while browsing search results.
+    // In such case the search result display needs refreshing accordingly; otherwise it could
+    // show the results that are already hidden, or vice versa.
+    private boolean mShouldRefreshResult;
 
     @EnsuresNonNull("sInstance")
     public static SettingsIndexData createInstance() {
@@ -257,9 +264,59 @@ public class SettingsIndexData {
      * @param titleId String resource ID of the title.
      */
     public void addEntryForKey(String prefFragment, String key, int titleId) {
+        addEntryForKey(prefFragment, key, titleId, /* summaryId= */ 0);
+    }
+
+    /**
+     * Adds a new searchable preference entry to the index.
+     *
+     * @param prefFragment Full class name of the Fragment where the entry belongs.
+     * @param key The name of the key for the preference entry.
+     * @param titleId String resource ID of the title.
+     * @param summaryId String resource ID of the summary.
+     */
+    public void addEntryForKey(String prefFragment, String key, int titleId, int summaryId) {
+        Context context = ContextUtils.getApplicationContext();
+        addEntryForKey(
+                prefFragment,
+                key,
+                context.getString(titleId),
+                summaryId != 0 ? context.getString(summaryId) : null);
+    }
+
+    /**
+     * Adds a new searchable preference entry to the index.
+     *
+     * @param prefFragment Full class name of the Fragment where the entry belongs.
+     * @param key The name of the key for the preference entry.
+     * @param title Title text.
+     * @param summary Summary text.
+     */
+    public void addEntryForKey(
+            String prefFragment, String key, String title, @Nullable String summary) {
+        addEntryForKey(prefFragment, key, title, summary, /* extras= */ null);
+    }
+
+    /**
+     * Adds a new searchable preference entry to the index.
+     *
+     * @param prefFragment Full class name of the Fragment where the entry belongs.
+     * @param key The name of the key for the preference entry.
+     * @param title Title text.
+     * @param summary Summary text.
+     * @param extras Extra bundle to pass to the Fragment.
+     */
+    public void addEntryForKey(
+            String prefFragment,
+            String key,
+            String title,
+            @Nullable String summary,
+            @Nullable Bundle extras) {
         String id = PreferenceParser.createUniqueId(prefFragment, key);
-        String title = ContextUtils.getApplicationContext().getString(titleId);
-        addEntry(id, new Entry.Builder(id, key, title, prefFragment).build());
+        var builder = new Entry.Builder(id, key, title, prefFragment);
+        if (summary != null) builder.setSummary(summary);
+        if (extras != null) builder.setArguments(extras);
+        addEntry(id, builder.build());
     }
 
     @Nullable
@@ -356,13 +413,33 @@ public class SettingsIndexData {
     }
 
     /** Set the flag indicating the index became stale and needs reindexing. */
-    public void setNeedsIndexing(boolean needsIndexing) {
-        sNeedsIndexing = needsIndexing;
+    public void setNeedsIndexing() {
+        sNeedsIndexing = true;
+    }
+
+    /**
+     * Resets the flag indicating the index needs refreshing.
+     *
+     * <p>Ideally this method should only be used by the coordinator to reset the flag after the
+     * index is initialized.
+     */
+    public void resetNeedsIndexing() {
+        sNeedsIndexing = false;
     }
 
     /** Return whether the index data needs to be refreshed. */
     public boolean needsIndexing() {
         return sNeedsIndexing;
+    }
+
+    /** Set the flag indicating whether the search results fragment needs refreshing. */
+    public void setRefreshResult(boolean refresh) {
+        mShouldRefreshResult = refresh;
+    }
+
+    /** Returns whether whether the search results fragment needs refreshing. */
+    public boolean shouldRefreshResult() {
+        return mShouldRefreshResult;
     }
 
     /**

@@ -174,8 +174,8 @@ class TabAndroid : public tabs::TabInterface,
 
   // Methods called from Java via JNI -----------------------------------------
 
-  void Destroy(JNIEnv* env);
-  bool HasParentCollection(JNIEnv* env);
+  void Destroy();
+  bool HasParentCollection();
   void InitWebContents(
       JNIEnv* env,
       jboolean incognito,
@@ -183,29 +183,29 @@ class TabAndroid : public tabs::TabInterface,
       const base::android::JavaRef<jobject>& jweb_contents,
       const base::android::JavaRef<jobject>& jweb_contents_delegate,
       const base::android::JavaRef<jobject>& jcontext_menu_populator_factory);
-  void InitializeAutofillIfNecessary(JNIEnv* env);
+  void InitializeAutofillIfNecessary();
   void UpdateDelegates(
       JNIEnv* env,
       const base::android::JavaRef<jobject>& jweb_contents_delegate,
       const base::android::JavaRef<jobject>& jcontext_menu_populator_factory);
-  void DestroyWebContents(JNIEnv* env);
-  void ReleaseWebContents(JNIEnv* env);
+  void DestroyWebContents();
+  void ReleaseWebContents();
   bool IsPhysicalBackingSizeEmpty(
-      JNIEnv* env,
       const base::android::JavaRef<jobject>& jweb_contents);
   void OnPhysicalBackingSizeChanged(
-      JNIEnv* env,
       const base::android::JavaRef<jobject>& jweb_contents,
       jint width,
       jint height);
-  void SetActiveNavigationEntryTitleForUrl(JNIEnv* env,
-                                           std::string& jurl,
+  void SetActiveNavigationEntryTitleForUrl(std::string& jurl,
                                            std::u16string& jtitle);
-  void LoadOriginalImage(JNIEnv* env);
-  void OnShow(JNIEnv* env);
-  void NotifyPinnedStateChanged(JNIEnv* env, jboolean is_pinned);
-  void NotifyTabGroupChanged(JNIEnv* env,
-                             std::optional<base::Token> tab_group_id);
+  void LoadOriginalImage();
+  void OnShow();
+  void NotifyPinnedStateChanged(jboolean is_pinned);
+  void NotifyTabGroupChanged(std::optional<base::Token> tab_group_id);
+  bool IsDragging() const;
+  void OnDraggingStateChanged(jboolean is_dragging);
+  base::CallbackListSubscription RegisterDraggingChanged(
+      base::RepeatingCallback<void(TabInterface*, bool)> callback);
 
   scoped_refptr<content::DevToolsAgentHost> GetDevToolsAgentHost();
 
@@ -273,6 +273,7 @@ class TabAndroid : public tabs::TabInterface,
 
   void UpdateProperties();
   void SetIsPinned(bool pinned);
+  void SetIsDragging(bool dragging);
   void SetTabGroupId(std::optional<tab_groups::TabGroupId> tab_group_id);
 
   int tab_id_;
@@ -301,6 +302,9 @@ class TabAndroid : public tabs::TabInterface,
   base::RepeatingCallbackList<void(TabInterface*,
                                    std::optional<tab_groups::TabGroupId>)>
       group_changed_callback_list_;
+
+  base::RepeatingCallbackList<void(TabInterface*, bool)>
+      dragging_changed_callback_list_;
 
   const base::WeakPtr<Profile> profile_;
   ui::UnownedUserDataHost unowned_user_data_host_;

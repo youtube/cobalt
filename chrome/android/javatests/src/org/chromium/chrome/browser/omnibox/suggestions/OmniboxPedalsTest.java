@@ -10,6 +10,7 @@ import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 
+import static org.chromium.chrome.browser.url_constants.UrlConstantResolver.getOriginalNativeHistoryUrl;
 import static org.chromium.ui.test.util.ViewUtils.onViewWaiting;
 
 import android.app.Activity;
@@ -203,7 +204,11 @@ public class OmniboxPedalsTest {
     @Test
     @MediumTest
     @ImportantFormFactors(DeviceFormFactor.ONLY_TABLET)
-    @Restriction({DeviceFormFactor.ONLY_TABLET, DeviceRestriction.RESTRICTION_TYPE_NON_AUTO})
+    @Restriction({
+        DeviceFormFactor.ONLY_TABLET,
+        DeviceRestriction.RESTRICTION_TYPE_NON_AUTO,
+        DeviceRestriction.RESTRICTION_TYPE_NON_FOLDABLE
+    })
     @EnableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void testOpenIncognitoTab_Tablet() throws InterruptedException {
         setSuggestions(createPedalSuggestion(OmniboxPedalId.LAUNCH_INCOGNITO));
@@ -268,7 +273,7 @@ public class OmniboxPedalsTest {
                     Criteria.checkThat(tab, Matchers.notNullValue());
                     Criteria.checkThat(
                             tab.getUrl().getSpec(),
-                            Matchers.startsWith(UrlConstants.NATIVE_HISTORY_URL));
+                            Matchers.startsWith(getOriginalNativeHistoryUrl()));
                 });
     }
 

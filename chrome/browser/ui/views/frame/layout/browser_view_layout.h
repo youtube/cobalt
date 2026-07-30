@@ -18,6 +18,7 @@ class Browser;
 class BrowserViewLayoutDelegate;
 class InfoBarContainerView;
 class MultiContentsView;
+class ProjectsPanelView;
 class SidePanel;
 class TabStrip;
 class HorizontalTabStripRegionView;
@@ -56,6 +57,7 @@ struct BrowserViewLayoutViews {
   raw_ptr<views::Label> web_app_window_title = nullptr;
   raw_ptr<HorizontalTabStripRegionView> tab_strip_region_view = nullptr;
   raw_ptr<VerticalTabStripRegionView> vertical_tab_strip_container = nullptr;
+  raw_ptr<ProjectsPanelView> projects_panel_container = nullptr;
   raw_ptr<views::View> toolbar = nullptr;
   raw_ptr<InfoBarContainerView> infobar_container = nullptr;
   raw_ptr<views::View> contents_container = nullptr;
@@ -63,12 +65,6 @@ struct BrowserViewLayoutViews {
   raw_ptr<SidePanel> toolbar_height_side_panel = nullptr;
   raw_ptr<SidePanel> contents_height_side_panel = nullptr;
   raw_ptr<views::View> side_panel_animation_content = nullptr;
-
-  // TODO(crbug.com/424236535): These can be removed once `SideBySide` is
-  // launched.
-  raw_ptr<views::View> left_aligned_side_panel_separator = nullptr;
-  raw_ptr<views::View> right_aligned_side_panel_separator = nullptr;
-  raw_ptr<views::View> side_panel_rounded_corner = nullptr;
 
   // The contents separator used for when the top container is overlaid.
   // Note: when `SideBySide` feature is disabled, this separator is also

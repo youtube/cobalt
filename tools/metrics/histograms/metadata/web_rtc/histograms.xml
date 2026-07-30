@@ -242,7 +242,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.Audio.ApmCaptureInputLevelAverageRms"
-    units="dBFS (negated)" expires_after="2026-04-12">
+    units="dBFS (negated)" expires_after="2026-06-21">
   <owner>hlundin@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
   <summary>
@@ -255,7 +255,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.Audio.ApmCaptureInputLevelPeakRms"
-    units="dBFS (negated)" expires_after="2026-04-12">
+    units="dBFS (negated)" expires_after="2026-06-21">
   <owner>hlundin@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
   <summary>
@@ -379,7 +379,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.Audio.EchoCanceller.CaptureSaturation" enum="Boolean"
-    expires_after="2026-04-12">
+    expires_after="2026-06-21">
   <owner>peah@chromium.org</owner>
   <owner>saza@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -772,7 +772,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="WebRTC.BWE.InitialRtt" units="ms" expires_after="2026-04-12">
+<histogram name="WebRTC.BWE.InitialRtt" units="ms" expires_after="2026-06-14">
   <owner>holmer@chromium.org</owner>
   <summary>
     The round-trip time as measured 2 seconds into a WebRTC call.
@@ -780,7 +780,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.BWE.InitialVsConvergedDiff" units="kbps"
-    expires_after="2026-04-12">
+    expires_after="2026-06-14">
   <owner>holmer@chromium.org</owner>
   <summary>
     The difference between the bandwidth estimate at 2 seconds and 20 seconds
@@ -904,7 +904,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.Call.AudioBitrateReceivedInKbps" units="kbps"
-    expires_after="2026-04-12">
+    expires_after="2026-06-14">
   <owner>holmer@chromium.org</owner>
   <summary>
     Average audio bitrate received during a call, counted from first packet
@@ -934,7 +934,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.Call.LifetimeInSeconds" units="seconds"
-    expires_after="2026-04-12">
+    expires_after="2026-06-21">
   <owner>asapersson@chromium.org</owner>
   <summary>
     The lifetime of a call. Recorded when a Call instance is destroyed.
@@ -952,7 +952,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.Call.RtcpBitrateReceivedInBps" units="bits/s"
-    expires_after="2026-04-12">
+    expires_after="2026-06-14">
   <owner>holmer@chromium.org</owner>
   <summary>
     Average RTCP bitrate received during a call, counted from first packet
@@ -1326,7 +1326,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.PeerConnection.DtlsFingerprintLegacySha1"
-    enum="Boolean" expires_after="2026-04-12">
+    enum="Boolean" expires_after="2026-06-21">
   <owner>hta@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <owner>phancke@meta.com</owner>
@@ -1347,6 +1347,36 @@ chromium-metrics-reviews@google.com.
     Records the error whenever the Dtls handshake fails. There are only two
     types of errors, incompatitable cipher suite and unknown error, for now.
   </summary>
+</histogram>
+
+<histogram name="WebRTC.PeerConnection.DtlsVersion{Role}"
+    enum="WebRtcDtlsVersion" expires_after="2026-11-10">
+  <owner>guidou@chromium.org</owner>
+  <owner>hta@chromium.org</owner>
+  <owner>webrtc-dev@chromium.org</owner>
+  <summary>
+    DTLS version used by the peer when acting as a DTLS {Role}. Recorded when
+    the DTLS state changes to Connected.
+  </summary>
+  <token key="Role">
+    <variant name="ClientRole"/>
+    <variant name="ServerRole"/>
+  </token>
+</histogram>
+
+<histogram name="WebRTC.PeerConnection.Dtls{Role}ConnectionTime"
+    units="microseconds" expires_after="2026-11-10">
+  <owner>guidou@chromium.org</owner>
+  <owner>hta@chromium.org</owner>
+  <owner>webrtc-dev@chromium.org</owner>
+  <summary>
+    Time elapsed between the moment the DTLS state changes from Connecting to
+    Connected if the peer is acting as a DTLS {Role}.
+  </summary>
+  <token key="Role">
+    <variant name="ClientRole"/>
+    <variant name="ServerRole"/>
+  </token>
 </histogram>
 
 <histogram name="WebRTC.PeerConnection.Duration.Network" units="microseconds"
@@ -1515,6 +1545,16 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="WebRTC.PeerConnection.NegotiatedFeedbackType"
+    enum="PeerConnectionRtcpFeedbackType" expires_after="2026-06-10">
+  <owner>hta@chromium.org</owner>
+  <owner>webrtc-dev@chromium.org</owner>
+  <summary>
+    Records the preferred congestion control format negotiated. Recorded after
+    the first connection establishment.
+  </summary>
+</histogram>
+
 <histogram name="WebRTC.PeerConnection.ProvisionalAnswer"
     enum="PeerConnectionProvisionalAnswer" expires_after="2024-06-30">
   <owner>hta@chromium.org</owner>
@@ -1588,7 +1628,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.PeerConnection.RtpTransportCount" units="counts"
-    expires_after="2026-04-13">
+    expires_after="2026-06-21">
   <owner>hta@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
@@ -2489,7 +2529,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.Video.HwCapabilities.Decode.{Codec}" enum="Boolean"
-    expires_after="2026-01-04">
+    expires_after="2027-01-04">
   <owner>kron@chromium.org</owner>
   <owner>video-performance-team@google.com</owner>
   <summary>
@@ -2506,7 +2546,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.Video.HwCapabilities.Encode.{Codec}"
-    enum="EncodeScalabilityMode" expires_after="2026-01-04">
+    enum="EncodeScalabilityMode" expires_after="2027-01-04">
   <owner>kron@chromium.org</owner>
   <owner>video-performance-team@google.com</owner>
   <summary>

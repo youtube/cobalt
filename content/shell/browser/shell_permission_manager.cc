@@ -27,6 +27,7 @@ namespace {
 bool IsAllowlistedPermissionType(PermissionType permission) {
   switch (permission) {
     case PermissionType::GEOLOCATION:
+    case PermissionType::GEOLOCATION_APPROXIMATE:
     case PermissionType::SENSORS:
     case PermissionType::PAYMENT_HANDLER:
     case PermissionType::WAKE_LOCK_SCREEN:
@@ -76,6 +77,8 @@ bool IsAllowlistedPermissionType(PermissionType permission) {
     case PermissionType::AUTOMATIC_FULLSCREEN:
     case PermissionType::WEB_APP_INSTALLATION:
     case PermissionType::LOCAL_NETWORK_ACCESS:
+    case PermissionType::LOCAL_NETWORK:
+    case PermissionType::LOOPBACK_NETWORK:
       return false;
   }
 

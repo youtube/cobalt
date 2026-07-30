@@ -230,8 +230,7 @@ class CachedVideoFramePool : public GarbageCollected<CachedVideoFramePool>,
                              public Supplement<ExecutionContext>,
                              public ExecutionContextLifecycleStateObserver {
  public:
-  static constexpr auto kSupplementIndex =
-      ExecutionContext::Supplements::kCachedVideoFramePool;
+  static const char kSupplementName[];
 
   static CachedVideoFramePool& From(ExecutionContext& context) {
     CachedVideoFramePool* supplement =
@@ -318,67 +317,72 @@ class CachedVideoFramePool : public GarbageCollected<CachedVideoFramePool>,
 };
 
 // static -- defined out of line to satisfy link time requirements.
+const char CachedVideoFramePool::kSupplementName[] = "CachedVideoFramePool";
 const base::TimeDelta CachedVideoFramePool::kIdleTimeout = base::Seconds(10);
 
-class CanvasResourceProviderCache
-    : public GarbageCollected<CanvasResourceProviderCache>,
+class CanvasSnapshotProviderCache
+    : public GarbageCollected<CanvasSnapshotProviderCache>,
       public Supplement<ExecutionContext>,
       public ExecutionContextLifecycleStateObserver {
  public:
-  static constexpr auto kSupplementIndex =
-      ExecutionContext::Supplements::kCanvasResourceProviderCache;
+  static const char kSupplementName[];
 
-  static CanvasResourceProviderCache& From(ExecutionContext& context) {
-    CanvasResourceProviderCache* supplement =
-        Supplement<ExecutionContext>::From<CanvasResourceProviderCache>(
+  static CanvasSnapshotProviderCache& From(ExecutionContext& context) {
+    CanvasSnapshotProviderCache* supplement =
+        Supplement<ExecutionContext>::From<CanvasSnapshotProviderCache>(
             context);
     if (!supplement) {
-      supplement = MakeGarbageCollected<CanvasResourceProviderCache>(context);
+      supplement = MakeGarbageCollected<CanvasSnapshotProviderCache>(context);
       Supplement<ExecutionContext>::ProvideTo(context, supplement);
     }
     return *supplement;
   }
-  CanvasResourceProviderCache& operator=(const CanvasResourceProviderCache&) =
+  CanvasSnapshotProviderCache& operator=(const CanvasSnapshotProviderCache&) =
       delete;
 
-  explicit CanvasResourceProviderCache(ExecutionContext& context)
+  explicit CanvasSnapshotProviderCache(ExecutionContext& context)
       : Supplement<ExecutionContext>(context),
         ExecutionContextLifecycleStateObserver(&context) {
     UpdateStateIfNeeded();
   }
-  ~CanvasResourceProviderCache() override = default;
+  ~CanvasSnapshotProviderCache() override = default;
 
   // Disallow copy and assign.
-  CanvasResourceProviderCache(const CanvasResourceProviderCache&) = delete;
+  CanvasSnapshotProviderCache(const CanvasSnapshotProviderCache&) = delete;
 
-  CanvasSnapshotProvider* CreateProvider(gfx::Size size) {
-    // TODO(https://crbug.com/1341235): The choice of color type, alpha type,
-    // and color space is inappropriate in many circumstances.
-    const auto info =
-        SkImageInfo::Make(gfx::SizeToSkISize(size), kN32_SkColorType,
-                          kPremul_SkAlphaType, nullptr);
+  CanvasSnapshotProvider* CreateProvider(const media::VideoFrame& frame) {
+    const auto alpha_type = media::IsOpaque(frame.format())
+                                ? kOpaque_SkAlphaType
+                                : kPremul_SkAlphaType;
+    const auto dest_color_space = frame.CompatRGBColorSpace();
 
-    if (info_to_provider_.empty())
+    // TODO(https://crbug.com/40230609): N32 may be incorrect when drawing high
+    // bit depth frames destined for a high bit depth canvas.
+    const auto image_format = GetN32FormatForCanvas();
+
+    if (providers_.empty()) {
       PostMonitoringTask();
+    }
 
     last_access_time_ = base::TimeTicks::Now();
 
-    auto iter = info_to_provider_.find(info);
-    if (iter != info_to_provider_.end()) {
-      auto* result = iter->value.get();
-      if (result && result->IsValid())
-        return result;
+    for (const auto& provider : providers_) {
+      if (provider->IsValid() && provider->Size() == frame.natural_size() &&
+          provider->GetColorSpace() == dest_color_space &&
+          provider->GetAlphaType() == alpha_type) {
+        return provider.get();
+      }
     }
 
-    if (info_to_provider_.size() >= kMaxSize)
-      info_to_provider_.clear();
+    if (providers_.size() >= kMaxSize) {
+      providers_.clear();
+    }
 
     auto provider = CreateSnapshotProviderForVideoFrame(
-        size, viz::SkColorTypeToSinglePlaneSharedImageFormat(info.colorType()),
-        info.alphaType(), SkColorSpaceToGfxColorSpace(info.refColorSpace()),
+        frame.natural_size(), image_format, alpha_type, dest_color_space,
         GetRasterContextProvider().get());
     auto* result = provider.get();
-    info_to_provider_.Set(info, std::move(provider));
+    providers_.emplace_back(std::move(provider));
     return result;
   }
 
@@ -389,15 +393,15 @@ class CanvasResourceProviderCache
 
   void ContextLifecycleStateChanged(
       mojom::blink::FrameLifecycleState state) override {
-    if (state == mojom::blink::FrameLifecycleState::kRunning)
+    if (state == mojom::blink::FrameLifecycleState::kRunning) {
       return;
-    // Reset `info_to_provider_` because the task runner for purging will get
-    // paused.
-    info_to_provider_.clear();
+    }
+    // Reset `providers_` because the task runner for purging will get paused.
+    providers_.clear();
     task_handle_.Cancel();
   }
 
-  void ContextDestroyed() override { info_to_provider_.clear(); }
+  void ContextDestroyed() override { providers_.clear(); }
 
  private:
   static constexpr int kMaxSize = 50;
@@ -408,27 +412,28 @@ class CanvasResourceProviderCache
     task_handle_ = PostDelayedCancellableTask(
         *GetSupplementable()->GetTaskRunner(TaskType::kInternalMedia),
         FROM_HERE,
-        BindOnce(&CanvasResourceProviderCache::PurgeIdleFramePool,
+        BindOnce(&CanvasSnapshotProviderCache::PurgeIdleFramePool,
                  WrapWeakPersistent(this)),
         kIdleTimeout);
   }
 
   void PurgeIdleFramePool() {
     if (base::TimeTicks::Now() - last_access_time_ > kIdleTimeout) {
-      info_to_provider_.clear();
+      providers_.clear();
       return;
     }
     PostMonitoringTask();
   }
 
-  HashMap<SkImageInfo, std::unique_ptr<CanvasSnapshotProvider>>
-      info_to_provider_;
+  Vector<std::unique_ptr<CanvasSnapshotProvider>> providers_;
   base::TimeTicks last_access_time_;
   TaskHandle task_handle_;
 };
 
 // static -- defined out of line to satisfy link time requirements.
-const base::TimeDelta CanvasResourceProviderCache::kIdleTimeout =
+const char CanvasSnapshotProviderCache::kSupplementName[] =
+    "CanvasSnapshotProviderCache";
+const base::TimeDelta CanvasSnapshotProviderCache::kIdleTimeout =
     base::Seconds(10);
 
 std::optional<media::VideoPixelFormat> CopyToFormat(
@@ -1463,14 +1468,13 @@ scoped_refptr<Image> VideoFrame::GetSourceImageForCanvas(
 
   auto* execution_context =
       ExecutionContext::From(v8::Isolate::GetCurrent()->GetCurrentContext());
-  auto& provider_cache = CanvasResourceProviderCache::From(*execution_context);
+  auto& provider_cache = CanvasSnapshotProviderCache::From(*execution_context);
 
-  const auto& resource_provider_size = local_handle->frame()->natural_size();
-  auto* resource_provider =
-      provider_cache.CreateProvider(resource_provider_size);
+  auto* snapshot_provider =
+      provider_cache.CreateProvider(*local_handle->frame());
 
   auto image =
-      CreateImageFromVideoFrame(local_handle->frame(), resource_provider,
+      CreateImageFromVideoFrame(local_handle->frame(), snapshot_provider,
                                 /*video_renderer=*/nullptr);
   if (!image) {
     *status = kInvalidSourceImageStatus;
@@ -1562,14 +1566,13 @@ ScriptPromise<ImageBitmap> VideoFrame::CreateImageBitmap(
 
   auto* execution_context =
       ExecutionContext::From(v8::Isolate::GetCurrent()->GetCurrentContext());
-  auto& provider_cache = CanvasResourceProviderCache::From(*execution_context);
+  auto& provider_cache = CanvasSnapshotProviderCache::From(*execution_context);
 
-  const auto& resource_provider_size = local_handle->frame()->natural_size();
-  auto* resource_provider =
-      provider_cache.CreateProvider(resource_provider_size);
+  auto* snapshot_provider =
+      provider_cache.CreateProvider(*local_handle->frame());
 
   auto image =
-      CreateImageFromVideoFrame(local_handle->frame(), resource_provider,
+      CreateImageFromVideoFrame(local_handle->frame(), snapshot_provider,
                                 /*video_renderer=*/nullptr);
   if (!image) {
     exception_state.ThrowDOMException(

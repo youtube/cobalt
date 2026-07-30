@@ -261,18 +261,10 @@ TestPaymentsAutofillClient::GetCardUnmaskPromptModel() {
 VirtualCardEnrollmentManager*
 TestPaymentsAutofillClient::GetVirtualCardEnrollmentManager() {
   if (!virtual_card_enrollment_manager_) {
-    PaymentsNetworkInterfaceVariation payments_network_interface;
-    if (base::FeatureList::IsEnabled(
-            features::
-                kAutofillEnableMultipleRequestInVirtualCardDownstreamEnrollment)) {
-      payments_network_interface = GetMultipleRequestPaymentsNetworkInterface();
-    } else {
-      payments_network_interface = GetPaymentsNetworkInterface();
-    }
     virtual_card_enrollment_manager_ =
         std::make_unique<VirtualCardEnrollmentManager>(
             &client_->GetPersonalDataManager().payments_data_manager(),
-            payments_network_interface, &client_.get());
+            GetMultipleRequestPaymentsNetworkInterface(), &client_.get());
   }
 
   return virtual_card_enrollment_manager_.get();
@@ -310,6 +302,12 @@ bool TestPaymentsAutofillClient::IsRiskBasedAuthEffectivelyAvailable() const {
 bool TestPaymentsAutofillClient::IsMandatoryReauthEnabled() {
   return GetPaymentsDataManager().IsPaymentMethodsMandatoryReauthEnabled();
 }
+
+#if BUILDFLAG(IS_IOS)
+bool TestPaymentsAutofillClient::IsUsingCustomCardIconEnabled() const {
+  return true;
+}
+#endif  // BUILDFLAG(IS_IOS)
 
 void TestPaymentsAutofillClient::ShowMandatoryReauthOptInPrompt(
     base::OnceClosure accept_mandatory_reauth_callback,
@@ -454,7 +452,8 @@ void TestPaymentsAutofillClient::ShowCreditCardUploadSaveAndFillDialog(
     const LegalMessageLines& legal_message_lines,
     CardSaveAndFillDialogCallback callback) {}
 
-void TestPaymentsAutofillClient::ShowCreditCardSaveAndFillPendingDialog() {}
+void TestPaymentsAutofillClient::ShowCreditCardSaveAndFillPendingDialog(
+    CardSaveAndFillDialogCallback callback) {}
 
 void TestPaymentsAutofillClient::HideCreditCardSaveAndFillDialog() {}
 

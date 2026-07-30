@@ -186,9 +186,11 @@ android_resources("autofill_browser_resources") {
     "browser/java/res/drawable/autofill_external_link.xml",
     "browser/java/res/drawable/directions_car.xml",
     "browser/java/res/drawable/flight.xml",
-    "browser/java/res/drawable/home_logo.xml",
     "browser/java/res/drawable/id_card.xml",
+    "browser/java/res/drawable/passport.xml",
     "browser/java/res/drawable/person_check.xml",
+    "browser/java/res/drawable/travel_luggage_and_bags.xml",
+    "browser/java/res/drawable/wallet.xml",
     "browser/java/res/drawable/work_logo.xml",
   ]
 }
@@ -266,6 +268,7 @@ android_library("main_autofill_java") {
     "java/src/org/chromium/components/autofill/SubKeyRequester.java",
     "java/src/org/chromium/components/autofill/autofill_ai/AttributeInstance.java",
     "java/src/org/chromium/components/autofill/autofill_ai/AttributeType.java",
+    "java/src/org/chromium/components/autofill/autofill_ai/EntityInstance.java",
     "java/src/org/chromium/components/autofill/autofill_ai/EntityType.java",
   ]
   srcjar_deps = [
@@ -290,6 +293,7 @@ generate_jni("main_autofill_jni_headers") {
     "java/src/org/chromium/components/autofill/SubKeyRequester.java",
     "java/src/org/chromium/components/autofill/autofill_ai/AttributeInstance.java",
     "java/src/org/chromium/components/autofill/autofill_ai/AttributeType.java",
+    "java/src/org/chromium/components/autofill/autofill_ai/EntityInstance.java",
     "java/src/org/chromium/components/autofill/autofill_ai/EntityType.java",
   ]
 }

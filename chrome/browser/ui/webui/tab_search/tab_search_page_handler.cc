@@ -725,8 +725,7 @@ void TabSearchPageHandler::GetTabOrganizationSession(
   TabOrganizationSession* session =
       organization_service_->GetSessionForBrowser(browser_);
   if (!session) {
-    session = organization_service_->CreateSessionForBrowser(
-        browser_, TabOrganizationEntryPoint::kTabSearch);
+    session = organization_service_->CreateSessionForBrowser(browser_);
   }
 
   if (!base::Contains(listened_sessions_, session)) {
@@ -767,12 +766,10 @@ void TabSearchPageHandler::GetTabOrganizationModelStrategy(
 
 void TabSearchPageHandler::GetIsSplit(GetIsSplitCallback callback) {
   bool is_split = false;
-  if (base::FeatureList::IsEnabled(features::kSideBySide)) {
-    GURL url = web_ui_->GetWebContents()->GetURL();
-    if (url.spec() == chrome::kChromeUISplitViewNewTabPageURL) {
-      is_split = tabs::TabInterface::GetFromContents(web_ui_->GetWebContents())
-                     ->IsSplit();
-    }
+  GURL url = web_ui_->GetWebContents()->GetURL();
+  if (url.spec() == chrome::kChromeUISplitViewNewTabPageURL) {
+    is_split = tabs::TabInterface::GetFromContents(web_ui_->GetWebContents())
+                   ->IsSplit();
   }
   std::move(callback).Run(is_split);
 }
@@ -825,11 +822,9 @@ void TabSearchPageHandler::RequestTabOrganization() {
   TabOrganizationSession* session =
       organization_service_->GetSessionForBrowser(browser_);
   if (!session) {
-    session = organization_service_->CreateSessionForBrowser(
-        browser_, TabOrganizationEntryPoint::kTabSearch);
+    session = organization_service_->CreateSessionForBrowser(browser_);
   } else if (session->IsComplete()) {
-    session = organization_service_->ResetSessionForBrowser(
-        browser_, TabOrganizationEntryPoint::kTabSearch);
+    session = organization_service_->ResetSessionForBrowser(browser_);
   }
 
   if (!base::Contains(listened_sessions_, session)) {
@@ -839,8 +834,7 @@ void TabSearchPageHandler::RequestTabOrganization() {
 
   browser_->profile()->GetPrefs()->SetBoolean(
       tab_search_prefs::kTabOrganizationShowFRE, false);
-  organization_service_->StartRequest(browser_,
-                                      TabOrganizationEntryPoint::kTabSearch);
+  organization_service_->StartRequest(browser_);
 }
 
 void TabSearchPageHandler::RemoveTabFromOrganization(
@@ -882,8 +876,7 @@ void TabSearchPageHandler::RejectSession(int32_t session_id) {
     }
   }
 
-  organization_service_->ResetSessionForBrowser(
-      browser_, TabOrganizationEntryPoint::kTabSearch, nullptr);
+  organization_service_->ResetSessionForBrowser(browser_, nullptr);
 }
 
 void TabSearchPageHandler::ReplaceActiveSplitTab(int32_t replacement_tab_id) {
@@ -912,15 +905,13 @@ void TabSearchPageHandler::RestartSession() {
       current_session ? current_session->base_session_tab() : nullptr;
   // Don't notify observers to avoid a repaint
   TabOrganizationSession* session =
-      organization_service_->ResetSessionForBrowser(
-          browser_, TabOrganizationEntryPoint::kTabSearch, base_session_tab);
+      organization_service_->ResetSessionForBrowser(browser_, base_session_tab);
   if (!base::Contains(listened_sessions_, session)) {
     session->AddObserver(this);
     listened_sessions_.emplace_back(session);
   }
 
-  organization_service_->StartRequest(browser_,
-                                      TabOrganizationEntryPoint::kTabSearch);
+  organization_service_->StartRequest(browser_);
 
   restarting_ = false;
 
@@ -1614,9 +1605,6 @@ void TabSearchPageHandler::TabChangedAt(content::WebContents* contents,
 }
 
 void TabSearchPageHandler::OnSplitTabChanged(const SplitTabChange& change) {
-  if (!base::FeatureList::IsEnabled(features::kSideBySide)) {
-    return;
-  }
   if (change.type != SplitTabChange::Type::kRemoved) {
     return;
   }

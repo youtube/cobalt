@@ -282,4 +282,27 @@ std::u16string GetFillValueForEntity(
   return should_obfuscate ? GetObfuscatedValue(fill_value) : fill_value;
 }
 
+bool ShouldReauthBeforeFilling(
+    const EntityInstance& entity,
+    base::span<const AutofillFieldWithAttributeType> fields,
+    const std::string& app_locale) {
+  return std::ranges::any_of(
+      fields, [&](const AutofillFieldWithAttributeType& f) {
+        return ShouldFieldBeObfuscated(entity, f, app_locale);
+      });
+}
+
+bool ShouldFieldBeObfuscated(const EntityInstance& entity,
+                             const AutofillFieldWithAttributeType& f,
+                             const std::string& app_locale) {
+  base::optional_ref<const AttributeInstance> attribute =
+      entity.attribute(f.type);
+  return entity.type() == f.type.entity_type() && attribute &&
+         attribute->type().is_obfuscated() &&
+         !attribute
+              ->GetInfo(f.field->Type().GetAutofillAiType(entity.type()),
+                        app_locale, f.field->format_string())
+              .empty();
+}
+
 }  // namespace autofill

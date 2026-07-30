@@ -73,6 +73,7 @@
 <translation id="1113000785583998331">Queres gardar o IBAN?</translation>
 <translation id="1113869188872983271">&amp;Desfacer o cambio de orde</translation>
 <translation id="1118429183611783760">Aspiradores e coidado do chan</translation>
+<translation id="111897705806685148">Usar clave de acceso doutro dispositivo</translation>
 <translation id="1119009590493440389"><ph name="MANAGE_SYNC_FOCUSED_FRIENDLY_MATCH_TEXT" />, preme Tabulador e, a continuación, Introducir para xestionar a información de Chrome que gardas na túa Conta de Google</translation>
 <translation id="1122714970786750095">Electrónica e electricidade</translation>
 <translation id="1123753900084781868">A función Subtítulos instantáneos non está dispoñible nestes intres</translation>
@@ -854,6 +855,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="2359629602545592467">Varias divisas</translation>
 <translation id="2359808026110333948">Continuar</translation>
 <translation id="236000571258713023">Vehículos</translation>
+<translation id="2360131275005204317">Compañía aérea</translation>
 <translation id="2361263712565360498">275 x 395 mm</translation>
 <translation id="236340516568226369">Menú dos botóns do cambio de tamaño</translation>
 <translation id="2365355378251437925">Cubre o campo <ph name="FIELD" /></translation>
@@ -1247,6 +1249,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="301521992641321250">Bloqueado automaticamente</translation>
 <translation id="3016780570757425217">Coñecer a túa localización</translation>
 <translation id="3017086357773116182"><ph name="REMOVE_SUGGESTION_SUFFIX" />. Para quitar a suxestión, preme Tabulador e, a continuación, Introducir.</translation>
+<translation id="3019738915977809060">Gardar tarxeta de embarque en Wallet</translation>
 <translation id="3022959067768579802">Seguir escribindo</translation>
 <translation id="3023165109041533893">Os anuncios suxeridos polos sitios axudan a protexer o teu historial de navegación e a túa identidade, ao mesmo tempo que permiten que os sitios che mostren anuncios relevantes. En función da túa actividade, os sitios que visites poden suxerir anuncios relacionados a medida que navegues pola Web. Podes ver a lista destes sitios na configuración e bloquear os que non queiras.</translation>
 <translation id="3024663005179499861">Tipo de política incorrecta</translation>
@@ -1355,7 +1358,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="3194765668709099364">Klarna</translation>
 <translation id="3195213714973468956"><ph name="PRINTER_NAME" /> en <ph name="SERVER_NAME" /></translation>
 <translation id="3197136577151645743">Pode pedirche permiso para saber cando estás utilizando o dispositivo de maneira activa</translation>
-<translation id="3201482403106004262">Produciuse un erro ao cargar a enquisa.</translation>
 <translation id="3202497928925179914"><ph name="MANAGE_SYNC_FOCUSED_FRIENDLY_MATCH_TEXT" />. Para xestionar na configuración de Chrome a información que se sincroniza, preme Tabulador e, a continuación, Introducir</translation>
 <translation id="3203025201812691413">O URL non pode estar baleiro</translation>
 <translation id="320323717674993345">Cancelar pago</translation>
@@ -1445,6 +1447,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="3342018947887487892">Máis tarde, un sitio que visites pode solicitar esta información; ben os teus temas de anuncios, ou ben anuncios suxeridos polos sitios que visitases anteriormente.</translation>
 <translation id="334438173029876234">Equipamento de monopatín</translation>
 <translation id="3347146863028219517">Esquí e snowboard</translation>
+<translation id="3349610303043713601">Explorar coa IA</translation>
 <translation id="3349952286488694786">SRA2</translation>
 <translation id="3350450887151703713">Volver reproducir 10 segundos</translation>
 <translation id="3352881017886802007">Xogos de deportes</translation>
@@ -2138,7 +2141,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="4409556632583862731">Novo fío de mensaxes</translation>
 <translation id="4412074349188076601">Esta configuración está marcada como instalable, pero como non hai ningunha imaxe dispoñible para esta arquitectura, non se pode instalar.</translation>
 <translation id="4412377069090572315">O que di a xente</translation>
-<translation id="4414452699610169758">Usa o xestor de contrasinais de Google e a función de autocompletar de Chrome para gardar e completar contrasinais, métodos de pago e enderezos</translation>
 <translation id="4414515549596849729">cookies e datos dos sitios</translation>
 <translation id="4415156962929755728">Plástico (brillo intenso)</translation>
 <translation id="4415426530740016218">Enderezo de recollida</translation>
@@ -2307,7 +2309,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="4732860731866514038">Descargando paquete de idioma (<ph name="LANGUAGE" />)… <ph name="PERCENT" /> %</translation>
 <translation id="4733082559415072992">O URL <ph name="URL" /> quere utilizar a localización do teu dispositivo</translation>
 <translation id="473414950835101501">Usar as cámaras</translation>
-<translation id="4734343956394152985"><ph name="BEGIN_BOLD" />Buscador predeterminado actual<ph name="END_BOLD" /> · <ph name="MARKETING_SNIPPET" /></translation>
 <translation id="4736825316280949806">Reinicia Chromium</translation>
 <translation id="4736934858538408121">Tarxeta virtual</translation>
 <translation id="473775607612524610">Actualizar</translation>
@@ -2516,6 +2517,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="5051254010007014901"><ph name="TOOLBELT_PRECEDING_MATCH_TEXT" />; preme Tabulador para consultar máis atallos de busca dispoñibles despois desta suxestión de busca</translation>
 <translation id="5052517576853118371">Temas activos</translation>
 <translation id="5056425809654826431">{NUM_FILES,plural, =1{Para enviar este ficheiro usando Compartir por Nearby, libera espazo (<ph name="DISK_SPACE_SIZE" />) no dispositivo}other{Para enviar estes ficheiros usando Compartir por Nearby, libera espazo (<ph name="DISK_SPACE_SIZE" />) no dispositivo}}</translation>
+<translation id="5056587122125565772">Crear imaxe</translation>
 <translation id="505757197798929356">Indica o motivo polo que queres abrir o ficheiro (obrigatorio)</translation>
 <translation id="5058282932481719070">máis información sobre a función de autocompletar mellorada en Configuración</translation>
 <translation id="5060419232449737386">Configuración de subtítulos</translation>
@@ -2672,6 +2674,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="5307166000025436103">Válido</translation>
 <translation id="5308380583665731573">Conectar</translation>
 <translation id="5308689395849655368">Os informes de erros están desactivados.</translation>
+<translation id="5309562313526658209">Iniciar a navegación</translation>
 <translation id="5314967030527622926">Creador de folletos</translation>
 <translation id="5316812925700871227">Xirar á esquerda</translation>
 <translation id="5317780077021120954">Gardar</translation>
@@ -2934,6 +2937,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="5730040223043577876">Chrome recoméndache que restablezas o contrasinal se o reutilizaches noutros sitios.</translation>
 <translation id="5732392974455271431">Os teus pais poden desbloquealo por ti</translation>
 <translation id="573555826359077410">Botón para crear un formulario. Actívao para crear rapidamente un formulario de Google</translation>
+<translation id="5737022235680044108">A túa organización bloqueou o acceso a <ph name="HOST_NAME" /> no modo de incógnito.</translation>
 <translation id="5738385766833540397">Xestiona como recibes as alertas de baixada de prezos para os produtos dos que fas un seguimento</translation>
 <translation id="5739619009927381786">Desbloquea a pantalla no seguinte paso, normalmente coa túa impresión dixital. Tamén podes <ph name="BEGIN_LINK" />usar outro método para realizar a verificación<ph name="END_LINK" />.</translation>
 <translation id="573974402615125334">Para compartir grupos de pestanas, unirte a eles e colaborar, sincroniza o teu historial e as pestanas</translation>
@@ -3456,7 +3460,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="6568793038316600992">Botón para xestionar métodos de pago. Actívao para xestionar os teus métodos de pago e a información das tarxetas de crédito desde a configuración de Chrome</translation>
 <translation id="6569060085658103619">Estás vendo unha páxina de extensións</translation>
 <translation id="6571992525120410251">Pregúntalle a <ph name="ENGINE_NAME" /> o que queiras</translation>
-<translation id="6572867903637058088">Paréceche útil?</translation>
 <translation id="6573200754375280815">Dúas perforacións na parte dereita</translation>
 <translation id="6575408526598156416">Gardar na conta</translation>
 <translation id="6577792494180292262">Capital risco</translation>
@@ -3616,6 +3619,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="6844998850832008753">O seguimento das mans está permitido neste momento</translation>
 <translation id="6849023911358004088">Botón para xestionar a configuración de seguranza. Actívao para xestionar Navegación segura e outras opcións na configuración de Chrome</translation>
 <translation id="6850286078059909152">Cor do texto</translation>
+<translation id="685163597635765693">A túa organización bloqueou as ligazóns de <ph name="HOST_NAME" /> no modo de incógnito.</translation>
 <translation id="6852204201400771460">Queres volver cargar a aplicación?</translation>
 <translation id="6854691830678097752">Para tramitar as compras máis rápido, garda este CVC na túa conta (<ph name="ACCOUNT_EMAIL" />)</translation>
 <translation id="6857776781123259569">Xestiona os contrasinais…</translation>
@@ -3628,6 +3632,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="6871813064737840684">Historial de prezos na Web para esta opción</translation>
 <translation id="6873456682041376666">Bandexa superior</translation>
 <translation id="6874604403660855544">&amp;Refacer adición</translation>
+<translation id="6875873347995743859">Enviar ao asistente</translation>
 <translation id="6875894866901426843">Quen che administra a conta eliminará os teus ficheiros locais, mesmo os da papeleira, o <ph name="DATE_TIME" />.</translation>
 <translation id="6880941331070119097">Opción cara</translation>
 <translation id="6881240511396774766">Crear rapidamente un novo documento de Google</translation>
@@ -3884,6 +3889,7 @@ Detalles adicionais:
 <translation id="7273111226200291353">Os ficheiros que descargues enviaranse a Google Cloud ou a terceiros para a súa análise. Por exemplo, poderían examinarse para ver se conteñen datos confidenciais ou software malicioso, e almacenarse en función das políticas da empresa. Tamén podería velos a persoa administradora.</translation>
 <translation id="7275334191706090484">Marcadores xestionados</translation>
 <translation id="7275808129217605899">Alimentación saudable</translation>
+<translation id="7282894295403887199">Non podes visitar esta páxina no modo de incógnito</translation>
 <translation id="7285654172857511148"><ph name="CHANGE_GOOGLE_PASSWORD_FOCUSED_FRIENDLY_MATCH_TEXT" />. Preme Tabulador e, a continuación, Introducir para cambiar o contrasinal da túa Conta de Google</translation>
 <translation id="7286908876112207905">Non se permite pegar este contido neste sitio</translation>
 <translation id="7291578327729322058">Engadir un permiso de conducir</translation>
@@ -4050,7 +4056,6 @@ Detalles adicionais:
 <translation id="7525804896095537619">O nome non pode estar baleiro</translation>
 <translation id="7526934274050461096">A túa conexión a este sitio non é privada</translation>
 <translation id="7529884293139707752">Educación na casa</translation>
-<translation id="7530215951451994972">Crear imaxe</translation>
 <translation id="7531464389616946220">Escanear tarxeta</translation>
 <translation id="7534473948927234329"><ph name="STARTER_PACK_BOOKMARKS_FOCUSED_FRIENDLY_MATCH_TEXT" />, preme Introducir para facer buscas nos marcadores</translation>
 <translation id="7534987659046836932">Sobre C7</translation>
@@ -4133,6 +4138,7 @@ Detalles adicionais:
 <translation id="7648527891719919697">Este sitio permanecerá bloqueado porque tes activada Protección avanzada na <ph name="BEGIN_ANDROID_SETTINGS_LINK" />configuración de Android<ph name="END_ANDROID_SETTINGS_LINK" />. <ph name="BEGIN_LEARN_MORE_LINK" />Máis información sobre esta advertencia<ph name="END_LEARN_MORE_LINK" /></translation>
 <translation id="7648992873808071793">Almacenar ficheiros neste dispositivo</translation>
 <translation id="7649070708921625228">Axuda</translation>
+<translation id="7650141368285545431">Usar clave de acceso doutro dispositivo</translation>
 <translation id="7653957176542370971">A folla do controlador de pagos está pechada</translation>
 <translation id="7655766454902053387">Ofertas de emprego</translation>
 <translation id="765676359832457558">Ocultar configuración avanzada...</translation>
@@ -4256,6 +4262,7 @@ Detalles adicionais:
 <translation id="7844689747373518809">{COUNT,plural, =0{Ningunha}=1{1 aplicación (<ph name="EXAMPLE_APP_1" />)}=2{2 aplicacións (<ph name="EXAMPLE_APP_1" /> e <ph name="EXAMPLE_APP_2" />)}other{# aplicacións (<ph name="EXAMPLE_APP_1" />, <ph name="EXAMPLE_APP_2" /> e <ph name="AND_MORE" />)}}</translation>
 <translation id="7846161022626028328">Produciuse un erro. Téntao de novo.</translation>
 <translation id="784623644169604270">Ningunha actividade recente</translation>
+<translation id="7853222852810008596">A opción de pagar máis tarde non está dispoñible nesta moeda</translation>
 <translation id="785476343534277563">Deportes universitarios</translation>
 <translation id="7855695075675558090"><ph name="TOTAL_LABEL" />: <ph name="FORMATTED_TOTAL_AMOUNT" /> <ph name="CURRENCY_CODE" /></translation>
 <translation id="7860345425589240791">Introduce a nova data de vencemento e o CVC do <ph name="SIDE_OF_CARD" /></translation>
@@ -4875,7 +4882,6 @@ Detalles adicionais:
 <translation id="8891031436559779793">Recibirás unha notificación se baixa o prezo en calquera sitio.</translation>
 <translation id="8891727572606052622">Modo de proxy non válido.</translation>
 <translation id="8894794286471754040">Co bordo longo primeiro</translation>
-<translation id="8895334001368918465">Para usar outro servizo de autocompletar en Chrome, actívao na configuración de Android e aquí</translation>
 <translation id="8897221284075091877">Para pedir acceso a este contido, continúa coa túa Conta de Google</translation>
 <translation id="8897428486789851669">Natación</translation>
 <translation id="8899807382908246773">Anuncios intrusivos</translation>
@@ -5068,7 +5074,6 @@ Detalles adicionais:
 <translation id="9195969368671142407">Cando a túa organización limita a función de gardado para a túa Conta de Google, non podes compartir grupos de pestanas nin unirte a eles</translation>
 <translation id="9198613052465150219">É posible que a túa conta de Google teña outras formas do historial de navegación en <ph name="BEGIN_LINK_GMA" />history.google.com<ph name="END_LINK_GMA" /></translation>
 <translation id="9199905725844810519">A opción de impresión está bloqueada</translation>
-<translation id="9201904868909900493">Abrindo enquisa...</translation>
 <translation id="9204089334327209740">Cando se complete a carga, poderás modificar os ficheiros en <ph name="CLOUD_PROVIDER" />. O almacenamento local (incluídos os ficheiros da papeleira) quitarase automaticamente.</translation>
 <translation id="9205078245616868884">Os teus datos encriptáronse co teu contrasinal de sincronización. Introdúceo para comezar a sincronización.</translation>
 <translation id="920643408853370361">Seguros de viaxe</translation>

@@ -11,7 +11,6 @@
 #include <utility>
 #include <vector>
 
-#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "base/time/time.h"
@@ -123,7 +122,12 @@ class TabStrip : public views::View,
   void UpdateLoadingAnimations(const base::TimeDelta& elapsed_time);
 
   // Adds tabs at the specified indices.
-  void AddTabsAt(std::vector<std::pair<int, TabRendererData>> tabs_datas);
+  struct AddTabData {
+    int index;
+    tabs::TabHandle handle;
+    TabRendererData data;
+  };
+  void AddTabsAt(const std::vector<AddTabData>& tabs_datas);
 
   // Moves a tab.
   void MoveTab(int from_model_index, int to_model_index, TabRendererData data);
@@ -346,7 +350,7 @@ class TabStrip : public views::View,
       gfx::Point loc_in_local_coords) override;
   views::View* GetViewForDrop() override;
 
-  void SetTabStripNotEditableForTesting();
+  void DisableTabStripEditingForTesting();
   TabHoverCardController* hover_card_controller_for_testing() {
     return hover_card_controller_.get();
   }
@@ -492,8 +496,8 @@ class TabStrip : public views::View,
 
   SkColor separator_color_ = gfx::kPlaceholderColor;
 
-  // If true simulates a non-editable tab strip for testing.
-  bool tab_strip_not_editable_for_testing_ = false;
+  // If false simulates a non-editable tab strip for testing.
+  bool tab_strip_editable_for_testing_ = true;
 
   base::CallbackListSubscription paint_as_active_subscription_;
 

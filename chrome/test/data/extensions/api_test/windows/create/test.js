@@ -8,10 +8,12 @@ chrome.test.runTests([
       chrome.test.assertEq('normal', w.type);
     }));
   },
-  function typePopup() {
-    chrome.windows.create({'type': 'popup'}, chrome.test.callbackPass(w => {
-      chrome.test.assertEq('popup', w.type);
-    }));
+  async function typePopup() {
+    const w = await new Promise((resolve) => {
+        chrome.windows.create({'type': 'popup'}, resolve);
+    });
+    chrome.test.assertEq('popup', w.type);
+    chrome.test.succeed();
   },
   function sizeTooBig() {
     // Setting origin + bad width/height should not crash.

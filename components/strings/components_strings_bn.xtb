@@ -73,6 +73,7 @@
 <translation id="1113000785583998331">IBAN সেভ করতে চান?</translation>
 <translation id="1113869188872983271">&amp;পুনর্বিন্যাসকে পূর্বাবস্থায় ফেরান</translation>
 <translation id="1118429183611783760">ভ্যাকুম ও ক্লিনার</translation>
+<translation id="111897705806685148">অন্য ডিভাইস থেকে পাসকী ব্যবহার করুন</translation>
 <translation id="1119009590493440389"><ph name="MANAGE_SYNC_FOCUSED_FRIENDLY_MATCH_TEXT" />, আপনার Google অ্যাকাউন্টে Chrome-এর কোন কোন তথ্য সেভ করবেন তা ম্যানেজ করতে প্রথমে Tab, তারপরে Enter প্রেস করুন</translation>
 <translation id="1122714970786750095">ইলেকট্রনিক্স ও বৈদ্যুতিক</translation>
 <translation id="1123753900084781868">'লাইভ ক্যাপশন' ফিচারের সুবিধা এখনই পাওয়া যাবে না</translation>
@@ -855,6 +856,7 @@
 <translation id="2359629602545592467">একাধিক</translation>
 <translation id="2359808026110333948">চালিয়ে যান</translation>
 <translation id="236000571258713023">গাড়ি</translation>
+<translation id="2360131275005204317">এয়ারলাইন</translation>
 <translation id="2361263712565360498">২৭৫ x ৩৯৫ মিমি</translation>
 <translation id="236340516568226369">টগল মেনু উইন্ডোর সাইজ পরিবর্তন করুন</translation>
 <translation id="2365355378251437925"><ph name="FIELD" /> লিখুন</translation>
@@ -1248,6 +1250,7 @@
 <translation id="301521992641321250">স্বয়ংক্রিয়ভাবে ব্লক করা হয়েছে</translation>
 <translation id="3016780570757425217">আপনার লোকেশন জানুন</translation>
 <translation id="3017086357773116182"><ph name="REMOVE_SUGGESTION_SUFFIX" />, সাজেশনটি সরাতে Tab প্রেস করার পর Enter প্রেস করুন।</translation>
+<translation id="3019738915977809060">Wallet-এ বোর্ডিং পাস সেভ করুন</translation>
 <translation id="3022959067768579802">লেখা চালিয়ে যান</translation>
 <translation id="3023165109041533893">আপনাকে প্রাসঙ্গিক বিজ্ঞাপনগুলি দেখানোর জন্য সাইটগুলি চালু করার সময় সাইট-প্রস্তাবিত বিজ্ঞাপনগুলি আপনার ব্রাউজিং ইতিহাস এবং পরিচয় রক্ষা করতে সাহায্য করে। আপনি ব্রাউজ করতে থাকলে, আপনার অ্যাক্টিভিটির উপর ভিত্তি করে, আপনার ভিজিট করা সাইটটি সেই সম্পর্কিত বিজ্ঞাপন সাজেস্ট করতে পারে। আপনি এই সাইটগুলির একটি তালিকা দেখতে পারেন এবং সেটিংসে যেগুলি আপনি চান না সেগুলিকে ব্লক করতে পারেন।</translation>
 <translation id="3024663005179499861">নীতির ভুল প্রকার</translation>
@@ -1356,7 +1359,6 @@
 <translation id="3194765668709099364">Klarna</translation>
 <translation id="3195213714973468956"><ph name="SERVER_NAME" /> এ <ph name="PRINTER_NAME" /></translation>
 <translation id="3197136577151645743">আপনি কখন ডিভাইস সক্রিয়ভাবে ব্যবহার করেন তা জানতে চাইতে পারে</translation>
-<translation id="3201482403106004262">সমীক্ষায় কিছু সমস্যা হয়েছে।</translation>
 <translation id="3202497928925179914"><ph name="MANAGE_SYNC_FOCUSED_FRIENDLY_MATCH_TEXT" />, Chrome সেটিংসে কী ধরনের তথ্য আপনি সিঙ্ক করবেন, তা ম্যানেজ করতে প্রথমে Tab, তারপরে Enter প্রেস করুন</translation>
 <translation id="3203025201812691413">URL খালি রাখা যাবে না</translation>
 <translation id="320323717674993345">পেমেন্ট বাতিল করুন</translation>
@@ -1446,6 +1448,7 @@
 <translation id="3342018947887487892">তারপরে, আপনি যে সাইটটি ভিজিট করেন সেটি এই তথ্য জানতে চাইতে পারে — আপনার বিজ্ঞাপনের বিষয় অথবা আপনি যে সাইটগুলি ভিজিট করেন তার দ্বারা সাজেস্ট করা বিজ্ঞাপন।</translation>
 <translation id="334438173029876234">স্কেটবর্ডিংয়ের সরঞ্জাম</translation>
 <translation id="3347146863028219517">স্কিয়িং ও স্নোবোর্ডিং</translation>
+<translation id="3349610303043713601">AI-এর সাহায্যে ব্রাউজ করুন</translation>
 <translation id="3349952286488694786">SRA2</translation>
 <translation id="3350450887151703713">১০ সেকেন্ডে রিপ্লে করুন</translation>
 <translation id="3352881017886802007">খেলাধূলা সম্পর্কিত গেম</translation>
@@ -2139,7 +2142,6 @@
 <translation id="4409556632583862731">নতুন থ্রেড</translation>
 <translation id="4412074349188076601">এই কনফিগারেশন 'ইনস্টল করার যোগ্য' হিসেবে চিহ্নিত করা হয়েছে, কিন্তু এই আর্কিটেকচারের জন্য কোনও ছবি প্রদান করা হয়নি, তাই এটি ইনস্টল করা যাবে না।</translation>
 <translation id="4412377069090572315">লোকজন এ ব্যাপারে কী বলছেন</translation>
-<translation id="4414452699610169758">পায়ওয়ার্ড, পেমেন্ট পদ্ধতি ও ঠিকানা সেভ এবং পূরণ করতে Google Password Manager ও Chrome অটোফিল ব্যবহার করুন</translation>
 <translation id="4414515549596849729">কুকি ও সাইট ডেটা</translation>
 <translation id="4415156962929755728">প্লাস্টিক (হাই গ্লস)</translation>
 <translation id="4415426530740016218">পিক-আপের ঠিকানা</translation>
@@ -2308,7 +2310,6 @@
 <translation id="4732860731866514038"><ph name="LANGUAGE" /> ভাষা সংক্রান্ত প্যাক ডাউনলোড হচ্ছে...<ph name="PERCENT" />%</translation>
 <translation id="4733082559415072992"><ph name="URL" /> আপনার ডিভাইসের লোকেশন ব্যবহার করতে চায়</translation>
 <translation id="473414950835101501">আপনার ক্যামেরা ব্যবহার করুন</translation>
-<translation id="4734343956394152985"><ph name="BEGIN_BOLD" />বর্তমান ডিফল্ট সেটিংস<ph name="END_BOLD" /> · <ph name="MARKETING_SNIPPET" /></translation>
 <translation id="4736825316280949806">Chromium পুনরায় চালু করুন</translation>
 <translation id="4736934858538408121">ভার্চুয়াল কার্ড</translation>
 <translation id="473775607612524610">আপডেট করুন</translation>
@@ -2517,6 +2518,7 @@
 <translation id="5051254010007014901"><ph name="TOOLBELT_PRECEDING_MATCH_TEXT" />, এই সার্চ সাজেশনের পরে আরও সার্চ শর্টকাট দেখার জন্য ট্যাব প্রেস করুন</translation>
 <translation id="5052517576853118371">অ্যাক্টিভ বিষয়</translation>
 <translation id="5056425809654826431">{NUM_FILES,plural, =1{নিয়ারবাই শেয়ার ব্যবহার করে এই ফাইল পাঠাতে চাইলে, আপনার ডিভাইসে (<ph name="DISK_SPACE_SIZE" />) জায়গা খালি করুন}one{নিয়ারবাই শেয়ার ব্যবহার করে এই ফাইলগুলি পাঠাতে চাইলে, আপনার ডিভাইসে (<ph name="DISK_SPACE_SIZE" />) জায়গা খালি করুন}other{নিয়ারবাই শেয়ার ব্যবহার করে এই ফাইলগুলি পাঠাতে চাইলে, আপনার ডিভাইসে (<ph name="DISK_SPACE_SIZE" />) জায়গা খালি করুন}}</translation>
+<translation id="5056587122125565772">ছবি তৈরি করুন</translation>
 <translation id="505757197798929356">খোলার কারণ লিখুন (খালি রাখা যাবে না)</translation>
 <translation id="5058282932481719070">সেটিংস থেকে উন্নত অটোফিল করার সুবিধা সম্পর্কে আরও জানুন</translation>
 <translation id="5060419232449737386">ক্যাপশন সেটিংস</translation>
@@ -2673,6 +2675,7 @@
 <translation id="5307166000025436103">ওকে</translation>
 <translation id="5308380583665731573">কানেক্ট করুন</translation>
 <translation id="5308689395849655368">ক্র্যাশ প্রতিবেদন অক্ষম আছে৷</translation>
+<translation id="5309562313526658209">নেভিগেট করুন</translation>
 <translation id="5314967030527622926">বুকলেট প্রস্তুতকারী</translation>
 <translation id="5316812925700871227">ঘড়ির কাঁটার বিপরীত দিকে ঘোরান</translation>
 <translation id="5317780077021120954">সেভ করুন</translation>
@@ -2935,6 +2938,7 @@
 <translation id="5730040223043577876">Chrome-এর নীতি অনুযায়ী আপনার পাসওয়ার্ড বদলে ফেলা উচিত যদি আপনি সেটি অন্য কোনও সাইটে ব্যবহার করে থাকেন।</translation>
 <translation id="5732392974455271431">আপনার পিতামাতা এটি আপনার জন্য অবরোধ মুক্ত করতে পারবেন</translation>
 <translation id="573555826359077410">'ফর্ম তৈরি করুন' বোতাম, Google Forms-এ চটপট নতুন ফর্ম তৈরি করতে এটি চালু করুন</translation>
+<translation id="5737022235680044108">আপনার সংস্থা ছদ্মবেশী মোডে <ph name="HOST_NAME" /> ব্লক করেছে।</translation>
 <translation id="5738385766833540397">আপনার ট্র্যাক করা প্রোডাক্টের দাম কমার বিজ্ঞপ্তি কীভাবে পাবেন তা ম্যানেজ করুন</translation>
 <translation id="5739619009927381786">পরবর্তী ধাপে আপনার স্ক্রিন আনলক করুন, সাধারণত ফিঙ্গারপ্রিন্ট ব্যবহার করে করা হয়। অথবা আপনি <ph name="BEGIN_LINK" />অন্য উপায়ে যাচাই করতে<ph name="END_LINK" /> পারেন।</translation>
 <translation id="573974402615125334">ট্যাব গ্রুপে শেয়ার করতে, যোগ দিতে ও কোলাবরেট করতে, আপনার ইতিহাস ও ট্যাব সিঙ্ক করুন</translation>
@@ -3456,7 +3460,6 @@
 <translation id="6568793038316600992">'পেমেন্ট পদ্ধতি ম্যানেজ করুন' বোতাম, Chrome সেটিংসে আপনার পেমেন্ট ও ক্রেডিট কার্ডের তথ্য ম্যানেজ করতে এটি চালু করুন</translation>
 <translation id="6569060085658103619">আপনি একটি এক্সটেনশন পৃষ্ঠা দেখছেন</translation>
 <translation id="6571992525120410251"><ph name="ENGINE_NAME" />-কে যা খুশি জিজ্ঞাসা করুন</translation>
-<translation id="6572867903637058088">এই তথ্য কি আপনার কাজে লেগেছে?</translation>
 <translation id="6573200754375280815">ডানদিকে ডুয়াল পাঞ্চ</translation>
 <translation id="6575408526598156416">অ্যাকাউন্টে সেভ করুন</translation>
 <translation id="6577792494180292262">ঝুঁকিপূর্ণ উদ্যোগের মূলধন</translation>
@@ -3616,6 +3619,7 @@
 <translation id="6844998850832008753">এই মুহূর্তে হাত ট্র্যাক করার অনুমতি দেওয়া হয়েছে</translation>
 <translation id="6849023911358004088">'নিরাপত্তা সেটিংস ম্যানেজ করুন' বোতাম, Chrome সেটিংসে আপনার Safe Browsing ম্যানেজ করতে এটি চালু করুন</translation>
 <translation id="6850286078059909152">টেক্সটের রঙ</translation>
+<translation id="685163597635765693">আপনার সংস্থা ছদ্মবেশী মোডে “<ph name="HOST_NAME" />” লিঙ্ক ব্লক করেছে।</translation>
 <translation id="6852204201400771460">আবার অ্যাপ লোড করতে চান?</translation>
 <translation id="6854691830678097752">ঝটপট চেকআউট করার জন্য আপনার অ্যাকাউন্ট <ph name="ACCOUNT_EMAIL" />-এ এই CVC সেভ করুন</translation>
 <translation id="6857776781123259569">পাসওয়ার্ড ম্যানেজ করুন…</translation>
@@ -3628,6 +3632,7 @@
 <translation id="6871813064737840684">এই বিকল্পের জন্য ওয়েব জুড়ে দামের ইতিহাস</translation>
 <translation id="6873456682041376666">উপরের ট্রে</translation>
 <translation id="6874604403660855544">&amp;যোগ করাকে পুনরায় করুন</translation>
+<translation id="6875873347995743859">Assistant-কে পাঠান</translation>
 <translation id="6875894866901426843">আপনার অ্যাডমিনিস্ট্রেটর <ph name="DATE_TIME" />-এ স্থানীয় ফাইল মুছে দেবেন, যাতে ট্র্যাশে থাকা যেকোনও ফাইলও অন্তর্ভুক্ত।</translation>
 <translation id="6880941331070119097">বেশি দাম সম্পর্কিত বিকল্প</translation>
 <translation id="6881240511396774766">চটজলদি নতুন Google Doc তৈরি করুন</translation>
@@ -3885,6 +3890,7 @@
 <translation id="7273111226200291353">আপনার ডাউনলোড করা ফাইল Google Cloud-এ বা থার্ড-পার্টির কাছে বিশ্লেষণ করার জন্য পাঠানো হয়। যেমন, সংবেদনশীল ব্যক্তিগত তথ্য বা ম্যালওয়্যার রয়েছে কিনা তা জানার জন্য সেগুলি স্ক্যান করা হতে পারে এবং কোম্পানির নীতির উপরে ভিত্তি করে সেভ করা হতে পারে ও আপনার অ্যাডমিনিস্ট্রেটর সেগুলি দেখতে পেতে পারেন।</translation>
 <translation id="7275334191706090484">পরিচালিত বুকমার্কগুলি</translation>
 <translation id="7275808129217605899">স্বাস্থ্যকর খাদ্যাভ্যাস</translation>
+<translation id="7282894295403887199">আপনি ছদ্মবেশী মোডে এই পৃষ্ঠা দেখতে পারবেন না</translation>
 <translation id="7285654172857511148"><ph name="CHANGE_GOOGLE_PASSWORD_FOCUSED_FRIENDLY_MATCH_TEXT" />, আপনার Google অ্যাকাউন্টের পাসওয়ার্ড পরিবর্তন করতে প্রথমে Tab, তারপরে Enter প্রেস করুন</translation>
 <translation id="7286908876112207905">এই সাইট এই কন্টেন্টটি পেস্ট করার অনুমতি দেয় না</translation>
 <translation id="7291578327729322058">ড্রাইভিং লাইসেন্স যোগ করুন</translation>
@@ -4051,7 +4057,6 @@
 <translation id="7525804896095537619">নাম খালি থাকলে চলবে না</translation>
 <translation id="7526934274050461096">এই সাইটে আপনার সংযোগ ব্যক্তিগত নয়</translation>
 <translation id="7529884293139707752">হোমস্কুলিং</translation>
-<translation id="7530215951451994972">ছবি তৈরি করুন</translation>
 <translation id="7531464389616946220">কার্ড স্ক্যান করুন</translation>
 <translation id="7534473948927234329"><ph name="STARTER_PACK_BOOKMARKS_FOCUSED_FRIENDLY_MATCH_TEXT" />, বুকমার্ক সার্চ করতে Enter 'কী' প্রেস করুন</translation>
 <translation id="7534987659046836932">এনভেলপ C7</translation>
@@ -4134,6 +4139,7 @@
 <translation id="7648527891719919697">আপনি <ph name="BEGIN_ANDROID_SETTINGS_LINK" />Android সেটিংস<ph name="END_ANDROID_SETTINGS_LINK" /> থেকে উন্নত সুরক্ষা চালু করেছেন বলে এই সাইটটি ব্লক করা থাকবে। <ph name="BEGIN_LEARN_MORE_LINK" />এই সতর্কতা সম্পর্কে আরও জানুন<ph name="END_LEARN_MORE_LINK" /></translation>
 <translation id="7648992873808071793">এই ডিভাইসে ফাইলগুলি জমা করুন</translation>
 <translation id="7649070708921625228">সহায়তা</translation>
+<translation id="7650141368285545431">অন্য ডিভাইস থেকে পাসকী ব্যবহার করুন</translation>
 <translation id="7653957176542370971">পেমেন্ট হ্যান্ডলার শিট বন্ধ করা আছে</translation>
 <translation id="7655766454902053387">চাকরির তালিকা</translation>
 <translation id="765676359832457558">উন্নত সেটিংস লুকান...</translation>
@@ -4257,6 +4263,7 @@
 <translation id="7844689747373518809">{COUNT,plural, =0{একটিও নয়}=1{১টি অ্যাপ (<ph name="EXAMPLE_APP_1" />)}=2{২টি অ্যাপ (<ph name="EXAMPLE_APP_1" />, <ph name="EXAMPLE_APP_2" />)}one{#টি অ্যাপ (<ph name="EXAMPLE_APP_1" />, <ph name="EXAMPLE_APP_2" /> <ph name="AND_MORE" />)}other{#টি অ্যাপ (<ph name="EXAMPLE_APP_1" />, <ph name="EXAMPLE_APP_2" /> <ph name="AND_MORE" />)}}</translation>
 <translation id="7846161022626028328">কোনও সমস্যা হয়েছে। আবার চেষ্টা করুন।</translation>
 <translation id="784623644169604270">কোনও সাম্প্রতিক অ্যাক্টিভিটি নেই</translation>
+<translation id="7853222852810008596">এই মুদ্রায় পরে পেমেন্ট করার সুবিধা উপলভ্য নেই</translation>
 <translation id="785476343534277563">কলেজের খেলাধূলা</translation>
 <translation id="7855695075675558090"><ph name="TOTAL_LABEL" /> <ph name="CURRENCY_CODE" /> <ph name="FORMATTED_TOTAL_AMOUNT" /></translation>
 <translation id="7860345425589240791"><ph name="SIDE_OF_CARD" />-এ মেয়াদ শেষের নতুন তারিখ এবং CVC লিখুন</translation>
@@ -4876,7 +4883,6 @@
 <translation id="8891031436559779793">কোনও সাইটে দাম কমলে আপনি সেই সম্পর্কে বিজ্ঞপ্তি পাবেন।</translation>
 <translation id="8891727572606052622">ভুল প্রক্সি মোড৷</translation>
 <translation id="8894794286471754040">আগে দীর্ঘ প্রান্ত</translation>
-<translation id="8895334001368918465">Chrome-এ অন্য অটোফিল পরিষেবা ব্যবহার করতে, Android সেটিংস এবং এখান থেকে এটি চালু করুন</translation>
 <translation id="8897221284075091877">এই কন্টেন্ট দেখার জন্য অনুমতি নিতে, আপনার Google অ্যাকাউন্টের মাধ্যমে চালিয়ে যান</translation>
 <translation id="8897428486789851669">সাঁতার শিক্ষা</translation>
 <translation id="8899807382908246773">ব্যাঘাতকারী বিজ্ঞাপন</translation>
@@ -5069,7 +5075,6 @@
 <translation id="9195969368671142407">আপনার সংস্থা আপনাকে Google অ্যাকাউন্টে সেভ করতে না দিলে, আপনি ট্যাব গ্রুপে শেয়ার করতে বা যোগ দিতে পারবেন না</translation>
 <translation id="9198613052465150219"><ph name="BEGIN_LINK_GMA" />myactivity.google.com<ph name="END_LINK_GMA" /> লিঙ্কে আপনার Google অ্যাকাউন্টের অন্যান্য ধরনের ব্রাউজিং ইতিহাস থাকতে পারে</translation>
 <translation id="9199905725844810519">প্রিন্টিং ব্লক করা আছে</translation>
-<translation id="9201904868909900493">সমীক্ষা খুলছে …</translation>
 <translation id="9204089334327209740">আপলোড করা হয়ে গেলে, আপনি <ph name="CLOUD_PROVIDER" />-এ নিজের ফাইল মডিফাই করতে পারবেন। ট্র্যাশে থাকা সব ফাইল সহ লোকাল স্টোরেজ অটোমেটিক সরিয়ে দেওয়া হবে।</translation>
 <translation id="9205078245616868884">আপনার ডেটা আপনার সিঙ্ক পাসফ্রেজ দিয়ে এনক্রিপ্ট করা হয়েছে। সিঙ্ক শুরু করার জন্য এটি লিখুন।</translation>
 <translation id="920643408853370361">ভ্রমণ বীমা</translation>

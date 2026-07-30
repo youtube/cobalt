@@ -9,22 +9,23 @@ import '//resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import '//resources/cr_elements/cr_lazy_render/cr_lazy_render_lit.js';
 import '//resources/cr_elements/icons.html.js';
 import './favicon_group.js';
+import './sources_menu.js';
 
 import type {CrActionMenuElement} from 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import type {CrLazyRenderLitElement} from 'chrome://resources/cr_elements/cr_lazy_render/cr_lazy_render_lit.js';
-import {getFaviconForPageURL} from 'chrome://resources/js/icon.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
 import type {Tab} from './contextual_tasks.mojom-webui.js';
 import type {BrowserProxy} from './contextual_tasks_browser_proxy.js';
 import {BrowserProxyImpl} from './contextual_tasks_browser_proxy.js';
+import type {SourcesMenuElement} from './sources_menu.js';
 import {getCss} from './top_toolbar.css.js';
 import {getHtml} from './top_toolbar.html.js';
 
 export interface TopToolbarElement {
   $: {
     menu: CrLazyRenderLitElement<CrActionMenuElement>,
-    sourcesMenu: CrLazyRenderLitElement<CrActionMenuElement>,
+    sourcesMenu: CrLazyRenderLitElement<SourcesMenuElement>,
     topToolbarLogo: HTMLImageElement,
   };
 }
@@ -41,6 +42,11 @@ export class TopToolbarElement extends CrLitElement {
   static override get properties() {
     return {
       attachedTabs: {type: Array},
+      darkMode: {
+        type: Boolean,
+        reflect: true,
+        attribute: 'dark-mode',
+      },
       logoImageUrl_: {type: String},
       title: {type: String},
     };
@@ -48,6 +54,7 @@ export class TopToolbarElement extends CrLitElement {
 
   override accessor title: string = '';
   accessor attachedTabs: Tab[] = [];
+  accessor darkMode: boolean = false;
   private browserProxy_: BrowserProxy = BrowserProxyImpl.getInstance();
 
   override render() {
@@ -82,15 +89,6 @@ export class TopToolbarElement extends CrLitElement {
     this.$.sourcesMenu.get().showAt(e.target as HTMLElement);
   }
 
-  protected onTabClick_(tab: Tab) {
-    this.$.sourcesMenu.get().close();
-    chrome.metricsPrivate.recordUserAction(
-        'ContextualTasks.WebUI.UserAction.TabFromSourcesMenuClicked');
-    chrome.metricsPrivate.recordBoolean(
-        'ContextualTasks.WebUI.UserAction.TabFromSourcesMenuClicked', true);
-    this.browserProxy_.handler.onTabClickedFromSourcesMenu(tab.tabId, tab.url);
-  }
-
   protected onOpenInNewTabClick_() {
     this.$.menu.get().close();
     chrome.metricsPrivate.recordUserAction(
@@ -116,14 +114,6 @@ export class TopToolbarElement extends CrLitElement {
     chrome.metricsPrivate.recordBoolean(
         'ContextualTasks.WebUI.UserAction.OpenHelp', true);
     this.browserProxy_.handler.openHelpUi();
-  }
-
-  protected faviconUrl_(tab: Tab): string {
-    return getFaviconForPageURL(tab.url.url, false);
-  }
-
-  protected shouldHideSourcesButton_() {
-    return this.attachedTabs.length === 0;
   }
 }
 

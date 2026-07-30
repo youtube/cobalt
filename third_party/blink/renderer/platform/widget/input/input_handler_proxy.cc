@@ -54,11 +54,6 @@ using ScrollThread = cc::InputHandler::ScrollThread;
 
 namespace blink {
 namespace {
-// TODO(crbug.com/355578906): Assume 20px buffer for now. The main thread
-// counterpart is AdjustPointerEvent (see kStylusWritableAdjustmentSizeDip). The
-// buffer math on the main and cc thread(s) need to match.
-constexpr unsigned int kStylusWritingHitTestRadius = 20;
-
 using ::perfetto::protos::pbzero::ChromeLatencyInfo2;
 using ::perfetto::protos::pbzero::TrackEvent;
 
@@ -1272,6 +1267,7 @@ InputHandlerProxy::HandleGestureScrollUpdate(
       input_handler_->LatchedScrollerElementId();
   bool is_overscroll =
       (elastic_overscroll_controller_ &&
+       elastic_overscroll_controller_->CanOverscroll(latched_element_id) &&
        !elastic_overscroll_controller_->StretchAmount(latched_element_id)
             .IsZero());
   if (snap_fling_controller_->HandleGestureScrollUpdate(
@@ -1389,7 +1385,7 @@ InputHandlerProxy::EventDisposition InputHandlerProxy::HitTestTouchEvent(
       (touch_event.touches_length == 1 &&
        (touch_event.touches[0].pointer_type ==
         WebPointerProperties::PointerType::kPen))
-          ? kStylusWritingHitTestRadius
+          ? handwriting_radius_
           : 0;
   for (size_t i = 0; i < touch_event.touches_length; ++i) {
     if (touch_event.touch_start_or_first_touch_move)
@@ -1967,6 +1963,9 @@ void InputHandlerProxy::HandleScrollElasticityOverscroll(
     const cc::InputHandlerScrollResult& scroll_result,
     cc::ElementId latched_element_id) {
   DCHECK(elastic_overscroll_controller_);
+  if (!elastic_overscroll_controller_->CanOverscroll(latched_element_id)) {
+    return;
+  }
 
   elastic_overscroll_controller_->ObserveGestureEventAndResult(
       latched_element_id, gesture_event, scroll_result);
@@ -2089,6 +2088,13 @@ const cc::InputHandlerPointerResult InputHandlerProxy::HandlePointerUp(
     }
   }
   return pointer_result;
+}
+
+void InputHandlerProxy::SetHandwritingRadiusOnInputThread(
+    int handwriting_radius) {
+  if (handwriting_radius_ != handwriting_radius) {
+    handwriting_radius_ = handwriting_radius;
+  }
 }
 
 void InputHandlerProxy::SetDeferBeginMainFrame(

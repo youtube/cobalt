@@ -12,6 +12,7 @@
 #import "ios/chrome/browser/content_suggestions/ui_bundled/ntp_home_constant.h"
 #import "ios/chrome/browser/omnibox/eg_tests/omnibox_app_interface.h"
 #import "ios/chrome/browser/omnibox/eg_tests/omnibox_earl_grey.h"
+#import "ios/chrome/browser/omnibox/eg_tests/omnibox_matchers.h"
 #import "ios/chrome/browser/omnibox/eg_tests/omnibox_test_util.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_constants.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_popup_accessibility_identifier_constants.h"
@@ -31,18 +32,9 @@
 #import "ui/base/l10n/l10n_util_mac.h"
 
 using chrome_test_util::SwipeActionDeleteButton;
+using omnibox::PopupRowWithUrlMatcher;
 
 namespace {
-
-/// Returns the popup row containing the `url` as suggestion.
-id<GREYMatcher> PopupRowWithUrl(GURL url) {
-  NSString* urlString = [NSString cr_fromString:url.GetContent()];
-  id<GREYMatcher> URLMatcher = grey_allOf(
-      grey_descendant(
-          chrome_test_util::StaticTextWithAccessibilityLabel(urlString)),
-      grey_sufficientlyVisible(), nil);
-  return grey_allOf(chrome_test_util::OmniboxPopupRow(), URLMatcher, nil);
-}
 
 id<GREYMatcher> LinkYouCopiedRow() {
   NSString* linkYouCopiedLabel =
@@ -56,7 +48,7 @@ id<GREYMatcher> LinkYouCopiedRow() {
 /// Returns the switch to open tab element for the `url`.
 id<GREYMatcher> SwitchTabElementForUrl(const GURL& url) {
   return grey_allOf(
-      grey_ancestor(PopupRowWithUrl(url)),
+      grey_ancestor(PopupRowWithUrlMatcher(url)),
       grey_accessibilityID(kOmniboxPopupRowSwitchTabAccessibilityIdentifier),
       grey_interactable(), nil);
 }
@@ -82,6 +74,12 @@ void ScrollToSwitchToTabElement(const GURL& url) {
       assertWithMatcher:grey_interactable()];
 }
 
+// Long URL webpage.
+
+const char kLongURLPage[] = "This is a webpage with a long URL";
+const char kLongURLTitle[] = "Long URL title";
+const char kLongURL[] = "/thisisaverylongURLforawebpage.html";
+
 // Web page 1.
 const char kPage1[] = "This is the first page";
 const char kPage1Title[] = "Title 1";
@@ -103,6 +101,13 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
   std::unique_ptr<net::test_server::BasicHttpResponse> http_response =
       std::make_unique<net::test_server::BasicHttpResponse>();
   http_response->set_code(net::HTTP_OK);
+
+  if (request.relative_url == kLongURL) {
+    http_response->set_content(
+        "<html><head><title>" + std::string(kLongURLTitle) +
+        "</title></head><body>" + std::string(kLongURLPage) + "</body></html>");
+    return std::move(http_response);
+  }
 
   if (request.relative_url == kPage1URL) {
     http_response->set_content(
@@ -216,9 +221,8 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
 
   // Check that we have the suggestion for the second page, but not the switch
   // as it is the current page.
-
-  [[EarlGrey selectElementWithMatcher:PopupRowWithUrl(_URL2)]
-      assertWithMatcher:grey_sufficientlyVisible()];
+  [[EarlGrey selectElementWithMatcher:PopupRowWithUrlMatcher(_URL2)]
+      assertWithMatcher:grey_notNil()];
   [[EarlGrey selectElementWithMatcher:SwitchTabElementForUrl(_URL2)]
       assertWithMatcher:grey_not(grey_interactable())];
 }
@@ -235,11 +239,11 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
 
   // Swipe one of the historical suggestions, to the left.
   if ([ChromeEarlGrey isIPadIdiom]) {
-    [[EarlGrey selectElementWithMatcher:PopupRowWithUrl(_URL1)]
+    [[EarlGrey selectElementWithMatcher:PopupRowWithUrlMatcher(_URL1)]
         performAction:GREYSwipeSlowInDirectionWithStartPoint(kGREYDirectionLeft,
                                                              0.09, 0.3)];
   } else {
-    [[EarlGrey selectElementWithMatcher:PopupRowWithUrl(_URL1)]
+    [[EarlGrey selectElementWithMatcher:PopupRowWithUrlMatcher(_URL1)]
         performAction:grey_swipeSlowInDirection(kGREYDirectionLeft)];
   }
 
@@ -252,7 +256,7 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
       performAction:grey_tap()];
 
   // Historical suggestion with URL1 is now deleted.
-  [[EarlGrey selectElementWithMatcher:PopupRowWithUrl(_URL1)]
+  [[EarlGrey selectElementWithMatcher:PopupRowWithUrlMatcher(_URL1)]
       assertWithMatcher:grey_nil()];
 }
 
@@ -284,13 +288,13 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
   // Check that we have the switch button for the first page.
   [[EarlGrey
       selectElementWithMatcher:
-          grey_allOf(grey_ancestor(PopupRowWithUrl(_URL1)),
+          grey_allOf(grey_ancestor(PopupRowWithUrlMatcher(_URL1)),
                      grey_accessibilityID(
                          kOmniboxPopupRowSwitchTabAccessibilityIdentifier),
                      nil)] assertWithMatcher:grey_sufficientlyVisible()];
 
   // Check that we have the suggestion for the second page, but not the switch.
-  [[EarlGrey selectElementWithMatcher:PopupRowWithUrl(_URL2)]
+  [[EarlGrey selectElementWithMatcher:PopupRowWithUrlMatcher(_URL2)]
       assertWithMatcher:grey_sufficientlyVisible()];
   [[EarlGrey selectElementWithMatcher:SwitchTabElementForUrl(_URL2)]
       assertWithMatcher:grey_nil()];
@@ -306,13 +310,13 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
   // Check that we have the switch button for the second page.
   [[EarlGrey
       selectElementWithMatcher:
-          grey_allOf(grey_ancestor(PopupRowWithUrl(_URL2)),
+          grey_allOf(grey_ancestor(PopupRowWithUrlMatcher(_URL2)),
                      grey_accessibilityID(
                          kOmniboxPopupRowSwitchTabAccessibilityIdentifier),
                      nil)] assertWithMatcher:grey_sufficientlyVisible()];
 
   // Check that we have the suggestion for the first page, but not the switch.
-  [[EarlGrey selectElementWithMatcher:PopupRowWithUrl(_URL1)]
+  [[EarlGrey selectElementWithMatcher:PopupRowWithUrlMatcher(_URL1)]
       assertWithMatcher:grey_sufficientlyVisible()];
   [[EarlGrey selectElementWithMatcher:SwitchTabElementForUrl(_URL1)]
       assertWithMatcher:grey_nil()];
@@ -459,7 +463,7 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
 
   [ChromeEarlGreyUI focusOmniboxAndReplaceText:omniboxInput];
 
-  [[EarlGrey selectElementWithMatcher:PopupRowWithUrl(_URL1)]
+  [[EarlGrey selectElementWithMatcher:PopupRowWithUrlMatcher(_URL1)]
       performAction:grey_tap()];
   [ChromeEarlGrey waitForWebStateContainingText:kPage1];
 
@@ -650,20 +654,21 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
   self.testServer->RegisterRequestHandler(
       base::BindRepeating(&StandardResponse));
   GREYAssertTrue(self.testServer->Start(), @"Test server failed to start.");
-  GURL _URL1 = self.testServer->GetURL(kPage1URL);
+  GURL URL = self.testServer->GetURL(kLongURL);
 
-  [ChromeEarlGrey loadURL:_URL1];
-  [ChromeEarlGrey waitForWebStateContainingText:kPage1];
+  [ChromeEarlGrey loadURL:URL];
+  [ChromeEarlGrey waitForWebStateContainingText:kLongURLPage];
 
   // Focus omnibox from Web.
   [ChromeEarlGreyUI focusOmnibox];
 
   // Typing the title of page1.
-  [ChromeEarlGreyUI replaceTextInOmnibox:[NSString cr_fromString:kPage1Title]];
+  [ChromeEarlGreyUI
+      replaceTextInOmnibox:[NSString cr_fromString:kLongURLTitle]];
 
   // Wait for suggestions to show.
   [ChromeEarlGrey
-      waitForSufficientlyVisibleElementWithMatcher:PopupRowWithUrl(_URL1)];
+      waitForSufficientlyVisibleElementWithMatcher:PopupRowWithUrlMatcher(URL)];
 
   // The omnibox popup may update multiple times.  Don't downArrow until this
   // is done.

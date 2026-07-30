@@ -7,7 +7,7 @@
 
 #include <map>
 #include <string>
-#include <tuple>
+#include <utility>
 
 namespace base {
 class FilePath;
@@ -19,6 +19,9 @@ struct Rule {
   bool exception;
   bool wildcard;
   bool is_private;
+
+  // Serializes this rule for gperf output.
+  int Serialize() const;
 
   friend bool operator==(const Rule&, const Rule&) = default;
 };
@@ -45,7 +48,8 @@ NormalizeResult NormalizeFile(const base::FilePath& in_filename,
 
 // Parses |data|, and converts it to the internal data format RuleMap. Returns
 // the most severe of the result codes encountered when normalizing the rules.
-NormalizeResult NormalizeDataToRuleMap(const std::string& data, RuleMap& rules);
+std::pair<NormalizeResult, RuleMap> NormalizeDataToRuleMap(
+    const std::string& data);
 
 }  // namespace net::tld_cleanup
 

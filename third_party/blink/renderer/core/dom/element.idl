@@ -35,6 +35,7 @@ dictionary SetHTMLOptions {
 };
 dictionary SetHTMLUnsafeOptions {
   (Sanitizer or SanitizerConfig or SanitizerPresets) sanitizer = {};
+  boolean runScripts = false;
 };
 
 // https://dom.spec.whatwg.org/#interface-element
@@ -185,9 +186,6 @@ dictionary SetHTMLUnsafeOptions {
 
     // Scoped Custom Element Registries
     [RuntimeEnabled=ScopedCustomElementRegistry] readonly attribute CustomElementRegistry? customElementRegistry;
-
-    // Declarative document updates
-    [RuntimeEnabled=DocumentPatching] readonly attribute Patch? currentPatch;
 };
 
 Element includes ParentNode;

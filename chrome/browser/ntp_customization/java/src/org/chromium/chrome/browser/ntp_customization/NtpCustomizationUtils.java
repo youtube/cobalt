@@ -15,6 +15,7 @@ import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoor
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType.SINGLE_THEME_COLLECTION;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType.THEME;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType.THEME_COLLECTIONS;
+import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.APP_LAUNCH_SEARCH_ENGINE_HAD_LOGO;
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_BACKGROUND_IMAGE_LANDSCAPE_INFO;
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_BACKGROUND_IMAGE_LANDSCAPE_INFO_FOR_DAILY_REFRESH;
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_BACKGROUND_IMAGE_PORTRAIT_INFO;
@@ -23,6 +24,7 @@ import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_C
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_INFO_FOR_DAILY_REFRESH;
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_CHROME_COLOR_DAILY_REFRESH_ENABLED;
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_LAST_DAILY_REFRESH_TIMESTAMP;
+import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_MAIN_BOTTOM_SHEET_SHOWN;
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_PRIMARY_COLOR;
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_PRIMARY_COLOR_FOR_DAILY_REFRESH;
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_THEME_COLOR_ID;
@@ -76,6 +78,7 @@ import org.chromium.chrome.browser.ntp_customization.theme.upload_image.CropImag
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.theme.ThemeUtils;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
@@ -83,6 +86,7 @@ import org.chromium.components.browser_ui.util.GlobalDiscardableReferencePool;
 import org.chromium.components.image_fetcher.ImageFetcher;
 import org.chromium.components.image_fetcher.ImageFetcherConfig;
 import org.chromium.components.image_fetcher.ImageFetcherFactory;
+import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.edge_to_edge.EdgeToEdgeStateProvider;
 import org.chromium.ui.util.ColorUtils;
@@ -265,21 +269,28 @@ public class NtpCustomizationUtils {
             return null;
         }
 
+        NtpThemeDailyRefreshManager ntpThemeDailyRefreshManager =
+                NtpThemeDailyRefreshManager.getInstance();
+        @ColorInt int color;
         if (imageType == NtpBackgroundImageType.CHROME_COLOR) {
-            NtpThemeDailyRefreshManager ntpThemeDailyRefreshManager =
-                    NtpThemeDailyRefreshManager.getInstance();
             @NtpThemeColorId
             int colorId = ntpThemeDailyRefreshManager.getNtpThemeColorIdForChromeColorTheme();
             if (colorId <= NtpThemeColorId.DEFAULT || colorId >= NtpThemeColorId.NUM_ENTRIES) {
                 return null;
             }
             if (checkDailyRefresh) {
-                colorId = ntpThemeDailyRefreshManager.mayApplyDailyRefreshForChromeColor(colorId);
+                colorId = ntpThemeDailyRefreshManager.maybeApplyDailyRefreshForChromeColor(colorId);
             }
             return context.getColor(NtpThemeColorUtils.getNtpThemePrimaryColorResId(colorId));
+        } else if (imageType == NtpBackgroundImageType.THEME_COLLECTION) {
+            if (checkDailyRefresh) {
+                ntpThemeDailyRefreshManager.maybeApplyDailyRefreshForThemeCollection();
+            }
+            color = ntpThemeDailyRefreshManager.getNtpThemeColorForThemeCollection();
+        } else {
+            color = getCustomizedPrimaryColorFromSharedPreference();
         }
 
-        @ColorInt int color = getCustomizedPrimaryColorFromSharedPreference();
         return (color != NtpThemeColorInfo.COLOR_NOT_SET) ? color : null;
     }
 
@@ -369,6 +380,12 @@ public class NtpCustomizationUtils {
                 NtpBackgroundImageType.DEFAULT);
     }
 
+    /** Removes the NTP's background image type from the SharedPreference. */
+    public static void removeNtpBackgroundImageTypeFromSharedPreference() {
+        SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
+        prefsManager.removeKey(ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_IMAGE_TYPE);
+    }
+
     /**
      * Gets the current NTP's background image type from the SharedPreference. Returns
      * NtpBackgroundImageType.DEFAULT if the feature flag is disabled.
@@ -404,13 +421,29 @@ public class NtpCustomizationUtils {
     }
 
     /**
+     * Sets whether the NTP customization bottom sheet has shown.
+     *
+     * @param hasShown Whether the bottom sheet has shown.
+     */
+    public static void setNtpCustomizationBottomSheetShownToSharedPreferences(boolean hasShown) {
+        SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
+        prefsManager.writeBoolean(NTP_CUSTOMIZATION_MAIN_BOTTOM_SHEET_SHOWN, hasShown);
+    }
+
+    /** Gets whether the NTP customization bottom sheet has shown. */
+    public static boolean getNtpCustomizationBottomSheetShownFromSharedPreference() {
+        SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
+        return prefsManager.readBoolean(NTP_CUSTOMIZATION_MAIN_BOTTOM_SHEET_SHOWN, false);
+    }
+
+    /**
      * Saves the background image if it isn't null, otherwise removes the file.
      *
      * @param backgroundImageBitmap The bitmap of the background image.
      * @param file The file to save the image to.
      */
     @VisibleForTesting
-    static void saveBitmapImageToFile(@Nullable Bitmap backgroundImageBitmap, File file) {
+    public static void saveBitmapImageToFile(@Nullable Bitmap backgroundImageBitmap, File file) {
         if (backgroundImageBitmap == null) {
             deleteBackgroundImageFile(file);
             return;
@@ -432,7 +465,7 @@ public class NtpCustomizationUtils {
      *     landscape matrices.
      */
     @VisibleForTesting
-    static void updateBackgroundImageInfo(BackgroundImageInfo backgroundImageInfo) {
+    public static void updateBackgroundImageInfo(BackgroundImageInfo backgroundImageInfo) {
         SharedPreferencesManager prefs = ChromeSharedPreferences.getInstance();
 
         prefs.writeString(
@@ -448,7 +481,8 @@ public class NtpCustomizationUtils {
      *     landscape matrices.
      */
     @VisibleForTesting
-    static void updateDailyRefreshBackgroundImageInfo(BackgroundImageInfo backgroundImageInfo) {
+    public static void updateDailyRefreshBackgroundImageInfo(
+            BackgroundImageInfo backgroundImageInfo) {
         SharedPreferencesManager prefs = ChromeSharedPreferences.getInstance();
 
         prefs.writeString(
@@ -851,9 +885,9 @@ public class NtpCustomizationUtils {
     static void resetCustomizedColors() {
         SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
         prefsManager.removeKey(ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_COLOR);
-        prefsManager.removeKey(ChromePreferenceKeys.NTP_CUSTOMIZATION_PRIMARY_COLOR);
         prefsManager.removeKey(ChromePreferenceKeys.NTP_CUSTOMIZATION_THEME_COLOR_ID);
-        prefsManager.removeKey(ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_IMAGE_TYPE);
+        prefsManager.removeKey(
+                ChromePreferenceKeys.NTP_CUSTOMIZATION_CHROME_COLOR_DAILY_REFRESH_ENABLED);
     }
 
     /** Returns whether all flags are enabled to allow edge-to-edge for customized theme. */
@@ -910,7 +944,11 @@ public class NtpCustomizationUtils {
      * @param defaultGoogleLogoDrawable The drawable instance for default Google Logo.
      */
     public static void setTintForDefaultGoogleLogo(
-            Context context, Drawable defaultGoogleLogoDrawable) {
+            Context context, @Nullable Drawable defaultGoogleLogoDrawable) {
+        if (defaultGoogleLogoDrawable == null) {
+            return;
+        }
+
         @NtpBackgroundImageType
         int backgroundType = NtpCustomizationConfigManager.getInstance().getBackgroundImageType();
         getTintedGoogleLogoDrawableImpl(
@@ -1041,7 +1079,7 @@ public class NtpCustomizationUtils {
      *     collection info.
      */
     @VisibleForTesting
-    static void setCustomBackgroundInfoToSharedPreference(
+    public static void setCustomBackgroundInfoToSharedPreference(
             CustomBackgroundInfo customBackgroundInfo) {
         SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
         prefsManager.writeString(
@@ -1055,7 +1093,7 @@ public class NtpCustomizationUtils {
      * @param customBackgroundInfo The new {@link CustomBackgroundInfo} for daily refresh.
      */
     @VisibleForTesting
-    static void setDailyRefreshCustomBackgroundInfoToSharedPreference(
+    public static void setDailyRefreshCustomBackgroundInfoToSharedPreference(
             CustomBackgroundInfo customBackgroundInfo) {
         SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
         prefsManager.writeString(
@@ -1249,7 +1287,7 @@ public class NtpCustomizationUtils {
      * image settings with the daily refresh settings. This includes updating SharedPreferences and
      * renaming the background image file.
      */
-    static void applyDailyRefreshThemeCollectionImage() {
+    public static void commitThemeCollectionDailyRefresh() {
         // 1. Overwrite current theme collection image info with daily refresh image info in
         // SharedPreferences.
         BackgroundImageInfo dailyRefreshNtpBackgroundImageInfo =
@@ -1296,6 +1334,23 @@ public class NtpCustomizationUtils {
         }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
+    /**
+     * Checks if the current default search engine has a logo.
+     *
+     * <p>If the {@code profile} is available, this queries the {@link TemplateUrlService}.
+     * Otherwise, it falls back to the cached state stored in shared preferences from the last app
+     * launch.
+     *
+     * @param profile The current profile, or null if not yet initialized.
+     * @return True if the default search engine supports showing a logo, false otherwise.
+     */
+    public static boolean doesDefaultSearchEngineHaveLogo(@Nullable Profile profile) {
+        return profile != null
+                ? TemplateUrlServiceFactory.getForProfile(profile).doesDefaultSearchEngineHaveLogo()
+                : ChromeSharedPreferences.getInstance()
+                        .readBoolean(APP_LAUNCH_SEARCH_ENGINE_HAD_LOGO, true);
+    }
+
     public static void resetSharedPreferenceForTesting() {
         SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
         prefsManager.removeKey(ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_IMAGE_TYPE);
@@ -1310,6 +1365,7 @@ public class NtpCustomizationUtils {
         prefsManager.removeKey(NTP_BACKGROUND_IMAGE_PORTRAIT_INFO_FOR_DAILY_REFRESH);
         prefsManager.removeKey(NTP_BACKGROUND_IMAGE_LANDSCAPE_INFO_FOR_DAILY_REFRESH);
         prefsManager.removeKey(NTP_CUSTOMIZATION_BACKGROUND_INFO_FOR_DAILY_REFRESH);
+        prefsManager.removeKey(NTP_CUSTOMIZATION_MAIN_BOTTOM_SHEET_SHOWN);
     }
 
     public static void setImageFetcherForTesting(ImageFetcher imageFetcher) {

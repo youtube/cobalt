@@ -29,6 +29,15 @@
 #include "chrome/browser/web_applications/isolated_web_apps/runtime_data/chrome_iwa_runtime_data_provider.h"
 #include "components/webapps/isolated_web_apps/public/iwa_runtime_data_provider.h"
 
+class BrowserProcessImpl;
+class TestingBrowserProcess;
+
+namespace component_updater {
+class IwaKeyDistributionComponentInstallerPolicy;
+}  // namespace component_updater
+
+class WebAppInternalsHandler;
+
 namespace web_app {
 
 class IwaInternalsHandler;
@@ -49,7 +58,16 @@ class IwaKeyDistributionInfoProvider : public ChromeIwaRuntimeDataProvider {
   using QueueOnDemandUpdateCallback = base::RepeatingCallback<void(
       base::PassKey<IwaKeyDistributionInfoProvider>)>;
 
-  static IwaKeyDistributionInfoProvider& GetInstance();
+  using InstanceAccessKey = base::PassKey<
+      BrowserProcessImpl,
+      component_updater::IwaKeyDistributionComponentInstallerPolicy,
+      IwaInternalsHandler,
+      IwaKeyDistributionInfoProvider,
+      TestingBrowserProcess,
+      WebAppInternalsHandler>;
+
+  static IwaKeyDistributionInfoProvider& GetInstance(InstanceAccessKey);
+  static IwaKeyDistributionInfoProvider& GetInstanceForTesting();
   static void DestroyInstanceForTesting();
 
   ~IwaKeyDistributionInfoProvider() override;

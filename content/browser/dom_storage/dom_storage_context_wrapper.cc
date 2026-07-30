@@ -242,7 +242,7 @@ void DOMStorageContextWrapper::StartScavengingUnusedSessionStorage() {
     return;
   }
 
-  session_storage_control_->ScavengeUnusedNamespaces(base::NullCallback());
+  session_storage_control_->ScavengeUnusedNamespaces();
 }
 
 void DOMStorageContextWrapper::SetForceKeepSessionState() {
@@ -289,8 +289,6 @@ void DOMStorageContextWrapper::OpenLocalStorage(
   DCHECK(local_storage_control_);
   local_storage_control_->BindStorageArea(storage_key, std::move(receiver));
   if (storage_policy_observer_) {
-    // TODO(crbug.com/40177656): Pass the real StorageKey when
-    // StoragePolicyObserver is converted.
     storage_policy_observer_->StartTrackingOrigin(storage_key.origin());
   }
 }
@@ -300,8 +298,7 @@ void DOMStorageContextWrapper::BindNamespace(
     mojo::ReportBadMessageCallback bad_message_callback,
     mojo::PendingReceiver<blink::mojom::SessionStorageNamespace> receiver) {
   DCHECK(session_storage_control_);
-  session_storage_control_->BindNamespace(namespace_id, std::move(receiver),
-                                          base::DoNothing());
+  session_storage_control_->BindNamespace(namespace_id, std::move(receiver));
 }
 
 void DOMStorageContextWrapper::BindStorageArea(
@@ -317,8 +314,8 @@ void DOMStorageContextWrapper::BindStorageArea(
     return;
   }
   DCHECK(session_storage_control_);
-  session_storage_control_->BindStorageArea(
-      storage_key, namespace_id, std::move(receiver), base::DoNothing());
+  session_storage_control_->BindStorageArea(storage_key, namespace_id,
+                                            std::move(receiver));
 }
 
 bool DOMStorageContextWrapper::IsRequestValid(
@@ -374,7 +371,7 @@ void DOMStorageContextWrapper::OnSessionStorageDisconnected() {
   base::AutoLock lock(alive_namespaces_lock_);
   for (const auto& entry : alive_namespaces_)
     session_storage_control_->CreateNamespace(entry.first);
-  session_storage_control_->ScavengeUnusedNamespaces(base::NullCallback());
+  session_storage_control_->ScavengeUnusedNamespaces();
 
   partition_->ResetSessionStorageConnections();
 }
@@ -469,8 +466,6 @@ void DOMStorageContextWrapper::OnStartupUsageRetrieved(
   for (const auto& info : usage) {
     origins.emplace_back(std::move(info->storage_key.origin()));
   }
-  // TODO(crbug.com/40177656): Pass the real StorageKey when
-  // StoragePolicyObserver is converted.
   storage_policy_observer_->StartTrackingOrigins(std::move(origins));
 }
 

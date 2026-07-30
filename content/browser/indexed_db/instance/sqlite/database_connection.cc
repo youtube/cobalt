@@ -91,7 +91,7 @@ enum class CompressionType : uint8_t {
 };
 
 // Used for tests.
-std::optional<base::ByteCount> g_max_blob_size_override;
+std::optional<base::ByteSize> g_max_blob_size_override;
 
 // The maximum number of bytes that will be stored in a single SQLite BLOB
 // column. If a blob is larger than this, it will be chunked into multiple rows
@@ -106,8 +106,8 @@ std::optional<base::ByteCount> g_max_blob_size_override;
 // well to lower the maximum string and blob length to something more in the
 // range of a few million if that is possible".
 // https://www.sqlite.org/limits.html
-base::ByteCount GetMaxBlobSize() {
-  return g_max_blob_size_override.value_or(base::MiB(5));
+base::ByteSize GetMaxBlobSize() {
+  return g_max_blob_size_override.value_or(base::MiBU(5));
 }
 
 // The separator used to join the strings when encoding an `IndexedDBKeyPath` of
@@ -1081,7 +1081,7 @@ Status DatabaseConnection::BeginTransaction(
   return Status::OK();
 }
 
-Status DatabaseConnection::CommitTransactionPhaseOne(
+StatusOr<bool> DatabaseConnection::CommitTransactionPhaseOne(
     base::PassKey<BackingStoreTransactionImpl>,
     const BackingStoreTransactionImpl& transaction,
     BlobWriteCallback callback,
@@ -1127,13 +1127,12 @@ Status DatabaseConnection::CommitTransactionPhaseOne(
   }
 
   if (outstanding_external_object_writes_ == 0) {
-    return std::move(callback).Run(
-        BlobWriteResult::kRunPhaseTwoAndReturnResult);
+    return false;
   }
 
   CHECK_NE(transaction.mode(), blink::mojom::IDBTransactionMode::ReadOnly);
   blob_write_callback_ = std::move(callback);
-  return Status::OK();
+  return true;
 }
 
 std::optional<sql::StreamingBlobHandle>
@@ -1177,7 +1176,7 @@ void DatabaseConnection::OnBlobWriteComplete(int64_t blob_row_id,
   }
 
   if (--outstanding_external_object_writes_ == 0) {
-    std::move(blob_write_callback_).Run(BlobWriteResult::kRunPhaseTwoAsync);
+    std::move(blob_write_callback_).Run(Status::OK());
   }
 }
 
@@ -1203,8 +1202,7 @@ void DatabaseConnection::CancelBlobWriting() {
   blob_writers_.clear();
   outstanding_external_object_writes_ = 0;
   if (blob_write_callback_) {
-    std::move(blob_write_callback_)
-        .Run(base::unexpected(Status::IOError("Error")));
+    std::move(blob_write_callback_).Run(Status::IOError("Error"));
   }
 }
 
@@ -1751,8 +1749,9 @@ StatusOr<BackingStore::RecordIdentifier> DatabaseConnection::PutRecord(
     } else {
       // Write metadata and reserve space for the `bytes` column. Blob bytes are
       // not actually written yet though.
-      int main_chunk_size =
-          std::min(external_object.size(), GetMaxBlobSize().InBytes());
+      const int main_chunk_size = base::checked_cast<int>(
+          std::min(external_object.size(),
+                   base::checked_cast<int64_t>(GetMaxBlobSize().InBytes())));
       {
         sql::Statement statement(
             db_->GetCachedStatement(SQL_FROM_HERE,
@@ -1783,8 +1782,9 @@ StatusOr<BackingStore::RecordIdentifier> DatabaseConnection::PutRecord(
       int chunk_index = 1;
       for (int64_t bytes_written = main_chunk_size;
            bytes_written < external_object.size();) {
-        const int64_t chunk_size = std::min(
-            external_object.size() - bytes_written, GetMaxBlobSize().InBytes());
+        const int64_t chunk_size =
+            std::min(external_object.size() - bytes_written,
+                     base::checked_cast<int64_t>(GetMaxBlobSize().InBytes()));
         sql::Statement statement(
             db_->GetCachedStatement(SQL_FROM_HERE,
                                     "INSERT INTO overflow_blob_chunks "
@@ -2289,7 +2289,7 @@ StatusOr<mojo_base::BigBuffer> DatabaseConnection::Decompress(
 }
 
 // static
-void DatabaseConnection::OverrideMaxBlobSizeForTesting(base::ByteCount size) {
+void DatabaseConnection::OverrideMaxBlobSizeForTesting(base::ByteSize size) {
   g_max_blob_size_override = size;
 }
 

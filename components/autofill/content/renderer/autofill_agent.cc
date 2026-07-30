@@ -41,7 +41,6 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
-#include "base/types/cxx23_to_underlying.h"
 #include "base/types/optional_ref.h"
 #include "base/types/zip.h"
 #include "build/build_config.h"
@@ -456,6 +455,39 @@ class AutofillAgent::DeferringAutofillDriver : public mojom::AutofillDriver {
   base::WeakPtrFactory<DeferringAutofillDriver> weak_ptr_factory_{this};
 };
 
+struct AutofillAgent::PendingRefillList::Refill {
+  const FillId fill_id;
+  base::OnceCallback<void(bool fulfilled)> callback;
+  base::OneShotTimer timeout;
+};
+
+AutofillAgent::PendingRefillList::PendingRefillList() = default;
+
+AutofillAgent::PendingRefillList::~PendingRefillList() {
+  for (Refill& refill : list_) {
+    std::move(refill.callback).Run(false);
+  }
+}
+
+void AutofillAgent::PendingRefillList::Add(
+    const FillId& fill_id,
+    base::OnceCallback<void(bool)> callback) {
+  list_.emplace_back(fill_id, std::move(callback));
+  list_.back().timeout.Start(FROM_HERE, kRequestRefillTimeout,
+                             base::BindOnce(&PendingRefillList::Reject,
+                                            base::Unretained(this), fill_id));
+}
+
+void AutofillAgent::PendingRefillList::RunAndRemove(const FillId& fill_id,
+                                                    bool fulfilled) {
+  auto it = std::ranges::find(list_, fill_id, &Refill::fill_id);
+  if (it == list_.end()) {
+    return;
+  }
+  std::move(it->callback).Run(fulfilled);
+  list_.erase(it);
+}
+
 AutofillAgent::AutofillAgent(
     content::RenderFrame* render_frame,
     std::unique_ptr<PasswordAutofillAgent> password_autofill_agent,
@@ -506,7 +538,7 @@ void AutofillAgent::DidCreateDocumentElement() {
 
 void AutofillAgent::Reset() {
   // Navigation to a new page or a page refresh.
-  last_queried_element_ = {};
+  last_queried_element_ = FieldRef();
   form_cache_.Reset();
   is_dom_content_loaded_ = false;
   select_option_change_batch_timer_.clear();
@@ -1007,6 +1039,16 @@ void AutofillAgent::UserGestureObserved() {
   password_autofill_agent_->UserGestureObserved();
 }
 
+void AutofillAgent::RequestRefill(const FillId& fill_id,
+                                  base::OnceCallback<void(bool)> callback) {
+  pending_refills_.Add(fill_id, std::move(callback));
+  if (auto* autofill_driver = unsafe_autofill_driver()) {
+    autofill_driver->RequestRefill(fill_id);
+  } else {
+    pending_refills_.Reject(fill_id);
+  }
+}
+
 // mojom::AutofillAgent:
 void AutofillAgent::ApplyFieldsAction(
     mojom::FormActionType action_type,
@@ -1024,6 +1066,11 @@ void AutofillAgent::ApplyFieldsAction(
     if (auto* autofill_driver = unsafe_autofill_driver()) {
       autofill_driver->SuppressAutomaticRefills(fill_id);
     }
+  }
+
+  if (action_type == mojom::FormActionType::kFill &&
+      action_persistence == mojom::ActionPersistence::kFill) {
+    pending_refills_.Fulfill(fill_id);
   }
 
   ClearPreviewedForm();

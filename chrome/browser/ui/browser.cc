@@ -733,7 +733,7 @@ Browser::~Browser() {
   // The system incognito profile should not try be destroyed using
   // ProfileDestroyer::DestroyProfileWhenAppropriate(). This profile can be
   // used, at least, by the user manager window. This window is not a browser,
-  // therefore, BrowserList::IsOffTheRecordBrowserActiveForProfile(profile_)
+  // therefore, chrome::IsOffTheRecordBrowserActiveForProfile(profile_)
   // returns false, while the user manager window is still opened.
   // This cannot be fixed in ProfileDestroyer::DestroyProfileWhenAppropriate(),
   // because the ProfileManager needs to be able to destroy all profiles when
@@ -745,7 +745,7 @@ Browser::~Browser() {
   // TODO(crbug.com/40159237): Use ScopedProfileKeepAlive for Incognito too,
   // instead of separate logic for Incognito and regular profiles.
   if (profile_->IsIncognitoProfile() &&
-      !BrowserList::IsOffTheRecordBrowserInUse(profile_) &&
+      !chrome::IsOffTheRecordBrowserInUse(profile_) &&
       !profile_->IsSystemProfile()) {
 #if BUILDFLAG(ENABLE_PRINT_PREVIEW)
     // The Printing Background Manager holds onto preview dialog WebContents
@@ -2562,6 +2562,17 @@ content::WebContents* Browser::GetResponsibleWebContents(
     content::WebContents* web_contents) {
   // Tabs are the proper choice for modal scope.
   return web_contents;
+}
+
+std::optional<gfx::Rect> Browser::GetWindowBoundsInScreen() {
+  if (!window_) {
+    return std::nullopt;
+  }
+
+  // Note that `GetBounds` here returns the screen coordinate bounds
+  // from the browser widget. This is not to be confused with
+  // `views::View::bounds()` which returns parent-relative bounds.
+  return GetBrowserView().GetBounds();
 }
 
 void Browser::RunFileChooser(

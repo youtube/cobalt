@@ -2,6 +2,7 @@
 <!DOCTYPE translationbundle>
 <translationbundle lang="iw">
 <translation id="1076643793026027628">‏‫Chrome פותח באופן אוטומטי קישורים פרטיים של YouTube במצב פרטי.</translation>
+<translation id="1081114897601629648">‏הסיסמאות הבאות לא יובאו למנהל הסיסמאות של Google כי הן לא עומדות בדרישות.</translation>
 <translation id="1086486568852410168">‏חיפוש באמצעות Google Lens</translation>
 <translation id="1088490543924960890">‏כדאי להתחיל לשמור מפתחות גישה באמצעות מנהל הסיסמאות של Google</translation>
 <translation id="1143896152279775643">‏הסיסמה תישמר במנהל הסיסמאות של Google עבור <ph name="EMAIL" />.</translation>
@@ -193,7 +194,7 @@
 <translation id="5690427481109656848">Google LLC</translation>
 <translation id="5709557627224531708">‏הגדרת Chrome כדפדפן ברירת המחדל</translation>
 <translation id="571296537125272375">‏Chrome לא יכול לחפש עדכונים</translation>
-<translation id="5716154293141027663">‏Chrome ייפתח בכל פעם שתתבצע לחיצה על קישור באפליקציות אחרות</translation>
+<translation id="5716154293141027663">‏Chrome ייפתח בכל פעם שתלחץ על קישור באפליקציות אחרות</translation>
 <translation id="5752489513673657785">‏פיד מותאם אישית שנוצר במיוחד בשבילך על ידי Google</translation>
 <translation id="5772407442571703917">‏ניתן להוריד את Chrome כאן.</translation>
 <translation id="5777468213129569553">‏פתיחת Chrome</translation>
@@ -272,6 +273,7 @@
 <translation id="7284245284340063465">‏אם שכחת את ביטוי הסיסמה או שברצונך לשנות את ההגדרה הזו, <ph name="BEGIN_LINK" />עליך למחוק את נתוני Chrome בחשבון<ph name="END_LINK" />.</translation>
 <translation id="7296102444587051536">‏‫Chrome ל-iOS</translation>
 <translation id="7299681342915173313">‏עכשיו אפשר להשתמש ב-Chrome כשלוחצים על קישורים באימיילים, במסמכים ובאפליקציות אחרות.</translation>
+<translation id="7334364820047587268">‏כבר שמרת סיסמאות לחשבונות האלה במנהל הסיסמאות של Google. אם אחת מהסיסמאות הבאות תיובא, היא תחליף את הסיסמה הקיימת.</translation>
 <translation id="7344094882820374540">‏נהנים מרמת האבטחה הכי יעילה של Chrome מפני אתרים מסוכנים</translation>
 <translation id="7349129508108954623">‏מתן הרשאה ל-Chrome להשתמש במפות Google כדי לספק מסלולים ומידע מקומי על כתובות שזוהו.</translation>
 <translation id="7371674917547846460">‏אפשר לקבל טיפים שימושיים לגבי Chrome ועוד.</translation>

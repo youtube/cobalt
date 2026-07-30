@@ -60,6 +60,7 @@
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/tabs/browser_tab_strip_controller.h"
+#include "chrome/browser/ui/views/tabs/dragging/tab_drag_context.h"
 #include "chrome/browser/ui/views/tabs/dragging/tab_drag_controller.h"
 #include "chrome/browser/ui/views/tabs/tab.h"
 #include "chrome/browser/ui/views/tabs/tab_container_impl.h"
@@ -134,8 +135,9 @@ std::unique_ptr<TabContainer> MakeTabContainer(
     TabStrip* tab_strip,
     TabHoverCardController* hover_card_controller,
     TabDragContext* drag_context) {
-  return std::make_unique<TabContainerImpl>(*tab_strip, hover_card_controller,
-                                            drag_context, *tab_strip);
+  return std::make_unique<TabContainerImpl>(
+      *tab_strip, hover_card_controller, drag_context->GetPositioningDelegate(),
+      *tab_strip);
 }
 
 void UpdateDragEventSourceCrashKey(
@@ -155,6 +157,7 @@ void UpdateDragEventSourceCrashKey(
 // TabStrip::TabDragContextImpl
 //
 class TabStrip::TabDragContextImpl : public TabDragContext,
+                                     public TabDragPositioningDelegate,
                                      public views::BoundsAnimatorObserver {
   METADATA_HEADER(TabDragContextImpl, TabDragContext)
 
@@ -401,6 +404,13 @@ class TabStrip::TabDragContextImpl : public TabDragContext,
   }
 
   // TabDragContext:
+  TabDragContext* GetContextForNewBrowser(
+      BrowserView* browser_view) const override {
+    return browser_view->tab_strip_view()->GetDragContext();
+  }
+
+  TabDragPositioningDelegate* GetPositioningDelegate() override { return this; }
+
   TabSlotView* GetTabForContents(content::WebContents* contents) override {
     const int model_index = GetTabStripModel()->GetIndexOfWebContents(contents);
     if (model_index == TabStripModel::kNoTab) {
@@ -422,8 +432,6 @@ class TabStrip::TabDragContextImpl : public TabDragContext,
     return !(web_app::HasPinnedHomeTab(GetTabStripModel()) &&
              GetIndexOf(view) == 0);
   }
-
-  TabSlotView* GetTabAt(int i) const override { return tab_strip_->tab_at(i); }
 
   int GetTabCount() const override { return tab_strip_->GetTabCount(); }
 
@@ -472,6 +480,11 @@ class TabStrip::TabDragContextImpl : public TabDragContext,
       base::OnceCallback<void(TabDragController*)> callback) override {
     drag_controller_set_callback_ = std::move(callback);
   }
+
+  // TabDragPositioningDelegate
+  TabDragContext* GetContext() override { return this; }
+
+  TabSlotView* GetTabAt(int i) const override { return tab_strip_->tab_at(i); }
 
   void UpdateAnimationTarget(TabSlotView* tab_slot_view,
                              const gfx::Rect& target_bounds) override {
@@ -1159,7 +1172,7 @@ bool TabStrip::IsTabStripCloseable() const {
 }
 
 bool TabStrip::IsTabStripEditable() const {
-  return !tab_strip_not_editable_for_testing_ &&
+  return tab_strip_editable_for_testing_ &&
          !drag_context_->IsDragSessionActive() &&
          !drag_context_->IsActiveDropTarget();
 }
@@ -1183,17 +1196,15 @@ void TabStrip::UpdateLoadingAnimations(const base::TimeDelta& elapsed_time) {
   }
 }
 
-void TabStrip::AddTabsAt(
-    std::vector<std::pair<int, TabRendererData>> tabs_datas) {
+void TabStrip::AddTabsAt(const std::vector<AddTabData>& tabs_datas) {
   std::vector<TabContainer::TabInsertionParams> tabs_params;
 
   for (const auto& tab_data : tabs_datas) {
-    const int model_index = tab_data.first;
-    CHECK(IsValidModelIndex(model_index))
+    CHECK(IsValidModelIndex(tab_data.index))
         << "Attempted to add a tab with an invalid model index.";
     TabContainer::TabInsertionParams param(
-        std::make_unique<Tab>(this), tab_data.first,
-        tab_data.second.pinned ? TabPinned::kPinned : TabPinned::kUnpinned);
+        std::make_unique<Tab>(tab_data.handle, this), tab_data.index,
+        tab_data.data.pinned ? TabPinned::kPinned : TabPinned::kUnpinned);
     tabs_params.push_back(std::move(param));
   }
 
@@ -1201,11 +1212,10 @@ void TabStrip::AddTabsAt(
 
   for (int index = 0; index < static_cast<int>(tabs_datas.size()); index++) {
     Tab* tab = tabs[index];
-    int model_index = tabs_datas[index].first;
-    TabRendererData renderer_data = tabs_datas[index].second;
+    TabRendererData renderer_data = tabs_datas[index].data;
     tab->set_context_menu_controller(&context_menu_controller_);
     tab->AddObserver(this);
-    selected_tabs_.IncrementFrom(model_index);
+    selected_tabs_.IncrementFrom(tabs_datas[index].index);
 
     // Setting data must come after all state from the model has been updated
     // above for the tab. Accessibility, in particular, reacts to data changed
@@ -1213,7 +1223,7 @@ void TabStrip::AddTabsAt(
     tab->SetData(std::move(renderer_data));
 
     if (observer_) {
-      observer_->OnTabAdded(model_index);
+      observer_->OnTabAdded(tabs_datas[index].index);
     }
 
     // At the start of AddTabAt() the model and tabs are out of sync. Any
@@ -1889,7 +1899,7 @@ bool TabStrip::ShouldCompactLeadingEdge() const {
               ->GetFrameView()
               ->CaptionButtonsOnLeadingEdge() &&
          (tabs::GetTabSearchPosition(controller_->GetProfile()) ==
-          tabs::TabSearchPosition::kTrailingTabstrip);
+          tabs::TabSearchPosition::kTrailingHorizontalTabstrip);
 }
 
 void TabStrip::MaybeStartDrag(TabSlotView* source,
@@ -2190,8 +2200,8 @@ views::View* TabStrip::GetViewForDrop() {
   NOTREACHED();
 }
 
-void TabStrip::SetTabStripNotEditableForTesting() {
-  tab_strip_not_editable_for_testing_ = true;
+void TabStrip::DisableTabStripEditingForTesting() {
+  tab_strip_editable_for_testing_ = false;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

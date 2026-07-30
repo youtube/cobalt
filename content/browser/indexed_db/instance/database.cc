@@ -312,9 +312,7 @@ void Database::RegisterAndScheduleTransaction(Transaction* transaction) {
 
   lock_manager().AcquireLocks(
       std::move(lock_requests), *transaction->mutable_locks_receiver(),
-      base::BindOnce(&Transaction::Start, transaction->AsWeakPtr()),
-      base::BindRepeating(&Connection::HasHigherPriorityThan,
-                          transaction->mutable_locks_receiver()));
+      base::BindOnce(&Transaction::Start, transaction->AsWeakPtr()));
 }
 
 Status Database::RunTasks() {
@@ -445,7 +443,7 @@ Status Database::VersionChangeOperation(int64_t version,
 Status Database::GetOperation(int64_t object_store_id,
                               int64_t index_id,
                               IndexedDBKeyRange key_range,
-                              CursorType cursor_type,
+                              bool key_only,
                               blink::mojom::IDBDatabase::GetCallback callback,
                               Transaction* transaction) {
   TRACE_EVENT1("IndexedDB", "Database::GetOperation", "txn.id",
@@ -461,7 +459,7 @@ Status Database::GetOperation(int64_t object_store_id,
     StatusOr<std::unique_ptr<BackingStore::Cursor>> backing_store_cursor;
     if (index_id == IndexedDBIndexMetadata::kInvalidId) {
       // ObjectStore Retrieval Operation
-      if (cursor_type == CursorType::kKeyOnly) {
+      if (key_only) {
         backing_store_cursor =
             transaction->BackingStoreTransaction()->OpenObjectStoreKeyCursor(
                 object_store_id, key_range,
@@ -472,7 +470,7 @@ Status Database::GetOperation(int64_t object_store_id,
                 object_store_id, key_range,
                 blink::mojom::IDBCursorDirection::Next);
       }
-    } else if (cursor_type == CursorType::kKeyOnly) {
+    } else if (key_only) {
       // Index Value Retrieval Operation
       backing_store_cursor =
           transaction->BackingStoreTransaction()->OpenIndexKeyCursor(
@@ -523,7 +521,7 @@ Status Database::GetOperation(int64_t object_store_id,
       return Status::OK();
     }
 
-    if (cursor_type == CursorType::kKeyOnly) {
+    if (key_only) {
       std::move(callback).Run(
           blink::mojom::IDBDatabaseGetResult::NewKey(std::move(key)));
       return Status::OK();
@@ -563,7 +561,7 @@ Status Database::GetOperation(int64_t object_store_id,
     std::move(callback).Run(blink::mojom::IDBDatabaseGetResult::NewEmpty(true));
     return Status::OK();
   }
-  if (cursor_type == CursorType::kKeyOnly) {
+  if (key_only) {
     // Index Value Retrieval Operation
     std::move(callback).Run(
         blink::mojom::IDBDatabaseGetResult::NewKey(std::move(primary_key)));
@@ -833,8 +831,7 @@ Status Database::OpenCursorOperation(
 
   StatusOr<std::unique_ptr<BackingStore::Cursor>> backing_store_cursor;
   if (params->index_id == IndexedDBIndexMetadata::kInvalidId) {
-    if (params->cursor_type == CursorType::kKeyOnly) {
-      CHECK_EQ(params->task_type, blink::mojom::IDBTaskType::Normal);
+    if (params->key_only) {
       backing_store_cursor =
           transaction->BackingStoreTransaction()->OpenObjectStoreKeyCursor(
               params->object_store_id, params->key_range, params->direction);
@@ -844,8 +841,7 @@ Status Database::OpenCursorOperation(
               params->object_store_id, params->key_range, params->direction);
     }
   } else {
-    CHECK_EQ(params->task_type, blink::mojom::IDBTaskType::Normal);
-    if (params->cursor_type == CursorType::kKeyOnly) {
+    if (params->key_only) {
       backing_store_cursor =
           transaction->BackingStoreTransaction()->OpenIndexKeyCursor(
               params->object_store_id, params->index_id, params->key_range,
@@ -873,8 +869,12 @@ Status Database::OpenCursorOperation(
 
   mojo::PendingAssociatedRemote<blink::mojom::IDBCursor> pending_remote;
   Cursor* cursor = Cursor::CreateAndBind(
-      std::move(*backing_store_cursor), params->cursor_type, params->task_type,
-      transaction->AsWeakPtr(), pending_remote);
+      std::move(*backing_store_cursor),
+      {params->index_id == IndexedDBIndexMetadata::kInvalidId
+           ? Cursor::Type::Source::kObjectStore
+           : Cursor::Type::Source::kIndex,
+       params->direction, params->key_only},
+      params->task_type, transaction->AsWeakPtr(), pending_remote);
   transaction->RegisterOpenCursor(cursor);
 
   blink::mojom::IDBValuePtr mojo_value;
@@ -1128,6 +1128,15 @@ void Database::ConnectionClosed(base::OnceClosure forward_on_close,
 
 bool Database::CanBeDestroyed() {
   return !connection_coordinator_.HasTasks() && connections_.empty();
+}
+
+const IndexedDBObjectStoreMetadata* Database::GetObjectStoreMetadataIfExists(
+    int64_t object_store_id) const {
+  auto object_store_it = metadata().object_stores.find(object_store_id);
+  if (object_store_it != metadata().object_stores.end()) {
+    return &object_store_it->second;
+  }
+  return nullptr;
 }
 
 const IndexedDBObjectStoreMetadata& Database::GetObjectStoreMetadata(

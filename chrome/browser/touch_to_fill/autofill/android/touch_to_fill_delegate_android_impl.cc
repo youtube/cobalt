@@ -5,6 +5,7 @@
 #include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_delegate_android_impl.h"
 
 #include <optional>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -32,7 +33,7 @@
 #include "components/autofill/core/browser/payments/iban_access_manager.h"
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/autofill/core/browser/studies/autofill_experiments.h"
-#include "components/autofill/core/browser/suggestions/payments/payments_suggestion_generator.h"
+#include "components/autofill/core/browser/suggestions/payments/payments_suggestion_generator_util.h"
 #include "components/autofill/core/browser/suggestions/suggestion_hiding_reason.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/common/autofill_features.h"
@@ -243,7 +244,7 @@ bool TouchToFillDelegateAndroidImpl::IntendsToShowTouchToFill(
       << LoggingScope::kTouchToFill << LogMessage::kTouchToFill
       << "dry run before parsing for form " << form_id << " and field "
       << field_id << " was " << (outcome == TriggerOutcome::kShown ? "" : "un")
-      << "successful (" << base::to_underlying(outcome) << ")";
+      << "successful (" << std::to_underlying(outcome) << ")";
   return outcome == TriggerOutcome::kShown;
 }
 
@@ -287,7 +288,7 @@ bool TouchToFillDelegateAndroidImpl::TryToShowTouchToFill(
       << "dry run after parsing for form " << form.global_id() << " and field "
       << field.global_id() << " was "
       << (dry_run.outcome == TriggerOutcome::kShown ? "" : "un")
-      << "successful (" << base::to_underlying(dry_run.outcome) << ")";
+      << "successful (" << std::to_underlying(dry_run.outcome) << ")";
 
   if (dry_run.outcome != TriggerOutcome::kShown) {
     return false;

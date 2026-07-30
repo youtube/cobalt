@@ -16,19 +16,6 @@ namespace features {
 
 // All features in alphabetical order.
 
-// Controls if page stability monitoring uses paint stability as a signal.
-constexpr base::FeatureParam<ActorPaintStabilityMode>::Option
-    kActorPaintStabilityModeOptions[] = {
-        {ActorPaintStabilityMode::kDisabled, "disabled"},
-        {ActorPaintStabilityMode::kLogOnly, "log-only"},
-        {ActorPaintStabilityMode::kEnabled, "enabled"},
-};
-BASE_FEATURE_ENUM_PARAM(ActorPaintStabilityMode,
-                        kActorPaintStabilityMode,
-                        &kGlicActor,
-                        "actor-paint-stability-mode",
-                        ActorPaintStabilityMode::kEnabled,
-                        &kActorPaintStabilityModeOptions);
 // Timeout controlling how long the paint stability monitor waits after the
 // initial contentful paint before considering the UI to have stabilized.
 const base::FeatureParam<base::TimeDelta>
@@ -82,7 +69,7 @@ BASE_FEATURE(kAppShimNotificationAttribution,
 
 // When enabled, app shims used by PWAs will be signed with an ad-hoc signature
 // https://crbug.com/40276068
-BASE_FEATURE(kUseAdHocSigningForWebAppShims, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kUseAdHocSigningForWebAppShims, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, the KeychainKeyProvider is used to provide the OS Crypt async
 // key.
@@ -236,7 +223,7 @@ BASE_FEATURE(kDesktopPWAsTabStripSettings, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Allows fullscreen to claim whole display area when in windowing mode
 #if BUILDFLAG(IS_ANDROID)
-BASE_FEATURE(kDisplayEdgeToEdgeFullscreen, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kDisplayEdgeToEdgeFullscreen, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 // Enables Fullscreen to Screen on Android platform
@@ -297,6 +284,11 @@ const base::FeatureParam<base::TimeDelta> kGlicActorClickDelay{
 BASE_FEATURE(kGlicActorUi, base::FEATURE_ENABLED_BY_DEFAULT);
 // Controls whether the new icon UI is enabled.
 BASE_FEATURE(kGlicActorUiTaskIconV2, base::FEATURE_ENABLED_BY_DEFAULT);
+// Controls whether the task nudge UI fixes are enabled.
+BASE_FEATURE(kGlicActorUiTaskNudgeUiFix, base::FEATURE_ENABLED_BY_DEFAULT);
+// Controls whether the global task indicator and related features are enabled.
+BASE_FEATURE(kGlicActorUiGlobalTaskIndicator,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 // Controls whether we ignore users preference of reduced motion enabled and
 // still show the tab indicator spinner. No-op if kGlicActorUiTabIndicator is
 // disabled.
@@ -317,6 +309,10 @@ BASE_FEATURE(kGlicHandoffButtonShowInImmersiveMode,
 
 // If enabled, reset handoff button focus and hover state on button close.
 BASE_FEATURE(kGlicHandoffButtonResetFocusAndHoverStatus,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// If enabled, hide handoff button when omnibox popup is opened.
+BASE_FEATURE(kGlicHandoffButtonHideWhenOmniboxPopupOpened,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, the magic cursor in the actor overlay is shown.
@@ -468,6 +464,13 @@ const base::FeatureParam<base::TimeDelta> kGlicActorMoveBeforeClickDelay{
 BASE_FEATURE(kGlicActOnWebCapabilityForManagedTrials,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Controls country and locale filtering for Glic.
+// See chrome/browser/glic/public/glic_enabling.cc for more details.
+// TODO(b/454431875): Re-enable after Finch configs are updated to allow
+// internal usage worldwide.
+BASE_FEATURE(kGlicCountryFiltering, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicLocaleFiltering, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Controls whether the Glic FRE dialog is displayed in the same window as the
 // main app.
 BASE_FEATURE(kGlicUnifiedFreScreen, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -477,7 +480,7 @@ BASE_FEATURE(kGlicTrustFirstOnboarding, base::FEATURE_DISABLED_BY_DEFAULT);
 
 const base::FeatureParam<int> kGlicTrustFirstOnboardingArmParam{
     &kGlicTrustFirstOnboarding, "arm", 1 /* kStartChat */};
-#if BUILDFLAG(ENABLE_GLIC)
+#if BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
 // Controls whether the Glic feature is enabled.
 // IMPORTANT: this feature should never be expired! It is used as the main
 // kill-switch for Glic and can be used in the future to handle unsupported
@@ -827,6 +830,7 @@ BASE_FEATURE(kGlicPanelResetSizeAndLocationOnOpen,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicPersonalContext, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicGeminiInstructions, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicPopupWindowsEnabled, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -921,6 +925,8 @@ BASE_FEATURE(kGlicDaisyChainNewTabs, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicLiveModeOnlyGlow, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kGlicMITabContextMenu, base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kGlicUseToolbarHeightSidePanel, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicButtonPressedState, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -961,6 +967,9 @@ const base::FeatureParam<int> kGlicCompositeViewWidth{
 
 const base::FeatureParam<int> kGlicCompositeViewHeight{
     &kGlicPrintMenuItem, "glic-composite-view-height", 480};
+
+BASE_FEATURE(kGlicArchiveConversation, base::FEATURE_ENABLED_BY_DEFAULT);
+
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
 BASE_FEATURE(kGlicActorAutofill, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1812,12 +1821,7 @@ BASE_FEATURE(kWebAppUsePrimaryIcon, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kWebAppPeriodicPreinstallUpdate, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kWebAppMigratePreinstalledChat, base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kWebAppMigrationApi, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // !BUILDFLAG(IS_ANDROID)
-
-BASE_FEATURE(kWebAppManifestPolicyAppIdentityUpdate,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if !BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kWebium, base::FEATURE_DISABLED_BY_DEFAULT);

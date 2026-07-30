@@ -32,7 +32,6 @@
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
 #import "base/time/time.h"
-#import "base/types/cxx23_to_underlying.h"
 #import "base/types/zip.h"
 #import "base/uuid.h"
 #import "base/values.h"
@@ -70,7 +69,6 @@
 #import "components/autofill/ios/form_util/form_activity_observer_bridge.h"
 #import "components/autofill/ios/form_util/form_activity_params.h"
 #import "components/autofill/ios/form_util/form_handlers_java_script_feature.h"
-#import "components/autofill/ios/form_util/form_util_java_script_feature.h"
 #import "components/feature_engagement/public/feature_constants.h"
 #import "components/grit/components_resources.h"
 #import "components/plus_addresses/core/browser/grit/plus_addresses_strings.h"
@@ -665,16 +663,17 @@ bool ContainsFocusableField(const FormData& form, FieldRendererId field_id) {
               ? SuggestionIconType::kAccountWork
               : SuggestionIconType::kNone;
     }
-    FormSuggestion* suggestion =
-        [FormSuggestion suggestionWithValue:value
-                                 minorValue:minorValue
-                         displayDescription:displayDescription
-                                       icon:icon
-                                       type:popup_suggestion.type
-                                    payload:popup_suggestion.payload
-                fieldByFieldFillingTypeUsed:fieldByFieldFillingTypeUsed
-                             requiresReauth:NO
-                 acceptanceA11yAnnouncement:acceptanceA11yAnnouncement];
+    FormSuggestion* suggestion = [FormSuggestion
+                suggestionWithValue:value
+                         minorValue:minorValue
+                 displayDescription:displayDescription
+                               icon:icon
+              hasCustomCardArtImage:popup_suggestion.has_custom_card_art_image
+                               type:popup_suggestion.type
+                            payload:popup_suggestion.payload
+        fieldByFieldFillingTypeUsed:fieldByFieldFillingTypeUsed
+                     requiresReauth:NO
+         acceptanceA11yAnnouncement:acceptanceA11yAnnouncement];
 
     suggestion.featureForIPH = SuggestionFeatureForIPH::kUnknown;
     suggestion.suggestionIconType = suggestionIconType;

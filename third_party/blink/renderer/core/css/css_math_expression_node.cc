@@ -62,8 +62,10 @@
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
+#include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "third_party/blink/renderer/platform/wtf/vector_traits.h"
+#include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
 #include "ui/gfx/geometry/sin_cos_degrees.h"
 
 namespace blink {
@@ -1802,6 +1804,20 @@ CSSMathExpressionNode* CSSMathExpressionOperation::CreateComparisonFunction(
       category, std::move(operands), op, CSSMathType());
 }
 
+const CSSMathExpressionNode*
+CSSMathExpressionOperation::CopyRandomWithPropertyNameAndValueIndexIfNeeded(
+    const CSSPropertyName& property_name,
+    wtf_size_t property_value_index) const {
+  DCHECK(NeedsPropertyNameAndValueIndexForRandom());
+  Operands operands(operands_);
+  for (wtf_size_t i = 0; i < operands_.size(); i++) {
+    operands[i] = operands_[i]->CopyRandomWithPropertyNameAndValueIndexIfNeeded(
+        property_name, property_value_index);
+  }
+  return MakeGarbageCollected<CSSMathExpressionOperation>(
+      category_, std::move(operands), operator_, type_);
+}
+
 // Helper function for parsing number value
 static double ValueAsNumber(const CSSMathExpressionNode* node, bool& error) {
   if (node->Category() == kCalcNumber) {
@@ -2609,6 +2625,9 @@ CSSMathExpressionOperation::CSSMathExpressionOperation(
   has_nested_intermediate_result_ |= NodeHasNestedIntermediateResult(left_side);
   has_nested_intermediate_result_ |=
       NodeHasNestedIntermediateResult(right_side);
+  needs_property_name_and_value_index_for_random_ |=
+      (left_side && left_side->NeedsPropertyNameAndValueIndexForRandom()) ||
+      (right_side && right_side->NeedsPropertyNameAndValueIndexForRandom());
 }
 
 bool CSSMathExpressionOperation::HasPercentage() const {
@@ -2697,6 +2716,10 @@ CSSMathExpressionOperation::CSSMathExpressionOperation(
         NodeHasNestedIntermediateResult(operands_.front());
     has_nested_intermediate_result_ |=
         NodeHasNestedIntermediateResult(operands_.back());
+  }
+  for (const CSSMathExpressionNode* operand : operands_) {
+    needs_property_name_and_value_index_for_random_ |=
+        operand && operand->NeedsPropertyNameAndValueIndexForRandom();
   }
 }
 
@@ -4497,7 +4520,7 @@ class CSSMathExpressionNodeParser {
     HeapVector<Member<const CSSMathExpressionNode>> nodes;
 
     // Parse any non-expression argument(s).
-    std::variant<CSSMathOperator, RandomValueSharing> non_expr_argument;
+    std::variant<CSSMathOperator, const RandomValueSharing*> non_expr_argument;
     switch (function_id) {
       case CSSValueID::kRound: {
         // Parse the initial (optional) <rounding-strategy> argument to the
@@ -4518,15 +4541,16 @@ class CSSMathExpressionNodeParser {
         DCHECK(RuntimeEnabledFeatures::CSSRandomFunctionEnabled());
         // Parse the (optional) <random-value-sharing> argument of the random()
         // function.
-        std::optional<RandomValueSharing> random_value_sharing =
-            RandomValueSharing::Parse(stream);
+        const RandomValueSharing* random_value_sharing =
+            RandomValueSharing::Parse(stream, context_);
         if (random_value_sharing) {
           if (!css_parsing_utils::ConsumeCommaIncludingWhitespace(stream)) {
             return nullptr;
           }
+          non_expr_argument = random_value_sharing;
+        } else {
+          non_expr_argument = RandomValueSharing::Auto();
         }
-        non_expr_argument =
-            random_value_sharing.value_or(RandomValueSharing::Auto());
         break;
       }
       default:
@@ -4645,7 +4669,7 @@ class CSSMathExpressionNodeParser {
         DCHECK_GE(nodes.size(), 2u);
         DCHECK_LE(nodes.size(), 3u);
         const auto& random_value_sharing =
-            std::get<RandomValueSharing>(non_expr_argument);
+            std::get<const RandomValueSharing*>(non_expr_argument);
         return CSSMathExpressionRandomFunction::Create(random_value_sharing,
                                                        std::move(nodes));
       }
@@ -5194,8 +5218,10 @@ CSSMathExpressionNode* CSSMathExpressionNode::Create(
     case CalculationOperator::kRandom: {
       DCHECK_GE(children.size(), 3u);
       DCHECK_LE(children.size(), 4u);
-      RandomValueSharing random_value_sharing = RandomValueSharing::Fixed(
-          DynamicTo<CalculationExpressionNumberNode>(*children[0])->Value());
+      const RandomValueSharing* random_value_sharing =
+          RandomValueSharing::Fixed(
+              DynamicTo<CalculationExpressionNumberNode>(*children[0])
+                  ->Value());
       CSSMathExpressionOperation::Operands operands;
       for (wtf_size_t i = 1; i < children.size(); ++i) {
         operands.push_back(Create(*children[i]));
@@ -5294,90 +5320,147 @@ void CSSMathExpressionSiblingFunction::Trace(Visitor* visitor) const {
 }
 
 bool RandomValueSharing::IsFixed() const {
-  return std::holds_alternative<double>(value_);
+  return std::holds_alternative<Member<const CSSPrimitiveValue>>(value_);
 }
-double RandomValueSharing::GetFixed() const {
-  DCHECK(std::holds_alternative<double>(value_));
-  return std::get<double>(value_);
+const CSSPrimitiveValue* RandomValueSharing::GetFixed() const {
+  DCHECK(std::holds_alternative<Member<const CSSPrimitiveValue>>(value_));
+  return std::get<Member<const CSSPrimitiveValue>>(value_);
 }
 bool RandomValueSharing::IsAuto() const {
-  return !std::holds_alternative<IdentElementShared>(value_) ||
-         std::get<IdentElementShared>(value_).ident.IsNull();
+  return !std::holds_alternative<NameAndElementShared>(value_) ||
+         !std::get<NameAndElementShared>(value_).name.StartsWith("--");
 }
-AtomicString RandomValueSharing::GetIdent() const {
-  if (!std::holds_alternative<IdentElementShared>(value_)) {
+AtomicString RandomValueSharing::Name() const {
+  if (!std::holds_alternative<NameAndElementShared>(value_)) {
     return g_null_atom;
   }
-  return std::get<IdentElementShared>(value_).ident;
+  return std::get<NameAndElementShared>(value_).name;
 }
 bool RandomValueSharing::IsElementShared() const {
-  return std::holds_alternative<IdentElementShared>(value_) &&
-         std::get<IdentElementShared>(value_).is_element_shared;
+  return std::holds_alternative<NameAndElementShared>(value_) &&
+         std::get<NameAndElementShared>(value_).element_shared;
 }
 
-std::optional<RandomValueSharing> RandomValueSharing::Parse(
-    CSSParserTokenStream& stream) {
+const RandomValueSharing*
+RandomValueSharing::CopyWithPropertyValueIndexNameIfNeeded(
+    const CSSPropertyName& property_name,
+    wtf_size_t property_value_index) const {
+  if (IsFixed()) {
+    const CSSPrimitiveValue* fixed_with_property = To<CSSPrimitiveValue>(
+        GetFixed()->CopyRandomValueWithPropertyNameAndValueIndexIfNeeded(
+            property_name, property_value_index));
+    return MakeGarbageCollected<RandomValueSharing>(fixed_with_property);
+  }
+  NameAndElementShared name_and_element_shared =
+      std::get<NameAndElementShared>(value_);
+  if (name_and_element_shared.name.IsNull()) {
+    StringBuilder str;
+    // Use string of form "PROPERTY {property_name} {property_value_index}"
+    // as name, this is later used for caching random values [0]. The prefix
+    // "PROPERTY" is needed since we need to make distinguish between custom
+    // property name and random value identifier, i.e. <dashed-ident> value in
+    // <random-value-sharing> [1]
+    // [0] https://drafts.csswg.org/css-values-5/#random-caching-key
+    // [1] https://drafts.csswg.org/css-values-5/#typedef-random-value-sharing
+    str.Append("PROPERTY ");
+    str.Append(property_name.ToAtomicString());
+    str.Append(" ");
+    str.AppendNumber(property_value_index);
+    return MakeGarbageCollected<RandomValueSharing>(
+        str.ToAtomicString(), name_and_element_shared.element_shared);
+  }
+  return this;
+}
+
+const RandomValueSharing* RandomValueSharing::Parse(
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context) {
   if (stream.Peek().GetType() != kIdentToken) {
-    return std::nullopt;
+    return nullptr;
   }
 
   CSSParserToken token = stream.Peek();
   if (token.Value() == "fixed") {
     CSSParserTokenStream::State savepoint = stream.Save();
     stream.ConsumeIncludingWhitespace();
-    token = stream.Peek();
-    if (token.GetType() == kNumberToken && token.NumericValue() >= 0 &&
-        token.NumericValue() <= 1) {
-      return RandomValueSharing(
-          stream.ConsumeIncludingWhitespace().NumericValue());
+
+    CSSPrimitiveValue* fixed_value = css_parsing_utils::ConsumeNumber(
+        stream, context, CSSPrimitiveValue::ValueRange::kAll);
+    if (!fixed_value) {
+      stream.Restore(savepoint);
+      return nullptr;
     }
-    stream.Restore(savepoint);
-    return std::nullopt;
+    if (const CSSNumericLiteralValue* numeric_value =
+            DynamicTo<CSSNumericLiteralValue>(fixed_value)) {
+      DCHECK(numeric_value->IsNumber());
+      double double_value = numeric_value->DoubleValue();
+      if (double_value < 0.0 || double_value > 1.0) {
+        stream.Restore(savepoint);
+        return nullptr;
+      }
+      if (double_value == 1.0) {
+        fixed_value = CSSNumericLiteralValue::Create(
+            std::nextafter(1.0f, 0.0f), CSSPrimitiveValue::UnitType::kNumber);
+      }
+    }
+    return MakeGarbageCollected<RandomValueSharing>(fixed_value);
   }
 
   wtf_size_t offset = stream.Offset();
 
-  bool element_shared = false;
+  ElementShared element_shared(false);
   if (token.Value() == "element-shared") {
-    element_shared = true;
+    element_shared = ElementShared(true);
     stream.ConsumeIncludingWhitespace();
   }
 
   token = stream.Peek();
   if (stream.Peek().GetType() != kIdentToken) {
-    return RandomValueSharing(element_shared);
+    return MakeGarbageCollected<RandomValueSharing>(element_shared);
   }
 
-  AtomicString ident = g_null_atom;
+  AtomicString name = g_null_atom;
   if (token.Value() == "auto") {
     stream.ConsumeIncludingWhitespace();
   }
 
   if (token.Value().ToString().StartsWith("--")) {
-    ident = stream.ConsumeIncludingWhitespace().Value().ToAtomicString();
+    name = stream.ConsumeIncludingWhitespace().Value().ToAtomicString();
   }
 
   token = stream.Peek();
   if (!element_shared && stream.Peek().GetType() == kIdentToken &&
       token.Value() == "element-shared") {
-    element_shared = true;
+    element_shared = ElementShared(true);
     stream.ConsumeIncludingWhitespace();
   }
 
   if (stream.Offset() == offset) {
-    return std::nullopt;
+    return nullptr;
   }
-  return RandomValueSharing(ident, element_shared);
+  return MakeGarbageCollected<RandomValueSharing>(name, element_shared);
+}
+
+const RandomValueSharing* RandomValueSharing::Fixed(double fixed_value) {
+  return MakeGarbageCollected<RandomValueSharing>(
+      CSSNumericLiteralValue::Create(fixed_value,
+                                     CSSPrimitiveValue::UnitType::kNumber));
+}
+
+void RandomValueSharing::Trace(Visitor* visitor) const {
+  if (IsFixed()) {
+    visitor->Trace(std::get<Member<const CSSPrimitiveValue>>(value_));
+  }
 }
 
 String RandomValueSharing::CssText() const {
   StringBuilder result;
   if (IsFixed()) {
     result.Append("fixed ");
-    result.AppendNumber(GetFixed());
+    result.Append(GetFixed()->CustomCSSText());
   }
-  if (GetIdent()) {
-    result.Append(GetIdent());
+  if (!IsAuto()) {
+    result.Append(Name());
   }
   if (IsElementShared()) {
     if (!result.empty()) {
@@ -5389,21 +5472,24 @@ String RandomValueSharing::CssText() const {
 }
 
 bool RandomValueSharing::operator==(const RandomValueSharing& other) const {
-  if (std::holds_alternative<IdentElementShared>(value_) &&
-      std::holds_alternative<IdentElementShared>(other.value_)) {
-    return std::get<IdentElementShared>(value_) ==
-           std::get<IdentElementShared>(other.value_);
+  if (std::holds_alternative<NameAndElementShared>(value_) &&
+      std::holds_alternative<NameAndElementShared>(other.value_)) {
+    return std::get<NameAndElementShared>(value_) ==
+           std::get<NameAndElementShared>(other.value_);
   }
-  if (std::holds_alternative<double>(value_) &&
-      std::holds_alternative<double>(other.value_)) {
-    return std::get<double>(value_) == std::get<double>(other.value_);
+  if (std::holds_alternative<Member<const CSSPrimitiveValue>>(value_) &&
+      std::holds_alternative<Member<const CSSPrimitiveValue>>(other.value_)) {
+    return base::ValuesEquivalent(
+        std::get<Member<const CSSPrimitiveValue>>(value_),
+        std::get<Member<const CSSPrimitiveValue>>(other.value_));
   }
   return false;
 }
 
 CSSMathExpressionRandomFunction::CSSMathExpressionRandomFunction(
+    base::PassKey<CSSMathExpressionRandomFunction>,
     CalculationResultCategory category,
-    RandomValueSharing random_value_sharing,
+    const RandomValueSharing* random_value_sharing,
     const CSSMathExpressionNode* min,
     const CSSMathExpressionNode* max,
     const CSSMathExpressionNode* step)
@@ -5414,10 +5500,13 @@ CSSMathExpressionRandomFunction::CSSMathExpressionRandomFunction(
       random_value_sharing_(random_value_sharing),
       min_(min),
       max_(max),
-      step_(step) {}
+      step_(step) {
+  needs_property_name_and_value_index_for_random_ =
+      random_value_sharing->Name().IsNull();
+}
 
 CSSMathExpressionRandomFunction* CSSMathExpressionRandomFunction::Create(
-    RandomValueSharing random_value_sharing,
+    const RandomValueSharing* random_value_sharing,
     HeapVector<Member<const CSSMathExpressionNode>>&& nodes) {
   CalculationResultCategory category = DetermineComparisonCategory(nodes);
   // Currently the computed value for calc() expressions with category
@@ -5436,13 +5525,27 @@ CSSMathExpressionRandomFunction* CSSMathExpressionRandomFunction::Create(
   }
   const CSSMathExpressionNode* step = (nodes.size() == 3) ? nodes[2] : nullptr;
   return MakeGarbageCollected<CSSMathExpressionRandomFunction>(
-      category, random_value_sharing,
+      base::PassKey<CSSMathExpressionRandomFunction>(), category,
+      random_value_sharing,
       /* min= */ nodes[0], /* max= */ nodes[1], /* step= */ step);
 }
 
 CSSMathExpressionNode* CSSMathExpressionRandomFunction::Copy() const {
   return MakeGarbageCollected<CSSMathExpressionRandomFunction>(
-      category_, random_value_sharing_, min_, max_, step_);
+      base::PassKey<CSSMathExpressionRandomFunction>(), category_,
+      random_value_sharing_, min_, max_, step_);
+}
+
+const CSSMathExpressionNode* CSSMathExpressionRandomFunction::
+    CopyRandomWithPropertyNameAndValueIndexIfNeeded(
+        const CSSPropertyName& property_name,
+        wtf_size_t property_value_index) const {
+  const RandomValueSharing* random_value_sharing =
+      random_value_sharing_->CopyWithPropertyValueIndexNameIfNeeded(
+          property_name, property_value_index);
+  return MakeGarbageCollected<CSSMathExpressionRandomFunction>(
+      base::PassKey<CSSMathExpressionRandomFunction>(), category_,
+      random_value_sharing, min_, max_, step_);
 }
 
 bool CSSMathExpressionRandomFunction::IsComputationallyIndependent() const {
@@ -5452,7 +5555,7 @@ bool CSSMathExpressionRandomFunction::IsComputationallyIndependent() const {
 }
 
 bool CSSMathExpressionRandomFunction::IsElementDependent() const {
-  return !random_value_sharing_.IsElementShared();
+  return !random_value_sharing_->IsElementShared();
 }
 
 bool CSSMathExpressionRandomFunction::HasInvalidAnchorFunctions(
@@ -5476,13 +5579,33 @@ void CSSMathExpressionRandomFunction::AccumulateLengthUnitTypes(
   }
 }
 
+namespace {
+
+double GetRandomBaseValue(const RandomValueSharing* random_value_sharing,
+                          const CSSLengthResolver& length_resolver) {
+  DCHECK(random_value_sharing);
+  const Element* element = length_resolver.GetElement();
+  CHECK(element);
+  if (random_value_sharing->IsFixed()) {
+    double random_base_value = std::clamp(
+        random_value_sharing->GetFixed()->ComputeNumber(length_resolver), 0.,
+        1.);
+    if (random_base_value == 1.0) {
+      random_base_value = std::nextafter(1.0f, 0.0f);
+    }
+    return random_base_value;
+  }
+  return element->GetDocument().GetStyleEngine().GetCachedRandomBaseValue(
+      *random_value_sharing, element);
+}
+
+}  // namespace
+
 const CalculationExpressionNode*
 CSSMathExpressionRandomFunction::ToCalculationExpression(
     const CSSLengthResolver& length_resolver) const {
-  const Element* element = length_resolver.GetElement();
   double random_base_value =
-      element->GetDocument().GetStyleEngine().GetCachedRandomBaseValue(
-          random_value_sharing_, element, AtomicString(""), 0);
+      GetRandomBaseValue(random_value_sharing_, length_resolver);
 
   HeapVector<Member<const CalculationExpressionNode>> operands;
   operands.push_back(
@@ -5506,13 +5629,11 @@ bool CSSMathExpressionRandomFunction::InvolvesPercentageComparisons() const {
 
 double CSSMathExpressionRandomFunction::ComputeDouble(
     const CSSLengthResolver& length_resolver) const {
-  const Element* element = length_resolver.GetElement();
-  CHECK(element);
-  // TODO(crbug.com/413385732): Pass correct property name and property value
-  // index.
+  if (!random_value_sharing_->IsElementShared()) {
+    length_resolver.ReferenceElementDependentRandom();
+  }
   double random_base_value =
-      element->GetDocument().GetStyleEngine().GetCachedRandomBaseValue(
-          random_value_sharing_, element, g_empty_atom, 0);
+      GetRandomBaseValue(random_value_sharing_, length_resolver);
   double min = min_->ComputeNumber(length_resolver);
   double max = max_->ComputeNumber(length_resolver);
   std::optional<double> step = std::nullopt;
@@ -5553,7 +5674,7 @@ double CSSMathExpressionRandomFunction::ComputeLengthPx(
 String CSSMathExpressionRandomFunction::CustomCSSText() const {
   StringBuilder result;
   result.Append("random(");
-  String random_value_sharing_str = random_value_sharing_.CssText();
+  String random_value_sharing_str = random_value_sharing_->CssText();
   if (!random_value_sharing_str.empty()) {
     result.Append(random_value_sharing_str);
     result.Append(", ");
@@ -5581,6 +5702,7 @@ bool CSSMathExpressionRandomFunction::operator==(
 }
 
 void CSSMathExpressionRandomFunction::Trace(Visitor* visitor) const {
+  visitor->Trace(random_value_sharing_);
   visitor->Trace(min_);
   visitor->Trace(max_);
   visitor->Trace(step_);

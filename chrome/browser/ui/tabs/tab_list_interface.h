@@ -56,6 +56,9 @@ class TabListInterface {
   // Returns the `TabInterface` for the currently-active tab.
   virtual tabs::TabInterface* GetActiveTab() = 0;
 
+  // Activates the given `tab`. The `tab` must be present in this tab list.
+  virtual void ActivateTab(tabs::TabHandle tab) = 0;
+
   // Opens a new tab to the given `url`, inserting it at `index` in the tab
   // strip. `index` may be ignored by the implementation if necessary.
   virtual tabs::TabInterface* OpenTab(const GURL& url, int index) = 0;
@@ -101,6 +104,13 @@ class TabListInterface {
   // Unpins the `tab`. Unpinning an unpinned tab has no effect. This may result
   // in moving the tab if necessary.
   virtual void UnpinTab(tabs::TabHandle tab) = 0;
+
+  // Returns true if this tab list contains a tab group with `group_id`.
+  virtual bool ContainsTabGroup(tab_groups::TabGroupId group_id) = 0;
+
+  // Returns a list of tab groups in this tab strip. If the tab strip does not
+  // support tab groups (e.g. legacy apps) returns an empty vector.
+  virtual std::vector<tab_groups::TabGroupId> ListTabGroups() = 0;
 
   // Adds `tabs` to the `group_id` if provided or creates a new tab group.
   // Returns the tab group ID of the created or added to group. Tabs will be

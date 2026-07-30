@@ -229,12 +229,6 @@ bool IsTabGridDragAndDropEnabled() {
   return base::FeatureList::IsEnabled(kTabGridDragAndDrop);
 }
 
-BASE_FEATURE(kTabGridEmptyThumbnail, base::FEATURE_ENABLED_BY_DEFAULT);
-
-bool IsTabGridEmptyThumbnailUIEnabled() {
-  return base::FeatureList::IsEnabled(kTabGridEmptyThumbnail);
-}
-
 BASE_FEATURE(kTabGridNewTransitions, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsNewTabGridTransitionsEnabled() {
@@ -1090,7 +1084,7 @@ GetTipsNotificationsAlternativeStringVersion() {
               TipsNotificationsAlternativeStringVersion::kDefault)));
 }
 
-BASE_FEATURE(kImportPasswordsFromSafari, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kImportPasswordsFromSafari, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kIOSSyncedSetUp, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -1171,7 +1165,7 @@ BASE_FEATURE(kComposeboxIOS, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsComposeboxIOSEnabled() {
   if (ui::GetDeviceFormFactor() != ui::DEVICE_FORM_FACTOR_PHONE) {
-    return false;
+    return IsComposeboxIpadEnabled();
   }
   return base::FeatureList::IsEnabled(kComposeboxIOS);
 }
@@ -1212,4 +1206,16 @@ BASE_FEATURE(kCloseOtherTabs, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsCloseOtherTabsEnabled() {
   return base::FeatureList::IsEnabled(kCloseOtherTabs);
+}
+
+BASE_FEATURE(kAssistantSheet, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsAssistantSheetEnabled() {
+  return base::FeatureList::IsEnabled(kAssistantSheet);
+}
+
+BASE_FEATURE(kComposeboxIpad, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsComposeboxIpadEnabled() {
+  return base::FeatureList::IsEnabled(kComposeboxIpad);
 }

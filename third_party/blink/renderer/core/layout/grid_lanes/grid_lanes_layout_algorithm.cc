@@ -389,9 +389,11 @@ void GridLanesLayoutAlgorithm::PlaceGridLanesItems(
     if (is_dense_packing) {
       LayoutUnit updated_item_start_offset =
           running_positions.GetEligibleTrackOpeningAndUpdateGridLanesItemSpan(
-              start_offset, grid_lanes_item,
-              /*item_height=*/fragment_size + stacking_axis_gap,
-              track_collection);
+              start_offset,
+              /*item_stacking_axis_contribution=*/fragment_size +
+                  stacking_axis_gap,
+              /*auto_placement_stacking_axis_offset=*/
+              start_offset_in_stacking_axis, track_collection, grid_lanes_item);
 
       // If we have a valid offset for the item in the stacking axis, it means
       // we found an earlier track opening for the item.
@@ -411,14 +413,6 @@ void GridLanesLayoutAlgorithm::PlaceGridLanesItems(
         start_offset_in_stacking_axis = updated_item_start_offset;
       }
     }
-
-    // TODO(celestepan): If an item was placed into an earlier track opening as
-    // a result of dense-packing, the auto-placement cursor should not be moved.
-    //
-    // Update auto-placement cursor after we have determined the item's final
-    // placement.
-    running_positions.UpdateAutoPlacementCursor(
-        grid_lanes_item.resolved_position, grid_axis_direction);
 
     // `start_offset_in_stacking_axis` specifies where in the stacking axis the
     // item should be placed, so we need to adjust the `containing_rect` in the
@@ -471,6 +465,11 @@ void GridLanesLayoutAlgorithm::PlaceGridLanesItems(
               ? std::make_optional(
                     /*max_running_position=*/start_offset_in_stacking_axis)
               : std::nullopt);
+
+      // Update auto-placement cursor after we have determined the item's final
+      // placement.
+      running_positions.UpdateAutoPlacementCursor(
+          grid_lanes_item.resolved_position, grid_axis_direction);
     }
 
     container_builder_.AddResult(*result, containing_rect.offset, margins);

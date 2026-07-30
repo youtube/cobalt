@@ -180,8 +180,10 @@ bool LoadMinimalAppUI() {
   if (!minimal_ui_loaded) {
     NSSet<UIScene*>* scenes = UIApplication.sharedApplication.connectedScenes;
     for (UIScene* scene in scenes) {
-      UIWindowScene* window_scene =
-          base::apple::ObjCCastStrict<UIWindowScene>(scene);
+      UIWindowScene* window_scene = base::apple::ObjCCast<UIWindowScene>(scene);
+      if (!window_scene) {
+        continue;
+      }
       for (UIWindow* window in window_scene.windows) {
         if (window.canBecomeKeyWindow) {
           LoadMinimalAppUIInWindow(window);
@@ -190,6 +192,8 @@ bool LoadMinimalAppUI() {
         };
       }
     }
+    // There should have been a window.
+    NOTREACHED();
   };
   return true;
 }
@@ -443,6 +447,16 @@ GetOverriddenDelayForRequestingTurningOnCredentialProviderExtension() {
 
 base::TimeDelta GetSnackbarMessageDuration() {
   // Makes the snackbar duration longer for EGTests to make sure there is time
+  // detect it, and avoid flakiness.
+  return base::Seconds(30);
+}
+
+std::optional<base::TimeDelta> GetOverrideInfobarDuration() {
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(test_switches::kUseDefaultInfobarDuration)) {
+    return std::nullopt;
+  }
+  // Makes the infobar duration longer for EGTests to make sure there is time
   // detect it, and avoid flakiness.
   return base::Seconds(30);
 }

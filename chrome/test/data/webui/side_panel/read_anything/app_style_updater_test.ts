@@ -1,9 +1,10 @@
 // Copyright 2024 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import {AppStyleUpdater, BrowserProxy} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
+import {AppStyleUpdater, BrowserProxy, LineFocusType} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
 import type {AppElement} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
 import {assertEquals, assertNotEquals, assertStringContains} from 'chrome-untrusted://webui-test/chai_assert.js';
+import {microtasksFinished} from 'chrome-untrusted://webui-test/test_util.js';
 
 import {createApp} from './common.js';
 import {FakeReadingMode} from './fake_reading_mode.js';
@@ -46,6 +47,143 @@ suite('AppStyleUpdater', () => {
     chrome.readingMode.maxLineWidth = 40;
     updater.setMaxLineWidth();
     assertEquals('40ch', app.style.getPropertyValue('--max-width'));
+  });
+
+  test('line focus height depends on font scale', () => {
+    chrome.readingMode.fontSize = 1;
+    updater.setLineFocusHeight();
+    assertEquals('2px', app.style.getPropertyValue('--line-focus-height'));
+
+    chrome.readingMode.fontSize = 2;
+    updater.setLineFocusHeight();
+    assertEquals('4px', app.style.getPropertyValue('--line-focus-height'));
+  });
+
+  test('setLineFocusStyle with no line focus hides view', () => {
+    chrome.readingMode.isLineFocusEnabled = true;
+
+    updater.setLineFocusStyle();
+
+    assertEquals('none', app.style.getPropertyValue('--line-focus-display'));
+    assertEquals('', app.style.getPropertyValue('--line-focus-shadow'));
+    assertEquals('', app.style.getPropertyValue('--line-focus-bg'));
+    assertEquals('', app.style.getPropertyValue('--line-focus-height'));
+  });
+
+  test('setLineFocusStyle with line focus off hides view', () => {
+    chrome.readingMode.isLineFocusEnabled = true;
+    chrome.readingMode.colorTheme = chrome.readingMode.sepiaDarkTheme;
+
+    updater.setLineFocusStyle(LineFocusType.NONE);
+
+    assertEquals('none', app.style.getPropertyValue('--line-focus-display'));
+    assertEquals('', app.style.getPropertyValue('--line-focus-shadow'));
+    assertEquals('', app.style.getPropertyValue('--line-focus-bg'));
+    assertEquals('', app.style.getPropertyValue('--line-focus-height'));
+  });
+
+  test('setLineFocusStyle with line focus line shows view', () => {
+    chrome.readingMode.isLineFocusEnabled = true;
+    chrome.readingMode.colorTheme = chrome.readingMode.sepiaDarkTheme;
+
+    updater.setLineFocusStyle(LineFocusType.LINE);
+
+    assertNotEquals('none', app.style.getPropertyValue('--line-focus-display'));
+    assertNotEquals('', app.style.getPropertyValue('--line-focus-shadow'));
+    assertEquals(
+        'var(--color-read-anything-line-focus-sepia-dark)',
+        app.style.getPropertyValue('--line-focus-bg'));
+    assertNotEquals('', app.style.getPropertyValue('--line-focus-height'));
+  });
+
+  test('setLineFocusStyle with line focus window shows view', () => {
+    chrome.readingMode.isLineFocusEnabled = true;
+
+    updater.setLineFocusStyle(LineFocusType.WINDOW);
+
+    assertNotEquals('none', app.style.getPropertyValue('--line-focus-display'));
+    assertNotEquals('', app.style.getPropertyValue('--line-focus-shadow'));
+    assertNotEquals('', app.style.getPropertyValue('--line-focus-bg'));
+  });
+
+  test('setLineFocusStyle with line focus window does not set height', () => {
+    chrome.readingMode.isLineFocusEnabled = true;
+    updater.setLineFocusStyle(LineFocusType.WINDOW);
+    assertEquals('', app.style.getPropertyValue('--line-focus-height'));
+  });
+
+  test(
+      'setLineFocusStyle sets different background and shadow for different types',
+      () => {
+        chrome.readingMode.isLineFocusEnabled = true;
+        updater.setLineFocusStyle(LineFocusType.WINDOW);
+        const windowShadow = app.style.getPropertyValue('--line-focus-shadow');
+        const windowBg = app.style.getPropertyValue('--line-focus-bg');
+
+        updater.setLineFocusStyle(LineFocusType.LINE);
+        const lineShadow = app.style.getPropertyValue('--line-focus-shadow');
+        const lineBg = app.style.getPropertyValue('--line-focus-bg');
+
+        assertNotEquals(windowShadow, lineShadow);
+        assertNotEquals(windowBg, lineBg);
+      });
+
+  test('setLineFocusPos sets y position', () => {
+    const pos = 123;
+
+    updater.setLineFocusPos(pos, null, app.$.containerParent);
+
+    assertEquals(`${pos}px`, app.style.getPropertyValue('--line-focus-y'));
+    assertEquals(
+        `-${pos}px`, app.style.getPropertyValue('--line-focus-clip-top'));
+    assertEquals('', app.style.getPropertyValue('--line-focus-height'));
+    assertEquals('', app.style.getPropertyValue('--line-focus-clip-bottom'));
+  });
+
+  test('setLineFocusPos offsets top', async () => {
+    const pos = 123;
+    // Ensure there's content so there is an offset.
+    app.updateContent();
+    await microtasksFinished();
+
+    updater.setLineFocusPos(pos, null, app.$.containerParent);
+
+    assertEquals(`${pos}px`, app.style.getPropertyValue('--line-focus-y'));
+    assertEquals(
+        `-${pos - app.$.containerParent.offsetTop}px`,
+        app.style.getPropertyValue('--line-focus-clip-top'));
+    assertEquals('', app.style.getPropertyValue('--line-focus-height'));
+    assertEquals('', app.style.getPropertyValue('--line-focus-clip-bottom'));
+  });
+
+  test('setLineFocusPos sets height', () => {
+    const height = 456;
+
+    updater.setLineFocusPos(0, height, app.$.containerParent);
+
+    assertEquals(
+        `${height}px`, app.style.getPropertyValue('--line-focus-height'));
+    assertEquals(
+        `${height}px`, app.style.getPropertyValue('--line-focus-clip-bottom'));
+  });
+
+  test('setLineFocusPos offsets bottom when height given', async () => {
+    const pos = 123;
+    // Ensure there's content so there is an offset.
+    app.updateContent();
+    await microtasksFinished();
+    const containerHeight = app.$.containerParent.offsetHeight;
+    const containerTop = app.$.containerParent.offsetTop;
+    const windowHeight = containerHeight / 10;
+    console.error('height', app.$.containerParent.offsetHeight);
+
+    updater.setLineFocusPos(pos, windowHeight, app.$.containerParent);
+
+    assertEquals(
+        `${windowHeight}px`, app.style.getPropertyValue('--line-focus-height'));
+    assertEquals(
+        `-${containerHeight - pos - windowHeight + containerTop}px`,
+        app.style.getPropertyValue('--line-focus-clip-bottom'));
   });
 
   test('line spacing depends on font size', () => {
@@ -206,6 +344,9 @@ suite('AppStyleUpdater', () => {
     const expectedLowContrastLinkVisited = 'rgb(28, 14, 14)';
     const expectedSepiaLightLinkVisited = 'rgb(14, 28, 28)';
     const expectedSepiaDarkLinkVisited = 'rgb(28, 14, 28)';
+    const expectedDefaultLineFocus = 'rgb(100, 100, 0)';
+    const expectedDarkLineFocus = 'rgb(200, 200, 0)';
+    const expectedLightLineFocus = 'rgb(50, 50, 0)';
     updateStyles({
       '--color-sys-base-container-elevated': expectedDefaultBackground,
       '--color-read-anything-background-yellow': expectedYellowBackground,
@@ -230,6 +371,15 @@ suite('AppStyleUpdater', () => {
           expectedSepiaLightForeground,
       '--color-read-anything-foreground-sepia-dark':
           expectedSepiaDarkForeground,
+      '--color-sys-state-focus-ring': expectedDefaultLineFocus,
+      '--color-read-anything-line-focus': expectedDarkLineFocus,
+      '--color-read-anything-line-focus-yellow': expectedLightLineFocus,
+      '--color-read-anything-line-focus-dark': expectedDarkLineFocus,
+      '--color-read-anything-line-focus-light': expectedLightLineFocus,
+      '--color-read-anything-line-focus-high-contrast': expectedDarkLineFocus,
+      '--color-read-anything-line-focus-low-contrast': expectedDarkLineFocus,
+      '--color-read-anything-line-focus-sepia-light': expectedLightLineFocus,
+      '--color-read-anything-line-focus-sepia-dark': expectedDarkLineFocus,
       '--color-text-selection-background': expectedDefaultSelectionBackground,
       '--color-read-anything-current-read-aloud-highlight-yellow':
           expectedYellowCurrentHighlight,
@@ -302,6 +452,7 @@ suite('AppStyleUpdater', () => {
     assertEquals(expectedDefaultLink, computeStyle('--link-color'));
     assertEquals(
         expectedDefaultLinkVisited, computeStyle('--visited-link-color'));
+    assertEquals(expectedDefaultLineFocus, computeStyle('--line-focus-bg'));
 
     // Verify yellow theme colors.
     chrome.readingMode.colorTheme = chrome.readingMode.yellowTheme;
@@ -322,6 +473,12 @@ suite('AppStyleUpdater', () => {
     assertEquals(expectedYellowLink, computeStyle('--link-color'));
     assertEquals(
         expectedYellowLinkVisited, computeStyle('--visited-link-color'));
+    assertEquals(expectedLightLineFocus, computeStyle('--line-focus-bg'));
+
+    // Verify light theme colors.
+    chrome.readingMode.colorTheme = chrome.readingMode.lightTheme;
+    updater.setTheme();
+    assertEquals(expectedLightLineFocus, computeStyle('--line-focus-bg'));
 
     // Verify dark theme colors.
     chrome.readingMode.colorTheme = chrome.readingMode.darkTheme;
@@ -340,6 +497,7 @@ suite('AppStyleUpdater', () => {
         expectedDarkEmptyBody, computeStyle('--sp-empty-state-body-color'));
     assertEquals(expectedDarkLink, computeStyle('--link-color'));
     assertEquals(expectedDarkLinkVisited, computeStyle('--visited-link-color'));
+    assertEquals(expectedDarkLineFocus, computeStyle('--line-focus-bg'));
 
     // Verify high contrast theme colors.
     updateStyles({'--google-grey-700': expectedHighContrastEmptyBody});
@@ -363,6 +521,7 @@ suite('AppStyleUpdater', () => {
     assertEquals(expectedHighContrastLink, computeStyle('--link-color'));
     assertEquals(
         expectedHighContrastLinkVisited, computeStyle('--visited-link-color'));
+    assertEquals(expectedDarkLineFocus, computeStyle('--line-focus-bg'));
 
     // Verify low contrast theme colors.
     updateStyles({'--google-grey-700': expectedLowContrastEmptyBody});
@@ -386,6 +545,7 @@ suite('AppStyleUpdater', () => {
     assertEquals(expectedLowContrastLink, computeStyle('--link-color'));
     assertEquals(
         expectedLowContrastLinkVisited, computeStyle('--visited-link-color'));
+    assertEquals(expectedDarkLineFocus, computeStyle('--line-focus-bg'));
 
     // Verify sepia light theme colors.
     updateStyles({'--google-grey-700': expectedSepiaLightEmptyBody});
@@ -409,6 +569,7 @@ suite('AppStyleUpdater', () => {
     assertEquals(expectedSepiaLightLink, computeStyle('--link-color'));
     assertEquals(
         expectedSepiaLightLinkVisited, computeStyle('--visited-link-color'));
+    assertEquals(expectedLightLineFocus, computeStyle('--line-focus-bg'));
 
     // Verify sepia dark theme colors.
     updateStyles({'--google-grey-700': expectedSepiaDarkEmptyBody});
@@ -432,6 +593,7 @@ suite('AppStyleUpdater', () => {
     assertEquals(expectedSepiaDarkLink, computeStyle('--link-color'));
     assertEquals(
         expectedSepiaDarkLinkVisited, computeStyle('--visited-link-color'));
+    assertEquals(expectedDarkLineFocus, computeStyle('--line-focus-bg'));
   });
 
   test('setAllTextStyles updates all text styles', () => {
@@ -450,6 +612,7 @@ suite('AppStyleUpdater', () => {
     const expectedBlueEmptyBody = 'rgb(4, 5, 6)';
     const expectedBlueLink = 'rgb(16, 17, 18)';
     const expectedBlueLinkVisited = 'rgb(19, 20, 21)';
+    const expectedBlueLineFocus = 'rgb(22, 23, 24)';
     updateStyles({
       '--color-read-anything-background-blue': expectedBlueBackground,
       '--color-read-anything-foreground-blue': expectedBlueForeground,
@@ -460,6 +623,7 @@ suite('AppStyleUpdater', () => {
       '--google-grey-700': expectedBlueEmptyBody,
       '--color-read-anything-link-default-blue': expectedBlueLink,
       '--color-read-anything-link-visited-blue': expectedBlueLinkVisited,
+      '--color-read-anything-line-focus-blue': expectedBlueLineFocus,
     });
 
     updater.setAllTextStyles();
@@ -483,5 +647,6 @@ suite('AppStyleUpdater', () => {
         expectedBlueEmptyBody, computeStyle('--sp-empty-state-body-color'));
     assertEquals(expectedBlueLink, computeStyle('--link-color'));
     assertEquals(expectedBlueLinkVisited, computeStyle('--visited-link-color'));
+    assertEquals(expectedBlueLineFocus, computeStyle('--line-focus-bg'));
   });
 });

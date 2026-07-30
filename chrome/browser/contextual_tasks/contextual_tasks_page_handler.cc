@@ -9,6 +9,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/uuid.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/contextual_tasks/ai_mode_context_library_converter.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_context_controller.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
@@ -23,7 +24,9 @@
 #include "components/contextual_tasks/public/contextual_task.h"
 #include "components/contextual_tasks/public/contextual_task_context.h"
 #include "components/contextual_tasks/public/features.h"
+#include "components/contextual_tasks/public/prefs.h"
 #include "components/lens/lens_url_utils.h"
+#include "components/prefs/pref_service.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_ui.h"
 #include "google_apis/gaia/gaia_constants.h"
@@ -135,6 +138,12 @@ void ContextualTasksPageHandler::OpenHelpUi() {
   OpenUrlInNewTab(web_ui_controller_->web_ui(), GURL(kHelpUrl));
 }
 
+void ContextualTasksPageHandler::OpenOnboardingHelpUi() {
+  OpenUrlInNewTab(
+      web_ui_controller_->web_ui(),
+      GURL(contextual_tasks::GetContextualTasksOnboardingTooltipHelpUrl()));
+}
+
 void ContextualTasksPageHandler::MoveTaskUiToNewTab() {
   auto* browser = web_ui_controller_->GetBrowser();
   const auto& task_id = web_ui_controller_->GetTaskId();
@@ -175,6 +184,9 @@ void ContextualTasksPageHandler::OnWebviewMessage(
     web_ui_controller_->page()->HideInput();
   } else if (aim_to_client_message.has_exit_basic_mode()) {
     web_ui_controller_->page()->RestoreInput();
+  } else if (aim_to_client_message.has_update_thread_context_library()) {
+    OnReceivedUpdatedThreadContextLibrary(
+        aim_to_client_message.update_thread_context_library());
   }
 }
 
@@ -188,13 +200,43 @@ void ContextualTasksPageHandler::GetCommonSearchParams(
   if (contextual_tasks::ShouldForceGscInTabMode()) {
     is_side_panel = true;
   }
-  auto params = lens::GetCommonSearchParametersMap(
-      /*country_code=*/g_browser_process->GetFeatures()
-          ->application_locale_storage()
-          ->Get(),
-      is_dark_mode, is_side_panel);
+
+  std::string country_code =
+      g_browser_process->GetFeatures()->application_locale_storage()->Get();
+
+  if (contextual_tasks::ShouldForceCountryCodeUS()) {
+    country_code = "US";
+  }
+
+  auto params = lens::GetCommonSearchParametersMap(country_code, is_dark_mode,
+                                                   is_side_panel);
+  if (contextual_tasks::ShouldForceCountryCodeUS()) {
+    params["gl"] = "us";
+  }
   std::move(callback).Run(
       base::flat_map<std::string, std::string>(params.begin(), params.end()));
+}
+
+void ContextualTasksPageHandler::OnboardingTooltipDismissed() {
+  if (!web_ui_controller_->web_ui()) {
+    return;
+  }
+
+  Profile* profile = Profile::FromWebUI(web_ui_controller_->web_ui());
+  if (!profile) {
+    return;
+  }
+
+  PrefService* prefs = profile->GetPrefs();
+  if (!prefs) {
+    return;
+  }
+
+  int count = prefs->GetInteger(
+      contextual_tasks::kContextualTasksOnboardingTooltipDismissedCount);
+  prefs->SetInteger(
+      contextual_tasks::kContextualTasksOnboardingTooltipDismissedCount,
+      count + 1);
 }
 
 void ContextualTasksPageHandler::PostMessageToWebview(
@@ -235,6 +277,11 @@ void ContextualTasksPageHandler::OnTaskUpdated(
 
 void ContextualTasksPageHandler::UpdateContextForTask(
     const base::Uuid& task_id) {
+  if (!base::FeatureList::IsEnabled(
+          contextual_tasks::kContextualTasksContextLibrary)) {
+    web_ui_controller_->page()->OnContextUpdated({});
+    return;
+  }
   context_controller_->GetContextForTask(
       task_id, {contextual_tasks::ContextualTaskContextSource::kTabStrip},
       std::make_unique<contextual_tasks::ContextDecorationParams>(),
@@ -247,4 +294,33 @@ void ContextualTasksPageHandler::UpdateContextForTask(
             }
           },
           weak_ptr_factory_.GetWeakPtr()));
+}
+
+void ContextualTasksPageHandler::OnReceivedUpdatedThreadContextLibrary(
+    const lens::UpdateThreadContextLibrary& message) {
+  if (!base::FeatureList::IsEnabled(
+          contextual_tasks::kContextualTasksContextLibrary)) {
+    return;
+  }
+  const auto& task_id = web_ui_controller_->GetTaskId();
+  if (!task_id.has_value()) {
+    return;
+  }
+
+  contextual_search::ContextualSearchSessionHandle* handle =
+      web_ui_controller_->GetOrCreateContextualSessionHandle();
+
+  std::vector<contextual_search::FileInfo> submitted_context;
+  if (handle) {
+    submitted_context = handle->GetSubmittedContextFileInfos();
+    // Now that we have extracted the submitted contexts and are ready to update
+    // the context in the ContextualTask, we can clear out the submitted context
+    // from the ContextualSearchSessionHandle.
+    handle->ClearSubmittedContextTokens();
+  }
+
+  std::vector<contextual_tasks::UrlResource> committed_context =
+      contextual_tasks::ConvertAiModeContextToUrlResources(message,
+                                                           submitted_context);
+  context_controller_->SetUrlResourcesFromServer(*task_id, committed_context);
 }

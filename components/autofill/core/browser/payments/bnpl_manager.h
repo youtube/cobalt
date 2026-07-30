@@ -18,6 +18,7 @@
 #include "base/memory/weak_ptr.h"
 #include "components/autofill/core/browser/data_model/payments/bnpl_issuer.h"
 #include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
+#include "components/autofill/core/browser/payments/amount_extraction_manager.h"
 #include "components/autofill/core/browser/payments/legal_message_line.h"
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/autofill/core/browser/payments/payments_window_manager.h"
@@ -85,13 +86,8 @@ class BnplManager {
       bool timeout_reached);
 
   // Runs after amount extraction is complete from the server-side AI.
-  // `extracted_amount_in_micros` is the final checkout amount in micro units on
-  // a checkout page. `timeout_reached` is true if the server-side AI
-  // prediction takes more than
-  // `AmountExtractionManager::kAiBasedAmountExtractionWaitTime` time to finish.
   virtual void OnAmountExtractionReturnedFromAi(
-      const std::optional<int64_t>& extracted_amount_in_micros,
-      bool timeout_reached);
+      const AiAmountExtractionResult::ResultType result);
 
   // Returns true if the issuer for the ongoing flow contains the required
   // action `PaymentInstrument::ActionRequired::kAcceptTos`.
@@ -315,6 +311,11 @@ class BnplManager {
   // Set to true after the first time a BNPL suggestion being unavailable is
   // logged. Ensures that logging occurs only once per page load.
   bool has_logged_bnpl_suggestion_unavailable_reason_ = false;
+
+  // Set to true after the first time it is logged whether an extracted amount
+  // is within an issuer's range. Ensures that logging occurs only once per
+  // page load.
+  bool has_logged_ai_amount_extracted_in_issuer_range_ = false;
 
   // Callback to collect the current shown suggestion list and checkout
   // amount, and insert BNPL suggestion if the amount is eligible.

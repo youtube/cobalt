@@ -280,6 +280,9 @@ are declared in tools/grit/grit_args.gni.
       <!-- Access Code Cast specific strings -->
       <part file="access_code_cast_strings.grdp" />
 
+      <!-- Actor specific strings -->
+      <part file="actor_strings.grdp" />
+
       <!-- App Management specific strings -->
       <part file="app_management_strings.grdp" />
 
@@ -620,6 +623,9 @@ are declared in tools/grit/grit_args.gni.
           <message name="IDS_CONTENT_CONTEXT_CLOSE_GLIC" desc="Context menu item to close glic view">
            Close
           </message>
+          <message name="IDS_CONTENT_CONTEXT_ARCHIVE_GLIC" desc="Context menu item to archive Glic conversation">
+           Archive
+          </message>
           <message name="IDS_CONTENT_CONTEXT_RELOAD" desc="The name of the Reload command in the content area context menu">
             &amp;Reload
           </message>
@@ -938,6 +944,9 @@ are declared in tools/grit/grit_args.gni.
           </message>
           <message name="IDS_CONTENT_CONTEXT_CLOSE_GLIC" desc="Context menu item to close glic view">
            Close
+          </message>
+          <message name="IDS_CONTENT_CONTEXT_ARCHIVE_GLIC" desc="Context menu item to archive a Glic conversation">
+           Archive
           </message>
           <message name="IDS_CONTENT_CONTEXT_RELOAD" desc="In Title Case: The name of the Reload command in the content area context menu">
             &amp;Reload
@@ -9757,6 +9766,30 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_READING_MODE_OFF_HIGHLIGHT_LABEL" desc="Dropdown option for turning off highlighting in Read Aloud.">
         Off
       </message>
+      <message name="IDS_READING_MODE_LINE_FOCUS_WINDOW_HEADING" desc="Heading in dropdown menu for the sliding window line focus options.">
+        Highlight
+      </message>
+      <message name="IDS_READING_MODE_LINE_FOCUS_HIGHLIGHT_1_LINE_LABEL" desc="Dropdown option for the sliding 1-line-height window line focus option.">
+        1 line
+      </message>
+      <message name="IDS_READING_MODE_LINE_FOCUS_HIGHLIGHT_3_LINE_LABEL" desc="Dropdown option for the sliding 3-line-height window line focus option.">
+        3 lines
+      </message>
+      <message name="IDS_READING_MODE_LINE_FOCUS_HIGHLIGHT_5_LINE_LABEL" desc="Dropdown option for the sliding 5-line-height window line focus option.">
+        5 lines
+      </message>
+      <message name="IDS_READING_MODE_LINE_FOCUS_LINE_HEADING" desc="Heading in dropdown menu for the single underline line focus options.">
+        Line
+      </message>
+      <message name="IDS_READING_MODE_LINE_FOCUS_STATIC_LINE_LABEL" desc="Dropdown option for the line focus option of a single static line in the middle of the panel.">
+        Static line
+      </message>
+      <message name="IDS_READING_MODE_LINE_FOCUS_CURSOR_LINE_LABEL" desc="Dropdown option for the line focus option of a single line following the cursor.">
+        Follow cursor
+      </message>
+      <message name="IDS_READING_MODE_LINE_FOCUS_OFF_LABEL" desc="Dropdown option for turning off line focus.">
+        Off
+      </message>
       <message name="IDS_READ_ANYTHING_LOADING" desc="Message to show while Read Anything is figuring out what text to display.">
         Getting ready
       </message>
@@ -9916,6 +9949,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
       </message>
       <message name="IDS_READING_MODE_VIEW_LABEL" desc="Accessibility label for the view menu item in reading mode.">
         View
+      </message>
+      <message name="IDS_READING_MODE_LINKS_LABEL" desc="Accessibility label for the links menu item in reading mode.">
+        Links
       </message>
 
       <!-- Google Lens side panel -->
@@ -10310,7 +10346,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
         Create split view
       </message>
 
-      <!-- Vertical Tab Strings -->
+      <!-- Vertical Tab Strings (crbug.com/469487552) -->
       <message name="IDS_SWITCH_TO_VERTICAL_TAB" desc="The button in context menu that switches to vertical tab view.">
           Show tabs to the side
       </message>
@@ -10321,6 +10357,27 @@ Keep your key file in a safe place. You will need it to create new versions of y
           Collapse vertical tabs
       </message>
       <!-- /Vertical Tab Strings -->
+
+      <!-- Projects Panel Strings -->
+      <if expr="use_titlecase">
+        <then>
+          <message name="IDS_VIEW_PROJECTS_PANEL" desc="In Title Case: The tooltip for the button in the top container that shows the projects panel.">
+            View Projects
+          </message>
+          <message name="IDS_HIDE_PROJECTS_PANEL" desc="In Title Case: The tooltip for the button in the top container that hides the projects panel.">
+            Hide Projects
+          </message>
+        </then>
+        <else>
+          <message name="IDS_VIEW_PROJECTS_PANEL" desc="The tooltip for the button in the top container that shows the projects panel.">
+            View projects
+          </message>
+          <message name="IDS_HIDE_PROJECTS_PANEL" desc="The tooltip for the button in the top container that hides the projects panel.">
+            Hide projects
+          </message>
+        </else>
+      </if>
+      <!-- /Projects Panel Strings -->
 
       <!-- Strings for intent picker -->
       <if expr="not is_android">
@@ -11743,7 +11800,7 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
         Live Caption
       </message>
       <message name="IDS_PICTURE_IN_PICTURE_REPLAY_10_TEXT" desc="Text label of the replay 10 seconds button. The button appears when the user hovers over the Picture-in-Picture window.">
-        Replay 10 seconds
+        Rewind 10 seconds
       </message>
       <message name="IDS_PICTURE_IN_PICTURE_FORWARD_10_TEXT" desc="Text label of the forward 10 seconds button. The button appears when the user hovers over the Picture-in-Picture window.">
         Forward 10 seconds
@@ -16631,8 +16688,8 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_DESKTOP_MEDIA_PICKER_ALSO_SHARE_SYSTEM_AUDIO" desc="Text for the audio toggle in the window picker dialog which is displayed when attempting to share a screen.">
         Also share system audio
       </message>
-      <message name="IDS_DESKTOP_MEDIA_PICKER_ALSO_SHARE_APPLICATION_AUDIO" desc="Text for the audio toggle in the window picker dialog which is displayed when attempting to share a window.">
-        Also share application audio
+      <message name="IDS_DESKTOP_MEDIA_PICKER_ALSO_SHARE_APPLICATION_AUDIO" desc="Text for the audio toggle in the window picker dialog which is displayed when attempting to share a window. The last part in the text: (from all its windows) emphasizes that audio will be shared from all windows belonging to the same application.">
+        Also share application audio (from all its windows)
       </message>
       <message name="IDS_DESKTOP_MEDIA_PICKER_ALSO_SHARE_ALL_AUDIO_OUTPUT" desc="Text for the audio toggle in the window picker dialog which is displayed when attempting to share a screen. This string is used when we share all output audio devices, rather than just the default device">
         Also share all audio outputs
@@ -19373,7 +19430,7 @@ Please help our engineers fix this problem. Tell us what happened right before y
       Installing...
     </message>
     <message name="IDS_IWA_INSTALLER_SHOW_METADATA_SUBTITLE" desc="Subtitle of the pre-installation app info summary screen of the Isolated Web App installer">
-      This application will be installed on your currently used Chrome profile
+      This application will be installed on your device
     </message>
     <message name="IDS_IWA_INSTALLER_SHOW_METADATA_APP_NAME_LABEL" desc="Label before the Isolated Web App name in the pre-install app info summary screen">
       Application: <ph name="APP_NAME">$1<ex>Google Maps</ex></ph>
@@ -19439,21 +19496,15 @@ Please help our engineers fix this problem. Tell us what happened right before y
     </if>
 
     <!-- Isolated Web Apps Window Management notification. -->
-    <message name="IDS_ISOLATED_WEB_APPS_OPENED_TABS_COUNTER_NOTIFICATION_TITLE" desc="Title for the notification displayed when an Isolated Web App opens multiple tabs.">
-            <ph name="APP_NAME">$1<ex>Example App</ex></ph> has opened multiple tabs.
-          </message>
-
-    <message name="IDS_ISOLATED_WEB_APPS_OPENED_TABS_COUNTER_NOTIFICATION_MESSAGE" desc="Message for the notification displaying the count of open tabs for an Isolated Web App.">
-      <ph name="OPENINGS_COUNT">$1</ph> new Chrome tabs have been opened by this app. You can manage this behavior under "Pop-ups and Redirects" permission.
-    </message>
-
-    <message name="IDS_ISOLATED_WEB_APPS_OPENED_TABS_COUNTER_NOTIFICATION_BUTTON_SETTINGS" desc="Text for the button on the multiple tabs opened notification that opens the app's content settings.">
-      Change permissions
-    </message>
-
-    <message name="IDS_ISOLATED_WEB_APPS_OPENED_TABS_COUNTER_NOTIFICATION_CLOSE_BUTTON" desc="Text for the button on the multiple tabs opened notification that closes all additional tabs opened by the app.">
-      Close opened tabs
-    </message>
+<message name="IDS_ISOLATED_WEB_APPS_WINDOW_OPEN_PERMISSION_NOTIFICATION_TITLE" desc="Title for the notification displayed when an Isolated Web App opens multiple tabs.">
+        <ph name="APP_NAME">$1<ex>IWA</ex></ph> automatically opens new windows.
+      </message>
+      <message name="IDS_ISOLATED_WEB_APPS_WINDOW_OPEN_PERMISSION_NOTIFICATION_MESSAGE" desc="Message for the notification informing the user of Isolated Web App's window opening capability.">
+        This allows the app to run as expected.
+      </message>
+      <message name="IDS_ISOLATED_WEB_APPS_WINDOW_OPEN_PERMISSION_NOTIFICATION_BUTTON_SETTINGS" desc="Text for the button on the multiple tabs opened notification that opens the app's content settings.">
+        Manage permissions
+      </message>
 
     <!-- Web App Protocol Handler Picker Dialog. -->
     <if expr="is_chromeos">
@@ -19743,8 +19794,11 @@ Please help our engineers fix this problem. Tell us what happened right before y
 
     <!-- chrome://updater -->
     <if expr="is_linux or is_macosx or is_win">
-      <message name="IDS_UPDATER_VIEW_RAW_DETAILS" desc="Title of the button to display the contents of a Chrome Updater log in JSON format">
-        Source
+      <message name="IDS_UPDATER_ACTIVATION_FAILED" desc="Summary of a failed attempt by the Chrome Updater to become authoritative in managing updates on the machine.">
+        Activation failed
+      </message>
+      <message name="IDS_UPDATER_ACTIVATION_SUCCEEDED" desc="Summary of a successful attempt by the Chrome Updater to become authoritative in managing updates on the machine.">
+        Activation succeeded
       </message>
       <message name="IDS_UPDATER_ADD_FILTER" desc="In Title Case: Title of the button to add a filter over a list of Chrome Updater logs.">
         Add Filter
@@ -19752,17 +19806,26 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_UPDATER_APP" desc="In Title Case: Title of the chip which filters logs by application (e.g. 'Google Chrome').">
         App
       </message>
-      <message name="IDS_UPDATER_APP_NAME_OR_ID" desc="Placeholder text in a search box asking the user to enter an application name or identifier string.">
-        App Name or ID
-      </message>
       <message name="IDS_UPDATER_APPLY" desc="Label on a button to apply the selected filters.">
         Apply
+      </message>
+      <message name="IDS_UPDATER_APP_NAME_OR_ID" desc="Placeholder text in a search box asking the user to enter an application name or identifier string.">
+        App Name or ID
       </message>
       <message name="IDS_UPDATER_CANCEL" desc="Label on a button to cancel the current action or close a menu.">
         Cancel
       </message>
       <message name="IDS_UPDATER_CLEAR_ALL_FILTERS" desc="Tooltip or accessibility label for a button that removes all active search filters.">
         Clear all filters
+      </message>
+      <message name="IDS_UPDATER_COLLAPSE_ALL" desc="Label for a button that collapses all expanded items in a list.">
+        Collapse All
+      </message>
+      <message name="IDS_UPDATER_COMMAND_LINE" desc="Label preceding the command line of an executed program in the summary of a logged Chrome Updater event">
+        Command line:
+      </message>
+      <message name="IDS_UPDATER_COMMAND_OUTCOME" desc="Summary of an event in which a command line program was executed.">
+        Command exited with code <ph name="EXIT_CODE">$1<ex>0</ex></ph>
       </message>
       <message name="IDS_UPDATER_COMMON" desc="Header string for a section of common options in a filter menu.">
         Common
@@ -19781,6 +19844,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
       </message>
       <message name="IDS_UPDATER_END_DATE" desc="Label for the end date input field.">
         End Date:
+      </message>
+      <message name="IDS_UPDATER_ERROR_DETAILS" desc="Details of an error encountered by the updater, including numeric category, code, and extra code values.">
+        Error: Category: <ph name="CATEGORY">$1<ex>1</ex></ph>, Code: <ph name="CODE">$2<ex>2</ex></ph>, Extra Code: <ph name="EXTRA_CODE">$3<ex>0</ex></ph>
       </message>
       <message name="IDS_UPDATER_EVENT_TYPE" desc="Label for a filter category allowing the user to filter logs by the type of event.">
         Event Type
@@ -19804,7 +19870,7 @@ Please help our engineers fix this problem. Tell us what happened right before y
         POST Request
       </message>
       <message name="IDS_UPDATER_EVENT_TYPE_QUALIFY" desc="Label for an action carried out by the Chrome Updater in which a new version of the software performs self-health checks before becoming the authoritative updater on the system.">
-        Qualify
+        Self Test
       </message>
       <message name="IDS_UPDATER_EVENT_TYPE_UNINSTALL" desc="Label for an action carried out by the Chrome Updater in which it notices the removal of a piece of software from the system.">
         Uninstall
@@ -19815,26 +19881,83 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_UPDATER_EVENT_TYPE_UPDATER_PROCESS" desc="Label for an action carried out by the Chrome Updater in which it starts or stops a local system process.">
         Updater Process
       </message>
+      <message name="IDS_UPDATER_EXPAND_ALL" desc="Label for a button that expands all collapsed items in a list.">
+        Expand All
+      </message>
       <message name="IDS_UPDATER_FILTER_CHIP_APP" desc="Text displayed in a filter chip showing the selected application's names or identifier strings.">
         App: <ph name="APPS">$1<ex>Google Chrome, Google Chrome Beta, Google Chrome Canary, {6BBAE539-2232-434A-A4E5-9A33560C6284}</ex></ph>
-      </message>
-      <message name="IDS_UPDATER_FILTER_CHIP_EVENT_TYPE" desc="Text displayed in a filter chip showing the selected event types.">
-        Event Type: <ph name="EVENT_TYPES">$1<ex>Update, Install</ex></ph>
       </message>
       <message name="IDS_UPDATER_FILTER_CHIP_DATE" desc="Text displayed in a filter chip showing the selected date range.">
         Date: <ph name="DATE_RANGE">$1<ex>Jan 1, 2025 to Feb 1, 2025</ex></ph>
       </message>
+      <message name="IDS_UPDATER_FILTER_CHIP_EVENT_TYPE" desc="Text displayed in a filter chip showing the selected event types.">
+        Event Type: <ph name="EVENT_TYPES">$1<ex>Update, Install</ex></ph>
+      </message>
       <message name="IDS_UPDATER_FILTER_CHIP_UPDATE_OUTCOME" desc="Text displayed in a filter chip showing the selected update outcomes.">
         Update Outcome: <ph name="OUTCOMES">$1<ex>Updated, Update Error</ex></ph>
       </message>
+      <message name="IDS_UPDATER_INSTALL_SUMMARY" desc="Summary of an event in which software was installed, including the version.">
+        Installed version <ph name="VERSION">$1<ex>1.2.3.4</ex></ph>
+      </message>
+      <message name="IDS_UPDATER_INTERNAL" desc="Label used to indicate that a logged Chrome Updater event pertains to the updater itself and not an app managed by the updater (e.g. Google Chrome).">
+        Internal
+      </message>
+      <message name="IDS_UPDATER_NEXT_VERSION" desc="Label indicating the version of a software installation that the Chrome Updater tried to update to.">
+        Next version: <ph name="VERSION">$1<ex>1.2.3.4</ex></ph>
+      </message>
+      <message name="IDS_UPDATER_NO_UPDATE" desc="Summary of an update event where the server indicated that no update was available.">
+        No update was available
+      </message>
+      <message name="IDS_UPDATER_OMAHA_REQUEST" desc="Label for a collapsible section displaying or chip indicating the presence of Omaha protocol request data in JSON format.">
+        Omaha Request
+      </message>
+      <message name="IDS_UPDATER_OMAHA_RESPONSE" desc="Label for a collapsible section displaying the Omaha protocol request data in JSON format.">
+        Omaha Response
+      </message>
       <message name="IDS_UPDATER_OTHER" desc="Header string for a section of miscellaneous options in a filter menu.">
         Other
+      </message>
+      <message name="IDS_UPDATER_OUTCOME" desc="Summary of an event with a specific outcome.">
+        Operation completed with outcome: <ph name="OUTCOME">$1<ex>DISK_FULL</ex></ph>
+      </message>
+      <message name="IDS_UPDATER_OUTCOME_UNKNOWN" desc="Summary of an event carried out by the Chrome Updater where the outcome is unknown.">
+        Operation completed with unknown outcome
+      </message>
+      <message name="IDS_UPDATER_PARSE_ERROR_EVENTS" desc="Message indicating that one or more events could not be parsed and are hidden from the Chrome Updater event log.">
+        {NUM_EVENTS, plural, =1 {1 event could not be parsed and is not shown} other {# events could not be parsed and are not shown}}
+      </message>
+      <message name="IDS_UPDATER_PERSISTED_DATA_SUMMARY" desc="Summary of an event indicating how many apps are registered.">
+        <ph name="APP_COUNT">$1<ex>5</ex></ph> apps registered
+      </message>
+      <message name="IDS_UPDATER_PROCESS_SUMMARY" desc="Summary of an event that involved executing a command on the system, including the numeric exit code.">
+        Process exited with code <ph name="EXIT_CODE">$1<ex>0</ex></ph>
+      </message>
+      <message name="IDS_UPDATER_QUALIFICATION_FAILED" desc="Summary of an event in which the Chrome Updater's self-check failed, indicating that the program is not working as intended and should not manage updates for Chrome.">
+        Self test failed
+      </message>
+      <message name="IDS_UPDATER_QUALIFICATION_SUCCEEDED" desc="Summary of an event in which the Chrome Updater's self-check succeeded, indicating that the program is working as intended and should manage updates for Chrome">
+        Self test succeeded
       </message>
       <message name="IDS_UPDATER_REMOVE_FILTER" desc="Accessibility label for the button that removes a specific filter chip.">
         Remove filter
       </message>
       <message name="IDS_UPDATER_START_DATE" desc="Label for the start date input field.">
         Start Date:
+      </message>
+      <message name="IDS_UPDATER_UNDATED_EVENTS" desc="Message indicating that the timestamp of one or more events was not able to determined. Events without timestamps can't be displayed in the Chrome Updater event log.">
+        {NUM_EVENTS, plural, =1 {1 event could not be dated and is not shown} other {# events could not be dated and are not shown}}
+      </message>
+      <message name="IDS_UPDATER_UNINSTALL_SUMMARY" desc="Summary of an uninstall event, including version and reason.">
+        Uninstalled version <ph name="VERSION">$1<ex>1.2.3.4</ex></ph>, reason: <ph name="REASON">$2<ex>NO_APPS_REMAINING</ex></ph>
+      </message>
+      <message name="IDS_UPDATER_UPDATED_TO" desc="Summary of an update event that succeeded, including the new version.">
+        Updated to version <ph name="VERSION">$1<ex>1.2.3.4</ex></ph>
+      </message>
+      <message name="IDS_UPDATER_UPDATER_VERSION" desc="Label indicating the version of the updater itself.">
+        Updater version: <ph name="VERSION">$1<ex>1.2.3.4</ex></ph>
+      </message>
+      <message name="IDS_UPDATER_UPDATE_ERROR" desc="Summary of an update event that failed.">
+        Update operation failed
       </message>
       <message name="IDS_UPDATER_UPDATE_OUTCOME" desc="Label for a filter category allowing the user to filter logs by the outcome of the update attempt.">
         Update Outcome
@@ -19847,6 +19970,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
       </message>
       <message name="IDS_UPDATER_UPDATE_OUTCOME_UPDATE_ERROR" desc="Label for the outcome of an update attempt in which the update could not complete because of an error.">
         Update Error
+      </message>
+      <message name="IDS_UPDATER_VIEW_RAW_DETAILS" desc="Title of the button to display the contents of a Chrome Updater log in JSON format">
+        Source
       </message>
     </if>
   </messages>

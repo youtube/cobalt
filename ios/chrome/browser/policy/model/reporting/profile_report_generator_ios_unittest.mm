@@ -80,9 +80,18 @@ class ProfileReportGeneratorIOSTest : public PlatformTest,
  public:
   ProfileReportGeneratorIOSTest() : generator_(&delegate_factory_) {}
 
+  void TearDown() override {
+    GetApplicationContext()
+        ->GetBrowserPolicyConnector()
+        ->SetMachineLevelUserCloudPolicyManagerForTesting(/*manager=*/nullptr);
+  }
+
   void Init(Affiliation affiliation) {
     if (IsProfileReportingEnabled()) {
       feature_list_.InitAndEnableFeature(
+          enterprise_reporting::kCloudProfileReporting);
+    } else {
+      feature_list_.InitAndDisableFeature(
           enterprise_reporting::kCloudProfileReporting);
     }
     command_line_.GetProcessCommandLine()->AppendSwitch(

@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "base/containers/flat_map.h"
-#include "base/gtest_prod_util.h"
 #include "base/time/time.h"
 #include "components/viz/common/quads/compositor_frame_transition_directive.h"
 #include "components/viz/common/quads/compositor_render_pass.h"
@@ -28,7 +27,7 @@ class SharedImageInterface;
 namespace viz {
 
 class Surface;
-struct ReturnedResource;
+struct ReturnedResourceViz;
 struct TransferableResource;
 
 // This class is responsible for managing a single transition sequence. Each
@@ -72,7 +71,8 @@ class VIZ_SERVICE_EXPORT SurfaceAnimationManager
       const std::vector<TransferableResource>& resources) override;
   void RefResources(
       const std::vector<TransferableResource>& resources) override;
-  void UnrefResources(const std::vector<ReturnedResource>& resources) override;
+  void UnrefResources(
+      const std::vector<ReturnedResourceViz>& resources) override;
 
  private:
   friend class SurfaceAnimationManagerTest;

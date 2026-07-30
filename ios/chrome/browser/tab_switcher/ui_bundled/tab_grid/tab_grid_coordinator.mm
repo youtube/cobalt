@@ -24,6 +24,7 @@
 #import "components/strings/grit/components_strings.h"
 #import "components/supervised_user/core/browser/supervised_user_utils.h"
 #import "ios/chrome/app/profile/first_run_profile_agent.h"
+#import "ios/chrome/browser/assistant/coordinator/assistant_sheet_coordinator.h"
 #import "ios/chrome/browser/bookmarks/model/bookmark_model_factory.h"
 #import "ios/chrome/browser/bookmarks/ui_bundled/home/bookmarks_coordinator.h"
 #import "ios/chrome/browser/bring_android_tabs/model/bring_android_tabs_to_ios_service.h"
@@ -37,7 +38,7 @@
 #import "ios/chrome/browser/favicon/model/ios_chrome_favicon_loader_factory.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/find_in_page/model/find_tab_helper.h"
-#import "ios/chrome/browser/first_run/ui_bundled/guided_tour/guided_tour_coordinator.h"
+#import "ios/chrome/browser/first_run/guided_tour/coordinator/guided_tour_coordinator.h"
 #import "ios/chrome/browser/history/ui_bundled/history_coordinator.h"
 #import "ios/chrome/browser/history/ui_bundled/history_coordinator_delegate.h"
 #import "ios/chrome/browser/history/ui_bundled/public/history_presentation_delegate.h"
@@ -284,6 +285,8 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   ProceduralBlock _guidedTourCompletionBlock;
   // App bar for the prototype.
   ChromeAppBarPrototype* _appBar;
+  // Coordinator for the Assistant Sheet.
+  AssistantSheetCoordinator* _assistantSheetCoordinator;
 }
 // Superclass property.
 @synthesize baseViewController = _baseViewController;
@@ -380,6 +383,8 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   [_incognitoGridCoordinator stopChildCoordinators];
   [_regularGridCoordinator stopChildCoordinators];
   [_tabGroupsPanelCoordinator stopChildCoordinators];
+  [_assistantSheetCoordinator stop];
+  _assistantSheetCoordinator = nil;
 
   [self cancelCollaborationFlows];
 
@@ -926,6 +931,17 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
 
 - (void)prototypeGeminiCallback {
   CHECK(IsDiamondPrototypeEnabled());
+
+  if (IsAssistantSheetEnabled()) {
+    if (!_assistantSheetCoordinator) {
+      _assistantSheetCoordinator = [[AssistantSheetCoordinator alloc]
+          initWithBaseViewController:self.baseViewController
+                             browser:self.regularBrowser];
+    }
+    [_assistantSheetCoordinator start];
+    return;
+  }
+
   TabGridPage page = self.baseViewController.currentPage;
   if (page == TabGridPageTabGroups) {
     page = self.baseViewController.activePage;
@@ -1026,6 +1042,9 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
                               action:@selector(prototypeTabGridCallback)
                     forControlEvents:UIControlEventTouchUpInside];
     [self.baseViewController setAppBar:_appBar];
+
+    LayoutGuideCenter* center = LayoutGuideCenterForBrowser(nil);
+    [center referenceView:_appBar underName:kDiamondBottomAppBarGuide];
   }
 
   _regularGridCoordinator = [[RegularGridCoordinator alloc]
@@ -1595,6 +1614,16 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   }
 
   [self.regularTabsMediator closeItemWithID:identifier];
+}
+
+- (void)closeTabsExceptIdentifier:(web::WebStateID)identifier
+                        incognito:(BOOL)incognito {
+  CHECK(IsCloseOtherTabsEnabled());
+  if (incognito) {
+    [self.incognitoTabsMediator closeTabsExceptID:identifier];
+    return;
+  }
+  [self.regularTabsMediator closeTabsExceptID:identifier];
 }
 
 - (void)deleteTabGroup:(base::WeakPtr<const TabGroup>)group

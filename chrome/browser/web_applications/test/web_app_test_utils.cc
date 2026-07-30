@@ -142,7 +142,7 @@ namespace {
 
 class RandomHelper {
  public:
-  explicit RandomHelper(const uint32_t seed, bool non_zero)
+  explicit RandomHelper(int seed, bool non_zero)
       :  // Seed of 0 and 1 generate the same sequence, so skip 0.
         generator_(seed + 1),
         distribution_(0u, UINT32_MAX),
@@ -695,15 +695,50 @@ std::vector<apps::IconInfo> CreateRandomIconMetadata(RandomHelper& random,
   return icons;
 }
 
+std::vector<proto::WebAppMigrationSource> CreateRandomMigrationSources(
+    RandomHelper& random) {
+  std::vector<proto::WebAppMigrationSource> sources;
+  int num_sources = random.next_uint(3);
+  for (int i = 0; i < num_sources; ++i) {
+    proto::WebAppMigrationSource source;
+    source.set_manifest_id("https://example.com/manifest_id_" +
+                           base::NumberToString(random.next_uint()));
+    source.set_behavior(random.next_bool()
+                            ? proto::WEB_APP_MIGRATION_BEHAVIOR_FORCE
+                            : proto::WEB_APP_MIGRATION_BEHAVIOR_SUGGEST);
+    if (random.next_bool()) {
+      source.set_install_url("https://example.com/install_url_" +
+                             base::NumberToString(random.next_uint()));
+    }
+    sources.push_back(std::move(source));
+  }
+  return sources;
+}
+
+std::vector<proto::PendingMigrationInfo> CreateRandomPendingMigrationInfos(
+    RandomHelper& random) {
+  std::vector<proto::PendingMigrationInfo> infos;
+  int num_infos = random.next_uint(3);
+  for (int i = 0; i < num_infos; ++i) {
+    proto::PendingMigrationInfo info;
+    info.set_manifest_id("https://example.com/manifest_id_" +
+                         base::NumberToString(random.next_uint()));
+    info.set_behavior(random.next_bool()
+                          ? proto::WEB_APP_MIGRATION_BEHAVIOR_FORCE
+                          : proto::WEB_APP_MIGRATION_BEHAVIOR_SUGGEST);
+    infos.push_back(std::move(info));
+  }
+  return infos;
+}
+
 }  // namespace
 
 std::unique_ptr<WebApp> CreateWebApp(const GURL& start_url,
-                                     WebAppManagement::Type source_type) {
-  auto web_app =
-      std::make_unique<WebApp>(GenerateManifestIdFromStartUrlOnly(start_url),
-                               start_url, start_url.GetWithoutFilename());
-  web_app->SetStartUrl(start_url);
-  web_app->SetScope(start_url.GetWithoutFilename());
+                                     WebAppManagement::Type source_type,
+                                     const GURL& scope) {
+  auto web_app = std::make_unique<WebApp>(
+      GenerateManifestIdFromStartUrlOnly(start_url), start_url,
+      scope.is_valid() ? scope : start_url.GetWithoutFilename());
   web_app->AddSource(source_type);
   web_app->SetDisplayMode(blink::mojom::DisplayMode::kStandalone);
   web_app->SetUserDisplayMode(mojom::UserDisplayMode::kStandalone);
@@ -719,7 +754,15 @@ std::unique_ptr<WebApp> CreateWebApp(const GURL& start_url,
   return web_app;
 }
 
-std::unique_ptr<WebApp> CreateRandomWebApp(CreateRandomWebAppParams params) {
+CreateRandomWebAppParams::CreateRandomWebAppParams() = default;
+CreateRandomWebAppParams::CreateRandomWebAppParams(
+    const CreateRandomWebAppParams& other) = default;
+CreateRandomWebAppParams& CreateRandomWebAppParams::operator=(
+    const CreateRandomWebAppParams& other) = default;
+CreateRandomWebAppParams::~CreateRandomWebAppParams() = default;
+
+std::unique_ptr<WebApp> CreateRandomWebApp(
+    const CreateRandomWebAppParams& params) {
   RandomHelper random(params.seed, params.non_zero);
 
   const bool is_iwa = !random.next_bool();
@@ -852,8 +895,6 @@ std::unique_ptr<WebApp> CreateRandomWebApp(CreateRandomWebAppParams params) {
     app->SetManifestId(
         GenerateManifestId(relative_manifest_id.value(), start_url));
   }
-  app->SetStartUrl(GURL(start_url));
-  app->SetScope(GURL(scope));
 
   if (random.next_bool()) {
     app->SetThemeColor(SkColorSetA(random.next_uint(), SK_AlphaOPAQUE));
@@ -1053,9 +1094,6 @@ std::unique_ptr<WebApp> CreateRandomWebApp(CreateRandomWebAppParams params) {
 
   app->SetManifestUpdateTime(random.next_time());
 
-  if (random.next_bool()) {
-    app->SetParentAppId(base::NumberToString(random.next_uint()));
-  }
 
   if (random.next_bool()) {
     app->SetPermissionsPolicy(CreateRandomPermissionsPolicy(random));
@@ -1346,6 +1384,16 @@ std::unique_ptr<WebApp> CreateRandomWebApp(CreateRandomWebAppParams params) {
         second_install_time,
         params.base_url.Resolve("installed_by2_" + seed_str + "/")));
   }
+
+  app->SetUnvalidatedMigrationSources(CreateRandomMigrationSources(random));
+  std::vector<proto::WebAppMigrationSource> validated_sources;
+  std::ranges::copy_if(app->unvalidated_migration_sources(),
+                       std::back_inserter(validated_sources),
+                       [&random](const proto::WebAppMigrationSource&) {
+                         return random.next_bool();
+                       });
+  app->SetValidatedMigrationSources(std::move(validated_sources));
+  app->SetPendingMigrationInfo(CreateRandomPendingMigrationInfos(random));
 
   return app;
 }

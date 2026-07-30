@@ -138,6 +138,7 @@
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "net/base/mock_network_change_notifier.h"
 #include "net/base/network_change_notifier.h"
+#include "net/base/url_search_params.h"
 #include "net/base/url_util.h"
 #include "net/test/embedded_test_server/http_response.h"
 #include "pdf/pdf_features.h"
@@ -631,7 +632,6 @@ class LensSearchControllerFake : public lens::TestLensSearchController {
       lens::LensOverlayFullImageResponseCallback full_image_callback,
       lens::LensOverlayUrlResponseCallback url_callback,
       lens::LensOverlayInteractionResponseCallback interaction_callback,
-      lens::LensOverlaySuggestInputsCallback suggest_inputs_callback,
       lens::LensOverlayThumbnailCreatedCallback thumbnail_created_callback,
       lens::UploadProgressCallback upload_progress_callback,
       variations::VariationsClient* variations_client,
@@ -647,10 +647,9 @@ class LensSearchControllerFake : public lens::TestLensSearchController {
             base::BindRepeating(
                 &LensSearchControllerFake::RecordUrlResponseCallback,
                 base::Unretained(this)),
-            interaction_callback, suggest_inputs_callback,
-            thumbnail_created_callback, upload_progress_callback,
-            variations_client, identity_manager, profile, invocation_source,
-            use_dark_mode, gen204_controller);
+            interaction_callback, thumbnail_created_callback,
+            upload_progress_callback, variations_client, identity_manager,
+            profile, invocation_source, use_dark_mode, gen204_controller);
     // Set up the fake responses for the query controller.
     fake_query_controller->set_next_full_image_request_should_return_error(
         full_image_request_should_return_error_);
@@ -765,6 +764,7 @@ class LensOverlayControllerBrowserTest : public InProcessBrowserTest {
          {lens::features::kLensOverlaySurvey, {}},
          {lens::features::kLensOverlaySidePanelOpenInNewTab, {}}},
         /*disabled_features=*/{
+            contextual_tasks::kContextualTasks,
             lens::features::kLensSearchZeroStateCsb,
             lens::features::kLensAimSuggestions,
             lens::features::kLensOverlaySuggestionsMigration,
@@ -5556,7 +5556,8 @@ class LensOverlayControllerBrowserPDFContextualizationTest
   }
 
   std::vector<base::test::FeatureRef> GetDisabledFeatures() const override {
-    return {lens::features::kLensSearchZeroStateCsb};
+    return {contextual_tasks::kContextualTasks,
+            lens::features::kLensSearchZeroStateCsb};
   }
 
  protected:
@@ -6211,7 +6212,8 @@ class LensOverlayControllerBrowserPDFUpdatedContentFieldsTest
   }
 
   std::vector<base::test::FeatureRef> GetDisabledFeatures() const override {
-    return {lens::features::kLensSearchZeroStateCsb};
+    return {contextual_tasks::kContextualTasks,
+            lens::features::kLensSearchZeroStateCsb};
   }
 
  protected:
@@ -6266,7 +6268,8 @@ class LensOverlayControllerBrowserPDFIncreaseLimitTest
   }
 
   std::vector<base::test::FeatureRef> GetDisabledFeatures() const override {
-    return {lens::features::kLensSearchZeroStateCsb};
+    return {contextual_tasks::kContextualTasks,
+            lens::features::kLensSearchZeroStateCsb};
   }
 
  protected:
@@ -6332,6 +6335,7 @@ class LensOverlayControllerBrowserWithPixelsTest
   void SetupFeatureList() override {
     feature_list_.InitWithFeatures(
         /*enabled_features=*/{}, /*disabled_features=*/{
+            contextual_tasks::kContextualTasks,
             lens::features::kLensOverlayVisualSelectionUpdates,
             lens::features::kLensSearchZeroStateCsb});
   }
@@ -7810,7 +7814,8 @@ class LensOverlayControllerIframeBrowserTest
           {{"results-search-url", embedded_test_server()
                                       ->GetURL(kDocumentWithNamedElement)
                                       .spec()}}}},
-        /*disabled_features=*/{lens::features::kLensSearchZeroStateCsb});
+        /*disabled_features=*/{contextual_tasks::kContextualTasks,
+                               lens::features::kLensSearchZeroStateCsb});
   }
 };
 
@@ -8168,7 +8173,8 @@ class LensOverlayControllerInnerTextAndApc
               {"use-updated-content-fields", "true"},
           }},
          {lens::features::kLensSearchProtectedPage, {}}},
-        {lens::features::kLensSearchZeroStateCsb});
+        {contextual_tasks::kContextualTasks,
+         lens::features::kLensSearchZeroStateCsb});
   }
 };
 
@@ -8414,6 +8420,7 @@ class LensOverlayControllerContextualFeaturesDisabledTest
     feature_list_.InitWithFeatures(
         /*enabled_features=*/{},
         /*disabled_features=*/{
+            contextual_tasks::kContextualTasks,
             lens::features::kLensOverlayContextualSearchbox,
             lens::features::kLensSearchZeroStateCsb,
             lens::features::kLensOverlayNonBlockingPrivacyNotice});
@@ -8667,14 +8674,39 @@ class LensOverlayControllerOverlaySearchbox
     feature_list_.InitWithFeatures(
         /*enabled_features=*/{lens::features::kLensOverlay,
                               lens::features::kLensOverlayContextualSearchbox},
-        /*disabled_features=*/{lens::features::kLensSearchZeroStateCsb});
+        /*disabled_features=*/{contextual_tasks::kContextualTasks,
+                               lens::features::kLensSearchZeroStateCsb});
   }
 
   void VerifyContextualSearchQueryParameters(const GURL& url_to_process) {
-    EXPECT_THAT(url_to_process.spec(),
-                testing::MatchesRegex(std::string(kResultsSearchBaseUrl) +
-                                      ".*source=chrome.cr.menu.*&vit=.*&gsc=2&"
-                                      "hl=.*&q=.*&biw=\\d+&bih=\\d+"));
+    const GURL base_url(kResultsSearchBaseUrl);
+    EXPECT_EQ(url_to_process.scheme(), base_url.scheme());
+    EXPECT_EQ(url_to_process.host(), base_url.host());
+    EXPECT_EQ(url_to_process.path(), base_url.path());
+
+    std::string value;
+    EXPECT_TRUE(net::GetValueForKeyInQuery(url_to_process, "source", &value));
+    EXPECT_EQ(value, "chrome.cr.menu");
+
+    EXPECT_TRUE(net::GetValueForKeyInQuery(url_to_process, "vit", &value));
+    EXPECT_FALSE(value.empty());
+
+    EXPECT_TRUE(net::GetValueForKeyInQuery(url_to_process, "gsc", &value));
+    EXPECT_EQ(value, "2");
+
+    EXPECT_TRUE(net::GetValueForKeyInQuery(url_to_process, "hl", &value));
+    EXPECT_FALSE(value.empty());
+
+    EXPECT_TRUE(net::GetValueForKeyInQuery(url_to_process, "q", &value));
+    EXPECT_FALSE(value.empty());
+
+    EXPECT_TRUE(net::GetValueForKeyInQuery(url_to_process, "biw", &value));
+    int biw_val;
+    EXPECT_TRUE(base::StringToInt(value, &biw_val));
+
+    EXPECT_TRUE(net::GetValueForKeyInQuery(url_to_process, "bih", &value));
+    int bih_val;
+    EXPECT_TRUE(base::StringToInt(value, &bih_val));
   }
 };
 
@@ -8875,7 +8907,8 @@ class LensOverlayControllerSideBySideBrowserTest
   void SetupFeatureList() override {
     feature_list_.InitWithFeaturesAndParameters(
         {{lens::features::kLensOverlay, {{"use-blur", "true"}}}},
-        {lens::features::kLensSearchZeroStateCsb});
+        {contextual_tasks::kContextualTasks,
+         lens::features::kLensSearchZeroStateCsb});
   }
 
   bool AreAnyRoundedCornersShowing() {
@@ -9376,7 +9409,8 @@ class LensOverlayControllerReinvocationBrowserTest
         {lens::features::kLensOverlay,
          lens::features::kLensOverlayContextualSearchbox,
          lens::features::kLensSearchReinvocationAffordance},
-        {lens::features::kLensSearchZeroStateCsb});
+        {contextual_tasks::kContextualTasks,
+         lens::features::kLensSearchZeroStateCsb});
   }
 };
 
@@ -9553,7 +9587,8 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerReinvocationBrowserTest,
   GetLensSearchController()->OpenLensOverlayInCurrentSession();
   ASSERT_TRUE(
       base::test::RunUntil([&]() { return IsLensResultsSidePanelShowing(); }));
-  ASSERT_TRUE(base::test::RunUntil([&]() { return controller->state() == State::kOverlay; }));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return controller->state() == State::kOverlay; }));
 
   // We need to flush the mojo receiver calls to make sure the screenshot was
   // passed back to the WebUI or else the region selection UI will not render.

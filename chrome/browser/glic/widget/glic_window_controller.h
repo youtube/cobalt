@@ -15,12 +15,12 @@
 #include "base/observer_list_types.h"
 #include "base/scoped_observation.h"
 #include "base/scoped_observation_traits.h"
+#include "build/build_config.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_web_client_access.h"
 #include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_instance.h"
-#include "chrome/browser/glic/widget/local_hotkey_manager.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_features.h"
 #include "content/public/browser/web_contents.h"
@@ -28,8 +28,11 @@
 #include "ui/gfx/native_ui_types.h"
 #include "ui/views/widget/widget.h"
 
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/glic/widget/local_hotkey_manager.h"
+#endif
+
 class Browser;
-class SkRegion;
 
 namespace content {
 class RenderFrameHost;
@@ -94,7 +97,8 @@ class GlicWindowController {
   // with resetting webcontents.
   virtual void CloseAndShutdownInstanceWithFrame(
       content::RenderFrameHost* render_frame_host) = 0;
-
+  virtual void ArchiveInstanceWithFrame(
+      content::RenderFrameHost* render_frame_host) = 0;
   // Returns wehether or not the glic window is currently showing detached.
   // When True |GetGlicWidget| will return a valid ptr.
   virtual bool IsDetached() const = 0;
@@ -174,8 +178,6 @@ class GlicWindowController {
   // documentation.
   virtual void AddGlobalStateObserver(PanelStateObserver* observer) = 0;
   virtual void RemoveGlobalStateObserver(PanelStateObserver* observer) = 0;
-
-  virtual void SetDraggableRegion(const SkRegion& region) = 0;
 };
 
 // This class owns and manages the glic window. This class has the same lifetime
@@ -203,7 +205,6 @@ class GlicWindowControllerInterface : public GlicWindowController,
   // On Windows make sure that the client area size remains the same even if
   // the widget size changes because the widget is resizable.
   virtual void MaybeSetWidgetCanResize() = 0;
-
 };
 
 }  // namespace glic

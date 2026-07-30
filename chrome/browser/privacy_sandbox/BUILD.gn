@@ -19,6 +19,7 @@ source_set("headers") {
     "//components/keyed_service/core",
     "//components/privacy_sandbox",
     "//components/privacy_sandbox:privacy_sandbox_prefs",
+    "//components/privacy_sandbox:tracking_protection_prefs",
     "//net",
   ]
 }
@@ -105,10 +106,7 @@ if (!is_android) {
   source_set("settings_browser_test") {
     testonly = true
     defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
-    sources = [
-      "privacy_sandbox_settings_browsertest.cc",
-      "tracking_protection_settings_browsertest.cc",
-    ]
+    sources = [ "privacy_sandbox_settings_browsertest.cc" ]
     deps = [
       "//base/test:test_support",
       "//chrome/browser/browsing_data:constants",
@@ -120,7 +118,6 @@ if (!is_android) {
       "//components/privacy_sandbox:privacy_sandbox_settings_headers",
       "//components/privacy_sandbox:test_support",
       "//components/privacy_sandbox:tracking_protection_prefs",
-      "//components/privacy_sandbox:tracking_protection_settings",
       "//content/public/browser",
       "//content/public/common",
       "//content/test:test_support",
@@ -243,7 +240,7 @@ source_set("service_impl_unittest") {
     "//components/privacy_sandbox:privacy_sandbox_prefs",
     "//components/privacy_sandbox:privacy_sandbox_settings_headers",
     "//components/privacy_sandbox:test_support",
-    "//components/privacy_sandbox:tracking_protection_settings",
+    "//components/privacy_sandbox:tracking_protection_prefs",
     "//components/privacy_sandbox/privacy_sandbox_attestations",
     "//components/privacy_sandbox/privacy_sandbox_attestations:test_support",
     "//components/profile_metrics",

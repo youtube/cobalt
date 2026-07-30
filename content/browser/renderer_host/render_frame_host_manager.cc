@@ -28,7 +28,6 @@
 #include "base/timer/elapsed_timer.h"
 #include "base/trace_event/named_trigger.h"
 #include "base/trace_event/typed_macros.h"
-#include "base/types/cxx23_to_underlying.h"
 #include "base/types/expected.h"
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
@@ -1741,10 +1740,9 @@ void RenderFrameHostManager::PerformEarlyRenderFrameHostSwapIfNeeded(
   }
 
   const RenderFrameHostManager::ViewTransitionCommitInfo
-      view_transition_commit_info{
-          .view_transition_resources = request->GetViewTransitionResources(),
-          .delay_layer_tree_view_deletion =
-              request->HasViewTransitionDelayLayerTreeViewDeletion()};
+      view_transition_commit_info(
+          request->GetViewTransitionResources(),
+          request->HasViewTransitionDelayLayerTreeViewDeletion());
   CommitPending(
       std::move(speculative_render_frame_host_),
       /*pending_stored_page=*/nullptr,
@@ -5896,8 +5894,8 @@ void RenderFrameHostManager::CreateNewFrameForInnerDelegateAttachIfNecessary() {
   // WebContents::AttachToOuterWebContentsFrame is called.
   speculative_render_frame_host_->SwapIn();
   const RenderFrameHostManager::ViewTransitionCommitInfo
-      view_transition_commit_info{.view_transition_resources = nullptr,
-                                  .delay_layer_tree_view_deletion = false};
+      view_transition_commit_info(nullptr,
+                                  /*delay_layer_tree_view_deletion=*/false);
   CommitPending(std::move(speculative_render_frame_host_),
                 /*pending_stored_page=*/nullptr,
                 /*clear_proxies_on_commit=*/false,

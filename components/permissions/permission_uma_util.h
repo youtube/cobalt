@@ -22,6 +22,7 @@
 #include "components/permissions/request_type.h"
 #include "components/permissions/resolvers/permission_prompt_options.h"
 #include "content/public/browser/permission_result.h"
+#include "services/metrics/public/cpp/ukm_source_id.h"
 #include "url/gurl.h"
 
 namespace blink {
@@ -52,13 +53,14 @@ enum class ActivityIndicatorState {
 //   1) The PermissionRequestType enum in
 //      tools/metrics/histograms/metadata/permissions/enums.xml.
 //   2) The PermissionRequestTypes suffix list in
-//      tools/metrics/histograms/metadata/histogram_suffixes_list.xml.
+//      tools/metrics/histograms/metadata/permissions/histograms.xml.
 //   3) GetPermissionRequestString function in
 //      components/permissions/permission_uma_util.cc
 //
 // The usual rules of updating UMA values applies to this enum:
 // - don't remove values
 // - only ever add values at the end
+// LINT.IfChange(RequestTypeForUma)
 enum class RequestTypeForUma {
   UNKNOWN = 0,
   MULTIPLE_AUDIO_AND_VIDEO_CAPTURE = 1,
@@ -104,11 +106,19 @@ enum class RequestTypeForUma {
   PERMISSION_HAND_TRACKING = 40,
   PERMISSION_WEB_APP_INSTALLATION = 41,
   PERMISSION_LOCAL_NETWORK_ACCESS = 42,
+  PERMISSION_LOCAL_NETWORK = 43,
+  PERMISSION_LOOPBACK_NETWORK = 44,
   // NUM must be the last value in the enum.
   NUM,
 };
+// LINT.ThenChange(//tools/metrics/histograms/enums.xml:PermissionRequestType,
+// //components/permissions/permission_uma_util.cc:GetPermissionRequestString,
+// //tools/metrics/histograms/metadata/permissions/histograms.xml:PermissionRequestTypes)
 
-// Any new values should be inserted immediately prior to kMaxValue.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused. Any new values should be inserted
+// immediately prior to kMaxValue.
+// LINT.IfChange(PermissionSourceUI)
 enum class PermissionSourceUI {
   // Permission prompt.
   PROMPT = 0,
@@ -149,9 +159,13 @@ enum class PermissionSourceUI {
   // Chrome only observes the permission change on next start-up.
   UNIDENTIFIED = 8,
 
+  // Permission changes due to automatic revocation of disruptive notifications.
+  DISRUPTIVE_NOTIFICATION_REVOCATION = 9,
+
   // Always keep this at the end.
-  kMaxValue = UNIDENTIFIED,
+  kMaxValue = DISRUPTIVE_NOTIFICATION_REVOCATION,
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/permissions/enums.xml:PermissionSourceUI)
 
 // Any new values should be inserted immediately prior to NUM.
 enum class PermissionEmbargoStatus {
@@ -265,6 +279,10 @@ enum class PermissionPromptDisposition {
   // Only used on Android, a message bubble near top of the screen and below the
   // location bar. This is a flavor of MESSAGE_UI that is used for loud prompts.
   MESSAGE_UI_LOUD = 15,
+
+  // Only used on Android. The prompt is suppressed, and the user is notified
+  // via an icon on the left-hand side of the location bar.
+  LOCATION_BAR_LEFT_CLAPPER_QUIET_ICON = 16,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/permissions/histograms.xml:PromptDisposition)
 
@@ -1011,8 +1029,8 @@ class PermissionUmaUtil {
           permission_ai_relevance_model,
       std::optional<bool> prediction_decision_held_back,
       const PromptOptions& prompt_options,
-      std::optional<GeolocationAccuracy>
-          initial_geolocation_accuracy_selection);
+      std::optional<GeolocationAccuracy> initial_geolocation_accuracy_selection,
+      std::optional<ukm::SourceId> source_id);
 
   // Records |count| total prior actions for a prompt of type |permission|
   // for a single origin using |prefix| for the metric.

@@ -47,7 +47,6 @@
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/threading/scoped_blocking_call.h"
-#include "base/types/cxx23_to_underlying.h"
 #include "base/values.h"
 #include "chrome/browser/accessibility/accessibility_extension_api_ash.h"
 #include "chrome/browser/ash/accessibility/accessibility_dlc_installer.h"
@@ -1973,28 +1972,23 @@ void AccessibilityManager::UpdateChromeOSAccessibilityHistograms() {
           prefs->GetBoolean(prefs::kAccessibilityFlashNotificationsEnabled));
     }
 
-    if (::features::IsAccessibilityBounceKeysEnabled()) {
-      bool bounce_keys_enabled =
-          prefs->GetBoolean(prefs::kAccessibilityBounceKeysEnabled);
-      base::UmaHistogramBoolean("Accessibility.CrosBounceKeys",
-                                bounce_keys_enabled);
-      if (bounce_keys_enabled) {
-        base::UmaHistogramSparse(
-            "Accessibility.CrosBounceKeysDelay",
-            prefs->GetInteger(prefs::kAccessibilityBounceKeysDelayMs));
-      }
+    bool bounce_keys_enabled =
+        prefs->GetBoolean(prefs::kAccessibilityBounceKeysEnabled);
+    base::UmaHistogramBoolean("Accessibility.CrosBounceKeys",
+                              bounce_keys_enabled);
+    if (bounce_keys_enabled) {
+      base::UmaHistogramSparse(
+          "Accessibility.CrosBounceKeysDelay",
+          prefs->GetInteger(prefs::kAccessibilityBounceKeysDelayMs));
     }
 
-    if (::features::IsAccessibilitySlowKeysEnabled()) {
-      bool slow_keys_enabled =
-          prefs->GetBoolean(prefs::kAccessibilitySlowKeysEnabled);
-      base::UmaHistogramBoolean("Accessibility.CrosSlowKeys",
-                                slow_keys_enabled);
-      if (slow_keys_enabled) {
-        base::UmaHistogramSparse(
-            "Accessibility.CrosSlowKeysDelay",
-            prefs->GetInteger(prefs::kAccessibilitySlowKeysDelayMs));
-      }
+    bool slow_keys_enabled =
+        prefs->GetBoolean(prefs::kAccessibilitySlowKeysEnabled);
+    base::UmaHistogramBoolean("Accessibility.CrosSlowKeys", slow_keys_enabled);
+    if (slow_keys_enabled) {
+      base::UmaHistogramSparse(
+          "Accessibility.CrosSlowKeysDelay",
+          prefs->GetInteger(prefs::kAccessibilitySlowKeysDelayMs));
     }
   }
   base::UmaHistogramBoolean("Accessibility.CrosCaretHighlight",
@@ -2301,22 +2295,11 @@ void AccessibilityManager::LoadEnhancedNetworkTts() {
     NOTREACHED();
   }
 
-  const bool enable_v3_manifest =
-      base::CommandLine::ForCurrentProcess()->HasSwitch(
-          ::switches::kEnableExperimentalAccessibilityManifestV3) ||
-      ::features::IsAccessibilityManifestV3EnabledForEnhancedNetworkTts();
-  const base::FilePath::CharType* manifest_filename =
-      enable_v3_manifest ? extension_misc::kEnhancedNetworkTtsManifestV3Filename
-                         : extension_misc::kEnhancedNetworkTtsManifestFilename;
-  const base::FilePath::CharType* guest_manifest_filename =
-      enable_v3_manifest
-          ? extension_misc::kEnhancedNetworkTtsGuestManifestV3Filename
-          : extension_misc::kEnhancedNetworkTtsGuestManifestFilename;
-
   component_loader->AddComponentFromDirWithManifestFilename(
       resources_path.Append(extension_misc::kEnhancedNetworkTtsExtensionPath),
-      extension_misc::kEnhancedNetworkTtsExtensionId, manifest_filename,
-      guest_manifest_filename,
+      extension_misc::kEnhancedNetworkTtsExtensionId,
+      extension_misc::kEnhancedNetworkTtsManifestFilename,
+      extension_misc::kEnhancedNetworkTtsGuestManifestFilename,
       base::BindOnce(&AccessibilityManager::PostLoadEnhancedNetworkTts,
                      base::Unretained(this)),
       {});
@@ -2691,7 +2674,7 @@ void AccessibilityManager::SendMouseEventToSelectToSpeak(
       return;
     default:
       NOTIMPLEMENTED() << "Received unexpected event: "
-                       << base::to_underlying(type);
+                       << std::to_underlying(type);
       break;
   }
 

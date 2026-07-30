@@ -44,6 +44,7 @@
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
 #include "chrome/browser/ui/views/tabs/dragging/drag_session_data.h"
 #include "chrome/browser/ui/views/tabs/dragging/tab_drag_context.h"
+#include "chrome/browser/ui/views/tabs/dragging/tab_drag_target.h"
 #include "chrome/browser/ui/views/tabs/tab.h"
 #include "chrome/browser/ui/views/tabs/tab_slot_view.h"
 #include "chrome/browser/ui/views/tabs/window_finder.h"
@@ -192,9 +193,9 @@ class DefaultTabDragPointResolver : public TabDragPointResolver {
   DefaultTabDragPointResolver() = default;
   ~DefaultTabDragPointResolver() override = default;
 
-  TabDragDelegate* GetDragTarget(BrowserView& browser_view,
-                                 const gfx::Point& point_in_screen) override {
-    return browser_view.GetTabDragDelegate(point_in_screen);
+  TabDragTarget* GetDragTarget(BrowserView& browser_view,
+                               const gfx::Point& point_in_screen) override {
+    return browser_view.GetTabDragTarget(point_in_screen);
   }
 };
 
@@ -470,6 +471,10 @@ TabDragController::Liveness TabDragController::Init(
             source_view->GetMirroredXInView(offset_from_source_view.x())) /
         source_view->width();
   }
+  if (source_view->height() > 0) {
+    ref->offset_to_height_ratio_ =
+        static_cast<float>(offset_from_source_view.y()) / source_view->height();
+  }
   ref->initial_selection_model_ = std::move(initial_selection_model);
 
   ref->window_finder_ = std::make_unique<WindowFinder>();
@@ -503,7 +508,7 @@ TabDragController::Liveness TabDragController::Init(
 }
 
 // static
-bool TabDragController::IsAttachedTo(const TabDragContextBase* context) {
+bool TabDragController::IsAttachedTo(const TabDragContext* context) {
   return (g_tab_drag_controller && g_tab_drag_controller->active() &&
           g_tab_drag_controller->attached_context() == context);
 }
@@ -663,7 +668,7 @@ TabDragController::Liveness TabDragController::Drag(
     }
 
     current_state_ = DragState::kDraggingTabs;
-    StartDraggingTabsSession(true, point_in_screen);
+      StartDraggingTabsSession(true, point_in_screen);
   }
 
   return ContinueDragging(point_in_screen);
@@ -897,8 +902,13 @@ TabDragController::Liveness TabDragController::ContinueDragging(
     }
     target_context = context;
     UpdateDragTarget(drop_target);
-    if (current_drag_delegate_) {
-      current_drag_delegate_->OnTabDragUpdated(*this, point_in_screen);
+    if (current_drag_target_) {
+      TabDragContext* delegate_context =
+          current_drag_target_->OnTabDragUpdated(*this, point_in_screen);
+      if (!delegate_context && current_state_ == DragState::kDraggingWindow) {
+        delegate_context = attached_context_;
+      }
+      target_context = delegate_context;
     }
   }
 
@@ -916,27 +926,28 @@ TabDragController::Liveness TabDragController::ContinueDragging(
                        base::Unretained(this), point_in_screen));
   }
 
-  if (current_state_ == DragState::kDraggingTabs) {
+  if (current_state_ == DragState::kDraggingTabs &&
+      attached_context_->GetPositioningDelegate()) {
     dragging_tabs_session_->MoveAttached(point_in_screen);
   }
   return Liveness::kAlive;
 }
 
-void TabDragController::UpdateDragTarget(TabDragDelegate* new_target) {
-  if (current_drag_delegate_ && current_drag_delegate_ != new_target) {
-    current_drag_delegate_->OnTabDragExited();
+void TabDragController::UpdateDragTarget(TabDragTarget* new_target) {
+  if (current_drag_target_ && current_drag_target_ != new_target) {
+    current_drag_target_->OnTabDragExited();
   }
-  current_drag_delegate_ = new_target;
-  if (current_drag_delegate_) {
-    current_drag_delegate_->OnTabDragEntered();
-    drag_delegate_destroyed_subscription_ =
-        current_drag_delegate_->RegisterWillDestroyCallback(base::BindOnce(
+  current_drag_target_ = new_target;
+  if (current_drag_target_) {
+    current_drag_target_->OnTabDragEntered();
+    drag_target_destroyed_subscription_ =
+        current_drag_target_->RegisterWillDestroyCallback(base::BindOnce(
             &TabDragController::ResetDragTarget, base::Unretained(this)));
   }
 }
 
 void TabDragController::ResetDragTarget() {
-  current_drag_delegate_ = nullptr;
+  current_drag_target_ = nullptr;
 }
 
 TabDragController::Liveness TabDragController::DragBrowserToNewTabStrip(
@@ -1063,8 +1074,8 @@ void TabDragController::RequestTabThumbnail() {
 
 void TabDragController::OnTabThumbnailAvailable(
     float window_scale,
-    const viz::CopyOutputBitmapWithMetadata& result) {
-  const SkBitmap& thumbnail = result.bitmap;
+    const content::CopyFromSurfaceResult& result) {
+  const SkBitmap& thumbnail = result.has_value() ? result->bitmap : SkBitmap();
   VLOG(1) << __func__ << " " << thumbnail.width() << "x" << thumbnail.height();
   constexpr size_t kTargetHeightDip = 200;
   constexpr int kRoundedCornerRadius = 4;
@@ -1197,7 +1208,7 @@ void TabDragController::DetachAndAttachToNewContext(
   AttachToNewContext(target_context, std::move(me), std::move(owned_tabs));
 }
 
-std::tuple<TabDragController::Liveness, TabDragContext*, TabDragDelegate*>
+std::tuple<TabDragController::Liveness, TabDragContext*, TabDragTarget*>
 TabDragController::GetDragTargetForPoint(gfx::Point point_in_screen) {
   TRACE_EVENT1("views", "TabDragController::GetTargetTabStripForPoint",
                "point_in_screen", point_in_screen.ToString());
@@ -1218,14 +1229,11 @@ TabDragController::GetDragTargetForPoint(gfx::Point point_in_screen) {
     if (destination_tab_strip) {
       if (DoesTabStripContain(destination_tab_strip, point_in_screen)) {
         return std::tuple(Liveness::kAlive, destination_tab_strip, nullptr);
-      } else if (TabDragDelegate* candidate =
+      } else if (TabDragTarget* candidate =
                      GetTabDragPointResolver()->GetDragTarget(
                          *browser_view, point_in_screen)) {
-        return std::tuple(Liveness::kAlive,
-                          current_state_ == DragState::kDraggingWindow
-                              ? attached_context_.get()
-                              : nullptr,
-                          candidate);
+        // The delegate will provide the context to attach to.
+        return std::tuple(Liveness::kAlive, nullptr, candidate);
       }
     }
   }
@@ -1240,12 +1248,17 @@ TabDragController::GetDragTargetForPoint(gfx::Point point_in_screen) {
 bool TabDragController::DoesTabStripContain(
     TabDragContext* context,
     const gfx::Point& point_in_screen) const {
+  TabDragPositioningDelegate* positioning_delegate =
+      context->GetPositioningDelegate();
+  if (!positioning_delegate) {
+    return false;
+  }
   // Make sure the specified screen point is actually within the bounds of the
   // specified context...
   gfx::Rect tabstrip_bounds = GetTabstripScreenBounds(context);
   const int x_in_strip = point_in_screen.x() - tabstrip_bounds.x();
-  return (x_in_strip >= context->TabDragAreaBeginX()) &&
-         (x_in_strip < context->TabDragAreaEndX()) &&
+  return (x_in_strip >= positioning_delegate->TabDragAreaBeginX()) &&
+         (x_in_strip < positioning_delegate->TabDragAreaEndX()) &&
          DoesRectContainVerticalPointExpanded(
              tabstrip_bounds, kVerticalDetachMagnetism, point_in_screen.y());
 }
@@ -1254,7 +1267,7 @@ void TabDragController::StartDrag() {
   // `source_context_` already owns `this` (it created us, even), so no need
   // to hand off ownership.
   CHECK_EQ(source_context_->GetDragController(), this);
-  CHECK(!current_drag_delegate_);
+  CHECK(!current_drag_target_);
   attached_context_ = source_context_;
 
   AttachImpl();
@@ -1494,13 +1507,18 @@ TabDragController::DetachIntoNewBrowserAndRunMoveLoop(
     return RunMoveLoop(point_in_screen, drag_offset);
   }
 
-  const int previous_tab_area_width = attached_context_->GetTabDragAreaWidth();
   const gfx::Size new_size = CalculateDraggedWindowSize(attached_context_);
-  const int first_tab_leading_x =
-      GetTabOffsetForDetachedWindow(point_in_screen);
-  const std::vector<gfx::Rect> drag_bounds =
-      attached_context_->CalculateBoundsForDraggedViews(
-          drag_data_.attached_views());
+
+  int previous_tab_area_width;
+  int first_tab_leading_x;
+  std::vector<gfx::Rect> drag_bounds;
+  if (TabDragPositioningDelegate* positioning_delegate =
+          attached_context_->GetPositioningDelegate()) {
+    previous_tab_area_width = positioning_delegate->GetTabDragAreaWidth();
+    first_tab_leading_x = GetTabOffsetForDetachedWindow(point_in_screen);
+    drag_bounds = positioning_delegate->CalculateBoundsForDraggedViews(
+        drag_data_.attached_views());
+  }
 
   Browser* browser = CreateBrowserForDrag(attached_context_, new_size);
 
@@ -1546,9 +1564,9 @@ TabDragController::DetachIntoNewBrowserAndRunMoveLoop(
       can_release_capture_ ? ReleaseCapture::kReleaseCapture
                            : ReleaseCapture::kDontReleaseCapture;
 #endif
-  DetachAndAttachToNewContext(
-      release_capture,
-      dragged_browser_view->tab_strip_view()->GetDragContext());
+  TabDragContext* new_context =
+      attached_context_->GetContextForNewBrowser(dragged_browser_view);
+  DetachAndAttachToNewContext(release_capture, new_context);
 
   if (ShouldDragWindowUsingSystemDnD()) {
     // Keep the new window hidden and start a system DnD session.
@@ -1557,8 +1575,11 @@ TabDragController::DetachIntoNewBrowserAndRunMoveLoop(
     // attached to is hidden and thus can't start the drag session.
     return StartSystemDnDSessionIfNecessary(source_context_, point_in_screen);
   }
-  AdjustTabBoundsForDrag(previous_tab_area_width, first_tab_leading_x,
-                         drag_bounds);
+
+  if (attached_context_->GetPositioningDelegate()) {
+    AdjustTabBoundsForDrag(previous_tab_area_width, first_tab_leading_x,
+                           drag_bounds);
+  }
 
   const gfx::Vector2d drag_offset = CalculateWindowDragOffset();
 #if (!BUILDFLAG(IS_MAC))
@@ -1770,8 +1791,8 @@ void TabDragController::EndDragImpl(EndDragType type) {
 
   // Clear out drag data so we don't attempt to do anything with it.
   drag_data_.tab_drag_data_.clear();
-  if (current_drag_delegate_) {
-    current_drag_delegate_->OnTabDragEnded();
+  if (current_drag_target_) {
+    current_drag_target_->OnTabDragEnded();
     ResetDragTarget();
   }
 
@@ -2097,16 +2118,16 @@ void TabDragController::CompleteDrag() {
   CHECK_NE(current_state_, DragState::kNotStarted);
   CHECK(attached_context_);
 
-  if (current_drag_delegate_ && current_drag_delegate_->CanDropTab()) {
-    current_drag_delegate_->HandleTabDrop(*this);
+  if (current_drag_target_ && current_drag_target_->CanDropTab()) {
+    current_drag_target_->HandleTabDrop(*this);
     attached_context_->StoppedDragging();
 
     // The delegate is expected to handle all tab dragging finalization, and
     // therefore we return here.
     // The logic below is specific for dragging to a tabstrip, most of which
-    // should be moved to tabstrip's `TabDragDelegate` implementation. Some
+    // should be moved to tabstrip's `TabDragTarget` implementation. Some
     // functionality, such as restoring tab model selection, may be shared as
-    // part of the `TabDragDelegate::DragController` interface.
+    // part of the `TabDragTarget::DragController` interface.
     return;
   }
 
@@ -2335,14 +2356,17 @@ gfx::Size TabDragController::CalculateDraggedWindowSize(
 
 int TabDragController::GetTabOffsetForDetachedWindow(
     gfx::Point point_in_screen) {
-  DCHECK(attached_context_);
+  CHECK(attached_context_);
+  TabDragPositioningDelegate* positioning_delegate =
+      attached_context_->GetPositioningDelegate();
+  CHECK(positioning_delegate);
   const gfx::Point attached_point =
       views::View::ConvertPointFromScreen(attached_context_, point_in_screen);
-  if (attached_point.x() < attached_context_->TabDragAreaBeginX()) {
+  if (attached_point.x() < positioning_delegate->TabDragAreaBeginX()) {
     // Detaching to the left; tabs should be at the beginning of the window.
     return 0;
   }
-  if (attached_point.x() >= attached_context_->TabDragAreaEndX()) {
+  if (attached_point.x() >= positioning_delegate->TabDragAreaEndX()) {
     // Detaching to the right; tabs should be at the beginning of the window.
     return 0;
   }
@@ -2356,9 +2380,13 @@ void TabDragController::AdjustTabBoundsForDrag(
     int first_tab_leading_x,
     std::vector<gfx::Rect> drag_bounds) {
   CHECK(!ShouldDragWindowUsingSystemDnD());
+  TabDragPositioningDelegate* positioning_delegate =
+      attached_context_->GetPositioningDelegate();
+  CHECK(positioning_delegate);
 
-  attached_context_->ForceLayout();
-  const int current_tab_area_width = attached_context_->GetTabDragAreaWidth();
+  positioning_delegate->ForceLayout();
+  const int current_tab_area_width =
+      positioning_delegate->GetTabDragAreaWidth();
 
   // If the new tabstrip region is smaller than the old, resize and reposition
   // the tabs to provide a sense of continuity.
@@ -2387,7 +2415,8 @@ void TabDragController::AdjustTabBoundsForDrag(
   } else {
     OffsetX(first_tab_leading_x, &drag_bounds);
   }
-  attached_context_->SetBoundsForDrag(drag_data_.attached_views(), drag_bounds);
+  positioning_delegate->SetBoundsForDrag(drag_data_.attached_views(),
+                                         drag_bounds);
 }
 
 std::optional<webapps::AppId> TabDragController::GetControllingAppForDrag(
@@ -2507,14 +2536,19 @@ gfx::Point TabDragController::GetCursorScreenPoint() {
 }
 
 gfx::Vector2d TabDragController::CalculateWindowDragOffset() {
-  const gfx::Rect source_tab_bounds =
-      drag_data_.attached_views()[drag_data_.source_view_index_]->bounds();
-  const int cursor_offset_within_tab =
+  const views::View* source_view =
+      drag_data_.attached_views()[drag_data_.source_view_index_];
+  const gfx::Rect source_tab_bounds = source_view->bounds();
+  const int cursor_x_offset_within_tab =
       base::ClampRound(source_tab_bounds.width() * offset_to_width_ratio_);
+  const int cursor_y_offset_within_tab =
+      base::ClampRound(source_tab_bounds.height() * offset_to_height_ratio_);
   gfx::Point desired_cursor_pos_in_widget(
       attached_context_->GetMirroredXInView(source_tab_bounds.x() +
-                                            cursor_offset_within_tab),
-      source_tab_bounds.height() / 2);
+                                            cursor_x_offset_within_tab),
+      source_tab_bounds.y() + cursor_y_offset_within_tab);
+  desired_cursor_pos_in_widget = views::View::ConvertPointToTarget(
+      source_view->parent(), attached_context_, desired_cursor_pos_in_widget);
   views::View::ConvertPointToWidget(attached_context_,
                                     &desired_cursor_pos_in_widget);
   return desired_cursor_pos_in_widget.OffsetFromOrigin();
@@ -2755,10 +2789,15 @@ void TabDragController::StartDraggingTabsSession(
   CHECK(current_state_ == DragState::kDraggingTabs ||
         current_state_ == DragState::kWaitingToExitRunLoop);
   CHECK_EQ(dragging_tabs_session_, nullptr);
+  CHECK(attached_context_);
+  if (!attached_context_->GetPositioningDelegate()) {
+    return;
+  }
 
   dragging_tabs_session_ = std::make_unique<DraggingTabsSession>(
-      drag_data_, attached_context_, offset_to_width_ratio_, initial_move,
-      start_point_in_screen);
+      drag_data_, *attached_context_,
+      *attached_context_->GetPositioningDelegate(), offset_to_width_ratio_,
+      initial_move, start_point_in_screen);
 }
 
 #if defined(USE_AURA)

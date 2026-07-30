@@ -16,7 +16,6 @@ import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.cc.input.BrowserControlsState;
-import org.chromium.cc.input.OffsetTag;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsOffsetTagsInfo;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider.ControlsPosition;
@@ -118,8 +117,6 @@ public class TopToolbarOverlayMediator {
     private float mViewportHeight;
 
     private @Nullable BrowserControlsOffsetTagsInfo mBrowserControlsOffsetTagsInfo;
-    private @Nullable OffsetTag mTopProgressBarOffsetTag;
-    private @Nullable OffsetTag mBottomProgressBarOffsetTag;
 
     TopToolbarOverlayMediator(
             PropertyModel model,
@@ -266,9 +263,11 @@ public class TopToolbarOverlayMediator {
                             @BrowserControlsState int constraints,
                             boolean shouldUpdateOffsets) {
                         if (ChromeFeatureList.sBrowserControlsInViz.isEnabled()) {
-                            // Offset tag application is handled by external when
-                            // #isTopControlsRefactorOffsetEnabled is enabled.
-                            if (!BrowserControlsUtils.isTopControlsRefactorOffsetEnabled()) {
+                            // Offset tag application is handled by TopControlsStacker when
+                            // #isTopControlsRefactorOffsetEnabled is enabled and browser controls
+                            // is at the top.
+                            if (!BrowserControlsUtils.isTopControlsRefactorOffsetEnabled()
+                                    || getControlsPosition() == ControlsPosition.BOTTOM) {
                                 updateOffsetTag(offsetTagsInfo);
                             }
                             if (shouldUpdateOffsets) {
@@ -445,38 +444,11 @@ public class TopToolbarOverlayMediator {
         // property skips the object equality check.
         DrawingInfo drawingInfo = mModel.get(TopToolbarOverlayProperties.PROGRESS_BAR_INFO);
         mProgressInfoCallback.onResult(drawingInfo);
-        if (ChromeFeatureList.sAndroidAnimatedProgressBarInViz.isEnabled()) {
-            if (drawingInfo.visible) {
-                if (mTopProgressBarOffsetTag == null) {
-                    mTopProgressBarOffsetTag = OffsetTag.createRandom();
-                }
-                if (mBottomProgressBarOffsetTag == null) {
-                    mBottomProgressBarOffsetTag = OffsetTag.createRandom();
-                }
-            } else {
-                mTopProgressBarOffsetTag = null;
-                mBottomProgressBarOffsetTag = null;
-            }
-
-            if (getControlsPosition() == ControlsPosition.TOP) {
-                drawingInfo.offsetTag = mTopProgressBarOffsetTag;
-            } else if (getControlsPosition() == ControlsPosition.BOTTOM) {
-                drawingInfo.offsetTag = mBottomProgressBarOffsetTag;
-            } else {
-                drawingInfo.offsetTag = null;
-            }
-
-            onProgressBarOffsetTagsChanged();
-        }
 
         // TODO(https://crbug.com/439461293) Try not updating the model if nothing changed.
         mModel.set(
                 TopToolbarOverlayProperties.PROGRESS_BAR_INFO,
                 mModel.get(TopToolbarOverlayProperties.PROGRESS_BAR_INFO));
-    }
-
-    private void onProgressBarOffsetTagsChanged() {
-        // TODO(https://crbug.com/434769428) plumb and register OffsetTags in native.
     }
 
     /**

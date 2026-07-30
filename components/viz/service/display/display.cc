@@ -136,10 +136,6 @@ void RecordFDUsageUMA() {
 }
 #endif
 
-#if !BUILDFLAG(IS_MAC)
-constexpr base::TimeDelta kAllowedDeltaFromFuture = base::Milliseconds(16);
-#endif
-
 gfx::PresentationFeedback SanitizePresentationFeedback(
     const gfx::PresentationFeedback& feedback,
     base::TimeTicks draw_time) {
@@ -167,10 +163,13 @@ gfx::PresentationFeedback SanitizePresentationFeedback(
   // All |feedback.timestamp| on Mac are valid and should not be sanitized.
 #if !BUILDFLAG(IS_MAC)
   const auto now = base::TimeTicks::Now();
+  // In VSync mode sometimes the timestamps are snapped to the next vsync
+  // interval (such as in SkiaOutputDeviceDawn::Present), so they could be as
+  // much as `feedback.interval` in the future.
   const auto allowed_delta_from_future =
       ((feedback.flags & (gfx::PresentationFeedback::kHWClock |
                           gfx::PresentationFeedback::kVSync)) != 0)
-          ? kAllowedDeltaFromFuture
+          ? feedback.interval
           : base::TimeDelta();
   if (feedback.timestamp > now + allowed_delta_from_future) {
     return gfx::PresentationFeedback::Failure();
@@ -1156,6 +1155,13 @@ bool Display::DrawAndSwap(const DrawAndSwapParams& params) {
           }
         }
       }
+    }
+
+    if (IsScroll(frame.latency_info) &&
+        base::FeatureList::IsEnabled(
+            features::kEnableADPFScrollNoRendererMain)) {
+      // Exclude renderer main thread(s) from the session during a scroll.
+      renderer_main_thread_ids.clear();
     }
 
     presentation_group_timing.OnDraw(

@@ -4,6 +4,8 @@
 
 #include "chrome/browser/glic/browser_ui/tab_underline_view.h"
 
+#include <vector>
+
 #include "base/debug/crash_logging.h"
 #include "cc/paint/paint_flags.h"
 #include "chrome/browser/glic/browser_ui/tab_underline_view_controller.h"
@@ -49,22 +51,23 @@ TabUnderlineView::Factory* TabUnderlineView::Factory::factory_ = nullptr;
 std::unique_ptr<TabUnderlineView> TabUnderlineView::Factory::Create(
     std::unique_ptr<TabUnderlineViewController> controller,
     Browser* browser,
-    Tab* tab) {
+    tabs::TabHandle tab_handle) {
   if (factory_) [[unlikely]] {
-    return factory_->CreateUnderlineView(std::move(controller), browser, tab);
+    return factory_->CreateUnderlineView(std::move(controller), browser,
+                                         tab_handle);
   }
   return base::WrapUnique(new TabUnderlineView(std::move(controller), browser,
-                                               tab, /*tester=*/nullptr));
+                                               tab_handle, /*tester=*/nullptr));
 }
 
 TabUnderlineView::TabUnderlineView(
     std::unique_ptr<TabUnderlineViewController> controller,
     Browser* browser,
-    Tab* tab,
+    tabs::TabHandle tab_handle,
     std::unique_ptr<Tester> tester)
     : AnimatedEffectView(browser, std::move(tester)),
       controller_(std::move(controller)),
-      tab_(tab) {
+      tab_handle_(tab_handle) {
   SetProperty(views::kElementIdentifierKey, kGlicTabUnderlineElementId);
 
   // Post-initialization updates. Don't do the update in the controller's ctor
@@ -75,8 +78,8 @@ TabUnderlineView::TabUnderlineView(
 
 TabUnderlineView::~TabUnderlineView() = default;
 
-base::WeakPtr<tabs::TabInterface> TabUnderlineView::GetTabInterface() {
-  return tab_ ? tab_->data().tab_interface : nullptr;
+tabs::TabInterface* TabUnderlineView::GetTabInterface() {
+  return tab_handle_.Get();
 }
 
 bool TabUnderlineView::IsCycleDone(base::TimeTicks timestamp) {
@@ -124,6 +127,28 @@ void TabUnderlineView::PopulateShaderUniforms(
                                            kCornerRadius, kCornerRadius}});
 }
 
+void TabUnderlineView::OnThemeChanged() {
+  View::OnThemeChanged();
+  colors_ = GetEffectColors();
+}
+
+std::vector<SkColor> TabUnderlineView::GetEffectColors() {
+  // Overwrite colors used for shader effect to follow Chrome theming instead of
+  // kGlicParameterizedShader feature values.
+  const ui::ColorProvider* color_provider = GetColorProvider();
+  std::vector<SkColor> colors;
+  if (color_provider) {
+    colors = {color_provider->GetColor(ui::kColorRefPrimary50),
+              color_provider->GetColor(ui::kColorRefPrimary60),
+              color_provider->GetColor(ui::kColorRefPrimary70)};
+  } else {
+    // If there is no ColorProvider available, fall back to
+    // -gem-sys-color--brand-blue.
+    colors = std::vector<SkColor>(3, SkColorSetARGB(255, 49, 134, 255));
+  }
+  return colors;
+}
+
 int TabUnderlineView::ComputeWidth() {
   // At the smallest tab sizes, favicons can be clipped and so a shorter
   // underline is required.
@@ -133,7 +158,7 @@ int TabUnderlineView::ComputeWidth() {
 
   // Underline should use either the width of the tab's contents bounds or the
   // width of the favicon, whichever is greater.
-  int underline_width = size().width() - tab_->GetInsets().width();
+  int underline_width = size().width() - parent()->GetInsets().width();
   if (underline_width < gfx::kFaviconSize) {
     return kSmallUnderlineWidth;
   }
@@ -159,15 +184,8 @@ void TabUnderlineView::DrawEffect(gfx::Canvas* canvas,
   if (underline_width < gfx::kFaviconSize * 2 ||
       (!new_flags.getShader() && colors_.size() < kNumDefaultColors)) {
     new_flags.setShader(nullptr);
-    // `colors_` is not populated if the kGlicParameterizedShader feature is not
-    // enabled.
-    if (!colors_.empty()) {
-      new_flags.setColor(colors_[0]);  // -gem-sys-color--brand-blue #3186FF
-    } else {
-      // Use -gem-sys-color--brand-blue as fallback color.
-      const SkColor fallback_color = SkColorSetARGB(255, 49, 134, 255);
-      new_flags.setColor(fallback_color);
-    }
+    CHECK(!colors_.empty());
+    new_flags.setColor(colors_[0]);
   } else if (!new_flags.getShader()) {
     SetDefaultColors(new_flags, gfx::RectF(effect_bounds));
   }

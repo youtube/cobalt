@@ -75,8 +75,6 @@ constexpr base::TimeDelta kExpansionOutDuration = base::Milliseconds(250);
 constexpr base::TimeDelta kOpacityInDuration = base::Milliseconds(300);
 constexpr base::TimeDelta kOpacityOutDuration = base::Milliseconds(100);
 constexpr base::TimeDelta kOpacityDelay = base::Milliseconds(100);
-constexpr char kAutoTabGroupsTriggerOutcomeName[] =
-    "Tab.Organization.Trigger.Outcome";
 constexpr char kDeclutterTriggerOutcomeName[] =
     "Tab.Organization.Declutter.Trigger.Outcome";
 constexpr char kDeclutterTriggerBucketedCTRName[] =
@@ -523,8 +521,6 @@ void TabStripActionContainer::OnToggleActionUIState(const Browser* browser,
 }
 
 void TabStripActionContainer::OnTabDeclutterButtonClicked() {
-  tabs::TabDeclutterController::EmitEntryPointHistogram(
-      tab_search::mojom::TabDeclutterEntryPoint::kNudge);
   base::UmaHistogramEnumeration(kDeclutterTriggerOutcomeName,
                                 TriggerOutcome::kAccepted);
   LogDeclutterTriggerBucket(true);
@@ -943,8 +939,6 @@ void TabStripActionContainer::SetLockedExpansionMode(
 }
 
 void TabStripActionContainer::OnAutoTabGroupButtonClicked() {
-  base::UmaHistogramEnumeration(kAutoTabGroupsTriggerOutcomeName,
-                                TriggerOutcome::kAccepted);
   tab_organization_service_->OnActionUIAccepted(browser_);
 
   UMA_HISTOGRAM_BOOLEAN("Tab.Organization.AllEntrypoints.Clicked", true);
@@ -955,8 +949,6 @@ void TabStripActionContainer::OnAutoTabGroupButtonClicked() {
 }
 
 void TabStripActionContainer::OnAutoTabGroupButtonDismissed() {
-  base::UmaHistogramEnumeration(kAutoTabGroupsTriggerOutcomeName,
-                                TriggerOutcome::kDismissed);
   tab_organization_service_->OnActionUIDismissed(browser_);
 
   UMA_HISTOGRAM_BOOLEAN("Tab.Organization.Proactive.Clicked", false);
@@ -968,8 +960,6 @@ void TabStripActionContainer::OnAutoTabGroupButtonDismissed() {
 void TabStripActionContainer::OnTabStripNudgeButtonTimeout(
     TabStripNudgeButton* button) {
   if (button == auto_tab_group_button_) {
-    base::UmaHistogramEnumeration(kAutoTabGroupsTriggerOutcomeName,
-                                  TriggerOutcome::kTimedOut);
     UMA_HISTOGRAM_BOOLEAN("Tab.Organization.Proactive.Clicked", false);
   } else if (button == tab_declutter_button_) {
     base::UmaHistogramEnumeration(kDeclutterTriggerOutcomeName,

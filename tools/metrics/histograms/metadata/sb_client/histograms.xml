@@ -177,7 +177,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SBClientDownload.DownloadRequestDuration{Analysis}" units="ms"
-    expires_after="2026-04-12">
+    expires_after="2026-06-21">
   <owner>chlily@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -604,7 +604,21 @@ useful for Chirp alerts (go/crca-alerts). -->
   </summary>
 </histogram>
 
-<histogram name="SBClientPhishing.CreditCardFormEvent2.{EventName}"
+<histogram name="SBClientPhishing.CreditCardFormDedupedEvent"
+    enum="CreditCardFormEvent" expires_after="2026-12-10">
+  <owner>andysjlim@chromium.org</owner>
+  <owner>bcb@chromium.org</owner>
+  <owner>chrome-counter-abuse-alerts@google.com</owner>
+  <summary>
+    Records a credit card form event that may trigger a CSD ping, with an enum
+    that represents the permutation of details for that event. This is recorded
+    on every event that may trigger a CREDIT_CARD_FORM classification attempt,
+    after checking for ESB, and after filtering to only the first event of a URL
+    visit.
+  </summary>
+</histogram>
+
+<histogram name="SBClientPhishing.CreditCardFormEvent"
     enum="CreditCardFormEvent" expires_after="2026-11-13">
   <owner>andysjlim@chromium.org</owner>
   <owner>bcb@chromium.org</owner>
@@ -612,15 +626,9 @@ useful for Chirp alerts (go/crca-alerts). -->
   <summary>
     Records a credit card form event that may trigger a CSD ping, with an enum
     that represents the permutation of details for that event. This is recorded
-    on every {EventName} event that may trigger a CREDIT_CARD_FORM
-    classification attempt, after checking for ESB.
+    on every event that may trigger a CREDIT_CARD_FORM classification attempt,
+    after checking for ESB.
   </summary>
-  <token key="EventName">
-    <variant name="OnAfterFocusOnFormField"
-        summary="Autofill OnAfterFocusOnFormField"/>
-    <variant name="OnFieldTypesDetermined"
-        summary="Autofill OnFieldTypesDetermined"/>
-  </token>
 </histogram>
 
 <histogram name="SBClientPhishing.CSDPhishingCachedDataAvailable"
@@ -1086,7 +1094,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 
 <histogram
     name="SBClientPhishing.OnDeviceModelSessionAliveOnNewPreclassification"
-    enum="BooleanExists" expires_after="2026-04-14">
+    enum="BooleanExists" expires_after="2026-06-21">
   <owner>andysjlim@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -1102,7 +1110,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SBClientPhishing.OnDeviceModelSessionCreationSuccess"
-    enum="BooleanSuccess" expires_after="2026-04-12">
+    enum="BooleanSuccess" expires_after="2026-06-14">
   <owner>andysjlim@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -1259,7 +1267,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SBClientPhishing.RedirectChainContainsForcedTriggerInfo"
-    enum="BooleanExists" expires_after="2026-04-16">
+    enum="BooleanExists" expires_after="2026-06-21">
   <owner>andysjlim@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -1271,7 +1279,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SBClientPhishing.RedirectChainContainsForceRequest"
-    enum="BooleanExists" expires_after="2026-04-14">
+    enum="BooleanExists" expires_after="2026-06-21">
   <owner>andysjlim@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -1346,7 +1354,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SBClientPhishing.VerdictParseSuccessful" enum="BooleanSuccess"
-    expires_after="2025-12-21">
+    expires_after="2026-12-15">
   <owner>andysjlim@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -1355,6 +1363,38 @@ useful for Chirp alerts (go/crca-alerts). -->
 
     This metric is used to validate that the verdict can always be successfully
     parsed when the phishing detector result is SUCCESS
+  </summary>
+</histogram>
+
+<histogram name="SBClientPhishing.Viewport.EncodedResolution" units="encoded"
+    expires_after="2026-12-19">
+  <owner>andysjlim@chromium.org</owner>
+  <owner>chrome-counter-abuse-alerts@google.com</owner>
+  <summary>
+    The width x height of the viewport encoded as an integer. The upper 16 bits
+    is the width and the lower 16 bits is the height. Decode using bitwise
+    operations in queries. It is recorded whenever CSD checks if visual features
+    can be extracted.
+  </summary>
+</histogram>
+
+<histogram name="SBClientPhishing.Viewport.Height" units="pixels"
+    expires_after="2026-12-19">
+  <owner>andysjlim@chromium.org</owner>
+  <owner>chrome-counter-abuse-alerts@google.com</owner>
+  <summary>
+    The height of the viewport. It is recorded whenever CSD checks if visual
+    features can be extracted.
+  </summary>
+</histogram>
+
+<histogram name="SBClientPhishing.Viewport.Width" units="pixels"
+    expires_after="2026-12-19">
+  <owner>andysjlim@chromium.org</owner>
+  <owner>chrome-counter-abuse-alerts@google.com</owner>
+  <summary>
+    The width of the viewport. It is recorded whenever CSD checks if visual
+    features can be extracted.
   </summary>
 </histogram>
 

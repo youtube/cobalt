@@ -8,6 +8,8 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 
+#import "base/ios/block_types.h"
+
 enum class ComposeboxEntrypoint;
 namespace base {
 class ScopedClosureRunner;
@@ -62,6 +64,11 @@ enum class TrustedVaultUserActionTriggerForUMA;
 // Hides the composebox. If not `immediately`, the prototype will be stopped
 // on the next run loop.
 - (void)hideComposeboxImmediately:(BOOL)immediately;
+
+// Hides the compose box. If `immediately` is NO, the operation stops on the
+// next run loop. The completion block is called once hidden.
+- (void)hideComposeboxImmediately:(BOOL)immediately
+                       completion:(ProceduralBlock)completion;
 
 // Shows the activity indicator overlay that appears over the view to prevent
 // interaction with the web page until the returned value is destructed.
@@ -139,11 +146,6 @@ enum class TrustedVaultUserActionTriggerForUMA;
 // Show the add account view
 - (void)showAddAccountWithAccessPoint:(signin_metrics::AccessPoint)accessPoint
                        prefilledEmail:(NSString*)email;
-
-// Presents the Trusted Vault reauthentication dialog. `trigger` indicates an
-// entry point from which the trusted vault reauth has been triggered.
-- (void)performReauthToRetrieveTrustedVaultKey:
-    (trusted_vault::TrustedVaultUserActionTriggerForUMA)trigger;
 
 // Forces fullscreen mode which means that toolbars are collapsed.
 - (void)forceFullscreenMode;

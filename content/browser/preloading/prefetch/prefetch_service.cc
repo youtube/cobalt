@@ -1329,6 +1329,8 @@ void PrefetchService::OnGotEligibilityForRedirect(
     return;
   }
 
+  prefetch_container->UpdateResourceRequest(redirect_info);
+
   prefetch_container->NotifyPrefetchRequestWillBeSent(&redirect_head);
 
   // If the redirect requires a change in network contexts, then stop the
@@ -1752,7 +1754,8 @@ void PrefetchService::SendPrefetchRequest(
       prefetch_container->GetResponseReaderForCurrentPrefetch(),
       prefetch_container->service_worker_state(), browser_context_,
       base::BindOnce(&PrefetchContainer::OnServiceWorkerStateDetermined,
-                     prefetch_container));
+                     prefetch_container),
+      prefetch_container->request().preload_pipeline_info().GetFlow());
   prefetch_container->SetStreamingURLLoader(std::move(streaming_loader));
 
   DVLOG(1) << *prefetch_container << ": PrefetchStreamingURLLoader is created.";
@@ -2066,10 +2069,14 @@ PrefetchService::CollectMatchCandidates(
     const PrefetchKey& key,
     bool is_nav_prerender,
     base::WeakPtr<PrefetchServingPageMetricsContainer>
-        serving_page_metrics_container) {
+        serving_page_metrics_container,
+    const PrefetchKey* key_ahead_of_prerender,
+    PrefetchPotentialCandidateCollectResult*
+        collect_result_ahead_of_prerender) {
   return CollectMatchCandidatesGeneric(
       owned_prefetches(), key, is_nav_prerender,
-      std::move(serving_page_metrics_container));
+      std::move(serving_page_metrics_container), key_ahead_of_prerender,
+      collect_result_ahead_of_prerender);
 }
 
 PrefetchContainer* PrefetchService::FindPrefetchAheadOfPrerenderForMetrics(

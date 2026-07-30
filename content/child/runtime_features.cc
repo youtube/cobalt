@@ -206,6 +206,8 @@ void SetRuntimeFeaturesFromChromiumFeatures() {
            kSetOnlyIfOverridden},
           {wf::EnableDocumentPolicyNegotiation,
            raw_ref(features::kDocumentPolicyNegotiation)},
+          {wf::EnableEmailVerificationProtocol,
+           raw_ref(features::kEmailVerificationProtocol), kDefault},
           {wf::EnableEyeDropperAPI, raw_ref(features::kEyeDropper),
            kSetOnlyIfOverridden},
           {wf::EnableFedCm, raw_ref(features::kFedCm), kSetOnlyIfOverridden},
@@ -415,7 +417,10 @@ void SetRuntimeFeaturesFromChromiumFeatures() {
           {"WebAppLaunchQueue", raw_ref(features::kAndroidWebAppLaunchHandler)},
 #endif
           {"LocalNetworkAccessPermissionPolicy",
-           raw_ref(network::features::kLocalNetworkAccessChecks)}};
+           raw_ref(network::features::kLocalNetworkAccessChecks)},
+          {"LocalNetworkAccessSplitPermissions",
+           raw_ref(
+               network::features::kLocalNetworkAccessChecksSplitPermissions)}};
   for (const auto& mapping : runtimeFeatureNameToChromiumFeatureMapping) {
     SetRuntimeFeatureFromChromiumFeature(
         *mapping.chromium_feature, mapping.option, [&mapping](bool enabled) {

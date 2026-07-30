@@ -202,9 +202,9 @@ class CompositorFrameSinkSupportTestBase : public testing::Test {
   void UnrefResources(base::span<ResourceId> ids_to_unref,
                       base::span<int> counts_to_unref) {
     CHECK_EQ(ids_to_unref.size(), counts_to_unref.size());
-    std::vector<ReturnedResource> unref_array;
+    std::vector<ReturnedResourceViz> unref_array;
     for (size_t i = 0; i < ids_to_unref.size(); ++i) {
-      ReturnedResource resource;
+      ReturnedResourceViz resource;
       resource.sync_token = consumer_sync_token_;
       resource.id = ids_to_unref[i];
       resource.count = counts_to_unref[i];
@@ -234,7 +234,8 @@ class CompositorFrameSinkSupportTestBase : public testing::Test {
     ASSERT_EQ(expected_returned_ids.size(), actual_resources.size());
     for (size_t i = 0; i < expected_returned_ids.size(); ++i) {
       const auto& resource = actual_resources[i];
-      EXPECT_EQ(expected_sync_token, resource.sync_token);
+      EXPECT_TRUE(resource.shared_image_export_result.IsEqualForTesting(
+          expected_sync_token));
       EXPECT_EQ(expected_returned_ids[i], resource.id);
       EXPECT_EQ(expected_returned_counts[i], resource.count);
     }

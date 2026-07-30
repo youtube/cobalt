@@ -142,7 +142,8 @@ void MayActOnUrlInternal(
     const GURL& url,
     bool allow_insecure_http,
     Profile* profile,
-    base::optional_ref<const absl::flat_hash_set<url::Origin>> allowed_origins,
+    base::optional_ref<const ConfirmedOriginSet> confirmed_origins,
+    EnterprisePolicyCallback enterprise_policy_eval_url,
     std::unique_ptr<DecisionWrapper> decision_wrapper) {
   if ((net::IsLocalhost(url) && url.SchemeIsHTTPOrHTTPS()) ||
       url.IsAboutBlank()) {
@@ -225,6 +226,20 @@ void MayActOnUrlInternal(
     }
   }
 
+  const EnterprisePolicyBlockReason enterprise_reason =
+      std::move(enterprise_policy_eval_url).Run(url);
+  switch (enterprise_reason) {
+    case EnterprisePolicyBlockReason::kNotBlocked:
+      break;
+    case EnterprisePolicyBlockReason::kExplicitlyAllowed:
+      decision_wrapper->Accept();
+      return;
+    case EnterprisePolicyBlockReason::kExplicitlyBlocked:
+      decision_wrapper->Reject("Enterprise policy block",
+                               MayActOnUrlBlockReason::kEnterprisePolicy);
+      return;
+  }
+
   auto* lookalike_service = LookalikeUrlServiceFactory::GetForProfile(profile);
   LookalikeUrlService::LookalikeUrlCheckResult lookalike_result =
       lookalike_service->CheckUrlForLookalikes(
@@ -247,11 +262,11 @@ void MayActOnUrlInternal(
 
   // Blocklist is checked by `ShouldBlockNavigationUrlForOriginGating` when this
   // feature is enabled, and origins the user allowed the actor to interact with
-  // will be included in the `allowed_origins` set. If `url` has an origin not
+  // will be included in the `confirmed_origins` set. If `url` has an origin not
   // in the set, we apply the optimization guide check.
   if (IsNavigationGatingEnabled() &&
-      (!allowed_origins ||
-       base::Contains(*allowed_origins, url::Origin::Create(url)))) {
+      (!confirmed_origins ||
+       base::Contains(confirmed_origins->value(), url::Origin::Create(url)))) {
     decision_wrapper->Accept();
     return;
   }
@@ -297,7 +312,8 @@ void InitActionBlocklist(Profile* profile) {
 void MayActOnTab(const tabs::TabInterface& tab,
                  AggregatedJournal& journal,
                  TaskId task_id,
-                 const absl::flat_hash_set<url::Origin>& allowed_origins,
+                 const ConfirmedOriginSet& confirmed_origins,
+                 EnterprisePolicyCallback enterprise_policy_eval_url,
                  DecisionCallbackWithReason callback) {
   content::WebContents& web_contents = *tab.GetContents();
 
@@ -329,7 +345,8 @@ void MayActOnTab(const tabs::TabInterface& tab,
   MayActOnUrlInternal(
       url, /*allow_insecure_http=*/false,
       Profile::FromBrowserContext(web_contents.GetBrowserContext()),
-      allowed_origins, std::move(decision_wrapper));
+      confirmed_origins, std::move(enterprise_policy_eval_url),
+      std::move(decision_wrapper));
 }
 
 void MayActOnUrl(const GURL& url,
@@ -337,27 +354,13 @@ void MayActOnUrl(const GURL& url,
                  Profile* profile,
                  AggregatedJournal& journal,
                  TaskId task_id,
-                 DecisionCallback callback) {
-  std::unique_ptr<DecisionWrapper> decision_wrapper =
-      std::make_unique<DecisionWrapper>(
-          journal, url, task_id, "MayActOnUrl",
-          base::BindOnce([](MayActOnUrlBlockReason block_reason) {
-            return block_reason == MayActOnUrlBlockReason::kAllowed;
-          }).Then(std::move(callback)));
-  MayActOnUrlInternal(url, allow_insecure_http, profile, std::nullopt,
-                      std::move(decision_wrapper));
-}
-
-void MayActOnUrl(const GURL& url,
-                 bool allow_insecure_http,
-                 Profile* profile,
-                 AggregatedJournal& journal,
-                 TaskId task_id,
+                 EnterprisePolicyCallback enterprise_policy_eval_url,
                  DecisionCallbackWithReason callback) {
   std::unique_ptr<DecisionWrapper> decision_wrapper =
       std::make_unique<DecisionWrapper>(journal, url, task_id, "MayActOnUrl",
                                         std::move(callback));
   MayActOnUrlInternal(url, allow_insecure_http, profile, std::nullopt,
+                      std::move(enterprise_policy_eval_url),
                       std::move(decision_wrapper));
 }
 

@@ -47,6 +47,7 @@
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/lens_commands.h"
 #import "ios/chrome/browser/shared/public/commands/open_lens_input_selection_command.h"
+#import "ios/chrome/browser/shared/public/commands/qr_scanner_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 #import "ios/chrome/browser/shared/ui/util/util_swift.h"
@@ -66,7 +67,7 @@
 namespace {
 const size_t kMaxURLDisplayChars = 32 * 1024;
 const CGFloat kSnackbarBottomMargin = 10;
-}
+}  // namespace
 
 @interface ComposeboxInputPlateCoordinator () <
     ComposeboxInputPlateMediatorDelegate,
@@ -104,6 +105,7 @@ const CGFloat kSnackbarBottomMargin = 10;
   ComposeboxTheme* _theme;
   ComposeboxMetricsRecorder* _metricsRecorder;
   ComposeboxModeHolder* _modeHolder;
+  ComposeboxSnackbarPresenter* _snackbarPresenter;
 }
 
 - (instancetype)initWithBaseViewController:(UIViewController*)baseViewController
@@ -168,7 +170,9 @@ const CGFloat kSnackbarBottomMargin = 10;
                            modeHolder:_modeHolder
                    templateURLService:templateURLService
                 aimEligibilityService:IOSChromeAimEligibilityServiceFactory::
-                                          GetForProfile(self.profile)];
+                                          GetForProfile(self.profile)
+                          prefService:self.profile->GetPrefs()];
+
   _mediator.URLLoader = _URLLoader;
   _mediator.consumer = _viewController;
   _mediator.delegate = self;
@@ -211,6 +215,7 @@ const CGFloat kSnackbarBottomMargin = 10;
 }
 
 - (void)stop {
+  [_snackbarPresenter dismissAllSnackbars];
   if (_tabPickerCoordinator.started) {
     [_tabPickerCoordinator stop];
   }
@@ -262,9 +267,7 @@ const CGFloat kSnackbarBottomMargin = 10;
                 didTapLensButton:(UIButton*)lensButton {
   OpenLensInputSelectionCommand* command = [[OpenLensInputSelectionCommand
       alloc]
-          // TODO(crbug.com/452307696) : Add and update the entrypoint to
-          // reflect on the aim composebox.
-          initWithEntryPoint:LensEntrypoint::Keyboard
+          initWithEntryPoint:LensEntrypoint::Composebox
            presentationStyle:LensInputSelectionPresentationStyle::SlideFromRight
       presentationCompletion:nil];
   __weak id<LensCommands> handler =
@@ -276,6 +279,17 @@ const CGFloat kSnackbarBottomMargin = 10;
                          }];
 }
 
+- (void)composeboxViewController:
+            (ComposeboxInputPlateViewController*)composeboxViewController
+           didTapQRScannerButton:(UIButton*)button {
+  __weak id<QRScannerCommands> handler = HandlerForProtocol(
+      self.browser->GetCommandDispatcher(), QRScannerCommands);
+  [self.baseViewController dismissViewControllerAnimated:YES
+                                              completion:^{
+                                                [handler showQRScanner];
+                                              }];
+}
+
 - (void)composeboxViewControllerDidTapGalleryButton:
     (ComposeboxInputPlateViewController*)composeboxViewController {
   [_metricsRecorder
@@ -284,8 +298,7 @@ const CGFloat kSnackbarBottomMargin = 10;
     [self showMaxAttachmentSnackbarError];
     return;
   }
-    [self
-        composeboxViewControllerMayShowGalleryPicker:composeboxViewController];
+  [self composeboxViewControllerMayShowGalleryPicker:composeboxViewController];
   [_viewController presentViewController:_picker animated:YES completion:nil];
 }
 
@@ -513,24 +526,30 @@ const CGFloat kSnackbarBottomMargin = 10;
 /// Displays a snackbar error indicating the maximum number of attachments has
 /// been reached.
 - (void)showMaxAttachmentSnackbarError {
-  ComposeboxSnackbarPresenter* snackbar =
-      [[ComposeboxSnackbarPresenter alloc] initWithBrowser:self.browser];
+  [self createSnackbarPresenterIfNeeded];
   CGFloat offset = _viewController.keyboardHeight;
   if (!_theme.isTopInputPlate) {
     offset += _viewController.inputHeight + kSnackbarBottomMargin;
   }
-  [snackbar showAttachmentLimitSnackbarWithBottomOffset:offset];
+  [_snackbarPresenter showAttachmentLimitSnackbarWithBottomOffset:offset];
 }
 
 /// Displays a snackbar error indicating that attachment failed to be added.
 - (void)showUnableToAddAttachmentSnackbarError {
-  ComposeboxSnackbarPresenter* snackbar =
-      [[ComposeboxSnackbarPresenter alloc] initWithBrowser:self.browser];
+  [self createSnackbarPresenterIfNeeded];
   CGFloat offset = _viewController.keyboardHeight;
   if (!_theme.isTopInputPlate) {
     offset += _viewController.inputHeight + kSnackbarBottomMargin;
   }
-  [snackbar showUnableToAddAttachmentSnackbarWithBottomOffset:offset];
+  [_snackbarPresenter showUnableToAddAttachmentSnackbarWithBottomOffset:offset];
+}
+
+- (void)createSnackbarPresenterIfNeeded {
+  if (_snackbarPresenter) {
+    return;
+  }
+  _snackbarPresenter =
+      [[ComposeboxSnackbarPresenter alloc] initWithBrowser:self.browser];
 }
 
 @end

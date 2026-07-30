@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.tab;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
+import static org.chromium.chrome.browser.url_constants.UrlConstantResolver.getOriginalNativeHistoryUrl;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
@@ -42,6 +43,7 @@ import org.chromium.base.UserDataHost;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.process_launcher.ScopedServiceBindingBatch;
+import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.base.version_info.VersionInfo;
 import org.chromium.build.annotations.EnsuresNonNullIf;
@@ -282,7 +284,7 @@ class TabImpl implements Tab {
     private boolean mInteractableState;
 
     /** Whether the tab is currently detached for reparenting. */
-    private boolean mIsDetached;
+    private boolean mIsDetachedFromActivity;
 
     /** Whether or not the tab's active view is attached to the window. */
     private boolean mIsViewAttachedToWindow;
@@ -337,6 +339,8 @@ class TabImpl implements Tab {
     private @Nullable String mPendingNativePageHost;
 
     private @Nullable SmoothTransitionDelegate mNativePageSmoothTransitionDelegate;
+
+    private @Nullable Callback<Boolean> mIsDraggingObserver;
 
     /**
      * Notified when the content sensitivity changes, and sets the content sensitivity property on
@@ -484,7 +488,7 @@ class TabImpl implements Tab {
                 maybeShowNativePage(getUrl().getSpec(), true, PdfUtils.getPdfInfo(getNativePage()));
             }
         } else {
-            updateIsDetached(window);
+            updateIsDetachedFromActivity(window);
 
             // Clear the current tab supplier during detachment/reparenting to indicate that the
             // tab is not held by another tab model. For unclear reasons, removeTab() doesn't
@@ -680,34 +684,35 @@ class TabImpl implements Tab {
     }
 
     @Override
-    public boolean isDetached() {
-        assert !checkAttached() == mIsDetached
-                : "Activity/Window attachment does not match Tab.mIsDetached == " + mIsDetached;
-        return mIsDetached;
+    public boolean isDetachedFromActivity() {
+        assert !checkAttachedToActivity() == mIsDetachedFromActivity
+                : "Activity/Window attachment does not match Tab.mIsDetachedFromActivity == "
+                        + mIsDetachedFromActivity;
+        return mIsDetachedFromActivity;
     }
 
-    private void updateIsDetached(@Nullable WindowAndroid window) {
-        // HiddenTabHolder relies on isDetached() being true to determine whether the tab is
-        // a background tab during initWebContents() before invoking ReparentingTask#detach().
-        // In this scenario, the tab owns its own WindowAndroid and has no activity attachment.
-        // We must check this as an additional condition to detachment for this case to continue
-        // to work. See https://crbug.com/1501849.
-        mIsDetached = window == null || !windowHasActivity(window);
+    private void updateIsDetachedFromActivity(@Nullable WindowAndroid window) {
+        // HiddenTabHolder relies on isDetachedFromActivity() being true to determine whether the
+        // tab is a background tab during initWebContents() before invoking
+        // ReparentingTask#detach(). In this scenario, the tab owns its own WindowAndroid and has no
+        // activity attachment. We must check this as an additional condition to detachment for this
+        // case to continue to work. See https://crbug.com/1501849.
+        mIsDetachedFromActivity = window == null || !windowHasActivity(window);
         updateWebContentsVisibility();
     }
 
-    private boolean checkAttached() {
+    private boolean checkAttachedToActivity() {
         // getWindowAndroid() cannot be null (see updateWindowAndroid()) so this is effectively
         // checking to ensure whether the WebContents has a window and the tab is attached to an
         // activity.
         boolean hasActivity = getWindowAndroid() != null && windowHasActivity(getWindowAndroid());
         WebContents webContents = getWebContents();
         return webContents == null
-                ? !mIsDetached && hasActivity
+                ? !mIsDetachedFromActivity && hasActivity
                 : (webContents.getTopLevelNativeWindow() != null && hasActivity);
     }
 
-    private boolean windowHasActivity(WindowAndroid window) {
+    private static boolean windowHasActivity(WindowAndroid window) {
         return ContextUtils.activityFromContext(window.getContext().get()) != null;
     }
 
@@ -824,7 +829,7 @@ class TabImpl implements Tab {
         // typing chrome://history as well as selecting from the drop down menu.
         String fixedUrlSpec = fixedUrl.getSpec();
         if (UrlConstants.HISTORY_HOST.equals(fixedUrlSpec)
-                || UrlConstants.NATIVE_HISTORY_URL.equals(fixedUrlSpec)) {
+                || getOriginalNativeHistoryUrl().equals(fixedUrlSpec)) {
             RecordUserAction.record("ShowHistory");
         }
 
@@ -1161,7 +1166,8 @@ class TabImpl implements Tab {
         if (webContents == null) return;
         if (mIsHidden) {
             webContents.updateWebContentsVisibility(Visibility.HIDDEN);
-        } else if (!mIsDetached && assumeNonNull(mWindowAndroid).getOcclusionSupplier().get()) {
+        } else if (!mIsDetachedFromActivity
+                && assumeNonNull(mWindowAndroid).getOcclusionSupplier().get()) {
             // If we are not attached to a window, occlusion does not make sense.
             webContents.updateWebContentsVisibility(Visibility.OCCLUDED);
         } else {
@@ -1281,6 +1287,14 @@ class TabImpl implements Tab {
         // Set at the start since destroying the WebContents can lead to calling back into
         // this class.
         mIsDestroyed = true;
+
+        if (mIsDraggingObserver != null) {
+            TabDragStateData data = TabDragStateData.getForTab(this);
+            if (data != null) {
+                data.getIsDraggingSupplier().removeObserver(mIsDraggingObserver);
+            }
+            mIsDraggingObserver = null;
+        }
 
         // Update the title before destroying the tab. http://b/5783092
         updateTitle();
@@ -1457,6 +1471,14 @@ class TabImpl implements Tab {
 
             TabHelpers.initTabHelpers(this, parent);
 
+            mIsDraggingObserver =
+                    (isDragging) -> {
+                        if (mNativeTabAndroid != 0) {
+                            TabImplJni.get().onDraggingStateChanged(mNativeTabAndroid, isDragging);
+                        }
+                    };
+            getIsDraggingSupplier().addObserver(mIsDraggingObserver);
+
             if (tabState != null) {
                 restoreFieldsFromState(tabState);
             }
@@ -1623,9 +1645,9 @@ class TabImpl implements Tab {
             windowAndroid.getOcclusionSupplier().addObserver(mOcclusionCallback);
         }
 
-        // updateIsDetached will also update the web contents visibility if the
+        // updateIsDetachedFromActivity will also update the web contents visibility if the
         // occlusion has changed.
-        updateIsDetached(windowAndroid);
+        updateIsDetachedFromActivity(windowAndroid);
     }
 
     @Nullable TabDelegateFactory getDelegateFactory() {
@@ -1907,7 +1929,7 @@ class TabImpl implements Tab {
         // While detached for reparenting we don't have an owning Activity, or TabModelSelector,
         // so we can't create the native page. The native page will be created once reparenting is
         // completed.
-        if (isDetached()) return false;
+        if (isDetachedFromActivity()) return false;
         // TODO(crbug.com/40943608): Remove the assert after determining why WebContents can be
         // null.
         WebContents webContents = getWebContents();
@@ -2177,7 +2199,7 @@ class TabImpl implements Tab {
             // TODO(crbug.com/40942165): Find a better way of indicating this is a background tab
             // (or
             // move the logic elsewhere).
-            boolean isBackgroundTab = isDetached();
+            boolean isBackgroundTab = isDetachedFromActivity();
 
             assert mNativeTabAndroid != 0;
             assumeNonNull(mDelegateFactory);
@@ -2332,7 +2354,7 @@ class TabImpl implements Tab {
      */
     private void updateInteractableState() {
         boolean currentState =
-                !mIsHidden && !isFrozen() && mIsViewAttachedToWindow && !isDetached();
+                !mIsHidden && !isFrozen() && mIsViewAttachedToWindow && !isDetachedFromActivity();
 
         if (currentState == mInteractableState) return;
 
@@ -2916,6 +2938,18 @@ class TabImpl implements Tab {
 
     @Override
     @CalledByNative
+    public boolean isDragging() {
+        TabDragStateData data = TabDragStateData.getForTab(this);
+        return data != null && data.getIsDraggingSupplier().get();
+    }
+
+    private NonNullObservableSupplier<Boolean> getIsDraggingSupplier() {
+        TabDragStateData data = TabDragStateData.getOrCreateForTab(this);
+        return data.getIsDraggingSupplier();
+    }
+
+    @Override
+    @CalledByNative
     public boolean isMultiSelected() {
         if (mSelectionStateSupplier == null) return false;
         return mSelectionStateSupplier.isTabMultiSelected(mId);
@@ -2984,6 +3018,8 @@ class TabImpl implements Tab {
         void notifyTabGroupChanged(
                 long nativeTabAndroid,
                 @JniType("std::optional<base::Token>") @Nullable Token tabGroupId);
+
+        void onDraggingStateChanged(long nativeTabAndroid, boolean isDragging);
     }
 
     @VisibleForTesting

@@ -35,7 +35,7 @@
 #include "style_rule.h"
 #include "third_party/blink/renderer/core/css/css_markup.h"
 #include "third_party/blink/renderer/core/css/css_selector_list.h"
-#include "third_party/blink/renderer/core/css/navigation_query.h"
+#include "third_party/blink/renderer/core/css/link_condition.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser_context.h"
 #include "third_party/blink/renderer/core/css/parser/css_selector_parser.h"
 #include "third_party/blink/renderer/core/css/parser/css_tokenizer.h"
@@ -478,10 +478,10 @@ PseudoId CSSSelector::GetPseudoId(PseudoType type) {
     case kPseudoOpen:
     case kPseudoOptional:
     case kPseudoOutOfRange:
+    case kPseudoOverscrollTarget:
     case kPseudoParent:
     case kPseudoPart:
     case kPseudoPastCue:
-    case kPseudoPatching:
     case kPseudoPaused:
     case kPseudoPermissionGranted:
     case kPseudoPictureInPicture:
@@ -575,6 +575,7 @@ constexpr static NameToPseudoStruct kPseudoTypeWithoutArgumentsMap[] = {
     {"-internal-menulist-popover-with-menulist-anchor",
      CSSSelector::kPseudoMenulistPopoverWithMenulistAnchor},
     {"-internal-multi-select-focus", CSSSelector::kPseudoMultiSelectFocus},
+    {"-internal-overscroll-target", CSSSelector::kPseudoOverscrollTarget},
     {"-internal-popover-in-top-layer", CSSSelector::kPseudoPopoverInTopLayer},
     {"-internal-relative-anchor", CSSSelector::kPseudoRelativeAnchor},
     {"-internal-selector-fragment-anchor",
@@ -658,7 +659,6 @@ constexpr static NameToPseudoStruct kPseudoTypeWithoutArgumentsMap[] = {
     {"optional", CSSSelector::kPseudoOptional},
     {"out-of-range", CSSSelector::kPseudoOutOfRange},
     {"past", CSSSelector::kPseudoPastCue},
-    {"patching", CSSSelector::kPseudoPatching},
     {"paused", CSSSelector::kPseudoPaused},
     {"permission-icon", CSSSelector::kPseudoPermissionIcon},
     {"picker-icon", CSSSelector::kPseudoPickerIcon},
@@ -779,11 +779,6 @@ CSSSelector::PseudoType CSSSelector::NameToPseudoType(
 
   if (match->type == CSSSelector::kPseudoPlaying &&
       !RuntimeEnabledFeatures::CSSPseudoPlayingPausedEnabled()) {
-    return CSSSelector::kPseudoUnknown;
-  }
-
-  if (match->type == CSSSelector::kPseudoPatching &&
-      !RuntimeEnabledFeatures::DocumentPatchingEnabled()) {
     return CSSSelector::kPseudoUnknown;
   }
 
@@ -1049,9 +1044,9 @@ void CSSSelector::UpdatePseudoType(const AtomicString& value,
     case kPseudoOpen:
     case kPseudoOptional:
     case kPseudoOutOfRange:
+    case kPseudoOverscrollTarget:
     case kPseudoParent:
     case kPseudoPastCue:
-    case kPseudoPatching:
     case kPseudoPaused:
     case kPseudoPermissionGranted:
     case kPseudoPictureInPicture:
@@ -1305,9 +1300,9 @@ void CSSSelector::SerializeSimpleSelector(StringBuilder& builder,
         break;
       }
       case kPseudoLinkTo: {
-        DCHECK(GetNavigationLocation());
+        DCHECK(GetLinkCondition());
         builder.Append("(");
-        GetNavigationLocation()->SerializeTo(builder);
+        GetLinkCondition()->SerializeTo(builder);
         builder.Append(")");
         break;
       }
@@ -1522,9 +1517,9 @@ void CSSSelector::SetSelectorList(CSSSelectorList* selector_list) {
   data_.rare_data_->selector_list_ = selector_list;
 }
 
-void CSSSelector::SetNavigationLocation(NavigationLocation* location) {
+void CSSSelector::SetLinkCondition(LinkCondition* condition) {
   CreateRareData();
-  data_.rare_data_->navigation_location_ = location;
+  data_.rare_data_->link_condition_ = condition;
 }
 
 void CSSSelector::SetContainsPseudoInsideHasPseudoClass() {
@@ -1828,6 +1823,7 @@ bool CSSSelector::IsAllowedAfterPart() const {
     case kPseudoMenulistPopoverWithMenulistAnchor:
     case kPseudoModal:
     case kPseudoOptional:
+    case kPseudoOverscrollTarget:
     case kPseudoPermissionGranted:
     case kPseudoPlaceholderShown:
     case kPseudoReadOnly:
@@ -1847,7 +1843,6 @@ bool CSSSelector::IsAllowedAfterPart() const {
     case kPseudoFullscreen:
     case kPseudoInRange:
     case kPseudoOutOfRange:
-    case kPseudoPatching:
     case kPseudoPaused:
     case kPseudoPictureInPicture:
     case kPseudoPlaying:
@@ -2092,7 +2087,7 @@ void CSSSelector::Trace(Visitor* visitor) const {
 
 void CSSSelector::RareData::Trace(Visitor* visitor) const {
   visitor->Trace(selector_list_);
-  visitor->Trace(navigation_location_);
+  visitor->Trace(link_condition_);
 }
 
 const CSSSelector* CSSSelector::SelectorListOrParent() const {

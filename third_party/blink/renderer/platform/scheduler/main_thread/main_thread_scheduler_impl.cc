@@ -72,6 +72,10 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/self_compaction_manager.h"
+#include "base/functional/callback_forward.h"
+#include "base/functional/callback_helpers.h"
+#include "base/task/thread_pool.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
 #endif
 
 namespace base {
@@ -86,6 +90,13 @@ namespace scheduler {
 // threads.
 BASE_FEATURE(kLowerPriorityForCompositorGestures,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+#if BUILDFLAG(IS_ANDROID)
+// On devices with at least 3 CPU clusters, only selectively allow the renderer
+// main thread to run on the bigggest one.
+BASE_FEATURE(kRestrictMainThreadBigCoreAffinity,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
 
 using base::sequence_manager::TaskQueue;
 using base::sequence_manager::TaskTimeObserver;
@@ -205,6 +216,73 @@ void MaybeSetBusyLoop(raw_ptr<base::MessagePump> message_pump,
 
 }  // namespace
 
+#if BUILDFLAG(IS_ANDROID)
+// static
+uint64_t ThreadAffinityBoost::depth_ = 0;
+// static
+base::TaskRunner* ThreadAffinityBoost::task_runner_for_testing_ = nullptr;
+// static
+base::RepeatingCallback<void(base::PlatformThreadId, bool)>*
+    ThreadAffinityBoost::set_can_run_on_big_core_override_ = nullptr;
+
+ThreadAffinityBoost::ThreadAffinityBoost()
+    : thread_id_(base::PlatformThread::CurrentId()) {
+  TRACE_EVENT("blink", __PRETTY_FUNCTION__);
+  base::AutoLock guard(lock());
+  TRACE_EVENT_BEGIN("blink", "ThreadAffinityBoost",
+                    perfetto::Track(reinterpret_cast<uintptr_t>(this)), "depth",
+                    depth_ + 1);
+  if (depth_++ == 0) {
+    if (set_can_run_on_big_core_override_) {
+      set_can_run_on_big_core_override_->Run(thread_id_, true);
+    } else {
+      base::SetCanRunOnBigCore(thread_id_, true);
+    }
+  }
+}
+
+ThreadAffinityBoost::~ThreadAffinityBoost() {
+  // A lock is needed, with atomics we could race with the main thread raising
+  // its priority again.
+  base::AutoLock guard(lock());
+  TRACE_EVENT("blink", __PRETTY_FUNCTION__, "depth", depth_);
+  TRACE_EVENT_END("blink", perfetto::Track(reinterpret_cast<uintptr_t>(this)));
+
+  if (--depth_ == 0) {
+    if (set_can_run_on_big_core_override_) {
+      set_can_run_on_big_core_override_->Run(thread_id_, false);
+    } else {
+      base::SetCanRunOnBigCore(thread_id_, false);
+    }
+  }
+}
+
+// static
+void ThreadAffinityBoost::StopDelayed(
+    std::unique_ptr<ThreadAffinityBoost> boost,
+    base::TimeDelta delay) {
+  TRACE_EVENT("blink", __PRETTY_FUNCTION__);
+  DCHECK(boost);
+  if (!delay.is_zero()) {
+    base::OnceClosure task = base::DoNothingWithBoundArgs(std::move(boost));
+    if (task_runner_for_testing_) {
+      task_runner_for_testing_->PostDelayedTask(FROM_HERE, std::move(task),
+                                                delay);
+    } else if (base::ThreadPoolInstance::Get()) {
+      base::ThreadPool::PostDelayedTask(FROM_HERE, std::move(task), delay);
+    }
+  } else {
+    // The unique_ptr<> will destroy the boost at the end of the scope.
+  }
+}
+
+// static
+base::Lock& ThreadAffinityBoost::lock() {
+  static base::NoDestructor<base::Lock> lock;
+  return *lock;
+}
+#endif  // BUILDFLAG(IS_ANDROID)
+
 MainThreadSchedulerImpl::MainThreadSchedulerImpl(
     std::unique_ptr<base::sequence_manager::SequenceManager> sequence_manager)
     : MainThreadSchedulerImpl(sequence_manager.get()) {
@@ -314,8 +392,7 @@ MainThreadSchedulerImpl::MainThreadSchedulerImpl(
   // Register a tracing state observer unless we're running in a test without a
   // task runner. Note that it's safe to remove a non-existent observer.
   if (base::SingleThreadTaskRunner::HasCurrentDefault()) {
-    base::trace_event::TraceLog::GetInstance()->AddAsyncEnabledStateObserver(
-        weak_factory_.GetWeakPtr());
+    trace_event::AddTraceSessionObserver(this);
   }
 
   internal::ProcessState::Get()->is_process_backgrounded =
@@ -328,6 +405,18 @@ MainThreadSchedulerImpl::MainThreadSchedulerImpl(
   // the main thread scheduler.
   memory_purge_task_queue_->SetQueuePriority(
       ComputePriority(memory_purge_task_queue_.get()));
+
+#if BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(kRestrictMainThreadBigCoreAffinity)) {
+    // Start with a "boost", that is initially allow the renderer to run
+    // everywhere. This is meant to help with initialization. In the worst case,
+    // the current use case never changes, and the renderer is always allowed to
+    // run on all cores. But that would also mean a renderer that didn't load
+    // anything, ad was never interacted with, which then means it should not
+    // use a lot of resources.
+    main_thread_only().affinity_boost = std::make_unique<ThreadAffinityBoost>();
+  }
+#endif
 }
 
 MainThreadSchedulerImpl::~MainThreadSchedulerImpl() {
@@ -344,8 +433,7 @@ MainThreadSchedulerImpl::~MainThreadSchedulerImpl() {
   CHECK(main_thread_only().detached_task_queues.empty());
   CHECK(!virtual_time_control_task_queue_);
 
-  base::trace_event::TraceLog::GetInstance()->RemoveAsyncEnabledStateObserver(
-      this);
+  trace_event::RemoveTraceSessionObserver(this);
 }
 
 // static
@@ -1537,6 +1625,28 @@ void MainThreadSchedulerImpl::UpdatePolicyLocked(UpdateType update_type) {
       base::PlatformThread::SetCurrentThreadType(desired_thread_type);
     }
   }
+
+#if BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(kRestrictMainThreadBigCoreAffinity)) {
+    switch (main_thread_only().current_use_case) {
+      case UseCase::kNone:
+        if (main_thread_only().affinity_boost) {
+          bool was_loading = previous_use_case == UseCase::kLoading ||
+                             previous_use_case == UseCase::kEarlyLoading;
+          base::TimeDelta delay =
+              was_loading ? base::Milliseconds(500) : base::TimeDelta();
+          ThreadAffinityBoost::StopDelayed(
+              std::move(main_thread_only().affinity_boost), delay);
+        }
+        break;
+      default:
+        if (!main_thread_only().affinity_boost) {
+          main_thread_only().affinity_boost =
+              std::make_unique<ThreadAffinityBoost>();
+        }
+    }
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 RAILMode ComputeCurrentRAILModeFromPerformanceScenario() {
@@ -2027,6 +2137,17 @@ void MainThreadSchedulerImpl::DidCommitProvisionalLoad(
       }
     }
   }
+
+#if BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(kRestrictMainThreadBigCoreAffinity)) {
+    // A new frame has been committed, let the main thread run on the biggest
+    // core for the next 500ms. We do it even if we are currently boosting,
+    // because we want to make sure that the boost doesn't expire before the
+    // delay.
+    ThreadAffinityBoost::StopDelayed(std::make_unique<ThreadAffinityBoost>(),
+                                     base::Milliseconds(500));
+  }
+#endif
 }
 
 void MainThreadSchedulerImpl::OnMainFramePaint() {
@@ -2339,15 +2460,6 @@ void MainThreadSchedulerImpl::OnPageFrozen(
           // |memory_purge_manager_| is a member of |this|, and will be deleted
           // first, so a raw pointer is safe here.
           weak_factory_.GetWeakPtr()));
-  memory_purge_manager_.SetOnAllPagesFrozenCallback(base::BindRepeating(
-      [](MainThreadSchedulerImpl* s, bool is_frozen) {
-        if (s->isolate()) {
-          s->isolate()->Freeze(is_frozen);
-        }
-      },
-      // |memory_purge_manager_| is a member of |this|, and will be deleted
-      // first, so a raw pointer is safe here.
-      base::Unretained(this)));
 #endif
   memory_purge_manager_.OnPageFrozen(called_from);
   UpdatePolicy();
@@ -2494,15 +2606,14 @@ MainThreadSchedulerImpl::CreateCPUTimeBudgetPoolForTesting(const char* name) {
                                              NowTicks());
 }
 
-void MainThreadSchedulerImpl::OnTraceLogEnabled() {
+void MainThreadSchedulerImpl::OnStart(
+    const perfetto::DataSourceBase::StartArgs&) {
   CreateTraceEventObjectSnapshot();
   tracing_controller_.OnTraceLogEnabled();
   for (PageSchedulerImpl* page_scheduler : main_thread_only().page_schedulers) {
     page_scheduler->OnTraceLogEnabled();
   }
 }
-
-void MainThreadSchedulerImpl::OnTraceLogDisabled() {}
 
 base::WeakPtr<MainThreadSchedulerImpl> MainThreadSchedulerImpl::GetWeakPtr() {
   return weak_factory_.GetWeakPtr();

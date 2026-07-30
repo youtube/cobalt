@@ -155,6 +155,7 @@ class IOSChromePaymentsAutofillClient : public PaymentsAutofillClient {
   CreditCardRiskBasedAuthenticator* GetRiskBasedAuthenticator() override;
   bool IsRiskBasedAuthEffectivelyAvailable() const override;
   bool IsMandatoryReauthEnabled() override;
+  bool IsUsingCustomCardIconEnabled() const override;
   void ShowMandatoryReauthOptInPrompt(
       base::OnceClosure accept_mandatory_reauth_callback,
       base::OnceClosure cancel_mandatory_reauth_callback,
@@ -208,7 +209,8 @@ class IOSChromePaymentsAutofillClient : public PaymentsAutofillClient {
   void ShowCreditCardUploadSaveAndFillDialog(
       const LegalMessageLines& legal_message_lines,
       CardSaveAndFillDialogCallback callback) override;
-  void ShowCreditCardSaveAndFillPendingDialog() override;
+  void ShowCreditCardSaveAndFillPendingDialog(
+      CardSaveAndFillDialogCallback callback) override;
   void HideCreditCardSaveAndFillDialog() override;
   bool IsTabModalPopupDeprecated() const override;
   BnplStrategy* GetBnplStrategy() override;

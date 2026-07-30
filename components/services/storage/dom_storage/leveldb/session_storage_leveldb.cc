@@ -17,6 +17,8 @@
 #include "components/services/storage/dom_storage/dom_storage_constants.h"
 #include "components/services/storage/dom_storage/leveldb/dom_storage_batch_operation_leveldb.h"
 #include "components/services/storage/dom_storage/leveldb/dom_storage_database_leveldb.h"
+#include "components/services/storage/dom_storage/leveldb/dom_storage_database_leveldb_utils.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "third_party/blink/public/common/dom_storage/session_storage_namespace_id.h"
 
 namespace storage {
@@ -117,6 +119,42 @@ DomStorageDatabaseLevelDB& SessionStorageLevelDB::GetLevelDB() {
   return *leveldb_;
 }
 
+StatusOr<std::map<DomStorageDatabase::Key, DomStorageDatabase::Value>>
+SessionStorageLevelDB::ReadMapKeyValues(MapLocator map_locator) {
+  return leveldb_->GetMapKeyValues(GetMapPrefix(map_locator.map_id().value()));
+}
+
+DbStatus SessionStorageLevelDB::UpdateMaps(
+    std::vector<MapBatchUpdate> map_updates) {
+  std::unique_ptr<DomStorageBatchOperationLevelDB> leveldb_batch =
+      leveldb_->CreateBatchOperation();
+
+  for (const MapBatchUpdate& map_update : map_updates) {
+    // Session storage must not record map usage metadata.
+    CHECK(!map_update.map_usage.has_value());
+
+    const MapLocator& map_locator = map_update.map_locator;
+    DomStorageDatabase::Key map_prefix =
+        GetMapPrefix(map_locator.map_id().value());
+
+    DB_RETURN_IF_ERROR(
+        leveldb_batch->UpdateMapKeyValues(map_prefix, map_update));
+  }
+  return leveldb_batch->Commit();
+}
+
+DbStatus SessionStorageLevelDB::CloneMap(MapLocator source_map,
+                                         MapLocator target_map) {
+  std::unique_ptr<DomStorageBatchOperationLevelDB> batch =
+      leveldb_->CreateBatchOperation();
+
+  // Copy the key/value pairs from `source_map` to `target_map`.
+  DB_RETURN_IF_ERROR(
+      batch->CopyPrefixed(GetMapPrefix(source_map.map_id().value()),
+                          GetMapPrefix(target_map.map_id().value())));
+  return batch->Commit();
+}
+
 StatusOr<DomStorageDatabase::Metadata>
 SessionStorageLevelDB::ReadAllMetadata() {
   Metadata metadata;
@@ -139,11 +177,15 @@ DbStatus SessionStorageLevelDB::PutMetadata(Metadata metadata) {
   for (const MapMetadata& map_metadata : metadata.map_metadata) {
     const MapLocator& map_locator = map_metadata.map_locator;
 
-    Key key = CreateMapMetadataKey(map_locator.session_id(),
-                                   map_locator.storage_key());
+    std::string map_id_value =
+        base::NumberToString(map_locator.map_id().value());
 
-    std::string value = base::NumberToString(map_locator.map_id().value());
-    batch->Put(std::move(key), base::as_byte_span(value));
+    // Write metadata for each session's map usage.  Multiple cloned sessions
+    // use the same map, but create separate metadata entries in the database.
+    for (const std::string& session_id : map_locator.session_ids()) {
+      Key key = CreateMapMetadataKey(session_id, map_locator.storage_key());
+      batch->Put(std::move(key), base::as_byte_span(map_id_value));
+    }
   }
   return batch->Commit();
 }
@@ -163,13 +205,11 @@ DbStatus SessionStorageLevelDB::DeleteStorageKeysFromSession(
   // Delete the key/value pairs in `maps_to_delete`.
   for (const DomStorageDatabase::MapLocator& map : maps_to_delete) {
     // A valid `map` must be in `storage_keys` and `session_id`.
-    CHECK_EQ(map.session_id(), session_id);
+    CHECK(map.session_ids().empty());
     DCHECK(base::Contains(metadata_to_delete, map.storage_key()));
 
-    DbStatus status = batch->DeletePrefixed(GetMapPrefix(map.map_id().value()));
-    if (!status.ok()) {
-      return status;
-    }
+    DB_RETURN_IF_ERROR(
+        batch->DeletePrefixed(GetMapPrefix(map.map_id().value())));
   }
   return batch->Commit();
 }
@@ -182,21 +222,15 @@ DbStatus SessionStorageLevelDB::DeleteSessions(
 
   // Delete each session's metadata.
   for (const std::string& session_id : session_ids) {
-    DbStatus status = batch->DeletePrefixed(GetSessionPrefix(session_id));
-    if (!status.ok()) {
-      return status;
-    }
+    DB_RETURN_IF_ERROR(batch->DeletePrefixed(GetSessionPrefix(session_id)));
   }
 
   // Delete the key/value pairs in `maps_to_delete`.
   for (const DomStorageDatabase::MapLocator& map : maps_to_delete) {
-    // A valid `map` must be in `session_ids`.
-    DCHECK(base::Contains(session_ids, map.session_id()));
+    CHECK(map.session_ids().empty());
 
-    DbStatus status = batch->DeletePrefixed(GetMapPrefix(map.map_id().value()));
-    if (!status.ok()) {
-      return status;
-    }
+    DB_RETURN_IF_ERROR(
+        batch->DeletePrefixed(GetMapPrefix(map.map_id().value())));
   }
   return batch->Commit();
 }
@@ -295,14 +329,40 @@ SessionStorageLevelDB::ReadAllMapMetadata() const {
   ASSIGN_OR_RETURN(std::vector<KeyValuePair> namespace_entries,
                    leveldb_->GetPrefixed(kNamespacePrefix));
 
-  // Create a `MapMetadata` for each entry.
-  std::vector<DomStorageDatabase::MapMetadata> results;
-  results.reserve(namespace_entries.size());
-
+  // Create a `MapMetadata` for each map by parsing `namespace_entries` from
+  // LevelDB.
+  //
+  // Maintain a `flat_hash_map` of map IDs to `MapMetadata` to detect cloned
+  // maps. Maps cloned across sessions use the same map ID.
+  absl::flat_hash_map</*map_id=*/int64_t, MapMetadata> all_metadata;
   for (const KeyValuePair& namespace_entry : namespace_entries) {
     ASSIGN_OR_RETURN(MapMetadata map_metadata,
                      ParseMapMetadata(namespace_entry));
-    results.push_back(std::move(map_metadata));
+
+    const DomStorageDatabase::MapLocator& map_locator =
+        map_metadata.map_locator;
+
+    // The LevelDB metadata contains one entry for each map in the session.
+    CHECK_EQ(map_locator.session_ids().size(), 1u);
+    const std::string& session_id = map_locator.session_ids()[0];
+    int64_t map_id = map_locator.map_id().value();
+
+    // Is `map_id` a clone from another session?
+    auto it = all_metadata.find(map_id);
+    if (it == all_metadata.end()) {
+      // This is a new unique map. Create a new `MapMetadata`.
+      all_metadata.emplace(std::make_pair(map_id, std::move(map_metadata)));
+    } else {
+      // This is a clone. Add the session to the existing `MapMetadata`.
+      it->second.map_locator.AddSession(session_id);
+    }
+  }
+
+  std::vector<DomStorageDatabase::MapMetadata> results;
+  results.reserve(all_metadata.size());
+
+  for (auto& [map_id, metadata] : all_metadata) {
+    results.push_back(std::move(metadata));
   }
   return results;
 }

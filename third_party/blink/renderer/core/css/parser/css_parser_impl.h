@@ -8,7 +8,6 @@
 #include <memory>
 #include <optional>
 
-#include "base/gtest_prod_util.h"
 #include "css_at_rule_id.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/css_property_names.h"
@@ -48,6 +47,7 @@ class StyleRuleNavigation;
 class StyleRulePage;
 class StyleRulePositionTry;
 class StyleRuleProperty;
+class StyleRuleRoute;
 class StyleRuleSupports;
 class StyleSheetContents;
 class Element;
@@ -81,6 +81,7 @@ class CORE_EXPORT CSSParserImpl {
           CSSAtRuleID::kCSSAtRulePage,
           CSSAtRuleID::kCSSAtRulePositionTry,
           CSSAtRuleID::kCSSAtRuleProperty,
+          CSSAtRuleID::kCSSAtRuleRoute,
           CSSAtRuleID::kCSSAtRuleNavigation,
           CSSAtRuleID::kCSSAtRuleContainer,
           CSSAtRuleID::kCSSAtRuleCounterStyle,
@@ -320,6 +321,7 @@ class CORE_EXPORT CSSParserImpl {
                                            CSSParserTokenStream&);
   StyleRulePage* ConsumePageRule(CSSParserTokenStream&);
   StyleRuleProperty* ConsumePropertyRule(CSSParserTokenStream&);
+  StyleRuleRoute* ConsumeRouteRule(CSSParserTokenStream&);
   StyleRuleNavigation* ConsumeNavigationRule(
       CSSParserTokenStream&,
       CSSNestingType,

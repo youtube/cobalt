@@ -9,6 +9,7 @@
 #include <optional>
 #include <string>
 
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
@@ -33,11 +34,13 @@
 class Profile;
 class SkBitmap;
 
-#if !BUILDFLAG(IS_ANDROID)
 namespace contextual_tasks {
+class ContextualTasksService;
+
+#if !BUILDFLAG(IS_ANDROID)
 class ContextualTasksContextService;
-}  // namespace contextual_tasks
 #endif
+}  // namespace contextual_tasks
 
 namespace lens {
 struct ContextualInputData;
@@ -48,18 +51,28 @@ namespace tabs {
 class TabInterface;
 }
 
+// Callback type for getting the contextual search session handle.
+// Used to allow WebUI controllers to provide session handles to WebUI handlers.
+using GetSessionHandleCallback = base::RepeatingCallback<
+    contextual_search::ContextualSearchSessionHandle*()>;
+
 class ContextualOmniboxClient : public SearchboxOmniboxClient {
  public:
   ContextualOmniboxClient(Profile* profile, content::WebContents* web_contents);
   ~ContextualOmniboxClient() override;
+
+  using GetSuggestInputsCallback = base::RepeatingCallback<
+      std::optional<lens::proto::LensOverlaySuggestInputs>()>;
+  void SetSuggestInputsCallback(GetSuggestInputsCallback callback) {
+    suggest_inputs_callback_ = std::move(callback);
+  }
 
  protected:
   std::optional<lens::proto::LensOverlaySuggestInputs>
   GetLensOverlaySuggestInputs() const override;
 
  private:
-  contextual_search::ContextualSearchContextController* GetQueryController()
-      const;
+  GetSuggestInputsCallback suggest_inputs_callback_;
 };
 
 // Abstract class that extends the SearchboxHandler and implements all methods
@@ -75,7 +88,8 @@ class ContextualSearchboxHandler
           pending_searchbox_handler,
       Profile* profile,
       content::WebContents* web_contents,
-      std::unique_ptr<OmniboxController> controller);
+      std::unique_ptr<OmniboxController> controller,
+      GetSessionHandleCallback get_session_callback);
   ~ContextualSearchboxHandler() override;
 
   // searchbox::mojom::PageHandler:
@@ -99,6 +113,21 @@ class ContextualSearchboxHandler
   void GetRecentTabs(GetRecentTabsCallback callback) override;
   void GetTabPreview(int32_t tab_id, GetTabPreviewCallback callback) override;
 
+  // Called from browser code (e.g., Views-based file selector) to add file
+  // context.
+  void AddFileContextFromBrowser(
+      std::string mime_type,
+      mojo_base::BigBuffer file_bytes,
+      std::optional<lens::ImageEncodingOptions> image_encoding_options,
+      AddFileContextCallback callback);
+
+  using RecontextualizeTabCallback = base::OnceCallback<void(bool success)>;
+  virtual void UploadTabContextWithData(
+      int32_t tab_id,
+      std::optional<int64_t> context_id,
+      std::unique_ptr<lens::ContextualInputData> data,
+      RecontextualizeTabCallback callback);
+
   // contextual_search::FileUploadStatusObserver:
   void OnFileUploadStatusChanged(
       const base::UnguessableToken& file_token,
@@ -121,10 +150,7 @@ class ContextualSearchboxHandler
     return context_input_data_;
   }
 
-  // For testing.
-  std::vector<base::UnguessableToken> GetUploadedContextTokensForTesting() {
-    return GetUploadedContextTokens();
-  }
+  std::vector<base::UnguessableToken> GetUploadedContextTokens();
 
  protected:
   void ComputeAndOpenQueryUrl(
@@ -132,6 +158,11 @@ class ContextualSearchboxHandler
       WindowOpenDisposition disposition,
       omnibox::ChromeAimEntryPoint aim_entry_point,
       std::map<std::string, std::string> additional_params);
+
+  // Returns the invocation source associated with the searchbox implementation.
+  virtual std::optional<lens::LensOverlayInvocationSource> GetInvocationSource()
+      const = 0;
+
   FRIEND_TEST_ALL_PREFIXES(ContextualSearchboxHandlerBrowserTest,
                            CreateTabPreviewEncodingOptions_NotScaled);
   FRIEND_TEST_ALL_PREFIXES(ContextualSearchboxHandlerBrowserTestDSF2,
@@ -148,11 +179,20 @@ class ContextualSearchboxHandler
 
   contextual_search::ContextualSearchMetricsRecorder* GetMetricsRecorder();
 
-  std::vector<base::UnguessableToken> GetUploadedContextTokens();
-
- protected:
   // Helper function that uploads the cached tab context if it exists.
+  void UploadTabContext(
+      const base::UnguessableToken& context_token,
+      std::unique_ptr<lens::ContextualInputData> page_content_data);
+
   void UploadSnapshotTabContextIfPresent();
+
+  // Returns suggest inputs from the contextual search session, or nullopt if
+  // none exists.
+  std::optional<lens::proto::LensOverlaySuggestInputs> GetSuggestInputs() const;
+
+  // Returns the contextual session session handle, or nullptr if none exists.
+  contextual_search::ContextualSearchSessionHandle* GetContextualSessionHandle()
+      const;
 
  private:
   // Helper to get the correct number of tab suggestions. Virtual so it
@@ -169,14 +209,15 @@ class ContextualSearchboxHandler
       const base::UnguessableToken& context_token,
       std::unique_ptr<lens::ContextualInputData> page_content_data);
 
+  void OnUploadTabContextWithDataTokenCreated(
+      std::optional<int64_t> context_id,
+      std::unique_ptr<lens::ContextualInputData> data,
+      RecontextualizeTabCallback callback,
+      const base::UnguessableToken& context_token);
+
   // Helper function that handles the caching of the tab context. Once it's
   // successfully cached, we notify the page that the file is uploaded.
   void SnapshotTabContext(
-      const base::UnguessableToken& context_token,
-      std::unique_ptr<lens::ContextualInputData> page_content_data);
-
-  // Helper Function that does the actual uploading of the tab context.
-  void UploadTabContext(
       const base::UnguessableToken& context_token,
       std::unique_ptr<lens::ContextualInputData> page_content_data);
 
@@ -185,9 +226,12 @@ class ContextualSearchboxHandler
   void OnPreviewReceived(GetTabPreviewCallback callback,
                          const SkBitmap& preview_bitmap);
 
+  std::optional<base::Uuid> GetTaskId();
+  void AssociateTabWithTask(const base::UnguessableToken& file_token);
+  void DisassociateTabsFromTask();
+
   void RecordTabClickedMetric(tabs::TabInterface* const tab);
 
-  raw_ptr<content::WebContents> web_contents_;
   std::optional<std::pair<base::UnguessableToken,
                           std::unique_ptr<lens::ContextualInputData>>>
       tab_context_snapshot_;
@@ -196,12 +240,17 @@ class ContextualSearchboxHandler
       contextual_tasks_context_service_;
 #endif
 
+  raw_ptr<contextual_tasks::ContextualTasksService> contextual_tasks_service_;
+
   base::ScopedObservation<contextual_search::ContextualSearchContextController,
                           contextual_search::ContextualSearchContextController::
                               FileUploadStatusObserver>
       file_upload_status_observer_{this};
 
   std::optional<lens::ContextualInputData> context_input_data_;
+
+  // Callback to get the contextual session handle from WebUI controller.
+  GetSessionHandleCallback get_session_callback_;
 
   base::WeakPtrFactory<ContextualSearchboxHandler> weak_ptr_factory_{this};
 };

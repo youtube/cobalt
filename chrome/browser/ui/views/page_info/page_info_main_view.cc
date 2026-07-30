@@ -30,7 +30,6 @@
 #include "chrome/browser/ui/views/page_info/star_rating_view.h"
 #include "chrome/browser/vr/vr_tab_helper.h"
 #include "chrome/common/url_constants.h"
-#include "components/content_settings/core/common/cookie_blocking_3pcd_status.h"
 #include "components/page_info/core/about_this_site_service.h"
 #include "components/page_info/core/features.h"
 #include "components/page_info/page_info_ui_delegate.h"
@@ -411,9 +410,7 @@ void PageInfoMainView::SetIdentityInfo(const IdentityInfo& identity_info) {
 
     // Fetch the data when the UI is enabled or if the control survey may be
     // shown.
-    if (merchant_trust_section_ ||
-        base::FeatureList::IsEnabled(
-            page_info::kMerchantTrustEvaluationControlSurvey)) {
+    if (merchant_trust_section_) {
       ui_delegate_->GetMerchantTrustInfo(
           base::BindOnce(&PageInfoMainView::OnMerchantTrustDataFetched,
                          weak_factory_.GetWeakPtr()));
@@ -563,8 +560,6 @@ void PageInfoMainView::OnMerchantTrustDataFetched(
   if (!merchant_data.has_value()) {
     return;
   }
-
-  ui_delegate_->RecordPageInfoWithMerchantTrustOpenTime();
 
   if (!merchant_trust_section_) {
     return;

@@ -259,7 +259,7 @@ public class TopicsFragment extends PrivacySandboxSettingsBaseFragment
         boolean topicsEnabled = isTopicsPrefEnabled(getProfile());
         boolean topicsEmpty = mCurrentTopicsCategory.getPreferenceCount() == 0;
 
-        updateIndexedPreferencesVisibility(topicsEnabled);
+        updateIndexedPreferencesVisibility(topicsEnabled, /* refreshResult= */ true);
 
         // TODO(crbug.com/362973179): Set default values in xml.
         // Always not visible.
@@ -307,11 +307,13 @@ public class TopicsFragment extends PrivacySandboxSettingsBaseFragment
                     indexData.removeEntry(getUniqueId(TOPICS_PAGE_FOOTER_PREFERENCE));
                     indexData.removeEntry(getUniqueId(TOPICS_DISCLAIMER));
 
-                    updateIndexedPreferencesVisibility(isTopicsPrefEnabled(profile));
+                    updateIndexedPreferencesVisibility(
+                            isTopicsPrefEnabled(profile), /* refreshResult= */ false);
                 }
             };
 
-    private static void updateIndexedPreferencesVisibility(boolean topicsEnabled) {
+    private static void updateIndexedPreferencesVisibility(
+            boolean topicsEnabled, boolean refreshResult) {
         var indexData = SettingsIndexData.getInstance();
         if (indexData == null) return;
 
@@ -321,7 +323,7 @@ public class TopicsFragment extends PrivacySandboxSettingsBaseFragment
             if (indexData.getEntryForKey(prefFrag, ACTIVE_TOPICS_PREFERENCE) == null
                     || indexData.getEntryForKey(prefFrag, BLOCKED_TOPICS_PREFERENCE) == null
                     || indexData.getEntryForKey(prefFrag, MANAGE_TOPICS_PREFERENCE) == null) {
-                indexData.setNeedsIndexing(true);
+                indexData.setNeedsIndexing();
             }
         } else {
             if (indexData.getEntryForKey(prefFrag, ACTIVE_TOPICS_PREFERENCE) != null
@@ -339,5 +341,6 @@ public class TopicsFragment extends PrivacySandboxSettingsBaseFragment
         if (hasRemovedEntries) {
             indexData.resolveIndex();
         }
+        if (refreshResult) indexData.setRefreshResult(true);
     }
 }

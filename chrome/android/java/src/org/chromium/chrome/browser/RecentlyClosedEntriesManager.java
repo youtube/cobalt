@@ -12,7 +12,11 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.multiwindow.InstanceInfo;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.CloseWindowAppSource;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.InstanceStateObserver;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.NewWindowAppSource;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
+import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.multiwindow.UiUtils;
 import org.chromium.chrome.browser.ntp.RecentlyClosedBridge;
 import org.chromium.chrome.browser.ntp.RecentlyClosedEntry;
@@ -42,14 +46,13 @@ public class RecentlyClosedEntriesManager {
 
     private final TabModel mRegularTabModel;
 
-    // TODO:(crbug.com/444680856) Use MultiInstanceManager to restore instance.
-    @SuppressWarnings("UnusedVariable")
     private final MultiInstanceManager mMultiInstanceManager;
 
     private RecentlyClosedTabManager mRecentlyClosedTabManager;
 
     private List<RecentlyClosedEntry> mRecentlyClosedEntries = new ArrayList<>();
     private @Nullable Callback<List<RecentlyClosedEntry>> mEntriesUpdatedCallback;
+    private @Nullable InstanceStateObserver mInstanceStateObserver;
 
     /**
      * @param multiInstanceManager The {@link MultiInstanceManager} instance used to observe window
@@ -68,6 +71,16 @@ public class RecentlyClosedEntriesManager {
                         ? sRecentlyClosedTabManagerForTests
                         : new RecentlyClosedBridge(profile, tabModelSelector);
         mRecentlyClosedTabManager.setEntriesUpdatedRunnable(this::updateRecentlyClosedEntries);
+        if (UiUtils.isRecentlyClosedTabsAndWindowsEnabled()) {
+            mInstanceStateObserver =
+                    new InstanceStateObserver() {
+                        @Override
+                        public void onInstanceClosed() {
+                            updateRecentlyClosedEntries();
+                        }
+                    };
+            mMultiInstanceManager.addInstanceStateObserver(mInstanceStateObserver);
+        }
     }
 
     /**
@@ -114,9 +127,73 @@ public class RecentlyClosedEntriesManager {
      *
      * @param entry The entry (window, bulk event, or group) to be restored.
      */
+    // TODO(crbug.com/469132710): Confirm with UX whether we should pull the next entry during
+    // restore when the UI does not display all stored entries.
     public void openRecentlyClosedEntry(RecentlyClosedEntry entry) {
-        assert entry instanceof SessionRecentlyClosedEntry;
-        mRecentlyClosedTabManager.openRecentlyClosedEntry(mRegularTabModel, entry);
+        if (entry instanceof SessionRecentlyClosedEntry) {
+            mRecentlyClosedTabManager.openRecentlyClosedEntry(mRegularTabModel, entry);
+        } else if (entry instanceof RecentlyClosedWindow closedWindow) {
+            openRecentlyClosedWindow(closedWindow.getInstanceId(), NewWindowAppSource.RECENT_TABS);
+        }
+    }
+
+    /**
+     * Opens the most recently closed entry. If the entry is a {@link RecentlyClosedWindow} and max
+     * number of instances already exists, this will restore the next most recently closed
+     * non-window entry if it exists.
+     *
+     * <p>Note that we will not use {@link #getRecentlyClosedEntries()} to determine the most
+     * recently closed entry. This is because we need to consider pending tab closures in addition
+     * to closures managed by TabRestoreService and MultiInstanceManager.
+     *
+     * @param newWindowSource The {@link NewWindowAppSource} to track the source of window
+     *     restoration, used for metrics.
+     */
+    public void openMostRecentlyClosedEntry(@NewWindowAppSource int newWindowSource) {
+        if (!UiUtils.isRecentlyClosedTabsAndWindowsEnabled()) {
+            mRegularTabModel.openMostRecentlyClosedEntry();
+        }
+
+        long mostRecentTabClosureTime = mRegularTabModel.getMostRecentClosureTime();
+        List<RecentlyClosedWindow> recentlyClosedWindows = getRecentlyClosedWindows();
+
+        boolean closedWindowExists = !recentlyClosedWindows.isEmpty();
+        boolean closedTabEventExists = mostRecentTabClosureTime != TabModel.INVALID_TIMESTAMP;
+
+        // Nothing to restore.
+        if (!closedWindowExists && !closedTabEventExists) return;
+
+        int instanceCount =
+                MultiWindowUtils.getInstanceCountWithFallback(PersistedInstanceType.ACTIVE);
+        int instanceLimit = MultiWindowUtils.getMaxInstances();
+        boolean canRestoreWindow = instanceCount < instanceLimit;
+
+        // Tab and window entries are both available for restoration.
+        if (closedWindowExists && closedTabEventExists) {
+            RecentlyClosedWindow mostRecentlyClosedWindow = recentlyClosedWindows.get(0);
+            // TODO (crbug.com/467412288): Determine a potentially different strategy to pick the
+            // most recent entry when `mostRecentTabClosureTime` is zero, which may be a result of
+            // lack of TabRestoreService persistence across app restarts.
+            if (mostRecentlyClosedWindow.getDate().getTime() >= mostRecentTabClosureTime
+                    && canRestoreWindow) {
+                mMultiInstanceManager.openWindow(
+                        mostRecentlyClosedWindow.getInstanceId(), newWindowSource);
+            } else {
+                mRegularTabModel.openMostRecentlyClosedEntry();
+            }
+            return;
+        }
+
+        // Only window entries are available for restoration.
+        if (closedWindowExists && canRestoreWindow) {
+            RecentlyClosedWindow mostRecentlyClosedWindow = recentlyClosedWindows.get(0);
+            mMultiInstanceManager.openWindow(
+                    mostRecentlyClosedWindow.getInstanceId(), newWindowSource);
+            return;
+        }
+
+        // Only tab entries are available for restoration.
+        mRegularTabModel.openMostRecentlyClosedEntry();
     }
 
     /**
@@ -129,10 +206,14 @@ public class RecentlyClosedEntriesManager {
         mEntriesUpdatedCallback = callback;
     }
 
-    /** Clears the list of recently closed entris. */
+    /** Clears the list of recently closed entries. */
     public void clearRecentlyClosedEntries() {
-        // TODO(crbug.com/444681612): Add logic to close all inactive and least used windows from
-        //  MultiInstanceManager.
+        List<InstanceInfo> instanceInfoList = getAllInactiveInstances();
+        List<Integer> instanceIds = new ArrayList<>();
+        for (InstanceInfo instanceInfo : instanceInfoList) {
+            instanceIds.add(instanceInfo.instanceId);
+        }
+        mMultiInstanceManager.closeWindows(instanceIds, CloseWindowAppSource.RECENT_TABS);
         mRecentlyClosedTabManager.clearRecentlyClosedEntries();
     }
 
@@ -140,6 +221,20 @@ public class RecentlyClosedEntriesManager {
         return UiUtils.isRecentlyClosedTabsAndWindowsEnabled()
                 ? RECENTLY_CLOSED_MAX_ENTRY_COUNT_WITH_WINDOW
                 : RECENTLY_CLOSED_MAX_ENTRY_COUNT;
+    }
+
+    private void openRecentlyClosedWindow(int instanceId, @NewWindowAppSource int source) {
+        mMultiInstanceManager.openWindow(instanceId, source);
+        for (RecentlyClosedEntry entry : mRecentlyClosedEntries) {
+            if (entry instanceof RecentlyClosedWindow window
+                    && window.getInstanceId() == instanceId) {
+                mRecentlyClosedEntries.remove(entry);
+                if (mEntriesUpdatedCallback != null) {
+                    mEntriesUpdatedCallback.onResult(mRecentlyClosedEntries);
+                }
+                return;
+            }
+        }
     }
 
     /**
@@ -151,7 +246,16 @@ public class RecentlyClosedEntriesManager {
             mRecentlyClosedTabManager.destroy();
             mRecentlyClosedTabManager = null;
         }
+        if (mInstanceStateObserver != null) {
+            mMultiInstanceManager.removeInstanceStateObserver(mInstanceStateObserver);
+            mInstanceStateObserver = null;
+        }
+
         mEntriesUpdatedCallback = null;
+    }
+
+    private List<InstanceInfo> getAllInactiveInstances() {
+        return mMultiInstanceManager.getInstanceInfo(PersistedInstanceType.INACTIVE);
     }
 
     private void getRecentlyClosedTabsAndWindows(
@@ -205,8 +309,7 @@ public class RecentlyClosedEntriesManager {
     }
 
     private List<RecentlyClosedWindow> getRecentlyClosedWindows() {
-        List<InstanceInfo> instanceInfoList =
-                mMultiInstanceManager.getInstanceInfo(PersistedInstanceType.INACTIVE);
+        List<InstanceInfo> instanceInfoList = getAllInactiveInstances();
         List<RecentlyClosedWindow> recentlyClosedWindows = new ArrayList<>();
 
         for (InstanceInfo info : instanceInfoList) {

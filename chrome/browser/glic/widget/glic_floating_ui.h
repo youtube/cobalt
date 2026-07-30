@@ -22,7 +22,6 @@
 #include "ui/views/widget/widget_observer.h"
 
 class BrowserWindowInterface;
-class SkRegion;
 
 namespace glic {
 
@@ -73,7 +72,6 @@ class GlicFloatingUi : public GlicUiEmbedder,
               base::OnceClosure callback) override;
   void SetDraggableAreas(
       const std::vector<gfx::Rect>& draggable_areas) override;
-  void SetDraggableRegion(const SkRegion& draggable_region) override;
   void EnableDragResize(bool enabled) override;
   void Attach() override;
   void Detach() override;
@@ -124,8 +122,7 @@ class GlicFloatingUi : public GlicUiEmbedder,
   void CreateAndSetupWidget(gfx::Rect initial_bounds);
   void MaybeSetWidgetCanResize();
   void SetGlicWindowToFloatingMode(bool floating);
-  void OnSourceTabDestroyed(tabs::TabInterface* tab,
-                            const InstanceId& instance_id);
+  void OnSourceTabDestroyed(tabs::TabInterface* tab);
   void FloatingPanelCanAttachChanged(bool can_attach);
 
   // Whether the widget should be user resizable, kept here in case it's

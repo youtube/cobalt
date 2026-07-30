@@ -114,7 +114,6 @@
 <translation id="1413446866325418126">તમારા Google એકાઉન્ટમાં ડેટા સાચવો</translation>
 <translation id="1414919006379339073">વર્તમાન વિન્ડો બંધ કરો</translation>
 <translation id="1416550906796893042">ઍપ્લિકેશન વર્ઝન</translation>
-<translation id="1419753403124156396">Chromeને ફરી શરૂ કરીએ?</translation>
 <translation id="1428770807407000502">સિંક બંધ કરીએ?</translation>
 <translation id="1430915738399379752">પ્રિન્ટ</translation>
 <translation id="1435593198351412143">ઑટોમૅટિક રીતે PDFs ખોલો</translation>
@@ -247,10 +246,8 @@
 <translation id="2063047797624276601">તમારી સંસ્થાએ Safe Browsingમાં વધારેલી સુરક્ષા ચાલુ કરી છે</translation>
 <translation id="2065944887543506430">{FILE_COUNT,plural, =1{1 ડાઉનલોડ નિષ્ફળ થયું}one{# ડાઉનલોડ નિષ્ફળ થયું}other{# ડાઉનલોડ નિષ્ફળ થયાં}}</translation>
 <translation id="2067805253194386918">ટેક્સ્ટ</translation>
-<translation id="2072027001582274150">ઉપયોગમાં ન લેવાયેલા અથવા ડુપ્લિકેટ ટૅબ</translation>
 <translation id="2079545284768500474">છેલ્લો ફેરફાર રદ કરો</translation>
 <translation id="2082238445998314030"><ph name="TOTAL_RESULTS" /> માંથી <ph name="RESULT_NUMBER" /> પરિણામ</translation>
-<translation id="2088833076121753253">ઑટોમૅટિક રીતે ભરવાની સુવિધાનું સેટઅપ પૂરું કરવા માટે, હવે Chromeને ફરી શરૂ કરો. તમારા ટૅબ ઑટોમૅટિક રીતે ફરીથી ખુલશે.</translation>
 <translation id="2091863218454846791">નાનો વ્યૂ બતાવી રહ્યાં છે</translation>
 <translation id="2093731487903423814">છેલ્લી 15 મિનિટ</translation>
 <translation id="2096577711562668473">ઑટોમૅટિક રીતે ભરવાની સુવિધા બદલીએ?</translation>
@@ -428,6 +425,7 @@
 <translation id="2854916915045135148">છૂપા મોડ પર સ્વિચ કરવા માટે, ટચ કરીને થોડીવાર દબાવી રાખો</translation>
 <translation id="2860954141821109167">ખાતરી કરો કે આ ડિવાઇસ પર ફોન ઍપ ચાલુ કરેલી છે</translation>
 <translation id="2861923151411510142">Chromeની કેટલીક સુવિધાઓ હવે ઉપલબ્ધ રહેશે નહીં</translation>
+<translation id="2869416538780777323">{OTHER_TAB_COUNT,plural, =1{<ph name="URL" /> અને અન્ય 1 ટૅબ}one{<ph name="URL" /> અને અન્ય <ph name="TAB_COUNT_MANY" /> ટૅબ}other{<ph name="URL" /> અને અન્ય <ph name="TAB_COUNT_MANY" /> ટૅબ}}</translation>
 <translation id="2869430948265924908">કારમાંના તમારા સંવેદનશીલ કન્ટેન્ટને સુરક્ષિત રાખવા માટે, તમારે કાર પ્રોફાઇલ લૉક બનાવવું આવશ્યક છે.  તમે કોઈ પિન, કોડ કે પાસવર્ડ વડે આમ કરી શકો છો.</translation>
 <translation id="2870560284913253234">સાઇટ</translation>
 <translation id="2871733351037274014">પહેલેથી લોડ કરેલા પેજ</translation>
@@ -446,6 +444,7 @@
 <translation id="2904414404539560095">કોઈ ટૅબ સાથે શેર કરવાના ડિવાઇસની સૂચિ સંપૂર્ણ ઊંચાઈએ ખૂલે છે.</translation>
 <translation id="2908243544703713905">વાંચ્યા વિનાની સ્ટોરી, તમારા વાંચવા માટે તૈયાર છે</translation>
 <translation id="2909615210195135082">Google નોટિફિકેશન પ્લૅટફૉર્મ</translation>
+<translation id="2912247081180973411">વિન્ડો બંધ કરો</translation>
 <translation id="2912345083818861431">ખુલ્લી 'છૂપી ટૅબ' જોવા માટે, સ્ક્રીન લૉકનો ઉપયોગ કરો</translation>
 <translation id="2918484639460781603">સેટિંગ્સ પર જાઓ </translation>
 <translation id="2920713489113095380"><ph name="TAB_TITLE" />, મ્યૂટ કરેલું ટૅબ</translation>
@@ -503,7 +502,6 @@
 <translation id="3159335509547415276">બ્લૉક કરેલા એકાઉન્ટ વિશે જાણો</translation>
 <translation id="3161699713309727585"><ph name="BUTTON_TEXT" />, નવા ટૅબમાં ખૂલે છે</translation>
 <translation id="3166827708714933426">ટૅબ અને વિંડો શૉર્ટકટ્સ</translation>
-<translation id="316694332262407393">અહીં Chrome પહેલાથી જ ચાલુ છે.</translation>
 <translation id="3167258285411721858">તમે <ph name="HOST_NAME" /> માટે મોબાઇલ સાઇટની વિનંતી કરી શકો છો</translation>
 <translation id="3169472444629675720">Discover</translation>
 <translation id="3181145110929454111"><ph name="TAB_TITLE" />, એકથી વધુ પસંદ કરેલું, પિન કરેલું, મ્યૂટ કરેલું છૂપું ટૅબ</translation>
@@ -851,7 +849,6 @@
 <translation id="468924408576231679">વેબપેજ <ph name="PAGE_TITLE" />ની લિંક કૉપિ કરો. સૉર્સ: <ph name="PAGE_URL" /></translation>
 <translation id="469286762610133730">બહેતર કન્ટેન્ટ મેળવો</translation>
 <translation id="4695891336199304370">{SHIPPING_OPTIONS,plural, =1{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 અને વધુ <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" />}one{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 અને વધુ <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" />}other{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 અને વધુ <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" />}}</translation>
-<translation id="4698061626562952596">તમારા નિષ્ક્રિય ટૅબનો અહીં રિવ્યૂ કરો</translation>
 <translation id="4698757800236023795">સક્રિય (<ph name="ITEM_COUNT" />)</translation>
 <translation id="4699172675775169585">કૅશ કરેલી છબીઓ અને ફાઇલો</translation>
 <translation id="4710167854527459075">નવું પહેલા મુજબ સૉર્ટ</translation>
@@ -950,6 +947,7 @@
 <translation id="5039678609803776426">{TAB_COUNT,plural, =1{<ph name="TAB_COUNT_ONE" /> ટૅબ - <ph name="URL_LIST" />}one{<ph name="TAB_COUNT_MANY" /> ટૅબ - <ph name="URL_LIST" />}other{<ph name="TAB_COUNT_MANY" /> ટૅબ - <ph name="URL_LIST" />}}</translation>
 <translation id="5040262127954254034">પ્રાઇવસી</translation>
 <translation id="504456571576643789">ધ્યાનમાં લેવા જેવી બાબતો</translation>
+<translation id="5052017727857614804">{WINDOW_COUNT,plural, =1{<ph name="WINDOW_COUNT_ONE" /> વિન્ડો પસંદ કરી}one{<ph name="WINDOW_COUNT_NORMAL" /> વિન્ડો પસંદ કરી}other{<ph name="WINDOW_COUNT_NORMAL" /> વિન્ડો પસંદ કરી}}</translation>
 <translation id="5056587122125565772">છબી બનાવો</translation>
 <translation id="506254248375231072">કોઈ ટૅબ નથી</translation>
 <translation id="5075939510584558547">એન્ક્રિપ્શન વિના સાચવો</translation>
@@ -966,7 +964,6 @@
 <translation id="5123685120097942451">છૂપા મોડમાંની ટૅબ</translation>
 <translation id="5142281402488957685">નવી સ્ટોરી માટે, પેજ રિફ્રેશ કરવા નીચેની તરફ સ્વાઇપ કરો</translation>
 <translation id="5144385790872094440">તમે મુલાકાત લો છો તેમાંથી કેટલાક પેજ પહેલેથી લોડ કરવામાં આવેલા હોય છે. જ્યારે પેજ Googleની સાઇટ કે ઍપ પરથી લિંક કરવામાં આવેલા હોય, ત્યારે તેમને Googleના સર્વર મારફતે પહેલેથી લોડ કરી શકાય છે.</translation>
-<translation id="5145887002054615868">ડુપ્લિકેટ ટૅબ અથવા <ph name="DAYS_INACTIVE" /> દિવસથી ઉપયોગમાં ન લેવાયેલા ટૅબને અહીં ખસેડવામાં આવે છે<ph name="AUTODELETE_SECTION" />. <ph name="DECLUTTER_SETTINGS_TITLE" />માં તમે આને કોઈપણ સમયે બદલી શકો છો.</translation>
 <translation id="5152843274749979095">કોઇ સમર્થિત ઍપ્લિકેશનો ઇન્સ્ટૉલ થયેલ નથી</translation>
 <translation id="5161254044473106830">શીર્ષક જરૂરી</translation>
 <translation id="5161262286013276579">પાસકી કન્ફર્મેશન શીટ ખોલેલી છે</translation>
@@ -1041,6 +1038,7 @@
 <translation id="5469852975082458401">તમે ટેક્સ્ટ કર્સર વડે કોઈપણ પેજ પર નૅવિગેટ કરી શકશો. બંધ કરવા માટે, F7 દબાવો.</translation>
 <translation id="5471273988133666918"><ph name="TAB_TITLE" /> ટૅબને ખસેડી શકાતું નથી</translation>
 <translation id="548278423535722844">નકશા અ‍ૅપ્લિકેશનમાં ખોલો</translation>
+<translation id="5494920125229734069">બધા પસંદ કરો</translation>
 <translation id="549660026907543296"><ph name="MEMBER_FULL_NAME" /> તરીકે જોડાઓ</translation>
 <translation id="5517326820028369152">તાજેતરની ઍક્ટિવિટી બોટમ શીટ</translation>
 <translation id="5526281268548144413">એકથી વધુ વિન્ડો પર બંધ ન હોઈ શકે</translation>
@@ -1149,6 +1147,7 @@
 <translation id="5958275228015807058">ડાઉનલોડમાં તમારી ફાઇલો અને પેજ શોધો</translation>
 <translation id="5962718611393537961">સંકુચિત કરવા માટે ટૅપ કરો</translation>
 <translation id="5964869237734432770">છબીના વર્ણનો મેળવવાનું બંધ કરો</translation>
+<translation id="5972844218283131174">તમામને નાપસંદ કરો</translation>
 <translation id="5975083100439434680">ઝૂમ ઘટાડો</translation>
 <translation id="5977976211062815271">આ ડિવાઇસ પર</translation>
 <translation id="5978661847409534366">{ITEMS_COUNT,plural, =1{તમારી વાંચન સૂચિમાં 1 પેજ}one{તમારી વાંચન સૂચિમાં # પેજ}other{તમારી વાંચન સૂચિમાં # પેજ}}</translation>
@@ -1721,12 +1720,14 @@
 <translation id="8137562778192957619">તમારે આ પાસવર્ડ યાદ રાખવાની જરૂર રહેશે નહીં. તેને Google Password Managerમાં સાચવવામાં આવશે.</translation>
 <translation id="8152331954420209374">Lens પર જાઓ</translation>
 <translation id="8153206878708357851">કૅરેટ બ્રાઉઝિંગને ટૉગલ કરો</translation>
+<translation id="8154784523622173959">આ પેજનું બૅકગ્રાઉન્ડ મનગમતું બનાવો</translation>
 <translation id="8163820386638255770">તમારા Google એકાઉન્ટમાં પાસવર્ડનો ઉપયોગ કરવા અને તેને સાચવવા માટે, આ તમે જ છો તેની ચકાસણી કરો</translation>
 <translation id="8175940240143658258">{ARCHIVED_TAB_COUNT,plural, =1{(1) નિષ્ક્રિય આઇટમ}one{(#) નિષ્ક્રિય આઇટમ}other{(#) નિષ્ક્રિય આઇટમ}}</translation>
 <translation id="8186512483418048923"><ph name="FILES" /> ફાઇલ બાકી છે</translation>
 <translation id="8190358571722158785">1 દિવસ બાકી</translation>
 <translation id="8192765420340770300">સાઇન ઇન કરવા માટેની બોટમ શીટ પૂરી ઊંચાઈ સુધી ખોલી</translation>
 <translation id="8193953846147532858"><ph name="BEGIN_LINK" />તમારા ડિવાઇસ<ph name="END_LINK" /> · <ph name="EMAIL" /></translation>
+<translation id="8201752259339925400">શોધ ક્વેરી સાફ કરો</translation>
 <translation id="820568752112382238">સૌથી વધુ મુલાકાત લેવાયેલી સાઇટ</translation>
 <translation id="8207867836430106322">{NUM_OTHER_MEMBERS,plural, =1{<ph name="OWNER_FIRST_NAME" /> અને અન્ય <ph name="NUMBER_OF_OTHER_MEMBERS" /> વ્યક્તિ સાથે ટૅબના ગ્રૂપમાં જોડાઓ}one{<ph name="OWNER_FIRST_NAME" /> અને અન્ય <ph name="NUMBER_OF_OTHER_MEMBERS" /> વ્યક્તિ સાથે ટૅબના ગ્રૂપમાં જોડાઓ}other{<ph name="OWNER_FIRST_NAME" /> અને અન્ય <ph name="NUMBER_OF_OTHER_MEMBERS" /> લોકો સાથે ટૅબના ગ્રૂપમાં જોડાઓ}}</translation>
 <translation id="8209050860603202033">છબી ખોલો</translation>

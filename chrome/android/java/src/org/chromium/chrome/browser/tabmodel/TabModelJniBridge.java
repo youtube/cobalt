@@ -272,22 +272,30 @@ public abstract class TabModelJniBridge implements TabModelInternal {
      * @param parent The parent tab that creates the new tab.
      * @param profile The profile for which to create the new tab.
      * @param webContents A {@link WebContents} object.
+     * @param index The index to create the tab at.
      * @param select Select the created tab.
+     * @param shouldPin Whether the tab should be pinned.
      * @return Whether or not the Tab was successfully created.
      */
     @CalledByNative
     private boolean createTabWithWebContents(
-            Tab parent, Profile profile, WebContents webContents, boolean select) {
+            Tab parent,
+            Profile profile,
+            WebContents webContents,
+            int index,
+            boolean select,
+            boolean shouldPin) {
         @TabLaunchType
         int type =
                 select ? TabLaunchType.FROM_RECENT_TABS_FOREGROUND : TabLaunchType.FROM_RECENT_TABS;
         return getTabCreator(profile.isOffTheRecord())
                         .createTabWithWebContents(
                                 parent,
-                                /* shouldPin= */ false,
+                                shouldPin,
                                 webContents,
                                 type,
                                 webContents.getVisibleUrl(),
+                                index,
                                 /* addTabToModel= */ true)
                 != null;
     }
@@ -302,7 +310,8 @@ public abstract class TabModelJniBridge implements TabModelInternal {
             ResourceRequestBody postData,
             int disposition,
             boolean persistParentage,
-            boolean isRendererInitiated) {
+            boolean isRendererInitiated,
+            boolean hasUserGesture) {
         if (parent.isClosing()) return;
 
         boolean incognito = parent.isIncognito();
@@ -337,6 +346,7 @@ public abstract class TabModelJniBridge implements TabModelInternal {
         loadUrlParams.setVerbatimHeaders(extraHeaders);
         loadUrlParams.setPostData(postData);
         loadUrlParams.setIsRendererInitiated(isRendererInitiated);
+        loadUrlParams.setHasUserGesture(hasUserGesture);
         getTabCreator(incognito)
                 .createNewTab(loadUrlParams, tabLaunchType, persistParentage ? parent : null);
     }
@@ -532,6 +542,15 @@ public abstract class TabModelJniBridge implements TabModelInternal {
 
     @CalledByNative
     protected abstract @JniType("std::vector<TabAndroid*>") List<Tab> getAllTabs();
+
+    @CalledByNative
+    protected abstract boolean containsTabGroup(@JniType("base::Token") Token tabGroupId);
+
+    /**
+     * @return A list of tab groups in this tab model. Order is not guaranteed.
+     */
+    @CalledByNative
+    protected abstract @JniType("std::vector<base::Token>") List<Token> listTabGroups();
 
     @CalledByNative
     protected abstract @JniType("std::optional<base::Token>") @Nullable Token addTabsToGroup(

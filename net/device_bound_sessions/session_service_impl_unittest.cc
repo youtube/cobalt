@@ -1646,7 +1646,9 @@ TEST_F(SessionServiceImplTest, SessionUsage) {
 class SessionServiceImplWithStoreTest : public TestWithTaskEnvironment {
  public:
   SessionServiceImplWithStoreTest()
-      : context_(CreateTestURLRequestContextBuilder()->Build()),
+      : TestWithTaskEnvironment(
+            base::test::TaskEnvironment::TimeSource::MOCK_TIME),
+        context_(CreateTestURLRequestContextBuilder()->Build()),
         store_(std::make_unique<StrictMock<SessionStoreMock>>()),
         service_(unexportable_key_service_, context_.get(), store_.get()) {
     scoped_feature_list_.InitAndEnableFeature(
@@ -1906,6 +1908,7 @@ TEST_F(SessionServiceImplWithStoreTest, NoSessionUsageDuringInitialization) {
 }
 
 TEST_F(SessionServiceImplWithStoreTest, GarbageCollectsStaleKeys) {
+  base::HistogramTester histograms;
   base::test::ScopedFeatureList feature_list(
       unexportable_keys::kUnexportableKeyDeletion);
   unexportable_keys::MockUnexportableKeyProvider& mock_key_provider =
@@ -1966,13 +1969,28 @@ TEST_F(SessionServiceImplWithStoreTest, GarbageCollectsStaleKeys) {
   EXPECT_CALL(mock_key_provider, DeleteSigningKeySlowly(Eq(kWrappedKey2)))
       .Times(0);
   EXPECT_CALL(mock_key_provider, DeleteSigningKeySlowly(Eq(kStaleWrappedKey)))
-      .WillOnce([&] {
-        run_loop.Quit();
-        return true;
-      });
+      .WillOnce(Return(true));
 
   FinishLoadingSessions(std::move(session_map));
-  run_loop.Run();
+  // Advance time to allow StartGarbageCollection to run.
+  FastForwardUntilNoTasksRemain();
+
+  histograms.ExpectUniqueSample(
+      "Crypto.UnexportableKeys.GarbageCollection.DeviceBoundSessions."
+      "TotalKeyCount",
+      3, 1);
+  histograms.ExpectUniqueSample(
+      "Crypto.UnexportableKeys.GarbageCollection.DeviceBoundSessions."
+      "UsedKeyCount",
+      2, 1);
+  histograms.ExpectUniqueSample(
+      "Crypto.UnexportableKeys.GarbageCollection.DeviceBoundSessions."
+      "ObsoleteKeyCount",
+      1, 1);
+  histograms.ExpectUniqueSample(
+      "Crypto.UnexportableKeys.GarbageCollection.DeviceBoundSessions."
+      "ObsoleteKeyDeletionCount",
+      1, 1);
 }
 
 TEST_F(SessionServiceImplWithStoreTest,
@@ -2371,6 +2389,109 @@ TEST_F(SessionServiceImplTest, FailedProactiveRefreshBlocksProactiveRefresh) {
       SessionServiceImpl::ProactiveRefreshAttempt::
           kPreviousFailedProactiveRefresh,
       1);
+}
+
+TEST_F(SessionServiceImplTest, SessionDeletionDuringRefresh_ConfigChange) {
+  base::HistogramTester histograms;
+
+  // Register a session with kSessionId.
+  AddSessionsForTesting({{kSessionId, kRefreshUrlString, kOrigin}});
+
+  RefreshTracker tracker;
+  auto scoped_test_fetcher = ScopedTestRegistrationFetcher(base::BindRepeating(
+      &RefreshTracker::Refresh, base::Unretained(&tracker)));
+
+  auto site = SchemefulSite(kTestUrl);
+  ASSERT_TRUE(service().GetSession({site, Session::Id(kSessionId)}));
+
+  // Create a request and defer it.
+  net::TestDelegate delegate;
+  std::unique_ptr<URLRequest> request =
+      context()->CreateRequest(kTestUrl, IDLE, &delegate, kDummyAnnotation);
+  // The request needs to be samesite for it to be considered
+  // candidate for deferral.
+  request->set_site_for_cookies(SiteForCookies::FromUrl(kTestUrl));
+
+  auto deferral = SessionService::DeferralParams(Session::Id(kSessionId));
+
+  auto dbsc_request = std::make_unique<DbscRequest>(request.get());
+  service().DeferRequestForRefresh(*dbsc_request, deferral, base::DoNothing());
+
+  EXPECT_EQ(tracker.num_pending_refreshes(), 1);
+
+  // Delete the session
+  {
+    base::RunLoop run_loop;
+    service().DeleteSessionAndNotify(
+        DeletionReason::kClearBrowsingData,
+        {SchemefulSite(kTestUrl), Session::Id(kSessionId)},
+        base::IgnoreArgs<const SessionAccess&>(run_loop.QuitClosure()));
+    run_loop.Run();
+  }
+
+  // Complete the refresh with a new session
+  SessionParams::Scope scope;
+  scope.origin = "https://example.com";
+  ASSERT_OK_AND_ASSIGN(
+      std::unique_ptr<Session> session,
+      Session::CreateIfValid(SessionParams(
+          kSessionId, kTestUrl, "https://example.com/refresh", std::move(scope),
+          /*creds=*/{}, unexportable_keys::UnexportableKeyId(),
+          /*allowed_refresh_initiators=*/{})));
+  ASSERT_TRUE(session);
+
+  tracker.ResolvePendingRefresh(
+      RegistrationResult(std::move(session),
+                         /*maybe_stored_cookies=*/{}));
+  histograms.ExpectUniqueSample("Net.DeviceBoundSessions.RefreshResult",
+                                SessionError::kSessionDeletedDuringRefresh, 1);
+}
+
+TEST_F(SessionServiceImplTest,
+       SessionDeletionDuringRefresh_NoSessionConfigChange) {
+  base::HistogramTester histograms;
+
+  // Register a session with kSessionId.
+  AddSessionsForTesting({{kSessionId, kRefreshUrlString, kOrigin}});
+
+  RefreshTracker tracker;
+  auto scoped_test_fetcher = ScopedTestRegistrationFetcher(base::BindRepeating(
+      &RefreshTracker::Refresh, base::Unretained(&tracker)));
+
+  auto site = SchemefulSite(kTestUrl);
+  ASSERT_TRUE(service().GetSession({site, Session::Id(kSessionId)}));
+
+  // Create a request and defer it.
+  net::TestDelegate delegate;
+  std::unique_ptr<URLRequest> request =
+      context()->CreateRequest(kTestUrl, IDLE, &delegate, kDummyAnnotation);
+  // The request needs to be samesite for it to be considered
+  // candidate for deferral.
+  request->set_site_for_cookies(SiteForCookies::FromUrl(kTestUrl));
+
+  auto deferral = SessionService::DeferralParams(Session::Id(kSessionId));
+
+  auto dbsc_request = std::make_unique<DbscRequest>(request.get());
+  service().DeferRequestForRefresh(*dbsc_request, deferral, base::DoNothing());
+
+  EXPECT_EQ(tracker.num_pending_refreshes(), 1);
+
+  // Delete the session
+  {
+    base::RunLoop run_loop;
+    service().DeleteSessionAndNotify(
+        DeletionReason::kClearBrowsingData,
+        {SchemefulSite(kTestUrl), Session::Id(kSessionId)},
+        base::IgnoreArgs<const SessionAccess&>(run_loop.QuitClosure()));
+    run_loop.Run();
+  }
+
+  // Complete the refresh
+  tracker.ResolvePendingRefresh(
+      RegistrationResult(RegistrationResult::NoSessionConfigChange(),
+                         /*maybe_stored_cookies=*/{}));
+  histograms.ExpectUniqueSample("Net.DeviceBoundSessions.RefreshResult",
+                                SessionError::kSessionDeletedDuringRefresh, 1);
 }
 
 }  // namespace net::device_bound_sessions

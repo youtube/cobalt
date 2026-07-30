@@ -45,10 +45,10 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/safe_browsing/android/download_protection_metrics_data.h"
 #else
-#include "chrome/browser/safe_browsing/cloud_content_scanning/binary_upload_service.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/deep_scanning_utils.h"
 #include "chrome/browser/safe_browsing/download_protection/download_feedback.h"
 #include "chrome/browser/safe_browsing/download_protection/download_feedback_service.h"
+#include "components/enterprise/connectors/core/cloud_content_scanning/binary_upload_service.h"
 #endif
 
 namespace safe_browsing {
@@ -165,8 +165,6 @@ MayCheckDownloadResult CheckClientDownloadRequest::IsSupportedDownload(
     *reason = REASON_UNSUPPORTED_URL_SCHEME;
     return MayCheckDownloadResult::kMayNotCheckDownload;
   }
-  // TODO(crbug.com/41372015): Remove duplicated counting of REMOTE_FILE
-  // and LOCAL_FILE in SBClientDownload.UnsupportedScheme.*.
   if (final_url.SchemeIsFile()) {
     *reason = final_url.has_host() ? REASON_REMOTE_FILE : REASON_LOCAL_FILE;
     return MayCheckDownloadResult::kMayNotCheckDownload;
@@ -386,7 +384,7 @@ bool CheckClientDownloadRequest::ShouldPromptForDeepScanning(
 #if !BUILDFLAG(IS_ANDROID)
   // Too large uploads would fail immediately, so don't prompt in this case.
   if (static_cast<size_t>(item_->GetTotalBytes()) >=
-      BinaryUploadService::kMaxUploadSizeBytes) {
+      enterprise_connectors::BinaryUploadService::kMaxUploadSizeBytes) {
     return false;
   }
 

@@ -30,6 +30,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <type_traits>
 #include <utility>
 
 #include "base/auto_reset.h"
@@ -41,7 +42,7 @@
 #include "third_party/blink/renderer/core/css/resolver/style_adjuster.h"
 #include "third_party/blink/renderer/core/css/resolver/style_resolver.h"
 #include "third_party/blink/renderer/core/css/style_change_reason.h"
-#include "third_party/blink/renderer/core/css/style_containment_scope_tree.h"
+#include "third_party/blink/renderer/core/css/style_containment_scope.h"
 #include "third_party/blink/renderer/core/css/style_engine.h"
 #include "third_party/blink/renderer/core/display_lock/display_lock_utilities.h"
 #include "third_party/blink/renderer/core/dom/column_pseudo_element.h"
@@ -774,7 +775,16 @@ void LayoutObject::RemoveChild(LayoutObject* old_child) {
   if (!children)
     return;
 
+  LayoutBoxModelObject* previous_sibling =
+      DynamicTo<LayoutBoxModelObject>(old_child->PreviousSibling());
+  LayoutBoxModelObject* next_sibling =
+      DynamicTo<LayoutBoxModelObject>(old_child->NextSibling());
+
   children->RemoveChildNode(this, old_child);
+
+  if (RuntimeEnabledFeatures::LayoutMergeAnonymousFixEnabled()) {
+    LayoutBoxModelObject::AttemptToMerge(previous_sibling, next_sibling);
+  }
 }
 
 bool LayoutObject::IsInTopOrViewTransitionLayer() const {
@@ -2259,22 +2269,101 @@ void LayoutObject::InvalidatePaint(
   ObjectPaintInvalidatorWithContext(*this, context).InvalidatePaint();
 }
 
+namespace {
+
+// Applies local-root viewport clipping and remote-root mapping for a rect that
+// has already been mapped to the local root's coordinate space. Returns true
+// on success. Sets |intersects| to false (and empties |rect|) when clipping
+// removes all area, matching the inclusive/intersect semantics expected by
+// callers.
+bool ApplyViewportClippingAndOffsets(gfx::RectF& rect,
+                                     LayoutView& layout_view,
+                                     VisualRectFlags visual_rect_flags,
+                                     bool& intersects) {
+  PhysicalRect physical_rect = PhysicalRect::EnclosingRect(rect);
+  const bool apply_local_root_clip =
+      !(visual_rect_flags & kDontApplyMainFrameOverflowClip);
+
+  if (apply_local_root_clip) {
+    PhysicalRect viewport_rect = layout_view.ViewRect();
+    if (visual_rect_flags & kEdgeInclusive) {
+      if (!physical_rect.InclusiveIntersect(viewport_rect)) {
+        rect = gfx::RectF();
+        intersects = false;
+        return true;
+      }
+    } else {
+      physical_rect.Intersect(viewport_rect);
+      if (physical_rect.IsEmpty()) {
+        rect = gfx::RectF();
+        intersects = false;
+        return true;
+      }
+    }
+  }
+
+  LocalFrameView* frame_view = layout_view.GetFrameView();
+  if (!frame_view) {
+    return false;
+  }
+  if (!frame_view->MapToVisualRectInRemoteRootFrame(
+          physical_rect, apply_local_root_clip,
+          visual_rect_flags & kVisualRectApplyRemoteViewportTransform)) {
+    return false;
+  }
+  rect = gfx::RectF(physical_rect);
+  return true;
+}
+
+}  // namespace
+
 bool LayoutObject::MapToVisualRectInAncestorSpaceInternalFastPath(
-    const LayoutBoxModelObject* ancestor,
-    gfx::RectF& rect,
+    const LayoutBoxModelObject* ancestor_or_null_for_viewport,
+    gfx::RectF& rect_out,
     VisualRectFlags visual_rect_flags,
     bool& intersects) const {
   NOT_DESTROYED();
-  intersects = true;
-  if (!(visual_rect_flags & kUseGeometryMapper) || !ancestor ||
-      !ancestor->FirstFragment().HasLocalBorderBoxProperties())
+  // Do all mapping work on a local copy so we can safely fall back to the slow
+  // path without mutating the caller's input rect when a fast-path dependency
+  // (e.g. remote root mapping) is unavailable.
+  gfx::RectF rect = rect_out;
+  Document& document = GetDocument();
+  LayoutView* layout_view = document.GetLayoutView();
+  if (!layout_view) {
     return false;
+  }
 
-  if (ancestor == this)
+  // Allow a null ancestor to mean the local root viewport when using the
+  // GeometryMapper fast path, but keep using the slow path for embedded frames
+  // so the embedder chain is walked.
+  const bool map_to_viewport = !ancestor_or_null_for_viewport;
+  if (map_to_viewport && document.LocalOwner()) {
+    // TODO(crbug.com/40187338): Migrate embedded-frame viewport mapping to the
+    // GeometryMapper fast path instead of falling back to the slow embedder
+    // walk.
+    return false;
+  }
+  // Use fast path for viewport mapping if enabled (fall back to slow path).
+  if (map_to_viewport &&
+      !RuntimeEnabledFeatures::BlinkGeometryMapperViewportFastPathEnabled()) {
+    return false;
+  }
+  const LayoutBoxModelObject* ancestor =
+      map_to_viewport ? layout_view : ancestor_or_null_for_viewport;
+
+  intersects = true;
+  if (!(visual_rect_flags & kUseGeometryMapper) ||
+      !ancestor->FirstFragment().HasLocalBorderBoxProperties()) {
+    return false;
+  }
+
+  if (ancestor == this) {
     return true;
+  }
 
   AncestorSkipInfo skip_info(ancestor);
-  PropertyTreeState container_properties(PropertyTreeState::kUninitialized);
+  PropertyTreeStateOrAlias container_properties(
+      PropertyTreeState::kUninitialized);
   const LayoutObject* property_container = GetPropertyContainer(
       &skip_info, &container_properties, visual_rect_flags);
   if (!property_container)
@@ -2286,14 +2375,35 @@ bool LayoutObject::MapToVisualRectInAncestorSpaceInternalFastPath(
   // FirstFragment().LocalBorderBoxProperties() (if this == property_container)
   // or property_container->FirstFragment().ContentsProperties().
   rect.Offset(gfx::Vector2dF(FirstFragment().PaintOffset()));
-  if (property_container != ancestor) {
+
+  // For viewport mapping, run GeometryMapper to reach the local root viewport.
+  if (map_to_viewport) {
+    PropertyTreeState unaliased_container = container_properties.Unalias();
     FloatClipRect clip_rect(rect);
-    intersects = GeometryMapper::LocalToAncestorVisualRect(
-        container_properties, ancestor->FirstFragment().ContentsProperties(),
-        clip_rect, kIgnoreOverlayScrollbarSize, visual_rect_flags);
+    intersects = GeometryMapper::LocalToLocalRootViewportRect(
+        unaliased_container, clip_rect, kIgnoreOverlayScrollbarSize,
+        visual_rect_flags);
     rect = clip_rect.Rect();
+    if (!ApplyViewportClippingAndOffsets(rect, *layout_view, visual_rect_flags,
+                                         intersects)) {
+      return false;
+    }
+  } else {
+    // For ancestor mapping, only map when there's a distance to cover.
+    if (property_container != ancestor) {
+      PropertyTreeState unaliased_container = container_properties.Unalias();
+      PropertyTreeState ancestor_state =
+          ancestor->FirstFragment().ContentsProperties().Unalias();
+      FloatClipRect clip_rect(rect);
+      intersects = GeometryMapper::LocalToAncestorVisualRect(
+          unaliased_container, ancestor_state, clip_rect,
+          kIgnoreOverlayScrollbarSize, visual_rect_flags);
+      rect = clip_rect.Rect();
+    }
+    rect.Offset(-gfx::Vector2dF(ancestor->FirstFragment().PaintOffset()));
   }
-  rect.Offset(-gfx::Vector2dF(ancestor->FirstFragment().PaintOffset()));
+
+  rect_out = rect;
   return true;
 }
 
@@ -3095,16 +3205,10 @@ void LayoutObject::StyleWillChange(StyleDifference diff,
   }
 }
 
-static bool AreNonIdenticalCursorListsEqual(const ComputedStyle* a,
-                                            const ComputedStyle* b) {
-  DCHECK_NE(a->Cursors(), b->Cursors());
-  return a->Cursors() && b->Cursors() && *a->Cursors() == *b->Cursors();
-}
-
 static inline bool AreCursorsEqual(const ComputedStyle* a,
                                    const ComputedStyle* b) {
-  return a->Cursor() == b->Cursor() && (a->Cursors() == b->Cursors() ||
-                                        AreNonIdenticalCursorListsEqual(a, b));
+  return a->Cursor() == b->Cursor() &&
+         base::ValuesEquivalent(a->Cursors(), b->Cursors());
 }
 
 void LayoutObject::SetScrollAnchorDisablingStyleChangedOnAncestor() {
@@ -3995,23 +4099,11 @@ void LayoutObject::DestroyAndCleanupAnonymousWrappers(
 
     // We need to keep the anonymous parent, if it won't become empty by the
     // removal of this LayoutObject.
-    if (destroy_root->PreviousSibling())
+    if (destroy_root->PreviousSibling()) {
       break;
-    if (const LayoutObject* sibling = destroy_root->NextSibling()) {
-      // TODO(ikilpatrick): Delete this branch - logic unreachable.
-      if (destroy_root->GetNode()) {
-        // When there are inline continuations, there may be multiple layout
-        // objects generated from the same node, and those are special. They
-        // will be removed as part of destroying |this|, in
-        // LayoutInline::WillBeDestroyed(). So if that's all we have left, we
-        // need to realize now that the anonymous containing block will become
-        // empty. So we have to destroy it.
-        while (sibling && sibling->GetNode() == destroy_root->GetNode())
-          sibling = sibling->NextSibling();
-      }
-      if (sibling)
-        break;
-      DCHECK(destroy_root->IsLayoutInline());
+    }
+    if (destroy_root->NextSibling()) {
+      break;
     }
   }
 

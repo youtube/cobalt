@@ -4,100 +4,125 @@
 
 package org.chromium.base.test.transit;
 
+import static org.chromium.base.test.transit.Triggers.noopTo;
+
 import android.app.Activity;
-import android.os.IBinder;
 import android.view.View;
-import android.view.ViewGroup;
-import android.view.WindowManager;
-import android.view.inspector.WindowInspector;
-
-import androidx.test.espresso.Root;
-import androidx.test.espresso.matcher.RootMatchers;
-
-import com.google.common.collect.Lists;
 
 import org.hamcrest.Matcher;
 
-import org.chromium.base.ThreadUtils;
 import org.chromium.build.annotations.NullMarked;
-import org.chromium.build.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.List;
-
+/**
+ * Finds views for tests and return handles for them.
+ *
+ * <p>waitForView() methods wait for Views to exist, be visible, displayed and enabled before
+ * returning.
+ *
+ * <p>Returns {@link ViewCarryOn}s to get/interact with them.
+ */
 @NullMarked
-/** Searches Android Windows for specific Views and root Views. */
-class ViewFinder {
+public class ViewFinder {
     /**
-     * Searches all Windows for root Views.
+     * Waits for a View of a specific subclass of View that matches |matcher| in one of the
+     * |activity|'s subwindows.
      *
-     * @param activity If not null, restricts the search to that Activity's subwindows and dialogs.
-     *     If null, searches all focusable windows and dialogs.
-     * @return List of Roots found.
+     * <p>Pass |options| to override minimum required displayed %, enabled state, etc.
+     *
+     * @param <ViewT> the type of View to find.
+     * @return A {@link ViewCarryOn} to get/interact with the ViewT.
      */
-    static List<Root> findRoots(@Nullable Activity activity) {
-        ThreadUtils.assertOnUiThread();
-
-        List<Root> matches = new ArrayList<>();
-
-        IBinder activityToken = null;
-        if (activity != null) {
-            activityToken = activity.getWindow().getDecorView().getWindowToken();
-        }
-        List<View> globalWindowViews = WindowInspector.getGlobalWindowViews();
-        for (View view : Lists.reverse(globalWindowViews)) {
-            if (!(view.getLayoutParams()
-                    instanceof WindowManager.LayoutParams windowLayoutParams)) {
-                continue;
-            }
-            if ((windowLayoutParams.flags & WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE) != 0) {
-                continue;
-            }
-
-            Root root =
-                    new Root.Builder()
-                            .withDecorView(view)
-                            .withWindowLayoutParams(windowLayoutParams)
-                            .build();
-
-            // Include both subwindows of the activity and focused dialogs
-            if ((activityToken == null || view.getApplicationWindowToken() == activityToken)
-                    || (RootMatchers.isDialog().matches(root) && view.hasWindowFocus())) {
-                matches.add(root);
-            }
-        }
-        return matches;
+    public static <ViewT extends View> ViewCarryOn<ViewT> waitForView(
+            Class<ViewT> viewClass,
+            Activity activity,
+            Matcher<View> matcher,
+            ViewElement.Options options) {
+        return noopTo().pickUpCarryOn(
+                        ViewCarryOn.create(
+                                viewClass,
+                                matcher,
+                                ViewElement.newOptions()
+                                        .initFrom(options)
+                                        .rootSpec(RootSpec.activityRoot(activity))
+                                        .build()));
     }
 
     /**
-     * Searches multiple Roots for Views matching a |matcher|.
+     * Waits for a View of a specific subclass of View that matches |matcher| in one of the
+     * |activity|'s subwindows.
      *
-     * @param roots List of Roots to search.
-     * @param matcher Matcher to filter Views.
-     * @return List of Views found and their respective Roots.
+     * @param <ViewT> the type of View to find.
+     * @return A {@link ViewCarryOn} to get/interact with the ViewT.
      */
-    static List<ViewAndRoot> findViews(List<Root> roots, Matcher<View> matcher) {
-        ThreadUtils.assertOnUiThread();
-
-        List<ViewAndRoot> matches = new ArrayList<>();
-        for (Root root : roots) {
-            findViewsRecursive(root, root.getDecorView(), matcher, matches);
-        }
-        return matches;
+    public static <ViewT extends View> ViewCarryOn<ViewT> waitForView(
+            Class<ViewT> viewClass, Activity activity, Matcher<View> matcher) {
+        return waitForView(viewClass, activity, matcher, ViewElement.Options.DEFAULT);
     }
 
-    private static void findViewsRecursive(
-            Root root, View view, Matcher<View> matcher, List<ViewAndRoot> matches) {
-        ThreadUtils.assertOnUiThread();
+    /**
+     * Waits for a View that matches |matcher| in one of the |activity|'s subwindows.
+     *
+     * @return A {@link ViewCarryOn} to get/interact with the View.
+     */
+    public static ViewCarryOn<View> waitForView(Activity activity, Matcher<View> matcher) {
+        return waitForView(View.class, activity, matcher);
+    }
 
-        if (matcher.matches(view)) {
-            matches.add(new ViewAndRoot(view, root));
+    /**
+     * Waits for a View of a specific subclass of View that matches |matcher| in any root.
+     *
+     * <p>Pass |options| to override minimum required displayed %, enabled state, etc.
+     *
+     * @param <ViewT> the type of View to find.
+     * @return A {@link ViewCarryOn} to get/interact with the ViewT.
+     */
+    public static <ViewT extends View> ViewCarryOn<ViewT> waitForView(
+            Class<ViewT> viewClass, Matcher<View> matcher, ViewElement.Options options) {
+        RootSpec rootSpec = options.mRootSpec;
+        // If not specified, default to anyRoot().
+        if (rootSpec == null) {
+            rootSpec = RootSpec.anyRoot();
         }
 
-        if (view instanceof ViewGroup viewGroup) {
-            for (int i = 0; i < viewGroup.getChildCount(); i++) {
-                findViewsRecursive(root, viewGroup.getChildAt(i), matcher, matches);
-            }
-        }
+        return noopTo().pickUpCarryOn(
+                        ViewCarryOn.create(
+                                viewClass,
+                                matcher,
+                                ViewElement.newOptions()
+                                        .initFrom(options)
+                                        .rootSpec(rootSpec)
+                                        .build()));
+    }
+
+    /**
+     * Waits for a View of a specific subclass of View that matches |matcher| in any root.
+     *
+     * @param <ViewT> the type of View to find.
+     * @return A {@link ViewCarryOn} to get/interact with the ViewT.
+     */
+    public static <ViewT extends View> ViewCarryOn<ViewT> waitForView(
+            Class<ViewT> viewClass, Matcher<View> matcher) {
+        return waitForView(viewClass, matcher, ViewElement.Options.DEFAULT);
+    }
+
+    /**
+     * Waits for a View that matches |matcher| in any root.
+     *
+     * <p>Pass |options| to override minimum required displayed %, enabled state, etc.
+     *
+     * @return A {@link ViewCarryOn} to get/interact with the View.
+     */
+    public static ViewCarryOn<View> waitForView(
+            Matcher<View> matcher, ViewElement.Options options) {
+        return waitForView(View.class, matcher, options);
+    }
+
+    /**
+     * Waits for a View that matches |matcher| in any root.
+     *
+     * @return A {@link ViewCarryOn} to get/interact with the View.
+     */
+    public static ViewCarryOn<View> waitForView(Matcher<View> matcher) {
+        return waitForView(View.class, matcher);
     }
 }

@@ -9,7 +9,7 @@ import type {RateMenuElement} from 'chrome-untrusted://read-anything-side-panel.
 import {assertEquals, assertNotEquals} from 'chrome-untrusted://webui-test/chai_assert.js';
 import {microtasksFinished} from 'chrome-untrusted://webui-test/test_util.js';
 
-import {assertCheckMarksForDropdown, mockMetrics} from './common.js';
+import {assertCheckMarksForDropdown, assertHeadersForDropdown, mockMetrics} from './common.js';
 import {FakeReadingMode} from './fake_reading_mode.js';
 import type {TestMetricsBrowserProxy} from './test_metrics_browser_proxy.js';
 
@@ -30,6 +30,10 @@ suite('RateMenuElement', () => {
 
   test('has checkmarks', () => {
     assertCheckMarksForDropdown(rateMenu);
+  });
+
+  test('does not have headers', () => {
+    assertHeadersForDropdown(rateMenu.$.menu, /*shouldHaveHeaders=*/ false);
   });
 
   test('rate change is propagated', async () => {
@@ -75,6 +79,7 @@ suite('RateMenuElement', () => {
       speechRate: rate,
       font: '',
       highlightGranularity: 0,
+      lineFocus: 0,
     };
     await microtasksFinished();
 
@@ -91,6 +96,7 @@ suite('RateMenuElement', () => {
       speechRate: 0,
       font: 'font',
       highlightGranularity: 103,
+      lineFocus: 104,
     };
     await microtasksFinished();
 

@@ -48,7 +48,8 @@ import org.chromium.base.ContextUtils;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.ObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.build.annotations.UsedByReflection;
@@ -199,7 +200,8 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
 
     private @Nullable Set<String> mSelectedDomains;
 
-    private final ObservableSupplierImpl<String> mPageTitle = new ObservableSupplierImpl<>();
+    private final SettableObservableSupplier<String> mPageTitle =
+            ObservableSuppliers.createMonotonic();
 
     @Override
     public void onCookiesDetailsRequested(@CookieControlsMode int cookieSettingsState) {
@@ -597,9 +599,7 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
                             R.string.menu_help);
             help.setIcon(
                     TraceEventVectorDrawableCompat.create(
-                            getResources(),
-                            R.drawable.ic_help_and_feedback,
-                            getContext().getTheme()));
+                            getResources(), R.drawable.ic_help_24dp, getContext().getTheme()));
         }
     }
 
@@ -1258,6 +1258,10 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
                 return R.string.website_settings_serial_port_page_description;
             } else if (mCategory.getType() == SiteSettingsCategory.Type.LOCAL_NETWORK_ACCESS) {
                 return R.string.website_settings_local_network_access_page_description;
+            } else if (mCategory.getType() == SiteSettingsCategory.Type.LOCAL_NETWORK) {
+                return R.string.website_settings_local_network_page_description;
+            } else if (mCategory.getType() == SiteSettingsCategory.Type.LOOPBACK_NETWORK) {
+                return R.string.website_settings_loopback_network_page_description;
             } else if (mCategory.getType() == SiteSettingsCategory.Type.WINDOW_MANAGEMENT) {
                 return R.string.website_settings_window_management_page_description;
             } else if (mCategory.getType() == SiteSettingsCategory.Type.AUTO_PICTURE_IN_PICTURE) {

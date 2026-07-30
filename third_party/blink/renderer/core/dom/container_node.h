@@ -179,7 +179,6 @@ class CORE_EXPORT ContainerNode : public Node {
   void ParserFinishedBuildingDocumentFragment(ShouldNotifyInsertedNodes);
   void ParserRemoveChild(Node&);
   void ParserInsertBefore(Node* new_child, Node& ref_child);
-  void ParserRemoveAllChildren();
   void ParserReplaceChild(Node& new_child, Node& old_child);
   void ParserTakeAllChildrenFrom(ContainerNode&);
 
@@ -479,11 +478,6 @@ class CORE_EXPORT ContainerNode : public Node {
 
   WritableStream* streamAppendHTMLUnsafe(ScriptState*, ExceptionState&);
   WritableStream* streamHTMLUnsafe(ScriptState*, ExceptionState&);
-  WritableStream* patchSelf(ScriptState*, ExceptionState&);
-  WritableStream* patchAfter(ScriptState*, Node* a, ExceptionState&);
-  WritableStream* patchBefore(ScriptState*, Node* b, ExceptionState&);
-  WritableStream* patchBetween(ScriptState*, Node* a, Node* b, ExceptionState&);
-  WritableStream* patchAll(ScriptState*);
 
   // DocumentOrElementEventHandlers:
   // These event listeners are only actually web-exposed on interfaces that

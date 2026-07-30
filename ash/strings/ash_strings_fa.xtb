@@ -342,6 +342,7 @@
 <translation id="2201071101391734388">عکس اخیر <ph name="INDEX" /> از <ph name="TOTAL_COUNT" />.</translation>
 <translation id="2201687081523799384">‏جمع کردن Google Tasks</translation>
 <translation id="2208323208084708176">حالت میز کار یکپارچه</translation>
+<translation id="2210311543574621570">‏وقتی‌که Ctrl و V را فشار دهید و نگه دارید، بریده‌دان را خواهید دید. برای خاموش کردن این میان‌بر می‌توانید «پرچم‌گذاری» ‎#clipboard-history-longpress را در chrome://flags غیرفعال کنید.</translation>
 <translation id="2215920961700443347">به اینترنت متصل نیستید. به اینترنت متصل شوید و دوباره امتحان کنید.</translation>
 <translation id="2222841058024245321">میز کار ۷</translation>
 <translation id="2223384056430485343">در صفحهٔ دونیمه</translation>
@@ -544,7 +545,7 @@
 <translation id="2869095047958348710">همین <ph name="DAY_OF_WEEK" /> گذشته</translation>
 <translation id="2872353916818027657">تعویض مانیتور اصلی</translation>
 <translation id="2872961005593481000">خاموش کردن</translation>
-<translation id="2876338922445400217">زوم‌پیش کردن صفحه‌نمایش</translation>
+<translation id="2876338922445400217">زوم‌پیش روی صفحه‌نمایش</translation>
 <translation id="2876760662374103627">«کنترل چهره» فعال است</translation>
 <translation id="2878884018241093801">چیز جدیدی اینجا نیست</translation>
 <translation id="2880541185262491188">تلاش‌های ناموفق خیلی زیادی برای وارد کردن پین داشته‌اید. ‫<ph name="TIME_LEFT" /> صبر کنید و دوباره امتحان کنید</translation>
@@ -681,7 +682,7 @@
 <translation id="3364721542077212959">ابزارهای قلم</translation>
 <translation id="3365281428003534650">زمان‌سنج، تکلیف، و موسیقی تنظیم کنید</translation>
 <translation id="3365977133351922112">تلفنتان خیلی دور است. تلفنتان را نزدیک‌تر بیاورید.</translation>
-<translation id="3368922792935385530">متصل</translation>
+<translation id="3368922792935385530">متصل‌شده</translation>
 <translation id="3369111525500416043">سررسید به‌زودی فرا می‌رسد</translation>
 <translation id="3371140690572404006">‏دستگاه USB-C (درگاه جلوی سمت راست)</translation>
 <translation id="3375634426936648815">متصل است</translation>
@@ -874,7 +875,7 @@
 <translation id="397105322502079400">در حال محاسبه…</translation>
 <translation id="397726367135689299">شارژ باتری ممکن است نامطمئن باشد.</translation>
 <translation id="3977512764614765090">شارژ باتری <ph name="PERCENTAGE" />٪ است و باتری درحال شارژ است.</translation>
-<translation id="3978162107953847778">‏پیوندهایی از مکان‌هایی مثل سابقه مرور و Google Drive درج کنید. همچنین می‌توانید اموجی، فایل تصویری، و موارد دیگر درج کنید. <ph name="LINK_TO_LEARN_MORE" /></translation>
+<translation id="3978162107953847778">‏پیوند از جاهایی مثل سابقه مرور و Google Drive درج کنید. همچنین می‌توانید اموجی، فایل تصویری، و موارد دیگر درج کنید. <ph name="LINK_TO_LEARN_MORE" /></translation>
 <translation id="3982013579989864579">خروجی صوتی تغییر کند؟</translation>
 <translation id="3984536049089846927">صفحه بعدی</translation>
 <translation id="3986082989454912832">جواب</translation>
@@ -1025,7 +1026,6 @@
 <translation id="4449692009715125625">{NUM_NOTIFICATIONS,plural, =1{۱ اعلان مهم}one{# اعلان مهم}other{# اعلان مهم}}</translation>
 <translation id="4450893287417543264">دیگر نشان داده نشود</translation>
 <translation id="4451374464530248585">میان‌بر صفحه‌کلید «دگرساز + جهت‌نمای پایین» تغییر کرده است. برای استفاده از کلید «صفحه بعدی»، کلید «<ph name="LAUNCHER_KEY_NAME" /> + جهت‌نمای پایین» را فشار دهید.</translation>
-<translation id="4453876312474547652">‏وقتی Ctrl + V را فشار دهید و نگه دارید، بریده‌دان را می‌بینید. می‌توانید این میان‌بر را با غیرفعال کردن پرچم ‎#clipboard-history-longpress در chrome://flags ‏(os://flags درصورت استفاده از Lacros) خاموش کنید.</translation>
 <translation id="445765352722456792">سفارشی‌سازی پیشنهادها</translation>
 <translation id="4458688154122353284">توقف ضبط صفحه‌نمایش</translation>
 <translation id="445923051607553918">‏پیوستن به شبکه Wi-Fi</translation>
@@ -1601,7 +1601,7 @@
 <translation id="6260038345397266744"><ph name="TITLE" />. <ph name="DESCRIPTION" /></translation>
 <translation id="6267036997247669271"><ph name="NAME" />: در حال فعال‌سازی…</translation>
 <translation id="6274202259872570803">ضبط ویدیویی از صفحه</translation>
-<translation id="6274422179279280249">‏پیوند، اموجی، و موارد دیگر درج کنید. همچنین می‌توانید از «هوش مصنوعی Google»، برای نوشتن کمک بگیرید. <ph name="LINK_TO_LEARN_MORE" /></translation>
+<translation id="6274422179279280249">‏پیوند، اموجی، و موارد دیگر درج کنید. همچنین می‌توانید از «هوش مصنوعی Google» برای نوشتن کمک بگیرید. <ph name="LINK_TO_LEARN_MORE" /></translation>
 <translation id="6276708887952587684">مشاهده منبع صفحه</translation>
 <translation id="6285871695023807425">افزودن به «تقویم»</translation>
 <translation id="6288235558961782912">بعداً می‌توانید <ph name="USER_EMAIL_ADDRESS" /> را با اجازه ولی دوباره اضافه کنید.</translation>

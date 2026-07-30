@@ -32,7 +32,10 @@ ${this.showContextEntrypoint_ ? html`
       .tabSuggestions="${this.tabSuggestions_}"
       ?show-dropdown="${this.hasVisibleMatches_}"
       ?show-lens-search-chip="${this.isLensSearchEligible_}"
-      @context-menu-entrypoint-click="${this.onContextualEntryPointClicked_}">
+      ?show-recent-tab-chip="${this.computeShowRecentTabChip_()}"
+      @add-tab-context="${this.addTabContext_}"
+      @context-menu-entrypoint-click="${this.onContextualEntryPointClicked_}"
+      @lens-search-click="${this.onLensSearchChipClicked_}">
     ${searchboxDropdown}
   </contextual-entrypoint-and-carousel>
 </div>` : html`

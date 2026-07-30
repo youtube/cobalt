@@ -6,10 +6,10 @@ import 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js'
 
 import {ReadAnythingSettingsChange, ToolbarEvent} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
 import type {LineSpacingMenuElement} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
-import {assertEquals, assertNotEquals} from 'chrome-untrusted://webui-test/chai_assert.js';
+import {assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome-untrusted://webui-test/chai_assert.js';
 import {microtasksFinished} from 'chrome-untrusted://webui-test/test_util.js';
 
-import {assertCheckMarksForDropdown, mockMetrics} from './common.js';
+import {assertCheckMarksForDropdown, assertHeadersForDropdown, mockMetrics, stubAnimationFrame} from './common.js';
 import {FakeReadingMode} from './fake_reading_mode.js';
 import type {TestMetricsBrowserProxy} from './test_metrics_browser_proxy.js';
 
@@ -30,6 +30,11 @@ suite('LineSpacing', () => {
 
   test('has checkmarks', () => {
     assertCheckMarksForDropdown(lineSpacingMenu);
+  });
+
+  test('does not have headers', () => {
+    assertHeadersForDropdown(
+        lineSpacingMenu.$.menu, /*shouldHaveHeaders=*/ false);
   });
 
   test('spacing change', async () => {
@@ -66,6 +71,7 @@ suite('LineSpacing', () => {
       speechRate: 0,
       font: '',
       highlightGranularity: 0,
+      lineFocus: 0,
     };
     await microtasksFinished();
 
@@ -82,9 +88,18 @@ suite('LineSpacing', () => {
       speechRate: 103,
       font: 'font',
       highlightGranularity: 103,
+      lineFocus: 104,
     };
     await microtasksFinished();
 
     assertEquals(startingIndex, lineSpacingMenu.$.menu.currentSelectedIndex);
+  });
+
+  test('can be closed programatically', () => {
+    stubAnimationFrame();
+    lineSpacingMenu.open(document.body);
+    assertTrue(lineSpacingMenu.$.menu.$.lazyMenu.get().open);
+    lineSpacingMenu.close();
+    assertFalse(lineSpacingMenu.$.menu.$.lazyMenu.get().open);
   });
 });

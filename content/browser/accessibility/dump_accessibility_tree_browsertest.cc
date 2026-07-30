@@ -1360,6 +1360,11 @@ IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest,
   RunAriaTest(FILE_PATH_LITERAL("aria-listbox-childfocus.html"));
 }
 
+IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest,
+                       AccessibilityAriaListboxOptionRedundancy) {
+  RunAriaTest(FILE_PATH_LITERAL("aria-listbox-option-redundancy.html"));
+}
+
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest, AccessibilityAriaListItem) {
   RunAriaTest(FILE_PATH_LITERAL("aria-listitem.html"));
 }
@@ -4812,6 +4817,17 @@ IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeWithCarouselTest, CarouselNoTabs) {
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeWithCarouselTest,
                        CarouselWithColumnTabs) {
   RunCSSTest(FILE_PATH_LITERAL("carousel-with-column-tabs.html"));
+}
+
+IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeWithCarouselTest,
+                       CarouselWithColumnTabsDynamic) {
+  RunCSSTest(FILE_PATH_LITERAL("carousel-with-column-tabs-dynamic.html"));
+}
+
+IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeWithCarouselTest,
+                       CarouselWithWrappedColumnTabsDynamic) {
+  RunCSSTest(
+      FILE_PATH_LITERAL("carousel-with-wrapped-column-tabs-dynamic.html"));
 }
 
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeWithCarouselTest,

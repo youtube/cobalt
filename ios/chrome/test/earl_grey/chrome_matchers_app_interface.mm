@@ -5,6 +5,7 @@
 #import "ios/chrome/test/earl_grey/chrome_matchers_app_interface.h"
 
 #import "base/apple/foundation_util.h"
+#import "base/ios/ios_util.h"
 #import "base/strings/string_number_conversions.h"
 #import "base/strings/sys_string_conversions.h"
 #import "components/safe_browsing/core/common/features.h"
@@ -26,13 +27,13 @@
 #import "ios/chrome/browser/omnibox/ui/keyboard_assist/omnibox_assistive_keyboard_views_utils.h"
 #import "ios/chrome/browser/omnibox/ui/omnibox_text_field_ios.h"
 #import "ios/chrome/browser/omnibox/ui/omnibox_text_view_ios.h"
-#import "ios/chrome/browser/popup_menu/ui_bundled/popup_menu_constants.h"
+#import "ios/chrome/browser/popup_menu/public/popup_menu_constants.h"
 #import "ios/chrome/browser/recent_tabs/public/recent_tabs_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_add_credit_card_view_controller.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_credit_card_table_view_controller.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_profile_table_view_controller.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_settings_constants.h"
-#import "ios/chrome/browser/settings/ui_bundled/clear_browsing_data/quick_delete_constants.h"
+#import "ios/chrome/browser/settings/ui_bundled/clear_browsing_data/public/quick_delete_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/google_services/google_services_settings_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/google_services/manage_accounts/manage_accounts_table_view_controller_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/notifications/notifications_constants.h"
@@ -299,7 +300,10 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
       return NO;
     }
     UIButton* button = base::apple::ObjCCastStrict<UIButton>(element);
-    if (@available(iOS 26, *)) {
+
+    // tintColor is only used on iOS 26.0.
+    if (base::ios::IsRunningOnOrLater(26, 0, 0) &&
+        !base::ios::IsRunningOnOrLater(26, 1, 0)) {
       return CGColorEqualToColor(color.CGColor, button.tintColor.CGColor);
     }
     return CGColorEqualToColor(
@@ -571,7 +575,7 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
 }
 
 + (id<GREYMatcher>)omniboxText:(NSString*)text {
-  GREYElementMatcherBlock* matcher = [GREYElementMatcherBlock
+  GREYElementMatcherBlock* omniboxTextInputMatcher = [GREYElementMatcherBlock
       matcherWithMatchesBlock:^BOOL(id element) {
         id<OmniboxTextInput> omnibox =
             base::apple::ObjCCast<OmniboxTextFieldIOS>(element)
@@ -583,7 +587,17 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
             appendText:[NSString stringWithFormat:@"Omnibox contains text '%@'",
                                                   text]];
       }];
-  return matcher;
+
+  // Transitioning from OmniboxText to waitForWebStateVisibleURL for URL
+  // verification. As an interim solution during test migration, we are matching
+  // against a hidden label that mirrors the omnibox text. crbug.com/465394669.
+  // TODO(crbug.com/465030009): Remove the hidden omnibox text label.
+  id<GREYMatcher> omniboxTextHiddenLabelMatcher =
+      grey_allOf(grey_accessibilityID(kOmniboxTextHiddenLabelIdentifier),
+                 grey_accessibilityLabel(text), nil);
+
+  return grey_anyOf(omniboxTextHiddenLabelMatcher,
+                    omniboxTextInputMatcher, nil);
 }
 
 + (id<GREYMatcher>)omniboxContainingText:(NSString*)text {
@@ -639,6 +653,17 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
                            stringWithFormat:
                                @"LocationBarSteadyView contains text '%@'",
                                text]];
+      }];
+  return matcher;
+}
+
++ (id<GREYMatcher>)locationViewEmpty {
+  GREYElementMatcherBlock* matcher = [GREYElementMatcherBlock
+      matcherWithMatchesBlock:^BOOL(LocationBarSteadyView* element) {
+        return element.locationLabel.text.length == 0;
+      }
+      descriptionBlock:^void(id<GREYDescription> description) {
+        [description appendText:@"LocationBarSteadyView is empty"];
       }];
   return matcher;
 }
@@ -777,9 +802,10 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
     UINavigationBar* navBar = base::apple::ObjCCastStrict<UINavigationBar>(
         SubviewWithAccessibilityIdentifier(kBookmarkNavigationBarIdentifier,
                                            GetAnyKeyWindow()));
-    return grey_allOf(grey_buttonTitle(navBar.backItem.title),
-                      grey_ancestor(grey_kindOfClass([UINavigationBar class])),
-                      nil);
+    return grey_allOf(
+        grey_buttonTitle(navBar.backItem.title),
+        grey_not([ChromeMatchersAppInterface navigationBarCloseButton]),
+        grey_ancestor(grey_kindOfClass([UINavigationBar class])), nil);
   }
 }
 

@@ -164,6 +164,9 @@ export declare interface GlicBrowserHost {
   /** Returns the precise Chrome's version. */
   getChromeVersion(): Promise<ChromeVersion>;
 
+  /** Return the platform glic is running on. */
+  getPlatform?(): Platform;
+
   /**
    * Notifies the browser that the web client has switched modes. Note that this
    * call does not change any aspect of the panel itself (e.g. resize-ability).
@@ -386,13 +389,9 @@ export declare interface GlicBrowserHost {
 
   /**
    * Returns the observable state of TabData for the given tab.
-   * Note that updates are only sent for a subset of changes to the tab.
    *
-   * WARNING: The current implementation within Chrome makes this unsuitable
-   * for general use. Only tabs involved with actor tasks are supported. The
-   * observable remains open even if there's no tab.
-   * @todo Generalize this to work with non-actor tabs.
-   * @todo Complete the observable when tabs are removed.
+   * The returned observable is completed when the tab is destroyed, or one is
+   * not found with the given ID.
    */
   getTabById?(tabId: string): ObservableValue<TabData>;
 
@@ -927,6 +926,18 @@ export declare interface GlicBrowserHost {
    */
   loadAndExtractContent?(urls: string[], options: TabContextOptions[]):
       Promise<TabContextResult[]>;
+
+  /**
+   * Called when the user has completed the onboarding flow.
+   */
+  setOnboardingCompleted?(): void;
+
+  /**
+   * Returns an observable that emits whether the user has completed the
+   * onboarding flow. The observable will be updated when the value changes to
+   * allow coordination between multiple Glic instances.
+   */
+  isOnboardingCompleted?(): ObservableValue<boolean>;
 }
 
 /** Information about a conversation. */
@@ -938,6 +949,12 @@ export declare interface ConversationInfo {
    *  titles don't change.
    */
   conversationTitle: string;
+  /**
+   * Optional client-specific data. This data is not used by Chrome and Chrome
+   * will never attempt to deserialize it. It can hold a key for client-side
+   * lookup or opaque serialized data.
+   */
+  clientData?: string;
 }
 
 /** Fields of interest from the system settings page. */
@@ -1245,9 +1262,10 @@ export declare interface PanelOpeningData {
    */
   invocationSource?: InvocationSource;
   /**
-   * The ID of the conversation to open. If unset, the web client will open a
-   * new conversation. This field is used only when the `MULTI_INSTANCE`
-   * capability is present.
+   * @deprecated Use `conversationInfo` instead. The ID of the conversation to
+   *     open.
+   * If unset, the web client will open a new conversation.
+   * This field is used only when the `MULTI_INSTANCE` capability is present.
    */
   conversationId?: string;
   /**
@@ -1260,6 +1278,16 @@ export declare interface PanelOpeningData {
    * first.
    */
   recentlyActiveConversations?: ConversationInfo[];
+  /**
+   * Information about the conversation being opened.
+   *
+   * - The web client will load the requested `conversationInfo.conversationId`.
+   * - If `conversationInfo.conversationId` is empty, it indicates a new
+   * conversation is being started.
+   * - The object may contain `clientData` if it was provided in the
+   *   `registerConversation` or `switchConversation` calls.
+   */
+  conversationInfo?: ConversationInfo;
 }
 
 /** The default value of TabContextOptions.pdfSizeLimit. */
@@ -2209,6 +2237,7 @@ export interface ExtensibleEnums {
   actorTaskStopReason: typeof ActorTaskStopReason;
   UserGrantedPermissionDuration: typeof UserGrantedPermissionDuration;
   webUseCounter: typeof WebUseCounter;
+  platform: typeof Platform;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -2303,6 +2332,17 @@ export enum CaptureScreenshotErrorReason {
   SCREEN_CAPTURE_REQUEST_THROTTLED = 1,
   // User declined screen capture dialog before taking a screenshot.
   USER_CANCELLED_SCREEN_PICKER_DIALOG = 2,
+}
+
+///////////////////////////////////////////////
+// WARNING - GENERATED FROM MOJOM, DO NOT EDIT.
+// The platform glic is running on.
+export enum Platform {
+  UNKNOWN = 0,
+  MAC_OS = 1,
+  WINDOWS = 2,
+  LINUX = 3,
+  CHROME_OS = 4,
 }
 
 ///////////////////////////////////////////////
@@ -2501,6 +2541,8 @@ export enum HostCapability {
   // Enables the experimental "Trust First" (Arm 2 - "Welcome Screen")
   // onboarding UI flow, bypassing the standard FRE flow.
   TRUST_FIRST_ONBOARDING_ARM2 = 5,
+  // Glic host supports sharing additional image context.
+  SHARE_ADDITIONAL_IMAGE_CONTEXT = 6,
 }
 
 ///////////////////////////////////////////////

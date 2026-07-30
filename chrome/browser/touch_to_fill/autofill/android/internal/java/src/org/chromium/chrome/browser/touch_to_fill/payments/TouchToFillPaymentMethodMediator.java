@@ -97,13 +97,13 @@ import android.text.SpannableString;
 
 import androidx.annotation.DrawableRes;
 import androidx.annotation.IntDef;
-import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.ServiceLoaderUtil;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.autofill.AutofillUiUtils;
 import org.chromium.chrome.browser.autofill.PersonalDataManager.Iban;
 import org.chromium.chrome.browser.night_mode.GlobalNightModeStateProviderHolder;
@@ -310,7 +310,6 @@ class TouchToFillPaymentMethodMediator {
 
     // LINT.IfChange
 
-    // TODO(crbug.com/438785863): Add ToS user actions.
     @VisibleForTesting
     static final String TOUCH_TO_FILL_BNPL_USER_ACTION = "Autofill.TouchToFill.Bnpl.UserAction";
 
@@ -678,8 +677,6 @@ class TouchToFillPaymentMethodMediator {
                         .setExtractedAmount(isAmountSupportedByAnyIssuer ? extractedAmount : null);
                 showBnplIssuers(bnplIssuerContexts);
             } else {
-                // TODO(crbug.com/438784412): If the amount exists but is not supported by any
-                // issuer, we still need to gray out BNPL suggestion on the home screen.
                 showErrorScreen(
                         mContext.getString(R.string.autofill_bnpl_error_dialog_title),
                         mContext.getString(R.string.autofill_bnpl_temporary_error_description));
@@ -1035,8 +1032,6 @@ class TouchToFillPaymentMethodMediator {
     private void showHomeScreen() {
         mModel.set(CURRENT_SCREEN, HOME_SCREEN);
         if (mSuggestions != null) {
-            // TODO(crbug.com/438784993): Disable and grey out BNPL chip if no issuers are available
-            // for the transaction.
             // TODO(crbug.com/430575808): Reset mBnplIssuerContexts when navigating back to the
             // payment method home screen after pressing the back button.
             setPaymentMethodsHomeScreenItems();
@@ -1359,9 +1354,7 @@ class TouchToFillPaymentMethodMediator {
         return new ListItem(
                 HEADER,
                 new PropertyModel.Builder(HeaderProperties.ALL_KEYS)
-                        .with(
-                                IMAGE_DRAWABLE_ID,
-                                issuerImageId == 0 ? R.drawable.bnpl_icon_generic : issuerImageId)
+                        .with(IMAGE_DRAWABLE_ID, issuerImageId)
                         .with(TITLE_STRING, title)
                         .build());
     }

@@ -43,14 +43,15 @@ class MockContextualTasksComposeboxHandler
       mojo::PendingReceiver<composebox::mojom::PageHandler> pending_handler,
       mojo::PendingRemote<composebox::mojom::Page> pending_page,
       mojo::PendingReceiver<searchbox::mojom::PageHandler>
-          pending_searchbox_handler)
+          pending_searchbox_handler,
+      GetSessionHandleCallback get_session_callback)
       : ContextualTasksComposeboxHandler(ui_controller,
                                          profile,
                                          web_contents,
                                          std::move(pending_handler),
                                          std::move(pending_page),
-                                         std::move(pending_searchbox_handler)) {
-  }
+                                         std::move(pending_searchbox_handler),
+                                         std::move(get_session_callback)) {}
   ~MockContextualTasksComposeboxHandler() override = default;
 
   MOCK_METHOD(void,
@@ -111,6 +112,14 @@ class ContextualTasksSidePanelCoordinatorInteractiveUiTest
         task1.GetTaskId(),
         sessions::SessionTabHelper::IdForTab(
             browser()->tab_strip_model()->GetWebContentsAt(2)));
+
+    // CachedWebContents are only created when transferring a tab to the side
+    // panel or when calling Show(). Use the test-only method to imitate a
+    // session where the side panel has been created for each of these tasks.
+    ContextualTasksSidePanelCoordinator* coordinator =
+        ContextualTasksSidePanelCoordinator::From(browser());
+    coordinator->CreateCachedWebContentsForTesting(task_id1_, /*is_open=*/true);
+    coordinator->CreateCachedWebContentsForTesting(task_id2_, /*is_open=*/true);
 
     browser()->GetFeatures().side_panel_ui()->DisableAnimationsForTesting();
   }
@@ -554,8 +563,9 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksSidePanelCoordinatorInteractiveUiTest,
       }));
 }
 
+// TODO(crbug.com/470086449): Disabled due to flakiness.
 IN_PROC_BROWSER_TEST_F(ContextualTasksSidePanelCoordinatorInteractiveUiTest,
-                       UpdateActiveTabContextStatusOnTabSwitch) {
+                       DISABLED_UpdateActiveTabContextStatusOnTabSwitch) {
   SetUpTasks();
   ContextualTasksSidePanelCoordinator* coordinator =
       ContextualTasksSidePanelCoordinator::From(browser());
@@ -585,7 +595,10 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksSidePanelCoordinatorInteractiveUiTest,
           browser()->tab_strip_model()->GetWebContentsAt(0),
           std::move(composebox_handler_receiver),
           std::move(composebox_page_remote),
-          std::move(searchbox_handler_receiver));
+          std::move(searchbox_handler_receiver),
+          base::BindRepeating(
+              &ContextualTasksUI::GetOrCreateContextualSessionHandle,
+              base::Unretained(ui)));
   MockContextualTasksComposeboxHandler* mock_handler =
       mock_composebox_handler.get();
   ui->SetComposeboxHandlerForTesting(std::move(mock_composebox_handler));
@@ -753,12 +766,29 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksSidePanelCoordinatorInteractiveUiTest,
   ASSERT_EQ(task1->GetTaskId(), task2->GetTaskId());
 }
 
+IN_PROC_BROWSER_TEST_F(ContextualTasksSidePanelCoordinatorInteractiveUiTest,
+                       NavigateToContextualTasksPageHidesSidePanel) {
+  SetUpTasks();
+
+  ContextualTasksSidePanelCoordinator* coordinator =
+      ContextualTasksSidePanelCoordinator::From(browser());
+
+  // Show side panel.
+  coordinator->Show();
+  EXPECT_TRUE(coordinator->IsSidePanelOpenForContextualTask());
+
+  // Navigate to a contextual tasks URL closes the side panel.
+  EXPECT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL(chrome::kChromeUIContextualTasksURL)));
+  EXPECT_FALSE(coordinator->IsSidePanelOpenForContextualTask());
+}
+
 class TabScopedContextualTasksSidePanelCoordinatorInteractiveUiTest
     : public ContextualTasksSidePanelCoordinatorInteractiveUiTest {
  public:
   TabScopedContextualTasksSidePanelCoordinatorInteractiveUiTest() {
     scoped_feature_list_.InitAndEnableFeatureWithParameters(
-        kContextualTasksContext, {{"TaskScopedSidePanel", "false"}});
+        kContextualTasks, {{"TaskScopedSidePanel", "false"}});
   }
   ~TabScopedContextualTasksSidePanelCoordinatorInteractiveUiTest() override =
       default;

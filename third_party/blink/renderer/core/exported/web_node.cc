@@ -32,6 +32,7 @@
 
 #include <ostream>
 
+#include "base/functional/callback_helpers.h"
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/web/web_document.h"
@@ -100,7 +101,7 @@ const AtomicString& GetEventTypeName(WebNode::EventType event_type) {
 
 }  // namespace
 
-WebNode::WebNode() = default;
+WebNode::WebNode(cppgc::SourceLocation loc) : private_(loc) {}
 
 WebNode::WebNode(const WebNode& n) {
   Assign(n);

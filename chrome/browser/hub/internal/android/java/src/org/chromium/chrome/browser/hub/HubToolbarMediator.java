@@ -19,6 +19,7 @@ import static org.chromium.chrome.browser.hub.HubToolbarProperties.PANE_SWITCHER
 import static org.chromium.chrome.browser.hub.HubToolbarProperties.SEARCH_BOX_VISIBLE;
 import static org.chromium.chrome.browser.hub.HubToolbarProperties.SEARCH_LISTENER;
 import static org.chromium.chrome.browser.hub.HubToolbarProperties.SEARCH_LOUPE_VISIBLE;
+import static org.chromium.chrome.browser.url_constants.UrlConstantResolver.getOriginalNonNativeNtpUrl;
 
 import android.content.ComponentCallbacks;
 import android.content.Context;
@@ -38,7 +39,6 @@ import org.chromium.chrome.browser.hub.HubToolbarProperties.PaneButtonLookup;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityClient;
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityExtras.ResolutionType;
-import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -134,6 +134,7 @@ public class HubToolbarMediator {
     private final Callback<@Nullable Tab> mOnCurrentTabChange = this::onCurrentTabChange;
 
     private @Nullable PaneButtonLookup mPaneButtonLookup;
+    private boolean mIgnoreTabLayoutSelection;
 
     /** Creates the mediator. */
     public HubToolbarMediator(
@@ -276,13 +277,23 @@ public class HubToolbarMediator {
             currentIndex++;
         }
         mPropertyModel.set(PANE_SWITCHER_INDEX, selectedIndex);
+
+        mIgnoreTabLayoutSelection = true;
         mPropertyModel.set(PANE_SWITCHER_BUTTON_DATA, buttonDataList);
+        mIgnoreTabLayoutSelection = false;
     }
 
     private FullButtonData wrapButtonData(
             @PaneId int paneId, DisplayButtonData referenceButtonData) {
         Runnable onPress =
                 () -> {
+                    if (mIgnoreTabLayoutSelection) {
+                        // When we rebuild the tab data, the selected tab layout will change, and
+                        // our Runnables will be invoked for the current tab. This isn't a real
+                        // input from the user, and can safely be ignored.
+                        return;
+                    }
+
                     // TODO(crbug.com/345492118): Move the event name into the tab group pane impl.
                     if (paneId == PaneId.TAB_GROUPS) {
                         mTracker.notifyEvent("tab_groups_surface_clicked");
@@ -354,7 +365,7 @@ public class HubToolbarMediator {
         mSearchActivityClient.requestOmniboxForResult(
                 mSearchActivityClient
                         .newIntentBuilder()
-                        .setPageUrl(new GURL(UrlConstants.NTP_NON_NATIVE_URL))
+                        .setPageUrl(new GURL(getOriginalNonNativeNtpUrl()))
                         .setIncognito(mPropertyModel.get(IS_INCOGNITO))
                         .setResolutionType(ResolutionType.OPEN_IN_CHROME)
                         .build());

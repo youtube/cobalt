@@ -208,6 +208,20 @@
 namespace blink {
 namespace {
 
+bool IsIgnoredAsInsideInactiveColumnTab(Node* node) {
+  if (!node || !RuntimeEnabledFeatures::CSSScrollMarkerGroupModesEnabled() ||
+      node->IsCarouselPseudoElement()) {
+    return false;
+  }
+  // Check if we are inside a ::column with inactive ::scroll-marker.
+  // The IsInsideInactiveColumnTab bit is set by ScrollMarkerGroupData when
+  // the active column changes.
+  if (const LayoutObject* layout_object = node->GetLayoutObject()) {
+    return layout_object->EnclosingBox()->InsideInactiveColumnTab();
+  }
+  return false;
+}
+
 const ScrollMarkerPseudoElement* GetScrollMarker(const Node* node) {
   auto* element = DynamicTo<Element>(node);
   if (!element) {
@@ -1258,36 +1272,36 @@ AXObjectInclusion AXNodeObject::ShouldIncludeBasedOnSemantics(
   return kDefaultBehavior;
 }
 
-bool AXNodeObject::ComputeIsIgnoredAsInsideInactiveScrollMarkerTab() {
-  Node* node = GetNode();
-  if (!node || !RuntimeEnabledFeatures::CSSScrollMarkerGroupModesEnabled()) {
+bool AXNodeObject::ComputeIsIgnoredAsInsideInactiveScrollMarkerTab() const {
+  if (!RuntimeEnabledFeatures::CSSScrollMarkerGroupModesEnabled()) {
     return false;
   }
-  if (node->IsCarouselPseudoElement()) {
-    // The carousel pseudo-elements should never be ignored.
-    return false;
-  }
-  if (IsOriginatingElementForInactiveScrollMarkerInTabsMode(node)) {
-    return true;
-  }
-  if (!ParentObject()) {
-    return false;
+  if (Node* node = GetNode()) {
+    if (node->IsCarouselPseudoElement()) {
+      // The carousel pseudo-elements should never be ignored.
+      return false;
+    }
+    // Check if this node is the originating element for inactive
+    // ::scroll-marker in tabs mode.
+    if (IsOriginatingElementForInactiveScrollMarkerInTabsMode(node)) {
+      return true;
+    }
   }
   // As soon as one of the ancestors is the originating element for
   // ::scroll-marker in tabs mode, we know this node is inside the originating
   // element for ::scroll-marker in tabs mode, so we just propagate this info
   // down to the children.
-  return ParentObject()
-      ->InsideOriginatingElementForInactiveScrollMarkerInTabsMode();
+  return ParentObject() && ParentObject()->InsideInactiveScrollMarkerTab();
 }
 
 bool AXNodeObject::ComputeIsIgnored(IgnoredReasons* ignored_reasons) const {
   Node* node = GetNode();
 
   // Everything (besides carousel pseudo-elements) inside and including the
-  // originating element of the
-  // ::scroll-marker is in tabs mode should be ignored in AX tree.
-  if (InsideOriginatingElementForInactiveScrollMarkerInTabsMode()) {
+  // originating element of the ::scroll-marker is in tabs mode should be
+  // ignored in AX tree.
+  if (InsideInactiveScrollMarkerTab() ||
+      IsIgnoredAsInsideInactiveColumnTab(node)) {
     if (ignored_reasons) {
       ignored_reasons->push_back(IgnoredReason(kAXInactiveCarouselTabContent));
     }
@@ -3200,7 +3214,19 @@ AccessibilitySelectedState AXNodeObject::IsSelected() const {
 
   // Selection follows focus, but ONLY in single selection containers, and only
   // if aria-selected was not present to override.
-  return IsSelectedFromFocus() ? kSelectedStateTrue : kSelectedStateFalse;
+  if (IsSelectedFromFocus()) {
+    return kSelectedStateTrue;
+  }
+
+  // Per ARIA spec, implicit selection is not allowed when:
+  // - Container is multiselectable, or
+  // - Any item has aria-checked.
+  const AXObject* container = ContainerWidget();
+  if (container && (container->IsMultiSelectable() ||
+                    !AXObjectCache().IsImplicitSelectionAllowed(container))) {
+    return kSelectedStateUndefined;
+  }
+  return kSelectedStateFalse;
 }
 
 bool AXNodeObject::IsSelectedFromFocusSupported() const {
@@ -3902,6 +3928,13 @@ AXObject::AXObjectVector AXNodeObject::RadioButtonsInGroup() const {
     return radio_buttons;
 
   if (auto* node_radio_button = DynamicTo<HTMLInputElement>(node_.Get())) {
+    if (auto* cache = DynamicTo<AXObjectCacheImpl>(AXObjectCache())) {
+      radio_buttons = cache->GetRadioButtonGroupMembers(node_radio_button);
+      if (!radio_buttons.empty()) {
+        return radio_buttons;
+      }
+    }
+
     HeapVector<Member<HTMLInputElement>> html_radio_buttons =
         FindAllRadioButtonsWithSameName(node_radio_button);
     for (HTMLInputElement* radio_button : html_radio_buttons) {
@@ -5289,7 +5322,9 @@ String AXNodeObject::TextAlternative(
   // visible element without causing an accessibility error or user problem.
   // Note: if this is part of another label or description, it needs to be
   // computed as a name, in order to contribute to that.
-  if (aria_label_or_description_root || !IsNameProhibited()) {
+  if ((aria_label_or_description_root || !IsNameProhibited()) &&
+      !(has_explicitly_empty_native_text_alternative &&
+        (IsA<HTMLImageElement>(node) || IsA<HTMLAreaElement>(node)))) {
     String resulting_text = TextAlternativeFromTooltip(
         name_from, name_sources, &found_text_alternative, &text_alternative,
         related_objects);
@@ -6059,7 +6094,9 @@ void AXNodeObject::AddPseudoElementChildrenFromLayoutTree() {
     // All added pseudo-element descendants are included in the tree.
     if (AXObject* ax_child = AXObjectCache().GetOrCreate(child, this)) {
       DCHECK(AXObjectCacheImpl::IsRelevantPseudoElementDescendant(*child));
-      AddChildAndCheckIncluded(ax_child);
+      if (ax_child->IsIncludedInTree()) {
+        AddChildAndCheckIncluded(ax_child);
+      }
     }
     child = child->NextSibling();
   }
@@ -7272,7 +7309,7 @@ String AXNodeObject::NativeTextAlternative(
       name_sources->push_back(NameSource(*found_text_alternative, kAltAttr));
       name_sources->back().type = name_from;
     }
-    if (!alt.empty()) {
+    if (!alt.IsNull()) {
       text_alternative = alt;
       if (name_sources) {
         NameSource& source = name_sources->back();

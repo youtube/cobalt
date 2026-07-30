@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_CSS_STYLE_RECALC_CONTEXT_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CSS_STYLE_RECALC_CONTEXT_H_
 
+#include "base/gtest_prod_util.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/style/computed_style_constants.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
@@ -91,6 +92,9 @@ class CORE_EXPORT StyleRecalcContext {
   // @starting-style styles for the second pass when transitioning from
   // display:none.
   const ComputedStyle* old_style = nullptr;
+
+  // The nearest ancestor overscroll container.
+  Element* overscroll_container = nullptr;
 
   // If false, something about the parent's style (e.g., that it has
   // modifications to one or more non-independent inherited properties)

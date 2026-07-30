@@ -22,12 +22,18 @@ class OmniboxComposeboxHandler : public ComposeboxHandler {
       mojo::PendingReceiver<searchbox::mojom::PageHandler>
           pending_searchbox_handler,
       Profile* profile,
-      content::WebContents* web_contents);
+      content::WebContents* web_contents,
+      GetSessionHandleCallback get_session_callback);
 
   ~OmniboxComposeboxHandler() override;
 
   // composebox::mojom::PageHandler:
   void HandleFileUpload(bool is_image) override;
+
+ protected:
+  // ContextualSearchboxHandler:
+  std::optional<lens::LensOverlayInvocationSource> GetInvocationSource()
+      const override;
 };
 
 #endif  // CHROME_BROWSER_UI_WEBUI_SEARCHBOX_OMNIBOX_COMPOSEBOX_HANDLER_H_

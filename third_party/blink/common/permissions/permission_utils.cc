@@ -30,6 +30,8 @@ std::string GetPermissionString(PermissionType permission) {
   switch (permission) {
     case PermissionType::GEOLOCATION:
       return "Geolocation";
+    case PermissionType::GEOLOCATION_APPROXIMATE:
+      return "GeolocationApproximate";
     case PermissionType::NOTIFICATIONS:
       return "Notifications";
     case PermissionType::MIDI_SYSEX:
@@ -102,6 +104,10 @@ std::string GetPermissionString(PermissionType permission) {
       return "WebAppInstallation";
     case PermissionType::LOCAL_NETWORK_ACCESS:
       return "LocalNetworkAccess";
+    case PermissionType::LOCAL_NETWORK:
+      return "LocalNetwork";
+    case PermissionType::LOOPBACK_NETWORK:
+      return "LoopbackNetwork";
     case PermissionType::NUM:
       NOTREACHED();
   }
@@ -112,6 +118,9 @@ std::optional<network::mojom::PermissionsPolicyFeature>
 PermissionTypeToPermissionsPolicyFeature(PermissionType permission) {
   switch (permission) {
     case PermissionType::GEOLOCATION:
+    // TODO(crbug.com/465377576): Change this when we implement the new
+    // policy-controlled feature "geolocation-approximate".
+    case PermissionType::GEOLOCATION_APPROXIMATE:
       return network::mojom::PermissionsPolicyFeature::kGeolocation;
     case PermissionType::MIDI_SYSEX:
       return network::mojom::PermissionsPolicyFeature::kMidiFeature;
@@ -161,6 +170,10 @@ PermissionTypeToPermissionsPolicyFeature(PermissionType permission) {
       return network::mojom::PermissionsPolicyFeature::kWebAppInstallation;
     case PermissionType::LOCAL_NETWORK_ACCESS:
       return network::mojom::PermissionsPolicyFeature::kLocalNetworkAccess;
+    case PermissionType::LOCAL_NETWORK:
+      return network::mojom::PermissionsPolicyFeature::kLocalNetwork;
+    case PermissionType::LOOPBACK_NETWORK:
+      return network::mojom::PermissionsPolicyFeature::kLoopbackNetwork;
 
     case PermissionType::PERIODIC_BACKGROUND_SYNC:
     case PermissionType::DURABLE_STORAGE:
@@ -252,6 +265,8 @@ std::optional<PermissionType> PermissionDescriptorInfoToPermissionType(
   switch (name) {
     case PermissionName::GEOLOCATION:
       return PermissionType::GEOLOCATION;
+    case PermissionName::GEOLOCATION_APPROXIMATE:
+      return PermissionType::GEOLOCATION_APPROXIMATE;
     case PermissionName::NOTIFICATIONS:
       return PermissionType::NOTIFICATIONS;
     case PermissionName::MIDI: {
@@ -335,6 +350,10 @@ std::optional<PermissionType> PermissionDescriptorInfoToPermissionType(
       return PermissionType::WEB_APP_INSTALLATION;
     case PermissionName::LOCAL_NETWORK_ACCESS:
       return PermissionType::LOCAL_NETWORK_ACCESS;
+    case PermissionName::LOCAL_NETWORK:
+      return PermissionType::LOCAL_NETWORK;
+    case PermissionName::LOOPBACK_NETWORK:
+      return PermissionType::LOOPBACK_NETWORK;
     case PermissionName::VR:
       return PermissionType::VR;
     case PermissionName::AR:

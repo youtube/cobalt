@@ -217,7 +217,7 @@ bool IsAlwaysAllowedHost(const GURL& effective_url) {
   constexpr auto kAllowedHosts = base::MakeFixedFlatSet<std::string_view>(
       {"accounts.google.com", "families.google.com", "familylink.google.com",
        "myaccount.google.com", "ogs.google.com", "policies.google.com",
-       "support.google.com", "myactivity.google.com"});
+       "support.google.com", "myactivity.google.com", "families.google"});
 
   return base::Contains(kAllowedHosts, effective_url.host());
 }
@@ -693,6 +693,7 @@ void SupervisedUserURLFilter::RemoveObserver(Observer* observer) {
 }
 
 WebFilterType SupervisedUserURLFilter::GetWebFilterType() const {
+  // LINT.IfChange(GetWebFilterType)
   if (FilterIsDisabled(user_prefs_.get())) {
     return WebFilterType::kDisabled;
   }
@@ -707,6 +708,7 @@ WebFilterType SupervisedUserURLFilter::GetWebFilterType() const {
   return supervised_user::IsSafeSitesEnabled(user_prefs_.get())
              ? WebFilterType::kTryToBlockMatureSites
              : WebFilterType::kAllowAllSites;
+  // LINT.ThenChange(//components/supervised_user/core/browser/supervised_user_settings_service.cc:GetWebFilterType)
 }
 
 bool SupervisedUserURLFilter::RunAsyncChecker(const GURL& url,

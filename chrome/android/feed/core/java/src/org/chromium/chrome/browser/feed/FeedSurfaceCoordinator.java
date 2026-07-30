@@ -43,6 +43,7 @@ import org.chromium.base.ObserverList;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.metrics.RecordUserAction;
+import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
@@ -180,12 +181,13 @@ public class FeedSurfaceCoordinator
     private FeedSwipeRefreshLayout mSwipeRefreshLayout;
 
     private boolean mWebFeedHasContent;
-    private final ObservableSupplier<Integer> mTabStripHeightSupplier;
+    private final NonNullObservableSupplier<Integer> mTabStripHeightSupplier;
     private final Callback<Integer> mTabStripHeightChangeCallback;
 
     // Used to handle padding adjustment when edge to edge is enabled.
     private final EdgeToEdgePadAdjuster mEdgePadAdjuster;
     private final boolean mIsNewTabPageCustomizationEnabled;
+    private final boolean mIsNewTabPageCustomizationV2Enabled;
     private @Nullable ImageButton mNtpCustomizationButton;
     private @Nullable NtpCustomizationConfigManager mNtpCustomizationConfigManager;
     private @Nullable NtpBackgroundImageCoordinator mNtpBackgroundImageCoordinator;
@@ -440,7 +442,7 @@ public class FeedSurfaceCoordinator
             boolean overScrollDisabled,
             @Nullable ViewGroup viewportView,
             FeedActionDelegate actionDelegate,
-            ObservableSupplier<Integer> tabStripHeightSupplier,
+            NonNullObservableSupplier<Integer> tabStripHeightSupplier,
             ObservableSupplier<EdgeToEdgeController> edgeToEdgeControllerSupplier) {
         mActivity = activity;
         mSnackbarManager = snackbarManager;
@@ -464,6 +466,9 @@ public class FeedSurfaceCoordinator
         mTabStripHeightSupplier = tabStripHeightSupplier;
         mUseStaggeredLayout = DeviceFormFactor.isNonMultiDisplayContextOnTablet(mActivity);
         mIsNewTabPageCustomizationEnabled = ChromeFeatureList.sNewTabPageCustomization.isEnabled();
+        mIsNewTabPageCustomizationV2Enabled =
+                mIsNewTabPageCustomizationEnabled
+                        && ChromeFeatureList.sNewTabPageCustomizationV2.isEnabled();
         mDefaultBackgroundColor =
                 ContextCompat.getColor(mActivity, R.color.home_surface_background_color);
 
@@ -484,7 +489,7 @@ public class FeedSurfaceCoordinator
         FeedStreamViewResizer.createAndAttach(mActivity, mRecyclerView, mUiConfig);
 
         mIsNtpCustomizationV2Enabled = ChromeFeatureList.sNewTabPageCustomizationV2.isEnabled();
-        if (mIsNewTabPageCustomizationEnabled) {
+        if (mIsNewTabPageCustomizationV2Enabled) {
             mNtpBackgroundImageCoordinator =
                     new NtpBackgroundImageCoordinator(
                             mActivity, mRootView, mUiConfig, mDefaultBackgroundColor);
@@ -514,7 +519,7 @@ public class FeedSurfaceCoordinator
         // above the RecyclerView.
         if (mIsNewTabPageCustomizationEnabled && mUseStaggeredLayout) {
             mNtpCustomizationButton = new ImageButton(mActivity);
-            mNtpCustomizationButton.setImageResource(R.drawable.bookmark_edit_active);
+            mNtpCustomizationButton.setImageResource(R.drawable.ic_edit_24dp);
             mNtpCustomizationButton.setBackgroundResource(R.drawable.edit_icon_circle_background);
             ImageViewCompat.setImageTintList(
                     mNtpCustomizationButton,
@@ -563,6 +568,11 @@ public class FeedSurfaceCoordinator
                                 @NtpBackgroundImageType int oldType,
                                 @NtpBackgroundImageType int newType) {
                             setBackgroundColor(backgroundColor);
+                        }
+
+                        @Override
+                        public void onBackgroundReset(@NtpBackgroundImageType int oldType) {
+                            setBackgroundColor(mDefaultBackgroundColor);
                         }
                     };
 

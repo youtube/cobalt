@@ -53,28 +53,40 @@ class FakeSecureChannelFactory {
   ~FakeSecureChannelFactory() = default;
 
   std::unique_ptr<SecureChannel> Create() {
-    auto channel =
-        std::make_unique<testing::StrictMock<MockSecureChannelClient>>();
+    CHECK(next_channel_);
+    auto channel = std::move(next_channel_);
     EXPECT_CALL(*channel, SetResponseCallback(_))
         .WillOnce(testing::SaveArg<0>(&response_callback_));
-    secure_channel_ = channel.get();
     return channel;
   }
 
-  raw_ptr<MockSecureChannelClient> secure_channel_ = nullptr;
+  MockSecureChannelClient* CreateNewChannel() {
+    CHECK(!next_channel_);
+    auto channel =
+        std::make_unique<testing::StrictMock<MockSecureChannelClient>>();
+    auto* channel_ptr = channel.get();
+    next_channel_ = std::move(channel);
+    return channel_ptr;
+  }
+
   SecureChannel::ResponseCallback response_callback_;
+
+ private:
+  std::unique_ptr<MockSecureChannelClient> next_channel_;
 };
 
 struct ResponseErrorTestParam {
-  Client::BinaryEncodedProtoResponse response_data;
+  ClientImpl::BinaryEncodedProtoResponse response_data;
   ErrorCode expected_error;
   bool mismatch_request_id = false;
 };
 
-void SetUpMockWrite(MockSecureChannelClient* mock_secure_channel,
-                    SecureChannel::ResponseCallback& response_callback,
-                    const Client::BinaryEncodedProtoResponse& response_template,
-                    bool mismatch_request_id = false) {
+void SetUpMockWrite(
+    MockSecureChannelClient* mock_secure_channel,
+    SecureChannel::ResponseCallback& response_callback,
+    const ClientImpl::BinaryEncodedProtoResponse& response_template,
+    bool mismatch_request_id = false) {
+  CHECK(mock_secure_channel);
   EXPECT_CALL(*mock_secure_channel, Write(_))
       .WillOnce([=, &response_callback](const Request& request_payload) {
         proto::LegionRequest request;
@@ -82,7 +94,7 @@ void SetUpMockWrite(MockSecureChannelClient* mock_secure_channel,
                                            request_payload.size()));
 
         proto::LegionResponse response;
-        Client::BinaryEncodedProtoResponse response_data;
+        ClientImpl::BinaryEncodedProtoResponse response_data;
         if (response.ParseFromArray(response_template.data(),
                                     response_template.size())) {
           if (mismatch_request_id) {
@@ -128,22 +140,25 @@ class ClientImplTest : public ::testing::Test {
 TEST_F(ClientImplTest, SendTextRequestSuccess) {
   const std::string kExpectedResponseText = "response text";
 
-  proto::LegionResponse legion_response;
-  auto* generate_content_response =
-      legion_response.mutable_generate_content_response();
-  auto* candidate = generate_content_response->add_candidates();
-  auto* content = candidate->mutable_content();
-  content->set_role("model");
-  auto* part = content->add_parts();
-  part->set_text(kExpectedResponseText);
+  ClientImpl::BinaryEncodedProtoResponse response_data;
+  {
+    proto::LegionResponse legion_response;
+    auto* generate_content_response =
+        legion_response.mutable_generate_content_response();
+    auto* candidate = generate_content_response->add_candidates();
+    auto* content = candidate->mutable_content();
+    content->set_role("model");
+    auto* part = content->add_parts();
+    part->set_text(kExpectedResponseText);
 
-  std::string serialized_response;
-  legion_response.SerializeToString(&serialized_response);
-  Client::BinaryEncodedProtoResponse response_data(serialized_response.begin(),
-                                                   serialized_response.end());
+    std::string serialized_response;
+    legion_response.SerializeToString(&serialized_response);
+    response_data.assign(serialized_response.begin(),
+                         serialized_response.end());
+  }
 
-  SetUpMockWrite(factory_.secure_channel_, factory_.response_callback_,
-                 response_data);
+  auto* mock_channel = factory_.CreateNewChannel();
+  SetUpMockWrite(mock_channel, factory_.response_callback_, response_data);
 
   base::test::TestFuture<base::expected<std::string, ErrorCode>> future;
   client_->SendTextRequest(proto::FeatureName::FEATURE_NAME_UNSPECIFIED,
@@ -152,12 +167,16 @@ TEST_F(ClientImplTest, SendTextRequestSuccess) {
   const auto& result = future.Get();
   ASSERT_TRUE(result.has_value());
   EXPECT_EQ(result.value(), kExpectedResponseText);
+
+  const int kRequestSize = 27;
   histogram_tester_.ExpectTotalCount("Legion.Client.RequestLatency.Success", 1);
   histogram_tester_.ExpectTotalCount("Legion.Client.RequestLatency.Timeout", 0);
   histogram_tester_.ExpectTotalCount("Legion.Client.RequestLatency.Error", 0);
   histogram_tester_.ExpectTotalCount("Legion.Client.RequestErrorCode", 0);
-  histogram_tester_.ExpectTotalCount("Legion.Client.RequestSize", 1);
-  histogram_tester_.ExpectTotalCount("Legion.Client.ResponseSize.Success", 1);
+  histogram_tester_.ExpectUniqueSample("Legion.Client.RequestSize",
+                                       kRequestSize, 1);
+  histogram_tester_.ExpectUniqueSample("Legion.Client.ResponseSize.Success",
+                                       response_data.size(), 1);
   histogram_tester_.ExpectUniqueSample(
       "Legion.Client.FeatureName", proto::FeatureName::FEATURE_NAME_UNSPECIFIED,
       1);
@@ -165,8 +184,8 @@ TEST_F(ClientImplTest, SendTextRequestSuccess) {
 
 // Test that SendRequest fails if SecureChannel::Write fails.
 TEST_F(ClientImplTest, SendTextRequestWriteFails) {
-  EXPECT_CALL(*factory_.secure_channel_, Write(_))
-      .WillOnce(testing::Return(false));
+  auto* mock_channel = factory_.CreateNewChannel();
+  EXPECT_CALL(*mock_channel, Write(_)).WillOnce(testing::Return(false));
 
   base::test::TestFuture<base::expected<std::string, ErrorCode>> future;
   client_->SendTextRequest(proto::FeatureName::FEATURE_NAME_UNSPECIFIED,
@@ -191,23 +210,26 @@ TEST_F(ClientImplTest, SendTextRequestWriteFails) {
 TEST_F(ClientImplTest, IgnoresResponseWithUnknownRequestId) {
   const std::string kExpectedResponseText = "response text";
 
-  proto::LegionResponse legion_response;
-  auto* generate_content_response =
-      legion_response.mutable_generate_content_response();
-  auto* candidate = generate_content_response->add_candidates();
-  auto* content = candidate->mutable_content();
-  content->set_role("model");
-  auto* part = content->add_parts();
-  part->set_text(kExpectedResponseText);
+  ClientImpl::BinaryEncodedProtoResponse response_data;
+  {
+    proto::LegionResponse legion_response;
+    auto* generate_content_response =
+        legion_response.mutable_generate_content_response();
+    auto* candidate = generate_content_response->add_candidates();
+    auto* content = candidate->mutable_content();
+    content->set_role("model");
+    auto* part = content->add_parts();
+    part->set_text(kExpectedResponseText);
 
-  std::string serialized_response;
-  legion_response.SerializeToString(&serialized_response);
-  Client::BinaryEncodedProtoResponse response_data(serialized_response.begin(),
-                                                   serialized_response.end());
+    std::string serialized_response;
+    legion_response.SerializeToString(&serialized_response);
+    response_data.assign(serialized_response.begin(),
+                         serialized_response.end());
+  }
 
   // Set up mock to respond with a mismatched request ID.
-  SetUpMockWrite(factory_.secure_channel_, factory_.response_callback_,
-                 response_data,
+  auto* mock_channel = factory_.CreateNewChannel();
+  SetUpMockWrite(mock_channel, factory_.response_callback_, response_data,
                  /*mismatch_request_id=*/true);
 
   base::test::TestFuture<base::expected<std::string, ErrorCode>> future;
@@ -231,9 +253,8 @@ TEST_F(ClientImplTest, IgnoresResponseWithUnknownRequestId) {
 
 // Test that the secure channel is recreated after a permanent failure.
 TEST_F(ClientImplTest, SecureChannelRecreation) {
-  auto* first_channel = factory_.secure_channel_.get();
-  EXPECT_CALL(*factory_.secure_channel_, Write(_))
-      .WillOnce(testing::Return(true));
+  auto* first_channel = factory_.CreateNewChannel();
+  EXPECT_CALL(*first_channel, Write(_)).WillOnce(testing::Return(true));
 
   // Send a request that will fail.
   base::test::TestFuture<base::expected<std::string, ErrorCode>> future;
@@ -254,27 +275,27 @@ TEST_F(ClientImplTest, SecureChannelRecreation) {
   histogram_tester_.ExpectTotalCount("Legion.Client.RequestSize", 1);
   histogram_tester_.ExpectTotalCount("Legion.Client.ResponseSize.Success", 0);
 
-  // A new channel should have been created.
-  auto second_channel = factory_.secure_channel_;
-  EXPECT_NE(first_channel, second_channel.get());
-
   // A subsequent request should succeed on the new channel.
   const std::string kExpectedResponseText = "response text";
 
-  proto::LegionResponse legion_response;
-  auto* generate_content_response =
-      legion_response.mutable_generate_content_response();
-  auto* candidate = generate_content_response->add_candidates();
-  auto* content = candidate->mutable_content();
-  content->set_role("model");
-  auto* part = content->add_parts();
-  part->set_text(kExpectedResponseText);
+  ClientImpl::BinaryEncodedProtoResponse response_data;
+  {
+    proto::LegionResponse legion_response;
+    auto* generate_content_response =
+        legion_response.mutable_generate_content_response();
+    auto* candidate = generate_content_response->add_candidates();
+    auto* content = candidate->mutable_content();
+    content->set_role("model");
+    auto* part = content->add_parts();
+    part->set_text(kExpectedResponseText);
 
-  std::string serialized_response;
-  legion_response.SerializeToString(&serialized_response);
-  Client::BinaryEncodedProtoResponse response_data(serialized_response.begin(),
-                                                   serialized_response.end());
+    std::string serialized_response;
+    legion_response.SerializeToString(&serialized_response);
+    response_data.assign(serialized_response.begin(),
+                         serialized_response.end());
+  }
 
+  auto* second_channel = factory_.CreateNewChannel();
   SetUpMockWrite(second_channel, factory_.response_callback_, response_data);
 
   base::test::TestFuture<base::expected<std::string, ErrorCode>> second_future;
@@ -297,8 +318,8 @@ TEST_F(ClientImplTest, SecureChannelRecreation) {
 // Test that a request times out correctly.
 TEST_F(ClientImplTest, SendTextRequestTimeout) {
   // Mock the secure channel to never respond.
-  EXPECT_CALL(*factory_.secure_channel_, Write(_))
-      .WillOnce(testing::Return(true));
+  auto* mock_channel = factory_.CreateNewChannel();
+  EXPECT_CALL(*mock_channel, Write(_)).WillOnce(testing::Return(true));
 
   base::test::TestFuture<base::expected<std::string, ErrorCode>> future;
   client_->SendTextRequest(proto::FeatureName::FEATURE_NAME_UNSPECIFIED,
@@ -329,8 +350,8 @@ TEST_F(ClientImplTest, SendTextRequestTimeout) {
 // Test that a response received after a timeout is ignored.
 TEST_F(ClientImplTest, SendTextRequestResponseAfterTimeout) {
   // Mock the secure channel to not invoke the response callback.
-  EXPECT_CALL(*factory_.secure_channel_, Write(_))
-      .WillOnce(testing::Return(true));
+  auto* mock_channel = factory_.CreateNewChannel();
+  EXPECT_CALL(*mock_channel, Write(_)).WillOnce(testing::Return(true));
 
   base::test::TestFuture<base::expected<std::string, ErrorCode>> future;
   client_->SendTextRequest(proto::FeatureName::FEATURE_NAME_UNSPECIFIED,
@@ -351,18 +372,20 @@ TEST_F(ClientImplTest, SendTextRequestResponseAfterTimeout) {
 
   // Now, simulate the response arriving late. This should not cause a crash or
   // change the result.
-  proto::LegionResponse legion_response;
-  legion_response.set_request_id(1);
-  legion_response.mutable_generate_content_response()
-      ->add_candidates()
-      ->mutable_content()
-      ->add_parts()
-      ->set_text("late response");
-  std::string serialized_response;
-  legion_response.SerializeToString(&serialized_response);
-  Client::BinaryEncodedProtoResponse response_data(serialized_response.begin(),
-                                                   serialized_response.end());
-  factory_.response_callback_.Run(base::ok(response_data));
+  {
+    proto::LegionResponse legion_response;
+    legion_response.set_request_id(1);
+    legion_response.mutable_generate_content_response()
+        ->add_candidates()
+        ->mutable_content()
+        ->add_parts()
+        ->set_text("late response");
+    std::string serialized_response;
+    legion_response.SerializeToString(&serialized_response);
+    ClientImpl::BinaryEncodedProtoResponse response_data(
+        serialized_response.begin(), serialized_response.end());
+    factory_.response_callback_.Run(base::ok(response_data));
+  }
 
   // To ensure the task runner has a chance to run the callback (which should be
   // a no-op), we can run until idle.
@@ -380,6 +403,41 @@ TEST_F(ClientImplTest, SendTextRequestResponseAfterTimeout) {
       1);
 }
 
+// Test that an empty response from the server is handled correctly.
+TEST_F(ClientImplTest, SendTextRequestEmptyResponse) {
+  ClientImpl::BinaryEncodedProtoResponse response_data;
+  {
+    proto::LegionResponse response;
+    response.mutable_generate_content_response();
+    std::string serialized;
+    response.SerializeToString(&serialized);
+    response_data.assign(serialized.begin(), serialized.end());
+  }
+
+  auto* mock_channel = factory_.CreateNewChannel();
+  SetUpMockWrite(mock_channel, factory_.response_callback_, response_data);
+
+  base::test::TestFuture<base::expected<std::string, ErrorCode>> future;
+  client_->SendTextRequest(proto::FeatureName::FEATURE_NAME_UNSPECIFIED,
+                           "some text", future.GetCallback(), /*options=*/{});
+
+  const auto& result = future.Get();
+  ASSERT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), ErrorCode::kNoContent);
+
+  // ErrorCode::kNoContent is a success from the client's perspective, but the
+  // response processing fails.
+  histogram_tester_.ExpectTotalCount("Legion.Client.RequestLatency.Success", 1);
+  histogram_tester_.ExpectTotalCount("Legion.Client.RequestLatency.Error", 0);
+  histogram_tester_.ExpectTotalCount("Legion.Client.ResponseSize.Success", 1);
+  histogram_tester_.ExpectTotalCount("Legion.Client.RequestLatency.Timeout", 0);
+  histogram_tester_.ExpectTotalCount("Legion.Client.RequestSize", 1);
+  histogram_tester_.ExpectTotalCount("Legion.Client.RequestErrorCode", 0);
+  histogram_tester_.ExpectUniqueSample(
+      "Legion.Client.FeatureName", proto::FeatureName::FEATURE_NAME_UNSPECIFIED,
+      1);
+}
+
 // Test fixture for error conditions in SendTextRequest where the
 // SecureChannel returns an error.
 class ClientImplSendTextRequestSecureChannelErrorTest
@@ -388,13 +446,13 @@ class ClientImplSendTextRequestSecureChannelErrorTest
 
 TEST_P(ClientImplSendTextRequestSecureChannelErrorTest, SendTextRequestError) {
   ErrorCode error_code = GetParam();
-  EXPECT_CALL(*factory_.secure_channel_, Write(_))
-      .WillOnce([&](const Request& request) {
-        base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-            FROM_HERE, base::BindOnce(factory_.response_callback_,
-                                      base::unexpected(error_code)));
-        return true;
-      });
+  auto* mock_channel = factory_.CreateNewChannel();
+  EXPECT_CALL(*mock_channel, Write(_)).WillOnce([&](const Request& request) {
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(factory_.response_callback_,
+                                  base::unexpected(error_code)));
+    return true;
+  });
 
   base::test::TestFuture<base::expected<std::string, ErrorCode>> future;
   client_->SendTextRequest(proto::FeatureName::FEATURE_NAME_UNSPECIFIED,
@@ -420,76 +478,6 @@ INSTANTIATE_TEST_SUITE_P(All,
                          ::testing::Values(ErrorCode::kNetworkError,
                                            ErrorCode::kError));
 
-// Test fixture for error conditions in SendTextRequest where the server
-// response is malformed.
-class ClientImplSendTextRequestResponseErrorTest
-    : public ClientImplTest,
-      public ::testing::WithParamInterface<ResponseErrorTestParam> {};
-
-TEST_P(ClientImplSendTextRequestResponseErrorTest, SendTextRequestError) {
-  const auto& param = GetParam();
-
-  SetUpMockWrite(factory_.secure_channel_, factory_.response_callback_,
-                 param.response_data, param.mismatch_request_id);
-
-  base::test::TestFuture<base::expected<std::string, ErrorCode>> future;
-  client_->SendTextRequest(proto::FeatureName::FEATURE_NAME_UNSPECIFIED,
-                           "some text", future.GetCallback(), /*options=*/{});
-
-  const auto& result = future.Get();
-  ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error(), param.expected_error);
-
-  // ErrorCode::kNoContent is a success from the client's perspective, but the
-  // response processing fails.
-  if (param.expected_error == ErrorCode::kNoContent) {
-    histogram_tester_.ExpectTotalCount("Legion.Client.RequestLatency.Success",
-                                       1);
-    histogram_tester_.ExpectTotalCount("Legion.Client.RequestLatency.Error", 0);
-    histogram_tester_.ExpectTotalCount("Legion.Client.ResponseSize.Success", 1);
-  } else {
-    histogram_tester_.ExpectTotalCount("Legion.Client.RequestLatency.Success",
-                                       0);
-    histogram_tester_.ExpectTotalCount("Legion.Client.RequestLatency.Error", 1);
-    histogram_tester_.ExpectTotalCount("Legion.Client.ResponseSize.Success", 0);
-  }
-  histogram_tester_.ExpectTotalCount("Legion.Client.RequestLatency.Timeout", 0);
-  histogram_tester_.ExpectTotalCount("Legion.Client.RequestSize", 1);
-  histogram_tester_.ExpectUniqueSample(
-      "Legion.Client.FeatureName", proto::FeatureName::FEATURE_NAME_UNSPECIFIED,
-      1);
-}
-
-INSTANTIATE_TEST_SUITE_P(
-    All,
-    ClientImplSendTextRequestResponseErrorTest,
-    ::testing::Values(
-        // Empty response.
-        ResponseErrorTestParam{
-            .response_data =
-                [] {
-                  proto::LegionResponse response;
-                  response.mutable_generate_content_response();
-                  std::string serialized;
-                  response.SerializeToString(&serialized);
-                  return Client::BinaryEncodedProtoResponse(serialized.begin(),
-                                                            serialized.end());
-                }(),
-            .expected_error = ErrorCode::kNoContent},
-        // Response with no content parts.
-        ResponseErrorTestParam{
-            .response_data =
-                [] {
-                  proto::LegionResponse response;
-                  auto* gcr = response.mutable_generate_content_response();
-                  gcr->add_candidates();
-                  std::string serialized;
-                  response.SerializeToString(&serialized);
-                  return Client::BinaryEncodedProtoResponse(serialized.begin(),
-                                                            serialized.end());
-                }(),
-            .expected_error = ErrorCode::kNoContent}));
-
 // Test fixture for error conditions in SendGenerateContentRequest where the
 // server response is malformed.
 class ClientImplSendGenerateContentRequestErrorTest
@@ -500,8 +488,9 @@ TEST_P(ClientImplSendGenerateContentRequestErrorTest,
        SendGenerateContentRequestMalformedResponse) {
   const auto& param = GetParam();
 
-  SetUpMockWrite(factory_.secure_channel_, factory_.response_callback_,
-                 param.response_data, param.mismatch_request_id);
+  auto* mock_channel = factory_.CreateNewChannel();
+  SetUpMockWrite(mock_channel, factory_.response_callback_, param.response_data,
+                 param.mismatch_request_id);
 
   base::test::TestFuture<
       base::expected<proto::GenerateContentResponse, ErrorCode>>
@@ -552,7 +541,7 @@ INSTANTIATE_TEST_SUITE_P(
                   proto::LegionResponse legion_response;
                   std::string serialized_response;
                   legion_response.SerializeToString(&serialized_response);
-                  return Client::BinaryEncodedProtoResponse(
+                  return ClientImpl::BinaryEncodedProtoResponse(
                       serialized_response.begin(), serialized_response.end());
                 }(),
             .expected_error = ErrorCode::kNoResponse}));
@@ -560,13 +549,13 @@ INSTANTIATE_TEST_SUITE_P(
 // Tests that if session establishment fails, any pending requests are also
 // failed.
 TEST_F(ClientImplTest, EstablishSessionFailureFailsPendingRequests) {
-  auto* first_channel = factory_.secure_channel_.get();
+  auto* mock_channel = factory_.CreateNewChannel();
 
   // The first write will be queued.
-  EXPECT_CALL(*first_channel, Write(_)).WillOnce(testing::Return(true));
+  EXPECT_CALL(*mock_channel, Write(_)).WillOnce(testing::Return(true));
 
   // The session establishment will fail.
-  EXPECT_CALL(*first_channel, EstablishChannel(_))
+  EXPECT_CALL(*mock_channel, EstablishChannel(_))
       .WillOnce([&](SecureChannel::EstablishChannelCallback cb) {
         base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
             FROM_HERE,
@@ -597,9 +586,6 @@ TEST_F(ClientImplTest, EstablishSessionFailureFailsPendingRequests) {
   const auto& text_result = text_future.Get();
   ASSERT_FALSE(text_result.has_value());
   EXPECT_EQ(text_result.error(), ErrorCode::kHandshakeFailed);
-
-  // A new channel should have been created.
-  EXPECT_NE(first_channel, factory_.secure_channel_.get());
 
   histogram_tester_.ExpectUniqueSample(
       "Legion.Client.FeatureName",

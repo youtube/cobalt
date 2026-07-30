@@ -124,7 +124,6 @@
 #include "chrome/browser/predictors/loading_predictor.h"
 #include "chrome/browser/predictors/loading_predictor_factory.h"
 #include "chrome/browser/preloading/prefetch/no_state_prefetch/chrome_no_state_prefetch_contents_delegate.h"
-#include "chrome/browser/preloading/prefetch/no_state_prefetch/chrome_speculation_host_delegate.h"
 #include "chrome/browser/preloading/prefetch/no_state_prefetch/no_state_prefetch_manager_factory.h"
 #include "chrome/browser/preloading/prefetch/prefetch_service/chrome_prefetch_service_delegate.h"
 #include "chrome/browser/preloading/prefetch/search_prefetch/field_trial_settings.h"
@@ -259,6 +258,7 @@
 #include "components/no_state_prefetch/browser/no_state_prefetch_manager.h"
 #include "components/no_state_prefetch/common/no_state_prefetch_final_status.h"
 #include "components/no_state_prefetch/common/no_state_prefetch_url_loader_throttle.h"
+#include "components/on_device_translation/buildflags/buildflags.h"
 #include "components/page_load_metrics/browser/metrics_web_contents_observer.h"
 #include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/password_manager_metrics_util.h"
@@ -292,7 +292,6 @@
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 #include "components/search_engines/template_url_service.h"
 #include "components/security_state/core/security_state.h"
-#include "components/services/on_device_translation/buildflags/buildflags.h"
 #include "components/site_isolation/features.h"
 #include "components/site_isolation/pref_names.h"
 #include "components/site_isolation/preloaded_isolated_origins.h"
@@ -2451,6 +2450,15 @@ void ChromeContentBrowserClient::WillComputeSiteForNavigation(
                                          IsolatedOriginSource::USER_TRIGGERED,
                                      browser_context);
   }
+}
+
+bool ChromeContentBrowserClient::IsAndroidAdvancedProtectionEnabled() {
+#if BUILDFLAG(IS_ANDROID)
+  return safe_browsing::AdvancedProtectionStatusManagerAndroid::
+      QueryIsUnderAdvancedProtection();
+#else
+  return false;
+#endif
 }
 
 bool ChromeContentBrowserClient::ShouldEnableStrictSiteIsolation() {
@@ -6363,8 +6371,10 @@ void ChromeContentBrowserClient::WillCreateURLLoaderFactory(
 
 #if BUILDFLAG(IS_MAC)
   if (base::FeatureList::IsEnabled(enterprise_auth::kOktaSSO)) {
+    // WARNING: This factory blocks certain requests from going out via the
+    // final network bound factory.
     enterprise_auth::ProxyingURLLoaderFactory::MaybeProxyRequest(
-        request_initiator, factory_builder);
+        request_initiator, type, factory_builder);
   }
 #endif
 
@@ -8006,12 +8016,6 @@ ChromeContentBrowserClient::CreateAnchorElementPreconnectDelegate(
   return std::make_unique<AnchorElementPreloader>(render_frame_host);
 }
 
-std::unique_ptr<content::SpeculationHostDelegate>
-ChromeContentBrowserClient::CreateSpeculationHostDelegate(
-    content::RenderFrameHost& render_frame_host) {
-  return std::make_unique<ChromeSpeculationHostDelegate>(render_frame_host);
-}
-
 std::unique_ptr<content::PrefetchServiceDelegate>
 ChromeContentBrowserClient::CreatePrefetchServiceDelegate(
     content::BrowserContext* browser_context) {
@@ -8282,7 +8286,7 @@ bool ChromeContentBrowserClient::
 #if BUILDFLAG(IS_MAC)
 std::string ChromeContentBrowserClient::GetChildProcessSuffix(int child_flags) {
   if (child_flags ==
-      base::to_underlying(ChildProcessHostFlags::kChildProcessHelperAlerts)) {
+      std::to_underlying(ChildProcessHostFlags::kChildProcessHelperAlerts)) {
     return chrome::kMacHelperSuffixAlerts;
   }
   NOTREACHED() << "Unsupported child process flags!";
@@ -8562,7 +8566,8 @@ void ChromeContentBrowserClient::BindTranslationManager(
     const url::Origin& origin,
     mojo::PendingReceiver<blink::mojom::TranslationManager> receiver) {
   on_device_translation::TranslationManagerImpl::Bind(
-      host, browser_context, context_user_data, origin, std::move(receiver));
+      host, browser_context, context_user_data, origin,
+      g_browser_process->component_updater(), std::move(receiver));
 }
 #endif
 

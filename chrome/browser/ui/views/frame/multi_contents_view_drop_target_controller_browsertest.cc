@@ -36,7 +36,7 @@
 #include "ui/views/view_class_properties.h"
 #include "ui/views/widget/widget_utils.h"
 
-class MockTabDragController : public TabDragDelegate::DragController {
+class MockTabDragController : public TabDragTarget::DragController {
  public:
   MOCK_METHOD(std::unique_ptr<tabs::TabModel>,
               DetachTabAtForInsertion,
@@ -59,12 +59,6 @@ class MultiContentsViewDropTargetControllerBrowserTest
   void TearDownOnMainThread() override {
     controller_.reset();
     delegate_.reset();
-  }
-
-  const std::vector<base::test::FeatureRefAndParams> GetEnabledFeatures()
-      override {
-    return {{features::kSideBySide,
-             {{features::kSideBySideDropTargetHideForOSWidth.name, "50"}}}};
   }
 
   MultiContentsViewDropTargetController& controller() { return *controller_; }
@@ -135,7 +129,13 @@ IN_PROC_BROWSER_TEST_F(MultiContentsViewDropTargetControllerBrowserTest,
                        OnTabDragUpdatedMaximizedWithStartPoint) {
   SimulateTabDrag(
       true, base::BindOnce([](int view_width) { return gfx::Point(30, 250); }));
+#if BUILDFLAG(IS_MAC)
+  // On Mac there is no hiding of the drop target near the edge of the screen
+  // due to OS drop zones.
+  EXPECT_TRUE(IsDropTimerRunning());
+#else
   EXPECT_FALSE(IsDropTimerRunning());
+#endif
 }
 
 IN_PROC_BROWSER_TEST_F(MultiContentsViewDropTargetControllerBrowserTest,
@@ -143,7 +143,13 @@ IN_PROC_BROWSER_TEST_F(MultiContentsViewDropTargetControllerBrowserTest,
   SimulateTabDrag(true, base::BindOnce([](int view_width) {
                     return gfx::Point(view_width - 10, 250);
                   }));
+#if BUILDFLAG(IS_MAC)
+  // On Mac there is no hiding of the drop target near the edge of the screen
+  // due to OS drop zones.
+  EXPECT_TRUE(IsDropTimerRunning());
+#else
   EXPECT_FALSE(IsDropTimerRunning());
+#endif
 }
 
 IN_PROC_BROWSER_TEST_F(MultiContentsViewDropTargetControllerBrowserTest,

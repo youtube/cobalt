@@ -171,6 +171,8 @@ constexpr auto kContentSettingsTypeGroupNames = std::to_array<
     {ContentSettingsType::SMART_CARD_GUARD, "smart-card-readers"},
     {ContentSettingsType::SMART_CARD_DATA, kSmartCardChooserDataGroupType},
     {ContentSettingsType::LOCAL_NETWORK_ACCESS, "local-network-access"},
+    {ContentSettingsType::LOCAL_NETWORK, "local-network"},
+    {ContentSettingsType::LOOPBACK_NETWORK, "loopback-network"},
 
     // Add new content settings here if a corresponding Javascript string
     // representation for it is not required, for example if the content setting
@@ -661,7 +663,13 @@ std::vector<ContentSettingsType> GetVisiblePermissionCategories(
 
     if (base::FeatureList::IsEnabled(
             network::features::kLocalNetworkAccessChecks)) {
-      base_types->push_back(ContentSettingsType::LOCAL_NETWORK_ACCESS);
+      if (base::FeatureList::IsEnabled(
+              network::features::kLocalNetworkAccessChecksSplitPermissions)) {
+        base_types->push_back(ContentSettingsType::LOCAL_NETWORK);
+        base_types->push_back(ContentSettingsType::LOOPBACK_NETWORK);
+      } else {
+        base_types->push_back(ContentSettingsType::LOCAL_NETWORK_ACCESS);
+      }
     }
 
     initialized = true;

@@ -33,8 +33,6 @@ bool IsBackoffInDownloadingEnabled() {
 BASE_FEATURE(kSmartSuggestionForLargeDownloads,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kRefreshExpirationDate, base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kShowBlockedSensitiveDownload, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
@@ -64,8 +62,6 @@ BASE_FEATURE(kAllowDownloadResumptionWithoutStrongValidators,
 BASE_FEATURE(kUseParallelRequestsForHTTP2, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kUseParallelRequestsForQUIC, base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kDeleteExpiredDownloads, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kDeleteOverwrittenDownloads, base::FEATURE_ENABLED_BY_DEFAULT);
 

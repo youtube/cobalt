@@ -28,9 +28,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import static org.chromium.base.ThreadUtils.runOnUiThreadBlocking;
+import static org.chromium.chrome.browser.url_constants.UrlConstantResolver.getOriginalNativeBookmarksUrl;
 import static org.chromium.components.browser_ui.widget.highlight.ViewHighlighterTestUtils.checkHighlightOff;
 import static org.chromium.components.browser_ui.widget.highlight.ViewHighlighterTestUtils.checkHighlightPulse;
 import static org.chromium.ui.test.util.MockitoHelper.doCallback;
@@ -133,7 +135,6 @@ import org.chromium.components.browser_ui.widget.selectable_list.SelectableListT
 import org.chromium.components.commerce.core.CommerceFeatureUtils;
 import org.chromium.components.commerce.core.CommerceFeatureUtilsJni;
 import org.chromium.components.commerce.core.ShoppingService;
-import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.power_bookmarks.PowerBookmarkMeta;
 import org.chromium.components.power_bookmarks.ShoppingSpecifics;
 import org.chromium.components.profile_metrics.BrowserProfileType;
@@ -399,7 +400,9 @@ public class BookmarkTest {
         BookmarkTestUtil.waitForBookmarkModelLoaded();
 
         assertEquals(BookmarkUiMode.FOLDER, mDelegate.getCurrentUiMode());
-        assertEquals("chrome-native://bookmarks/folder/3", mBookmarkManagerOpener.getLastUsedUrl());
+        assertEquals(
+                "chrome-native://bookmarks/folder/3",
+                mBookmarkManagerOpener.getLastUsedUrl(mock()));
     }
 
     @Test
@@ -1950,7 +1953,7 @@ public class BookmarkTest {
     private void openBookmarkManager() throws InterruptedException {
         if (mActivityTestRule.getActivity().isTablet()) {
             String rootFolderId = "folder/0";
-            mActivityTestRule.loadUrl(UrlConstants.BOOKMARKS_NATIVE_URL + rootFolderId);
+            mActivityTestRule.loadUrl(getOriginalNativeBookmarksUrl() + rootFolderId);
             mItemsContainer =
                     mActivityTestRule
                             .getActivity()

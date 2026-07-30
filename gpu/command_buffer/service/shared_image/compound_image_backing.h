@@ -151,6 +151,7 @@ class GPU_GLES2_EXPORT CompoundImageBacking
   // CompoundImageBacking needs to propagate this call to all its elements.
   void MarkForDestruction() override;
   gfx::GpuMemoryBufferHandle GetGpuMemoryBufferHandle() override;
+  scoped_refptr<gfx::NativePixmap> GetNativePixmap() override;
 
  protected:
   // SharedImageBacking implementation.
@@ -185,6 +186,9 @@ class GPU_GLES2_EXPORT CompoundImageBacking
       SharedImageManager* manager,
       MemoryTypeTracker* tracker) override;
   std::unique_ptr<WebNNTensorRepresentation> ProduceWebNNTensor(
+      SharedImageManager* manager,
+      MemoryTypeTracker* tracker) override;
+  std::unique_ptr<MemoryImageRepresentation> ProduceMemory(
       SharedImageManager* manager,
       MemoryTypeTracker* tracker) override;
 

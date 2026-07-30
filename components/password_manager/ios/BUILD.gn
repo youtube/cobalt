@@ -18,8 +18,6 @@ component("ios") {
     "//components/autofill/ios/browser:util",
     "//components/autofill/ios/common",
     "//components/autofill/ios/form_util",
-    "//components/autofill/ios/form_util:autofill_renderer_id_feature",
-    "//components/autofill/ios/form_util:form_util_feature",
     "//components/password_manager/core/browser",
     "//components/password_manager/core/browser/features:password_features",
     "//components/password_manager/core/browser/form_parsing",
@@ -27,6 +25,7 @@ component("ios") {
     "//components/security_state/ios",
     "//components/strings:components_strings_grit",
     "//components/ukm/ios:ukm_url_recorder",
+    "//components/webauthn/ios:utils",
     "//ios/web/common",
     "//ios/web/public",
     "//ios/web/public/js_messaging",
@@ -69,6 +68,7 @@ source_set("password_manager_feature_header") {
     ":features",
     "//base",
     "//components/autofill/core/common",
+    "//components/webauthn/ios:utils",
     "//ios/web/public/js_messaging",
   ]
 
@@ -110,8 +110,8 @@ optimize_ts("password_controller_js") {
   sources = [ "resources/password_controller.ts" ]
 
   deps = [
+    "//components/autofill/ios/form_util:fill_js_constants",
     "//components/autofill/ios/form_util:fill_js_dependencies",
-    "//components/autofill/ios/form_util:fill_js_namespace",
     "//ios/web/public/js_messaging:gcrweb",
     "//ios/web/public/js_messaging:util_scripts",
   ]
@@ -161,7 +161,8 @@ source_set("unit_tests") {
     "//components/autofill/ios/form_util",
     "//components/autofill/ios/form_util:child_frame_registrar",
     "//components/autofill/ios/form_util:form_handler_feature",
-    "//components/autofill/ios/form_util:form_util_feature",
+    "//components/autofill/ios/form_util:renderer_id_test",
+    "//components/autofill/ios/form_util:renderer_id_test_util",
     "//components/autofill/ios/form_util:test_support",
     "//components/password_manager/core/browser",
     "//components/password_manager/core/browser:test_support",

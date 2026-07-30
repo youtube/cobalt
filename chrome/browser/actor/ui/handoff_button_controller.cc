@@ -8,13 +8,11 @@
 #include "cc/paint/paint_flags.h"
 #include "cc/paint/paint_shader.h"
 #include "chrome/app/vector_icons/vector_icons.h"
-#include "chrome/browser/actor/resources/grit/actor_browser_resources.h"
-#include "chrome/browser/actor/resources/grit/actor_common_resources.h"
 #include "chrome/browser/actor/ui/actor_ui_metrics.h"
 #include "chrome/browser/actor/ui/actor_ui_tab_controller.h"
 #include "chrome/browser/actor/ui/actor_ui_window_controller.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
-#include "chrome/browser/ui/tabs/public/tab_features.h"
+#include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/grit/generated_resources.h"
@@ -121,9 +119,17 @@ class GradientBubbleFrameView : public views::BubbleFrameView {
       shadow_flags.setAntiAlias(true);
       SkPoint center = SkPoint::Make(button_bounds_f.CenterPoint().x(),
                                      button_bounds_f.CenterPoint().y());
-      const SkColor colors[] = {
-          SkColorSetARGB(255, 79, 161, 255), SkColorSetARGB(255, 79, 161, 255),
-          SkColorSetARGB(255, 52, 107, 241), SkColorSetARGB(255, 52, 107, 241)};
+      std::vector<SkColor> colors;
+      if (base::FeatureList::IsEnabled(features::kActorUiThemed)) {
+        SkColor primary_color =
+            GetColorProvider()->GetColor(kColorActorUiHandoffButtonBorder);
+        colors = {primary_color, primary_color, primary_color, primary_color};
+      } else {
+        colors = {SkColorSetARGB(255, 79, 161, 255),
+                  SkColorSetARGB(255, 79, 161, 255),
+                  SkColorSetARGB(255, 52, 107, 241),
+                  SkColorSetARGB(255, 52, 107, 241)};
+      }
       const SkScalar pos[] = {0.0f, 0.4f, 0.6f, 1.0f};
       std::vector<SkColor4f> color4fs;
       for (const auto& color : colors) {
@@ -252,15 +258,17 @@ void HandoffButtonController::UpdateState(HandoffButtonState state,
   // for kClient state is finalized.
   switch (state.controller) {
     case kActor:
-      text = l10n_util::GetStringUTF16(IDS_TAKE_OVER_TASK_LABEL);
-      a11y_text = l10n_util::GetStringUTF16(IDS_TAKE_OVER_TASK_A11Y_LABEL);
+      text = l10n_util::GetStringUTF16(IDS_HANDOFF_TAKE_OVER_TASK_LABEL);
+      a11y_text =
+          l10n_util::GetStringUTF16(IDS_HANDOFF_TAKE_OVER_TASK_A11Y_LABEL);
       icon = ImageModel::FromVectorIcon(vector_icons::kPauseIcon,
                                         ::ui::kColorLabelForeground,
                                         kHandoffButtonIconSize);
       break;
     case kClient:
-      text = l10n_util::GetStringUTF16(IDS_GIVE_TASK_BACK_LABEL);
-      a11y_text = l10n_util::GetStringUTF16(IDS_GIVE_TASK_BACK_A11Y_LABEL);
+      text = l10n_util::GetStringUTF16(IDS_HANDOFF_GIVE_TASK_BACK_LABEL);
+      a11y_text =
+          l10n_util::GetStringUTF16(IDS_HANDOFF_GIVE_TASK_BACK_A11Y_LABEL);
       icon = ImageModel::FromVectorIcon(vector_icons::kPlayArrowIcon,
                                         ::ui::kColorLabelForeground,
                                         kHandoffButtonIconSize);

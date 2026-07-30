@@ -108,6 +108,13 @@ void ContentCaptureConsumerHelper::DidUpdateSensitivityScore(
     const GURL& url,
     float sensitivity_score) {}
 
+void ContentCaptureConsumerHelper::DidUpdateLanguageDetails(
+    const GURL& url,
+    const std::string& detected_language,
+    float language_confidence) {}
+
+void ContentCaptureConsumerHelper::ClearContentCaptureMetadata() {}
+
 bool ContentCaptureConsumerHelper::ShouldCapture(const GURL& url) {
   return false;
 }

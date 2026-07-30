@@ -7,7 +7,6 @@ import {ComposeboxElement, ComposeboxProxyImpl} from 'chrome://new-tab-page/lazy
 import {$$} from 'chrome://new-tab-page/new_tab_page.js';
 import {PageCallbackRouter, PageHandlerRemote} from 'chrome://resources/cr_components/composebox/composebox.mojom-webui.js';
 import {FileUploadErrorType, FileUploadStatus} from 'chrome://resources/cr_components/composebox/composebox_query.mojom-webui.js';
-import type {RecentTabChipElement} from 'chrome://resources/cr_components/composebox/recent_tab_chip.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {AutocompleteMatch, AutocompleteResult, PageRemote as SearchboxPageRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
@@ -26,6 +25,8 @@ enum Attributes {
 const ADD_FILE_CONTEXT_FN = 'addFileContext';
 const ADD_TAB_CONTEXT_FN = 'addTabContext';
 const FAKE_TOKEN_STRING = '00000000000000001234567890ABCDEF';
+const CONTEXT_ADDED_NTP =
+    'ContextualSearch.ContextAdded.ContextAddedMethod.NewTabPage';
 
 function generateZeroId(): string {
   // Generate 128 bit unique identifier.
@@ -67,13 +68,6 @@ suite('NewTabPageComposeboxTest', () => {
     document.body.appendChild(composeboxElement);
   }
 
-  async function getRecentTabChip(): Promise<HTMLElement|null> {
-    const contextElement = composeboxElement.$.context;
-    await microtasksFinished();
-    await contextElement.updateComplete;
-    return contextElement.shadowRoot.querySelector<HTMLElement>(
-        '#recentTabChip');
-  }
   async function waitForAddFileCallCount(expectedCount: number): Promise<void> {
     const startTime = Date.now();
     return new Promise((resolve, reject) => {
@@ -331,7 +325,7 @@ suite('NewTabPageComposeboxTest', () => {
 
   test('uploading image file without flag does nothing', async () => {
     loadTimeData.overrideValues(
-        {composeboxShowZps: true, composeboxShowImageSuggestions: false});
+        {composeboxShowZps: true, composeboxShowImageSuggest: false});
     createComposeboxElement();
     await microtasksFinished();
 
@@ -534,6 +528,13 @@ suite('NewTabPageComposeboxTest', () => {
         searchboxHandler.getArgs(ADD_FILE_CONTEXT_FN);
     assertEquals(fileInfo.fileName, 'foo.pdf');
     assertDeepEquals(fileData.bytes, fileArray);
+    // Assert context added method was context menu.
+    assertEquals(1, metrics.count(CONTEXT_ADDED_NTP));
+    assertEquals(
+        1,
+        metrics.count(
+            CONTEXT_ADDED_NTP,
+            /* CONTEXT_MENU */ 0));
   });
 
   test('delete file', async () => {
@@ -1978,6 +1979,12 @@ suite('NewTabPageComposeboxTest', () => {
 
     // Check that the default paste event was prevented.
     assertTrue(pasteEvent.defaultPrevented);
+    assertEquals(1, metrics.count(CONTEXT_ADDED_NTP));
+    assertEquals(
+        1,
+        metrics.count(
+            CONTEXT_ADDED_NTP,
+            /* COPY_PASTE */ 1));
   });
 
   test('pasting too many files records metric and prevents paste', async () => {
@@ -2509,119 +2516,10 @@ suite('NewTabPageComposeboxTest', () => {
       assertEquals(files[0]!.name, sampleTabTitle);
     });
 
-    test('recent tab chip shows first available suggestion', async () => {
-      loadTimeData.overrideValues(
-        {composeboxShowZps: true, composeboxShowTypedSuggest: true});
-      const tabInfo1 = {
-        tabId: 1,
-        title: 'Tab 1',
-        url: {url: 'https://www.google.com/search?q=foo'},
-        showInRecentTabChip: false,
-      };
-      const tabInfo2 = {
-        tabId: 2,
-        title: 'Tab 2',
-        url: {url: 'https://www.example.com'},
-        showInRecentTabChip: true,
-      };
-      const tabInfo3 = {
-        tabId: 3,
-        title: 'Tab 3',
-        url: {url: 'https://www.chromium.org'},
-        showInRecentTabChip: true,
-      };
-      searchboxHandler.setResultFor(
-          'getRecentTabs',
-          Promise.resolve({tabs: [tabInfo1, tabInfo2, tabInfo3]}));
-      createComposeboxElement();
-      await microtasksFinished();
-
-      // Add zps input.
-      composeboxElement.$.input.value = '';
-      composeboxElement.$.input.dispatchEvent(new Event('input'));
-      await microtasksFinished();
-
-      const composeboxDropdown =
-          composeboxElement.shadowRoot.querySelector<HTMLElement>('#matches');
-      assertTrue(!!composeboxDropdown);
-
-      // Recent tab chip should not show for no matches.
-      assertTrue(composeboxDropdown.hidden);
-      let recentTabChip = await getRecentTabChip();
-      assertFalse(!!recentTabChip);
-
-      const matches = [
-        createSearchMatch(),
-        createSearchMatch({fillIntoEdit: 'hello world 2'}),
-      ];
-      searchboxCallbackRouterRemote.autocompleteResultChanged(
-          createAutocompleteResult({
-            matches: matches,
-          }));
-      await microtasksFinished();
-
-      // Dropdown should show when matches are available.
-      assertFalse(composeboxDropdown.hidden);
-      recentTabChip = await getRecentTabChip();
-      assertTrue(!!recentTabChip);
-      assertEquals(tabInfo2, (recentTabChip as RecentTabChipElement).recentTab);
-      assertEquals(3, composeboxElement.$.context.tabSuggestions.length);
-    });
-
-    test('hides recent tab chip when tab is in context', async () => {
-      const tabInfo = {
-        tabId: 1,
-        title: 'Sample Tab',
-        url: {url: 'https://example.com'},
-        showInRecentTabChip: true,
-        lastActive: {internalValue: 0n},
-      };
-      searchboxHandler.setResultFor(
-          'getRecentTabs', Promise.resolve({tabs: [tabInfo]}));
-      createComposeboxElement();
-      const contextElement = composeboxElement.$.context;
-      await microtasksFinished();
-      await contextElement.updateComplete;
-
-      // Add zps matches to ensure recent tab chip is visible.
-      composeboxElement.$.input.value = '';
-      composeboxElement.$.input.dispatchEvent(new Event('input'));
-      await microtasksFinished();
-      const matches = [
-        createSearchMatch(),
-        createSearchMatch({fillIntoEdit: 'hello world 2'}),
-      ];
-      searchboxCallbackRouterRemote.autocompleteResultChanged(
-          createAutocompleteResult({
-            matches: matches,
-          }));
-      await microtasksFinished();
-
-      let recentTabChip = await getRecentTabChip();
-      assertTrue(recentTabChip !== null);
-
-      // Add the tab to the context.
-      searchboxHandler.setResultFor(
-          ADD_TAB_CONTEXT_FN,
-          Promise.resolve({token: {low: BigInt(1), high: BigInt(2)}}));
-
-      recentTabChip.shadowRoot!.querySelector<HTMLElement>(
-                                   'cr-button')!.click();
-      await searchboxHandler.whenCalled(ADD_TAB_CONTEXT_FN);
-      await microtasksFinished();
-
-      recentTabChip = await getRecentTabChip();
-
-      assertTrue(recentTabChip === null);
-    });
-
     test('setSearchContext sets input and queries autocomplete', async () => {
       loadTimeData.overrideValues({composeboxShowZps: true});
       composeboxElement = new ComposeboxElement();
-      // TODO(crbug.com/460551908): Replace `ntpRealboxNextEnabled` with
-      // whatever is used to delineate the Omnibox's composebox from the
-      // NTP's.
-      composeboxElement.ntpRealboxNextEnabled = true;
+      composeboxElement.searchboxNextEnabled = true;
       document.body.appendChild(composeboxElement);
 
       await microtasksFinished();

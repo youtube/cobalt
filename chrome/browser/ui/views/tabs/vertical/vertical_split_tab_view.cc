@@ -68,10 +68,8 @@ views::ProposedLayout VerticalSplitTabView::CalculateProposedLayout(
   // will share it, otherwise they will be stacked vertically.
   if (!size_bounds.width().is_bounded() ||
       size_bounds.width().value() >=
-          std::accumulate(children.begin(), children.end(), 0,
-                          [](int total, const views::View* view) {
-                            return total + view->GetMinimumSize().width();
-                          })) {
+          static_cast<int>(GetLayoutConstant(VERTICAL_TAB_MIN_WIDTH) *
+                           children.size())) {
     int x = 0;
     for (auto* child : children) {
       gfx::Rect bounds = gfx::Rect(child->GetPreferredSize());

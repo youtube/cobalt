@@ -64,6 +64,21 @@ suite('AppContent', () => {
     assertStringContains(emptyState.imagePath, spinner);
   });
 
+  test('connected callback adds line focus mouse listener', async () => {
+    chrome.readingMode.isLineFocusEnabled = true;
+    emitEvent(
+        app, ToolbarEvent.LINE_FOCUS,
+        {detail: {data: chrome.readingMode.lineFocusCursorLine}});
+    await microtasksFinished();
+
+    app.connectedCallback();
+    await microtasksFinished();
+    app.$.containerParent.dispatchEvent(
+        new MouseEvent('mousemove', {clientY: 10}));
+
+    assertEquals('10px', app.style.getPropertyValue('--line-focus-y'));
+  });
+
   test('showLoading shows spinner', async () => {
     const spinner = 'throbber';
 
@@ -622,5 +637,19 @@ suite('AppContent', () => {
       assertFalse(toast.$.toast.open);
     });
     // </if>
+  });
+
+  test('onNeedScrollForLineFocus scrolls', () => {
+    chrome.readingMode.isLineFocusEnabled = true;
+    const startingScrollTop = app.$.containerScroller.scrollTop;
+    let scrollTo = 0;
+    app.$.containerScroller.scrollTo = (options) => {
+      scrollTo = (options as ScrollToOptions).top ?? 0;
+    };
+
+    const scrollDiff = 30;
+    app.onNeedScrollForLineFocus(scrollDiff);
+
+    assertEquals(startingScrollTop + scrollDiff, scrollTo);
   });
 });

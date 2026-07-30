@@ -6,6 +6,7 @@
 
 #import "base/functional/bind.h"
 #import "base/memory/memory_pressure_listener.h"
+#import "base/memory/memory_pressure_listener_registry.h"
 #import "base/test/task_environment.h"
 #import "base/threading/thread.h"
 #import "components/previous_session_info/previous_session_info.h"
@@ -26,9 +27,9 @@ class MemoryWarningHelperTest : public PlatformTest,
     // `OnMemoryPressure` which will store the memory pressure level sent to the
     // callback in `memory_pressure_level_` so that tests can verify the level
     // is correct.
-    memory_pressure_listener_registration_.reset(
-        new base::SyncMemoryPressureListenerRegistration(
-            base::MemoryPressureListenerTag::kTest, this));
+    memory_pressure_listener_registration_ =
+        std::make_unique<base::MemoryPressureListenerRegistration>(
+            base::MemoryPressureListenerTag::kTest, this);
     memory_pressure_level_ = base::MEMORY_PRESSURE_LEVEL_MODERATE;
   }
 
@@ -50,9 +51,10 @@ class MemoryWarningHelperTest : public PlatformTest,
   }
 
  private:
+  base::MemoryPressureListenerRegistry memory_pressure_listener_registry_;
   base::test::SingleThreadTaskEnvironment task_environment_;
   base::MemoryPressureLevel memory_pressure_level_;
-  std::unique_ptr<base::SyncMemoryPressureListenerRegistration>
+  std::unique_ptr<base::MemoryPressureListenerRegistration>
       memory_pressure_listener_registration_;
   MemoryWarningHelper* memory_helper_;
 };

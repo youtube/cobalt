@@ -22,8 +22,13 @@ BASE_DECLARE_FEATURE(kActorActiveDisablesFillingOnPageLoad);
 BASE_DECLARE_FEATURE(kActorLogin);
 // Enables Actor Login form finding with async check
 BASE_DECLARE_FEATURE(kActorLoginFieldVisibilityCheck);
-BASE_DECLARE_FEATURE(kActorLoginFillingHeuristics);
+// Ensures that `GetCredentials` differentiates between no saved credentials
+// and no signin form found on the page.
+BASE_DECLARE_FEATURE(kActorLoginGetCredentialsNoLoginForm);
 BASE_DECLARE_FEATURE(kActorLoginLocalClassificationModel);
+// Enables the usage of temporary permissions across affiliated origins for
+// Actor Login.
+BASE_DECLARE_FEATURE(kActorLoginPermissionsUseStrongAffiliations);
 BASE_DECLARE_FEATURE(kActorLoginReauthTaskRefocus);
 // Enables logging quality for actor login.
 BASE_DECLARE_FEATURE(kActorLoginQualityLogs);
@@ -171,7 +176,6 @@ BASE_DECLARE_FEATURE(kPasswordManagerLogToTerminal);
 BASE_DECLARE_FEATURE(kRestartToGainAccessToKeychain);
 #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
-
 // Shows recovery password for the improved password change flow in the
 // management UI.
 BASE_DECLARE_FEATURE(kShowRecoveryPassword);
@@ -190,10 +194,6 @@ BASE_DECLARE_FEATURE(kStopLoginCheckOnFailedLogin);
 
 // Adds throttling logic to password change dialog.
 BASE_DECLARE_FEATURE(kThrottlePasswordChangeDialog);
-
-// Starts passwords resync after undecryptable passwords were removed. This flag
-// is enabled by default and should be treaded as a killswitch.
-BASE_DECLARE_FEATURE(kTriggerPasswordResyncAfterDeletingUndecryptablePasswords);
 
 // Starts passwords resync when undecryptable passwords are detected.
 BASE_DECLARE_FEATURE(kTriggerPasswordResyncWhenUndecryptablePasswordsDetected);
@@ -217,16 +217,6 @@ BASE_DECLARE_FEATURE(kRunPasswordChangeInBackgroundTab);
 // Removes country and language restrictions for password change. This allows to
 // control locale/country server side.
 BASE_DECLARE_FEATURE(kReduceRequirementsForPasswordChange);
-
-#if BUILDFLAG(IS_ANDROID)
-// The feature flag for reloading passwords when the trusted vault encryption
-// state changes.
-BASE_DECLARE_FEATURE(kReloadPasswordsOnTrustedVaultEncryptionChange);
-
-// The feature flag for showing an action to unlock passwords in case of a
-// trusted vault error in the keyboard accessory.
-BASE_DECLARE_FEATURE(kRetrieveTrustedVaultKeyKeyboardAccessoryAction);
-#endif  // BUILDFLAG(IS_ANDROID)
 
 // Updates password change flow to use the refined prompt on Open form step. The
 // prompt uses the list of interactable actionables on the web page to identify

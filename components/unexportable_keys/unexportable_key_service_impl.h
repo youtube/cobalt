@@ -45,6 +45,18 @@ class COMPONENT_EXPORT(UNEXPORTABLE_KEYS) UnexportableKeyServiceImpl
   static bool IsUnexportableKeyProviderSupported(
       crypto::UnexportableKeyProvider::Config config);
 
+  // Returns whether the current platform has a support for stateful
+  // unexportable signing keys. If this returns false, the service methods
+  // requiring stateful keys will be no-ops and will return one of the following
+  // results:
+  // - `ServiceError::kNoKeyProvider` if unexportable keys aren't supported
+  //    on the platform in general,
+  // - `ServiceError::kOperationNotSupported` if an operation cannot produce a
+  //   meaningful result without stateful key support
+  // - Empty result otherwise
+  static bool IsStatefulUnexportableKeyProviderSupported(
+      crypto::UnexportableKeyProvider::Config config);
+
   // UnexportableKeyService:
   void GenerateSigningKeySlowlyAsync(
       base::span<const crypto::SignatureVerifier::SignatureAlgorithm>
@@ -85,6 +97,10 @@ class COMPONENT_EXPORT(UNEXPORTABLE_KEYS) UnexportableKeyServiceImpl
   ServiceErrorOr<std::vector<uint8_t>> GetWrappedKey(
       UnexportableKeyId key_id) const override;
   ServiceErrorOr<crypto::SignatureVerifier::SignatureAlgorithm> GetAlgorithm(
+      UnexportableKeyId key_id) const override;
+  ServiceErrorOr<std::string> GetKeyTag(
+      UnexportableKeyId key_id) const override;
+  ServiceErrorOr<base::Time> GetCreationTime(
       UnexportableKeyId key_id) const override;
 
  private:

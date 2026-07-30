@@ -372,7 +372,7 @@ TEST_F(AddressSuggestionGeneratorTest, GetProfilesToSuggest_HideSubsets) {
 // Therefore, we keep only the 10 first suggested profiles.
 TEST_F(AddressSuggestionGeneratorTest, GetProfilesToSuggest_SuggestionsLimit) {
   std::vector<AutofillProfile> profiles;
-  for (size_t i = 0; i < 2 * kMaxDeduplicatedProfilesForSuggestion; i++) {
+  for (size_t i = 0; i < 2 * kMaxDeduplicatedProfilesForSuggestion; ++i) {
     AutofillProfile profile(i18n_model_definition::kLegacyHierarchyCountryCode);
     test::SetProfileInfo(&profile, base::StringPrintf("Marion%zu", i).c_str(),
                          "Mitchell", "Morrison", "johnwayne@me.xyz", "Fox",
@@ -394,7 +394,7 @@ TEST_F(AddressSuggestionGeneratorTest, GetProfilesToSuggest_SuggestionsLimit) {
 // Therefore, keep only the 50 first pre-dedupe matching profiles.
 TEST_F(AddressSuggestionGeneratorTest, GetProfilesToSuggest_ProfilesLimit) {
   std::vector<AutofillProfile> profiles;
-  for (size_t i = 0; i < kMaxPrefixMatchedProfilesForSuggestion; i++) {
+  for (size_t i = 0; i < kMaxPrefixMatchedProfilesForSuggestion; ++i) {
     AutofillProfile profile(i18n_model_definition::kLegacyHierarchyCountryCode);
 
     test::SetProfileInfo(
@@ -654,7 +654,7 @@ TEST_F(AddressSuggestionGeneratorTest, GetProfilesToSuggest_MultipleDedupe) {
 // Test the limit of number of deduplicated profiles.
 TEST_F(AddressSuggestionGeneratorTest, GetProfilesToSuggest_DedupeLimit) {
   std::vector<AutofillProfile> profiles;
-  for (size_t i = 0; i < kMaxDeduplicatedProfilesForSuggestion + 1; i++) {
+  for (size_t i = 0; i < kMaxDeduplicatedProfilesForSuggestion + 1; ++i) {
     AutofillProfile profile(i18n_model_definition::kLegacyHierarchyCountryCode);
     profile.SetRawInfo(NAME_FULL,
                        base::UTF8ToUTF16(base::StringPrintf("Bob %zu Doe", i)));
@@ -671,7 +671,7 @@ TEST_F(AddressSuggestionGeneratorTest, GetProfilesToSuggest_DedupeLimit) {
   ASSERT_EQ(kMaxDeduplicatedProfilesForSuggestion, profiles_to_suggest.size());
 
   // All profiles are different.
-  for (size_t i = 0; i < profiles_to_suggest.size(); i++) {
+  for (size_t i = 0; i < profiles_to_suggest.size(); ++i) {
     EXPECT_EQ(profiles_to_suggest[i].guid(), profiles[i].guid()) << i;
   }
 }
@@ -1393,13 +1393,13 @@ TEST_F(AddressSuggestionGeneratorTest, GeneratesSuggestions) {
       /*log_manager=*/nullptr);
   std::pair<SuggestionGenerator::SuggestionDataSource,
             std::vector<SuggestionGenerator::SuggestionData>>
-      savedCallbackArgument;
+      saved_callback_argument;
 
   EXPECT_CALL(
       suggestion_data_callback,
       Run(testing::Pair(SuggestionGenerator::SuggestionDataSource::kAddress,
                         testing::ElementsAre(profile1))))
-      .WillOnce(testing::SaveArg<0>(&savedCallbackArgument));
+      .WillOnce(testing::SaveArg<0>(&saved_callback_argument));
   generator.FetchSuggestionData(form_data, field, form_structure.get(),
                                 form_structure->field(0), *autofill_client(),
                                 suggestion_data_callback.Get());
@@ -1414,7 +1414,7 @@ TEST_F(AddressSuggestionGeneratorTest, GeneratesSuggestions) {
               EqualsSuggestion(SuggestionType::kManageAddress)))));
   generator.GenerateSuggestions(form_data, field, form_structure.get(),
                                 form_structure->field(0), *autofill_client(),
-                                {savedCallbackArgument},
+                                {saved_callback_argument},
                                 suggestions_generated_callback.Get());
 }
 
@@ -1451,13 +1451,13 @@ TEST_F(AddressSuggestionGeneratorTest,
       /*log_manager=*/nullptr);
   std::pair<SuggestionGenerator::SuggestionDataSource,
             std::vector<SuggestionGenerator::SuggestionData>>
-      savedCallbackArgument;
+      saved_callback_argument;
 
   EXPECT_CALL(
       suggestion_data_callback,
       Run(testing::Pair(SuggestionGenerator::SuggestionDataSource::kAddress,
                         testing::ElementsAre(profile1))))
-      .WillOnce(testing::SaveArg<0>(&savedCallbackArgument));
+      .WillOnce(testing::SaveArg<0>(&saved_callback_argument));
   generator.FetchSuggestionData(form_data, field, form_structure.get(),
                                 form_structure->field(0), *autofill_client(),
                                 suggestion_data_callback.Get());
@@ -1468,7 +1468,7 @@ TEST_F(AddressSuggestionGeneratorTest,
   base::flat_map<SuggestionGenerator::SuggestionDataSource,
                  std::vector<SuggestionGenerator::SuggestionData>>
       all_suggestion_data;
-  all_suggestion_data.insert(savedCallbackArgument);
+  all_suggestion_data.insert(saved_callback_argument);
   all_suggestion_data.insert(
       {SuggestionGenerator::SuggestionDataSource::kPlusAddress,
        std::move(plus_address_data)});

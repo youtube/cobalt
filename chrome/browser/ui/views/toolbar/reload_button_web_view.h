@@ -11,6 +11,7 @@
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/views/toolbar/reload_control.h"
 #include "content/public/browser/web_contents_delegate.h"
+#include "content/public/browser/web_contents_observer.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/menus/simple_menu_model.h"
 #include "ui/views/view.h"
@@ -26,7 +27,8 @@ class WebView;
 // A view that displays the reload button as a WebView.
 class ReloadButtonWebView : public views::View,
                             public ReloadControl,
-                            public content::WebContentsDelegate {
+                            public content::WebContentsDelegate,
+                            public content::WebContentsObserver {
   METADATA_HEADER(ReloadButtonWebView, views::View)
 
  public:
@@ -42,6 +44,9 @@ class ReloadButtonWebView : public views::View,
   void SetMenuEnabled(bool is_menu_enabled) override;
   views::View* GetAsViewClassForTesting() override;
 
+  // views::View:
+  void AddedToWidget() override;
+
   // content::WebContentsDelegate:
   bool HandleContextMenu(content::RenderFrameHost& render_frame_host,
                          const content::ContextMenuParams& params) override;
@@ -54,12 +59,19 @@ class ReloadButtonWebView : public views::View,
                                   ui::Accelerator* accelerator) const override;
   void ExecuteCommand(int command_id, int event_flags) override;
 
+  // content::WebContentsObserver:
+  void DidFinishLoad(content::RenderFrameHost* render_frame_host,
+                     const GURL& validated_url) override;
+
+  views::WebView* GetWebViewForTesting() { return web_view_; }
+
  private:
   void UpdateAccessibleHasPopup();
   void SetReloadButtonUIState();
-  void UpdateTooltipText();
 
   raw_ptr<ReloadButtonUI> reload_button_ui_ = nullptr;
+  raw_ptr<views::WebView> web_view_ = nullptr;
+  const raw_ptr<BrowserWindowInterface> browser_;
   const raw_ptr<chrome::BrowserCommandController> controller_;
   std::unique_ptr<ui::SimpleMenuModel> menu_model_;
   std::unique_ptr<views::MenuRunner> menu_runner_;

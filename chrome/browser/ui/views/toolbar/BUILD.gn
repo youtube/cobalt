@@ -44,6 +44,7 @@ source_set("toolbar") {
     "//base",
     "//build:buildflag_header_h",
     "//chrome/browser/ui:browser_element_identifiers",
+    "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/color:color_headers",
     "//chrome/browser/ui/global_error",
     "//chrome/browser/ui/page_action:icon_type",
@@ -243,7 +244,10 @@ if (!is_android) {
     ]
 
     if (toolkit_views) {
-      sources += [ "toolbar_view_browsertest.cc" ]
+      sources += [
+        "reload_button_web_view_browsertest.cc",
+        "toolbar_view_browsertest.cc",
+      ]
     }
 
     if (enable_webui_tab_strip) {

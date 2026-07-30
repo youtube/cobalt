@@ -114,7 +114,6 @@ Para sa higit pang setting na gumagamit ng data para pahusayin ang iyong experie
 <translation id="1413446866325418126">Mag-save ng data sa iyong Google Account</translation>
 <translation id="1414919006379339073">Isara ang kasalukuyang window</translation>
 <translation id="1416550906796893042">Bersyon ng application</translation>
-<translation id="1419753403124156396">I-restart ang Chrome?</translation>
 <translation id="1428770807407000502">I-off ang pag-sync?</translation>
 <translation id="1430915738399379752">I-print</translation>
 <translation id="1435593198351412143">Awtomatikong magbubukas ang mga PDF</translation>
@@ -247,10 +246,8 @@ Ang taong may passphrase mo lang ang makakapagbasa ng iyong naka-encrypt na data
 <translation id="2063047797624276601">In-on ng iyong organisasyon ang Pinahusay na Ligtas na Pag-browse</translation>
 <translation id="2065944887543506430">{FILE_COUNT,plural, =1{1 ang hindi na-download}one{# ang hindi na-download}other{# ang hindi na-download}}</translation>
 <translation id="2067805253194386918">text</translation>
-<translation id="2072027001582274150">Mga hindi ginagamit o duplicate na tab</translation>
 <translation id="2079545284768500474">I-undo</translation>
 <translation id="2082238445998314030">Resulta <ph name="RESULT_NUMBER" /> sa <ph name="TOTAL_RESULTS" /></translation>
-<translation id="2088833076121753253">Para tapusin ang pag-set up ng autofill, i-restart ang Chrome ngayon. Awtomatikong magbubukas ulit ang iyong mga tab.</translation>
 <translation id="2091863218454846791">Ipinapakita ang compact view</translation>
 <translation id="2093731487903423814">nakalipas na 15 minuto</translation>
 <translation id="2096577711562668473">Palitan ang serbisyo ng autofill?</translation>
@@ -428,6 +425,7 @@ Ang taong may passphrase mo lang ang makakapagbasa ng iyong naka-encrypt na data
 <translation id="2854916915045135148">Pindutin nang matagal para lumipat sa Incognito</translation>
 <translation id="2860954141821109167">Tiyaking may naka-enable na phone app sa device na ito</translation>
 <translation id="2861923151411510142">Hindi na magiging available ang ilang feature ng Chrome</translation>
+<translation id="2869416538780777323">{OTHER_TAB_COUNT,plural, =1{<ph name="URL" /> at 1 pang tab}one{<ph name="URL" /> at <ph name="TAB_COUNT_MANY" /> pang tab}other{<ph name="URL" /> at <ph name="TAB_COUNT_MANY" /> pang tab}}</translation>
 <translation id="2869430948265924908">Para maprotektahan ang iyong sensitibong content sa kotse, dapat kang gumawa ng lock ng profile ng kotse.  Magagawa mo ito gamit ang isang pin, code, o password.</translation>
 <translation id="2870560284913253234">Site</translation>
 <translation id="2871733351037274014">Mag-preload ng mga page</translation>
@@ -446,6 +444,7 @@ Ang taong may passphrase mo lang ang makakapagbasa ng iyong naka-encrypt na data
 <translation id="2904414404539560095">Nakabukas ang listahan ng mga device kung saan magbabahagi ng tab nang buo ang taas.</translation>
 <translation id="2908243544703713905">Handa na ang mga hindi pa nababasang kuwento</translation>
 <translation id="2909615210195135082">Google Notifications Platform</translation>
+<translation id="2912247081180973411">Magsara ng mga window</translation>
 <translation id="2912345083818861431">Gamitin ang lock ng screen para makita ang mga nakabukas na tab na Incognito</translation>
 <translation id="2918484639460781603">Pumunta sa mga setting</translation>
 <translation id="2920713489113095380"><ph name="TAB_TITLE" />, Naka-mute na Tab</translation>
@@ -503,7 +502,6 @@ Ang taong may passphrase mo lang ang makakapagbasa ng iyong naka-encrypt na data
 <translation id="3159335509547415276">Matuto tungkol sa mga naka-block na account</translation>
 <translation id="3161699713309727585"><ph name="BUTTON_TEXT" />, bubukas sa bagong tab</translation>
 <translation id="3166827708714933426">Mga shortcut ng tab at window</translation>
-<translation id="316694332262407393">Tumatakbo na ang Chrome dito.</translation>
 <translation id="3167258285411721858">Puwede mong i-request ang pang-mobile na site para sa <ph name="HOST_NAME" /></translation>
 <translation id="3169472444629675720">Discover</translation>
 <translation id="3181145110929454111"><ph name="TAB_TITLE" />, Naka-multiselect na Naka-pin at Naka-mute na Tab na Incognito</translation>
@@ -851,7 +849,6 @@ Maaaring may ibang uri ng history ng pag-browse ang iyong Google account tulad n
 <translation id="468924408576231679">Kopyahin ang link sa webpage <ph name="PAGE_TITLE" />. Source: <ph name="PAGE_URL" /></translation>
 <translation id="469286762610133730">Makakuha ng mas magandang content</translation>
 <translation id="4695891336199304370">{SHIPPING_OPTIONS,plural, =1{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 at <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> iba pa}one{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 at <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> iba pa}other{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 at <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> na iba pa}}</translation>
-<translation id="4698061626562952596">Suriin ang iyong mga hindi aktibong tab dito</translation>
 <translation id="4698757800236023795">Aktibo (<ph name="ITEM_COUNT" />)</translation>
 <translation id="4699172675775169585">Mga naka-cache na larawan at file</translation>
 <translation id="4710167854527459075">Ayon sa pinakabago</translation>
@@ -950,6 +947,7 @@ Maaaring may ibang uri ng history ng pag-browse ang iyong Google account tulad n
 <translation id="5039678609803776426">{TAB_COUNT,plural, =1{<ph name="TAB_COUNT_ONE" /> tab - <ph name="URL_LIST" />}one{<ph name="TAB_COUNT_MANY" /> tab - <ph name="URL_LIST" />}other{<ph name="TAB_COUNT_MANY" /> na tab - <ph name="URL_LIST" />}}</translation>
 <translation id="5040262127954254034">Privacy</translation>
 <translation id="504456571576643789">Mga bagay na dapat isaalang-alang</translation>
+<translation id="5052017727857614804">{WINDOW_COUNT,plural, =1{<ph name="WINDOW_COUNT_ONE" /> Window ang Napili}one{<ph name="WINDOW_COUNT_NORMAL" /> Window ang Napili}other{<ph name="WINDOW_COUNT_NORMAL" /> na Window ang Napili}}</translation>
 <translation id="5056587122125565772">Gumawa ng larawan</translation>
 <translation id="506254248375231072">Walang tab</translation>
 <translation id="5075939510584558547">I-save nang walang pag-encrypt</translation>
@@ -966,7 +964,6 @@ Maaaring may ibang uri ng history ng pag-browse ang iyong Google account tulad n
 <translation id="5123685120097942451">Tab na incognito</translation>
 <translation id="5142281402488957685">Para sa mga bagong kuwento, i-slide pababa para mag-refresh</translation>
 <translation id="5144385790872094440">Na-preload ang ilan sa mga page na binibisita mo. Posibleng i-preload ang mga page sa pamamagitan ng mga server ng Google kapag na-link mula sa site o app ng Google.</translation>
-<translation id="5145887002054615868">Inilipat dito ang mga duplicate na tab o ang mga hindi ginamit sa loob ng <ph name="DAYS_INACTIVE" /> (na) araw<ph name="AUTODELETE_SECTION" />. Puwede mo itong baguhin anumang oras sa <ph name="DECLUTTER_SETTINGS_TITLE" />.</translation>
 <translation id="5152843274749979095">Walang naka-install na sinusuportahang app</translation>
 <translation id="5161254044473106830">Kailangan ng pamagat</translation>
 <translation id="5161262286013276579">Binuksan ang sheet ng pagkumpirma sa passkey</translation>
@@ -1041,6 +1038,7 @@ Maaaring may ibang uri ng history ng pag-browse ang iyong Google account tulad n
 <translation id="5469852975082458401">Puwede kang mag-navigate sa mga page gamit ang text cursor. Pindutin ang F7 para i-off.</translation>
 <translation id="5471273988133666918">Hindi maililipat ang tab na <ph name="TAB_TITLE" /></translation>
 <translation id="548278423535722844">Buksan sa app na mga mapa</translation>
+<translation id="5494920125229734069">Piliin ang lahat</translation>
 <translation id="549660026907543296">Sumali bilang si <ph name="MEMBER_FULL_NAME" /></translation>
 <translation id="5517326820028369152">Bottom sheet ng kamakailang aktibidad</translation>
 <translation id="5526281268548144413">Hindi maisasara sa maraming window</translation>
@@ -1149,6 +1147,7 @@ Maaaring may ibang uri ng history ng pag-browse ang iyong Google account tulad n
 <translation id="5958275228015807058">Hanapin ang iyong mga file at page sa Mga Download</translation>
 <translation id="5962718611393537961">I-tap upang i-collapse</translation>
 <translation id="5964869237734432770">Ihinto ang desc ng larawan</translation>
+<translation id="5972844218283131174">I-deselect lahat</translation>
 <translation id="5975083100439434680">Mag-zoom out</translation>
 <translation id="5977976211062815271">Sa device na ito</translation>
 <translation id="5978661847409534366">{ITEMS_COUNT,plural, =1{1 page sa iyong listahan ng babasahin}one{# page sa iyong listahan ng babasahin}other{# na page sa iyong listahan ng babasahin}}</translation>
@@ -1721,12 +1720,14 @@ Para baguhin ang setting na ito, <ph name="BEGIN_LINK" />i-delete ang data sa Ch
 <translation id="8137562778192957619">Hindi mo kailangang tandaan ang password na ito. Mase-save ito sa Google Password Manager.</translation>
 <translation id="8152331954420209374">Pumunta sa Lens</translation>
 <translation id="8153206878708357851">I-toggle ang caret browsing</translation>
+<translation id="8154784523622173959">I-personalize ang background ng page na ito</translation>
 <translation id="8163820386638255770">Para magamit at ma-save ang mga password sa iyong Google Account, i-verify na ikaw ito</translation>
 <translation id="8175940240143658258">{ARCHIVED_TAB_COUNT,plural, =1{(1) hindi aktibong item}one{(#) hindi aktibong item}other{(#) na hindi aktibong item}}</translation>
 <translation id="8186512483418048923"><ph name="FILES" /> (na) file ang natitira</translation>
 <translation id="8190358571722158785">1 araw na lang ang natitira</translation>
 <translation id="8192765420340770300">Binuksan nang buo ang bottom sheet sa pag-sign in</translation>
 <translation id="8193953846147532858"><ph name="BEGIN_LINK" />Ang iyong mga device<ph name="END_LINK" /> · <ph name="EMAIL" /></translation>
+<translation id="8201752259339925400">I-clear ang query sa paghahanap</translation>
 <translation id="820568752112382238">Mga pinakamadalas bisitahing site</translation>
 <translation id="8207867836430106322">{NUM_OTHER_MEMBERS,plural, =1{Sumali sa grupo ng tab kasama ni <ph name="OWNER_FIRST_NAME" /> at <ph name="NUMBER_OF_OTHER_MEMBERS" /> pa}one{Sumali sa grupo ng tab kasama ni <ph name="OWNER_FIRST_NAME" /> at <ph name="NUMBER_OF_OTHER_MEMBERS" /> pa}other{Sumali sa grupo ng tab kasama ni <ph name="OWNER_FIRST_NAME" /> at <ph name="NUMBER_OF_OTHER_MEMBERS" /> pa}}</translation>
 <translation id="8209050860603202033">Buksan ang larawan</translation>

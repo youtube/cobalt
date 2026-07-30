@@ -19,6 +19,7 @@
 #include "chrome/browser/contextual_tasks/active_task_context_provider_impl.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_side_panel_coordinator.h"
+#include "chrome/browser/contextual_tasks/entry_point_eligibility_manager.h"
 #include "chrome/browser/devtools/devtools_ui_controller.h"
 #include "chrome/browser/enterprise/data_protection/data_protection_ui_controller.h"
 #include "chrome/browser/extensions/browser_extension_window_controller.h"
@@ -48,6 +49,7 @@
 #include "chrome/browser/ui/commerce/product_specifications_entry_point_controller.h"
 #include "chrome/browser/ui/contextual_search/searchbox_context_data.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
+#include "chrome/browser/ui/extensions/extension_installed_watcher.h"
 #include "chrome/browser/ui/extensions/mv2_disabled_dialog_controller.h"
 #include "chrome/browser/ui/find_bar/find_bar.h"
 #include "chrome/browser/ui/find_bar/find_bar_controller.h"
@@ -61,6 +63,7 @@
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/glic_nudge_controller.h"
 #include "chrome/browser/ui/tabs/organization/tab_declutter_controller.h"
+#include "chrome/browser/ui/tabs/projects/projects_panel_state_controller.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/most_recent_shared_tab_update_store.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/session_service_tab_group_sync_observer.h"
@@ -115,6 +118,7 @@
 #include "chrome/browser/ui/views/translate/translate_bubble_controller.h"
 #include "chrome/browser/ui/views/upgrade_notification_controller.h"
 #include "chrome/browser/ui/views/user_education/impl/browser_user_education_interface_impl.h"
+#include "chrome/browser/ui/waap/initial_web_ui_manager.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/web_app_launch_utils.h"
 #include "chrome/browser/ui/webui_browser/browser_elements_webui_browser.h"
@@ -301,6 +305,12 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
                   SessionServiceFactory::GetForProfile(browser_->GetProfile()),
                   browser_->GetSessionID());
     }
+
+    if (tabs::IsProjectsPanelFeatureEnabled()) {
+      projects_panel_state_controller_ =
+          GetUserDataFactory().CreateInstance<ProjectsPanelStateController>(
+              *browser, browser, browser_actions_->root_action_item());
+    }
   }
 
   // The LensOverlayEntryPointController is constructed for all browser types
@@ -357,6 +367,9 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
 
   signin_view_controller_ = std::make_unique<SigninViewController>(
       browser, profile, tab_strip_model_);
+
+  extension_installed_watcher_ =
+      std::make_unique<ExtensionInstalledWatcher>(profile);
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
   if (base::FeatureList::IsEnabled(features::kPdfInfoBar)) {
@@ -416,15 +429,6 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
               session_restore_infobar::SessionRestoreInfobarController>(
               *browser, browser);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-
-  if (base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks) &&
-      (contextual_tasks::kShowEntryPoint.Get() ==
-       contextual_tasks::EntryPointOption::kToolbarRevisit)) {
-    contextual_tasks_ephemeral_button_controller_ =
-        GetUserDataFactory()
-            .CreateInstance<ContextualTasksEphemeralButtonController>(*browser,
-                                                                      browser);
-  }
 
   // Initialize embedder features last.
   embedder_browser_window_features_ =
@@ -556,21 +560,19 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
               *browser, browser);
     }
 
-    if (base::FeatureList::IsEnabled(features::kSideBySide)) {
-      if (browser_view) {
-        split_tab_highlight_controller_ =
-            std::make_unique<split_tabs::SplitTabHighlightController>(
-                browser_view);
-      }
+    if (browser_view) {
+      split_tab_highlight_controller_ =
+          std::make_unique<split_tabs::SplitTabHighlightController>(
+              browser_view);
+    }
 
-      if (base::FeatureList::IsEnabled(
-              feature_engagement::kIPHSideBySidePinnableFeature) ||
-          base::FeatureList::IsEnabled(
-              feature_engagement::kIPHSideBySideTabSwitchFeature)) {
-        split_view_iph_controller_ =
-            GetUserDataFactory().CreateInstance<SplitViewIphController>(
-                *browser, browser);
-      }
+    if (base::FeatureList::IsEnabled(
+            feature_engagement::kIPHSideBySidePinnableFeature) ||
+        base::FeatureList::IsEnabled(
+            feature_engagement::kIPHSideBySideTabSwitchFeature)) {
+      split_view_iph_controller_ =
+          GetUserDataFactory().CreateInstance<SplitViewIphController>(*browser,
+                                                                      browser);
     }
   }
 
@@ -593,7 +595,7 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
   if (browser_view) {
     color_provider_browser_helper_ =
         std::make_unique<ColorProviderBrowserHelper>(
-            browser->GetTabStripModel(), browser_view->GetWidget());
+            browser->GetTabStripModel(), browser_view->GetWidget(), browser);
   }
 
   live_tab_context_ = std::make_unique<BrowserLiveTabContext>(
@@ -643,6 +645,10 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
             profile, focus_manager,
             extensions::ExtensionKeybindingRegistry::ALL_EXTENSIONS,
             extension_keybinding_delegate_.get());
+  }
+
+  if (browser->is_type_normal()) {
+    initial_web_ui_manager_ = std::make_unique<InitialWebUIManager>(browser);
   }
 
   // Initialize post-window dependent embedder features last.
@@ -707,6 +713,19 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
             .CreateInstance<
                 contextual_tasks::ContextualTasksSidePanelCoordinator>(
                 *browser_, browser_);
+
+    contextual_tasks_entry_point_eligibility_manager_ =
+        GetUserDataFactory()
+            .CreateInstance<contextual_tasks::EntryPointEligibilityManager>(
+                *browser_, browser_);
+
+    if (contextual_tasks::kShowEntryPoint.Get() ==
+        contextual_tasks::EntryPointOption::kToolbarRevisit) {
+      contextual_tasks_ephemeral_button_controller_ =
+          GetUserDataFactory()
+              .CreateInstance<ContextualTasksEphemeralButtonController>(
+                  *browser_, browser_);
+    }
   }
 
   side_panel_coordinator_->Init(browser_view->browser());
@@ -784,7 +803,8 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
                 enterprise_data_protection::DataProtectionUIController>(
                 *browser_view->browser(), browser_view);
 
-    if (features::HasTabSearchToolbarButton()) {
+    if (features::HasTabSearchToolbarButton() ||
+        tabs::IsVerticalTabsFeatureEnabled()) {
       tab_search_toolbar_button_controller_ =
           std::make_unique<TabSearchToolbarButtonController>(browser_view);
     }
@@ -837,6 +857,7 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
   upgrade_notification_controller_.reset();
   memory_saver_opt_in_iph_controller_.reset();
   lens_overlay_entry_point_controller_.reset();
+  initial_web_ui_manager_.reset();
   tab_search_toolbar_button_controller_.reset();
   profile_menu_coordinator_.reset();
   toast_service_.reset();
@@ -914,6 +935,8 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
   omnibox_popup_closer_.reset();
 
   split_tab_highlight_controller_.reset();
+
+  extension_installed_watcher_.reset();
 
 #if BUILDFLAG(IS_WIN)
   windows_taskbar_icon_updater_.reset();

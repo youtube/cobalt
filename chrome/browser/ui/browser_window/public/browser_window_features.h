@@ -53,6 +53,7 @@ class DataSharingBubbleController;
 class DesktopBrowserWindowCapabilities;
 class DevtoolsUIController;
 class EmbedderBrowserWindowFeatures;
+class ExtensionInstalledWatcher;
 class ExtensionKeybindingRegistryViews;
 class ExclusiveAccessManager;
 class FindBarController;
@@ -63,10 +64,12 @@ class HistorySidePanelCoordinator;
 class IncognitoClearBrowsingDataDialogCoordinator;
 class ImmersiveModeController;
 class IOSPromoController;
+class InitialWebUIManager;
 class LocationBarModel;
 class MemorySaverOptInIPHController;
 class PinnedToolbarActionsController;
 class ProfileMenuCoordinator;
+class ProjectsPanelStateController;
 class ReadingListSidePanelCoordinator;
 class RecentActivityBubbleCoordinator;
 class BrowserSelectFileDialogController;
@@ -143,6 +146,7 @@ class ProductSpecificationsEntryPointController;
 namespace contextual_tasks {
 class ActiveTaskContextProvider;
 class ContextualTasksSidePanelCoordinator;
+class EntryPointEligibilityManager;
 }  // namespace contextual_tasks
 
 namespace tabs {
@@ -266,6 +270,10 @@ class BrowserWindowFeatures {
 
   CommentsSidePanelCoordinator* comments_side_panel_coordinator() {
     return comments_side_panel_coordinator_.get();
+  }
+
+  ExtensionInstalledWatcher* extension_installed_watcher() {
+    return extension_installed_watcher_.get();
   }
 
 #if BUILDFLAG(ENABLE_GLIC)
@@ -546,6 +554,8 @@ class BrowserWindowFeatures {
 
   std::unique_ptr<FullscreenControlHost> fullscreen_control_host_;
 
+  std::unique_ptr<InitialWebUIManager> initial_web_ui_manager_;
+
   std::unique_ptr<IOSPromoController> ios_promo_controller_;
 
   std::unique_ptr<lens::LensOverlayEntryPointController>
@@ -562,6 +572,9 @@ class BrowserWindowFeatures {
   std::unique_ptr<tabs::VerticalTabStripStateController>
       vertical_tab_strip_state_controller_;
 
+  std::unique_ptr<ProjectsPanelStateController>
+      projects_panel_state_controller_;
+
   std::unique_ptr<MemorySaverOptInIPHController>
       memory_saver_opt_in_iph_controller_;
 
@@ -575,6 +588,8 @@ class BrowserWindowFeatures {
 
   std::unique_ptr<PinnedToolbarActionsController>
       pinned_toolbar_actions_controller_;
+
+  std::unique_ptr<ExtensionInstalledWatcher> extension_installed_watcher_;
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
   std::unique_ptr<pdf::infobar::PdfInfoBarController> pdf_infobar_controller_;
@@ -631,6 +646,9 @@ class BrowserWindowFeatures {
   std::unique_ptr<session_restore_infobar::SessionRestoreInfobarController>
       session_restore_infobar_controller_;
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
+  std::unique_ptr<contextual_tasks::EntryPointEligibilityManager>
+      contextual_tasks_entry_point_eligibility_manager_;
 
   std::unique_ptr<ContextualTasksEphemeralButtonController>
       contextual_tasks_ephemeral_button_controller_;

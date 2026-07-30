@@ -32,8 +32,6 @@
 #include "chrome/browser/preloading/preloading_features.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_service.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_service_factory.h"
-#include "chrome/browser/privacy_sandbox/tracking_protection_onboarding_factory.h"
-#include "chrome/browser/privacy_sandbox/tracking_protection_settings_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/regional_capabilities/regional_capabilities_service_factory.h"
@@ -116,7 +114,6 @@
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "components/prefs/pref_service.h"
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
-#include "components/privacy_sandbox/tracking_protection_settings.h"
 #include "components/regional_capabilities/regional_capabilities_service.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/safe_browsing/core/common/hashprefix_realtime/hash_realtime_utils.h"
@@ -193,6 +190,8 @@
 #if BUILDFLAG(ENABLE_GLIC)
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/subscription_eligibility/subscription_eligibility_service.h"
+#include "chrome/browser/subscription_eligibility/subscription_eligibility_service_factory.h"
 #include "chrome/browser/ui/webui/settings/glic_handler.h"
 #endif
 
@@ -373,9 +372,22 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
                              compose::features::kEnableComposeProactiveNudge));
 
 #if BUILDFLAG(ENABLE_GLIC)
+  auto* subscription_service = subscription_eligibility::
+      SubscriptionEligibilityServiceFactory::GetForProfile(profile);
+
+  const bool use_paid_tier =
+      subscription_service && subscription_service->GetAiSubscriptionTier() > 0;
+
   html_source->AddBoolean(
       "showGeminiPersonalContextLink",
-      base::FeatureList::IsEnabled(features::kGlicPersonalContext));
+      base::FeatureList::IsEnabled(features::kGlicPersonalContext) &&
+          use_paid_tier);
+  html_source->AddBoolean(
+      "showInstructionLink",
+      (base::FeatureList::IsEnabled(features::kGlicPersonalContext) &&
+       !use_paid_tier) ||
+          (base::FeatureList::IsEnabled(features::kGlicGeminiInstructions) &&
+           !base::FeatureList::IsEnabled(features::kGlicPersonalContext)));
 #endif  //  BUILDFLAG(ENABLE_GLIC)
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -502,12 +514,6 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
   html_source->AddBoolean("isPrivacySandboxRestrictedNoticeEnabled",
                           is_restricted_notice_enabled);
 
-  // Mode B UX
-  html_source->AddBoolean(
-      "is3pcdCookieSettingsRedesignEnabled",
-      TrackingProtectionSettingsFactory::GetForProfile(profile)
-          ->IsTrackingProtection3pcdEnabled());
-
   // Performance
   AddSettingsPageUIHandler(std::make_unique<PerformanceHandler>());
   html_source->AddBoolean(
@@ -545,7 +551,17 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
       "enableLocalNetworkAccessSetting",
       base::FeatureList::IsEnabled(
           network::features::kLocalNetworkAccessChecks) &&
-          !network::features::kLocalNetworkAccessChecksWarn.Get());
+          !network::features::kLocalNetworkAccessChecksWarn.Get() &&
+          !base::FeatureList::IsEnabled(
+              network::features::kLocalNetworkAccessChecksSplitPermissions));
+
+  html_source->AddBoolean(
+      "enableLocalNetworkAccessSplitPermissions",
+      base::FeatureList::IsEnabled(
+          network::features::kLocalNetworkAccessChecks) &&
+          !network::features::kLocalNetworkAccessChecksWarn.Get() &&
+          base::FeatureList::IsEnabled(
+              network::features::kLocalNetworkAccessChecksSplitPermissions));
 
   // AI
   bool show_glic_section = false;

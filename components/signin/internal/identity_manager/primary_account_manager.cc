@@ -207,12 +207,7 @@ PrimaryAccountManager::PrimaryAccountManager(
   DCHECK(account_tracker_service_);
   ScopedPrefCommit scoped_pref_commit(client_->GetPrefs(),
                                       /*commit_on_destroy=*/false);
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
-  signin_allowed_.Init(
-      prefs::kSigninAllowed, client_->GetPrefs(),
-      base::BindRepeating(&PrimaryAccountManager::OnSigninAllowedPrefChanged,
-                          base::Unretained(this)));
-#else
+#if !BUILDFLAG(ENABLE_DICE_SUPPORT)
   scoped_pref_commit.ClearPref(prefs::kExplicitBrowserSignin);
 #endif
 
@@ -247,10 +242,6 @@ PrimaryAccountManager::PrimaryAccountManager(
                                    account_info.gaia.ToString());
       scoped_pref_commit.SetString(prefs::kGoogleServicesLastSyncingUsername,
                                    account_info.email);
-    } else if (ShouldSigninAllowedPrefAffectPrimaryAccount(
-                   pref_consented_to_sync)) {
-      SetPrimaryAccountInternal(CoreAccountInfo(), /*consented_to_sync=*/false,
-                                scoped_pref_commit);
     } else {
       SetPrimaryAccountInternal(account_info, /*consented_to_sync=*/false,
                                 scoped_pref_commit);
@@ -648,14 +639,8 @@ void PrimaryAccountManager::OnSignoutDecisionReached(
   VLOG(1) << "OnSignoutDecisionReached: "
           << (signout_decision == SigninClient::SignoutDecision::ALLOW);
 
-  // |REVOKE_SYNC_DISALLOWED| implies that removing the primary account is not
-  // allowed as the sync consent is attached to the primary account. Therefore,
-  // there is no need to check |remove_option| as regardless of its value, this
-  // function will be no-op.
   bool abort_signout =
       GetPrimaryAccount().account_info.IsEmpty() ||
-      signout_decision ==
-          SigninClient::SignoutDecision::REVOKE_SYNC_DISALLOWED ||
       (remove_option == RemoveAccountsOption::kRemoveAllAccounts &&
        signout_decision ==
            SigninClient::SignoutDecision::CLEAR_PRIMARY_ACCOUNT_DISALLOWED);
@@ -894,30 +879,5 @@ void PrimaryAccountManager::OnRefreshTokensLoaded() {
       }
     }
   }
-#endif
-}
-
-void PrimaryAccountManager::OnSigninAllowedPrefChanged() {
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
-  if (ShouldSigninAllowedPrefAffectPrimaryAccount(
-          /*is_sync_consent=*/GetPrimaryAccountState().consent_level ==
-          signin::ConsentLevel::kSync)) {
-    ClearPrimaryAccount(signin_metrics::ProfileSignout::kPrefChanged);
-  }
-#endif
-}
-
-bool PrimaryAccountManager::ShouldSigninAllowedPrefAffectPrimaryAccount(
-    bool is_sync_consent) {
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
-  return !signin_allowed_.GetValue() &&
-         // If sync is enabled, we do not directly clear the primary account.
-         // This is handled by `PrimaryAccountPolicyManager`. That flow is
-         // extremely hard to follow especially for the case when the user is
-         // syncing with a managed account as in that case the whole profile
-         // needs to be deleted.
-         !is_sync_consent;
-#else
-  return false;
 #endif
 }

@@ -124,32 +124,47 @@ struct ArraySerializer<
         << "Primitive type should not have array validate params";
 
     size_t size = input->GetSize();
-    if (size == 0)
+    if (size == 0) {
       return;
+    }
 
     Data* output = fragment.data();
-    if constexpr (HasGetDataMethod<Traits, MaybeConstUserType>::value) {
+    // std::optional<> is considered a POD type by MojomTypeCategory, but it is
+    // not safe to memcpy.
+    if constexpr (requires { Traits::GetData(input->input()); } &&
+                  !base::is_instantiation<DataElement, std::optional>) {
       auto data = Traits::GetData(input->input());
-      memcpy(output->storage(), data, size * sizeof(DataElement));
+      // SAFETY: The GetData and output storage types need to be spanified.
+      UNSAFE_TODO(
+          { memcpy(output->storage(), data, size * sizeof(DataElement)); });
     } else {
-      for (size_t i = 0; i < size; ++i)
+      for (size_t i = 0; i < size; ++i) {
         output->at(i) = input->GetNext();
+      }
     }
   }
 
   static bool DeserializeElements(Data* input,
                                   UserType* output,
                                   Message* message) {
-    if (!Traits::Resize(*output, input->size()))
+    if (!Traits::Resize(*output, input->size())) {
       return false;
+    }
     if (input->size()) {
-      if constexpr (HasGetDataMethod<Traits, UserType>::value) {
+      // std::optional<> is considered a POD type by MojomTypeCategory, but it
+      // is not safe to memcpy.
+      if constexpr (requires { Traits::GetData(*output); } &&
+                    !base::is_instantiation<DataElement, std::optional>) {
         auto data = Traits::GetData(*output);
-        memcpy(data, input->storage(), input->size() * sizeof(DataElement));
+        // SAFETY: The GetData and output storage types need to be spanified.
+        UNSAFE_TODO({
+          memcpy(data, input->storage(), input->size() * sizeof(DataElement));
+        });
       } else {
         ArrayIterator<Traits, UserType> iterator(*output);
-        for (size_t i = 0; i < input->size(); ++i)
+        for (size_t i = 0; i < input->size(); ++i) {
           iterator.GetNext() = static_cast<DataElement>(input->at(i));
+        }
       }
     }
     return true;
@@ -187,19 +202,22 @@ struct ArraySerializer<
 
     Data* output = fragment.data();
     size_t size = input->GetSize();
-    for (size_t i = 0; i < size; ++i)
+    for (size_t i = 0; i < size; ++i) {
       Serialize<Element>(input->GetNext(), UNSAFE_TODO(output->storage() + i));
+    }
   }
 
   static bool DeserializeElements(Data* input,
                                   UserType* output,
                                   Message* message) {
-    if (!Traits::Resize(*output, input->size()))
+    if (!Traits::Resize(*output, input->size())) {
       return false;
+    }
     ArrayIterator<Traits, UserType> iterator(*output);
     for (size_t i = 0; i < input->size(); ++i) {
-      if (!Deserialize<Element>(input->at(i), &iterator.GetNext()))
+      if (!Deserialize<Element>(input->at(i), &iterator.GetNext())) {
         return false;
+      }
     }
     return true;
   }
@@ -300,17 +318,20 @@ struct ArraySerializer<MojomType,
 
     Data* output = fragment.data();
     size_t size = input->GetSize();
-    for (size_t i = 0; i < size; ++i)
+    for (size_t i = 0; i < size; ++i) {
       output->at(i) = input->GetNext();
+    }
   }
   static bool DeserializeElements(Data* input,
                                   UserType* output,
                                   Message* message) {
-    if (!Traits::Resize(*output, input->size()))
+    if (!Traits::Resize(*output, input->size())) {
       return false;
+    }
     ArrayIterator<Traits, UserType> iterator(*output);
-    for (size_t i = 0; i < input->size(); ++i)
+    for (size_t i = 0; i < input->size(); ++i) {
       iterator.GetNext() = input->at(i);
+    }
     return true;
   }
 };
@@ -367,8 +388,9 @@ struct ArraySerializer<
   static bool DeserializeElements(Data* input,
                                   UserType* output,
                                   Message* message) {
-    if (!Traits::Resize(*output, input->size()))
+    if (!Traits::Resize(*output, input->size())) {
       return false;
+    }
     ArrayIterator<Traits, UserType> iterator(*output);
     for (size_t i = 0; i < input->size(); ++i) {
       bool result =
@@ -422,13 +444,15 @@ struct ArraySerializer<MojomType,
   static bool DeserializeElements(Data* input,
                                   UserType* output,
                                   Message* message) {
-    if (!Traits::Resize(*output, input->size()))
+    if (!Traits::Resize(*output, input->size())) {
       return false;
+    }
     ArrayIterator<Traits, UserType> iterator(*output);
     for (size_t i = 0; i < input->size(); ++i) {
       if (!Deserialize<Element>(input->at(i).Get(), &iterator.GetNext(),
-                                message))
+                                message)) {
         return false;
+      }
     }
     return true;
   }
@@ -499,12 +523,14 @@ struct ArraySerializer<MojomType,
   static bool DeserializeElements(Data* input,
                                   UserType* output,
                                   Message* message) {
-    if (!Traits::Resize(*output, input->size()))
+    if (!Traits::Resize(*output, input->size())) {
       return false;
+    }
     ArrayIterator<Traits, UserType> iterator(*output);
     for (size_t i = 0; i < input->size(); ++i) {
-      if (!Deserialize<Element>(&input->at(i), &iterator.GetNext(), message))
+      if (!Deserialize<Element>(&input->at(i), &iterator.GetNext(), message)) {
         return false;
+      }
     }
     return true;
   }
@@ -522,8 +548,9 @@ struct Serializer<ArrayDataView<Element>, MaybeConstUserType> {
   static void Serialize(MaybeConstUserType& input,
                         MessageFragment<Data>& fragment,
                         const ContainerValidateParams* validate_params) {
-    if (CallIsNullIfExists<Traits>(input))
+    if (CallIsNullIfExists<Traits>(input)) {
       return;
+    }
 
     const size_t size = Traits::GetSize(input);
 
@@ -542,8 +569,9 @@ struct Serializer<ArrayDataView<Element>, MaybeConstUserType> {
   }
 
   static bool Deserialize(Data* input, UserType* output, Message* message) {
-    if (!input)
+    if (!input) {
       return CallSetToNullIfExists<Traits>(output);
+    }
     return Impl::DeserializeElements(input, output, message);
   }
 };

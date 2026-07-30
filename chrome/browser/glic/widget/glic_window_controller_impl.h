@@ -37,7 +37,6 @@
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_observer.h"
 
-class SkRegion;
 class Browser;
 class WindowFinder;
 namespace gfx {
@@ -93,12 +92,13 @@ class GlicWindowControllerImpl
       content::RenderFrameHost* render_frame_host) override;
   void CloseAndShutdownInstanceWithFrame(
       content::RenderFrameHost* render_frame_host) override;
+  void ArchiveInstanceWithFrame(
+      content::RenderFrameHost* render_frame_host) override;
 
   void AddStateObserver(StateObserver* observer) override;
   void RemoveStateObserver(StateObserver* observer) override;
   void AddGlobalStateObserver(PanelStateObserver* observer) override;
   void RemoveGlobalStateObserver(PanelStateObserver* observer) override;
-  void SetDraggableRegion(const SkRegion& draggable_region) override;
 
   bool IsPanelShowingForBrowser(
       const BrowserWindowInterface& bwi) const override;
@@ -317,16 +317,6 @@ class GlicWindowControllerImpl
   bool ShouldConstrainDialogBoundsByHost() override;
   void AddObserver(web_modal::ModalDialogHostObserver* observer) override;
   void RemoveObserver(web_modal::ModalDialogHostObserver* observer) override;
-
-  // Maybe send a ViewChangeRequest:
-  void MaybeSendConversationViewRequest();
-  void MaybeSendActuationViewRequest();
-
-  // Maybe send a request to change the view.
-  void MaybeSendViewChangeRequest(mojom::InvocationSource source);
-
-  // Check if the invocation source matches the entry point for the given view.
-  bool InvocationSourceMatchesCurrentView(mojom::InvocationSource source);
 
   using StateChangeCallbackList =
       base::RepeatingCallbackList<void(bool, mojom::CurrentView view)>;

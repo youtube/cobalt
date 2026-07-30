@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 
+#include "base/byte_size.h"
 #include "base/feature_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/notreached.h"
@@ -59,7 +60,6 @@ class CanvasRenderingContext2D;
 class CanvasResource;
 class CanvasResourceSharedImage;
 class Canvas2DResourceProviderBitmap;
-class CanvasResourceProviderExternalBitmap;
 class CanvasResourceProviderSharedImage;
 class MemoryManagedPaintCanvas;
 class OffscreenCanvasRenderingContext2D;
@@ -131,12 +131,6 @@ class PLATFORM_EXPORT CanvasResourceProvider
 
   // Used to determine if the provider is going to be initialized or not.
   enum class ShouldInitialize { kNo, kCallClear };
-
-  static std::unique_ptr<CanvasResourceProviderExternalBitmap>
-  CreateExternalBitmapProvider(gfx::Size size,
-                               viz::SharedImageFormat format,
-                               SkAlphaType alpha_type,
-                               const gfx::ColorSpace& color_space);
 
   static std::unique_ptr<CanvasResourceProviderSharedImage>
   CreateSharedImageProviderForSoftwareCompositor(
@@ -219,8 +213,8 @@ class PLATFORM_EXPORT CanvasResourceProvider
   gfx::ColorSpace GetColorSpace() const override { return color_space_; }
   SkAlphaType GetAlphaType() const override { return alpha_type_; }
   gfx::Size Size() const override { return size_; }
-  virtual base::ByteCount EstimatedSizeInBytes() const {
-    return base::ByteCount(format_.EstimatedSizeInBytes(size_));
+  virtual base::ByteSize EstimatedSizeInBytes() const {
+    return base::ByteSize(format_.EstimatedSizeInBytes(size_));
   }
   // Returns true if the resource can be used by the display compositor.
   virtual bool SupportsDirectCompositing() const = 0;
@@ -447,55 +441,6 @@ class PLATFORM_EXPORT Canvas2DResourceProviderBitmap
   sk_sp<SkSurface> CreateSkSurface() const override;
 };
 
-// * Renders to a Skia RAM-backed bitmap via an external (client-supplied) draw.
-// * Mailboxing is not supported : cannot be directly composited.
-class PLATFORM_EXPORT CanvasResourceProviderExternalBitmap
-    : public CanvasSnapshotProvider {
- public:
-  CanvasResourceProviderExternalBitmap(gfx::Size size,
-                                       viz::SharedImageFormat format,
-                                       SkAlphaType alpha_type,
-                                       const gfx::ColorSpace& color_space);
-
-  ~CanvasResourceProviderExternalBitmap() override;
-
-  bool IsGpuContextLost() const override;
-  bool IsValid() const override;
-  bool IsAccelerated() const override { return false; }
-  bool IsExternalBitmapProvider() const override { return true; }
-
-  scoped_refptr<StaticBitmapImage> DoExternalDrawAndSnapshot(
-      base::FunctionRef<void(MemoryManagedPaintCanvas&)> draw_callback,
-      ImageOrientation orientation) override;
-  viz::SharedImageFormat GetSharedImageFormat() const override {
-    return format_;
-  }
-  gfx::ColorSpace GetColorSpace() const override { return color_space_; }
-  SkAlphaType GetAlphaType() const override { return alpha_type_; }
-  gfx::Size Size() const override { return size_; }
-
- private:
-  class SoftwareImageProvider;
-  std::unique_ptr<SoftwareImageProvider> image_provider_;
-
-  // Recording accumulating draw ops. This pointer is always valid and safe to
-  // dereference.
-  std::unique_ptr<MemoryManagedPaintRecorder> recorder_;
-
-  mutable sk_sp<SkSurface> surface_;  // mutable for lazy init
-  std::unique_ptr<cc::SkiaPaintCanvas> skia_canvas_;
-
-  gfx::Size size_;
-  viz::SharedImageFormat format_;
-  SkAlphaType alpha_type_;
-  gfx::ColorSpace color_space_;
-  const cc::PaintImage::Id snapshot_paint_image_id_;
-  cc::PaintImage::ContentId snapshot_paint_image_content_id_ =
-      cc::PaintImage::kInvalidContentId;
-  uint32_t snapshot_sk_image_id_ = 0u;
-  SkImageInfo info_;
-};
-
 // * Renders to a SharedImage, which manages memory internally.
 // * Layers may be overlay candidates.
 class PLATFORM_EXPORT CanvasResourceProviderSharedImage
@@ -579,7 +524,7 @@ class PLATFORM_EXPORT CanvasResourceProviderSharedImage
     return this;
   }
   bool IsAccelerated() const final { return is_accelerated_; }
-  base::ByteCount EstimatedSizeInBytes() const override;
+  base::ByteSize EstimatedSizeInBytes() const override;
   bool SupportsDirectCompositing() const override { return true; }
   scoped_refptr<CanvasResource> ProduceCanvasResource(
       FlushReason reason) override;

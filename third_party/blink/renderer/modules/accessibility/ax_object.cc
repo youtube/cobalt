@@ -1185,10 +1185,19 @@ void AXObject::Serialize(ui::AXNodeData* node_data,
   SerializeAriaNotificationAttributes(
       AXObjectCache().RetrieveAriaNotifications(this), node_data);
 
+  // Over write ignored status when printing to PDF. All text that appears
+  // in the PDF should appear in the PDF's structured tree.
+  bool ignore = IsIgnored();
+  if (accessibility_mode.has_mode(ui::AXMode::kPDFPrinting)) {
+    if (node_data->role == ax::mojom::blink::Role::kStaticText) {
+      ignore = false;
+    }
+  }
+
   // Return early. The following attributes are unnecessary for ignored nodes.
   // Exception: focusable ignored nodes are fully serialized, so that reasonable
   // verbalizations can be made if they actually receive focus.
-  if (IsIgnored()) {
+  if (ignore) {
     node_data->AddState(ax::mojom::blink::State::kIgnored);
     if (!CanSetFocusAttribute()) {
       return;
@@ -1202,12 +1211,17 @@ void AXObject::Serialize(ui::AXNodeData* node_data,
 
   SerializeUnignoredAttributes(node_data, accessibility_mode, is_snapshot);
 
-  if (!accessibility_mode.has_mode(ui::AXMode::kExtendedProperties)) {
+  if (!accessibility_mode.has_mode(ui::AXMode::kExtendedProperties) &&
+      !accessibility_mode.has_mode(ui::AXMode::kPDFPrinting)) {
     // Return early. None of the following attributes are needed outside of
-    // screen reader mode.
+    // screen reader mode or PDF printing.
     return;
   }
 
+  // TODO(crbug.com/469328924): Not all of the attributes in
+  // SerializeScreenReaderAttributes are needed for PDF printing. Refactor this
+  // function (and maybe all of Serialize) to better separate out attributes
+  // needed printing and other modes.
   SerializeScreenReaderAttributes(node_data);
 
   if (accessibility_mode.has_mode(ui::AXMode::kPDFPrinting)) {
@@ -1771,6 +1785,14 @@ void AXObject::SerializeScreenReaderAttributes(ui::AXNodeData* node_data) const 
         ax::mojom::blink::IntAttribute::kActivedescendantId,
         active_descendant->AXObjectID());
   }
+
+  if (CheckedState() != ax::mojom::blink::CheckedState::kNone) {
+    node_data->SetCheckedState(CheckedState());
+  }
+
+  if (::features::IsAccessibilityTextChangeTypesEnabled()) {
+    SerializeTextChangeTypesAttributes(node_data);
+  }
 }
 
 String AXObject::KeyboardShortcut() const {
@@ -1854,10 +1876,6 @@ void AXObject::SerializeOtherScreenReaderAttributes(
 
   if (GetInvalidState() != ax::mojom::blink::InvalidState::kNone)
     node_data->SetInvalidState(GetInvalidState());
-
-  if (CheckedState() != ax::mojom::blink::CheckedState::kNone) {
-    node_data->SetCheckedState(CheckedState());
-  }
 
   if (node_data->role == ax::mojom::blink::Role::kListMarker) {
     SerializeListMarkerAttributes(node_data);
@@ -2851,6 +2869,26 @@ void AXObject::SerializeTextInsertionDeletionOffsetAttributes(
   node_data->AddIntListAttribute(
       ax::mojom::blink::IntListAttribute::kTextOperations, operations_ints);
   AXObjectCache().ClearTextOperationInNodeIdMap();
+}
+
+void AXObject::SerializeTextChangeTypesAttributes(
+    ui::AXNodeData* node_data) const {
+  ImeState* ime_state = AXObjectCache().GetImeState(this);
+  if (!ime_state) {
+    return;
+  }
+
+  if (ime_state->committed_text_length > 0) {
+    node_data->AddIntAttribute(
+        ax::mojom::blink::IntAttribute::kCommittedTextLength,
+        ime_state->committed_text_length);
+  } else if (ime_state->has_composition) {
+    node_data->AddBoolAttribute(
+        ax::mojom::blink::BoolAttribute::kHasComposition, true);
+  } else {
+    NOTREACHED();
+  }
+  AXObjectCache().ClearImeState();
 }
 
 bool AXObject::IsAXNodeObject() const {
@@ -4152,7 +4190,7 @@ bool AXObject::ComputeIsIgnoredButIncludedInTree() {
   CHECK(!IsDetached());
 
   // Nothing inside an inactive scroll marker's tab is included in the tree.
-  if (InsideOriginatingElementForInactiveScrollMarkerInTabsMode()) {
+  if (InsideInactiveScrollMarkerTab()) {
     return false;
   }
 

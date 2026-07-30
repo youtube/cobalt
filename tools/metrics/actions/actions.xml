@@ -514,6 +514,8 @@ should be able to be added at any place in this file.
   <variant name="_iOSPromoWhatsNew" summary="For iOSPromoWhatsNew feature"/>
   <variant name="_iOSPullToRefreshFeature"
       summary="For iOSPullToRefreshFeature feature"/>
+  <variant name="_iOSReaderModeLargeOmniboxEntrypointFeature"
+      summary="For iOSReaderModeLargeOmniboxEntrypoint feature"/>
   <variant name="_iOSReaderModeOptionsFeature"
       summary="For Reader Mode options IPH."/>
   <variant name="_iOSReminderNotificationsOverflowMenuBubbleFeature"
@@ -570,6 +572,8 @@ should be able to be added at any place in this file.
   <variant name="_NewTabPageButton" summary="Deprecated in M79-."/>
   <variant name="_NewTabPageHomeButton"
       summary="For NewTabPageHomeButton feature. (obsolete)"/>
+  <variant name="_NewTabPageThemeCustomization"
+      summary="In product help for NewTabPage theme customization feature."/>
   <variant name="_NewTabTip" summary="For NewTabTip feature."/>
   <variant name="_PageInfo" summary="In product help for opening PageInfo."/>
   <variant name="_PageInfoStoreInfo" summary="For PageInfoStoreInfo feature."/>
@@ -3528,9 +3532,11 @@ should be able to be added at any place in this file.
     <variant name="CompleteTasks"
         summary="Task Nudge text shown when a task is complete."/>
     <variant name="MultipleTasksNeedAttention"
-        summary="Task Nudge text shown when multiple tasks need attention"/>
+        summary="Obsolete. Task Nudge text shown when multiple tasks need
+                 attention."/>
     <variant name="NeedsAttention"
-        summary="Task Nudge text shown when one task needs attention."/>
+        summary="Task Nudge text shown when one or more tasks needs
+                 attention."/>
   </token>
 </action>
 
@@ -10322,19 +10328,6 @@ should be able to be added at any place in this file.
   <token key="SurfaceType">
     <variant name=".Panel" summary="The user clicked on a link in the panel."/>
     <variant name=".Tab" summary="The user clicked on a link in a tab."/>
-  </token>
-</action>
-
-<action name="ContextualTasks.AppMenu.UserAction{ActionType}">
-  <owner>sophiechang@chromium.org</owner>
-  <owner>chrome-contextual-tasks-eng@google.com</owner>
-  <description>
-    The user interacted with the contextual tasks entry in the app menu.
-    {ActionType}
-  </description>
-  <token key="ActionType">
-    <variant name=".CloseSidePanel" summary="The user closed the side panel."/>
-    <variant name=".OpenSidePanel" summary="The user opened the side panel."/>
   </token>
 </action>
 
@@ -28307,99 +28300,100 @@ should be able to be added at any place in this file.
 
 <action name="MobilePasswordCheckupCoordinatorCheckStateCanceled"
     not_user_triggered="true">
+  <obsolete>Deprecated as of 12/2025</obsolete>
   <owner>noemies@google.com</owner>
   <description>
     Reported to track the canceled state of the password check upon opening
-    Password Issues from the Password Checkup homepage. iOS only.
-    TODO(crbug.com/409680593): This user action was added to investigate a
-    crash. Remove when done with the investigation.
+    Password Issues from the Password Checkup homepage. iOS only. This user
+    action was added to investigate a crash, see crbug.com/409680593.
   </description>
 </action>
 
 <action name="MobilePasswordCheckupCoordinatorCheckStateIdle"
     not_user_triggered="true">
+  <obsolete>Deprecated as of 12/2025</obsolete>
   <owner>noemies@google.com</owner>
   <description>
     Reported to track the idle state of the password check upon opening Password
-    Issues from the Password Checkup homepage. iOS only.
-    TODO(crbug.com/409680593): This user action was added to investigate a
-    crash. Remove when done with the investigation.
+    Issues from the Password Checkup homepage. iOS only. This user action was
+    added to investigate a crash, see crbug.com/409680593.
   </description>
 </action>
 
 <action name="MobilePasswordCheckupCoordinatorCheckStateNoPasswords"
     not_user_triggered="true">
+  <obsolete>Deprecated as of 12/2025</obsolete>
   <owner>noemies@google.com</owner>
   <description>
     Reported to track the no passwords state of the password check upon opening
-    Password Issues from the Password Checkup homepage. iOS only.
-    TODO(crbug.com/409680593): This user action was added to investigate a
-    crash. Remove when done with the investigation.
+    Password Issues from the Password Checkup homepage. iOS only. This user
+    action was added to investigate a crash, see crbug.com/409680593.
   </description>
 </action>
 
 <action name="MobilePasswordCheckupCoordinatorCheckStateOffline"
     not_user_triggered="true">
+  <obsolete>Deprecated as of 12/2025</obsolete>
   <owner>noemies@google.com</owner>
   <description>
     Reported to track the offline state of the password check upon opening
-    Password Issues from the Password Checkup homepage. iOS only.
-    TODO(crbug.com/409680593): This user action was added to investigate a
-    crash. Remove when done with the investigation.
+    Password Issues from the Password Checkup homepage. iOS only. This user
+    action was added to investigate a crash, see crbug.com/409680593.
   </description>
 </action>
 
 <action name="MobilePasswordCheckupCoordinatorCheckStateOther"
     not_user_triggered="true">
+  <obsolete>Deprecated as of 12/2025</obsolete>
   <owner>noemies@google.com</owner>
   <description>
     Reported to track the other state of the password check upon opening
-    Password Issues from the Password Checkup homepage. iOS only.
-    TODO(crbug.com/409680593): This user action was added to investigate a
-    crash. Remove when done with the investigation.
+    Password Issues from the Password Checkup homepage. iOS only. This user
+    action was added to investigate a crash, see crbug.com/409680593.
   </description>
 </action>
 
 <action name="MobilePasswordCheckupCoordinatorCheckStateQuotaLimit"
     not_user_triggered="true">
+  <obsolete>Deprecated as of 12/2025</obsolete>
   <owner>noemies@google.com</owner>
   <description>
     Reported to track the quota limit state of the password check upon opening
-    Password Issues from the Password Checkup homepage. iOS only.
-    TODO(crbug.com/409680593): This user action was added to investigate a
-    crash. Remove when done with the investigation.
+    Password Issues from the Password Checkup homepage. iOS only. This user
+    action was added to investigate a crash, see crbug.com/409680593.
   </description>
 </action>
 
 <action name="MobilePasswordCheckupCoordinatorCheckStateRunning"
     not_user_triggered="true">
+  <obsolete>Deprecated as of 12/2025</obsolete>
   <owner>noemies@google.com</owner>
   <description>
     Reported to track the running state of the password check upon opening
-    Password Issues from the Password Checkup homepage. iOS only.
-    TODO(crbug.com/409680593): This user action was added to investigate a
-    crash. Remove when done with the investigation.
+    Password Issues from the Password Checkup homepage. iOS only. This user
+    action was added to investigate a crash, see crbug.com/409680593.
   </description>
 </action>
 
 <action name="MobilePasswordCheckupCoordinatorCheckStateSignedOut"
     not_user_triggered="true">
+  <obsolete>Deprecated as of 12/2025</obsolete>
   <owner>noemies@google.com</owner>
   <description>
     Reported to track the signed out state of the password check upon opening
-    Password Issues from the Password Checkup homepage. iOS only.
-    TODO(crbug.com/409680593): This user action was added to investigate a
-    crash. Remove when done with the investigation.
+    Password Issues from the Password Checkup homepage. iOS only. This user
+    action was added to investigate a crash, see crbug.com/409680593.
   </description>
 </action>
 
 <action name="MobilePasswordCheckupCoordinatorShowReauth"
     not_user_triggered="true">
+  <obsolete>Deprecated as of 12/2025</obsolete>
   <owner>noemies@google.com</owner>
   <description>
     Reported when reauth is requested as a result of entering the Password
-    Checkup homepage. iOS only. TODO(crbug.com/409680593): This user action was
-    added to investigate a crash. Remove when done with the investigation.
+    Checkup homepage. iOS only. This user action was added to investigate a
+    crash, see crbug.com/409680593.
   </description>
 </action>
 
@@ -28465,11 +28459,11 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="MobilePasswordIssuesCoordinatorStart" not_user_triggered="true">
+  <obsolete>Deprecated as of 12/2025</obsolete>
   <owner>noemies@google.com</owner>
   <description>
-    Reported when the PasswordIssuesCoordinator is started. iOS only.
-    TODO(crbug.com/409680593): This user action was added to investigate a
-    crash. Remove when done with the investigation.
+    Reported when the PasswordIssuesCoordinator is started. iOS only. This user
+    action was added to investigate a crash, see crbug.com/409680593.
   </description>
 </action>
 
@@ -28504,20 +28498,22 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="MobilePasswordIssuesViewDidAppear" not_user_triggered="true">
+  <obsolete>Deprecated as of 12/2025</obsolete>
   <owner>noemies@google.com</owner>
   <description>
     Reported when the PasswordIssuesTableViewController view has appeared. iOS
-    only. TODO(crbug.com/409680593): This user action was added to investigate a
-    crash. Remove when done with the investigation.
+    only. This user action was added to investigate a crash, see
+    crbug.com/409680593.
   </description>
 </action>
 
 <action name="MobilePasswordIssuesViewDidLoad" not_user_triggered="true">
+  <obsolete>Deprecated as of 12/2025</obsolete>
   <owner>noemies@google.com</owner>
   <description>
     Reported when the PasswordIssuesTableViewController view has loaded. iOS
-    only. TODO(crbug.com/409680593): This user action was added to investigate a
-    crash. Remove when done with the investigation.
+    only. This user action was added to investigate a crash, see
+    crbug.com/409680593.
   </description>
 </action>
 
@@ -28955,6 +28951,19 @@ should be able to be added at any place in this file.
     Recorded on Android when a user clears all entries using the context menu
     from Recent Tabs &gt; Recently Closed. This corresponds to clearing the
     native TabRestoreService.
+  </description>
+</action>
+
+<action name="MobileRecentTabManagerRecentWindowOpened">
+  <owner>aishwaryarj@google.com</owner>
+  <owner>zheliooo@google.com</owner>
+  <owner>clank-large-form-factors@google.com</owner>
+  <description>
+    A recently closed window was opened from the recent tabs manager. This
+    corresponds to restoring an entire instance and all its associated tabs.
+    This action is distinct from restoring multiple tabs that were closed via a
+    multi-select bulk event, which is tracked separately as
+    MobileRecentTabManagerRecentBulkEventOpened.
   </description>
 </action>
 
@@ -29723,6 +29732,24 @@ should be able to be added at any place in this file.
   <owner>edchin@chromium.org</owner>
   <owner>marq@chromium.org</owner>
   <description>User in the iOS tab grid closed an incognito tab.</description>
+</action>
+
+<action name="MobileTabGridCloseOtherIncognitoTabs">
+  <owner>ewannpv@chromium.org</owner>
+  <owner>bling-meridian@google.com</owner>
+  <description>
+    User in the incognito tab grid context menu used the 'Close Other Tabs'
+    control.
+  </description>
+</action>
+
+<action name="MobileTabGridCloseOtherRegularTabs">
+  <owner>ewannpv@chromium.org</owner>
+  <owner>bling-meridian@google.com</owner>
+  <description>
+    User in the regular tab grid context menu used the 'Close Other Tabs'
+    control.
+  </description>
 </action>
 
 <action name="MobileTabGridCloseRegularTab">
@@ -53037,6 +53064,43 @@ should be able to be added at any place in this file.
 <action name="ZoomPlus_AtMaximum">
   <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
   <description>Please enter the description of this user action.</description>
+</action>
+
+<action name="{ClosingSidePanelType}.ClosedToOpen.{OpeningSidePanelType}">
+  <owner>corising@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    {ClosingSidePanelType} has been closed due {OpeningSidePanelType} opening.
+  </description>
+  <token key="ClosingSidePanelType" variants="SidePanelType"/>
+  <token key="OpeningSidePanelType" variants="SidePanelType"/>
+</action>
+
+<action
+    name="{ClosingSidePanelType}.{ClosingSidePanelEntry}.EntryClosedToOpen.{OpeningSidePanelEntry}">
+  <owner>corising@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    {ClosingSidePanelType} has been closed when the {ClosingSidePanelEntry} side
+    panel entry was showing due {OpeningSidePanelEntry} side panel entry
+    opening.
+  </description>
+  <token key="ClosingSidePanelType" variants="SidePanelType"/>
+  <token key="ClosingSidePanelEntry" variants="SidePanelEntry"/>
+  <token key="OpeningSidePanelEntry" variants="SidePanelEntry"/>
+</action>
+
+<action
+    name="{ClosingSidePanelType}.{SidePanelEntry}.ClosedToOpen.{OpeningSidePanelType}">
+  <owner>corising@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    {ClosingSidePanelType} has been closed when the {SidePanelEntry} side panel
+    entry was showing due {OpeningSidePanelType} opening.
+  </description>
+  <token key="ClosingSidePanelType" variants="SidePanelType"/>
+  <token key="SidePanelEntry" variants="SidePanelEntry"/>
+  <token key="OpeningSidePanelType" variants="SidePanelType"/>
 </action>
 
 <action name="{SidePanelType}.Hide">

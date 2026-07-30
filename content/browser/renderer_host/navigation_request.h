@@ -15,6 +15,7 @@
 #include "base/debug/crash_logging.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_forward.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ptr_exclusion.h"
 #include "base/memory/safe_ref.h"
@@ -1515,6 +1516,14 @@ class CONTENT_EXPORT NavigationRequest
     // and renderer-initiated same-document navigations would be missing most
     // timestamps except for `start`, `finish`, and the DidCommit IPC
     // timestamps).
+
+    // The OS-level timestamp of the user input event leading to the navigation.
+    // This timestamp can be empty if the navigation is started without user
+    // input.
+    // Note that this might be null if the navigation started and synchronously
+    // committed in the navigation, such as for renderer-initiated same-document
+    // navigations or synchronous about:blank navigations.
+    base::TimeTicks user_interaction;
 
     // The time at which the navigation starts, as accurately as we can
     // determine. Note that for renderer-initiated navigations, this will be the

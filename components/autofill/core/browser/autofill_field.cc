@@ -20,7 +20,6 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
-#include "base/types/cxx23_to_underlying.h"
 #include "components/autofill/core/browser/data_model/data_model_utils.h"
 #include "components/autofill/core/browser/field_type_utils.h"
 #include "components/autofill/core/browser/field_types.h"
@@ -759,8 +758,14 @@ AutofillField::PredictionResult AutofillField::GetComputedPredictionResult()
 }
 
 const std::u16string& AutofillField::value_for_import() const {
-  const bool should_consider_value_for_import =
+  bool should_consider_value_for_import =
       IsSelectElement() || initial_value() != value();
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillEnableImportOfUnchangedValuesForCountryAndState)) {
+    should_consider_value_for_import |=
+        Type().GetAddressType() == ADDRESS_HOME_COUNTRY ||
+        Type().GetAddressType() == ADDRESS_HOME_STATE;
+  }
   if (!should_consider_value_for_import) {
     return base::EmptyString16();
   }

@@ -23,7 +23,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/common/chrome_features.h"
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
-#include "third_party/skia/include/core/SkRegion.h"
+#include "ui/base/base_window.h"
 #include "ui/views/widget/widget_delegate.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -160,12 +160,6 @@ void GlicFloatingUi::SetDraggableAreas(
   }
 }
 
-void GlicFloatingUi::SetDraggableRegion(const SkRegion& draggable_region) {
-  if (auto* glic_view = GetGlicView()) {
-    glic_view->SetDraggableRegion(draggable_region);
-  }
-}
-
 GlicWindowAnimator* GlicFloatingUi::window_animator() {
   return glic_window_animator_.get();
 }
@@ -249,8 +243,7 @@ void GlicFloatingUi::MaybeSetWidgetCanResize() {
 #endif  // BUILDFLAG(IS_WIN)
 }
 
-void GlicFloatingUi::OnSourceTabDestroyed(tabs::TabInterface* tab,
-                                          const InstanceId& instance_id) {
+void GlicFloatingUi::OnSourceTabDestroyed(tabs::TabInterface* tab) {
   FloatingPanelCanAttachChanged(false);
 }
 

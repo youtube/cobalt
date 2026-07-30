@@ -35,10 +35,11 @@
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_SKIA_SKIA_UTILS_H_
 
 #include "components/viz/common/resources/shared_image_format.h"
-#include "third_party/blink/renderer/platform/graphics/graphics_context_types.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
+#include "third_party/skia/include/core/SkColorSpace.h"
 #include "third_party/skia/include/core/SkData.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
+#include "ui/gfx/color_space.h"
 
 namespace blink {
 
@@ -60,28 +61,6 @@ inline gfx::ColorSpace SkColorSpaceToGfxColorSpace(
 // resolved).
 inline viz::SharedImageFormat GetN32FormatForCanvas() {
   return viz::SharedImageFormat::N32Format();
-}
-
-bool NearlyIntegral(float value);
-
-InterpolationQuality ComputeInterpolationQuality(float src_width,
-                                                 float src_height,
-                                                 float dest_width,
-                                                 float dest_height,
-                                                 bool is_data_complete = true);
-
-// Technically, this is driven by the CSS/Canvas2D specs and unrelated to Skia.
-// It should probably live in the CSS layer, but the notion of a "blur radius"
-// leaks into platform/graphics currently (ideally we should only deal with
-// sigma at this level).
-// TODO(fmalita): find a better home for this helper.
-inline float BlurRadiusToStdDev(float radius) {
-  DCHECK_GE(radius, 0);
-
-  // Per spec, sigma is exactly half the blur radius:
-  // https://www.w3.org/TR/css-backgrounds-3/#shadow-blur
-  // https://html.spec.whatwg.org/C/#when-shadows-are-drawn
-  return radius * 0.5f;
 }
 
 // Attempts to allocate an SkData on the PartitionAlloc buffer partition.

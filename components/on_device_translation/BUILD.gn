@@ -1,0 +1,47 @@
+# Copyright 2024 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//components/on_device_translation/buildflags/features.gni")
+
+assert(enable_on_device_translation)
+
+source_set("on_device_translation") {
+  sources = [
+    "constants.cc",
+    "constants.h",
+    "features.cc",
+    "features.h",
+  ]
+  deps = [
+    "//base",
+    "//third_party/blink/public/common:headers",
+  ]
+}
+
+source_set("public") {
+  sources = [
+    "public/language_pack.cc",
+    "public/language_pack.h",
+    "public/paths.cc",
+    "public/paths.h",
+    "public/supported_languages.cc",
+    "public/supported_languages.h",
+  ]
+  public_deps = [ "//base" ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "features_unittest.cc",
+    "public/language_pack_unittest.cc",
+  ]
+  deps = [
+    ":on_device_translation",
+    ":public",
+    "//base/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}

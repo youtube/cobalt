@@ -11,6 +11,10 @@ import static androidx.test.espresso.matcher.ViewMatchers.withText;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import static org.chromium.chrome.browser.url_constants.UrlConstantResolver.getOriginalNativeBookmarksUrl;
+import static org.chromium.chrome.browser.url_constants.UrlConstantResolver.getOriginalNativeNtpUrl;
+import static org.chromium.chrome.browser.url_constants.UrlConstantResolver.getOriginalNonNativeNtpUrl;
+
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.test.filters.MediumTest;
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -100,8 +104,7 @@ public class BookmarkOpenerTest {
         BookmarkPromoHeader.forcePromoVisibilityForTesting(false);
 
         if (pageStation.getActivity().isTablet()) {
-            pageStation =
-                    pageStation.loadWebPageProgrammatically(UrlConstants.BOOKMARKS_NATIVE_URL);
+            pageStation = pageStation.loadWebPageProgrammatically(getOriginalNativeBookmarksUrl());
             mItemsContainer =
                     pageStation.getActivity().findViewById(R.id.selectable_list_recycler_view);
             mItemsContainer.setItemAnimator(null); // Disable animation to reduce flakiness.
@@ -157,7 +160,7 @@ public class BookmarkOpenerTest {
     @Test
     @MediumTest
     public void testOpenBookmarkInCurrentTab() {
-        GURL url = new GURL(UrlConstants.NTP_URL);
+        GURL url = new GURL(getOriginalNativeNtpUrl());
         BookmarkId id = addMobileBookmark("test", url);
 
         ChromeTabbedActivity cta = mPage.getActivity();
@@ -212,7 +215,7 @@ public class BookmarkOpenerTest {
     @Test
     @MediumTest
     public void testOpenBookmarkInCurrentTab_Incognito() {
-        GURL url = new GURL(UrlConstants.NTP_URL);
+        GURL url = new GURL(getOriginalNativeNtpUrl());
         BookmarkId id = addMobileBookmark("test", url);
 
         IncognitoNewTabPageStation incognitoPageStation = mPage.openNewIncognitoTabOrWindowFast();
@@ -236,8 +239,8 @@ public class BookmarkOpenerTest {
 
         List<BookmarkId> ids = new ArrayList<>();
         ids.add(addMobileBookmark("test", url));
-        ids.add(addMobileBookmark("test1", new GURL(UrlConstants.NTP_NON_NATIVE_URL)));
-        ids.add(addMobileBookmark("test2", new GURL(UrlConstants.NTP_NON_NATIVE_URL)));
+        ids.add(addMobileBookmark("test1", new GURL(getOriginalNonNativeNtpUrl())));
+        ids.add(addMobileBookmark("test2", new GURL(getOriginalNonNativeNtpUrl())));
 
         ChromeTabbedActivity cta = mPage.getActivity();
         openBookmarkManager(mPage);
@@ -270,8 +273,8 @@ public class BookmarkOpenerTest {
 
         List<BookmarkId> ids = new ArrayList<>();
         ids.add(addMobileBookmark("test", url));
-        ids.add(addMobileBookmark("test1", new GURL(UrlConstants.NTP_NON_NATIVE_URL)));
-        ids.add(addMobileBookmark("test2", new GURL(UrlConstants.NTP_NON_NATIVE_URL)));
+        ids.add(addMobileBookmark("test1", new GURL(getOriginalNonNativeNtpUrl())));
+        ids.add(addMobileBookmark("test2", new GURL(getOriginalNonNativeNtpUrl())));
 
         IncognitoNewTabPageStation incognitoPageStation = mPage.openNewIncognitoTabOrWindowFast();
         ChromeTabbedActivity cta = incognitoPageStation.getActivity();

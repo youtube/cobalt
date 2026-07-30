@@ -12,10 +12,12 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "base/time/time.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/webui/cr_components/searchbox/contextual_searchbox_handler.h"
 #include "chrome/browser/ui/webui/cr_components/searchbox/searchbox_utils.h"
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
+#include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "components/contextual_search/contextual_search_types.h"
 #include "components/lens/lens_url_utils.h"
 #include "components/metrics/metrics_provider.h"
@@ -114,7 +116,8 @@ ComposeboxHandler::ComposeboxHandler(
     mojo::PendingReceiver<searchbox::mojom::PageHandler>
         pending_searchbox_handler,
     Profile* profile,
-    content::WebContents* web_contents)
+    content::WebContents* web_contents,
+    GetSessionHandleCallback get_session_callback)
     : ComposeboxHandler(
           std::move(pending_handler),
           std::move(pending_page),
@@ -124,7 +127,8 @@ ComposeboxHandler::ComposeboxHandler(
           std::make_unique<OmniboxController>(
               std::make_unique<ComposeboxOmniboxClient>(profile,
                                                         web_contents,
-                                                        this))) {}
+                                                        this)),
+          std::move(get_session_callback)) {}
 
 ComposeboxHandler::ComposeboxHandler(
     mojo::PendingReceiver<composebox::mojom::PageHandler> pending_handler,
@@ -133,20 +137,28 @@ ComposeboxHandler::ComposeboxHandler(
         pending_searchbox_handler,
     Profile* profile,
     content::WebContents* web_contents,
-    std::unique_ptr<OmniboxController> omnibox_controller)
+    std::unique_ptr<OmniboxController> controller,
+    GetSessionHandleCallback get_session_callback)
     : ContextualSearchboxHandler(std::move(pending_searchbox_handler),
                                  profile,
                                  web_contents,
-                                 std::move(omnibox_controller)),
+                                 std::move(controller),
+                                 std::move(get_session_callback)),
       web_contents_(web_contents),
       page_{std::move(pending_page)},
       handler_(this, std::move(pending_handler)) {
+  // Set the callback for getting suggest inputs from the session.
+  // The session is owned by WebUI controller and accessed via callback.
+  // It is safe to use Unretained because omnibox client is owned by `this`.
+  static_cast<ContextualOmniboxClient*>(omnibox_controller()->client())
+      ->SetSuggestInputsCallback(base::BindRepeating(
+          &ComposeboxHandler::GetSuggestInputs, base::Unretained(this)));
   autocomplete_controller_observation_.Observe(autocomplete_controller());
 }
 
 ComposeboxHandler::~ComposeboxHandler() = default;
 
-omnibox::ChromeAimToolsAndModels ComposeboxHandler::GetAimToolMode() {
+omnibox::ChromeAimToolsAndModels ComposeboxHandler::GetAimToolMode() const {
   return aim_tool_mode_;
 }
 
@@ -209,6 +221,26 @@ void ComposeboxHandler::HandleLensButtonClick() {
 
 void ComposeboxHandler::HandleFileUpload(bool is_image) {
   // Ignore, intentionally unimplemented for NTP.
+}
+
+void ComposeboxHandler::NavigateUrl(const GURL& url) {
+  if (!url.is_valid()) {
+    return;
+  }
+  content::WebContents* current_web_contents = web_contents_.get();
+  if (!current_web_contents) {
+    return;
+  }
+  auto* browser_window_interface =
+      webui::GetBrowserWindowInterface(current_web_contents);
+  if (!browser_window_interface) {
+    return;
+  }
+  content::OpenURLParams params(url, content::Referrer(),
+                                WindowOpenDisposition::NEW_FOREGROUND_TAB,
+                                ui::PAGE_TRANSITION_LINK, false);
+  browser_window_interface->OpenURL(std::move(params),
+                                    /*navigation_handle_callback=*/{});
 }
 
 void ComposeboxHandler::ExecuteAction(uint8_t line,
@@ -291,4 +323,9 @@ void ComposeboxHandler::SubmitQuery(
 void ComposeboxHandler::UpdateSuggestedTabContext(
     searchbox::mojom::TabInfoPtr tab_info) {
   SearchboxHandler::page_->UpdateAutoSuggestedTabContext(std::move(tab_info));
+}
+
+std::optional<lens::LensOverlayInvocationSource>
+ComposeboxHandler::GetInvocationSource() const {
+  return lens::LensOverlayInvocationSource::kNtpContextualQuery;
 }

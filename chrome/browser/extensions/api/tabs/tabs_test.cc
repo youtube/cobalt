@@ -164,13 +164,10 @@ class TestFunctionDispatcherDelegate
   ~TestFunctionDispatcherDelegate() override = default;
 
  private:
-  extensions::WindowController* GetExtensionWindowController() const override {
+  extensions::WindowController* GetExtensionWindowController() override {
     return BrowserExtensionWindowController::From(browser_);
   }
-
-  content::WebContents* GetAssociatedWebContents() const override {
-    return nullptr;
-  }
+  content::WebContents* GetAssociatedWebContents() override { return nullptr; }
 
   raw_ptr<BrowserWindowInterface> browser_;
 };
@@ -1582,9 +1579,13 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, OnBoundsChanged) {
   ASSERT_TRUE(catcher.GetNextResult());
 }
 
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+
 IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, WindowsCreate) {
   ASSERT_TRUE(RunExtensionTest("windows/create")) << message_;
 }
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
 
 IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, ExecuteScriptOnDevTools) {
   scoped_refptr<const Extension> extension =

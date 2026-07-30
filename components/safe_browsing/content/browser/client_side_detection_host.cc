@@ -30,7 +30,7 @@
 #include "base/trace_event/trace_event.h"
 #include "base/uuid.h"
 #include "components/autofill/content/browser/content_autofill_client.h"
-#include "components/autofill/core/browser/autofill_server_prediction.h"
+#include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/foundations/scoped_autofill_managers_observation.h"
 #include "components/history/core/browser/history_service.h"
@@ -977,30 +977,27 @@ void ClientSideDetectionHost::OnAfterFocusOnFormField(
     return;
   }
 
-  // Do nothing if the form is not a credit card form.
+  // Determine whether the field was detected as a credit card field using
+  // either server or local heuristics.
   const autofill::FormStructure* form = manager.FindCachedFormById(form_id);
-  if (!form ||
-      !form->GetFormTypes().contains(autofill::FormType::kCreditCardForm)) {
+  if (!form) {
     return;
   }
-
-  // Early exit if preclassification has already been done for this
-  // event triggering CREDIT_CARD_FORM and this URL.
-  if (HasDonePreclassificationCheckOnSameURL(
-          ClientSideDetectionType::CREDIT_CARD_FORM)) {
+  const autofill::AutofillField* field = form->GetFieldById(field_id);
+  if (!field) {
     return;
   }
-
   credit_card_form::FieldDetectionHeuristic field_heuristic =
       credit_card_form::kNoDetectionHeuristic;
-  if (form &&
-      !form->GetServerPredictions(base::span_from_ref(field_id)).empty()) {
+  if (autofill::GroupTypeOfFieldType(field->server_type()) ==
+      autofill::FieldTypeGroup::kCreditCard) {
     field_heuristic = credit_card_form::kAutofillServer;
-  } else if (form && !form->GetHeuristicPredictions(
-                              autofill::GetActiveHeuristicSource(),
-                              base::span_from_ref(field_id))
-                          .empty()) {
+  } else if (autofill::GroupTypeOfFieldType(field->heuristic_type()) ==
+             autofill::FieldTypeGroup::kCreditCard) {
     field_heuristic = credit_card_form::kAutofillLocal;
+  } else {
+    // Do nothing if the field is not a credit card type.
+    return;
   }
 
   // Site visit count is needed as part of determining whether to send
@@ -1016,20 +1013,18 @@ void ClientSideDetectionHost::OnAfterFocusOnFormField(
     history_service_->GetVisibleVisitCountToHost(
         url,
         base::BindOnce(&ClientSideDetectionHost::OnCreditCardFormVisitCount,
-                       weak_factory_.GetWeakPtr(), "OnAfterFocusOnFormField",
-                       base::TimeTicks::Now(), field_heuristic),
+                       weak_factory_.GetWeakPtr(), base::TimeTicks::Now(),
+                       field_heuristic),
         &task_tracker_);
   } else {
     history::VisibleVisitCountToHostResult history_result =
         cached_history_result.value_or(
             history::VisibleVisitCountToHostResult{/*success=*/false});
-    OnCreditCardFormVisitCount("OnAfterFocusOnFormField", std::nullopt,
-                               field_heuristic, history_result);
+    OnCreditCardFormVisitCount(std::nullopt, field_heuristic, history_result);
   }
 }
 
 void ClientSideDetectionHost::OnCreditCardFormVisitCount(
-    std::string event_name,
     std::optional<base::TimeTicks> start_time,
     credit_card_form::FieldDetectionHeuristic field_heuristic,
     history::VisibleVisitCountToHostResult history_result) {
@@ -1048,15 +1043,26 @@ void ClientSideDetectionHost::OnCreditCardFormVisitCount(
                      : credit_card_form::kNewSiteVisit;
   }
 
-#if BUILDFLAG(IS_ANDROID)
   credit_card_form::ReferringApp referring_app =
+#if BUILDFLAG(IS_ANDROID)
       credit_card_form::FromReferringAppInfo(
           delegate_->GetReferringAppInfo(web_contents()));
-  credit_card_form::LogEvent(event_name, site_visit, referring_app,
-                             field_heuristic);
 #else
-  credit_card_form::LogEvent(event_name, site_visit, field_heuristic);
+      credit_card_form::kNoReferringApp;
 #endif
+  credit_card_form::LogEvent(site_visit, referring_app, field_heuristic);
+
+  // Do not proceed with preclassification if it has already been done for
+  // CREDIT_CARD_FORM on this URL. Only the first credit card event on this
+  // page will go through preclassification and none further.
+  if (HasDonePreclassificationCheckOnSameURL(
+          ClientSideDetectionType::CREDIT_CARD_FORM)) {
+    return;
+  }
+
+  // Log the event after URL deduplication to provide event telemetry that
+  // corresponds to the preclassification check.
+  credit_card_form::LogDedupedEvent(site_visit, referring_app, field_heuristic);
 
   // Early exit if the user has visited this site before.
   if (kCsdCreditCardFormEnableNewSiteFilter.Get() &&
@@ -1354,7 +1360,8 @@ void ClientSideDetectionHost::MaybeSendClientPhishingRequest(
                                base::BindOnce(&WriteFeaturesToDisk, *verdict,
                                               GetDebugFeatureDirectory()));
   }
-
+  int viewport_width = -1;
+  int viewport_height = -1;
 #if BUILDFLAG(IS_ANDROID)
   gfx::Size size;
   content::RenderWidgetHostView* view =
@@ -1362,8 +1369,9 @@ void ClientSideDetectionHost::MaybeSendClientPhishingRequest(
   // native view can be null in tests.
   if (view && view->GetNativeView()) {
     gfx::SizeF viewport = view->GetNativeView()->viewport_size();
-    size = gfx::Size(static_cast<int>(viewport.width()),
-                     static_cast<int>(viewport.height()));
+    viewport_width = static_cast<int>(viewport.width());
+    viewport_height = static_cast<int>(viewport.height());
+    size = gfx::Size(viewport_width, viewport_height);
   }
   visual_utils::CanExtractVisualFeaturesResult
       can_extract_visual_features_result =
@@ -1376,6 +1384,8 @@ void ClientSideDetectionHost::MaybeSendClientPhishingRequest(
       web_contents()->GetRenderWidgetHostView();
   if (view) {
     size = view->GetVisibleViewportSize();
+    viewport_width = size.width();
+    viewport_height = size.height();
   }
   visual_utils::CanExtractVisualFeaturesResult
       can_extract_visual_features_result =
@@ -1384,6 +1394,15 @@ void ClientSideDetectionHost::MaybeSendClientPhishingRequest(
               web_contents()->GetBrowserContext()->IsOffTheRecord(), size,
               zoom::ZoomController::GetZoomLevelForWebContents(web_contents()));
 #endif
+  base::UmaHistogramSparse("SBClientPhishing.Viewport.Width", viewport_width);
+  base::UmaHistogramSparse("SBClientPhishing.Viewport.Height", viewport_height);
+  if (viewport_width <= 0xFFFF && viewport_width >= 0 &&
+      viewport_height <= 0xFFFF && viewport_height >= 0) {
+    int32_t encoded_resolution = (viewport_width << 16) | viewport_height;
+    base::UmaHistogramSparse("SBClientPhishing.Viewport.EncodedResolution",
+                             encoded_resolution);
+  }
+
   base::UmaHistogramEnumeration("SBClientPhishing.VisualFeaturesClearReason",
                                 can_extract_visual_features_result);
   if (can_extract_visual_features_result !=
@@ -1851,6 +1870,7 @@ void ClientSideDetectionHost::MaybeShowPhishingWarning(
       // metrics to track specifics.
       if (should_show_scam_warning) {
         resource.threat_subtype = GetThreatSubtype(*intelligent_scan_verdict);
+        intelligent_scan_delegate_->OnScamWarningShown();
       }
       resource.rfh_locator = security_interstitials::UnsafeResourceLocator::
           CreateForRenderFrameToken(

@@ -9,6 +9,9 @@ import type {AppElement} from './app.js';
 export function getHtml(this: AppElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
+<immersive-mode-header id="immersiveHeader"
+    ?hidden="${!this.isImmersiveMode()}">
+</immersive-mode-header>
 <div id="appFlexParent">
   <div id="toolbar-container">
     <read-anything-toolbar
@@ -43,11 +46,13 @@ export function getHtml(this: AppElement) {
         @toolbar-overflow="${this.onToolbarOverflow_}"
         @language-menu-open="${this.onLanguageMenuOpen_}"
         @language-menu-close="${this.onLanguageMenuClose_}"
+        @line-focus-change="${this.onLineFocusChange_}"
         id="toolbar">
     </read-anything-toolbar>
   </div>
   <div id="containerParent" class="sp-card"
       ?hidden="${!this.computeHasContent()}">
+    <div id="lineFocus"></div>
     <div id="containerScroller" class="sp-scroller"
         @scroll="${this.onContainerScroll_}"
         @scrollend="${this.onContainerScrollEnd_}">

@@ -51,12 +51,14 @@ class ContextualTasksPageHandler
   void IsShownInTab(IsShownInTabCallback callback) override;
   void OpenMyActivityUi() override;
   void OpenHelpUi() override;
+  void OpenOnboardingHelpUi() override;
   void MoveTaskUiToNewTab() override;
   void OnTabClickedFromSourcesMenu(int32_t tab_id, const GURL& url) override;
   void OnWebviewMessage(const std::vector<uint8_t>& message) override;
   void GetCommonSearchParams(bool is_dark_mode,
                              bool is_side_panel,
                              GetCommonSearchParamsCallback callback) override;
+  void OnboardingTooltipDismissed() override;
   void PostMessageToWebview(const lens::ClientToAimMessage& message);
 
   // contextual_tasks::ContextualTasksService::Observer:
@@ -66,6 +68,8 @@ class ContextualTasksPageHandler
 
  private:
   void UpdateContextForTask(const base::Uuid& task_id);
+  void OnReceivedUpdatedThreadContextLibrary(
+      const lens::UpdateThreadContextLibrary& message);
 
   mojo::Receiver<contextual_tasks::mojom::PageHandler> receiver_;
   raw_ptr<ContextualTasksUI> web_ui_controller_;

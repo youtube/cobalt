@@ -40,12 +40,18 @@ build_webui("build") {
     "favicon_group.ts",
     "favicon_group.html.ts",
     "icons.html.ts",
+    "onboarding_tooltip.ts",
+    "onboarding_tooltip.html.ts",
     "post_message_handler.ts",
+    "sources_menu.ts",
+    "sources_menu.html.ts",
     "top_toolbar.ts",
     "top_toolbar.html.ts",
     "internals/app.ts",
     "internals/app.html.ts",
     "internals/browser_proxy.ts",
+    "zero_state_overlay.html.ts",
+    "zero_state_overlay.ts",
   ]
 
   css_files = [
@@ -53,8 +59,11 @@ build_webui("build") {
     "composebox.css",
     "error_page.css",
     "favicon_group.css",
+    "sources_menu.css",
+    "onboarding_tooltip.css",
     "top_toolbar.css",
     "internals/app.css",
+    "zero_state_overlay.css",
   ]
 
   mojo_files_deps = [

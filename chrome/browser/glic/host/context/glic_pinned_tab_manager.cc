@@ -22,6 +22,7 @@
 #include "chrome/browser/glic/host/context/glic_sharing_utils.h"
 #include "chrome/browser/glic/host/context/glic_tab_data.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
+#include "chrome/browser/glic/service/glic_instance_helper.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_tab_strip_tracker.h"
@@ -29,6 +30,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "components/prefs/pref_service.h"
+#include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/page.h"
 #include "content/public/browser/web_contents.h"
 #include "glic_pinned_tab_manager.h"
@@ -63,15 +65,17 @@ class GlicPinnedTabManager::PinnedTabObserver
     : public content::WebContentsObserver {
  public:
   PinnedTabObserver(GlicPinnedTabManager* pinned_tab_manager,
-                    tabs::TabInterface* tab)
+                    tabs::TabInterface* tab,
+                    GlicInstanceHelper& helper)
       : content::WebContentsObserver(tab->GetContents()),
         pinned_tab_manager_(pinned_tab_manager),
         tab_(tab) {
     will_discard_contents_subscription_ =
         tab_->RegisterWillDiscardContents(base::BindRepeating(
             &PinnedTabObserver::OnWillDiscardContents, base::Unretained(this)));
-    will_detach_subscription_ = tab_->RegisterWillDetach(base::BindRepeating(
-        &PinnedTabObserver::OnWillDetach, base::Unretained(this)));
+    on_destroy_subscription_ =
+        helper.SubscribeToDestruction(base::BindRepeating(
+            &PinnedTabObserver::OnTabDestroyed, base::Unretained(this)));
     StartObservation(tab, tab->GetContents());
     content::WebContents* web_contents = tab->GetContents();
     if (web_contents) {
@@ -105,18 +109,33 @@ class GlicPinnedTabManager::PinnedTabObserver
     }
   }
 
-  void PrimaryPageChanged(content::Page& page) override {
+  void DidFinishNavigation(
+      content::NavigationHandle* navigation_handle) override {
+    if (!navigation_handle->IsInPrimaryMainFrame() ||
+        !navigation_handle->HasCommitted() ||
+        navigation_handle->IsSameDocument()) {
+      return;
+    }
+
+    // If the navigation is a restore, we update the origin but do not unpin the
+    // tab. This allows restored tabs to load their content (changing origin
+    // from empty/initial to the restored site) without triggering the privacy
+    // check that unpins background tabs on origin change.
+    if (navigation_handle->GetRestoreType() ==
+        content::RestoreType::kRestored) {
+      last_origin_ =
+          navigation_handle->GetRenderFrameHost()->GetLastCommittedOrigin();
+      return;
+    }
+
     CheckOriginChangeAndMaybeDeleteSelf(
-        page.GetMainDocument().GetLastCommittedOrigin());
+        navigation_handle->GetRenderFrameHost()->GetLastCommittedOrigin());
   }
 
-  // tabs::TabInterface
-  void OnWillDetach(tabs::TabInterface* tab,
-                    tabs::TabInterface::DetachReason reason) {
-    if (reason == tabs::TabInterface::DetachReason::kDelete) {
-      ClearObservation();
-      pinned_tab_manager_->OnTabWillClose(tab->GetHandle());
-    }
+  void OnTabDestroyed(tabs::TabInterface* tab) {
+    CHECK_EQ(tab_, tab);
+    ClearObservation();
+    pinned_tab_manager_->OnTabWillClose(tab_->GetHandle());
   }
 
   void OnWillDiscardContents(tabs::TabInterface* tab,
@@ -124,8 +143,11 @@ class GlicPinnedTabManager::PinnedTabObserver
                              content::WebContents* new_contents) {
     CHECK_EQ(web_contents(), old_contents);
     StartObservation(tab, new_contents);
-    CheckOriginChangeAndMaybeDeleteSelf(
-        new_contents->GetPrimaryMainFrame()->GetLastCommittedOrigin());
+    // When a tab is discarded, the new contents (placeholder) might have an
+    // opaque origin. We update the last_origin_ but do not trigger unpinning
+    // checks.
+    last_origin_ =
+        new_contents->GetPrimaryMainFrame()->GetLastCommittedOrigin();
   }
 
   void FocusedTabDataChanged(TabDataChange tab_data) {
@@ -170,7 +192,7 @@ class GlicPinnedTabManager::PinnedTabObserver
   raw_ptr<tabs::TabInterface> tab_;
 
   base::CallbackListSubscription will_discard_contents_subscription_;
-  base::CallbackListSubscription will_detach_subscription_;
+  base::CallbackListSubscription on_destroy_subscription_;
 
   bool is_foreground_ = false;
   bool is_audible_ = false;
@@ -313,9 +335,17 @@ bool GlicPinnedTabManager::PinTabs(
       tab->GetContents()->GetController().LoadIfNecessary();
     }
 
+    GlicInstanceHelper* helper = GlicInstanceHelper::From(tab);
+    if (!helper) {
+      LOG(WARNING)
+          << "Tab not pinned because it didn't have a GlicInstanceHelper";
+      continue;
+    }
+
     GlicPinnedTabUsage usage = GlicPinnedTabUsage(trigger, pin_timestamp);
     pinned_tabs_.emplace_back(
-        tab_handle, std::make_unique<PinnedTabObserver>(this, tab_handle.Get()),
+        tab_handle,
+        std::make_unique<PinnedTabObserver>(this, tab_handle.Get(), *helper),
         usage);
     pinning_status_event_callback_list_.Notify(tab_handle.Get(),
                                                usage.pin_event);

@@ -20,6 +20,7 @@ import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.lifetime.Destroyable;
 import org.chromium.base.metrics.RecordUserAction;
+import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.OneshotSupplier;
@@ -42,6 +43,7 @@ import org.chromium.chrome.browser.management.ManagementPage;
 import org.chromium.chrome.browser.metrics.StartupMetricsTracker;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.browser.ntp.IncognitoNewTabPage;
+import org.chromium.chrome.browser.ntp.IncognitoNtpMetrics;
 import org.chromium.chrome.browser.ntp.NewTabPage;
 import org.chromium.chrome.browser.ntp.NewTabPageCreationTracker;
 import org.chromium.chrome.browser.ntp.RecentTabsManager;
@@ -91,7 +93,7 @@ public class NativePageFactory {
     private final Supplier<Toolbar> mToolbarSupplier;
     private final @Nullable HomeSurfaceTracker mHomeSurfaceTracker;
     private final ObservableSupplier<TabContentManager> mTabContentManagerSupplier;
-    private final ObservableSupplier<Integer> mTabStripHeightSupplier;
+    private final NonNullObservableSupplier<Integer> mTabStripHeightSupplier;
     private final OneshotSupplier<ModuleRegistry> mModuleRegistrySupplier;
     private final ObservableSupplier<EdgeToEdgeController> mEdgeToEdgeControllerSupplier;
     private final ObservableSupplier<TopInsetCoordinator> mTopInsetCoordinatorSupplier;
@@ -117,7 +119,7 @@ public class NativePageFactory {
             Supplier<Toolbar> toolbarSupplier,
             @Nullable HomeSurfaceTracker homeSurfaceTracker,
             ObservableSupplier<TabContentManager> tabContentManagerSupplier,
-            ObservableSupplier<Integer> tabStripHeightSupplier,
+            NonNullObservableSupplier<Integer> tabStripHeightSupplier,
             OneshotSupplier<ModuleRegistry> moduleRegistrySupplier,
             ObservableSupplier<EdgeToEdgeController> edgeToEdgeControllerSupplier,
             ObservableSupplier<TopInsetCoordinator> topInsetCoordinatorSupplier,
@@ -199,7 +201,7 @@ public class NativePageFactory {
         private final Supplier<Toolbar> mToolbarSupplier;
         private final @Nullable HomeSurfaceTracker mHomeSurfaceTracker;
         private final ObservableSupplier<TabContentManager> mTabContentManagerSupplier;
-        private final ObservableSupplier<Integer> mTabStripHeightSupplier;
+        private final NonNullObservableSupplier<Integer> mTabStripHeightSupplier;
         private final OneshotSupplier<ModuleRegistry> mModuleRegistrySupplier;
         private final ObservableSupplier<EdgeToEdgeController> mEdgeToEdgeControllerSupplier;
         private final ObservableSupplier<TopInsetCoordinator> mTopInsetCoordinatorSupplier;
@@ -222,7 +224,7 @@ public class NativePageFactory {
                 Supplier<Toolbar> toolbarSupplier,
                 @Nullable HomeSurfaceTracker homeSurfaceTracker,
                 ObservableSupplier<TabContentManager> tabContentManagerSupplier,
-                ObservableSupplier<Integer> tabStripHeightSupplier,
+                NonNullObservableSupplier<Integer> tabStripHeightSupplier,
                 OneshotSupplier<ModuleRegistry> moduleRegistrySupplier,
                 ObservableSupplier<EdgeToEdgeController> edgeToEdgeControllerSupplier,
                 ObservableSupplier<TopInsetCoordinator> topInsetCoordinatorSupplier,
@@ -262,7 +264,11 @@ public class NativePageFactory {
                             mEdgeToEdgeControllerSupplier);
             if (tab.isIncognito()) {
                 return new IncognitoNewTabPage(
-                        mActivity, nativePageHost, tab.getProfile(), mEdgeToEdgeControllerSupplier);
+                        mActivity,
+                        nativePageHost,
+                        tab,
+                        mEdgeToEdgeControllerSupplier,
+                        createIncognitoNtpMetrics());
             }
 
             return new NewTabPage(
@@ -384,6 +390,13 @@ public class NativePageFactory {
         protected NativePage buildPdfPage(Tab tab, String url, PdfInfo pdfInfo) {
             return NativePageFactory.buildPdfPage(
                     url, tab, pdfInfo, mBrowserControlsManager, mTabModelSelector, mActivity);
+        }
+
+        private @Nullable IncognitoNtpMetrics createIncognitoNtpMetrics() {
+            if (ChromeFeatureList.sRecordIncognitoNtpTimeToFirstNavigationMetric.isEnabled()) {
+                return new IncognitoNtpMetrics();
+            }
+            return null;
         }
     }
 

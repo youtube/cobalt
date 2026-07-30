@@ -8,6 +8,7 @@ import "chrome/browser/glic/host/glic_features.mojom";
 import "chrome/common/actor_webui.mojom";
 import "components/content_settings/core/common/content_settings_types.mojom";
 import "mojo/public/mojom/base/big_buffer.mojom";
+import "mojo/public/mojom/base/byte_string.mojom";
 import "mojo/public/mojom/base/proto_wrapper.mojom";
 import "mojo/public/mojom/base/string16.mojom";
 import "mojo/public/mojom/base/time.mojom";
@@ -22,6 +23,35 @@ import "url/mojom/url.mojom";
 // Warning: a script copies some enums from this file over to glic_api.ts.
 // Run this script to update them, and read it for details.
 // chrome/browser/resources/glic/glic_api_impl/generate.py
+
+// Struct containing data about eligibility for GLIC.
+struct ProfileEnablement {
+  // Whether the GLIC feature is disabled.
+  bool feature_disabled;
+
+  // Whether the profile is not regular (e.g. incognito)
+  bool not_regular_profile;
+
+  // Whether the profile is not rolled out. Rollout can happen by the
+  // `GlicRollout` flag, or by the `GlicTieredRollout` flag and synced pref.
+  bool not_rolled_out;
+
+  // Whether the primary account is not capable, by failing to have the
+  // can_use_model_execution_features accountcapability.
+  bool primary_account_not_capable;
+
+  // Whether the profile is disallowed by chrome policy.
+  bool disallowed_by_chrome_policy;
+
+  // Whether the profile is disallowed by remote admin.
+  bool disallowed_by_remote_admin;
+
+  // Whether the profile is disallowed by remote for other reasons.
+  bool disallowed_by_remote_other;
+
+  // Whether the user has passed the FRE.
+  bool not_consented;
+};
 
 // The ready state of the profile.
 enum ProfileReadyState {
@@ -177,6 +207,9 @@ interface PageHandler {
 
   // Notifies the PageHandler that the state of the WebUI has changed.
   WebUiStateChanged(WebUiState new_state);
+
+  // Called by the internals WebUI page to get the GlicEnabling state.
+  GetProfileEnablement() => (ProfileEnablement enablement);
 };
 
 // @generate glic_api
@@ -300,6 +333,16 @@ struct UserProfileInfo {
   bool is_managed;
 };
 
+// @generate glic_api
+// The platform glic is running on.
+enum Platform {
+  kUnknown = 0,
+  kMacOS = 1,
+  kWindows = 2,
+  kLinux = 3,
+  kChromeOS = 4,
+};
+
 // The result of `WebClientCreated()`. Contains information that needs to be
 // available before the web client is initialized.
 struct WebClientInitialState {
@@ -312,6 +355,7 @@ struct WebClientInitialState {
   bool os_location_permission_enabled;
   string hotkey;
   mojo_base.mojom.Version chrome_version;
+  Platform platform;
   // Whether the glic panel can currently be attached to a browser window.
   bool can_attach;
   // Whether the panel is active. See `NotifyPanelActiveChange`.
@@ -362,6 +406,10 @@ struct WebClientInitialState {
   bool enable_open_password_manager_settings_page;
   // Whether kGlicLoadAndExtractContent is enabled.
   bool enable_load_and_extract_content;
+  // Whether kGlicTrustFirstOnboarding is enabled.
+  bool enable_trust_first_onboarding;
+  // Whether the user has completed the onboarding flow.
+  bool onboarding_completed;
 };
 
 // Options for getting tab context.
@@ -975,20 +1023,37 @@ interface WebClientHandler {
       => (bool success);
 
   // Switches the active conversation in the web client.
-  // `conversation_id` must be non-empty to be considered valid.
-  SwitchConversation(ConversationInfo? info)
+  SwitchConversation(ConversationInfo info)
       => (SwitchConversationErrorReason? error_reason);
 
   // Registers a conversation in the web client.
-  // `conversation_id` must be non-empty to be considered valid.
   RegisterConversation(ConversationInfo info)
       => (RegisterConversationErrorReason? error_reason);
+
+  // Called when the user has completed the onboarding flow.
+  SetOnboardingCompleted();
+
+  // Request updates from a tab. The receiver is closed when the tab is closed,
+  // or if the tab is not found.
+  SubscribeToTabData(int32 tab_id, pending_remote<TabDataHandler> receiver);
+};
+
+// Receives updates for a specific tab.
+interface TabDataHandler {
+  // Tab data has changed for this tab.
+  OnTabDataChanged(TabData tab_data);
 };
 
 // Information about a conversation.
 struct ConversationInfo {
   string conversation_id;
   string conversation_title;
+  // Optional client-specific data. This data is not used by Chrome and Chrome
+  // will never attempt to deserialize it. It can hold a key for client-side
+  // lookup or opaque serialized data.
+  // TODO(crbug.com/370820145): Replace ByteString with a more appropriate type
+  // for opaque binary data once available.
+  mojo_base.mojom.ByteString? client_data;
 };
 
 // @generate glic_api
@@ -1018,13 +1083,22 @@ struct PanelOpeningData {
   // capability is present.
   // If set, `conversation_id` will be a string with length >0. Empty
   // conversation IDs are not supported.
-  string? conversation_id;
+
   // If set, the textbox for user input will be populated with the given string
   // before the panel opens.
   string? prompt_suggestion;
   // Up to 3 most recently active conversations, ordered by most recently active
   // first.
   array<ConversationInfo>? recently_active_conversations;
+  // Information about the conversation being opened.
+  //
+  // - The web client will load the requested `conversationInfo.conversationId`.
+  // - If `conversationInfo.conversationId` is empty, it indicates a new
+  // conversation is being started.
+  // - The object may contain `clientData` if it was provided in the
+  //   `registerConversation` or `switchConversation` calls.
+  //
+  ConversationInfo conversation_info;
 };
 
 // @generate glic_api
@@ -1259,9 +1333,6 @@ interface WebClient {
   // state.
   NotifyActorTaskStateChanged(int32 task_id, ActorTaskState state);
 
-  // Notify that state relating to the tab has changed.
-  NotifyTabDataChanged(TabData tab_data);
-
   // Called when the browser wants the web client to change its view to match
   // the requested change (e.g., because the user clicked a UI element to toggle
   // to a different view).
@@ -1317,6 +1388,9 @@ interface WebClient {
 
   // Informs the client that the capability to act on web pages has changed.
   NotifyActOnWebCapabilityChanged(bool can_act_on_web);
+
+  // The onboarding completed state has changed.
+  NotifyOnboardingCompletedChanged(bool completed);
 };
 
 // Information extracted from a tab.
@@ -1525,6 +1599,8 @@ enum HostCapability {
   // Enables the experimental "Trust First" (Arm 2 - "Welcome Screen")
   // onboarding UI flow, bypassing the standard FRE flow.
   kTrustFirstOnboardingArm2 = 5,
+  // Glic host supports sharing additional image context.
+  kShareAdditionalImageContext = 6,
 };
 
 // A request to change the glic web client to a view suitable for tracking the

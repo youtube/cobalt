@@ -14,6 +14,7 @@
 
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
+#include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "chrome/common/read_anything/read_anything.mojom.h"
 #include "chrome/common/read_anything/read_anything_util.h"
@@ -157,6 +158,30 @@ class ReadAnythingAppModel {
     words_distilled_ = words_distilled;
   }
 
+  std::optional<base::TimeTicks> line_focus_session_start_time() const {
+    return line_focus_session_start_time_;
+  }
+  void set_line_focus_session_start_time(const base::TimeTicks time) {
+    line_focus_session_start_time_ = time;
+  }
+  int line_focus_mouse_distance() const { return line_focus_mouse_distance_; }
+  void set_line_focus_mouse_distance(const int distance) {
+    line_focus_mouse_distance_ = distance;
+  }
+  int line_focus_scroll_distance() const { return line_focus_scroll_distance_; }
+  void set_line_focus_scroll_distance(const int distance) {
+    line_focus_scroll_distance_ = distance;
+  }
+  int line_focus_keyboard_lines() const { return line_focus_keyboard_lines_; }
+  void set_line_focus_keyboard_lines(const int lines) {
+    line_focus_keyboard_lines_ = lines;
+  }
+  int line_focus_speech_lines() const { return line_focus_speech_lines_; }
+  void set_line_focus_speech_lines(const int lines) {
+    line_focus_speech_lines_ = lines;
+  }
+  void ResetLineFocusSession();
+
   const std::string& base_language_code() const { return base_language_code_; }
   void SetBaseLanguageCode(std::string base_language_code);
 
@@ -196,6 +221,11 @@ class ReadAnythingAppModel {
   read_anything::mojom::Colors color_theme() const { return color_theme_; }
   void set_color_theme(read_anything::mojom::Colors color_theme) {
     color_theme_ = color_theme;
+  }
+
+  read_anything::mojom::LineFocus line_focus() const { return line_focus_; }
+  void set_line_focus(read_anything::mojom::LineFocus line_focus) {
+    line_focus_ = line_focus;
   }
 
   // Sometimes iframes can return selection objects that have a valid id but
@@ -287,7 +317,8 @@ class ReadAnythingAppModel {
       double font_size,
       bool links_enabled,
       bool images_enabled,
-      read_anything::mojom::Colors color);
+      read_anything::mojom::Colors color,
+      read_anything::mojom::LineFocus line_focus);
 
   void OnScroll(bool on_selection, bool from_reading_mode) const;
 
@@ -479,6 +510,9 @@ class ReadAnythingAppModel {
   read_anything::mojom::Colors color_theme_ =
       read_anything::mojom::Colors::kDefaultValue;
 
+  read_anything::mojom::LineFocus line_focus_ =
+      read_anything::mojom::LineFocus::kDefaultValue;
+
   // Invariant: Either both endpoints are `!is_valid()`, or they are both valid
   // and non-equal.
   SelectionEndpoint start_;
@@ -491,6 +525,13 @@ class ReadAnythingAppModel {
   int words_seen_ = 0;
   int words_heard_ = 0;
   int words_distilled_ = 0;
+
+  // Line focus session information. Used for logging.
+  std::optional<base::TimeTicks> line_focus_session_start_time_;
+  int line_focus_mouse_distance_ = 0;
+  int line_focus_scroll_distance_ = 0;
+  int line_focus_keyboard_lines_ = 0;
+  int line_focus_speech_lines_ = 0;
 
   // For screen2x data collection, Chrome is launched from the CLI to open one
   // webpage. We record the result of the distill() call for this entire

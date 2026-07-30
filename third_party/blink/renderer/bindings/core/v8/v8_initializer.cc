@@ -495,6 +495,22 @@ static bool ContentSecurityPolicyCodeGenerationCheck(
   return false;
 }
 
+// Check whether Content Security Policy allows 'eval' in a Trusted Types
+// context, via the "script-src 'trusted-types-eval'" directive + keyword.
+static bool ContentSecurityPolicyTrustedTypesCodeGenerationCheck(
+    v8::Local<v8::Context> context) {
+  if (ExecutionContext* execution_context = ToExecutionContext(context)) {
+    if (ContentSecurityPolicy* policy =
+            execution_context->GetContentSecurityPolicyForCurrentWorld()) {
+      v8::Context::Scope scope(context);
+      return policy->AllowTrustedTypesEval(
+          ReportingDisposition::kReport,
+          ContentSecurityPolicy::kWillThrowException);
+    }
+  }
+  return false;
+}
+
 std::pair<bool, v8::MaybeLocal<v8::String>> TrustedTypesCodeGenerationCheck(
     v8::Local<v8::Context> context,
     v8::Local<v8::Value> source,
@@ -504,6 +520,14 @@ std::pair<bool, v8::MaybeLocal<v8::String>> TrustedTypesCodeGenerationCheck(
   if (!source->IsString() && !is_code_like &&
       !V8TrustedScript::HasInstance(isolate, source)) {
     return {true, v8::MaybeLocal<v8::String>()};
+  }
+
+  // If CSP allows eval in a Trusted Types environment ('trusted-types-eval'),
+  // then pass it through.
+  if (RuntimeEnabledFeatures::TrustedTypesHTMLEnabled()) {
+    if (ContentSecurityPolicyTrustedTypesCodeGenerationCheck(context)) {
+      return {true, v8::MaybeLocal<v8::String>()};
+    }
   }
 
   v8::TryCatch try_catch(isolate);
@@ -923,8 +947,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   ArrayBufferAllocator() : total_allocation_(0) {
     // size_t may be equivalent to uint32_t or uint64_t, cast all values to
     // uint64_t to compare.
-    uint64_t virtual_size =
-        base::SysInfo::AmountOfVirtualMemory().InBytesUnsigned();
+    uint64_t virtual_size = base::SysInfo::AmountOfVirtualMemory().InBytes();
     uint64_t size_t_max = std::numeric_limits<std::size_t>::max();
     DCHECK(virtual_size < size_t_max);
     // If AmountOfVirtualMemory() returns 0, there is no limit on virtual

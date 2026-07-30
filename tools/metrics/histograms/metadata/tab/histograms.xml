@@ -68,6 +68,9 @@ chromium-metrics-reviews@google.com.
       summary="the Commerce product specifications command"/>
   <variant name="CopyURL" summary="the Copy URL command"/>
   <variant name="Duplicate" summary="the Duplicate command"/>
+  <variant name="GlicCreateNewChat"
+      summary="the Start New Chat with Gemini command"/>
+  <variant name="GlicShare" summary="the Share with Gemini command"/>
   <variant name="GlicShareLimit" summary="the Glic share limit command"/>
   <variant name="GlicStartShare" summary="the Share Tab with Gemini command"/>
   <variant name="GlicStopShare"
@@ -114,16 +117,6 @@ chromium-metrics-reviews@google.com.
       summary="Tab models that are not currently owned by an activity, but
                had previously been."/>
   <variant name="Regular" summary="The regular tab model selector."/>
-</variants>
-
-<variants name="TabOrganizationEntryPoint">
-  <variant name=".AllEntrypoints" summary="any of the entrypoints"/>
-  <variant name=".Proactive"
-      summary="the 'Organize Tabs' button in the tab strip"/>
-  <variant name=".TabContextMenu" summary="the option in the tab context menu"/>
-  <variant name=".TabSearch"
-      summary="the start request button in the tab search ui"/>
-  <variant name=".ThreeDotMenu" summary="the three dot menu option"/>
 </variants>
 
 <histogram name="Discarding.AttemptFastKillForDiscardResult"
@@ -509,265 +502,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Tab.Organization.Declutter.DeclutterTabCount" units="tabs"
-    expires_after="2026-01-31">
-  <owner>emshack@chromium.org</owner>
-  <owner>shibalik@chromium.org</owner>
-  <owner>top-chrome-desktop-ui@google.com</owner>
-  <summary>
-    Logs the number of tabs selected for removal using Tab Declutter on Desktop.
-    This is logged from the controller before closing the stale tabs.
-  </summary>
-</histogram>
-
-<histogram name="Tab.Organization.Declutter.EntryPoint"
-    enum="TabDeclutterEntryPoint" expires_after="2026-01-31">
-  <owner>emshack@chromium.org</owner>
-  <owner>shibalik@chromium.org</owner>
-  <owner>top-chrome-desktop-ui@google.com</owner>
-  <summary>
-    Logs the entry point that caused the Tab Declutter feature to be shown on
-    Desktop. This is logged each time the feature is invoked.
-  </summary>
-</histogram>
-
-<histogram name="Tab.Organization.Declutter.ExcludedTabCount" units="tabs"
-    expires_after="2026-01-31">
-  <owner>emshack@chromium.org</owner>
-  <owner>shibalik@chromium.org</owner>
-  <owner>top-chrome-desktop-ui@google.com</owner>
-  <summary>
-    Logs the number of tabs excluded from removal during Tab Declutter on
-    Desktop. This is logged from the controller before closing the stale tabs.
-  </summary>
-</histogram>
-
-<histogram name="Tab.Organization.Declutter.TotalTabCount" units="tabs"
-    expires_after="2026-01-31">
-  <owner>emshack@chromium.org</owner>
-  <owner>shibalik@chromium.org</owner>
-  <owner>top-chrome-desktop-ui@google.com</owner>
-  <summary>
-    Logs the total number of tabs in the tab strip when the user initiates Tab
-    Declutter on Desktop. This is logged from the controller before closing the
-    stale tabs.
-  </summary>
-</histogram>
-
-<histogram name="Tab.Organization.Declutter.TotalUsageCount" units="units"
-    expires_after="2026-01-31">
-  <owner>emshack@chromium.org</owner>
-  <owner>shibalik@chromium.org</owner>
-  <owner>top-chrome-desktop-ui@google.com</owner>
-  <summary>
-    On Desktop, logs the total number of times a user has ever decluttered the
-    tabstrip. This is logged from the controller on each declutter.
-  </summary>
-</histogram>
-
-<histogram name="Tab.Organization.Declutter.Trigger.BucketedCTR"
-    enum="TabOrganizationDeclutterTriggerCTRBucket" expires_after="2026-01-31">
-  <owner>emshack@chromium.org</owner>
-  <owner>shibalik@chromium.org</owner>
-  <owner>top-chrome-desktop-ui@google.com</owner>
-  <summary>
-    On each show and each click of the proactive declutter nudge UI, logs the
-    bucket the user falls into based on total tab count and stale tab count. CTR
-    for any given bucket can be calculated by dividing its click count by its
-    shown count.
-  </summary>
-</histogram>
-
-<histogram name="Tab.Organization.Declutter.Trigger.Outcome"
-    enum="TabOrganizationTriggerOutcome" expires_after="2026-01-31">
-  <owner>emshack@chromium.org</owner>
-  <owner>shibalik@chromium.org</owner>
-  <owner>top-chrome-desktop-ui@google.com</owner>
-  <summary>
-    Records user actions (or lack thereof) taken on the proactive declutter
-    nudge UI each time it is triggered to suggest the user declutter their tabs.
-  </summary>
-</histogram>
-
-<histogram name="Tab.Organization.DeclutterCTR"
-    enum="TabOrganizationDeclutterCTREvent" expires_after="2026-01-31">
-  <owner>emshack@chromium.org</owner>
-  <owner>shibalik@chromium.org</owner>
-  <owner>top-chrome-desktop-ui@google.com</owner>
-  <summary>
-    On Desktop, logs once each time the declutter UI in the tab search bubble is
-    shown, and once each time the close tabs button is clicked. CTR can be
-    determined by dividing the click count by the show count.
-  </summary>
-</histogram>
-
-<histogram name="Tab.Organization.Dedupe.DeclutterTabCount" units="tabs"
-    expires_after="2026-01-31">
-  <owner>emshack@chromium.org</owner>
-  <owner>shibalik@chromium.org</owner>
-  <owner>top-chrome-desktop-ui@google.com</owner>
-  <summary>
-    Logs the number of duplicate tabs selected for removal using Tab Declutter
-    on Desktop. Duplicate tabs are tabs that have the same url excluding
-    fragment identifier. This is logged from the controller after closing the
-    duplicate tabs.
-  </summary>
-</histogram>
-
-<histogram name="Tab.Organization.Dedupe.ExcludedTabCount" units="tabs"
-    expires_after="2026-01-31">
-  <owner>emshack@chromium.org</owner>
-  <owner>shibalik@chromium.org</owner>
-  <owner>top-chrome-desktop-ui@google.com</owner>
-  <summary>
-    Logs the number of duplicate tabs excluded from removal during Tab Declutter
-    on Desktop. Duplicate tabs are tabs that have the same url excluding
-    fragment identifier. This is logged from the controller before closing the
-    duplicate tabs.
-  </summary>
-</histogram>
-
-<histogram name="Tab.Organization.Organization.LabelEdited" enum="Boolean"
-    expires_after="2026-01-31">
-  <owner>dpenning@chromium.org</owner>
-  <owner>emshack@chromium.org</owner>
-  <owner>top-chrome-desktop-ui@google.com</owner>
-  <summary>
-    Whether the user has editted the label (title) of the suggested tab
-    organization. Logged when a tab organization session has ended (all of the
-    organizations have had a user choice or tabs have been added or removed from
-    the tabstrip) for all suggested tab organizations in the session that were
-    accepted.
-  </summary>
-</histogram>
-
-<histogram name="Tab.Organization.Organization.TabRemovedCount" units="tabs"
-    expires_after="2026-01-31">
-  <owner>dpenning@chromium.org</owner>
-  <owner>emshack@chromium.org</owner>
-  <owner>top-chrome-desktop-ui@google.com</owner>
-  <summary>
-    The count of the tabs that the user removed from the suggestd tab
-    organizations after it was shown to the user. Logged when a tab organization
-    session has ended (all of the organizations have had a user choice or tabs
-    have been added or removed from the tabstrip) for all suggested tab
-    organizations in the session that were accepted.
-  </summary>
-</histogram>
-
-<histogram name="Tab.Organization.Response.Latency" units="ms"
-    expires_after="2026-01-31">
-  <owner>dpenning@chromium.org</owner>
-  <owner>emshack@chromium.org</owner>
-  <owner>top-chrome-desktop-ui@google.com</owner>
-  <summary>
-    The time delta between when a tab organization request was started, and when
-    the implementation of the request has completed and returned to the tab
-    organization service. The request may come in the form of a remote call to a
-    network service or local call to an async service.
-  </summary>
-</histogram>
-
-<histogram name="Tab.Organization.Response.Succeeded" enum="Boolean"
-    expires_after="2026-06-07">
-  <owner>dpenning@chromium.org</owner>
-  <owner>emshack@chromium.org</owner>
-  <owner>top-chrome-desktop-ui@google.com</owner>
-  <summary>
-    Whether the tab organization request returned valid results for exposing to
-    the Tab Search UI. The request may come in the form of a remote call to a
-    network service or local call to an async service. Failures could come in
-    the form of improper formatting of results, network failures, remote service
-    issues, or failures in the tab organization requests implementation.
-  </summary>
-</histogram>
-
-<histogram name="Tab.Organization.Response.TabCount" units="tabs"
-    expires_after="2026-01-31">
-  <owner>dpenning@chromium.org</owner>
-  <owner>emshack@chromium.org</owner>
-  <owner>top-chrome-desktop-ui@google.com</owner>
-  <summary>
-    A count of the full number of tabs that the tab organization request
-    implementation has returned for grouping. Logged on the successful
-    completion of a tab organization request.
-  </summary>
-</histogram>
-
-<histogram name="Tab.Organization.SelectorCTR"
-    enum="TabOrganizationSelectorCTREvent" expires_after="2026-01-31">
-  <owner>emshack@chromium.org</owner>
-  <owner>shibalik@chromium.org</owner>
-  <owner>top-chrome-desktop-ui@google.com</owner>
-  <summary>
-    On Desktop, logs once each time the tab organization feature selector is
-    shown, and once each time the feature buttons are pressed. CTR for each
-    feature can be determined by dividing the feature click count by the
-    selector show count.
-  </summary>
-</histogram>
-
-<histogram name="Tab.Organization.Trigger.Outcome"
-    enum="TabOrganizationTriggerOutcome" expires_after="2025-08-10">
-  <owner>dpenning@chromium.org</owner>
-  <owner>top-chrome-desktop-ui@google.com</owner>
-  <summary>
-    Records user actions (or lack thereof) taken on the proactive nudge UI each
-    time it is triggered to suggest the user organize their tabs.
-  </summary>
-</histogram>
-
-<histogram name="Tab.Organization.TriggeredInPeriod" enum="Boolean"
-    expires_after="2025-11-20">
-  <owner>dpenning@chromium.org</owner>
-  <owner>top-chrome-desktop-ui@google.com</owner>
-  <summary>
-    Records whether or not the Tab Organization nudge UI was triggered when each
-    trigger period ends. The nudge UI is limited to trigger at most once per
-    period, but may not trigger at all if it doesn't find a good moment.
-  </summary>
-</histogram>
-
-<histogram name="Tab.Organization{EntryPoint}.Clicked" enum="Boolean"
-    expires_after="2026-06-07">
-  <owner>dpenning@chromium.org</owner>
-  <owner>emshack@chromium.org</owner>
-  <owner>top-chrome-desktop-ui@google.com</owner>
-  <summary>
-    Logged when the user clicks {EntryPoint}. In cases where the entrypoint is
-    proactively shown, logs false if the user did not interact with the
-    entrypoint. All first run experience users will go through the tab search
-    entrypoint even if entering the tab search UI from a different entrypoint,
-    in which case both entrypoints will be logged.
-  </summary>
-  <token key="EntryPoint" variants="TabOrganizationEntryPoint"/>
-</histogram>
-
-<histogram name="Tab.Organization{EntryPoint}.GroupCount" units="groups"
-    expires_after="2026-01-31">
-  <owner>dpenning@chromium.org</owner>
-  <owner>emshack@chromium.org</owner>
-  <owner>top-chrome-desktop-ui@google.com</owner>
-  <summary>
-    Number of organizations that were suggested as a result of {EntryPoint}
-    being clicked. Logs when the suggestion is destroyed, regardless of whether
-    the user accepted it.
-  </summary>
-  <token key="EntryPoint" variants="TabOrganizationEntryPoint"/>
-</histogram>
-
-<histogram name="Tab.Organization{EntryPoint}.UserChoice"
-    enum="TabOrganizationUserChoice" expires_after="2026-01-31">
-  <owner>dpenning@chromium.org</owner>
-  <owner>emshack@chromium.org</owner>
-  <owner>top-chrome-desktop-ui@google.com</owner>
-  <summary>
-    Whether the user eventually accepted one of the Organizations that were
-    suggested as a result of {EntryPoint} being clicked.
-  </summary>
-  <token key="EntryPoint" variants="TabOrganizationEntryPoint"/>
-</histogram>
-
 <histogram name="Tab.PageLoadsSinceLastSwitchToEvictedTab" units="units"
     expires_after="2024-03-18">
   <owner>dtrainor@chromium.org</owner>
@@ -864,7 +598,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Tab.RendererTermination.TotalTabCount" units="tabs"
-    expires_after="2026-01-26">
+    expires_after="2027-01-26">
   <owner>justincohen@chromium.org</owner>
   <owner>thegreenfrog@chromium.org</owner>
   <summary>
@@ -908,7 +642,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Tab.StateAtRendererTermination" enum="TabForegroundState"
-    expires_after="2026-04-12">
+    expires_after="2026-06-21">
   <owner>gambard@chromium.org</owner>
   <owner>olivierrobin@chromium.org</owner>
   <summary>
@@ -949,7 +683,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Tab.{AnimationType}.NewTabAnimationProgress"
-    enum="AnimationFreezeCheckerState" expires_after="2026-04-20">
+    enum="AnimationFreezeCheckerState" expires_after="2026-06-21">
   <owner>ckitagawa@chromium.org</owner>
   <owner>polardz@google.com</owner>
   <summary>
@@ -1050,7 +784,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.CollapsedGroupCountPerLoad" units="groups"
-    expires_after="2025-12-28">
+    expires_after="2026-12-15">
   <owner>dpenning@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
@@ -1104,7 +838,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="TabGroups.ParseSavedTabGroupDataEntries.ParseFailurePercentage"
-    units="%" expires_after="2025-12-14">
+    units="%" expires_after="2026-12-15">
   <owner>shaktisahu@chromium.org</owner>
   <owner>chrome-multiplayer-eng@google.com</owner>
   <summary>
@@ -1239,7 +973,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.SavedTabGroupOpenedSubmenu"
-    enum="SavedTabGroupOpenedSubmenuDesktop" expires_after="2026-03-15">
+    enum="SavedTabGroupOpenedSubmenuDesktop" expires_after="2026-06-21">
   <owner>dominicaustria@google.com</owner>
   <owner>yuhengh@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
@@ -1261,7 +995,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.SavedTabGroups.TabCountDifference.Negative"
-    units="tabs" expires_after="2026-04-20">
+    units="tabs" expires_after="2026-12-15">
   <owner>shaktisahu@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
@@ -1273,7 +1007,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.SavedTabGroups.TabCountDifference.Positive"
-    units="tabs" expires_after="2026-04-20">
+    units="tabs" expires_after="2026-12-15">
   <owner>shaktisahu@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
@@ -1308,7 +1042,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.SavedTabGroupTabTimeSinceModification"
-    units="minutes" expires_after="2026-05-17">
+    units="minutes" expires_after="2026-12-15">
   <owner>dljames@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
@@ -1363,7 +1097,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.Shared.LastTabClosed2" enum="Boolean"
-    expires_after="2026-04-05">
+    expires_after="2026-12-15">
   <owner>dljames@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
@@ -1486,7 +1220,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.SpecificsToDataMigration.ParseFailurePercentage"
-    units="%" expires_after="2025-12-14">
+    units="%" expires_after="2026-12-15">
   <owner>shaktisahu@chromium.org</owner>
   <owner>chrome-multiplayer-eng@google.com</owner>
   <summary>
@@ -1555,7 +1289,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.Sync.GroupClosedByUser.HasTitle"
-    enum="BooleanHasTitle" expires_after="2025-04-06">
+    enum="BooleanHasTitle" expires_after="2026-12-15">
   <owner>shaktisahu@chromium.org</owner>
   <owner>chrome-multiplayer-eng@google.com</owner>
   <summary>
@@ -1602,7 +1336,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.Sync.RemoteActiveTabGroupCount.{NumberOfDays}Day"
-    units="groups" expires_after="2026-04-12">
+    units="groups" expires_after="2026-06-21">
   <owner>shaktisahu@chromium.org</owner>
   <owner>clank-tab-dev@google.com</owner>
   <summary>
@@ -1776,7 +1510,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.Sync.TabGroup.TabRemoved.GroupCreateOrigin"
-    enum="DeviceType" expires_after="2026-06-07">
+    enum="DeviceType" expires_after="2026-12-15">
   <owner>shaktisahu@chromium.org</owner>
   <owner>chrome-multiplayer-eng@google.com</owner>
   <summary>
@@ -1786,7 +1520,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.Sync.TabGroup.TabSelected.GroupCreateOrigin"
-    enum="DeviceType" expires_after="2026-06-07">
+    enum="DeviceType" expires_after="2026-12-15">
   <owner>shaktisahu@chromium.org</owner>
   <owner>chrome-multiplayer-eng@google.com</owner>
   <summary>
@@ -1797,7 +1531,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.Sync.TabGroup.TabSelected.TabCreateOrigin"
-    enum="DeviceType" expires_after="2026-06-07">
+    enum="DeviceType" expires_after="2026-12-15">
   <owner>shaktisahu@chromium.org</owner>
   <owner>chrome-multiplayer-eng@google.com</owner>
   <summary>
@@ -1808,7 +1542,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.Sync.TabGroup.TabsReordered.GroupCreateOrigin"
-    enum="DeviceType" expires_after="2026-06-07">
+    enum="DeviceType" expires_after="2026-12-15">
   <owner>shaktisahu@chromium.org</owner>
   <owner>chrome-multiplayer-eng@google.com</owner>
   <summary>
@@ -1818,7 +1552,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.Sync.TabGroup.UserInteracted.GroupCreateOrigin"
-    enum="DeviceType" expires_after="2026-06-07">
+    enum="DeviceType" expires_after="2026-12-15">
   <owner>shaktisahu@chromium.org</owner>
   <owner>chrome-multiplayer-eng@google.com</owner>
   <summary>
@@ -1829,7 +1563,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.Sync.TabGroup.UserInteracted.HasTitle"
-    enum="BooleanHasTitle" expires_after="2026-06-07">
+    enum="BooleanHasTitle" expires_after="2026-12-15">
   <owner>shaktisahu@chromium.org</owner>
   <owner>chrome-multiplayer-eng@google.com</owner>
   <summary>
@@ -1885,7 +1619,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.Sync.TimeSinceLastUserInteractionWithGroup"
-    units="minutes" expires_after="2026-04-12">
+    units="minutes" expires_after="2026-06-21">
   <owner>shaktisahu@chromium.org</owner>
   <owner>clank-tab-dev@google.com</owner>
   <summary>
@@ -1936,7 +1670,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.TabGroupBubble.TabCount" units="tabs"
-    expires_after="2025-05-11">
+    expires_after="2026-12-15">
   <owner>sophiechang@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
@@ -2120,7 +1854,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabManager.Discarding.InactiveToReloadTime" units="ms"
-    expires_after="2026-04-12">
+    expires_after="2026-06-21">
   <owner>fdoray@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -2198,7 +1932,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Tabs.ArchivedTabRestored.TabCount" units="count"
-    expires_after="2026-04-05">
+    expires_after="2026-06-21">
   <owner>wylieb@google.com</owner>
   <owner>clank-tab-dev@google.com</owner>
   <summary>
@@ -2881,7 +2615,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Tabs.RestoredFromInactiveCount" units="tabs"
-    expires_after="2026-02-22">
+    expires_after="2026-06-21">
   <owner>huitingyu@google.com</owner>
   <owner>bling-pandamonium@google.com</owner>
   <summary>
@@ -3031,7 +2765,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Tabs.Startup.RestoreDuration.{TabModelSelectorType}"
-    units="ms" expires_after="2026-04-19">
+    units="ms" expires_after="2026-06-21">
   <owner>ckitagawa@chromium.org</owner>
   <owner>clank-tab-dev@google.com</owner>
   <summary>
@@ -3043,7 +2777,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Tabs.Startup.RestoreDurationPerTab.{TabModelSelectorType}"
-    units="ms" expires_after="2026-04-19">
+    units="ms" expires_after="2026-06-21">
   <owner>ckitagawa@chromium.org</owner>
   <owner>clank-tab-dev@google.com</owner>
   <summary>
@@ -3079,7 +2813,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Tabs.Startup.TabCount2.{TabModelSelectorType}.{TabType}"
-    units="count" expires_after="2026-04-19">
+    units="count" expires_after="2026-06-21">
   <owner>davidjm@chromium.org</owner>
   <owner>nyquist@chromium.org</owner>
   <summary>

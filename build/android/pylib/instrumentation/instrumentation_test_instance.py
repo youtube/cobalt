@@ -1004,6 +1004,10 @@ class InstrumentationTestInstance(test_instance.TestInstance):
     return self._system_packages_to_remove
 
   @property
+  def target_package(self):
+    return self._test_apk.GetAllInstrumentations()[0]['android:targetPackage']
+
+  @property
   def test_apk(self):
     return self._test_apk
 
@@ -1089,6 +1093,9 @@ class InstrumentationTestInstance(test_instance.TestInstance):
 
   #override
   def SetUp(self):
+    if self.wait_for_java_debugger and not self._test_apk.GetIsDebuggable():
+      raise Exception('Passed --wait-for-java-debugger flag but did not set '
+                      'debuggable_apks = true in GN args')
     self._data_deps.extend(
         self._data_deps_delegate(self._runtime_deps_path))
     if self._proguard_mapping_path:
@@ -1100,6 +1107,13 @@ class InstrumentationTestInstance(test_instance.TestInstance):
 
   def GetRunDisabledFlag(self):
     return self._run_disabled
+
+  def GetLogcatPackageNames(self):
+    ret = {self.target_package, self._test_package}
+    if self._apk_under_test:
+      ret.add(self._apk_under_test.GetPackageName())
+    ret.update(x.GetPackageName() for x in self._additional_apks)
+    return ','.join(sorted(ret))
 
   def MaybeDeobfuscateLines(self, lines):
     if not self._deobfuscator:

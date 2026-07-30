@@ -114,7 +114,6 @@
 <translation id="1413446866325418126">तुमच्या Google खाते मध्ये डेटा सेव्ह करा</translation>
 <translation id="1414919006379339073">सध्याची विंडो बंद करा</translation>
 <translation id="1416550906796893042">ॲप्लिकेशन आवृत्ती</translation>
-<translation id="1419753403124156396">Chrome रीस्टार्ट करायचे आहे का?</translation>
 <translation id="1428770807407000502">सिंक बंद करायचे आहे का?</translation>
 <translation id="1430915738399379752">प्रिंट</translation>
 <translation id="1435593198351412143">PDFs आपोआप उघडा</translation>
@@ -247,10 +246,8 @@
 <translation id="2063047797624276601">तुमच्या संस्थेने वर्धित सुरक्षित ब्राउझिंग सुरू केले आहे</translation>
 <translation id="2065944887543506430">{FILE_COUNT,plural, =1{एक डाउनलोड करता आले नाही}other{# डाउनलोड करता आले नाहीत}}</translation>
 <translation id="2067805253194386918">मजकूर</translation>
-<translation id="2072027001582274150">न वापरलेले किंवा डुप्लिकेट टॅब</translation>
 <translation id="2079545284768500474">पहिल्यासारखे करा</translation>
 <translation id="2082238445998314030"><ph name="TOTAL_RESULTS" /> पैकी <ph name="RESULT_NUMBER" /> परिणाम</translation>
-<translation id="2088833076121753253">ऑटोफिल सेट करणे पूर्ण करण्यासाठी, आता Chrome रीस्टार्ट करा. तुमचे टॅब आपोआप उघडतील.</translation>
 <translation id="2091863218454846791">संक्षिप्त दृश्य दाखवत आहे</translation>
 <translation id="2093731487903423814">मागील १५ मिनिटांमधील</translation>
 <translation id="2096577711562668473">ऑटोफिल सेवा बदलायची आहे का?</translation>
@@ -428,6 +425,7 @@
 <translation id="2854916915045135148">गुप्त मोडवर स्विच करण्यासाठी स्पर्श करून धरून ठेवा</translation>
 <translation id="2860954141821109167">या डिव्हाइसवर फोन अ‍ॅप सुरू केले असल्याची खात्री करा</translation>
 <translation id="2861923151411510142">काही Chrome वैशिष्ट्ये यापुढे उपलब्ध होणार नाहीत</translation>
+<translation id="2869416538780777323">{OTHER_TAB_COUNT,plural, =1{<ph name="URL" /> आणि दुसरा १ टॅब}other{<ph name="URL" /> आणि आणखी <ph name="TAB_COUNT_MANY" /> टॅब}}</translation>
 <translation id="2869430948265924908">तुमचा संवेदनशील आशय कारमध्ये संरक्षित ठेवण्यासाठी, तुम्ही कार प्रोफाइल लॉक तयार करणे आवश्यक आहे.  पिन, कोड किंवा पासवर्ड वापरून तुम्ही हे करू शकता.</translation>
 <translation id="2870560284913253234">साइट</translation>
 <translation id="2871733351037274014">पेज प्रीलोड करा</translation>
@@ -446,6 +444,7 @@
 <translation id="2904414404539560095">पूर्ण उंचीवर उघडलेल्या टॅबसह शेअर करण्यासाठी डिव्हाइसची सूची.</translation>
 <translation id="2908243544703713905">न वाचलेल्या बातम्या तयार आहेत</translation>
 <translation id="2909615210195135082">Google सूचना प्लॅटफॉर्म</translation>
+<translation id="2912247081180973411">विंडो बंद करा</translation>
 <translation id="2912345083818861431">उघडे असलेले गुप्त टॅब पाहण्यासाठी स्क्रीन लॉक वापरा</translation>
 <translation id="2918484639460781603">सेटिंग्ज वर जा</translation>
 <translation id="2920713489113095380"><ph name="TAB_TITLE" />, म्यूट केलेला टॅब</translation>
@@ -503,7 +502,6 @@
 <translation id="3159335509547415276">ब्लॉक केलेल्या खात्यांविषयी जाणून घ्या</translation>
 <translation id="3161699713309727585"><ph name="BUTTON_TEXT" />, नवीन टॅबमध्ये उघडते</translation>
 <translation id="3166827708714933426">टॅब आणि विंडो शॉर्टकट</translation>
-<translation id="316694332262407393">येथे Chrome आधीपासून रन होत आहे.</translation>
 <translation id="3167258285411721858">तुम्ही <ph name="HOST_NAME" /> साठी मोबाइल साइटची विनंती करू शकता</translation>
 <translation id="3169472444629675720">Discover</translation>
 <translation id="3181145110929454111"><ph name="TAB_TITLE" />, मल्टीसिलेक्ट केलेला पिन केलेला म्यूट केलेला गुप्त टॅब</translation>
@@ -851,7 +849,6 @@
 <translation id="468924408576231679"><ph name="PAGE_TITLE" /> या वेबपेजची लिंक कॉपी करा. स्रोत: <ph name="PAGE_URL" /></translation>
 <translation id="469286762610133730">आणखी चांगला आशय मिळवा</translation>
 <translation id="4695891336199304370">{SHIPPING_OPTIONS,plural, =1{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 आणि <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> अधिक}other{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 आणि <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> अधिक}}</translation>
-<translation id="4698061626562952596">तुमच्या इनॅक्टिव्ह टॅबचे इथे पुनरावलोकन करा</translation>
 <translation id="4698757800236023795">अ‍ॅक्टिव्ह (<ph name="ITEM_COUNT" />)</translation>
 <translation id="4699172675775169585">कॅशे   इमेज आणि फाइल</translation>
 <translation id="4710167854527459075">नवीनतेनुसार क्रमाने लावा</translation>
@@ -950,6 +947,7 @@
 <translation id="5039678609803776426">{TAB_COUNT,plural, =1{<ph name="TAB_COUNT_ONE" /> टॅब - <ph name="URL_LIST" />}other{<ph name="TAB_COUNT_MANY" /> टॅब - <ph name="URL_LIST" />}}</translation>
 <translation id="5040262127954254034">गोपनीयता</translation>
 <translation id="504456571576643789">विचारात घेण्याच्या गोष्टी</translation>
+<translation id="5052017727857614804">{WINDOW_COUNT,plural, =1{<ph name="WINDOW_COUNT_ONE" /> विंडो निवडली आहे}other{<ph name="WINDOW_COUNT_NORMAL" /> विंडो निवडल्या आहेत}}</translation>
 <translation id="5056587122125565772">इमेज तयार करा</translation>
 <translation id="506254248375231072">कोणतेही टॅब नाहीत</translation>
 <translation id="5075939510584558547">एन्क्रिप्शनशिवाय सेव्ह करा</translation>
@@ -966,7 +964,6 @@
 <translation id="5123685120097942451">गुप्त टॅब</translation>
 <translation id="5142281402488957685">नवीन बातम्यांसाठी, रिफ्रेश करण्याकरिता खाली खेचा</translation>
 <translation id="5144385790872094440">तुम्ही भेट देत असलेली काही पेज प्रीलोड केली जातात. Google साइट किंवा अ‍ॅपवरून लिंक केल्यावर पेज Google सर्व्हरद्वारे प्रीलोड केली जाऊ शकतात.</translation>
-<translation id="5145887002054615868">डुप्लिकेट टॅब किंवा <ph name="DAYS_INACTIVE" /> दिवसांपासून न वापरलेले टॅब इथे हलवले जातात<ph name="AUTODELETE_SECTION" />. तुम्ही हे <ph name="DECLUTTER_SETTINGS_TITLE" /> मध्ये कधीही बदलू शकता.</translation>
 <translation id="5152843274749979095">कोणतीही सपोर्ट असलेली ॲप्स इंस्टॉल केली नाहीत</translation>
 <translation id="5161254044473106830">शीर्षक आवश्यक</translation>
 <translation id="5161262286013276579">पासकी कन्फर्मेशन शीट उघडली</translation>
@@ -1041,6 +1038,7 @@
 <translation id="5469852975082458401">तुम्ही मजकुराचा कर्सर वापरून पेज नेव्हिगेट करू शकता. बंद करण्यासाठी F7 प्रेस करा.</translation>
 <translation id="5471273988133666918">टॅब <ph name="TAB_TITLE" /> हलवला जाऊ शकत नाही</translation>
 <translation id="548278423535722844">नकाशे ॲपमध्ये उघडा</translation>
+<translation id="5494920125229734069">सर्व निवडा</translation>
 <translation id="549660026907543296"><ph name="MEMBER_FULL_NAME" /> म्हणून सामील व्हा</translation>
 <translation id="5517326820028369152">अलीकडील अ‍ॅक्टिव्हिटीची तळाशी असलेली शीट</translation>
 <translation id="5526281268548144413">एकाहून अधिक विंडोवर बंद केले जाऊ शकत नाहीत</translation>
@@ -1149,6 +1147,7 @@
 <translation id="5958275228015807058">तुमच्या फाइल आणि पेज डाउनलोडमध्ये शोधा</translation>
 <translation id="5962718611393537961">संकुचित करण्‍यासाठी टॅप करा</translation>
 <translation id="5964869237734432770">इमेजची वर्णने थांबवा</translation>
+<translation id="5972844218283131174">सर्व निवड रद्द करा</translation>
 <translation id="5975083100439434680">झूम कमी करा</translation>
 <translation id="5977976211062815271">या डिव्हाइसवरील</translation>
 <translation id="5978661847409534366">{ITEMS_COUNT,plural, =1{तुमच्या वाचन सूचीवरील १ पेज}other{तुमच्या वाचन सूचीवरील # पेज}}</translation>
@@ -1721,12 +1720,14 @@
 <translation id="8137562778192957619">तुम्ही हा पासवर्ड लक्षात ठेवण्याची आवश्यकता नाही. तो Google Password Manager यामध्ये सेव्ह केला जाईल.</translation>
 <translation id="8152331954420209374">Lens वर जा</translation>
 <translation id="8153206878708357851">कॅरेट ब्राउझिंग टॉगल करा</translation>
+<translation id="8154784523622173959">या पेजचे बॅकग्राउंड पर्सनलाइझ करा</translation>
 <translation id="8163820386638255770">तुमच्या Google खाते मध्ये पासवर्ड वापरण्यासाठी आणि सेव्ह करण्यासाठी, हे तुम्हीच असल्याची पडताळणी करा</translation>
 <translation id="8175940240143658258">{ARCHIVED_TAB_COUNT,plural, =1{(१) इनॅक्टिव्ह आयटम}other{(#) इनॅक्टिव्ह आयटम}}</translation>
 <translation id="8186512483418048923"><ph name="FILES" /> फाइल शिल्लक</translation>
 <translation id="8190358571722158785">1 दिवस शिल्लक</translation>
 <translation id="8192765420340770300">पूर्ण उंचीवर उघडलेल्या तळाशी असलेल्या शीटमध्ये साइन इन करा</translation>
 <translation id="8193953846147532858"><ph name="BEGIN_LINK" />तुमची डिव्हाइस<ph name="END_LINK" /> · <ph name="EMAIL" /></translation>
+<translation id="8201752259339925400">शोध क्वेरी साफ करा</translation>
 <translation id="820568752112382238">सर्वाधिक भेट दिलेल्या साइट</translation>
 <translation id="8207867836430106322">{NUM_OTHER_MEMBERS,plural, =1{<ph name="OWNER_FIRST_NAME" /> आणि आणखी <ph name="NUMBER_OF_OTHER_MEMBERS" /> व्यक्तीसोबत टॅब गटामध्ये सामील व्हा}other{<ph name="OWNER_FIRST_NAME" /> आणि आणखी <ph name="NUMBER_OF_OTHER_MEMBERS" /> लोकांसोबत टॅब गटामध्ये सामील व्हा}}</translation>
 <translation id="8209050860603202033">इमेज उघडा</translation>

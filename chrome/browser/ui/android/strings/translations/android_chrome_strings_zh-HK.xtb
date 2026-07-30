@@ -114,7 +114,6 @@
 <translation id="1413446866325418126">將資料儲存至 Google 帳戶</translation>
 <translation id="1414919006379339073">關閉目前的視窗</translation>
 <translation id="1416550906796893042">應用程式版本</translation>
-<translation id="1419753403124156396">重新啟動 Chrome 嗎？</translation>
 <translation id="1428770807407000502">要關閉同步功能嗎？</translation>
 <translation id="1430915738399379752">列印</translation>
 <translation id="1435593198351412143">自動開啟 PDF</translation>
@@ -247,10 +246,8 @@
 <translation id="2063047797624276601">你的機構開啟了「強化安全瀏覽」</translation>
 <translation id="2065944887543506430">{FILE_COUNT,plural, =1{1 項下載操作失敗}other{# 項下載操作失敗}}</translation>
 <translation id="2067805253194386918">文字</translation>
-<translation id="2072027001582274150">閒置或重複的分頁</translation>
 <translation id="2079545284768500474">復原</translation>
 <translation id="2082238445998314030">第 <ph name="RESULT_NUMBER" /> 項結果 (共 <ph name="TOTAL_RESULTS" /> 項)</translation>
-<translation id="2088833076121753253">立即重新啟動 Chrome 以完成自動填入設定。你的分頁會自動重新開啟。</translation>
 <translation id="2091863218454846791">顯示緊密集檢視</translation>
 <translation id="2093731487903423814">過去 15 分鐘</translation>
 <translation id="2096577711562668473">要變更自動填入服務嗎？</translation>
@@ -428,6 +425,7 @@
 <translation id="2854916915045135148">按住以進入無痕模式</translation>
 <translation id="2860954141821109167">請確認此裝置已啟用手機應用程式</translation>
 <translation id="2861923151411510142">部分 Chrome 功能將無法再使用</translation>
+<translation id="2869416538780777323">{OTHER_TAB_COUNT,plural, =1{<ph name="URL" /> 和另外 1 個分頁}other{<ph name="URL" /> 和另外 <ph name="TAB_COUNT_MANY" /> 個分頁}}</translation>
 <translation id="2869430948265924908">為保護車上的敏感內容，請建立汽車個人檔案鎖定。你可設定 PIN、代碼或密碼。</translation>
 <translation id="2870560284913253234">網站</translation>
 <translation id="2871733351037274014">預先載入網頁</translation>
@@ -446,6 +444,7 @@
 <translation id="2904414404539560095">要共用分頁嘅裝置清單宜家顯示喺成個畫面。</translation>
 <translation id="2908243544703713905">有未讀的報導</translation>
 <translation id="2909615210195135082">Google 通知平台</translation>
+<translation id="2912247081180973411">關閉視窗</translation>
 <translation id="2912345083818861431">透過螢幕鎖定查看開啟的無痕式分頁</translation>
 <translation id="2918484639460781603">前往設定</translation>
 <translation id="2920713489113095380"><ph name="TAB_TITLE" />，已經靜音嘅分頁</translation>
@@ -503,7 +502,6 @@
 <translation id="3159335509547415276">瞭解被封鎖的帳戶</translation>
 <translation id="3161699713309727585"><ph name="BUTTON_TEXT" />，喺新分頁開啟</translation>
 <translation id="3166827708714933426">分頁和視窗快速鍵</translation>
-<translation id="316694332262407393">Chrome 已在此執行中。</translation>
 <translation id="3167258285411721858">您可向 <ph name="HOST_NAME" /> 要求取得流動網站</translation>
 <translation id="3169472444629675720">探索</translation>
 <translation id="3181145110929454111"><ph name="TAB_TITLE" />，複選咗已經靜音嘅固定無痕式分頁</translation>
@@ -851,7 +849,6 @@
 <translation id="468924408576231679">複製「<ph name="PAGE_TITLE" />」的網頁連結，來源：<ph name="PAGE_URL" /></translation>
 <translation id="469286762610133730">取得更適切的內容</translation>
 <translation id="4695891336199304370">{SHIPPING_OPTIONS,plural, =1{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 和另外 <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> 種運送方式}other{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 和另外 <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> 種運送方式}}</translation>
-<translation id="4698061626562952596">在此查看閒置分頁</translation>
 <translation id="4698757800236023795">已啟用 (<ph name="ITEM_COUNT" />)</translation>
 <translation id="4699172675775169585">快取圖片和檔案</translation>
 <translation id="4710167854527459075">按最新日期排序</translation>
@@ -950,6 +947,7 @@
 <translation id="5039678609803776426">{TAB_COUNT,plural, =1{<ph name="TAB_COUNT_ONE" /> 個分頁 - <ph name="URL_LIST" />}other{<ph name="TAB_COUNT_MANY" /> 個分頁 - <ph name="URL_LIST" />}}</translation>
 <translation id="5040262127954254034">私隱權</translation>
 <translation id="504456571576643789">考慮因素</translation>
+<translation id="5052017727857614804">{WINDOW_COUNT,plural, =1{已選取 <ph name="WINDOW_COUNT_ONE" /> 個視窗}other{已選取 <ph name="WINDOW_COUNT_NORMAL" /> 個視窗}}</translation>
 <translation id="5056587122125565772">製作圖像</translation>
 <translation id="506254248375231072">沒有分頁</translation>
 <translation id="5075939510584558547">不加密直接儲存</translation>
@@ -966,7 +964,6 @@
 <translation id="5123685120097942451">無痕式分頁</translation>
 <translation id="5142281402488957685">如要重新整理資訊提供內容，請將頁面往下拉</translation>
 <translation id="5144385790872094440">系統會預先載入你瀏覽的部分頁面。當你從 Google 網站或應用程式連至這些頁面時，系統可能會透過 Google 伺服器預先載入頁面內容。</translation>
-<translation id="5145887002054615868">重複或閒置 <ph name="DAYS_INACTIVE" /> 天的分頁會移到這裡，<ph name="AUTODELETE_SECTION" />。你可隨時在「<ph name="DECLUTTER_SETTINGS_TITLE" />」中變更此設定。</translation>
 <translation id="5152843274749979095">尚未安裝任何支援的應用程式</translation>
 <translation id="5161254044473106830">必須提供標題</translation>
 <translation id="5161262286013276579">密鑰確認工作表打開咗</translation>
@@ -1041,6 +1038,7 @@
 <translation id="5469852975082458401">您可使用文字游標導覽網頁。按 F7 即可關閉。</translation>
 <translation id="5471273988133666918">無法移動「<ph name="TAB_TITLE" />」分頁</translation>
 <translation id="548278423535722844">在地圖應用程式中開啟</translation>
+<translation id="5494920125229734069">全部選取</translation>
 <translation id="549660026907543296">以<ph name="MEMBER_FULL_NAME" />的身分加入</translation>
 <translation id="5517326820028369152">近期活動頁底面板</translation>
 <translation id="5526281268548144413">無法關閉多個視窗中的分頁</translation>
@@ -1149,6 +1147,7 @@
 <translation id="5958275228015807058">在「下載」主畫面尋找您的檔案和網頁</translation>
 <translation id="5962718611393537961">輕按即可收合</translation>
 <translation id="5964869237734432770">停止取得圖片說明</translation>
+<translation id="5972844218283131174">全部取消選取</translation>
 <translation id="5975083100439434680">縮小</translation>
 <translation id="5977976211062815271">在此裝置上</translation>
 <translation id="5978661847409534366">{ITEMS_COUNT,plural, =1{閱讀清單的 1 個頁面}other{閱讀清單的 # 個頁面}}</translation>
@@ -1721,12 +1720,14 @@
 <translation id="8137562778192957619">您不需記住此密碼。系統會將密碼儲存至「Google 密碼管理工具」。</translation>
 <translation id="8152331954420209374">前往「智能鏡頭」</translation>
 <translation id="8153206878708357851">切換鍵盤瀏覽</translation>
+<translation id="8154784523622173959">自訂此頁面的背景</translation>
 <translation id="8163820386638255770">如要將密碼儲存至 Google 帳戶及使用當中的密碼，請驗證身分。</translation>
 <translation id="8175940240143658258">{ARCHIVED_TAB_COUNT,plural, =1{(1) 個閒置項目}other{(#) 個閒置項目}}</translation>
 <translation id="8186512483418048923">尚餘 <ph name="FILES" /> 個檔案</translation>
 <translation id="8190358571722158785">尚餘 1 天</translation>
 <translation id="8192765420340770300">登入頁底面板宜家顯示喺成個畫面</translation>
 <translation id="8193953846147532858"><ph name="BEGIN_LINK" />您的裝置<ph name="END_LINK" /> · <ph name="EMAIL" /></translation>
+<translation id="8201752259339925400">清除搜尋查詢</translation>
 <translation id="820568752112382238">最常瀏覽的網站</translation>
 <translation id="8207867836430106322">{NUM_OTHER_MEMBERS,plural, =1{加入<ph name="OWNER_FIRST_NAME" />和另外 <ph name="NUMBER_OF_OTHER_MEMBERS" /> 人所在的分頁群組}other{加入<ph name="OWNER_FIRST_NAME" />和另外 <ph name="NUMBER_OF_OTHER_MEMBERS" /> 人所在的分頁群組}}</translation>
 <translation id="8209050860603202033">開啟圖片</translation>

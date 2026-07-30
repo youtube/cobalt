@@ -4,7 +4,6 @@
 
 #include "chrome/browser/contextual_tasks/active_task_context_provider_impl.h"
 
-#include "chrome/browser/contextual_search/contextual_search_web_contents_helper.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "components/contextual_search/contextual_search_session_handle.h"
@@ -104,6 +103,38 @@ void ActiveTaskContextProviderImpl::OnTaskUpdated(
     ContextualTasksService::TriggerSource source) {
   // Ignore the update if it is not for the task in the active tab.
   if (!active_task_id_ || active_task_id_ != task.GetTaskId()) {
+    return;
+  }
+
+  RefreshContext();
+}
+
+void ActiveTaskContextProviderImpl::OnTaskRemoved(
+    const base::Uuid& task_id,
+    ContextualTasksService::TriggerSource source) {
+  if (active_task_id_ == task_id) {
+    // The task that was last shown was just removed. Refresh the tabs.
+    active_task_id_ = std::nullopt;
+    RefreshContext();
+  }
+}
+
+void ActiveTaskContextProviderImpl::OnTaskAssociatedToTab(
+    const base::Uuid& task_id,
+    SessionID tab_id) {
+  // Ignore the event if it is not for the task in the active tab.
+  if (!active_task_id_ || active_task_id_ != task_id) {
+    return;
+  }
+
+  RefreshContext();
+}
+
+void ActiveTaskContextProviderImpl::OnTaskDisassociatedFromTab(
+    const base::Uuid& task_id,
+    SessionID tab_id) {
+  // Ignore the event if it is not for the task in the active tab.
+  if (!active_task_id_ || active_task_id_ != task_id) {
     return;
   }
 

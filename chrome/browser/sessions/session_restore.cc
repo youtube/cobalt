@@ -61,6 +61,7 @@
 #include "chrome/browser/ui/browser_tabrestore.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/startup/startup_browser_creator.h"
 #include "chrome/browser/ui/startup/startup_tab.h"
 #include "chrome/browser/ui/startup/startup_types.h"
@@ -935,7 +936,6 @@ class SessionRestoreImpl : public BrowserListObserver {
                  did_show_browser);
     }
 
-    if (features::IsRestoringSplitViewEnabled()) {
       for (const auto& pair : tabs_by_split_id) {
         const split_tabs::SplitTabId split_id = pair.first;
         const std::vector<tabs::TabInterface*> tab_contents_list = pair.second;
@@ -952,7 +952,6 @@ class SessionRestoreImpl : public BrowserListObserver {
               split_id, tab_index_list, split_tabs::SplitTabVisualData());
         }
       }
-    }
   }
 
   // |tab_index| is ignored for pinned tabs which will always be pushed behind
@@ -1019,7 +1018,7 @@ class SessionRestoreImpl : public BrowserListObserver {
                              new_group, tab.split_id);
     restored_tabs.push_back(restored_tab);
 
-    if (features::IsRestoringSplitViewEnabled() && tab.split_id) {
+    if (tab.split_id) {
       // add tab to tabs_by_split_id.
       tabs::TabInterface* tab_interface =
           browser->GetTabStripModel()->GetTabForWebContents(
@@ -1043,10 +1042,6 @@ class SessionRestoreImpl : public BrowserListObserver {
       const Browser* browser,
       const std::vector<std::unique_ptr<sessions::SessionSplitTab>>&
           split_tabs) {
-    if (!features::IsRestoringSplitViewEnabled()) {
-      return;
-    }
-
     for (const std::unique_ptr<sessions::SessionSplitTab>& session_split_tab :
          split_tabs) {
       if (!browser->tab_strip_model()->ContainsSplit(session_split_tab->id_)) {
@@ -1433,7 +1428,8 @@ void SessionRestore::OpenStartupPagesAfterCrash(Browser* browser) {
 }
 
 // static
-std::vector<Browser*> SessionRestore::RestoreForeignSessionWindows(
+std::vector<BrowserWindowInterface*>
+SessionRestore::RestoreForeignSessionWindows(
     Profile* profile,
     std::vector<const sessions::SessionWindow*>::const_iterator begin,
     std::vector<const sessions::SessionWindow*>::const_iterator end) {
@@ -1442,7 +1438,12 @@ std::vector<Browser*> SessionRestore::RestoreForeignSessionWindows(
       profile, static_cast<Browser*>(nullptr), true, false, true,
       /* restore_apps */ false, /* restore_browser */ true,
       /* log_event */ false, startup_tabs);
-  return restorer.RestoreForeignSession(begin, end);
+  std::vector<Browser*> browsers = restorer.RestoreForeignSession(begin, end);
+  std::vector<BrowserWindowInterface*> windows;
+  for (Browser* browser : browsers) {
+    windows.push_back(browser);
+  }
+  return windows;
 }
 
 // static

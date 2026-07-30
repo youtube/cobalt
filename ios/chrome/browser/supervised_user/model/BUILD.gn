@@ -27,6 +27,8 @@ source_set("model") {
     "supervised_user_service_platform_delegate.mm",
     "supervised_user_url_filter_tab_helper.h",
     "supervised_user_url_filter_tab_helper.mm",
+    "supervised_user_url_filtering_service_factory.h",
+    "supervised_user_url_filtering_service_factory.mm",
   ]
 
   deps = [
@@ -158,7 +160,7 @@ source_set("eg2_tests") {
     "//ios/chrome/browser/policy/model:eg_test_support+eg2",
     "//ios/chrome/browser/policy/model:policy_earl_grey_matchers",
     "//ios/chrome/browser/policy/model:policy_util",
-    "//ios/chrome/browser/popup_menu/ui_bundled:constants",
+    "//ios/chrome/browser/popup_menu/public",
     "//ios/chrome/browser/settings/ui_bundled:eg_test_support+eg2",
     "//ios/chrome/browser/settings/ui_bundled/google_services:constants",
     "//ios/chrome/browser/shared/public/features",

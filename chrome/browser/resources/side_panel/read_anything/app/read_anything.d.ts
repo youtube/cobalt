@@ -44,6 +44,9 @@ declare namespace chrome {
     let speechRate: number;
     let highlightGranularity: number;
 
+    // Current line focus value.
+    let lineFocus: number;
+
     // Enum values for various visual theme changes.
     let standardLineSpacing: number;
     let looseLineSpacing: number;
@@ -60,6 +63,10 @@ declare namespace chrome {
     let lowContrastTheme: number;
     let sepiaLightTheme: number;
     let sepiaDarkTheme: number;
+    let undefinedPresentationState: number;
+    let hiddenPresentationState: number;
+    let inSidePanelPresentationState: number;
+    let inImmersiveOverlayPresentationState: number;
     let autoHighlighting: number;
     let wordHighlighting: number;
     let phraseHighlighting: number;
@@ -73,6 +80,14 @@ declare namespace chrome {
     let engineErrorStopSource: number;
     let contentFinishedStopSource: number;
     let unexpectedUpdateContentStopSource: number;
+
+    // Enum values for line focus modes.
+    let lineFocusOff: number;
+    let lineFocusOneLineWindow: number;
+    let lineFocusThreeLineWindow: number;
+    let lineFocusFiveLineWindow: number;
+    let lineFocusStaticLine: number;
+    let lineFocusCursorLine: number;
 
     // Whether the Immersive Read Anything feature flag is enabled.
     let isImmersiveEnabled: boolean;
@@ -235,6 +250,9 @@ declare namespace chrome {
     // Called when the highlight granularity is changed via the webui toolbar.
     function onHighlightGranularityChanged(value: number): void;
 
+    // Called when the line focus mode is changed via the webui toolbar.
+    function onLineFocusChanged(value: number): void;
+
     // Called when a language is enabled/disabled for Read Aloud
     // via the webui language menu.
     function onLanguagePrefChange(lang: string, enabled: boolean): void;
@@ -307,6 +325,12 @@ declare namespace chrome {
     // Called when the Read Anything panel is scrolled all the way down.
     function onScrolledToBottom(): void;
 
+    // Called by the Read Anything app to request the presentation state.
+    function sendGetPresentationStateRequest(): void;
+
+    // Called by the Read Anything app to close the Read Anything UI.
+    function close(): void;
+
     // Whether the Google Docs load more button is visible.
     let isDocsLoadMoreButtonVisible: boolean;
 
@@ -316,6 +340,9 @@ declare namespace chrome {
 
     // Display a loading screen to tell the user we are distilling the page.
     function showLoading(): void;
+
+    // Sets the current presentation state.
+    function onPresentationStateReceived(presentationState: number): void;
 
     // Display the empty state page to tell the user we can't distill the page.
     function showEmpty(): void;
@@ -425,6 +452,29 @@ declare namespace chrome {
 
     // Log when the empty state page is shown.
     function logEmptyState(): void;
+
+    // Ping that a line focus session has started.
+    function startLineFocusSession(): void;
+
+    // Log all the line focus session info, including length of time and
+    // movement activity.
+    function logLineFocusSession(): void;
+
+    // Add the given distance to the cumulative scroll distance for the current
+    // line focus session.
+    function addLineFocusScrollDistance(distance: number): void;
+
+    // Add the given distance to the cumulative mouse distance for the current
+    // line focus session.
+    function addLineFocusMouseDistance(distance: number): void;
+
+    // Increment the cumulative keyboard line count for the current line focus
+    // session.
+    function incrementLineFocusKeyboardLines(): void;
+
+    // Increment the cumulative speech line count for the current line focus
+    // session.
+    function incrementLineFocusSpeechLines(): void;
 
     // Returns a list of node ids and ranges (start and length) associated with
     // the index within the given text segment. The intended use is for

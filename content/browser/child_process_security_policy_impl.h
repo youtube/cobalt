@@ -136,9 +136,7 @@ class CONTENT_EXPORT ChildProcessSecurityPolicyImpl
 
   // ChildProcessSecurityPolicy implementation.
   void RegisterWebSafeScheme(const std::string& scheme) override;
-  void RegisterWebSafeIsolatedScheme(
-      const std::string& scheme,
-      bool always_allow_in_origin_headers) override;
+  void RegisterWebSafeIsolatedScheme(const std::string& scheme) override;
   bool IsWebSafeScheme(const std::string& scheme) override;
   void GrantReadFile(int child_id, const base::FilePath& file) override;
   void GrantCreateReadWriteFile(int child_id,
@@ -437,12 +435,6 @@ class CONTENT_EXPORT ChildProcessSecurityPolicyImpl
   // Grant the child process the ability to use Web UI Bindings.
   void GrantWebUIBindings(int child_id, BindingsPolicySet bindings);
 
-  // Grant the child process the ability to read raw cookies.
-  void GrantReadRawCookies(int child_id);
-
-  // Revoke read raw cookies permission.
-  void RevokeReadRawCookies(int child_id);
-
   // Some APIs for Android WebView and <webview> tags allow bypassing some
   // security checks, such as which URLs are allowed to commit. This method
   // grants that ability to any document with an origin used with these APIs,
@@ -485,9 +477,6 @@ class CONTENT_EXPORT ChildProcessSecurityPolicyImpl
   bool CanCopyFileSystemFile(int child_id,
                              const storage::FileSystemURL& src_url,
                              const storage::FileSystemURL& dest_url);
-
-  // Returns true if the specified child_id has been granted ReadRawCookies.
-  bool CanReadRawCookies(int child_id);
 
   // Notifies security state of |child_id| about the IsolationContext it will
   // host.  The main side effect is proper setting of the lowest
@@ -852,10 +841,32 @@ class CONTENT_EXPORT ChildProcessSecurityPolicyImpl
                                    const std::string& filesystem_id,
                                    int permission);
 
-  // Gets the SecurityState object associated with |child_id|.
+  // Gets the SecurityState object associated with `child_id`, for callers that
+  // want to query but not modify the state. See `GetSecurityStateForMutation`
+  // for callers that want to modify the state.
+  //
+  // This function consults both the live `security_state_` map and the
+  // `pending_remove_state_` map, to ensure queries can access state both while
+  // the RenderProcessHost exists and for a short time afterwards, as long as
+  // any ChildProcessSecurityPolicy::Handles exist. This allows queries to
+  // succeed on other threads until they hear about the process's deletion.
+  //
   // Note: Returned object is only valid for the duration the caller holds
-  // |lock_|.
-  SecurityState* GetSecurityState(ChildProcessId child_id)
+  // `lock_`.
+  SecurityState* GetSecurityStateForQuery(ChildProcessId child_id)
+      EXCLUSIVE_LOCKS_REQUIRED(lock_);
+
+  // Gets the SecurityState object associated with `child_id`, for callers that
+  // want to modify the state. Callers that only want to query the state must
+  // not use this, and should use `GetSecurityStateForQuery` instead.
+  //
+  // This function only consults the live `security_state_` map and not the
+  // `pending_remove_state_` map, to ensure that SecurityState can only be
+  // modified while the RenderProcessHost still exists.
+  //
+  // Note: Returned object is only valid for the duration the caller holds
+  // `lock_`.
+  SecurityState* GetSecurityStateForMutation(ChildProcessId child_id)
       EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
   // Convert a list of comma separated isolated origins in |pattern_list|,
@@ -962,7 +973,6 @@ class CONTENT_EXPORT ChildProcessSecurityPolicyImpl
   base::Lock schemes_lock_;
   SchemeSet schemes_okay_to_commit_in_any_process_ GUARDED_BY(schemes_lock_);
   SchemeSet schemes_okay_to_request_in_any_process_ GUARDED_BY(schemes_lock_);
-  SchemeSet schemes_okay_to_appear_as_origin_headers_ GUARDED_BY(schemes_lock_);
 
   // These schemes do not actually represent retrievable URLs.  For example,
   // the the URLs in the "about" scheme are aliases to other URLs.  This set is

@@ -76,6 +76,7 @@ public class ContextualSearchSettingsFragment extends ChromeBaseSettingsFragment
                     ContextualSearchPolicy.setContextualSearchState(profile, (boolean) newValue);
                     ContextualSearchUma.logMainPreferenceChange((boolean) newValue);
                     seeBetterResultsSwitch.setVisible((boolean) newValue);
+                    notifyPreferencesUpdated();
                     updateSeeBetterResultsVisibility((boolean) newValue);
                     return true;
                 });
@@ -140,5 +141,6 @@ public class ContextualSearchSettingsFragment extends ChromeBaseSettingsFragment
         } else {
             indexData.removeEntryForKey(prefFrag, PREF_WAS_FULLY_ENABLED_SWITCH);
         }
+        indexData.setRefreshResult(true);
     }
 }

@@ -266,7 +266,6 @@ class ResponsivenessCalculatorDelegate;
 class SerialDelegate;
 class ServiceWorkerContext;
 class SiteInstance;
-class SpeculationHostDelegate;
 class SpeechRecognitionManagerDelegate;
 class StoragePartition;
 class TracingDelegate;
@@ -2875,6 +2874,10 @@ class CONTENT_EXPORT ContentBrowserClient {
   // Whether v8 feature flag overrides are disallowed for the given `site_url`.
   virtual bool DisallowV8FeatureFlagOverridesForSite(const GURL& site_url);
 
+  // Whether Advanced Protection is enabled for Android.
+  // Returns false if build is not Android.
+  virtual bool IsAndroidAdvancedProtectionEnabled();
+
   // Returns the URL-Keyed Metrics service for chrome:ukm.
   virtual ukm::UkmService* GetUkmService();
 
@@ -2925,12 +2928,6 @@ class CONTENT_EXPORT ContentBrowserClient {
   // be used to make heuristics based preconnects.
   virtual std::unique_ptr<AnchorElementPreconnectDelegate>
   CreateAnchorElementPreconnectDelegate(RenderFrameHost& render_frame_host);
-
-  // Allows the embedder to provide a SpeculationHostDelegate that will be used
-  // to process speculation rules provided by the document hosted by
-  // `render_frame_host`.
-  virtual std::unique_ptr<SpeculationHostDelegate>
-  CreateSpeculationHostDelegate(RenderFrameHost& render_frame_host);
 
   // Allows the embedder to provide a PrefetchServiceDelegate that will be used
   // to make prefetches.

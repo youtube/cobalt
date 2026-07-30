@@ -13,7 +13,6 @@
 #include "base/containers/circular_deque.h"
 #include "base/containers/flat_set.h"
 #include "base/functional/callback.h"
-#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
@@ -285,6 +284,8 @@ class BrowserAutofillManager : public AutofillManager {
       base::span<const raw_ref<FormStructure>> forms) override;
   void Reset() override;
 
+  base::WeakPtr<BrowserAutofillManager> GetBrowserAutofillManagerWeakPtr();
+
   // Retrieves the four digit combinations from the DOM of the current web page
   // and stores them in `four_digit_combinations_in_dom_`. This is used to check
   // for the virtual card last four when checking for standalone CVC field.
@@ -393,8 +394,9 @@ class BrowserAutofillManager : public AutofillManager {
   void LogSubmissionMetrics(const FormStructure* submitted_form,
                             const base::TimeTicks& form_submitted_timestamp);
 
-  // Updates event loggers with information about data stored for Autofill.
-  void UpdateLoggersReadinessData();
+  // Updates event loggers with information about data stored for Autofill. Some
+  // loggers require a form of interest, and `form` specifies that.
+  void UpdateLoggersReadinessData(const FormStructure* form);
 
   // Creates a FormStructure using the FormData received from the renderer. Will
   // return an empty scoped_ptr if the data should not be processed for upload

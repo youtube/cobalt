@@ -11,6 +11,7 @@
 
 #include "base/containers/flat_set.h"
 #include "base/containers/span.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/common/mojom/autofill_types.mojom-forward.h"
 #include "components/autofill/core/common/unique_ids.h"
@@ -44,6 +45,18 @@ std::u16string GetFillValueForEntity(
     mojom::ActionPersistence action_persistence,
     const std::string& app_locale,
     AddressNormalizer* address_normalizer);
+
+// Returns whether the suggestion's main text should be obfuscated.
+bool ShouldFieldBeObfuscated(const EntityInstance& entity,
+                             const AutofillFieldWithAttributeType& f,
+                             const std::string& app_locale);
+
+// Returns whether the user should re-auth before filling a form with Autofill
+// AI data.
+bool ShouldReauthBeforeFilling(
+    const EntityInstance& entity,
+    base::span<const AutofillFieldWithAttributeType> fields,
+    const std::string& app_locale);
 
 }  // namespace autofill
 

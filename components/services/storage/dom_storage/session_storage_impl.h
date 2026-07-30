@@ -14,7 +14,6 @@
 
 #include "base/files/file_path.h"
 #include "base/functional/callback_forward.h"
-#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
@@ -76,20 +75,18 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
   // mojom::SessionStorageControl implementation:
   void BindNamespace(
       const std::string& namespace_id,
-      mojo::PendingReceiver<blink::mojom::SessionStorageNamespace> receiver,
-      BindNamespaceCallback callback) override;
+      mojo::PendingReceiver<blink::mojom::SessionStorageNamespace> receiver)
+      override;
   void BindStorageArea(
       const blink::StorageKey& storage_key,
       const std::string& namespace_id,
-      mojo::PendingReceiver<blink::mojom::StorageArea> receiver,
-      BindStorageAreaCallback callback) override;
+      mojo::PendingReceiver<blink::mojom::StorageArea> receiver) override;
   void GetUsage(GetUsageCallback callback) override;
   void DeleteStorage(const blink::StorageKey& storage_key,
                      const std::string& namespace_id,
                      DeleteStorageCallback callback) override;
   void CleanUpStorage(CleanUpStorageCallback callback) override;
-  void ScavengeUnusedNamespaces(
-      ScavengeUnusedNamespacesCallback callback) override;
+  void ScavengeUnusedNamespaces() override;
   void Flush() override;
   void PurgeMemory() override;
   void CreateNamespace(const std::string& namespace_id) override;
@@ -139,19 +136,18 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
  private:
   friend class DOMStorageBrowserTest;
 
-  scoped_refptr<SessionStorageMetadata::MapData> RegisterNewAreaMap(
+  scoped_refptr<DomStorageDatabase::SharedMapLocator> RegisterNewAreaMap(
       const std::string& namespace_id,
       const blink::StorageKey& storage_key);
 
   // SessionStorageAreaImpl::Listener implementation:
-  void OnDataMapCreation(const std::vector<uint8_t>& map_prefix,
-                         SessionStorageDataMap* map) override;
-  void OnDataMapDestruction(const std::vector<uint8_t>& map_prefix) override;
+  void OnDataMapCreation(int64_t map_id, SessionStorageDataMap* map) override;
+  void OnDataMapDestruction(int64_t map_id) override;
   void OnCommitResult(DbStatus status) override;
 
   // SessionStorageNamespaceImpl::Delegate implementation:
   scoped_refptr<SessionStorageDataMap> MaybeGetExistingDataMapForId(
-      const std::vector<uint8_t>& map_number_as_bytes) override;
+      int64_t map_id) override;
   void RegisterShallowClonedNamespace(
       const std::string& source_namespace_id,
       const std::string& new_namespace_id,
@@ -223,8 +219,7 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
   // The removal of items from this map is managed by the refcounting in
   // SessionStorageDataMap.
   // Populated after the database is connected.
-  std::map<std::vector<uint8_t>,
-           raw_ptr<SessionStorageDataMap, CtnExperimental>>
+  std::map</*map_id=*/int64_t, raw_ptr<SessionStorageDataMap, CtnExperimental>>
       data_maps_;
   // Populated in CreateNamespace, CloneNamespace, and sometimes
   // RegisterShallowClonedNamespace. Items are removed in
@@ -238,7 +233,6 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
   // not delete them. Cleared after ScavengeUnusedNamespaces is called.
   std::set<std::string> protected_namespaces_from_scavenge_;
 
-  bool is_low_end_mode_;
   // Counts consecutive commit errors. If this number reaches a threshold, the
   // whole database is thrown away.
   int commit_error_count_ = 0;

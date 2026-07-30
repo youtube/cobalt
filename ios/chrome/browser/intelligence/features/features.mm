@@ -363,6 +363,12 @@ bool IsGeminiOnboardingCardsEnabled() {
 
 BASE_FEATURE(kPageContextExtractorRefactored, base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kGeminiRefactoredFRE, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsGeminiRefactoredFREEnabled() {
+  return base::FeatureList::IsEnabled(kGeminiRefactoredFRE);
+}
+
 BASE_FEATURE(kWebPageReportedImagesSheet, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsWebPageReportedImagesSheetEnabled() {
@@ -397,4 +403,10 @@ BASE_FEATURE(kGeminiCopresence, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiCopresenceEnabled() {
   return base::FeatureList::IsEnabled(kGeminiCopresence);
+}
+
+BASE_FEATURE(kGeminiDynamicSettings, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsGeminiDynamicSettingsEnabled() {
+  return base::FeatureList::IsEnabled(kGeminiDynamicSettings);
 }

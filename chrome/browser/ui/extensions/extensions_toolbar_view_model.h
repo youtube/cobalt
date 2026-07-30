@@ -5,45 +5,112 @@
 #ifndef CHROME_BROWSER_UI_EXTENSIONS_EXTENSIONS_TOOLBAR_VIEW_MODEL_H_
 #define CHROME_BROWSER_UI_EXTENSIONS_EXTENSIONS_TOOLBAR_VIEW_MODEL_H_
 
-#include "chrome/browser/ui/extensions/extension_action_platform_delegate.h"
+#include "chrome/browser/ui/extensions/extension_action_delegate.h"
 #include "chrome/browser/ui/extensions/extension_action_view_model.h"
 #include "chrome/browser/ui/toolbar/toolbar_action_view_model.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
+#include "extensions/buildflags/buildflags.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 // ViewModel for the ExtensionsToolbarContainer. This class manages the business
 // logic for the order and state of extension actions in the toolbar. It serves
 // as the single source of truth for the ordering of the list of actions.
-class ExtensionsToolbarViewModel {
+class ExtensionsToolbarViewModel : public ToolbarActionsModel::Observer {
  public:
-  ExtensionsToolbarViewModel();
+  // Delegate used to retrieve platform-specific information.
+  class Delegate {
+   public:
+    // Creates the platform-specific action view model.
+    virtual std::unique_ptr<ExtensionActionViewModel> CreateActionViewModel(
+        const ToolbarActionsModel::ActionId& action_id) = 0;
+
+   protected:
+    virtual ~Delegate() = default;
+  };
+
+  // Observer used to notify platforms about changes to the model.
+  class Observer : public base::CheckedObserver {
+   public:
+    // Called after all actions are added to the model.
+    virtual void OnActionsInitialized() = 0;
+
+    // Called when an action is added to the model.
+    virtual void OnActionAdded(
+        const ToolbarActionsModel::ActionId& action_id) = 0;
+
+    // Called when an action is removed from the model.
+    virtual void OnActionRemoved(
+        const ToolbarActionsModel::ActionId& action_id) = 0;
+
+    // Called when an action in the model is updated.
+    virtual void OnActionUpdated(
+        const ToolbarActionsModel::ActionId& action_id) = 0;
+
+    // Called when the pinned actions in the model are changed.
+    virtual void OnPinnedActionsChanged() = 0;
+  };
+
+  ExtensionsToolbarViewModel(Delegate* delegate,
+                             ToolbarActionsModel* actions_model);
   ExtensionsToolbarViewModel(const ExtensionsToolbarViewModel&) = delete;
   ExtensionsToolbarViewModel& operator=(ExtensionsToolbarViewModel&) = delete;
-  ~ExtensionsToolbarViewModel();
+  ~ExtensionsToolbarViewModel() override;
 
-  // TODO(crbug.com/461981075): This is temporary for the refactor. We should
-  // only expose attributes that are necessary.
-  const std::vector<std::unique_ptr<ToolbarActionViewModel>>& GetActions() {
-    return actions_;
-  }
+  void AddObserver(Observer* observer);
+  void RemoveObserver(Observer* observer);
 
-  // Adds the action view model corresponding to `action_id` to the list of
-  // actions.
-  void AddAction(
-      const ToolbarActionsModel::ActionId& action_id,
-      BrowserWindowInterface* browser,
-      std::unique_ptr<ExtensionActionPlatformDelegate> platform_delegate);
-
-  // Removes the action view model corresponding to `action_id` from list of
-  // actions. The returning pointer can be used to ensure that the action
-  // outlives the UI element for cleanup.
-  std::unique_ptr<ToolbarActionViewModel> RemoveAction(
+  // Returns the view model of the action if it exists, else a nullptr.
+  ToolbarActionViewModel* GetActionModelForId(
       const ToolbarActionsModel::ActionId& action_id);
 
+  // Move the pinned action `action_id` to `target_index`.
+  void MovePinnedAction(const ToolbarActionsModel::ActionId& action_id,
+                        size_t target_index);
+
+  // Move this pinned action `action_id` by the specified `move_by` amount.
+  void MovePinnedActionBy(const std::string& action_id, int move_by);
+
+  // Returns the sorted list of the IDs of all installed actions.
+  const base::flat_set<ToolbarActionsModel::ActionId>& GetAllActionIds() const;
+
+  // Returns the ordered list of ids of pinned actions.
+  const std::vector<ToolbarActionsModel::ActionId>& GetPinnedActionIds() const;
+
+  // Returns whether the actions are initialized.
+  bool AreActionsInitialized();
+
+  // Returns whether any of `actions` given have access to the `web_contents`.
+  bool AnyActionHasCurrentSiteAccess(content::WebContents* web_contents);
+
+  // ToolbarActionsModel::Observer:
+  void OnToolbarModelInitialized() override;
+  void OnToolbarActionAdded(
+      const ToolbarActionsModel::ActionId& action_id) override;
+  void OnToolbarActionRemoved(
+      const ToolbarActionsModel::ActionId& action_id) override;
+  void OnToolbarActionUpdated(
+      const ToolbarActionsModel::ActionId& action_id) override;
+  void OnToolbarPinnedActionsChanged() override;
+
  private:
-  // TODO(crbug.com/461981075): Use the order of this vector as the
-  // source of truth for action view order.
+  // Creates and appends an action model to `actions_` vector.
+  void AppendActionModel(const ToolbarActionsModel::ActionId& action_id);
+
+  // The delegate to retrieve platform-specific information.
+  const raw_ptr<Delegate> delegate_;
+
+  const raw_ptr<ToolbarActionsModel> actions_model_;
+  base::ScopedObservation<ToolbarActionsModel, ToolbarActionsModel::Observer>
+      actions_model_observation_{this};
+
+  // The observers that handles platform-specific UI.
+  base::ObserverList<Observer> observers_;
+
   // Actions for all extensions.
-  std::vector<std::unique_ptr<ToolbarActionViewModel>> actions_;
+  std::map<ToolbarActionsModel::ActionId,
+           std::unique_ptr<ToolbarActionViewModel>>
+      actions_;
 };
 
 #endif  // CHROME_BROWSER_UI_EXTENSIONS_EXTENSIONS_TOOLBAR_VIEW_MODEL_H_

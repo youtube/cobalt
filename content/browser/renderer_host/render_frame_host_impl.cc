@@ -1143,7 +1143,11 @@ bool IsDocumentLoadedWithoutUrlLoaderClient(
 #endif  // BUILDFLAG(IS_ANDROID)
 
   return is_mhtml_subframe || is_same_document ||
-         url.SchemeIs(url::kDataScheme) || !IsURLHandledByNetworkStack(url);
+         url.SchemeIs(url::kDataScheme) || !IsURLHandledByNetworkStack(url) ||
+         // Initial WebUI navigations loads the body internally within the
+         // renderer process, so there is no need to create and send
+         // URLLoaderClient from the browser process.
+         navigation_request->IsInitialWebUISyncNavigation();
 }
 
 std::vector<GURL> GetTargetUrlsOfBoostRenderProcessForLoading() {
@@ -1499,6 +1503,9 @@ void RecordNavigationTraceEventsAndMetrics(
   using UkmBuilderMethod = ukm::builders::NavigationTimeline& (
       ukm::builders::NavigationTimeline::*)(int64_t);
 
+  static const perfetto::StaticString kInteractionToActualNavigationStart(
+      "InteractionToActualNavigationStart");
+
   // Define a helper to log both a trace event slice and a corresponding metric
   // for one stage of a navigation. If `ukm_builder_method` is specified, it
   // will be used for recording UKMs. If `histogram_name` is specified, it will
@@ -1507,7 +1514,7 @@ void RecordNavigationTraceEventsAndMetrics(
   auto log_trace_event_and_uma =
       [&](perfetto::StaticString name, const perfetto::NamedTrack track,
           const base::TimeTicks& begin_time, const base::TimeTicks& end_time,
-          std::optional<UkmBuilderMethod> ukm_builder_method = std::nullopt,
+          UkmBuilderMethod ukm_builder_method = nullptr,
           const std::string& histogram_name = std::string(),
           const std::string& url = std::string()) {
         if (begin_time.is_null() || end_time.is_null()) {
@@ -1520,7 +1527,13 @@ void RecordNavigationTraceEventsAndMetrics(
         // InterProcessTimeTicksConverter). This should be tightened up to
         // validate (and possibly adjust) the renderer-provided timestamps and
         // then convert this to a CHECK.
-        if (begin_time < timeline.start || end_time > timeline.finish) {
+        // Note: `timeline.user_interaction` can naturally occur before
+        // `timeline.start`, so it is not subject to the `begin_time <
+        // timeline.start` check, therefore explicitly allow it when the name is
+        // kInteractionToActualNavigationStart.
+        if ((name.value != kInteractionToActualNavigationStart.value &&
+             begin_time < timeline.start) ||
+            end_time > timeline.finish) {
           return;
         }
 
@@ -1555,16 +1568,21 @@ void RecordNavigationTraceEventsAndMetrics(
                 ".Duration",
             end_time - begin_time);
 
-        if (ukm_builder.has_value() && ukm_builder_method.has_value()) {
-          base::BindRepeating(*ukm_builder_method,
-                              // Safe: `ukm_builder` outlives this method call.
-                              base::Unretained(&*ukm_builder))
-              .Run((end_time - begin_time).InMilliseconds());
+        if (ukm_builder.has_value() && ukm_builder_method) {
+          (*ukm_builder.*
+           ukm_builder_method)((end_time - begin_time).InMilliseconds());
         }
       };
 
   // Actual navigation events are logged below in contiguous (or nested)
   // intervals.
+
+  // Record a trace event to visualize the duration between a) the OS-level
+  // timestamp of the user input event that started a navigation to b) the
+  // actual navigation start (timeline.start). This duration is not included in
+  // the NavigationTotal intentionally.
+  log_trace_event_and_uma(kInteractionToActualNavigationStart, track1,
+                          timeline.user_interaction, timeline.start);
 
   // Record a top-level "Navigation" trace event with the duration of the
   // full navigation, and then break it down into nested intervals which will
@@ -1754,6 +1772,7 @@ void RecordNavigationTraceEventsAndMetrics(
       "CorrectlyIgnored", track2, timeline.start, duration_start,
       &ukm::builders::NavigationTimeline::SetIgnoredCorrectlyDuration,
       /*histogram_name=*/"IgnoredCorrectly");
+
   // Record the remaining duration of the navigation, moving the start time
   // forward by the amount that was ignored.
   log_trace_event_and_uma("TotalExcludingBeforeUnload", track2, duration_start,
@@ -1769,6 +1788,41 @@ void RecordNavigationTraceEventsAndMetrics(
     base::UmaHistogramTimes(
         "Navigation.Timeline.TotalExcludingBeforeUnload.MainFrameOnly.Duration",
         timeline.finish - duration_start);
+  }
+
+  // Also record metrics of duration that starts from user interaction timing
+  // when the user interaction timing is available.
+  if (is_main_frame_cross_doc && !timeline.user_interaction.is_null() &&
+      !timeline.finish.is_null() &&
+      timeline.user_interaction <= timeline.start &&
+      timeline.start <= timeline.finish) {
+    const base::TimeDelta interaction_to_actual_navigation_start =
+        timeline.start - timeline.user_interaction;
+    const base::TimeDelta including_before_unload_duration =
+        timeline.finish - timeline.user_interaction;
+    const base::TimeDelta excluding_before_unload_duration =
+        including_before_unload_duration - beforeunload_total_duration;
+    base::UmaHistogramTimes(
+        "Navigation.Timeline.InteractionToActualNavigationStart."
+        "MainFrameOnly.Duration",
+        interaction_to_actual_navigation_start);
+    base::UmaHistogramTimes(
+        "Navigation.Timeline.InteractionToNavigationFinished."
+        "MainFrameOnly.Duration",
+        including_before_unload_duration);
+    base::UmaHistogramTimes(
+        "Navigation.Timeline.InteractionToNavigationFinished."
+        "ExcludingBeforeUnload.MainFrameOnly.Duration",
+        excluding_before_unload_duration);
+    if (ukm_builder.has_value()) {
+      ukm_builder->SetInteractionToActualNavigationStartDurationMs(
+          interaction_to_actual_navigation_start.InMilliseconds());
+      ukm_builder->SetInteractionToNavigationFinishedDurationMs(
+          including_before_unload_duration.InMilliseconds());
+      ukm_builder
+          ->SetInteractionToNavigationFinishedExcludingBeforeUnloadDurationMs(
+              excluding_before_unload_duration.InMilliseconds());
+    }
   }
 
   // Most navigation metrics currently ignore everything before the adjusted

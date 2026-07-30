@@ -1519,6 +1519,10 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration) {
   return [ChromeEarlGreyAppInterface userDefaultsObjectForKey:key];
 }
 
+- (void)setAppGroupCommandToSearchText:(NSString*)text {
+  return [ChromeEarlGreyAppInterface setAppGroupCommandToSearchText:text];
+}
+
 #pragma mark - Pref Utilities (EG2)
 
 - (void)commitPendingUserPrefsWrite {
@@ -1895,6 +1899,34 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration) {
                                                     error:&error],
                  @"Button %@ not present in activity sheet", buttonLabel);
   EG_TEST_HELPER_ASSERT_NO_ERROR(error);
+}
+
+- (void)tapMoreOptionButtonInActivitySheet {
+  // Do nothing if iOS version is lower than 26.0 since "more" option button
+  // might not exist in the activity sheet.
+  if (@available(iOS 26.0, *)) {
+    XCUIApplication* currentApplication = [[XCUIApplication alloc] init];
+    XCUIElementQuery* more_buttons =
+        [[currentApplication staticTexts] matchingIdentifier:@"More"];
+    if (more_buttons.count == 2) {
+      // There are two "More" buttons, select the one at the bottom.
+      XCUIElement* more_button_0 = [more_buttons elementBoundByIndex:0];
+      XCUIElement* more_button_1 = [more_buttons elementBoundByIndex:1];
+      XCUIElement* more_button =
+          more_button_0.frame.origin.y > more_button_1.frame.origin.y
+              ? more_button_0
+              : more_button_1;
+      [more_button tap];
+    } else if (more_buttons.count == 1) {
+      XCUIElement* more_button = [more_buttons elementBoundByIndex:0];
+      [more_button tap];
+    } else {
+      GREYAssertTrue(false,
+                     @"Unexpected number of \"More\" button found in "
+                     @"ActivitySheet, found %lu button(s)",
+                     (unsigned long)more_buttons.count);
+    }
+  }
 }
 
 - (void)closeActivitySheet {

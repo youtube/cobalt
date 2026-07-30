@@ -461,7 +461,6 @@ if (is_android) {
       "src/org/chromium/chrome/browser/autofill/AutofillImageFetcherUtilsTest.java",
       "src/org/chromium/chrome/browser/autofill/AutofillUiUtilsTest.java",
       "src/org/chromium/chrome/browser/autofill/GoogleWalletLauncherTest.java",
-      "src/org/chromium/chrome/browser/autofill/SaveUpdateAddressProfilePromptTest.java",
       "src/org/chromium/chrome/browser/autofill/iban/AutofillSaveIbanBottomSheetBridgeTest.java",
       "src/org/chromium/chrome/browser/autofill/iban/AutofillSaveIbanBottomSheetContentTest.java",
       "src/org/chromium/chrome/browser/autofill/iban/AutofillSaveIbanBottomSheetCoordinatorTest.java",
@@ -863,6 +862,7 @@ if (is_android) {
     resources_package = "org.chromium.chrome.browser.ntp"
     sources = [
       "src/org/chromium/chrome/browser/ntp/IncognitoNewTabPageUnitTest.java",
+      "src/org/chromium/chrome/browser/ntp/IncognitoNtpMetricsUnitTest.java",
       "src/org/chromium/chrome/browser/ntp/IncognitoNtpOmniboxAutofocusManagerUnitTest.java",
       "src/org/chromium/chrome/browser/ntp/NewTabPageUtilUnitTest.java",
       "src/org/chromium/chrome/browser/ntp/RecentTabsPageUnitTest.java",
@@ -1165,6 +1165,7 @@ if (is_android) {
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TabBubblerUnitTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TabCardHighlightHandlerUnitTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TabCardViewBinderUtilsUnitTest.java",
+      "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TabDragHandlerBaseTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TabGridContextMenuCoordinatorUnitTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TabGridDialogMenuCoordinatorUnitTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TabGridItemLongPressOrchestratorUnitTest.java",

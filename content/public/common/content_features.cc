@@ -56,6 +56,10 @@ BASE_FEATURE(kAndroidMediaInsertion, base::FEATURE_DISABLED_BY_DEFAULT);
 // Enables the physical keyboard autocorrect underline feature.
 BASE_FEATURE(kAndroidPkAutocorrectUnderline, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables the spelling underline in composition mode.
+BASE_FEATURE(kAndroidSpellingUnderlineInCompositionMode,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Warm up a spare renderer after each navigation on Android.
 BASE_FEATURE(kAndroidWarmUpSpareRendererWithTimeout,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -419,10 +423,6 @@ BASE_FEATURE(kFedCm, base::FEATURE_ENABLED_BY_DEFAULT);
 // re-authn flow.
 BASE_FEATURE(kFedCmEmbedderCheck, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Support usernames and phone numbers to identify users, instead of
-// (or in addition to) names and emails.
-BASE_FEATURE(kFedCmAlternativeIdentifiers, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables RPs to enhance autofill with federated accounts fetched by the FedCM
 // API.
 BASE_FEATURE(kFedCmAutofill, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -430,17 +430,15 @@ BASE_FEATURE(kFedCmAutofill, base::FEATURE_DISABLED_BY_DEFAULT);
 // Enables usage of the FedCM Delegation API.
 BASE_FEATURE(kFedCmDelegation, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables the FedCM email verification protocol.
+BASE_FEATURE(kEmailVerificationProtocol, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables the spec-compliant 'error' attribute in IdentityCredentialError while
 // deprecating the legacy 'code' attribute.
 BASE_FEATURE(kFedCmErrorAttribute, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables usage of the FedCM IdP Registration API.
 BASE_FEATURE(kFedCmIdPRegistration, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// For cross-site iframes, sends the top-level origin to the IDP and parses
-// an optional returned boolean indicating whether it is part of the same
-// client to allow for UI decisions based on the boolean.
-BASE_FEATURE(kFedCmIframeOrigin, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables Lightweight FedCM Mode
 BASE_FEATURE(kFedCmLightweightMode, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -509,10 +507,6 @@ BASE_FEATURE(kNetworkQualityEstimatorWebHoldback,
 // using MPArch inner pages. See https://crbug.com/40202416
 BASE_FEATURE(kGuestViewMPArch, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// See crbug.com/359623664
-BASE_FEATURE(kIdbPrioritizeForegroundClients,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // This flag unconditionally enables the SQLite backing store. Used for
 // about:flags.
 BASE_FEATURE(kIdbSqliteBackingStore, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -537,6 +531,11 @@ BASE_FEATURE_PARAM(std::string,
                    &kIgnoreDuplicateNavs,
                    "ignore_duplicate_navs_origins",
                    "");
+
+// Whether initial WebUI navigations should synchronously go from navigation
+// start to commit, by doing e.g. in-renderer body loading.
+BASE_FEATURE(kInitialWebUISyncNavStartToCommit,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Kill switch for the GetInstalledRelatedApps API.
 BASE_FEATURE(kInstalledApp, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -828,6 +827,18 @@ BASE_FEATURE(kRetryGetVideoCaptureDeviceInfos,
 #endif
 );
 
+// When enabled, the IPC channel will not be paused when launching non-guest
+// renderer processes. This makes it possible for all kinds of mojo calls
+// to be sent to the renderer process before OnProcessLaunched fires. When the
+// feature is disabled, those messages are instead queued because the IPC
+// channel is paused, and only flushed at OnProcessLaunched.
+BASE_FEATURE(kSkipIPCChannelPausingForNonGuests,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<bool>
+    kSkipIPCChannelPausingForNonGuestsInternalWebUiOnly{
+        &kSkipIPCChannelPausingForNonGuests, "internal_webui_only", false};
+
 // When enabled, skip pagehide-in-commit when navigating to DSE.
 // (See: https://crbug.com/375385416)
 BASE_FEATURE(kSkipPagehideInCommitForDSENavigation,
@@ -880,7 +891,7 @@ constexpr base::FeatureParam<double> kProcessPerSiteMainFrameTotalMemoryLimit{
 // it doesn't require a developer opt-in.
 //
 // crbug.com/1472634 for more details.
-BASE_FEATURE(kServiceWorkerAutoPreload, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kServiceWorkerAutoPreload, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // crbug.com/374606637: When this is enabled, race-network-and-fetch-hander will
 // prioritize the response processing for the network request over the
@@ -1250,6 +1261,12 @@ BASE_FEATURE(kAccessibilityDeprecateTypeAnnounce,
 // When enabled, extended selections are sent to Android through setSelection
 // API.
 BASE_FEATURE(kAccessibilityExtendedSelection,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When this feature is enabled, the InputConnection will request
+// formatted text from the TextInputState.
+BASE_FEATURE(kAccessibilityImeGetFormattedText,
+             "AccessibilityImeGetFormattedText",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, WINDOW_CONTENT_CHANGED events will be sent for each

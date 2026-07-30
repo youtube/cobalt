@@ -5,12 +5,13 @@
 #ifndef CHROME_BROWSER_GLOBAL_FEATURES_H_
 #define CHROME_BROWSER_GLOBAL_FEATURES_H_
 
-#include <memory.h>
+#include <memory>
 
 #include "base/functional/callback.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "chrome/common/buildflags.h"
+#include "net/net_buildflags.h"
 #include "ui/base/unowned_user_data/user_data_factory.h"
 
 namespace system_permission_settings {
@@ -29,6 +30,7 @@ class DefaultBrowserManager;
 #if BUILDFLAG(ENABLE_GLIC)
 namespace glic {
 class GlicBackgroundModeManager;
+class GlicGlobalEnabling;
 class GlicProfileManager;
 class GlicSyntheticTrialManager;
 }  // namespace glic
@@ -54,6 +56,12 @@ class ApplicationAdvancedProtectionStatusDetector;
 class GlobalBrowserCollection;
 class StartupLaunchManager;
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
+namespace unexportable_keys {
+class UnexportableKeyObsoleteProfileGarbageCollector;
+}  // namespace unexportable_keys
+#endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
 
 // This class owns the core controllers for features that are globally
 // scoped on desktop and Android. It can be subclassed by tests to perform
@@ -103,14 +111,6 @@ class GlobalFeatures {
   void PostMainMessageLoopRun();
   void PostDestroyThreads();
 
-  // Legacy method used in some tests. New code and non-test code should not use
-  // this.
-  //
-  // TODO(crbug.com/467395900): Remove this function and its remaining uses and
-  // replace them with
-  // TestingBrowserProcess::TearDownGlobalFeaturesForTesting().
-  void Shutdown();
-
   // Public accessors for features, e.g.
   // FooFeature* foo_feature() { return foo_feature_.get(); }
 
@@ -139,6 +139,10 @@ class GlobalFeatures {
 
   glic::GlicSyntheticTrialManager* glic_synthetic_trial_manager() {
     return synthetic_trial_manager_.get();
+  }
+
+  glic::GlicGlobalEnabling& glic_global_enabling() {
+    return *glic_global_enabling_.get();
   }
 #endif
 
@@ -205,6 +209,7 @@ class GlobalFeatures {
 #endif
 
 #if BUILDFLAG(ENABLE_GLIC)
+  std::unique_ptr<glic::GlicGlobalEnabling> glic_global_enabling_;
   std::unique_ptr<glic::GlicProfileManager> glic_profile_manager_;
   std::unique_ptr<glic::GlicBackgroundModeManager>
       glic_background_mode_manager_;
@@ -232,6 +237,12 @@ class GlobalFeatures {
   std::unique_ptr<GlobalBrowserCollection> global_browser_collection_;
   std::unique_ptr<StartupLaunchManager> startup_launch_manager_;
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
+  std::unique_ptr<
+      unexportable_keys::UnexportableKeyObsoleteProfileGarbageCollector>
+      unexportable_key_obsolete_profile_garbage_collector_;
+#endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
 };
 
 #endif  // CHROME_BROWSER_GLOBAL_FEATURES_H_

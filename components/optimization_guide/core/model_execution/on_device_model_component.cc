@@ -5,6 +5,7 @@
 #include "components/optimization_guide/core/model_execution/on_device_model_component.h"
 
 #include <optional>
+#include <utility>
 
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
@@ -18,9 +19,7 @@
 #include "base/strings/strcat.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
-#include "base/types/cxx23_to_underlying.h"
 #include "components/optimization_guide/core/delivery/model_util.h"
-#include "components/optimization_guide/core/model_execution/model_execution_features.h"
 #include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
 #include "components/optimization_guide/core/model_execution/model_execution_util.h"
 #include "components/optimization_guide/core/model_execution/performance_class.h"
@@ -28,7 +27,7 @@
 #include "components/optimization_guide/core/optimization_guide_constants.h"
 #include "components/optimization_guide/core/optimization_guide_enums.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
-#include "components/optimization_guide/public/mojom/model_broker.mojom-data-view.h"
+#include "components/optimization_guide/public/mojom/model_broker.mojom-shared.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_service.h"
 #include "components/version_info/version_info.h"
@@ -100,7 +99,7 @@ GetBestPerformanceHintForDevice(
     }
   }
   for (auto hint : prioritized_hints) {
-    if (supported_hints.contains(base::to_underlying(hint))) {
+    if (supported_hints.contains(std::to_underlying(hint))) {
       return hint;
     }
   }
@@ -271,34 +270,11 @@ OnDeviceModelComponentStateManager::GetState() {
              : nullptr;
 }
 
-OnDeviceModelStatus
-OnDeviceModelComponentStateManager::GetOnDeviceModelStatus() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (GetState() != nullptr) {
-    return OnDeviceModelStatus::kReady;
-  }
-  if (!registration_criteria_) {
-    return OnDeviceModelStatus::kNotReadyForUnknownReason;
-  }
-  if (component_installer_registered_) {
-    return OnDeviceModelStatus::kInstallNotComplete;
-  }
-  if (!registration_criteria_->is_model_allowed()) {
-    return OnDeviceModelStatus::kNotEligible;
-  }
-  if (!registration_criteria_->is_disk_space_available()) {
-    return OnDeviceModelStatus::kInsufficientDiskSpace;
-  }
-  if (!registration_criteria_->on_device_feature_recently_used) {
-    return OnDeviceModelStatus::kNoOnDeviceFeatureUsed;
-  }
-  // This may happen before the first registration.
-  return OnDeviceModelStatus::kModelInstallerNotRegisteredForUnknownReason;
-}
-
 void OnDeviceModelComponentStateManager::AddObserver(Observer* observer) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   observers_.AddObserver(observer);
+
+  observer->StateChanged(GetOnDeviceModelState());
 }
 
 void OnDeviceModelComponentStateManager::RemoveObserver(Observer* observer) {
@@ -332,9 +308,8 @@ void OnDeviceModelComponentStateManager::SetReady(
     state_ = std::make_unique<OnDeviceModelComponentState>(install_dir, version,
                                                            *model_spec);
   }
-  if (registration_criteria_ && registration_criteria_->is_model_allowed()) {
-    NotifyStateChanged();
-  }
+
+  NotifyStateChanged();
 }
 
 void OnDeviceModelComponentStateManager::InstallerRegistered() {
@@ -442,9 +417,9 @@ void OnDeviceModelComponentStateManager::CompleteUpdateRegistration(
       disk_space_free.value_or(base::ByteCount(-1)));
   bool first_registration_attempt = !registration_criteria_;
 
-  bool had_state = !!GetState();
+  OnDeviceModelStatus status = GetOnDeviceModelStatus();
   registration_criteria_ = std::make_unique<RegistrationCriteria>(criteria);
-  if (!!GetState() != had_state) {
+  if (status != GetOnDeviceModelStatus()) {
     NotifyStateChanged();
   }
 
@@ -487,8 +462,10 @@ void OnDeviceModelComponentStateManager::UninstallComponent() {
 
 void OnDeviceModelComponentStateManager::NotifyStateChanged() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  MaybeOnDeviceModelComponentState state = GetOnDeviceModelState();
   for (auto& o : observers_) {
-    o.StateChanged(GetState());
+    o.StateChanged(state);
   }
 }
 
@@ -497,6 +474,39 @@ void OnDeviceModelComponentStateManager::ForceUninstall() {
   // TODO(crbug.com/424764871): Likely will need to notify observers of the
   // state change.
   UninstallComponent();
+}
+
+MaybeOnDeviceModelComponentState
+OnDeviceModelComponentStateManager::GetOnDeviceModelState() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  if (GetState() != nullptr) {
+    return std::cref(*GetState());
+  }
+  if (!registration_criteria_) {
+    return base::unexpected(OnDeviceModelStatus::kNotReadyForUnknownReason);
+  }
+  if (component_installer_registered_) {
+    return base::unexpected(OnDeviceModelStatus::kInstallNotComplete);
+  }
+  if (!registration_criteria_->is_model_allowed()) {
+    return base::unexpected(OnDeviceModelStatus::kNotEligible);
+  }
+  if (!registration_criteria_->is_disk_space_available()) {
+    return base::unexpected(OnDeviceModelStatus::kInsufficientDiskSpace);
+  }
+  if (!registration_criteria_->on_device_feature_recently_used) {
+    return base::unexpected(OnDeviceModelStatus::kNoOnDeviceFeatureUsed);
+  }
+  // This may happen before the first registration.
+  return base::unexpected(
+      OnDeviceModelStatus::kModelInstallerNotRegisteredForUnknownReason);
+}
+
+OnDeviceModelStatus
+OnDeviceModelComponentStateManager::GetOnDeviceModelStatus() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return GetOnDeviceModelState().error_or(OnDeviceModelStatus::kReady);
 }
 
 }  // namespace optimization_guide

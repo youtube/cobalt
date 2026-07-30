@@ -73,6 +73,7 @@
 <translation id="1113000785583998331">Zapisać numer IBAN?</translation>
 <translation id="1113869188872983271">&amp;Cofnij zmianę kolejności</translation>
 <translation id="1118429183611783760">Odkurzacze i urządzenia do podłóg</translation>
+<translation id="111897705806685148">Użyj klucza dostępu z innego urządzenia</translation>
 <translation id="1119009590493440389"><ph name="MANAGE_SYNC_FOCUSED_FRIENDLY_MATCH_TEXT" />, aby zarządzać informacjami z Chrome, które zapisujesz na koncie Google, naciśnij Tab, a potem Enter</translation>
 <translation id="1122714970786750095">Elektronika i elektryka</translation>
 <translation id="1123753900084781868">Napisy na żywo nie są teraz dostępne</translation>
@@ -854,6 +855,7 @@ Jeśli się nie zgodzisz, zostaną one zablokowane ze względu na Twoje ustawien
 <translation id="2359629602545592467">Różne</translation>
 <translation id="2359808026110333948">Dalej</translation>
 <translation id="236000571258713023">Pojazdy</translation>
+<translation id="2360131275005204317">Linie lotnicze</translation>
 <translation id="2361263712565360498">275 x 395 mm</translation>
 <translation id="236340516568226369">Menu przełączania rozmiaru</translation>
 <translation id="2365355378251437925">Wpisz <ph name="FIELD" /></translation>
@@ -1247,6 +1249,7 @@ Jeśli się nie zgodzisz, zostaną one zablokowane ze względu na Twoje ustawien
 <translation id="301521992641321250">Automatycznie zablokowane</translation>
 <translation id="3016780570757425217">Sprawdzanie Twojej lokalizacji</translation>
 <translation id="3017086357773116182"><ph name="REMOVE_SUGGESTION_SUFFIX" />. Aby usunąć sugestię, naciśnij Tab, a potem Enter.</translation>
+<translation id="3019738915977809060">Zapisz kartę pokładową w Portfelu</translation>
 <translation id="3022959067768579802">Pisz dalej</translation>
 <translation id="3023165109041533893">Reklamy sugerowane przez witryny pomagają chronić Twoją historię przeglądania i tożsamość, umożliwiając jednocześnie witrynom wyświetlanie trafnych reklam. Na podstawie Twojej aktywności odwiedzona już witryna może sugerować powiązane reklamy podczas dalszego przeglądania przez Ciebie stron. W ustawieniach możesz wyświetlić listę tych witryn i zablokować te, które uznasz za niepotrzebne.</translation>
 <translation id="3024663005179499861">Nieprawidłowy typ zasady</translation>
@@ -1355,7 +1358,6 @@ Uruchamianie aplikacji może potrwać dłużej niż zwykle.</translation>
 <translation id="3194765668709099364">Klarna</translation>
 <translation id="3195213714973468956"><ph name="PRINTER_NAME" /> na serwerze <ph name="SERVER_NAME" /></translation>
 <translation id="3197136577151645743">Może prosić o pozwolenie na sprawdzanie, kiedy używasz urządzenia</translation>
-<translation id="3201482403106004262">Wystąpił błąd dotyczący ankiety.</translation>
 <translation id="3202497928925179914"><ph name="MANAGE_SYNC_FOCUSED_FRIENDLY_MATCH_TEXT" />; aby zarządzać w ustawieniach Chrome informacjami, które mają być synchronizowane, naciśnij Tab, a potem Enter</translation>
 <translation id="3203025201812691413">URL nie może być pusty</translation>
 <translation id="320323717674993345">Anuluj płatność</translation>
@@ -1445,6 +1447,7 @@ Uruchamianie aplikacji może potrwać dłużej niż zwykle.</translation>
 <translation id="3342018947887487892">Później odwiedzana przez Ciebie witryna może prosić o te informacje – tematy lub reklamy sugerowane przez odwiedzane witryny.</translation>
 <translation id="334438173029876234">Sprzęt do jazdy na deskorolce</translation>
 <translation id="3347146863028219517">Narty i snowboard</translation>
+<translation id="3349610303043713601">Przeglądaj z pomocą AI</translation>
 <translation id="3349952286488694786">SRA2</translation>
 <translation id="3350450887151703713">Przewiń do tyłu o 10 sekund</translation>
 <translation id="3352881017886802007">Gry sportowe</translation>
@@ -2138,7 +2141,6 @@ Uruchamianie aplikacji może potrwać dłużej niż zwykle.</translation>
 <translation id="4409556632583862731">Nowy wątek</translation>
 <translation id="4412074349188076601">Ta konfiguracja jest oznaczona jako możliwa do zainstalowania, ale nie można jej zainstalować, bo nie udostępniono obrazu dla tej architektury.</translation>
 <translation id="4412377069090572315">Opinie użytkowników</translation>
-<translation id="4414452699610169758">Używaj Menedżera haseł Google i autouzupełniania w Chrome, aby zapisywać i uzupełniać hasła, formy płatności i adresy</translation>
 <translation id="4414515549596849729">pliki cookie i dane witryn</translation>
 <translation id="4415156962929755728">Plastik (wysoki połysk)</translation>
 <translation id="4415426530740016218">Adres odbioru</translation>
@@ -2307,7 +2309,6 @@ Uruchamianie aplikacji może potrwać dłużej niż zwykle.</translation>
 <translation id="4732860731866514038">Pobieram pakiet językowy dla języka <ph name="LANGUAGE" />… <ph name="PERCENT" />%</translation>
 <translation id="4733082559415072992"><ph name="URL" /> chce używać lokalizacji Twojego urządzenia</translation>
 <translation id="473414950835101501">Korzystać z kamer</translation>
-<translation id="4734343956394152985"><ph name="BEGIN_BOLD" />Obecna opcja domyślna<ph name="END_BOLD" /> · <ph name="MARKETING_SNIPPET" /></translation>
 <translation id="4736825316280949806">Uruchom ponownie Chromium</translation>
 <translation id="4736934858538408121">Karta wirtualna</translation>
 <translation id="473775607612524610">Aktualizuj</translation>
@@ -2516,6 +2517,7 @@ Uruchamianie aplikacji może potrwać dłużej niż zwykle.</translation>
 <translation id="5051254010007014901"><ph name="TOOLBELT_PRECEDING_MATCH_TEXT" />. Naciśnij Tab, aby wyświetlić więcej skrótów do wyszukiwania dostępnych po tej sugestii wyszukiwania</translation>
 <translation id="5052517576853118371">Aktywne tematy</translation>
 <translation id="5056425809654826431">{NUM_FILES,plural, =1{Aby wysłać plik przez Udostępnianie w pobliżu, zwolnij miejsce (<ph name="DISK_SPACE_SIZE" />) na urządzeniu}few{Aby wysłać pliki przez Udostępnianie w pobliżu, zwolnij miejsce (<ph name="DISK_SPACE_SIZE" />) na urządzeniu}many{Aby wysłać pliki przez Udostępnianie w pobliżu, zwolnij miejsce (<ph name="DISK_SPACE_SIZE" />) na urządzeniu}other{Aby wysłać pliki przez Udostępnianie w pobliżu, zwolnij miejsce (<ph name="DISK_SPACE_SIZE" />) na urządzeniu}}</translation>
+<translation id="5056587122125565772">Utwórz obraz</translation>
 <translation id="505757197798929356">Podaj powód otwarcia (wymagane)</translation>
 <translation id="5058282932481719070">Więcej informacji o ulepszonym autouzupełnianiu w ustawieniach</translation>
 <translation id="5060419232449737386">Ustawienia napisów</translation>
@@ -2672,6 +2674,7 @@ Uruchamianie aplikacji może potrwać dłużej niż zwykle.</translation>
 <translation id="5307166000025436103">OK</translation>
 <translation id="5308380583665731573">Połącz</translation>
 <translation id="5308689395849655368">Funkcja zgłaszania awarii jest wyłączona.</translation>
+<translation id="5309562313526658209">Przejdź</translation>
 <translation id="5314967030527622926">Tworzenie broszur</translation>
 <translation id="5316812925700871227">Obróć w lewo</translation>
 <translation id="5317780077021120954">Zapisz</translation>
@@ -2934,6 +2937,7 @@ Uruchamianie aplikacji może potrwać dłużej niż zwykle.</translation>
 <translation id="5730040223043577876">Chrome zaleca zresetowanie hasła, jeśli zostało użyte na innej stronie.</translation>
 <translation id="5732392974455271431">Mogą ją dla Ciebie odblokować Twoi rodzice</translation>
 <translation id="573555826359077410">Przycisk Utwórz formularz; aktywuj, aby szybko utworzyć nowy formularz w Formularzach Google</translation>
+<translation id="5737022235680044108">Twoja organizacja zablokowała adres <ph name="HOST_NAME" /> w trybie incognito.</translation>
 <translation id="5738385766833540397">Zarządzaj sposobami otrzymywania alertów o obniżkach cen produktów, które śledzisz</translation>
 <translation id="5739619009927381786">W następnym kroku odblokuj ekran, zazwyczaj za pomocą odcisku palca. Możesz też dokonać <ph name="BEGIN_LINK" />weryfikacji w inny sposób<ph name="END_LINK" />.</translation>
 <translation id="573974402615125334">Aby udostępniać grupy kart, dołączać do nich i używać ich do współpracy, zsynchronizuj historię i karty</translation>
@@ -3456,7 +3460,6 @@ Uruchamianie aplikacji może potrwać dłużej niż zwykle.</translation>
 <translation id="6568793038316600992">Przycisk Zarządzaj formami płatności; aktywuj, aby zarządzać informacjami o płatnościach i danymi kart kredytowych w ustawieniach Chrome</translation>
 <translation id="6569060085658103619">Przeglądasz stronę rozszerzenia</translation>
 <translation id="6571992525120410251">Zapytaj <ph name="ENGINE_NAME" />, o co chcesz</translation>
-<translation id="6572867903637058088">Czy to jest przydatne?</translation>
 <translation id="6573200754375280815">Dwa otwory po prawej</translation>
 <translation id="6575408526598156416">Zapisz na koncie</translation>
 <translation id="6577792494180292262">Kapitał wysokiego ryzyka</translation>
@@ -3616,6 +3619,7 @@ Uruchamianie aplikacji może potrwać dłużej niż zwykle.</translation>
 <translation id="6844998850832008753">Tym razem zezwolono na śledzenie rąk</translation>
 <translation id="6849023911358004088">Przycisk Zarządzaj ustawieniami zabezpieczeń; aktywuj, aby zarządzać m.in. Bezpiecznym przeglądaniem w ustawieniach Chrome</translation>
 <translation id="6850286078059909152">Kolor tekstu</translation>
+<translation id="685163597635765693">Twoja organizacja zablokowała linki „<ph name="HOST_NAME" />” w trybie incognito.</translation>
 <translation id="6852204201400771460">Załadować ponownie aplikację?</translation>
 <translation id="6854691830678097752">Aby płacić szybciej, zapisz ten kod CVC na swoim koncie <ph name="ACCOUNT_EMAIL" /></translation>
 <translation id="6857776781123259569">Zarządzaj hasłami…</translation>
@@ -3628,6 +3632,7 @@ Uruchamianie aplikacji może potrwać dłużej niż zwykle.</translation>
 <translation id="6871813064737840684">Historia cen w internecie dla tej opcji</translation>
 <translation id="6873456682041376666">Taca górna</translation>
 <translation id="6874604403660855544">&amp;Ponów dodanie</translation>
+<translation id="6875873347995743859">Wyślij do asystenta</translation>
 <translation id="6875894866901426843"><ph name="DATE_TIME" /> administrator usunie Twoje pliki lokalne, w tym te znajdujące się w koszu</translation>
 <translation id="6880941331070119097">Wysoka cena</translation>
 <translation id="6881240511396774766">Szybko utwórz nowy dokument Google</translation>
@@ -3885,6 +3890,7 @@ Dodatkowe informacje:
 <translation id="7273111226200291353">Pobierane pliki są wysyłane do Google Cloud lub innych firm w celu przeanalizowania. Na przykład mogą zostać przeskanowane pod kątem danych wrażliwych lub złośliwego oprogramowania, a także mogą być przechowywane zgodnie z zasadami firmy i widoczne dla administratora.</translation>
 <translation id="7275334191706090484">Zakładki zarządzane</translation>
 <translation id="7275808129217605899">Zdrowe odżywianie</translation>
+<translation id="7282894295403887199">Nie możesz otworzyć tej strony w trybie incognito</translation>
 <translation id="7285654172857511148"><ph name="CHANGE_GOOGLE_PASSWORD_FOCUSED_FRIENDLY_MATCH_TEXT" />; naciśnij Tab, a potem Enter, aby zmienić swoje hasło do konta Google</translation>
 <translation id="7286908876112207905">Wklejanie tej treści w tej witrynie jest niedozwolone</translation>
 <translation id="7291578327729322058">Dodaj prawo jazdy</translation>
@@ -4051,7 +4057,6 @@ Dodatkowe informacje:
 <translation id="7525804896095537619">Nazwa nie może być pusta</translation>
 <translation id="7526934274050461096">Twoje połączenie z tą stroną nie jest prywatne</translation>
 <translation id="7529884293139707752">Edukacja domowa</translation>
-<translation id="7530215951451994972">Utwórz obraz</translation>
 <translation id="7531464389616946220">Zeskanuj kartę</translation>
 <translation id="7534473948927234329"><ph name="STARTER_PACK_BOOKMARKS_FOCUSED_FRIENDLY_MATCH_TEXT" />; naciśnij Enter, aby wyszukać w zakładkach</translation>
 <translation id="7534987659046836932">Koperta C7</translation>
@@ -4134,6 +4139,7 @@ Dodatkowe informacje:
 <translation id="7648527891719919697">Ta strona pozostanie zablokowana, ponieważ w <ph name="BEGIN_ANDROID_SETTINGS_LINK" />ustawieniach Androida<ph name="END_ANDROID_SETTINGS_LINK" /> masz włączoną Ochronę zaawansowaną. <ph name="BEGIN_LEARN_MORE_LINK" />Więcej informacji o tym ostrzeżeniu<ph name="END_LEARN_MORE_LINK" /></translation>
 <translation id="7648992873808071793">Zapisywanie plików na tym urządzeniu</translation>
 <translation id="7649070708921625228">Pomoc</translation>
+<translation id="7650141368285545431">Użyj klucza dostępu z innego urządzenia</translation>
 <translation id="7653957176542370971">Arkusz modułu do obsługi płatności jest zamknięty</translation>
 <translation id="7655766454902053387">Oferty pracy</translation>
 <translation id="765676359832457558">Ukryj ustawienia zaawansowane...</translation>
@@ -4257,6 +4263,7 @@ Dodatkowe informacje:
 <translation id="7844689747373518809">{COUNT,plural, =0{Brak}=1{Jedna aplikacja (<ph name="EXAMPLE_APP_1" />)}=2{Dwie aplikacje (<ph name="EXAMPLE_APP_1" /> i <ph name="EXAMPLE_APP_2" />)}few{# aplikacje (<ph name="EXAMPLE_APP_1" />, <ph name="EXAMPLE_APP_2" /> <ph name="AND_MORE" />)}many{# aplikacji (<ph name="EXAMPLE_APP_1" />, <ph name="EXAMPLE_APP_2" /> <ph name="AND_MORE" />)}other{# aplikacji (<ph name="EXAMPLE_APP_1" />, <ph name="EXAMPLE_APP_2" /> <ph name="AND_MORE" />)}}</translation>
 <translation id="7846161022626028328">Wystąpił błąd. Spróbuj ponownie.</translation>
 <translation id="784623644169604270">Brak ostatniej aktywności</translation>
+<translation id="7853222852810008596">Opcja Zapłać później jest niedostępna w tej walucie</translation>
 <translation id="785476343534277563">Sporty studenckie</translation>
 <translation id="7855695075675558090"><ph name="TOTAL_LABEL" />: <ph name="FORMATTED_TOTAL_AMOUNT" /> <ph name="CURRENCY_CODE" /></translation>
 <translation id="7860345425589240791">Wpisz nową datę ważności i kod CVC, znajdujące się z <ph name="SIDE_OF_CARD" /></translation>
@@ -4832,7 +4839,7 @@ Dodatkowe informacje:
 <translation id="8814547618907885931">Zobacz wszystkie tabele porównawcze</translation>
 <translation id="8814707942599948500">Koperta C8</translation>
 <translation id="8816395686387277279"><ph name="UPDATE_CHROME_FOCUSED_FRIENDLY_MATCH_TEXT" />. Naciśnij Tab, a potem Enter, by zaktualizować przeglądarkę Chrome z poziomu jej ustawień.</translation>
-<translation id="8819855907485254989">Zapisz bilet na transport publiczny w Portfelu</translation>
+<translation id="8819855907485254989">Zapisz bilet w Portfelu</translation>
 <translation id="8820817407110198400">Zakładki</translation>
 <translation id="882338992931677877">Szczelina ręczna</translation>
 <translation id="8827067923357481311">Opcje płatności odroczonej</translation>
@@ -4876,7 +4883,6 @@ Dodatkowe informacje:
 <translation id="8891031436559779793">Otrzymasz powiadomienie, jeśli cena w którejkolwiek witrynie spadnie.</translation>
 <translation id="8891727572606052622">Nieprawidłowy tryb proxy</translation>
 <translation id="8894794286471754040">Najpierw dłuższa krawędź</translation>
-<translation id="8895334001368918465">Aby używać innej usługi autouzupełniania w Chrome, włącz ją w ustawieniach Androida i tutaj</translation>
 <translation id="8897221284075091877">Aby poprosić o możliwość wyświetlenia tych treści, zaloguj się na konto Google</translation>
 <translation id="8897428486789851669">Pływanie</translation>
 <translation id="8899807382908246773">Uciążliwe reklamy</translation>
@@ -5068,7 +5074,6 @@ Dodatkowe informacje:
 <translation id="9195969368671142407">Gdy Twoja organizacja ogranicza zapisywanie danych na koncie Google, nie możesz udostępniać grup kart ani do nich dołączać</translation>
 <translation id="9198613052465150219">Inne rodzaje historii przeglądania mogą być nadal dostępne na Twoim koncie Google na <ph name="BEGIN_LINK_GMA" />myactivity.google.com<ph name="END_LINK_GMA" /></translation>
 <translation id="9199905725844810519">Drukowanie jest zablokowane</translation>
-<translation id="9201904868909900493">Otwieram ankietę…</translation>
 <translation id="9204089334327209740">Po zakończeniu przesyłania możesz zmodyfikować pliki w usłudze <ph name="CLOUD_PROVIDER" />. Dane z pamięci lokalnej, w tym wszystkie pliki w koszu, zostaną automatycznie usunięte.</translation>
 <translation id="9205078245616868884">Twoje dane są szyfrowane z użyciem hasła wielowyrazowego do synchronizacji. Wpisz je, by rozpocząć synchronizację.</translation>
 <translation id="920643408853370361">Ubezpieczenia turystyczne</translation>

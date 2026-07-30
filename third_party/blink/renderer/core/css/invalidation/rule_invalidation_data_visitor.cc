@@ -134,7 +134,6 @@ bool SupportsInvalidation(CSSSelector::PseudoType type) {
     case CSSSelector::kPseudoFullScreen:
     case CSSSelector::kPseudoFullScreenAncestor:
     case CSSSelector::kPseudoFullscreen:
-    case CSSSelector::kPseudoPatching:
     case CSSSelector::kPseudoPaused:
     case CSSSelector::kPseudoPermissionGranted:
     case CSSSelector::kPseudoPictureInPicture:
@@ -155,6 +154,7 @@ bool SupportsInvalidation(CSSSelector::PseudoType type) {
     case CSSSelector::kPseudoMultiSelectFocus:
     case CSSSelector::kPseudoHostHasNonAutoAppearance:
     case CSSSelector::kPseudoOpen:
+    case CSSSelector::kPseudoOverscrollTarget:
     case CSSSelector::kPseudoDialogInTopLayer:
     case CSSSelector::kPseudoPicker:
     case CSSSelector::kPseudoPopoverInTopLayer:

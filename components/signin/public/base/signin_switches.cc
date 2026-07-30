@@ -196,11 +196,6 @@ bool IsChromeRefreshTokenBindingEnabled(const PrefService* profile_prefs) {
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 #if BUILDFLAG(IS_IOS)
-BASE_FEATURE(kEnableErrorBadgeOnIdentityDisc,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif
-
-#if BUILDFLAG(IS_IOS)
 BASE_FEATURE(kEnableIdentityInAuthError, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
@@ -283,7 +278,7 @@ constexpr base::FeatureParam<SeamlessSigninStringType>
 // management disclaimer when they open Chrome. Every time the primary signed in
 // account changes to a managed account, the management disclaimer will be
 // shown. This is only for desktop platforms.
-BASE_FEATURE(kEnforceManagementDisclaimer, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kEnforceManagementDisclaimer, base::FEATURE_ENABLED_BY_DEFAULT);
 // The delay between policy registration retry.
 const base::FeatureParam<base::TimeDelta>
     kPolicyDisclaimerRegistrationRetryDelay{
@@ -292,7 +287,7 @@ const base::FeatureParam<base::TimeDelta>
 #endif
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
-BASE_FEATURE(kForcedDiceMigration, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kForcedDiceMigration, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 #if BUILDFLAG(IS_ANDROID)
@@ -504,7 +499,7 @@ BASE_FEATURE(kSyncEnableBookmarksInTransportMode,
 // When enabled, Chrome will always use the /IssueToken endpoint to fetch access
 // tokens, no matter if a refresh token is bound or not.
 BASE_FEATURE(kUseIssueTokenToFetchAccessTokens,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)

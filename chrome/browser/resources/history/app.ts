@@ -44,7 +44,7 @@ import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
 import type {BrowserService} from './browser_service.js';
 import {BrowserServiceImpl} from './browser_service.js';
-import {HistoryPageViewHistogram, HistorySignInState, TabsSyncState} from './constants.js';
+import {HistoryPageViewHistogram, HistorySignInState, SyncState} from './constants.js';
 import type {ForeignSession, HistoryIdentityState} from './externs.js';
 import type {HistoryListElement} from './history_list.js';
 import type {HistoryToolbarElement} from './history_toolbar.js';
@@ -196,7 +196,8 @@ export class HistoryAppElement extends HistoryAppElementBase {
       loadTimeData.getBoolean('isHistoryClustersVisible');
   protected accessor identityState_: HistoryIdentityState = {
     signIn: HistorySignInState.SIGNED_OUT,
-    tabsSync: TabsSyncState.TURNED_OFF,
+    tabsSync: SyncState.TURNED_OFF,
+    historySync: SyncState.TURNED_OFF,
   };
   protected accessor lastSelectedTab_: number =
       loadTimeData.getInteger('lastSelectedTab');
@@ -714,7 +715,7 @@ export class HistoryAppElement extends HistoryAppElementBase {
       case Page.SYNCED_TABS:
         histogramValue =
             this.identityState_.signIn === HistorySignInState.SIGNED_IN &&
-                this.identityState_.tabsSync === TabsSyncState.TURNED_ON ?
+                this.identityState_.tabsSync === SyncState.TURNED_ON ?
             HistoryPageViewHistogram.SYNCED_TABS :
             HistoryPageViewHistogram.SIGNIN_PROMO;
         break;
@@ -753,9 +754,16 @@ export class HistoryAppElement extends HistoryAppElementBase {
   }
 
   // <if expr="not is_chromeos">
-  // TODO(https://crbug.com/418144407): add more conditions e.g. sync disabled
+  // History sync promo is shown based on the following conditions:
+  // 1. UNO phase 2 follow up feature flag is enabled.
+  // 2. Should be shown based on user prefs (the promo was closed < 5 times)
+  // 3. History sync is not disabled.
+  // 4. User is not already signed in and syncing history.
   protected shouldShowHistoryPageHistorySyncPromo_(): boolean {
-    return this.unoPhase2FollowUpEnabled_ && this.shouldShowHistorySyncPromo_;
+    return this.unoPhase2FollowUpEnabled_ && this.shouldShowHistorySyncPromo_ &&
+        this.identityState_.historySync !== SyncState.DISABLED &&
+        !(this.identityState_.signIn === HistorySignInState.SIGNED_IN &&
+          this.identityState_.historySync === SyncState.TURNED_ON);
   }
 
   private handleShouldShowHistoryPageHistorySyncPromoChanged_(

@@ -15,7 +15,6 @@
 #include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
-#include "base/types/cxx23_to_underlying.h"
 #include "base/types/strong_alias.h"
 #include "build/build_config.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
@@ -174,7 +173,7 @@ struct Suggestion {
   struct IdentityCredentialPayload final {
     IdentityCredentialPayload();
     IdentityCredentialPayload(
-        GURL configURL,
+        GURL config_url,
         std::string account_id,
         const std::map<FieldType, std::u16string>& fields);
     IdentityCredentialPayload(const IdentityCredentialPayload&);
@@ -517,6 +516,11 @@ struct Suggestion {
   // This is the icon which is shown on the side of a suggestion.
   // If |custom_icon| is empty, the fallback built-in icon.
   Icon icon = Icon::kNoIcon;
+
+#if BUILDFLAG(IS_IOS)
+  // Indicates whether the suggestion has a custom card art image.
+  bool has_custom_card_art_image = false;
+#endif  // BUILDFLAG(IS_IOS)
 
   // An icon that appears after the suggestion in the suggestion view. For
   // passwords, this icon string shows whether the suggestion originates from
