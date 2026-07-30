@@ -23,7 +23,6 @@
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "media/audio/audio_handler.h"
-#include "media/audio/flac_audio_handler.h"
 #include "media/audio/wav_audio_handler.h"
 #include "media/base/audio_bus.h"
 #include "media/base/audio_codecs.h"
@@ -32,6 +31,10 @@
 #include "media/mojo/mojom/audio_stream_factory.mojom.h"
 #include "services/audio/public/cpp/output_device.h"
 #include "ui/base/resource/resource_bundle.h"
+
+#if !BUILDFLAG(IS_COBALT)
+#include "media/audio/flac_audio_handler.h"
+#endif  // !BUILDFLAG(IS_COBALT)
 
 namespace audio {
 
@@ -221,6 +224,9 @@ AudioStreamHandler::AudioStreamHandler(
       break;
     }
     case media::AudioCodec::kFLAC: {
+#if BUILDFLAG(IS_COBALT)
+      NOTREACHED() << "FLAC is not supported by Cobalt";
+#else
       auto tmp_handler = std::make_unique<media::FlacAudioHandler>(audio_data);
       if (!tmp_handler->Initialize()) {
         LOG(ERROR) << "flac_data is not valid";
@@ -228,6 +234,7 @@ AudioStreamHandler::AudioStreamHandler(
       }
       audio_handler = std::move(tmp_handler);
       break;
+#endif  // BUILDFLAG(IS_COBALT)
     }
     default:
       NOTREACHED() << "Unsupported audio codec encountered: "

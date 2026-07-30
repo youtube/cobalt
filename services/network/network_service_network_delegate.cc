@@ -40,6 +40,10 @@
 #include "services/network/websocket.h"
 #endif
 
+#if BUILDFLAG(IS_COBALT)
+#include "services/network/public/cpp/is_potentially_trustworthy.h"
+#endif
+
 namespace network {
 
 namespace {
@@ -100,6 +104,28 @@ int NetworkServiceNetworkDelegate::OnBeforeURLRequest(
     network_service->NotifyNetworkRequestWithAnnotation(
         request->traffic_annotation());
   }
+
+#if BUILDFLAG(IS_COBALT)
+  // Runs on URLRequest::Start(), which is called again after every redirect,
+  // so each trustworthy hop gets the headers while raw URLRequests
+  // (`loader == nullptr`) and cleartext non-loopback HTTP requests (such as
+  // third-party CA AIA/OCSP fetches via CertNetFetcherURLLoader) do not.
+  // Keep the explicit `loader` check: upstream M139 removed the early
+  // `if (!loader) return net::OK;` guard above.
+  if (const auto* headers = network_context_->cobalt_extra_request_headers();
+      loader && headers && !headers->empty()) {
+    if (effective_url->SchemeIsCryptographic() ||
+        IsUrlPotentiallyTrustworthy(*effective_url)) {
+      for (const auto& [name, value] : *headers) {
+        request->SetExtraRequestHeaderByName(name, value, /*overwrite=*/true);
+      }
+    } else if (request->url_chain().size() > 1) {
+      for (const auto& [name, _] : *headers) {
+        request->RemoveRequestHeaderByName(name);
+      }
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   return net::OK;
 }

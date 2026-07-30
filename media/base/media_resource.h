@@ -8,10 +8,15 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "build/build_config.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_export.h"
 
 namespace media {
+
+#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+class UrlPlayerMediaResource;
+#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // Abstract class that defines how to retrieve "media resources" in
 // DemuxerStream form.
@@ -40,6 +45,11 @@ class MEDIA_EXPORT MediaResource {
   // A helper function that return the first stream of the given `type` if one
   // exists or a null pointer if there is no streams of that type.
   DemuxerStream* GetFirstStream(DemuxerStream::Type type);
+
+#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Returns this resource if the platform URL player renders it, or null.
+  virtual UrlPlayerMediaResource* AsUrlPlayerMediaResource();
+#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace media

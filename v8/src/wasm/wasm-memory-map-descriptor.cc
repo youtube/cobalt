@@ -74,7 +74,7 @@ v8::Local<v8::Object> WasmMemoryMapDescriptor::NewFromFileDescriptor(
 v8::MaybeLocal<v8::Object> WasmMemoryMapDescriptor::NewFromAnonymous(
     v8::Isolate* isolate, size_t length, v8::Local<v8::Object> wrapper) {
   CHECK(v8_flags.wasm_memory_control);
-#if V8_TARGET_OS_LINUX
+#if V8_TARGET_OS_LINUX && !BUILDFLAG(IS_STARBOARD)
   int fd = memfd_create("wasm_memory_map_descriptor", MFD_CLOEXEC);
   if (fd == -1) return {};
   if (ftruncate(fd, length) == -1) {

@@ -270,7 +270,9 @@ void WorkerScriptFetcher::CreateAndStart(
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   DCHECK(client_security_state);
   DCHECK(storage_partition);
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   DCHECK(devtools_agent_host);
+#endif
   DCHECK(request_destination == network::mojom::RequestDestination::kWorker ||
          request_destination ==
              network::mojom::RequestDestination::kSharedWorker)
@@ -439,7 +441,9 @@ void WorkerScriptFetcher::CreateScriptLoader(
     std::optional<PolicyContainerPolicies> creator_policies,
     WorkerScriptFetcher::CompletionCallback callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   DCHECK(devtools_agent_host);
+#endif
   DCHECK(client_security_state);
   TRACE_EVENT("loading", "WorkerScriptFetcher::CreateScriptLoader");
 

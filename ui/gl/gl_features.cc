@@ -37,7 +37,7 @@
 namespace features {
 namespace {
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(ENABLE_VALIDATING_COMMAND_DECODER)
 const base::FeatureParam<std::string>
     kPassthroughCommandDecoderBlockListByBrand{
         &kDefaultPassthroughCommandDecoder, "BlockListByBrand", ""};
@@ -220,6 +220,19 @@ bool UsePassthroughCommandDecoder() {
           kPassthroughCommandDecoderBlockListByAndroidBuildFP.Get())) {
     return false;
   }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // TODO(crbug.com/41482978): Fix single process rendering on nvidia Shield.
+  // Newer SHIELD firmware (e.g. darcy_nova on Android 16) reports Build.MODEL
+  // as "NVIDIA Android TV" instead of "SHIELD Android TV" (b/576224535).
+  if (base::MatchPattern(base::android::android_info::manufacturer(),
+                         "NVIDIA") &&
+      (base::MatchPattern(base::android::android_info::model(), "SHIELD*") ||
+       base::MatchPattern(base::android::android_info::model(),
+                          "NVIDIA Android TV*"))) {
+    return false;
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #endif  // BUILDFLAG(IS_ANDROID)
 
   return true;

@@ -34,6 +34,11 @@
 #include "storage/common/database/database_identifier.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/feature_list.h"
+#include "base/features.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace storage {
 namespace {
 
@@ -486,6 +491,11 @@ void LocalStorageImpl::OnDatabaseOpened(DbStatus status) {
   if (!status.ok()) {
     // If we failed to open the database, try to delete and recreate the
     // database, or ultimately fallback to an in-memory database.
+#if BUILDFLAG(IS_COBALT)
+    status.Log("Cobalt.LocalStorage.DatabaseOpenError",
+               in_memory_ ? DatabaseMetricsType::kInMemory
+                          : DatabaseMetricsType::kOnDisk);
+#endif
     DeleteAndRecreateDatabase(DomStorageRecoveryReason::kOpenFailure);
     return;
   }
@@ -715,6 +725,11 @@ void LocalStorageImpl::OnCommitResult(DbStatus status) {
     // Deleting StorageAreas in here could cause more commits (and commit
     // errors), but those commits won't reach OnCommitResult because the area
     // will have been deleted before the commit finishes.
+#if BUILDFLAG(IS_COBALT)
+    status.Log("Cobalt.LocalStorage.DatabaseCommitError",
+               in_memory_ ? DatabaseMetricsType::kInMemory
+                          : DatabaseMetricsType::kOnDisk);
+#endif
     DeleteAndRecreateDatabase(
         DomStorageRecoveryReason::kCommitErrorThresholdExceeded);
   }
@@ -787,6 +802,14 @@ void LocalStorageImpl::OnGotMetaDataToDeleteStaleStorageAreas(
   // These are counted independently to better track errors in rollout.
   base::UmaHistogramCounts100000(
       "LocalStorage.OrphanStorageAreasOnStartupCount", orphans_found);
+
+#if BUILDFLAG(IS_COBALT)
+  if (stale_storage_keys.empty() &&
+      base::FeatureList::IsEnabled(
+          base::features::kCobaltLocalStorageReuseLogsAndSkipEmptyCommits)) {
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   // Delete stale storage areas and count results.
   size_t deleted_count = stale_storage_keys.size();

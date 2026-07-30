@@ -46,11 +46,15 @@
 #include "src/base/platform/platform-posix.h"
 #include "src/base/platform/platform.h"
 
+<<<<<<< ours
 #if !defined(MREMAP_DONTUNMAP)
 // We define this to support building against versions that do not yet expose
 // it. Instead, we check at runtime in KernelSupportsRemapDontUnmap.
 #define MREMAP_DONTUNMAP 4
 #endif
+=======
+#include "build/build_config.h"
+>>>>>>> theirs
 
 namespace v8 {
 namespace base {
@@ -83,6 +87,7 @@ void OS::SignalCodeMovingGC() {
 
 void OS::AdjustSchedulingParams() {}
 
+#if !BUILDFLAG(IS_STARBOARD)
 void* OS::RemapShared(void* old_address, void* new_address, size_t size) {
   void* result =
       mremap(old_address, 0, size, MREMAP_FIXED | MREMAP_MAYMOVE, new_address);
@@ -93,6 +98,7 @@ void* OS::RemapShared(void* old_address, void* new_address, size_t size) {
   DCHECK(result == new_address);
   return result;
 }
+#endif
 
 std::optional<OS::MemoryRange> OS::GetFirstFreeMemoryRangeWithin(
     OS::Address boundary_start, OS::Address boundary_end, size_t minimum_size,

@@ -35,6 +35,11 @@ source_set("client") {
     "//services/metrics/public/cpp:ukm_builders",
     "//third_party/re2",
   ]
+
+  if (is_cobalt) {
+    # This dependency is added implicitly in non-Cobalt builds.
+    deps += [ "//components/optimization_guide/proto:optimization_guide_proto" ]
+  }
 }
 
 source_set("factories") {

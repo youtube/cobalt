@@ -1438,6 +1438,12 @@ source_set("platform_browser_tests") {
     ]
   }
 
+  # Upstream gets these dependencies from the enable_devtools_frontend block
+  # below, which Cobalt disables, but
+  # known_interception_disclosure_infobar_browsertest.cc needs them too.
+  if (is_cobalt) {
+    deps += [ "//components/infobars/content" ]
+  }
   if (enable_pdf) {
     deps += [
       "//chrome/browser/pdf:pdf_extension_test_utils",
@@ -3672,7 +3678,10 @@ if (!is_android) {
 
       if (enable_printing) {
         sources += [ "../browser/pdf/pdf_extension_printing_test.cc" ]
-        deps += [ "//chrome/browser/printing" ]
+        deps += [
+          "//chrome/browser/printing",
+          "//printing/backend:test_support",
+        ]
       }
 
       if (enable_pdf_save_to_drive) {
@@ -5243,6 +5252,7 @@ if (!is_android) {
   }
 }
 
+if (!is_starboard) {
 if (!is_android) {
   performance_test_suite_template("performance_test_suite") {
   }
@@ -5255,8 +5265,11 @@ if (!is_android) {
     }
   }
 }
+} else {
+  group("performance_test_suite") {}
+}
 
-if (!is_android) {
+if (!is_android && !is_starboard) {
   script_test("crossbench_smoketests") {
     script = "//testing/scripts/run_performance_tests.py"
 
@@ -9557,8 +9570,11 @@ if (!is_android && !is_chromeos_device) {
       "//chrome/browser/ui/views/location_bar:interactive_ui_tests",
       "//chrome/browser/ui/views/location_bar/cookie_controls:interactive_ui_tests",
       "//chrome/browser/ui/views/tabs/groups:interactive_ui_tests",
-      "//chrome/browser/ui/webui/print_preview:interactive_ui_tests",
     ]
+
+    if (enable_print_preview) {
+      deps += [ "//chrome/browser/ui/webui/print_preview:interactive_ui_tests" ]
+    }
 
     if (!is_chrome_for_testing) {
       deps += [

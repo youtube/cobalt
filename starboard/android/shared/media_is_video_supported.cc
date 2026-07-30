@@ -1,0 +1,91 @@
+// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// clang-format off
+#include "starboard/shared/starboard/media/media_support_internal.h"
+// clang-format on
+
+#include <android/api-level.h>
+
+#include "starboard/android/shared/media_capabilities_cache.h"
+#include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/mime_param.h"
+#include "starboard/common/size.h"
+#include "starboard/configuration.h"
+#include "starboard/media.h"
+#include "starboard/shared/starboard/media/media_util.h"
+
+namespace starboard {
+
+bool MediaIsVideoSupported(const MimeType* mime_type,
+                           const VideoSupportQueryParams& params) {
+  const ParsedVideoCodec& codec_info = params.codec_info;
+
+  // 10-bit video with SDR color doesn't need an HDR display.
+  if (!IsSDRColor(codec_info.primary_id, codec_info.transfer_id,
+                  codec_info.matrix_id) &&
+      !MediaCapabilitiesCache::GetInstance()
+           ->IsHDRTransferCharacteristicsSupported(codec_info.transfer_id)) {
+    return false;
+  }
+  // While not necessarily true, for now we assume that all Android devices
+  // can play decode-to-texture video just as well as normal video.
+
+  bool must_support_tunnel_mode = false;
+  if (mime_type) {
+    // Allows for enabling tunneled playback. Disabled by default.
+    // https://source.android.com/devices/tv/multimedia-tunneling
+    if (!mime_type->ValidateBoolParameter(kMimeParamTunnelMode)) {
+      return false;
+    }
+    must_support_tunnel_mode =
+        mime_type->GetParamBoolValue(kMimeParamTunnelMode, false);
+  }
+
+  if (must_support_tunnel_mode && params.decode_to_texture_required) {
+    SB_LOG(WARNING) << "Tunnel mode is rejected because output mode decode to "
+                       "texture is required but not supported.";
+    return false;
+  }
+
+  if (must_support_tunnel_mode && android_get_device_api_level() < 34) {
+    SB_LOG(WARNING)
+        << "Tunnel mode is rejected because Android version is less "
+           "than 14.";
+    return false;
+  }
+
+  const char* mime = SupportedVideoCodecToMimeType(codec_info.codec);
+  if (!mime) {
+    return false;
+  }
+
+  // We assume that if a device supports a format for clear playback, it will
+  // also support it for encrypted playback. However, some devices require
+  // tunneled playback to be encrypted, so we must align the tunnel mode
+  // requirement with the secure playback requirement.
+  const bool require_secure_playback = must_support_tunnel_mode;
+
+  // 10-bit video still needs a decoder that handles 10-bit, even with SDR
+  // color. MediaCapabilitiesCache checks that through the decoder's HDR
+  // profiles.
+  const bool needs_hdr_capable_decoder =
+      !Is8BitSDRVideo(codec_info.bit_depth, codec_info.primary_id,
+                      codec_info.transfer_id, codec_info.matrix_id);
+  return MediaCapabilitiesCache::GetInstance()->HasVideoDecoderFor(
+      mime, require_secure_playback, needs_hdr_capable_decoder,
+      must_support_tunnel_mode, params.frame_size, params.bitrate, params.fps);
+}
+
+}  // namespace starboard

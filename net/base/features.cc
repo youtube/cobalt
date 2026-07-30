@@ -903,6 +903,14 @@ BASE_FEATURE_PARAM(int,
                    &kCacheCertVerification,
                    1800);
 
+<<<<<<< ours
 BASE_FEATURE(kTlsGreaseSigalgs, base::FEATURE_ENABLED_BY_DEFAULT);
+=======
+#if BUILDFLAG(IS_COBALT)
+BASE_FEATURE(kCobaltHttpCacheFontAndPassThrough,
+             "CobaltHttpCacheFontAndPassThrough",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_COBALT)
+>>>>>>> theirs
 
 }  // namespace net::features

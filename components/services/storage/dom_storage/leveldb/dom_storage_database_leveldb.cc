@@ -30,6 +30,7 @@
 #include "base/trace_event/process_memory_dump.h"
 #include "base/types/expected_macros.h"
 #include "base/types/pass_key.h"
+#include "build/build_config.h"
 #include "components/services/storage/dom_storage/dom_storage_database.h"
 #include "components/services/storage/dom_storage/dom_storage_rollout.h"
 #include "components/services/storage/dom_storage/leveldb/dom_storage_batch_operation_leveldb.h"
@@ -41,6 +42,11 @@
 #include "third_party/leveldatabase/src/include/leveldb/db.h"
 #include "third_party/leveldatabase/src/include/leveldb/env.h"
 #include "third_party/leveldatabase/src/include/leveldb/status.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/feature_list.h"
+#include "base/features.h"
+#endif  // BUILDFLAG(IS_COBALT)
 
 namespace storage {
 
@@ -55,13 +61,29 @@ class DomStorageDatabaseLevelDBEnv : public leveldb_env::ChromiumEnv {
       delete;
 };
 
+#if BUILDFLAG(IS_COBALT)
+leveldb_env::Options MakeOnDiskOptions(bool is_local_storage = false) {
+#else
 leveldb_env::Options MakeOnDiskOptions() {
+#endif
   leveldb_env::Options options;
   options.create_if_missing = true;
   options.max_open_files = 0;  // use minimum
   // Default write_buffer_size is 4 MB but that might leave a 3.999
   // memory allocation in RAM from a log file recovery.
   options.write_buffer_size = 64 * 1024;
+#if BUILDFLAG(IS_COBALT)
+  if (is_local_storage &&
+      base::FeatureList::IsEnabled(
+          base::features::kCobaltLocalStorageReuseLogsAndSkipEmptyCommits)) {
+    // On low-end TV devices, leveldb_env::Options defaults `reuse_logs` to
+    // false (forcing a synchronous .log -> .ldb compaction, MANIFEST rewrite,
+    // and CURRENT rename on every DB::Open). Reusing the WAL on open avoids
+    // cold-start compaction churn while keeping every 1s commit synchronous
+    // (`sync = true`).
+    options.reuse_logs = true;
+  }
+#endif
 
   // We disable caching because all reads are one-offs such as in
   // `LocalStorageImpl::OnDatabaseOpened()`, or they are bulk scans (as in
@@ -74,6 +96,14 @@ leveldb_env::Options MakeOnDiskOptions() {
   options.env = env.get();
   return options;
 }
+
+#if BUILDFLAG(IS_COBALT)
+leveldb::WriteOptions CreateSyncWriteOptions() {
+  leveldb::WriteOptions options;
+  options.sync = true;
+  return options;
+}
+#endif
 
 DomStorageDatabase::KeyValuePair MakeKeyValuePair(const leveldb::Slice& key,
                                                   const leveldb::Slice& value) {
@@ -109,7 +139,15 @@ DomStorageDatabaseLevelDB::DomStorageDatabaseLevelDB(
   } else {
     CHECK(directory.IsAbsolute());
     name_ = directory.AsUTF8Unsafe();
+#if BUILDFLAG(IS_COBALT)
+    // `DomStorageDatabaseLevelDB` backs both persistent Local Storage and
+    // persistent Session Storage. Only persistent Local Storage enables
+    // `reuse_logs = true` and skipping of empty commits.
+    is_local_storage_ = storage_type == StorageType::kLocalStorage;
+    options_ = MakeOnDiskOptions(is_local_storage_);
+#else
     options_ = MakeOnDiskOptions();
+#endif
   }
   base::trace_event::MemoryDumpManager::GetInstance()
       ->RegisterDumpProviderWithSequencedTaskRunner(
@@ -151,6 +189,16 @@ DomStorageDatabaseLevelDB::Open(
   status = instance->EnsureVersion(version_key, min_supported_version,
                                    max_supported_version);
   if (!status.ok()) {
+#if BUILDFLAG(IS_COBALT)
+    const DatabaseMetricsType metrics_type =
+        directory.empty() ? DatabaseMetricsType::kInMemory
+                          : DatabaseMetricsType::kOnDisk;
+    if (status.IsCorruption()) {
+      status.Log("Cobalt.LocalStorage.DatabaseVersionMismatch", metrics_type);
+    } else {
+      status.Log("Cobalt.LocalStorage.DatabaseReadError", metrics_type);
+    }
+#endif
     return base::unexpected(std::move(status));
   }
 
@@ -196,8 +244,13 @@ DbStatus DomStorageDatabaseLevelDB::Put(KeyView key, ValueView value) {
   if (!db_) {
     return DbStatus::IOError(kInvalidDatabaseMessage);
   }
+#if BUILDFLAG(IS_COBALT)
+  return FromLevelDBStatus(
+      db_->Put(CreateSyncWriteOptions(), MakeSlice(key), MakeSlice(value)));
+#else
   return FromLevelDBStatus(
       db_->Put(leveldb::WriteOptions(), MakeSlice(key), MakeSlice(value)));
+#endif
 }
 
 StatusOr<std::vector<DomStorageDatabase::KeyValuePair>>
@@ -266,6 +319,12 @@ DbStatus DomStorageDatabaseLevelDB::RewriteDB() {
 bool DomStorageDatabaseLevelDB::ShouldFailAllCommitsForTesting() {
   return fail_all_commits_for_testing_;
 }
+
+#if BUILDFLAG(IS_COBALT)
+bool DomStorageDatabaseLevelDB::IsPersistentLocalStorage() const {
+  return is_local_storage_;
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 void DomStorageDatabaseLevelDB::SetDestructionCallbackForTesting(
     base::OnceClosure callback) {

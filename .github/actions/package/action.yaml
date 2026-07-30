@@ -1,0 +1,35 @@
+name: Package Cobalt
+description: Cobalt Release Packager
+inputs:
+  package_dir:
+    description: "Destination for Cobalt package"
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: GN gen
+      env:
+        MATRIX_PLATFORM: ${{ matrix.platform }}
+        MATRIX_CONFIG: ${{ matrix.config }}
+        PACKAGE_DIR: ${{ inputs.package_dir }}
+      run: |
+        set -x
+        cd cobalt/src/
+
+        # Determine the correct build platform directory name.
+        # This maps to the platform package.json files under cobalt/build.
+        if [[ "${MATRIX_PLATFORM}" == "android"* ]]; then
+          BUILD_PLATFORM="android"
+        elif [[ "${MATRIX_PLATFORM}" == "linux"* ]]; then
+          BUILD_PLATFORM="linux"
+        else
+          BUILD_PLATFORM="${MATRIX_PLATFORM}"
+        fi
+
+        cobalt/build/packager.py \
+          --print_contents \
+          --name=${MATRIX_PLATFORM}_${MATRIX_CONFIG} \
+          --json_path=cobalt/build/${BUILD_PLATFORM}/package.json \
+          --out_dir=out/${MATRIX_PLATFORM}_${MATRIX_CONFIG} \
+          --package_dir=${PACKAGE_DIR}
+      shell: bash

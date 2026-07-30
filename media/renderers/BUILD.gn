@@ -4,11 +4,18 @@
 
 import("//media/media_options.gni")
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
 source_set("renderers") {
   # Do not expand the visibility here without double-checking with OWNERS, this
   # is a roll-up target which is part of the //media component. Most other DEPs
   # should be using //media and not directly DEP this roll-up target.
   visibility = [ "//media" ]
+  if (is_cobalt && use_starboard_media) {
+    visibility += [ "//media/starboard" ]
+  }
 
   sources = [
     "audio_renderer_impl.cc",
