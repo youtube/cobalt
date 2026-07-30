@@ -15,3 +15,9 @@ use_minikin_hyphenation = !is_apple
 # Web Smart Card API is currently supported only on chromeos.
 # TODO(crbug.com/470349523): Migrate more smart card files to this flag.
 enable_smart_card = is_chromeos
+
+declare_args() {
+  # If true, WebRTC PeerConnection and related modules are enabled.
+  use_webrtc_peer_connection = !is_cobalt
+}
+

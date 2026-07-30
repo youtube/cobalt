@@ -99,12 +99,34 @@ void GlyphVector::flatten(SkWriteBuffer& buffer) const {
 
     // Write out the span of packedGlyphIDs.
     buffer.write32(SkTo<int32_t>(fGlyphs.size()));
+<<<<<<< HEAD
     for (const auto& g : fGlyphs) {
         SkPackedGlyphID id;
         if (this->hasBackendData()) {
             id = fGetGlyphID(g.data());
         } else {
             id = *reinterpret_cast<const SkPackedGlyphID*>(g.data());
+=======
+    for (Variant variant : fGlyphs) {
+        buffer.writeUInt(variant.packedGlyphID.value());
+    }
+}
+
+SkSpan<const Glyph*> GlyphVector::glyphs() const {
+    return SkSpan(reinterpret_cast<const Glyph**>(fGlyphs.data()), fGlyphs.size());
+}
+
+// packedGlyphIDToGlyph must be run in single-threaded mode.
+// If fSkStrike is not sk_sp<SkStrike> then the conversion to Glyph* has not happened.
+void GlyphVector::packedGlyphIDToGlyph(StrikeCache* cache, skgpu::MaskFormat format) {
+    if (fTextStrike == nullptr) {
+        SkStrike* strike = fStrikePromise.strike();
+        fTextStrike = cache->findOrCreateStrike(strike->strikeSpec());
+
+        // Get all the atlas locations for each glyph.
+        for (Variant& variant : fGlyphs) {
+            variant.glyph = fTextStrike->getGlyph(variant.packedGlyphID, format);
+>>>>>>> parent of c79075d5779 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
         }
         buffer.writeUInt(id.value());
     }

@@ -2,7 +2,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//third_party/blink/renderer/bindings/bindings.gni")
 import("//third_party/blink/renderer/bindings/generated_in_modules.gni")
+import("//third_party/blink/renderer/config.gni")
 import("//third_party/blink/renderer/modules/modules.gni")
 
 visibility = [ "//third_party/blink/renderer/*" ]
@@ -23,6 +25,27 @@ blink_modules_sources("v8") {
       generated_observable_array_sources_in_modules +
       generated_sync_iterator_sources_in_modules +
       generated_typedef_sources_in_modules + generated_union_sources_in_modules
+
+  if (is_cobalt) {
+    _hardware_filtered = filter_exclude(sources, cobalt_hardware_exclude_patterns)
+    sources = []
+    sources = _hardware_filtered
+  }
+
+  if (!use_webrtc_peer_connection) {
+    _rtc_filtered =
+        filter_exclude(sources, cobalt_bindings_exclude_patterns)
+    sources = []
+    sources = _rtc_filtered
+  }
+
+  if (is_cobalt) {
+    _filtered_cobalt_sources = filter_exclude(
+        sources,
+        cobalt_webgpu_exclude_patterns + cobalt_ai_exclude_patterns)
+    sources = []
+    sources = _filtered_cobalt_sources
+  }
 
   deps = [
     ":generated",
@@ -46,6 +69,13 @@ source_set("testing") {
             generated_enumeration_sources_for_testing_in_modules +
             generated_interface_sources_for_testing_in_modules +
             generated_interface_extra_sources_for_testing_in_modules
+
+  if (!use_webrtc_peer_connection) {
+    _filtered_sources =
+        filter_exclude(sources, cobalt_bindings_exclude_patterns)
+    sources = []
+    sources = _filtered_sources
+  }
 
   deps = [
     ":generated",

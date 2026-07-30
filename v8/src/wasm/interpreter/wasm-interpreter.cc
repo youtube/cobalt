@@ -6302,7 +6302,10 @@ class Handlers : public HandlersBase {
 
     WriteBarrierMode mode =
         array_new_result.is_shared ? UPDATE_WRITE_BARRIER : SKIP_WRITE_BARRIER;
+<<<<<<< HEAD
 
+=======
+>>>>>>> parent of c79075d5779 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     {
       // The new array is uninitialized, which means GC might fail until
       // initialization.
