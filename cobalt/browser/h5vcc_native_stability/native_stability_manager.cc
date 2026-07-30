@@ -134,6 +134,9 @@ void NativeStabilityManager::GetPendingReportsOnTaskRunner(
       hang_report->base = CreateBaseReportData(sb_report);
       results.push_back(
           mojom::NativeStabilityReport::NewHangReport(std::move(hang_report)));
+    } else {
+      LOG(WARNING) << "Skipping unsupported SbNativeStabilityReportType: "
+                   << sb_report.report_type;
     }
   }
 

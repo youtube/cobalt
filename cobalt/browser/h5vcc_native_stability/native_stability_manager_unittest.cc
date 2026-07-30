@@ -233,4 +233,26 @@ TEST_F(NativeStabilityManagerTest,
   run_loop.Run();
 }
 
+TEST_F(NativeStabilityManagerTest, GetPendingReportsIgnoresUnknownReportType) {
+  auto* manager = NativeStabilityManager::GetInstance();
+  SbNativeStabilityReport unknown_report = {};
+  unknown_report.report_type = kSbNativeStabilityReportUnknown;
+  std::strncpy(unknown_report.native_stability_event_uuid, "unknown-uuid-12345",
+               sizeof(unknown_report.native_stability_event_uuid) - 1);
+  unknown_report.event_time_s = 1700000000;
+
+  SetupStubExtension(manager, {unknown_report});
+
+  base::RunLoop run_loop;
+  manager->GetPendingReports(base::BindOnce(
+      [](base::OnceClosure quit_closure,
+         std::vector<mojom::NativeStabilityReportPtr> reports) {
+        // Verify unknown report type was skipped and not included in results
+        EXPECT_TRUE(reports.empty());
+        std::move(quit_closure).Run();
+      },
+      run_loop.QuitClosure()));
+  run_loop.Run();
+}
+
 }  // namespace h5vcc_native_stability
