@@ -405,13 +405,16 @@ CommandStorageBackend::CommandStorageBackend(
     scoped_refptr<base::SequencedTaskRunner> owning_task_runner,
     const base::FilePath& path,
     SessionType type,
+    std::optional<os_crypt_async::Encryptor> encryptor,
     base::Clock* clock)
     : RefCountedDeleteOnSequence(owning_task_runner),
       type_(type),
       supplied_path_(path),
       callback_task_runner_(base::SingleThreadTaskRunner::GetCurrentDefault()),
-      clock_(clock ? clock : base::DefaultClock::GetInstance()) {
+      clock_(clock ? clock : base::DefaultClock::GetInstance()),
+      encryptor_(std::move(encryptor)) {
   // This is invoked on the main thread, don't do file access here.
+  // TODO(crbug.com/479420496): Use encryptor_ to encrypt the session file.
 }
 
 // static
@@ -501,17 +504,6 @@ bool CommandStorageBackend::TimestampFromPath(const base::FilePath& path,
   return true;
 }
 
-// static
-std::set<base::FilePath> CommandStorageBackend::GetSessionFilePaths(
-    const base::FilePath& path,
-    SessionType type) {
-  std::set<base::FilePath> result;
-  for (const auto& info : GetSessionFilesSortedByReverseTimestamp(path, type)) {
-    result.insert(info.path);
-  }
-  return result;
-}
-
 CommandStorageBackend::ReadCommandsResult
 CommandStorageBackend::ReadLastSessionCommands() {
   InitIfNecessary();
@@ -586,7 +578,8 @@ void CommandStorageBackend::InitIfNecessary() {
   }
 
   inited_ = true;
-  base::CreateDirectory(supplied_path_.Append(kSessionsDirectory));
+  base::CreateDirectory(supplied_path_.Append(
+      is_encrypted() ? kEncryptedSessionsDirectory : kSessionsDirectory));
 
   // TODO(sky): this is expensive. See if it can be delayed.
   last_session_info_ = FindLastSessionFile();
@@ -596,11 +589,12 @@ void CommandStorageBackend::InitIfNecessary() {
 }
 
 // static
-base::FilePath CommandStorageBackend::FilePathFromTime(
-    const SessionType type,
-    const base::FilePath& path,
-    base::Time time) {
-  return path.Append(kSessionsDirectory)
+base::FilePath CommandStorageBackend::GetFilePath(const SessionType type,
+                                                  const base::FilePath& path,
+                                                  base::Time time,
+                                                  bool encrypted) {
+  return path
+      .Append(encrypted ? kEncryptedSessionsDirectory : kSessionsDirectory)
       .Append(GetSessionFilename(type, TimestampToString(time)));
 }
 
@@ -647,7 +641,8 @@ void CommandStorageBackend::TruncateOrOpenFile() {
   }
   timestamp_ = new_timestamp;
   std::unique_ptr<OpenFile> open_file = std::make_unique<OpenFile>();
-  open_file->path = FilePathFromTime(type_, supplied_path_, timestamp_);
+  open_file->path =
+      GetFilePath(type_, supplied_path_, timestamp_, is_encrypted());
   open_file->file = OpenAndWriteHeader(open_file->path);
   if (open_file->file) {
     open_file_ = std::move(open_file);
@@ -726,10 +721,12 @@ void CommandStorageBackend::DeleteLastSessionFiles() const {
 std::vector<CommandStorageBackend::SessionInfo>
 CommandStorageBackend::GetSessionFilesSortedByReverseTimestamp(
     const base::FilePath& path,
-    SessionType type) {
+    SessionType type,
+    bool encrypted) {
   std::vector<SessionInfo> sessions;
   base::FileEnumerator file_enum(
-      path.Append(kSessionsDirectory), false, base::FileEnumerator::FILES,
+      path.Append(encrypted ? kEncryptedSessionsDirectory : kSessionsDirectory),
+      false, base::FileEnumerator::FILES,
       GetSessionFilename(type, FILE_PATH_LITERAL("*")));
   for (base::FilePath name = file_enum.Next(); !name.empty();
        name = file_enum.Next()) {

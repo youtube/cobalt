@@ -48,7 +48,6 @@
 #include "chrome/browser/ui/hats/hats_service_factory.h"
 #include "chrome/browser/ui/managed_ui.h"
 #include "chrome/browser/ui/passwords/ui_utils.h"
-#include "chrome/browser/ui/tabs/organization/tab_organization_utils.h"
 #include "chrome/browser/ui/toasts/toast_features.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/side_panel/customize_chrome/customize_chrome_utils.h"
@@ -111,6 +110,7 @@
 #include "components/commerce/core/shopping_service.h"
 #include "components/compose/core/browser/compose_features.h"
 #include "components/content_settings/core/common/features.h"
+#include "components/contextual_tasks/public/features.h"
 #include "components/favicon_base/favicon_url_parser.h"
 #include "components/history/core/browser/features.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
@@ -622,8 +622,6 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
           autofill_client,
           autofill::AutofillAiAction::kListEntityInstancesInSettings));
   std::pair<const std::string_view, bool> optimization_guide_features[] = {
-      {"showTabOrganizationControl",
-       TabOrganizationUtils::GetInstance()->IsSettingVisible(profile)},
       {"showComposeControl", compose_visible},
       {"showHistorySearchControl",
        history_embeddings::IsHistoryEmbeddingsSettingVisible(profile)},
@@ -632,6 +630,10 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
            PasswordChangeServiceFactory::GetForProfile(profile)
                ->UserIsActivePasswordChangeUser()},
   };
+
+  const bool enable_ai_mode_search =
+      contextual_tasks::GetIsSmartTabSharingEnabled();
+  html_source->AddBoolean("enableAiModeSearchSetting", enable_ai_mode_search);
 
   const bool show_ai_settings_for_testing = base::FeatureList::IsEnabled(
       optimization_guide::features::kAiSettingsPageForceAvailable);
@@ -643,6 +645,7 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
     html_source->AddBoolean(name, visible || show_ai_settings_for_testing);
     show_ai_features_section |= visible;
   }
+  show_ai_features_section |= enable_ai_mode_search;
 
   // Within the AI subpage are separate sections for Glic and for all other AI
   // features, the visibility of these are separately controlled but we want to
@@ -657,9 +660,8 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
       base::FeatureList::IsEnabled(
           autofill::features::kAutofillEnableSupportForHomeAndWork));
 
-  html_source->AddBoolean(
-      "replaceSyncPromosWithSignInPromos",
-      base::FeatureList::IsEnabled(syncer::kReplaceSyncPromosWithSignInPromos));
+  html_source->AddBoolean("replaceSyncPromosWithSignInPromos",
+                          syncer::IsReplaceSyncPromosWithSignInPromosEnabled());
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING) && !BUILDFLAG(IS_CHROMEOS)
   // On Device AI setting.

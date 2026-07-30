@@ -981,6 +981,7 @@
     //
     "running",
     "paused",
+    "stopped",
 
     //
     // transform-style
@@ -1451,6 +1452,7 @@
     "with",
 
     // @font-face src
+    "avar2",
     "format",
     "collection",
     "embedded-opentype",

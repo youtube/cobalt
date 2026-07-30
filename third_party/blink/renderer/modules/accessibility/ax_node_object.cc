@@ -6135,18 +6135,43 @@ void AXNodeObject::AddNodeChildren() {
   // reading-flow container, and not for the case where the element is a
   // reading-flow item.
   HeapVector<Member<Node>> reading_flow_children;
-  if (Element* element = GetElement()) {
+  Element* element = GetElement();
+  if (element) {
     reading_flow_children = element->ReadingFlowChildren();
   }
   if (!reading_flow_children.empty()) {
+    CHECK(element);
     HeapHashSet<Member<Node>> ax_children_added;
     // Add reading flow siblings in order.
     for (Node* reading_flow_item : reading_flow_children) {
-      if (IsAddedOnlyViaSpecialTraversal(reading_flow_item)) {
+      // Walk up the flat tree to find the direct child of `element`, since
+      // `reading_flow_item` may be a slotted node whose flat tree parent is
+      // a `<slot>` rather than `element` itself.
+      Node* child_of_element = reading_flow_item;
+      if (RuntimeEnabledFeatures::ReadingFlowWithSlotsEnabled()) {
+        while (true) {
+          Element* parent = FlatTreeTraversal::ParentElement(*child_of_element);
+          // `parent` should never become null here: `ReadingFlowChildren`
+          // only returns flat-tree descendants of `element`, so walking up
+          // flat-tree parents must reach a direct child of `element` before
+          // reaching the root.
+          CHECK(parent);
+          if (parent == element) {
+            break;
+          }
+          child_of_element = parent;
+        }
+      }
+      // `child_of_element` should never become null here: `ReadingFlowChildren`
+      // only returns flat-tree descendants of `element`, so walking up
+      // flat-tree parents must reach a direct child of `element` before
+      // reaching null.
+      DCHECK(child_of_element);
+      if (IsAddedOnlyViaSpecialTraversal(child_of_element)) {
         continue;
       }
-      if (ax_children_added.insert(reading_flow_item).is_new_entry) {
-        AddNodeChild(reading_flow_item);
+      if (ax_children_added.insert(child_of_element).is_new_entry) {
+        AddNodeChild(child_of_element);
       }
     }
 #if DCHECK_IS_ON()
@@ -7446,16 +7471,15 @@ String AXNodeObject::NativeTextAlternative(
   }
 
   // Per SVG AAM 1.0's modifications to 2D of this algorithm.
-  if (GetNode()->IsSVGElement()) {
+  if (auto* svg_element = DynamicTo<SVGElement>(*GetNode())) {
     name_from = ax::mojom::blink::NameFrom::kRelatedElement;
     if (name_sources) {
       name_sources->push_back(NameSource(*found_text_alternative));
       name_sources->back().type = name_from;
       name_sources->back().native_source = kAXTextFromNativeTitleElement;
     }
-    auto* container_node = To<ContainerNode>(GetNode());
     Element* title = ElementTraversal::FirstChild(
-        *container_node, HasTagName(svg_names::kTitleTag));
+        *svg_element, HasTagName(svg_names::kTitleTag));
 
     if (title) {
       // TODO(accessibility): In most cases <desc> and <title> can
@@ -7483,7 +7507,7 @@ String AXNodeObject::NativeTextAlternative(
     }
     // The SVG-AAM says that the xlink:title participates as a name source
     // for links.
-    if (IsA<SVGAElement>(GetNode())) {
+    if (IsA<SVGAElement>(*svg_element)) {
       name_from = ax::mojom::blink::NameFrom::kAttribute;
       if (name_sources) {
         name_sources->push_back(
@@ -7492,8 +7516,7 @@ String AXNodeObject::NativeTextAlternative(
       }
 
       const AtomicString& title_attr =
-          DynamicTo<Element>(GetNode())->FastGetAttribute(
-              xlink_names::kTitleAttr);
+          svg_element->FastGetAttribute(xlink_names::kTitleAttr);
       if (!title_attr.empty()) {
         text_alternative = title_attr;
         if (name_sources) {
@@ -8139,12 +8162,11 @@ String AXNodeObject::SVGDescription(
 
   // In the case of an SVG <a>, the last description source is the xlink:title
   // attribute, if it didn't serve as the name source.
-  if (IsA<SVGAElement>(GetNode()) &&
+  if (IsA<SVGAElement>(*element) &&
       name_from != ax::mojom::blink::NameFrom::kAttribute) {
     description_from = ax::mojom::blink::DescriptionFrom::kTitle;
     const AtomicString& title_attr =
-        DynamicTo<Element>(GetNode())->FastGetAttribute(
-            xlink_names::kTitleAttr);
+        element->FastGetAttribute(xlink_names::kTitleAttr);
     if (!title_attr.empty()) {
       description = title_attr;
       if (description_sources) {

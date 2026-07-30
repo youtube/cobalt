@@ -66,7 +66,6 @@
 #include "cc/trees/render_frame_metadata.h"
 #include "cc/trees/task_runner_provider.h"
 #include "cc/trees/throttle_decider.h"
-#include "cc/trees/tracked_element_bounds.h"
 #include "components/viz/common/frame_sinks/begin_frame_args.h"
 #include "components/viz/common/gpu/context_cache_controller.h"
 #include "components/viz/common/quads/compositor_render_pass.h"
@@ -76,6 +75,7 @@
 #include "components/viz/common/surfaces/region_capture_bounds.h"
 #include "components/viz/common/surfaces/surface_id.h"
 #include "components/viz/common/surfaces/surface_range.h"
+#include "components/viz/common/surfaces/tracked_element_rects.h"
 #include "components/viz/common/view_transition_element_resource_id.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/vector2d_f.h"
@@ -83,10 +83,6 @@
 
 namespace gfx {
 class PointF;
-}
-
-namespace ukm {
-class UkmRecorder;
 }
 
 namespace viz {
@@ -580,7 +576,7 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
 
   ResourcePool* resource_pool() { return resource_pool_.get(); }
   ImageAnimationController* image_animation_controller() {
-    return &image_animation_controller_;
+    return image_animation_controller_.get();
   }
 
   ImageDecodeCache* GetImageDecodeCache() const;
@@ -671,7 +667,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   ActivelyScrollingType GetActivelyScrollingType() const;
   bool IsHandlingInteraction() const;
   bool IsCurrentScrollMainRepainted() const;
-  bool ScrollAffectsScrollHandler() const;
   void SetExternalPinchGestureActive(bool active);
   void set_force_smooth_wheel_scrolling_for_testing(bool enabled) {
     GetInputHandler().set_force_smooth_wheel_scrolling_for_testing(enabled);
@@ -755,7 +750,7 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   void ScheduleMicroBenchmark(std::unique_ptr<MicroBenchmarkImpl> benchmark);
 
   viz::RegionCaptureBounds CollectRegionCaptureBounds();
-  TrackedElementBounds CollectTrackedElementBounds();
+  viz::TrackedElementRects CollectTrackedElementRects();
 
   viz::CompositorFrameMetadata MakeCompositorFrameMetadata();
   RenderFrameMetadata MakeRenderFrameMetadata(FrameData* frame);
@@ -832,8 +827,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   void UpdateImageDecodingHints(
       base::flat_map<PaintImage::Id, PaintImage::DecodingMode>
           decoding_mode_map);
-
-  void InitializeUkm(std::unique_ptr<ukm::UkmRecorder> recorder);
 
   ActiveFrameSequenceTrackers FrameSequenceTrackerActiveTypes() {
     return frame_trackers_.FrameSequenceTrackerActiveTypes();
@@ -1302,7 +1295,7 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   };
   ImplThreadPhase impl_thread_phase_ = ImplThreadPhase::IDLE;
 
-  ImageAnimationController image_animation_controller_;
+  std::unique_ptr<ImageAnimationController> image_animation_controller_;
 
   // Provides RenderFrameMetadata to the Browser process upon the submission of
   // each CompositorFrame.
@@ -1348,13 +1341,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   // Use to track when doing a synchronous draw.
   bool doing_sync_draw_ = false;
 #endif
-
-  // This is used to tell the scheduler there are active scroll handlers on the
-  // page so we should prioritize latency during a scroll to try to keep
-  // scroll-linked effects up to data.
-  // TODO(bokan): This is quite old and scheduling has become much more
-  // sophisticated since so it's not clear how much value it's still providing.
-  bool scroll_affects_scroll_handler_ = false;
 
   // Provides support for PaintWorklets which depend on input properties that
   // are being animated by the compositor (aka 'animated' PaintWorklets).

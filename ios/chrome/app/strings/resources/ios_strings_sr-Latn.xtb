@@ -480,6 +480,7 @@
 <translation id="2691653761409724435">Nije dostupno oflajn</translation>
 <translation id="2697530870203420261">Nevažeći nadimak</translation>
 <translation id="269819437389494246">Možete da vidite stranice koje ste posetili ili da ih izbrišete iz istorije</translation>
+<translation id="2704295676501803339">Pomeri ulevo</translation>
 <translation id="2704606927547763573">Kopirano</translation>
 <translation id="2708051474374549906">Proaktivna zaštita u realnom vremenu od opasnih sajtova, preuzimanja i dodataka koja se zasniva na podacima pregledanja koji se šalju Google-u</translation>
 <translation id="2709516037105925701">Automatsko popunjavanje</translation>
@@ -637,6 +638,7 @@
 <translation id="3324193307694657476">2. red za adresu</translation>
 <translation id="3328801116991980348">Informacije o sajtu</translation>
 <translation id="333229797575847124">Kako da omogućite ovu funkciju</translation>
+<translation id="334004756946755423">Objasni mi ovo:</translation>
 <translation id="3344233834747405775">Nevažeće ime vlasnika kartice</translation>
 <translation id="3344485292736684439">{count,plural, =1{Obeleživač je sačuvan u folderu {title} na nalogu, {email}}one{Obeleživači su sačuvani u folderu {title} na nalogu, {email}}few{Obeleživači su sačuvani u folderu {title} na nalogu, {email}}other{Obeleživači su sačuvani u folderu {title} na nalogu, {email}}}</translation>
 <translation id="334690320928261823">Nedavne kartice</translation>
@@ -1661,6 +1663,7 @@ Handoff treba da se omogući u odeljku General (Opšte) u meniju Settings (Pode
 <translation id="6899890595581608884">Obaveštenja provere bezbednosti su isključena</translation>
 <translation id="6900532703269623216">Napredna zaštita</translation>
 <translation id="6900702165119149418">Odjavljeni ste</translation>
+<translation id="6903282483217634857">Pomeri udesno</translation>
 <translation id="6903907808598579934">Uključi sinhronizaciju</translation>
 <translation id="6906448540340261898">Uverite se da uvek možete da koristite lozinke na Google nalogu</translation>
 <translation id="6908734251759299256">Ažurirajte pregledač</translation>
@@ -1723,6 +1726,7 @@ Handoff treba da se omogući u odeljku General (Opšte) u meniju Settings (Pode
 <translation id="7149893636342594995">Poslednja 24 sata</translation>
 <translation id="7154417656353909837">Ukloni adrese</translation>
 <translation id="7161230316646448869">Sinhronizujte obeleživače, istoriju i drugi sadržaj na svim uređajima</translation>
+<translation id="7165323152084385463">Identifikacioni broj vozila</translation>
 <translation id="7173114856073700355">Otvori Podešavanja</translation>
 <translation id="7173721738069475737">{count,plural, =1{Obeleživač je sačuvan}one{{count} obeleživač je sačuvan}few{{count} obeleživača su sačuvana}other{{count} obeleživača je sačuvano}}</translation>
 <translation id="7176183551031110427">Umanjite</translation>
@@ -2217,6 +2221,7 @@ Handoff treba da se omogući u odeljku General (Opšte) u meniju Settings (Pode
 <translation id="8863067612494559785">Šalje se korisniku <ph name="DEVICE_NAME" />…</translation>
 <translation id="8863431381414769983">Dobijajte uputstva i lokalne informacije od Google mapa</translation>
 <translation id="8871974300055371298">Podešavanja sadržaja</translation>
+<translation id="8876661425082386199">Proverite vezu</translation>
 <translation id="8877788021141246043">Podesi podsetnik</translation>
 <translation id="8879604564928138696">Dvaput dodirnite da biste probali</translation>
 <translation id="8879952635974818770">Personalizovani sadržaj</translation>
@@ -2318,7 +2323,6 @@ Handoff treba da se omogući u odeljku General (Opšte) u meniju Settings (Pode
 <translation id="926455622548529175">Promeni i izbriši</translation>
 <translation id="929748059769569925">Istaknuti tekst</translation>
 <translation id="932305336591073205">{count,plural, =1{Zatvori karticu}one{Zatvori kartice}few{Zatvori kartice}other{Zatvori kartice}}</translation>
-<translation id="932327136139879170">Početna</translation>
 <translation id="939472100615258482">Aktuelni sajt</translation>
 <translation id="939598580284253335">Unesite pristupnu frazu</translation>
 <translation id="939736085109172342">Novi folder</translation>

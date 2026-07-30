@@ -57,12 +57,12 @@
 #include "content/public/test/fake_remote_frame.h"
 #include "content/public/test/mock_render_process_host.h"
 #include "content/public/test/scoped_web_ui_controller_factory_registration.h"
+#include "content/public/test/test_content_browser_client.h"
+#include "content/public/test/test_content_client.h"
 #include "content/public/test/test_utils.h"
 #include "content/test/mock_widget_input_handler.h"
 #include "content/test/navigation_simulator_impl.h"
 #include "content/test/render_document_feature.h"
-#include "content/test/test_content_browser_client.h"
-#include "content/test/test_content_client.h"
 #include "content/test/test_render_frame_host.h"
 #include "content/test/test_render_view_host.h"
 #include "content/test/test_render_widget_host.h"
@@ -3342,14 +3342,6 @@ TEST_P(RenderFrameHostManagerTest, SimultaneousNavigationWithTwoWebUIs2) {
 }
 
 TEST_P(RenderFrameHostManagerTest, CanCommitOrigin) {
-  if (ShouldCreateNewHostForAllFrames() &&
-      !ShouldQueueNavigationsWhenPendingCommitRFHExists()) {
-    // This test involves starting multiple navigations consecutively, which
-    // might lead to deletion of a pending commit RFH, which will crash when
-    // RenderDocument is enabled. Skip the test if so, unless navigation
-    // queueing is enabled.
-    return;
-  }
   const GURL kUrl("http://a.com/");
   const GURL kUrlBar("http://a.com/bar");
 

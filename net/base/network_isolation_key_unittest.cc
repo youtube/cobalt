@@ -133,6 +133,34 @@ TEST(NetworkIsolationKeyTest, KeyWithNonGeneralNetworkPartition) {
   EXPECT_TRUE(key4.IsTransient());
 }
 
+TEST(NetworkIsolationKeyTest, CreateEmptyWithPartition) {
+  NetworkIsolationKey key = NetworkIsolationKey::CreateEmptyWithPartition(
+      NetworkIsolationPartition::kDnsOverHttps);
+  EXPECT_TRUE(key.IsEmpty());
+  EXPECT_TRUE(key.IsTransient());
+  EXPECT_EQ(NetworkIsolationPartition::kDnsOverHttps,
+            key.GetNetworkIsolationPartition());
+  EXPECT_EQ(std::nullopt, key.ToCacheKeyString());
+  EXPECT_EQ("null null (dns over https)", key.ToDebugString());
+
+  // Create another NetworkIsolationKey with the same partition, and check that
+  // they're equal.
+  NetworkIsolationKey same_key = NetworkIsolationKey::CreateEmptyWithPartition(
+      NetworkIsolationPartition::kDnsOverHttps);
+  EXPECT_EQ(key, same_key);
+
+  // Create another NetworkIsolationKey with a different partition, and check
+  // that they're different.
+  NetworkIsolationKey other_key = NetworkIsolationKey::CreateEmptyWithPartition(
+      NetworkIsolationPartition::kFedCmUncredentialedRequests);
+  EXPECT_NE(key, other_key);
+
+  // Check that it's also different from the general case empty
+  // NetworkIsolationKey.
+  NetworkIsolationKey empty_key;
+  EXPECT_NE(key, empty_key);
+}
+
 TEST(NetworkIsolationKeyTest, OpaqueOriginKey) {
   SchemefulSite site_data = SchemefulSite(GURL(kDataUrl));
   NetworkIsolationKey key(site_data, site_data);

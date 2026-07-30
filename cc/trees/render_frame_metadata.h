@@ -9,9 +9,9 @@
 
 #include "build/build_config.h"
 #include "cc/cc_export.h"
-#include "cc/trees/tracked_element_bounds.h"
 #include "components/viz/common/quads/selection.h"
 #include "components/viz/common/surfaces/local_surface_id.h"
+#include "components/viz/common/surfaces/tracked_element_rects.h"
 #include "components/viz/common/vertical_scroll_direction.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/gfx/geometry/size.h"
@@ -123,8 +123,8 @@ class CC_EXPORT RenderFrameMetadata {
   int64_t primary_main_frame_item_sequence_number = kInvalidItemSequenceNumber;
 
   // Screen-space rectangles of tracked elements (see Element
-  // setTrackedElementRect).
-  TrackedElementBounds tracked_element_bounds;
+  // setTrackedElementSubRect).
+  viz::TrackedElementRects tracked_element_rects;
 
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
   // Used to position Android bottom bar, whose position is computed by the

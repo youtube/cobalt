@@ -171,7 +171,7 @@ void TracingControllerAndroid::StopTracing(
 }
 
 base::FilePath TracingControllerAndroid::GenerateTracingFilePath(
-    const std::string& basename) {
+    std::string_view basename) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   JNIEnv* env = base::android::AttachCurrentThread();
   ScopedJavaLocalRef<jstring> jfilename =
@@ -209,7 +209,7 @@ void TracingControllerAndroid::OnKnownCategoriesReceived(
   for (const std::string& category : categories_received)
     category_list.Append(category);
   std::string received_category_list =
-      base::WriteJson(base::Value(std::move(category_list))).value_or("");
+      base::WriteJson(category_list).value_or("");
 
   // This log is required by adb_profile_chrome.py.
   // TODO(crbug.com/40092856): Replace (users of) this with DevTools' Tracing

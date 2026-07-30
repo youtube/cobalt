@@ -518,12 +518,16 @@ DeserializeStickyPositionData(
   std::vector<cc::StickyPositionNodeData> sticky_position_node_data;
   sticky_position_node_data.reserve(wire_data.size());
   for (auto& wire : wire_data) {
-    if (!IsPropertyTreeIndexValid(trees.scroll_tree(), wire->scroll_ancestor)) {
+    if (!IsPropertyTreeIndexValid(trees.scroll_tree(),
+                                  wire->x_scroll_ancestor) &&
+        !IsPropertyTreeIndexValid(trees.scroll_tree(),
+                                  wire->y_scroll_ancestor)) {
       return base::unexpected("Invalid scroll ancestor ID");
     }
 
     cc::StickyPositionNodeData& data = sticky_position_node_data.emplace_back();
-    data.scroll_ancestor = wire->scroll_ancestor;
+    data.x_scroll_ancestor = wire->x_scroll_ancestor;
+    data.y_scroll_ancestor = wire->y_scroll_ancestor;
     data.constraints.is_anchored_left = wire->is_anchored_left;
     data.constraints.is_anchored_right = wire->is_anchored_right;
     data.constraints.is_anchored_top = wire->is_anchored_top;
@@ -1617,7 +1621,9 @@ void LayerContextImpl::SetNeedsPrepareTilesOnImplThread() {
   NOTREACHED();
 }
 
-void LayerContextImpl::SetNeedsCommitOnImplThread(bool urgent) {}
+void LayerContextImpl::SetNeedsCommitOnImplThread(bool urgent) {
+  NOTREACHED();
+}
 
 void LayerContextImpl::SetVideoNeedsBeginFrames(bool needs_begin_frames) {}
 void LayerContextImpl::DidChangeBeginFrameSourcePaused(bool paused) {}
@@ -1890,9 +1896,6 @@ base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTree(
   }
   host_impl_->set_current_local_surface_id_from_client(
       update->current_local_surface_id);
-  if (update->target_local_surface_id) {
-    host_impl_->SetTargetLocalSurfaceId(*update->target_local_surface_id);
-  }
 
   RETURN_IF_FALSE(update->next_frame_token > 0, "invalid frame token");
   host_impl_->set_next_frame_token_from_client(update->next_frame_token);
@@ -1997,6 +2000,9 @@ base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTree(
       std::clamp(update->browser_controls_params.bottom_controls_min_height,
                  0.f, update->browser_controls_params.bottom_controls_height);
   layers.SetBrowserControlsParams(update->browser_controls_params);
+  DUMP_WILL_BE_CHECK_EQ(
+      update->browser_controls_shrink_blink_size,
+      update->browser_controls_params.browser_controls_shrink_blink_size);
   host_impl_->browser_controls_manager()->SetOffsetTagModifications(
       update->browser_controls_offset_tag_modifications);
 
@@ -2192,6 +2198,11 @@ void LayerContextImpl::UpdateDisplayTiling(mojom::TilingPtr tiling) {
   }
 }
 
+void LayerContextImpl::SetTargetLocalSurfaceId(
+    const LocalSurfaceId& target_local_surface_id) {
+  host_impl_->SetTargetLocalSurfaceId(target_local_surface_id);
+}
+
 base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTiling(
     mojom::TilingPtr tiling) {
   cc::LayerTreeImpl& layers = *host_impl_->active_tree();
@@ -2204,6 +2215,15 @@ base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTiling(
                              static_cast<cc::TileDisplayLayerImpl&>(*layer),
                              *tiling);
   }
+  return base::ok();
+}
+
+base::expected<void, std::string> LayerContextImpl::DoSetTargetLocalSurfaceId(
+    const LocalSurfaceId& target_local_surface_id) {
+  if (!target_local_surface_id.is_valid()) {
+    return base::unexpected("Invalid target_local_surface_id");
+  }
+  SetTargetLocalSurfaceId(target_local_surface_id);
   return base::ok();
 }
 

@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "base/test/gmock_callback_support.h"
 #include "base/test/metrics/user_action_tester.h"
 #include "build/build_config.h"
 #include "chrome/browser/ui/autofill/autofill_popup_controller.h"
@@ -15,6 +16,7 @@
 #include "components/autofill/core/browser/country_type.h"
 #include "components/autofill/core/browser/payments/constants.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
+#include "components/autofill/core/browser/suggestions/suggestion_hiding_reason.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/browser/ui/popup_interaction.h"
 #include "components/autofill/core/browser/ui/suggestion_button_action.h"
@@ -321,10 +323,11 @@ TEST_F(AutofillPopupControllerImplTest,
       client().suggestion_controller(manager()).OpenSubPopup(
           {0, 0, 10, 10}, {}, AutoselectFirstSuggestion(false));
 
-  EXPECT_CALL(manager().external_delegate(), OnSuggestionsHidden()).Times(0);
+  EXPECT_CALL(manager().external_delegate(), OnSuggestionsHidden).Times(0);
   sub_controller->Hide(SuggestionHidingReason::kUserAborted);
 
-  EXPECT_CALL(manager().external_delegate(), OnSuggestionsHidden());
+  EXPECT_CALL(manager().external_delegate(),
+              OnSuggestionsHidden(SuggestionHidingReason::kUserAborted));
   client().suggestion_controller(manager()).Hide(
       SuggestionHidingReason::kUserAborted);
 }
@@ -561,6 +564,10 @@ TEST_F(AutofillPopupControllerImplTest, AtMemoryShowsSearchBarAndNoFiltering) {
 
   EXPECT_EQ(controller.GetMainFillingProduct(), FillingProduct::kAtMemory);
 
+  EXPECT_CALL(*client().accessibility_query_service(), Query)
+      .WillOnce(base::test::RunOnceCallback<
+                1>(accessibility_annotator::MemorySearchResults(
+          accessibility_annotator::MemorySearchStatus::kFinalResponseSuccess)));
   controller.SetFilter(AutofillPopupController::StringFilter(u"nono"));
   EXPECT_EQ(controller.GetSuggestions().size(), 0u);
 }
@@ -756,6 +763,16 @@ TEST_F(AutofillPopupControllerImplTest, AtMemory_FilterWithResults_NoMessage) {
   suggestion.filtration_policy = Suggestion::FiltrationPolicy::kStatic;
   ShowSuggestions(manager(), {suggestion},
                   AutofillSuggestionTriggerSource::kAtMemory);
+
+  accessibility_annotator::MemorySearchResult entry(
+      accessibility_annotator::QueryIntentType::kNameFull, u"Name", u"result");
+  accessibility_annotator::MemorySearchResults result(
+      accessibility_annotator::MemorySearchStatus::kFinalResponseSuccess,
+      {entry});
+
+  EXPECT_CALL(*client().accessibility_query_service(), Query)
+      .WillOnce(base::test::RunOnceCallback<1>(result));
+
   client().suggestion_controller(manager()).SetFilter(
       AutofillPopupController::StringFilter(u"res"));
   EXPECT_FALSE(client().suggestion_controller(manager())
@@ -765,6 +782,12 @@ TEST_F(AutofillPopupControllerImplTest, AtMemory_FilterWithResults_NoMessage) {
 TEST_F(AutofillPopupControllerImplTest, AtMemory_FilterWithNoResults_ShowMessage) {
   ShowSuggestions(manager(), std::vector<SuggestionType>{},
                   AutofillSuggestionTriggerSource::kAtMemory);
+
+  EXPECT_CALL(*client().accessibility_query_service(), Query)
+      .WillOnce(base::test::RunOnceCallback<
+                1>(accessibility_annotator::MemorySearchResults(
+          accessibility_annotator::MemorySearchStatus::kFinalResponseSuccess)));
+
   client().suggestion_controller(manager()).SetFilter(
       AutofillPopupController::StringFilter(u"abc"));
   // In the mock/test environment, we ensure GetSuggestions() is empty.

@@ -370,9 +370,9 @@ suite('AppearanceHandler', function() {
     await microtasksFinished();
     assertTrue(
         !!appearancePage.shadowRoot!.querySelector('#splitViewDragAndDrop'));
-    assertFalse(!!appearancePage.shadowRoot!
-                      .querySelector<SettingsToggleButtonElement>(
-                          '#splitViewDragAndDrop')!.hidden);
+    assertFalse(appearancePage.shadowRoot!
+                    .querySelector<SettingsToggleButtonElement>(
+                        '#splitViewDragAndDrop')!.hidden);
   });
 
   test('split view drag and drop toggle updates pref', async function() {
@@ -396,6 +396,26 @@ suite('AppearanceHandler', function() {
     await microtasksFinished();
     assertFalse(appearancePage.get(
         'prefs.browser.split_view_drag_and_drop_enabled.value'));
+  });
+
+  test('ShowSavedTabGroupsHiddenWithProjectsPanel', async function() {
+    loadTimeData.overrideValues({
+      showProjectsPanelEnabled: true,
+    });
+    createAppearancePage();
+    await microtasksFinished();
+
+    const toggle =
+        appearancePage.shadowRoot!.querySelector<SettingsToggleButtonElement>(
+            '#showSavedTabGroups');
+    assertTrue(!!toggle);
+    assertTrue(toggle.hidden);
+
+    const autoPinToggle =
+        appearancePage.shadowRoot!.querySelector<SettingsToggleButtonElement>(
+            '#autoPinNewTabGroups');
+    assertTrue(!!autoPinToggle);
+    assertTrue(autoPinToggle.hidden);
   });
 });
 

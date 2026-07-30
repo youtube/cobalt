@@ -48,7 +48,6 @@ extern const char kAppId[];
 extern const char kAppLaunchUrlForShortcutsMenuItem[];
 extern const char kAppRunOnOsLoginMode[];
 extern const char kAppShim[];
-extern const char kAppsGalleryDownloadURL[];
 extern const char kAppsGalleryUpdateURL[];
 extern const char kAuthServerAllowlist[];
 extern const char kAutoOpenDevToolsForTabs[];
@@ -194,6 +193,7 @@ extern const char kTabCaptureAudioDefaultUnchecked[];
 extern const char kThisTabCaptureAutoAccept[];
 extern const char kThisTabCaptureAutoReject[];
 extern const char kTestMemoryLogDelayInMinutes[];
+extern const char kTestName[];
 extern const char kTrustedDownloadSources[];
 extern const char kUnlimitedStorage[];
 extern const char kUnsafelyDisableDevToolsSelfXssWarnings[];
@@ -232,6 +232,7 @@ extern const char kCastMirroringTargetPlayoutDelay[];
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
+extern const char kCroshCommand[];
 extern const char kDisableLoggingRedirect[];
 extern const char kDisableLoginScreenApps[];
 extern const char kShortMergeSessionTimeoutForTest[];
@@ -298,8 +299,6 @@ extern const char kGlicSkipReloadAfterNavigation[];
 extern const char kGlicHostLogging[];
 extern const char kGlicAdminRedirectPatterns[];
 extern const char kGlicAlwaysShowWebActuationToggle[];
-extern const char kGlicResetMultiInstanceEnabledByTier[];
-extern const char kGlicForceG1StatusForMultiInstance[];
 extern const char kGlicGuestUrlPresetAutopush[];
 extern const char kGlicGuestUrlPresetStaging[];
 extern const char kGlicGuestUrlPresetPreprod[];

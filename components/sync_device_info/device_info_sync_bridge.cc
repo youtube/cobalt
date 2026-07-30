@@ -86,9 +86,10 @@ std::optional<DeviceInfo::SharingInfo> SpecificsToSharingInfo(
     return std::nullopt;
   }
 
-  std::set<SharingSpecificFields::EnabledFeatures> enabled_features;
+  std::set<DeviceInfo::SharingFeature> enabled_features;
   for (int i = 0; i < specifics.sharing_fields().enabled_features_size(); ++i) {
-    enabled_features.insert(specifics.sharing_fields().enabled_features(i));
+    enabled_features.insert(ToDeviceInfoSharingFeature(
+        specifics.sharing_fields().enabled_features(i)));
   }
   return DeviceInfo::SharingInfo(
       {specifics.sharing_fields().sender_id_fcm_token_v2(),
@@ -129,6 +130,20 @@ SpecificsToPhoneAsASecurityKeyInfo(const DeviceInfoSpecifics& specifics) {
                      to.peer_public_key_x962.size()));
 
   return to;
+}
+
+MobilePromoOnDesktopPromoTypeSet SpecificsToDesktopToIOSPromoReceivingTypes(
+    const DeviceInfoSpecifics& specifics) {
+  MobilePromoOnDesktopPromoTypeSet types;
+  for (const auto& type_int :
+       specifics.feature_fields().desktop_to_ios_promo_receiving_types()) {
+    auto type = static_cast<MobilePromoOnDesktopPromoType>(type_int);
+    if (type >= MobilePromoOnDesktopPromoType::kMinValue &&
+        type <= MobilePromoOnDesktopPromoType::kMaxValue) {
+      types.Put(type);
+    }
+  }
+  return types;
 }
 
 std::optional<base::Time> SpecificsToAutoSignOutLastSigninTimestamp(
@@ -173,20 +188,23 @@ DeviceInfo SpecificsToModel(const DeviceInfoSpecifics& specifics) {
   return DeviceInfo(
       specifics.cache_guid(), specifics.client_name(),
       GetVersionNumberFromSpecifics(specifics), specifics.sync_user_agent(),
-      specifics.device_type(), os_type, device_form_factor,
-      specifics.signin_scoped_device_id(), specifics.manufacturer(),
-      specifics.model(), specifics.full_hardware_class(),
+      ToDeviceInfoDeviceType(specifics.device_type()), os_type,
+      device_form_factor, specifics.signin_scoped_device_id(),
+      specifics.manufacturer(), specifics.model(),
+      specifics.full_hardware_class(),
       ProtoTimeToTime(specifics.last_updated_timestamp()),
       GetPulseIntervalFromSpecifics(specifics),
       specifics.feature_fields().send_tab_to_self_receiving_enabled(),
-      specifics.feature_fields().send_tab_to_self_receiving_type(),
+      ToDeviceInfoSendTabReceivingType(
+          specifics.feature_fields().send_tab_to_self_receiving_type()),
       SpecificsToSharingInfo(specifics),
       SpecificsToPhoneAsASecurityKeyInfo(specifics),
       specifics.invalidation_fields().instance_id_token(),
       GetDataTypeSetFromSpecificsFieldNumberList(
           specifics.invalidation_fields().interested_data_type_ids()),
       SpecificsToAutoSignOutLastSigninTimestamp(specifics),
-      specifics.feature_fields().desktop_to_ios_promo_receiving_enabled());
+      specifics.feature_fields().desktop_to_ios_promo_receiving_enabled(),
+      SpecificsToDesktopToIOSPromoReceivingTypes(specifics));
 }
 
 // Allocate a EntityData and copies |specifics| into it.
@@ -221,7 +239,7 @@ std::unique_ptr<DeviceInfoSpecifics> MakeLocalDeviceSpecifics(
   specifics->mutable_chrome_version_info()->set_version_number(
       info.chrome_version());
   specifics->set_sync_user_agent(info.sync_user_agent());
-  specifics->set_device_type(info.device_type());
+  specifics->set_device_type(ToDeviceTypeProto(info.device_type()));
   specifics->set_os_type(ToOsTypeProto(info.os_type()));
   specifics->set_device_form_factor(
       ToDeviceFormFactorProto(info.form_factor()));
@@ -244,9 +262,24 @@ std::unique_ptr<DeviceInfoSpecifics> MakeLocalDeviceSpecifics(
   feature_fields->set_send_tab_to_self_receiving_enabled(
       info.send_tab_to_self_receiving_enabled());
   feature_fields->set_send_tab_to_self_receiving_type(
-      info.send_tab_to_self_receiving_type());
-  feature_fields->set_desktop_to_ios_promo_receiving_enabled(
-      info.desktop_to_ios_promo_receiving_enabled());
+      ToSendTabReceivingTypeProto(info.send_tab_to_self_receiving_type()));
+
+  // The `desktop_to_ios_promo_receiving_enabled` boolean is a legacy field.
+  // Older Desktop clients (e.g. M145) only check this boolean and assume it
+  // applies to the original promos (ESB and Autofill/Passwords).
+  // To avoid breaking the feature on old Desktop clients, we set this legacy
+  // boolean to true if any of those original promos (or kAllPromos) are
+  // enabled.
+  bool legacy_enabled = info.desktop_to_ios_promo_receiving_enabled() ||
+                        info.desktop_to_ios_promo_receiving_types().HasAny(
+                            {MobilePromoOnDesktopPromoType::kAllPromos,
+                             MobilePromoOnDesktopPromoType::kAutofillPromo,
+                             MobilePromoOnDesktopPromoType::kESBPromo});
+  feature_fields->set_desktop_to_ios_promo_receiving_enabled(legacy_enabled);
+  for (const auto type : info.desktop_to_ios_promo_receiving_types()) {
+    feature_fields->add_desktop_to_ios_promo_receiving_types(
+        static_cast<sync_pb::SyncEnums_MobilePromoOnDesktopPromoType>(type));
+  }
   if (info.auto_sign_out_last_signin_timestamp().has_value()) {
     feature_fields
         ->set_auto_sign_out_last_signin_timestamp_windows_epoch_micros(
@@ -267,9 +300,8 @@ std::unique_ptr<DeviceInfoSpecifics> MakeLocalDeviceSpecifics(
         sharing_info->sender_id_target_info.auth_secret);
     sharing_fields->set_chime_representative_target_id(
         sharing_info->chime_representative_target_id);
-    for (sync_pb::SharingSpecificFields::EnabledFeatures feature :
-         sharing_info->enabled_features) {
-      sharing_fields->add_enabled_features(feature);
+    for (DeviceInfo::SharingFeature feature : sharing_info->enabled_features) {
+      sharing_fields->add_enabled_features(ToSharingFeatureProto(feature));
     }
   }
 
@@ -327,6 +359,8 @@ bool StoredDeviceInfoStillAccurate(const DeviceInfo* stored,
              stored->send_tab_to_self_receiving_type() &&
          current->desktop_to_ios_promo_receiving_enabled() ==
              stored->desktop_to_ios_promo_receiving_enabled() &&
+         current->desktop_to_ios_promo_receiving_types() ==
+             stored->desktop_to_ios_promo_receiving_types() &&
          current->sharing_info() == stored->sharing_info() &&
          ArePaaskInfosEqual(current->paask_info(), stored->paask_info()) &&
          current->fcm_registration_token() ==
@@ -449,7 +483,8 @@ std::optional<ModelError> DeviceInfoSyncBridge::MergeFullSyncData(
       local_device_name_info_.full_hardware_class,
       /*device_info_restored_from_store=*/nullptr);
 
-  std::unique_ptr<WriteBatch> batch = store_->CreateWriteBatch();
+  std::unique_ptr<WriteBatch> batch =
+      store_->CreateWriteBatch(std::move(metadata_change_list));
   for (const auto& change : entity_data) {
     const DeviceInfoSpecifics& specifics =
         change->data().specifics.device_info();
@@ -464,7 +499,6 @@ std::optional<ModelError> DeviceInfoSyncBridge::MergeFullSyncData(
     StoreSpecifics(specifics, batch.get());
   }
 
-  batch->TakeMetadataChangesFrom(std::move(metadata_change_list));
   // Complete batch with local data and commit.
   SendLocalDataWithBatch(std::move(batch));
   return std::nullopt;
@@ -475,7 +509,8 @@ std::optional<ModelError> DeviceInfoSyncBridge::ApplyIncrementalSyncChanges(
     EntityChangeList entity_changes) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(!local_cache_guid_.empty());
-  std::unique_ptr<WriteBatch> batch = store_->CreateWriteBatch();
+  std::unique_ptr<WriteBatch> batch =
+      store_->CreateWriteBatch(std::move(metadata_change_list));
   bool has_changes = false;
   bool has_tombstone_for_local_device = false;
   for (const std::unique_ptr<EntityChange>& change : entity_changes) {
@@ -505,7 +540,6 @@ std::optional<ModelError> DeviceInfoSyncBridge::ApplyIncrementalSyncChanges(
     }
   }
 
-  batch->TakeMetadataChangesFrom(std::move(metadata_change_list));
   CommitAndNotify(std::move(batch), has_changes);
 
   if (!change_processor()->IsEntityUnsynced(local_cache_guid_)) {

@@ -480,6 +480,7 @@
 <translation id="2691653761409724435">Indisponible hors ligne</translation>
 <translation id="2697530870203420261">Pseudo non valide</translation>
 <translation id="269819437389494246">Vous pouvez voir les pages que vous avez visitées ou les supprimer de votre historique</translation>
+<translation id="2704295676501803339">Déplacer vers la gauche</translation>
 <translation id="2704606927547763573">Copié</translation>
 <translation id="2708051474374549906">Une protection proactive en temps réel contre les sites, les extensions et les téléchargements dangereux, basée sur les données de navigation envoyées à Google</translation>
 <translation id="2709516037105925701">Remplissage automatique</translation>
@@ -1228,7 +1229,7 @@
 <translation id="5443636120437209490">Une meilleure navigation par défaut</translation>
 <translation id="5444892875087332195">Favoris</translation>
 <translation id="5447973833955560753">Mot de passe de récupération</translation>
-<translation id="5452354193031718372">Utilisez un mot de passe fort :</translation>
+<translation id="5452354193031718372">Utiliser un mot de passe fort :</translation>
 <translation id="5454211924362324495">Pour empêcher d'autres personnes d'utiliser votre mot de passe, <ph name="BEGIN_LINK" />modifiez-le sur <ph name="WEBSITE" /><ph name="END_LINK" /></translation>
 <translation id="5457082343331641453">Ajouter à votre recherche</translation>
 <translation id="5457226814769348910">Ouvrir la version hors ligne</translation>
@@ -1662,6 +1663,7 @@ La fonction de transfert doit également être activée dans la section Généra
 <translation id="6899890595581608884">Les notifications de Vérification de sécurité sont désactivées</translation>
 <translation id="6900532703269623216">Protection renforcée</translation>
 <translation id="6900702165119149418">Vous êtes déconnecté</translation>
+<translation id="6903282483217634857">Déplacer le curseur vers la droite</translation>
 <translation id="6903907808598579934">Activer la synchronisation</translation>
 <translation id="6906448540340261898">S'assurer de toujours pouvoir utiliser les mots de passe dans votre compte Google</translation>
 <translation id="6908734251759299256">Mettre à jour votre navigateur</translation>
@@ -1724,6 +1726,7 @@ La fonction de transfert doit également être activée dans la section Généra
 <translation id="7149893636342594995">24 dernières heures</translation>
 <translation id="7154417656353909837">Retirer les adresses</translation>
 <translation id="7161230316646448869">Synchroniser vos favoris, votre historique et plus encore sur tous vos appareils</translation>
+<translation id="7165323152084385463">NIV</translation>
 <translation id="7173114856073700355">Ouvrir les paramètres</translation>
 <translation id="7173721738069475737">{count,plural, =1{Favori enregistré}one{{count} favori enregistré}other{{count} favoris enregistrés}}</translation>
 <translation id="7176183551031110427">Dézoomer</translation>
@@ -1896,7 +1899,7 @@ La fonction de transfert doit également être activée dans la section Généra
 <translation id="7791543448312431591">Ajouter</translation>
 <translation id="7795253248079882669">Touchez <ph name="BEGIN_BOLD" />Exporter<ph name="END_BOLD" /></translation>
 <translation id="7801064017114765401">Ordinateurs</translation>
-<translation id="7802239711290932774">Utilisez le mot de passe suggéré :</translation>
+<translation id="7802239711290932774">Utiliser le mot de passe suggéré :</translation>
 <translation id="780301667611848630">Non merci</translation>
 <translation id="7807060072011926525">Fourni par Google</translation>
 <translation id="7812377703891978671">Vous pouvez accéder à tout votre historique de navigation en sélectionnant <ph name="HISTORY_BUTTON_ACCESSIBILITY_LABEL" />.</translation>
@@ -2218,6 +2221,7 @@ La fonction de transfert doit également être activée dans la section Généra
 <translation id="8863067612494559785">Envoi à <ph name="DEVICE_NAME" /> en cours…</translation>
 <translation id="8863431381414769983">Obtenez des itinéraires et des informations locales à partir de Google Maps</translation>
 <translation id="8871974300055371298">Paramètres de contenu</translation>
+<translation id="8876661425082386199">Vérifiez votre connexion</translation>
 <translation id="8877788021141246043">Créer un rappel</translation>
 <translation id="8879604564928138696">Touchez deux fois pour essayer</translation>
 <translation id="8879952635974818770">Contenu personnalisé</translation>
@@ -2319,7 +2323,6 @@ La fonction de transfert doit également être activée dans la section Généra
 <translation id="926455622548529175">Changer et supprimer</translation>
 <translation id="929748059769569925">Texte mis en évidence</translation>
 <translation id="932305336591073205">{count,plural, =1{Fermer l'onglet}one{Fermer l'onglet}other{Fermer les onglets}}</translation>
-<translation id="932327136139879170">Accueil</translation>
 <translation id="939472100615258482">Site actuel</translation>
 <translation id="939598580284253335">Entrer la phrase de passe</translation>
 <translation id="939736085109172342">Nouveau dossier</translation>

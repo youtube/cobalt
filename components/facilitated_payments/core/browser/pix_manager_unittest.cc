@@ -804,6 +804,40 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
 }
 
 TEST_P(PixManagerTestWithAccountLinkingEnabled,
+       OnPixCodeCopiedToClipboard_FlowAlreadyStartedLogged) {
+  base::HistogramTester histogram_tester;
+  payments_data_manager_->AddMaskedBankAccountForTest(
+      CreatePixBankAccount(/*instrument_id=*/1));
+  GURL main_frame_url("https://example.com");
+  url::Origin origin = url::Origin::Create(main_frame_url);
+  EXPECT_CALL(
+      *optimization_guide_decider_,
+      CanApplyOptimization(
+          testing::Eq(main_frame_url),
+          testing::Eq(
+              optimization_guide::proto::PIX_MERCHANT_ORIGINS_ALLOWLIST),
+          testing::Matcher<optimization_guide::OptimizationMetadata*>(
+              testing::Eq(nullptr))))
+      .WillOnce(testing::Return(
+          optimization_guide::OptimizationGuideDecision::kTrue));
+
+  pix_manager_->OnPixCodeCopiedToClipboard(
+      main_frame_url, std::nullopt, origin,
+      PixCodeRustValidationResult::kDynamic,
+      "00020126370014br.gov.bcb.pix2515www.example.com6304EA3F",
+      ukm::UkmRecorder::GetNewSourceID());
+  pix_manager_->OnPixCodeCopiedToClipboard(
+      main_frame_url, std::nullopt, origin,
+      PixCodeRustValidationResult::kDynamic,
+      "00020126370014br.gov.bcb.pix2515www.example.com6304EA3F",
+      ukm::UkmRecorder::GetNewSourceID());
+
+  histogram_tester.ExpectBucketCount(
+      "FacilitatedPayments.Pix.PayflowExitedReason",
+      PixFlowExitedReason::kFlowAlreadyStarted, 1);
+}
+
+TEST_P(PixManagerTestWithAccountLinkingEnabled,
        IsIframeStateUpdatedOnConsecutiveCalls) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndEnableFeature(kEnableIframeForPix);
@@ -1653,7 +1687,9 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
 }
 
 TEST_P(PixManagerTestWithAccountLinkingEnabled,
-       ChromeCustomTabWithGboardAsDefaultIme_PixFlowNotTriggered) {
+       ChromeCustomTabWithGboardAsDefaultIme_FlagDisabled_PixFlowNotTriggered) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(kEnablePixInCct);
   ON_CALL(*client_, IsInChromeCustomTabMode())
       .WillByDefault(testing::Return(true));
   ON_CALL(*client_, GetDeviceDelegate)
@@ -1676,7 +1712,34 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
 }
 
 TEST_P(PixManagerTestWithAccountLinkingEnabled,
-       ChromeCustomTabWithGboardNotAsDefaultIme_PixFlowTriggered) {
+       PixCodeCopiedInChromeCustomTab_PixFlowTriggered) {
+  base::test::ScopedFeatureList feature_list{kEnablePixInCct};
+  ON_CALL(*client_, IsInChromeCustomTabMode())
+      .WillByDefault(testing::Return(true));
+  ON_CALL(*client_, GetDeviceDelegate)
+      .WillByDefault(testing::Return(mock_device_delegate_.get()));
+  ON_CALL(*mock_device_delegate_, IsPixSupportAvailableViaGboard)
+      .WillByDefault(testing::Return(true));
+  base::HistogramTester histogram_tester;
+  payments_data_manager_->AddMaskedBankAccountForTest(
+      CreatePixBankAccount(/*instrument_id=*/1));
+  EXPECT_CALL(GetApiClient(), IsAvailable(testing::_));
+
+  test_api(*pix_manager_)
+      .OnPixCodeValidated(PixCodeRustValidationResult::kDynamic,
+                          /*pix_code=*/std::string(), base::TimeTicks::Now(),
+                          /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
+
+  histogram_tester.ExpectUniqueSample(
+      "FacilitatedPayments.Pix.PayflowExitedReason",
+      /*sample=*/PixFlowExitedReason::kCctWithGboardAsDefaultIme,
+      /*expected_bucket_count=*/0);
+}
+
+TEST_P(PixManagerTestWithAccountLinkingEnabled,
+       ChromeCustomTabWithGboardNotAsDefaultIme_FlagDisabled_PixFlowTriggered) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(kEnablePixInCct);
   ON_CALL(*client_, IsInChromeCustomTabMode())
       .WillByDefault(testing::Return(true));
   ON_CALL(*client_, GetDeviceDelegate)

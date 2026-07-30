@@ -346,6 +346,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
       mojo::PendingReceiver<mojom::RestrictedUDPSocket> receiver,
       mojo::PendingRemote<mojom::UDPSocketListener> listener,
       bool allow_multicast,
+      bool allow_source_specific_multicast,
       mojom::NetworkContext::CreateRestrictedUDPSocketCallback callback)
       override;
   void CreateTCPServerSocket(
@@ -393,7 +394,8 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
           url_loader_network_observer,
       mojo::PendingRemote<mojom::WebSocketAuthenticationHandler> auth_handler,
       mojo::PendingRemote<mojom::TrustedHeaderClient> header_client,
-      const std::optional<base::UnguessableToken>& throttling_profile_id)
+      const std::optional<base::UnguessableToken>& throttling_profile_id,
+      const std::optional<base::UnguessableToken>& network_restrictions_id)
       override;
   void CreateWebTransport(
       const GURL& url,
@@ -1067,12 +1069,29 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
   scoped_refptr<MojoBackendFileOperationsFactory>
       http_cache_file_operations_factory_;
 
-  // New nonces are inserted by `RevokeNetworkForNonce`,
-  // and membership is checked with `IsNetworkForNonceAndUrlAllowed`.
+  // `NetworkRestriction` objects hold a set of enforced and report-only
+  // URLPatterns to which a given initiator is allowed to connect, along
+  // with reporting metadata for each.
+  //
+  // Initiators are identified via a nonce, inserted via
+  // `RevokeNetworkForNonce`. The relevant allowlists for a given nonce are
+  // checked in `IsNetworkForNonceAndUrlAllowed`.
+  //
   // For details on use cases, please see RevokeNetworkForNonces in
   // `interface NetworkContext` in network_context.mojom.
-  std::map<base::UnguessableToken,
-           std::set<std::unique_ptr<url_pattern::SimpleUrlPatternMatcher>>>
+  struct NetworkRestriction {
+    NetworkRestriction();
+    NetworkRestriction(NetworkRestriction&&);
+    NetworkRestriction& operator=(NetworkRestriction&&);
+    ~NetworkRestriction();
+    std::set<std::unique_ptr<url_pattern::SimpleUrlPatternMatcher>>
+        enforced_allowlisted_patterns;
+    std::optional<std::string> enforced_reporting_endpoint;
+    std::set<std::unique_ptr<url_pattern::SimpleUrlPatternMatcher>>
+        report_only_allowlisted_patterns;
+    std::optional<std::string> report_only_reporting_endpoint;
+  };
+  std::map<base::UnguessableToken, NetworkRestriction>
       network_revocation_nonces_;
 
   // A data structure that tracks urls that should be exempted from network

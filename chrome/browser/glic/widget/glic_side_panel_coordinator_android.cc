@@ -9,18 +9,11 @@
 #include "base/functional/bind.h"
 #include "base/rand_util.h"
 #include "chrome/browser/android/tab_android.h"
-#include "chrome/browser/context_sharing/tab_bottom_sheet/android/jni_headers/CoBrowseViewFactory_jni.h"
-#include "chrome/browser/context_sharing/tab_bottom_sheet/android/jni_headers/CoBrowseViews_jni.h"
-#include "chrome/browser/context_sharing/tab_bottom_sheet/android/jni_headers/TabBottomSheetNativeInterface_jni.h"
+#include "chrome/browser/context_sharing/tab_bottom_sheet/android/tab_bottom_sheet_bridge.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
-#include "ui/android/window_android.h"
-
-using base::android::AttachCurrentThread;
 
 namespace glic {
-
-DEFINE_JNI(TabBottomSheetNativeInterface)
 
 GlicSidePanelCoordinatorAndroid::GlicSidePanelCoordinatorAndroid(
     tabs::TabInterface* tab)
@@ -32,27 +25,25 @@ GlicSidePanelCoordinatorAndroid::GlicSidePanelCoordinatorAndroid(
       base::BindRepeating(&GlicSidePanelCoordinatorAndroid::OnTabWillDeactivate,
                           base::Unretained(this)));
 
-  JNIEnv* env = AttachCurrentThread();
-  java_interface_.Reset(Java_TabBottomSheetNativeInterface_Constructor(
-      env, reinterpret_cast<intptr_t>(this), GetTabAndroid()->GetJavaObject()));
+  bridge_ = std::make_unique<context_sharing::TabBottomSheetBridge>(this, tab);
 }
 
-GlicSidePanelCoordinatorAndroid::~GlicSidePanelCoordinatorAndroid() {
-  if (co_browse_views_) {
-    Java_CoBrowseViews_setWebContents(AttachCurrentThread(), co_browse_views_,
-                                      nullptr);
-  }
-  Java_TabBottomSheetNativeInterface_destroy(AttachCurrentThread(),
-                                             java_interface_);
-}
+GlicSidePanelCoordinatorAndroid::~GlicSidePanelCoordinatorAndroid() = default;
 
 void GlicSidePanelCoordinatorAndroid::Show(bool suppress_animations) {
-  Show(suppress_animations, /* startsExpanded= */ true);
+  Show(suppress_animations,
+       /* starts_expanded= */ pending_starts_expanded_state_);
 }
 
 void GlicSidePanelCoordinatorAndroid::Show(bool suppress_animations,
-                                           bool startsExpanded) {
+                                           bool starts_expanded) {
   if (IsShowing()) {
+    return;
+  }
+
+  if (!web_contents_) {
+    SetState(State::kBackgrounded);
+    pending_starts_expanded_state_ = starts_expanded;
     return;
   }
 
@@ -60,39 +51,30 @@ void GlicSidePanelCoordinatorAndroid::Show(bool suppress_animations,
     SetState(State::kBackgrounded);
     return;
   }
-  Java_TabBottomSheetNativeInterface_show(
-      AttachCurrentThread(), java_interface_, co_browse_views_, startsExpanded);
-  SetState(State::kShown);
+
+  bridge_->SetWebContents(web_contents_.get());
+  bool shown = bridge_->Show(!suppress_animations, starts_expanded);
+  pending_starts_expanded_state_ = true;
+  if (shown) {
+    SetState(State::kShown);
+  } else {
+    // If the sheet failed to show (e.g. due to being suppressed by a
+    // TokenHolder, or placed in a queue behind a higher priority sheet), the
+    // Java layer will NOT fire the onBottomSheetClosed callback. We must
+    // immediately transition to closed so we don't leak state and deadlock
+    // future Close() calls.
+    SetState(State::kClosed);
+  }
 }
 
 void GlicSidePanelCoordinatorAndroid::SetWebContents(
     content::WebContents* web_contents) {
-  if (!web_contents) {
-    last_web_contents_.reset();
-    co_browse_views_.Reset();
-    return;
+  if (web_contents) {
+    web_contents_ = web_contents->GetWeakPtr();
+  } else {
+    web_contents_.reset();
   }
-  TabAndroid* tab_android = GetTabAndroid();
-  if (!tab_android) {
-    return;
-  }
-  ui::WindowAndroid* window_android =
-      tab_android->GetContents()->GetTopLevelNativeWindow();
-  if (!window_android) {
-    return;
-  }
-
-  if (last_web_contents_ && last_web_contents_.get() == web_contents) {
-    // The web contents didn't change, so we don't need to do anything.
-    return;
-  }
-
-  last_web_contents_ = web_contents->GetWeakPtr();
-  JNIEnv* env = base::android::AttachCurrentThread();
-  // Call Factory to get CoBrowseViews and save it
-  co_browse_views_.Reset(Java_CoBrowseViewFactory_getCoBrowseViews(
-      env, window_android->GetJavaObject(),
-      web_contents->GetJavaWebContents()));
+  bridge_->SetWebContents(web_contents);
 }
 
 void GlicSidePanelCoordinatorAndroid::Close(const CloseOptions& options) {
@@ -100,13 +82,12 @@ void GlicSidePanelCoordinatorAndroid::Close(const CloseOptions& options) {
     return;
   }
 
-  if (co_browse_views_) {
-    Java_CoBrowseViews_setWebContents(AttachCurrentThread(), co_browse_views_,
-                                      nullptr);
+  if (state_ == State::kBackgrounded) {
+    SetState(State::kClosed);
+    return;
   }
 
-  Java_TabBottomSheetNativeInterface_close(AttachCurrentThread(),
-                                           java_interface_);
+  bridge_->Close();
 }
 
 bool GlicSidePanelCoordinatorAndroid::IsShowing() const {
@@ -146,7 +127,7 @@ void GlicSidePanelCoordinatorAndroid::OnTabDidActivate(
   }
 
   // If we are not closed (e.g. backgrounded), show the panel in peek state.
-  Show(/*suppress_animations=*/true, /* startsExpanded= */ false);
+  Show(/*suppress_animations=*/true, /* starts_expanded= */ false);
 }
 
 void GlicSidePanelCoordinatorAndroid::OnTabWillDeactivate(
@@ -155,14 +136,15 @@ void GlicSidePanelCoordinatorAndroid::OnTabWillDeactivate(
     return;
   }
   SetState(State::kBackgrounded);
+
+  bridge_->Close();
 }
 
-void GlicSidePanelCoordinatorAndroid::OnClose(JNIEnv* env) {
+void GlicSidePanelCoordinatorAndroid::OnClose() {
+  if (state_ == State::kBackgrounded) {
+    return;
+  }
   SetState(State::kClosed);
-}
-
-TabAndroid* GlicSidePanelCoordinatorAndroid::GetTabAndroid() const {
-  return TabAndroid::FromTabHandle(tab_->GetHandle());
 }
 
 }  // namespace glic

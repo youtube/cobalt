@@ -12,7 +12,6 @@ import androidx.annotation.IntDef;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.CommandLine;
-import org.chromium.base.UnownedUserDataHost;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
@@ -44,7 +43,7 @@ public abstract class MultiInstanceManager {
 
     @VisibleForTesting
     static final String CLOSE_WINDOW_APP_SOURCE_HISTOGRAM =
-            "Android.MultiWindowMode.CloseWindow.AppSource2";
+            "Android.MultiWindowMode.CloseWindow.AppSource3";
 
     // These values are persisted to logs. Entries should not be renumbered and numeric values
     // should never be reused. If none of the existing values are suitable for a feature that
@@ -92,7 +91,8 @@ public abstract class MultiInstanceManager {
         CloseWindowAppSource.WINDOW_MANAGER,
         CloseWindowAppSource.RETENTION_PERIOD_EXPIRATION,
         CloseWindowAppSource.NO_TABS_IN_WINDOW,
-        CloseWindowAppSource.RECENT_TABS
+        CloseWindowAppSource.RECENT_TABS,
+        CloseWindowAppSource.RECENTLY_CLOSED_LIMIT_EXCEEDED
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface CloseWindowAppSource {
@@ -101,8 +101,10 @@ public abstract class MultiInstanceManager {
         int RETENTION_PERIOD_EXPIRATION = 2;
         int NO_TABS_IN_WINDOW = 3;
         int RECENT_TABS = 4;
-        int NUM_ENTRIES = 5;
+        int RECENTLY_CLOSED_LIMIT_EXCEEDED = 5;
+        int NUM_ENTRIES = 6;
     }
+
     // LINT.ThenChange(//tools/metrics/histograms/metadata/android/enums.xml)
 
     @IntDef({
@@ -221,40 +223,6 @@ public abstract class MultiInstanceManager {
     public abstract void maybeMergeTabs();
 
     /**
-     * Moves the specified tabs to a new ChromeTabbedActivity instance.
-     *
-     * @param tabs The list of tabs to move.
-     * @param finalizeCallback A runnable that will be invoked after the tabs have finished
-     *     reparenting to the new window.
-     * @param source The new window creation source used for metrics.
-     */
-    public void moveTabsToNewWindow(
-            List<Tab> tabs, @Nullable Runnable finalizeCallback, @NewWindowAppSource int source) {
-        // Not implemented
-    }
-
-    /**
-     * Moves the specified tabs to the specified ChromeTabbedActivity instance. This accepts inputs
-     * to determine the position of the moved tabs in the destination window. The operation will
-     * fail if the instance is not found.
-     *
-     * @param destWindowId The id of the destination window.
-     * @param tabs The list of tabs to move.
-     * @param destTabIndex The tab index in the destination window where the tabs will be
-     *     positioned. This will be ignored if {@code destGroupTabId} is set. To use the default tab
-     *     index, set this to {@code TabList.INVALID_TAB_INDEX}.
-     * @param destGroupTabId The id of the tab in the destination tab group, if the tabs need to be
-     *     moved to a specific tab group in the destination window. The tabs will be added to the
-     *     end of the destination tab group. A tab with this id must exist in the destination
-     *     window, otherwise this operation will fail. If there is no tab group to move the
-     *     specified tabs to, set this to {@code TabList.INVALID_TAB_INDEX}.
-     */
-    public void moveTabsToWindowByIdChecked(
-            int destWindowId, List<Tab> tabs, int destTabIndex, int destGroupTabId) {
-        // Not implemented
-    }
-
-    /**
      * Moves the specified tabs to a selected ChromeTabbedActivity instance. If there is only one
      * eligible window currently, tabs will be moved to a new window. Otherwise, the user will be
      * presented with a UI to select a window to move the tabs to.
@@ -352,18 +320,13 @@ public abstract class MultiInstanceManager {
 
     /**
      * Initialize the manager with the allocated instance ID, and perform other post-inflation
-     * activity startup tasks.
+     * activity startup tasks, including relevant instance state persistence.
      *
      * @param instanceId Instance ID of the activity.
      * @param taskId Task ID of the activity.
      * @param profileType The type of tab/profile the activity supports.
-     * @param host The {@link UnownedUserDataHost} to attach the current manager to.
      */
-    public void initialize(
-            int instanceId,
-            int taskId,
-            @SupportedProfileType int profileType,
-            UnownedUserDataHost host) {}
+    public void initialize(int instanceId, int taskId, @SupportedProfileType int profileType) {}
 
     /** Perform initialization tasks for the manager after the tab state is initialized. */
     public void onTabStateInitialized() {}
@@ -420,17 +383,6 @@ public abstract class MultiInstanceManager {
      */
     public void cleanupSyncedTabGroupsIfOnlyInstance(TabModelSelector selector) {
         // Not implemented
-    }
-
-    /**
-     * Shows a message to notify the user when excess of {@link MultiWindowUtils#getMaxInstances()}
-     * running activities have been finished after an instance limit downgrade causing existence of
-     * more active instances than the instance limit.
-     *
-     * @return {@code true} if the instance restoration message was shown, {@code false} otherwise.
-     */
-    public boolean showInstanceRestorationMessage() {
-        return false;
     }
 
     /**

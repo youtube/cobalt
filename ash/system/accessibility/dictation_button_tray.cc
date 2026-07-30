@@ -29,7 +29,6 @@
 #include "ui/color/color_id.h"
 #include "ui/compositor/layer.h"
 #include "ui/gfx/paint_vector_icon.h"
-#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/image_view.h"
 
@@ -64,8 +63,10 @@ DictationButtonTray::DictationButtonTray(
     TrayBackgroundViewCatalogName catalog_name)
     : ImagedTrayIcon(shelf,
                      ui::ImageModel(),
-                     l10n_util::GetStringUTF16(
-                         IDS_ASH_STATUS_TRAY_ACCESSIBILITY_DICTATION),
+                     /*tooltip=*/
+                     IDS_ASH_STATUS_TRAY_ACCESSIBILITY_DICTATION,
+                     /*accessibility_name=*/
+                     IDS_ASH_DICTATION_BUTTON_ACCESSIBLE_NAME,
                      catalog_name),
       download_progress_(0) {
   SetCallback(base::BindRepeating(
@@ -89,9 +90,6 @@ DictationButtonTray::DictationButtonTray(
   shell->AddShellObserver(this);
   shell->accessibility_controller()->AddObserver(this);
   shell->session_controller()->AddObserver(this);
-
-  GetViewAccessibility().SetName(
-      l10n_util::GetStringUTF16(IDS_ASH_DICTATION_BUTTON_ACCESSIBLE_NAME));
 }
 
 DictationButtonTray::~DictationButtonTray() {
@@ -146,11 +144,6 @@ void DictationButtonTray::UpdateTrayItemColor(bool is_active) {
   }
 }
 
-void DictationButtonTray::HandleLocaleChange() {
-  image_view()->SetTooltipText(
-      l10n_util::GetStringUTF16(IDS_ASH_STATUS_TRAY_ACCESSIBILITY_DICTATION));
-}
-
 void DictationButtonTray::HideBubbleWithView(
     const TrayBubbleView* bubble_view) {
   // This class has no bubbles to hide.
@@ -190,10 +183,10 @@ void DictationButtonTray::UpdateOnSpeechRecognitionDownloadChanged(
       download_progress > 0 && download_progress < 100;
   const bool is_dictation_enabled = !download_in_progress && in_text_input_;
   UpdateStateAndIcon(IsDictationActive(), is_dictation_enabled);
-  image_view()->SetTooltipText(l10n_util::GetStringUTF16(
+  SetTooltip(
       download_in_progress
           ? IDS_ASH_ACCESSIBILITY_DICTATION_BUTTON_TOOLTIP_SODA_DOWNLOADING
-          : IDS_ASH_STATUS_TRAY_ACCESSIBILITY_DICTATION));
+          : IDS_ASH_STATUS_TRAY_ACCESSIBILITY_DICTATION);
 
   // Progress indicator.
   download_progress_ = download_progress;

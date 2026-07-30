@@ -17,9 +17,11 @@ source_set("model") {
     "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
     "//ios/chrome/browser/shared/coordinator/scene/state",
     "//ios/chrome/browser/shared/model/browser",
+    "//ios/chrome/browser/shared/model/url",
     "//ios/chrome/browser/shared/model/web_state_list",
     "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/shared/public/features",
+    "//ios/chrome/browser/shared/public/features:system_flags",
     "//ios/chrome/browser/tabs/model:dependency_installer",
     "//ios/web/public",
     "//ios/web/public/navigation",
@@ -29,11 +31,16 @@ source_set("model") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "cobrowse_tab_helper_unittest.mm" ]
+  sources = [
+    "cobrowse_context_unittest.mm",
+    "cobrowse_tab_helper_unittest.mm",
+  ]
   deps = [
     ":model",
     "//base",
     "//base/test:test_support",
+    "//components/search_engines",
+    "//ios/chrome/browser/search_engines/model:template_url_service_factory",
     "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
     "//ios/chrome/browser/shared/coordinator/scene/state",
     "//ios/chrome/browser/shared/model/browser/test:test_support",
@@ -41,6 +48,7 @@ source_set("unit_tests") {
     "//ios/chrome/browser/shared/model/web_state_list",
     "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/shared/public/features",
+    "//ios/chrome/browser/shared/public/features:system_flags",
     "//ios/web/public/test",
     "//ios/web/public/test/fakes",
     "//testing/gtest",

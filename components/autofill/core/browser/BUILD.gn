@@ -125,6 +125,8 @@ static_library("browser") {
   sources = [
     "at_memory/at_memory_data_type.cc",
     "at_memory/at_memory_data_type.h",
+    "at_memory/at_memory_funnel_metrics.cc",
+    "at_memory/at_memory_funnel_metrics.h",
     "at_memory/autofill_data_provider_impl.cc",
     "at_memory/autofill_data_provider_impl.h",
     "autofill_ai_form_rationalization.cc",
@@ -139,7 +141,6 @@ static_library("browser") {
     "autofill_format_string.h",
     "autofill_server_prediction.cc",
     "autofill_server_prediction.h",
-    "autofill_shared_storage_handler.h",
     "autofill_trigger_source.cc",
     "autofill_trigger_source.h",
     "autofill_type.cc",
@@ -223,6 +224,8 @@ static_library("browser") {
     "data_model/autofill_ai/entity_instance.h",
     "data_model/autofill_ai/entity_type.cc",
     "data_model/autofill_ai/entity_type.h",
+    "data_model/autofill_ai/from_accessibility_annotator.cc",
+    "data_model/autofill_ai/from_accessibility_annotator.h",
     "data_model/data_model_utils.cc",
     "data_model/data_model_utils.h",
     "data_model/form_group.cc",
@@ -553,6 +556,16 @@ static_library("browser") {
     "ml_model/autofill_ai/autofill_ai_model_executor.h",
     "ml_model/autofill_ai/autofill_ai_model_executor_impl.cc",
     "ml_model/autofill_ai/autofill_ai_model_executor_impl.h",
+    "ml_model/field_classification_model_encoder.cc",
+    "ml_model/field_classification_model_encoder.h",
+    "ml_model/field_classification_model_executor.cc",
+    "ml_model/field_classification_model_executor.h",
+    "ml_model/field_classification_model_handler.cc",
+    "ml_model/field_classification_model_handler.h",
+    "ml_model/logging/ml_log_router.cc",
+    "ml_model/logging/ml_log_router.h",
+    "ml_model/model_predictions.cc",
+    "ml_model/model_predictions.h",
     "network/autofill_ai/fake_wallet_pass_access_manager.cc",
     "network/autofill_ai/fake_wallet_pass_access_manager.h",
     "network/autofill_ai/private_pass_conversion_util.cc",
@@ -799,6 +812,8 @@ static_library("browser") {
     "ui/payments/card_unmask_prompt_options.cc",
     "ui/payments/card_unmask_prompt_options.h",
     "ui/payments/card_unmask_prompt_view.h",
+    "ui/payments/omnibox_autofill_delegate.cc",
+    "ui/payments/omnibox_autofill_delegate.h",
     "ui/payments/payments_ui_closed_reasons.h",
     "ui/payments/payments_window_user_consent_dialog.h",
     "ui/payments/payments_window_user_consent_dialog_controller.h",
@@ -822,12 +837,6 @@ static_library("browser") {
     "ui/region_combobox_model.cc",
     "ui/region_combobox_model.h",
     "ui/suggestion_button_action.h",
-    "webdata/account_settings/account_setting_service.cc",
-    "webdata/account_settings/account_setting_service.h",
-    "webdata/account_settings/account_setting_sync_bridge.cc",
-    "webdata/account_settings/account_setting_sync_bridge.h",
-    "webdata/account_settings/account_setting_sync_util.cc",
-    "webdata/account_settings/account_setting_sync_util.h",
     "webdata/addresses/address_autofill_table.cc",
     "webdata/addresses/address_autofill_table.h",
     "webdata/addresses/autofill_profile_sync_bridge.cc",
@@ -976,21 +985,6 @@ static_library("browser") {
     ]
   }
 
-  if (build_with_tflite_lib) {
-    sources += [
-      "ml_model/field_classification_model_encoder.cc",
-      "ml_model/field_classification_model_encoder.h",
-      "ml_model/field_classification_model_executor.cc",
-      "ml_model/field_classification_model_executor.h",
-      "ml_model/field_classification_model_handler.cc",
-      "ml_model/field_classification_model_handler.h",
-      "ml_model/logging/ml_log_router.cc",
-      "ml_model/logging/ml_log_router.h",
-      "ml_model/model_predictions.cc",
-      "ml_model/model_predictions.h",
-    ]
-  }
-
   configs += [
     "//build/config:precompiled_headers",
     "//build/config/compiler:wexit_time_destructors",
@@ -1001,6 +995,7 @@ static_library("browser") {
     ":country_data",
     ":legal_message_line",
     ":payments_sync_utils",
+    "//components/autofill/core/browser/ml_model/logging:mojo_bindings",
     "//components/autofill/core/browser/payments:card_unmask_challenge_option",
     "//components/autofill/core/browser/proto",
     "//components/autofill/core/browser/proto:autofill_ai_proto",
@@ -1016,21 +1011,15 @@ static_library("browser") {
     "//third_party/abseil-cpp:absl",
     "//third_party/libaddressinput",
     "//third_party/libaddressinput:strings_grit",
+    "//third_party/tflite",
+    "//third_party/tflite:tflite_public_headers",
+    "//third_party/tflite_support",
+    "//third_party/tflite_support:tflite_support_proto",
     "//ui/base",
     "//ui/gfx/geometry",
     "//ui/gfx/range",
     "//url",
   ]
-
-  if (build_with_tflite_lib) {
-    public_deps += [
-      "//components/autofill/core/browser/ml_model/logging:mojo_bindings",
-      "//third_party/tflite",
-      "//third_party/tflite:tflite_public_headers",
-      "//third_party/tflite_support",
-      "//third_party/tflite_support:tflite_support_proto",
-    ]
-  }
 
   deps = [
     ":autofill_address_rewriter_resources",
@@ -1038,7 +1027,6 @@ static_library("browser") {
     ":buildflags",
     ":entity_schema_enums_and_functions",
     ":generate_country_native_names",
-    ":payments_sync_utils",
     ":regex_patterns_inl_h",
     "//base",
     "//base:i18n",
@@ -1049,6 +1037,7 @@ static_library("browser") {
     "//components/affiliations/core/browser:affiliations",
     "//components/autofill/core/common:autofill_regex",
     "//components/autofill/core/common:credit_card_number_validation",
+    "//components/consent_auditor",
     "//components/device_reauth",
     "//components/feature_engagement",
     "//components/google/core/common",
@@ -1059,7 +1048,6 @@ static_library("browser") {
     "//components/language/core/browser",
     "//components/language_detection/core",
     "//components/one_time_tokens/core/browser",
-    "//components/optimization_guide:machine_learning_tflite_buildflags",
     "//components/optimization_guide/core",
     "//components/optimization_guide/proto:optimization_guide_proto",
     "//components/os_crypt/async/common",
@@ -1422,7 +1410,6 @@ static_library("test_support") {
     "//components/device_reauth:test_support",
     "//components/feature_engagement",
     "//components/leveldb_proto",
-    "//components/optimization_guide:machine_learning_tflite_buildflags",
     "//components/optimization_guide/proto:optimization_guide_proto",
     "//components/os_crypt/async/browser:test_support",
     "//components/pref_registry",
@@ -1517,6 +1504,7 @@ source_set("unit_tests") {
   testonly = true
   sources = [
     "at_memory/at_memory_data_type_unittest.cc",
+    "at_memory/at_memory_funnel_metrics_unittest.cc",
     "at_memory/autofill_data_provider_impl_unittest.cc",
     "autofill_ai_form_rationalization_unittest.cc",
     "autofill_feedback_data_unittest.cc",
@@ -1559,6 +1547,7 @@ source_set("unit_tests") {
     "data_model/autofill_ai/date_info_unittest.cc",
     "data_model/autofill_ai/entity_instance_unittest.cc",
     "data_model/autofill_ai/entity_type_unittest.cc",
+    "data_model/autofill_ai/from_accessibility_annotator_unittest.cc",
     "data_model/data_model_utils_unittest.cc",
     "data_model/payments/bank_account_unittest.cc",
     "data_model/payments/bnpl_issuer_unittest.cc",
@@ -1680,6 +1669,9 @@ source_set("unit_tests") {
     "metrics/stored_profile_metrics_unittest.cc",
     "metrics/suggestions_list_metrics_unittest.cc",
     "ml_model/autofill_ai/autofill_ai_model_cache_impl_unittest.cc",
+    "ml_model/field_classification_model_encoder_unittest.cc",
+    "ml_model/field_classification_model_executor_unittest.cc",
+    "ml_model/field_classification_model_handler_unittest.cc",
     "network/autofill_ai/private_pass_conversion_util_unittest.cc",
     "network/autofill_ai/wallet_pass_access_manager_impl_unittest.cc",
     "payments/amount_extraction_heuristic_regexes_unittest.cc",
@@ -1757,8 +1749,6 @@ source_set("unit_tests") {
     "ui/payments/select_bnpl_issuer_dialog_controller_impl_unittest.cc",
     "ui/payments/virtual_card_enroll_ui_model_unittest.cc",
     "ui/region_combobox_model_unittest.cc",
-    "webdata/account_settings/account_setting_service_unittest.cc",
-    "webdata/account_settings/account_setting_sync_bridge_unittest.cc",
     "webdata/addresses/address_autofill_table_unittest.cc",
     "webdata/addresses/autofill_profile_sync_bridge_unittest.cc",
     "webdata/addresses/autofill_profile_sync_difference_tracker_unittest.cc",
@@ -1843,15 +1833,7 @@ source_set("unit_tests") {
     ]
   }
 
-  if (build_with_tflite_lib) {
-    sources += [
-      "ml_model/field_classification_model_encoder_unittest.cc",
-      "ml_model/field_classification_model_executor_unittest.cc",
-      "ml_model/field_classification_model_handler_unittest.cc",
-    ]
-  }
-
-  if (!is_ios && !is_android && !is_fuchsia) {
+  if (!is_fuchsia) {
     sources += [
       "filling/autofill_ai/field_filling_entity_util_unittest.cc",
       "permissions/autofill_ai/autofill_ai_permission_utils_unittest.cc",
@@ -1879,6 +1861,7 @@ source_set("unit_tests") {
     "//components/accessibility_annotator/core/annotation_reducer",
     "//components/autofill/core/common:autofill_regex",
     "//components/autofill/core/common:credit_card_number_validation",
+    "//components/consent_auditor",
     "//components/device_reauth",
     "//components/device_reauth:test_support",
     "//components/feature_engagement",

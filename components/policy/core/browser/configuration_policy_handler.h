@@ -12,7 +12,6 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
-#include "base/containers/enum_set.h"
 #include "base/functional/callback.h"
 #include "base/values.h"
 #include "components/policy/core/common/policy_map.h"
@@ -621,29 +620,6 @@ class POLICY_EXPORT SingleDeprecatedPolicyToMultipleNewPolicyHandler
   std::vector<std::string> new_policy_names_;
 };
 
-// A schema policy handler for complex policies that only accept cloud sources.
-// Deprecated. Prefer using CloudOnlyPolicyChecker
-// TODO(crbug.com/467340943): Make all cloud policy only policies using
-// CloudOnlyPolicyChecker instead.
-class POLICY_EXPORT CloudOnlyPolicyHandler
-    : public SchemaValidatingPolicyHandler {
- public:
-  CloudOnlyPolicyHandler(const char* policy_name,
-                         Schema schema,
-                         SchemaOnErrorStrategy strategy);
-  ~CloudOnlyPolicyHandler() override;
-
-  // Utility method for checking whether a policy is applied by a cloud-only
-  // source. Useful for cloud-only policy handlers which currently don't inherit
-  // from `CloudOnlyPolicyHandler`.
-  static bool CheckCloudOnlyPolicySettings(const char* policy_name,
-                                           const PolicyMap& policies,
-                                           PolicyErrorMap* errors);
-
-  bool CheckPolicySettings(const PolicyMap& policies,
-                           PolicyErrorMap* errors) override;
-};
-
 // Checker focus on validating the input. A Checker class should implement its
 // own checking function while simple forward its apply function.
 // Checker is still a handler to allow it being wrapper for other
@@ -666,19 +642,6 @@ class POLICY_EXPORT ConfigurationPolicyChecker : public NamedPolicyHandler {
 
  protected:
   std::unique_ptr<NamedPolicyHandler> policy_handler_;
-};
-
-// A wrapper around a policy handler that checks that the policy is cloud only
-// before applying the policy.
-class POLICY_EXPORT CloudOnlyPolicyChecker : public ConfigurationPolicyChecker {
- public:
-  explicit CloudOnlyPolicyChecker(
-      std::unique_ptr<NamedPolicyHandler> policy_handler);
-  ~CloudOnlyPolicyChecker() override;
-
-  // ConfigurationPolicyHandler methods:
-  bool CheckPolicySettings(const PolicyMap& policies,
-                           PolicyErrorMap* errors) override;
 };
 
 // A wrapper around a policy handler that checks that the policy is cloud user

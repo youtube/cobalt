@@ -913,6 +913,7 @@ class CORE_EXPORT Document : public ContainerNode,
   bool DispatchBeforeUnloadEvent(
       ChromeClient* chrome_client,
       bool is_reload,
+      bool force_to_proceed,
       bool& did_allow_navigation,
       base::TimeTicks& out_before_unload_dialog_opened_time,
       base::TimeTicks& out_before_unload_dialog_closed_time);
@@ -2487,8 +2488,10 @@ class CORE_EXPORT Document : public ContainerNode,
   // after parsing finished.
   void UnblockLoadEventAfterLayoutTreeUpdate();
 
-  // ImplicitClose() actually does the work of closing the input stream.
-  void ImplicitClose();
+  // Dispatches the load event and finalizes document loading: detaches the
+  // parser, fires load events, starts SVG animations, notifies the frame, and
+  // updates style/layout.
+  void DispatchLoadEventAndFinalize();
   bool ShouldComplete();
 
   // Returns |true| if both document and its owning frame are still attached.

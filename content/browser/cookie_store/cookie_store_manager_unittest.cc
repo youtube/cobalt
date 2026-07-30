@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "content/browser/cookie_store/cookie_store_manager.h"
+
 #include <memory>
 
 #include "base/files/scoped_temp_dir.h"
@@ -11,7 +13,6 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
-#include "content/browser/cookie_store/cookie_store_manager.h"
 #include "content/browser/service_worker/embedded_worker_test_helper.h"
 #include "content/browser/service_worker/fake_embedded_worker_instance_client.h"
 #include "content/browser/service_worker/fake_service_worker.h"
@@ -21,9 +22,9 @@
 #include "content/public/common/content_client.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/test_browser_context.h"
+#include "content/public/test/test_content_browser_client.h"
 #include "content/public/test/test_utils.h"
 #include "content/test/storage_partition_test_helpers.h"
-#include "content/test/test_content_browser_client.h"
 #include "mojo/public/cpp/test_support/fake_message_dispatch_context.h"
 #include "mojo/public/cpp/test_support/test_utils.h"
 #include "net/base/features.h"
@@ -342,7 +343,7 @@ class CookieStoreManagerTest
             base::Time(),
             /*secure=*/true,
             /*httponly=*/false, net::CookieSameSite::NO_RESTRICTION,
-            net::COOKIE_PRIORITY_DEFAULT));
+            net::COOKIE_PRIORITY_DEFAULT, net::CookieSourceType::kOther));
   }
 
   bool DeleteCookie(const char* name, const char* domain, const char* path) {
@@ -353,7 +354,8 @@ class CookieStoreManagerTest
             /*last_access=*/base::Time(),
             /*last_update=*/base::Time(),
             /*secure=*/true, /*httponly=*/false,
-            net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_DEFAULT));
+            net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_DEFAULT,
+            net::CookieSourceType::kOther));
   }
 
   // Designates a closure for preparing the cookie store for the current test.
@@ -1637,7 +1639,7 @@ TEST_P(CookieStoreManagerTest, HttpOnlyCookieChange) {
           base::Time(), base::Time(), base::Time(),
           /*secure=*/true,
           /*httponly=*/true, net::CookieSameSite::NO_RESTRICTION,
-          net::COOKIE_PRIORITY_DEFAULT)));
+          net::COOKIE_PRIORITY_DEFAULT, net::CookieSourceType::kOther)));
   task_environment_.RunUntilIdle();
   EXPECT_EQ(0u, worker_test_helper_->changes().size());
 
@@ -1648,7 +1650,7 @@ TEST_P(CookieStoreManagerTest, HttpOnlyCookieChange) {
           base::Time(), base::Time(), base::Time(),
           /*secure=*/true,
           /*httponly=*/false, net::CookieSameSite::NO_RESTRICTION,
-          net::COOKIE_PRIORITY_DEFAULT)));
+          net::COOKIE_PRIORITY_DEFAULT, net::CookieSourceType::kOther)));
   task_environment_.RunUntilIdle();
 
   ASSERT_EQ(1u, worker_test_helper_->changes().size());
@@ -1694,7 +1696,7 @@ TEST_P(CookieStoreManagerTest, HttpOnlyCookieChangeLegacy) {
           base::Time(), base::Time(), base::Time(),
           /*secure=*/false,
           /*httponly=*/true, net::CookieSameSite::NO_RESTRICTION,
-          net::COOKIE_PRIORITY_DEFAULT)));
+          net::COOKIE_PRIORITY_DEFAULT, net::CookieSourceType::kOther)));
   task_environment_.RunUntilIdle();
   EXPECT_EQ(0u, worker_test_helper_->changes().size());
 
@@ -1705,7 +1707,7 @@ TEST_P(CookieStoreManagerTest, HttpOnlyCookieChangeLegacy) {
           base::Time(), base::Time(), base::Time(),
           /*secure=*/false,
           /*httponly=*/false, net::CookieSameSite::NO_RESTRICTION,
-          net::COOKIE_PRIORITY_DEFAULT)));
+          net::COOKIE_PRIORITY_DEFAULT, net::CookieSourceType::kOther)));
   task_environment_.RunUntilIdle();
 
   ASSERT_EQ(1u, worker_test_helper_->changes().size());
@@ -1919,7 +1921,7 @@ TEST_F(CookieStoreManagerTest, PartitionedWorker_FirstPartyPartition) {
           base::Time(), base::Time(), base::Time(),
           /*secure=*/true,
           /*httponly=*/false, net::CookieSameSite::NO_RESTRICTION,
-          net::COOKIE_PRIORITY_DEFAULT,
+          net::COOKIE_PRIORITY_DEFAULT, net::CookieSourceType::kOther,
           net::CookiePartitionKey::FromURLForTesting(
               GURL(kExampleScope),
               net::CookiePartitionKey::AncestorChainBit::kSameSite))));
@@ -1936,7 +1938,7 @@ TEST_F(CookieStoreManagerTest, PartitionedWorker_FirstPartyPartition) {
           base::Time(), base::Time(), base::Time(),
           /*secure=*/true,
           /*httponly=*/false, net::CookieSameSite::NO_RESTRICTION,
-          net::COOKIE_PRIORITY_DEFAULT,
+          net::COOKIE_PRIORITY_DEFAULT, net::CookieSourceType::kOther,
           net::CookiePartitionKey::FromURLForTesting(
               GURL(kThirdPartyTopLevelSite)))));
   task_environment_.RunUntilIdle();
@@ -1989,7 +1991,7 @@ TEST_P(CookieStoreManagerTest, PartitionedWorker_ThirdPartyPartition) {
           base::Time(), base::Time(), base::Time(),
           /*secure=*/true,
           /*httponly=*/false, net::CookieSameSite::LAX_MODE,
-          net::COOKIE_PRIORITY_DEFAULT)));
+          net::COOKIE_PRIORITY_DEFAULT, net::CookieSourceType::kOther)));
   task_environment_.RunUntilIdle();
 
   EXPECT_EQ(0u, worker_test_helper_->changes().size());
@@ -2001,7 +2003,7 @@ TEST_P(CookieStoreManagerTest, PartitionedWorker_ThirdPartyPartition) {
           base::Time(), base::Time(), base::Time(),
           /*secure=*/true,
           /*httponly=*/false, net::CookieSameSite::NO_RESTRICTION,
-          net::COOKIE_PRIORITY_DEFAULT,
+          net::COOKIE_PRIORITY_DEFAULT, net::CookieSourceType::kOther,
           net::CookiePartitionKey::FromURLForTesting(
               GURL(kThirdPartyTopLevelSite)))));
   task_environment_.RunUntilIdle();
@@ -2017,7 +2019,7 @@ TEST_P(CookieStoreManagerTest, PartitionedWorker_ThirdPartyPartition) {
           base::Time(), base::Time(), base::Time(),
           /*secure=*/true,
           /*httponly=*/false, net::CookieSameSite::NO_RESTRICTION,
-          net::COOKIE_PRIORITY_DEFAULT,
+          net::COOKIE_PRIORITY_DEFAULT, net::CookieSourceType::kOther,
           net::CookiePartitionKey::FromURLForTesting(GURL(kExampleScope)))));
   task_environment_.RunUntilIdle();
 
@@ -2061,7 +2063,7 @@ TEST_F(CookieStoreManagerTest, PartitionedWorker_NoncedPartition) {
           base::Time(), base::Time(), base::Time(),
           /*secure=*/true,
           /*httponly=*/false, net::CookieSameSite::NO_RESTRICTION,
-          net::COOKIE_PRIORITY_DEFAULT,
+          net::COOKIE_PRIORITY_DEFAULT, net::CookieSourceType::kOther,
           net::CookiePartitionKey::FromURLForTesting(
               GURL(kExampleScope),
               net::CookiePartitionKey::AncestorChainBit::kCrossSite,
@@ -2079,7 +2081,7 @@ TEST_F(CookieStoreManagerTest, PartitionedWorker_NoncedPartition) {
           base::Time(), base::Time(), base::Time(),
           /*secure=*/true,
           /*httponly=*/false, net::CookieSameSite::NO_RESTRICTION,
-          net::COOKIE_PRIORITY_DEFAULT,
+          net::COOKIE_PRIORITY_DEFAULT, net::CookieSourceType::kOther,
           net::CookiePartitionKey::FromURLForTesting(GURL(kExampleScope)))));
   task_environment_.RunUntilIdle();
 
@@ -2124,7 +2126,7 @@ TEST_P(CookieStoreManagerTest, PartitionedWorkerBlocksThirdPartyCookies) {
           base::Time(), base::Time(), base::Time(),
           /*secure=*/true,
           /*httponly=*/false, net::CookieSameSite::NO_RESTRICTION,
-          net::COOKIE_PRIORITY_DEFAULT,
+          net::COOKIE_PRIORITY_DEFAULT, net::CookieSourceType::kOther,
           net::CookiePartitionKey::FromURLForTesting(
               GURL(kThirdPartyTopLevelSite)))));
   task_environment_.RunUntilIdle();

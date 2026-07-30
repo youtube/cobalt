@@ -71,6 +71,38 @@
 
 namespace blink {
 
+String ResourceTypeToAsAttributeString(ResourceType type) {
+  switch (type) {
+    case ResourceType::kImage:
+      return "image";
+    case ResourceType::kScript:
+      return "script";
+    case ResourceType::kCSSStyleSheet:
+    case ResourceType::kXSLStyleSheet:
+      return "style";
+    case ResourceType::kTextTrack:
+      return "track";
+    case ResourceType::kFont:
+      return "font";
+    case ResourceType::kAudio:
+      return "audio";
+    case ResourceType::kVideo:
+      return "video";
+    case ResourceType::kManifest:
+      return "manifest";
+    case ResourceType::kSpeculationRules:
+      return "speculationrules";
+    case ResourceType::kDictionary:
+      return "dictionary";
+    case ResourceType::kSVGDocument:
+      return "document";
+    case ResourceType::kRaw:
+    case ResourceType::kLinkPrefetch:
+    case ResourceType::kMock:
+      return "fetch";
+  }
+}
+
 namespace {
 
 void NotifyFinishObservers(
@@ -201,10 +233,7 @@ void Resource::CheckResourceIntegrity() {
 
   // Check `Unencoded-Digest` headers. If the digest doesn't match, fail.
   // Otherwise, fall through to validating SRI.
-  const FeatureContext* feature_context =
-      loader_ ? loader_->GetFeatureContext() : nullptr;
-  if (RuntimeEnabledFeatures::UnencodedDigestEnabled(feature_context) &&
-      !SubresourceIntegrity::CheckUnencodedDigests(
+  if (!SubresourceIntegrity::CheckUnencodedDigests(
           GetResponse().GetUnencodedDigests(), Data())) {
     integrity_disposition_ =
         ResourceIntegrityDisposition::kFailedUnencodedDigest;
@@ -214,6 +243,9 @@ void Resource::CheckResourceIntegrity() {
          "not match the resource's body."}));
     return;
   }
+
+  const FeatureContext* feature_context =
+      loader_ ? loader_->GetFeatureContext() : nullptr;
 
   HashMap<HashAlgorithm, String> integrity_hashes;
   bool is_cors_same_origin = response_.IsCorsSameOrigin();

@@ -31,10 +31,15 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.search_engines.R;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.components.favicon.LargeIconBridgeJni;
+import org.chromium.components.search_engines.FakeTemplateUrl;
+import org.chromium.components.search_engines.TemplateUrl;
 import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /** Unit tests for {@link ExpandableSiteSearchMediator}. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -76,25 +81,25 @@ public class ExpandableSiteSearchMediatorUnitTest {
 
         mMediator.onTemplateURLServiceChanged();
 
-        assertFalse(mMediator.isExpandedForTesting());
+        assertTrue(mMediator.isExpandedForTesting());
         verify(mMediator).refreshList();
     }
 
     @Test
     public void testHiddenItemsManagement() {
-        assertTrue(mMediator.areHiddenItemsEmpty());
+        assertTrue(mMediator.areExpandableItemsEmptyForTesting());
 
         ListItem item1 = new ListItem(0, null);
         ListItem item2 = new ListItem(0, null);
 
-        mMediator.addHiddenItem(item1);
-        mMediator.addHiddenItem(item2);
+        mMediator.addExpandableItemForTesting(item1);
+        mMediator.addExpandableItemForTesting(item2);
 
-        assertFalse(mMediator.areHiddenItemsEmpty());
+        assertFalse(mMediator.areExpandableItemsEmptyForTesting());
 
-        mMediator.clearHiddenItems();
+        mMediator.clearAllItems();
 
-        assertTrue(mMediator.areHiddenItemsEmpty());
+        assertTrue(mMediator.areExpandableItemsEmptyForTesting());
     }
 
     @Test
@@ -116,14 +121,71 @@ public class ExpandableSiteSearchMediatorUnitTest {
     }
 
     @Test
+    public void testSetUpMoreButtonIfNeeded_InitiallyExpandedAndNowAboveThreshold() {
+        // Expand the list first
+        mMediator.onMoreButtonClicked(new PropertyModel(SiteSearchProperties.ALL_KEYS));
+        assertTrue(mMediator.isExpandedForTesting());
+        mModelList.clear();
+
+        mMediator.setUpMoreButtonIfNeeded(ExpandableSiteSearchMediator.DEFAULT_MAX_ROWS + 1);
+
+        // Should still be expanded
+        assertTrue(mMediator.isExpandedForTesting());
+        assertEquals(1, mModelList.size());
+        ListItem moreItem = mModelList.get(0);
+        assertEquals(SiteSearchProperties.ViewType.MORE, moreItem.type);
+        assertTrue(moreItem.model.get(SiteSearchProperties.IS_EXPANDED));
+        assertNotNull(moreItem.model.get(SiteSearchProperties.ON_CLICK));
+    }
+
+    @Test
+    public void testSetUpMoreButtonIfNeeded_InitiallyExpandedAndNowAtThreshold() {
+        // Expand the list first
+        mMediator.onMoreButtonClicked(new PropertyModel(SiteSearchProperties.ALL_KEYS));
+        assertTrue(mMediator.isExpandedForTesting());
+        mModelList.clear();
+
+        mMediator.setUpMoreButtonIfNeeded(ExpandableSiteSearchMediator.DEFAULT_MAX_ROWS);
+
+        // After refresh, there should be no "More" button and the state will become collapsed
+        assertFalse(mMediator.isExpandedForTesting());
+        assertEquals(0, mModelList.size());
+    }
+
+    @Test
+    public void testMaybeExpandListFromPreviousState_Expanded() {
+        mMediator.onMoreButtonClicked(new PropertyModel(SiteSearchProperties.ALL_KEYS));
+        mModelList.clear();
+
+        int totalUrls = ExpandableSiteSearchMediator.DEFAULT_MAX_ROWS + 2;
+        setUpStagedUrls(totalUrls);
+
+        mMediator.maybeExpandListFromPreviousState();
+        assertEquals(totalUrls, mModelList.size());
+        // All elements are added to the list so there are no staged urls left.
+        assertTrue(mMediator.areStagedUrlsEmptyForTesting());
+    }
+
+    @Test
+    public void testMaybeExpandListFromPreviousState_NotExpanded() {
+        int totalUrls = ExpandableSiteSearchMediator.DEFAULT_MAX_ROWS + 2;
+        setUpStagedUrls(totalUrls);
+
+        mMediator.maybeExpandListFromPreviousState();
+        assertEquals(ExpandableSiteSearchMediator.DEFAULT_MAX_ROWS, mModelList.size());
+        assertFalse(mMediator.isExpandedForTesting());
+        assertFalse(mMediator.areStagedUrlsEmptyForTesting());
+    }
+
+    @Test
     public void testOnMoreButtonClicked_ExpandAndCollapse() {
         ListItem baseItem = new ListItem(0, null);
         mModelList.add(baseItem);
 
         ListItem hiddenItem1 = new ListItem(0, null);
         ListItem hiddenItem2 = new ListItem(0, null);
-        mMediator.addHiddenItem(hiddenItem1);
-        mMediator.addHiddenItem(hiddenItem2);
+        mMediator.addExpandableItemForTesting(hiddenItem1);
+        mMediator.addExpandableItemForTesting(hiddenItem2);
 
         PropertyModel moreButtonModel =
                 new PropertyModel.Builder(SiteSearchProperties.ALL_KEYS)
@@ -139,7 +201,6 @@ public class ExpandableSiteSearchMediatorUnitTest {
 
         assertTrue(mMediator.isExpandedForTesting());
         assertTrue(moreButtonModel.get(SiteSearchProperties.IS_EXPANDED));
-        verify(mMediator).prepareHiddenItemsIfNeeded();
 
         // ModelList should now have 4 items: baseItem, moreButton, hiddenItem1, hiddenItem2
         assertEquals(4, mModelList.size());
@@ -156,5 +217,17 @@ public class ExpandableSiteSearchMediatorUnitTest {
         assertEquals(2, mModelList.size());
         assertEquals(baseItem, mModelList.get(0));
         assertEquals(SiteSearchProperties.ViewType.MORE, mModelList.get(1).type);
+    }
+
+    private void setUpStagedUrls(int totalUrls) {
+        ListItem mockListItem = new ListItem(0, null);
+        Mockito.doReturn(mockListItem).when(mMediator).createListItem(Mockito.any());
+
+        List<TemplateUrl> urls = new ArrayList<>();
+        for (int i = 0; i < totalUrls; i++) {
+            urls.add(new FakeTemplateUrl("url" + i, "keyword" + i));
+        }
+
+        mMediator.populateTemplateUrls(urls);
     }
 }

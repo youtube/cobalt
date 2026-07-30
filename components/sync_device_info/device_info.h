@@ -15,19 +15,59 @@
 
 #include "base/time/time.h"
 #include "base/types/strong_alias.h"
+#include "components/desktop_to_mobile_promos/features.h"
 #include "components/sync/base/data_type.h"
-
-namespace sync_pb {
-enum SharingSpecificFields_EnabledFeatures : int;
-enum SyncEnums_DeviceType : int;
-enum SyncEnums_SendTabReceivingType : int;
-}  // namespace sync_pb
 
 namespace syncer {
 
 // A class that holds information regarding the properties of a device.
 class DeviceInfo {
  public:
+  // Deprecated device type enum. New code should prefer OsType + FormFactor.
+  // Maps to sync_pb::SyncEnums::DeviceType.
+  // LINT.IfChange(DeviceType)
+  enum class DeviceType {
+    kUnset,
+    kWindows,
+    kMac,
+    kLinux,
+    kChromeOS,
+    kOther,
+    kPhone,
+    kTablet,
+  };
+  // LINT.ThenChange(/components/sync/protocol/sync_enums.proto:DeviceType)
+
+  // Type of message sent to the receiving device for the send tab to self
+  // feature. Maps to sync_pb::SyncEnums::SendTabReceivingType.
+  // LINT.IfChange(SendTabReceivingType)
+  enum class SendTabReceivingType {
+    // Send tab notification can be received as an in-app message. This is the
+    // default value.
+    kChromeOrUnspecified,
+    // Send tab notification can be received as a push notification and/or
+    // in-app message.
+    kChromeAndPushNotification,
+  };
+  // LINT.ThenChange(/components/sync/protocol/sync_enums.proto:SendTabReceivingType)
+
+  // Features that can be enabled for sharing on a device.
+  // Maps to sync_pb::SharingSpecificFields::EnabledFeatures.
+  // WARNING: Do not renumber these values. They are persisted to prefs
+  // (see SharingSyncPreference) and must remain stable.
+  // LINT.IfChange(SharingFeature)
+  enum class SharingFeature {
+    kUnknown = 0,
+    kSmsFetcher = 3,
+    kRemoteCopy = 4,
+    kDiscovery = 6,
+    kClickToCallV2 = 7,
+    kSharedClipboardV2 = 8,
+    kOptimizationGuidePushNotification = 9,
+    kOneTimeTokenBackendNotification = 10,
+  };
+  // LINT.ThenChange(/components/sync/protocol/device_info_specifics.proto:EnabledFeatures)
+
   // A struct that holds information regarding to FCM web push.
   struct SharingTargetInfo {
     // FCM registration token of device.
@@ -46,8 +86,7 @@ class DeviceInfo {
   struct SharingInfo {
     SharingInfo(SharingTargetInfo sharing_target_info,
                 std::string chime_representative_target_id,
-                std::set<sync_pb::SharingSpecificFields_EnabledFeatures>
-                    enabled_features);
+                std::set<SharingFeature> enabled_features);
     SharingInfo(const SharingInfo& other);
     SharingInfo(SharingInfo&& other);
     SharingInfo& operator=(const SharingInfo& other);
@@ -60,7 +99,7 @@ class DeviceInfo {
     std::string chime_representative_target_id;
 
     // Set of Sharing features enabled on the device.
-    std::set<sync_pb::SharingSpecificFields_EnabledFeatures> enabled_features;
+    std::set<SharingFeature> enabled_features;
 
     bool operator==(const SharingInfo& other) const;
   };
@@ -131,28 +170,29 @@ class DeviceInfo {
     kTv = 6,
   };
 
-  DeviceInfo(
-      const std::string& guid,
-      const std::string& client_name,
-      const std::string& chrome_version,
-      const std::string& sync_user_agent,
-      const sync_pb::SyncEnums_DeviceType device_type,
-      const OsType os_type,
-      const FormFactor form_factor,
-      const std::string& signin_scoped_device_id,
-      const std::string& manufacturer_name,
-      const std::string& model_name,
-      const std::string& full_hardware_class,
-      base::Time last_updated_timestamp,
-      base::TimeDelta pulse_interval,
-      bool send_tab_to_self_receiving_enabled,
-      sync_pb::SyncEnums_SendTabReceivingType send_tab_to_self_receiving_type,
-      const std::optional<SharingInfo>& sharing_info,
-      const std::optional<PhoneAsASecurityKeyInfo>& paask_info,
-      const std::string& fcm_registration_token,
-      const DataTypeSet& interested_data_types,
-      std::optional<base::Time> auto_sign_out_last_signin_timestamp,
-      bool desktop_to_ios_promo_receiving_enabled);
+  DeviceInfo(const std::string& guid,
+             const std::string& client_name,
+             const std::string& chrome_version,
+             const std::string& sync_user_agent,
+             DeviceType device_type,
+             OsType os_type,
+             FormFactor form_factor,
+             const std::string& signin_scoped_device_id,
+             const std::string& manufacturer_name,
+             const std::string& model_name,
+             const std::string& full_hardware_class,
+             base::Time last_updated_timestamp,
+             base::TimeDelta pulse_interval,
+             bool send_tab_to_self_receiving_enabled,
+             SendTabReceivingType send_tab_to_self_receiving_type,
+             const std::optional<SharingInfo>& sharing_info,
+             const std::optional<PhoneAsASecurityKeyInfo>& paask_info,
+             const std::string& fcm_registration_token,
+             const DataTypeSet& interested_data_types,
+             std::optional<base::Time> auto_sign_out_last_signin_timestamp,
+             bool desktop_to_ios_promo_receiving_enabled,
+             const MobilePromoOnDesktopPromoTypeSet&
+                 desktop_to_ios_promo_receiving_types = {});
 
   DeviceInfo(const DeviceInfo&) = delete;
   DeviceInfo& operator=(const DeviceInfo&) = delete;
@@ -180,7 +220,7 @@ class DeviceInfo {
   const std::string& public_id() const;
 
   // Device Type.
-  sync_pb::SyncEnums_DeviceType device_type() const;
+  DeviceType device_type() const;
 
   // Returns the OS of this device.
   OsType os_type() const;
@@ -217,8 +257,7 @@ class DeviceInfo {
   // Enabled message types for the receiving side of the SendTabToSelf feature.
   // This is meaningless if send_tab_to_self_receiving_enabled() returns false.
   // If not set, the in-app message type will be assumed.
-  sync_pb::SyncEnums_SendTabReceivingType send_tab_to_self_receiving_type()
-      const;
+  SendTabReceivingType send_tab_to_self_receiving_type() const;
 
   // Returns Sharing related info of the device.
   const std::optional<SharingInfo>& sharing_info() const;
@@ -235,9 +274,11 @@ class DeviceInfo {
   std::optional<base::Time> auto_sign_out_last_signin_timestamp() const;
 
   // Whether the receiving side of the Desktop to iOS Promo feature is enabled.
-  // TODO(crbug.com/438769954): Remove this field once kMobilePromoOnDesktop is
-  // cleaned up.
+  // TODO(crbug.com/438769954): Remove these fields once kMobilePromoOnDesktop
+  // is cleaned up.
   bool desktop_to_ios_promo_receiving_enabled() const;
+  const MobilePromoOnDesktopPromoTypeSet& desktop_to_ios_promo_receiving_types()
+      const;
 
   // Apps can set ids for a device that is meaningful to them but
   // not unique enough so the user can be tracked. Exposing |guid|
@@ -249,8 +290,7 @@ class DeviceInfo {
 
   void set_send_tab_to_self_receiving_enabled(bool new_value);
 
-  void set_send_tab_to_self_receiving_type(
-      sync_pb::SyncEnums_SendTabReceivingType new_value);
+  void set_send_tab_to_self_receiving_type(SendTabReceivingType new_value);
 
   void set_sharing_info(const std::optional<SharingInfo>& sharing_info);
 
@@ -265,6 +305,8 @@ class DeviceInfo {
   void set_auto_sign_out_last_signin_timestamp(std::optional<base::Time> time);
 
   void set_desktop_to_ios_promo_receiving_enabled(bool new_value);
+  void set_desktop_to_ios_promo_receiving_types(
+      const MobilePromoOnDesktopPromoTypeSet& new_types);
 
  private:
   const std::string guid_;
@@ -275,7 +317,7 @@ class DeviceInfo {
 
   const std::string sync_user_agent_;
 
-  const sync_pb::SyncEnums_DeviceType device_type_;
+  const DeviceType device_type_;
 
   const OsType os_type_;
 
@@ -301,7 +343,7 @@ class DeviceInfo {
 
   bool send_tab_to_self_receiving_enabled_;
 
-  sync_pb::SyncEnums_SendTabReceivingType send_tab_to_self_receiving_type_;
+  SendTabReceivingType send_tab_to_self_receiving_type_;
 
   std::optional<SharingInfo> sharing_info_;
 
@@ -315,7 +357,17 @@ class DeviceInfo {
 
   std::optional<base::Time> auto_sign_out_last_signin_timestamp_;
 
+  // Tracks whether the Desktop to iOS Promo feature is enabled on the device.
+  // `desktop_to_ios_promo_receiving_enabled_` is maintained for backwards
+  // compatibility with older iOS clients that do not yet support granular
+  // promo types. It now acts as a legacy fallback representing the original
+  // promos: kAllPromos, kAutofillPromo (Passwords), and kESBPromo.
+  // `desktop_to_ios_promo_receiving_types_` specifies the exact
+  // types of promos the device is eligible to receive.
+  // TODO(crbug.com/438769954): Remove the boolean field once the granular
+  // promo types feature is fully launched.
   bool desktop_to_ios_promo_receiving_enabled_;
+  MobilePromoOnDesktopPromoTypeSet desktop_to_ios_promo_receiving_types_;
 
   // NOTE: when adding a member, don't forget to update
   // |StoredDeviceInfoStillAccurate| in device_info_sync_bridge.cc or else

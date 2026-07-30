@@ -141,7 +141,7 @@ constexpr bool VerifyAlgorithmNameMappings() {
       return false;
     }
     auto is_valid_algorithm_char = [](char c) {
-      return IsASCII(c) && c == ToASCIIUpper(c);
+      return IsAscii(c) && c == ToAsciiUpper(c);
     };
     if (!std::ranges::all_of(name, is_valid_algorithm_char)) {
       return false;
@@ -174,9 +174,10 @@ bool AlgorithmNameComparator(const AlgorithmNameMapping& a,
   for (size_t i = 0; i < a_name.size(); ++i) {
     const size_t reverse_index = a_name.size() - i - 1;
     CharType c2 = b[reverse_index];
-    if (!IsASCII(c2))
+    if (!IsAscii(c2)) {
       return false;
-    c2 = ToASCIIUpper(c2);
+    }
+    c2 = ToAsciiUpper(c2);
 
     const CharType c1 = a_name[reverse_index];
     if (c1 < c2)
@@ -209,10 +210,7 @@ std::optional<WebCryptoAlgorithmId> LookupAlgorithmIdByName(
   WebCryptoAlgorithmId id = it->algorithm_id;
 
   if ((id == kWebCryptoAlgorithmIdChaCha20Poly1305 ||
-       id == kWebCryptoAlgorithmIdMlDsa44 ||
-       id == kWebCryptoAlgorithmIdMlDsa65 ||
-       id == kWebCryptoAlgorithmIdMlDsa87 ||
-       id == kWebCryptoAlgorithmIdMlKem768 ||
+       WebCryptoAlgorithm::IsMlDsa(id) || id == kWebCryptoAlgorithmIdMlKem768 ||
        id == kWebCryptoAlgorithmIdMlKem1024) &&
       !RuntimeEnabledFeatures::WebCryptoPQCEnabled()) {
     return std::nullopt;
@@ -1009,6 +1007,32 @@ bool ParseHkdfParams(v8::Isolate* isolate,
   return true;
 }
 
+// Defined by the WebCrypto spec as:
+//
+//     dictionary ContextParams : Algorithm {
+//       BufferSource context;
+//     };
+bool ParseContextParams(const Dictionary& raw,
+                        std::unique_ptr<WebCryptoAlgorithmParams>& params,
+                        const ErrorContext& error_context,
+                        ExceptionState& exception_state) {
+  bool has_param_context;
+  std::vector<uint8_t> param_context;
+
+  if (!GetOptionalBufferSource(raw, "context", has_param_context, param_context,
+                               error_context, exception_state)) {
+    return false;
+  }
+
+  if (has_param_context) {
+    params = std::make_unique<WebCryptoContextParams>(std::move(param_context));
+  } else {
+    params = std::make_unique<WebCryptoContextParams>(std::nullopt);
+  }
+
+  return true;
+}
+
 bool ParseAlgorithmParams(v8::Isolate* isolate,
                           const Dictionary& raw,
                           WebCryptoAlgorithmParamsType type,
@@ -1073,6 +1097,9 @@ bool ParseAlgorithmParams(v8::Isolate* isolate,
     case kWebCryptoAlgorithmParamsTypePbkdf2Params:
       context.Add("Pbkdf2Params");
       return ParsePbkdf2Params(isolate, raw, params, context, exception_state);
+    case kWebCryptoAlgorithmParamsTypeContextParams:
+      context.Add("ContextParams");
+      return ParseContextParams(raw, params, context, exception_state);
   }
   NOTREACHED();
 }

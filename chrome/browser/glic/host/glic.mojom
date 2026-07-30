@@ -305,7 +305,6 @@ interface PageHandler {
 
   // Notifies the PageHandler that the state of the WebUI has changed.
   WebUiStateChanged(WebUiState new_state);
-
 };
 
 // Page handler for the glic internals WebUI.
@@ -320,12 +319,13 @@ interface InternalsPageHandler {
                      url.mojom.Url prod);
 
   // Triggers an invocation for testing from the internals page.
-  TriggerInvokeFromInternalsAction(TriggerInvokeFromInternalsOptions options)
+  TriggerInvokeFromInternalsAction(
+      TriggerInvokeFromInternalsOptions options)
       => (bool success, string error_message);
 
   // Sets the web continuity originating host URL preset for the internals page.
   SetWebContinuityOriginatingHostUrlPreset(
-                     url.mojom.Url web_continuity_originating_host_url);
+      url.mojom.Url web_continuity_originating_host_url);
 };
 
 // Factory for InternalsPageHandler used in chrome://glic/internals.
@@ -753,7 +753,8 @@ enum SkillSource {
 };
 
 // clang-format off
-// LINT.ThenChange(//components/skills/public/skill.mojom:SkillSource, //components/sync/protocol/skill_specifics.proto:SkillSource)
+// LINT.ThenChange(//components/skills/public/skill.mojom:SkillSource,
+// //components/sync/protocol/skill_specifics.proto:SkillSource)
 // clang-format on
 
 // LINT.IfChange(Skill)
@@ -769,6 +770,8 @@ struct SkillPreview {
   SkillSource source;
   // The description of the skill.
   string description;
+  // The image URL to use when rendering this skill.
+  url.mojom.Url? image_url;
 };
 
 // A single skill.
@@ -783,7 +786,9 @@ struct Skill {
 };
 
 // clang-format off
-// LINT.ThenChange(//components/skills/public/skill.mojom:Skill, //components/skills/public/skill.h:Skill, //chrome/browser/resources/glic/glic_api/glic_api.ts:Skill)
+// LINT.ThenChange(//components/skills/public/skill.mojom:Skill,
+// //components/skills/public/skill.h:Skill,
+// //chrome/browser/resources/glic/glic_api/glic_api.ts:Skill)
 // clang-format on
 
 // Request to create a skill.
@@ -844,6 +849,7 @@ enum SkillsWebClientEvent {
   // Skill Builder Step 3: User clicked save on the generated draft.
   kSkillBuilderClickedSaveAsSkill = 22,
 };
+
 // LINT.ThenChange(
 //  //tools/metrics/histograms/metadata/glic/enums.xml:SkillsWebClientEvent
 // )
@@ -1191,6 +1197,9 @@ interface WebClientHandler {
   // will be terminated and a new one will begin.
   CaptureRegion(pending_remote<CaptureRegionObserver> observer);
 
+  // Deletes a captured region.
+  DeleteCapturedRegion(int32 tab_id, mojo_base.mojom.UnguessableToken id);
+
   // Requests that audio ducking be enabled or disabled.
   // If enabled, audio from other sources will be attenuated.
   // If disabled, normal audio playout resumes.
@@ -1324,6 +1333,10 @@ interface WebClientHandler {
 
   // Called when the user receives a response with closed captions showing.
   OnClosedCaptionsShown();
+
+  // Called when the web client sends a browser actuation result over the
+  // network.
+  OnActionSubmitted(bool is_retry);
 
   // Scrolls to and (optionally) highlights content specified by `params`. Only
   // one highlight is active at a time. Returns an error reason if the scroll
@@ -1461,6 +1474,9 @@ struct PanelOpeningData {
   //   `registerConversation` or `switchConversation` calls.
   //
   ConversationInfo conversation_info;
+
+  // The FRE override, if any.
+  FreOverride fre_override = kUnspecified;
 };
 
 // @generate glic_api
@@ -1479,6 +1495,19 @@ struct PanelState {
   PanelStateKind kind;
   // Present when attached, indicates to which window the panel is attached.
   int32? window_id;
+};
+
+// @generate glic_api
+// Represents an override of the First Run Experience (FRE).
+[Stable, Extensible]
+enum FreOverride {
+  [Default] kUnspecified = 0,
+  // Variation that requires text input from the user to unlock full client.
+  kTrustFirstText = 1,
+  // Variation that requires mouse click from the user to unlock full client.
+  kTrustFirstClick = 2,
+  // Variation that starts with full client unlocked and shows inline consent.
+  kTrustFirstInline = 3,
 };
 
 // @generate glic_api
@@ -1534,6 +1563,8 @@ enum InvocationSource {
   [MinVersion=13] kIph = 21,
   // User clicked an anchored contextual cue chip.
   [MinVersion=14] kAnchoredContextualCue = 22,
+  // From the context menu.
+  [MinVersion=15] kWebContentsContextMenu = 23,
 };
 
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicInvocationSource, //chrome/browser/glic/glic_metrics.h:ResponseSegmentation, //chrome/browser/glic/service/metrics/metrics_types.h:GlicEntrypoint)
@@ -1665,6 +1696,7 @@ union AdditionalContextPart {
   PdfDocumentData pdf_document_data;
   TabContext tab_context;
   CapturedRegion region;
+  PendingCapturedRegion pending_region;
 };
 
 // @generate glic_api
@@ -1892,6 +1924,15 @@ struct PdfDocumentData {
   bool size_limit_exceeded;
 };
 
+// @generate glic_api
+// Lightweight page features detected on the page.
+[Stable, Extensible]
+enum LightweightPageFeature {
+  [Default] kUnknown = 0,
+  // The YouTube "Ask" button is visible.
+  kYtAskButtonPresent = 1,
+};
+
 // Data about a browser tab.
 struct TabData {
   // Unique ID of the tab that owns the page.
@@ -1927,6 +1968,8 @@ struct TabData {
   // Whether the tab's browser window is active. Note that this does not
   // consider whether the tab is active in the window.
   bool? is_window_active;
+  // Lightweight page features detected on the page.
+  array<LightweightPageFeature>? lightweight_page_features;
 };
 
 // Data about the focused tab state.
@@ -1974,7 +2017,15 @@ union CapturedRegion {
   gfx.mojom.Rect rect;
 };
 
+// The captured region with an ID.
+struct PendingCapturedRegion {
+  mojo_base.mojom.UnguessableToken id;
+  CapturedRegion region;
+};
+
 // The result of a successful region capture.
+// This result is deprecated, results for region capture are now
+// pushed via NotifyAdditionalContext with the source being kRegionSelection.
 struct CaptureRegionResult {
   // The ID of the tab from which the region was captured.
   int32 tab_id;

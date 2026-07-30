@@ -166,7 +166,7 @@ BASE_FEATURE(kBackForwardCacheDWCOnJavaScriptExecution,
 // This is a kill switch for pausing microtask while the page is in the BFCache.
 // Remove by m148 if things go well.
 BASE_FEATURE(kBackForwardCachePauseMicrotasks,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enable background resource fetch in Blink. See https://crbug.com/1379780 for
 // more details.
@@ -382,6 +382,8 @@ BASE_FEATURE(kCanvas2DHibernationNoSmallCanvas,
 // the snapshot) is freed.
 BASE_FEATURE(kCanvas2DHibernationReleaseTransferMemory,
              base::FeatureState::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCapStringBuilderLengthTo1GiB, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Whether to capture the source location of JavaScript execution, which is one
 // of the renderer eviction reasons for Back/Forward Cache.
@@ -1571,14 +1573,10 @@ BASE_FEATURE(kLogUnexpectedIPCPostedToBackForwardCachedDocuments,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
-// Allow low latency canvas 2D to be in overlay (generally meaning scanned out
-// directly to display), even if regular canvases are not in overlay.
-BASE_FEATURE(kLowLatencyUsageSupportedForCanvas2D,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Allow low latency WebGL to be in overlay (generally meaning scanned out
-// directly to display), even if regular canvases are not in overlay.
-BASE_FEATURE(kLowLatencyUsageSupportedForWebGL,
+// Allow low latency canvas (both 2D and WebGL) to be in overlay (generally
+// meaning scanned out directly to display), even if regular canvases are not
+// in overlay.
+BASE_FEATURE(kLowLatencyUsageSupportedForCanvas,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
@@ -2612,7 +2610,7 @@ BASE_FEATURE(kWebAppEnableScopeExtensionsBySite,
 // Note that for Isolated Web Apps it is not possible to capture link
 // navigations without scope extensions.
 BASE_FEATURE(kWebAppEnableScopeExtensionsForIsolatedWebApps,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls parsing and usage of localized fields in web app manifests.
 // See spec for more information:
@@ -2628,11 +2626,6 @@ BASE_FEATURE(kWebAppManifestLockScreen, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables web apps to be migrated from one manifest id to another.
 BASE_FEATURE(kWebAppMigrationApi, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Allow denormals in AudioWorklet and ScriptProcessorNode, to enable strict
-// JavaScript denormal compliance.  See https://crbug.com/382005099.
-BASE_FEATURE(kWebAudioAllowDenormalInProcessing,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Use deferred pull status update instead of updating the status directly
 // on audio thread. See https://crbug.com/40249972.

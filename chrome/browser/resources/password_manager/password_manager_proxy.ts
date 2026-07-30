@@ -8,10 +8,15 @@
  * testing. The chrome.passwordsPrivate API is being migrated to use Mojo.
  */
 
-import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-
-import {PageCallbackRouter, PageHandlerFactory, PageHandlerRemote} from './password_manager.mojom-webui.js';
+import {PageCallbackRouter, PageHandlerFactory, PageHandlerRemote, PasswordManagerActionableError} from './password_manager.mojom-webui.js';
 import type {ActorLoginPermission} from './password_manager.mojom-webui.js';
+
+export {
+  PageCallbackRouter,
+  PageHandlerFactory,
+  PageHandlerRemote,
+  PasswordManagerActionableError,
+};
 
 export type BlockedSite = chrome.passwordsPrivate.ExceptionEntry;
 
@@ -27,6 +32,8 @@ export type BlockedSitesListChangedListener = (entries: BlockedSite[]) => void;
 export type PasswordsFileExportProgressListener =
     (progress: chrome.passwordsPrivate.PasswordExportProgress) => void;
 export type PasswordManagerAuthTimeoutListener = () => void;
+export type PasswordManagerActionableErrorChangedListener =
+    (error: chrome.passwordsPrivate.PasswordManagerActionableError) => void;
 
 /**
  * Represents different interactions the user can perform on the Password Check
@@ -359,6 +366,18 @@ export interface PasswordManagerProxy {
       listener: PasswordManagerAuthTimeoutListener): void;
 
   /**
+   * Add an observer for password manager actionable error change.
+   */
+  addPasswordManagerActionableErrorChangedListener(
+      listener: PasswordManagerActionableErrorChangedListener): void;
+
+  /**
+   * Remove the specified observer for password manager actionable error change.
+   */
+  removePasswordManagerActionableErrorChangedListener(
+      listener: PasswordManagerActionableErrorChangedListener): void;
+
+  /**
    * Requests extension of authentication validity.
    */
   extendAuthValidity(): void;
@@ -449,12 +468,44 @@ export interface PasswordManagerProxy {
    */
   revokeActorLoginPermission(site: ActorLoginPermission): void;
 
-
   /**
    * Request a password change flow by invoking Glic.
    * @param id The ID of the credential.
    */
   requestChangePassword(credential_id: number): void;
+
+  /**
+   * Returns the current actionable error.
+   */
+  getPasswordManagerActionableError(): Promise<PasswordManagerActionableError>;
+}
+
+/**
+ * Maps chrome.passwordsPrivate.PasswordManagerActionableError to
+ * password_manager.mojom.PasswordManagerActionableError.
+ */
+export function toMojoActionableError(
+    error: chrome.passwordsPrivate.PasswordManagerActionableError):
+    PasswordManagerActionableError {
+  const PrivateError = chrome.passwordsPrivate.PasswordManagerActionableError;
+  switch (error) {
+    case PrivateError.NO_ERROR:
+      return PasswordManagerActionableError.kNoError;
+    case PrivateError.INACTIONABLE:
+      return PasswordManagerActionableError.kInactionable;
+    case PrivateError.INACTIONABLE_TEMPORARY_ERROR:
+      return PasswordManagerActionableError.kInactionableTemporaryError;
+    case PrivateError.SIGN_IN_NEEDED:
+      return PasswordManagerActionableError.kSignInNeeded;
+    case PrivateError.KEYCHAIN_ERROR:
+      return PasswordManagerActionableError.kKeychainError;
+    case PrivateError.TRUSTED_VAULT_KEY_NEEDED:
+      return PasswordManagerActionableError.kTrustedVaultKeyNeeded;
+    case PrivateError.NEEDS_PASSPHRASE:
+      return PasswordManagerActionableError.kNeedsPassphrase;
+    default:
+      return PasswordManagerActionableError.kNoError;
+  }
 }
 
 /**
@@ -552,10 +603,6 @@ export class PasswordManagerImpl implements PasswordManagerProxy {
   }
 
   showAddShortcutDialog() {
-    if (!loadTimeData.getBoolean('enablePasswordManagerMojoApi')) {
-      chrome.passwordsPrivate.showAddShortcutDialog();
-      return;
-    }
     this.handler.showAddShortcutDialog();
   }
 
@@ -649,9 +696,6 @@ export class PasswordManagerImpl implements PasswordManagerProxy {
   }
 
   switchBiometricAuthBeforeFillingState() {
-    if (!loadTimeData.getBoolean('enablePasswordManagerMojoApi')) {
-      return chrome.passwordsPrivate.switchBiometricAuthBeforeFillingState();
-    }
     return this.handler.switchBiometricAuthBeforeFillingState().then(
         result => result.success);
   }
@@ -675,11 +719,19 @@ export class PasswordManagerImpl implements PasswordManagerProxy {
         listener);
   }
 
+  addPasswordManagerActionableErrorChangedListener(
+      listener: PasswordManagerActionableErrorChangedListener) {
+    chrome.passwordsPrivate.onPasswordManagerActionableErrorChanged.addListener(
+        listener);
+  }
+
+  removePasswordManagerActionableErrorChangedListener(
+      listener: PasswordManagerActionableErrorChangedListener) {
+    chrome.passwordsPrivate.onPasswordManagerActionableErrorChanged
+        .removeListener(listener);
+  }
+
   extendAuthValidity() {
-    if (!loadTimeData.getBoolean('enablePasswordManagerMojoApi')) {
-      chrome.passwordsPrivate.extendAuthValidity();
-      return;
-    }
     this.handler.extendAuthValidity();
   }
 
@@ -708,24 +760,14 @@ export class PasswordManagerImpl implements PasswordManagerProxy {
   }
 
   isAccountStorageActive() {
-    if (!loadTimeData.getBoolean('enablePasswordManagerMojoApi')) {
-      return chrome.passwordsPrivate.isAccountStorageActive();
-    }
     return this.handler.isAccountStorageActive().then(result => result.active);
   }
 
   setAccountStorageEnabled(enabled: boolean) {
-    if (!loadTimeData.getBoolean('enablePasswordManagerMojoApi')) {
-      chrome.passwordsPrivate.setAccountStorageEnabled(enabled);
-      return;
-    }
     this.handler.setAccountStorageEnabled(enabled);
   }
 
   shouldShowAccountStorageSettingToggle() {
-    if (!loadTimeData.getBoolean('enablePasswordManagerMojoApi')) {
-      return chrome.passwordsPrivate.shouldShowAccountStorageSettingToggle();
-    }
     return this.handler.shouldShowAccountStorageSettingToggle().then(
         result => result.shouldShow);
   }
@@ -739,17 +781,11 @@ export class PasswordManagerImpl implements PasswordManagerProxy {
   }
 
   changePasswordManagerPin() {
-    if (!loadTimeData.getBoolean('enablePasswordManagerMojoApi')) {
-      return chrome.passwordsPrivate.changePasswordManagerPin();
-    }
     return this.handler.changePasswordManagerPin().then(
         result => result.success);
   }
 
   isPasswordManagerPinAvailable() {
-    if (!loadTimeData.getBoolean('enablePasswordManagerMojoApi')) {
-      return chrome.passwordsPrivate.isPasswordManagerPinAvailable();
-    }
     return this.handler.isPasswordManagerPinAvailable().then(
         result => result.isAvailable);
   }
@@ -763,9 +799,6 @@ export class PasswordManagerImpl implements PasswordManagerProxy {
   }
 
   deleteAllPasswordManagerData() {
-    if (!loadTimeData.getBoolean('enablePasswordManagerMojoApi')) {
-      return chrome.passwordsPrivate.deleteAllPasswordManagerData();
-    }
     return this.handler.deleteAllPasswordManagerData().then(
         result => result.success);
   }
@@ -780,6 +813,11 @@ export class PasswordManagerImpl implements PasswordManagerProxy {
 
   requestChangePassword(credentialId: number): void {
     this.handler.startPasswordChange(credentialId);
+  }
+
+  getPasswordManagerActionableError(): Promise<PasswordManagerActionableError> {
+    return this.handler.getPasswordManagerActionableError().then(
+        result => result.error);
   }
 
   static getInstance(): PasswordManagerProxy {

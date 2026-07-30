@@ -42,6 +42,7 @@ static_library("core") {
     "page_content_store.h",
     "page_embeddings_common.cc",
     "page_embeddings_common.h",
+    "tracked_element_feature.h",
     "web_state_wrapper.cc",
     "web_state_wrapper.h",
   ]
@@ -137,6 +138,7 @@ source_set("unit_tests") {
     ":features",
     ":test_support",
     "//base/test:test_support",
+    "//components/history/core/test",
     "//components/optimization_guide/core:test_support",
     "//components/passage_embeddings/core:passage_embeddings_types",
     "//components/search_engines:test_support",

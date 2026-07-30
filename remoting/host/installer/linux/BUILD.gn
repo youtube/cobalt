@@ -82,6 +82,7 @@ action("remoting_me2me_host_deb_installer") {
     "$root_out_dir/libremoting_core.so",
     "$root_out_dir/remote_assistance_host",
     "$root_out_dir/remote_open_url",
+    "$root_out_dir/remote_session_info",
     "$root_out_dir/remote_webauthn",
     "$root_out_dir/remoting_crashpad_handler",
     "$root_out_dir/remoting_me2me_host",
@@ -109,7 +110,10 @@ action("remoting_me2me_host_deb_installer") {
     "-b",
     build_timestamp,
   ]
-  inputs += [ "//remoting/host/installer/linux/chrome-remote-desktop@.service" ]
+  inputs += [
+    "//remoting/host/installer/linux/chrome-remote-desktop.service",
+    "//remoting/host/installer/linux/chrome-remote-desktop@.service",
+  ]
 
   deps = [
     ":credits",
@@ -120,6 +124,7 @@ action("remoting_me2me_host_deb_installer") {
     "//remoting/host:remoting_start_host",
     "//remoting/host/crash:crash_tools",
     "//remoting/host/it2me:remote_assistance_host",
+    "//remoting/host/linux:remote_session_info",
     "//remoting/host/linux:url_forwarder_desktop_entry",
     "//remoting/host/remote_open_url",
     "//remoting/host/webauthn:remote_webauthn",

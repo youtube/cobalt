@@ -588,6 +588,13 @@ void SessionStorageImpl::OnDataMapDestruction(int64_t map_id) {
 
 void SessionStorageImpl::OnCommitResult(DbStatus status) {
   if (status.ok()) {
+    if (commit_error_count_ > 0 && tried_to_recover_from_commit_errors_) {
+      base::UmaHistogramEnumeration(
+          "Storage.SessionStorage.Recovery.CommitErrorThresholdExceeded",
+          DomStorageDatabaseRecoveryOutcome::
+              kTransientErrorsAfterAttemptedRecovery);
+    }
+    RecordCommitErrorCountAtReset("SessionStorage", commit_error_count_);
     commit_error_count_ = 0;
     return;
   }
@@ -841,6 +848,7 @@ void SessionStorageImpl::DeleteAndRecreateDatabase(
   // StorageAreas to be queued until the connection is complete.
   connection_state_ = CONNECTION_IN_PROGRESS;
   receiver_.Pause();
+  RecordCommitErrorCountAtReset("SessionStorage", commit_error_count_);
   commit_error_count_ = 0;
   database_.reset();
 
@@ -876,6 +884,9 @@ void SessionStorageImpl::DeleteAndRecreateDatabase(
 
 void SessionStorageImpl::OnDBDestroyed(bool recreate_in_memory,
                                        DbStatus status) {
+  // Destroy is only called when the database is on disk (see !in_memory_ guard
+  // in DeleteAndRecreateDatabase), so in_memory is always false here.
+  status.Log("Storage.SessionStorage.DestroyDatabase", /*in_memory=*/false);
   CHECK(recovery_state_);
   recovery_state_->AddDestroyResult(status.ok());
   InitiateConnection(recreate_in_memory);

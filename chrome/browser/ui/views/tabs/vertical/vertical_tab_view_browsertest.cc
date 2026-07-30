@@ -17,10 +17,8 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/recently_audible_helper.h"
 #include "chrome/browser/ui/tab_contents/core_tab_helper.h"
-#include "chrome/browser/ui/tabs/alert/tab_alert.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert_controller.h"
 #include "chrome/browser/ui/tabs/split_tab_metrics.h"
-#include "chrome/browser/ui/tabs/tab_network_state.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
@@ -35,11 +33,13 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/data_sharing/public/features.h"
+#include "components/tabs/public/tab_alert.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/common/url_constants.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "media/base/media_switches.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/events/base_event_utils.h"
@@ -289,9 +289,86 @@ IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, AlertIndicatorDataChanged) {
             alert_indicator->showing_alert_state());
 }
 
-// This test doesn't need the EnableTabMuting feature flag because it directly
-// calls NotifyClick() on the button controller.
-IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, AlertIndicatorMute) {
+IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, AlertIndicatorMuteEnabled) {
+  TabCollectionNode* tab_node = unpinned_collection_node()->children()[0].get();
+  VerticalTabView* tab_view =
+      views::AsViewClass<VerticalTabView>(tab_node->view());
+  auto* alert_indicator =
+      BrowserElementsViews::From(browser())->GetViewAs<AlertIndicatorButton>(
+          kTabAlertIndicatorButtonElementId);
+
+  content::WebContents* web_contents =
+      tab_strip_model()->GetActiveWebContents();
+  base::ScopedClosureRunner scoped_closure_runner = web_contents->MarkAudible();
+  tab_strip_model()->NotifyTabChanged(tab_strip_model()->GetActiveTab(),
+                                      TabChangeType::kAll);
+
+  // The audio playing indicator should be visible but not enabled, because the
+  // flag kEnableTabMuting is off.
+  WaitForLayout(tab_view);
+  ASSERT_TRUE(alert_indicator->GetVisible());
+  ASSERT_EQ(tabs::TabAlert::kAudioPlaying,
+            alert_indicator->alert_state_for_testing());
+  ASSERT_FALSE(alert_indicator->GetEnabled());
+}
+
+class VerticalTabViewTabMutingEnabledTest : public VerticalTabViewTest {
+ public:
+  const std::vector<base::test::FeatureRefAndParams> GetEnabledFeatures()
+      override {
+    return {{tabs::kVerticalTabs, {}}, {media::kEnableTabMuting, {}}};
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(VerticalTabViewTabMutingEnabledTest,
+                       AlertIndicatorMuteEnabled) {
+  TabCollectionNode* tab_node = unpinned_collection_node()->children()[0].get();
+  VerticalTabView* tab_view =
+      views::AsViewClass<VerticalTabView>(tab_node->view());
+  auto* alert_indicator =
+      BrowserElementsViews::From(browser())->GetViewAs<AlertIndicatorButton>(
+          kTabAlertIndicatorButtonElementId);
+
+  content::WebContents* web_contents =
+      tab_strip_model()->GetActiveWebContents();
+  base::ScopedClosureRunner scoped_closure_runner = web_contents->MarkAudible();
+  tab_strip_model()->NotifyTabChanged(tab_strip_model()->GetActiveTab(),
+                                      TabChangeType::kAll);
+
+  // Normally tab width would be a function of the size of the vertical tab
+  // strip and whether the tab is in a split/group. To make this test not depend
+  // on the layouts of those classes, manually set the bounds of the tab.
+  auto set_tab_width = [&](int width) {
+    tab_view->SetBounds(tab_view->x(), tab_view->y(), width,
+                        tab_view->height());
+  };
+  constexpr int kEnabledWidth = 128;
+  constexpr int kDisabledWidth = 48;
+
+  // Initially the audio playing indicator should be visible and enabled.
+  set_tab_width(kEnabledWidth);
+  ASSERT_TRUE(alert_indicator->GetVisible());
+  ASSERT_TRUE(alert_indicator->GetEnabled());
+
+  // Add a second tab. The alert indicator should still be enabled.
+  AppendTab();
+  EXPECT_TRUE(alert_indicator->GetVisible());
+  EXPECT_TRUE(alert_indicator->GetEnabled());
+
+  // Resize the original tab so that there is not enough width outside of the
+  // alert indicator to activate it. The alert indicator should be disabled.
+  set_tab_width(kDisabledWidth);
+  EXPECT_TRUE(alert_indicator->GetVisible());
+  EXPECT_FALSE(alert_indicator->GetEnabled());
+
+  // Activate the original tab. The alert indicator should be enabled again.
+  tab_strip_model()->ActivateTabAt(0);
+  EXPECT_TRUE(alert_indicator->GetVisible());
+  EXPECT_TRUE(alert_indicator->GetEnabled());
+}
+
+IN_PROC_BROWSER_TEST_F(VerticalTabViewTabMutingEnabledTest,
+                       AlertIndicatorMuteToggle) {
   base::HistogramTester histogram_tester;
   TabCollectionNode* tab_node = unpinned_collection_node()->children()[0].get();
   VerticalTabView* tab_view =
@@ -318,6 +395,7 @@ IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, AlertIndicatorMute) {
       0, histogram_tester.GetBucketCount("Media.Audio.TabAudioMuted", false));
 
   // After clicking the alert indicator, audio should be muted.
+  ASSERT_TRUE(alert_indicator->GetEnabled());
   alert_indicator->button_controller()->NotifyClick();
   WaitForLayout(tab_view);
   EXPECT_TRUE(alert_indicator->GetVisible());
@@ -328,6 +406,7 @@ IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, AlertIndicatorMute) {
   histogram_tester.ExpectBucketCount("Media.Audio.TabAudioMuted", false, 0);
 
   // After clicking the alert indicator again, audio should no longer be muted.
+  ASSERT_TRUE(alert_indicator->GetEnabled());
   alert_indicator->button_controller()->NotifyClick();
   WaitForLayout(tab_view);
   EXPECT_TRUE(alert_indicator->GetVisible());
@@ -776,10 +855,9 @@ IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, AlertIndicatorDecorateOnCollapse) {
 
   // Ensure the tab is active and hovered so that the close button is visible.
   tab_strip_model()->ActivateTabAt(0);
-  ui::test::EventGenerator event_generator(
-      views::GetRootWindow(browser()->GetBrowserView().GetWidget()),
-      browser()->GetBrowserView().GetNativeWindow());
-  event_generator.MoveMouseTo(tab_view->GetBoundsInScreen().CenterPoint());
+  // TODO(crbug.com/492603554): Investigate why using EventGenerator here
+  // flakes.
+  tab_view->UpdateHovered(true);
 
   auto* alert_indicator =
       tab_view->GetViewByElementId(kTabAlertIndicatorButtonElementId);

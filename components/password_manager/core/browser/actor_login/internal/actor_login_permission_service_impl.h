@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/values.h"
 #include "components/password_manager/core/browser/actor_login/actor_login_permission_service.h"
@@ -17,11 +18,16 @@
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "url/origin.h"
 
+namespace signin {
+class IdentityManager;
+}  // namespace signin
+
 namespace actor_login {
 
 class ActorLoginPermissionServiceImpl : public ActorLoginPermissionService {
  public:
-  explicit ActorLoginPermissionServiceImpl(
+  ActorLoginPermissionServiceImpl(
+      signin::IdentityManager* identity_manager,
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory);
   ActorLoginPermissionServiceImpl(const ActorLoginPermissionServiceImpl&) =
       delete;
@@ -34,6 +40,7 @@ class ActorLoginPermissionServiceImpl : public ActorLoginPermissionService {
                        ListPermissionsResult callback) override;
   void ListAllPermissions(ListPermissionsResult callback) override;
   void DeletePermission(const url::Origin& embedder_origin,
+                        const std::string& display_name,
                         DeletePermissionResult callback) override;
   void GrantPermission(const FederatedPermission& permission,
                        GrantPermissionResult callback) override;
@@ -49,6 +56,8 @@ class ActorLoginPermissionServiceImpl : public ActorLoginPermissionService {
   bool OnGenericRequestCompleted(Request* request,
                                  std::optional<std::string> response_body);
 
+  // `KeyedService` that this service depends on.
+  raw_ptr<signin::IdentityManager> identity_manager_ = nullptr;
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
 
   std::vector<std::unique_ptr<Request>> pending_requests_;

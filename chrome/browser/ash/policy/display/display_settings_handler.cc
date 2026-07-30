@@ -15,7 +15,6 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
-#include "mojo/public/cpp/bindings/pending_associated_remote.h"
 
 namespace policy {
 
@@ -58,7 +57,7 @@ void DisplaySettingsHandler::Start() {
   }
 
   // Make the initial display unit info request.
-  std::vector<crosapi::mojom::DisplayUnitInfoPtr> info_list =
+  std::vector<ash::DisplayUnitInfo> info_list =
       cros_display_config_->GetDisplayUnitInfoList(false /* single_unified */);
   // (We only care about changes that occur after we apply any changes below).
   cros_display_config_observation_.Observe(cros_display_config_);
@@ -66,20 +65,20 @@ void DisplaySettingsHandler::Start() {
 }
 
 void DisplaySettingsHandler::RequestDisplaysAndApplyChanges() {
-  std::vector<crosapi::mojom::DisplayUnitInfoPtr> info_list =
+  std::vector<ash::DisplayUnitInfo> info_list =
       cros_display_config_->GetDisplayUnitInfoList(/*single_unified=*/false);
   ApplyChanges(std::move(info_list));
 }
 
 void DisplaySettingsHandler::ApplyChanges(
-    std::vector<crosapi::mojom::DisplayUnitInfoPtr> info_list) {
+    std::vector<ash::DisplayUnitInfo> info_list) {
   for (std::unique_ptr<DisplaySettingsPolicyHandler>& handler : handlers_)
     UpdateSettingAndApplyChanges(handler.get(), info_list);
 }
 
 void DisplaySettingsHandler::OnSettingUpdate(
     DisplaySettingsPolicyHandler* handler) {
-  std::vector<crosapi::mojom::DisplayUnitInfoPtr> info_list =
+  std::vector<ash::DisplayUnitInfo> info_list =
       cros_display_config_->GetDisplayUnitInfoList(
           /*single_unified=*/false);
   UpdateSettingAndApplyChanges(handler, info_list);
@@ -87,7 +86,7 @@ void DisplaySettingsHandler::OnSettingUpdate(
 
 void DisplaySettingsHandler::UpdateSettingAndApplyChanges(
     DisplaySettingsPolicyHandler* handler,
-    const std::vector<crosapi::mojom::DisplayUnitInfoPtr>& info_list) {
+    const std::vector<ash::DisplayUnitInfo>& info_list) {
   handler->OnSettingUpdate();
   handler->ApplyChanges(*cros_display_config_, info_list);
 }

@@ -24,9 +24,6 @@ inline constexpr base::FeatureParam<int>
 // Enables syncing of settings from the user's account.
 BASE_DECLARE_FEATURE(kSyncAccountSettings);
 
-// Makes the AUTOFILL_VALUABLE sync type non-encryptable.
-BASE_DECLARE_FEATURE(kSyncMakeAutofillValuableNonEncryptable);
-
 // Enables syncing of usage metadata from Google Wallet passes.
 BASE_DECLARE_FEATURE(kSyncAutofillValuableMetadata);
 
@@ -85,17 +82,19 @@ BASE_DECLARE_FEATURE(kSyncEnableContactInfoDataTypeForDasherUsers);
 BASE_DECLARE_FEATURE(kSeparateLocalAndAccountSearchEngines);
 
 // Feature flag to replace all sync-related UI with sign-in ones.
+// Do not use this flag directly in production code. Use
+// `syncer::IsReplaceSyncPromosWithSignInPromosEnabled()` instead.
 BASE_DECLARE_FEATURE(kReplaceSyncPromosWithSignInPromos);
 
-// Enables syncing extensions only if the user newly signs in to Chrome, not if
-// they were already signed in by the time `kReplaceSyncPromosWithSignInPromos`
-// was enabled.
-BASE_DECLARE_FEATURE_PARAM(bool, kExplicitSigninForExtensions);
+// Feature flag to replace all sync-related UI with sign-in ones. This
+// feature has the same behavior as kReplaceSyncPromosWithSignInPromos, but only
+// enables extensions and bookmarks on new sign-ins.
+BASE_DECLARE_FEATURE(kReplaceSyncPromosWithSigninPromosNewSignin);
 
-// Enables syncing bookmarks and reading list only if the user newly signs in to
-// Chrome, not if they were already signed in by the time
-// `kReplaceSyncPromosWithSignInPromos` was enabled.
-BASE_DECLARE_FEATURE_PARAM(bool, kExplicitSigninForBookmarks);
+// Returns true if the replace sync promos with sign-in promos feature is
+// enabled. The launch may be controlled by multiple `base::Feature` flags,
+// prefer using this function over checking the feature flags directly.
+bool IsReplaceSyncPromosWithSignInPromosEnabled();
 
 // If enabled, allowlisted priority preferences will be synced even if the
 // preferences user toggle is off. Note that this flag is only meaningful if
@@ -230,6 +229,9 @@ BASE_DECLARE_FEATURE(kSyncDeviceInfoUseWallClockTimer);
 // If enabled, validate the access token before sending the request to the
 // server.
 BASE_DECLARE_FEATURE(kSyncValidateAccessToken);
+
+// If enabled, Sync invalidations will bypass the scheduler on Android.
+BASE_DECLARE_FEATURE(kSyncInvalidationsBypassScheduler);
 
 }  // namespace syncer
 

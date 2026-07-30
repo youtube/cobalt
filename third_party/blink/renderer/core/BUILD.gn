@@ -865,8 +865,16 @@ code_generator("make_core_generated_atrule_names") {
   ]
   other_args = [
     "--gperf",
-    gperf_exe,
+    rebase_path(gperf_exe, root_build_dir),
   ]
+
+  # TODO: crbug.com/495245892 - Fix $ios_toolchains_path.
+  # On iOS, gperf is provided by the Xcode toolchain, which is symlinked
+  # from $root_build_dir/sdk/xcode_links. GN interprts it as a generated file
+  # and fails with `no targets in the build generate that file` error.
+  if (!is_ios) {
+    sources = [ gperf_exe ]
+  }
 }
 
 code_generator("make_core_generated_media_features") {
@@ -924,8 +932,16 @@ code_generator("make_core_generated_css_value_keywords") {
   ]
   other_args = [
     "--gperf",
-    gperf_exe,
+    rebase_path(gperf_exe, root_build_dir),
   ]
+
+  # TODO: crbug.com/495245892 - Fix $ios_toolchains_path.
+  # On iOS, gperf is provided by the Xcode toolchain, which is symlinked
+  # from $root_build_dir/sdk/xcode_links. GN interprts it as a generated file
+  # and fails with `no targets in the build generate that file` error.
+  if (!is_ios) {
+    sources = [ gperf_exe ]
+  }
 }
 
 process_json5_files("make_core_generated_html_element_factory") {
@@ -1970,6 +1986,7 @@ fuzzer_test("svg_path_parser_fuzzer") {
 fuzzer_test("feature_policy_fuzzer") {
   sources = [ "permissions_policy/feature_policy_fuzzer.cc" ]
   deps = [
+    "//testing/libfuzzer:libfuzzer_base_wrappers",
     "//third_party/blink/renderer/core",
     "//third_party/blink/renderer/platform:blink_fuzzer_test_support",
     "//third_party/icu",
@@ -1982,6 +1999,7 @@ fuzzer_test("feature_policy_fuzzer") {
 fuzzer_test("permissions_policy_attr_fuzzer") {
   sources = [ "permissions_policy/permissions_policy_attr_fuzzer.cc" ]
   deps = [
+    "//testing/libfuzzer:libfuzzer_base_wrappers",
     "//third_party/blink/renderer/core",
     "//third_party/blink/renderer/platform:blink_fuzzer_test_support",
     "//third_party/icu",
@@ -1994,6 +2012,7 @@ fuzzer_test("permissions_policy_attr_fuzzer") {
 fuzzer_test("document_policy_fuzzer") {
   sources = [ "permissions_policy/document_policy_fuzzer.cc" ]
   deps = [
+    "//testing/libfuzzer:libfuzzer_base_wrappers",
     "//third_party/blink/renderer/core",
     "//third_party/blink/renderer/platform:blink_fuzzer_test_support",
     "//third_party/icu",
@@ -2005,6 +2024,7 @@ fuzzer_test("document_policy_fuzzer") {
 fuzzer_test("permissions_policy_fuzzer") {
   sources = [ "permissions_policy/permissions_policy_fuzzer.cc" ]
   deps = [
+    "//testing/libfuzzer:libfuzzer_base_wrappers",
     "//third_party/blink/renderer/core",
     "//third_party/blink/renderer/platform:blink_fuzzer_test_support",
     "//third_party/icu",

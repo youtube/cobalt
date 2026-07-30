@@ -8,6 +8,7 @@
 #include <optional>
 #include <utility>
 
+#include "base/memory/raw_ptr.h"
 #include "content/common/content_export.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "ui/accessibility/platform/browser_accessibility_manager.h"
@@ -166,6 +167,18 @@ class CONTENT_EXPORT BrowserAccessibilityManagerAndroid
 
   std::optional<std::vector<std::string>> GetMetadataForTree() const;
 
+  struct SelectionRange {
+    raw_ptr<BrowserAccessibilityAndroid> anchor_object = nullptr;
+    int anchor_offset = -1;
+    raw_ptr<BrowserAccessibilityAndroid> focus_object = nullptr;
+    int focus_offset = -1;
+  };
+
+  // Returns the selection fitted to Android accessibility tree and Selection
+  // API restrictions. If the output has value, all fields of the
+  // `SelectionRange` are populated.
+  std::optional<SelectionRange> GetSelectionRange() const;
+
  protected:
   std::unique_ptr<ui::BrowserAccessibility> CreateBrowserAccessibility(
       ui::AXNode* node) override;
@@ -193,6 +206,11 @@ class CONTENT_EXPORT BrowserAccessibilityManagerAndroid
   void HandleHoverEvent(ui::BrowserAccessibility* node);
 
   void FireDocumentSelectionChangedEvent(WebContentsAccessibilityAndroid* wcax);
+
+  // If the anchor node of `position` does not exist on Android, update
+  // `position` to the highest leaf node (ancestor of node).
+  void MaybeUpdateTextPositionForSelection(
+      ui::BrowserAccessibility::AXPosition& position) const;
 
   // A weak reference to WebContentsAccessibility for reaching Java layer.
   // Only the root manager has the reference. Should be accessed through

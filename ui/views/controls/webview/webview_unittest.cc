@@ -22,9 +22,9 @@
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/mock_render_process_host.h"
 #include "content/public/test/test_browser_context.h"
+#include "content/public/test/test_content_browser_client.h"
 #include "content/public/test/test_renderer_host.h"
 #include "content/public/test/web_contents_tester.h"
-#include "content/test/test_content_browser_client.h"
 #include "ui/accessibility/accessibility_features.h"
 #include "ui/accessibility/ax_mode.h"
 #include "ui/accessibility/platform/ax_platform.h"
@@ -371,6 +371,28 @@ TEST_F(WebViewUnitTest, DetachedWebViewDestructor) {
   // from Widget, and the WebView should be subsequently destroyed with no
   // crash.
   contents_view->RemoveChildViewT(web_view);
+}
+
+// Test that the specified crashed overlay view is shown when a WebContents
+// is in a crashed state.
+TEST_F(WebViewUnitTest, CrashedOverlayView) {
+  const std::unique_ptr<content::WebContents> web_contents =
+      CreateTestWebContents();
+
+  View* contents_view = top_level_widget()->GetContentsView();
+  auto* web_view = contents_view->AddChildView(
+      std::make_unique<WebView>(web_contents->GetBrowserContext()));
+  web_view->SetWebContents(web_contents.get());
+
+  auto crashed_overlay_view = std::make_unique<View>();
+  crashed_overlay_view->set_owned_by_client(View::OwnedByClientPassKey());
+  web_view->SetCrashedOverlayView(crashed_overlay_view.get());
+  EXPECT_FALSE(crashed_overlay_view->IsDrawn());
+
+  SimulateRendererCrash(web_contents.get(), web_view);
+  EXPECT_TRUE(crashed_overlay_view->IsDrawn());
+
+  web_view->SetCrashedOverlayView(nullptr);
 }
 
 // Test that the specified crashed overlay view is shown when a WebContents

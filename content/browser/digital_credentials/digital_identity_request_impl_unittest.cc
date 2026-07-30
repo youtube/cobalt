@@ -56,6 +56,8 @@ using RequestDigitalIdentityStatus = blink::mojom::RequestDigitalIdentityStatus;
 using DigitalIdentityCallback =
     DigitalIdentityProvider::DigitalIdentityCallback;
 using DigitalCredential = DigitalIdentityProvider::DigitalCredential;
+using RequestStatusForMetrics =
+    DigitalIdentityProvider::RequestStatusForMetrics;
 using GetCallback = blink::mojom::DigitalIdentityRequest::GetCallback;
 
 // StubDigitalIdentityProvider which enables overriding
@@ -250,7 +252,149 @@ base::Value GenerateGetPhoneNumberOpenid4VpRequest() {
   return ParseJsonAndCheck(kJson);
 }
 
+base::Value GenerateDpcExample1() {
+  constexpr char kJson[] = R"({
+    "client_metadata": {
+      "vp_formats_supported": {
+        "dc+sd-jwt": {
+          "sd-jwt_alg_values": [
+            "ES256"
+          ]
+        }
+      }
+    },
+    "dcql_query": {
+      "credentials": [
+        {
+          "format": "dc+sd-jwt",
+          "id": "cred1",
+          "meta": {
+            "vct_values": [
+              "com.emvco.dpc"
+            ]
+          }
+        }
+      ]
+    },
+    "nonce": "VICJxZXdOrXSygevOEOe7Fwsh3u5PSIuEGUB_z4-1iE",
+    "response_mode": "dc_api",
+    "response_type": "vp_token",
+    "transaction_data": [
+      "eyJ0eXBlIjogInVybjpldWRpOnNjYTpwYXltZW50OjEiLCAiY3JlZGVudGlhbF9pZHMiOiBbImNyZWQxIl0sICJ0cmFuc2FjdGlvbl9kYXRhX2hhc2hlc19hbGciOiBbInNoYS0yNTYiXSwgInBheWxvYWQiOiB7ImFtb3VudCI6IDEyLjUsICJjdXJyZW5jeSI6ICJVU0QiLCAicGF5ZWUiOiB7Im5hbWUiOiAiUm9jayBMZWdlbmRzIiwgImlkIjogIlBheWVlLWlkLTEyMyJ9LCAidHJhbnNhY3Rpb25faWQiOiAiMTIzNDU2Nzg5MCJ9fQ=="
+    ]
+  })";
+  return ParseJsonAndCheck(kJson);
+}
 
+base::Value GenerateDpcExample2() {
+  constexpr char kJson[] = R"({
+    "client_metadata": {
+      "vp_formats_supported": {
+        "dc+sd-jwt": {
+          "sd-jwt_alg_values": [
+            "ES256"
+          ]
+        }
+      }
+    },
+    "dcql_query": {
+      "credentials": [
+        {
+          "format": "dc+sd-jwt",
+          "id": "cred1",
+          "meta": {
+            "vct_values": [
+              "dpc.cred.card"
+            ]
+          }
+        }
+      ]
+    },
+    "nonce": "Q3l91mQygPFDirjtQyvKbZ_K9MDJhr0e_gkBTYLmVv0",
+    "response_mode": "dc_api",
+    "response_type": "vp_token",
+    "transaction_data": [
+      "eyJ0eXBlIjogInVybjpldWRpOnNjYTpwYXltZW50OjEiLCAiY3JlZGVudGlhbF9pZHMiOiBbImNyZWQxIl0sICJ0cmFuc2FjdGlvbl9kYXRhX2hhc2hlc19hbGciOiBbInNoYS0yNTYiXSwgInBheWxvYWQiOiB7ImFtb3VudCI6IDEyLjUsICJjdXJyZW5jeSI6ICJVU0QiLCAicGF5ZWUiOiB7Im5hbWUiOiAiUm9jayBMZWdlbmRzIiwgImlkIjogIlBheWVlLWlkLTEyMyJ9LCAidHJhbnNhY3Rpb25faWQiOiAiMTIzNDU2Nzg5MCJ9fQ=="
+    ]
+  })";
+  return ParseJsonAndCheck(kJson);
+}
+
+base::Value GenerateDpcExample3() {
+  constexpr char kJson[] = R"({
+    "client_metadata": {
+      "vp_formats_supported": {
+        "mso_mdoc": {
+          "deviceauth_alg_values": [
+            -7
+          ],
+          "issuerauth_alg_values": [
+            -7
+          ]
+        }
+      }
+    },
+    "dcql_query": {
+      "credentials": [
+        {
+          "format": "mso_mdoc",
+          "id": "cred1",
+          "meta": {
+            "doctype_value": "com.emvco.dpc"
+          }
+        }
+      ]
+    },
+    "nonce": "JCK8iJuwBQyish5jmcCYIxNBT76ZYfVZliKzrcZMCTw",
+    "response_mode": "dc_api",
+    "response_type": "vp_token",
+    "transaction_data": [
+      "eyJ0eXBlIjogInVybjpldWRpOnNjYTpwYXltZW50OjEiLCAiY3JlZGVudGlhbF9pZHMiOiBbImNyZWQxIl0sICJ0cmFuc2FjdGlvbl9kYXRhX2hhc2hlc19hbGciOiBbInNoYS0yNTYiXSwgInBheWxvYWQiOiB7ImFtb3VudCI6IDEyLjUsICJjdXJyZW5jeSI6ICJVU0QiLCAicGF5ZWUiOiB7Im5hbWUiOiAiUm9jayBMZWdlbmRzIiwgImlkIjogIlBheWVlLWlkLTEyMyJ9LCAidHJhbnNhY3Rpb25faWQiOiAiMTIzNDU2Nzg5MCJ9fQ=="
+    ]
+  })";
+  return ParseJsonAndCheck(kJson);
+}
+
+base::Value GenerateDpcExample1WithOtherData() {
+  constexpr char kJson[] = R"({
+    "client_metadata": {
+      "vp_formats_supported": {
+        "dc+sd-jwt": {
+          "sd-jwt_alg_values": [
+            "ES256"
+          ]
+        }
+      }
+    },
+    "dcql_query": {
+      "credentials": [
+        {
+          "format": "dc+sd-jwt",
+          "id": "cred1",
+          "meta": {
+            "vct_values": [
+              "com.emvco.dpc"
+            ]
+          },
+          "claims": [
+            {
+              "path": [
+                "given_name"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "nonce": "VICJxZXdOrXSygevOEOe7Fwsh3u5PSIuEGUB_z4-1iE",
+    "response_mode": "dc_api",
+    "response_type": "vp_token",
+    "transaction_data": [
+      "eyJ0eXBlIjogInVybjpldWRpOnNjYTpwYXltZW50OjEiLCAiY3JlZGVudGlhbF9pZHMiOiBbImNyZWQxIl0sICJ0cmFuc2FjdGlvbl9kYXRhX2hhc2hlc19hbGciOiBbInNoYS0yNTYiXSwgInBheWxvYWQiOiB7ImFtb3VudCI6IDEyLjUsICJjdXJyZW5jeSI6ICJVU0QiLCAicGF5ZWUiOiB7Im5hbWUiOiAiUm9jayBMZWdlbmRzIiwgImlkIjogIlBheWVlLWlkLTEyMyJ9LCAidHJhbnNhY3Rpb25faWQiOiAiMTIzNDU2Nzg5MCJ9fQ=="
+    ]
+  })";
+  return ParseJsonAndCheck(kJson);
+}
 
 // Does depth-first traversal of nested dicts rooted at `root`. Returns first
 // matching base::Value with key `find_key`.
@@ -703,6 +847,31 @@ TEST_F(DigitalIdentityRequestImplInterstitialTest,
 }
 
 TEST_F(DigitalIdentityRequestImplInterstitialTest,
+       Openid4VpProtocolDCQL_ComputeInterstitialType_DpcExample1) {
+  EXPECT_EQ(ComputeInterstitialType(kOpenid4vpProtocol, GenerateDpcExample1()),
+            std::nullopt);
+}
+
+TEST_F(DigitalIdentityRequestImplInterstitialTest,
+       Openid4VpProtocolDCQL_ComputeInterstitialType_DpcExample2) {
+  EXPECT_EQ(ComputeInterstitialType(kOpenid4vpProtocol, GenerateDpcExample2()),
+            std::nullopt);
+}
+
+TEST_F(DigitalIdentityRequestImplInterstitialTest,
+       Openid4VpProtocolDCQL_ComputeInterstitialType_DpcExample3) {
+  EXPECT_EQ(ComputeInterstitialType(kOpenid4vpProtocol, GenerateDpcExample3()),
+            std::nullopt);
+}
+
+TEST_F(DigitalIdentityRequestImplInterstitialTest,
+       Openid4VpProtocolDCQL_ComputeInterstitialType_DpcExample1WithOtherData) {
+  EXPECT_EQ(ComputeInterstitialType(kOpenid4vpProtocol,
+                                    GenerateDpcExample1WithOtherData()),
+            InterstitialType::kLowRisk);
+}
+
+TEST_F(DigitalIdentityRequestImplInterstitialTest,
        Openid4VpProtocolSignedDCQL_ComputeInterstitialType_OnlyAgeOver) {
   EXPECT_EQ(
       ComputeInterstitialType(kOpenid4vpSignedProtocol,
@@ -896,6 +1065,19 @@ class DigitalIdentityRequestImplTest : public RenderViewHostTestHarness {
     return mock_digital_identity_provider_;
   }
 
+  void SetMockDigitalIdentityProvider(
+      std::unique_ptr<MockDigitalIdentityProvider> provider) {
+    mock_digital_identity_provider_ = provider.get();
+    content_browser_client_.SetDigitalIdentityProvider(std::move(provider));
+  }
+
+  void RecreateService() {
+    request_remote_.reset();
+    digital_identity_request_impl_ = DigitalIdentityRequestImpl::CreateInstance(
+        *web_contents()->GetPrimaryMainFrame(),
+        request_remote_.BindNewPipeAndPassReceiver());
+  }
+
   void reset_provider_pointer() { mock_digital_identity_provider_ = nullptr; }
 
  private:
@@ -1027,6 +1209,131 @@ TEST_F(DigitalIdentityRequestImplTest,
                                        mock_callback.Get());
 
   run_loop.Run();
+}
+
+TEST_F(DigitalIdentityRequestImplTest,
+       ShouldReturnUserDeclinedWhenNoCredential) {
+  const std::string kProtocol = "protocol";
+  DigitalCredentialGetRequestPtr digital_credential_request =
+      DigitalCredentialGetRequest::New();
+  digital_credential_request->protocol = kProtocol;
+  base::DictValue request_data;
+  request_data.Set("data", "request data");
+  digital_credential_request->data = base::Value(std::move(request_data));
+
+  std::vector<DigitalCredentialGetRequestPtr> requests;
+  requests.push_back(std::move(digital_credential_request));
+
+  base::RunLoop run_loop;
+
+  EXPECT_CALL(*mock_digital_identity_provider(), Get)
+      .WillOnce(WithArg<3>([this](DigitalIdentityCallback callback) {
+        // Running the `callback` will destroy the provider, reset the
+        // pointer to avoid dangling pointers after invoking the callback.
+        reset_provider_pointer();
+
+        std::move(callback).Run(
+            base::unexpected(RequestStatusForMetrics::kErrorNoCredential));
+      }));
+
+  base::MockCallback<GetCallback> mock_callback;
+  EXPECT_CALL(mock_callback,
+              Run(RequestDigitalIdentityStatus::kErrorUserDeclined,
+                  testing::Eq(std::nullopt), _))
+      .WillOnce(base::test::RunOnceClosure(run_loop.QuitClosure()));
+
+  digital_identity_request_impl()->Get(std::move(requests),
+                                       mock_callback.Get());
+
+  run_loop.Run();
+}
+
+TEST_F(DigitalIdentityRequestImplTest,
+       ShouldReturnUserDeclinedWhenUserDeclined) {
+  const std::string kProtocol = "protocol";
+  DigitalCredentialGetRequestPtr digital_credential_request =
+      DigitalCredentialGetRequest::New();
+  digital_credential_request->protocol = kProtocol;
+  base::DictValue request_data;
+  request_data.Set("data", "request data");
+  digital_credential_request->data = base::Value(std::move(request_data));
+
+  std::vector<DigitalCredentialGetRequestPtr> requests;
+  requests.push_back(std::move(digital_credential_request));
+
+  base::RunLoop run_loop;
+
+  EXPECT_CALL(*mock_digital_identity_provider(), Get)
+      .WillOnce(WithArg<3>([this](DigitalIdentityCallback callback) {
+        // Running the `callback` will destroy the provider, reset the
+        // pointer to avoid dangling pointers after invoking the callback.
+        reset_provider_pointer();
+
+        std::move(callback).Run(
+            base::unexpected(RequestStatusForMetrics::kErrorUserDeclined));
+      }));
+
+  base::MockCallback<GetCallback> mock_callback;
+  EXPECT_CALL(mock_callback,
+              Run(RequestDigitalIdentityStatus::kErrorUserDeclined,
+                  testing::Eq(std::nullopt), _))
+      .WillOnce(base::test::RunOnceClosure(run_loop.QuitClosure()));
+
+  digital_identity_request_impl()->Get(std::move(requests),
+                                       mock_callback.Get());
+
+  run_loop.Run();
+}
+
+TEST_F(DigitalIdentityRequestImplTest,
+       ShouldReturnSameErrorForNoCredentialAndUserDeclined) {
+  const std::string kProtocol = "protocol";
+
+  auto get_status_for_provider_error =
+      [&](RequestStatusForMetrics provider_error) {
+        SetMockDigitalIdentityProvider(
+            std::make_unique<MockDigitalIdentityProvider>());
+
+        RecreateService();
+
+        DigitalCredentialGetRequestPtr digital_credential_request =
+            DigitalCredentialGetRequest::New();
+        digital_credential_request->protocol = kProtocol;
+        base::DictValue request_data;
+        request_data.Set("data", "request data");
+        digital_credential_request->data = base::Value(std::move(request_data));
+
+        std::vector<DigitalCredentialGetRequestPtr> requests;
+        requests.push_back(std::move(digital_credential_request));
+
+        base::RunLoop run_loop;
+        RequestDigitalIdentityStatus status_out;
+
+        EXPECT_CALL(*mock_digital_identity_provider(), Get)
+            .WillOnce(WithArg<3>([&](DigitalIdentityCallback callback) {
+              reset_provider_pointer();
+              std::move(callback).Run(base::unexpected(provider_error));
+            }));
+
+        base::MockCallback<GetCallback> mock_callback;
+        EXPECT_CALL(mock_callback, Run)
+            .WillOnce(
+                ([&](RequestDigitalIdentityStatus status,
+                     std::optional<std::string> protocol, base::Value token) {
+                  status_out = status;
+                  run_loop.Quit();
+                }));
+
+        digital_identity_request_impl()->Get(std::move(requests),
+                                             mock_callback.Get());
+        run_loop.Run();
+        return status_out;
+      };
+
+  EXPECT_EQ(get_status_for_provider_error(
+                RequestStatusForMetrics::kErrorNoCredential),
+            get_status_for_provider_error(
+                RequestStatusForMetrics::kErrorUserDeclined));
 }
 
 // Tests for browser-side Permissions Policy enforcement.

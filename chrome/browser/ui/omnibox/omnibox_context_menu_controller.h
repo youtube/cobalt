@@ -87,9 +87,8 @@ class OmniboxContextMenuController : public ui::SimpleMenuModel::Delegate {
       OmniboxPopupState page_type) const;
   bool IsCommandIdVisible(int command_id) const override;
   void AddTabContext(const TabInfo& tab_info);
-  void UpdateSearchboxContext(
-      std::optional<TabInfo> tab_info,
-      std::optional<searchbox::mojom::ToolMode> tool_mode);
+  void UpdateSearchboxContext(std::optional<TabInfo> tab_info,
+                              std::optional<omnibox::ToolMode> tool_mode);
 
   // Tracks the context type.
   // These values are persisted to logs. Entries should not be renumbered and
@@ -122,6 +121,8 @@ class OmniboxContextMenuController : public ui::SimpleMenuModel::Delegate {
                            IsCommandIdEnabledHelper_WithNonImageFile);
   FRIEND_TEST_ALL_PREFIXES(OmniboxContextMenuControllerTest,
                            IsCommandIdEnabledHelper_MaxFiles);
+  FRIEND_TEST_ALL_PREFIXES(OmniboxContextMenuControllerTest,
+                           GetMaxTabSuggestions_UsesServerLimit);
 
   // Keeps track of various bits of info that are necessary to dynamically
   // render the contents of the context menu, based on the InputState received
@@ -171,9 +172,11 @@ class OmniboxContextMenuController : public ui::SimpleMenuModel::Delegate {
       const favicon_base::FaviconImageResult& image_result);
   void OnGetInputState(const std::optional<omnibox::InputState>& input_state);
 
-  void UpdateSearchboxContextToolMode(searchbox::mojom::ToolMode tool_mode);
+  void UpdateSearchboxContextToolMode(omnibox::ToolMode tool_mode);
 
   bool IsContentSharingEnabled() const;
+
+  int GetMaxTabSuggestions() const;
 
   OmniboxContextMenuController::ContextType CommandIdToEnum(
       int command_id) const;

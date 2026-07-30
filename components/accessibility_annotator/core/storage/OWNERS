@@ -1,0 +1,2 @@
+# For large-scale Sync-related changes, refactorings, etc.
+per-file *sync*=file://components/sync/OWNERS

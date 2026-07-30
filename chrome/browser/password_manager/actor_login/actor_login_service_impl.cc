@@ -31,10 +31,10 @@ void OnGetCredentialsResult(CredentialsOrErrorReply callback,
   std::move(callback).Run(std::move(result));
 }
 
-void OnAttemptLoginResult(LoginStatusResultOrErrorReply callback,
+void OnAttemptLoginResult(LoginStatusResultOrErrorReply done_callback,
                           LoginStatusResultOrError result) {
   RecordAttemptLoginResult(result);
-  std::move(callback).Run(std::move(result));
+  std::move(done_callback).Run(std::move(result));
 }
 }  // namespace
 
@@ -46,6 +46,7 @@ ActorLoginServiceImpl::~ActorLoginServiceImpl() = default;
 
 void ActorLoginServiceImpl::GetCredentials(
     tabs::TabInterface* tab,
+    bool has_sign_in_with_google_button,
     base::WeakPtr<ActorLoginQualityLoggerInterface> mqls_logger,
     CredentialsOrErrorReply callback) {
   CHECK(tab);
@@ -64,8 +65,9 @@ void ActorLoginServiceImpl::GetCredentials(
       actor_login_delegate_factory_.Run(web_contents);
 
   // Delegate the call to the `WebContents`-scoped delegate.
-  delegate->GetCredentials(mqls_logger, base::BindOnce(&OnGetCredentialsResult,
-                                                       std::move(callback)));
+  delegate->GetCredentials(
+      has_sign_in_with_google_button, mqls_logger,
+      base::BindOnce(&OnGetCredentialsResult, std::move(callback)));
 }
 
 void ActorLoginServiceImpl::AttemptLogin(
@@ -74,13 +76,14 @@ void ActorLoginServiceImpl::AttemptLogin(
     bool should_store_permission,
     base::WeakPtr<ActorLoginQualityLoggerInterface> mqls_logger,
     base::TimeTicks attempt_login_tool_start_time,
-    LoginStatusResultOrErrorReply callback) {
+    LoginStatusResultOrErrorReply done_callback,
+    LoginStatusResultCallback federated_login_outcome_callback) {
   CHECK(tab);
 
   content::WebContents* web_contents = tab->GetContents();
   if (!web_contents) {
     OnAttemptLoginResult(
-        std::move(callback),
+        std::move(done_callback),
         base::unexpected(ActorLoginError::kInvalidTabInterface));
     return;
   }
@@ -94,7 +97,8 @@ void ActorLoginServiceImpl::AttemptLogin(
   delegate->AttemptLogin(
       credential, should_store_permission, mqls_logger,
       attempt_login_tool_start_time,
-      base::BindOnce(&OnAttemptLoginResult, std::move(callback)));
+      base::BindOnce(&OnAttemptLoginResult, std::move(done_callback)),
+      std::move(federated_login_outcome_callback));
 }
 
 void ActorLoginServiceImpl::SetActorLoginDelegateFactoryForTesting(

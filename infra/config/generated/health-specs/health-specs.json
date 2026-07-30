@@ -2726,6 +2726,27 @@
           }
         ]
       },
+      "Libfuzzer Upload Linux ASanBrpV2": {
+        "contact_team_email": "chrome-fuzzing-core@google.com",
+        "problem_specs": [
+          {
+            "name": "Unhealthy",
+            "period_days": 7,
+            "score": 5,
+            "thresholds": {
+              "_default": "_default"
+            }
+          },
+          {
+            "name": "Low Value",
+            "period_days": 90,
+            "score": 1,
+            "thresholds": {
+              "_default": "_default"
+            }
+          }
+        ]
+      },
       "Libfuzzer Upload Linux MSan": {
         "contact_team_email": "chrome-fuzzing-core@google.com",
         "problem_specs": [
@@ -3210,6 +3231,27 @@
         ]
       },
       "Linux FYI Experimental Release (AMD 890M)": {
+        "contact_team_email": "chrome-gpu-infra@google.com",
+        "problem_specs": [
+          {
+            "name": "Unhealthy",
+            "period_days": 7,
+            "score": 5,
+            "thresholds": {
+              "_default": "_default"
+            }
+          },
+          {
+            "name": "Low Value",
+            "period_days": 90,
+            "score": 1,
+            "thresholds": {
+              "_default": "_default"
+            }
+          }
+        ]
+      },
+      "Linux FYI Experimental Release (AMD 9900X)": {
         "contact_team_email": "chrome-gpu-infra@google.com",
         "problem_specs": [
           {
@@ -6085,6 +6127,27 @@
         ]
       },
       "Win11 FYI x64 Experimental Release (AMD 890M)": {
+        "contact_team_email": "chrome-gpu-infra@google.com",
+        "problem_specs": [
+          {
+            "name": "Unhealthy",
+            "period_days": 7,
+            "score": 5,
+            "thresholds": {
+              "_default": "_default"
+            }
+          },
+          {
+            "name": "Low Value",
+            "period_days": 90,
+            "score": 1,
+            "thresholds": {
+              "_default": "_default"
+            }
+          }
+        ]
+      },
+      "Win11 FYI x64 Experimental Release (AMD 9900X)": {
         "contact_team_email": "chrome-gpu-infra@google.com",
         "problem_specs": [
           {
@@ -9632,6 +9695,27 @@
       },
       "linux-archive-rel": {
         "contact_team_email": "chrome-browser-infra-team@google.com",
+        "problem_specs": [
+          {
+            "name": "Unhealthy",
+            "period_days": 7,
+            "score": 5,
+            "thresholds": {
+              "_default": "_default"
+            }
+          },
+          {
+            "name": "Low Value",
+            "period_days": 90,
+            "score": 1,
+            "thresholds": {
+              "_default": "_default"
+            }
+          }
+        ]
+      },
+      "linux-arm64-rel-fyi": {
+        "contact_team_email": "chrome-linux-engprod@google.com",
         "problem_specs": [
           {
             "name": "Unhealthy",

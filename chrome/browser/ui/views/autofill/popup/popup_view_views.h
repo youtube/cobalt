@@ -192,9 +192,16 @@ class PopupViewViews : public PopupBaseView,
   // metadata.
   void ShowIPHFeaturePromos();
 
+  // Announces the title of the currently selected tab in `tabbed_pane_`, if it
+  // exists.
+  void MaybeAnnounceCurrentTab();
+
   // If the current suggestions are for password recovery, announces it to the
   // user.
   void MaybeAnnouncePasswordRecoveryPopup();
+
+  // If the current suggestions are for loading, announces it to the user.
+  void MaybeAnnounceLoadingState();
 
   // Returns the `PopupRowView` at line number `index`. Assumes that there is
   // such a view at that line number - otherwise the underlying variant will
@@ -323,6 +330,9 @@ class PopupViewViews : public PopupBaseView,
   // The latest row which was set as having a sub-popup open. Storing it
   // is required to maintain the invariant of at most one such a row.
   std::optional<size_t> row_with_open_sub_popup_;
+
+  // Stores the initial width of the popup to maintain when switching tabs.
+  std::optional<int> tabbed_pane_initial_width_ = std::nullopt;
 
   std::vector<RowPointer> rows_;
   const std::optional<const AutofillPopupView::SearchBarConfig>

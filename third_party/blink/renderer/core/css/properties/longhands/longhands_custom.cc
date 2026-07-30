@@ -2789,9 +2789,8 @@ void ColorScheme::ApplyValue(StyleResolverState& state,
                              const CSSValue& value,
                              ValueMode) const {
   const CSSValueList* scheme_list = DynamicTo<CSSValueList>(value);
-  DCHECK(scheme_list || (value.IsIdentifierValue() &&
-                         DynamicTo<CSSIdentifierValue>(value)->GetValueID() ==
-                             CSSValueID::kNormal));
+  DCHECK(scheme_list ||
+         To<CSSIdentifierValue>(value).GetValueID() == CSSValueID::kNormal);
   ApplyColorSchemeValue(state, scheme_list);
 }
 
@@ -2972,6 +2971,12 @@ const CSSValue* RowRuleStyle::CSSValueFromComputedStyleInternal(
 }
 
 void ColumnRuleWidth::ApplyInherit(StyleResolverState& state) const {
+  if (state.GetDocument().StandardizedBrowserZoomEnabled()) {
+    if (ApplyParentValueIfZoomChanged(state)) {
+      return;
+    }
+  }
+
   // Following the resolution of CSSWG issue 11494, the computed value of
   // column-rule-width should be independent of the column-rule-style.
   // https://github.com/w3c/csswg-drafts/issues/11494#issuecomment-2675800489
@@ -3512,7 +3517,7 @@ void Content::ApplyValue(StyleResolverState& state,
   for (auto& item : To<CSSValueList>(outer_list.Item(0))) {
     ContentData* next_content = nullptr;
     if (item->IsImageGeneratorValue() || item->IsImageSetValue() ||
-        item->IsImageValue()) {
+        item->IsImageValue() || item->IsLightDarkValuePair()) {
       next_content = MakeGarbageCollected<ImageContentData>(
           state.GetStyleImage(CSSPropertyID::kContent, *item));
     } else if (const auto* counter_value =
@@ -8066,6 +8071,12 @@ void OutlineWidth::ApplyInitial(StyleResolverState& state) const {
 }
 
 void OutlineWidth::ApplyInherit(StyleResolverState& state) const {
+  if (state.GetDocument().StandardizedBrowserZoomEnabled()) {
+    if (ApplyParentValueIfZoomChanged(state)) {
+      return;
+    }
+  }
+
   // Following the resolution of CSSWG issue 11494, the computed value of
   // outline-width should be independent of the outline-style.
   // https://github.com/w3c/csswg-drafts/issues/11494#issuecomment-2675800489

@@ -18,6 +18,7 @@ source_set("sync_integration_tests_impl") {
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
   deps = [
     ":sync_integration_test_support",
+    "//chrome/browser/account_settings",
     "//chrome/browser/autofill",
     "//chrome/browser/bookmarks",
     "//chrome/browser/glic",
@@ -37,6 +38,7 @@ source_set("sync_integration_tests_impl") {
     "//chrome/browser/ui:ui_features",
     "//chrome/test:browser_tests_runner",
     "//chrome/test:test_support",
+    "//components/account_settings",
     "//components/autofill/core/browser",
     "//components/autofill/core/browser:test_support",
     "//components/bookmarks/browser",
@@ -150,7 +152,6 @@ source_set("sync_integration_tests_impl") {
       "single_client_polling_sync_test.cc",
       "single_client_saved_tab_groups_sync_test.cc",
       "single_client_search_engines_sync_test.cc",
-      "single_client_secondary_account_sync_test.cc",
       "single_client_send_tab_to_self_sync_test.cc",
       "single_client_sessions_sync_test.cc",
       "single_client_sharing_message_sync_test.cc",
@@ -340,7 +341,6 @@ source_set("sync_integration_tests_impl") {
         "//chrome/browser/ash/app_list",
         "//chrome/browser/ash/app_list/arc",
         "//chrome/browser/ash/app_list/test:test_support",
-        "//chrome/browser/ash/crosapi",
         "//chrome/browser/ash/floating_sso",
         "//chrome/browser/ash/floating_sso:test_support",
         "//chrome/browser/ash/printing",
@@ -622,6 +622,8 @@ source_set("sync_integration_test_support") {
       "//chromeos/ash/experiences/arc:arc_test_support",
       "//chromeos/ash/experiences/arc/mojom",
       "//chromeos/printing",
+      "//components/account_id",
+      "//components/account_id:test_support",
       "//components/desks_storage",
       "//components/user_manager:test_support",
     ]

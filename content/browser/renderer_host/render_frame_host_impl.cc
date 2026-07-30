@@ -139,6 +139,7 @@
 #include "content/browser/renderer_host/ipc_utils.h"
 #include "content/browser/renderer_host/local_network_access_util.h"
 #include "content/browser/renderer_host/media/peer_connection_tracker_host.h"
+#include "content/browser/renderer_host/mixed_content_checker.h"
 #include "content/browser/renderer_host/navigation_controller_impl.h"
 #include "content/browser/renderer_host/navigation_entry_impl.h"
 #include "content/browser/renderer_host/navigation_metrics_utils.h"
@@ -3044,7 +3045,22 @@ RenderFrameHostImpl::~RenderFrameHostImpl() {
     beforeunload_initiator->ProcessBeforeUnloadCompletedFromFrame(
         /*proceed=*/true, /*treat_as_final_completion_callback=*/false, this,
         /*is_frame_being_destroyed=*/true, approx_renderer_start_time,
-        base::TimeTicks::Now(), /*for_legacy=*/false);
+        base::TimeTicks::Now(), BeforeUnloadExecutionMode::kDefault);
+  }
+
+  // If `NavigationRequest` is waiting for asynchronous beforeunload completion
+  // callback from this frame, try to proceed the all navigations that are
+  // unblocked by this frame.
+  for (RenderFrameHostImpl* rfh = this; rfh; rfh = rfh->GetParent()) {
+    if (NavigationRequest* navigation_request =
+            rfh->frame_tree_node()->navigation_request()) {
+      // Defer the resume to a fresh call stack to avoid Use-After-Frees and
+      // teardown re-entrancy.
+      base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+          FROM_HERE,
+          base::BindOnce(&NavigationRequest::MaybeResumeAsyncBeforeUnloadCommit,
+                         navigation_request->GetWeakPtr(), GetGlobalId()));
+    }
   }
 
   if (prefetched_signed_exchange_cache_) {
@@ -3995,9 +4011,9 @@ void RenderFrameHostImpl::AccessibilityPerformAction(
     return;
   }
 
-  // Don't perform the action if the WebContents is set to ignore accessibility
-  // input events. See WebContents::IgnoreInputEvents for more information.
-  if (delegate()->ShouldIgnoreA11yInputEvents()) {
+  // Don't perform the action if the WebContents is set to ignore input events.
+  // See WebContents::IgnoreInputEvents for more information.
+  if (delegate()->ShouldIgnoreInputEvents()) {
     return;
   }
 
@@ -6615,8 +6631,7 @@ void RenderFrameHostImpl::ResetOwnedNavigationRequests(
     // yet.
     DCHECK(same_document_navigation_requests_.empty());
 
-    if (ShouldQueueNavigationsWhenPendingCommitRFHExists() &&
-        HasPendingCommitForCrossDocumentNavigation()) {
+    if (HasPendingCommitForCrossDocumentNavigation()) {
       // With navigation queueing, pending commit navigations shouldn't get
       // canceled, unless the FrameTreeNode or renderer process
       // is gone/will be gone soon.
@@ -6734,31 +6749,6 @@ void RenderFrameHostImpl::Unload(RenderFrameProxyHost* proxy, bool is_loading) {
   // |this| is potentially deleted. Do not add code after this.
 }
 
-void RenderFrameHostImpl::UndoCommitNavigation(RenderFrameProxyHost& proxy,
-                                               bool is_loading) {
-  TRACE_EVENT("navigation", "RenderFrameHostImpl::UndoCommitNavigation",
-              "render_frame_host", this);
-
-  DCHECK_EQ(lifecycle_state_, LifecycleStateImpl::kPendingCommit);
-
-  if (IsRenderFrameLive()) {
-    // By definition, the browser process has not received the
-    // `DidCommitNavgation()`, so the RenderFrameProxyHost endpoints are still
-    // bound. Resetting now means any queued IPCs that are still in-flight will
-    // be dropped. This is a bit problematic, but it is still less problematic
-    // than just crashing the renderer for being in an inconsistent state.
-    proxy.TearDownMojoConnection();
-
-    GetMojomFrameInRenderer()->UndoCommitNavigation(
-        is_loading,
-        proxy.frame_tree_node()->current_replication_state().Clone(),
-        proxy.GetFrameToken(), proxy.CreateAndBindRemoteFrameInterfaces(),
-        proxy.CreateAndBindRemoteMainFrameInterfaces());
-  }
-
-  SetLifecycleState(LifecycleStateImpl::kReadyToBeDeleted);
-}
-
 void RenderFrameHostImpl::MaybeDispatchDidFinishLoadOnPrerenderActivation() {
   // Don't dispatch notification if DidFinishLoad has not yet been invoked for
   // `rfh` i.e., when the url is nullopt.
@@ -6842,7 +6832,7 @@ void RenderFrameHostImpl::ProcessBeforeUnloadCompleted(
     bool treat_as_final_completion_callback,
     const base::TimeTicks& renderer_before_unload_start_time,
     const base::TimeTicks& renderer_before_unload_end_time,
-    bool for_legacy) {
+    BeforeUnloadExecutionMode execution_mode) {
   TRACE_EVENT("navigation", "RenderFrameHostImpl::ProcessBeforeUnloadCompleted",
               perfetto::Flow::FromPointer(this));
   // Corresponds to the "RenderFrameHostImpl BeforeUnload" event.
@@ -6869,7 +6859,7 @@ void RenderFrameHostImpl::ProcessBeforeUnloadCompleted(
   initiator->ProcessBeforeUnloadCompletedFromFrame(
       proceed, treat_as_final_completion_callback, this,
       /*is_frame_being_destroyed=*/false, renderer_before_unload_start_time,
-      renderer_before_unload_end_time, for_legacy);
+      renderer_before_unload_end_time, execution_mode);
   // DO NOT add code after this. `this` can be deleted at this point.
 }
 
@@ -6880,7 +6870,7 @@ void RenderFrameHostImpl::ProcessBeforeUnloadCompletedFromFrame(
     bool is_frame_being_destroyed,
     const base::TimeTicks& renderer_before_unload_start_time,
     const base::TimeTicks& renderer_before_unload_end_time,
-    bool for_legacy) {
+    BeforeUnloadExecutionMode execution_mode) {
   // Check if we need to wait for more beforeunload completion callbacks. If
   // |proceed| is false, we know the navigation or window close will be aborted,
   // so we don't need to wait for beforeunload completion callbacks from any
@@ -6906,7 +6896,8 @@ void RenderFrameHostImpl::ProcessBeforeUnloadCompletedFromFrame(
       !renderer_before_unload_end_time.is_null()) {
     base::TimeTicks before_unload_completed_time = base::TimeTicks::Now();
 
-    if (!base::TimeTicks::IsConsistentAcrossProcesses() && !for_legacy) {
+    if (!base::TimeTicks::IsConsistentAcrossProcesses() &&
+        execution_mode == BeforeUnloadExecutionMode::kDefault) {
       // TimeTicks is not consistent across processes and we are passing
       // TimeTicks across process boundaries so we need to compensate for any
       // skew between the processes. Here we are converting the renderer's
@@ -6937,9 +6928,10 @@ void RenderFrameHostImpl::ProcessBeforeUnloadCompletedFromFrame(
           (renderer_before_unload_start_time - send_before_unload_start_time_);
     }
 
-    if (for_legacy) {
-      // When `for_legacy` is true callers should supply
-      // `send_before_unload_start_time_` as the value for
+    if (execution_mode == BeforeUnloadExecutionMode::kForLegacy ||
+        execution_mode == BeforeUnloadExecutionMode::kAsync) {
+      // When `execution_mode` is `kForLegacy` or `kAsync`, callers should
+      // supply `send_before_unload_start_time_` as the value for
       // `renderer_before_unload_start_time`, which means
       // `browser_to_renderer_ipc_time_delta` should be 0.
       DCHECK(browser_to_renderer_ipc_time_delta.is_zero());
@@ -6950,21 +6942,38 @@ void RenderFrameHostImpl::ProcessBeforeUnloadCompletedFromFrame(
         (renderer_before_unload_end_time - renderer_before_unload_start_time);
     base::UmaHistogramTimes("Navigation.OnBeforeUnloadOverheadTime",
                             on_before_unload_overhead_time);
-    if (for_legacy) {
-      base::UmaHistogramTimes(
-          "Navigation.OnBeforeUnloadOverheadTime."
-          "NoBeforeUnloadHandlerRegistered",
-          on_before_unload_overhead_time);
-    } else {
-      base::UmaHistogramTimes(
-          "Navigation.OnBeforeUnloadOverheadTime."
-          "BeforeUnloadHandlerRegistered",
-          on_before_unload_overhead_time);
+    switch (execution_mode) {
+      case BeforeUnloadExecutionMode::kDefault:
+      case BeforeUnloadExecutionMode::kAsync:
+        base::UmaHistogramTimes(
+            "Navigation.OnBeforeUnloadOverheadTime."
+            "BeforeUnloadHandlerRegistered",
+            on_before_unload_overhead_time);
+        if (execution_mode == BeforeUnloadExecutionMode::kAsync) {
+          base::UmaHistogramTimes(
+              "Navigation.OnBeforeUnloadOverheadTime."
+              "BeforeUnloadHandlerRegistered.Async",
+              on_before_unload_overhead_time);
+        } else {
+          base::UmaHistogramTimes(
+              "Navigation.OnBeforeUnloadOverheadTime."
+              "BeforeUnloadHandlerRegistered.Sync",
+              on_before_unload_overhead_time);
+        }
+        break;
+      case BeforeUnloadExecutionMode::kForLegacy:
+        base::UmaHistogramTimes(
+            "Navigation.OnBeforeUnloadOverheadTime."
+            "NoBeforeUnloadHandlerRegistered",
+            on_before_unload_overhead_time);
+        break;
     }
 
     frame_tree_node_->navigator().LogBeforeUnloadTime(
         renderer_before_unload_start_time, renderer_before_unload_end_time,
-        send_before_unload_start_time_, for_legacy);
+        send_before_unload_start_time_,
+        execution_mode == BeforeUnloadExecutionMode::kForLegacy ||
+            execution_mode == BeforeUnloadExecutionMode::kAsync);
   }
 
   bool showed_dialog = has_shown_beforeunload_dialog_;
@@ -7007,7 +7016,8 @@ void RenderFrameHostImpl::ProcessBeforeUnloadCompletedFromFrame(
       // which is tricky.
       weak_ptr_factory_.GetWeakPtr(),
       before_unload_end_time - browser_to_renderer_ipc_time_delta, proceed,
-      unload_ack_is_for_navigation_, for_legacy, showed_dialog);
+      unload_ack_is_for_navigation_,
+      execution_mode == BeforeUnloadExecutionMode::kForLegacy, showed_dialog);
 
   if (is_frame_being_destroyed) {
     DCHECK(proceed);
@@ -8588,7 +8598,7 @@ void RenderFrameHostImpl::VisibilityChanged(
 void RenderFrameHostImpl::DidChangeThemeColor(
     std::optional<SkColor> theme_color) {
   // TODO(crbug.com/40188381): Consider moving this to PageImpl.
-  DCHECK(is_main_frame());
+  CHECK(is_main_frame());
   GetPage().OnThemeColorChanged(theme_color);
 }
 
@@ -8596,7 +8606,7 @@ void RenderFrameHostImpl::DidChangeBackgroundColor(
     const SkColor4f& background_color,
     bool color_adjust) {
   // TODO(crbug.com/40188381): Consider moving this to PageImpl.
-  DCHECK(is_main_frame());
+  CHECK(is_main_frame());
   GetPage().DidChangeBackgroundColor(background_color, color_adjust);
 }
 
@@ -9326,7 +9336,6 @@ void RenderFrameHostImpl::FocusedElementChanged(
 void RenderFrameHostImpl::TextSelectionChanged(const std::u16string& text,
                                                uint32_t offset,
                                                const gfx::Range& range) {
-  RecordAction(base::UserMetricsAction("TextSelectionChanged"));
   has_selection_ = !text.empty();
   GetRenderWidgetHost()->SelectionChanged(text, offset, range);
 
@@ -11015,8 +11024,10 @@ void RenderFrameHostImpl::DisableUntrustedNetworkInFencedFrame(
   // constructors to ensure that they are tagged with the relevant partition
   // nonce.
   GetStoragePartition()->RevokeNetworkForNoncesInNetworkContext(
-      {{properties->partition_nonce()->GetValueIgnoringVisibility(), {}},
-       {GetPage().credentialless_iframes_nonce(), {}}},
+      {{properties->partition_nonce()->GetValueIgnoringVisibility(),
+        network::ConnectionAllowlists()},
+       {GetPage().credentialless_iframes_nonce(),
+        network::ConnectionAllowlists()}},
       base::BindOnce(
           &RenderFrameHostImpl::RevokeNetworkForNonceCallback,
           weak_ptr_factory_.GetWeakPtr(),
@@ -11439,6 +11450,10 @@ void RenderFrameHostImpl::BeginNavigation(
       unvalidated_common_params.Clone();
   if (!VerifyBeginNavigationCommonParams(*this, &*validated_common_params,
                                          begin_params->initiator_frame_token)) {
+    return;
+  }
+
+  if (!VerifyNavigationHeaders(GetProcess(), begin_params->headers)) {
     return;
   }
 
@@ -12147,20 +12162,71 @@ bool RenderFrameHostImpl::CheckOrDispatchBeforeUnloadForSubtree(
 
   bool found_beforeunload = false;
   bool run_beforeunload_for_legacy = false;
+  const bool should_run_before_unload_asynchronously =
+      ShouldRunBeforeUnloadAsynchronously(subframes_only, send_ipc);
+  std::set<GlobalRenderFrameHostId>& beforeunload_pending_replies =
+      should_run_before_unload_asynchronously
+          ? frame_tree_node_->navigation_request()
+                ->async_before_unload_pending_replies()
+          : beforeunload_pending_replies_;
 
+  // The main loop that determines which descendant frames have beforeunload
+  // handlers, and if `send_ipc` is true, sends the corresponding IPCs to those
+  // frames to run beforeunload and stores their IDs to
+  // `beforeunload_pending_replies` to track the beforeunload ACKs.
   ForEachRenderFrameHostImplWithAction(
-      [this, subframes_only, send_ipc, is_reload, &found_beforeunload,
-       &run_beforeunload_for_legacy](
+      [this, subframes_only, send_ipc, is_reload,
+       should_run_before_unload_asynchronously, &beforeunload_pending_replies,
+       &found_beforeunload, &run_beforeunload_for_legacy](
           RenderFrameHostImpl* rfh) -> FrameIterationAction {
         return CheckOrDispatchBeforeUnloadForFrame(
-            subframes_only, send_ipc, is_reload, &found_beforeunload,
+            subframes_only, send_ipc, is_reload,
+            should_run_before_unload_asynchronously,
+            beforeunload_pending_replies, &found_beforeunload,
             &run_beforeunload_for_legacy, rfh);
       });
 
   if (run_beforeunload_for_legacy) {
-    DCHECK(send_ipc);
+    CHECK(send_ipc);
+    CHECK(beforeunload_pending_replies.empty());
+    CHECK(beforeunload_pending_replies_.empty());
     beforeunload_pending_replies_.insert(GetGlobalId());
-    SendBeforeUnload(is_reload, GetWeakPtr(), /*for_legacy=*/true);
+    ContinueNavigationAfterBeforeUnloadCheck(
+        BeforeUnloadExecutionMode::kForLegacy);
+  } else if (should_run_before_unload_asynchronously && found_beforeunload) {
+    // When running beforeunload handlers asynchronously, we hand over the
+    // timeout responsibility from `this->beforeunload_timeout_` (which manages
+    // the synchronous, navigation-blocking phase) to
+    // `navigation_request->async_before_unload_timeout_` (which manages the
+    // background execution phase).
+    //
+    // `beforeunload_timeout_` will be non-null for all non-test cases, as it is
+    // started in `DispatchBeforeUnload` (this function's caller) when
+    // `send_ipc` is true. It may be null in tests (e.g., when
+    // DisableBeforeUnloadHangMonitorForTesting() is used). In such cases, we
+    // also skip starting the asynchronous beforeunload timer to maintain
+    // consistent behavior and avoid flakiness on slow bots.
+    //
+    // Stopping the `beforeunload_timeout_` timer here is safe because
+    // `ContinueNavigationAfterBeforeUnloadCheck` call immediately stops
+    // `beforeunload_timeout_` in `ProcessBeforeUnloadCompletedFromFrame`.
+    if (beforeunload_timeout_) {
+      beforeunload_timeout_->Stop();
+      frame_tree_node_->navigation_request()->StartAsyncBeforeUnloadTimer();
+    }
+    // Inserts `this` GlobalRenderFrameHostId into
+    // `beforeunload_pending_replies_` as a placeholder. This matches the
+    // `kForLegacy` case above. While this is not strictly necessary for the
+    // navigation to eventually proceed in
+    // `ProcessBeforeUnloadCompletedFromFrame` (which will let it proceed either
+    // way), we insert `this` GlobalRenderFrameHostId to ensure that the
+    // invariant that `beforeunload_pending_replies_` should not be empty while
+    // `is_waiting_for_beforeunload_completion_` is true.
+    CHECK(send_ipc);
+    CHECK(!beforeunload_pending_replies.empty());
+    CHECK(beforeunload_pending_replies_.empty());
+    beforeunload_pending_replies_.insert(GetGlobalId());
+    ContinueNavigationAfterBeforeUnloadCheck(BeforeUnloadExecutionMode::kAsync);
   }
 
   return found_beforeunload;
@@ -12171,6 +12237,8 @@ RenderFrameHostImpl::CheckOrDispatchBeforeUnloadForFrame(
     bool subframes_only,
     bool send_ipc,
     bool is_reload,
+    bool should_run_before_unload_asynchronously,
+    std::set<GlobalRenderFrameHostId>& beforeunload_pending_replies,
     bool* found_beforeunload,
     bool* run_beforeunload_for_legacy,
     RenderFrameHostImpl* rfh) {
@@ -12194,8 +12262,8 @@ RenderFrameHostImpl::CheckOrDispatchBeforeUnloadForFrame(
   }
 
   // Only run beforeunload in frames that have registered a beforeunload
-  // handler. See description of SendBeforeUnload() for details on simulating
-  // beforeunload for legacy reasons.
+  // handler. See description of `BeforeUnloadExecutionMode::kForLegacy` for
+  // details on simulating beforeunload for legacy reasons.
   //
   // If `kAvoidUnnecessaryBeforeUnloadCheckSync` is enabled with
   // `kWithoutSendBeforeUnload` mode and there is no beforeunload handler for
@@ -12234,7 +12302,7 @@ RenderFrameHostImpl::CheckOrDispatchBeforeUnloadForFrame(
   while (!rfh->is_local_root() && rfh != this) {
     rfh = rfh->GetParent();
   }
-  if (beforeunload_pending_replies_.contains(rfh->GetGlobalId())) {
+  if (beforeunload_pending_replies.contains(rfh->GetGlobalId())) {
     return FrameIterationAction::kContinue;
   }
 
@@ -12242,7 +12310,7 @@ RenderFrameHostImpl::CheckOrDispatchBeforeUnloadForFrame(
   // innermost frame, as Blink will walk all local (same-SiteInstanceGroup)
   // descendants. Detect cases like this and skip them.
   bool has_same_site_ancestor = false;
-  for (const GlobalRenderFrameHostId& id : beforeunload_pending_replies_) {
+  for (const GlobalRenderFrameHostId& id : beforeunload_pending_replies) {
     RenderFrameHostImpl* added_rfh = RenderFrameHostImpl::FromID(id);
     CHECK(added_rfh);
     if (rfh->IsDescendantOfWithinFrameTree(added_rfh) &&
@@ -12272,10 +12340,45 @@ RenderFrameHostImpl::CheckOrDispatchBeforeUnloadForFrame(
 
   // Add |rfh| to the list of frames that need to receive beforeunload
   // ACKs.
-  beforeunload_pending_replies_.insert(rfh->GetGlobalId());
+  beforeunload_pending_replies.insert(rfh->GetGlobalId());
 
-  SendBeforeUnload(is_reload, rfh->GetWeakPtr(), /*for_legacy=*/false);
+  SendBeforeUnload(is_reload, should_run_before_unload_asynchronously,
+                   rfh->GetWeakPtr());
   return FrameIterationAction::kContinue;
+}
+
+bool RenderFrameHostImpl::ShouldRunBeforeUnloadAsynchronously(
+    bool subframes_only,
+    bool send_ipc) {
+  if (!base::FeatureList::IsEnabled(features::kAsyncBeforeUnload) ||
+      !send_ipc || !unload_ack_is_for_navigation_ ||
+      !frame_tree_node_->navigation_request()) {
+    return false;
+  }
+
+  bool should_run_before_unload_asynchronously = true;
+
+  ForEachRenderFrameHostImplWithAction(
+      [this, subframes_only,
+       &should_run_before_unload_asynchronously](RenderFrameHostImpl* rfh) {
+        // If `subframes_only` is true, skip this frame and its
+        // same-SiteInstanceGroup descendants, which share a renderer-side frame
+        // tree.  This happens for renderer-initiated navigations, where these
+        // frames have already run beforeunload.
+        if (subframes_only &&
+            rfh->GetSiteInstance()->group() == GetSiteInstance()->group()) {
+          return FrameIterationAction::kContinue;
+        }
+
+        if (rfh->has_before_unload_handler_ && rfh->HasStickyUserActivation()) {
+          should_run_before_unload_asynchronously = false;
+          return FrameIterationAction::kStop;
+        }
+
+        return FrameIterationAction::kContinue;
+      });
+
+  return should_run_before_unload_asynchronously;
 }
 
 void RenderFrameHostImpl::SimulateBeforeUnloadCompleted(bool proceed) {
@@ -12289,7 +12392,7 @@ void RenderFrameHostImpl::SimulateBeforeUnloadCompleted(bool proceed) {
                      weak_ptr_factory_.GetWeakPtr(), proceed,
                      /*treat_as_final_completion_callback=*/true,
                      approx_renderer_start_time, base::TimeTicks::Now(),
-                     /*for_legacy=*/false));
+                     BeforeUnloadExecutionMode::kDefault));
 }
 
 bool RenderFrameHostImpl::ShouldDispatchBeforeUnload(
@@ -12316,12 +12419,9 @@ void RenderFrameHostImpl::StartPendingDeletionOnSubtree(
       {"Navigation.StartPendingDeletionOnSubtree.", histogram_suffix}));
   DCHECK(IsPendingDeletion());
 
-  if (pending_deletion_reason == PendingDeletionReason::kFrameDetach ||
-      !ShouldAvoidRedundantNavigationCancellations()) {
-    // Reset all navigations happening in the FrameTreeNode only when entering
-    // "pending deletion" state due to frame detach if the
-    // kStopCancellingNavigationsOnCommitAndNewNavigation flag is enabled, or
-    // for all pending deletion cases otherwise.
+  if (pending_deletion_reason == PendingDeletionReason::kFrameDetach) {
+    // When a frame is detached, all navigations associated with its
+    // FrameTreeNode should be cancelled because it will no longer exist.
     NavigationDiscardReason reason = NavigationDiscardReason::kWillRemoveFrame;
     GetFrameTreeNodeForUnload()->CancelNavigation(reason);
     GetFrameTreeNodeForUnload()
@@ -12329,8 +12429,7 @@ void RenderFrameHostImpl::StartPendingDeletionOnSubtree(
         .DiscardSpeculativeRFH(reason);
     ResetOwnedNavigationRequests(reason);
   } else {
-    CHECK(pending_deletion_reason == PendingDeletionReason::kSwappedOut ||
-          ShouldAvoidRedundantNavigationCancellations());
+    CHECK_EQ(pending_deletion_reason, PendingDeletionReason::kSwappedOut);
     // The pending deletion state is caused by swapping out the RFH. Reset only
     // the navigations that are owned by or will be using the swapped out RFH,
     // and also reset all navigations happening in the descendant frames.
@@ -14681,7 +14780,8 @@ void RenderFrameHostImpl::CreateWebSocketConnector(
   mojo::MakeSelfOwnedReceiver(
       std::make_unique<WebSocketConnectorImpl>(
           GlobalRenderFrameHostId(GetProcess()->GetID(), routing_id_),
-          last_committed_origin_, isolation_info_, BuildClientSecurityState()),
+          last_committed_origin_, isolation_info_, BuildClientSecurityState(),
+          GetNetworkRestrictionsID()),
       std::move(receiver));
 }
 
@@ -17086,7 +17186,7 @@ void RenderFrameHostImpl::DidCommitNavigation(
     ProcessBeforeUnloadCompleted(
         /*proceed=*/true, /*treat_as_final_completion_callback=*/true,
         approx_renderer_start_time, base::TimeTicks::Now(),
-        /*for_legacy=*/false);
+        BeforeUnloadExecutionMode::kDefault);
   }
 
   // When a frame enters pending deletion, it waits for itself and its children
@@ -17196,90 +17296,154 @@ RenderFrameHostImpl::BuildCommitFailedNavigationCallback(
 
 void RenderFrameHostImpl::SendBeforeUnload(
     bool is_reload,
-    base::WeakPtr<RenderFrameHostImpl> rfh,
-    bool for_legacy) {
+    bool should_run_before_unload_asynchronously,
+    base::WeakPtr<RenderFrameHostImpl> rfh) {
   TRACE_EVENT("navigation", "RenderFrameHostImpl::SendBeforeUnload",
               perfetto::Flow::FromPointer(this));
-  auto before_unload_closure = base::BindOnce(
-      [](base::WeakPtr<RenderFrameHostImpl> impl, bool for_legacy, bool proceed,
-         base::TimeTicks renderer_before_unload_start_time,
-         base::TimeTicks renderer_before_unload_end_time,
-         base::TimeTicks before_unload_dialog_opened_time,
-         base::TimeTicks before_unload_dialog_closed_time) {
-        if (!impl) {
-          return;
-        }
 
-        if (impl->frame_tree_node() &&
-            !before_unload_dialog_opened_time.is_null() &&
-            !before_unload_dialog_closed_time.is_null()) {
-          if (NavigationRequest* navigation_request =
-                  impl->frame_tree_node()->navigation_request()) {
-            navigation_request->set_beforeunload_phase2_dialog_opened_time(
-                before_unload_dialog_opened_time);
-            navigation_request->set_beforeunload_phase2_dialog_closed_time(
-                before_unload_dialog_closed_time);
-          }
-        }
-
-        impl->ProcessBeforeUnloadCompleted(
-            proceed, /*treat_as_final_completion_callback=*/false,
-            renderer_before_unload_start_time, renderer_before_unload_end_time,
-            for_legacy);
-      },
-      rfh, for_legacy);
-  if (for_legacy) {
-    auto continue_navigation_closure =
-        base::BindOnce(std::move(before_unload_closure),
-                       /*proceed=*/true,
-                       /*renderer_before_unload_start_time=*/
-                       send_before_unload_start_time_,
-                       /*renderer_before_unload_end_time=*/
-                       base::TimeTicks::Now(),
-                       /*before_unload_dialog_opened_time=*/base::TimeTicks(),
-                       /*before_unload_dialog_closed_time=*/base::TimeTicks());
-
-    // We would like to synchronously continue navigation without the following
-    // PostTask in the future to improve performance if the frame being
-    // navigated (and all child frames) do not have beforeunload handlers.
-    // However, as described in
-    // `ContentBrowserClient::SupportsAvoidUnnecessaryBeforeUnloadCheckSync()`,
-    // this can result in re-entrancy issues on navigation. The re-entrancy is
-    // checked by NavigationController's `in_navigate_to_pending_entry` flag.
-    // While this flag is true, we prohibit starting another navigation
-    // synchronously while the existing navigation is still being processed on
-    // the stack (CHECK(!in_navigate_to_pending_entry_)).
+  if (should_run_before_unload_asynchronously) {
+    // Synchronously executed `beforeunload` handlers delay the user perceived
+    // navigation performance. The following code allows running `beforeunload`
+    // handler asynchronously when there is no user gesture on the frame that is
+    // navigating and its descendants. (see: https://crbug.com/475716933)
     //
-    // The following `is_eligible_for_avoid_unnecessary_beforeunload` flag is
-    // used to allow synchronous continuation of navigation if the value of
-    // kAvoidUnnecessaryBeforeUnloadCheckSyncMode is either
-    // kWithSendBeforeUnload or kWithoutSendBeforeUnload (To understand these
-    // modes, please refer to the code comment of the
-    // `AvoidUnnecessaryBeforeUnloadCheckSyncMode` enum in the header file).
-    const bool is_eligible_for_avoid_unnecessary_beforeunload =
-        is_waiting_for_beforeunload_completion_ &&
-        unload_ack_is_for_navigation_ &&
-        GetContentClient()
-            ->browser()
-            ->SupportsAvoidUnnecessaryBeforeUnloadCheckSync();
-    if (is_eligible_for_avoid_unnecessary_beforeunload &&
-        IsAvoidUnnecessaryBeforeUnloadCheckSyncEnabledFor(
-            features::AvoidUnnecessaryBeforeUnloadCheckSyncMode::
-                kWithSendBeforeUnload)) {
-      std::move(continue_navigation_closure).Run();
-      return;
-    }
-
-    // Use a high-priority task to continue the navigation. This is safe as it
-    // happens early in the navigation flow and shouldn't race with any other
-    // tasks associated with this navigation.
-    GetUIThreadTaskRunner({BrowserTaskType::kBeforeUnloadBrowserResponse})
-        ->PostTask(FROM_HERE, std::move(continue_navigation_closure));
+    // `this` is the RenderFrameHost that initiated the navigation, so its
+    // FrameTreeNode always holds the corresponding `NavigationRequest`. `rfh`
+    // is a frame within the navigating subtree that needs to run its
+    // beforeunload handler.
+    //
+    // `rfh` is a frame in the navigating subtree (including the navigating root
+    // node) that serves as an entry point to dispatch `beforeunload` to itself
+    // and all its "local" (LocalFrame) descendants in the renderer process.
+    //
+    // When running beforeunload handlers asynchronously, we already decided to
+    // proceed on the browser process by checking the StickyUserActivation.
+    // Therefore, we use a specialized callback that resumes the navigation
+    // commit once the background execution is finished.
+    NavigationRequest* navigation_request =
+        frame_tree_node_->navigation_request();
+    CHECK(navigation_request);
+    auto scope = MakeUrgentMessageScopeIfNeeded();
+    rfh->GetAssociatedLocalFrame()->BeforeUnload(
+        is_reload, /*force_to_proceed=*/true,
+        base::BindOnce(
+            [](GlobalRenderFrameHostId id,
+               base::WeakPtr<NavigationRequest> navigation_request,
+               // Ignore the `proceed` result because we already decided to
+               // proceed by checking the StickyUserActivation in
+               // ShouldRunBeforeUnloadAsynchronously().
+               bool proceed, base::TimeTicks renderer_before_unload_start_time,
+               base::TimeTicks renderer_before_unload_end_time,
+               base::TimeTicks before_unload_dialog_opened_time,
+               base::TimeTicks before_unload_dialog_closed_time) {
+              TRACE_EVENT("navigation",
+                          "RenderFrameHostImpl::SendBeforeUnload."
+                          "async_before_unload_ack");
+              // Resume the navigation commit once all asynchronous beforeunload
+              // handlers have finished executing.
+              if (navigation_request) {
+                navigation_request->MaybeResumeAsyncBeforeUnloadCommit(id);
+              }
+            },
+            rfh->GetGlobalId(), navigation_request->GetWeakPtr()));
     return;
   }
+
   auto scope = MakeUrgentMessageScopeIfNeeded();
   rfh->GetAssociatedLocalFrame()->BeforeUnload(
-      is_reload, std::move(before_unload_closure));
+      is_reload, /*force_to_proceed=*/false,
+      base::BindOnce(
+          [](base::WeakPtr<RenderFrameHostImpl> impl, bool proceed,
+             base::TimeTicks renderer_before_unload_start_time,
+             base::TimeTicks renderer_before_unload_end_time,
+             base::TimeTicks before_unload_dialog_opened_time,
+             base::TimeTicks before_unload_dialog_closed_time) {
+            if (!impl) {
+              return;
+            }
+
+            TRACE_EVENT("navigation",
+                        "RenderFrameHostImpl::SendBeforeUnload."
+                        "before_unload_ack");
+
+            if (impl->frame_tree_node() &&
+                !before_unload_dialog_opened_time.is_null() &&
+                !before_unload_dialog_closed_time.is_null()) {
+              if (NavigationRequest* navigation_request =
+                      impl->frame_tree_node()->navigation_request()) {
+                navigation_request->set_beforeunload_phase2_dialog_opened_time(
+                    before_unload_dialog_opened_time);
+                navigation_request->set_beforeunload_phase2_dialog_closed_time(
+                    before_unload_dialog_closed_time);
+              }
+            }
+
+            impl->ProcessBeforeUnloadCompleted(
+                proceed, /*treat_as_final_completion_callback=*/false,
+                renderer_before_unload_start_time,
+                renderer_before_unload_end_time,
+                BeforeUnloadExecutionMode::kDefault);
+          },
+          rfh));
+}
+
+void RenderFrameHostImpl::ContinueNavigationAfterBeforeUnloadCheck(
+    BeforeUnloadExecutionMode execution_mode) {
+  // Using `base::TimeTicks::Now()` here as the
+  // `renderer_before_unload_end_time` is intentional to avoid artificial
+  // performance regressions in two cases:
+  //
+  // 1) Legacy case: Even when BeforeUnload handlers are not present or required
+  //    to run, `navigationStart` has historically been determined at this
+  //    point.
+  //
+  // 2) AsyncBeforeUnload case: While not strictly accurate (as handlers are
+  //    still running in the background), this code location—where we decide to
+  //    unblock the navigation and proceed—is the closest logical equivalent to
+  //    the end of the navigation blocking phase.
+  auto continue_navigation_closure = base::BindOnce(
+      &RenderFrameHostImpl::ProcessBeforeUnloadCompleted, GetWeakPtr(),
+      /*proceed=*/true, /*treat_as_final_completion_callback=*/false,
+      /*renderer_before_unload_start_time=*/send_before_unload_start_time_,
+      /*renderer_before_unload_end_time=*/base::TimeTicks::Now(),
+      execution_mode);
+
+  // We would like to synchronously continue navigation without the following
+  // PostTask in the future to improve performance if the frame being
+  // navigated (and all child frames) do not have beforeunload handlers.
+  // However, as described in
+  // `ContentBrowserClient::SupportsAvoidUnnecessaryBeforeUnloadCheckSync()`,
+  // this can result in re-entrancy issues on navigation. The re-entrancy is
+  // checked by NavigationController's `in_navigate_to_pending_entry` flag.
+  // While this flag is true, we prohibit starting another navigation
+  // synchronously while the existing navigation is still being processed on
+  // the stack (CHECK(!in_navigate_to_pending_entry_)).
+  //
+  // The following `is_eligible_for_avoid_unnecessary_beforeunload` flag is
+  // used to allow synchronous continuation of navigation if the value of
+  // kAvoidUnnecessaryBeforeUnloadCheckSyncMode is either
+  // kWithSendBeforeUnload or kWithoutSendBeforeUnload (To understand these
+  // modes, please refer to the code comment of the
+  // `AvoidUnnecessaryBeforeUnloadCheckSyncMode` enum in the header file).
+  const bool is_eligible_for_avoid_unnecessary_beforeunload =
+      is_waiting_for_beforeunload_completion_ &&
+      unload_ack_is_for_navigation_ &&
+      GetContentClient()
+          ->browser()
+          ->SupportsAvoidUnnecessaryBeforeUnloadCheckSync();
+  if (is_eligible_for_avoid_unnecessary_beforeunload &&
+      IsAvoidUnnecessaryBeforeUnloadCheckSyncEnabledFor(
+          features::AvoidUnnecessaryBeforeUnloadCheckSyncMode::
+              kWithSendBeforeUnload)) {
+    std::move(continue_navigation_closure).Run();
+    return;
+  }
+
+  // Use a high-priority task to continue the navigation. This is safe as it
+  // happens early in the navigation flow and shouldn't race with any other
+  // tasks associated with this navigation.
+  GetUIThreadTaskRunner({BrowserTaskType::kBeforeUnloadBrowserResponse})
+      ->PostTask(FROM_HERE, std::move(continue_navigation_closure));
 }
 
 void RenderFrameHostImpl::AddServiceWorkerClient(
@@ -19217,18 +19381,33 @@ void RenderFrameHostImpl::SetPolicyContainerForEarlyCommitAfterCrash(
   SetPolicyContainerHost(std::move(policy_container_host));
 }
 
-void RenderFrameHostImpl::OnDidRunInsecureContent(const GURL& security_origin,
-                                                  const GURL& target_url) {
+void RenderFrameHostImpl::OnDidRunInsecureContent(
+    const GURL& target_url,
+    blink::mojom::ContentSecurityNotifier::InsecureContentOrigin origin_type) {
+  url::Origin security_origin =
+      (origin_type ==
+       blink::mojom::ContentSecurityNotifier::InsecureContentOrigin::kTopFrame)
+          ? GetOutermostMainFrame()->GetLastCommittedOrigin()
+          : GetLastCommittedOrigin();
+
+  if (!MixedContentChecker::IsMixedContent(security_origin, target_url)) {
+    mojo::ReportBadMessage(
+        "NotifyInsecureContentRan called for non-mixed content.");
+    return;
+  }
+
+  const GURL& security_origin_url = security_origin.GetURL();
   OPTIONAL_TRACE_EVENT2("content", "RenderFrameHostImpl::DidRunInsecureContent",
-                        "security_origin", security_origin, "target_url",
+                        "security_origin", security_origin_url, "target_url",
                         target_url);
 
   RecordAction(base::UserMetricsAction("SSL.RanInsecureContent"));
-  if (base::EndsWith(security_origin.spec(), kDotGoogleDotCom,
+  if (base::EndsWith(security_origin_url.spec(), kDotGoogleDotCom,
                      base::CompareCase::INSENSITIVE_ASCII)) {
     RecordAction(base::UserMetricsAction("SSL.RanInsecureContentGoogle"));
   }
-  frame_tree_->controller().ssl_manager()->DidRunMixedContent(security_origin);
+  frame_tree_->controller().ssl_manager()->DidRunMixedContent(
+      security_origin_url);
 }
 
 void RenderFrameHostImpl::OnDidRunContentWithCertificateErrors() {

@@ -20,10 +20,10 @@
 #import "components/password_manager/core/common/password_manager_features.h"
 #import "components/strings/grit/components_strings.h"
 #import "components/sync/service/sync_prefs.h"
-#import "ios/chrome/browser/autofill/form_input_accessory/test/form_input_accessory_app_interface.h"
 #import "ios/chrome/browser/autofill/ui_bundled/autofill_app_interface.h"
 #import "ios/chrome/browser/autofill/ui_bundled/manual_fill/manual_fill_constants.h"
 #import "ios/chrome/browser/autofill/ui_bundled/manual_fill/manual_fill_matchers.h"
+#import "ios/chrome/browser/device_reauth/test/reauthentication_app_interface.h"
 #import "ios/chrome/browser/metrics/model/metrics_app_interface.h"
 #import "ios/chrome/browser/passwords/bottom_sheet/test/credential_suggestion_bottom_sheet_app_interface.h"
 #import "ios/chrome/browser/passwords/model/password_manager_app_interface.h"
@@ -500,8 +500,8 @@ id<GREYMatcher> PaymentsBottomSheetUseKeyboardButton() {
   // Disable the credential bottom sheet.
   [CredentialSuggestionBottomSheetAppInterface disableBottomSheet];
 
-  [FormInputAccessoryAppInterface mockReauthenticationModuleExpectedResult:
-                                      ReauthenticationResult::kSuccess];
+  [ReauthenticationAppInterface mockReauthenticationModuleExpectedResult:
+                                    ReauthenticationResult::kSuccess];
 
   NSString* username = kExampleUsername;
   NSString* password = kExamplePassword;
@@ -533,8 +533,8 @@ id<GREYMatcher> PaymentsBottomSheetUseKeyboardButton() {
   // Disable the credential bottom sheet.
   [CredentialSuggestionBottomSheetAppInterface disableBottomSheet];
 
-  [FormInputAccessoryAppInterface mockReauthenticationModuleExpectedResult:
-                                      ReauthenticationResult::kSuccess];
+  [ReauthenticationAppInterface mockReauthenticationModuleExpectedResult:
+                                    ReauthenticationResult::kSuccess];
 
   NSString* username = kExampleUsername;
   NSString* password = kExamplePassword;
@@ -563,8 +563,8 @@ id<GREYMatcher> PaymentsBottomSheetUseKeyboardButton() {
   // Disable the credential bottom sheet.
   [CredentialSuggestionBottomSheetAppInterface disableBottomSheet];
 
-  [FormInputAccessoryAppInterface mockReauthenticationModuleExpectedResult:
-                                      ReauthenticationResult::kSuccess];
+  [ReauthenticationAppInterface mockReauthenticationModuleExpectedResult:
+                                    ReauthenticationResult::kSuccess];
 
   NSString* username = kExampleUsername;
   NSString* password = kExamplePassword;
@@ -591,10 +591,9 @@ id<GREYMatcher> PaymentsBottomSheetUseKeyboardButton() {
 // accessory with the proper suggestions visible and that tapping on a
 // suggestion properly fills the related fields on the form.
 - (void)testFillCreditCardFieldsOnForm {
-  [AutofillAppInterface setUpMockReauthenticationModule];
-  [AutofillAppInterface mockReauthenticationModuleCanAttempt:YES];
-  [AutofillAppInterface mockReauthenticationModuleExpectedResult:
-                            ReauthenticationResult::kSuccess];
+  [ReauthenticationAppInterface mockReauthenticationModuleCanAttempt:YES];
+  [ReauthenticationAppInterface mockReauthenticationModuleExpectedResult:
+                                    ReauthenticationResult::kSuccess];
 
   [AutofillAppInterface saveMaskedCreditCard];
 
@@ -630,8 +629,6 @@ id<GREYMatcher> PaymentsBottomSheetUseKeyboardButton() {
   // Verify that the acceptance of the card suggestion at index 1 was correctly
   // recorded.
   CheckCardAutofillSuggestionAcceptedIndexMetricsCount(/*suggestion_index=*/1);
-
-  [AutofillAppInterface clearMockReauthenticationModule];
 }
 
 // Tests that the fix on the is_user_edited_deprecated bit in the parsed form
@@ -701,10 +698,9 @@ id<GREYMatcher> PaymentsBottomSheetUseKeyboardButton() {
 - (void)testFillXframeCreditCardForm {
   // Mock reauth so it allows filling sensitive information without the need for
   // real authentication.
-  [AutofillAppInterface setUpMockReauthenticationModule];
-  [AutofillAppInterface mockReauthenticationModuleCanAttempt:YES];
-  [AutofillAppInterface mockReauthenticationModuleExpectedResult:
-                            ReauthenticationResult::kSuccess];
+  [ReauthenticationAppInterface mockReauthenticationModuleCanAttempt:YES];
+  [ReauthenticationAppInterface mockReauthenticationModuleExpectedResult:
+                                    ReauthenticationResult::kSuccess];
 
   // Load the xframe payment page.
   [self loadXframePaymentPage];
@@ -746,9 +742,6 @@ id<GREYMatcher> PaymentsBottomSheetUseKeyboardButton() {
                                 iframeId:frame_id_attr
                                    value:value];
   }
-
-  // Cleanup.
-  [AutofillAppInterface clearMockReauthenticationModule];
 }
 
 // Tests that child frame throttling can be enforced for xframe credit card
@@ -756,10 +749,9 @@ id<GREYMatcher> PaymentsBottomSheetUseKeyboardButton() {
 - (void)testFillXframeCreditCardFormThrottled {
   // Mock reauth so it allows filling sensitive information without the need for
   // real authentication.
-  [AutofillAppInterface setUpMockReauthenticationModule];
-  [AutofillAppInterface mockReauthenticationModuleCanAttempt:YES];
-  [AutofillAppInterface mockReauthenticationModuleExpectedResult:
-                            ReauthenticationResult::kSuccess];
+  [ReauthenticationAppInterface mockReauthenticationModuleCanAttempt:YES];
+  [ReauthenticationAppInterface mockReauthenticationModuleExpectedResult:
+                                    ReauthenticationResult::kSuccess];
 
   // Load the xframe payment page.
   [self loadThrottledXframePaymentPage];
@@ -807,9 +799,6 @@ id<GREYMatcher> PaymentsBottomSheetUseKeyboardButton() {
                                 iframeId:frame_id_attr
                                    value:@""];
   }
-
-  // Cleanup.
-  [AutofillAppInterface clearMockReauthenticationModule];
 }
 
 // Tests that the bottom sheet cohabitates well with other non-credit card forms
@@ -818,10 +807,9 @@ id<GREYMatcher> PaymentsBottomSheetUseKeyboardButton() {
 - (void)testFillXframeCreditCardForm_WithPaymentSheetFix {
   // Mock reauth so it allows filling sensitive information without the need for
   // real authentication.
-  [AutofillAppInterface setUpMockReauthenticationModule];
-  [AutofillAppInterface mockReauthenticationModuleCanAttempt:YES];
-  [AutofillAppInterface mockReauthenticationModuleExpectedResult:
-                            ReauthenticationResult::kSuccess];
+  [ReauthenticationAppInterface mockReauthenticationModuleCanAttempt:YES];
+  [ReauthenticationAppInterface mockReauthenticationModuleExpectedResult:
+                                    ReauthenticationResult::kSuccess];
 
   // Load the xframe payment page.
   [self loadXframePaymentPage];
@@ -888,9 +876,6 @@ id<GREYMatcher> PaymentsBottomSheetUseKeyboardButton() {
                                 iframeId:frame_id_attr
                                    value:value];
   }
-
-  // Cleanup.
-  [AutofillAppInterface clearMockReauthenticationModule];
 }
 
 // Tests that tapping on an address related field opens the keyboard
@@ -1067,8 +1052,8 @@ id<GREYMatcher> PaymentsBottomSheetUseKeyboardButton() {
   [CredentialSuggestionBottomSheetAppInterface disableBottomSheet];
 
   // Set up the reauthentication module.
-  [FormInputAccessoryAppInterface mockReauthenticationModuleExpectedResult:
-                                      ReauthenticationResult::kSuccess];
+  [ReauthenticationAppInterface mockReauthenticationModuleExpectedResult:
+                                    ReauthenticationResult::kSuccess];
 
   // Save a credential with a backup password.
   NSString* username = kExampleUsername;

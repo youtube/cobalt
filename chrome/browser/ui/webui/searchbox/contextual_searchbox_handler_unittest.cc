@@ -37,6 +37,7 @@
 #include "chrome/browser/ui/webui/searchbox/contextual_searchbox_test_utils.h"
 #include "chrome/browser/ui/webui/searchbox/searchbox_test_utils.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
+#include "chrome/common/webui_url_constants.h"
 #include "components/contextual_search/contextual_search_metrics_recorder.h"
 #include "components/contextual_search/contextual_search_service.h"
 #include "components/contextual_search/internal/test_composebox_query_controller.h"
@@ -688,7 +689,7 @@ TEST_F(ContextualSearchboxHandlerTest, OnInputStateChanged) {
       .WillOnce(
           [&](const omnibox::InputState& state) { received_state_2 = state; });
   EXPECT_CALL(*GetMetricsRecorderPtr(),
-              RecordToolMode(composebox_query::mojom::ToolMode::kCanvas))
+              RecordToolMode(omnibox::ToolMode::TOOL_MODE_CANVAS))
       .WillOnce(testing::Invoke(
           GetMetricsRecorderPtr(),
           &MockContextualSearchMetricsRecorder::RecordToolModeBase));
@@ -697,13 +698,11 @@ TEST_F(ContextualSearchboxHandlerTest, OnInputStateChanged) {
   handler_->RecordToolSelectionAction(omnibox::ToolMode::TOOL_MODE_CANVAS);
   mock_searchbox_page_.FlushForTesting();
   EXPECT_EQ(received_state_1.active_tool, omnibox::ToolMode::TOOL_MODE_CANVAS);
-  histogram_tester().ExpectUniqueSample(
-      "ContextualSearch.Tools.NewTabPage",
-      composebox_query::mojom::ToolMode::kCanvas, 1);
+  histogram_tester().ExpectUniqueSample("ContextualSearch.Tools.NewTabPage",
+                                        omnibox::ToolMode::TOOL_MODE_CANVAS, 1);
 
-  EXPECT_CALL(
-      *GetMetricsRecorderPtr(),
-      RecordModelMode(composebox_query::mojom::ModelMode::kGeminiRegular))
+  EXPECT_CALL(*GetMetricsRecorderPtr(),
+              RecordModelMode(omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR))
       .WillOnce(testing::Invoke(
           GetMetricsRecorderPtr(),
           &MockContextualSearchMetricsRecorder::RecordModelModeBase));
@@ -717,7 +716,7 @@ TEST_F(ContextualSearchboxHandlerTest, OnInputStateChanged) {
             omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR);
   histogram_tester().ExpectUniqueSample(
       "ContextualSearch.Models.NewTabPage",
-      composebox_query::mojom::ModelMode::kGeminiRegular, 1);
+      omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR, 1);
 }
 
 TEST_F(ContextualSearchboxHandlerTest, OpenAutocompleteMatch_ZeroSuggestClick) {
@@ -1604,32 +1603,99 @@ TEST_F(ContextualSearchboxHandlerTestTabsTest, GetRecentTabs) {
   auto* about_blank_tab = AddTab(GURL("about:blank"));
   AddTab(GURL("chrome://webui-is-ignored"));
 
-  base::test::TestFuture<std::vector<searchbox::mojom::TabInfoPtr>> future1;
-  handler().GetRecentTabs(future1.GetCallback());
-  auto tabs = future1.Take();
-  ASSERT_EQ(tabs.size(), 1u);
-  EXPECT_EQ(tabs[0]->tab_id, about_blank_tab->GetHandle().raw_value());
+  {
+    // Add only 1 valid tab, and ensure it is the only one returned.
+    base::test::TestFuture<std::vector<searchbox::mojom::TabInfoPtr>> future;
+    handler().GetRecentTabs(future.GetCallback());
+    auto tabs = future.Take();
+    ASSERT_EQ(tabs.size(), 1u);
+    EXPECT_EQ(tabs[0]->tab_id, about_blank_tab->GetHandle().raw_value());
+  }
 
-  // Add more tabs, and ensure no more than the max allowed tabs are returned.
+  auto* contextual_tasks_tab = AddTab(GURL(chrome::kChromeUIContextualTasksURL));
+  tab_strip_model()->ActivateTabAt(tab_strip_model()->GetIndexOfWebContents(
+      contextual_tasks_tab->GetContents()));
+
+  {
+    // Add a contextual tasks tab and ensure it is not returned when it is the
+    // active tab.
+    base::test::TestFuture<std::vector<searchbox::mojom::TabInfoPtr>> future;
+    handler().GetRecentTabs(future.GetCallback());
+    auto tabs = future.Take();
+    ASSERT_EQ(tabs.size(), 1u);
+    EXPECT_EQ(tabs[0]->tab_id, about_blank_tab->GetHandle().raw_value());
+  }
+
   AddTab(GURL("https://www.google.com"));
   auto* youtube_tab = AddTab(GURL("https://www.youtube.com"));
   auto* gmail_tab = AddTab(GURL("https://www.gmail.com"));
 
+  {
+    // Add more tabs, and ensure no more than the max allowed tabs are returned.
+    base::test::TestFuture<std::vector<searchbox::mojom::TabInfoPtr>> future;
+    handler().GetRecentTabs(future.GetCallback());
+    auto tabs = future.Take();
+    ASSERT_EQ(tabs.size(), 2u);
+    EXPECT_EQ(tabs[0]->tab_id, gmail_tab->GetHandle().raw_value());
+    EXPECT_EQ(tabs[1]->tab_id, youtube_tab->GetHandle().raw_value());
+  }
+
+  content::WebContentsTester::For(tab_strip_model()->GetWebContentsAt(0))
+      ->SetLastActiveTimeTicks(IncrementTimeTicksAndGet());
+
+  {
+    // Activate an older tab, and ensure it is returned first.
+    base::test::TestFuture<std::vector<searchbox::mojom::TabInfoPtr>> future;
+    handler().GetRecentTabs(future.GetCallback());
+    auto tabs = future.Take();
+    EXPECT_EQ(tabs[0]->tab_id, about_blank_tab->GetHandle().raw_value());
+    EXPECT_EQ(tabs[1]->tab_id, gmail_tab->GetHandle().raw_value());
+  }
+}
+
+TEST_F(ContextualSearchboxHandlerTestTabsTest, GetRecentTabs_UsesServerLimit) {
+  base::FieldTrialParams params;
+  params[ntp_composebox::kContextMenuMaxTabSuggestions.name] = "2";
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      ntp_composebox::kNtpComposebox, params);
+
+  // Add 5 valid tabs.
+  AddTab(GURL("https://www.google.com"));
+  AddTab(GURL("https://www.youtube.com"));
+  AddTab(GURL("https://www.gmail.com"));
+  auto* example_tab = AddTab(GURL("https://www.example.com"));
+  auto* chromium_tab = AddTab(GURL("https://www.chromium.org"));
+
+  // Initially, it should use the feature param limit.
+  base::test::TestFuture<std::vector<searchbox::mojom::TabInfoPtr>> future1;
+  handler().GetRecentTabs(future1.GetCallback());
+  auto tabs = future1.Take();
+  ASSERT_EQ(tabs.size(), 2u);
+  EXPECT_EQ(tabs[0]->tab_id, chromium_tab->GetHandle().raw_value());
+  EXPECT_EQ(tabs[1]->tab_id, example_tab->GetHandle().raw_value());
+
+  // Now set a server-side limit of 1.
+  omnibox::InputState state;
+  state.max_inputs_by_type[omnibox::InputType::INPUT_TYPE_BROWSER_TAB] = 1;
+  handler().input_state_model()->set_state_for_testing(state);
+
   base::test::TestFuture<std::vector<searchbox::mojom::TabInfoPtr>> future2;
   handler().GetRecentTabs(future2.GetCallback());
   tabs = future2.Take();
-  ASSERT_EQ(tabs.size(), 2u);
-  EXPECT_EQ(tabs[0]->tab_id, gmail_tab->GetHandle().raw_value());
-  EXPECT_EQ(tabs[1]->tab_id, youtube_tab->GetHandle().raw_value());
+  ASSERT_EQ(tabs.size(), 1u);
+  EXPECT_EQ(tabs[0]->tab_id, chromium_tab->GetHandle().raw_value());
 
-  // Activate an older tab, and ensure it is returned first.
-  content::WebContentsTester::For(tab_strip_model()->GetWebContentsAt(0))
-      ->SetLastActiveTimeTicks(IncrementTimeTicksAndGet());
+  // Fallback to feature param limit if not in map.
+  state.max_inputs_by_type.erase(omnibox::InputType::INPUT_TYPE_BROWSER_TAB);
+  handler().input_state_model()->set_state_for_testing(state);
+
   base::test::TestFuture<std::vector<searchbox::mojom::TabInfoPtr>> future3;
   handler().GetRecentTabs(future3.GetCallback());
   tabs = future3.Take();
-  EXPECT_EQ(tabs[0]->tab_id, about_blank_tab->GetHandle().raw_value());
-  EXPECT_EQ(tabs[1]->tab_id, gmail_tab->GetHandle().raw_value());
+  ASSERT_EQ(tabs.size(), 2u);
+  EXPECT_EQ(tabs[0]->tab_id, chromium_tab->GetHandle().raw_value());
+  EXPECT_EQ(tabs[1]->tab_id, example_tab->GetHandle().raw_value());
 }
 
 class ContextualSearchboxHandlerSignedInTestTabsTest

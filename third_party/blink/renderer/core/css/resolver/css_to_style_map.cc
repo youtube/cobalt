@@ -121,8 +121,7 @@ void CSSToStyleMap::MapFillImage(StyleResolverState& state,
   CSSPropertyID property = layer->GetType() == EFillLayerType::kBackground
                                ? CSSPropertyID::kBackgroundImage
                                : CSSPropertyID::kMaskImage;
-  layer->SetImage(
-      state.GetStyleImage(property, state.ResolveLightDarkPair(value)));
+  layer->SetImage(state.GetStyleImage(property, value));
 }
 
 void CSSToStyleMap::MapFillRepeat(StyleResolverState&,
@@ -609,8 +608,7 @@ static Length ConvertBorderImageSliceSide(
     const CSSPrimitiveValue& value) {
   if (value.IsPercentage()) {
     if (value.HasUnresolvablePercentages()) {
-      return DynamicTo<CSSMathFunctionValue>(value)->ConvertToLength(
-          length_resolver);
+      return To<CSSMathFunctionValue>(value).ConvertToLength(length_resolver);
     }
     return Length::Percent(value.ComputePercentage(length_resolver));
   }

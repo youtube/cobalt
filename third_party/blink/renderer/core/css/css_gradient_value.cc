@@ -32,6 +32,7 @@
 #include "base/memory/values_equivalent.h"
 #include "base/notreached.h"
 #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-shared.h"
+#include "third_party/blink/renderer/core/css/css_alpha_color_value.h"
 #include "third_party/blink/renderer/core/css/css_color.h"
 #include "third_party/blink/renderer/core/css/css_color_mix_value.h"
 #include "third_party/blink/renderer/core/css/css_contrast_color_value.h"
@@ -1557,6 +1558,9 @@ static bool IsUsingCurrentColor(const CSSValue& value) {
     return IsUsingCurrentColor(mix_value->Color1()) ||
            IsUsingCurrentColor(mix_value->Color2());
   }
+  if (const auto* alpha_color_value = DynamicTo<CSSAlphaColorValue>(value)) {
+    return IsUsingCurrentColor(alpha_color_value->OriginColor());
+  }
   if (const auto* contrast_value = DynamicTo<CSSContrastColorValue>(value)) {
     return IsUsingCurrentColor(contrast_value->Color());
   }
@@ -2072,8 +2076,10 @@ CSSRadialGradientValue::ResolveValuesAndCreateCopyIfNeeded(
   for (const auto& stop : stops_) {
     const auto* offset = DynamicTo<CSSPrimitiveValue>(
         ResolveLength(stop.offset_, conversion_data));
-    stops_changed = stops_changed || (offset != stop.offset_);
-    stops.push_back(CSSGradientColorStop(offset, stop.color_));
+    const CSSValue* color = ResolveColor(stop.color_, style_resolver_state);
+    stops_changed =
+        stops_changed || (offset != stop.offset_) || (color != stop.color_);
+    stops.push_back(CSSGradientColorStop(offset, color));
   }
 
   // If the values are the same as the current ones, return this.
@@ -2260,9 +2266,12 @@ CSSConicGradientValue::ResolveValuesAndCreateCopyIfNeeded(
   bool stops_changed = false;
   HeapVector<CSSGradientColorStop> stops;
   for (const auto& stop : stops_) {
-    const auto* offset = ResolveAngle(stop.offset_, conversion_data);
-    stops_changed = stops_changed || (offset != stop.offset_);
-    stops.push_back(CSSGradientColorStop(offset, stop.color_));
+    const CSSPrimitiveValue* offset =
+        ResolveAngle(stop.offset_, conversion_data);
+    const CSSValue* color = ResolveColor(stop.color_, style_resolver_state);
+    stops_changed =
+        stops_changed || (offset != stop.offset_) || (color != stop.color_);
+    stops.push_back(CSSGradientColorStop(offset, color));
   }
 
   // If the values are the same as the current ones, return this.

@@ -393,6 +393,7 @@
 <translation id="2359808026110333948">繼續</translation>
 <translation id="2360196772093551345">切換至流動網站</translation>
 <translation id="2362083820973145409">已使用<ph name="USER_NAME" />的身分登入。<ph name="USER_EMAIL" />。開啟設定。</translation>
+<translation id="2367025302166767427">無法填寫資料</translation>
 <translation id="2371084566192454134">分頁和分頁群組</translation>
 <translation id="2371303771137626249">新</translation>
 <translation id="2381405137052800939">基本</translation>
@@ -480,6 +481,7 @@
 <translation id="2691653761409724435">無法離線查看</translation>
 <translation id="2697530870203420261">暱稱無效</translation>
 <translation id="269819437389494246">你可查看瀏覽過的網頁，或從記錄刪除網頁</translation>
+<translation id="2704295676501803339">左移</translation>
 <translation id="2704606927547763573">已複製</translation>
 <translation id="2708051474374549906">系統會根據你向 Google 傳送的瀏覽資料，即時、主動防範危險的網站、下載內容和擴充程式</translation>
 <translation id="2709516037105925701">自動填入</translation>
@@ -1662,6 +1664,7 @@
 <translation id="6899890595581608884">安全檢查通知已關閉</translation>
 <translation id="6900532703269623216">強化保護功能</translation>
 <translation id="6900702165119149418">你已登出</translation>
+<translation id="6903282483217634857">右移</translation>
 <translation id="6903907808598579934">開啟同步處理功能</translation>
 <translation id="6906448540340261898">請確保您可隨時使用 Google 帳戶中的密碼</translation>
 <translation id="6908734251759299256">更新瀏覽器</translation>
@@ -1724,6 +1727,7 @@
 <translation id="7149893636342594995">最近 24 小時</translation>
 <translation id="7154417656353909837">移除地址</translation>
 <translation id="7161230316646448869">將您的書籤、記錄等資料同步至所有裝置</translation>
+<translation id="7165323152084385463">車輛識別碼</translation>
 <translation id="7173114856073700355">開啟設定</translation>
 <translation id="7173721738069475737">{count,plural, =1{已儲存書籤}other{已儲存 {count} 個書籤}}</translation>
 <translation id="7176183551031110427">縮小</translation>
@@ -2218,6 +2222,7 @@
 <translation id="8863067612494559785">正傳送至 <ph name="DEVICE_NAME" />…</translation>
 <translation id="8863431381414769983">透過「Google 地圖」規劃路線及取得本地資料</translation>
 <translation id="8871974300055371298">內容設定</translation>
+<translation id="8876661425082386199">請檢查連線</translation>
 <translation id="8877788021141246043">設定提醒</translation>
 <translation id="8879604564928138696">㩒兩下就可以試用</translation>
 <translation id="8879952635974818770">個人化內容</translation>
@@ -2319,7 +2324,6 @@
 <translation id="926455622548529175">切換並刪除</translation>
 <translation id="929748059769569925">突顯的文字</translation>
 <translation id="932305336591073205">{count,plural, =1{關閉分頁}other{關閉分頁}}</translation>
-<translation id="932327136139879170">首頁</translation>
 <translation id="939472100615258482">目前網站</translation>
 <translation id="939598580284253335">請輸入複雜密碼</translation>
 <translation id="939736085109172342">新增資料夾</translation>
