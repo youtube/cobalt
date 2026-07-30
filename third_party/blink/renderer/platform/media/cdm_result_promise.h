@@ -121,6 +121,20 @@ void CdmResultPromise<T...>::reject(media::CdmPromise::Exception exception_code,
                                     WebString::FromUTF8(error_message));
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+template <>
+inline void CdmResultPromise<std::string>::resolve(const std::string& result) {
+  MarkPromiseSettled();
+  ReportCdmResultUMA(key_system_uma_prefix_ + uma_name_, 0, SUCCESS);
+
+  base::UmaHistogramTimes(
+      key_system_uma_prefix_ + kTimeToResolveUmaPrefix + uma_name_,
+      base::TimeTicks::Now() - creation_time_);
+
+  web_cdm_result_.CompleteWithString(WebString::FromUTF8(result));
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 }  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_MEDIA_CDM_RESULT_PROMISE_H_

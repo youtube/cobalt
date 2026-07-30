@@ -51,6 +51,14 @@ size_t GetDefaultGpuDiskCacheSize() {
   cache_size = base::SysInfo::IsLowEndDevice()
                    ? kLowEndMaxProgramCacheMemoryBytes
                    : kDefaultMaxProgramCacheMemoryBytes;
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(::features::kCobaltGpuShaderDiskCache)) {
+    const int size_kb = ::features::kCobaltGpuShaderDiskCacheSizeKb.Get();
+    if (size_kb > 0) {
+      cache_size = static_cast<size_t>(size_kb) * 1024;
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 #endif  // !BUILDFLAG(IS_ANDROID)
 
   if (base::FeatureList::IsEnabled(::features::kAggressiveShaderCacheLimits)) {

@@ -128,7 +128,7 @@ std::unique_ptr<OutputSurface> OutputSurfaceProviderImpl::CreateOutputSurface(
       // devices, so we should never encounter fatal context error. This could
       // be an unrecoverable hardware error or a bug.
       LOG(FATAL) << "Unexpected fatal context error";
-#elif !BUILDFLAG(IS_ANDROID)
+#elif !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
       gpu_service_impl_->DisableGpuCompositing();
 #endif
     }

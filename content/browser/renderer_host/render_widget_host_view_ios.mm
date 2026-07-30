@@ -309,6 +309,7 @@ void RenderWidgetHostViewIOS::NotifyHostAndDelegateOnWasShown(
   // SetRenderWidgetHostIsHidden above will show the DelegatedFrameHost
   // in this state, but doesn't include the presentation time request.
   if (has_saved_frame && visible_time_request) {
+<<<<<<< HEAD
     if (std::optional<blink::RecordContentToVisibleTimeRequest>
             delegated_visible_time_request =
                 visible_time_request->ExtractTabSwitchEvents()) {
@@ -316,6 +317,11 @@ void RenderWidgetHostViewIOS::NotifyHostAndDelegateOnWasShown(
           ->RequestSuccessfulPresentationTimeForNextFrame(
               std::move(*delegated_visible_time_request));
     }
+=======
+    browser_compositor_->GetDelegatedFrameHost()
+        ->RequestSuccessfulPresentationTimeForNextFrame(
+            std::move(*visible_time_request));
+>>>>>>> parent of 06e92859d7f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 
   host()->WasShown(std::move(visible_time_request));
@@ -917,7 +923,11 @@ void RenderWidgetHostViewIOS::UpdateFrameBounds() {
   frameBounds.size = parentBounds.size;
 
   // If we are scrolling we don't resize the WebView immediately.
-  if (!is_scrolling_ && !IsTesting()) {
+  if (!is_scrolling_ && !IsTesting()
+#if BUILDFLAG(IS_COBALT)
+      && allow_view_bounds_updates_
+#endif
+  ) {
     view_bounds_ = gfx::Rect(frameBounds);
   }
   [ui_view_->view_ setFrame:frameBounds];
@@ -1100,5 +1110,11 @@ void RenderWidgetHostViewIOS::ComputeDisplayFeature() {
                         transformed_display_feature.width()};
   }
 }
+
+#if BUILDFLAG(IS_COBALT)
+void RenderWidgetHostViewIOS::SetAllowAutomaticViewBoundsUpdates(bool allowed) {
+  allow_view_bounds_updates_ = allowed;
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace content

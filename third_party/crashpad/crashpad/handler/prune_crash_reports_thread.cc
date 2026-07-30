@@ -29,6 +29,12 @@ PruneCrashReportThread::PruneCrashReportThread(
 
 PruneCrashReportThread::~PruneCrashReportThread() {}
 
+#if BUILDFLAG(IS_COBALT)
+void PruneCrashReportThread::PruneNow() {
+  thread_.DoWorkNow();
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 void PruneCrashReportThread::Start() {
   thread_.Start(60 * 10);
 }

@@ -9782,6 +9782,21 @@ crbug.com/495770240 [ Linux ] external/wpt/css/css-writing-modes/text-combine-up
 # Gardener 2026-03-25
 crbug.com/496047707 external/wpt/html/semantics/embedded-content/the-img-element/sizes/sizes-auto-dynamic-attributes.html [ Failure Pass ]
 
+<<<<<<< HEAD
 # Gardener 2026-03-31
 crbug.com/431038526 external/wpt/css/css-ruby/ruby-text-combine-upright-001a.html [ Failure Pass ]
 crbug.com/431038526 external/wpt/css/css-ruby/ruby-text-combine-upright-001b.html [ Failure Pass ]
+=======
+# Cobalt bug: b/461834934.
+wpt_internal/cobalt/HTMLVideoElementExtension/getAndSetMaxVideoCapabilities.html [ Timeout ]
+
+# Cobalt bug: b/405993906.
+wpt_internal/cobalt/h5vcc-runtime/* [ Failure ]
+
+# Cobalt bug: b/405997906.
+wpt_internal/cobalt/h5vcc-system/h5vcc-system-advertisingId.https.any.html [ Failure Timeout ]
+wpt_internal/cobalt/h5vcc-system/h5vcc-system-exit.https.any.html [ Failure Timeout ]
+wpt_internal/cobalt/h5vcc-system/h5vcc-system-limitAdTracking.https.any.html [ Failure Timeout ]
+wpt_internal/cobalt/h5vcc-system/h5vcc-system-trackingAuthorizationStatus.https.any.html [ Failure Timeout ]
+wpt_internal/cobalt/h5vcc-system/h5vcc-system-userOnExitStrategy.https.any.html [ Failure Timeout ]
+>>>>>>> parent of 06e92859d7f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)

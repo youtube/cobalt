@@ -9,6 +9,7 @@
 
 #include <optional>
 
+#include "build/build_config.h"
 #include "media/base/media_export.h"
 #include "media/media_buildflags.h"
 
@@ -21,6 +22,9 @@ enum class EmeInitDataType {
   UNKNOWN,
   WEBM,
   CENC,
+#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+  PLATFORM_DRM,
+#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
   KEYIDS,
   kMaxValue = KEYIDS,
 };
