@@ -80,8 +80,7 @@
           "project": "chromium"
         }
       ],
-      "targets_spec_directory": "infra/config/generated/builders/try/dawn-try-win10-x64-nvidia-asan/targets",
-      "targets_spec_directory_relative_to_source_dir": true
+      "targets_spec_directory": "infra/config/generated/builders/try/dawn-try-win10-x64-nvidia-asan/targets"
     }
   },
   "$build/siso": {
@@ -92,7 +91,6 @@
     "enable_cloud_profiler": true,
     "enable_cloud_trace": true,
     "experiments": [],
-    "metrics_project": "chromium-reclient-metrics",
     "project": "rbe-chromium-untrusted",
     "remote_jobs": 150
   },

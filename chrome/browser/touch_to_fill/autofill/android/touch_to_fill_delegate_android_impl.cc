@@ -166,7 +166,7 @@ TouchToFillDelegateAndroidImpl::DryRun(FormGlobalId form_id,
   } else if (field->Type().GetGroups().contains(FieldTypeGroup::kLoyaltyCard) ||
              field->Type().GetLoyaltyCardType() ==
                  EMAIL_OR_LOYALTY_MEMBERSHIP_ID) {
-    return DryRunForLoyaltyCard();
+    return DryRunForAffiliatedLoyaltyCard();
   }
 
   return {TriggerOutcome::kUnsupportedFieldType, {}};
@@ -213,7 +213,7 @@ TouchToFillDelegateAndroidImpl::DryRunForCreditCard(const AutofillField& field,
 }
 
 TouchToFillDelegateAndroidImpl::DryRunResult
-TouchToFillDelegateAndroidImpl::DryRunForLoyaltyCard() {
+TouchToFillDelegateAndroidImpl::DryRunForAffiliatedLoyaltyCard() {
   ValuablesDataManager* vdm = manager_->client().GetValuablesDataManager();
   if (!vdm) {
     return DryRunResult(TriggerOutcome::kNoValidPaymentMethods, {});
@@ -272,8 +272,9 @@ bool TouchToFillDelegateAndroidImpl::TryToShowTouchToFill(
                              GetWeakPtr(), std::move(items_to_suggest));
                        },
                        [&](std::vector<LoyaltyCard> items_to_suggest) {
-                         return payments_client.ShowTouchToFillLoyaltyCard(
-                             GetWeakPtr(), std::move(items_to_suggest));
+                         return payments_client
+                             .ShowTouchToFillAffiliatedLoyaltyCard(
+                                 GetWeakPtr(), std::move(items_to_suggest));
                        }},
         std::move(dry_run.items_to_suggest));
     if (!shown) {
@@ -314,6 +315,33 @@ bool TouchToFillDelegateAndroidImpl::TryToShowTouchToFill(
   return true;
 }
 
+bool TouchToFillDelegateAndroidImpl::ShowTouchToFillForAllLoyaltyCards(
+    const FormData& form,
+    const FormFieldData& field) {
+  query_form_ = form;
+  query_field_ = field;
+  payments::PaymentsAutofillClient& payments_client =
+      *manager_->client().GetPaymentsAutofillClient();
+  ValuablesDataManager* vdm = manager_->client().GetValuablesDataManager();
+  if (!vdm) {
+    return false;
+  }
+  const std::vector<LoyaltyCard> loyalty_cards =
+      vdm->GetLoyaltyCardsToSuggest();
+  const bool shown = payments_client.ShowTouchToFillForAllLoyaltyCards(
+      GetWeakPtr(), std::move(loyalty_cards));
+  if (!shown) {
+    return false;
+  }
+  ttf_payment_method_state_ = TouchToFillState::kIsShowing;
+  manager_->client().HideAutofillSuggestions(
+      SuggestionHidingReason::kOverlappingWithTouchToFillSurface);
+  manager_->DidShowSuggestions({Suggestion(SuggestionType::kLoyaltyCardEntry)},
+                               form, field.global_id(),
+                               /*update_suggestions_callback=*/{});
+  return true;
+}
+
 bool TouchToFillDelegateAndroidImpl::IsShowingTouchToFill() {
   return ttf_payment_method_state_ == TouchToFillState::kIsShowing;
 }
@@ -340,6 +368,13 @@ bool TouchToFillDelegateAndroidImpl::ShouldShowScanCreditCard() {
   }
 
   return !IsFormOrClientNonSecure(manager_->client(), query_form_);
+}
+
+bool TouchToFillDelegateAndroidImpl::ShouldShowGPayLogo() const {
+  return !manager_->client()
+              .GetPaymentsAutofillClient()
+              ->GetPaymentsDataManager()
+              .HasAllLocalCreditCards();
 }
 
 void TouchToFillDelegateAndroidImpl::ScanCreditCard() {

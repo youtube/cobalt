@@ -140,7 +140,7 @@ public class SeamlessSigninTest {
                             return null;
                         })
                 .when(mAccountPickerDelegateMock)
-                .onSeamlessSigninAbandoned();
+                .onSignInCancel();
         when(mAccountPickerDelegateMock.getSigninFlowVariant()).thenReturn(FlowVariant.OTHER);
 
         mBottomSheetController =
@@ -365,7 +365,6 @@ public class SeamlessSigninTest {
         createCoordinatorAndLaunchSigninFlow();
 
         InOrder calledInOrder = inOrder(mAccountPickerDelegateMock, mSigninManagerMock);
-        calledInOrder.verify(mAccountPickerDelegateMock).onSignoutBeforeSignin();
         calledInOrder.verify(mSigninManagerMock).signOut(SignoutReason.SIGNIN_RETRIGGERED);
         calledInOrder.verify(mSigninManagerMock).signin(eq(TestAccounts.ACCOUNT1), anyInt(), any());
         accountConsistencyHistogram.assertExpected();
@@ -515,7 +514,7 @@ public class SeamlessSigninTest {
         mAccountManagerTestRule.removeAccount(TestAccounts.ACCOUNT1.getId());
 
         verify(mAccountPickerDelegateMock, timeout(CriteriaHelper.DEFAULT_MAX_TIME_TO_POLL))
-                .onSeamlessSigninAbandoned();
+                .onSignInCancel();
         assertBottomSheetNeverShown();
         accountConsistencyHistogram.assertExpected();
     }
@@ -540,7 +539,7 @@ public class SeamlessSigninTest {
         mAccountManagerTestRule.removeAccount(TestAccounts.ACCOUNT1.getId());
 
         verify(mAccountPickerDelegateMock, timeout(CriteriaHelper.DEFAULT_MAX_TIME_TO_POLL))
-                .onSeamlessSigninAbandoned();
+                .onSignInCancel();
         CriteriaHelper.pollUiThread(() -> !mBottomSheetController.isSheetOpen());
         accountConsistencyHistogram.assertExpected();
     }
@@ -565,7 +564,7 @@ public class SeamlessSigninTest {
         mAccountManagerTestRule.removeAccount(TestAccounts.ACCOUNT1.getId());
 
         verify(mAccountPickerDelegateMock, timeout(CriteriaHelper.DEFAULT_MAX_TIME_TO_POLL))
-                .onSeamlessSigninAbandoned();
+                .onSignInCancel();
         CriteriaHelper.pollUiThread(() -> !mBottomSheetController.isSheetOpen());
         accountConsistencyHistogram.assertExpected();
     }
@@ -586,7 +585,7 @@ public class SeamlessSigninTest {
         mAccountManagerTestRule.removeAccount(TestAccounts.ACCOUNT1.getId());
 
         verify(mAccountPickerDelegateMock, timeout(CriteriaHelper.DEFAULT_MAX_TIME_TO_POLL))
-                .onSeamlessSigninAbandoned();
+                .onSignInCancel();
         assertBottomSheetNeverShown();
         accountConsistencyHistogram.assertExpected();
     }

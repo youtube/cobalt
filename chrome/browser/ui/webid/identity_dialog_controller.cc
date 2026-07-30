@@ -108,6 +108,42 @@ bool IdentityDialogController::ShowAccountsDialog(
   on_dismiss_ = std::move(dismiss_callback);
   on_accounts_displayed_ = std::move(accounts_displayed_callback);
   rp_mode_ = rp_mode;
+
+  // If there is an actor login request, we will not show the accounts
+  // dialog. Pretend that we did for the caller and automatically select the
+  // account.
+  if (!ShouldShowFedCmUi()) {
+    auto* actor_login_request = GetActorLoginRequest();
+    GURL idp_config_url = actor_login_request->idp_url();
+    std::string account_id = actor_login_request->account_id();
+    for (const auto& account : accounts) {
+      if (account->id != account_id ||
+          account->identity_provider->idp_metadata.config_url !=
+              idp_config_url) {
+        continue;
+      }
+      bool is_sign_in = account->idp_claimed_login_state.value_or(
+                            account->browser_trusted_login_state) ==
+                        content::IdentityRequestAccount::LoginState::kSignIn;
+      if (is_sign_in) {
+        std::move(on_account_selection_)
+            .Run(idp_config_url, account_id, /*is_sign_in=*/true);
+        return true;
+      } else {
+        // It is possible that the account is a sign up even though the actor
+        // explicitly requested an account to be automatically selected. This
+        // could happen if the account was revoked between being shown to the
+        // user and the actor login request being sent.
+        std::move(actor_login_request->on_federated_token_received_callback())
+            .Run(/*token_received=*/false);
+        return false;
+      }
+    }
+    std::move(actor_login_request->on_federated_token_received_callback())
+        .Run(/*token_received=*/false);
+    return false;
+  }
+
   if (!TrySetAccountView()) {
     return false;
   }
@@ -148,6 +184,13 @@ bool IdentityDialogController::ShowFailureDialog(
   const GURL rp_url = rp_web_contents_->GetLastCommittedURL();
   on_dismiss_ = std::move(dismiss_callback);
   on_login_ = std::move(login_callback);
+
+  // If there is an actor login request, we will not show the accounts
+  // dialog. Pretend that we did for the caller.
+  if (!ShouldShowFedCmUi()) {
+    return true;
+  }
+
   if (!TrySetAccountView()) {
     return false;
   }
@@ -176,6 +219,13 @@ bool IdentityDialogController::ShowErrorDialog(
     MoreDetailsCallback more_details_callback) {
   on_dismiss_ = std::move(dismiss_callback);
   on_more_details_ = std::move(more_details_callback);
+
+  // If there is an actor login request, we will not show the accounts
+  // dialog. Pretend that we did for the caller.
+  if (!ShouldShowFedCmUi()) {
+    return true;
+  }
+
   if (!TrySetAccountView()) {
     return false;
   }
@@ -216,6 +266,13 @@ bool IdentityDialogController::ShowVerifyingDialog(
     AccountsDisplayedCallback accounts_displayed_callback) {
   on_accounts_displayed_ = std::move(accounts_displayed_callback);
   rp_mode_ = rp_mode;
+
+  // If there is an actor login request, we will not show the accounts
+  // dialog. Pretend that we did for the caller.
+  if (!ShouldShowFedCmUi()) {
+    return true;
+  }
+
   if (!TrySetAccountView()) {
     return false;
   }
@@ -314,6 +371,8 @@ void IdentityDialogController::ShowUrl(LinkType type, const GURL& url) {
   if (!account_view_) {
     return;
   }
+  // Cannot be invoked if FedCM UI is being shown.
+  DCHECK(ShouldShowFedCmUi());
   account_view_->ShowUrl(type, url);
 }
 
@@ -327,6 +386,7 @@ content::WebContents* IdentityDialogController::ShowModalDialog(
   }
 
   did_show_ui_ = true;
+  // Show the modal dialog even if FedCM UI is not being shown.
   return account_view_->ShowModalDialog(url, rp_mode);
 }
 
@@ -513,4 +573,45 @@ IdentityDialogController::GetFedCmClickthroughRateMetadata() {
     return webid::FedCmClickthroughRateMetadata();
   }
   return parsed_metadata.value();
+}
+
+IdentityDialogController::ActorLoginRequest::ActorLoginRequest(
+    content::Page& page,
+    const GURL& idp_url,
+    const std::string& account_id,
+    OnFederatedTokenReceivedCallback callback)
+    : content::PageUserData<ActorLoginRequest>(page),
+      idp_url_(idp_url),
+      account_id_(account_id),
+      on_federated_token_received_callback_(std::move(callback)) {}
+
+IdentityDialogController::ActorLoginRequest::~ActorLoginRequest() = default;
+
+PAGE_USER_DATA_KEY_IMPL(IdentityDialogController::ActorLoginRequest);
+
+// static
+void IdentityDialogController::SetActorLoginRequest(
+    content::Page& page,
+    const GURL& idp_url,
+    const std::string& account_id,
+    OnFederatedTokenReceivedCallback callback) {
+  page.SetUserData(ActorLoginRequest::UserDataKey(),
+                   std::make_unique<ActorLoginRequest>(
+                       page, idp_url, account_id, std::move(callback)));
+}
+
+// static
+void IdentityDialogController::UnsetActorLoginRequest(content::Page& page) {
+  IdentityDialogController::ActorLoginRequest::DeleteForPage(page);
+}
+
+IdentityDialogController::ActorLoginRequest*
+IdentityDialogController::GetActorLoginRequest() const {
+  return IdentityDialogController::ActorLoginRequest::GetForPage(
+      rp_web_contents_->GetPrimaryPage());
+}
+
+bool IdentityDialogController::ShouldShowFedCmUi() {
+  return rp_web_contents_->GetPrimaryPage().GetUserData(
+             ActorLoginRequest::UserDataKey()) == nullptr;
 }

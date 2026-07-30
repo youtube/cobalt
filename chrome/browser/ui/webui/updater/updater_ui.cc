@@ -16,6 +16,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/webui/plural_string_handler.h"
 #include "chrome/browser/ui/webui/updater/updater_page_handler.h"
 #include "chrome/browser/ui/webui/updater/updater_ui.mojom.h"
@@ -63,6 +64,10 @@ void AddKnownApp(content::WebUIDataSource& source,
 
 }  // namespace
 
+bool UpdaterUIConfig::IsWebUIEnabled(content::BrowserContext* browser_context) {
+  return base::FeatureList::IsEnabled(features::kUpdaterUI);
+}
+
 // enable_chrome_send is needed for plural_string_handler.
 UpdaterUI::UpdaterUI(content::WebUI* web_ui)
     : ui::MojoWebUIController(web_ui, /*enable_chrome_send=*/true) {
@@ -86,6 +91,8 @@ UpdaterUI::UpdaterUI(content::WebUI* web_ui)
       {"dateFilterAfter", IDS_UPDATER_DATE_FILTER_AFTER},
       {"dateFilterBefore", IDS_UPDATER_DATE_FILTER_BEFORE},
       {"dateFilterRange", IDS_UPDATER_DATE_FILTER_RANGE},
+      {"displayedEventsCount", IDS_UPDATER_DISPLAYED_EVENTS_COUNT},
+      {"duration", IDS_UPDATER_DURATION},
       {"endDate", IDS_UPDATER_END_DATE},
       {"errorDetails", IDS_UPDATER_ERROR_DETAILS},
       {"eventType", IDS_UPDATER_EVENT_TYPE},
@@ -104,6 +111,7 @@ UpdaterUI::UpdaterUI(content::WebUI* web_ui)
       {"filterChipDate", IDS_UPDATER_FILTER_CHIP_DATE},
       {"filterChipEventType", IDS_UPDATER_FILTER_CHIP_EVENT_TYPE},
       {"filterChipUpdateOutcome", IDS_UPDATER_FILTER_CHIP_UPDATE_OUTCOME},
+      {"filterChipUpdaterScope", IDS_UPDATER_FILTER_CHIP_UPDATER_SCOPE},
       {"installSummary", IDS_UPDATER_INSTALL_SUMMARY},
       {"internal", IDS_UPDATER_INTERNAL},
       {"nextVersion", IDS_UPDATER_NEXT_VERSION},
@@ -118,6 +126,9 @@ UpdaterUI::UpdaterUI(content::WebUI* web_ui)
       {"qualificationFailed", IDS_UPDATER_QUALIFICATION_FAILED},
       {"qualificationSucceeded", IDS_UPDATER_QUALIFICATION_SUCCEEDED},
       {"removeFilter", IDS_UPDATER_REMOVE_FILTER},
+      {"scope", IDS_UPDATER_SCOPE},
+      {"scopeSystem", IDS_UPDATER_SCOPE_SYSTEM},
+      {"scopeUser", IDS_UPDATER_SCOPE_USER},
       {"startDate", IDS_UPDATER_START_DATE},
       {"uninstallSummary", IDS_UPDATER_UNINSTALL_SUMMARY},
       {"updateError", IDS_UPDATER_UPDATE_ERROR},

@@ -32,7 +32,6 @@
   margin-bottom: var(--contextual-entrypoint-and-carousel-context-menu-container-margin-bottom);
   min-height: var(--cr-icon-button-size);
   padding-inline-start: var(--contextual-entrypoint-and-carousel-context-menu-container-padding-inline-start, 4px);
-  overflow: hidden;
   flex-wrap: nowrap;
 }
 
@@ -65,6 +64,10 @@
   color: var(--color-composebox-upload-button);
   display: flex;
   flex-wrap: nowrap;
+}
+
+.context-menu-container:has(.contextual-chip) {
+  padding-bottom: var(--contextual-entrypoint-and-carousel-contextual-chip-padding-bottom);
 }
 
 :host([inputs-disabled_]) .upload-button {

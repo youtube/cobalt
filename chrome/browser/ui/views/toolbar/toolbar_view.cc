@@ -81,10 +81,10 @@
 #include "chrome/browser/ui/views/toolbar/home_button.h"
 #include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container.h"
 #include "chrome/browser/ui/views/toolbar/reload_button.h"
-#include "chrome/browser/ui/views/toolbar/reload_button_web_view.h"
 #include "chrome/browser/ui/views/toolbar/split_tabs_button.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_button.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_controller.h"
+#include "chrome/browser/ui/views/toolbar/webui_toolbar_web_view.h"
 #include "chrome/browser/ui/views/zoom/zoom_view_controller.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/web_applications/link_capturing_features.h"
@@ -361,9 +361,10 @@ void ToolbarView::Init() {
   back_ = container_view_->AddChildView(std::move(back));
   forward_ = container_view_->AddChildView(std::move(forward));
   if (features::IsWebUIReloadButtonEnabled()) {
-    auto reload_webview = std::make_unique<ReloadButtonWebView>(
+    auto toolbar_webview = std::make_unique<WebUIToolbarWebView>(
         browser_, browser_->command_controller());
-    reload_webview_ = container_view_->AddChildView(std::move(reload_webview));
+    toolbar_webview_ =
+        container_view_->AddChildView(std::move(toolbar_webview));
   } else {
     std::unique_ptr<ReloadButton> reload = std::make_unique<ReloadButton>(
         browser_->GetProfile(), browser_->command_controller());
@@ -397,11 +398,11 @@ void ToolbarView::Init() {
     toolbar_divider_ =
         container_view_->AddChildView(std::move(toolbar_divider));
     toolbar_divider_->SetPreferredSize(
-        gfx::Size(GetLayoutConstant(TOOLBAR_DIVIDER_WIDTH),
-                  GetLayoutConstant(TOOLBAR_DIVIDER_HEIGHT)));
+        gfx::Size(GetLayoutConstant(LayoutConstant::kToolbarDividerWidth),
+                  GetLayoutConstant(LayoutConstant::kToolbarDividerHeight)));
     toolbar_divider_->SetBackground(views::CreateRoundedRectBackground(
         kColorToolbarExtensionSeparatorEnabled,
-        GetLayoutConstant(TOOLBAR_DIVIDER_CORNER_RADIUS)));
+        GetLayoutConstant(LayoutConstant::kToolbarDividerCornerRadius)));
   }
 
   pinned_toolbar_actions_container_ = container_view_->AddChildView(
@@ -603,7 +604,8 @@ void ToolbarView::UpdateForWebUITabStrip() {
     return;
   }
   if (browser_view_->webui_tab_strip()) {
-    const int button_height = GetLayoutConstant(TOOLBAR_BUTTON_HEIGHT);
+    const int button_height =
+        GetLayoutConstant(LayoutConstant::kToolbarButtonHeight);
     new_tab_button_->SetPreferredSize(gfx::Size(button_height, button_height));
     new_tab_button_->SetVisible(true);
     const size_t insertion_index =
@@ -802,7 +804,8 @@ void ToolbarView::Layout(PassKey) {
 
   // The background views should be behind the top-left and top-right corners
   // of the container_view_.
-  const int corner_radius = GetLayoutConstant(TOOLBAR_CORNER_RADIUS);
+  const int corner_radius =
+      GetLayoutConstant(LayoutConstant::kToolbarCornerRadius);
   const auto [leading_corner_style, trailing_corner_style] = GetCornerStyles();
   const int leading_curve_size =
       leading_corner_style == CornerStyle::kTabstripCurve ? corner_radius : 0;
@@ -927,9 +930,11 @@ views::View* ToolbarView::GetDefaultFocusableChild() {
 }
 
 void ToolbarView::InitLayout() {
-  const int default_margin = GetLayoutConstant(TOOLBAR_ICON_DEFAULT_MARGIN);
+  const int default_margin =
+      GetLayoutConstant(LayoutConstant::kToolbarIconDefaultMargin);
   // TODO(dfried): rename this constant.
-  const int location_bar_margin = GetLayoutConstant(TOOLBAR_STANDARD_SPACING);
+  const int location_bar_margin =
+      GetLayoutConstant(LayoutConstant::kToolbarStandardSpacing);
 
   // Shift previously flex-able elements' order by `kOrderOffset`.
   // This will cause them to be the first ones to drop out or shrink to minimum.
@@ -979,7 +984,8 @@ void ToolbarView::InitLayout() {
   if (toolbar_divider_) {
     toolbar_divider_->SetProperty(
         views::kMarginsKey,
-        gfx::Insets::VH(0, GetLayoutConstant(TOOLBAR_DIVIDER_SPACING)));
+        gfx::Insets::VH(
+            0, GetLayoutConstant(LayoutConstant::kToolbarDividerSpacing)));
   }
 
   constexpr int kToolbarFlexOrderStart = 1;
@@ -1081,7 +1087,7 @@ gfx::Size ToolbarView::GetToolbarButtonSize() const {
   const int size =
       display_mode_ == DisplayMode::kLocation
           ? location_bar_->GetPreferredSize().height()
-          : GetLayoutConstant(LayoutConstant::TOOLBAR_BUTTON_HEIGHT);
+          : GetLayoutConstant(LayoutConstant::kToolbarButtonHeight);
   return gfx::Size(size, size);
 }
 
@@ -1187,7 +1193,11 @@ ToolbarButton* ToolbarView::GetBackButton() {
 
 ReloadControl* ToolbarView::GetReloadButton() {
   if (features::IsWebUIReloadButtonEnabled()) {
-    return reload_webview_;
+    if (toolbar_webview_) {
+      return toolbar_webview_->GetReloadControl();
+    } else {
+      return nullptr;
+    }
   }
   return reload_;
 }
@@ -1201,6 +1211,10 @@ ToolbarButton* ToolbarView::GetDownloadButton() {
                ? pinned_toolbar_actions_container_->GetButtonFor(
                      kActionShowDownloads)
                : nullptr;
+}
+
+WebUIToolbarWebView* ToolbarView::GetWebUIToolbarViewForTesting() {
+  return toolbar_webview_;
 }
 
 std::optional<BrowserRootView::DropIndex> ToolbarView::GetDropIndex(
@@ -1254,8 +1268,10 @@ void ToolbarView::OnTouchUiChanged() {
     // Update the internal margins for touch layout.
     // TODO(dfried): I think we can do better than this by making the touch UI
     // code cleaner.
-    const int default_margin = GetLayoutConstant(TOOLBAR_ELEMENT_PADDING);
-    const int location_bar_margin = GetLayoutConstant(TOOLBAR_STANDARD_SPACING);
+    const int default_margin =
+        GetLayoutConstant(LayoutConstant::kToolbarElementPadding);
+    const int location_bar_margin =
+        GetLayoutConstant(LayoutConstant::kToolbarStandardSpacing);
     layout_manager_->SetDefault(views::kMarginsKey,
                                 gfx::Insets::VH(0, default_margin));
     location_bar_->SetProperty(views::kMarginsKey,

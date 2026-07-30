@@ -19,6 +19,7 @@
 #include "base/check.h"
 #include "base/command_line.h"
 #include "base/containers/contains.h"
+#include "base/containers/span_reader.h"
 #include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/feature_list.h"
@@ -26,7 +27,6 @@
 #include "base/functional/callback_helpers.h"
 #include "base/json/json_reader.h"
 #include "base/lazy_instance.h"
-#include "base/memory/memory_pressure_monitor.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/field_trial_params.h"
@@ -67,6 +67,7 @@
 #include "components/input/utils.h"
 #include "components/tracing/common/tracing_switches.h"
 #include "components/viz/common/features.h"
+#include "components/webauthn/core/browser/remote_validation.h"
 #include "content/browser/about_url_loader_factory.h"
 #include "content/browser/accessibility/render_accessibility_host.h"
 #include "content/browser/bad_message.h"
@@ -301,6 +302,7 @@
 #include "third_party/blink/public/mojom/timing/resource_timing.mojom.h"
 #include "third_party/blink/public/mojom/window_features/window_features.mojom.h"
 #include "third_party/perfetto/include/perfetto/tracing/track.h"
+#include "third_party/perfetto/include/perfetto/tracing/track_event_args.h"
 #include "ui/accessibility/ax_action_handler_registry.h"
 #include "ui/accessibility/ax_common.h"
 #include "ui/accessibility/ax_location_and_scroll_updates.h"
@@ -832,7 +834,8 @@ void WriteRenderFrameImplDeletion(perfetto::EventContext& ctx,
 // be reused. Returns zero if under memory pressure, as memory should be freed
 // up as soon as possible if it's limited.
 base::TimeDelta GetSubframeProcessShutdownDelay(
-    BrowserContext* browser_context) {
+    BrowserContext* browser_context,
+    base::MemoryPressureLevel memory_pressure_level) {
   static constexpr base::TimeDelta kZeroDelay;
   if (!RenderProcessHostImpl::ShouldDelayProcessShutdown()) {
     return kZeroDelay;
@@ -840,11 +843,7 @@ base::TimeDelta GetSubframeProcessShutdownDelay(
 
   // Don't delay process shutdown under memory pressure. Does not cancel
   // existing shutdown delays for processes already in delayed-shutdown state.
-  const auto* const memory_monitor = base::MemoryPressureMonitor::Get();
-  if (memory_monitor &&
-      memory_monitor->GetCurrentPressureLevel(
-          base::MemoryPressureMonitorTag::kSubframeShutdownDelay) >=
-          base::MEMORY_PRESSURE_LEVEL_MODERATE) {
+  if (memory_pressure_level >= base::MEMORY_PRESSURE_LEVEL_MODERATE) {
     return kZeroDelay;
   }
 
@@ -2530,10 +2529,12 @@ RenderFrameHostImpl::RenderFrameHostImpl(
           GetLocalFrameTracingTrack(
               frame_token_,
               is_main_frame(),
-              agent_scheduling_group_->GetProcess()->GetID()))) {
-  TRACE_EVENT_WITH_FLOW0("navigation",
-                         "RenderFrameHostImpl::RenderFrameHostImpl",
-                         TRACE_ID_LOCAL(this), TRACE_EVENT_FLAG_FLOW_OUT);
+              agent_scheduling_group_->GetProcess()->GetID()))),
+      memory_pressure_listener_registration_(
+          base::MemoryPressureListenerTag::kRenderFrameHostImpl,
+          this) {
+  TRACE_EVENT("navigation", "RenderFrameHostImpl::RenderFrameHostImpl",
+              perfetto::Flow::FromPointer(this));
   TRACE_EVENT_BEGIN("navigation", "RenderFrameHostImpl", tracing_track_,
                     "render_frame_host_when_created", this);
   base::ScopedUmaHistogramTimer histogram_timer(
@@ -2703,9 +2704,8 @@ RenderFrameHostImpl::RenderFrameHostImpl(
 }
 
 RenderFrameHostImpl::~RenderFrameHostImpl() {
-  TRACE_EVENT_WITH_FLOW0("navigation",
-                         "RenderFrameHostImpl::~RenderFrameHostImpl",
-                         TRACE_ID_LOCAL(this), TRACE_EVENT_FLAG_FLOW_IN);
+  TRACE_EVENT("navigation", "RenderFrameHostImpl::~RenderFrameHostImpl",
+              perfetto::TerminatingFlow::FromPointer(this));
   SCOPED_CRASH_KEY_STRING256("Bug1407526", "lifecycle",
                              LifecycleStateImplToString(lifecycle_state()));
   TRACE_EVENT("navigation", "~RenderFrameHostImpl()",
@@ -4557,7 +4557,8 @@ void RenderFrameHostImpl::DeleteRenderFrame(
           frame_tree_->IsBeingDestroyed()
               ? base::TimeDelta()
               : GetSubframeProcessShutdownDelay(
-                    GetSiteInstance()->GetBrowserContext());
+                    GetSiteInstance()->GetBrowserContext(),
+                    memory_pressure_level());
       // If this document has unload handlers (and is active), ensure that they
       // have a chance to execute by delaying process cleanup. This will prevent
       // the process from shutting down immediately in the case where this is
@@ -6686,10 +6687,8 @@ void RenderFrameHostImpl::ProcessBeforeUnloadCompleted(
     const base::TimeTicks& renderer_before_unload_start_time,
     const base::TimeTicks& renderer_before_unload_end_time,
     bool for_legacy) {
-  TRACE_EVENT_WITH_FLOW0("navigation",
-                         "RenderFrameHostImpl::ProcessBeforeUnloadCompleted",
-                         TRACE_ID_LOCAL(this),
-                         TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("navigation", "RenderFrameHostImpl::ProcessBeforeUnloadCompleted",
+              perfetto::Flow::FromPointer(this));
   // Corresponds to the "RenderFrameHostImpl BeforeUnload" event.
   TRACE_EVENT_END("navigation", tracing_track_, "render_frame_host", this);
   // If this renderer navigated while the beforeunload request was in flight, we
@@ -9028,7 +9027,7 @@ void RenderFrameHostImpl::EnterFullscreen(
        rfh = rfh->GetParent()) {
     SiteInstanceGroup* parent_group =
         rfh->GetParent()->GetSiteInstance()->group();
-    if (base::Contains(notified_groups, parent_group)) {
+    if (notified_groups.contains(parent_group)) {
       continue;
     }
 
@@ -10478,11 +10477,6 @@ void RenderFrameHostImpl::MaybeSendFencedFrameAutomaticReportingBeacon(
   // there is a fenced frame reporter.
   const std::optional<FencedFrameProperties>& properties =
       initiator_rfh->frame_tree_node()->GetFencedFrameProperties();
-  if (properties.has_value() &&
-      event_type == blink::mojom::AutomaticBeaconType::kTopNavigationCommit) {
-    base::UmaHistogramEnumeration(blink::kFencedFrameTopNavigationHistogram,
-                                  blink::FencedFrameNavigationState::kCommit);
-  }
   if (!properties.has_value() || !properties->fenced_frame_reporter()) {
     return;
   }
@@ -11073,58 +11067,54 @@ void RenderFrameHostImpl::RecordWindowProxyUsageMetrics(
       .Record(ukm::UkmRecorder::Get());
 }
 
-void RenderFrameHostImpl::InitializeCrashReportStorage(
+void RenderFrameHostImpl::InitializeCrashReportContext(
     uint64_t length,
-    InitializeCrashReportStorageCallback callback) {
+    InitializeCrashReportContextCallback callback) {
   if (!base::FeatureList::IsEnabled(
           blink::features::kCrashReportingStorageAPI)) {
     mojo::ReportBadMessage("kCrashReportingStorageAPI feature must be enabled");
     return;
   }
 
-  if (length > blink::mojom::kMaxCrashReportStorageSize) {
+  if (length > blink::mojom::kMaxCrashReportContextSize) {
     bad_message::ReceivedBadMessage(
         GetProcess(), bad_message::RFH_CRASH_REPORT_STORAGE_SIZE_TOO_LARGE);
     return;
   }
 
-  // A renderer process must not try and create and initialize its crash report
-  // memory more than once. For now, this "initilization" is trivial since the
-  // backing memory is a `std::map`, but in the future when the backing memory
-  // might be a shared memory buffer, this becomes more important. See
-  // `CrashReportStorage::initialize()`.
-  if (document_associated_data_->crash_storage_requested_length()) {
+  // A renderer process must not try and create and initialize its shared memory
+  // buffer for crash reports more than once. See
+  // `CrashReportContext::initialize()`.
+  if (document_associated_data_->crash_report_storage_region().IsValid()) {
     bad_message::ReceivedBadMessage(
         GetProcess(),
         bad_message::RFH_CRASH_REPORT_STORAGE_ALREADY_INITIALIZED);
     return;
   }
 
-  document_associated_data_->set_crash_storage_requested_length(length);
-  std::move(callback).Run();
-}
+  // The shared memory buffer that the browser allocates needs to be as many
+  // bytes as the renderer requests, plus `sizeof(uint32_t)` bytes for a leading
+  // integer that describes how many bytes of the buffer are used/written to.
+  //
+  // Every time a value is added or removed from the shared memory, this leading
+  // integer is updated by the renderer, and the browser process finally uses it
+  // in `MaybeGenerateCrashReport()` when parsing the bytes.
+  base::CheckedNumeric<uint32_t> total_size = length;
+  total_size += sizeof(uint32_t);
 
-void RenderFrameHostImpl::SetCrashReportStorageKey(
-    const std::string& key,
-    const std::string& value,
-    SetCrashReportStorageKeyCallback callback) {
-  if (!document_associated_data_->crash_storage_requested_length()) {
-    mojo::ReportBadMessage("Must call InitializeCrashReportStorage() first");
+  // We can use `ValueOrDie()` below because we know `length` is sufficiently
+  // far enough from the boundary of `uint32_t` (because of the
+  // `kMaxCrashReportContextSize` check) such that it cannot have overflown at
+  // this point.
+  base::UnsafeSharedMemoryRegion region =
+      base::UnsafeSharedMemoryRegion::Create(total_size.ValueOrDie());
+  if (!region.IsValid()) {
+    std::move(callback).Run(base::UnsafeSharedMemoryRegion());
+    return;
   }
 
-  document_associated_data_->crash_storage_map().insert_or_assign(key, value);
-  std::move(callback).Run();
-}
-
-void RenderFrameHostImpl::RemoveCrashReportStorageKey(
-    const std::string& key,
-    RemoveCrashReportStorageKeyCallback callback) {
-  if (!document_associated_data_->crash_storage_requested_length()) {
-    mojo::ReportBadMessage("Must call InitializeCrashReportStorage() first");
-  }
-
-  document_associated_data_->crash_storage_map().erase(key);
-  std::move(callback).Run();
+  document_associated_data_->SetCrashReportContextRegion(region.Duplicate());
+  std::move(callback).Run(std::move(region));
 }
 
 void RenderFrameHostImpl::CreateNewPopupWidget(
@@ -11834,10 +11824,8 @@ void RenderFrameHostImpl::Stop() {
 
 void RenderFrameHostImpl::DispatchBeforeUnload(BeforeUnloadType type,
                                                bool is_reload) {
-  TRACE_EVENT_WITH_FLOW0("navigation",
-                         "RenderFrameHostImpl::DispatchBeforeUnload",
-                         TRACE_ID_LOCAL(this),
-                         TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("navigation", "RenderFrameHostImpl::DispatchBeforeUnload",
+              perfetto::Flow::FromPointer(this));
   bool for_navigation =
       type == BeforeUnloadType::BROWSER_INITIATED_NAVIGATION ||
       type == BeforeUnloadType::RENDERER_INITIATED_NAVIGATION;
@@ -12028,7 +12016,7 @@ RenderFrameHostImpl::CheckOrDispatchBeforeUnloadForFrame(
   while (!rfh->is_local_root() && rfh != this) {
     rfh = rfh->GetParent();
   }
-  if (base::Contains(beforeunload_pending_replies_, rfh)) {
+  if (beforeunload_pending_replies_.contains(rfh)) {
     return FrameIterationAction::kContinue;
   }
 
@@ -14300,7 +14288,7 @@ bool RenderFrameHostImpl::CancelPrerenderingForLoadingError(
     return false;
   }
   return delegate_->GetPrerenderHostRegistry()->CancelHost(
-      outermost_frame->frame_tree_node_id(),
+      prerender_host->prerender_host_id(),
       PrerenderCancellationReason::BuildForLoadingError(loading_error_code));
 }
 
@@ -14311,9 +14299,14 @@ bool RenderFrameHostImpl::CancelPrerendering(
   if (!outermost_frame) {
     return false;
   }
-
+  PrerenderHost* prerender_host =
+      delegate_->GetPrerenderHostRegistry()->FindNonReservedHostById(
+          outermost_frame->frame_tree_node_id());
+  if (!prerender_host) {
+    return false;
+  }
   return delegate_->GetPrerenderHostRegistry()->CancelHost(
-      outermost_frame->frame_tree_node_id(), reason);
+      prerender_host->prerender_host_id(), reason);
 }
 
 void RenderFrameHostImpl::CancelPrerenderingByMojoBinderPolicy(
@@ -16406,10 +16399,10 @@ void RenderFrameHostImpl::MaybeGenerateCrashReport(
                                                                    : "hidden");
   }
 
-  base::Value::Dict crash_report_api_body;
-  for (const auto& pair : document_associated_data_->crash_storage_map()) {
-    crash_report_api_body.Set(pair.first, pair.second);
-  }
+  // Read the key/value data from the document associated data shared memory
+  // buffer that the renderer may have written to; parse it as JSON, and add it
+  // to the crash report.
+  base::Value::Dict crash_report_api_body = ReadCrashReportAPIBody();
   body.Set("crash_report_api", std::move(crash_report_api_body));
 
   if (!reason.empty()) {
@@ -16440,6 +16433,66 @@ void RenderFrameHostImpl::MaybeGenerateCrashReport(
       /*type=*/"crash", crash_reporting_group_, last_committed_url_,
       GetReportingSource(), isolation_info_.network_anonymization_key(),
       std::move(body));
+}
+
+base::Value::Dict RenderFrameHostImpl::ReadCrashReportAPIBody() {
+  base::Value::Dict crash_report_api_body;
+  if (!document_associated_data_->crash_report_storage_region().IsValid()) {
+    return crash_report_api_body;
+  }
+
+  // Create a writable mapping that we only read from; we cannot create a
+  // read-only mapping from an unsafe shared memory region, since the
+  // read-only mapping has no way to guarantee that the platform handle
+  // backing the unsafe region is truly no longer writable.
+  base::WritableSharedMemoryMapping mapping =
+      document_associated_data_->crash_report_storage_region().Map();
+
+  if (!mapping.IsValid() || mapping.size() < sizeof(uint32_t)) {
+    return crash_report_api_body;
+  }
+
+  base::SpanReader<const uint8_t> reader(
+      mapping.GetMemoryAsSpan<const uint8_t>());
+  // The first uint32_t-sized chunk of the memory tells us how large the
+  // *remaining* amount of data that we need to read is.
+  uint32_t data_size = 0;
+  reader.ReadU32NativeEndian(data_size);
+
+  // Only attempt to read the report data if the recorded size of the data
+  // fits inside the real size of the shared memory. Only a compromised
+  // renderer could set us up to fail this condition; see
+  // `CrashReportContext::set()`, which ensures that the writes of oversized
+  // reports are not attempted.
+  if (mapping.size() < sizeof(data_size) + data_size) {
+    return crash_report_api_body;
+  }
+
+  // Take a copy of the entire crash report API memory, to snapshot the data so
+  // that a malicious writer can't change it while it's being parsed. Note that
+  // a malicious writer could technically change the data that we're about to
+  // snapshot, after we've read `data_size`, but changing the contents or format
+  // of this data after we snapshot the body below shouldn't matter; the worst
+  // that can happen is the data is no longer valid JSON, and it gets omitted
+  // from the report.
+  std::string body_copy(data_size, '\0');
+  const bool read_success =
+      reader.ReadCopy(base::as_writable_bytes(base::span(body_copy)));
+  DCHECK(read_success);
+  // We use `JSON_PARSE_RFC` here, because the writer uses
+  // `JSONValue::ToJSONString()` which outputs RFC-compliant JSON.
+  std::optional<base::Value> parsed_json = base::JSONReader::Read(
+      body_copy, base::JSONParserOptions::JSON_PARSE_RFC);
+
+  if (parsed_json && parsed_json->is_dict()) {
+    for (auto it : parsed_json->GetDict()) {
+      if (it.second.is_string()) {
+        crash_report_api_body.Set(it.first, it.second.GetString());
+      }
+    }
+  }
+
+  return crash_report_api_body;
 }
 
 void RenderFrameHostImpl::UpdateOrDisableCompositorMetricRecorder() const {
@@ -16888,9 +16941,8 @@ void RenderFrameHostImpl::SendBeforeUnload(
     base::WeakPtr<RenderFrameHostImpl> rfh,
     bool for_legacy,
     const bool is_renderer_initiated_navigation) {
-  TRACE_EVENT_WITH_FLOW0("navigation", "RenderFrameHostImpl::SendBeforeUnload",
-                         TRACE_ID_LOCAL(this),
-                         TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("navigation", "RenderFrameHostImpl::SendBeforeUnload",
+              perfetto::Flow::FromPointer(this));
   auto before_unload_closure = base::BindOnce(
       [](base::WeakPtr<RenderFrameHostImpl> impl, bool for_legacy, bool proceed,
          base::TimeTicks renderer_before_unload_start_time,
@@ -17011,14 +17063,14 @@ void RenderFrameHostImpl::AddServiceWorkerClient(
         BackForwardCacheMetrics::NotRestoredReason::
             kEnteredBackForwardCacheBeforeServiceWorkerHostAdded);
   }
-  DCHECK(!base::Contains(service_worker_clients_, uuid));
+  DCHECK(!service_worker_clients_.contains(uuid));
   last_committed_service_worker_client_ = service_worker_client;
   service_worker_clients_[uuid] = std::move(service_worker_client);
 }
 
 void RenderFrameHostImpl::RemoveServiceWorkerClient(const std::string& uuid) {
   DCHECK(!service_worker_clients_.empty());
-  DCHECK(base::Contains(service_worker_clients_, uuid));
+  DCHECK(service_worker_clients_.contains(uuid));
   service_worker_clients_.erase(uuid);
 }
 
@@ -18175,15 +18227,13 @@ void RenderFrameHostImpl::PerformGetAssertionWebAuthSecurityChecks(
     return;
   }
 
-  std::unique_ptr<WebAuthRequestSecurityChecker::RemoteValidation>
-      remote_validation =
-          GetWebAuthRequestSecurityChecker()->ValidateDomainAndRelyingPartyID(
-              effective_origin, relying_party_id, request_type,
-              remote_desktop_client_override_origin,
-              base::BindOnce(
-                  &RenderFrameHostImpl::OnWebAuthSecurityChecksCompleted,
-                  weak_ptr_factory_.GetWeakPtr(), std::move(callback),
-                  is_cross_origin));
+  std::unique_ptr<webauthn::RemoteValidation> remote_validation =
+      GetWebAuthRequestSecurityChecker()->ValidateDomainAndRelyingPartyID(
+          effective_origin, relying_party_id, request_type,
+          remote_desktop_client_override_origin,
+          base::BindOnce(&RenderFrameHostImpl::OnWebAuthSecurityChecksCompleted,
+                         weak_ptr_factory_.GetWeakPtr(), std::move(callback),
+                         is_cross_origin));
 
   // If `remote_validation` is nullptr then this object may already have been
   // destroyed.
@@ -18219,15 +18269,13 @@ void RenderFrameHostImpl::PerformMakeCredentialWebAuthSecurityChecks(
     return;
   }
 
-  std::unique_ptr<WebAuthRequestSecurityChecker::RemoteValidation>
-      remote_validation =
-          GetWebAuthRequestSecurityChecker()->ValidateDomainAndRelyingPartyID(
-              effective_origin, relying_party_id, request_type,
-              remote_desktop_client_override_origin,
-              base::BindOnce(
-                  &RenderFrameHostImpl::OnWebAuthSecurityChecksCompleted,
-                  weak_ptr_factory_.GetWeakPtr(), std::move(callback),
-                  is_cross_origin));
+  std::unique_ptr<webauthn::RemoteValidation> remote_validation =
+      GetWebAuthRequestSecurityChecker()->ValidateDomainAndRelyingPartyID(
+          effective_origin, relying_party_id, request_type,
+          remote_desktop_client_override_origin,
+          base::BindOnce(&RenderFrameHostImpl::OnWebAuthSecurityChecksCompleted,
+                         weak_ptr_factory_.GetWeakPtr(), std::move(callback),
+                         is_cross_origin));
 
   // If `remote_validation` is nullptr then this object may already have been
   // destroyed.
@@ -18259,16 +18307,14 @@ void RenderFrameHostImpl::PerformReportWebAuthSecurityChecks(
     return;
   }
 
-  std::unique_ptr<WebAuthRequestSecurityChecker::RemoteValidation>
-      remote_validation =
-          GetWebAuthRequestSecurityChecker()->ValidateDomainAndRelyingPartyID(
-              effective_origin, relying_party_id,
-              WebAuthRequestSecurityChecker::RequestType::kReport,
-              /*remote_desktop_client_override_origin=*/std::nullopt,
-              base::BindOnce(
-                  &RenderFrameHostImpl::OnWebAuthSecurityChecksCompleted,
-                  weak_ptr_factory_.GetWeakPtr(), std::move(callback),
-                  is_cross_origin));
+  std::unique_ptr<webauthn::RemoteValidation> remote_validation =
+      GetWebAuthRequestSecurityChecker()->ValidateDomainAndRelyingPartyID(
+          effective_origin, relying_party_id,
+          WebAuthRequestSecurityChecker::RequestType::kReport,
+          /*remote_desktop_client_override_origin=*/std::nullopt,
+          base::BindOnce(&RenderFrameHostImpl::OnWebAuthSecurityChecksCompleted,
+                         weak_ptr_factory_.GetWeakPtr(), std::move(callback),
+                         is_cross_origin));
 
   // If `remote_validation` is nullptr then this object may already have been
   // destroyed.

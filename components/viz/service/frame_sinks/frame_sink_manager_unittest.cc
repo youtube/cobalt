@@ -6,7 +6,6 @@
 
 #include <tuple>
 
-#include "base/containers/contains.h"
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/test/scoped_feature_list.h"
@@ -104,8 +103,8 @@ class FrameSinkManagerTest : public testing::Test {
 
   // Checks if a [Root]CompositorFrameSinkImpl exists for |frame_sink_id|.
   bool CompositorFrameSinkExists(const FrameSinkId& frame_sink_id) {
-    return base::Contains(manager_->sink_map_, frame_sink_id) ||
-           base::Contains(manager_->root_sink_map_, frame_sink_id);
+    return manager_->sink_map_.contains(frame_sink_id) ||
+           manager_->root_sink_map_.contains(frame_sink_id);
   }
 
   CompositorFrameSinkSupport* GetFrameSinkSupport(const FrameSinkId& id) {
@@ -975,7 +974,8 @@ TEST_F(FrameSinkManagerTest,
       base::BindOnce([](std::unique_ptr<CopyOutputResult> result) {}));
   auto* request_ptr = request.get();
   manager_->RequestCopyOfOutput(surface_id1, std::move(request),
-                                /*capture_exact_surface_id=*/true);
+                                /*capture_exact_surface_id=*/true,
+                                base::TimeDelta());
 
   manager_->DiscardPendingCopyOfOutputRequests(&source);
   ASSERT_TRUE(surface_observer_->IsSurfaceDamaged(surface_id1));
@@ -1023,7 +1023,8 @@ TEST_F(FrameSinkManagerTest, ExactCopyOutputRequestTakenBySurfaceRightAway) {
       base::BindOnce([](std::unique_ptr<CopyOutputResult> result) {}));
   auto* request_ptr = request.get();
   manager_->RequestCopyOfOutput(surface_id1, std::move(request),
-                                /*capture_exact_surface_id=*/true);
+                                /*capture_exact_surface_id=*/true,
+                                base::TimeDelta());
   ASSERT_TRUE(surface_observer_->IsSurfaceDamaged(surface_id1));
   // `request` is emplaced at the end of the root RenderPass.
   const auto& preserved_request = *(
@@ -1061,7 +1062,8 @@ TEST_F(FrameSinkManagerTest,
       base::BindOnce([](std::unique_ptr<CopyOutputResult> result) {}));
   auto* request_ptr = request.get();
   manager_->RequestCopyOfOutput(surface_id1, std::move(request),
-                                /*capture_exact_surface_id=*/true);
+                                /*capture_exact_surface_id=*/true,
+                                base::TimeDelta());
   // Won't be marked because the surface does not exist.
   ASSERT_FALSE(surface_observer_->IsSurfaceDamaged(surface_id1));
 
@@ -1071,7 +1073,7 @@ TEST_F(FrameSinkManagerTest,
   // `LocalSurfaceId`.
   auto requests = cfss->TakeCopyOutputRequests(id1);
   ASSERT_EQ(requests.size(), 1u);
-  ASSERT_EQ(requests[0].copy_output_request.get(), request_ptr);
+  ASSERT_EQ(requests[0]->copy_output_request.get(), request_ptr);
 
   manager_->InvalidateFrameSinkId(kFrameSinkIdA, {});
   manager_->UnregisterBeginFrameSource(&source);

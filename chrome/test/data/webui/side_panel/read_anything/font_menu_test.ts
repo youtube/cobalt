@@ -4,7 +4,7 @@
 
 import 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
 
-import {ReadAnythingSettingsChange, ToolbarEvent} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
+import {DEFAULT_SETTINGS, ReadAnythingSettingsChange, ToolbarEvent} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
 import type {FontMenuElement} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome-untrusted://webui-test/chai_assert.js';
 import {microtasksFinished} from 'chrome-untrusted://webui-test/test_util.js';
@@ -85,13 +85,8 @@ suite('FontMenu', () => {
 
     chrome.readingMode.fontName = 'font 2';
     fontMenu.settingsPrefs = {
-      letterSpacing: 0,
-      lineSpacing: 0,
-      theme: 0,
-      speechRate: 0,
+      ...DEFAULT_SETTINGS,
       font: chrome.readingMode.fontName,
-      highlightGranularity: 0,
-      lineFocus: 0,
     };
     await microtasksFinished();
 
@@ -131,6 +126,11 @@ suite('FontMenu', () => {
   });
 
   test('propagates font', async () => {
+    const numberOfFonts = 3;
+    let closeAllMenusCount = 0;
+    document.addEventListener(
+        ToolbarEvent.CLOSE_ALL_MENUS, () => closeAllMenusCount += 1);
+
     const font1 = 'Times';
     fontMenu.$.menu.dispatchEvent(
         new CustomEvent(ToolbarEvent.FONT, {detail: {data: font1}}));
@@ -149,7 +149,9 @@ suite('FontMenu', () => {
     assertEquals(
         ReadAnythingSettingsChange.FONT_CHANGE,
         await metrics.whenCalled('recordTextSettingsChange'));
-    assertEquals(3, metrics.getCallCount('recordTextSettingsChange'));
+    assertEquals(
+        numberOfFonts, metrics.getCallCount('recordTextSettingsChange'));
+    assertEquals(numberOfFonts, closeAllMenusCount);
   });
 
   test('can be closed programatically', () => {

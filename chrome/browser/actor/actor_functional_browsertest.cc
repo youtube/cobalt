@@ -5,6 +5,7 @@
 #include <string_view>
 
 #include "base/base64.h"
+#include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
@@ -12,14 +13,17 @@
 #include "base/test/gmock_expected_support.h"
 #include "base/test/run_until.h"
 #include "base/test/test_future.h"
+#include "base/time/time.h"
 #include "base/types/expected_macros.h"
 #include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/actor_metrics.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/actor/browser_action_util.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/test_support/interactive_glic_test.h"
+#include "chrome/browser/page_content_annotations/multi_source_page_context_fetcher.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/common/actor_webui.mojom.h"
 #include "chrome/common/chrome_features.h"
@@ -29,11 +33,6 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
-
-using ::base::test::TestFuture;
-using ::optimization_guide::proto::ClickAction;
-using ::optimization_guide::proto::TabObservation;
-using ::testing::Property;
 
 namespace mojo {
 template <>
@@ -58,19 +57,29 @@ struct TypeConverter<base::Value, glic::mojom::GetTabContextOptions> {
 namespace actor {
 namespace {
 
+using ::base::test::TestFuture;
+using ::base::test::ValueIs;
+using ::optimization_guide::proto::Actions;
+using ::optimization_guide::proto::ActionsResult;
+using ::optimization_guide::proto::ClickAction;
+using ::optimization_guide::proto::TabObservation;
+using ::page_content_annotations::FetchPageContextResult;
+using ::testing::Property;
+
 // Helper to mock the result returned on a TabObservation built using
 // actor::BuildActionsResultWithObservations. While live, use the provided
 // function to set TabObservationResults. Unset on destruction.
 class ScopedMockTabObservationResult {
  public:
   explicit ScopedMockTabObservationResult(
-      base::RepeatingCallback<TabObservation::TabObservationResult()>
-          callback) {
+      base::RepeatingCallback<void(TabObservation*,
+                                   const FetchPageContextResult&)> callback) {
     SetTabObservationResultOverrideForTesting(callback);
   }
   ~ScopedMockTabObservationResult() {
     SetTabObservationResultOverrideForTesting(
-        base::RepeatingCallback<TabObservation::TabObservationResult()>());
+        base::RepeatingCallback<void(TabObservation*,
+                                     const FetchPageContextResult&)>());
   }
 };
 
@@ -95,8 +104,73 @@ base::expected<base::Value, std::string> ToExpected(
   return base::ok(std::move(result).TakeValue());
 }
 
+Actions MakeWaitForTaskId(std::optional<base::TimeDelta> duration,
+                          std::optional<tabs::TabHandle> observe_tab_handle,
+                          TaskId task_id) {
+  Actions action = MakeWait(duration, observe_tab_handle);
+  action.set_task_id(task_id.value());
+  return action;
+}
+
+// Helper class that utilizes content::DOMMessageQueue to capture the result of
+// an asynchronous PerformActions call. It listens for messages sent via
+// domAutomationController and filters by request ID to ensure the correct
+// result is returned.
+class AsyncActionWaiter {
+ public:
+  AsyncActionWaiter(content::RenderFrameHost* rfh, std::string request_id)
+      : queue_(rfh), request_id_(std::move(request_id)) {}
+
+  base::expected<ActionsResult, std::string> Wait() {
+    while (true) {
+      std::string json_message;
+      if (!queue_.WaitForMessage(&json_message)) {
+        return base::unexpected("Failed to wait for message from JS.");
+      }
+
+      auto json_value = base::JSONReader::ReadAndReturnValueWithError(
+          json_message, base::JSON_PARSE_RFC);
+      if (!json_value.has_value()) {
+        return base::unexpected("Failed to parse JSON result from JS: " +
+                                json_value.error().message);
+      }
+
+      const base::Value::Dict* dict = json_value->GetIfDict();
+      if (!dict) {
+        return base::unexpected("Expected a JSON object from JS.");
+      }
+
+      const std::string* id = dict->FindString("requestId");
+      if (!id) {
+        return base::unexpected(
+            "Expected a string value for `requestId` key in JSON object from "
+            "JS");
+      }
+
+      if (*id != request_id_) {
+        // Message not for us
+        continue;
+      }
+
+      const std::string* result_base64 = dict->FindString("result");
+      if (!result_base64) {
+        return base::unexpected("JSON result missing 'result' field.");
+      }
+
+      return ParseBase64Proto<ActionsResult>(*result_base64);
+    }
+  }
+
+ private:
+  content::DOMMessageQueue queue_;
+  std::string request_id_;
+};
+
 class ActorFunctionalBrowserTest : public glic::test::InteractiveGlicTest {
  public:
+  static constexpr base::TimeDelta kShortWaitTime = base::Milliseconds(10);
+  static constexpr base::TimeDelta kLongWaitTime = base::Minutes(2);
+
   ActorFunctionalBrowserTest() {
     scoped_feature_list_.InitWithFeatures(
         /*enabled_features=*/{features::kGlicMultiInstance,
@@ -110,7 +184,7 @@ class ActorFunctionalBrowserTest : public glic::test::InteractiveGlicTest {
     glic::test::InteractiveGlicTest::SetUpOnMainThread();
     actor_keyed_service()->GetPolicyChecker().set_act_on_web_for_testing(true);
     // TODO(crbug.com/461825458): Add support for kAttached window mode in test.
-    RunTestSequence(OpenGlicWindow(GlicWindowMode::kDetached));
+    RunTestSequence(OpenGlic());
   }
 
   content::WebContents* web_contents() {
@@ -139,6 +213,23 @@ class ActorFunctionalBrowserTest : public glic::test::InteractiveGlicTest {
         }));
   }
 
+  // Returns the state of the relevant ActorTask.
+  ActorTask::State GetActorTaskState(TaskId task_id) {
+    ActorTask* task = actor_keyed_service()->GetTask(task_id);
+    CHECK_NE(task, nullptr) << "ActorTask " << task_id << " not found.";
+    return task->GetState();
+  }
+
+  // Waits for the relevant ActorTask to reach the expected state or times out.
+  void RunUntilActorTaskStateIs(TaskId task_id,
+                                ActorTask::State expected_state) {
+    // TODO(crbug.com/473858969): Replace with a helper class.
+    ASSERT_TRUE(base::test::RunUntil([&]() {
+      return GetActorTaskState(task_id) == expected_state;
+    })) << "Timed out waiting for ActorTask "
+        << task_id << " to reach state " << ToString(expected_state);
+  }
+
   // Common helper to run EvalJs in the Glic frame.
   base::expected<base::Value, std::string> EvalJsInGlic(
       const std::string_view script) {
@@ -164,31 +255,25 @@ class ActorFunctionalBrowserTest : public glic::test::InteractiveGlicTest {
     return base::unexpected("Expected a string value from JavaScript.");
   }
 
+  base::expected<glic::mojom::CancelActionsResult, std::string> CancelActions(
+      TaskId task_id) {
+    std::string script = "window.client.browser.cancelActions($1)";
+    ASSIGN_OR_RETURN(int result_int, EvalJsInGlicForInt(content::JsReplace(
+                                         script, task_id.value())));
+    return base::ok(static_cast<glic::mojom::CancelActionsResult>(result_int));
+  }
+
   // Helper for JavaScript calls that return a Base64 encoded string
   // representing a serialized protobuf of type `ProtoType`.
-  // `proto_name` is used for error messages since RTTI is disabled.
   template <typename ProtoType>
   base::expected<ProtoType, std::string> EvalJsInGlicForBase64Proto(
-      std::string_view script,
-      std::string_view proto_name) {
+      std::string_view script) {
     ASSIGN_OR_RETURN(base::Value js_result, EvalJsInGlic(script));
     const std::string* result_base64 = js_result.GetIfString();
     if (!result_base64) {
       return base::unexpected("Expected a string value from JavaScript.");
     }
-    std::string decoded_result;
-    ProtoType proto_result;
-    if (!base::Base64Decode(*result_base64, &decoded_result)) {
-      return base::unexpected(
-          base::StrCat({"Failed to Base64-decode the result for ", proto_name,
-                        " from JavaScript."}));
-    }
-
-    if (!proto_result.ParseFromString(decoded_result)) {
-      return base::unexpected(base::StrCat(
-          {"Failed to parse ", proto_name, " proto from the decoded result."}));
-    }
-    return base::ok(proto_result);
+    return ParseBase64Proto<ProtoType>(*result_base64);
   }
 
   // Helper to call the CreateTask TS API.
@@ -206,32 +291,48 @@ class ActorFunctionalBrowserTest : public glic::test::InteractiveGlicTest {
     return base::ok(actor::TaskId(task_id_int));
   }
 
-  // Helper to call the PerformActions TS API.
+  // Helper to call the PerformActions TS API synchronously.
   // Takes an `Actions` proto and returns the resulting `ActionsResult` proto.
-  [[nodiscard]] optimization_guide::proto::ActionsResult PerformActions(
-      const optimization_guide::proto::Actions& actions) {
-    // TODO(crbug.com/465206246): Revise the PerformActions helper method to
-    // support async requests.
+  // Note: This blocks until all Actions are completed by wrapping
+  // PerformActionsAsync.
+  [[nodiscard]] base::expected<ActionsResult, std::string> PerformActions(
+      const Actions& actions) {
+    return PerformActionsAsync(actions)->Wait();
+  }
+
+  // Helper to run PerformActions asynchronously.
+  // Returns an AsyncActionWaiter that can be used to wait for the result.
+  [[nodiscard]] std::unique_ptr<AsyncActionWaiter> PerformActionsAsync(
+      const Actions& actions) {
+    // TODO(crbug.com/471254787): Revise PerformActionsAsync to handle async JS
+    // calls in a blocking manner in C++.
     std::string serialized_actions;
     CHECK(actions.SerializeToString(&serialized_actions));
     const std::string proto_base64 = base::Base64Encode(serialized_actions);
 
-    const std::string script = R"(
-      (async (protoAsBase64) => {
+    static int counter = 0;
+    std::string request_id = base::NumberToString(++counter);
+    auto waiter = std::make_unique<AsyncActionWaiter>(FindGlicGuestMainFrame(),
+                                                      request_id);
+    // Script to call PerformActions() and send the result via
+    // domAutomationController to be received by the AsyncActionWaiter.
+    const std::string script = content::JsReplace(
+        R"(
+      (async () => {
         const resultBuffer =
             await window.client.browser.performActions(
-                Uint8Array.fromBase64(protoAsBase64).buffer);
-        return new Uint8Array(resultBuffer).toBase64();
-      })($1)
-    )";
+                Uint8Array.fromBase64($1).buffer);
+        window.domAutomationController.send({
+            requestId: $2,
+            result: new Uint8Array(resultBuffer).toBase64()
+        });
+      })();
+    )",
+        proto_base64, request_id);
 
-    const std::string full_script = content::JsReplace(script, proto_base64);
-    base::expected<optimization_guide::proto::ActionsResult, std::string>
-        result_expected = EvalJsInGlicForBase64Proto<
-            optimization_guide::proto::ActionsResult>(
-            full_script, "optimization_guide::proto::ActionsResult");
-    CHECK(result_expected.has_value()) << result_expected.error();
-    return result_expected.value();
+    content::ExecuteScriptAsync(FindGlicGuestMainFrame(), script);
+
+    return waiter;
   }
 
   // Helper to call the StopActorTask TS API.
@@ -253,6 +354,8 @@ class ActorFunctionalBrowserTest : public glic::test::InteractiveGlicTest {
   }
 
   // Helper to call the PauseActorTask TS API.
+  // Note: `tab_handle` needs to be specified if you intend to resume the task
+  // in the future without performing any tab-scoped actions beforehand.
   void PauseActorTask(TaskId task_id,
                       glic::mojom::ActorTaskPauseReason pause_reason =
                           glic::mojom::ActorTaskPauseReason::kPausedByModel,
@@ -358,12 +461,11 @@ IN_PROC_BROWSER_TEST_F(ActorFunctionalBrowserTest,
   // Construct the Actions proto.
   const GURL target_url =
       embedded_test_server()->GetURL("/actor/blank.html?target");
-  optimization_guide::proto::Actions action =
-      MakeNavigate(active_tab()->GetHandle(), target_url.spec());
+  Actions action = MakeNavigate(active_tab()->GetHandle(), target_url.spec());
   action.set_task_id(task_id.value());
 
   EXPECT_THAT(PerformActions(action),
-              HasResultCode(mojom::ActionResultCode::kOk));
+              ValueIs(HasResultCode(mojom::ActionResultCode::kOk)));
   EXPECT_EQ(target_url, web_contents()->GetURL());
 
   StopActorTask(task_id, glic::mojom::ActorTaskStopReason::kTaskComplete);
@@ -390,13 +492,13 @@ IN_PROC_BROWSER_TEST_F(ActorFunctionalBrowserTest, CreateTask_Click_StopTask) {
   // Click link to navigate to target page.
   std::optional<int> link_node_id =
       content::GetDOMNodeId(*web_contents()->GetPrimaryMainFrame(), "#link");
-  optimization_guide::proto::Actions actions =
+  Actions action =
       MakeClick(*web_contents()->GetPrimaryMainFrame(), link_node_id.value(),
                 ClickAction::LEFT, ClickAction::SINGLE);
-  actions.set_task_id(task_id.value());
+  action.set_task_id(task_id.value());
 
-  EXPECT_THAT(PerformActions(actions),
-              HasResultCode(mojom::ActionResultCode::kOk));
+  EXPECT_THAT(PerformActions(action),
+              ValueIs(HasResultCode(mojom::ActionResultCode::kOk)));
   EXPECT_EQ(target_url, web_contents()->GetURL());
 
   StopActorTask(task_id, glic::mojom::ActorTaskStopReason::kTaskComplete);
@@ -415,34 +517,27 @@ IN_PROC_BROWSER_TEST_F(ActorFunctionalBrowserTest, PauseAndResumeCreatedTask) {
   PauseActorTask(task_id, glic::mojom::ActorTaskPauseReason::kPausedByUser,
                  active_tab()->GetHandle());
   // Wait for the task to pause.
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    return actor_keyed_service()->GetTask(task_id)->GetState() ==
-           ActorTask::State::kPausedByUser;
-  })) << "Timed out waiting for task "
-      << task_id << " to pause.";
+  RunUntilActorTaskStateIs(task_id, ActorTask::State::kPausedByUser);
 
   const GURL target_url =
       embedded_test_server()->GetURL("/actor/blank.html?target");
-  optimization_guide::proto::Actions action =
-      MakeNavigate(active_tab()->GetHandle(), target_url.spec());
+  Actions action = MakeNavigate(active_tab()->GetHandle(), target_url.spec());
   action.set_task_id(task_id.value());
 
   // Performing an action on a paused task should fail.
   EXPECT_THAT(PerformActions(action),
-              HasResultCode(mojom::ActionResultCode::kTaskPaused));
+              ValueIs(HasResultCode(mojom::ActionResultCode::kTaskPaused)));
   EXPECT_NE(target_url, web_contents()->GetURL());
 
   EXPECT_THAT(
       ResumeActorTask(task_id,
-                      glic::mojom::GetTabContextOptions().To<base::Value>())
-          .value(),
-      testing::Eq(mojom::ActionResultCode::kOk));
-  EXPECT_EQ(ActorTask::State::kReflecting,
-            actor_keyed_service()->GetTask(task_id)->GetState());
+                      glic::mojom::GetTabContextOptions().To<base::Value>()),
+      ValueIs(mojom::ActionResultCode::kOk));
+  EXPECT_EQ(ActorTask::State::kReflecting, GetActorTaskState(task_id));
 
   // Performing the action again should succeed.
   EXPECT_THAT(PerformActions(action),
-              HasResultCode(mojom::ActionResultCode::kOk));
+              ValueIs(HasResultCode(mojom::ActionResultCode::kOk)));
   EXPECT_EQ(target_url, web_contents()->GetURL());
 
   StopActorTask(task_id, glic::mojom::ActorTaskStopReason::kTaskComplete);
@@ -487,6 +582,91 @@ IN_PROC_BROWSER_TEST_F(ActorFunctionalBrowserTest, PauseAndResumeInactiveTask) {
 }
 
 IN_PROC_BROWSER_TEST_F(ActorFunctionalBrowserTest,
+                       PerformConcurrentAsyncWaitActions) {
+  // Manually create tasks via ActorKeyedService.
+  TaskId task_id_1 = actor_keyed_service()->CreateTask();
+  TaskId task_id_2 = actor_keyed_service()->CreateTask();
+
+  // Create tabs for each task using CreateActorTab API to ensure a
+  // TabObservation is included in its result.
+  ASSERT_OK_AND_ASSIGN(
+      tabs::TabHandle tab_1,
+      CreateActorTab(task_id_1, /*open_in_background=*/false,
+                     base::ToString(active_tab()->GetHandle().raw_value()),
+                     base::ToString(browser()->session_id().id())));
+  ASSERT_OK_AND_ASSIGN(
+      tabs::TabHandle tab_2,
+      CreateActorTab(task_id_2, /*open_in_background=*/false,
+                     base::ToString(active_tab()->GetHandle().raw_value()),
+                     base::ToString(browser()->session_id().id())));
+
+  // Perform two WaitActions where the first resolves after the second
+  Actions action_1 = MakeWaitForTaskId(kShortWaitTime * 2, tab_1, task_id_1);
+  Actions action_2 = MakeWaitForTaskId(kShortWaitTime, tab_2, task_id_2);
+
+  std::unique_ptr<AsyncActionWaiter> waiter_1 = PerformActionsAsync(action_1);
+  std::unique_ptr<AsyncActionWaiter> waiter_2 = PerformActionsAsync(action_2);
+
+  // We should still be able to wait for result_2 after result_1 despite
+  // action_2 resolving first.
+  ASSERT_OK_AND_ASSIGN(ActionsResult result_1, waiter_1->Wait());
+  ASSERT_OK_AND_ASSIGN(ActionsResult result_2, waiter_2->Wait());
+
+  // Verify a tab observation was included in the results.
+  EXPECT_THAT(result_1, HasResultCode(mojom::ActionResultCode::kOk));
+  EXPECT_THAT(result_1.tabs(), testing::SizeIs(1));
+  EXPECT_THAT(result_1.tabs().at(0).result(),
+              TabObservation::TAB_OBSERVATION_OK);
+
+  EXPECT_THAT(result_2, HasResultCode(mojom::ActionResultCode::kOk));
+  EXPECT_THAT(result_2.tabs(), testing::SizeIs(1));
+  EXPECT_THAT(result_2.tabs().at(0).result(),
+              TabObservation::TAB_OBSERVATION_OK);
+}
+
+IN_PROC_BROWSER_TEST_F(ActorFunctionalBrowserTest, PauseActiveTask) {
+  ASSERT_OK_AND_ASSIGN(TaskId task_id, CreateTask());
+  EXPECT_NE(task_id, TaskId());
+
+  TestFuture<ActorTask::State> task_completion_state;
+  base::CallbackListSubscription subscription =
+      CreateTaskCompletionSubscription(task_id, task_completion_state);
+
+  // Use a long wait to ensure we can pause before it completes.
+  optimization_guide::proto::Actions wait_action =
+      MakeWaitForTaskId(kLongWaitTime, active_tab()->GetHandle(), task_id);
+
+  std::unique_ptr<AsyncActionWaiter> waiter = PerformActionsAsync(wait_action);
+  PauseActorTask(task_id, glic::mojom::ActorTaskPauseReason::kPausedByUser,
+                 active_tab()->GetHandle());
+
+  // Verify the WaitAction was ended and the task was paused.
+  EXPECT_THAT(waiter->Wait(),
+              ValueIs(HasResultCode(mojom::ActionResultCode::kTaskPaused)));
+  RunUntilActorTaskStateIs(task_id, ActorTask::State::kPausedByUser);
+
+  EXPECT_THAT(
+      ResumeActorTask(task_id,
+                      glic::mojom::GetTabContextOptions().To<base::Value>()),
+      ValueIs(mojom::ActionResultCode::kOk));
+  EXPECT_EQ(ActorTask::State::kReflecting, GetActorTaskState(task_id));
+
+  // Verify new Actions can be performed after the task is resumed.
+  const GURL target_url =
+      embedded_test_server()->GetURL("/actor/blank.html?target");
+  optimization_guide::proto::Actions nav_action =
+      MakeNavigate(active_tab()->GetHandle(), target_url.spec());
+  nav_action.set_task_id(task_id.value());
+
+  EXPECT_THAT(PerformActions(nav_action),
+              base::test::ValueIs(HasResultCode(mojom::ActionResultCode::kOk)));
+  EXPECT_EQ(target_url, web_contents()->GetURL());
+
+  StopActorTask(task_id, glic::mojom::ActorTaskStopReason::kTaskComplete);
+  EXPECT_EQ(ActorTask::State::kFinished, task_completion_state.Get());
+}
+
+IN_PROC_BROWSER_TEST_F(ActorFunctionalBrowserTest,
                        PerformActionsOnCrashedTabReloadsTab) {
   const GURL& initial_url = web_contents()->GetLastCommittedURL();
   ASSERT_OK_AND_ASSIGN(TaskId task_id, CreateTask());
@@ -500,15 +680,15 @@ IN_PROC_BROWSER_TEST_F(ActorFunctionalBrowserTest,
   content::CrashTab(web_contents());
 
   // Perform a click action on the crashed tab.
-  ::optimization_guide::proto::Actions action =
-      MakeClick(active_tab()->GetHandle(), gfx::Point(1, 1),
-                ::optimization_guide::proto::ClickAction::LEFT,
-                ::optimization_guide::proto::ClickAction::SINGLE);
+  Actions action = MakeClick(active_tab()->GetHandle(), gfx::Point(1, 1),
+                             ::optimization_guide::proto::ClickAction::LEFT,
+                             ::optimization_guide::proto::ClickAction::SINGLE);
   action.set_task_id(task_id.value());
 
   content::TestNavigationManager reload_observer(web_contents(), initial_url);
-  EXPECT_THAT(PerformActions(action),
-              HasResultCode(mojom::ActionResultCode::kRendererCrashed));
+  EXPECT_THAT(
+      PerformActions(action),
+      ValueIs(HasResultCode(mojom::ActionResultCode::kRendererCrashed)));
   EXPECT_TRUE(reload_observer.WaitForNavigationFinished());
   EXPECT_FALSE(web_contents()->IsCrashed());
 }
@@ -528,17 +708,22 @@ IN_PROC_BROWSER_TEST_F(ActorFunctionalBrowserTest,
   // Mock the context fetch so that the first time the TabObservationResult is a
   // failure. This should result in a retry which then succeeds.
   int num_calls = 0;
-  ScopedMockTabObservationResult mock_result(base::BindLambdaForTesting([&]() {
-    ++num_calls;
-    if (num_calls == 1) {
-      return TabObservation::TAB_OBSERVATION_PAGE_CONTEXT_NOT_ELIGIBLE;
-    }
-
-    return TabObservation::TAB_OBSERVATION_OK;
-  }));
+  ScopedMockTabObservationResult mock_result(base::BindLambdaForTesting(
+      [&](TabObservation* observation, const FetchPageContextResult&) {
+        ++num_calls;
+        if (num_calls == 1) {
+          observation->set_result(
+              TabObservation::TAB_OBSERVATION_PAGE_CONTEXT_NOT_ELIGIBLE);
+        } else {
+          observation->set_result(TabObservation::TAB_OBSERVATION_OK);
+          observation->set_annotated_page_content_result(
+              TabObservation::ANNOTATED_PAGE_CONTENT_OK);
+          observation->set_screenshot_result(TabObservation::SCREENSHOT_OK);
+        }
+      }));
 
   EXPECT_THAT(PerformActions(action),
-              HasResultCode(mojom::ActionResultCode::kOk));
+              ValueIs(HasResultCode(mojom::ActionResultCode::kOk)));
   EXPECT_EQ(num_calls, 2);
 }
 
@@ -555,12 +740,15 @@ IN_PROC_BROWSER_TEST_F(ActorFunctionalBrowserTest,
   action.set_task_id(task_id.value());
 
   int num_calls = 0;
-  ScopedMockTabObservationResult mock_result(base::BindLambdaForTesting([&]() {
-    ++num_calls;
-    return TabObservation::TAB_OBSERVATION_PAGE_CONTEXT_NOT_ELIGIBLE;
-  }));
+  ScopedMockTabObservationResult mock_result(base::BindLambdaForTesting(
+      [&](TabObservation* observation, const FetchPageContextResult&) {
+        ++num_calls;
+        observation->set_result(
+            TabObservation::TAB_OBSERVATION_PAGE_CONTEXT_NOT_ELIGIBLE);
+      }));
 
-  optimization_guide::proto::ActionsResult result = PerformActions(action);
+  optimization_guide::proto::ActionsResult result =
+      PerformActions(action).value();
   EXPECT_THAT(result, HasResultCode(mojom::ActionResultCode::kOk));
   ASSERT_EQ(result.tabs_size(), 1);
   ASSERT_TRUE(result.tabs().at(0).has_result());
@@ -568,6 +756,263 @@ IN_PROC_BROWSER_TEST_F(ActorFunctionalBrowserTest,
             TabObservation::TAB_OBSERVATION_PAGE_CONTEXT_NOT_ELIGIBLE);
 
   EXPECT_EQ(num_calls, 2);
+}
+
+IN_PROC_BROWSER_TEST_F(ActorFunctionalBrowserTest, CancelActions) {
+  // Makes sure we are on about:blank so the browser won't open a new tab to
+  // navigate.
+  ASSERT_TRUE(
+      content::NavigateToURL(web_contents(), GURL(url::kAboutBlankURL)));
+
+  ASSERT_OK_AND_ASSIGN(TaskId task_id, CreateTask());
+  ASSERT_NE(task_id, TaskId());
+  const GURL target_url = embedded_test_server()->GetURL("/title1.html");
+  content::TestNavigationManager navigation_manager(web_contents(), target_url);
+
+  optimization_guide::proto::Actions action =
+      MakeNavigate(active_tab()->GetHandle(), target_url.spec());
+  action.set_task_id(task_id.value());
+  std::unique_ptr<AsyncActionWaiter> waiter = PerformActionsAsync(action);
+
+  // WaitForRequestStart() also pauses the navigation.
+  EXPECT_TRUE(navigation_manager.WaitForRequestStart());
+  EXPECT_EQ(actor_keyed_service()->GetTask(task_id)->GetState(),
+            ActorTask::State::kActing);
+  EXPECT_THAT(CancelActions(task_id),
+              base::test::ValueIs(glic::mojom::CancelActionsResult::kSuccess));
+  EXPECT_FALSE(navigation_manager.was_committed());
+  EXPECT_EQ(actor_keyed_service()->GetTask(task_id)->GetState(),
+            ActorTask::State::kReflecting);
+  auto result = waiter->Wait();
+  EXPECT_TRUE(result.has_value());
+  EXPECT_THAT(result.value(),
+              HasResultCode(mojom::ActionResultCode::kActionsCancelled));
+}
+
+IN_PROC_BROWSER_TEST_F(ActorFunctionalBrowserTest,
+                       CancelActionsNoActionsToCancel) {
+  ASSERT_OK_AND_ASSIGN(TaskId task_id, CreateTask());
+  EXPECT_NE(task_id, TaskId());
+  EXPECT_EQ(actor_keyed_service()->GetTask(task_id)->GetState(),
+            ActorTask::State::kCreated);
+  EXPECT_THAT(CancelActions(task_id),
+              base::test::ValueIs(glic::mojom::CancelActionsResult::kSuccess));
+  EXPECT_EQ(actor_keyed_service()->GetTask(task_id)->GetState(),
+            ActorTask::State::kCreated);
+}
+
+class ActorPageContextMetricsTest : public ActorFunctionalBrowserTest {
+ public:
+  using ResultCallback =
+      base::RepeatingCallback<void(size_t /*fetch_num*/,
+                                   TabObservation*,
+                                   const FetchPageContextResult&)>;
+  void RunTestWithPageContextResult(ResultCallback result_callback) {
+    ASSERT_OK_AND_ASSIGN(TaskId task_id, CreateTask());
+    ASSERT_NE(task_id, TaskId());
+
+    // Perform an arbitrary action.
+    ::optimization_guide::proto::Actions action =
+        MakeClick(active_tab()->GetHandle(), gfx::Point(1, 1),
+                  ::optimization_guide::proto::ClickAction::LEFT,
+                  ::optimization_guide::proto::ClickAction::SINGLE);
+    action.set_task_id(task_id.value());
+
+    // Each test case provides its own faked/mocked result for the
+    // TabObservation.
+    ScopedMockTabObservationResult mock_result(base::BindLambdaForTesting(
+        [&, this](TabObservation* observation,
+                  const FetchPageContextResult& fetch_result) {
+          ++num_fetches_;
+          result_callback.Run(num_fetches_, observation, fetch_result);
+        }));
+
+    auto result = PerformActions(action);
+
+    ASSERT_TRUE(result.has_value());
+  }
+
+  void SuccessfulObservation(TabObservation* observation) {
+    observation->set_result(TabObservation::TAB_OBSERVATION_OK);
+    observation->set_annotated_page_content_result(
+        TabObservation::ANNOTATED_PAGE_CONTENT_OK);
+    observation->set_screenshot_result(TabObservation::SCREENSHOT_OK);
+  }
+
+  size_t num_fetches() const { return num_fetches_; }
+
+ private:
+  size_t num_fetches_ = 0;
+};
+
+IN_PROC_BROWSER_TEST_F(ActorPageContextMetricsTest,
+                       ObservationOutcomeMetrics_Success) {
+  base::HistogramTester histogram_tester;
+
+  RunTestWithPageContextResult(base::BindLambdaForTesting(
+      [&](size_t fetch_num, TabObservation* observation,
+          const FetchPageContextResult&) {
+        SuccessfulObservation(observation);
+      }));
+
+  ASSERT_EQ(num_fetches(), 1ul);
+
+  histogram_tester.ExpectUniqueSample(kActorPageContextObservationOutcome,
+                                      ActorObservationOutcome::kSuccess, 1);
+}
+
+IN_PROC_BROWSER_TEST_F(ActorPageContextMetricsTest,
+                       ObservationOutcomeMetrics_SuccessAfterRetry) {
+  base::HistogramTester histogram_tester;
+
+  RunTestWithPageContextResult(base::BindLambdaForTesting(
+      [&](size_t fetch_num, TabObservation* observation,
+          const FetchPageContextResult&) {
+        if (fetch_num == 1) {
+          observation->set_result(
+              TabObservation::TAB_OBSERVATION_PAGE_CONTEXT_NOT_ELIGIBLE);
+        } else {
+          SuccessfulObservation(observation);
+        }
+      }));
+
+  ASSERT_EQ(num_fetches(), 2ul);
+
+  histogram_tester.ExpectUniqueSample(
+      kActorPageContextObservationOutcome,
+      ActorObservationOutcome::kSuccessAfterRetry, 1);
+}
+
+IN_PROC_BROWSER_TEST_F(ActorPageContextMetricsTest,
+                       ObservationOutcomeMetrics_Failure) {
+  base::HistogramTester histogram_tester;
+
+  RunTestWithPageContextResult(base::BindLambdaForTesting(
+      [&](size_t fetch_num, TabObservation* observation,
+          const FetchPageContextResult&) {
+        observation->set_result(
+            TabObservation::TAB_OBSERVATION_PAGE_CONTEXT_NOT_ELIGIBLE);
+      }));
+
+  ASSERT_EQ(num_fetches(), 2ul);
+
+  histogram_tester.ExpectUniqueSample(
+      kActorPageContextObservationOutcome,
+      ActorObservationOutcome::kFailureAfterRetry, 1);
+}
+
+IN_PROC_BROWSER_TEST_F(ActorPageContextMetricsTest,
+                       TabObservationResult_Success) {
+  base::HistogramTester histogram_tester;
+
+  RunTestWithPageContextResult(base::BindLambdaForTesting(
+      [&](size_t fetch_num, TabObservation* observation,
+          const FetchPageContextResult&) {
+        SuccessfulObservation(observation);
+      }));
+
+  ASSERT_EQ(num_fetches(), 1ul);
+
+  histogram_tester.ExpectUniqueSample(kActorPageContextTabObservationResult,
+                                      ActorTabObservationResult::kSuccess, 1);
+}
+
+IN_PROC_BROWSER_TEST_F(ActorPageContextMetricsTest,
+                       TabObservationResult_APCFailure) {
+  base::HistogramTester histogram_tester;
+
+  RunTestWithPageContextResult(base::BindLambdaForTesting(
+      [&](size_t fetch_num, TabObservation* observation,
+          const FetchPageContextResult&) {
+        if (fetch_num == 1) {
+          observation->set_result(TabObservation::TAB_OBSERVATION_FETCH_ERROR);
+          observation->set_annotated_page_content_result(
+              TabObservation::ANNOTATED_PAGE_CONTENT_ERROR);
+          observation->set_screenshot_result(TabObservation::SCREENSHOT_OK);
+        } else {
+          SuccessfulObservation(observation);
+        }
+      }));
+
+  ASSERT_EQ(num_fetches(), 2ul);
+
+  // Ensure we record a failure in APC (for initial failure) and a success (for
+  // retry).
+  histogram_tester.ExpectTotalCount(kActorPageContextTabObservationResult, 2);
+  histogram_tester.ExpectBucketCount(kActorPageContextTabObservationResult,
+                                     ActorTabObservationResult::kApcError, 1);
+  histogram_tester.ExpectBucketCount(kActorPageContextTabObservationResult,
+                                     ActorTabObservationResult::kSuccess, 1);
+}
+
+IN_PROC_BROWSER_TEST_F(ActorPageContextMetricsTest,
+                       TabObservationResult_RepeatedAPCFailure) {
+  base::HistogramTester histogram_tester;
+
+  RunTestWithPageContextResult(base::BindLambdaForTesting(
+      [&](size_t fetch_num, TabObservation* observation,
+          const FetchPageContextResult&) {
+        observation->set_result(TabObservation::TAB_OBSERVATION_FETCH_ERROR);
+        observation->set_annotated_page_content_result(
+            TabObservation::ANNOTATED_PAGE_CONTENT_ERROR);
+        observation->set_screenshot_result(TabObservation::SCREENSHOT_OK);
+      }));
+
+  ASSERT_EQ(num_fetches(), 2ul);
+
+  // Ensure we record two failures in APC since the retry fails as well.
+  histogram_tester.ExpectUniqueSample(kActorPageContextTabObservationResult,
+                                      ActorTabObservationResult::kApcError, 2);
+}
+
+IN_PROC_BROWSER_TEST_F(ActorPageContextMetricsTest,
+                       TabObservationResult_APCAndScreenshotFailure) {
+  base::HistogramTester histogram_tester;
+
+  RunTestWithPageContextResult(base::BindLambdaForTesting(
+      [&](size_t fetch_num, TabObservation* observation,
+          const FetchPageContextResult&) {
+        observation->set_result(TabObservation::TAB_OBSERVATION_FETCH_ERROR);
+        observation->set_annotated_page_content_result(
+            TabObservation::ANNOTATED_PAGE_CONTENT_ERROR);
+        observation->set_screenshot_result(TabObservation::SCREENSHOT_ERROR);
+      }));
+
+  ASSERT_EQ(num_fetches(), 2ul);
+
+  // Since both APC and screenshot had failures ensure the combined bucket is
+  // used.
+  histogram_tester.ExpectUniqueSample(
+      kActorPageContextTabObservationResult,
+      ActorTabObservationResult::kApcAndScreenshotNotOk, 2);
+}
+
+IN_PROC_BROWSER_TEST_F(ActorPageContextMetricsTest,
+                       TabObservationResult_MultipleFailures) {
+  base::HistogramTester histogram_tester;
+
+  RunTestWithPageContextResult(base::BindLambdaForTesting(
+      [&](size_t fetch_num, TabObservation* observation,
+          const FetchPageContextResult&) {
+        if (fetch_num == 1) {
+          observation->set_result(TabObservation::TAB_OBSERVATION_FETCH_ERROR);
+          observation->set_annotated_page_content_result(
+              TabObservation::ANNOTATED_PAGE_CONTENT_TIMEOUT);
+          observation->set_screenshot_result(TabObservation::SCREENSHOT_OK);
+        } else {
+          observation->set_result(
+              TabObservation::TAB_OBSERVATION_WEB_CONTENTS_CHANGED);
+        }
+      }));
+
+  ASSERT_EQ(num_fetches(), 2ul);
+
+  histogram_tester.ExpectTotalCount(kActorPageContextTabObservationResult, 2);
+  histogram_tester.ExpectBucketCount(kActorPageContextTabObservationResult,
+                                     ActorTabObservationResult::kApcTimeout, 1);
+  histogram_tester.ExpectBucketCount(
+      kActorPageContextTabObservationResult,
+      ActorTabObservationResult::kWebContentsChanged, 1);
 }
 
 class ActorFunctionalBrowserTestCreateActorTab

@@ -1229,14 +1229,15 @@
     "span",
 
     // grid-lanes-direction
-    // row
-    // row-reverse
-    // column
-    // column-reverse
-
-    // grid-lanes-fill
     // normal
-    // reverse
+    // row
+    // column
+    "fill-reverse",
+    "track-reverse",
+
+    // grid-lanes-pack
+    // normal
+    // dense
 
     // grid-template-{columns|rows}
     "minmax",
@@ -2077,6 +2078,10 @@
 
     // block-ellipsis
     "no-ellipsis",
+
+    // text-indent
+    "each-line",
+    // "hanging",
 
     // text-justify
     // "auto",

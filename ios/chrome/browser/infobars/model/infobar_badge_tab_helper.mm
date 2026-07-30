@@ -66,7 +66,7 @@ void InfobarBadgeTabHelper::UpdateBadgeForInfobarReverted(
 
 void InfobarBadgeTabHelper::UpdateBadgeForInfobarRead(
     InfobarType infobar_type) {
-  if (!base::Contains(infobar_badge_states_, infobar_type)) {
+  if (!infobar_badge_states_.contains(infobar_type)) {
     return;
   }
   infobar_badge_states_[infobar_type] |= BadgeStateRead;
@@ -74,7 +74,7 @@ void InfobarBadgeTabHelper::UpdateBadgeForInfobarRead(
 
 void InfobarBadgeTabHelper::UpdateBadgeForInfobarBannerPresented(
     InfobarType infobar_type) {
-  if (!base::Contains(infobar_badge_states_, infobar_type)) {
+  if (!infobar_badge_states_.contains(infobar_type)) {
     return;
   }
   infobar_badge_states_[infobar_type] |= BadgeStatePresented;
@@ -83,7 +83,7 @@ void InfobarBadgeTabHelper::UpdateBadgeForInfobarBannerPresented(
 
 void InfobarBadgeTabHelper::UpdateBadgeForInfobarBannerDismissed(
     InfobarType infobar_type) {
-  if (!base::Contains(infobar_badge_states_, infobar_type)) {
+  if (!infobar_badge_states_.contains(infobar_type)) {
     return;
   }
   infobar_badge_states_[infobar_type] &= ~BadgeStatePresented;
@@ -134,7 +134,8 @@ void InfobarBadgeTabHelper::UnregisterInfobar(infobars::InfoBar* infobar) {
             infobar_accept_observer_.scoped_observations();
     InfoBarIOS* infobar_ios = static_cast<InfoBarIOS*>(infobar);
     // TODO(crbug.com/330899285): Fix the root cause of infobar not being
-    // observed, and remove the `else` condition.
+    // observed, and replace the entire conditional by a direct tall to
+    // `RemoveObservation`.
     if (infobar_accept_observations.IsObservingSource(infobar_ios)) {
       infobar_accept_observations.RemoveObservation(infobar_ios);
     } else {
@@ -148,7 +149,7 @@ void InfobarBadgeTabHelper::UnregisterInfobar(infobars::InfoBar* infobar) {
 void InfobarBadgeTabHelper::OnInfobarAcceptanceStateChanged(
     InfobarType infobar_type,
     bool accepted) {
-  if (!base::Contains(infobar_badge_states_, infobar_type)) {
+  if (!infobar_badge_states_.contains(infobar_type)) {
     return;
   }
   if (accepted) {

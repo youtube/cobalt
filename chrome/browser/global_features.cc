@@ -28,7 +28,10 @@
 // This causes a gn error on Android builds, because gn does not understand
 // buildflags, so we include it only on platforms where it is used.
 #include "chrome/browser/background/glic/glic_background_mode_manager.h"  // nogncheck
-#include "chrome/browser/glic/glic_profile_manager.h"               // nogncheck
+#include "chrome/browser/glic/glic_profile_manager.h"  // nogncheck
+#endif
+
+#if BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
 #include "chrome/browser/glic/host/glic_synthetic_trial_manager.h"  // nogncheck
 #include "chrome/browser/glic/public/glic_enabling.h"               // nogncheck
 #endif
@@ -59,10 +62,6 @@
 #include "components/unexportable_keys/features.h"
 #include "components/unexportable_keys/unexportable_key_service_impl.h"
 #endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
-
-#if BUILDFLAG(IS_ANDROID)
-#include "components/supervised_user/core/browser/android/android_parental_controls.h"
-#endif  // BUILDFLAG(IS_ANDROID)
 
 namespace {
 
@@ -107,12 +106,14 @@ void GlobalFeatures::PostBrowserProcessInit() {
 
   PostBrowserProcessInitCore();
 
-#if BUILDFLAG(ENABLE_GLIC)
+#if BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
   if (glic::GlicEnabling::IsEnabledByFlags()) {
+#if !BUILDFLAG(ENABLE_GLIC_ANDROID)
     glic_profile_manager_ = std::make_unique<glic::GlicProfileManager>();
     glic_background_mode_manager_ =
         std::make_unique<glic::GlicBackgroundModeManager>(
             g_browser_process->status_tray());
+#endif
     synthetic_trial_manager_ =
         std::make_unique<glic::GlicSyntheticTrialManager>();
   }
@@ -145,8 +146,10 @@ void GlobalFeatures::PostBrowserProcessInitCore() {
   whats_new_registry_ = CreateWhatsNewRegistry();
 
   default_browser_manager_ =
-      std::make_unique<default_browser::DefaultBrowserManager>(
-          default_browser::DefaultBrowserManager::CreateDefaultDelegate());
+      GetUserDataFactory()
+          .CreateInstance<default_browser::DefaultBrowserManager>(
+              *g_browser_process, g_browser_process,
+              default_browser::DefaultBrowserManager::CreateDefaultDelegate());
 #endif
 
   application_locale_storage_ = std::make_unique<ApplicationLocaleStorage>();
@@ -182,12 +185,6 @@ void GlobalFeatures::PostBrowserProcessInitCore() {
         safe_browsing::ApplicationAdvancedProtectionStatusDetector>(
         g_browser_process->profile_manager());
   }
-
-#if BUILDFLAG(IS_ANDROID)
-  android_parental_controls_ =
-      std::make_unique<supervised_user::AndroidParentalControls>();
-  android_parental_controls_->Init();
-#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 void GlobalFeatures::PostMainMessageLoopRun() {
@@ -200,6 +197,8 @@ void GlobalFeatures::PostMainMessageLoopRun() {
     glic_profile_manager_->Shutdown();
     glic_profile_manager_.reset();
   }
+#endif
+#if BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
   synthetic_trial_manager_.reset();
 #endif
   audio_process_ml_model_forwarder_.reset();
@@ -225,13 +224,6 @@ GlobalFeatures::CreateWhatsNewRegistry() {
   return whats_new::CreateWhatsNewRegistry();
 }
 #endif
-
-#if BUILDFLAG(IS_ANDROID)
-supervised_user::AndroidParentalControls*
-GlobalFeatures::GetAndroidParentalControls() {
-  return android_parental_controls_.get();
-}
-#endif  // BUILDFLAG(IS_ANDROID)
 
 // static
 ui::UserDataFactoryWithOwner<BrowserProcess>&

@@ -271,6 +271,7 @@ Google Chrome потрібен доступ до Bluetooth. <ph name="IDS_SERIAL
 <translation id="3885770153807205175">Засіб вибору мови</translation>
 <translation id="3889417619312448367">Видалити Google Chrome</translation>
 <translation id="3892148308691398805">Копіювати текст</translation>
+<translation id="3893985792899396936">Підказка щодо Chrome: шукайте за допомогою Об’єктива</translation>
 <translation id="3906096710440765802">Увійдіть в обліковий запис у Chrome, щоб отримати доступ до своїх паролів, закладок і інших даних на всіх пристроях</translation>
 <translation id="3921132130819999051">Дозвольте Chrome шукати інформацію для вас</translation>
 <translation id="3941890832296813527">Сталася помилка. Назва файлу програми встановлення недійсна або не підтримується.</translation>
@@ -312,7 +313,6 @@ Google Chrome потрібен доступ до Bluetooth. <ph name="IDS_SERIAL
 <translation id="4329315893554541805">Щоб користуватися персоналізацією і іншими можливостями, включіть Chrome в історію додатків і вебпошуку й зв’язані сервіси Google</translation>
 <translation id="4334241893986177674">Шукати за цим знімком екрана</translation>
 <translation id="4334294535648607276">Завантажено.</translation>
-<translation id="4337324600316876133">Щоб отримувати майбутні оновлення Google Chrome, потрібна операційна система macOS 12 або новішої версії. На цьому комп’ютері встановлено macOS 11.</translation>
 <translation id="4343195214584226067">Розширення <ph name="EXTENSION_NAME" /> додано в Chrome</translation>
 <translation id="4344128547036991536">Коли ви відкриваєте Google Об’єктив, у Google автоматично надсилається назва сторінки, її URL-адреса й контент, зокрема файли PDF. <ph name="LEARN_MORE" /></translation>
 <translation id="4348548358339558429">Щоб користуватися персоналізацією, включіть Chrome в історію додатків і вебпошуку</translation>
@@ -369,6 +369,7 @@ Google Chrome потрібен доступ до Bluetooth. <ph name="IDS_SERIAL
 <translation id="5003967926796347400">Натисніть "Google Менеджер паролів"</translation>
 <translation id="5043786843026425788">Докладніше про пошук за допомогою Google Об’єктива в Chrome</translation>
 <translation id="504867494566807945">Відкривайте посилання з будь-якого додатка у вебпереглядачі Chrome і закріпіть його на панелі завдань для зручності.</translation>
+<translation id="5105120510934353742">Щоб отримувати майбутні оновлення Google Chrome, потрібна операційна система macOS 13 або новішої версії. На цьому комп’ютері встановлено macOS 12.</translation>
 <translation id="5114340746415930644">Щоб використовувати й зберігати дані Chrome в обліковому записі <ph name="USER_EMAIL" />, введіть парольну фразу</translation>
 <translation id="5120334927898581447">Входити в Chrome під час входу в інші сервіси Google</translation>
 <translation id="5126049312684316860">Chrome попередньо завантажує ще більше сторінок, які ви, імовірно, відвідаєте, щоб вони завантажувалися швидше</translation>
@@ -483,6 +484,7 @@ Google Chrome потрібен доступ до Bluetooth. <ph name="IDS_SERIAL
 <translation id="6180522807229584611">Ця вкладка використовує додаткові ресурси. Щоб підвищити продуктивність, дозвольте Chrome зробити її неактивною.</translation>
 <translation id="6182736845697986886">Не вдалося встановити через внутрішню помилку сервера оновлень.</translation>
 <translation id="6183773856988300112">Gemini у Chrome використовує функцію автоматичного перегляду, щоб шукати інформацію на ваших вкладках і виконувати для вас завдання. <ph name="LINK_BEGIN" />Докладніше<ph name="LINK_END" /></translation>
+<translation id="6187085551300363958">Порада щодо Chrome: зберігайте паролі</translation>
 <translation id="6192058120268468905">Ваш обліковий запис у Chrome</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" /> додає розширення, яке може вплинути на роботу Chrome.
 
@@ -621,6 +623,7 @@ Google Chrome потрібен доступ до Bluetooth. <ph name="IDS_SERIAL
 <translation id="7627609214560473136">Щоб захистити ваші дані, дозвольте Chrome скасовувати дозволи для сайтів, які ви останнім часом не відвідували.</translation>
 <translation id="7629695634924605473">Якщо ваші паролі колись викрадуть, Chrome повідомить вас про це</translation>
 <translation id="7641148173327520642">Ваш системний адміністратор налаштував Google Chrome відкривати сторінку <ph name="TARGET_URL_HOSTNAME" /> в <ph name="ALTERNATIVE_BROWSER_NAME" />.</translation>
+<translation id="7641448682796883218">Порада щодо Chrome: увімкніть Безпечний перегляд із розширеним захистом</translation>
 <translation id="7649070708921625228">Довідка</translation>
 <translation id="7651907282515937834">Логотип Chrome Enterprise</translation>
 <translation id="76531479118467370">Веб-переглядач Chrome заблокував завантаження, оскільки ви вимкнули Безпечний перегляд і файл не вдалося підтвердити</translation>

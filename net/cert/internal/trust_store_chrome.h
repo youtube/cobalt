@@ -55,6 +55,13 @@ struct ChromeRootCertInfo {
   base::span<const uint8_t> trust_anchor_id;
 };
 
+struct ChromeMtcAnchorInfo {
+  base::span<const uint8_t> log_id;
+  base::span<const StaticChromeRootCertConstraints> constraints;
+  // Does not contain `tls_trust_anchor`, as MtcAnchors without that set to
+  // true are simply ignored.
+};
+
 struct NET_EXPORT ChromeRootCertConstraints {
   ChromeRootCertConstraints();
   ChromeRootCertConstraints(std::optional<base::Time> sct_not_after,
@@ -133,6 +140,7 @@ class NET_EXPORT ChromeRootStoreData {
   static ChromeRootStoreData CreateForTesting(
       base::span<const ChromeRootCertInfo> certs,
       base::span<const base::span<const uint8_t>> eutl_certs,
+      base::span<const ChromeMtcAnchorInfo> mtc_anchors,
       int64_t version);
 
   ~ChromeRootStoreData();
@@ -153,6 +161,7 @@ class NET_EXPORT ChromeRootStoreData {
   ChromeRootStoreData();
   ChromeRootStoreData(base::span<const ChromeRootCertInfo> certs,
                       base::span<const base::span<const uint8_t>> eutl_certs,
+                      base::span<const ChromeMtcAnchorInfo> mtc_anchors,
                       bool certs_are_static,
                       int64_t version);
 
@@ -259,6 +268,13 @@ class NET_EXPORT TrustStoreChrome : public bssl::TrustStore {
   GetTrustAnchorIDsFromCompiledInRootStore(
       base::span<const ChromeRootCertInfo> cert_list_for_testing = {});
 
+  // Returns the list of MTC log IDs from the compiled-in root store.
+  // If |anchor_list_for_testing| is non-empty, it will override the
+  // compiled-in production root store.
+  static std::vector<std::vector<uint8_t>>
+  GetTrustedMtcLogIDsFromCompiledInRootStore(
+      base::span<const ChromeMtcAnchorInfo> anchor_list_for_testing = {});
+
   // Creates a TrustStoreChrome that uses the compiled in Chrome Root Store.
   TrustStoreChrome();
 
@@ -291,6 +307,9 @@ class NET_EXPORT TrustStoreChrome : public bssl::TrustStore {
       const bssl::ParsedCertificate* cert) const;
 
   int64_t version() const { return version_; }
+  std::optional<base::Time> mtc_metadata_update_time() const {
+    return mtc_metadata_update_time_;
+  }
 
   // Parses a string specifying constraint overrides, in the format expected by
   // the `kTestCrsConstraintsSwitch` command line switch.
@@ -330,6 +349,8 @@ class NET_EXPORT TrustStoreChrome : public bssl::TrustStore {
   bssl::TrustStoreInMemory eutl_trust_store_;
 
   int64_t version_;
+
+  std::optional<base::Time> mtc_metadata_update_time_;
 };
 
 // Returns the version # of the Chrome Root Store that was compiled into the

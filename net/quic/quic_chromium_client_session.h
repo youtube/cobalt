@@ -764,6 +764,7 @@ class NET_EXPORT_PRIVATE QuicChromiumClientSession
   void OnGoAway(const quic::QuicGoAwayFrame& frame) override;
   void OnCanCreateNewOutgoingStream(bool unidirectional) override;
   quic::QuicSSLConfig GetSSLConfig() const override;
+  void OnConfigNegotiated() override;
 
   // QuicSpdyClientSessionBase methods:
   void OnProofValid(
@@ -984,6 +985,10 @@ class NET_EXPORT_PRIVATE QuicChromiumClientSession
 
   // Makes AssertIsValidFor() do nothing, once set.
   void set_allow_any_url_for_testing() { allow_any_url_for_testing_ = true; }
+
+  quic::QuicTagVector& received_connection_options() {
+    return received_connection_options_;
+  }
 
  protected:
   // quic::QuicSession methods:
@@ -1265,6 +1270,10 @@ class NET_EXPORT_PRIVATE QuicChromiumClientSession
 
   const MultiplexedSessionCreationInitiator session_creation_initiator_;
 
+  quic::QuicTagVector received_connection_options_;
+
+  bool connection_migration_disabled_ = false;
+
   // Enable periodic ping to keep the connection alive even when the session
   // does not have any outstanding requests.
   bool enable_periodic_ping_ = false;
@@ -1273,6 +1282,11 @@ class NET_EXPORT_PRIVATE QuicChromiumClientSession
 
   // Makes AssertIsValidFor() do nothing.
   bool allow_any_url_for_testing_ = false;
+
+  // If the server supports MTCs (as determined by whether it advertised a trust
+  // anchor ID corresponding to a known Merkle Tree Certificate CA), this is set
+  // to true in OnProofVerifyDetailsAvailable. This is only used for metrics.
+  bool server_advertised_mtc_tai_ = false;
 
   base::WeakPtrFactory<QuicChromiumClientSession> weak_factory_{this};
 };

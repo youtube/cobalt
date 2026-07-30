@@ -154,7 +154,7 @@ void VideoCaptureDeviceAndroid::AllocateAndStart(
       base::FeatureList::IsEnabled(media::kAndroidZeroCopyVideoCapture);
 
   JNIEnv* env = AttachCurrentThread();
-  jboolean ret = Java_VideoCapture_allocate(
+  bool ret = Java_VideoCapture_allocate(
       env, j_capture_, params.requested_format.frame_size.width(),
       params.requested_format.frame_size.height(),
       params.requested_format.frame_rate, params.enable_face_detection,
@@ -214,7 +214,7 @@ void VideoCaptureDeviceAndroid::StopAndDeAllocate() {
 
   JNIEnv* env = AttachCurrentThread();
 
-  const jboolean ret =
+  const bool ret =
       Java_VideoCapture_stopCaptureAndBlockUntilStopped(env, j_capture_);
   if (!ret) {
     SetErrorState(media::VideoCaptureError::kAndroidFailedToStopCapture,
@@ -406,12 +406,14 @@ void VideoCaptureDeviceAndroid::OnHardwareBufferAvailableOnMainThread(
   viz::SharedImageFormat shared_image_format;
   switch (desc.format) {
     case AndroidImageFormat::ANDROID_IMAGE_FORMAT_YUV_420_888:
-      video_pixel_format = PIXEL_FORMAT_I420;
-      shared_image_format = viz::MultiPlaneFormat::kYV12;
-      break;
-    case AndroidImageFormat::ANDROID_IMAGE_FORMAT_YV12:
-      video_pixel_format = PIXEL_FORMAT_NV12;
+      // Even though the AHB has an NV12 internal format, its pixel layout
+      // is never directly exposed anywhere, we only access it via
+      // the external texture sampler.
+      // Shared image readback will produce RGB output, that's why it makes
+      // sense to use PIXEL_FORMAT_XBGR VideoFrame format.
+      video_pixel_format = PIXEL_FORMAT_XBGR;
       shared_image_format = viz::MultiPlaneFormat::kNV12;
+      shared_image_format.SetPrefersExternalSampler();
       break;
     default:
       LOG(ERROR) << "Unsupported AHardwareBuffer format: " << desc.format;
@@ -457,8 +459,8 @@ void VideoCaptureDeviceAndroid::OnHardwareBufferAvailableOnMainThread(
     return;
   }
 
-  client_->OnIncomingCapturedImage(std::move(shared_image), format, 0,
-                                   base::TimeTicks(), capture_time,
+  client_->OnIncomingCapturedImage(std::move(shared_image), format, rotation,
+                                   current_time, capture_time,
                                    /*capture_begin_timestamp=*/{},
                                    /*metadata=*/{});
 }

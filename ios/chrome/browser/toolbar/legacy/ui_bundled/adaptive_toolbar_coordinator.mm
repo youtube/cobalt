@@ -26,19 +26,19 @@
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/activity_service_commands.h"
-#import "ios/chrome/browser/shared/public/commands/application_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/omnibox_commands.h"
 #import "ios/chrome/browser/shared/public/commands/popup_menu_commands.h"
+#import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/adaptive_toolbar_coordinator+subclassing.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/adaptive_toolbar_mediator.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/adaptive_toolbar_view_controller.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/adaptive_toolbar_view_controller_delegate.h"
-#import "ios/chrome/browser/toolbar/legacy/ui_bundled/buttons/toolbar_button.h"
+#import "ios/chrome/browser/toolbar/legacy/ui_bundled/buttons/legacy_toolbar_button.h"
+#import "ios/chrome/browser/toolbar/legacy/ui_bundled/buttons/legacy_toolbar_button_factory.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/buttons/toolbar_button_actions_handler.h"
-#import "ios/chrome/browser/toolbar/legacy/ui_bundled/buttons/toolbar_button_factory.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/buttons/toolbar_button_visibility_configuration.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 #import "ios/chrome/browser/web/model/web_navigation_browser_agent.h"
@@ -208,7 +208,7 @@ using tab_groups::VersioningMessageController;
 
 #pragma mark - Protected
 
-- (ToolbarButtonFactory*)buttonFactoryWithType:(ToolbarType)type {
+- (LegacyToolbarButtonFactory*)buttonFactoryWithType:(ToolbarType)type {
   BOOL isIncognito = self.isOffTheRecord;
   ToolbarStyle style =
       isIncognito ? ToolbarStyle::kIncognito : ToolbarStyle::kNormal;
@@ -218,8 +218,7 @@ using tab_groups::VersioningMessageController;
 
   CommandDispatcher* dispatcher = self.browser->GetCommandDispatcher();
 
-  actionHandler.applicationHandler =
-      HandlerForProtocol(dispatcher, ApplicationCommands);
+  actionHandler.sceneHandler = HandlerForProtocol(dispatcher, SceneCommands);
   actionHandler.activityHandler =
       HandlerForProtocol(dispatcher, ActivityServiceCommands);
   actionHandler.menuHandler = HandlerForProtocol(dispatcher, PopupMenuCommands);
@@ -234,8 +233,8 @@ using tab_groups::VersioningMessageController;
 
   self.actionHandler = actionHandler;
 
-  ToolbarButtonFactory* buttonFactory =
-      [[ToolbarButtonFactory alloc] initWithStyle:style];
+  LegacyToolbarButtonFactory* buttonFactory =
+      [[LegacyToolbarButtonFactory alloc] initWithStyle:style];
   buttonFactory.actionHandler = actionHandler;
   buttonFactory.visibilityConfiguration =
       [[ToolbarButtonVisibilityConfiguration alloc] initWithType:type];

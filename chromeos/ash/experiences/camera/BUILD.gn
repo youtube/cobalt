@@ -4,14 +4,43 @@
 
 assert(is_chromeos)
 
+source_set("camera_notification_util") {
+  sources = [
+    "camera_notification_util.cc",
+    "camera_notification_util.h",
+  ]
+  deps = [
+    "//base",
+    "//components/strings:components_strings",
+    "//net",
+    "//ui/base",
+  ]
+}
+
 source_set("camera_save_handler") {
   sources = [
     "camera_save_handler.cc",
     "camera_save_handler.h",
+    "camera_upload_notification.cc",
+    "camera_upload_notification.h",
+    "cancel_camera_upload_dialog.cc",
+    "cancel_camera_upload_dialog.h",
+    "upload_done_notification.cc",
+    "upload_done_notification.h",
+    "upload_error_notification.cc",
+    "upload_error_notification.h",
   ]
 
   deps = [
+    ":camera_notification_util",
+    "//ash",
     "//base",
+    "//chromeos/ui/vector_icons",
+    "//components/constrained_window",
+    "//components/strings:components_strings",
+    "//ui/base",
     "//ui/gfx",
+    "//ui/message_center",
+    "//ui/views",
   ]
 }

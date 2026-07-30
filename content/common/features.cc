@@ -107,8 +107,13 @@ BASE_FEATURE(kHoldbackDebugReasonStringRemoval,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_MAC)
+
+BASE_FEATURE(kBlockThirdPartyInProcessPlugins,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kCancelCompositionWhenWindowLosesFocus,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
 #endif  // BUILDFLAG(IS_MAC)
 
 // If Canvas2D Image Chromium is allowed, this feature controls whether it is
@@ -154,6 +159,10 @@ BASE_FEATURE(kCopyFromSurfaceAlwaysCallCallback,
 // Enables support for the `Critical-CH` response header.
 // https://github.com/WICG/client-hints-infrastructure/blob/master/reliability.md#critical-ch
 BASE_FEATURE(kCriticalClientHint, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// This feature controls whether Dev Tools supports debugging Device Bound
+// Sessions.
+BASE_FEATURE(kDeviceBoundSessionsDevTools, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enable document policy negotiation mechanism.
 BASE_FEATURE(kDocumentPolicyNegotiation, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -254,7 +263,7 @@ const base::FeatureParam<double>
 // Windows and Linux (via separate features and experiments). See
 // crbug.com/335680565.
 #if BUILDFLAG(IS_WIN)
-BASE_FEATURE(kFontDataServiceAllWebContents, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kFontDataServiceAllWebContents, base::FEATURE_ENABLED_BY_DEFAULT);
 const base::FeatureParam<FontDataServiceTypefaceType>::Option
     font_data_service_typeface[] = {
         {FontDataServiceTypefaceType::kDwrite, "DWrite"},

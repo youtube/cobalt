@@ -26,6 +26,7 @@ source_set("test_support") {
   ]
   deps = [
     ":browser",
+    ":device_parental_controls",
     "//base",
     "//base/test:test_support",
     "//components/content_settings/core/browser:test_support",
@@ -152,8 +153,10 @@ static_library("browser") {
   ]
 
   deps = [
+    ":device_parental_controls",
     ":fetcher",
     ":fetcher_config",
+    ":synthetic_field_trial_delegate",
     "//base",
     "//components/content_settings/core/browser",
     "//components/feed/core/shared_prefs:feed_shared_prefs",
@@ -176,19 +179,25 @@ static_library("browser") {
     "//ui/base",
     "//url",
   ]
-
-  if (is_android) {
-    deps += [
-      "//components/supervised_user/android:jni_headers",
-      "//components/supervised_user/core/browser/android",
-    ]
-  }
 }
 
 if (is_android) {
   java_cpp_enum("supervised_user_utils_enum_javagen") {
     sources = [ "supervised_user_utils.h" ]
   }
+}
+
+static_library("device_parental_controls") {
+  sources = [
+    "device_parental_controls.cc",
+    "device_parental_controls.h",
+    "device_parental_controls_noop_impl.cc",
+    "device_parental_controls_noop_impl.h",
+  ]
+  deps = [
+    ":synthetic_field_trial_delegate",
+    "//base",
+  ]
 }
 
 source_set("unit_tests") {
@@ -219,6 +228,7 @@ source_set("unit_tests") {
   ]
   deps = [
     ":browser",
+    ":device_parental_controls",
     ":fetcher",
     ":fetcher_config",
     ":test_support",
@@ -248,4 +258,9 @@ source_set("unit_tests") {
   # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
   # enable the diagnostic by removing this line.
   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+}
+
+# TODO(crbug.com/474015323): Consider merging with :device_parental_controls
+source_set("synthetic_field_trial_delegate") {
+  sources = [ "supervised_user_synthetic_field_trial_service_delegate.h" ]
 }

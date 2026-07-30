@@ -13,7 +13,9 @@ source_set("actor") {
     "actor_tab_data.h",
     "actor_task.h",
     "actor_task_metadata.h",
+    "actor_util.h",
     "aggregated_journal.h",
+    "origin_checker.h",
     "tools/click_tool_request.h",
     "tools/drag_and_release_tool_request.h",
     "tools/move_mouse_tool_request.h",
@@ -33,6 +35,7 @@ source_set("actor") {
   public_deps = [
     ":types",
     "//base",
+    "//chrome/browser/actor/ui:dom_node_geometry",
     "//chrome/browser/page_content_annotations:fetcher",
     "//chrome/browser/profiles",
     "//chrome/browser/subscription_eligibility",
@@ -57,7 +60,6 @@ source_set("actor") {
       "actor_keyed_service.h",
       "actor_keyed_service_factory.h",
       "actor_navigation_throttle.h",
-      "actor_util.h",
       "aggregated_journal_file_serializer.h",
       "aggregated_journal_in_memory_serializer.h",
       "aggregated_journal_serializer.h",
@@ -74,7 +76,6 @@ source_set("actor") {
     ]
     public_deps += [
       "//chrome/browser/actor/resources:browser_resources",
-      "//chrome/browser/actor/ui:dom_node_geometry",
       "//chrome/browser/actor/ui:states",
       "//chrome/browser/password_manager/actor_login:service",
       "//chrome/browser/search",
@@ -93,11 +94,19 @@ source_set("impl") {
     "actor_tab_data.cc",
     "actor_task.cc",
     "actor_task_metadata.cc",
+    "actor_util.cc",
     "aggregated_journal.cc",
+    "origin_checker.cc",
+    "safety_list.cc",
+    "safety_list.h",
+    "safety_list_manager.cc",
+    "safety_list_manager.h",
     "tools/click_tool_request.cc",
     "tools/drag_and_release_tool_request.cc",
     "tools/move_mouse_tool_request.cc",
     "tools/observation_delay_controller.cc",
+    "tools/page_target_util.cc",
+    "tools/page_target_util.h",
     "tools/page_tool.cc",
     "tools/page_tool.h",
     "tools/page_tool_request.cc",
@@ -107,6 +116,8 @@ source_set("impl") {
     "tools/select_tool_request.cc",
     "tools/tool.cc",
     "tools/tool.h",
+    "tools/tool_callbacks.cc",
+    "tools/tool_callbacks.h",
     "tools/tool_controller.cc",
     "tools/tool_request.cc",
     "tools/type_tool_request.cc",
@@ -116,8 +127,10 @@ source_set("impl") {
   ]
   deps = [
     ":actor",
+    ":variants",
     "//chrome/browser:browser_process",
     "//chrome/browser/page_content_annotations:fetcher",
+    "//chrome/browser/profiles:profile_io_data",
     "//chrome/browser/signin",
     "//chrome/browser/ui/tabs:tabs_public",
     "//components/page_load_metrics/browser",
@@ -138,16 +151,11 @@ source_set("impl") {
       "actor_keyed_service.cc",
       "actor_keyed_service_factory.cc",
       "actor_navigation_throttle.cc",
-      "actor_util.cc",
       "aggregated_journal_file_serializer.cc",
       "aggregated_journal_in_memory_serializer.cc",
       "aggregated_journal_serializer.cc",
       "browser_action_util.cc",
       "execution_engine.cc",
-      "safety_list.cc",
-      "safety_list.h",
-      "safety_list_manager.cc",
-      "safety_list_manager.h",
       "site_policy.cc",
       "tools/attempt_form_filling_tool.cc",
       "tools/attempt_form_filling_tool.h",
@@ -166,20 +174,15 @@ source_set("impl") {
       "tools/navigate_tool_request.cc",
       "tools/observation_delay_metrics.cc",
       "tools/observation_delay_metrics.h",
-      "tools/page_target_util.cc",
-      "tools/page_target_util.h",
       "tools/tab_management_tool.cc",
       "tools/tab_management_tool.h",
       "tools/tab_management_tool_request.cc",
-      "tools/tool_callbacks.cc",
-      "tools/tool_callbacks.h",
       "tools/window_management_tool.cc",
       "tools/window_management_tool.h",
       "tools/window_management_tool_request.cc",
     ]
 
     deps += [
-      ":variants",
       "//chrome/browser/actor/ui",
       "//chrome/browser/actor/ui:event_dispatcher",
       "//chrome/browser/affiliations",
@@ -187,7 +190,6 @@ source_set("impl") {
       "//chrome/browser/favicon",
       "//chrome/browser/optimization_guide",
       "//chrome/browser/profiles:profile",
-      "//chrome/browser/profiles:profile_io_data",
       "//chrome/browser/safe_browsing",
       "//chrome/browser/ui:browser_list",
       "//chrome/browser/ui:browser_navigator_params_headers",
@@ -216,17 +218,15 @@ source_set("impl") {
   }
 }
 
-if (!skip_android_unmigrated_actor_files) {
-  source_set("variants") {
-    sources = [
-      "tool_request_variant.cc",
-      "tool_request_variant.h",
-    ]
-    deps = [
-      ":actor",
-      "//base",
-    ]
-  }
+source_set("variants") {
+  sources = [
+    "tool_request_variant.cc",
+    "tool_request_variant.h",
+  ]
+  deps = [
+    ":actor",
+    "//base",
+  ]
 }
 
 # This target contains only type definitions that may be depended on by other
@@ -284,6 +284,7 @@ if (!skip_android_unmigrated_actor_files) {
       "//base",
       "//chrome/browser/actor/ui:event_dispatcher",
       "//chrome/browser/actor/ui:test_support",
+      "//chrome/browser/actor/ui:ui_event_types",
       "//components/optimization_guide/proto:optimization_guide_proto",
       "//content/test:test_support",
     ]
@@ -295,7 +296,9 @@ if (!skip_android_unmigrated_actor_files) {
       "actor_keyed_service_unittest.cc",
       "actor_metrics_unittest.cc",
       "actor_task_metadata_unittest.cc",
+      "actor_test_util_unittest.cc",
       "aggregated_journal_unittest.cc",
+      "origin_checker_unittest.cc",
       "safety_list_manager_unittest.cc",
       "safety_list_unittest.cc",
       "shared_types_unittest.cc",

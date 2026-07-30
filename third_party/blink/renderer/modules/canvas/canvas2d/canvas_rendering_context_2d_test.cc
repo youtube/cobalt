@@ -568,17 +568,11 @@ void CanvasRenderingContext2DTestBase::TearDown() {
 
 //============================================================================
 
-enum class CompositingMode {
-  kDoesNotSupportDirectCompositing,
-  kSupportsDirectCompositing
-};
-
 class FakeCanvasResourceProvider : public CanvasResourceProviderSharedImage {
  public:
   FakeCanvasResourceProvider(gfx::Size size,
                              RasterModeHint hint,
-                             CanvasResourceProvider::Delegate* delegate,
-                             CompositingMode compositing_mode)
+                             CanvasResourceProvider::Delegate* delegate)
       : CanvasResourceProviderSharedImage(
             size,
             GetN32FormatForCanvas(),
@@ -588,9 +582,7 @@ class FakeCanvasResourceProvider : public CanvasResourceProviderSharedImage {
             /*is_accelerated=*/hint != RasterModeHint::kPreferCPU,
             gpu::SHARED_IMAGE_USAGE_DISPLAY_READ |
                 gpu::SHARED_IMAGE_USAGE_RASTER_WRITE,
-            delegate),
-        supports_direct_compositing_(
-            compositing_mode == CompositingMode::kSupportsDirectCompositing) {
+            delegate) {
     ON_CALL(*this, Snapshot)
         .WillByDefault([this](ImageOrientation orientation) {
           return UnacceleratedSnapshot(orientation);
@@ -603,9 +595,6 @@ class FakeCanvasResourceProvider : public CanvasResourceProviderSharedImage {
         SharedGpuContext::ContextProviderWrapper(),
         weak_ptr_factory_.GetWeakPtr(), IsAccelerated(),
         GetSharedImageUsageFlags()));
-  }
-  bool SupportsDirectCompositing() const override {
-    return supports_direct_compositing_;
   }
   sk_sp<SkSurface> CreateSkSurface() const override {
     return SkSurfaces::Raster(GetSkImageInfo());
@@ -626,7 +615,6 @@ class FakeCanvasResourceProvider : public CanvasResourceProviderSharedImage {
                int y));
 
  private:
-  bool supports_direct_compositing_;
   base::WeakPtrFactory<FakeCanvasResourceProvider> weak_ptr_factory_{this};
 };
 
@@ -729,16 +717,20 @@ TEST_P(CanvasRenderingContext2DTest,
   EXPECT_FALSE(!!CanvasElement().RateLimiter());
 }
 
-TEST_P(CanvasRenderingContext2DTestAccelerated,
+TEST_P(CanvasRenderingContext2DTest,
        DisplayedPaintableNonCompositedCanvasIsNotRateLimited) {
   CreateContext(kNonOpaque);
   EXPECT_FALSE(!!CanvasElement().RateLimiter());
 
   // Install a CanvasResourceProvider that does not support direct compositing.
   gfx::Size size = CanvasElement().Size();
-  auto provider = std::make_unique<FakeCanvasResourceProvider>(
-      size, RasterModeHint::kPreferGPU, &CanvasElement(),
-      CompositingMode::kDoesNotSupportDirectCompositing);
+  auto provider = Canvas2DResourceProviderBitmap::CreateForTesting(
+      size,
+      Canvas2DColorParams(PredefinedColorSpace::kSRGB,
+                          CanvasPixelFormat::kUint8,
+                          /*has_alpha=*/true),
+      CanvasResourceProvider::ShouldInitialize::kNo);
+
   Context2D()->SetCanvas2DResourceProviderForTesting(std::move(provider), size);
 
   CanvasElement().SetIsDisplayed(true);
@@ -749,6 +741,7 @@ TEST_P(CanvasRenderingContext2DTestAccelerated,
   Context2D()->FinalizeFrame(FlushReason::kCanvasPushFrame);
   Context2D()->FinalizeFrame(FlushReason::kCanvasPushFrame);
   EXPECT_FALSE(!!CanvasElement().RateLimiter());
+  Context2D()->ResetResourceProvider();
 }
 
 TEST_P(CanvasRenderingContext2DTestAccelerated,
@@ -760,8 +753,7 @@ TEST_P(CanvasRenderingContext2DTestAccelerated,
   // the canvas composited.
   gfx::Size size = CanvasElement().Size();
   auto provider = std::make_unique<FakeCanvasResourceProvider>(
-      size, RasterModeHint::kPreferGPU, &CanvasElement(),
-      CompositingMode::kSupportsDirectCompositing);
+      size, RasterModeHint::kPreferGPU, &CanvasElement());
   Context2D()->SetCanvas2DResourceProviderForTesting(std::move(provider), size);
 
   CanvasElement().SetIsDisplayed(true);
@@ -782,8 +774,7 @@ TEST_P(CanvasRenderingContext2DTestAccelerated,
   // the canvas composited.
   gfx::Size size = CanvasElement().Size();
   auto provider = std::make_unique<FakeCanvasResourceProvider>(
-      size, RasterModeHint::kPreferGPU, &CanvasElement(),
-      CompositingMode::kSupportsDirectCompositing);
+      size, RasterModeHint::kPreferGPU, &CanvasElement());
   Context2D()->SetCanvas2DResourceProviderForTesting(std::move(provider), size);
 
   CanvasElement().SetIsDisplayed(true);
@@ -806,8 +797,7 @@ TEST_P(CanvasRenderingContext2DTest, GetImageWithAccelerationDisabled) {
 
   gfx::Size size = CanvasElement().Size();
   auto provider = std::make_unique<FakeCanvasResourceProvider>(
-      size, RasterModeHint::kPreferCPU, &CanvasElement(),
-      CompositingMode::kSupportsDirectCompositing);
+      size, RasterModeHint::kPreferCPU, &CanvasElement());
   Context2D()->SetCanvas2DResourceProviderForTesting(std::move(provider), size);
   ASSERT_EQ(CanvasElement().GetRasterModeForCanvas2D(), RasterMode::kCPU);
 
@@ -1364,8 +1354,7 @@ TEST_P(CanvasRenderingContext2DTestAccelerated, PutImageData_FullCoverage) {
 
   gfx::Size size = CanvasElement().Size();
   auto provider = std::make_unique<FakeCanvasResourceProvider>(
-      size, RasterModeHint::kPreferGPU, &CanvasElement(),
-      CompositingMode::kSupportsDirectCompositing);
+      size, RasterModeHint::kPreferGPU, &CanvasElement());
 
   // The recording will be cleared, so nothing will be rastered before
   // `WritePixels` is called.
@@ -1395,8 +1384,7 @@ TEST_P(CanvasRenderingContext2DTestAccelerated, PutImageData_PartialCoverage) {
 
   gfx::Size size = CanvasElement().Size();
   auto provider = std::make_unique<FakeCanvasResourceProvider>(
-      size, RasterModeHint::kPreferGPU, &CanvasElement(),
-      CompositingMode::kSupportsDirectCompositing);
+      size, RasterModeHint::kPreferGPU, &CanvasElement());
 
   // `putImageData` forces a flush, so the `fillRect` will get rasterized before
   // `WritePixels` is called.
@@ -1475,8 +1463,7 @@ TEST_P(CanvasRenderingContext2DTestAccelerated,
   gfx::Size size(10, 10);
   std::unique_ptr<FakeCanvasResourceProvider> fake_resource_provider =
       std::make_unique<FakeCanvasResourceProvider>(
-          size, RasterModeHint::kPreferGPU, &CanvasElement(),
-          CompositingMode::kSupportsDirectCompositing);
+          size, RasterModeHint::kPreferGPU, &CanvasElement());
   CanvasElement().SetPreferred2DRasterMode(RasterModeHint::kPreferGPU);
   Context2D()->SetCanvas2DResourceProviderForTesting(
       std::move(fake_resource_provider), size);
@@ -1501,8 +1488,7 @@ TEST_P(CanvasRenderingContext2DTestAccelerated,
   gfx::Size size2(10, 5);
   std::unique_ptr<FakeCanvasResourceProvider> fake_resource_provider2 =
       std::make_unique<FakeCanvasResourceProvider>(
-          size2, RasterModeHint::kPreferGPU, &CanvasElement(),
-          CompositingMode::kSupportsDirectCompositing);
+          size2, RasterModeHint::kPreferGPU, &CanvasElement());
   anotherCanvas->SetPreferred2DRasterMode(RasterModeHint::kPreferGPU);
   auto* second_canvas_context =
       static_cast<CanvasRenderingContext2D*>(anotherCanvas->RenderingContext());
@@ -1539,12 +1525,24 @@ TEST_P(CanvasRenderingContext2DTest, ContextDisposedBeforeCanvas) {
 
 TEST_P(CanvasRenderingContext2DTest,
        UnacceleratedLowLatencyIsNotSingleBuffered) {
+  // Ensure that the context will create a SharedImage provider for the test to
+  // be meaningful.
+  ScopedCanvas2dImageChromiumForTest canvas_2d_image_chromium(true);
+  ScopedTestingPlatformSupport<GpuMemoryBufferTestPlatform> platform;
+  const_cast<gpu::Capabilities&>(SharedGpuContext::ContextProviderWrapper()
+                                     ->ContextProvider()
+                                     .GetCapabilities())
+      .gpu_memory_buffer_formats.Put(gfx::BufferFormat::BGRA_8888);
+
   CreateContext(kNonOpaque, kLowLatency);
   // No need to set-up the layer bridge when testing low latency mode.
   DrawSomething();
   EXPECT_TRUE(Context2D()->getContextAttributes()->desynchronized());
   EXPECT_TRUE(CanvasElement().LowLatencyEnabled());
-  EXPECT_FALSE(Context2D()->GetOrCreateResourceProvider()->IsSingleBuffered());
+  EXPECT_FALSE(Context2D()
+                   ->GetOrCreateResourceProvider()
+                   ->AsSharedImageProvider()
+                   ->IsSingleBuffered());
   EXPECT_EQ(CanvasElement().GetRasterModeForCanvas2D(), RasterMode::kCPU);
 }
 
@@ -3205,8 +3203,7 @@ TEST_P(CanvasRenderingContext2DTestAccelerated, HibernationWithUnclosedLayer) {
 
   gfx::Size size(200, 200);
   auto provider = std::make_unique<FakeCanvasResourceProvider>(
-      size, RasterModeHint::kPreferGPU, &CanvasElement(),
-      CompositingMode::kSupportsDirectCompositing);
+      size, RasterModeHint::kPreferGPU, &CanvasElement());
 
   // Recorded draw ops are resterized on hibernation. The provider gets replaced
   // when getting out of hibernation, so this mock will not see the later calls
@@ -3307,7 +3304,10 @@ TEST_P(CanvasRenderingContext2DTestAccelerated, LowLatencyIsNotSingleBuffered) {
   EXPECT_TRUE(Context2D()->getContextAttributes()->desynchronized());
   EXPECT_FALSE(Context2D()->getContextAttributes()->willReadFrequently());
   EXPECT_TRUE(CanvasElement().LowLatencyEnabled());
-  EXPECT_FALSE(Context2D()->GetOrCreateResourceProvider()->IsSingleBuffered());
+  EXPECT_FALSE(Context2D()
+                   ->GetOrCreateResourceProvider()
+                   ->AsSharedImageProvider()
+                   ->IsSingleBuffered());
   EXPECT_EQ(CanvasElement().GetRasterModeForCanvas2D(), RasterMode::kGPU);
 }
 
@@ -3538,15 +3538,20 @@ TEST_P(CanvasRenderingContext2DTestImageChromium, LowLatencyIsSingleBuffered) {
   EXPECT_FALSE(Context2D()->getContextAttributes()->willReadFrequently());
   EXPECT_TRUE(CanvasElement().LowLatencyEnabled());
   EXPECT_EQ(CanvasElement().GetRasterModeForCanvas2D(), RasterMode::kGPU);
-  EXPECT_TRUE(Context2D()->GetOrCreateResourceProvider()->IsSingleBuffered());
-  auto frame1_resource =
-      Context2D()->GetOrCreateResourceProvider()->ProduceCanvasResource(
-          FlushReason::kOther);
+  EXPECT_TRUE(Context2D()
+                  ->GetOrCreateResourceProvider()
+                  ->AsSharedImageProvider()
+                  ->IsSingleBuffered());
+  auto frame1_resource = Context2D()
+                             ->GetOrCreateResourceProvider()
+                             ->AsSharedImageProvider()
+                             ->ProduceCanvasResource(FlushReason::kOther);
   EXPECT_TRUE(frame1_resource);
   DrawSomething();
-  auto frame2_resource =
-      Context2D()->GetOrCreateResourceProvider()->ProduceCanvasResource(
-          FlushReason::kOther);
+  auto frame2_resource = Context2D()
+                             ->GetOrCreateResourceProvider()
+                             ->AsSharedImageProvider()
+                             ->ProduceCanvasResource(FlushReason::kOther);
   EXPECT_TRUE(frame2_resource);
   EXPECT_EQ(frame1_resource.get(), frame2_resource.get());
 }
@@ -3582,15 +3587,20 @@ TEST_P(CanvasRenderingContext2DTestSwapChain, LowLatencyIsSingleBuffered) {
   EXPECT_FALSE(Context2D()->getContextAttributes()->willReadFrequently());
   EXPECT_TRUE(CanvasElement().LowLatencyEnabled());
   EXPECT_EQ(CanvasElement().GetRasterModeForCanvas2D(), RasterMode::kGPU);
-  EXPECT_TRUE(Context2D()->GetOrCreateResourceProvider()->IsSingleBuffered());
-  auto frame1_resource =
-      Context2D()->GetOrCreateResourceProvider()->ProduceCanvasResource(
-          FlushReason::kOther);
+  EXPECT_TRUE(Context2D()
+                  ->GetOrCreateResourceProvider()
+                  ->AsSharedImageProvider()
+                  ->IsSingleBuffered());
+  auto frame1_resource = Context2D()
+                             ->GetOrCreateResourceProvider()
+                             ->AsSharedImageProvider()
+                             ->ProduceCanvasResource(FlushReason::kOther);
   EXPECT_TRUE(frame1_resource);
   DrawSomething();
-  auto frame2_resource =
-      Context2D()->GetOrCreateResourceProvider()->ProduceCanvasResource(
-          FlushReason::kOther);
+  auto frame2_resource = Context2D()
+                             ->GetOrCreateResourceProvider()
+                             ->AsSharedImageProvider()
+                             ->ProduceCanvasResource(FlushReason::kOther);
   EXPECT_TRUE(frame2_resource);
   EXPECT_EQ(frame1_resource.get(), frame2_resource.get());
 }

@@ -14,7 +14,6 @@
 #include <utility>
 #include <vector>
 
-#include "base/containers/contains.h"
 #include "base/debug/alias.h"
 #include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
@@ -325,9 +324,9 @@ Surface::QueueFrameResult Surface::CommitFrame(FrameData frame) {
       const auto& token = directive.transition_token();
       // If there is no SurfaceAnimationManager for the `token` and an Animate
       // directive has been issued, then previous frame is held up and has not
-      // performed Save directive yet for a cross-document view transition. So
-      // add this token as dependency for new document's surface which needs to
-      // be resolved for activation.
+      // performed Save directive yet for it's view transition. So add this
+      // token as dependency for new document's surface which needs to be
+      // resolved for activation.
       if (directive.type() ==
               CompositorFrameTransitionDirective::Type::kAnimateRenderer &&
           !surface_manager_->FrameSinkManagerHasViewTransitionToken(token) &&
@@ -388,13 +387,13 @@ Surface::QueueFrameResult Surface::CommitFrame(FrameData frame) {
 }
 
 void Surface::RequestCopyOfOutput(
-    PendingCopyOutputRequest pending_copy_output_request) {
+    std::unique_ptr<PendingCopyOutputRequest> pending_copy_output_request) {
   TRACE_EVENT1("viz", "Surface::RequestCopyOfOutput", "has_active_frame_data",
                !!active_frame_data_);
-
-  if (!pending_copy_output_request.subtree_capture_id.is_valid()) {
+  CHECK(!pending_copy_output_request->IsTimedOut());
+  if (!pending_copy_output_request->subtree_capture_id.is_valid()) {
     RequestCopyOfOutputOnRootRenderPass(
-        std::move(pending_copy_output_request.copy_output_request));
+        std::move(pending_copy_output_request->copy_output_request));
     return;
   }
 
@@ -403,9 +402,9 @@ void Surface::RequestCopyOfOutput(
 
   for (auto& render_pass : GetActiveFrame().render_pass_list) {
     if (render_pass->subtree_capture_id ==
-        pending_copy_output_request.subtree_capture_id) {
+        pending_copy_output_request->subtree_capture_id) {
       RequestCopyOfOutputOnRenderPass(
-          std::move(pending_copy_output_request.copy_output_request),
+          std::move(pending_copy_output_request->copy_output_request),
           *render_pass);
       return;
     }
@@ -801,7 +800,7 @@ void Surface::UpdateActivationDependencies(
        current_frame.metadata.activation_dependencies) {
     SurfaceAllocationGroup* group =
         surface_manager_->GetOrCreateAllocationGroupForSurfaceId(surface_id);
-    if (base::Contains(new_blocking_allocation_groups, group))
+    if (new_blocking_allocation_groups.contains(group))
       continue;
     if (group)
       group->UpdateLastPendingReferenceAndMaybeActivate(surface_id);
@@ -847,7 +846,7 @@ void Surface::TakeCopyOutputRequests(Surface::CopyRequestsMap* copy_requests) {
 void Surface::TakeCopyOutputRequestsFromClient() {
   if (!surface_client_)
     return;
-  for (PendingCopyOutputRequest& request_params :
+  for (std::unique_ptr<PendingCopyOutputRequest>& request_params :
        surface_client_->TakeCopyOutputRequests(
            surface_id().local_surface_id())) {
     RequestCopyOfOutput(std::move(request_params));

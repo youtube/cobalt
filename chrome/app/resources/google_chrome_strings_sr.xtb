@@ -275,6 +275,7 @@
 <translation id="3885770153807205175">Бирач језика</translation>
 <translation id="3889417619312448367">Деинсталирај Google Chrome</translation>
 <translation id="3892148308691398805">Копирај текст</translation>
+<translation id="3893985792899396936">Савет за Chrome: Претражујте помоћу Објектива</translation>
 <translation id="3906096710440765802">Пријавите се у Chrome да би вам лозинке, обележивачи и други садржај били доступни на свим уређајима</translation>
 <translation id="3921132130819999051">Дозволите Chrome-у да прегледа за вас</translation>
 <translation id="3941890832296813527">Грешка при инсталацији: Назив фајла програма за инсталацију је неважећи или није подржан.</translation>
@@ -316,7 +317,6 @@
 <translation id="4329315893554541805">Да бисте добили персонализацију и друге функције, уврстите Chromium у активности на вебу и у апликацијама и повезане Google услуге</translation>
 <translation id="4334241893986177674">Претражите овај снимак екрана</translation>
 <translation id="4334294535648607276">Преузимање је довршено.</translation>
-<translation id="4337324600316876133">Да бисте добијали будућа Google Chrome ажурирања, треба вам macOS 12 или новија верзија. Овај рачунар користи macOS 11.</translation>
 <translation id="4343195214584226067">Додатак <ph name="EXTENSION_NAME" /> је додат у Chrome</translation>
 <translation id="4344128547036991536">Када отворите Google објектив, наслов, URL и садржај странице, укључујући PDF-ове, аутоматски се шаљу Google-у. <ph name="LEARN_MORE" /></translation>
 <translation id="4348548358339558429">Да бисте добили персонализацију, уврстите Chrome у активности на вебу и у апликацијама</translation>
@@ -373,6 +373,7 @@
 <translation id="5003967926796347400">Кликните на Google менаџер лозинки</translation>
 <translation id="5043786843026425788">Сазнајте више о претраживању помоћу Google објектива у Chrome-у</translation>
 <translation id="504867494566807945">Отварајте линкове у Chrome-у из било које апликације. Ради лакшег приступа закачите га на траку задатака.</translation>
+<translation id="5105120510934353742">Да бисте добијали будућа Google Chrome ажурирања, треба вам macOS 13 или новија верзија. Овај рачунар користи macOS 12.</translation>
 <translation id="5114340746415930644">Унесите приступну фразу да бисте користили и сачували Chrome податке на налогу, <ph name="USER_EMAIL" /></translation>
 <translation id="5120334927898581447">Пријавите се у Chrome када се пријавите у друге Google услуге</translation>
 <translation id="5126049312684316860">Chrome предучитава још више страница које ћете вероватно посетити, како би се брже учитавале када их посетите</translation>
@@ -491,6 +492,7 @@ Google Chrome не може да врати подешавања.</translation>
 <translation id="6180522807229584611">Ова картица користи додатне ресурсе. Да бисте побољшали перформансе, дозволите Chrome-у да је учини неактивном.</translation>
 <translation id="6182736845697986886">Инсталација није успела због интерне грешке сервера за ажурирање.</translation>
 <translation id="6183773856988300112">Gemini у Chrome-у користи аутоматско прегледање за рад на картицама и обављање задатака које му доделите. <ph name="LINK_BEGIN" />Сазнајте више<ph name="LINK_END" /></translation>
+<translation id="6187085551300363958">Напомена за Chrome: Сачувајте лозинке</translation>
 <translation id="6192058120268468905">Ваш налог у Chrome-у</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" /> је додао додатак који може да промени начин на који Chrome функционише.
 
@@ -629,6 +631,7 @@ Google Chrome не може да врати подешавања.</translation>
 <translation id="7627609214560473136">Да бисте заштитили податке, дозволите да Chrome уклања дозволе са сајтова које дуже нисте посећивали.</translation>
 <translation id="7629695634924605473">Chrome вас обавештава ако су лозинке угрожене</translation>
 <translation id="7641148173327520642">Администратор система је конфигурисао Google Chrome да отвара прегледач <ph name="ALTERNATIVE_BROWSER_NAME" /> да би приступао <ph name="TARGET_URL_HOSTNAME" />.</translation>
+<translation id="7641448682796883218">Напомена за Chrome: Побољшано безбедно прегледање</translation>
 <translation id="7649070708921625228">Помоћ</translation>
 <translation id="7651907282515937834">Chrome Enterprise логотип</translation>
 <translation id="76531479118467370">Chrome је блокирао ово преузимање јер сте искључили Безбедно прегледање, па фајл не може да се верификује</translation>

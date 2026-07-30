@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
-#include "base/containers/contains.h"
 #include "base/containers/span.h"
 #include "base/files/file.h"
 #include "base/functional/bind.h"
@@ -31,6 +30,7 @@
 #include "third_party/skia/include/core/SkSerialProcs.h"
 #include "third_party/skia/include/core/SkStream.h"
 #include "third_party/skia/include/docs/SkMultiPictureDocument.h"
+#include "ui/accessibility/ax_tree.h"
 #include "ui/gfx/geometry/size_conversions.h"
 #include "ui/gfx/geometry/skia_conversions.h"
 
@@ -205,9 +205,19 @@ bool MetafileSkia::FinishDocument() {
   SkDynamicMemoryWStream stream;
   sk_sp<SkDocument> doc;
   cc::PlaybackCallbacks::CustomDataRasterCallback custom_callback;
+
+  // Create the AXTree if accessibility data is available. If accessibility data
+  // is available, the SkDocument returned by MakePdfDocument will include
+  // pointers (`const char*`) to strings in the `AXTree tree`. These references
+  // are only read in `doc->close();`, so they must persist until then.
+  std::unique_ptr<ui::AXTree> tree;
+  if (!accessibility_tree_.nodes.empty()) {
+    tree = std::make_unique<ui::AXTree>(accessibility_tree_);
+  }
+
   switch (data_->type) {
     case mojom::SkiaDocumentType::kPDF:
-      doc = MakePdfDocument(printing::GetAgent(), title_, accessibility_tree_,
+      doc = MakePdfDocument(printing::GetAgent(), title_, tree.get(),
                             generate_document_outline_, &stream);
       break;
 #if BUILDFLAG(IS_WIN)
@@ -428,7 +438,7 @@ uint32_t MetafileSkia::CreateContentForRemoteFrame(
   // Store the map between content id and the proxy id and store the picture
   // content.
   const uint32_t content_id = pic->uniqueID();
-  DCHECK(!base::Contains(data_->subframe_content_info, content_id));
+  DCHECK(!data_->subframe_content_info.contains(content_id));
   AppendSubframeInfo(content_id, render_proxy_token, std::move(pic));
   return content_id;
 }
@@ -459,7 +469,7 @@ SkStreamAsset* MetafileSkia::GetPdfData() const {
 void MetafileSkia::CustomDataToSkPictureCallback(SkCanvas* canvas,
                                                  uint32_t content_id) {
   // Check whether this is the one we need to handle.
-  if (!base::Contains(data_->subframe_content_info, content_id))
+  if (!data_->subframe_content_info.contains(content_id))
     return;
 
   auto it = data_->subframe_pics.find(content_id);

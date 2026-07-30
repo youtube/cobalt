@@ -12,6 +12,7 @@
 #include "chrome/browser/actor/ui/states/actor_task_nudge_state.h"
 #include "chrome/common/actor/task_id.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
 namespace actor {
 class ActorKeyedService;
@@ -33,6 +34,10 @@ class GlicActorTaskIconManager : public KeyedService {
   // Called whenever updates are needed to the task icon components.
   void UpdateTaskIconComponents(actor::TaskId task_id);
 
+  // Returns true if the task was paused by the actor or in an interrupt state
+  // waiting for user action.
+  static bool RequiresAttention(actor::ActorTask::State state);
+
   // Register for this callback to get task nudge state change notifications.
   using TaskNudgeChangeCallback = base::RepeatingCallback<void(
       actor::ui::ActorTaskNudgeState actor_task_nudge_state)>;
@@ -46,8 +51,9 @@ class GlicActorTaskIconManager : public KeyedService {
       TaskListBubbleChangeCallback callback);
 
   actor::ui::ActorTaskNudgeState GetCurrentActorTaskNudgeState() const;
-
-  std::map<actor::TaskId, bool> GetActorTaskListBubbleRows() const {
+  size_t GetNumActorTasksNeedProcessing() const;
+  const absl::flat_hash_map<actor::TaskId, bool>& actor_task_list_bubble_rows()
+      const {
     return actor_task_list_bubble_rows_;
   }
 
@@ -78,6 +84,7 @@ class GlicActorTaskIconManager : public KeyedService {
   TaskListBubbleChangeCallbackList task_list_bubble_change_callback_list_;
 
   actor::ui::ActorTaskNudgeState current_actor_task_nudge_state_;
+  size_t stored_bubble_row_task_count_ = 0;
 
   raw_ptr<Profile> profile_;
   raw_ptr<actor::ActorKeyedService> actor_service_;
@@ -86,7 +93,7 @@ class GlicActorTaskIconManager : public KeyedService {
   // row requires processing. A row is only processed when it has been clicked
   // on by the user. If the row does not need user attention it will not require
   // processing.
-  std::map<actor::TaskId, bool /*requires_processing*/>
+  absl::flat_hash_map<actor::TaskId, /* requires_processing */ bool>
       actor_task_list_bubble_rows_;
 };
 

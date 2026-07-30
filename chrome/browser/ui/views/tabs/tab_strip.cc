@@ -43,9 +43,8 @@
 #include "build/build_config.h"
 #include "chrome/browser/defaults.h"
 #include "chrome/browser/themes/theme_properties.h"
-#include "chrome/browser/themes/theme_service.h"
-#include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert.h"
@@ -182,7 +181,8 @@ class TabStrip::TabDragContextImpl : public TabDragContext,
       max_child_x = std::max(max_child_x, child->bounds().right());
     }
 
-    return gfx::Size(max_child_x, GetLayoutConstant(TAB_HEIGHT));
+    return gfx::Size(max_child_x,
+                     GetLayoutConstant(LayoutConstant::kTabHeight));
   }
 
   bool OnMouseDragged(const ui::MouseEvent& event) override {
@@ -625,8 +625,7 @@ class TabStrip::TabDragContextImpl : public TabDragContext,
 
   void StartedDragging(const std::vector<TabSlotView*>& views) override {
     // Let the controller know that the user started dragging tabs.
-    tab_strip_->controller_->OnStartedDragging(
-        views.size() == static_cast<size_t>(tab_strip_->GetModelCount()));
+    tab_strip_->controller_->OnStartedDragging();
 
     // Complete animations to ensure that the previous drag session fully ends
     // before we start the next one. In particular this reparents the dragged
@@ -823,7 +822,12 @@ class TabStrip::TabDragContextImpl : public TabDragContext,
     }
   }
 
-  void OnBoundsAnimatorProgressed(views::BoundsAnimator* animator) override {}
+  void OnBoundsAnimatorProgressed(views::BoundsAnimator* animator) override {
+    // The rightmost tab (or the `overall_bounds_view_`) moving might have
+    // changed our preferred width.
+    PreferredSizeChanged();
+  }
+
   void OnBoundsAnimatorDone(views::BoundsAnimator* animator) override {
     // Send the Container a message to simulate a mouse moved event at the
     // current mouse position. This tickles the Tab the mouse is currently over
@@ -1069,9 +1073,7 @@ class TabStrip::TabDragContextImpl : public TabDragContext,
   }
 
   const TabStripModel* GetTabStripModel() const {
-    return static_cast<BrowserTabStripController*>(
-               tab_strip_->controller_.get())
-        ->model();
+    return tab_strip_->GetBrowserWindowInterface()->GetTabStripModel();
   }
 
   const raw_ptr<TabStrip, DanglingUntriaged> tab_strip_;
@@ -1178,7 +1180,7 @@ bool TabStrip::IsTabStripEditable() const {
 }
 
 bool TabStrip::IsTabCrashed(int tab_index) const {
-  return tab_at(tab_index)->data().IsCrashed();
+  return tab_at(tab_index)->data().is_crashed;
 }
 
 bool TabStrip::TabHasNetworkError(int tab_index) const {
@@ -1233,7 +1235,10 @@ void TabStrip::AddTabsAt(const std::vector<AddTabData>& tabs_datas) {
     drag_context_->TabWasAdded();
   }
 
-  Profile* profile = controller_->GetProfile();
+  // BrowserWindowInterface can be null during unit tests.
+  Profile* const profile = GetBrowserWindowInterface()
+                               ? GetBrowserWindowInterface()->GetProfile()
+                               : nullptr;
   if (profile) {
     if (profile->IsGuestSession()) {
       base::UmaHistogramCounts100("Tab.Count.Guest", GetTabCount());
@@ -1424,48 +1429,6 @@ void TabStrip::OnSplitContentsChanged(const std::vector<int>& split_indices) {
   tab_container_->OnSplitContentsChanged(split_indices);
 }
 
-bool TabStrip::ShouldDrawStrokes() const {
-#if BUILDFLAG(IS_CHROMEOS)
-  return false;
-#else   // BUILDFLAG(IS_CHROMEOS)
-
-  // If the controller says we can't draw strokes, don't.
-  if (!controller_->CanDrawStrokes()) {
-    return false;
-  }
-
-  bool using_system_theme = false;
-  if (auto* profile = controller_->GetProfile()) {
-    auto* theme_service = ThemeServiceFactory::GetForProfile(profile);
-    using_system_theme =
-        theme_service->IsSystemThemeDistinctFromDefaultTheme() &&
-        theme_service->UsingSystemTheme();
-  }
-
-  // The Tabstrip in the refreshed style does not meet the contrast ratio
-  // requirements listed below but does not have strokes for Tabs or the bottom
-  // border.
-  if (!using_system_theme) {
-    return false;
-  }
-
-  // The tabstrip normally avoids strokes and relies on the active tab
-  // contrasting sufficiently with the frame background.  When there isn't
-  // enough contrast, fall back to a stroke.  Always compute the contrast ratio
-  // against the active frame color, to avoid toggling the stroke on and off as
-  // the window activation state changes.
-  constexpr float kMinimumContrastRatioForOutlines = 1.3f;
-  const SkColor background_color = TabStyle::Get()->GetTabBackgroundColor(
-      TabStyle::TabSelectionState::kActive, /*hovered=*/false,
-      /*frame_active=*/true, GetColorProvider());
-  const SkColor frame_color =
-      controller_->GetFrameColor(BrowserFrameActiveState::kActive);
-  const float contrast_ratio =
-      color_utils::GetContrastRatio(background_color, frame_color);
-  return contrast_ratio < kMinimumContrastRatioForOutlines;
-#endif  // BUILDFLAG(IS_CHROMEOS)
-}
-
 void TabStrip::SetSelection(const ui::ListSelectionModel& new_selection) {
   // This CHECK ensures there is always an active tab to maintain UI
   // consistency.
@@ -1613,7 +1576,7 @@ views::View* TabStrip::GetDefaultFocusableChild() {
   return active.has_value() ? tab_at(active.value()) : nullptr;
 }
 
-BrowserWindowInterface* TabStrip::GetBrowserWindowInterface() {
+BrowserWindowInterface* TabStrip::GetBrowserWindowInterface() const {
   return controller_->GetBrowserWindowInterface();
 }
 
@@ -1626,10 +1589,13 @@ std::optional<int> TabStrip::GetActiveIndex() const {
 }
 
 int TabStrip::NumPinnedTabsInModel() const {
-  for (int i = 0; i < controller_->GetCount(); ++i) {
-    if (!controller_->IsTabPinned(i)) {
-      return i;
+  int count = 0;
+  for (const tabs::TabInterface* tab :
+       *GetBrowserWindowInterface()->GetTabStripModel()) {
+    if (!tab->IsPinned()) {
+      return count;
     }
+    count++;
   }
 
   // All tabs are pinned.
@@ -1892,13 +1858,12 @@ bool TabStrip::IsFocusInTabs() const {
 }
 
 bool TabStrip::ShouldCompactLeadingEdge() const {
-  return !controller_->GetBrowser()
-              ->window()
-              ->AsBrowserView()
+  return !BrowserView::GetBrowserViewForBrowser(GetBrowserWindowInterface())
               ->browser_widget()
               ->GetFrameView()
               ->CaptionButtonsOnLeadingEdge() &&
-         (tabs::GetTabSearchPosition(controller_->GetProfile()) ==
+         (tabs::GetTabSearchPosition(
+              GetBrowserWindowInterface()->GetProfile()) ==
           tabs::TabSearchPosition::kTrailingHorizontalTabstrip);
 }
 
@@ -2052,7 +2017,13 @@ void TabStrip::HideHover(Tab* tab, TabStyle::HideHoverStyle style) {
 }
 
 int TabStrip::GetStrokeThickness() const {
-  return ShouldDrawStrokes() ? 1 : 0;
+  BrowserWindowInterface* const browser_window_interface =
+      controller_->GetBrowserWindowInterface();
+  return browser_window_interface &&
+                 BrowserView::GetBrowserViewForBrowser(browser_window_interface)
+                     ->ShouldDrawTabStrokes()
+             ? 1
+             : 0;
 }
 
 bool TabStrip::CanPaintThrobberToLayer() const {
@@ -2063,10 +2034,6 @@ bool TabStrip::CanPaintThrobberToLayer() const {
   const views::Widget* widget = GetWidget();
   return widget && !dragging && !IsAnimatingInTabStrip() &&
          !widget->IsFullscreen();
-}
-
-bool TabStrip::HasVisibleBackgroundTabShapes() const {
-  return controller_->HasVisibleBackgroundTabShapes();
 }
 
 SkColor TabStrip::GetTabSeparatorColor() const {
@@ -2123,7 +2090,11 @@ void TabStrip::ShiftGroupRight(const tab_groups::TabGroupId& group) {
 }
 
 Browser* TabStrip::GetBrowser() {
-  return controller_->GetBrowser();
+  return controller_->GetBrowserWindowInterface()->GetBrowserForMigrationOnly();
+}
+
+BrowserWindowInterface* TabStrip::GetBrowserWindowInterface() {
+  return controller_->GetBrowserWindowInterface();
 }
 
 bool TabStrip::IsFrameCondensed() const {

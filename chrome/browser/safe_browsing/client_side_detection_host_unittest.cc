@@ -64,14 +64,15 @@
 #include "components/safe_browsing/content/browser/url_checker_holder.h"
 #include "components/safe_browsing/content/common/safe_browsing.mojom-shared.h"
 #include "components/safe_browsing/core/browser/db/database_manager.h"
-#include "components/safe_browsing/core/browser/db/hit_report.h"
 #include "components/safe_browsing/core/browser/db/test_database_manager.h"
 #include "components/safe_browsing/core/browser/db/v4_protocol_manager_util.h"
+#include "components/safe_browsing/core/browser/intelligent_scan_delegate.h"
 #include "components/safe_browsing/core/browser/sync/sync_utils.h"
 #include "components/safe_browsing/core/browser/verdict_cache_manager.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/safe_browsing/core/common/proto/csd.pb.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
+#include "components/safe_browsing/core/common/threat_enums.h"
 #include "components/security_interstitials/core/unsafe_resource.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "content/public/browser/back_forward_cache.h"
@@ -255,7 +256,7 @@ class MockSafeBrowsingDatabaseManager : public TestSafeBrowsingDatabaseManager {
       const GURL& gurl,
       CheckUrlForHighConfidenceAllowlistCallback callback) override {
     std::string url = gurl.spec();
-    DCHECK(base::Contains(urls_allowlist_match_, url));
+    DCHECK(urls_allowlist_match_.contains(url));
 
     ui_task_runner()->PostTask(
         FROM_HERE,
@@ -312,14 +313,13 @@ class MockClientSideDetectionHostDelegate
 #endif
 };
 
-class MockIntelligentScanDelegate
-    : public ClientSideDetectionHost::IntelligentScanDelegate {
+class MockIntelligentScanDelegate : public IntelligentScanDelegate {
  public:
   MOCK_METHOD(bool,
               ShouldRequestIntelligentScan,
               (ClientPhishingRequest*),
               (override));
-  MOCK_METHOD(bool, IsIntelligentScanAvailable, (bool), (override));
+  MOCK_METHOD(ModelType, GetIntelligentScanModelType, (bool), (override));
   MOCK_METHOD(std::optional<base::UnguessableToken>,
               StartIntelligentScan,
               (std::string, IntelligentScanDoneCallback),
@@ -1319,6 +1319,42 @@ TEST_F(ClientSideDetectionHostTest, TestPreClassificationCheckLocalResource) {
   NavigateAndCommit(url);
   WaitAndCheckPreClassificationChecks();
 
+  fake_phishing_detector_.CheckMessage(nullptr);
+}
+
+TEST_F(ClientSideDetectionHostTest, TestPreClassificationCheckErrorDocument) {
+  if (base::FeatureList::IsEnabled(kClientSideDetectionKillswitch)) {
+    GTEST_SKIP();
+  }
+  base::HistogramTester histogram_tester;
+  feature_list_.InitAndEnableFeature(kClientSideDetectionSkipErrorPage);
+
+  GURL url("http://host.com/");
+  // IsLocalResource is checked before IsErrorDocument. It should be mocked to
+  // return false. IsPrivateIPAddress is checked after, so it shouldn't be
+  // called.
+  ExpectPreClassificationChecks(url, /*is_private=*/nullptr,
+                                /*match_csd_allowlist=*/nullptr,
+                                /*get_valid_cached_result=*/nullptr,
+                                /*over_phishing_report_limit=*/nullptr,
+                                /*is_local=*/&kFalse);
+
+  // Simulate a navigation that results in an error page. This will trigger the
+  // pre-classification check.
+  auto navigation =
+      content::NavigationSimulator::CreateBrowserInitiated(url, web_contents());
+  navigation->Fail(net::ERR_FAILED);
+  navigation->CommitErrorPage();
+  WaitAndCheckPreClassificationChecks();
+
+  histogram_tester.ExpectUniqueSample(
+      "SBClientPhishing.PreClassificationCheckResult",
+      PreClassificationCheckResult::NO_CLASSIFY_ERROR_DOCUMENT, 1);
+  histogram_tester.ExpectUniqueSample(
+      "SBClientPhishing.PreClassificationCheckResult.TriggerModel",
+      PreClassificationCheckResult::NO_CLASSIFY_ERROR_DOCUMENT, 1);
+
+  // No phishing detection IPC should be sent.
   fake_phishing_detector_.CheckMessage(nullptr);
 }
 
@@ -3694,8 +3730,8 @@ class ClientSideDetectionHostScamDetectionTest
         });
     ON_CALL(*intelligent_scan_delegate_, ShouldRequestIntelligentScan(_))
         .WillByDefault(Return(true));
-    ON_CALL(*intelligent_scan_delegate_, IsIntelligentScanAvailable(_))
-        .WillByDefault(Return(true));
+    ON_CALL(*intelligent_scan_delegate_, GetIntelligentScanModelType(_))
+        .WillByDefault(Return(IntelligentScanDelegate::ModelType::kOnDevice));
     NavigateAndCommit(example_url_);
   }
 
@@ -3764,18 +3800,19 @@ class ClientSideDetectionHostScamDetectionTest
   void SetIntelligentScanCallback(bool should_return_response) {
     EXPECT_CALL(*intelligent_scan_delegate_, StartIntelligentScan(_, _))
         .WillOnce(
-            [=, this](std::string rendered_text,
-                      base::OnceCallback<void(
-                          ClientSideDetectionHost::IntelligentScanDelegate::
-                              IntelligentScanResult)> callback) {
+            [=, this](
+                std::string rendered_text,
+                IntelligentScanDelegate::IntelligentScanDoneCallback callback) {
               base::UnguessableToken token = base::UnguessableToken::Create();
-              ClientSideDetectionHost::IntelligentScanDelegate::
-                  IntelligentScanResult scam_detection_response;
-              scam_detection_response.execution_success = false;
-              scam_detection_response.model_version = -1;
-              scam_detection_response.model_type = ClientSideDetectionHost::
+              IntelligentScanDelegate::IntelligentScanResult
+                  scam_detection_response;
+              scam_detection_response.model_type =
                   IntelligentScanDelegate::ModelType::kOnDevice;
               if (!should_return_response) {
+                scam_detection_response.execution_success = false;
+                scam_detection_response.model_version = -1;
+                scam_detection_response.no_info_reason =
+                    IntelligentScanInfo::ON_DEVICE_MODEL_OUTPUT_MISSING;
                 std::move(callback).Run(scam_detection_response);
                 return token;
               }
@@ -4158,8 +4195,9 @@ TEST_F(ClientSideDetectionHostScamDetectionTest,
     GTEST_SKIP();
   }
 
-  EXPECT_CALL(*intelligent_scan_delegate_, IsIntelligentScanAvailable(_))
-      .WillOnce(Return(false));
+  EXPECT_CALL(*intelligent_scan_delegate_, GetIntelligentScanModelType(_))
+      .WillOnce(
+          Return(IntelligentScanDelegate::ModelType::kNotSupportedOnDevice));
   // Because the intelligent scan is unavailable, we will NOT start the
   // intelligent scan.
   EXPECT_CALL(*intelligent_scan_delegate_, StartIntelligentScan(_, _)).Times(0);

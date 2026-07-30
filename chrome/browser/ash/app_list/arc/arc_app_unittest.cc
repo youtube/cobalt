@@ -2326,9 +2326,7 @@ TEST_P(ArcAppModelBuilderTest, ArcPacakgesIsUpToDate) {
       profile()->GetPrefs()->GetBoolean(arc::prefs::kArcPackagesIsUpToDate));
 }
 
-// Validate that arc model contains expected elements on restart.
-// Flaky. https://crbug.com/1013813
-TEST_P(ArcAppModelBuilderRecreate, DISABLED_AppModelRestart) {
+TEST_P(ArcAppModelBuilderRecreate, AppModelRestart) {
   // No apps on initial start.
   ValidateHaveApps(std::vector<arc::mojom::AppInfoPtr>());
 
@@ -2354,11 +2352,7 @@ TEST_P(ArcAppModelBuilderRecreate, DISABLED_AppModelRestart) {
   EXPECT_EQ(fake_apps().size(), GetArcItemCount());
 }
 
-// Verifies that no OnAppRegistered/OnAppRemoved is called in case ARC++ started
-// next time disabled.
-// Flaky. https://crbug.com/1013813
-TEST_P(ArcAppModelBuilderRecreate,
-       DISABLED_AppsNotReportedNextSessionDisabled) {
+TEST_P(ArcAppModelBuilderRecreate, AppsNotReportedNextSessionDisabled) {
   ArcAppListPrefs* prefs = ArcAppListPrefs::Get(profile());
   ASSERT_TRUE(prefs);
 
@@ -2372,8 +2366,9 @@ TEST_P(ArcAppModelBuilderRecreate,
   arc_app_test()->set_wait_default_apps(false);
   arc_app_test()->set_activate_arc_on_start(false);
   StopArc();
-  // Disable ARC in beetwen sessions.
-  SetArcPlayStoreEnabledForProfile(profile(), false);
+  // Disable ARC in between sessions. Use Prefs directly to avoid DCHECK in
+  // SetArcPlayStoreEnabledForProfile because StopArc() tears down user mapping.
+  profile()->GetPrefs()->SetBoolean(arc::prefs::kArcEnabled, false);
   StartArc();
 
   prefs = ArcAppListPrefs::Get(profile());
@@ -2384,6 +2379,7 @@ TEST_P(ArcAppModelBuilderRecreate,
   EXPECT_CALL(observer, OnAppRemoved(app_id)).Times(0);
 
   arc_app_test()->WaitForDefaultApps();
+  prefs->RemoveObserver(&observer);
 }
 
 TEST_P(ArcPlayStoreAppTest, PlayStore) {

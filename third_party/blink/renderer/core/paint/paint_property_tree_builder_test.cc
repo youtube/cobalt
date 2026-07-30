@@ -3733,7 +3733,7 @@ TEST_P(PaintPropertyTreeBuilderTest, ReplacedContentTransformFlattening) {
 TEST_P(PaintPropertyTreeBuilderTest, ContainPaintOrStyleLayoutTreeState) {
   for (const char* containment : {"paint", "style layout"}) {
     SCOPED_TRACE(containment);
-    SetBodyInnerHTML(String::Format(R"HTML(
+    SetBodyInnerHTML(UNSAFE_TODO(String::Format(R"HTML(
       <style>body { margin: 20px 30px; }</style>
       <div id='clipper'
           style='contain: %s; width: 300px; height: 200px;'>
@@ -3741,7 +3741,7 @@ TEST_P(PaintPropertyTreeBuilderTest, ContainPaintOrStyleLayoutTreeState) {
             style='position: relative; width: 400px; height: 500px;'></div>
       </div>
     )HTML",
-                                    containment));
+                                                containment)));
 
     auto* clipper =
         To<LayoutBoxModelObject>(GetLayoutObjectByElementId("clipper"));
@@ -5705,7 +5705,8 @@ TEST_P(PaintPropertyTreeBuilderTest, SVGRootWithMask) {
 
 TEST_P(PaintPropertyTreeBuilderTest, SVGRootWithCSSMask) {
   SetBodyInnerHTML(R"HTML(
-    <svg id="svg" width="16" height="16" style="-webkit-mask-image: url(fake);">
+    <svg id="svg" width="16" height="16"
+        style="-webkit-mask-image: linear-gradient(black, transparent);">
     </svg>
   )HTML");
 

@@ -28,10 +28,10 @@
 #import "ios/chrome/browser/settings/ui_bundled/password/reauthentication/local_reauthentication_coordinator.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
-#import "ios/chrome/browser/shared/public/commands/application_commands.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
+#import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -112,18 +112,15 @@ using password_manager::PasswordCheckReferrer;
 
     _baseNavigationController = navigationController;
     _reauthModule = reauthModule;
-    _dispatcher = HandlerForProtocol(self.browser->GetCommandDispatcher(),
-                                     ApplicationCommands);
+    _dispatcher =
+        HandlerForProtocol(self.browser->GetCommandDispatcher(), SceneCommands);
     _referrer = referrer;
     password_manager::LogPasswordCheckReferrer(referrer);
 
-    if (IsSafetyCheckNotificationsEnabled()) {
-      _notificationsSettingsObserver = [[NotificationsSettingsObserver alloc]
-          initWithPrefService:self.profile->GetPrefs()
-                   localState:GetApplicationContext()->GetLocalState()];
-
-      _notificationsSettingsObserver.delegate = self;
-    }
+    _notificationsSettingsObserver = [[NotificationsSettingsObserver alloc]
+        initWithPrefService:self.profile->GetPrefs()
+                 localState:GetApplicationContext()->GetLocalState()];
+    _notificationsSettingsObserver.delegate = self;
   }
   return self;
 }
@@ -172,12 +169,10 @@ using password_manager::PasswordCheckReferrer;
   _viewController.handler = nil;
   _viewController = nil;
 
-  if (IsSafetyCheckNotificationsEnabled()) {
-    // Remove PrefObserverDelegates.
-    _notificationsSettingsObserver.delegate = nil;
-    [_notificationsSettingsObserver disconnect];
-    _notificationsSettingsObserver = nil;
-  }
+  // Remove `PrefObserverDelegate`s.
+  _notificationsSettingsObserver.delegate = nil;
+  [_notificationsSettingsObserver disconnect];
+  _notificationsSettingsObserver = nil;
 
   [self stopPasswordIssuesCoordinator];
   [self stopReauthenticationCoordinator];
@@ -252,8 +247,6 @@ using password_manager::PasswordCheckReferrer;
 #pragma mark - PasswordCheckupMediatorDelegate
 
 - (void)toggleSafetyCheckNotifications {
-  CHECK(IsSafetyCheckNotificationsEnabled());
-
   if ([self isSafetyCheckNotificationsEnabled]) {
     [self disableSafetyCheckNotifications];
     return;
@@ -285,8 +278,7 @@ using password_manager::PasswordCheckReferrer;
 
 - (void)notificationsSettingsDidChangeForClient:
     (PushNotificationClientId)clientID {
-  if (IsSafetyCheckNotificationsEnabled() &&
-      clientID == PushNotificationClientId::kSafetyCheck) {
+  if (clientID == PushNotificationClientId::kSafetyCheck) {
     [_mediator
         reconfigureNotificationsSection:[self
                                             isSafetyCheckNotificationsEnabled]];
@@ -348,8 +340,6 @@ using password_manager::PasswordCheckReferrer;
 
 // Returns `YES` if the user has opted in to receive Safety Check notifications.
 - (BOOL)isSafetyCheckNotificationsEnabled {
-  CHECK(IsSafetyCheckNotificationsEnabled());
-
   // Safety Check notifications are controlled by app-wide notification
   // settings, not profile-specific ones. No Gaia ID is required below in
   // `GetMobileNotificationPermissionStatusForClient()`.
@@ -362,8 +352,6 @@ using password_manager::PasswordCheckReferrer;
 // notification service preferences. Displays a confirmation snackbar with a
 // link to notification settings.
 - (void)disableSafetyCheckNotifications {
-  CHECK(IsSafetyCheckNotificationsEnabled());
-
   GetApplicationContext()->GetPushNotificationService()->SetPreference(
       GaiaId(), PushNotificationClientId::kSafetyCheck, false);
 

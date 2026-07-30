@@ -381,11 +381,14 @@ bool IsGeminiImageRemixToolEnabled() {
   return base::FeatureList::IsEnabled(kGeminiImageRemixTool);
 }
 
-BASE_FEATURE(kImageContextMenuGeminiEntryPoint,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+const char kGeminiImageRemixToolShowFRERow[] = "ShowFRERow";
 
-bool IsImageContextMenuGeminiEntryPointEnabled() {
-  return base::FeatureList::IsEnabled(kImageContextMenuGeminiEntryPoint);
+bool IsGeminiImageRemixToolShowFRERowEnabled() {
+  if (!IsGeminiImageRemixToolEnabled()) {
+    return false;
+  }
+  return base::GetFieldTrialParamByFeatureAsBool(
+      kGeminiImageRemixTool, kGeminiImageRemixToolShowFRERow, false);
 }
 
 BASE_FEATURE(kGeminiEligibilityAblation, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -423,28 +426,28 @@ bool IsActuationEnabled() {
   return base::FeatureList::IsEnabled(kActuationTools);
 }
 
-bool IsActionDisabled(optimization_guide::proto::Action::ActionCase action) {
+bool IsToolDisabled(optimization_guide::proto::Action::ActionCase tool) {
   if (!IsActuationEnabled()) {
     return true;
   }
 
-  std::optional<std::string> action_name = ActuationActionCaseToString(action);
-  if (!action_name) {
-    // Don't support actions that aren't in the proto.
+  std::optional<std::string> tool_name = ActuationActionCaseToToolName(tool);
+  if (!tool_name) {
+    // Don't support tools that aren't in the proto.
     return true;
   }
 
-  std::string disabled_actions = base::GetFieldTrialParamValueByFeature(
-      kActuationTools, "DisabledActions");
-  if (disabled_actions.empty()) {
+  std::string disabled_tools =
+      base::GetFieldTrialParamValueByFeature(kActuationTools, "DisabledTools");
+  if (disabled_tools.empty()) {
     return false;
   }
 
   std::vector<std::string> disabled_list = base::SplitString(
-      disabled_actions, ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+      disabled_tools, ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
 
-  for (const auto& disabled_action : disabled_list) {
-    if (disabled_action == *action_name) {
+  for (const auto& disabled_tool : disabled_list) {
+    if (disabled_tool == *tool_name) {
       return true;
     }
   }

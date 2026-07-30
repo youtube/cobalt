@@ -2019,7 +2019,7 @@ WebGLRenderingContextBase::GetSharedImageResourceProvider() {
   return resource_provider_.get();
 }
 
-CanvasResourceProvider*
+CanvasResourceProviderSharedImage*
 WebGLRenderingContextBase::PaintRenderingResultsToResourceProvider(
     SourceDrawingBuffer source_buffer) {
   TRACE_EVENT0(
@@ -2194,12 +2194,6 @@ bool WebGLRenderingContextBase::CopyRenderingResultsToVideoFrame(
                                           dst_color_space, std::move(callback));
 }
 
-gfx::Size WebGLRenderingContextBase::DrawingBufferSize() const {
-  if (isContextLost())
-    return gfx::Size(0, 0);
-  return GetDrawingBuffer()->Size();
-}
-
 scoped_refptr<StaticBitmapImage>
 WebGLRenderingContextBase::GetRGBAUnacceleratedStaticBitmapImage(
     SourceDrawingBuffer source_buffer) {
@@ -2259,6 +2253,8 @@ void WebGLRenderingContextBase::Reshape(int width, int height) {
   GetDrawingBuffer()->set_low_latency_enabled(Host()->LowLatencyEnabled());
   GetDrawingBuffer()->Resize(gfx::Size(width, height));
   GetDrawingBuffer()->MarkContentsChanged();
+
+  Host()->UpdateMemoryUsage();
 
   if (buffer) {
     ContextGL()->BindBuffer(GL_PIXEL_UNPACK_BUFFER,
@@ -2873,8 +2869,7 @@ bool WebGLRenderingContextBase::ValidateCopyTexFormat(const char* function_name,
     is_ext_color_buffer_half_float_formats_added_ = true;
   }
 
-  if (!base::Contains(supported_internal_formats_copy_tex_image_,
-                      internalformat)) {
+  if (!supported_internal_formats_copy_tex_image_.Contains(internalformat)) {
     SynthesizeGLError(GL_INVALID_ENUM, function_name, "invalid internalformat");
     return false;
   }
@@ -5673,8 +5668,10 @@ scoped_refptr<Image> WebGLRenderingContextBase::DrawImageIntoBufferForTexImage(
   // opaque images. The color space should match the unpack color space.
   CanvasSnapshotProvider* snapshot_provider =
       generated_image_cache_.GetCanvasSnapshotProvider(
-          {width, height}, GetN32FormatForCanvas(), kPremul_SkAlphaType,
-          gfx::ColorSpace::CreateSRGB());
+          {kPremul_SkAlphaType,
+           gfx::ColorSpace::CreateSRGB(),
+           GetN32FormatForCanvas(),
+           {width, height}});
   if (!snapshot_provider) {
     SynthesizeGLError(GL_OUT_OF_MEMORY, function_name, "out of memory");
     return nullptr;
@@ -6442,26 +6439,20 @@ void WebGLRenderingContextBase::TexImageHelperMediaVideoFrame(
     dest_rect.Transpose();
   }
 
-  // TODO(https://crbug.com/1341235): The choice of format will clamp
-  // higher precision sources to 8 bit per color.
-  viz::SharedImageFormat format = GetN32FormatForCanvas();
-  SkAlphaType alpha_type = media::IsOpaque(media_video_frame->format())
-                               ? kOpaque_SkAlphaType
-                               : kPremul_SkAlphaType;
-  gfx::ColorSpace color_space = params.unpack_colorspace_conversion
-                                    ? media_video_frame->CompatRGBColorSpace()
-                                    : gfx::ColorSpace::CreateSRGB();
+  const bool reinterpret_video_as_srgb = !params.unpack_colorspace_conversion;
+
+  auto info = CreateSnapshotProviderInfoForVideoFrame(
+      *media_video_frame, dest_rect.size(), reinterpret_video_as_srgb);
 
   // Since TexImageStaticBitmapImage() and TexImageGPU() don't know how to
   // handle tagged orientation, we set |prefer_tagged_orientation| to false.
   scoped_refptr<StaticBitmapImage> image = CreateImageFromVideoFrame(
-      std::move(media_video_frame),
-      image_cache.GetCanvasSnapshotProvider(dest_rect.size(), format,
-                                            alpha_type, color_space),
+      std::move(media_video_frame), image_cache.GetCanvasSnapshotProvider(info),
       video_renderer, /*prefer_tagged_orientation=*/false,
-      /*reinterpret_video_as_srgb=*/!params.unpack_colorspace_conversion);
-  if (!image)
+      reinterpret_video_as_srgb);
+  if (!image) {
     return;
+  }
 
   TexImageStaticBitmapImage(params, image.get(), can_upload_via_gpu);
 }
@@ -7982,8 +7973,8 @@ bool WebGLRenderingContextBase::ValidateTexImageSourceFormatAndType(
   }
 
   if (params.internalformat != 0 &&
-      !base::Contains(supported_tex_image_source_internal_formats_,
-                      params.internalformat)) {
+      !supported_tex_image_source_internal_formats_.Contains(
+          params.internalformat)) {
     if (GetTexImageFunctionType(params.function_id) == kTexImage) {
       SynthesizeGLError(GL_INVALID_VALUE, function_name,
                         "invalid internalformat");
@@ -7993,11 +7984,11 @@ bool WebGLRenderingContextBase::ValidateTexImageSourceFormatAndType(
     }
     return false;
   }
-  if (!base::Contains(supported_tex_image_source_formats_, params.format)) {
+  if (!supported_tex_image_source_formats_.Contains(params.format)) {
     SynthesizeGLError(GL_INVALID_ENUM, function_name, "invalid format");
     return false;
   }
-  if (!base::Contains(supported_tex_image_source_types_, params.type)) {
+  if (!supported_tex_image_source_types_.Contains(params.type)) {
     SynthesizeGLError(GL_INVALID_ENUM, function_name, "invalid type");
     return false;
   }
@@ -8026,7 +8017,7 @@ bool WebGLRenderingContextBase::ValidateTexFuncFormatAndType(
   }
 
   if (params.internalformat != 0 &&
-      !base::Contains(supported_internal_formats_, params.internalformat)) {
+      !supported_internal_formats_.Contains(params.internalformat)) {
     if (GetTexImageFunctionType(params.function_id) == kTexImage) {
       if (compressed_texture_formats_.Contains(
               static_cast<GLenum>(params.internalformat))) {
@@ -8042,11 +8033,11 @@ bool WebGLRenderingContextBase::ValidateTexFuncFormatAndType(
     }
     return false;
   }
-  if (!base::Contains(supported_formats_, params.format)) {
+  if (!supported_formats_.Contains(params.format)) {
     SynthesizeGLError(GL_INVALID_ENUM, function_name, "invalid format");
     return false;
   }
-  if (!base::Contains(supported_types_, params.type)) {
+  if (!supported_types_.Contains(params.type)) {
     SynthesizeGLError(GL_INVALID_ENUM, function_name, "invalid type");
     return false;
   }
@@ -8855,28 +8846,18 @@ String WebGLRenderingContextBase::EnsureNotNull(const String& text) const {
 
 WebGLRenderingContextBase::LRUCanvasSnapshotProviderCache::
     LRUCanvasSnapshotProviderCache(wtf_size_t capacity, CacheType type)
-    : capacity_(capacity),
-      type_(type),
-      snapshot_providers_(capacity),
-      requested_formats_(capacity) {}
+    : capacity_(capacity), type_(type), snapshot_providers_(capacity) {}
 
 CanvasSnapshotProvider* WebGLRenderingContextBase::
     LRUCanvasSnapshotProviderCache::GetCanvasSnapshotProvider(
-        gfx::Size size,
-        viz::SharedImageFormat format,
-        SkAlphaType alpha_type,
-        const gfx::ColorSpace& color_space) {
+        const CanvasSnapshotProvider::Info& info) {
   wtf_size_t i;
   for (i = 0; i < capacity_; ++i) {
     CanvasSnapshotProvider* snapshot_provider = snapshot_providers_[i].get();
     if (!snapshot_provider) {
       break;
     }
-    if (snapshot_provider->Size() != size ||
-        (snapshot_provider->GetSharedImageFormat() != format &&
-         requested_formats_[i] != format) ||
-        snapshot_provider->GetAlphaType() != alpha_type ||
-        snapshot_provider->GetColorSpace() != color_space) {
+    if (!info.Matches(*snapshot_provider)) {
       continue;
     }
     BubbleToFront(i);
@@ -8890,18 +8871,15 @@ CanvasSnapshotProvider* WebGLRenderingContextBase::
       raster_context_provider =
           wrapper->ContextProvider().RasterContextProvider();
     }
-    temp = CreateSnapshotProviderForVideoFrame(
-        size, format, alpha_type, color_space, raster_context_provider);
+    temp = CreateSnapshotProviderForVideo(info, raster_context_provider);
   } else {
-    temp = CanvasSnapshotProviderExternalBitmap::Create(
-        size, format, alpha_type, color_space);
+    temp = CanvasSnapshotProviderExternalBitmap::Create(info);
   }
 
   if (!temp)
     return nullptr;
   i = std::min(capacity_ - 1, i);
   snapshot_providers_[i] = std::move(temp);
-  requested_formats_[i] = format;
 
   CanvasSnapshotProvider* snapshot_provider = snapshot_providers_[i].get();
   BubbleToFront(i);
@@ -8912,7 +8890,6 @@ void WebGLRenderingContextBase::LRUCanvasSnapshotProviderCache::BubbleToFront(
     wtf_size_t idx) {
   for (wtf_size_t i = idx; i > 0; --i) {
     snapshot_providers_[i].swap(snapshot_providers_[i - 1]);
-    std::swap(requested_formats_[i], requested_formats_[i - 1]);
   }
 }
 

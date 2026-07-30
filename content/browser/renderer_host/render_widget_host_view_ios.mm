@@ -173,7 +173,12 @@ RenderWidgetHostViewIOS::GetFilteredGestureProviderForTesting() {
   return &gesture_provider_;
 }
 
-void RenderWidgetHostViewIOS::InitAsChild(gfx::NativeView parent_view) {}
+void RenderWidgetHostViewIOS::InitAsChild(gfx::NativeView parent_view) {
+  // Attach to the parent view tree if provided.
+  if (parent_view) {
+    UpdateNativeViewTree(parent_view);
+  }
+}
 void RenderWidgetHostViewIOS::SetSize(const gfx::Size& size) {}
 void RenderWidgetHostViewIOS::SetBounds(const gfx::Rect& rect) {}
 
@@ -985,6 +990,19 @@ void RenderWidgetHostViewIOS::SendKeyEvent(
   ui::LatencyInfo latency_info;
   latency_info.AddLatencyNumber(ui::INPUT_EVENT_LATENCY_UI_COMPONENT);
   host->ForwardKeyboardEventWithLatencyInfo(event, latency_info);
+}
+
+void RenderWidgetHostViewIOS::ForwardKeyboardEventWithCommands(
+    const input::NativeWebKeyboardEvent& key_event,
+    std::vector<blink::mojom::EditCommandPtr> commands) {
+  auto* host = GetFocusedWidget();
+  if (!host) {
+    return;
+  }
+  ui::LatencyInfo latency_info;
+  latency_info.AddLatencyNumber(ui::INPUT_EVENT_LATENCY_UI_COMPONENT);
+  host->ForwardKeyboardEventWithCommands(key_event, latency_info,
+                                         std::move(commands));
 }
 
 blink::mojom::FrameWidgetInputHandler*

@@ -421,8 +421,7 @@ bool DoReplaceComponents(std::string_view spec,
     size_t spec_after_colon =
         parsed.scheme.is_valid() ? parsed.scheme.end() + 1 : 1;
     if (spec.length() > spec_after_colon) {
-      scheme_replaced.Append(&spec[spec_after_colon],
-                             spec.length() - spec_after_colon);
+      scheme_replaced.Append(spec.substr(spec_after_colon));
     }
 
     // We now need to completely re-parse the resulting string since its meaning
@@ -692,7 +691,8 @@ void LockSchemeRegistries() {
 // transition is complete.
 bool IsStandard(const char* spec, const Component& scheme) {
   SchemeType unused_scheme_type;
-  return DoIsStandard(UNSAFE_TODO(scheme.maybe_as_string_view_on(spec)),
+  // SAFETY: It's unsafe. Do not use this function.
+  return DoIsStandard(UNSAFE_BUFFERS(scheme.maybe_as_string_view_on(spec)),
                       &unused_scheme_type);
 }
 
@@ -754,10 +754,9 @@ bool DomainIs(std::string_view canonical_host,
 
   // |host_first_pos| is the start of the compared part of the host name, not
   // start of the whole host name.
-  const char* host_first_pos =
-      UNSAFE_TODO(canonical_host.data() + host_len - canonical_domain.length());
+  size_t host_first_pos = host_len - canonical_domain.length();
 
-  if (std::string_view(host_first_pos, canonical_domain.length()) !=
+  if (canonical_host.substr(host_first_pos, canonical_domain.length()) !=
       canonical_domain) {
     return false;
   }
@@ -767,7 +766,7 @@ bool DomainIs(std::string_view canonical_host,
   // immediately before the compared part should be a dot. For example,
   // www.google.com has domain "google.com", but www.iamnotgoogle.com does not.
   if (canonical_domain[0] != '.' && host_len > canonical_domain.length() &&
-      *(UNSAFE_TODO(host_first_pos - 1)) != '.') {
+      canonical_host[host_first_pos - 1] != '.') {
     return false;
   }
 

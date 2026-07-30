@@ -201,8 +201,7 @@ void AffiliationServiceImpl::PrefetchChangePasswordURL(
     const GURL& url,
     base::OnceClosure callback) {
   FacetURI facet_uri = ConvertGURLToFacet(url);
-  if (!facet_uri.is_valid() ||
-      base::Contains(change_password_urls_, facet_uri)) {
+  if (!facet_uri.is_valid() || change_password_urls_.contains(facet_uri)) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, std::move(callback));
     return;
@@ -339,6 +338,10 @@ void AffiliationServiceImpl::OnPSLExtensionsLoaded(
     std::vector<std::string> psl_extensions) {
   psl_extension_list_ = base::flat_set<std::string>(psl_extensions);
   std::move(callback).Run(std::move(psl_extensions));
+}
+
+base::WeakPtr<AffiliationService> AffiliationServiceImpl::AsWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 }  // namespace affiliations

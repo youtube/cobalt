@@ -872,7 +872,8 @@ bool PaintLayer::RequiresScrollableArea() const {
   if (!box) {
     return false;
   }
-  if (box->Style()->HasOverscrollArea() || box->IsScrollContainer()) {
+  if (box->Style()->IsInternalOverscrollAreaAuto() ||
+      box->IsScrollContainer()) {
     return true;
   }
   // Iframes with the resize property can be resized. This requires
@@ -2348,8 +2349,14 @@ void PaintLayer::StyleDidChange(StyleDifference diff,
     // changes. However, we do need to repaint the containing stacking
     // context, in order to generate new paint chunks in the correct order.
     // Raster invalidation will be issued if needed during paint.
-    if (auto* stacking_context = AncestorStackingContext())
+    if (auto* stacking_context = AncestorStackingContext()) {
       stacking_context->SetNeedsRepaint();
+    }
+    // We also need to invalidate intersection observer, which can be affected
+    // by z-index changes.
+    if (LocalFrameView* frame_view = GetLayoutObject().GetFrameView()) {
+      frame_view->SetIntersectionObservationState(LocalFrameView::kDesired);
+    }
   }
 
   if (old_style) {

@@ -13,7 +13,6 @@
 #include "base/check_deref.h"
 #include "base/command_line.h"
 #include "base/containers/adapters.h"
-#include "base/containers/contains.h"
 #include "base/containers/span.h"
 #include "base/containers/to_vector.h"
 #include "base/feature_list.h"
@@ -185,24 +184,13 @@ void AutofillManager::OnLanguageDetermined(
 
   NotifyObservers(&Observer::OnBeforeLanguageDetermined);
 
-  // Wait for ongoing parsing operations to finish, so `form_structures_` is
-  // up to date.
-  AfterParsingFinishesDeprecated(base::BindOnce([](base::WeakPtr<
-                                                    AutofillManager> self) {
-    if (!self) {
-      return;
-    }
-    std::vector<FormData> forms;
-    forms.reserve(self->form_structures_.size());
-    for (const auto& [id, form_structure] : self->form_structures_) {
-      forms.push_back(form_structure->ToFormData());
-    }
-    self->ParseFormsAsync(
-        forms, base::BindOnce([](AutofillManager& self,
-                                 const std::vector<FormData>& parsed_forms) {
-          self.NotifyObservers(&Observer::OnAfterLanguageDetermined);
-        }));
-  })).Run(GetWeakPtr());
+  ParseFormsAsync(
+      base::ToVector(form_structures_,
+                     [](const auto& p) { return p.second->ToFormData(); }),
+      base::BindOnce(
+          [](AutofillManager& self, const std::vector<FormData>& parsed_forms) {
+            self.NotifyObservers(&Observer::OnAfterLanguageDetermined);
+          }));
 }
 
 void AutofillManager::OnTranslateDriverDestroyed(
@@ -291,11 +279,13 @@ void AutofillManager::OnFormsParsed(const std::vector<FormData>& forms) {
   DCHECK(!forms.empty());
   OnBeforeProcessParsedForms();
 
-  std::vector<raw_ptr<const FormStructure, VectorExperimental>> queryable_forms;
+  std::vector<FormData> queryable_forms;
   for (const FormData& form : forms) {
     // The FormStructure might not exist if the form cache hit its capacity of
     // `kAutofillManagerMaxFormCacheSize` and due to race conditions the initial
     // check in ParseFormsAsync() was passed.
+    // TODO(crbug.com/470949499): Remove this check behind a feature
+    // flag.
     const FormStructure* form_structure = FindCachedFormById(form.global_id());
     if (!form_structure) {
       continue;
@@ -303,8 +293,8 @@ void AutofillManager::OnFormsParsed(const std::vector<FormData>& forms) {
 
     // Configure the query encoding for this form and add it to the appropriate
     // collection of forms: queryable vs non-queryable.
-    if (ShouldBeQueried(*form_structure)) {
-      queryable_forms.push_back(form_structure);
+    if (ShouldBeQueried(form)) {
+      queryable_forms.push_back(form);
     }
 
     OnFormProcessed(form, *form_structure);
@@ -321,8 +311,8 @@ void AutofillManager::OnFormsParsed(const std::vector<FormData>& forms) {
     // server response is processed, to ensure server predictions are not lost.
     client().GetCrowdsourcingManager().StartQueryRequest(
         queryable_forms, driver().GetIsolationInfo(),
-        AfterParsingFinishesDeprecated(base::BindOnce(
-            &AutofillManager::OnLoadedServerPredictions, GetWeakPtr())));
+        base::BindOnce(&AutofillManager::OnLoadedServerPredictions,
+                       GetWeakPtr()));
   }
 }
 
@@ -549,18 +539,16 @@ void AutofillManager::TriggerFormExtractionInAllFrames(
 }
 
 void AutofillManager::ReparseKnownForms() {
-  std::vector<FormData> forms;
-  forms.reserve(form_structures_.size());
-  for (const auto& [id, form_structure] : form_structures_) {
-    forms.push_back(form_structure->ToFormData());
-  }
   auto ProcessParsedForms = [](AutofillManager& self,
                                const std::vector<FormData>& parsed_forms) {
     if (!parsed_forms.empty()) {
       self.OnFormsParsed(parsed_forms);
     }
   };
-  ParseFormsAsync(forms, base::BindOnce(ProcessParsedForms));
+  ParseFormsAsync(
+      base::ToVector(form_structures_,
+                     [](const auto& p) { return p.second->ToFormData(); }),
+      base::BindOnce(ProcessParsedForms));
 }
 
 base::flat_map<FieldGlobalId, AutofillServerPrediction>
@@ -601,7 +589,7 @@ void AutofillManager::ParseFormsAsync(
   std::vector<FormData> parseable_forms;
   parseable_forms.reserve(forms.size());
   for (const FormData& form : forms) {
-    bool is_new_form = !base::Contains(form_structures_, form.global_id());
+    bool is_new_form = !form_structures_.contains(form.global_id());
     if (num_managed_forms + is_new_form > kAutofillManagerMaxFormCacheSize) {
       LOG_AF(log_manager()) << LoggingScope::kAbortParsing
                             << LogMessage::kAbortParsingTooManyForms << form;
@@ -627,7 +615,7 @@ void AutofillManager::ParseFormAsync(
     base::OnceCallback<void(AutofillManager&, const FormData&)> callback) {
   SCOPED_UMA_HISTOGRAM_TIMER("Autofill.Timing.ParseFormAsync");
 
-  bool is_new_form = !base::Contains(form_structures_, form.global_id());
+  bool is_new_form = !form_structures_.contains(form.global_id());
   if (form_structures_.size() + is_new_form >
       kAutofillManagerMaxFormCacheSize) {
     LOG_AF(log_manager()) << LoggingScope::kAbortParsing
@@ -676,13 +664,13 @@ void AutofillManager::ParseFormsAsyncCommon(
         callback) {
   // To be run on a different task (must not access global or member
   // variables).
-  auto run_heuristics = [](AsyncContext context) {
+  auto run_heuristics = [](AsyncContext context, bool ignore_small_forms) {
     SCOPED_UMA_HISTOGRAM_TIMER("Autofill.Timing.ParseFormsAsync.RunHeuristics");
     context.regex_predictions.reserve(context.forms.size());
     for (const FormData& form : context.forms) {
       context.regex_predictions.push_back(DetermineRegexTypes(
           context.country_code, context.current_page_language, form,
-          context.log_manager.get()));
+          context.log_manager.get(), ignore_small_forms));
     }
     return context;
   };
@@ -721,18 +709,21 @@ void AutofillManager::ParseFormsAsyncCommon(
   // To be run on the main thread (accesses member variables).
   auto run_heuristics_and_update_cache = base::BindOnce(
       [](base::WeakPtr<AutofillManager> self,
-         AsyncContext (*run_heuristics)(AsyncContext),
+         AsyncContext (*run_heuristics)(AsyncContext, bool),
          base::OnceCallback<void(AsyncContext)> update_cache,
-         AsyncContext context) {
+         bool ignore_small_forms, AsyncContext context) {
         if (!self) {
           return;
         }
         self->parsing_task_runner_->PostTaskAndReplyWithResult(
-            FROM_HERE, base::BindOnce(run_heuristics, std::move(context)),
+            FROM_HERE,
+            base::BindOnce(run_heuristics, std::move(context),
+                           ignore_small_forms),
             std::move(update_cache));
       },
       parsing_weak_ptr_factory_.GetWeakPtr(), run_heuristics,
-      std::move(update_cache));
+      std::move(update_cache),
+      /*ignore_small_forms=*/!client().IsTabInActorMode());
 
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   // Parsing happens in the following order:
@@ -791,6 +782,7 @@ void AutofillManager::RunMlModels(
     std::vector<FormData> forms = context.forms;
     ml_handler->GetModelPredictionsForForms(
         std::move(forms), country_code,
+        /*ignore_small_forms=*/!manager->client().IsTabInActorMode(),
         base::BindOnce(std::move(receive_predictions), std::move(context)));
   };
 
@@ -836,28 +828,6 @@ void AutofillManager::RunMlModels(
       std::move(context));
 }
 #endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
-
-// TODO(crbug.com/448144129): Remove once `kAutofillSynchronousAfterParsing`
-// can be cleaned up.
-template <typename... Args>
-base::OnceCallback<void(Args...)>
-AutofillManager::AfterParsingFinishesDeprecated(
-    base::OnceCallback<void(Args...)> callback) {
-  if (base::FeatureList::IsEnabled(
-          features::kAutofillSynchronousAfterParsing)) {
-    return callback;
-  }
-  return base::BindOnce(
-      [](base::WeakPtr<AutofillManager> self,
-         base::OnceCallback<void(Args...)> callback, Args... args) {
-        if (self) {
-          self->parsing_task_runner_->PostTaskAndReply(
-              FROM_HERE, base::DoNothing(),
-              base::BindOnce(std::move(callback), std::forward<Args>(args)...));
-        }
-      },
-      GetWeakPtr(), std::move(callback));
-}
 
 void AutofillManager::OnLoadedServerPredictions(
     std::optional<AutofillCrowdsourcingManager::QueryResponse> response) {

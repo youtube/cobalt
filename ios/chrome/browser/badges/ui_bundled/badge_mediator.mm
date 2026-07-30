@@ -77,8 +77,7 @@ bool IsInfobarTypeSupportedInReaderMode(InfobarType infobarType,
     case InfobarType::kInfobarTypeCollaborationGroup:
     case InfobarType::kInfobarTypeCollaborationOutOfDate:
     case InfobarType::kInfobarTypeSaveCvc:
-      return IsProactiveSuggestionsFrameworkEnabled() ||
-             IsReaderModeBadgeSupportEnabled();
+      return IsProactiveSuggestionsFrameworkEnabled();
   }
 }
 
@@ -301,6 +300,15 @@ LocationBarBadgeType LocationBarBadgeTypeFromBadgeType(BadgeType badgeType) {
         // Fallback to original behavior when framework is disabled.
         badgeType = self.permissionsBadgeType;
       }
+    }
+
+    // Add badge at the front of the list if it is the Reader mode badge.
+    if (badgeType == kBadgeTypeReaderMode) {
+      BadgeTappableItem* readerModeItem =
+          [[BadgeTappableItem alloc] initWithBadgeType:kBadgeTypeReaderMode];
+      readerModeItem.badgeState = infobarTypeBadgeStatePair.second;
+      [badges insertObject:readerModeItem atIndex:0];
+      continue;
     }
 
     BadgeTappableItem* item =

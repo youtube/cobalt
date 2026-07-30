@@ -35,7 +35,6 @@
 #include "third_party/blink/public/web/web_local_frame.h"
 #include "third_party/blink/public/web/web_plugin_container.h"
 #include "ui/accessibility/ax_action_data.h"
-#include "ui/accessibility/ax_enums.mojom-shared.h"
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/accessibility/ax_mode.h"
 #include "ui/accessibility/ax_node_id_forward.h"
@@ -48,7 +47,6 @@
 #include "ui/gfx/geometry/transform.h"
 
 #if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
-#include "base/containers/contains.h"
 #include "ui/strings/grit/auto_image_annotation_strings.h"
 #endif  // BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
 

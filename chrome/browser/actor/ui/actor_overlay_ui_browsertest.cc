@@ -9,7 +9,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/test/gtest_util.h"
 #include "base/test/test_future.h"
-#include "chrome/browser/actor/ui/mocks/fake_actor_overlay_page.h"
+#include "chrome/browser/actor/ui/test_support/fake_actor_overlay_page.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -86,6 +86,13 @@ IN_PROC_BROWSER_TEST_F(ActorOverlayUITest, MoveCursorToCrashesIfHandlerNull) {
   base::test::TestFuture<void> future;
   EXPECT_DCHECK_DEATH(
       controller->MoveCursorTo(gfx::Point(10, 10), future.GetCallback()));
+}
+
+IN_PROC_BROWSER_TEST_F(ActorOverlayUITest,
+                       TriggerClickAnimationCrashesIfHandlerNull) {
+  std::unique_ptr<ActorOverlayUI> controller = CreateController();
+  base::test::TestFuture<void> future;
+  EXPECT_DCHECK_DEATH(controller->TriggerClickAnimation(future.GetCallback()));
 }
 
 }  // namespace actor::ui

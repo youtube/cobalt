@@ -1591,7 +1591,7 @@ AXObject* AXObjectCacheImpl::CreateAndInit(Node* node,
   } else {
     axid = GenerateAXID();
   }
-  DCHECK(!base::Contains(objects_, axid));
+  DCHECK(!objects_.Contains(axid));
 
   // Create the new AXObject.
   AXObject* new_obj = nullptr;
@@ -2536,7 +2536,7 @@ void AXObjectCacheImpl::TextChanged(const LayoutObject* layout_object) {
       RemoveAXObjectsInLayoutSubtree(node->GetLayoutObject());
     } else if (AXID node_id = static_cast<AXID>(node->GetDomNodeId())) {
       // Text changed is redundant with children changed on the same node.
-      if (base::Contains(nodes_with_pending_children_changed_, node_id)) {
+      if (nodes_with_pending_children_changed_.Contains(node_id)) {
         return;
       }
     }
@@ -4506,18 +4506,18 @@ AriaNotifications AXObjectCacheImpl::RetrieveAriaNotifications(
   return aria_notifications_.Take(obj->AXObjectID());
 }
 
-ImeState* AXObjectCacheImpl::GetImeState(const AXObject* obj) {
+ImeContext* AXObjectCacheImpl::GetImeContext(const AXObject* obj) {
   DCHECK(obj);
 
-  if (ime_state_axid_ == obj->AXObjectID()) {
-    return &ime_state_;
+  if (ime_context_axid_ == obj->AXObjectID()) {
+    return &ime_context_;
   }
   return nullptr;
 }
 
-void AXObjectCacheImpl::ClearImeState() {
-  ime_state_axid_ = ui::AXNodeData::kInvalidAXID;
-  ime_state_ = ImeState();
+void AXObjectCacheImpl::ClearImeContext() {
+  ime_context_axid_ = ui::AXNodeData::kInvalidAXID;
+  ime_context_ = ImeContext();
 }
 
 void AXObjectCacheImpl::UpdateTableRoleWithCleanLayout(Node* table) {
@@ -5157,7 +5157,8 @@ void AXObjectCacheImpl::HandleReferenceTargetChanged(Element& element) {
   DeferTreeUpdate(TreeUpdateReason::kReferenceTargetChanged, &element);
 }
 
-void AXObjectCacheImpl::HandleSetComposition(Node* node) {
+void AXObjectCacheImpl::HandleSetComposition(Node* node,
+                                             mojom::blink::ImeState ime_state) {
   if (!node) {
     return;
   }
@@ -5167,8 +5168,9 @@ void AXObjectCacheImpl::HandleSetComposition(Node* node) {
     return;
   }
 
-  ime_state_axid_ = obj->AXObjectID();
-  ime_state_.has_composition = true;
+  ime_context_axid_ = obj->AXObjectID();
+  ime_context_.has_composition = true;
+  ime_context_.ime_state = ime_state;
 }
 
 void AXObjectCacheImpl::HandleCommitText(Node* node,
@@ -5186,8 +5188,8 @@ void AXObjectCacheImpl::HandleCommitText(Node* node,
     return;
   }
 
-  ime_state_axid_ = obj->AXObjectID();
-  ime_state_.committed_text_length = committed_text_length;
+  ime_context_axid_ = obj->AXObjectID();
+  ime_context_.committed_text_length = committed_text_length;
 
   // Text commit might cause no text value changes.
   MarkAXObjectDirty(obj);
@@ -6266,7 +6268,7 @@ void AXObjectCacheImpl::GetUpdatesAndEventsForSerialization(
       continue;
     }
 
-    if (!base::Contains(already_serialized_ids, event.id)) {
+    if (!already_serialized_ids.Contains(event.id)) {
       // Node no longer exists or could not be serialized.
       // Kept here for convenient debugging:
       // DVLOG(1) << "Dropped AXEvent: " << event.event_type << " on "

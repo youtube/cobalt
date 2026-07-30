@@ -193,6 +193,9 @@ class GlicEnabling : public signin::IdentityManager::Observer {
     bool disallowed_by_remote_other : 1 = false;
     bool not_consented : 1 = false;
 
+    // Whether live (audio) functionality is disallowed for this account type.
+    bool live_disallowed : 1 = false;
+
     bool IsProfileEligible() const {
       return !feature_disabled && !not_regular_profile;
     }
@@ -221,15 +224,15 @@ class GlicEnabling : public signin::IdentityManager::Observer {
               !not_consented);
     }
 
+    bool EligibleForLive() const {
+      return IsProfileEligible() && !live_disallowed;
+    }
+
     bool DisallowedByAdmin() const {
       return disallowed_by_chrome_policy || disallowed_by_remote_admin;
     }
   };
   static ProfileEnablement EnablementForProfile(Profile* profile);
-
-  // Whether the user's country and locale are in a location that Glic is rolled
-  // out to.
-  static bool IsInRolloutLocation();
 
   explicit GlicEnabling(Profile* profile,
                         ProfileAttributesStorage* profile_attributes_storage);

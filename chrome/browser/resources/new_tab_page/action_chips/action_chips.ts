@@ -68,12 +68,14 @@ export class ActionChipsElement extends CrLitElement {
         type: Boolean,
         reflect: true,
       },
+      showBackground: {type: Boolean, reflect: true},
     };
   }
 
   private handler: ActionChipsHandlerInterface;
   private callbackRouter: PageCallbackRouter;
   protected accessor actionChips_: ActionChip[] = [];
+  accessor showBackground: boolean = false;
   protected accessor showSimplifiedUI_: boolean =
       loadTimeData.getBoolean('ntpNextShowSimplificationUIEnabled');
   private onActionChipChangedListenerId_: number|null = null;
@@ -239,7 +241,8 @@ export class ActionChipsElement extends CrLitElement {
     }
     const url = new URL(chip.tab.url.url);
     const domain = url.hostname.replace(/^www\./, '');
-    return `${chip.title} - ${domain}`;
+    return `${this.showSimplifiedUI_ ? chip.suggestion : chip.title} - ${
+        domain}`;
   }
 
   protected isDeepDiveChip_(chip: ActionChip) {

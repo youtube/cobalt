@@ -473,12 +473,17 @@ component("net") {
     "cookies/static_cookie_policy.h",
     "cookies/unique_cookie_key.cc",
     "cookies/unique_cookie_key.h",
+    "device_bound_sessions/challenge_result.h",
     "device_bound_sessions/cookie_craving_display.cc",
     "device_bound_sessions/cookie_craving_display.h",
     "device_bound_sessions/deletion_reason.h",
     "device_bound_sessions/inclusion_result.h",
     "device_bound_sessions/session_access.cc",
     "device_bound_sessions/session_access.h",
+    "device_bound_sessions/session_display.cc",
+    "device_bound_sessions/session_display.h",
+    "device_bound_sessions/session_event.cc",
+    "device_bound_sessions/session_event.h",
     "device_bound_sessions/session_inclusion_rules_display.cc",
     "device_bound_sessions/session_inclusion_rules_display.h",
     "device_bound_sessions/session_key.cc",
@@ -711,6 +716,8 @@ component("net") {
     "http/http_stream_parser.h",
     "http/http_stream_pool.cc",
     "http/http_stream_pool.h",
+    "http/http_stream_pool_attempt.cc",
+    "http/http_stream_pool_attempt.h",
     "http/http_stream_pool_attempt_manager.cc",
     "http/http_stream_pool_attempt_manager.h",
     "http/http_stream_pool_group.cc",
@@ -2342,6 +2349,10 @@ static_library("test_support") {
     "//third_party/zlib",
   ]
 
+  if (chrome_root_store_supported) {
+    deps += [ "//net/cert:root_store_proto_lite" ]
+  }
+
   allow_circular_includes_from = [ "//net/dns:test_support" ]
 
   # Data dependencies shared with suites other than net_unittests.
@@ -2915,6 +2926,7 @@ target(_test_target_type, "net_unittests") {
     "http/http_stream_key_unittest.cc",
     "http/http_stream_parser_unittest.cc",
     "http/http_stream_pool_attempt_manager_unittest.cc",
+    "http/http_stream_pool_attempt_unittest.cc",
     "http/http_stream_pool_group_unittest.cc",
     "http/http_stream_pool_ip_endpoint_state_tracker_unittest.cc",
     "http/http_stream_request_unittest.cc",
@@ -4290,6 +4302,17 @@ fuzzer_test("net_quic_session_pool_fuzzer") {
     "//net",
     "//net/data/ssl/certificates:generate_fuzzer_cert_includes",
   ]
+}
+
+if (is_apple) {
+  fuzzer_test("net_url_conversions_fuzzer") {
+    sources = [ "base/apple/url_conversions_fuzzer.mm" ]
+    deps = [
+      "//base",
+      "//net",
+    ]
+    frameworks = [ "Foundation.framework" ]
+  }
 }
 
 if (is_linux || is_chromeos) {

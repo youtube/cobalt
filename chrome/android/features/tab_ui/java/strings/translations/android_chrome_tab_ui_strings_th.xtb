@@ -128,6 +128,7 @@
 <translation id="5446043142172831860">นำแท็บออกและออกจากกลุ่ม</translation>
 <translation id="5490235265819901748">ขยายกลุ่มแท็บแล้ว</translation>
 <translation id="5494920125229734069">เลือกทั้งหมด</translation>
+<translation id="5505998972479309757">{LIMIT_COUNT,plural, =1{เพิ่มไฟล์ แท็บ หรือรูปภาพได้สูงสุด <ph name="LIMIT_COUNT_ONE" /> รายการ}other{เพิ่มไฟล์ แท็บ หรือรูปภาพได้สูงสุด <ph name="LIMIT_COUNT_MANY" /> รายการ}}</translation>
 <translation id="5551694449008560081">{NUMBER_OF_TABS,plural, =1{ปิดกลุ่มแท็บที่มี <ph name="TABS_COUNT_ONE" /> แท็บ สี<ph name="COLOR_NAME" />}other{ปิดกลุ่มแท็บที่มี <ph name="TABS_COUNT_MANY" /> แท็บ สี<ph name="COLOR_NAME" />}}</translation>
 <translation id="5556417849629758491">ดูข้อมูลร้านค้า ตัวเลือกจะอยู่ตรงบริเวณด้านบนของหน้าจอ</translation>
 <translation id="5627941783489838464">ไม่มีการอัปเดตแท็บ</translation>
@@ -223,7 +224,6 @@
 <translation id="8428213095426709021">การตั้งค่า</translation>
 <translation id="855081842937141170">ปักหมุดแท็บ</translation>
 <translation id="8633025649649592204">กิจกรรมล่าสุด</translation>
-<translation id="8635822281281406185">เพิ่มไฟล์ แท็บ หรือรูปภาพได้สูงสุด 10 รายการ</translation>
 <translation id="8712637175834984815">รับทราบ</translation>
 <translation id="8714939927607906138">ราคาต่ำกว่า</translation>
 <translation id="8730621377337864115">เสร็จสิ้น</translation>

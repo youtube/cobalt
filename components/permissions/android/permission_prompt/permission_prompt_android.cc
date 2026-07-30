@@ -77,7 +77,7 @@ PermissionPromptAndroid::GetEmbeddedPromptVariant() const {
   return EmbeddedPermissionPromptFlowModel::Variant::kUninitialized;
 }
 
-void PermissionPromptAndroid::Closing() {
+void PermissionPromptAndroid::Dismiss() {
   delegate_->Dismiss();
 }
 
@@ -91,6 +91,10 @@ void PermissionPromptAndroid::AcceptThisTime() {
 
 void PermissionPromptAndroid::Deny() {
   delegate_->Deny();
+}
+
+void PermissionPromptAndroid::Ignore() {
+  delegate_->Ignore();
 }
 
 void PermissionPromptAndroid::SetManageClicked() {

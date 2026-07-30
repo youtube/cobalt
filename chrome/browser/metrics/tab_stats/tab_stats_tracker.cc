@@ -11,7 +11,6 @@
 
 #include "base/check.h"
 #include "base/check_deref.h"
-#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/functional/function_ref.h"
 #include "base/memory/raw_ptr.h"
@@ -59,11 +58,11 @@
 #include "chrome/browser/resource_coordinator/tab_lifecycle_unit_source.h"
 #include "chrome/browser/resource_coordinator/utils.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_list.h"
-#include "chrome/browser/ui/browser_list_observer.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"  // nogncheck
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"  // nogncheck
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
@@ -355,13 +354,16 @@ class TabStatsTracker::TabWatcher final : public TabModelListObserver,
 
 #else  // !BUILDFLAG(IS_ANDROID)
 
-class TabStatsTracker::TabWatcher final : public BrowserListObserver,
+class TabStatsTracker::TabWatcher final : public BrowserCollectionObserver,
                                           public TabStripModelObserver {
  public:
   explicit TabWatcher(TabStatsTracker& tracker) : tracker_(tracker) {
+    browser_collection_observation_.Observe(
+        GlobalBrowserCollection::GetInstance());
+
     ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
         [this](BrowserWindowInterface* browser) {
-          OnBrowserAdded(browser->GetBrowserForMigrationOnly());
+          OnBrowserCreated(browser);
           TabStripModel* const tab_strip_model = browser->GetTabStripModel();
           for (int i = 0; i < tab_strip_model->count(); ++i) {
             content::WebContents* const web_contents =
@@ -372,19 +374,18 @@ class TabStatsTracker::TabWatcher final : public BrowserListObserver,
           tracker_->OnTabStripNewTabCount(tab_strip_model->count());
           return true;
         });
-    browser_list_observation_.Observe(BrowserList::GetInstance());
   }
 
   ~TabWatcher() final = default;
 
-  // BrowserListObserver:
-  void OnBrowserAdded(Browser* browser) final {
+  // BrowserCollectionObserver:
+  void OnBrowserCreated(BrowserWindowInterface* browser) final {
     tracker_->OnTabStripAdded();
-    browser->tab_strip_model()->AddObserver(this);
+    // TODO(crbug.com/452120900): TabStripModel auto-unregistered by dtor
+    browser->GetTabStripModel()->AddObserver(this);
   }
 
-  void OnBrowserRemoved(Browser* browser) final {
-    browser->tab_strip_model()->RemoveObserver(this);
+  void OnBrowserClosed(BrowserWindowInterface* browser) final {
     tracker_->OnTabStripRemoved();
   }
 
@@ -405,8 +406,8 @@ class TabStatsTracker::TabWatcher final : public BrowserListObserver,
 
  private:
   raw_ref<TabStatsTracker> tracker_;
-  base::ScopedObservation<BrowserList, BrowserListObserver>
-      browser_list_observation_{this};
+  base::ScopedObservation<GlobalBrowserCollection, BrowserCollectionObserver>
+      browser_collection_observation_{this};
 };
 
 #endif  // !BUILDFLAG(IS_ANDROID)
@@ -742,7 +743,7 @@ void TabStatsTracker::OnInitialOrInsertedTab(
   // If we already have a WebContentsObserver for this tab then it means that
   // it's already tracked and it's being dragged into a new window, there's
   // nothing to do here.
-  if (!base::Contains(web_contents_usage_observers_, web_contents)) {
+  if (!web_contents_usage_observers_.contains(web_contents)) {
     for (TabStatsObserver& tab_stats_observer : tab_stats_observers_) {
       tab_stats_observer.OnTabAdded(web_contents);
     }
@@ -767,7 +768,7 @@ void TabStatsTracker::OnTabReplaced(content::WebContents* old_contents,
 void TabStatsTracker::OnWebContentsDestroyed(
     content::WebContents* web_contents) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(base::Contains(web_contents_usage_observers_, web_contents));
+  DCHECK(web_contents_usage_observers_.contains(web_contents));
   web_contents_usage_observers_.erase(
       web_contents_usage_observers_.find(web_contents));
   for (TabStatsObserver& tab_stats_observer : tab_stats_observers_) {

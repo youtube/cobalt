@@ -57,10 +57,12 @@ extern const base::FeatureParam<bool> kShowContextMenuDescription;
 extern const base::FeatureParam<bool> kEnableEphemeralContextMenuDescription;
 // Whether or not to enable viewport images with page context uploads.
 extern const base::FeatureParam<bool> kEnableViewportImages;
-// Whether to show the tools and models picker in the composebox.
+// Whether to show the tools and models in the composebox.
 extern const base::FeatureParam<bool> kShowToolsAndModels;
-// Whether to show the create image button in the composebox context menu.
-extern const base::FeatureParam<bool> kShowCreateImageTool;
+// Whether to show canvas in the composebox.
+extern const base::FeatureParam<bool> kShowCanvas;
+// Whether to show the model picker in the composebox.
+extern const base::FeatureParam<bool> kShowModelPicker;
 // Whether to allow drag and drop files on composebox
 extern const base::FeatureParam<bool> kEnableContextDragAndDrop;
 
@@ -80,6 +82,8 @@ extern const base::FeatureParam<bool> kCloseComposeboxByClickOutside;
 extern const base::FeatureParam<bool> kAddTabUploadDelayOnRecentTabChipClick;
 // Whether to trap tab focus within the composebox.
 extern const base::FeatureParam<bool> kEnableModalComposebox;
+// Whether to show the AIM threads rail when composebox is open.
+extern const base::FeatureParam<bool> kEnableThreadsRail;
 
 bool IsNtpComposeboxEnabled(Profile* profile);
 

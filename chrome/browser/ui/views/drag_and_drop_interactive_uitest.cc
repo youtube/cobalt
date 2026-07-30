@@ -780,7 +780,8 @@ class DragAndDropBrowserTest : public InProcessBrowserTest,
   void SetUp() override {
     // Ensure PreserveDropEffect is enabled for DragAndDropBrowserTest.
     feature_list_.InitWithFeaturesAndParameters(
-        {{blink::features::kPreserveDropEffect, {}}},
+        {{blink::features::kPreserveDropEffect, {}},
+         {blink::features::kSetDefaultDropEffect, {}}},
         {blink::features::kSupportOpeningDraggedLinksInSameTab});
     InProcessBrowserTest::SetUp();
   }
@@ -1195,23 +1196,10 @@ IN_PROC_BROWSER_TEST_P(DragAndDropBrowserTest, DropValidUrlFromOutside) {
 class DragAndDropDragLinksInSameTabBrowserTest : public DragAndDropBrowserTest {
  public:
   void SetUp() override {
-    // TODO(crbug.com/394369035): The parameters for the width of the drop
-    // targets have not been determined yet, and may interfere with the tests
-    // below by shifting the contents around.
-    // These overrides should be removed once the parameters are finalized.
-    //
     // Ensure PreserveDropEffect is enabled based on the setting of parent class
     // DragAndDropBrowserTest.
     feature_list_.InitWithFeaturesAndParameters(
-        {{features::kSideBySide,
-          {{features::kSideBySideDropTargetMinWidth.name, "0"},
-           {features::kSideBySideDropTargetMaxWidth.name, "0"}}},
-         {features::kSideBySideDropTargetNudge,
-          {{features::kSideBySideDropTargetNudgeMinWidth.name, "0"},
-           {features::kSideBySideDropTargetNudgeMaxWidth.name, "0"},
-           {features::kSideBySideDropTargetNudgeToFullMinWidth.name, "0"},
-           {features::kSideBySideDropTargetNudgeToFullMaxWidth.name, "0"}}},
-         {blink::features::kPreserveDropEffect, {}},
+        {{blink::features::kPreserveDropEffect, {}},
          {blink::features::kSupportOpeningDraggedLinksInSameTab, {}}},
         {});
     InProcessBrowserTest::SetUp();
@@ -1776,7 +1764,7 @@ void DragAndDropBrowserTest::DragImageBetweenFrames_Step2(
       // (these coordinates are relative to the right frame).
       state->expected_dom_event_data.set_expected_client_position("(155, 150)");
       state->expected_dom_event_data.set_expected_page_position("(155, 150)");
-      state->expected_dom_event_data.set_expected_drop_effect("copy");
+      state->expected_dom_event_data.set_expected_drop_effect("move");
 
       EXPECT_TRUE(
           dragenter_event_waiter.WaitForNextMatchingEvent(&dragenter_event));

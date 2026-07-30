@@ -88,7 +88,7 @@ class ImmersiveModeControllerChromeosTest : public TestWithBrowserView {
 TEST_F(ImmersiveModeControllerChromeosTest, Layout) {
   AddTab(browser(), GURL("about:blank"));
 
-  TabStrip* tabstrip = browser_view()->tabstrip();
+  TabStrip* tabstrip = browser_view()->horizontal_tab_strip_for_testing();
   ToolbarView* toolbar = browser_view()->toolbar();
   views::WebView* contents_web_view = browser_view()->contents_web_view();
 
@@ -106,8 +106,8 @@ TEST_F(ImmersiveModeControllerChromeosTest, Layout) {
   EXPECT_TRUE(browser_view()->GetWidget()->IsFullscreen());
   EXPECT_TRUE(controller()->IsEnabled());
   EXPECT_FALSE(controller()->IsRevealed());
-  EXPECT_FALSE(toolbar->GetVisible());
   // The browser's top chrome is completely offscreen with tapstrip visible.
+  EXPECT_TRUE(toolbar->GetVisible());
   EXPECT_TRUE(tabstrip->GetVisible());
   // Tabstrip and top container view should be completely offscreen.
   // Because of the split of tabstrip from top_container, the tabstrip must be
@@ -160,10 +160,11 @@ TEST_F(ImmersiveModeControllerChromeosTest, Layout) {
   // both immersive and tab fullscreen.
   EXPECT_EQ(0, GetBoundsInWidget(contents_web_view).y());
 
-  // Hide the top-of-window views. Tabstrip is still considered as visible.
+  // Hide the top-of-window views. Tabstrip/toolbar are still considered as
+  // visible.
   AttemptUnreveal();
   EXPECT_FALSE(controller()->IsRevealed());
-  EXPECT_FALSE(toolbar->GetVisible());
+  EXPECT_TRUE(toolbar->GetVisible());
   EXPECT_TRUE(tabstrip->GetVisible());
 
   // The web contents should still be flush with the edge of the widget.
@@ -250,7 +251,7 @@ TEST_F(ImmersiveModeControllerChromeosTest, ExitUponRestore) {
 TEST_F(ImmersiveModeControllerChromeosTest, LayeredSpinners) {
   AddTab(browser(), GURL("about:blank"));
 
-  TabStrip* tabstrip = browser_view()->tabstrip();
+  TabStrip* tabstrip = browser_view()->horizontal_tab_strip_for_testing();
 
   // Immersive fullscreen starts out disabled; layers are OK.
   EXPECT_FALSE(browser_view()->GetWidget()->IsFullscreen());

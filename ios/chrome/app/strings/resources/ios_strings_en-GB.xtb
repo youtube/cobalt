@@ -75,6 +75,7 @@
 <translation id="1272079795634619415">Stop</translation>
 <translation id="1273416271143914096">{count,plural, =1{{count} password}other{{count} passwords}}</translation>
 <translation id="1275718070701477396">Selected</translation>
+<translation id="1279024913354609713">Don't allow</translation>
 <translation id="1285320974508926690">Never translate this site</translation>
 <translation id="1287229685519872919">Google Workspace data</translation>
 <translation id="1291506870746876680"><ph name="BEGIN_BOLD" />'<ph name="SITE_NAME" />'<ph name="END_BOLD" /> permissions will reset to off when you leave this site.</translation>
@@ -456,6 +457,7 @@
 <translation id="2669454659051515572">Anyone using this device can see downloaded files</translation>
 <translation id="2671423594960767771">Share group</translation>
 <translation id="2673508731173059946">Visit copied link</translation>
+<translation id="2679659833697380">Your info is saved to your device</translation>
 <translation id="2688535388040882469">Banners</translation>
 <translation id="2690858294534178585">Camera is in use</translation>
 <translation id="2691653761409724435">Not available offline</translation>
@@ -657,7 +659,6 @@
 <translation id="3530024057633834563">You don't have any saved passwords or passkeys, but you can delete the list of sites and apps for which you chose to never save sign-in info. Any account that you created for sites and apps won't be deleted.</translation>
 <translation id="3530206579861815432">Quickly find open and recently closed tabs across your synced devices.</translation>
 <translation id="3530767473765895035">Manage accounts on this device…</translation>
-<translation id="353340646084395154">Removed new tab page preferences</translation>
 <translation id="3533436815740441613">New tab</translation>
 <translation id="3540141921715814660">Add to Bookmarks</translation>
 <translation id="3546122170015471515">Maps Preview on Google.com</translation>
@@ -927,7 +928,6 @@
 <translation id="4601095002996233687">In-depth scans for suspicious downloads.</translation>
 <translation id="4606247758155004938">Your browser is managed by your organisation.</translation>
 <translation id="4607887340472970274">Price tracking</translation>
-<translation id="461440297010471931">Searching with Google</translation>
 <translation id="4619564267100705184">Verify that it's you</translation>
 <translation id="4621768135601674446">Open reading mode options</translation>
 <translation id="4627107755957573804">Allow sites and apps to upgrade existing accounts to use passkeys</translation>
@@ -953,6 +953,7 @@
 <translation id="4673565891421389203">Signing in with your managed account helps you keep browsing related to your organisation (including tabs, history and passwords) separate from your other browsing.
 
        Choose what to do with the existing browsing data on this device.</translation>
+<translation id="4675298276894277358">This site won't be shown again</translation>
 <translation id="4682496302933121474">Translate page?</translation>
 <translation id="4682686630151240767">1. Open iPhone settings</translation>
 <translation id="4691892551491778176">When you use this feature, page content and URLs are sent to Google but won't be used to improve generative AI models. You can turn this off in settings at any time.</translation>
@@ -966,6 +967,7 @@
 <translation id="472259426228234149">Price $100–$180</translation>
 <translation id="4735849923335729414">Sign in as <ph name="EMAIL" />, managed by your organisation.</translation>
 <translation id="473775607612524610">Update</translation>
+<translation id="4738968082443868320">Google Drive</translation>
 <translation id="474209246745757965">Shop and translate with your camera</translation>
 <translation id="4742407542027196863">Manage passwords…</translation>
 <translation id="4744428388659507035">To get your bookmarks on all your devices, turn on 'Bookmarks' in Settings.</translation>
@@ -1055,6 +1057,7 @@
 <translation id="5021500396464456616">Contact the person who sent this link</translation>
 <translation id="5039804452771397117">Allow</translation>
 <translation id="5050810143224996149">Share password</translation>
+<translation id="5052499409147950210">Edit site</translation>
 <translation id="5055015094595227120">Precise location</translation>
 <translation id="5055551113846164633">This deletes addresses saved on this device. It also deletes addresses saved in your Google Account <ph name="USER_EMAIL" />.</translation>
 <translation id="5056446788882570708">Issues found <ph name="TIME" />.</translation>
@@ -1133,6 +1136,7 @@
 <translation id="5295239312320826323">Remove account <ph name="USER_EMAIL" />?</translation>
 <translation id="5300589172476337783">Show</translation>
 <translation id="5311061401280561833">Camera and microphone access allowed</translation>
+<translation id="5313967007315987356">Add site</translation>
 <translation id="5315870524563628285">Nothing to import</translation>
 <translation id="5316356981864168850"><ph name="INDEX" /> of <ph name="NUM_SUGGESTIONS" /></translation>
 <translation id="5317780077021120954">Save</translation>
@@ -1150,7 +1154,6 @@
 <translation id="537853552771686272">Manage the topics and sites that you're interested in</translation>
 <translation id="5390458669633674385">{count,plural, =1{{count} closed}other{{count} closed}}</translation>
 <translation id="5394975111793637642">Hide product reviews for you card</translation>
-<translation id="5407806496954700135">Would you like to apply your new tab page customisations from another device?</translation>
 <translation id="5414763847370083940">You'll get an alert if the price drops on any site.</translation>
 <translation id="5415289094036440596">Passkeys can't be shared</translation>
 <translation id="5416455648658732408">Move to tab group</translation>
@@ -1202,7 +1205,6 @@ Handoff must also be enabled in the General section of Settings, and your device
 <translation id="5579012242779565775">Hide reading list</translation>
 <translation id="5581786858144165447">Ask AI Mode</translation>
 <translation id="5585019845078534178">Cards</translation>
-<translation id="5589976607021609750">Attached image</translation>
 <translation id="5595485650161345191">Edit address</translation>
 <translation id="559567008082979829">Set your downloads to be deleted after one month.</translation>
 <translation id="5596627076506792578">More options</translation>
@@ -1360,7 +1362,6 @@ Handoff must also be enabled in the General section of Settings, and your device
 <translation id="6122191549521593678">Online</translation>
 <translation id="6122831415929794347">Turn off Safe Browsing?</translation>
 <translation id="6123514585040403489">Your tabs will be closed</translation>
-<translation id="6127379762771434464">Item removed</translation>
 <translation id="6136914049981179737">Seconds ago</translation>
 <translation id="6138324221869147340">Some features are no longer available</translation>
 <translation id="6140600850356225166">Ask to open links from other apps in Incognito</translation>
@@ -1796,7 +1797,6 @@ Handoff must also be enabled in the General section of Settings, and your device
 <translation id="7696316012653762532">Options to translate the page</translation>
 <translation id="7700527812567437847">Search screen with Google Lens</translation>
 <translation id="7701040980221191251">None</translation>
-<translation id="7708668404222666001">Applied your new tab page preferences</translation>
 <translation id="7708994397325774423">Get all your passwords</translation>
 <translation id="7711440461521638739">You're not reusing any passwords</translation>
 <translation id="7712361583414030698">Viewing offline version</translation>
@@ -2128,6 +2128,7 @@ Handoff must also be enabled in the General section of Settings, and your device
 <translation id="8856643812068084733">Archives</translation>
 <translation id="8863067612494559785">Sending to <ph name="DEVICE_NAME" />…</translation>
 <translation id="8863431381414769983">Get directions and local info from Google Maps</translation>
+<translation id="8867879594900082274">Your edits will only apply to your pinned sites on this device.</translation>
 <translation id="8871974300055371298">Content settings</translation>
 <translation id="8877788021141246043">Set a reminder</translation>
 <translation id="8879604564928138696">Double tap to try</translation>

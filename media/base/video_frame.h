@@ -32,7 +32,6 @@
 #include "build/build_config.h"
 #include "crypto/hash.h"
 #include "gpu/command_buffer/client/client_shared_image.h"
-#include "gpu/command_buffer/common/mailbox_holder.h"
 #include "media/base/video_frame_layout.h"
 #include "media/base/video_frame_metadata.h"
 #include "media/base/video_types.h"
@@ -477,11 +476,10 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   // Returns true if the VideoFrame is backed by a MappableSharedImage.
   bool HasMappableSharedImage() const;
 
-  // Returns true if the GpuMemoruBuffer backing the video frame is native
-  // buffer and not shared memory buffer. A native GPU memory buffer is a
-  // block of memory that is allocated and managed directly on the GPU's
-  // memory which allows for hardware acceleration.
-  bool HasNativeGpuMemoryBuffer() const;
+  // Returns true if the MappableSharedImage backing the video frame is native,
+  // i.e., a block of memory that is allocated and managed directly on the GPU's
+  // memory (rather than being shared memory).
+  bool HasNativeMappableSharedImage() const;
 
   // Returns true if the underlying SharedImage can be mapped truly
   // asynchronously: with an unblocking request to the GPU process.
@@ -499,9 +497,7 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
 
   // Returns the color space of this frame's content.
   gfx::ColorSpace ColorSpace() const;
-  void set_color_space(const gfx::ColorSpace& color_space) {
-    color_space_ = color_space;
-  }
+  void set_color_space(const gfx::ColorSpace& color_space);
 
   // Return the full-range RGB component of the color space of this frame's
   // content. This will replace several color spaces (Rec601, Rec709, and

@@ -11,17 +11,46 @@ export enum LineFocusType {
 }
 
 export class LineFocus {
-  static readonly OFF = new LineFocus(LineFocusType.NONE, 0);
-  static readonly ONE_LINE_WINDOW = new LineFocus(LineFocusType.WINDOW, 1);
-  static readonly THREE_LINE_WINDOW = new LineFocus(LineFocusType.WINDOW, 3);
-  static readonly FIVE_LINE_WINDOW = new LineFocus(LineFocusType.WINDOW, 5);
-  static readonly STATIC_LINE = new LineFocus(LineFocusType.LINE, 1, true);
-  static readonly CURSOR_LINE = new LineFocus(LineFocusType.LINE, 1);
+  static readonly OFF = new LineFocus(
+      LineFocusType.NONE, 0, () => chrome.readingMode.lineFocusOff);
+  static readonly ONE_LINE_WINDOW = new LineFocus(
+      LineFocusType.WINDOW, 1, () => chrome.readingMode.lineFocusOneLineWindow);
+  static readonly THREE_LINE_WINDOW = new LineFocus(
+      LineFocusType.WINDOW, 3,
+      () => chrome.readingMode.lineFocusThreeLineWindow);
+  static readonly FIVE_LINE_WINDOW = new LineFocus(
+      LineFocusType.WINDOW, 5,
+      () => chrome.readingMode.lineFocusFiveLineWindow);
+  static readonly STATIC_LINE = new LineFocus(
+      LineFocusType.LINE, 1, () => chrome.readingMode.lineFocusStaticLine);
+  static readonly CURSOR_LINE = new LineFocus(
+      LineFocusType.LINE, 1, () => chrome.readingMode.lineFocusCursorLine);
 
-  // Private constructor prevents others from creating new options
+  private static readonly VALUES = [
+    LineFocus.OFF,
+    LineFocus.ONE_LINE_WINDOW,
+    LineFocus.THREE_LINE_WINDOW,
+    LineFocus.FIVE_LINE_WINDOW,
+    LineFocus.STATIC_LINE,
+    LineFocus.CURSOR_LINE,
+  ] as const;
+
+  // Private constructor prevents others from creating new options.
+  // enumValue is a function because that value can change in tests after the
+  // LineFocus values are already initialized.
   private constructor(
       public readonly type: LineFocusType, public readonly lines: number,
-      public readonly isStatic: boolean = false) {}
+      public readonly enumValue: () => number) {}
+
+  static fromEnumValue(enumValue: number): LineFocus|undefined {
+    return this.VALUES.find(value => value.enumValue() === enumValue);
+  }
+
+  // TODO(crbug.com/447427066): Finalize the default mode. This is a
+  // placeholder.
+  static defaultValue(): LineFocus {
+    return this.THREE_LINE_WINDOW;
+  }
 }
 
 // Events emitted from the toolbar to the app
@@ -46,6 +75,9 @@ export enum ToolbarEvent {
   VOICE_MENU_OPEN = 'voice-menu-open',
   VOICE_MENU_CLOSE = 'voice-menu-close',
   LINE_FOCUS = 'line-focus-change',
+  CLOSE_ALL_MENUS = 'close-all-menus',
+  OPEN_SETTINGS_SUBMENU = 'open-settings-submenu',
+  PRESENTATION_CHANGE = 'presentation-change',
 }
 
 // The available menu items in Reading mode
@@ -58,7 +90,7 @@ export enum SettingsOption {
   LINE_FOCUS = 'line-focus',
   LINE_SPACING = 'line-spacing',
   LINKS = 'links',
-  VIEW = 'view',
+  PRESENTATION = 'presentation',
   VOICE_HIGHLIGHT = 'voice-highlight',
   VOICE_SELECTION = 'voice-selection',
 }
@@ -73,7 +105,20 @@ export interface SettingsPrefs {
   font: string;
   highlightGranularity: number;
   lineFocus: number;
+  linksEnabled: boolean;
+  imagesEnabled: boolean;
 }
+export const DEFAULT_SETTINGS: SettingsPrefs = {
+  letterSpacing: 0,
+  lineSpacing: 0,
+  theme: 0,
+  speechRate: 0,
+  font: '',
+  highlightGranularity: 0,
+  lineFocus: 0,
+  linksEnabled: false,
+  imagesEnabled: false,
+};
 
 export interface ShowAtConfigPrefs {
   anchorAlignmentX?: AnchorAlignment;

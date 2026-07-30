@@ -337,6 +337,17 @@ export class ModulesElement extends CrLitElement {
     }
   }
 
+  private recordModuleAutoRemovalMetrics_(
+      moduleIds: string[], disabled: boolean) {
+    const histogramBase = disabled ? 'NewTabPage.Modules.AutoRemoval' :
+                                     'NewTabPage.Modules.AutoRemovalUndone';
+
+    recordOccurrence(histogramBase);
+    for (const moduleId of moduleIds) {
+      recordSparseValueWithPersistentHash(`${histogramBase}ModuleId`, moduleId);
+    }
+  }
+
   /**
    * Handles the the auto-removal of stale modules, which are defined as modules
    * that have not been interacted with by the user within a certain period of
@@ -359,11 +370,15 @@ export class ModulesElement extends CrLitElement {
           loadTimeData.getString('modulesInactivityRemovalMsg');
 
       this.pendingAutoRemovedModules_ = moduleIds;
-      this.pageHandler_.setModulesDisabled(moduleIds, /*disabled=*/ true);
+      this.pageHandler_.setModulesDisabled(
+          moduleIds, /*disabled=*/ true, /*is_user_action=*/ false);
+      this.recordModuleAutoRemovalMetrics_(moduleIds, /*disabled=*/ true);
       this.fire('modules-auto-removed', {
         message: undoToastMessage,
         undo: () => {
-          this.pageHandler_.setModulesDisabled(moduleIds, /*disabled=*/ false);
+          this.pageHandler_.setModulesDisabled(
+              moduleIds, /*disabled=*/ false, /*is_user_action=*/ true);
+          this.recordModuleAutoRemovalMetrics_(moduleIds, /*disabled=*/ false);
         },
       });
     }
@@ -501,14 +516,16 @@ export class ModulesElement extends CrLitElement {
         if (restoreCallback) {
           restoreCallback();
         }
-        this.pageHandler_.setModuleDisabled(id, false);
+        this.pageHandler_.setModulesDisabled(
+            [id], /*disabled=*/ false, /*is_user_action=*/ true);
         recordSparseValueWithPersistentHash('NewTabPage.Modules.Enabled', id);
         recordSparseValueWithPersistentHash(
             'NewTabPage.Modules.Enabled.Toast', id);
       },
     };
 
-    this.pageHandler_.setModuleDisabled(id, true);
+    this.pageHandler_.setModulesDisabled(
+        [id], /*disabled=*/ true, /*is_user_action=*/ true);
     this.$.undoToast.show();
     recordSparseValueWithPersistentHash(METRIC_NAME_MODULE_DISABLED, id);
     recordSparseValueWithPersistentHash(

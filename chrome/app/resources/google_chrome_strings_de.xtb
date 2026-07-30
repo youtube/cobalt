@@ -270,6 +270,7 @@
 <translation id="3885770153807205175">Sprachauswahl</translation>
 <translation id="3889417619312448367">Google Chrome deinstallieren</translation>
 <translation id="3892148308691398805">Text kopieren</translation>
+<translation id="3893985792899396936">Chrome-Tipp: Mit Lens suchen</translation>
 <translation id="3906096710440765802">Melde dich in Chrome an, um Daten wie Passwörter und Lesezeichen auf allen deinen Geräten zu nutzen</translation>
 <translation id="3921132130819999051">Chrome für dich suchen lassen</translation>
 <translation id="3941890832296813527">Installationsfehler: Der Dateiname des Installationsprogramms ist ungültig oder wird nicht unterstützt.</translation>
@@ -311,7 +312,6 @@
 <translation id="4329315893554541805">Zur Personalisierung und für andere Funktionen musst du Chrome in die Web- &amp; App-Aktivitäten und in die verknüpften Google-Dienste aufnehmen</translation>
 <translation id="4334241893986177674">In diesem Screenshot suchen</translation>
 <translation id="4334294535648607276">Download abgeschlossen.</translation>
-<translation id="4337324600316876133">Du benötigst macOS 12 oder höher, um zukünftige Google Chrome-Updates zu erhalten. Auf diesem Computer wird macOS 11 ausgeführt.</translation>
 <translation id="4343195214584226067"><ph name="EXTENSION_NAME" /> wurde zu Chrome hinzugefügt</translation>
 <translation id="4344128547036991536">Wenn du Google Lens öffnest, werden der Seitentitel, die URL und der Inhalt, einschließlich PDFs, automatisch an Google gesendet. <ph name="LEARN_MORE" /></translation>
 <translation id="4348548358339558429">Für die Personalisierung musst du Chrome in die Web- &amp; App-Aktivitäten aufnehmen</translation>
@@ -482,6 +482,7 @@ Diese Aktion wirkt sich nicht auf Lesezeichen, gespeicherte Passwörter und den 
 <translation id="6180522807229584611">Dieser Tab verbraucht zusätzliche Ressourcen. Du kannst die Leistung verbessern, wenn du zulässt, dass Chrome ihn deaktiviert.</translation>
 <translation id="6182736845697986886">Die Installation ist aufgrund eines internen Fehlers des Update-Servers fehlgeschlagen.</translation>
 <translation id="6183773856988300112">Gemini in Chrome nutzt die automatische Suche, um Aufgaben auf deinen Tabs zu erledigen. <ph name="LINK_BEGIN" />Weitere Informationen<ph name="LINK_END" /></translation>
+<translation id="6187085551300363958">Chrome-Tipp: Passwörter speichern</translation>
 <translation id="6192058120268468905">Mein Konto in Chrome</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" /> hat eine Erweiterung hinzugefügt, die sich möglicherweise auf die Funktionsweise von Chrome auswirkt.
 
@@ -620,6 +621,7 @@ Diese Aktion wirkt sich nicht auf Lesezeichen, gespeicherte Passwörter und den 
 <translation id="7627609214560473136">Erlaube Chrome zum Schutz deiner Daten, Berechtigungen von Websites zu entfernen, die du in letzter Zeit nicht besucht hast.</translation>
 <translation id="7629695634924605473">Chrome wird dich informieren, sollten deine Passwörter nicht mehr sicher sein</translation>
 <translation id="7641148173327520642">Dein Systemadministrator hat Google Chrome so konfiguriert, dass <ph name="ALTERNATIVE_BROWSER_NAME" /> für den Zugriff auf <ph name="TARGET_URL_HOSTNAME" /> geöffnet wird.</translation>
+<translation id="7641448682796883218">Chrome-Tipp: erweitertes Safe Browsing</translation>
 <translation id="7649070708921625228">Hilfe</translation>
 <translation id="7651907282515937834">Logo von Chrome Enterprise</translation>
 <translation id="76531479118467370">Chrome hat diesen Download blockiert, weil du Safe Browsing deaktiviert hast und die Datei nicht überprüft werden kann</translation>

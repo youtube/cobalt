@@ -51,7 +51,6 @@
 #include "components/autofill/core/common/autofill_util.h"
 #include "components/autofill/core/common/form_data.h"
 #include "components/autofill/core/common/form_field_data.h"
-#include "components/autofill/core/common/mojom/autofill_types.mojom-shared.h"
 #include "components/autofill/core/common/mojom/autofill_types.mojom.h"
 #include "components/autofill/core/common/password_form_fill_data.h"
 #include "components/autofill/core/common/signatures.h"
@@ -833,8 +832,8 @@ void PasswordAutofillAgent::NotifyPasswordManagerAboutUserFieldModification(
 
   GetPasswordManagerDriver().UserModifiedNonPasswordField(
       GetFieldRendererId(element), element_value,
-      base::Contains(autocomplete_attribute,
-                     password_manager::constants::kAutocompleteUsername),
+      autocomplete_attribute.contains(
+          password_manager::constants::kAutocompleteUsername),
       is_likely_otp);
 }
 
@@ -1561,7 +1560,7 @@ bool PasswordAutofillAgent::IsUsernameInputField(
     const WebInputElement& input_element) const {
   return input_element &&
          input_element.FormControlTypeForAutofill() != kInputPassword &&
-         base::Contains(web_input_to_password_info_, FieldRef(input_element));
+         web_input_to_password_info_.contains(FieldRef(input_element));
 }
 
 void PasswordAutofillAgent::ReadyToCommitNavigation(

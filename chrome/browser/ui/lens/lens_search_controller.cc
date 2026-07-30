@@ -31,8 +31,6 @@
 #include "chrome/browser/ui/lens/lens_search_feature_flag_utils.h"
 #include "chrome/browser/ui/lens/lens_searchbox_controller.h"
 #include "chrome/browser/ui/lens/lens_session_metrics_logger.h"
-#include "chrome/browser/ui/promos/ios_promo_trigger_service.h"
-#include "chrome/browser/ui/promos/ios_promo_trigger_service_factory.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_key.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
@@ -40,7 +38,6 @@
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/grit/branded_strings.h"
 #include "components/contextual_tasks/public/features.h"
-#include "components/desktop_to_mobile_promos/features.h"
 #include "components/lens/lens_features.h"
 #include "components/lens/lens_overlay_permission_utils.h"
 #include "components/lens/lens_url_utils.h"
@@ -806,18 +803,18 @@ void LensSearchController::OnThumbnailProcessed(
     bool is_region_selection,
     const std::string& thumbnail_uri) {
   if (should_route_to_contextual_tasks()) {
-    if (!is_region_selection || !thumbnail_created_callback_) {
-      return;
-    }
     // This function returns full viewport thumbnails and region selection
     // thumbnails. Only region search selections should trigger the thumbnail
     // created callback to be run.
-    thumbnail_created_callback_.Run(thumbnail_uri);
-    return;
+    if (is_region_selection && thumbnail_created_callback_) {
+      thumbnail_created_callback_.Run(thumbnail_uri);
+    }
   }
 
-  lens_searchbox_controller_->SetSearchboxThumbnail(thumbnail_uri);
-  if (is_region_selection &&
+  if (lens_searchbox_controller_) {
+    lens_searchbox_controller_->SetSearchboxThumbnail(thumbnail_uri);
+  }
+  if (lens_composebox_controller_ && is_region_selection &&
       lens_overlay_controller_->use_aim_for_visual_search()) {
     lens_composebox_controller_->AddVisualSelectionContext(thumbnail_uri);
   }
@@ -936,7 +933,6 @@ void LensSearchController::HandleStartQueryResponse(
 void LensSearchController::HandleInteractionURLResponse(
     lens::proto::LensOverlayUrlResponse response) {
   lens_overlay_controller_->HandleInteractionURLResponse(response);
-  MaybeShowMobilePromo();
 }
 
 void LensSearchController::OnSuggestInputsReady() {
@@ -1100,16 +1096,3 @@ void LensSearchController::OnPageContextUpdatedForZeroStateRequest(
   }
 }
 
-void LensSearchController::MaybeShowMobilePromo() {
-  if (MobilePromoOnDesktopTypeEnabled(
-          MobilePromoOnDesktopPromoType::kLensPromo)) {
-    IOSPromoTriggerService* service =
-        IOSPromoTriggerServiceFactory::GetForProfile(
-            Profile::FromBrowserContext(
-                tab_->GetContents()->GetBrowserContext()));
-    if (service) {
-      service->NotifyPromoShouldBeShown(
-          desktop_to_mobile_promos::PromoType::kLens);
-    }
-  }
-}

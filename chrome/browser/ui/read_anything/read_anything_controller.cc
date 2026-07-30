@@ -9,9 +9,11 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/read_anything/read_anything_immersive_overlay_view.h"
+#include "chrome/browser/ui/read_anything/read_anything_service.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/contents_container_view.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
@@ -23,6 +25,7 @@
 #include "content/public/browser/page.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/accessibility/accessibility_features.h"
+#include "ui/views/accessibility/view_accessibility.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 // WebContentsObserverInstance
@@ -30,10 +33,12 @@
 WebContentsObserverInstance::WebContentsObserverInstance(
     content::WebContents* web_contents,
     base::RepeatingClosure primary_page_changed_callback,
+    base::RepeatingClosure renderer_crashed_callback,
     base::RepeatingCallback<void(content::Visibility)>
         visibility_changed_callback)
     : content::WebContentsObserver(web_contents),
       primary_page_changed_callback_(primary_page_changed_callback),
+      renderer_crashed_callback_(renderer_crashed_callback),
       visibility_changed_callback_(visibility_changed_callback) {}
 
 WebContentsObserverInstance::~WebContentsObserverInstance() = default;
@@ -46,6 +51,16 @@ void WebContentsObserverInstance::PrimaryPageChanged(content::Page& page) {
 void WebContentsObserverInstance::OnVisibilityChanged(
     content::Visibility visibility) {
   visibility_changed_callback_.Run(visibility);
+}
+
+void WebContentsObserverInstance::PrimaryMainFrameRenderProcessGone(
+    base::TerminationStatus status) {
+  renderer_crashed_callback_.Run();
+}
+
+void WebContentsObserverInstance::OnRendererUnresponsive(
+    content::RenderProcessHost* render_process_host) {
+  renderer_crashed_callback_.Run();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -91,6 +106,7 @@ ReadAnythingController::ReadAnythingController(
       /*primary_page_changed_callback=*/
       base::BindRepeating(&ReadAnythingController::OnMainPagePrimaryPageChanged,
                           base::Unretained(this)),
+      /*renderer_crashed_callback=*/base::DoNothing(),
       /*visibility_changed_callback=*/base::DoNothing());
 }
 
@@ -107,6 +123,11 @@ ReadAnythingController::~ReadAnythingController() {
   // doesn't seem to be reliably called when a tab is closed, so we need to do
   // this here too.
   ReleaseMainContentsCapture();
+
+  // In case this is in an odd state where this controller is getting destructed
+  // while we've set the main webpage as inaccessibile, reset the webpage to be
+  // accessible.
+  SetMainContentsAccessible(/*should_be_accessible=*/true);
 
   // This method is transiently used to reset features that do not handle tab
   // discarding themselves.
@@ -129,11 +150,31 @@ void ReadAnythingController::RemoveObserver(Observer* observer) {
 void ReadAnythingController::OnEntryShown(
     std::optional<ReadAnythingOpenTrigger> trigger) {
   observers_.Notify(&Observer::Activate, true, trigger);
+
+  auto* service =
+      ReadAnythingService::Get(tab_->GetBrowserWindowInterface()->GetProfile());
+  // At the moment, services are created for normal, guest, and incognito
+  // profiles but not unusual profile types. On the other hand,
+  // ReadAnythingController is created for all tabs. Thus we need a
+  // nullptr check.
+  if (service) {
+    service->OnReadAnythingShown();
+  }
 }
 
 void ReadAnythingController::OnEntryHidden() {
   observers_.Notify(&Observer::Activate, false,
                     std::optional<ReadAnythingOpenTrigger>());
+
+  auto* service =
+      ReadAnythingService::Get(tab_->GetBrowserWindowInterface()->GetProfile());
+  // At the moment, services are created for normal, guest, and incognito
+  // profiles but not unusual profile types. On the other hand,
+  // ReadAnythingController is created for all tabs. Thus we need a
+  // nullptr check.
+  if (service) {
+    service->OnReadAnythingHidden();
+  }
 }
 
 void ReadAnythingController::TabWillDetach(
@@ -171,12 +212,34 @@ SidePanelUI* ReadAnythingController::GetSidePanelUI() {
   return tab_->GetBrowserWindowInterface()->GetFeatures().side_panel_ui();
 }
 
+ReadAnythingImmersiveOverlayView*
+ReadAnythingController::GetImmersiveOverlayView() {
+  if (!tab_) {
+    return nullptr;
+  }
+  BrowserView* browser_view =
+      BrowserView::GetBrowserViewForBrowser(tab_->GetBrowserWindowInterface());
+
+  if (!browser_view) {
+    return nullptr;
+  }
+  ContentsContainerView* contents_container_view =
+      browser_view->GetContentsContainerViewFor(tab_->GetContents());
+  if (!contents_container_view) {
+    return nullptr;
+  }
+  return static_cast<ReadAnythingImmersiveOverlayView*>(
+      contents_container_view->read_anything_immersive_overlay_view());
+}
+
 // Lazily creates and returns the WebUIContentsWrapper for Reading Mode.
 std::unique_ptr<WebUIContentsWrapperT<ReadAnythingUntrustedUI>>
 ReadAnythingController::GetOrCreateWebUIWrapper(
     PresentationState web_ui_new_presentation_state) {
   SetPresentationState(web_ui_new_presentation_state);
-  if (!web_ui_wrapper_) {
+  if (should_recreate_web_ui_ || !web_ui_wrapper_) {
+    should_recreate_web_ui_ = false;
+    has_shown_ui_ = false;
     Profile* profile = tab_->GetBrowserWindowInterface()->GetProfile();
     web_ui_wrapper_ =
         std::make_unique<WebUIContentsWrapperT<ReadAnythingUntrustedUI>>(
@@ -185,16 +248,42 @@ ReadAnythingController::GetOrCreateWebUIWrapper(
             /*esc_closes_ui=*/false);
 
     ra_web_ui_observer_ = std::make_unique<WebContentsObserverInstance>(
-        /*web_contents=*/web_ui_wrapper_->web_contents(), base::DoNothing(),
-        /*primary_page_changed_callback=*/
+        /*web_contents=*/web_ui_wrapper_->web_contents(),
+        /*primary_page_changed_callback=*/base::DoNothing(),
+        /*renderer_crashed_callback=*/
+        base::BindRepeating(&ReadAnythingController::OnRendererCrashed,
+                            base::Unretained(this)),
+        /*visibility_changed_callback=*/
         base::BindRepeating(
             &ReadAnythingController::OnReadAnythingVisibilityChanged,
-            /*visibility_changed_callback=*/base::Unretained(this)));
+            base::Unretained(this)));
 
     ReadAnythingControllerGlue::CreateForWebContents(
         web_ui_wrapper_->web_contents(), this);
   }
   return std::move(web_ui_wrapper_);
+}
+
+void ReadAnythingController::RecreateWebUIWrapper() {
+  should_recreate_web_ui_ = true;
+}
+
+void ReadAnythingController::OnRendererCrashed() {
+  // If we determine that the renderer crashed, we need to recreate the WebUI
+  // wrapper and ra_web_ui_observer_ the next time it's accessed. Closing the
+  // WebUI ensures everything is shut down properly so that reopening will
+  // then recreate without issues. This is also how WebUIContentsWrapper handles
+  // crashes (see WebUIContentsWrapper::PrimaryMainFrameRenderProcessGone).
+  RecreateWebUIWrapper();
+  if (GetPresentationState() == PresentationState::kInImmersiveOverlay) {
+    CloseImmersiveUI();
+  } else if (GetPresentationState() == PresentationState::kInSidePanel) {
+    if (SidePanelUI* side_panel_ui = GetSidePanelUI()) {
+      side_panel_ui->Close(SidePanelEntry::PanelType::kContent,
+                           SidePanelEntryHideReason::kSidePanelClosed,
+                           /*suppress_animations=*/true);
+    }
+  }
 }
 
 void ReadAnythingController::SetWebUIWrapperForTest(
@@ -222,22 +311,18 @@ void ReadAnythingController::ShowImmersiveUI(ReadAnythingOpenTrigger trigger) {
     CHECK(side_panel_ui);
     side_panel_ui->Close(SidePanelEntry::PanelType::kContent,
                          SidePanelEntryHideReason::kSidePanelClosed,
-                         /*suppress_animations=*/false);
+                         /*suppress_animations=*/true);
     // Ensure we got the web_ui_wrapper_ back from the Side Panel if one ever
     // existed.
     CHECK(!has_shown_ui_ || web_ui_wrapper_);
   }
 
-  BrowserView* browser_view =
-      BrowserView::GetBrowserViewForBrowser(tab_->GetBrowserWindowInterface());
-
-  if (!browser_view || !browser_view->GetActiveContentsContainerView()) {
+  auto* immersive_overlay_view = GetImmersiveOverlayView();
+  if (!immersive_overlay_view) {
     return;
   }
-  auto* immersive_overlay_view = static_cast<ReadAnythingImmersiveOverlayView*>(
-      browser_view->GetActiveContentsContainerView()
-          ->read_anything_immersive_overlay_view());
-  CHECK(immersive_overlay_view);
+  active_overlay_view_ = immersive_overlay_view;
+
   immersive_overlay_view->ShowUI(
       GetOrCreateWebUIWrapper(PresentationState::kInImmersiveOverlay), trigger);
 }
@@ -260,18 +345,17 @@ void ReadAnythingController::CloseImmersiveUI(bool closed_by_tab_switch) {
     return;
   }
 
-  BrowserView* browser_view =
-      BrowserView::GetBrowserViewForBrowser(tab_->GetBrowserWindowInterface());
-  if (!browser_view || !browser_view->GetActiveContentsContainerView()) {
+  auto* immersive_overlay_view = active_overlay_view_
+                                     ? active_overlay_view_.get()
+                                     : GetImmersiveOverlayView();
+
+  if (!immersive_overlay_view) {
     return;
   }
-  auto* immersive_overlay_view = static_cast<ReadAnythingImmersiveOverlayView*>(
-      browser_view->GetActiveContentsContainerView()
-          ->read_anything_immersive_overlay_view());
-  CHECK(immersive_overlay_view);
 
   std::unique_ptr<WebUIContentsWrapperT<ReadAnythingUntrustedUI>> wrapper =
       immersive_overlay_view->CloseUI();
+  active_overlay_view_ = nullptr;
   // If a tab switch is the reason we're closing immersive mode, we want to
   // set should_show_immersive_on_tab_reactivate_ so we know to activate
   // immersive mode again if the tab becomes active.
@@ -343,10 +427,17 @@ void ReadAnythingController::OnReadAnythingVisibilityChanged(
     // again after being occluded, we tell the renderer that the main webpage
     // needs to be treated as visible even though it's occluded, so it can
     // generate accessibility events we need for RM to function.
+    // We also set the underlying web contents to be not accessible while IRM is
+    // open, so that it won't receive screen reader focus or be navigatable by
+    // keyboard.
     if (GetPresentationState() == PresentationState::kInImmersiveOverlay) {
+      SetMainContentsAccessible(/*should_be_accessible=*/false);
       CaptureMainContentsAsVisible();
     }
   } else {
+    // We want the main web contents to be accessible again if IRM is closed and
+    // the main webpage is now visible.
+    SetMainContentsAccessible(/*should_be_accessible=*/true);
     // We don't need the main web contents treated as visible anymore because
     // Reading Mode is hidden or occluded.
     ReleaseMainContentsCapture();
@@ -370,4 +461,34 @@ void ReadAnythingController::CaptureMainContentsAsVisible() {
 
 void ReadAnythingController::ReleaseMainContentsCapture() {
   main_contents_capturer_handle_.RunAndReset();
+}
+
+void ReadAnythingController::SetMainContentsAccessible(
+    bool should_be_accessible) {
+  if (!tab_) {
+    return;
+  }
+  BrowserView* browser_view =
+      BrowserView::GetBrowserViewForBrowser(tab_->GetBrowserWindowInterface());
+  if (!browser_view) {
+    return;
+  }
+  ContentsContainerView* contents_container_view =
+      browser_view->GetContentsContainerViewFor(tab_->GetContents());
+  if (!contents_container_view) {
+    return;
+  }
+
+  // The contents view is the main web contents view, which is the child of the
+  // ContentsContainerView, and a sibling of the Immersive Overlay.
+  views::View* contents_view =
+      contents_container_view->GetViewByID(VIEW_ID_TAB_CONTAINER);
+  if (contents_view) {
+    // Enable/disable accessibility technology for the main web contents.
+    contents_view->GetViewAccessibility().SetIsIgnored(!should_be_accessible);
+    // Enable/disable keyboard focusability for the main web contents.
+    contents_view->SetFocusBehavior(should_be_accessible
+                                        ? views::View::FocusBehavior::ALWAYS
+                                        : views::View::FocusBehavior::NEVER);
+  }
 }

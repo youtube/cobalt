@@ -275,6 +275,7 @@
 <translation id="3885770153807205175">Избор на јазик</translation>
 <translation id="3889417619312448367">Деинсталирај го Google Chrome</translation>
 <translation id="3892148308691398805">Копирај текст</translation>
+<translation id="3893985792899396936">Совет за Chrome: Пребарувајте со Lens</translation>
 <translation id="3906096710440765802">Најавете се на Chrome за да ги добиете лозинките, обележувачите и друго на сите ваши уреди</translation>
 <translation id="3921132130819999051">Дозволете му на Chrome да прелистува наместо вас</translation>
 <translation id="3941890832296813527">Грешка при инсталирање: името на датотеката на инсталаторот е неважечко или неподдржано.</translation>
@@ -316,7 +317,6 @@
 <translation id="4329315893554541805">За да добиете персонализација и други функции, опфатете го Chrome во „Активноста на интернет и апликации“ и поврзаните услуги на Google</translation>
 <translation id="4334241893986177674">Пребарај ја оваа слика од екранот</translation>
 <translation id="4334294535648607276">Преземањето заврши.</translation>
-<translation id="4337324600316876133">За да добивате идни ажурирања на Google Chrome, потребен ви е macOS 12 или понова верзија. Компјутеров користи macOS 11.</translation>
 <translation id="4343195214584226067"><ph name="EXTENSION_NAME" /> е додадена на Chrome</translation>
 <translation id="4344128547036991536">Кога ќе ја отворите Google Lens, насловот, URL-адресата и содржините на страницата, вклучително и PDF-датотеките, автоматски ќе се испратат до Google. <ph name="LEARN_MORE" /></translation>
 <translation id="4348548358339558429">За да добиете персонализација, опфатете го Chrome во „Активноста на интернет и апликации“</translation>
@@ -491,6 +491,7 @@ Google Chrome не може да ги обнови вашите поставки
 <translation id="6180522807229584611">Картичкава користи дополнителни ресурси. За да се подобри изведбата, дозволете му на Chrome да ја деактивира.</translation>
 <translation id="6182736845697986886">Инсталацијата не успеа поради внатрешна грешка на серверот за ажурирање.</translation>
 <translation id="6183773856988300112">Gemini во Chrome ја користи „Автоматско прелистување“ за да функционира во вашите картички и да ги завршува задачите што му ги задавате. <ph name="LINK_BEGIN" />Дознајте повеќе<ph name="LINK_END" /></translation>
+<translation id="6187085551300363958">Совет за Chrome: Зачувувајте ги лозинките</translation>
 <translation id="6192058120268468905">Вашата сметка во Chrome</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" /> додаде екстензија што може да го промени начинот на функционирање на Chrome.
 
@@ -629,6 +630,7 @@ Google Chrome не може да ги обнови вашите поставки
 <translation id="7627609214560473136">За да ги заштитите вашите податоци, дозволете му на Chrome да ги отстрани дозволите за сајтовите што не сте ги посетиле неодамна.</translation>
 <translation id="7629695634924605473">Chrome ве известува дали вашите лозинки се компромитирани</translation>
 <translation id="7641148173327520642">Системскиот администратор го конфигурирал Google Chrome да отвора <ph name="ALTERNATIVE_BROWSER_NAME" /> за пристап до <ph name="TARGET_URL_HOSTNAME" />.</translation>
+<translation id="7641448682796883218">Совет за Chrome: Подобрено безбедно прелистување</translation>
 <translation id="7649070708921625228">Помош</translation>
 <translation id="7651907282515937834">Лого на Chrome Enterprise</translation>
 <translation id="76531479118467370">Chrome го блокираше преземањево затоа што исклучивте „Безбедно прелистување', па датотеката не може да се потврди</translation>

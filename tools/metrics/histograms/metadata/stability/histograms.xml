@@ -84,7 +84,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ChildProcess.Launched.UtilityProcessHash"
-    enum="UtilityProcessNameHash" expires_after="2026-05-03">
+    enum="UtilityProcessNameHash" expires_after="2026-07-05">
   <owner>wfh@chromium.org</owner>
   <summary>
     Count of child utility process launches, bucketed by the hash of their
@@ -202,7 +202,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.Android.RendererCrash" enum="Boolean"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>wnwen@chromium.org</owner>
   <summary>
     Counts renderer crashes including OOMs. Android only. Mirrors old stability
@@ -324,7 +324,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.ChildFrameCrash.PageEligibleToDiscard"
-    enum="Boolean" expires_after="2026-05-03">
+    enum="Boolean" expires_after="2026-07-05">
   <owner>kawasin@google.com</owner>
   <owner>boliu@chromium.org</owner>
   <summary>
@@ -382,7 +382,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.ChildFrameCrash.Visibility" enum="CrashVisibility"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>alexmos@chromium.org</owner>
   <owner>boliu@chromium.org</owner>
   <owner>lukasza@chromium.org</owner>
@@ -492,25 +492,6 @@ chromium-metrics-reviews@google.com.
   <owner>olivierrobin@chromium.org</owner>
   <summary>
     Records whether Crashpad init was successful. Recorded on every app startup.
-  </summary>
-</histogram>
-
-<histogram name="Stability.IOS.Experimental.Counts2"
-    enum="IOSStabilityUserVisibleTerminationType" expires_after="2026-02-12">
-  <owner>justincohen@chromium.org</owner>
-  <owner>olivierrobin@chromium.org</owner>
-  <summary>
-    Recorded when iOS app has started after a crash caused by system signal or
-    hang. Not recorded when app has started after UTE / XTE or started after
-    Chrome update. See go/bling-stability-101 for information about signal
-    crashes, hangs, UTEs and XTEs. This metric intends to complement
-    Stability.Counts. Stability.Counts does include UTEs / XTEs and thus is a
-    noisy metric which significantly overcounts user-visible crashes.
-    Stability.IOS.Experimental.Counts2 is not recorded on OOM crashes, so it
-    does not represent all user-visible crashes, but OOMs are so rare in Chrome
-    for iOS that Stability.IOS.Experimental.Counts2 is still a good proxy for
-    user-visible crashes. IOS.MetricKit.ForegroundExitData includes OOM crashes
-    (iOS 14 and higher) and can be used in conjunction with this metric.
   </summary>
 </histogram>
 
@@ -710,7 +691,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.MobileSessionShutdownType2"
-    enum="MobileSessionShutdownType" expires_after="2026-05-03">
+    enum="MobileSessionShutdownType" expires_after="2026-07-05">
   <owner>justincohen@chromium.org</owner>
   <owner>bling-fundamentals@google.com</owner>
   <summary>

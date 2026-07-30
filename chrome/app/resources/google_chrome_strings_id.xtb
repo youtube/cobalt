@@ -158,7 +158,7 @@
 <translation id="2742320827292110288">Peringatan: Google Chrome tidak dapat mencegah ekstensi merekam histori penjelajahan Anda. Untuk menonaktifkan ekstensi ini dalam mode Samaran, batalkan pilihan opsi ini.</translation>
 <translation id="2747021967398957654">{count,plural, =1{Beberapa data Chrome Anda belum disimpan di Akun Google Anda. Coba tunggu beberapa menit sebelum logout. Jika Anda logout sekarang, data ini (1 item) akan dihapus.}other{Beberapa data Chrome Anda belum disimpan di Akun Google Anda. Coba tunggu beberapa menit sebelum logout. Jika Anda logout sekarang, data ini ({count} item) akan dihapus.}}</translation>
 <translation id="2753623023919742414">Klik untuk menelusuri</translation>
-<translation id="2757826245013442432">{COUNT,plural, =0{Perlindungan Lanjutan mewajibkan Anda meluncurkan kembali Chrome untuk menerapkan update}=1{Perlindungan Lanjutan mewajibkan Anda meluncurkan kembali Chrome untuk menerapkan update. Jendela Samaran Anda tidak akan dibuka kembali.}other{Perlindungan Lanjutan mewajibkan Anda meluncurkan kembali Chrome untuk menerapkan update. # jendela Samaran Anda tidak akan dibuka kembali.}}</translation>
+<translation id="2757826245013442432">{COUNT,plural, =0{Perlindungan Lanjutan mewajibkan Anda meluncurkan kembali Chrome untuk menerapkan update}=1{Perlindungan Lanjutan mewajibkan Anda meluncurkan kembali Chrome untuk menerapkan update. Jendela Samaran tidak akan dibuka kembali.}other{Perlindungan Lanjutan mewajibkan Anda meluncurkan kembali Chrome untuk menerapkan update. # jendela Samaran tidak akan dibuka kembali.}}</translation>
 <translation id="2765403129283291972">Chrome memerlukan izin akses ke mikrofon untuk situs ini</translation>
 <translation id="2775140325783767197">Chrome tidak dapat memeriksa sandi Anda. Coba periksa koneksi internet Anda.</translation>
 <translation id="2797864378188255696">Saat login ke layanan Google seperti Gmail atau YouTube dengan <ph name="USER_EMAIL" />, Anda dapat login otomatis ke Chrome dengan akun yang sama</translation>
@@ -271,6 +271,7 @@
 <translation id="3885770153807205175">Pemilih bahasa</translation>
 <translation id="3889417619312448367">Hapus Penginstalan Google Chrome</translation>
 <translation id="3892148308691398805">Salin teks</translation>
+<translation id="3893985792899396936">Tips Chrome: Telusuri Dengan Lens</translation>
 <translation id="3906096710440765802">Login ke Chrome untuk mendapatkan sandi, bookmark, dan lainnya di semua perangkat Anda</translation>
 <translation id="3921132130819999051">Izinkan Chrome melakukan penjelajahan untuk Anda</translation>
 <translation id="3941890832296813527">Error penginstalan: Nama file penginstal tidak valid atau tidak didukung.</translation>
@@ -312,7 +313,6 @@
 <translation id="4329315893554541805">Untuk mendapatkan personalisasi dan fitur lainnya, sertakan Chrome dalam Aktivitas Web &amp; Aplikasi serta layanan Google tertaut</translation>
 <translation id="4334241893986177674">Telusuri screenshot ini</translation>
 <translation id="4334294535648607276">Download selesai.</translation>
-<translation id="4337324600316876133">Untuk mendapatkan update Google Chrome berikutnya, Anda memerlukan macOS 12 atau yang lebih baru. Komputer ini menggunakan macOS 11.</translation>
 <translation id="4343195214584226067"><ph name="EXTENSION_NAME" /> telah ditambahkan ke Chrome</translation>
 <translation id="4344128547036991536">Saat Anda membuka Google Lens, judul halaman, URL, dan konten, termasuk PDF, akan otomatis dikirim ke Google. <ph name="LEARN_MORE" /></translation>
 <translation id="4348548358339558429">Untuk mendapatkan personalisasi, sertakan Chrome dalam Aktivitas Web &amp; Aplikasi</translation>
@@ -369,6 +369,7 @@
 <translation id="5003967926796347400">Klik “Pengelola Sandi Google”</translation>
 <translation id="5043786843026425788">Pelajari lebih lanjut cara menelusuri dengan Google Lens di Chrome</translation>
 <translation id="504867494566807945">Buka link di Chrome dari aplikasi apa pun. Selain itu, Chrome akan disematkan ke taskbar Anda untuk memudahkan akses.</translation>
+<translation id="5105120510934353742">Untuk mendapatkan update Google Chrome berikutnya, Anda perlu macOS 13 atau yang lebih baru. Komputer ini menggunakan macOS 12.</translation>
 <translation id="5114340746415930644">Masukkan frasa sandi untuk menggunakan dan menyimpan data Chrome di akun Anda, <ph name="USER_EMAIL" /></translation>
 <translation id="5120334927898581447">Login ke Chrome saat Anda login ke layanan Google lainnya</translation>
 <translation id="5126049312684316860">Chrome melakukan pramuat lebih banyak halaman yang mungkin akan Anda buka, agar halaman tersebut dimuat lebih cepat saat Anda membukanya</translation>
@@ -483,6 +484,7 @@
 <translation id="6180522807229584611">Tab ini menggunakan resource tambahan. Untuk meningkatkan performa Anda, izinkan Chrome menonaktifkannya.</translation>
 <translation id="6182736845697986886">Penginstalan gagal karena server update mengalami error internal.</translation>
 <translation id="6183773856988300112">Gemini di Chrome menggunakan penjelajahan otomatis untuk bekerja di tab Anda dan menyelesaikan tugas yang Anda berikan. <ph name="LINK_BEGIN" />Pelajari lebih lanjut<ph name="LINK_END" /></translation>
+<translation id="6187085551300363958">Tips Chrome: Simpan Sandi</translation>
 <translation id="6192058120268468905">Akun Anda di Chrome</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" /> telah menambahkan ekstensi yang dapat mengubah cara kerja Chrome.
 
@@ -621,6 +623,7 @@
 <translation id="7627609214560473136">Untuk melindungi data Anda, izinkan Chrome menghapus izin dari situs yang tidak Anda kunjungi baru-baru ini.</translation>
 <translation id="7629695634924605473">Chrome akan memberi tahu jika sandi Anda disusupi</translation>
 <translation id="7641148173327520642">Administrator sistem Anda telah mengonfigurasi Google Chrome untuk membuka <ph name="ALTERNATIVE_BROWSER_NAME" /> guna mengakses <ph name="TARGET_URL_HOSTNAME" />.</translation>
+<translation id="7641448682796883218">Tips Chrome: Safe Browsing yang Disempurnakan</translation>
 <translation id="7649070708921625228">Bantuan</translation>
 <translation id="7651907282515937834">Logo Chrome Enterprise</translation>
 <translation id="76531479118467370">Chrome memblokir download ini karena Anda menonaktifkan Safe Browsing dan file tidak dapat diverifikasi</translation>

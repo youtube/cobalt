@@ -297,7 +297,7 @@ BASE_FEATURE(kGlicActorUiTabIndicatorSpinnerIgnoreReducedMotion,
 
 // Controls theming updates for Actor UI, including the tab indicator spinner
 // and other elements.
-BASE_FEATURE(kActorUiThemed, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kActorUiThemed, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, hides handoff button when the client is in control.
 BASE_FEATURE(kGlicHandoffButtonHiddenClientControl,
@@ -889,7 +889,7 @@ BASE_FEATURE(kGlicExtensions, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicMultitabUnderlines, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kGlicWindowDragRegions, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicWindowDragRegions, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicHandleDraggingNatively, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -979,7 +979,7 @@ const base::FeatureParam<int> kGlicCompositeViewWidth{
 const base::FeatureParam<int> kGlicCompositeViewHeight{
     &kGlicPrintMenuItem, "glic-composite-view-height", 480};
 
-BASE_FEATURE(kGlicArchiveConversation, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicArchiveConversation, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
@@ -1610,7 +1610,7 @@ BASE_FEATURE(kProcessPerSiteForDSE, base::FEATURE_DISABLED_BY_DEFAULT);
 // Consider the default search engine (DSE) warmup page as a search results page
 // (SRP), for the purpose of applying the "process per site for DSE SRP" policy
 // (`kProcessPerSiteForDSE`).
-BASE_FEATURE(kConsiderDSEWarmUpPageAsSRP, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kConsiderDSEWarmUpPageAsSRP, base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_CHROMEOS)
 // Enables Camera Cloud Storage for saving photos and videos on Google Drive
@@ -1837,8 +1837,6 @@ BASE_FEATURE(kWebAppPeriodicPreinstallUpdate, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kWebAppMigratePreinstalledChat, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-BASE_FEATURE(kWebAppManifestLocalization, base::FEATURE_DISABLED_BY_DEFAULT);
-
 #if !BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kWebium, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -1852,7 +1850,7 @@ BASE_FEATURE(kInitialWebUI, base::FEATURE_DISABLED_BY_DEFAULT);
 // See crbug.com/448794588.
 BASE_FEATURE(kInitialWebUIMetrics, base::FEATURE_ENABLED_BY_DEFAULT);
 // When enable, the reload button will be replaced with the a WebView, and
-// chrome://reload-button.top-chrome will be loaded as the content.
+// chrome://webui-toolbar.top-chrome will be loaded as the content.
 // crbug.com/444358999
 BASE_FEATURE(kWebUIReloadButton, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // !BUILDFLAG(IS_ANDROID)

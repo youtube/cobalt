@@ -374,9 +374,12 @@ String GenerateTransitionHTMLFrom(const FlagData& data) {
 
   StringBuilder builder;
   builder.Append("<style>");
-  builder.Append(String::Format("#test { transition:%s 1s; }", property));
-  builder.Append(String::Format("#test.before { %s:%s; }", property, before));
-  builder.Append(String::Format("#test.after { %s:%s; }", property, after));
+  builder.Append(
+      UNSAFE_TODO(String::Format("#test { transition:%s 1s; }", property)));
+  builder.Append(
+      UNSAFE_TODO(String::Format("#test.before { %s:%s; }", property, before)));
+  builder.Append(
+      UNSAFE_TODO(String::Format("#test.after { %s:%s; }", property, after)));
   builder.Append("</style>");
   builder.Append("<div id=test class=before>Test</div>");
   return builder.ToString();
@@ -390,8 +393,9 @@ String GenerateCSSAnimationHTMLFrom(const FlagData& data) {
   StringBuilder builder;
   builder.Append("<style>");
   builder.Append("@keyframes anim {");
-  builder.Append(String::Format("from { %s:%s; }", property, before));
-  builder.Append(String::Format("to { %s:%s; }", property, after));
+  builder.Append(
+      UNSAFE_TODO(String::Format("from { %s:%s; }", property, before)));
+  builder.Append(UNSAFE_TODO(String::Format("to { %s:%s; }", property, after)));
   builder.Append("}");
   builder.Append("#test.after { animation:anim 1s; }");
   builder.Append("</style>");
@@ -1337,9 +1341,11 @@ class CSSAnimationsTriggerTest : public CSSAnimationsTest {
     EXPECT_NE(name_in_target, nullptr);
     EXPECT_EQ(name_in_target->GetName(), trigger_name);
 
-    const AnimationTrigger* trigger_in_scroller = GetTrigger(scroller);
+    const AnimationTrigger* trigger_in_scroller =
+        GetTrigger(scroller, /*self_declared=*/false);
     EXPECT_NE(trigger_in_scroller, nullptr);
-    const ScopedCSSName* name_in_scroller = GetTriggerName(scroller);
+    const ScopedCSSName* name_in_scroller =
+        GetTriggerName(scroller, /*self_declared=*/false);
     EXPECT_NE(name_in_scroller, nullptr);
     EXPECT_EQ(name_in_scroller->GetName(), trigger_name);
 
@@ -1348,24 +1354,44 @@ class CSSAnimationsTriggerTest : public CSSAnimationsTest {
     return trigger_in_target;
   }
 
-  const ScopedCSSName* GetTriggerName(Element& element) {
-    LayoutBox* box = element.GetLayoutBox();
-    for (const PhysicalFragment& fragment : box->PhysicalFragments()) {
-      if (!fragment.NamedTriggers()) {
-        continue;
+  const ScopedCSSName* GetTriggerName(Element& element,
+                                      bool self_declared = true) {
+    // For a given element, triggers declared on the element itself are stored
+    // on the element but not in its fragments; triggers declared on its
+    // descendants are stored in its fragments.
+    if (self_declared) {
+      if (element.NamedTriggers()) {
+        return element.NamedTriggers()->begin()->key.Get();
       }
-      return fragment.NamedTriggers()->begin()->key->GetScopedNameForTesting();
+    } else {
+      LayoutBox* box = element.GetLayoutBox();
+      for (const PhysicalFragment& fragment : box->PhysicalFragments()) {
+        if (!fragment.NamedTriggers()) {
+          continue;
+        }
+        return fragment.NamedTriggers()->begin()->key->GetScopedName();
+      }
     }
     return nullptr;
   }
 
-  AnimationTrigger* GetTrigger(Element& element) {
-    LayoutBox* box = element.GetLayoutBox();
-    for (const auto& fragment : box->PhysicalFragments()) {
-      if (!fragment.NamedTriggers()) {
-        continue;
+  AnimationTrigger* GetTrigger(Element& element, bool self_declared = true) {
+    if (self_declared) {
+      if (element.NamedTriggers()) {
+        return element.NamedTriggers()->begin()->value.Get();
       }
-      return fragment.NamedTriggers()->begin()->value;
+    } else {
+      LayoutBox* box = element.GetLayoutBox();
+      for (const auto& fragment : box->PhysicalFragments()) {
+        if (!fragment.NamedTriggers()) {
+          continue;
+        }
+        const TriggerScopedName* scoped_name =
+            fragment.NamedTriggers()->begin()->key.Get();
+        const Element* trigger_owner = fragment.NamedTriggers()->begin()->value;
+        const ScopedCSSName* name = scoped_name->GetScopedName();
+        return trigger_owner->NamedTrigger(name);
+      }
     }
     return nullptr;
   }
@@ -1397,7 +1423,7 @@ void CSSAnimationsTriggerTest::TestTimelineTrigger(
     TimelineTrigger::RangeBoundary* expected_exit_end) {
   EXPECT_NE(trigger, nullptr);
 
-  AnimationTimeline* timeline = trigger->timeline();
+  AnimationTimeline* timeline = trigger->Timeline();
   if (!expect_view_timeline.has_value()) {
     EXPECT_EQ(timeline, &GetDocument().Timeline());
   } else if (expect_view_timeline.value() == false) {
@@ -1406,19 +1432,18 @@ void CSSAnimationsTriggerTest::TestTimelineTrigger(
     EXPECT_TRUE(timeline->IsViewTimeline());
   }
 
-  const TimelineTrigger::RangeBoundary* range_start =
-      trigger->rangeStart(nullptr);
+  const TimelineTrigger::RangeBoundary* range_start = trigger->RangeStart();
   VerifyTriggerRangeBoundary(range_start, expected_start);
 
-  const TimelineTrigger::RangeBoundary* range_end = trigger->rangeEnd(nullptr);
+  const TimelineTrigger::RangeBoundary* range_end = trigger->RangeEnd();
   VerifyTriggerRangeBoundary(range_end, expected_end);
 
   const TimelineTrigger::RangeBoundary* exit_range_start =
-      trigger->exitRangeStart(nullptr);
+      trigger->ExitRangeStart();
   VerifyTriggerRangeBoundary(exit_range_start, expected_exit_start);
 
   const TimelineTrigger::RangeBoundary* exit_range_end =
-      trigger->exitRangeEnd(nullptr);
+      trigger->ExitRangeEnd();
   VerifyTriggerRangeBoundary(exit_range_end, expected_exit_end);
 }
 
@@ -1719,7 +1744,7 @@ TEST_P(CSSAnimationsTriggerTest, TimelineTriggerNamedTimeline) {
   TimelineTrigger* trigger = DynamicTo<TimelineTrigger>(GetTrigger(*target));
 
   EXPECT_FALSE(trigger->GetTimelineInternal()->IsScrollTimeline());
-  EXPECT_TRUE(trigger->timeline()->IsViewTimeline());
+  EXPECT_TRUE(trigger->Timeline()->IsViewTimeline());
 }
 
 TEST_P(CSSAnimationsTriggerTest, TimelineTriggerChangeTimeline) {
@@ -1776,8 +1801,8 @@ TEST_P(CSSAnimationsTriggerTest, TimelineTriggerChangeTimeline) {
   TimelineTrigger* view_trigger =
       DynamicTo<TimelineTrigger>(GetTrigger(*target));
 
-  EXPECT_NE(view_trigger->timeline(), nullptr);
-  EXPECT_TRUE(view_trigger->timeline()->IsViewTimeline());
+  EXPECT_NE(view_trigger->Timeline(), nullptr);
+  EXPECT_TRUE(view_trigger->Timeline()->IsViewTimeline());
 
   target->setAttribute(html_names::kClassAttr, AtomicString("scroll_trigger"));
   UpdateAllLifecyclePhasesForTest();
@@ -1787,8 +1812,8 @@ TEST_P(CSSAnimationsTriggerTest, TimelineTriggerChangeTimeline) {
   EXPECT_NE(view_trigger, scroll_trigger);
   EXPECT_NE(scroll_trigger->GetTimelineInternal(), nullptr);
   EXPECT_FALSE(scroll_trigger->GetTimelineInternal()->IsScrollTimeline());
-  EXPECT_FALSE(scroll_trigger->timeline()->IsViewTimeline());
-  EXPECT_TRUE(scroll_trigger->timeline()->IsScrollTimeline());
+  EXPECT_FALSE(scroll_trigger->Timeline()->IsViewTimeline());
+  EXPECT_TRUE(scroll_trigger->Timeline()->IsScrollTimeline());
 }
 
 void CSSAnimationsTriggerTest::TestRangeStartChange(
@@ -1807,8 +1832,7 @@ void CSSAnimationsTriggerTest::TestRangeStartChange(
   } else {
     EXPECT_NE(old_trigger, new_trigger);
   }
-  VerifyTriggerRangeBoundary(new_trigger->rangeStart(nullptr),
-                             expected_boundary);
+  VerifyTriggerRangeBoundary(new_trigger->RangeStart(), expected_boundary);
 }
 
 TEST_P(CSSAnimationsTriggerTest, TimelineTriggerChangeRangeStart) {
@@ -1951,7 +1975,7 @@ TEST_P(CSSAnimationsTriggerTest, NonTriggerChange) {
   TimelineTrigger* original_trigger =
       DynamicTo<TimelineTrigger>(GetTrigger(*target));
   EXPECT_NE(original_trigger, nullptr);
-  EXPECT_TRUE(original_trigger->timeline()->IsViewTimeline());
+  EXPECT_TRUE(original_trigger->Timeline()->IsViewTimeline());
 
   target->classList().Add(AtomicString("subject100x100"));
   UpdateAllLifecyclePhasesForTest();
@@ -2016,8 +2040,8 @@ TEST_P(CSSAnimationsTriggerTest, DeviceScaleFactor) {
   Element* target = GetDocument().getElementById(AtomicString("target"));
 
   TimelineTrigger* trigger = DynamicTo<TimelineTrigger>(GetTrigger(*target));
-  const RangeBoundary* range_start = trigger->rangeStart(nullptr);
-  const RangeBoundary* range_end = trigger->rangeEnd(nullptr);
+  const RangeBoundary* range_start = trigger->RangeStart();
+  const RangeBoundary* range_end = trigger->RangeEnd();
 
   EXPECT_TRUE(range_start->IsTimelineRangeOffset());
   EXPECT_TRUE(range_end->IsTimelineRangeOffset());

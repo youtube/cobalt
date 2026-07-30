@@ -44,6 +44,7 @@
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/html/custom/ce_reactions_scope.h"
+#include "third_party/blink/renderer/core/html/custom/custom_element_registry.h"
 #include "third_party/blink/renderer/core/html/html_html_element.h"
 #include "third_party/blink/renderer/core/html/html_template_element.h"
 #include "third_party/blink/renderer/core/html/parser/html_construction_site.h"
@@ -83,7 +84,7 @@ String RustStrToWtfString(rust::Str str) {
 }
 
 AtomicString RustStrToAtomicString(rust::Str str) {
-  return AtomicString(RustStrToWtfString(str));
+  return AtomicString::FromUTF8(base::RustStrToStringView(str));
 }
 
 bool HandleNamespaceAttributes(
@@ -380,9 +381,10 @@ void XMLDocumentParserRs::StartElementNs(
   // empty NS url, resolve it against the initially preserved namespace
   // hierarchy that is built when creating an XMLDocumentParser with the
   // fragment-parsing constructor.
-  const AtomicString prefix_a(RustStrToWtfString(prefix));
-  const AtomicString local_a(RustStrToWtfString(local_name));
-  AtomicString adjusted_ns_uri(has_ns ? RustStrToWtfString(ns) : g_null_atom);
+  const AtomicString prefix_a(RustStrToAtomicString(prefix));
+  const AtomicString local_a(RustStrToAtomicString(local_name));
+  AtomicString adjusted_ns_uri(has_ns ? RustStrToAtomicString(ns)
+                                      : g_null_atom);
   if (parsing_fragment_ && adjusted_ns_uri.IsNull()) {
     if (has_prefix) {
       auto it = prefix_to_namespace_map_.find(prefix_a);
@@ -452,7 +454,7 @@ void XMLDocumentParserRs::StartElementNs(
       q_name,
       parsing_fragment_ ? CreateElementFlags::ByFragmentParser(document_)
                         : CreateElementFlags::ByParser(document_),
-      is, /*registry*/ nullptr);
+      is, CustomElementRegistry::DefaultRegistry(current_node_->GetDocument()));
 
   if (!new_element) {
     StopParsing();

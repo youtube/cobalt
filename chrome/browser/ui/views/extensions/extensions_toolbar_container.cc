@@ -45,7 +45,6 @@
 #include "extensions/common/extension_features.h"
 #include "extensions/common/extension_id.h"
 #include "ui/base/dragdrop/drag_drop_types.h"
-#include "ui/base/dragdrop/mojom/drag_drop_types.mojom-shared.h"
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -123,7 +122,8 @@ ExtensionsToolbarContainer::ExtensionsToolbarContainer(Browser* browser,
   if (base::FeatureList::IsEnabled(
           extensions_features::kExtensionsMenuAccessControl)) {
     auto request_access_button =
-        std::make_unique<ExtensionsRequestAccessButton>(browser_, this);
+        std::make_unique<ExtensionsRequestAccessButton>(
+            browser_, toolbar_view_model_.get(), this);
     request_access_button->SetVisible(false);
     request_access_button_ = AddChildView(std::move(request_access_button));
   }
@@ -470,11 +470,6 @@ void ExtensionsToolbarContainer::AnchorAndShowWidgetImmediately(
   widget->Show();
 }
 
-ToolbarActionViewModel* ExtensionsToolbarContainer::GetActionForId(
-    const std::string& action_id) {
-  return toolbar_view_model_->GetActionModelForId(action_id);
-}
-
 std::optional<extensions::ExtensionId>
 ExtensionsToolbarContainer::GetPoppedOutActionId() const {
   return popped_out_action_;
@@ -510,22 +505,6 @@ void ExtensionsToolbarContainer::SetPopupOwner(
   }
 }
 
-void ExtensionsToolbarContainer::HideActivePopup() {
-  if (popup_owner_) {
-    popup_owner_->HidePopup();
-  }
-  DCHECK(!popup_owner_);
-  UpdateContainerVisibilityAfterAnimation();
-}
-
-bool ExtensionsToolbarContainer::CloseOverflowMenuIfOpen() {
-  if (IsExtensionsMenuShowing()) {
-    HideExtensionsMenu();
-    return true;
-  }
-  return false;
-}
-
 void ExtensionsToolbarContainer::PopOutAction(
     const extensions::ExtensionId& action_id,
     base::OnceClosure closure) {
@@ -535,30 +514,6 @@ void ExtensionsToolbarContainer::PopOutAction(
   UpdateIconVisibility(action_id);
   GetAnimatingLayoutManager()->PostOrQueueAction(std::move(closure));
   UpdateContainerVisibility();
-}
-
-bool ExtensionsToolbarContainer::ShowToolbarActionPopupForAPICall(
-    const std::string& action_id,
-    ShowPopupCallback callback) {
-  // Don't override another popup, and only show in the active window.
-  if (popped_out_action_ || !browser_->window()->IsActive()) {
-    return false;
-  }
-
-  ToolbarActionViewModel* action =
-      toolbar_view_model_->GetActionModelForId(action_id);
-  DCHECK(action);
-  action->TriggerPopupForAPI(std::move(callback));
-
-  return true;
-}
-
-void ExtensionsToolbarContainer::ToggleExtensionsMenu() {
-  GetExtensionsButton()->ToggleExtensionsMenu();
-}
-
-bool ExtensionsToolbarContainer::HasAnyExtensions() const {
-  return !toolbar_view_model_->GetAllActionIds().empty();
 }
 
 void ExtensionsToolbarContainer::ReorderAllChildViews() {
@@ -712,10 +667,12 @@ bool ExtensionsToolbarContainer::CanStartDragForView(View* sender,
 
 std::unique_ptr<ExtensionActionViewModel>
 ExtensionsToolbarContainer::CreateActionViewModel(
-    const ToolbarActionsModel::ActionId& action_id) {
+    const ToolbarActionsModel::ActionId& action_id,
+    ExtensionsContainer* extensions_container) {
   return ExtensionActionViewModel::Create(
       action_id, browser_,
-      std::make_unique<ExtensionActionDelegateDesktop>(browser_.get(), this));
+      std::make_unique<ExtensionActionDelegateDesktop>(
+          browser_.get(), extensions_container, this));
 }
 
 void ExtensionsToolbarContainer::OnActionsInitialized() {
@@ -788,6 +745,31 @@ void ExtensionsToolbarContainer::OnPinnedActionsChanged() {
   ReorderAllChildViews();
 
   drop_weak_ptr_factory_.InvalidateWeakPtrs();
+}
+
+void ExtensionsToolbarContainer::HideActivePopup() {
+  if (popup_owner_) {
+    popup_owner_->HidePopup();
+  }
+  DCHECK(!popup_owner_);
+  UpdateContainerVisibilityAfterAnimation();
+}
+
+bool ExtensionsToolbarContainer::CloseOverflowMenuIfOpen() {
+  if (IsExtensionsMenuShowing()) {
+    HideExtensionsMenu();
+    return true;
+  }
+  return false;
+}
+
+bool ExtensionsToolbarContainer::CanShowToolbarActionPopupForAPICall(
+    const ToolbarActionsModel::ActionId& action_id) {
+  return !popped_out_action_ && browser_->window()->IsActive();
+}
+
+void ExtensionsToolbarContainer::ToggleExtensionsMenu() {
+  GetExtensionsButton()->ToggleExtensionsMenu();
 }
 
 bool ExtensionsToolbarContainer::GetDropFormats(
@@ -893,7 +875,8 @@ void ExtensionsToolbarContainer::OnWidgetDestroying(views::Widget* widget) {
 }
 
 size_t ExtensionsToolbarContainer::WidthToIconCount(int x_offset) {
-  const int element_padding = GetLayoutConstant(TOOLBAR_ELEMENT_PADDING);
+  const int element_padding =
+      GetLayoutConstant(LayoutConstant::kToolbarElementPadding);
   size_t unclamped_count =
       std::max((x_offset + element_padding) /
                    (GetToolbarActionSize().width() + element_padding),
@@ -946,7 +929,7 @@ void ExtensionsToolbarContainer::UpdateContainerVisibility() {
 bool ExtensionsToolbarContainer::ShouldContainerBeVisible() const {
   // The container (and extensions-menu button) should not be visible if we have
   // no extensions.
-  if (!HasAnyExtensions()) {
+  if (!toolbar_view_model_->HasAnyExtensions()) {
     return false;
   }
 

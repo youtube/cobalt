@@ -18,6 +18,29 @@ enum class PasskeysParsingError {
   kMissingRequestId,
   kEmptyRequestId,
   kMissingRequest,
+  kMissingChallenge,
+  kEmptyChallenge,
+  kMalformedChallenge,
+  kMissingRpEntity,
+  kMissingRpId,
+  kEmptyRpId,
+  kMissingUserEntity,
+  kMissingUserId,
+  kEmptyUserId,
+  kMalformedUserId,
+  kMissingCredentialType,
+  kMissingCredentialId,
+  kEmptyCredentialId,
+  kMalformedCredentialId,
+  kMissingExtensions,
+  kEvalByCredentialOnCreate,
+  kMissingEvalByCredential,
+  kMalformedEvalByCredential,
+  kEvalByCredentialNotAllowed,
+  kMissingFirstPRFInput,
+  kMalformedFirstPRFInput,
+  kMalformedSecondPRFInput,
+  kPRFInputTooLarge,
 };
 
 // Builds a IOSPasskeyClient::RequestInfo object from the parameters contained
@@ -36,6 +59,12 @@ BuildAssertionRequestParams(IOSPasskeyClient::RequestInfo request_info,
 base::expected<RegistrationRequestParams, PasskeysParsingError>
 BuildRegistrationRequestParams(IOSPasskeyClient::RequestInfo request_info,
                                const base::Value::Dict& dict);
+
+// Converts an ExtensionOutputData object to the
+// AuthenticationExtensionsClientOutputsJSON structure defined in
+// passkey_controller.ts.
+base::Value::Dict ToAuthenticationExtensionsClientOutputsJSON(
+    passkey_model_utils::ExtensionOutputData extension_output_data);
 
 }  // namespace webauthn
 

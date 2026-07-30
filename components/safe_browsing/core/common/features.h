@@ -144,6 +144,8 @@ BASE_DECLARE_FEATURE(kClientSideDetectionShowLlamaScamVerdictWarning);
 BASE_DECLARE_FEATURE(kClientSideDetectionShowScamVerdictWarningAndroid);
 #endif
 
+BASE_DECLARE_FEATURE(kClientSideDetectionSkipErrorPage);
+
 // Expand CSPP beyond phishing and trigger when vibration API is called on the
 // web page.
 BASE_DECLARE_FEATURE(kClientSideDetectionVibrationApi);
@@ -210,12 +212,6 @@ BASE_DECLARE_FEATURE(kEsbAsASyncedSetting);
 // - features will not depend on the SBER preference value,
 //   safebrowsing.scout_reporting_enabled
 BASE_DECLARE_FEATURE(kExtendedReportingRemovePrefDependency);
-
-// Controls whether Safe Browsing Extended Reporting (SBER) is deprecated for
-// Chrome on iOS.
-// This has the same behavior as kExtendedReportingRemovePrefDependency but
-// is separate for rollout purposes.
-BASE_DECLARE_FEATURE(kExtendedReportingRemovePrefDependencyIos);
 
 // Allows the Extension Telemetry Service to accept and use configurations
 // sent by the server.

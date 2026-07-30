@@ -15,7 +15,6 @@
 
 #include "base/barrier_closure.h"
 #include "base/check.h"
-#include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/strings/string_util.h"
@@ -33,9 +32,9 @@
 #include "components/payments/core/secure_payment_confirmation_credential.h"
 #include "components/payments/core/sizes.h"
 #include "components/webauthn/core/browser/internal_authenticator.h"
+#include "components/webauthn/core/browser/webauthn_security_utils.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
-#include "content/public/browser/webauthn_security_utils.h"
 #include "content/public/common/content_features.h"
 #include "services/data_decoder/public/cpp/decode_image.h"
 #include "third_party/blink/public/common/features.h"
@@ -290,8 +289,8 @@ void SecurePaymentConfirmationAppFactory::Create(
   DCHECK(delegate);
 
   base::WeakPtr<PaymentRequestSpec> spec = delegate->GetSpec();
-  if (!spec || !base::Contains(spec->payment_method_identifiers_set(),
-                               methods::kSecurePaymentConfirmation)) {
+  if (!spec || !spec->payment_method_identifiers_set().contains(
+                   methods::kSecurePaymentConfirmation)) {
     delegate->OnDoneCreatingPaymentApps();
     return;
   }

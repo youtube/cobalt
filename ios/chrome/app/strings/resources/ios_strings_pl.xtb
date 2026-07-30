@@ -75,6 +75,7 @@
 <translation id="1272079795634619415">Zatrzymaj</translation>
 <translation id="1273416271143914096">{count,plural, =1{{count} hasło}few{{count} hasła}many{{count} haseł}other{{count} hasła}}</translation>
 <translation id="1275718070701477396">Zaznaczony</translation>
+<translation id="1279024913354609713">Nie zezwalaj</translation>
 <translation id="1285320974508926690">Nigdy nie tłumacz tej witryny</translation>
 <translation id="1287229685519872919">dane Google Workspace</translation>
 <translation id="1291506870746876680">Gdy opuścisz tę stronę, uprawnienia witryny <ph name="BEGIN_BOLD" />„<ph name="SITE_NAME" />”<ph name="END_BOLD" /> zostaną wyłączone.</translation>
@@ -456,6 +457,7 @@
 <translation id="2669454659051515572">Pobrane pliki może zobaczyć każdy użytkownik tego urządzenia</translation>
 <translation id="2671423594960767771">Udostępnij grupę</translation>
 <translation id="2673508731173059946">Otwórz skopiowany link</translation>
+<translation id="2679659833697380">Twoje informacje są zapisywane na urządzeniu</translation>
 <translation id="2688535388040882469">Banery</translation>
 <translation id="2690858294534178585">Aparat jest w użyciu</translation>
 <translation id="2691653761409724435">Niedostępne offline</translation>
@@ -657,7 +659,6 @@
 <translation id="3530024057633834563">Nie masz zapisanych haseł ani kluczy dostępu, ale możesz usunąć listę witryn i aplikacji, w przypadku których nie chcesz zapisywać danych logowania. Żadne konto utworzone przez Ciebie w witrynach i aplikacjach nie zostanie usunięte.</translation>
 <translation id="3530206579861815432">Szybko znajduj otwarte i ostatnio zamknięte karty na zsynchronizowanych urządzeniach.</translation>
 <translation id="3530767473765895035">Zarządzaj kontami na tym urządzeniu…</translation>
-<translation id="353340646084395154">Ustawienia strony nowej karty zostały usunięte</translation>
 <translation id="3533436815740441613">Nowa karta</translation>
 <translation id="3540141921715814660">Dodaj do zakładek</translation>
 <translation id="3546122170015471515">Podgląd Map na Google.com</translation>
@@ -927,7 +928,6 @@
 <translation id="4601095002996233687">Szczegółowe skanowanie w poszukiwaniu podejrzanych pobranych plików.</translation>
 <translation id="4606247758155004938">Przeglądarką zarządza Twoja organizacja.</translation>
 <translation id="4607887340472970274">Śledzenie cen</translation>
-<translation id="461440297010471931">Wyszukiwanie z Google</translation>
 <translation id="4619564267100705184">Potwierdź, że to Ty</translation>
 <translation id="4621768135601674446">Otwórz opcje Trybu czytania</translation>
 <translation id="4627107755957573804">Zezwalaj witrynom i aplikacjom na uaktualnianie istniejących kont, aby można było używać kluczy dostępu</translation>
@@ -953,6 +953,7 @@
 <translation id="4673565891421389203">Logowanie się na konto zarządzane pozwala oddzielić dane przeglądania związane z organizacją (w tym karty, historię i hasła) od pozostałych danych przeglądania.
 
        Wybierz, co chcesz zrobić z dotychczasowymi danymi przeglądania na tym urządzeniu.</translation>
+<translation id="4675298276894277358">Ta witryna nie będzie już wyświetlana</translation>
 <translation id="4682496302933121474">Przetłumaczyć stronę?</translation>
 <translation id="4682686630151240767">1. Otwórz Ustawienia na iPhonie.</translation>
 <translation id="4691892551491778176">Gdy korzystasz z tej funkcji, zawartość i adresy URL stron są wysyłane do Google, ale nie będą używane do ulepszania modeli generatywnej AI. Możesz w każdej chwili wyłączyć tę opcję w ustawieniach.</translation>
@@ -966,6 +967,7 @@
 <translation id="472259426228234149">Cena 100–180 USD</translation>
 <translation id="4735849923335729414">Zaloguj się jako <ph name="EMAIL" />, konto zarządzane przez Twoją organizację.</translation>
 <translation id="473775607612524610">Aktualizuj</translation>
+<translation id="4738968082443868320">Dysk Google</translation>
 <translation id="474209246745757965">Kupuj i tłumacz za pomocą aparatu</translation>
 <translation id="4742407542027196863">Zarządzaj hasłami…</translation>
 <translation id="4744428388659507035">Aby korzystać ze swoich zakładek na wszystkich urządzeniach, w ustawieniach włącz „Zakładki”.</translation>
@@ -1055,6 +1057,7 @@
 <translation id="5021500396464456616">Skontaktuj się z osobą, która wysłała ten link</translation>
 <translation id="5039804452771397117">Zezwalaj</translation>
 <translation id="5050810143224996149">Udostępnij hasło</translation>
+<translation id="5052499409147950210">Edytowanie strony internetowej</translation>
 <translation id="5055015094595227120">Dokładna lokalizacja</translation>
 <translation id="5055551113846164633">Spowoduje to usunięcie adresów zapisanych na tym urządzeniu. Usunięte zostaną też adresy zapisane na koncie Google <ph name="USER_EMAIL" />.</translation>
 <translation id="5056446788882570708">Znaleziono problemy <ph name="TIME" />.</translation>
@@ -1133,6 +1136,7 @@
 <translation id="5295239312320826323">Usunąć konto <ph name="USER_EMAIL" />?</translation>
 <translation id="5300589172476337783">Pokaż</translation>
 <translation id="5311061401280561833">Przyznano dostęp do aparatu i mikrofonu</translation>
+<translation id="5313967007315987356">Dodaj stronę</translation>
 <translation id="5315870524563628285">Nic do zaimportowania</translation>
 <translation id="5316356981864168850"><ph name="INDEX" /> z <ph name="NUM_SUGGESTIONS" /></translation>
 <translation id="5317780077021120954">Zapisz</translation>
@@ -1150,7 +1154,6 @@
 <translation id="537853552771686272">Zarządzaj tematami i witrynami, które Cię interesują</translation>
 <translation id="5390458669633674385">{count,plural, =1{Zamknięto {count}}few{Zamknięto {count}}many{Zamknięto {count}}other{Zamknięto {count}}}</translation>
 <translation id="5394975111793637642">Ukryj opinie o produktach na swojej karcie</translation>
-<translation id="5407806496954700135">Czy chcesz użyć dostosowań strony nowej karty z innego urządzenia?</translation>
 <translation id="5414763847370083940">Otrzymasz alert, jeśli cena w którejkolwiek witrynie spadnie.</translation>
 <translation id="5415289094036440596">Nie można udostępniać kluczy dostępu</translation>
 <translation id="5416455648658732408">Przenieś do grupy kart</translation>
@@ -1202,7 +1205,6 @@ Funkcja Handoff musi być też włączona w sekcji Ogólne w Ustawieniach, a urz
 <translation id="5579012242779565775">Ukryj opcję Do przeczytania</translation>
 <translation id="5581786858144165447">Zapytaj w Trybie AI</translation>
 <translation id="5585019845078534178">Karty</translation>
-<translation id="5589976607021609750">Załączony obraz</translation>
 <translation id="5595485650161345191">Edytuj adres</translation>
 <translation id="559567008082979829">Ustaw pobierane pliki tak, aby były usuwane po miesiącu.</translation>
 <translation id="5596627076506792578">Więcej opcji</translation>
@@ -1360,7 +1362,6 @@ Funkcja Handoff musi być też włączona w sekcji Ogólne w Ustawieniach, a urz
 <translation id="6122191549521593678">Online</translation>
 <translation id="6122831415929794347">Wyłączyć Bezpieczne przeglądanie?</translation>
 <translation id="6123514585040403489">Twoje karty zostaną zamknięte</translation>
-<translation id="6127379762771434464">Element został usunięty</translation>
 <translation id="6136914049981179737">Przed chwilą</translation>
 <translation id="6138324221869147340">Niektóre funkcje nie są już dostępne</translation>
 <translation id="6140600850356225166">Pytaj, czy otwierać linki z innych aplikacji w trybie incognito</translation>
@@ -1796,7 +1797,6 @@ Funkcja Handoff musi być też włączona w sekcji Ogólne w Ustawieniach, a urz
 <translation id="7696316012653762532">Opcje tłumaczenia strony</translation>
 <translation id="7700527812567437847">Przeszukaj ekran za pomocą Obiektywu Google</translation>
 <translation id="7701040980221191251">Brak</translation>
-<translation id="7708668404222666001">Zastosowano ustawienia strony nowej karty</translation>
 <translation id="7708994397325774423">Pobierz wszystkie swoje hasła</translation>
 <translation id="7711440461521638739">Nie używasz ponownie żadnych haseł</translation>
 <translation id="7712361583414030698">Wyświetlam wersję offline</translation>
@@ -2128,6 +2128,7 @@ Funkcja Handoff musi być też włączona w sekcji Ogólne w Ustawieniach, a urz
 <translation id="8856643812068084733">Archiwa</translation>
 <translation id="8863067612494559785">Przesyłam (<ph name="DEVICE_NAME" />)…</translation>
 <translation id="8863431381414769983">Uzyskiwanie wskazówek dojazdu i informacji lokalnych z Map Google</translation>
+<translation id="8867879594900082274">Twoje zmiany będą dotyczyć tylko przypiętych witryn na tym urządzeniu.</translation>
 <translation id="8871974300055371298">Ustawienia treści</translation>
 <translation id="8877788021141246043">Ustaw przypomnienie</translation>
 <translation id="8879604564928138696">Kliknij dwukrotnie, aby spróbować</translation>

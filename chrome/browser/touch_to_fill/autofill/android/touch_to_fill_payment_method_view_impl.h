@@ -46,15 +46,19 @@ class TouchToFillPaymentMethodViewImpl : public TouchToFillPaymentMethodView {
   // TouchToFillPaymentMethodView:
   bool ShowPaymentMethods(TouchToFillPaymentMethodViewController* controller,
                           base::span<const Suggestion> suggestions,
-                          bool should_show_scan_credit_card) override;
+                          bool should_show_scan_credit_card,
+                          bool should_show_gpay_logo) override;
   bool ShowIbans(TouchToFillPaymentMethodViewController* controller,
                  base::span<const autofill::Iban> ibans_to_suggest) override;
-  bool ShowLoyaltyCards(TouchToFillPaymentMethodViewController* controller,
-                        base::span<const LoyaltyCard> affiliated_loyalty_cards,
-                        base::span<const LoyaltyCard> all_loyalty_cards,
-                        bool first_time_usage) override;
+  bool ShowAffiliatedLoyaltyCards(
+      TouchToFillPaymentMethodViewController* controller,
+      base::span<const LoyaltyCard> affiliated_loyalty_cards,
+      base::span<const LoyaltyCard> all_loyalty_cards,
+      bool first_time_usage) override;
+  bool ShowAllLoyaltyCards(
+      TouchToFillPaymentMethodViewController* controller,
+      base::span<const LoyaltyCard> all_loyalty_cards) override;
   bool OnPurchaseAmountExtracted(
-      const TouchToFillPaymentMethodViewController& controller,
       base::span<const payments::BnplIssuerContext> bnpl_issuer_contexts,
       std::optional<int64_t> extracted_amount,
       bool is_amount_supported_by_any_issuer,
@@ -62,7 +66,6 @@ class TouchToFillPaymentMethodViewImpl : public TouchToFillPaymentMethodView {
   bool ShowProgressScreen(
       TouchToFillPaymentMethodViewController* controller) override;
   bool ShowBnplIssuers(
-      const TouchToFillPaymentMethodViewController& controller,
       base::span<const payments::BnplIssuerContext> bnpl_issuer_contexts,
       const std::string& app_locale) override;
   bool ShowErrorScreen(TouchToFillPaymentMethodViewController* controller,

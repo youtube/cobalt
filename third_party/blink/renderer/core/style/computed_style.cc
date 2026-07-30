@@ -275,19 +275,16 @@ static bool DiffAffectsContainerQueries(const ComputedStyle& old_style,
 
 static bool DiffAffectsScrollAnimations(const ComputedStyle& old_style,
                                         const ComputedStyle& new_style) {
-  if (!base::ValuesEquivalent(old_style.ScrollTimelineName(),
-                              new_style.ScrollTimelineName()) ||
+  if ((old_style.ScrollTimelineName() != new_style.ScrollTimelineName()) ||
       (old_style.ScrollTimelineAxis() != new_style.ScrollTimelineAxis())) {
     return true;
   }
-  if (!base::ValuesEquivalent(old_style.ViewTimelineName(),
-                              new_style.ViewTimelineName()) ||
+  if ((old_style.ViewTimelineName() != new_style.ViewTimelineName()) ||
       (old_style.ViewTimelineAxis() != new_style.ViewTimelineAxis()) ||
       (old_style.ViewTimelineInset() != new_style.ViewTimelineInset())) {
     return true;
   }
-  if (!base::ValuesEquivalent(old_style.TimelineScope(),
-                              new_style.TimelineScope())) {
+  if (old_style.TimelineScope() != new_style.TimelineScope()) {
     return true;
   }
   return false;
@@ -298,22 +295,8 @@ static bool DiffNeedsFullLayoutForAnimationTriggers(
     const ComputedStyle& new_style) {
   const CSSAnimationData* old_animations = old_style.Animations();
   const CSSAnimationData* new_animations = new_style.Animations();
-  if (old_animations && new_animations) {
-    return (old_animations != new_animations) &&
-           !old_animations->AnimationsMatchForStyleRecalc(*new_animations);
-  } else if (old_animations || new_animations) {
-    // If one of the ComputedStyles didn't have CSSAnimationData and the other
-    // did, the other is only meaningfully different if it declared a named
-    // trigger.
-    const CSSAnimationData* animations =
-        new_animations ? new_animations : old_animations;
-    return std::any_of(animations->TimelineTriggerNameList().begin(),
-                       animations->TimelineTriggerNameList().end(),
-                       [](Member<const ScopedCSSName> trigger_name) {
-                         return trigger_name.Get();
-                       });
-  }
-  return false;
+  return CSSAnimationData::TimelineTriggerDataChanged(old_animations,
+                                                      new_animations);
 }
 
 bool ComputedStyle::NeedsReattachLayoutTree(const Element& element,
@@ -341,7 +324,8 @@ bool ComputedStyle::NeedsReattachLayoutTree(const Element& element,
   if (!old_style->ScrollMarkerGroupEqual(*new_style)) {
     return true;
   }
-  if (old_style->OverscrollArea() != new_style->OverscrollArea()) {
+  if (old_style->IsInternalOverscrollAreaAuto() !=
+      new_style->IsInternalOverscrollAreaAuto()) {
     return true;
   }
   // We need to perform a reattach if a "display: layout(foo)" has changed to a
@@ -474,7 +458,8 @@ ComputedStyle::ComputeDifferenceIgnoringInheritedFirstLineStyle(
     }
     return Difference::kPseudoElementStyle;
   }
-  if (old_style.OverscrollArea() != new_style.OverscrollArea()) {
+  if (old_style.IsInternalOverscrollAreaAuto() !=
+      new_style.IsInternalOverscrollAreaAuto()) {
     // TODO(crbug.com/447642032): Should we return kDescendantAffecting since
     // descendants may move into or out of a newly declared or no longer
     // declared overscroll area?
@@ -3121,11 +3106,16 @@ bool ComputedStyle::HasAnimationTrigger() const {
     return false;
   }
 
-  return std::any_of(data->TriggerAttachmentsList().begin(),
-                     data->TriggerAttachmentsList().end(),
-                     [](Member<StyleTriggerAttachmentVector> attachments_list) {
-                       return attachments_list.Get();
-                     });
+  return std::any_of(
+             data->TriggerAttachmentsList().begin(),
+             data->TriggerAttachmentsList().end(),
+             [](const Member<StyleTriggerAttachmentVector>& attachments_list) {
+               return attachments_list.Get();
+             }) ||
+         std::any_of(
+             data->TimelineTriggerNameList().begin(),
+             data->TimelineTriggerNameList().end(),
+             [](const Member<ScopedCSSName>& name) { return name.Get(); });
 }
 
 bool ComputedStyle::HasBaseEffectiveAppearance() const {

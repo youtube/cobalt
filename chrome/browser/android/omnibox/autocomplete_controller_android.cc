@@ -183,6 +183,9 @@ void AutocompleteControllerAndroid::Start(
 
   auto* bridge = composebox_query_controller_bridge_.get();
   if (bridge) {
+    AndroidComposeboxNonZPSSection::num_attachments_ =
+        bridge->GetAttachmentCount();
+
     std::unique_ptr<lens::proto::LensOverlaySuggestInputs> inputs =
         bridge->CreateLensOverlaySuggestInputs();
     if (AreLensSuggestInputsReady(*inputs)) {
@@ -307,9 +310,16 @@ void AutocompleteControllerAndroid::OnOmniboxFocused(
   // Apply any AI Modes and Tools.
   auto* bridge = composebox_query_controller_bridge_.get();
   if (bridge) {
+    AndroidComposeboxZpsSection::num_attachments_ =
+        bridge->GetAttachmentCount();
+    AndroidComposeboxNonZPSSection::tool_mode_ = tool_mode;
+
     std::unique_ptr<lens::proto::LensOverlaySuggestInputs> inputs =
         bridge->CreateLensOverlaySuggestInputs();
-    if (AreLensSuggestInputsReady(*inputs)) {
+    // Don't set lens params if in "Create Image" mode. This prevents the
+    // contextual client from being used in this tool mode.
+    if (AreLensSuggestInputsReady(*inputs) &&
+        tool_mode != omnibox::TOOL_MODE_IMAGE_GEN_UPLOAD) {
       input_.set_lens_overlay_suggest_inputs(std::move(inputs));
     }
     input_.set_aim_tool_mode(tool_mode);
@@ -423,7 +433,7 @@ void AutocompleteControllerAndroid::OnSuggestionSelected(
       ->OnOmniboxOpenedUrl(log);
 }
 
-jboolean AutocompleteControllerAndroid::OnSuggestionTouchDown(
+bool AutocompleteControllerAndroid::OnSuggestionTouchDown(
     JNIEnv* env,
     uintptr_t match_ptr,
     int match_index,

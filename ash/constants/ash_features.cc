@@ -598,6 +598,7 @@ BASE_FEATURE(kEnableExternalKeyboardsInDiagnostics,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables setting the device hostname.
+// TODO(crbug.com/466903206): Remove this.
 BASE_FEATURE(kEnableHostnameSetting, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables OAuth support when printing via the IPP protocol.
@@ -1715,12 +1716,6 @@ BASE_FEATURE(kResetAudioSelectionImprovementPref,
 
 // If enabled, will reset all shortcut customizations on startup.
 BASE_FEATURE(kResetShortcutCustomizations, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Set all ScalableIph client side config to tracking only config.
-BASE_FEATURE(kScalableIphTrackingOnly, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Use client side config.
-BASE_FEATURE(kScalableIphClientConfig, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Adds a shelf pod button that appears whenever the shelf has limited space and
 // acts as an entrypoint to other shelf pod buttons to prevent overflow.
@@ -3186,14 +3181,6 @@ bool IsResetShortcutCustomizationsEnabled() {
 
 bool IsSameAppWindowCycleEnabled() {
   return base::FeatureList::IsEnabled(kSameAppWindowCycle);
-}
-
-bool IsScalableIphTrackingOnlyEnabled() {
-  return base::FeatureList::IsEnabled(kScalableIphTrackingOnly);
-}
-
-bool IsScalableIphClientConfigEnabled() {
-  return base::FeatureList::IsEnabled(kScalableIphClientConfig);
 }
 
 bool IsScalableShelfPodsEnabled() {

@@ -37,6 +37,7 @@
 #include "third_party/blink/renderer/core/style_property_shorthand.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
+#include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 
 // Implementations of methods in Shorthand subclasses that aren't generated.
 
@@ -100,7 +101,7 @@ bool ParseAnimationShorthand(const StylePropertyShorthand& shorthand,
                              bool important,
                              CSSParserTokenStream& stream,
                              const CSSParserContext& context,
-                             const CSSParserLocalContext& local_context,
+                             CSSParserLocalContext& local_context,
                              HeapVector<CSSPropertyValue, 64>& properties) {
   const unsigned longhand_count = shorthand.length();
 
@@ -270,7 +271,7 @@ bool Animation::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return ParseAnimationShorthand(animationShorthand(), important, stream,
                                  context, local_context, properties);
@@ -466,7 +467,7 @@ bool AnimationRange::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   const StylePropertyShorthand shorthand = animationRangeShorthand();
   DCHECK_EQ(2u, shorthand.length());
@@ -500,7 +501,7 @@ bool Background::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ParseBackgroundOrMask(important, stream, context,
                                                   local_context, properties);
@@ -519,7 +520,7 @@ bool BackgroundPosition::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return ParseBackgroundOrMaskPosition(
       backgroundPositionShorthand(), important, stream, context,
@@ -539,7 +540,7 @@ bool BorderBlockColor::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
       borderBlockColorShorthand(), important, context, stream, properties);
@@ -559,7 +560,7 @@ bool BorderBlock::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   const CSSValue* width = nullptr;
   const CSSValue* style = nullptr;
@@ -601,7 +602,7 @@ bool BorderBlockEnd::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
       borderBlockEndShorthand(), important, context, stream, properties);
@@ -611,7 +612,7 @@ bool BorderBlockStart::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
       borderBlockStartShorthand(), important, context, stream, properties);
@@ -621,7 +622,7 @@ bool BorderBlockStyle::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
       borderBlockStyleShorthand(), important, context, stream, properties);
@@ -641,7 +642,7 @@ bool BorderBlockWidth::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
       borderBlockWidthShorthand(), important, context, stream, properties);
@@ -661,7 +662,7 @@ bool BorderBottom::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
       borderBottomShorthand(), important, context, stream, properties);
@@ -681,7 +682,7 @@ bool BorderColor::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia4Longhands(
       borderColorShorthand(), important, context, stream, properties);
@@ -701,7 +702,7 @@ bool Border::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   const CSSValue* width = nullptr;
   const CSSValue* style = nullptr;
@@ -749,7 +750,7 @@ bool BorderImage::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   CSSValue* source = nullptr;
   CSSValue* slice = nullptr;
@@ -805,7 +806,7 @@ bool BorderInlineColor::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
       borderInlineColorShorthand(), important, context, stream, properties);
@@ -825,7 +826,7 @@ bool BorderInline::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   const CSSValue* width = nullptr;
   const CSSValue* style = nullptr;
@@ -867,7 +868,7 @@ bool BorderInlineEnd::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
       borderInlineEndShorthand(), important, context, stream, properties);
@@ -877,7 +878,7 @@ bool BorderInlineStart::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
       borderInlineStartShorthand(), important, context, stream, properties);
@@ -887,7 +888,7 @@ bool BorderInlineStyle::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
       borderInlineStyleShorthand(), important, context, stream, properties);
@@ -907,7 +908,7 @@ bool BorderInlineWidth::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
       borderInlineWidthShorthand(), important, context, stream, properties);
@@ -927,7 +928,7 @@ bool BorderLeft::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
       borderLeftShorthand(), important, context, stream, properties);
@@ -947,14 +948,13 @@ bool BorderRadius::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   std::array<CSSValue*, 4> horizontal_radii = {nullptr};
   std::array<CSSValue*, 4> vertical_radii = {nullptr};
 
   if (!css_parsing_utils::ConsumeRadii(horizontal_radii, vertical_radii, stream,
-                                       context,
-                                       local_context.UseAliasParsing())) {
+                                       context, local_context)) {
     return false;
   }
 
@@ -1001,7 +1001,7 @@ bool BorderRight::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
       borderRightShorthand(), important, context, stream, properties);
@@ -1021,7 +1021,7 @@ bool BorderSpacing::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   CSSValue* horizontal_spacing = ConsumeLength(
       stream, context, CSSPrimitiveValue::ValueRange::kNonNegative,
@@ -1063,7 +1063,7 @@ bool BorderStyle::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia4Longhands(
       borderStyleShorthand(), important, context, stream, properties);
@@ -1083,7 +1083,7 @@ bool BorderTop::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
       borderTopShorthand(), important, context, stream, properties);
@@ -1103,7 +1103,7 @@ bool BorderWidth::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia4Longhands(
       borderWidthShorthand(), important, context, stream, properties);
@@ -1123,7 +1123,7 @@ bool ColumnRule::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   DCHECK_EQ(columnRuleShorthand().length(), 3u);
   // If the CSSGapDecorations feature is not enabled, consume greedily since
@@ -1167,7 +1167,7 @@ bool RowRule::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   DCHECK_EQ(rowRuleShorthand().length(), 3u);
   CSSValueList* rule_widths = nullptr;
@@ -1204,7 +1204,7 @@ bool RuleBreak::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   DCHECK_EQ(ruleBreakShorthand().length(), 2u);
   CSSValue* rule_break =
@@ -1242,7 +1242,7 @@ bool ColumnRuleInset::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   DCHECK_EQ(columnRuleInsetShorthand().length(), 4u);
 
@@ -1292,7 +1292,7 @@ bool RowRuleInset::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   DCHECK_EQ(rowRuleInsetShorthand().length(), 4u);
 
@@ -1342,7 +1342,7 @@ bool RuleInset::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   DCHECK_EQ(ruleInsetShorthand().length(), 8u);
 
@@ -1405,11 +1405,277 @@ const CSSValue* RuleInset::CSSValueFromComputedStyleInternal(
       value_phase);
 }
 
+bool ColumnRuleEdgeInset::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    CSSParserLocalContext&,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  DCHECK_EQ(columnRuleEdgeInsetShorthand().length(), 2u);
+
+  CSSValue* rule_edge_start_inset = nullptr;
+  CSSValue* rule_edge_end_inset = nullptr;
+
+  if (!css_parsing_utils::ConsumeGapDecorationsRuleEdgeInteriorInsetShorthand(
+          important, context, stream, rule_edge_start_inset,
+          rule_edge_end_inset)) {
+    return false;
+  }
+
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kColumnRuleEdgeInsetStart,
+      CSSPropertyID::kColumnRuleEdgeInset, *rule_edge_start_inset, important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kColumnRuleEdgeInsetEnd,
+      CSSPropertyID::kColumnRuleEdgeInset, *rule_edge_end_inset, important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+
+  return true;
+}
+
+const CSSValue* ColumnRuleEdgeInset::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject* layout_object,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::
+      ValuesForGapDecorationRuleEdgeInteriorInsetShorthand(
+          columnRuleEdgeInsetShorthand(), style, layout_object,
+          allow_visited_style, /*is_edge=*/true, value_phase,
+          CSSGapDecorationPropertyDirection::kColumn);
+}
+
+bool RowRuleEdgeInset::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    CSSParserLocalContext&,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  DCHECK_EQ(rowRuleEdgeInsetShorthand().length(), 2u);
+
+  CSSValue* rule_edge_start_inset = nullptr;
+  CSSValue* rule_edge_end_inset = nullptr;
+
+  if (!css_parsing_utils::ConsumeGapDecorationsRuleEdgeInteriorInsetShorthand(
+          important, context, stream, rule_edge_start_inset,
+          rule_edge_end_inset)) {
+    return false;
+  }
+
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kRowRuleEdgeInsetStart, CSSPropertyID::kRowRuleEdgeInset,
+      *rule_edge_start_inset, important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kRowRuleEdgeInsetEnd, CSSPropertyID::kRowRuleEdgeInset,
+      *rule_edge_end_inset, important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+
+  return true;
+}
+
+const CSSValue* RowRuleEdgeInset::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject* layout_object,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::
+      ValuesForGapDecorationRuleEdgeInteriorInsetShorthand(
+          rowRuleEdgeInsetShorthand(), style, layout_object,
+          allow_visited_style, /*is_edge=*/true, value_phase,
+          CSSGapDecorationPropertyDirection::kRow);
+}
+
+bool ColumnRuleInteriorInset::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    CSSParserLocalContext&,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  DCHECK_EQ(columnRuleInteriorInsetShorthand().length(), 2u);
+
+  CSSValue* rule_interior_start_inset = nullptr;
+  CSSValue* rule_interior_end_inset = nullptr;
+
+  if (!css_parsing_utils::ConsumeGapDecorationsRuleEdgeInteriorInsetShorthand(
+          important, context, stream, rule_interior_start_inset,
+          rule_interior_end_inset)) {
+    return false;
+  }
+
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kColumnRuleInteriorInsetStart,
+      CSSPropertyID::kColumnRuleInteriorInset, *rule_interior_start_inset,
+      important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
+      properties);
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kColumnRuleInteriorInsetEnd,
+      CSSPropertyID::kColumnRuleInteriorInset, *rule_interior_end_inset,
+      important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
+      properties);
+
+  return true;
+}
+
+const CSSValue* ColumnRuleInteriorInset::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject* layout_object,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::
+      ValuesForGapDecorationRuleEdgeInteriorInsetShorthand(
+          columnRuleInteriorInsetShorthand(), style, layout_object,
+          allow_visited_style, /*is_edge=*/false, value_phase,
+          CSSGapDecorationPropertyDirection::kColumn);
+}
+
+bool RowRuleInteriorInset::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    CSSParserLocalContext&,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  DCHECK_EQ(rowRuleInteriorInsetShorthand().length(), 2u);
+
+  CSSValue* rule_interior_start_inset = nullptr;
+  CSSValue* rule_interior_end_inset = nullptr;
+
+  if (!css_parsing_utils::ConsumeGapDecorationsRuleEdgeInteriorInsetShorthand(
+          important, context, stream, rule_interior_start_inset,
+          rule_interior_end_inset)) {
+    return false;
+  }
+
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kRowRuleInteriorInsetStart,
+      CSSPropertyID::kRowRuleInteriorInset, *rule_interior_start_inset,
+      important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
+      properties);
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kRowRuleInteriorInsetEnd,
+      CSSPropertyID::kRowRuleInteriorInset, *rule_interior_end_inset, important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+
+  return true;
+}
+
+const CSSValue* RowRuleInteriorInset::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject* layout_object,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::
+      ValuesForGapDecorationRuleEdgeInteriorInsetShorthand(
+          rowRuleInteriorInsetShorthand(), style, layout_object,
+          allow_visited_style, /*is_edge=*/false, value_phase,
+          CSSGapDecorationPropertyDirection::kRow);
+}
+
+bool RuleEdgeInset::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    CSSParserLocalContext&,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  DCHECK_EQ(ruleEdgeInsetShorthand().length(), 4u);
+
+  CSSValue* rule_edge_start_inset = nullptr;
+  CSSValue* rule_edge_end_inset = nullptr;
+
+  if (!css_parsing_utils::ConsumeGapDecorationsRuleEdgeInteriorInsetShorthand(
+          important, context, stream, rule_edge_start_inset,
+          rule_edge_end_inset)) {
+    return false;
+  }
+
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kRowRuleEdgeInsetStart, CSSPropertyID::kRowRuleEdgeInset,
+      *rule_edge_start_inset, important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kRowRuleEdgeInsetEnd, CSSPropertyID::kRowRuleEdgeInset,
+      *rule_edge_end_inset, important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kColumnRuleEdgeInsetStart,
+      CSSPropertyID::kColumnRuleEdgeInset, *rule_edge_start_inset, important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kColumnRuleEdgeInsetEnd,
+      CSSPropertyID::kColumnRuleEdgeInset, *rule_edge_end_inset, important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+
+  return true;
+}
+
+const CSSValue* RuleEdgeInset::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject* layout_object,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::
+      ValuesForBidirectionalGapRuleEdgeInteriorInsetShorthand(
+          ruleEdgeInsetShorthand(), style, layout_object, allow_visited_style,
+          value_phase);
+}
+
+bool RuleInteriorInset::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    CSSParserLocalContext&,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  DCHECK_EQ(ruleInteriorInsetShorthand().length(), 4u);
+
+  CSSValue* rule_interior_start_inset = nullptr;
+  CSSValue* rule_interior_end_inset = nullptr;
+
+  if (!css_parsing_utils::ConsumeGapDecorationsRuleEdgeInteriorInsetShorthand(
+          important, context, stream, rule_interior_start_inset,
+          rule_interior_end_inset)) {
+    return false;
+  }
+
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kRowRuleInteriorInsetStart,
+      CSSPropertyID::kRowRuleInteriorInset, *rule_interior_start_inset,
+      important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
+      properties);
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kRowRuleInteriorInsetEnd,
+      CSSPropertyID::kRowRuleInteriorInset, *rule_interior_end_inset, important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kColumnRuleInteriorInsetStart,
+      CSSPropertyID::kColumnRuleInteriorInset, *rule_interior_start_inset,
+      important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
+      properties);
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kColumnRuleInteriorInsetEnd,
+      CSSPropertyID::kColumnRuleInteriorInset, *rule_interior_end_inset,
+      important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
+      properties);
+
+  return true;
+}
+
+const CSSValue* RuleInteriorInset::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject* layout_object,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::
+      ValuesForBidirectionalGapRuleEdgeInteriorInsetShorthand(
+          ruleInteriorInsetShorthand(), style, layout_object,
+          allow_visited_style, value_phase);
+}
+
 bool Columns::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   CSSValue* column_width = nullptr;
   CSSValue* column_count = nullptr;
@@ -1524,7 +1790,7 @@ bool ContainIntrinsicSize::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
       containIntrinsicSizeShorthand(), important, context, stream, properties);
@@ -1550,7 +1816,7 @@ bool Container::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   const CSSValue* name =
       css_parsing_utils::ConsumeContainerName(stream, context);
@@ -1629,7 +1895,7 @@ bool Corners::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   std::array<CSSValue*, 4> radii = {nullptr, nullptr, nullptr, nullptr};
   std::array<CSSValue*, 4> shapes = {nullptr, nullptr, nullptr, nullptr};
@@ -1668,7 +1934,7 @@ bool CornerShape::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia4Longhands(
       cornerShapeShorthand(), important, context, stream, properties);
@@ -1686,7 +1952,7 @@ bool CornerTopShape::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
       cornerTopShapeShorthand(), important, context, stream, properties);
@@ -1696,7 +1962,7 @@ bool CornerRightShape::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
       cornerRightShapeShorthand(), important, context, stream, properties);
@@ -1706,7 +1972,7 @@ bool CornerLeftShape::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
       cornerLeftShapeShorthand(), important, context, stream, properties);
@@ -1716,7 +1982,7 @@ bool CornerBottomShape::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
       cornerBottomShapeShorthand(), important, context, stream, properties);
@@ -1726,7 +1992,7 @@ bool CornerBlockStartShape::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
       cornerBlockStartShapeShorthand(), important, context, stream, properties);
@@ -1736,7 +2002,7 @@ bool CornerBlockEndShape::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
       cornerBlockEndShapeShorthand(), important, context, stream, properties);
@@ -1746,7 +2012,7 @@ bool CornerInlineStartShape::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
       cornerInlineStartShapeShorthand(), important, context, stream,
@@ -1757,7 +2023,7 @@ bool CornerInlineEndShape::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
       cornerInlineEndShapeShorthand(), important, context, stream, properties);
@@ -1838,7 +2104,7 @@ const CSSValue* CornerInlineEndShape::CSSValueFromComputedStyleInternal(
 bool Flex::ParseShorthand(bool important,
                           CSSParserTokenStream& stream,
                           const CSSParserContext& context,
-                          const CSSParserLocalContext&,
+                          CSSParserLocalContext&,
                           HeapVector<CSSPropertyValue, 64>& properties) const {
   const CSSValue* flex_grow = nullptr;
   const CSSValue* flex_shrink = nullptr;
@@ -1945,7 +2211,7 @@ bool FlexFlow::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
       flexFlowShorthand(), important, context, stream, properties,
@@ -2168,7 +2434,7 @@ bool ConsumeFont(bool important,
 bool Font::ParseShorthand(bool important,
                           CSSParserTokenStream& stream,
                           const CSSParserContext& context,
-                          const CSSParserLocalContext&,
+                          CSSParserLocalContext&,
                           HeapVector<CSSPropertyValue, 64>& properties) const {
   const CSSParserToken& token = stream.Peek();
   if (CSSParserFastPaths::IsValidSystemFont(token.Id())) {
@@ -2189,7 +2455,7 @@ bool FontVariant::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   if (css_parsing_utils::IdentMatches<CSSValueID::kNormal, CSSValueID::kNone>(
           stream.Peek().Id())) {
@@ -2362,7 +2628,7 @@ bool FontSynthesis::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext&,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   if (stream.Peek().Id() == CSSValueID::kNone) {
     stream.ConsumeIncludingWhitespace();
@@ -2464,7 +2730,7 @@ const CSSValue* FontSynthesis::CSSValueFromComputedStyleInternal(
 bool Gap::ParseShorthand(bool important,
                          CSSParserTokenStream& stream,
                          const CSSParserContext& context,
-                         const CSSParserLocalContext&,
+                         CSSParserLocalContext&,
                          HeapVector<CSSPropertyValue, 64>& properties) const {
   DCHECK_EQ(shorthandForProperty(CSSPropertyID::kGap).length(), 2u);
   CSSValue* row_gap = css_parsing_utils::ConsumeGapLength(stream, context);
@@ -2497,7 +2763,7 @@ bool GridArea::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   DCHECK_EQ(gridAreaShorthand().length(), 4u);
 
@@ -2576,7 +2842,7 @@ bool GridColumn::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   const StylePropertyShorthand& shorthand =
       shorthandForProperty(CSSPropertyID::kGridColumn);
@@ -2646,7 +2912,7 @@ CSSValueList* ConsumeImplicitAutoFlow(
 bool Grid::ParseShorthand(bool important,
                           CSSParserTokenStream& stream,
                           const CSSParserContext& context,
-                          const CSSParserLocalContext&,
+                          CSSParserLocalContext&,
                           HeapVector<CSSPropertyValue, 64>& properties) const {
   DCHECK_EQ(shorthandForProperty(CSSPropertyID::kGrid).length(), 6u);
 
@@ -2807,19 +3073,19 @@ const CSSValue* Grid::CSSValueFromComputedStyleInternal(
       gridShorthand(), style, layout_object, allow_visited_style, value_phase);
 }
 
+// TODO(almaher): Update grid-lanes based on new shorthand proposal in
+// https://github.com/w3c/csswg-drafts/issues/12023#issuecomment-3666148876
 bool GridLanes::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   String grid_lanes_template_areas;
   bool is_template_columns = true;
   const CSSValue* template_areas =
       GetCSSPropertyGridTemplateAreas().InitialValue();
   const CSSValue* grid_lanes_direction =
-      CSSIdentifierValue::Create(CSSValueID::kColumn);
-  const CSSValue* grid_lanes_fill =
       CSSIdentifierValue::Create(CSSValueID::kNormal);
 
   // Retrieve the string of `grid_lanes_template_areas`. We'll parse it into
@@ -2840,22 +3106,13 @@ bool GridLanes::ParseShorthand(
   }
   stream.ConsumeWhitespace();
 
-  if (css_parsing_utils::IdentMatches<CSSValueID::kRow, CSSValueID::kRowReverse,
-                                      CSSValueID::kColumn,
-                                      CSSValueID::kColumnReverse>(
+  if (css_parsing_utils::IdentMatches<CSSValueID::kRow, CSSValueID::kColumn,
+                                      CSSValueID::kNormal>(
           stream.Peek().Id())) {
-    if (css_parsing_utils::IdentMatches<CSSValueID::kRow,
-                                        CSSValueID::kRowReverse>(
-            stream.Peek().Id())) {
+    if (css_parsing_utils::IdentMatches<CSSValueID::kRow>(stream.Peek().Id())) {
       is_template_columns = false;
     }
-    grid_lanes_direction = css_parsing_utils::ConsumeIdent(stream);
-  }
-
-  if (css_parsing_utils::IdentMatches<CSSValueID::kNormal,
-                                      CSSValueID::kReverse>(
-          stream.Peek().Id())) {
-    grid_lanes_fill = css_parsing_utils::ConsumeIdent(stream);
+    grid_lanes_direction = css_parsing_utils::ParseGridLanesDirection(stream);
   }
 
   // At this point, we should be at the end of the stream or at an !important
@@ -2902,10 +3159,6 @@ bool GridLanes::ParseShorthand(
       CSSPropertyID::kGridLanesDirection, CSSPropertyID::kGridLanes,
       *grid_lanes_direction, important,
       css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
-  css_parsing_utils::AddProperty(
-      CSSPropertyID::kGridLanesFill, CSSPropertyID::kGridLanes,
-      *grid_lanes_fill, important,
-      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
 
   return true;
 }
@@ -2925,62 +3178,11 @@ bool GridLanes::IsLayoutDependent(const ComputedStyle* style,
   return layout_object && layout_object->IsLayoutGridLanes();
 }
 
-bool GridLanesFlow::ParseShorthand(
-    bool important,
-    CSSParserTokenStream& stream,
-    const CSSParserContext& context,
-    const CSSParserLocalContext&,
-    HeapVector<CSSPropertyValue, 64>& properties) const {
-  const StylePropertyShorthand::Properties& longhands =
-      gridLanesFlowShorthand().properties();
-  DCHECK_EQ(longhands.size(), 2u);
-
-  if (longhands[0]->PropertyID() != CSSPropertyID::kGridLanesDirection ||
-      longhands[1]->PropertyID() != CSSPropertyID::kGridLanesFill) {
-    return false;
-  }
-
-  const CSSValue* grid_lanes_direction = css_parsing_utils::ParseLonghand(
-      longhands[0]->PropertyID(), gridLanesFlowShorthand().id(), context,
-      stream);
-
-  if (!grid_lanes_direction) {
-    return false;
-  }
-
-  const CSSValue* grid_lanes_fill = css_parsing_utils::ParseLonghand(
-      longhands[1]->PropertyID(), gridLanesFlowShorthand().id(), context,
-      stream);
-
-  if (!grid_lanes_fill) {
-    return false;
-  }
-
-  AddProperty(longhands[0]->PropertyID(), gridLanesFlowShorthand().id(),
-              *grid_lanes_direction, important,
-              css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
-  AddProperty(longhands[1]->PropertyID(), gridLanesFlowShorthand().id(),
-              *grid_lanes_fill, important,
-              css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
-
-  return true;
-}
-
-const CSSValue* GridLanesFlow::CSSValueFromComputedStyleInternal(
-    const ComputedStyle& style,
-    const LayoutObject* layout_object,
-    bool allow_visited_style,
-    CSSValuePhase value_phase) const {
-  return ComputedStyleUtils::ValuesForShorthandProperty(
-      gridLanesFlowShorthand(), style, layout_object, allow_visited_style,
-      value_phase);
-}
-
 bool GridRow::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   const StylePropertyShorthand& shorthand =
       shorthandForProperty(CSSPropertyID::kGridRow);
@@ -3019,7 +3221,7 @@ bool GridTemplate::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   const CSSValue* template_rows = nullptr;
   const CSSValue* template_columns = nullptr;
@@ -3069,7 +3271,7 @@ bool InsetBlock::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
       insetBlockShorthand(), important, context, stream, properties);
@@ -3093,7 +3295,7 @@ bool InsetBlock::IsLayoutDependent(const ComputedStyle* style,
 bool Inset::ParseShorthand(bool important,
                            CSSParserTokenStream& stream,
                            const CSSParserContext& context,
-                           const CSSParserLocalContext&,
+                           CSSParserLocalContext&,
                            HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia4Longhands(
       insetShorthand(), important, context, stream, properties);
@@ -3117,7 +3319,7 @@ bool InsetInline::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
       insetInlineShorthand(), important, context, stream, properties);
@@ -3142,7 +3344,7 @@ bool InterestDelay::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
       interestDelayShorthand(), important, context, stream, properties);
@@ -3161,7 +3363,7 @@ bool ListStyle::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   const CSSValue* none = nullptr;
   const CSSValue* list_style_position = nullptr;
@@ -3266,7 +3468,7 @@ bool MarginBlock::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
       marginBlockShorthand(), important, context, stream, properties);
@@ -3291,7 +3493,7 @@ bool Margin::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia4Longhands(
       marginShorthand(), important, context, stream, properties);
@@ -3319,7 +3521,7 @@ bool MarginInline::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
       marginInlineShorthand(), important, context, stream, properties);
@@ -3344,7 +3546,7 @@ bool Marker::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   const CSSValue* marker = css_parsing_utils::ParseLonghand(
       CSSPropertyID::kMarkerStart, CSSPropertyID::kMarker, context, stream);
@@ -3384,16 +3586,15 @@ bool Offset::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   // TODO(meade): The propertyID parameter isn't used - it can be removed
   // once all of the ParseSingleValue implementations have been moved to the
   // CSSPropertys, and the base CSSProperty::ParseSingleValue contains
   // no functionality.
-
   const CSSValue* offset_position =
       GetCSSPropertyOffsetPosition().ParseSingleValue(stream, context,
-                                                      CSSParserLocalContext());
+                                                      local_context);
   const CSSValue* offset_path =
       css_parsing_utils::ConsumeOffsetPath(stream, context);
   const CSSValue* offset_distance = nullptr;
@@ -3410,7 +3611,7 @@ bool Offset::ParseShorthand(
   const CSSValue* offset_anchor = nullptr;
   if (css_parsing_utils::ConsumeSlashIncludingWhitespace(stream)) {
     offset_anchor = GetCSSPropertyOffsetAnchor().ParseSingleValue(
-        stream, context, CSSParserLocalContext());
+        stream, context, local_context);
     if (!offset_anchor) {
       return false;
     }
@@ -3476,7 +3677,7 @@ bool Outline::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
       outlineShorthand(), important, context, stream, properties);
@@ -3496,7 +3697,7 @@ bool Overflow::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
       overflowShorthand(), important, context, stream, properties);
@@ -3520,7 +3721,7 @@ bool OverscrollBehavior::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
       overscrollBehaviorShorthand(), important, context, stream, properties);
@@ -3544,7 +3745,7 @@ bool PaddingBlock::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
       paddingBlockShorthand(), important, context, stream, properties);
@@ -3564,7 +3765,7 @@ bool Padding::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia4Longhands(
       paddingShorthand(), important, context, stream, properties);
@@ -3592,7 +3793,7 @@ bool PaddingInline::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
       paddingInlineShorthand(), important, context, stream, properties);
@@ -3612,7 +3813,7 @@ bool PageBreakAfter::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext&,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   CSSValueID value;
   if (!css_parsing_utils::ConsumeFromPageBreakBetween(stream, value)) {
@@ -3639,7 +3840,7 @@ bool PageBreakBefore::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext&,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   CSSValueID value;
   if (!css_parsing_utils::ConsumeFromPageBreakBetween(stream, value)) {
@@ -3666,7 +3867,7 @@ bool PageBreakInside::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext&,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   CSSValueID value;
   if (!css_parsing_utils::ConsumeFromColumnOrPageBreakInside(stream, value)) {
@@ -3692,7 +3893,7 @@ bool PlaceContent::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   DCHECK_EQ(shorthandForProperty(CSSPropertyID::kPlaceContent).length(), 2u);
 
@@ -3756,7 +3957,7 @@ bool PlaceItems::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   DCHECK_EQ(shorthandForProperty(CSSPropertyID::kPlaceItems).length(), 2u);
 
@@ -3815,7 +4016,7 @@ bool PlaceSelf::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   DCHECK_EQ(shorthandForProperty(CSSPropertyID::kPlaceSelf).length(), 2u);
 
@@ -3876,7 +4077,7 @@ bool ParsePositionTryShorthand(const StylePropertyShorthand& shorthand,
                                bool important,
                                CSSParserTokenStream& stream,
                                const CSSParserContext& context,
-                               const CSSParserLocalContext& local_context,
+                               CSSParserLocalContext& local_context,
                                HeapVector<CSSPropertyValue, 64>& properties) {
   CHECK_EQ(shorthand.length(), 2u);
   CHECK_EQ(shorthand.properties()[0], &GetCSSPropertyPositionTryOrder());
@@ -3907,7 +4108,7 @@ bool PositionTry::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return ParsePositionTryShorthand(positionTryShorthand(), important, stream,
                                    context, local_context, properties);
@@ -3935,7 +4136,7 @@ bool ScrollMarginBlock::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
       scrollMarginBlockShorthand(), important, context, stream, properties);
@@ -3955,7 +4156,7 @@ bool ScrollMargin::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia4Longhands(
       scrollMarginShorthand(), important, context, stream, properties);
@@ -3975,7 +4176,7 @@ bool ScrollMarginInline::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
       scrollMarginInlineShorthand(), important, context, stream, properties);
@@ -3995,7 +4196,7 @@ bool ScrollPaddingBlock::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
       scrollPaddingBlockShorthand(), important, context, stream, properties);
@@ -4015,7 +4216,7 @@ bool ScrollPadding::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia4Longhands(
       scrollPaddingShorthand(), important, context, stream, properties);
@@ -4035,7 +4236,7 @@ bool ScrollPaddingInline::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
       scrollPaddingInlineShorthand(), important, context, stream, properties);
@@ -4118,7 +4319,7 @@ bool ParseTimelineShorthand(CSSPropertyID shorthand_id,
                             bool important,
                             CSSParserTokenStream& stream,
                             const CSSParserContext& context,
-                            const CSSParserLocalContext&,
+                            CSSParserLocalContext&,
                             HeapVector<CSSPropertyValue, 64>& properties) {
   using css_parsing_utils::AddProperty;
   using css_parsing_utils::ConsumeCommaIncludingWhitespace;
@@ -4160,7 +4361,7 @@ bool ParseTimelineShorthand(CSSPropertyID shorthand_id,
 }
 
 static CSSValue* CSSValueForTimelineShorthand(
-    const HeapVector<Member<const ScopedCSSName>>& name_vector,
+    const Vector<AtomicString>& name_vector,
     const Vector<TimelineAxis>& axis_vector,
     const Vector<TimelineInset>* inset_vector,
     const ComputedStyle& style) {
@@ -4174,13 +4375,13 @@ static CSSValue* CSSValueForTimelineShorthand(
   }
   if (name_vector.empty()) {
     list->Append(*ComputedStyleUtils::SingleValueForTimelineShorthand(
-        /* name */ nullptr, TimelineAxis::kBlock, /* inset */ std::nullopt,
+        /*name=*/g_null_atom, TimelineAxis::kBlock, /*inset=*/std::nullopt,
         style));
     return list;
   }
   for (wtf_size_t i = 0; i < name_vector.size(); ++i) {
     list->Append(*ComputedStyleUtils::SingleValueForTimelineShorthand(
-        name_vector[i].Get(), axis_vector[i],
+        name_vector[i], axis_vector[i],
         inset_vector ? std::optional<TimelineInset>((*inset_vector)[i])
                      : std::optional<TimelineInset>(),
         style));
@@ -4195,7 +4396,7 @@ bool ScrollTimeline::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return ParseTimelineShorthand(CSSPropertyID::kScrollTimeline,
                                 scrollTimelineShorthand(), important, stream,
@@ -4207,9 +4408,7 @@ const CSSValue* ScrollTimeline::CSSValueFromComputedStyleInternal(
     const LayoutObject* layout_object,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  const HeapVector<Member<const ScopedCSSName>>& name_vector =
-      style.ScrollTimelineName() ? style.ScrollTimelineName()->GetNames()
-                                 : HeapVector<Member<const ScopedCSSName>>{};
+  const Vector<AtomicString>& name_vector = style.ScrollTimelineName();
   const Vector<TimelineAxis>& axis_vector = style.ScrollTimelineAxis();
   return CSSValueForTimelineShorthand(name_vector, axis_vector,
                                       /* inset_vector */ nullptr, style);
@@ -4219,7 +4418,7 @@ bool TextDecoration::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   // Use RuntimeEnabledFeature-aware shorthandForProperty() method until
   // text-decoration-thickness ships, see style_property_shorthand.cc.tmpl.
@@ -4286,7 +4485,7 @@ bool TextWrap::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
       textWrapShorthand(), important, context, stream, properties);
@@ -4349,8 +4548,8 @@ const CSSValue* TimelineTrigger::CSSValueFromComputedStyleInternal(
 
       const CSSValueList* enter_range =
           SingleAnimationRangeCSSValueFromComputedStyle(
-              style, animation_data->TimelineTriggerRangeStartList().at(i),
-              animation_data->TimelineTriggerRangeEndList().at(i),
+              style, animation_data->TimelineTriggerEntryRangeStartList().at(i),
+              animation_data->TimelineTriggerEntryRangeEndList().at(i),
               default_start, default_end);
       DCHECK(enter_range->length());
       // Skip a value of 'normal' as that is the default for the enter range.
@@ -4370,8 +4569,9 @@ const CSSValue* TimelineTrigger::CSSValueFromComputedStyleInternal(
 
       const CSSValueList* exit_range =
           SingleTimelineTriggerExitRangeCSSValueFromComputedStyle(
-              style, animation_data->TimelineTriggerExitRangeStartList().at(i),
-              animation_data->TimelineTriggerExitRangeEndList().at(i),
+              style,
+              animation_data->TimelineTriggerActiveRangeStartList().at(i),
+              animation_data->TimelineTriggerActiveRangeEndList().at(i),
               default_start, default_end);
       DCHECK(exit_range->length());
       // Skip a value of 'auto' as that is the default for the exit range.
@@ -4404,7 +4604,7 @@ bool TimelineTrigger::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   const StylePropertyShorthand& shorthand = timelineTriggerShorthand();
   const unsigned longhand_count = shorthand.length();
@@ -4427,81 +4627,81 @@ bool TimelineTrigger::ParseShorthand(
   return true;
 }
 
-const CSSValue* TimelineTriggerRange::CSSValueFromComputedStyleInternal(
+const CSSValue* TimelineTriggerEntryRange::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
   const Vector<std::optional<TimelineOffset>>& trigger_range_start_list =
       style.Animations()
-          ? style.Animations()->TimelineTriggerRangeStartList()
+          ? style.Animations()->TimelineTriggerEntryRangeStartList()
           : Vector<std::optional<TimelineOffset>>{
-                CSSAnimationData::InitialTimelineTriggerRangeStart()};
+                CSSAnimationData::InitialTimelineTriggerEntryRangeStart()};
   const Vector<std::optional<TimelineOffset>>& trigger_range_end_list =
       style.Animations()
-          ? style.Animations()->TimelineTriggerRangeEndList()
+          ? style.Animations()->TimelineTriggerEntryRangeEndList()
           : Vector<std::optional<TimelineOffset>>{
-                CSSAnimationData::InitialTimelineTriggerRangeEnd()};
+                CSSAnimationData::InitialTimelineTriggerEntryRangeEnd()};
 
   return AnimationRangeCSSValueFromComputedStyle(
       style, trigger_range_start_list, trigger_range_end_list);
 }
 
-bool TimelineTriggerRange::ParseShorthand(
+bool TimelineTriggerEntryRange::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
-  const StylePropertyShorthand shorthand = timelineTriggerRangeShorthand();
+  const StylePropertyShorthand shorthand = timelineTriggerEntryRangeShorthand();
   DCHECK_EQ(2u, shorthand.length());
-  DCHECK_EQ(&GetCSSPropertyTimelineTriggerRangeStart(),
+  DCHECK_EQ(&GetCSSPropertyTimelineTriggerEntryRangeStart(),
             shorthand.properties()[0]);
-  DCHECK_EQ(&GetCSSPropertyTimelineTriggerRangeEnd(),
+  DCHECK_EQ(&GetCSSPropertyTimelineTriggerEntryRangeEnd(),
             shorthand.properties()[1]);
-  return ParseAnimationRangeShorthand(shorthand,
-                                      CSSPropertyID::kTimelineTriggerRangeStart,
-                                      CSSPropertyID::kTimelineTriggerRangeEnd,
-                                      important, stream, context, properties,
-                                      /*allow_auto=*/false);
+  return ParseAnimationRangeShorthand(
+      shorthand, CSSPropertyID::kTimelineTriggerEntryRangeStart,
+      CSSPropertyID::kTimelineTriggerEntryRangeEnd, important, stream, context,
+      properties,
+      /*allow_auto=*/false);
 }
 
-const CSSValue* TimelineTriggerExitRange::CSSValueFromComputedStyleInternal(
+const CSSValue* TimelineTriggerActiveRange::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
   const Vector<TimelineOffsetOrAuto>& trigger_exit_range_start_list =
       style.Animations()
-          ? style.Animations()->TimelineTriggerExitRangeStartList()
+          ? style.Animations()->TimelineTriggerActiveRangeStartList()
           : Vector<TimelineOffsetOrAuto>{
-                CSSAnimationData::InitialTimelineTriggerExitRangeStart()};
+                CSSAnimationData::InitialTimelineTriggerActiveRangeStart()};
   const Vector<TimelineOffsetOrAuto>& trigger_exit_range_end_list =
       style.Animations()
-          ? style.Animations()->TimelineTriggerExitRangeEndList()
+          ? style.Animations()->TimelineTriggerActiveRangeEndList()
           : Vector<TimelineOffsetOrAuto>{
-                CSSAnimationData::InitialTimelineTriggerExitRangeEnd()};
-
+                CSSAnimationData::InitialTimelineTriggerActiveRangeEnd()};
   return TimelineTriggerExitRangeCSSValueFromComputedStyle(
       style, trigger_exit_range_start_list, trigger_exit_range_end_list);
 }
 
-bool TimelineTriggerExitRange::ParseShorthand(
+bool TimelineTriggerActiveRange::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
-  const StylePropertyShorthand shorthand = timelineTriggerExitRangeShorthand();
+  const StylePropertyShorthand shorthand =
+      timelineTriggerActiveRangeShorthand();
   DCHECK_EQ(2u, shorthand.length());
-  DCHECK_EQ(&GetCSSPropertyTimelineTriggerExitRangeStart(),
+  DCHECK_EQ(&GetCSSPropertyTimelineTriggerActiveRangeStart(),
             shorthand.properties()[0]);
-  DCHECK_EQ(&GetCSSPropertyTimelineTriggerExitRangeEnd(),
+  DCHECK_EQ(&GetCSSPropertyTimelineTriggerActiveRangeEnd(),
             shorthand.properties()[1]);
 
   return ParseAnimationRangeShorthand(
-      shorthand, CSSPropertyID::kTimelineTriggerExitRangeStart,
-      CSSPropertyID::kTimelineTriggerExitRangeEnd, important, stream, context,
+      shorthand, CSSPropertyID::kTimelineTriggerActiveRangeStart,
+      CSSPropertyID::kTimelineTriggerActiveRangeEnd, important, stream, context,
       properties,
       /*allow_auto=*/true);
 }
@@ -4535,7 +4735,7 @@ bool Transition::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   const StylePropertyShorthand shorthand = transitionShorthandForParsing();
   const unsigned longhand_count = shorthand.length();
@@ -4646,7 +4846,7 @@ bool ViewTimeline::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return ParseTimelineShorthand(CSSPropertyID::kViewTimeline,
                                 viewTimelineShorthand(), important, stream,
@@ -4658,9 +4858,7 @@ const CSSValue* ViewTimeline::CSSValueFromComputedStyleInternal(
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  const HeapVector<Member<const ScopedCSSName>>& name_vector =
-      style.ViewTimelineName() ? style.ViewTimelineName()->GetNames()
-                               : HeapVector<Member<const ScopedCSSName>>{};
+  const Vector<AtomicString>& name_vector = style.ViewTimelineName();
   const Vector<TimelineAxis>& axis_vector = style.ViewTimelineAxis();
   const Vector<TimelineInset>& inset_vector = style.ViewTimelineInset();
   return CSSValueForTimelineShorthand(name_vector, axis_vector, &inset_vector,
@@ -4671,7 +4869,7 @@ bool WebkitColumnBreakAfter::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext&,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   CSSValueID value;
   if (!css_parsing_utils::ConsumeFromColumnBreakBetween(stream, value)) {
@@ -4698,7 +4896,7 @@ bool WebkitColumnBreakBefore::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext&,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   CSSValueID value;
   if (!css_parsing_utils::ConsumeFromColumnBreakBetween(stream, value)) {
@@ -4725,7 +4923,7 @@ bool WebkitColumnBreakInside::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext&,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   CSSValueID value;
   if (!css_parsing_utils::ConsumeFromColumnOrPageBreakInside(stream, value)) {
@@ -4752,7 +4950,7 @@ bool LineClamp::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   const CSSValue* max_lines = nullptr;
   const CSSValue* block_ellipsis = nullptr;
@@ -4853,7 +5051,7 @@ bool AlternativeWebkitLineClamp::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   const CSSValue* max_lines = nullptr;
   const CSSValue* block_ellipsis = nullptr;
@@ -4910,7 +5108,7 @@ bool WebkitMaskBoxImage::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   CSSValue* source = nullptr;
   CSSValue* slice = nullptr;
@@ -4965,7 +5163,7 @@ const CSSValue* WebkitMaskBoxImage::CSSValueFromComputedStyleInternal(
 bool Mask::ParseShorthand(bool important,
                           CSSParserTokenStream& stream,
                           const CSSParserContext& context,
-                          const CSSParserLocalContext& local_context,
+                          CSSParserLocalContext& local_context,
                           HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ParseBackgroundOrMask(important, stream, context,
                                                   local_context, properties);
@@ -4984,7 +5182,7 @@ bool MaskPosition::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return ParseBackgroundOrMaskPosition(
       maskPositionShorthand(), important, stream, context,
@@ -5006,7 +5204,7 @@ const CSSValue* MaskPosition::CSSValueFromComputedStyleInternal(
 bool Rule::ParseShorthand(bool important,
                           CSSParserTokenStream& stream,
                           const CSSParserContext& context,
-                          const CSSParserLocalContext& local_context,
+                          CSSParserLocalContext& local_context,
                           HeapVector<CSSPropertyValue, 64>& properties) const {
   DCHECK_EQ(ruleShorthand().length(), 6u);
   CSSValueList* rule_widths = nullptr;
@@ -5054,7 +5252,7 @@ bool RuleColor::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   DCHECK_EQ(shorthandForProperty(CSSPropertyID::kRuleColor).length(), 2u);
   CSSValue* rule_color = css_parsing_utils::ConsumeGapDecorationPropertyList(
@@ -5090,7 +5288,7 @@ bool RuleWidth::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   DCHECK_EQ(shorthandForProperty(CSSPropertyID::kRuleWidth).length(), 2u);
   CSSValue* rule_width = css_parsing_utils::ConsumeGapDecorationPropertyList(
@@ -5126,7 +5324,7 @@ bool RuleStyle::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   DCHECK_EQ(shorthandForProperty(CSSPropertyID::kRuleStyle).length(), 2u);
   CSSValue* rule_style = css_parsing_utils::ConsumeGapDecorationPropertyList(
@@ -5162,7 +5360,7 @@ bool TextBox::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   CSSValue* trim = nullptr;
   CSSValue* edge = nullptr;
@@ -5249,7 +5447,7 @@ bool TextEmphasis::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
       textEmphasisShorthand(), important, context, stream, properties);
@@ -5269,7 +5467,7 @@ bool TextSpacing::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   CSSValue* autospace = nullptr;
   CSSValue* spacing_trim = nullptr;
@@ -5369,7 +5567,7 @@ bool WebkitTextStroke::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
       webkitTextStrokeShorthand(), important, context, stream, properties);
@@ -5389,7 +5587,7 @@ bool WhiteSpace::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   CSSParserTokenStream::State savepoint = stream.Save();
 

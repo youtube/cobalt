@@ -33,7 +33,6 @@ class MemoryAllocatorDumpGuid;
 }  // namespace base
 
 namespace storage {
-class DomStorageDatabaseLevelDB;
 
 // Abstract interface for DOM storage database implementations. Provides
 // key-value storage operations for DOMStorage StorageAreas.
@@ -247,10 +246,6 @@ class DomStorageDatabase {
 
   virtual ~DomStorageDatabase() = default;
 
-  // TODO(crbug.com/377242771): Remove LevelDB accessor after fully migrating to
-  // this interface.
-  virtual DomStorageDatabaseLevelDB& GetLevelDB() = 0;
-
   // Gets an entire map's key/value pairs.
   virtual StatusOr<std::map<Key, Value>> ReadMapKeyValues(
       MapLocator map_locator) = 0;
@@ -301,6 +296,7 @@ class DomStorageDatabase {
   virtual DbStatus RewriteDB() = 0;
 
   // Test-only functions.
+  virtual DbStatus PutVersionForTesting(int64_t version) = 0;
   virtual void MakeAllCommitsFailForTesting() = 0;
   virtual void SetDestructionCallbackForTesting(base::OnceClosure callback) = 0;
 };

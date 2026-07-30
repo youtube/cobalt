@@ -75,6 +75,7 @@
 <translation id="1272079795634619415">Parar</translation>
 <translation id="1273416271143914096">{count,plural, =1{{count} senha}one{{count} senha}other{{count} senhas}}</translation>
 <translation id="1275718070701477396">Linha selecionada</translation>
+<translation id="1279024913354609713">Não permitir</translation>
 <translation id="1285320974508926690">Nunca traduzir este site</translation>
 <translation id="1287229685519872919">dados do Google Workspace</translation>
 <translation id="1291506870746876680">As permissões de <ph name="BEGIN_BOLD" /><ph name="SITE_NAME" /><ph name="END_BOLD" /> serão redefinidas como desativadas quando você sair desse site.</translation>
@@ -456,6 +457,7 @@
 <translation id="2669454659051515572">Qualquer pessoa que use este dispositivo pode ver os arquivos baixados</translation>
 <translation id="2671423594960767771">Compartilhar grupo</translation>
 <translation id="2673508731173059946">Visitar link copiado</translation>
+<translation id="2679659833697380">Suas informações são salvas no dispositivo</translation>
 <translation id="2688535388040882469">Banners</translation>
 <translation id="2690858294534178585">A câmera está sendo usada</translation>
 <translation id="2691653761409724435">Não está disponível off-line</translation>
@@ -657,7 +659,6 @@
 <translation id="3530024057633834563">Não há senhas ou chaves de acesso salvas, mas você pode excluir a lista de sites e apps em que escolheu nunca salvar informações de login. As contas que você criou em sites e apps não serão excluídas.</translation>
 <translation id="3530206579861815432">Encontre com rapidez as guias abertas e fechadas recentemente nos seus dispositivos sincronizados.</translation>
 <translation id="3530767473765895035">Gerenciar contas neste dispositivo…</translation>
-<translation id="353340646084395154">As preferências da página "Nova guia" foram removidas</translation>
 <translation id="3533436815740441613">Nova guia</translation>
 <translation id="3540141921715814660">Adicionar aos favoritos</translation>
 <translation id="3546122170015471515">Maps Previews no Google.com</translation>
@@ -927,7 +928,6 @@
 <translation id="4601095002996233687">Faz verificações detalhadas de downloads suspeitos.</translation>
 <translation id="4606247758155004938">O navegador é gerenciado pela sua organização.</translation>
 <translation id="4607887340472970274">Monitoramento de preços</translation>
-<translation id="461440297010471931">Pesquisando com o Google</translation>
 <translation id="4619564267100705184">Confirmar sua identidade</translation>
 <translation id="4621768135601674446">Abrir opções do Modo de Leitura</translation>
 <translation id="4627107755957573804">Permita que sites e apps façam upgrade das contas para usar chaves de acesso.</translation>
@@ -953,6 +953,7 @@
 <translation id="4673565891421389203">Fazer login com a conta gerenciada ajuda a separar sua navegação relacionada à organização (incluindo guias, histórico e senhas) da sua outra navegação.
 
        Escolha o que fazer com os dados de navegação neste dispositivo.</translation>
+<translation id="4675298276894277358">Este site não vai aparecer de novo</translation>
 <translation id="4682496302933121474">Traduzir página?</translation>
 <translation id="4682686630151240767">1. Abra o app Ajustes do iPhone</translation>
 <translation id="4691892551491778176">Ao usar o Gemini, o conteúdo da página e os URLs são enviados ao Google, mas não são usados para aprimorar nossos modelos de IA generativa. Você pode desativar esse recurso nas configurações quando quiser.</translation>
@@ -966,6 +967,7 @@
 <translation id="472259426228234149">Preço: US$ 100 a US$ 180</translation>
 <translation id="4735849923335729414">Faça login como <ph name="EMAIL" />, gerenciado pela sua organização.</translation>
 <translation id="473775607612524610">Atualizar</translation>
+<translation id="4738968082443868320">Google Drive</translation>
 <translation id="474209246745757965">Compre e traduza usando a câmera</translation>
 <translation id="4742407542027196863">Gerenciar senhas…</translation>
 <translation id="4744428388659507035">Para acessar seus favoritos em todos os dispositivos, ative a opção "Favoritos" nas configurações.</translation>
@@ -1055,6 +1057,7 @@
 <translation id="5021500396464456616">Entre em contato com a pessoa que enviou o link</translation>
 <translation id="5039804452771397117">Permitir</translation>
 <translation id="5050810143224996149">Compartilhar senha</translation>
+<translation id="5052499409147950210">Editar site</translation>
 <translation id="5055015094595227120">Local exato</translation>
 <translation id="5055551113846164633">Essa ação exclui os endereços salvos neste dispositivo. Ela também remove os endereços salvos na sua Conta do Google <ph name="USER_EMAIL" />.</translation>
 <translation id="5056446788882570708">Problemas encontrados <ph name="TIME" />.</translation>
@@ -1133,6 +1136,7 @@
 <translation id="5295239312320826323">Remover conta <ph name="USER_EMAIL" />?</translation>
 <translation id="5300589172476337783">Mostrar</translation>
 <translation id="5311061401280561833">Acesso à câmera e ao microfone permitido</translation>
+<translation id="5313967007315987356">Adicionar site</translation>
 <translation id="5315870524563628285">Nada para importar</translation>
 <translation id="5316356981864168850"><ph name="INDEX" /> de <ph name="NUM_SUGGESTIONS" /></translation>
 <translation id="5317780077021120954">Salvar</translation>
@@ -1150,7 +1154,6 @@
 <translation id="537853552771686272">Gerencie os temas e os sites do seu interesse</translation>
 <translation id="5390458669633674385">{count,plural, =1{{count} guia fechada}one{{count} guia fechada}other{{count} guias fechadas}}</translation>
 <translation id="5394975111793637642">Ocultar o card "Avaliações de produtos para você"</translation>
-<translation id="5407806496954700135">Quer aplicar as suas personalizações da página "Nova guia" de outro dispositivo?</translation>
 <translation id="5414763847370083940">Você vai receber um alerta se houver uma redução no preço em algum site.</translation>
 <translation id="5415289094036440596">Chaves de acesso não podem ser compartilhadas</translation>
 <translation id="5416455648658732408">Mover para grupo de guias</translation>
@@ -1202,7 +1205,6 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="5579012242779565775">Ocultar a lista de leitura</translation>
 <translation id="5581786858144165447">Perguntar ao Modo IA</translation>
 <translation id="5585019845078534178">Cards</translation>
-<translation id="5589976607021609750">Imagem anexada</translation>
 <translation id="5595485650161345191">Editar endereço</translation>
 <translation id="559567008082979829">Seus downloads serão excluídos após um mês.</translation>
 <translation id="5596627076506792578">Mais opções</translation>
@@ -1360,7 +1362,6 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="6122191549521593678">On-line</translation>
 <translation id="6122831415929794347">Desativar a Navegação segura?</translation>
 <translation id="6123514585040403489">As guias serão fechadas</translation>
-<translation id="6127379762771434464">Item removido</translation>
 <translation id="6136914049981179737">Segundos atrás</translation>
 <translation id="6138324221869147340">Alguns recursos não estão mais disponíveis</translation>
 <translation id="6140600850356225166">Pedir para abrir links de outros apps na navegação anônima</translation>
@@ -1796,7 +1797,6 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="7696316012653762532">Opções para traduzir a página</translation>
 <translation id="7700527812567437847">Pesquisar na tela com o Google Lens</translation>
 <translation id="7701040980221191251">Nenhum</translation>
-<translation id="7708668404222666001">As preferências da página "Nova guia" foram aplicadas</translation>
 <translation id="7708994397325774423">Acesse todas as suas senhas</translation>
 <translation id="7711440461521638739">Você não está reutilizando senhas</translation>
 <translation id="7712361583414030698">Mostrando a versão off-line</translation>
@@ -2128,6 +2128,7 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="8856643812068084733">Arquivos</translation>
 <translation id="8863067612494559785">Enviando para <ph name="DEVICE_NAME" />…</translation>
 <translation id="8863431381414769983">Receber rotas e informações locais no Google Maps</translation>
+<translation id="8867879594900082274">Suas edições só serão aplicadas aos sites fixados neste dispositivo.</translation>
 <translation id="8871974300055371298">Configurações de conteúdo</translation>
 <translation id="8877788021141246043">Definir um lembrete</translation>
 <translation id="8879604564928138696">Toque duas vezes para testar</translation>
@@ -2240,7 +2241,7 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="954667170699278022">Lista de leitura</translation>
 <translation id="956066588046842680">A política da sua organização não permite a importação desses dados.</translation>
 <translation id="956218893102219091">Use sua localização exata para ter resultados mais precisos no Gemini, em vez de uma localização aproximada com base no seu endereço IP. <ph name="BEGIN_LINK" />Saiba mais<ph name="END_LINK" /></translation>
-<translation id="961856697154696964">Excluir histórico</translation>
+<translation id="961856697154696964">Excluir dados</translation>
 <translation id="963102227019621224">Atividade na Web e de apps</translation>
 <translation id="965879457362663186">Adicionar anexo</translation>
 <translation id="966593914872420832">Pesquisa por voz</translation>

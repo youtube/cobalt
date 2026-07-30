@@ -20,7 +20,6 @@
 #include "components/autofill/core/browser/webdata/autofill_ai/entity_table.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_service_test_helper.h"
 #include "components/autofill/core/common/autofill_features.h"
-#include "components/autofill/core/common/autofill_prefs.h"
 #include "components/feature_engagement/public/feature_constants.h"
 #include "components/optimization_guide/core/feature_registry/feature_registration.h"
 #include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
@@ -149,6 +148,37 @@ TEST_P(AutofillAiMayPerformActionTest, ReturnsFalseWhenMainFeatureIsOff) {
   feature_list.InitAndDisableFeature(features::kAutofillAiWithDataSchema);
 
   EXPECT_FALSE(MayPerformAutofillAiAction(client(), GetParam()));
+}
+
+// Tests that when `kAutofillAiAvailableByDefault` and the user is opted out,
+// everything but IPH and model related actions is permitted.
+TEST_P(
+    AutofillAiMayPerformActionTest,
+    ReturnsTrueWhenAvailableByDefault_ExceptForNonModelRelatedActionsAndIph) {
+  base::test::ScopedFeatureList feature_list{
+      features::kAutofillAiAvailableByDefault};
+  SetAutofillAiOptInStatus(client(), AutofillAiOptInStatus::kOptedOut);
+
+  constexpr auto kForbiddenActions =
+      DenseSet({AutofillAiAction::kIphForOptIn, AutofillAiAction::kLogToMqls,
+                AutofillAiAction::kServerClassificationModel});
+
+  using enum EntityTypeName;
+  EXPECT_EQ(
+      MayPerformAutofillAiAction(client(), GetParam(), EntityType(kPassport)),
+      !kForbiddenActions.contains(GetParam()));
+}
+
+// Tests that when `kAutofillAiAvailableByDefault` and the user is opted in,
+// everything but IPH is permitted.
+TEST_P(AutofillAiMayPerformActionTest,
+       ReturnsTrueWhenAvailableByDefault_ExceptForIph) {
+  base::test::ScopedFeatureList feature_list{
+      features::kAutofillAiAvailableByDefault};
+  using enum EntityTypeName;
+  EXPECT_EQ(
+      MayPerformAutofillAiAction(client(), GetParam(), EntityType(kPassport)),
+      GetParam() != AutofillAiAction::kIphForOptIn);
 }
 
 // Tests that the server model cannot be run and its cache cannot be used if
@@ -328,29 +358,6 @@ TEST_P(AutofillAiMayPerformActionTest, CapabilityCheckOverrideOptedOut) {
       MayPerformAutofillAiAction(client(), GetParam(), EntityType(kPassport)),
       is_allowed);
 }
-
-#if !BUILDFLAG(IS_CHROMEOS)  // Signing out does not work on ChromeOS.
-// Tests that enabling `kAutofillAiIgnoreSignInState` skips the check whether a
-// client is signed in.
-TEST_P(AutofillAiMayPerformActionTest, IgnoreSignInStatus) {
-  using enum EntityTypeName;
-  base::test::ScopedFeatureList feature_list{
-      features::kAutofillAiIgnoreSignInState};
-
-  SetAutofillAiOptInStatus(client(), AutofillAiOptInStatus::kOptedOut);
-  client().identity_test_environment().ClearPrimaryAccount();
-  ASSERT_FALSE(GetAutofillAiOptInStatus(client()));
-
-  EXPECT_TRUE(
-      SetAutofillAiOptInStatus(client(), AutofillAiOptInStatus::kOptedIn));
-  EXPECT_TRUE(GetAutofillAiOptInStatus(client()));
-
-  const bool is_allowed = GetParam() != AutofillAiAction::kIphForOptIn;
-  EXPECT_EQ(
-      MayPerformAutofillAiAction(client(), GetParam(), EntityType(kPassport)),
-      is_allowed);
-}
-#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 // Tests that only filling and cache use are allowed off-the-record.
 TEST_P(AutofillAiMayPerformActionTest, OffTheRecord) {
@@ -594,25 +601,6 @@ TEST_F(AutofillAiPermissionUtilsTest, OptInStatus) {
       SetAutofillAiOptInStatus(client(), AutofillAiOptInStatus::kOptedOut));
   EXPECT_FALSE(GetAutofillAiOptInStatus(client()));
 }
-
-// Tests that signing in an opted-in user retains the opt-in status.
-TEST_F(AutofillAiPermissionUtilsTest, SignInAfterOptIn) {
-  base::test::ScopedFeatureList feature_list{
-      features::kAutofillAiIgnoreSignInState};
-
-  SetAutofillAiOptInStatus(client(), AutofillAiOptInStatus::kOptedOut);
-  client().identity_test_environment().ClearPrimaryAccount();
-  ASSERT_FALSE(GetAutofillAiOptInStatus(client()));
-
-  EXPECT_TRUE(
-      SetAutofillAiOptInStatus(client(), AutofillAiOptInStatus::kOptedIn));
-  EXPECT_TRUE(GetAutofillAiOptInStatus(client()));
-
-  // The opt-in status is retained after sign-in.
-  client().identity_test_environment().MakePrimaryAccountAvailable(
-      "foo@gmail.com", signin::ConsentLevel::kSignin);
-  EXPECT_TRUE(GetAutofillAiOptInStatus(client()));
-}
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
 TEST_F(AutofillAiPermissionUtilsTest,
@@ -633,40 +621,6 @@ TEST_F(AutofillAiPermissionUtilsTest,
   client().GetPrefs()->SetBoolean(prefs::kAutofillProfileEnabled, false);
   EXPECT_TRUE(MayPerformAutofillAiAction(client(), AutofillAiAction::kOptIn,
                                          std::nullopt));
-}
-
-// Test that when the syncable pref feature is on, both prefs are updated.
-TEST_F(AutofillAiPermissionUtilsTest,
-       OptIn_SyncablePrefFeatureOn_UpdatesBothAccountKeyedAndSyncablePref) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(
-      {features::kAutofillAiSetSyncablePrefFromAccountPref});
-  const base::Value::Dict& pref_dict =
-      client().GetPrefs()->GetDict(prefs::kAutofillAiOptInStatus);
-
-  // There is a single user account.
-  ASSERT_EQ(pref_dict.size(), 1u);
-  const std::string signed_in_hash = pref_dict.begin()->first;
-  // This guarantees that it is a signed in user.
-  ASSERT_FALSE(signed_in_hash.empty());
-
-  // Opt user out.
-  ASSERT_TRUE(
-      SetAutofillAiOptInStatus(client(), AutofillAiOptInStatus::kOptedOut));
-  EXPECT_FALSE(GetAutofillAiOptInStatus(client()));
-  EXPECT_FALSE(
-      prefs::IsAutofillAiSyncedOptInStatusEnabled(client().GetPrefs()));
-  EXPECT_FALSE(GetAutofillAiOptInStatusFromNonSyncingPref(
-      client().GetPrefs(), client().GetIdentityManager()));
-
-  // Opt user back in.
-  ASSERT_TRUE(
-      SetAutofillAiOptInStatus(client(), AutofillAiOptInStatus::kOptedIn));
-  EXPECT_TRUE(GetAutofillAiOptInStatus(client()));
-  EXPECT_TRUE(prefs::IsAutofillAiSyncedOptInStatusEnabled(client().GetPrefs()));
-  // Checks that the soon to be deprecated account keyed pref is also updated.
-  EXPECT_TRUE(GetAutofillAiOptInStatusFromNonSyncingPref(
-      client().GetPrefs(), client().GetIdentityManager()));
 }
 
 // Tests that changes to the opt-in status are recorded in metrics.

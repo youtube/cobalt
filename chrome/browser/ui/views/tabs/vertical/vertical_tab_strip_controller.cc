@@ -9,12 +9,15 @@
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/tabs/tab_menu_model_factory.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_delegate.h"
+#include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/views/event_utils.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/tabs/tab_context_menu_controller.h"
+#include "chrome/browser/ui/views/tabs/tab_group_editor_bubble_view.h"
 #include "chrome/browser/ui/views/tabs/vertical/tab_collection_node.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_drag_handler.h"
 #include "components/tabs/public/tab_collection_types.h"
@@ -193,6 +196,22 @@ void VerticalTabStripController::ToggleTabGroupCollapsedState(
           base::UserMetricsAction("TabGroups_TabGroupHeader_Collapsed"));
     }
   }
+}
+
+views::Widget* VerticalTabStripController::ShowGroupEditorBubble(
+    const tab_groups::TabGroupId& group_id,
+    views::View* anchor_view,
+    bool stop_context_menu_propagation) {
+  return TabGroupEditorBubbleView::Show(
+      browser_view_->browser(), group_id,
+      /*anchor_view=*/anchor_view, /*anchor_rect=*/std::nullopt,
+      /*stop_context_menu_propagation=*/stop_context_menu_propagation);
+}
+
+bool VerticalTabStripController::IsCollapsed() {
+  tabs::VerticalTabStripStateController* state_controller =
+      tabs::VerticalTabStripStateController::From(browser_view_->browser());
+  return state_controller && state_controller->IsCollapsed();
 }
 
 bool VerticalTabStripController::IsContextMenuCommandChecked(

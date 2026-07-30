@@ -498,6 +498,12 @@ NET_EXPORT BASE_DECLARE_FEATURE(kSimdutfBase64Support);
 // Further optimize parsing data: URLs.
 NET_EXPORT BASE_DECLARE_FEATURE(kFurtherOptimizeParsingDataUrls);
 
+// Preserve MIME type parameters in data: URLs for WPT compliance.
+// When enabled, non-charset parameters (e.g., "boundary=xxx") are preserved
+// in the Content-Type header, and quoted parameter values are properly
+// normalized. See https://fetch.spec.whatwg.org/#data-url-processor
+NET_EXPORT BASE_DECLARE_FEATURE(kDataUrlMimeTypeParameterPreservation);
+
 // If enabled, unrecognized keys in a No-Vary-Search header will be ignored.
 // Otherwise, unrecognized keys are treated as if the header was invalid.
 NET_EXPORT BASE_DECLARE_FEATURE(kNoVarySearchIgnoreUnrecognizedKeys);
@@ -737,6 +743,12 @@ NET_EXPORT BASE_DECLARE_FEATURE(
 // If enabled, the configured bootstrap IP addresses of DoH providers will
 // be randomized for better load balancing of the initial DoH URL lookups.
 NET_EXPORT BASE_DECLARE_FEATURE(kEnableBootstrapIPRandomizationForDoh);
+
+#if BUILDFLAG(IS_APPLE)
+// If enabled, the GURL conversion for NSURLs will use the data representation
+// of the URL if it differs from the absolute string.
+NET_EXPORT BASE_DECLARE_FEATURE(kUseNSURLDataForGURLConversion);
+#endif  // BUILDFLAG(IS_APPLE)
 
 }  // namespace net::features
 

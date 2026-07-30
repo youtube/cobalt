@@ -463,6 +463,11 @@ inline constexpr char kIosReadingListSettingsPromoAlreadySeen[] =
 inline constexpr char kIosReadingListSigninPromoDisplayedCount[] =
     "ios.reading_list.signin_promo_displayed_count";
 
+// Preference that holds a boolean indicating whether the "Reading mode
+// available" message is shown.
+inline constexpr char kIosReaderModeShowAvailability[] =
+    "ios.reading_mode.show_availability";
+
 // Preference that holds a boolean indicating whether the link previews are
 // enabled. Link previews display a live preview of the selected link after a
 // long press.
@@ -721,11 +726,6 @@ inline constexpr char
 inline constexpr char kHomeCustomizationMagicStackShopCardReviewsEnabled[] =
     "ios.home_customization.magic_stack.shop_card_price_reviews.enabled";
 
-// List preference that stores the positions in the Magic Stack where the Safety
-// Check module with the notifications opt-in button is shown.
-inline constexpr char kMagicStackSafetyCheckNotificationsShown[] =
-    "ios.home_customization.magic_stack.safety_check.notifications_shown";
-
 // Integer preference that stores the most recent count of Safety Check issues
 // presented to the user in the Safety Check module (part of the Magic Stack).
 inline constexpr char kHomeCustomizationMagicStackSafetyCheckIssuesCount[] =
@@ -794,6 +794,9 @@ inline constexpr char kIOSBWGPageContentSetting[] =
 // An integer specifying how many times the BWG Promo was shown.
 inline constexpr char kIOSBWGPromoImpressionCount[] =
     "ios.bwg.promo_impressions";
+
+// A boolean specifying whether the Gemini camera permission setting is enabled.
+inline constexpr char kIOSGeminiCameraSetting[] = "ios.gemini.camera.setting";
 
 // Timestamp tracking the last interaction with the Gemini floaty.
 inline constexpr char kLastGeminiInteractionTimestamp[] =

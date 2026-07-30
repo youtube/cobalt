@@ -12,6 +12,7 @@
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/weak_ptr.h"
+#include "base/notreached.h"
 #include "base/observer_list.h"
 #include "base/sequence_checker.h"
 #include "base/strings/string_number_conversions.h"
@@ -92,20 +93,13 @@ CorpSignalStrategy::Core::Core(
       std::move(client_cert_store_callback).Run(),
       base::BindRepeating(&Core::OnSignalingAddressChanged,
                           weak_factory_.GetWeakPtr()));
-  incoming_message_subscription_ =
-      messaging_client_->RegisterMessageCallback(base::BindRepeating(
-          &Core::OnIncomingMessage, weak_factory_.GetWeakPtr()));
 }
 
 CorpSignalStrategy::Core::Core(
     std::unique_ptr<MessagingClient> messaging_client,
     const SignalingAddress& local_address)
     : messaging_client_(std::move(messaging_client)),
-      local_address_(local_address) {
-  incoming_message_subscription_ =
-      messaging_client_->RegisterMessageCallback(base::BindRepeating(
-          &Core::OnIncomingMessage, weak_factory_.GetWeakPtr()));
-}
+      local_address_(local_address) {}
 
 CorpSignalStrategy::Core::~Core() = default;
 
@@ -113,6 +107,9 @@ void CorpSignalStrategy::Core::Connect() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   SetState(CONNECTING);
+  incoming_message_subscription_ =
+      messaging_client_->RegisterMessageCallback(base::BindRepeating(
+          &Core::OnIncomingMessage, weak_factory_.GetWeakPtr()));
   messaging_client_->StartReceivingMessages(
       base::BindOnce(&Core::OnChannelReady, weak_factory_.GetWeakPtr()),
       base::BindOnce(&Core::OnChannelClosed, weak_factory_.GetWeakPtr()));
@@ -231,9 +228,11 @@ void CorpSignalStrategy::Core::OnIncomingMessage(
     const SignalingMessage& message) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
+  HOST_LOG << "Received incoming message from " << sender_address.id();
   for (auto& listener : listeners_) {
     if (listener.OnSignalStrategyIncomingMessage(sender_address, message)) {
-      return;
+      // Corp messaging does not support non-signaling messages like FTL does.
+      NOTREACHED();
     }
   }
 
@@ -257,9 +256,9 @@ void CorpSignalStrategy::Core::OnIncomingMessage(
     return;
   }
 
-  SignalingAddress sender =
+  SignalingAddress sender_address_from_iq =
       SignalingAddress::Parse(stanza.get(), SignalingAddress::FROM);
-  if (sender.empty()) {
+  if (sender_address_from_iq.empty()) {
     LOG(WARNING) << "Received stanza with invalid sender.";
     return;
   }
@@ -267,9 +266,17 @@ void CorpSignalStrategy::Core::OnIncomingMessage(
   // TODO: joedow - Associate `messaging_authz_token_` with the sender JID. One
   // way to do this is to update SignalingAddress to include a token field so
   // it is associated with the sender JID.
-  messaging_authz_token_ = iq_stanza_struct->messaging_authz_token;
+  const auto& authz_token = iq_stanza_struct->messaging_authz_token;
+  if (authz_token.empty()) {
+    LOG(WARNING) << "Received message with missing authz token.";
+    return;
+  }
+  if (authz_token != messaging_authz_token_) {
+    HOST_LOG << "Received message with new authz token: " << authz_token;
+    messaging_authz_token_ = authz_token;
+  }
 
-  OnStanza(sender, std::move(stanza));
+  OnStanza(sender_address_from_iq, std::move(stanza));
 }
 
 void CorpSignalStrategy::Core::OnChannelReady() {

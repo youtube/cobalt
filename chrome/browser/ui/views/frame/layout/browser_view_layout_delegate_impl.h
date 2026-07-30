@@ -34,11 +34,13 @@ class BrowserViewLayoutDelegateImpl : public BrowserViewLayoutDelegate {
   int GetTopInsetInBrowserView() const override;
   void LayoutWebAppWindowTitle(const gfx::Rect& available_space,
                                views::Label& window_title_label) const override;
+  views::LayoutAlignment GetWindowTitleAlignment() const override;
   bool IsToolbarVisible() const override;
   bool IsBookmarkBarVisible() const override;
   bool IsInfobarVisible() const override;
   bool IsContentsSeparatorEnabled() const override;
   bool IsActiveTabSplit() const override;
+  bool IsActiveTabAtLeadingWindowEdge() const override;
   const ImmersiveModeController* GetImmersiveModeController() const override;
   ExclusiveAccessBubbleViews* GetExclusiveAccessBubble() const override;
   bool IsTopControlsSlideBehaviorEnabled() const override;

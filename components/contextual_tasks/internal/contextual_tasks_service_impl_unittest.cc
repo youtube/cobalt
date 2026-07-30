@@ -373,6 +373,76 @@ TEST_F(ContextualTasksServiceImplTest, CreateAndRemoveMultipleTasks) {
   EXPECT_TRUE(GetTasks().empty());
 }
 
+TEST_F(ContextualTasksServiceImplTest, AssociateTabWithTask_Twice) {
+  service_->AddObserver(&observer_);
+  ContextualTask task = service_->CreateTask();
+  EXPECT_EQ(1u, GetTasks().size());
+
+  SessionID tab_id = SessionID::FromSerializedValue(1);
+
+  // Associate a tab with a task.
+  {
+    base::RunLoop run_loop;
+    EXPECT_CALL(observer_, OnTaskAssociatedToTab(task.GetTaskId(), tab_id))
+        .WillOnce(testing::InvokeWithoutArgs(&run_loop, &base::RunLoop::Quit));
+    service_->AssociateTabWithTask(task.GetTaskId(), tab_id);
+    run_loop.Run();
+    EXPECT_TRUE(service_->GetContextualTaskForTab(tab_id));
+    EXPECT_EQ(1u, service_->GetTabsAssociatedWithTask(task.GetTaskId()).size());
+  }
+
+  // Associate the same tab with the same task again without dissociating it.
+  {
+    base::RunLoop run_loop;
+    EXPECT_CALL(observer_, OnTaskAssociatedToTab(task.GetTaskId(), tab_id))
+        .WillOnce(testing::InvokeWithoutArgs(&run_loop, &base::RunLoop::Quit));
+    service_->AssociateTabWithTask(task.GetTaskId(), tab_id);
+    run_loop.Run();
+    EXPECT_TRUE(service_->GetContextualTaskForTab(tab_id));
+    // Should not double count the same tab that got added.
+    EXPECT_EQ(1u, service_->GetTabsAssociatedWithTask(task.GetTaskId()).size());
+  }
+
+  service_->RemoveObserver(&observer_);
+}
+
+TEST_F(ContextualTasksServiceImplTest, AssociateTabWithDifferentTasks) {
+  service_->AddObserver(&observer_);
+  ContextualTask task = service_->CreateTask();
+  ContextualTask task2 = service_->CreateTask();
+  EXPECT_EQ(2u, GetTasks().size());
+
+  SessionID tab_id = SessionID::FromSerializedValue(1);
+
+  // Associate a tab with a task.
+  {
+    base::RunLoop run_loop;
+    EXPECT_CALL(observer_, OnTaskAssociatedToTab(task.GetTaskId(), tab_id))
+        .WillOnce(testing::InvokeWithoutArgs(&run_loop, &base::RunLoop::Quit));
+    service_->AssociateTabWithTask(task.GetTaskId(), tab_id);
+    run_loop.Run();
+    EXPECT_TRUE(service_->GetContextualTaskForTab(tab_id));
+    EXPECT_EQ(1u, service_->GetTabsAssociatedWithTask(task.GetTaskId()).size());
+  }
+
+  // Associate the same tab with a different task.
+  {
+    base::RunLoop run_loop;
+    EXPECT_CALL(observer_,
+                OnTaskDisassociatedFromTab(task.GetTaskId(), tab_id));
+    EXPECT_CALL(observer_, OnTaskAssociatedToTab(task2.GetTaskId(), tab_id))
+        .WillOnce(testing::InvokeWithoutArgs(&run_loop, &base::RunLoop::Quit));
+    service_->AssociateTabWithTask(task2.GetTaskId(), tab_id);
+    run_loop.Run();
+    EXPECT_TRUE(service_->GetContextualTaskForTab(tab_id));
+    EXPECT_EQ(0u, service_->GetTabsAssociatedWithTask(task.GetTaskId()).size());
+    EXPECT_EQ(1u,
+              service_->GetTabsAssociatedWithTask(task2.GetTaskId()).size());
+  }
+
+  service_->RemoveObserver(&observer_);
+}
+
 TEST_F(ContextualTasksServiceImplTest, DeleteTask) {
   service_->AddObserver(&observer_);
   ContextualTask task = service_->CreateTask();
@@ -1217,7 +1287,8 @@ TEST_F(ContextualTasksServiceImplTest, GetContextualTaskForTab_NotFound) {
   EXPECT_FALSE(recent_task.has_value());
 }
 
-TEST_F(ContextualTasksServiceImplTest, ClearAllTabAssociationsForTask) {
+TEST_F(ContextualTasksServiceImplTest, DisassociateAllTabsFromTask) {
+  service_->AddObserver(&observer_);
   ContextualTask task = service_->CreateTask();
   SessionID tab_id1 = SessionID::FromSerializedValue(1);
   SessionID tab_id2 = SessionID::FromSerializedValue(2);
@@ -1227,14 +1298,33 @@ TEST_F(ContextualTasksServiceImplTest, ClearAllTabAssociationsForTask) {
 
   EXPECT_TRUE(service_->GetContextualTaskForTab(tab_id1).has_value());
   EXPECT_TRUE(service_->GetContextualTaskForTab(tab_id2).has_value());
-  EXPECT_EQ(2u, GetTaskById(task.GetTaskId())->GetTabIds().size());
+  std::optional<ContextualTask> result_task_before =
+      GetTaskById(task.GetTaskId());
+  ASSERT_TRUE(result_task_before.has_value());
+  EXPECT_EQ(2u, result_task_before->GetTabIds().size());
 
-  service_->ClearAllTabAssociationsForTask(task.GetTaskId());
+  base::RunLoop run_loop;
+  EXPECT_CALL(observer_, OnTaskDisassociatedFromTab(task.GetTaskId(), tab_id1));
+  EXPECT_CALL(observer_, OnTaskDisassociatedFromTab(task.GetTaskId(), tab_id2));
+  EXPECT_CALL(observer_,
+              OnTaskRemoved(task.GetTaskId(),
+                            ContextualTasksService::TriggerSource::kLocal))
+      .WillOnce(testing::InvokeWithoutArgs(&run_loop, &base::RunLoop::Quit));
+  service_->DisassociateAllTabsFromTask(task.GetTaskId());
+  run_loop.Run();
 
   EXPECT_FALSE(service_->GetContextualTaskForTab(tab_id1).has_value());
   EXPECT_FALSE(service_->GetContextualTaskForTab(tab_id2).has_value());
-  EXPECT_EQ(0u, GetTaskById(task.GetTaskId())->GetTabIds().size());
+  std::optional<ContextualTask> result_task_after =
+      GetTaskById(task.GetTaskId());
+  EXPECT_FALSE(result_task_after.has_value());
   EXPECT_EQ(0u, service_->GetTabIdMapSizeForTesting());
+  std::vector<SessionID> tabs_for_task =
+      service_->GetTabsAssociatedWithTask(task.GetTaskId());
+  EXPECT_TRUE(tabs_for_task.empty());
+  EXPECT_FALSE(service_->GetContextualTaskForTab(tab_id1));
+  EXPECT_FALSE(service_->GetContextualTaskForTab(tab_id2));
+  service_->RemoveObserver(&observer_);
 }
 
 TEST_F(ContextualTasksServiceImplTest, GetContextForTask) {
@@ -1720,6 +1810,25 @@ TEST_F(ContextualTasksServiceImplTest,
   service_->DisassociateTabFromTask(task.GetTaskId(), tab_id);
   EXPECT_FALSE(service_->GetContextualTaskForTab(tab_id).has_value());
   EXPECT_FALSE(GetTaskById(task.GetTaskId()).has_value());
+}
+
+TEST_F(ContextualTasksServiceImplTest,
+       DisassociateTabFromTask_KeepsEmptyTask_WhenFeatureDisabled) {
+  feature_list_.InitAndDisableFeature(
+      kContextualTasksRemoveTasksWithoutThreadsOrTabAssociations);
+  ContextualTask task = service_->CreateTask();
+  SessionID tab_id = SessionID::FromSerializedValue(1);
+
+  // Associate the tab with the task.
+  service_->AssociateTabWithTask(task.GetTaskId(), tab_id);
+  EXPECT_TRUE(service_->GetContextualTaskForTab(tab_id).has_value());
+  EXPECT_TRUE(GetTaskById(task.GetTaskId()).has_value());
+
+  // Disassociate the tab. The task should NOT be removed because the feature
+  // is disabled.
+  service_->DisassociateTabFromTask(task.GetTaskId(), tab_id);
+  EXPECT_FALSE(service_->GetContextualTaskForTab(tab_id).has_value());
+  EXPECT_TRUE(GetTaskById(task.GetTaskId()).has_value());
 }
 
 class ContextualTasksServiceImplEphemeralOnlyTest

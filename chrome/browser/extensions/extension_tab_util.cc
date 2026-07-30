@@ -37,6 +37,7 @@
 #include "components/saved_tab_groups/public/tab_group_sync_service.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/tab_groups/tab_group_id.h"  // nogncheck
+#include "components/tab_groups/tab_group_visual_data.h"
 #include "components/tabs/public/split_tab_id.h"
 #include "components/tabs/public/split_tab_visual_data.h"
 #include "components/tabs/public/tab_group.h"
@@ -131,8 +132,8 @@ BrowserWindowInterface* CreateBrowser(Profile* profile, bool user_gesture) {
 
   BrowserWindowCreateParams params(BrowserWindowInterface::TYPE_NORMAL,
                                    *profile, user_gesture);
-  // TODO(https://crbug.com/430344931): When this is ported to android platfoms,
-  // this window isn't guaranteed to be fully initialized.
+  // TODO(https://crbug.com/430344931): When this is ported to android
+  // platforms, this window isn't guaranteed to be fully initialized.
   return CreateBrowserWindow(std::move(params));
 }
 
@@ -790,15 +791,15 @@ bool ExtensionTabUtil::GetGroupById(
     content::BrowserContext* browser_context,
     bool include_incognito,
     WindowController** out_window,
-    tab_groups::TabGroupId* id,
-    const tab_groups::TabGroupVisualData** visual_data,
+    tab_groups::TabGroupId* out_id,
+    tab_groups::TabGroupVisualData* out_visual_data,
     std::string* error) {
   // Zero output parameters for the error cases.
   if (out_window) {
     *out_window = nullptr;
   }
-  if (visual_data) {
-    *visual_data = nullptr;
+  if (out_visual_data) {
+    *out_visual_data = {};
   }
 
   if (group_id == -1) {
@@ -837,17 +838,16 @@ bool ExtensionTabUtil::GetGroupById(
         if (out_window) {
           *out_window = target_window;
         }
-        if (id) {
-          *id = target_group;
+        if (out_id) {
+          *out_id = target_group;
         }
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-        // TODO(crbug.com/405219902): Android does not support visual data yet.
-        if (visual_data) {
-          *visual_data = target_tab_strip->group_model()
-                             ->GetTabGroup(target_group)
-                             ->visual_data();
+        if (out_visual_data) {
+          std::optional<tab_groups::TabGroupVisualData> visual_data =
+              tab_list->GetTabGroupVisualData(target_group);
+          if (visual_data.has_value()) {
+            *out_visual_data = visual_data.value();
+          }
         }
-#endif
         return true;
       }
     }
@@ -907,25 +907,29 @@ bool ExtensionTabUtil::GetSharedStateOfGroup(const tab_groups::TabGroupId& id) {
   return saved_group->is_shared_tab_group();
 }
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
 // static
 std::optional<api::tab_groups::TabGroup> ExtensionTabUtil::CreateTabGroupObject(
     const tab_groups::TabGroupId& id) {
-  Browser* browser = chrome::FindBrowserWithGroup(id, nullptr);
+  BrowserWindowInterface* browser = FindBrowserWithGroup(id);
   if (!browser) {
     return std::nullopt;
   }
 
-  CHECK(browser->tab_strip_model()->SupportsTabGroups());
-  TabGroupModel* group_model = browser->tab_strip_model()->group_model();
-  const tab_groups::TabGroupVisualData* visual_data =
-      group_model->GetTabGroup(id)->visual_data();
-
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  // TODO(crbug.com/405219902): Android does not have SupportsTabGroups() yet.
+  CHECK(browser->GetBrowserForMigrationOnly()
+            ->tab_strip_model()
+            ->SupportsTabGroups());
+#endif
+  TabListInterface* tab_list = TabListInterface::From(browser);
+  if (!tab_list) {
+    return std::nullopt;
+  }
+  std::optional<tab_groups::TabGroupVisualData> visual_data =
+      tab_list->GetTabGroupVisualData(id);
   DCHECK(visual_data);
-
   return CreateTabGroupObject(id, *visual_data);
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 // static
 api::tab_groups::Color ExtensionTabUtil::ColorIdToColor(
@@ -1129,7 +1133,7 @@ base::expected<GURL, std::string> ExtensionTabUtil::PrepareURLForNavigation(
   // entered into the Omnibox), but some extensions rely on the legacy behavior
   // where all navigations were subject to the "fixing".  See also
   // https://crbug.com/1145381.
-  url = url_formatter::FixupURL(url.spec(), "" /* = desired_tld */);
+  url = url_formatter::FixupURL(url.spec());
 
   // Reject invalid URLs.
   if (!url.is_valid()) {

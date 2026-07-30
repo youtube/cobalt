@@ -235,6 +235,8 @@ class ReadAnythingAppController
   int LineFocusStaticLine() const;
   int LineFocusCursorLine() const;
   int MaxLineWidth() const;
+  int InSidePanelPresentationState() const;
+  int InImmersiveOverlayPresentationState() const;
   std::string GetStoredVoice() const;
   std::vector<std::string> GetLanguagesEnabledInPref() const;
   std::vector<ui::AXNodeID> GetChildren(ui::AXNodeID ax_node_id) const;
@@ -250,6 +252,8 @@ class ReadAnythingAppController
   // Returns the presentation through the OnGetPresentationState callback.
   void SendGetPresentationStateRequest() const;
   // The results of these are sent back via UntrustedPage::OnGetVoicePackInfo.
+
+  void SendPinStateRequest();
   void SendGetVoicePackInfoRequest(const std::string& language) const;
   void SendInstallVoicePackRequest(const std::string& language) const;
   void SendUninstallVoiceRequest(const std::string& language) const;
@@ -258,6 +262,7 @@ class ReadAnythingAppController
   bool ShouldBold(ui::AXNodeID ax_node_id) const;
   bool IsOverline(ui::AXNodeID ax_node_id) const;
   bool IsLeafNode(ui::AXNodeID ax_node_id) const;
+  bool IsReadAnythingPinned() const;
   void OnConnected();
   void OnCopy() const;
   void OnScroll(bool on_selection) const;
@@ -304,6 +309,8 @@ class ReadAnythingAppController
   void LogEmptyState();
   void CloseUI();
   void TogglePresentation();
+  void TogglePinState();
+  void OnPinStatusReceived(bool pin_state) override;
 
   // The language code that should be used to determine which voices are
   // supported for speech.

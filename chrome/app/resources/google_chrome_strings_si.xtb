@@ -274,6 +274,7 @@
 <translation id="3885770153807205175">භාෂාව තේරීම</translation>
 <translation id="3889417619312448367">Google Chrome අස්ථාපනය</translation>
 <translation id="3892148308691398805">පෙළ පිටපත් කරන්න</translation>
+<translation id="3893985792899396936">Chrome ඉඟිය: Lens සමග සොයන්න</translation>
 <translation id="3906096710440765802">ඔබේ සියලු උපාංගවල ඔබේ මුරපද පිටුසන් සහ තවත් දේ ලබා ගැනීමට Chrome වෙත පුරන්න</translation>
 <translation id="3921132130819999051">Chrome හට ඔබ වෙනුවෙන් බ්‍රවුස් කිරීමට ඉඩ දෙන්න</translation>
 <translation id="3941890832296813527">ස්ථාපන දෝෂය: ස්ථාපක ගොනු නාමය වලංගු නැත හෝ සහාය නොදක්වයි.</translation>
@@ -315,7 +316,6 @@
 <translation id="4329315893554541805">පුද්ගලායන සහ අනෙකුත් විශේෂාංග ලබා ගැනීමට, වෙබ් සහ යෙදුම් ක්‍රියාකාරකම සහ සම්බන්‍ධ Google සේවා තුළ Chrome ඇතුළු කරන්න</translation>
 <translation id="4334241893986177674">මෙම තිර රුව සොයන්න</translation>
 <translation id="4334294535648607276">බාගැනීම සම්පූර්ණයි.</translation>
-<translation id="4337324600316876133">අනාගත Google Chrome යාවත්කාලීන ලබා ගැනීමට, ඔබට macOS 12 හෝ ඊට පසු අනුවාද අවශ්‍ය වෙයි. මෙම පරිගණකය macOS 11 භාවිත කරයි.</translation>
 <translation id="4343195214584226067"><ph name="EXTENSION_NAME" /> Chrome වෙත එක් කර ඇත</translation>
 <translation id="4344128547036991536">ඔබ Google Lens විවෘත කරන විට, PDF ඇතුළු පිටු මාතෘකාව, URL සහ අන්තර්ගතය ස්වයංක්‍රීයව Google වෙත යවනු ලැබේ. <ph name="LEARN_MORE" /></translation>
 <translation id="4348548358339558429">පුද්ගලායනය ලබා ගැනීමට, වෙබ් සහ යෙදුම් ක්‍රියාකාරකම තුළ Chrome ඇතුළු කරන්න</translation>
@@ -372,6 +372,7 @@
 <translation id="5003967926796347400">“Google මුරපද කළමනාකරු” ක්ලික් කරන්න</translation>
 <translation id="5043786843026425788">Chrome හි Google Lens සමග සෙවීම ගැන තව දැන ගන්න</translation>
 <translation id="504867494566807945">ඕනෑම යෙදුමකින් Chrome හි සබැඳි විවෘත කරන්න. තව ද පහසු ප්‍රවේශය සඳහා, එය ඔබේ කාර්ය තීරුවට අමුණනු ලැබේ.</translation>
+<translation id="5105120510934353742">අනාගත Google Chrome යාවත්කාලීන ලබා ගැනීමට, ඔබට macOS 13 හෝ ඊට පසු අනුවාද අවශ්‍ය වෙයි. මෙම පරිගණකය macOS 12 භාවිත කරයි.</translation>
 <translation id="5114340746415930644">ඔබේ ගිණුමේ, <ph name="USER_EMAIL" /> Chrome දත්ත භාවිතා කිරීමට සහ සුරැකීමට ඔබේ මුර-වැකිකඩ ඇතුළු කරන්න</translation>
 <translation id="5120334927898581447">ඔබ වෙනත් Google සේවාවලට පුරන විට Chrome වෙත පුරන්න</translation>
 <translation id="5126049312684316860">Chrome ඔබ පැමිණීමට ඉඩ ඇති පිටුවලටත් වඩා පිටු පූර්ව පූරණය කරයි, එවිට ඔබ ඒවාට පිවිසෙන විට ඒවා ඉක්මනින් පූරණය වේ</translation>
@@ -490,6 +491,7 @@ Google Chrome හට ඔබගේ සැකසුම් ප්‍රතිසා
 <translation id="6180522807229584611">මෙම පටිත්ත අමතර සම්පත් භාවිත කරයි. ඔබේ කාර්ය සාධනය වැඩි දියුණු කිරීමට, Chrome හට එය අක්‍රිය කිරීමට ඉඩ දෙන්න.</translation>
 <translation id="6182736845697986886">යාවත්කාලීන සේවාදායක අභ්‍යන්තර දෝෂයක් නිසා ස්ථාපනය අසමත් විය.</translation>
 <translation id="6183773856988300112">Chrome හි Gemini ඔබේ පටිතිවල වැඩ කිරීමට සහ ඔබ එයට දෙන කාර්යයන් සම්පූර්ණ කිරීමට ස්වයං බ්‍රවුස් භාවිත කරයි. <ph name="LINK_BEGIN" />තව දැන ගන්න<ph name="LINK_END" /></translation>
+<translation id="6187085551300363958">Chrome ඉඟිය: මුරපද සුරකින්න</translation>
 <translation id="6192058120268468905">Chrome හි ඔබේ ගිණුම</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" /> විසින් Chrome ක්‍රියා කරන ආකාරය වෙනස් කළ හැකි දිගුවක් එක් කර ඇත.
 
@@ -628,6 +630,7 @@ Google Chrome හට ඔබගේ සැකසුම් ප්‍රතිසා
 <translation id="7627609214560473136">ඔබේ දත්ත ආරක්ෂා කිරීම සඳහා, ඔබ මෑතක දී නොපැමිණි අඩවිවලින් අවසර ඉවත් කිරීමට Chrome හට ඉඩ දෙන්න.</translation>
 <translation id="7629695634924605473">Chrome ඔබට ඔබේ මුරපද කිසි විටෙක හෝ අවදානමට ලක් වී තිබේද යන්න දන්වයි</translation>
 <translation id="7641148173327520642">ඔබේ පද්ධති පරිපාලකයා <ph name="TARGET_URL_HOSTNAME" /> වෙත ප්‍රවේශ වීමට <ph name="ALTERNATIVE_BROWSER_NAME" /> විවෘත කිරීමට Google Chrome වින්‍යාස කර ඇත.</translation>
+<translation id="7641448682796883218">Chrome ඉඟිය: ඉහළ නැංවූ සුරක්ෂිත පිරික්සුම</translation>
 <translation id="7649070708921625228">උදවු</translation>
 <translation id="7651907282515937834">Chrome ව්‍යවසාය ලාංඡනය</translation>
 <translation id="76531479118467370">ඔබ සුරක්ෂිත බ්‍රවුස් කිරීම ක්‍රියාවිරහිත කළ නිසා සහ ගොනුව සත්‍යාපනය කළ නොහැකි නිසා Chrome මෙම බාගැනීම අවහිර කර ඇත</translation>

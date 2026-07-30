@@ -19,7 +19,6 @@
 #include <vector>
 
 #include "base/check_deref.h"
-#include "base/containers/contains.h"
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
 #include "base/containers/to_vector.h"
@@ -1934,11 +1933,7 @@ void AutofillAgent::SelectFieldOptionsChanged(
   }
 
   FieldRendererId element_id = form_util::GetFieldRendererId(element);
-  base::OneShotTimer& timer =
-      base::FeatureList::IsEnabled(
-          features::kAutofillSplitTimersForSelectOptionChanges)
-          ? select_option_change_batch_timer_[element_id]
-          : select_option_change_batch_timer_[FieldRendererId()];
+  base::OneShotTimer& timer = select_option_change_batch_timer_[element_id];
 
   if (timer.IsRunning()) {
     timer.Stop();

@@ -26,7 +26,6 @@
 #include "chromeos/ash/components/dbus/cros_disks/cros_disks_client.h"
 #include "chromeos/ash/components/dbus/cros_disks/fake_cros_disks_client.h"
 #include "chromeos/ash/components/drivefs/drivefs_util.h"
-#include "chromeos/ash/components/drivefs/mojom/drivefs.mojom-shared.h"
 #include "chromeos/ash/components/drivefs/mojom/drivefs.mojom.h"
 #include "chromeos/components/drivefs/mojom/drivefs_native_messaging.mojom.h"
 #include "components/drive/file_errors.h"
@@ -192,8 +191,7 @@ class FakeDriveFs::SearchQuery : public mojom::SearchQuery {
         const base::FilePath path = item_ptr->path;
         const drivefs::mojom::FileMetadata* metadata = item_ptr->metadata.get();
         if (!query.empty()) {
-          if (!base::Contains(base::ToLowerASCII(path.BaseName().value()),
-                              query)) {
+          if (!base::ToLowerASCII(path.BaseName().value()).contains(query)) {
             return true;
           }
         }

@@ -1807,7 +1807,7 @@ CSSMathExpressionNode* CSSMathExpressionOperation::CreateComparisonFunction(
 const CSSMathExpressionNode*
 CSSMathExpressionOperation::CopyRandomWithPropertyNameAndValueIndexIfNeeded(
     const CSSPropertyName& property_name,
-    wtf_size_t property_value_index) const {
+    wtf_size_t& property_value_index) const {
   DCHECK(NeedsPropertyNameAndValueIndexForRandom());
   Operands operands(operands_);
   for (wtf_size_t i = 0; i < operands_.size(); i++) {
@@ -5344,7 +5344,8 @@ bool RandomValueSharing::IsElementShared() const {
 const RandomValueSharing*
 RandomValueSharing::CopyWithPropertyValueIndexNameIfNeeded(
     const CSSPropertyName& property_name,
-    wtf_size_t property_value_index) const {
+    wtf_size_t& property_value_index) const {
+  ++property_value_index;
   if (IsFixed()) {
     const CSSPrimitiveValue* fixed_with_property = To<CSSPrimitiveValue>(
         GetFixed()->CopyRandomValueWithPropertyNameAndValueIndexIfNeeded(
@@ -5539,7 +5540,7 @@ CSSMathExpressionNode* CSSMathExpressionRandomFunction::Copy() const {
 const CSSMathExpressionNode* CSSMathExpressionRandomFunction::
     CopyRandomWithPropertyNameAndValueIndexIfNeeded(
         const CSSPropertyName& property_name,
-        wtf_size_t property_value_index) const {
+        wtf_size_t& property_value_index) const {
   const RandomValueSharing* random_value_sharing =
       random_value_sharing_->CopyWithPropertyValueIndexNameIfNeeded(
           property_name, property_value_index);
@@ -5641,6 +5642,75 @@ double CSSMathExpressionRandomFunction::ComputeDouble(
     step = step_->ComputeNumber(length_resolver);
   }
   return ComputeCSSRandomValue(random_base_value, min, max, step);
+}
+
+std::optional<double>
+CSSMathExpressionRandomFunction::ComputeValueInCanonicalUnit() const {
+  if (category_ != kCalcIntermediate && !HasCanonicalUnit(category_)) {
+    return std::nullopt;
+  }
+  if (!random_value_sharing_->IsFixed()) {
+    // We can only resolve fixed random() values without having access to an
+    // element or a document.
+    return std::nullopt;
+  }
+  std::optional<double> fixed_value =
+      random_value_sharing_->GetFixed()->GetValueIfKnown();
+  if (!fixed_value.has_value()) {
+    return std::nullopt;
+  }
+  double random_base_value = std::clamp(*fixed_value, 0., 1.);
+  if (random_base_value == 1.0) {
+    random_base_value = std::nextafter(1.0f, 0.0f);
+  }
+
+  std::optional<double> min = min_->ComputeValueInCanonicalUnit();
+  if (!min.has_value()) {
+    return std::nullopt;
+  }
+  std::optional<double> max = max_->ComputeValueInCanonicalUnit();
+  if (!max.has_value()) {
+    return std::nullopt;
+  }
+  std::optional<double> step = std::nullopt;
+  if (step_) {
+    step = step_->ComputeValueInCanonicalUnit();
+    if (!step.has_value()) {
+      return std::nullopt;
+    }
+  }
+  return ComputeCSSRandomValue(random_base_value, *min, *max, step);
+}
+
+std::optional<double>
+CSSMathExpressionRandomFunction::ComputeValueInCanonicalUnit(
+    const CSSLengthResolver& length_resolver) const {
+  if (category_ != kCalcIntermediate && !HasCanonicalUnit(category_)) {
+    return std::nullopt;
+  }
+  if (!random_value_sharing_->IsElementShared()) {
+    length_resolver.ReferenceElementDependentRandom();
+  }
+  double random_base_value =
+      GetRandomBaseValue(random_value_sharing_, length_resolver);
+  std::optional<double> min =
+      min_->ComputeValueInCanonicalUnit(length_resolver);
+  if (!min.has_value()) {
+    return std::nullopt;
+  }
+  std::optional<double> max =
+      max_->ComputeValueInCanonicalUnit(length_resolver);
+  if (!max.has_value()) {
+    return std::nullopt;
+  }
+  std::optional<double> step = std::nullopt;
+  if (step_) {
+    step = step_->ComputeValueInCanonicalUnit(length_resolver);
+    if (!step.has_value()) {
+      return std::nullopt;
+    }
+  }
+  return ComputeCSSRandomValue(random_base_value, *min, *max, step);
 }
 
 CSSPrimitiveValue::UnitType CSSMathExpressionRandomFunction::ResolvedUnitType()

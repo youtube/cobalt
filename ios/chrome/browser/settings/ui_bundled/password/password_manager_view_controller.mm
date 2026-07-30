@@ -34,6 +34,7 @@
 #import "components/sync/service/sync_service_utils.h"
 #import "components/sync/service/sync_user_settings.h"
 #import "ios/chrome/browser/net/model/crurl.h"
+#import "ios/chrome/browser/passwords/coordinator/password_utils.h"
 #import "ios/chrome/browser/passwords/model/password_checkup_metrics.h"
 #import "ios/chrome/browser/settings/ui_bundled/cells/inline_promo_cell.h"
 #import "ios/chrome/browser/settings/ui_bundled/cells/inline_promo_item.h"
@@ -52,7 +53,6 @@
 #import "ios/chrome/browser/settings/ui_bundled/settings_root_table_view_controller+toolbar_add.h"
 #import "ios/chrome/browser/settings/ui_bundled/settings_root_table_view_controller+toolbar_settings.h"
 #import "ios/chrome/browser/settings/ui_bundled/settings_root_table_view_controller.h"
-#import "ios/chrome/browser/settings/ui_bundled/utils/password_utils.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #import "ios/chrome/browser/shared/ui/elements/home_waiting_view.h"
@@ -439,6 +439,11 @@ bool AreIssuesEqual(const std::vector<password_manager::AffiliatedGroup>& lhs,
     [self logPercentageMetricForFavicons];
     _faviconMetricLogged = YES;
   }
+}
+
+- (void)viewWillAppear:(BOOL)animated {
+  [super viewWillAppear:animated];
+  [self updateUIForEditState];
 }
 
 - (void)viewDidDisappear:(BOOL)animated {
@@ -1044,15 +1049,9 @@ bool AreIssuesEqual(const std::vector<password_manager::AffiliatedGroup>& lhs,
   // Reload items in sections.
   if (sectionsToUpdate.count > 0) {
     [self filterItems:self.searchTerm];
-    __weak __typeof(self) weakSelf = self;
-    [self.tableView
-        performBatchUpdates:^{
-          [weakSelf.tableView reloadSections:sectionsToUpdate
-                            withRowAnimation:UITableViewRowAnimationAutomatic];
-        }
-        completion:^(BOOL) {
-          [weakSelf scrollToLastUpdatedItem];
-        }];
+    [self.tableView reloadSections:sectionsToUpdate
+                  withRowAnimation:UITableViewRowAnimationAutomatic];
+    [self scrollToLastUpdatedItem];
   } else if (_affiliatedGroups.empty() && _blockedSites.empty()) {
     [self setEditing:NO animated:YES];
   }
