@@ -315,14 +315,21 @@ void MimeUtil::AddSupportedMediaFormats() {
 
   CodecSet mp4_audio_codecs{FLAC, MP3, OPUS};
 
+  CodecSet mkv_audio_codecs{PCM, FLAC, MP3, OPUS, VORBIS};
+
   // Only VP9 with valid codec string vp09.xx.xx.xx.xx.xx.xx.xx is supported.
   // See ParseVp9CodecID for details.
   CodecSet mp4_video_codecs;
   mp4_video_codecs.emplace(VP9);
 
+  CodecSet mkv_video_codecs;
+  mkv_video_codecs.emplace(VP8);
+  mkv_video_codecs.emplace(VP9);
+
 #if BUILDFLAG(USE_PROPRIETARY_CODECS)
   const CodecSet aac{MPEG2_AAC, MPEG4_AAC, MPEG4_XHE_AAC};
   mp4_audio_codecs.insert(aac.begin(), aac.end());
+  mkv_audio_codecs.insert(aac.begin(), aac.end());
 
   CodecSet avc_and_aac(aac);
   avc_and_aac.emplace(H264);
@@ -330,33 +337,44 @@ void MimeUtil::AddSupportedMediaFormats() {
 #if BUILDFLAG(ENABLE_PLATFORM_AC3_EAC3_AUDIO)
   mp4_audio_codecs.emplace(AC3);
   mp4_audio_codecs.emplace(EAC3);
+  mkv_audio_codecs.emplace(AC3);
+  mkv_audio_codecs.emplace(EAC3);
 #endif  // BUILDFLAG(ENABLE_PLATFORM_AC3_EAC3_AUDIO)
 
 #if BUILDFLAG(ENABLE_PLATFORM_AC4_AUDIO)
   mp4_audio_codecs.emplace(AC4);
+  mkv_audio_codecs.emplace(AC4);
 #endif  // BUILDFLAG(ENABLE_PLATFORM_AC4_AUDIO)
 
 #if BUILDFLAG(ENABLE_PLATFORM_MPEG_H_AUDIO)
   mp4_audio_codecs.emplace(MPEG_H_AUDIO);
+  mkv_audio_codecs.emplace(MPEG_H_AUDIO);
 #endif  // BUILDFLAG(ENABLE_PLATFORM_MPEG_H_AUDIO)
 
   mp4_video_codecs.emplace(H264);
+  mkv_video_codecs.emplace(H264);
 #if BUILDFLAG(ENABLE_PLATFORM_HEVC)
   mp4_video_codecs.emplace(HEVC);
+  mkv_video_codecs.emplace(HEVC);
 #endif  // BUILDFLAG(ENABLE_PLATFORM_HEVC)
 
 #if BUILDFLAG(ENABLE_PLATFORM_DOLBY_VISION)
   mp4_video_codecs.emplace(DOLBY_VISION);
+  mkv_video_codecs.emplace(DOLBY_VISION);
 #endif  // BUILDFLAG(ENABLE_PLATFORM_DOLBY_VISION)
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
 #if BUILDFLAG(ENABLE_AV1_DECODER)
   mp4_video_codecs.emplace(AV1);
+  mkv_video_codecs.emplace(AV1);
 #endif
 
 #if BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO)
   mp4_audio_codecs.emplace(DTS);
   mp4_audio_codecs.emplace(DTSXP2);
   mp4_audio_codecs.emplace(DTSE);
+  mkv_audio_codecs.emplace(DTS);
+  mkv_audio_codecs.emplace(DTSXP2);
+  mkv_audio_codecs.emplace(DTSE);
 #endif  // BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO)
 
 #if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
@@ -365,6 +383,9 @@ void MimeUtil::AddSupportedMediaFormats() {
 
   CodecSet mp4_codecs(mp4_audio_codecs);
   mp4_codecs.insert(mp4_video_codecs.begin(), mp4_video_codecs.end());
+
+  CodecSet mkv_codecs(mkv_audio_codecs);
+  mkv_codecs.insert(mkv_video_codecs.begin(), mkv_video_codecs.end());
 
   const CodecSet implicit_codec;
   AddContainerWithCodecs("audio/wav", wav_codecs);
@@ -387,6 +408,11 @@ void MimeUtil::AddSupportedMediaFormats() {
   DCHECK(!mp4_video_codecs.empty());
   AddContainerWithCodecs("video/mp4", mp4_codecs);
 
+  AddContainerWithCodecs("audio/matroska", mkv_audio_codecs);
+  AddContainerWithCodecs("video/matroska", mkv_codecs);
+  AddContainerWithCodecs("audio/x-matroska", mkv_audio_codecs);
+  AddContainerWithCodecs("video/x-matroska", mkv_codecs);
+
 #if BUILDFLAG(USE_PROPRIETARY_CODECS)
   AddContainerWithCodecs("audio/aac", implicit_codec);  // AAC / ADTS.
   // These strings are supported for backwards compatibility only and thus only
@@ -399,21 +425,21 @@ void MimeUtil::AddSupportedMediaFormats() {
   AddContainerWithCodecs("video/3gpp", video_3gpp_codecs);
 
 #if BUILDFLAG(ENABLE_HLS_DEMUXER)
-  if (base::FeatureList::IsEnabled(kBuiltInHlsPlayer)) {
-    // HTTP Live Streaming (HLS).
-    CodecSet hls_codecs{
-        H264,
-        MP3,
-        MPEG4_AAC,
-    };
-    AddContainerWithCodecs("application/x-mpegurl", hls_codecs);
-    AddContainerWithCodecs("application/vnd.apple.mpegurl", hls_codecs);
-    AddContainerWithCodecs("audio/mpegurl", hls_codecs);
-    // Not documented by Apple, but unfortunately used extensively by Apple and
-    // others for both audio-only and audio+video playlists. See
-    // https://crbug.com/675552 for details and examples.
-    AddContainerWithCodecs("audio/x-mpegurl", hls_codecs);
-  }
+  CodecSet hls_codecs{
+      H264,
+      MP3,
+      MPEG4_AAC,
+  };
+  AddContainerWithCodecs("application/x-mpegurl", hls_codecs);
+  AddContainerWithCodecs("application/vnd.apple.mpegurl", hls_codecs);
+  AddContainerWithCodecs("audio/mpegurl", hls_codecs);
+  // Not documented by Apple, but unfortunately used extensively by Apple and
+  // others for both audio-only and audio+video playlists. See
+  // https://crbug.com/675552 for details and examples.
+  // TODO(crbug.com/455656766): It's possible that this should not count.
+  // Add a metric to see how often this mimetype is served to the HLS player
+  // with success/failure playback.
+  AddContainerWithCodecs("audio/x-mpegurl", hls_codecs);
 #endif  // BUILDFLAG(ENABLE_HLS_DEMUXER)
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
 }

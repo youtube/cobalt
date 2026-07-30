@@ -31,6 +31,8 @@ import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMeth
 import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ScreenId;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetObserver;
+import org.chromium.components.browser_ui.bottomsheet.EmptyBottomSheetObserver;
 
 import java.util.Set;
 
@@ -47,6 +49,19 @@ class TouchToFillPaymentMethodView extends TouchToFillViewBase {
     private @StringRes int mSheetHalfHeightDescriptionId;
     private @StringRes int mSheetClosedDescriptionId;
     private @ScreenId int mCurrentScreenId;
+    private final BottomSheetObserver mBottomSheetFullStateObserver =
+            new EmptyBottomSheetObserver() {
+                @Override
+                public void onSheetStateChanged(
+                        @BottomSheetController.SheetState int newState,
+                        @BottomSheetController.StateChangeReason int reason) {
+                    if (newState == BottomSheetController.SheetState.FULL
+                            && shouldAlwaysShowFullSheetForScreenId(mCurrentScreenId)
+                            && !isFullyExtended()) {
+                        updateScreenHeight();
+                    }
+                }
+            };
 
     private static class HorizontalDividerItemDecoration extends ItemDividerBase {
         HorizontalDividerItemDecoration(Context context) {
@@ -95,6 +110,13 @@ class TouchToFillPaymentMethodView extends TouchToFillViewBase {
                         LayoutInflater.from(context)
                                 .inflate(R.layout.touch_to_fill_payment_method_sheet, null),
                 true);
+        bottomSheetController.addObserver(mBottomSheetFullStateObserver);
+    }
+
+    @Override
+    public void destroy() {
+        removeObserver(mBottomSheetFullStateObserver);
+        super.destroy();
     }
 
     void setCurrentScreen(@ScreenId int screenId) {

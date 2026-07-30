@@ -874,6 +874,7 @@ Slut din enhed til en strømkilde.</translation>
 <translation id="397105322502079400">Beregner...</translation>
 <translation id="397726367135689299">Batteriopladningen er muligvis ikke pålidelig.</translation>
 <translation id="3977512764614765090">Batteriet er på <ph name="PERCENTAGE" /> % og oplader.</translation>
+<translation id="3978162107953847778">Indsæt links fra steder såsom din browserhistorik og Google Drev. Du kan også indsætte emojis, billedfiler m.m. <ph name="LINK_TO_LEARN_MORE" /></translation>
 <translation id="3982013579989864579">Vil du skifte lydoutput?</translation>
 <translation id="3984536049089846927">Næste side</translation>
 <translation id="3986082989454912832">Svar</translation>
@@ -1600,6 +1601,7 @@ Ingen enheder er forbundet.</translation>
 <translation id="6260038345397266744"><ph name="TITLE" />. <ph name="DESCRIPTION" /></translation>
 <translation id="6267036997247669271"><ph name="NAME" />: Aktiverer...</translation>
 <translation id="6274202259872570803">Screencast</translation>
+<translation id="6274422179279280249">Indsæt links, emojis m.m. Du kan også få hjælp til at skrive med Google AI. <ph name="LINK_TO_LEARN_MORE" /></translation>
 <translation id="6276708887952587684">Se sidekilden</translation>
 <translation id="6285871695023807425">Føj til Kalender</translation>
 <translation id="6288235558961782912"><ph name="USER_EMAIL_ADDRESS" /> kan tilføjes igen senere, hvis en forælder giver tilladelse til det.</translation>
@@ -2190,6 +2192,7 @@ Du kan slukke enheden ved at holde afbryderknappen på enheden nede igen.</trans
 <translation id="8237964652943995219">Næste skrivebord: <ph name="DESK_NAME" />. Skrivebord <ph name="DESK_INDEX" /> af <ph name="DESK_COUNT" />.</translation>
 <translation id="8238817965863339552">Få et hurtigt overblik over, hvordan du finder rundt på din <ph name="PRODUCT_NAME" />. Kom godt i gang med 5 trin.</translation>
 <translation id="8239034820133090126">Aktivér skrivebordet til højre</translation>
+<translation id="8241650983304689286">Føj fane til ny opdelt visning</translation>
 <translation id="8247060538831475781"><ph name="CONNECTION_STATUS" />, signalstyrke <ph name="SIGNAL_STRENGTH" />, telefonbatteri <ph name="BATTERY_STATUS" /></translation>
 <translation id="825129991941217170">Vis alt Google Drev-indhold</translation>
 <translation id="8257510091797044096">Konfigurer din enhed</translation>

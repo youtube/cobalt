@@ -11,7 +11,6 @@
 #include "base/containers/contains.h"
 #include "base/containers/flat_set.h"
 #include "base/dcheck_is_on.h"
-#include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
@@ -23,7 +22,9 @@
 #include "net/cookies/cookie_partition_key.h"
 #include "net/cookies/cookie_setting_override.h"
 #include "net/cookies/cookie_util.h"
+#include "net/http/http_log_util.h"
 #include "net/http/http_status_code.h"
+#include "net/http/http_util.h"
 #include "net/log/net_log_util.h"
 #include "net/log/net_log_values.h"
 #include "net/shared_dictionary/shared_dictionary.h"
@@ -113,12 +114,18 @@ base::Value::Dict NetLogCorsURLLoaderStartParams(
       break;
   }
 
-  return base::Value::Dict()
-      .Set("url", SanitizeUrlForNetLog(request.url, capture_mode))
-      .Set("method", request.method)
-      .Set("headers", net::NetLogStringValue(request.headers.ToString()))
-      .Set("is_revalidating", request.is_revalidating)
-      .Set("cors_preflight_policy", cors_preflight_policy);
+  auto params = base::Value::Dict()
+                    .Set("url", SanitizeUrlForNetLog(request.url, capture_mode))
+                    .Set("is_revalidating", request.is_revalidating)
+                    .Set("cors_preflight_policy", cors_preflight_policy);
+
+  if (request.url.is_valid()) {
+    std::string request_line = net::HttpUtil::GenerateRequestLine(
+        request.method, request.url, /*is_for_get_to_http_proxy=*/false);
+    params.Set("request_headers",
+               request.headers.NetLogParams(request_line, capture_mode));
+  }
+  return params;
 }
 
 base::Value::Dict NetLogPreflightRequiredParams(
@@ -631,8 +638,6 @@ void CorsURLLoader::OnReceiveResponse(
 
   // OnReceiveResponse() can be called at most once. This check is added to
   // debug crbug.com/463388771.
-  SCOPED_CRASH_KEY_STRING1024("crbug463388771", "cors_url_loader_url",
-                              request_.url.spec());
   CHECK(!has_forwarded_response_);
   has_forwarded_response_ = true;
   timing_allow_failed_flag_ = !PassesTimingAllowOriginCheck(*response_head);

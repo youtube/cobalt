@@ -9,6 +9,7 @@ import org.junit.Assert;
 import org.chromium.android_webview.AwNavigation;
 import org.chromium.android_webview.AwNavigationListener;
 import org.chromium.android_webview.AwPage;
+import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.build.annotations.Nullable;
 
 import java.lang.reflect.InvocationHandler;
@@ -24,9 +25,14 @@ public class TestAwNavigationListener implements AwNavigationListener {
     private final List<AwPage> mPagesWithLoadEventFired = new ArrayList<AwPage>();
     private final List<AwPage> mPagesWithDOMContentLoadEventFired = new ArrayList<AwPage>();
     private final List<Long> mFirstContentfulPaintLoadTimes = new ArrayList<Long>();
+    private final List<Long> mLargestContentfulPaintLoadTimes = new ArrayList<Long>();
     private final List<PerformanceMark> mPerformanceMarks = new ArrayList<PerformanceMark>();
 
-    public TestAwNavigationListener() {}
+    private final CallbackHelper mCallbackHelper;
+
+    public TestAwNavigationListener(CallbackHelper callbackHelper) {
+        mCallbackHelper = callbackHelper;
+    }
 
     @Nullable AwNavigation getLastStartedNavigation() {
         if (mStartedNavigations.isEmpty()) {
@@ -76,6 +82,10 @@ public class TestAwNavigationListener implements AwNavigationListener {
             return null;
         }
         return mFirstContentfulPaintLoadTimes.get(mFirstContentfulPaintLoadTimes.size() - 1);
+    }
+
+    @Nullable List<Long> getLastLargestContentfulPaintLoadTimes() {
+        return mLargestContentfulPaintLoadTimes;
     }
 
     @Nullable List<PerformanceMark> getPerformanceMarks() {
@@ -150,6 +160,12 @@ public class TestAwNavigationListener implements AwNavigationListener {
     @Override
     public void onFirstContentfulPaint(AwPage page, long loadTimeUs) {
         mFirstContentfulPaintLoadTimes.add(loadTimeUs);
+        mCallbackHelper.notifyCalled();
+    }
+
+    @Override
+    public void onLargestContentfulPaint(AwPage page, long durationMs) {
+        mLargestContentfulPaintLoadTimes.add(durationMs);
     }
 
     @Override

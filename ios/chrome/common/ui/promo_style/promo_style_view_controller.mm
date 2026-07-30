@@ -85,6 +85,7 @@ UIImage* ArrowDownImage() {
 }  // namespace
 
 @interface PromoStyleViewController () <ButtonStackActionDelegate,
+                                        UITextDragDelegate,
                                         UIScrollViewDelegate>
 
 @property(nonatomic, strong) UIImageView* bannerImageView;
@@ -655,6 +656,7 @@ UIImage* ArrowDownImage() {
     _disclaimerView.editable = NO;
     _disclaimerView.adjustsFontForContentSizeCategory = YES;
     _disclaimerView.delegate = self;
+    _disclaimerView.textDragDelegate = self;
     _disclaimerView.backgroundColor = UIColor.clearColor;
     _disclaimerView.linkTextAttributes =
         @{NSForegroundColorAttributeName : [UIColor colorNamed:kBlueColor]};
@@ -1238,22 +1240,9 @@ UIImage* ArrowDownImage() {
 
 #pragma mark - UITextViewDelegate
 
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
-- (BOOL)textView:(UITextView*)textView
-    shouldInteractWithURL:(NSURL*)URL
-                  inRange:(NSRange)characterRange
-              interaction:(UITextItemInteraction)interaction {
-  if (textView == self.disclaimerView &&
-      [self.delegate respondsToSelector:@selector(didTapURLInDisclaimer:)]) {
-    [self.delegate didTapURLInDisclaimer:URL];
-  }
-  return NO;
-}
-#endif
-
 - (UIAction*)textView:(UITextView*)textView
     primaryActionForTextItem:(UITextItem*)textItem
-               defaultAction:(UIAction*)defaultAction API_AVAILABLE(ios(17.0)) {
+               defaultAction:(UIAction*)defaultAction {
   if (!(textView == self.disclaimerView &&
         [self.delegate respondsToSelector:@selector(didTapURLInDisclaimer:)])) {
     return defaultAction;
@@ -1274,6 +1263,21 @@ UIImage* ArrowDownImage() {
   // NO, but that workaround only works on iOS 13.5+. This is the simplest
   // approach that works well on iOS 12, 13 & 14.
   textView.selectedTextRange = nil;
+}
+
+- (UITextItemMenuConfiguration*)textView:(UITextView*)textView
+            menuConfigurationForTextItem:(UITextItem*)textItem
+                             defaultMenu:(UIMenu*)defaultMenu {
+  // Disable Context menu as this is an internal link.
+  return nil;
+}
+
+#pragma mark - UITextDragDelegate
+
+- (NSArray<UIDragItem*>*)textDraggableView:
+                             (UIView<UITextDraggable>*)textDraggableView
+                              itemsForDrag:(id<UITextDragRequest>)dragRequest {
+  return @[];
 }
 
 #pragma mark - UIResponder

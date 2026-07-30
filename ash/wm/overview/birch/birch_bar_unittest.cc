@@ -419,14 +419,6 @@ TEST_F(BirchBarTest, RecordsHistogramWhenChipsShown) {
                                BirchItemType::kFile, 1);
   histograms.ExpectBucketCount("Ash.Birch.Chip.Impression",
                                BirchItemType::kCalendar, 1);
-
-  // Two rankings were recorded for the current time slot histogram.
-  histograms.ExpectBucketCount("Ash.Birch.Ranking.1200to1700", 1, 1);
-  histograms.ExpectBucketCount("Ash.Birch.Ranking.1200to1700", 12, 1);
-
-  // The same ranking were recorded for the all-day total histogram.
-  histograms.ExpectBucketCount("Ash.Birch.Ranking.Total", 1, 1);
-  histograms.ExpectBucketCount("Ash.Birch.Ranking.Total", 12, 1);
 }
 
 // Tests that we get expected records when showing/hiding/activating the coral
@@ -478,10 +470,6 @@ TEST_F(BirchBarTest, RecordsHistogramForCoralChips) {
   // Hide the one chip.
   BirchBarController::Get()->OnItemHiddenByUser(in_session_chips[0]->GetItem());
   ASSERT_EQ(in_session_chips.size(), 1u);
-
-  // One cluster hidden was recorded.
-  histograms.ExpectBucketCount("Ash.Birch.Chip.Hidden", BirchItemType::kCoral,
-                               1);
 
   // Clicking on the in-session chip to launch the group.
   LeftClickOn(in_session_chips[0]);

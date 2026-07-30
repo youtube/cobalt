@@ -57,13 +57,22 @@ const char kFeaturePolicyConsoleWarning[] =
 
 }  // namespace
 
-void NavigatorWebMIDI::Trace(Visitor* visitor) const {}
+NavigatorWebMIDI::NavigatorWebMIDI(Navigator& navigator)
+    : Supplement<Navigator>(navigator) {}
+
+void NavigatorWebMIDI::Trace(Visitor* visitor) const {
+  Supplement<Navigator>::Trace(visitor);
+}
+
+const unsigned NavigatorWebMIDI::kSupplementIndex =
+    static_cast<unsigned>(Navigator::Supplements::kNavigatorWebMIDI);
 
 NavigatorWebMIDI& NavigatorWebMIDI::From(Navigator& navigator) {
-  NavigatorWebMIDI* supplement = navigator.GetNavigatorWebMIDI();
+  NavigatorWebMIDI* supplement =
+      Supplement<Navigator>::From<NavigatorWebMIDI>(navigator);
   if (!supplement) {
-    supplement = MakeGarbageCollected<NavigatorWebMIDI>();
-    navigator.SetNavigatorWebMIDI(supplement);
+    supplement = MakeGarbageCollected<NavigatorWebMIDI>(navigator);
+    ProvideTo(navigator, supplement);
   }
   return *supplement;
 }

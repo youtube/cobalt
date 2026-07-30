@@ -1726,10 +1726,8 @@ void BrowserAutofillManager::OnGenerateSuggestionsComplete(
          eligible_features) {
       switch (eligible_feature) {
         case AmountExtractionManager::EligibleFeature::kBnpl:
-          if (base::FeatureList::IsEnabled(
+          if (!base::FeatureList::IsEnabled(
                   features::kAutofillEnableAiBasedAmountExtraction)) {
-            GetAmountExtractionManager().FetchAiPageContent();
-          } else {
             GetPaymentsBnplManager()->NotifyOfSuggestionGeneration(
                 trigger_source);
             GetAmountExtractionManager().TriggerCheckoutAmountExtraction();
@@ -1896,7 +1894,8 @@ void BrowserAutofillManager::UndoAutofill(
     mojom::ActionPersistence action_persistence,
     const FormData& form,
     const FormFieldData& trigger_field) {
-  FormStructure* form_structure = FindCachedFormById(form.global_id());
+  FormStructure* form_structure =
+      FindCachedFormById(form.global_id(), /*pass_key=*/{});
   if (!form_structure) {
     return;
   }
@@ -1969,6 +1968,7 @@ void BrowserAutofillManager::FillOrPreviewCreditCardForm(
       case AutofillTriggerSource::kAutofillAi:
       case AutofillTriggerSource::kNone:
       case AutofillTriggerSource::kProactivePasswordRecovery:
+      case AutofillTriggerSource::kProgrammaticRefill:
         NOTREACHED();
     }
   }();
@@ -2183,6 +2183,15 @@ void BrowserAutofillManager::OnDidAutofillFormImpl(const FormData& form) {
   UpdateInitialInteractionTimestamp(base::TimeTicks::Now());
 }
 
+void BrowserAutofillManager::SuppressAutomaticRefillsImpl(
+    const FillId& fill_id) {
+  form_filler_->SuppressAutomaticRefills(fill_id);
+}
+
+void BrowserAutofillManager::RequestRefillImpl(const FillId& fill_id) {
+  form_filler_->MaybeScheduleProgrammaticRefill(fill_id);
+}
+
 void BrowserAutofillManager::DidShowSuggestions(
     base::span<const Suggestion> suggestions,
     const FormData& form,
@@ -2325,7 +2334,12 @@ void BrowserAutofillManager::OnSingleFieldSuggestionSelected(
   client().GetSingleFieldFillRouter().OnSingleFieldSuggestionSelected(
       suggestion);
 
-  AutofillField* autofill_trigger_field = GetAutofillField(form_id, field_id);
+  FormStructure* form_structure = FindCachedFormById(form_id, /*pass_key=*/{});
+  if (!form_structure) {
+    return;
+  }
+  AutofillField* autofill_trigger_field =
+      form_structure->GetFieldById(field_id);
   if (!autofill_trigger_field) {
     return;
   }
@@ -2347,14 +2361,14 @@ bool BrowserAutofillManager::ShouldClearPreviewedForm() {
 void BrowserAutofillManager::OnSelectFieldOptionsDidChangeImpl(
     const FormData& form,
     const FieldGlobalId& field_id) {
-  FormStructure* form_structure = FindCachedFormById(form.global_id());
+  const FormStructure* form_structure = FindCachedFormById(form.global_id());
   if (!form_structure) {
     return;
   }
-  form_filler_->MaybeTriggerRefill(form, *form_structure,
-                                   RefillTriggerReason::kSelectOptionsChanged,
-                                   AutofillTriggerSource::kSelectOptionsChanged,
-                                   form_structure->GetFieldById(field_id));
+  form_filler_->MaybeScheduleAutomaticRefill(
+      form, *form_structure, RefillTriggerReason::kSelectOptionsChanged,
+      AutofillTriggerSource::kSelectOptionsChanged,
+      form_structure->GetFieldById(field_id));
 }
 
 void BrowserAutofillManager::OnJavaScriptChangedAutofilledValueImpl(
@@ -2405,15 +2419,15 @@ void BrowserAutofillManager::OnJavaScriptChangedAutofilledValueImpl(
     return;
   }
   AnalyzeJavaScriptChangedAutofilledValue(*form_structure, *autofill_field);
-  form_filler_->MaybeTriggerRefill(
+  form_filler_->MaybeScheduleAutomaticRefill(
       form, *form_structure, RefillTriggerReason::kExpirationDateFormatted,
       AutofillTriggerSource::kJavaScriptChangedAutofilledValue, *autofill_field,
       old_value);
 }
 
 void BrowserAutofillManager::OnLoadedServerPredictionsImpl(
-    base::span<const raw_ptr<FormStructure, VectorExperimental>> forms) {
-  for (raw_ptr<FormStructure, VectorExperimental> form : forms) {
+    base::span<const raw_ref<FormStructure>> forms) {
+  for (const raw_ref<FormStructure>& form : forms) {
     OnDidIdentifyFormForMetrics(
         *form, autofill_metrics::FormEventLoggerBase::FormIdentificationTime::
                    kAfterServerPredictions);
@@ -2422,7 +2436,7 @@ void BrowserAutofillManager::OnLoadedServerPredictionsImpl(
 }
 
 void BrowserAutofillManager::HandleLoadedServerPredictionsForAutofillAi(
-    base::span<const raw_ptr<FormStructure, VectorExperimental>> forms) {
+    base::span<const raw_ref<FormStructure>> forms) {
   const AutofillAiModelCache* const model_cache =
       client().GetAutofillAiModelCache();
 
@@ -2430,7 +2444,7 @@ void BrowserAutofillManager::HandleLoadedServerPredictionsForAutofillAi(
     return;
   }
 
-  for (raw_ptr<FormStructure, VectorExperimental> form : forms) {
+  for (const raw_ref<FormStructure>& form : forms) {
     if (model_cache->Contains(form->form_signature())) {
       if (MayPerformAutofillAiAction(
               client(),
@@ -2478,7 +2492,8 @@ void BrowserAutofillManager::HandleLoadedServerPredictionsForAutofillAi(
                       kUseCachedServerClassificationModelResults)) {
             return;
           }
-          FormStructure* form = self->FindCachedFormById(form_id);
+          FormStructure* form =
+              self->FindCachedFormById(form_id, /*pass_key=*/{});
           if (!form) {
             return;
           }
@@ -2488,7 +2503,7 @@ void BrowserAutofillManager::HandleLoadedServerPredictionsForAutofillAi(
               self->client().GetVariationConfigCountryCode(),
               self_as_bam->GetCurrentPageLanguage(),
               self_as_bam->log_manager());
-          self_as_bam->LogCurrentFieldTypes(form);
+          self_as_bam->LogCurrentFieldTypes(&*form);
           self->NotifyObservers(&Observer::OnFieldTypesDetermined,
                                 form->global_id(),
                                 Observer::FieldTypeSource::kAutofillAiModel);
@@ -2533,7 +2548,7 @@ void BrowserAutofillManager::AnalyzeJavaScriptChangedAutofilledValue(
   base::TimeDelta delta = base::TimeTicks::Now() - *original_fill_time;
   // If the filling happened too long ago, maybe this is just an effect of
   // the user pressing a "reset form" button.
-  if (delta >= form_filler_->get_limit_before_refill()) {
+  if (delta >= form_filler_->limit_before_automatic_refill()) {
     return;
   }
   if (auto* logger = GetEventFormLogger(field)) {
@@ -2658,7 +2673,6 @@ void BrowserAutofillManager::OnDidFillOrPreviewForm(
     autofill_metrics::LogNumberOfFieldsModifiedByRefill(
         *refill_trigger_reason, safe_filled_fields.size());
   }
-  client().DidFillForm(trigger_source, refill_trigger_reason.has_value());
 
   std::visit(
       absl::Overload{[&](const AutofillProfile* profile) {
@@ -2833,7 +2847,8 @@ std::unique_ptr<FormStructure> BrowserAutofillManager::ValidateSubmittedForm(
     const FormData& form) {
   // Ignore forms not present in our cache.  These are typically forms with
   // wonky JavaScript that also makes them not auto-fillable.
-  FormStructure* cached_submitted_form = FindCachedFormById(form.global_id());
+  const FormStructure* cached_submitted_form =
+      FindCachedFormById(form.global_id());
   if (!cached_submitted_form || !ShouldUploadForm(*cached_submitted_form)) {
     return nullptr;
   }
@@ -2846,16 +2861,18 @@ std::unique_ptr<FormStructure> BrowserAutofillManager::ValidateSubmittedForm(
   return submitted_form;
 }
 
-AutofillField* BrowserAutofillManager::GetAutofillField(
+bool BrowserAutofillManager::GetCachedFormAndField(
     const FormGlobalId& form_id,
-    const FieldGlobalId& field_id) const {
-  FormStructure* form_structure = nullptr;
-  AutofillField* autofill_field = nullptr;
-  if (!GetCachedFormAndField(form_id, field_id, &form_structure,
-                             &autofill_field)) {
-    return nullptr;
+    const FieldGlobalId& field_id,
+    FormStructure** form_structure,
+    AutofillField** autofill_field) {
+  FormStructure* cached_form = FindCachedFormById(form_id, /*pass_key=*/{});
+  if (!cached_form) {
+    return false;
   }
-  return autofill_field;
+  *form_structure = cached_form;
+  *autofill_field = cached_form->GetFieldById(field_id);
+  return *autofill_field != nullptr;
 }
 
 autofill_metrics::CreditCardFormEventLogger&
@@ -3034,9 +3051,9 @@ void BrowserAutofillManager::OnFormProcessed(
   // If a form with the same FormGlobalId was previously filled, the structure
   // of the form changed, and we might be able to refill the form with other
   // information.
-  form_filler_->MaybeTriggerRefill(form, form_structure,
-                                   RefillTriggerReason::kFormChanged,
-                                   AutofillTriggerSource::kFormsSeen);
+  form_filler_->MaybeScheduleAutomaticRefill(form, form_structure,
+                                             RefillTriggerReason::kFormChanged,
+                                             AutofillTriggerSource::kFormsSeen);
 }
 
 void BrowserAutofillManager::OnDidIdentifyFormForMetrics(

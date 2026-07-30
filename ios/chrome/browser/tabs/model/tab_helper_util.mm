@@ -68,7 +68,6 @@
 #import "ios/chrome/browser/lens_overlay/model/lens_overlay_tab_helper.h"
 #import "ios/chrome/browser/link_to_text/model/link_to_text_tab_helper.h"
 #import "ios/chrome/browser/metrics/model/pageload_foreground_duration_tab_helper.h"
-#import "ios/chrome/browser/mini_map/model/mini_map_tab_helper.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_tab_helper.h"
 #import "ios/chrome/browser/optimization_guide/model/optimization_guide_service.h"
 #import "ios/chrome/browser/optimization_guide/model/optimization_guide_service_factory.h"
@@ -395,14 +394,14 @@ void AttachTabHelpers(web::WebState* web_state, TabHelperFilter filter_flags) {
       attacher.IsNotInTabHelperFilter());
   attacher.CreateWhen<AutofillTabHelper>(attacher.IsNotInTabHelperFilter());
 
-  attacher.CreateWhen<ChromeIOSTranslateClient>(
-      attacher.IsNotInTabHelperFilter(),
-      InfoBarManagerImpl::FromWebState(web_state));
-
   // Special case for use of GetOrCreateForWebState.
   if (!attacher.IsForStandardNavigation()) {
     InfobarBadgeTabHelper::GetOrCreateForWebState(web_state);
   }
+  // Needs to be created after `InfobarBadgeTabHelper`.
+  attacher.CreateWhen<ChromeIOSTranslateClient>(
+      attacher.IsNotInTabHelperFilter(),
+      InfoBarManagerImpl::FromWebState(web_state));
 
   attacher
       .CreateDeferredWhen<webauthn::PasskeyTabHelper>(
@@ -466,9 +465,6 @@ void AttachTabHelpers(web::WebState* web_state, TabHelperFilter filter_flags) {
 
   attacher.Create<EditMenuTabHelper>();
 
-  attacher.CreateWhen<MiniMapTabHelper>(
-      !attacher.IsOffTheRecord() &&
-      base::FeatureList::IsEnabled(kIOSMiniMapUniversalLink));
 
   attacher.CreateWhen<BwgTabHelper>(!attacher.IsOffTheRecord() &&
                                     !attacher.IsForPrerender() &&

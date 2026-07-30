@@ -47,7 +47,6 @@
 #include "chrome/browser/ui/views/chrome_widget_sublevel.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
-#include "chrome/browser/ui/views/frame/tab_strip_view_interface.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
 #include "chrome/browser/ui/views/side_panel/side_panel.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
@@ -61,6 +60,7 @@
 #include "components/tabs/public/tab_interface.h"
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
 #include "content/public/browser/web_contents.h"
+#include "third_party/skia/include/core/SkRegion.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/ui_base_types.h"
 #include "ui/display/display.h"
@@ -248,7 +248,8 @@ void GlicWindowControllerImpl::OnWidgetUserResizeEnded() {
     client->ManualResizeChanged(false);
   }
 
-  if (GetGlicView()) {
+  if (GetGlicView() &&
+      !base::FeatureList::IsEnabled(features::kGlicWindowDragRegions)) {
     GetGlicView()->UpdatePrimaryDraggableAreaOnResize();
   }
 
@@ -534,7 +535,8 @@ void GlicWindowControllerImpl::AfterViewShown() {
     // This indicates that we've warmed the web client and it has hit a login
     // page. See LoginPageCommitted.
     GlicLoadedAndReadyToDisplay();
-  } else if (IsDetached()) {
+  } else if (IsDetached() && !base::FeatureList::IsEnabled(
+                                 features::kGlicHandleDraggingNatively)) {
     // This adds dragging functionality to special case panels (e.g. error,
     // offline, loading).
     window_event_observer_->SetDraggingAreasAndWatchForMouseEvents();
@@ -736,13 +738,13 @@ void GlicWindowControllerImpl::GlicLoadedAndReadyToDisplay() {
   // be visible now.
   SetWindowState(State::kOpen);
 
-  // Whenever the glic window is shown, it should have focus. The following line
-  // of code appears to be necessary but not sufficient and there are still some
-  // edge cases.
-  // TODO(crbug.com/390637019): Fully fix and remove this comment.
+  // Whenever the glic window is shown, it should have focus.
   GetGlicView()->GetWebContents()->Focus();
 
-  window_event_observer_->SetDraggingAreasAndWatchForMouseEvents();
+  if (!base::FeatureList::IsEnabled(features::kGlicHandleDraggingNatively)) {
+    window_event_observer_->SetDraggingAreasAndWatchForMouseEvents();
+  }
+
   NotifyIfPanelStateChanged();
 }
 
@@ -808,7 +810,10 @@ void GlicWindowControllerImpl::Detach() {
 
   // Open the panel detached.
   SetupAndShowGlicWidget(current_browser);
-  window_event_observer_->SetDraggingAreasAndWatchForMouseEvents();
+  if (!base::FeatureList::IsEnabled(features::kGlicHandleDraggingNatively)) {
+    window_event_observer_->SetDraggingAreasAndWatchForMouseEvents();
+  }
+
   SetWindowState(State::kOpen);
   NotifyIfPanelStateChanged();
 }
@@ -1216,6 +1221,13 @@ void GlicWindowControllerImpl::AddGlobalStateObserver(
 void GlicWindowControllerImpl::RemoveGlobalStateObserver(
     PanelStateObserver* observer) {
   RemoveStateObserver(observer);
+}
+
+void GlicWindowControllerImpl::SetDraggableRegion(
+    const SkRegion& draggable_region) {
+  if (auto* glic_view = GetGlicView(); glic_view) {
+    glic_view->SetDraggableRegion(draggable_region);
+  }
 }
 
 void GlicWindowControllerImpl::NotifyIfPanelStateChanged() {

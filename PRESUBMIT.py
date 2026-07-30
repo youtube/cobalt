@@ -748,6 +748,7 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
             # Needed for interop with third-party library.
             r'^third_party/blink/renderer/core/typed_arrays/array_buffer/' +
             r'array_buffer_contents\.(cc|h)',
+            r'^third_party/blink/renderer/core/inspector/devtools_session\.h',
             r'^third_party/blink/renderer/core/typed_arrays/dom_array_buffer\.cc',
             '^third_party/blink/renderer/bindings/core/v8/' +
             'v8_wasm_response_extensions.cc',
@@ -853,7 +854,6 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
             r'chrome/browser/ash/printing/zeroconf_printer_detector_unittest\.cc',
             r'chrome/browser/nearby_sharing/contacts/nearby_share_contact_manager_impl_unittest\.cc',
             r'chrome/browser/nearby_sharing/contacts/nearby_share_contacts_sorter_unittest\.cc',
-            r'chrome/browser/privacy_budget/mesa_distribution_unittest\.cc',
             r'chrome/browser/web_applications/test/web_app_test_utils\.cc',
             r'chrome/browser/web_applications/test/web_app_test_utils\.cc',
             r'chrome/browser/win/conflicts/module_blocklist_cache_util_unittest\.cc',
@@ -943,11 +943,14 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
             # Test base::span<> compatibility against std::span<>.
             r'base/containers/span_unittest.cc',
             # //base/numerics can't use base or absl. So it uses std.
-            r'base/numerics/.*'
+            r'base/numerics/.*',
+
+            # The early zone registration can't use base or absl. So it uses
+            # std.
+            r'base/allocator/partition_allocator/src/partition_alloc/shim/early_zone_registration_utils_apple.h',
 
             # Needed to use QUICHE API.
-            r'android_webview/browser/ip_protection/.*',
-            r'components/ip_protection/.*',
+            r'components/legion/phosphor/.*',
             r'net/third_party/quiche/overrides/quiche_platform_impl/quiche_stack_trace_impl\.*',
             r'services/network/web_transport\.cc',
 
@@ -967,8 +970,6 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
             r'third_party/blink/renderer/modules/manifest/manifest_parser\.cc',
 
             # Needed to use QUICHE API.
-            r'android_webview/browser/ip_protection/.*',
-            r'components/ip_protection/.*',
             r'net/quic/dedicated_web_transport_http3_client\.cc',
 
             # Needed to use MediaPipe API.
@@ -997,10 +998,6 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
         ('Abseil\'s time library is banned. Use base/time instead.', ),
         True,
         [
-            # Needed to use QUICHE API.
-            r'android_webview/browser/ip_protection/.*',
-            r'components/ip_protection/.*',
-
             # Needed to integrate with //third_party/nearby
             r'chrome/services/sharing/nearby/platform/input_file.cc',
             r'chrome/services/sharing/nearby/platform/input_file.h',
@@ -1049,7 +1046,7 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
         [
             # Has tests that template trait helpers don't unintentionally match
             # std::function.
-            r'base/functional/callback_helpers_unittest\.cc',
+            r'base/functional/is_callback_unittest\.cc',
             # Required to implement interfaces from the third-party perfetto
             # library.
             r'base/tracing/perfetto_task_runner\.cc',
@@ -2398,6 +2395,7 @@ _GENERIC_PYDEPS_FILES = [
     'tools/binary_size/sizes.pydeps',
     'tools/binary_size/supersize.pydeps',
     'tools/cygprofile/generate_orderfile.pydeps',
+    "tools/metrics/histograms/generate_allowlist_from_histograms_file.pydeps",
     'tools/perf/process_perf_results.pydeps',
     'tools/pgo/generate_profile.pydeps',
 ]

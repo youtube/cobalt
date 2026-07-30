@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 
+#include "base/test/metrics/histogram_tester.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
 #include "chrome/browser/actor/actor_keyed_service_fake.h"
@@ -26,7 +27,6 @@
 #include "ui/views/test/widget_test.h"
 #include "ui/views/widget/unique_widget_ptr.h"
 #if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/test_support/mock_glic_window_controller.h"
 #include "chrome/browser/ui/tabs/glic_actor_task_icon_manager.h"
 #include "chrome/browser/ui/tabs/glic_actor_task_icon_manager_factory.h"
 #endif
@@ -73,11 +73,10 @@ class ActorTaskListBubbleControllerTest : public ChromeViewsTestBase {
   std::unique_ptr<KeyedService> BuildGlicActorTaskIconManager(
       content::BrowserContext* context) {
     Profile* profile = Profile::FromBrowserContext(context);
-    window_controller_ = std::make_unique<glic::MockGlicWindowController>();
     auto* actor_service =
         actor::ActorKeyedServiceFactory::GetActorKeyedService(profile_.get());
     auto manager = std::make_unique<tabs::GlicActorTaskIconManager>(
-        profile, actor_service, *window_controller_.get());
+        profile, actor_service);
     return std::move(manager);
   }
 
@@ -96,7 +95,6 @@ class ActorTaskListBubbleControllerTest : public ChromeViewsTestBase {
     actor_task_list_bubble_controller_.reset();
     browser_window_interface_.reset();
     profile_.reset();
-    window_controller_.reset();
     anchor_widget_.reset();
 #endif
     ChromeViewsTestBase::TearDown();
@@ -126,7 +124,6 @@ class ActorTaskListBubbleControllerTest : public ChromeViewsTestBase {
   }
 
 #if BUILDFLAG(ENABLE_GLIC)
-  std::unique_ptr<glic::MockGlicWindowController> window_controller_;
   std::unique_ptr<TestingProfile> profile_;
   std::unique_ptr<ActorTaskListBubbleController>
       actor_task_list_bubble_controller_;
@@ -174,5 +171,46 @@ TEST_F(ActorTaskListBubbleControllerTest, RemoveRowFromBubbleOnClick) {
       actor_task_list_bubble_controller_->GetBubbleWidget());
 
   EXPECT_EQ(0u, content_view->children().size());
+#endif
+}
+
+TEST_F(ActorTaskListBubbleControllerTest, ShowBubbleRecordsHistogram) {
+#if BUILDFLAG(ENABLE_GLIC)
+  actor::ActorKeyedService* actor_service =
+      actor::ActorKeyedService::Get(profile_.get());
+  tabs::GlicActorTaskIconManager* manager =
+      tabs::GlicActorTaskIconManagerFactory::GetForProfile(profile_.get());
+  actor_service->GetPolicyChecker().SetActOnWebForTesting(true);
+  actor::TaskId task_id = actor_service->CreateTask();
+  actor_service->GetTask(task_id)->Pause(true);
+  manager->UpdateTaskListBubble(task_id);
+
+  base::HistogramTester histogram_tester;
+
+  actor_task_list_bubble_controller_->ShowBubble(
+      anchor_widget_->GetContentsView());
+
+  histogram_tester.ExpectBucketCount("Actor.Ui.TaskListBubble.Rows", 1, 1);
+
+  // Stop previous task, Add and Pause 3 more tasks, and ensure histogram bucket
+  // for 1 row stays the same while the bucket for 3 rows is incremented.
+  actor_service->StopTask(task_id,
+                          actor::ActorTask::StoppedReason::kTaskComplete);
+  manager->UpdateTaskListBubble(task_id);
+
+  for (int i = 0; i < 3; i++) {
+    actor::TaskId new_task_id = actor_service->CreateTask();
+    actor_service->GetTask(new_task_id)->Pause(true);
+    manager->UpdateTaskListBubble(new_task_id);
+  }
+
+  actor_task_list_bubble_controller_->ShowBubble(
+      anchor_widget_->GetContentsView());
+
+  histogram_tester.ExpectBucketCount("Actor.Ui.TaskListBubble.Rows", 1, 1);
+  histogram_tester.ExpectBucketCount("Actor.Ui.TaskListBubble.Rows", 3, 1);
+  EXPECT_EQ(
+      2u,
+      histogram_tester.GetAllSamples("Actor.Ui.TaskListBubble.Rows").size());
 #endif
 }

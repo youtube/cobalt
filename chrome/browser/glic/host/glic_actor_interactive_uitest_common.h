@@ -145,8 +145,13 @@ class GlicActorUiTest : public test::InteractiveGlicTest {
   // create a new tab. The new tab can then be referenced by the identifier
   // passed in `new_tab_id`. Stores the created task's id in `task_id_` and the
   // new tab's handle in `tab_handle_`.
+  // If `open_in_foreground` is true (default), the new tab becomes active.
+  // If false, the tab opens in the background, preventing the browser window
+  // from stealing focus (useful for avoiding window-activation side effects in
+  // tests).
   MultiStep StartActorTaskInNewTab(const GURL& task_url,
-                                   ui::ElementIdentifier new_tab_id);
+                                   ui::ElementIdentifier new_tab_id,
+                                   bool open_in_foreground = true);
 
   // After invoking APIs that don't return promises, we round trip to both the
   // client and host to make sure the call has made it to the browser.
@@ -164,6 +169,8 @@ class GlicActorUiTest : public test::InteractiveGlicTest {
 
   // Interrupts a task by calling the glic InterruptActorTask API.
   MultiStep InterruptActorTask();
+  // Uninterrupts a task by calling the glic UninterruptActorTask API.
+  MultiStep UninterruptActorTask();
 
   MultiStep WaitForActorTaskState(mojom::ActorTaskState expected_state);
 
@@ -208,6 +215,11 @@ class GlicActorUiTest : public test::InteractiveGlicTest {
   MultiStep CheckIsWebContentsCaptured(ui::ElementIdentifier tab,
                                        bool expected);
 
+  // Waits for the specified tab to render a frame. Unlike
+  // `WaitForWebContentsPainted` this does not require the frame to have
+  // non-trivial contents or for the paint to have non-failed feedback.
+  MultiStep WaitForFrameSubmitted(ui::ElementIdentifier tab);
+
   const std::optional<optimization_guide::proto::ActionsResult>&
   last_execution_result() const;
 
@@ -224,13 +236,17 @@ class GlicActorUiTest : public test::InteractiveGlicTest {
   tabs::TabHandle tab_handle_;
 
  protected:
+  void EnableScreenshotsInContext() { include_screenshot_ = true; }
+
   std::unique_ptr<optimization_guide::proto::AnnotatedPageContent>
       annotated_page_content_;
+  mojom::ScreenshotPtr viewport_screenshot_;
 
   // Label corresponds to the aria-label on the element in the page.
   int32_t SearchAnnotatedPageContent(std::string_view label);
 
  private:
+  bool include_screenshot_ = false;
   std::optional<optimization_guide::proto::ActionsResult>
       last_execution_result_;
   base::test::ScopedFeatureList scoped_feature_list_;

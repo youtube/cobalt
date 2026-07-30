@@ -21,6 +21,7 @@
 #include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
 #include "ui/events/event.h"
+#include "ui/events/types/event_type.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"
 #include "ui/views/bubble/bubble_frame_view.h"
@@ -28,6 +29,7 @@
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/layout/box_layout.h"
+#include "ui/views/metadata/view_factory.h"
 #include "ui/views/view_class_properties.h"
 
 namespace ash {
@@ -192,6 +194,13 @@ FaceGazeBubbleCloseView::~FaceGazeBubbleCloseView() = default;
 bool FaceGazeBubbleCloseView::OnMousePressed(const ui::MouseEvent& event) {
   on_close_button_clicked_.Run(event);
   return false;
+}
+
+void FaceGazeBubbleCloseView::OnGestureEvent(ui::GestureEvent* event) {
+  if (event->type() == ui::EventType::kGestureTap) {
+    on_close_button_clicked_.Run(*event);
+    event->SetHandled();
+  }
 }
 
 BEGIN_METADATA(FaceGazeBubbleCloseView)

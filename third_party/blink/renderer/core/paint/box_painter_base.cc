@@ -348,6 +348,9 @@ void BoxPainterBase::PaintNormalBoxShadow(
       ContouredRect rounded_fill_rect(
           FloatRoundedRect(fill_rect, border.GetRadii()),
           border.GetCornerCurvature());
+      if (RuntimeEnabledFeatures::ShadowContourFollowsBorderEnabled()) {
+        rounded_fill_rect.SetOriginRect(border.GetOriginRect());
+      }
       ApplySpreadToShadowShape(rounded_fill_rect, shadow.Spread());
       context.FillContouredRect(rounded_fill_rect, Color::kBlack,
                                 auto_dark_mode);
@@ -433,8 +436,7 @@ void BoxPainterBase::PaintInsetBoxShadow(const PaintInfo& info,
         FloatRoundedRect(inner_rect, bounds.GetRadii()),
         bounds.GetCornerCurvature());
     ApplySpreadToShadowShape(inner_contoured_rect, -shadow.Spread());
-    if (RuntimeEnabledFeatures::
-            CSSCornerShapeInsetBoxShadowFollowsContourEnabled()) {
+    if (RuntimeEnabledFeatures::ShadowContourFollowsBorderEnabled()) {
       inner_contoured_rect.SetOriginRect(bounds.GetOriginRect());
     }
     if (inner_contoured_rect.IsEmpty()) {

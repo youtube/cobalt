@@ -12,9 +12,8 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
 #include "base/trace_event/trace_event.h"
-#include "cc/metrics/event_metrics.h"
 #include "cc/metrics/histogram_macros.h"
-#include "cc/metrics/scroll_jank_dropped_frame_tracker.h"
+#include "cc/metrics/scroll_jank_v4_result.h"
 
 namespace cc {
 
@@ -41,6 +40,12 @@ constexpr const char* GetDelayedFramesPercentageFixedWindow4HistogramName(
 #undef CASE
 }
 
+static_assert(static_cast<int64_t>(
+                  ScrollJankV4HistogramEmitter::kHistogramEmitFrequency + 1) *
+                  ScrollJankV4Result::kMaxMissedVsyncs,
+              "ScrollJankV4HistogramEmitter::JankDataFixedWindow::"
+              "missed_vsyncs might overflow");
+
 }  // namespace
 
 bool ScrollJankV4HistogramEmitter::SingleFrameData::HasJankReasons() const {
@@ -53,6 +58,8 @@ void ScrollJankV4HistogramEmitter::SingleFrameData::UpdateWith(
 
   for (int i = 0; i <= static_cast<int>(JankReason::kMaxValue); i++) {
     int missed_vsyncs_for_reason = missed_vsyncs_per_reason[i];
+    DCHECK_GE(missed_vsyncs_for_reason, 0);
+    DCHECK_LE(missed_vsyncs_for_reason, ScrollJankV4Result::kMaxMissedVsyncs);
     if (missed_vsyncs_for_reason == 0) {
       continue;
     }
@@ -111,7 +118,7 @@ void ScrollJankV4HistogramEmitter::OnFrameWithScrollUpdates(
 }
 
 void ScrollJankV4HistogramEmitter::OnScrollStarted() {
-  // In case ScrollJankDroppedFrameTracker wasn't informed about the end of the
+  // In case ScrollJankV4HistogramEmitter wasn't informed about the end of the
   // previous scroll, emit histograms for the previous scroll now.
   EmitPerScrollHistogramsAndResetCounters();
   // Don't carry jank data from non-damaging frames across scrolls.

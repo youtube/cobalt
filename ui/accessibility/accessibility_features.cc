@@ -70,11 +70,6 @@ bool IsAccessibilityPerformanceMeasurementExperimentEnabled() {
       ::features::kAccessibilityPerformanceMeasurementExperiment);
 }
 
-BASE_FEATURE(kAccessibilityUseAXBitset, base::FEATURE_ENABLED_BY_DEFAULT);
-bool IsAccessibilityUseAXBitsetEnabled() {
-  return base::FeatureList::IsEnabled(::features::kAccessibilityUseAXBitset);
-}
-
 namespace {
 
 constexpr base::FeatureParam<
@@ -208,6 +203,11 @@ BASE_FEATURE(kUiaDisconnectRootProviders, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kUiaProvider, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kUiaEventOptimization, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kUiaMathMlSupport, base::FEATURE_DISABLED_BY_DEFAULT);
+bool IsUiaMathMlSupportEnabled() {
+  return base::FeatureList::IsEnabled(::features::kUiaMathMlSupport);
+}
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -364,7 +364,7 @@ bool IsAccessibilityInlineLineSeparatorsEnabled() {
 }
 
 BASE_FEATURE(kAccessibilityMagnificationFollowsFocus,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 bool IsAccessibilityMagnificationFollowsFocusEnabled() {
   return base::FeatureList::IsEnabled(
       ::features::kAccessibilityMagnificationFollowsFocus);
@@ -462,6 +462,11 @@ bool IsReadAnythingReadAloudTSTextSegmentationEnabled() {
 BASE_FEATURE(kReadAnythingOmniboxChip, base::FEATURE_DISABLED_BY_DEFAULT);
 bool IsReadAnythingOmniboxChipEnabled() {
   return base::FeatureList::IsEnabled(::features::kReadAnythingOmniboxChip);
+}
+
+BASE_FEATURE(kReadAnythingLineFocus, base::FEATURE_DISABLED_BY_DEFAULT);
+bool IsReadAnythingLineFocusEnabled() {
+  return base::FeatureList::IsEnabled(::features::kReadAnythingLineFocus);
 }
 
 BASE_FEATURE(kReadAnythingImagesViaAlgorithm,

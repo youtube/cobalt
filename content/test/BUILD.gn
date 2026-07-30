@@ -1571,7 +1571,6 @@ test("content_browsertests") {
     "../browser/file_system_access/file_system_access_file_writer_impl_browsertest.cc",
     "../browser/file_system_access/file_system_access_handle_impl_browsertest_util.cc",
     "../browser/file_system_access/file_system_access_handle_impl_browsertest_util.h",
-    "../browser/file_system_access/file_system_access_observer_browsertest.cc",
     "../browser/file_system_access/file_system_chooser_browsertest.cc",
     "../browser/find_request_manager_browsertest.cc",
     "../browser/first_party_sets/first_party_sets_handler_impl_browsertest.cc",
@@ -1718,6 +1717,7 @@ test("content_browsertests") {
     "../browser/renderer_host/render_frame_host_manager_browsertest.cc",
     "../browser/renderer_host/render_frame_host_manager_browsertest.h",
     "../browser/renderer_host/render_process_host_browsertest.cc",
+    "../browser/renderer_host/render_process_host_shutdown_delay_browsertest.cc",
     "../browser/renderer_host/render_view_host_browsertest.cc",
     "../browser/renderer_host/render_widget_host_browsertest.cc",
     "../browser/renderer_host/render_widget_host_view_browsertest.cc",
@@ -1777,7 +1777,6 @@ test("content_browsertests") {
     "../browser/storage_partition_impl_browsertest.cc",
     "../browser/system_dns_resolution/system_dns_resolver_browsertest.cc",
     "../browser/text_fragment_browsertest.cc",
-    "../browser/tpcd_heuristics/opener_heuristic_browsertest.cc",
     "../browser/tracing/background_tracing_manager_browsertest.cc",
     "../browser/tracing/memory_instrumentation_browsertest.cc",
     "../browser/tracing/memory_tracing_browsertest.cc",
@@ -1827,6 +1826,7 @@ test("content_browsertests") {
     "../browser/webrtc/webrtc_video_capture_shared_device_browsertest.cc",
     "../browser/webrtc/webrtc_webcam_browsertest.cc",
     "../browser/webrtc/webrtc_webcam_browsertest.h",
+    "../browser/webui/initial_webui_browsertest.cc",
     "../browser/webui/web_ui_browsertest.cc",
     "../browser/webui/web_ui_managed_interface_browsertest.cc",
     "../browser/webui/web_ui_mojo_browsertest.cc",
@@ -2078,8 +2078,10 @@ test("content_browsertests") {
     "$root_gen_dir/third_party/perfetto/protos/perfetto/config/chrome/scenario_config.descriptor",
   ]
 
-  # Add Material Design components for accessibility tests on desktop platforms
   if (!is_ios && !is_android) {
+    sources += [ "../browser/file_system_access/file_system_access_observer_browsertest.cc" ]
+
+    # Add Material Design components for accessibility tests on desktop platforms
     data += [ "//third_party/material_web_components/" ]
   }
 
@@ -3479,7 +3481,10 @@ test("content_unittests") {
       "../browser/renderer_host/media/sub_capture_target_id_web_contents_helper_unittest.cc",
     ]
     if (is_mac) {
-      sources += [ "../browser/media/capture/pip_screen_capture_coordinator_impl_unittest.cc" ]
+      sources += [
+        "../browser/media/capture/pip_screen_capture_coordinator_impl_unittest.cc",
+        "../browser/media/capture/pip_screen_capture_coordinator_proxy_impl_unittest.cc",
+      ]
     }
     if (!is_android && !is_ios) {
       deps += [
@@ -3528,9 +3533,9 @@ test("content_unittests") {
       "../child/dwrite_font_proxy/dwrite_font_proxy_win_unittest.cc",
       "../child/dwrite_font_proxy/font_fallback_win_unittest.cc",
       "../child/font_warmup_win_unittest.cc",
-      "../renderer/media/win/dcomp_texture_wrapper_unittest.cc",
     ]
     deps += [
+      "//components/services/font_data/public/mojom",
       "//components/stylus_handwriting/win",
       "//sandbox/policy:sandbox_test_utils",
       "//sandbox/win:sandbox",
@@ -3625,6 +3630,7 @@ test("content_unittests") {
     deps += [
       "//components/speech",
       "//content/web_test:test_support",
+      "//device/fido",
       "//device/fido:cablev2_authenticator",
       "//device/fido:cablev2_test_util",
       "//media/mojo/mojom:web_speech_recognition",
@@ -3658,9 +3664,6 @@ test("content_unittests") {
     deps += [
       "//components/webauthn/core/browser:client_data",
       "//device/base",
-      "//device/fido",
-      "//device/fido:cablev2_authenticator",
-      "//device/fido:cablev2_test_util",
       "//device/fido:mocks",
       "//device/fido:test_support",
     ]

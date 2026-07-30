@@ -22,6 +22,8 @@ class PasskeyModel;
 
 @protocol CredentialImportConsumer;
 enum class CredentialImportStage;
+class FaviconLoader;
+@class PasskeyImportItem;
 @class PasswordImportItem;
 
 // Delegate for CredentialImportMediator.
@@ -32,7 +34,9 @@ enum class CredentialImportStage;
 
 // Notifies the delegate to display a conflict resolution screen.
 - (void)showConflictResolutionScreenWithPasswords:
-    (NSArray<PasswordImportItem*>*)passwords;
+            (NSArray<PasswordImportItem*>*)passwords
+                                         passkeys:(NSArray<PasskeyImportItem*>*)
+                                                      passkeys;
 
 @end
 
@@ -49,6 +53,9 @@ enum class CredentialImportStage;
 // Current stage of import.
 @property(nonatomic, assign) CredentialImportStage importStage;
 
+// Passwords that were not imported due to errors.
+@property(nonatomic, copy) NSArray<PasswordImportItem*>* invalidPasswords;
+
 // `UUID` is a token received from the OS during app launch, required to be
 // passed back to the OS to receive the credential data.
 - (instancetype)initWithUUID:(NSUUID*)UUID
@@ -58,14 +65,15 @@ enum class CredentialImportStage;
          (std::unique_ptr<password_manager::SavedPasswordsPresenter>)
              savedPasswordsPresenter
                 passkeyModel:(webauthn::PasskeyModel*)passkeyModel
+               faviconLoader:(FaviconLoader*)faviconLoader
     NS_DESIGNATED_INITIALIZER;
 - (instancetype)init NS_UNAVAILABLE;
 
 // Notifies the model to starts importing credentials to the user's account.
-// `securityDomainSecrets` is needed to encrypt passkeys if there are any to be
+// `trustedVaultKeys` are needed to encrypt passkeys if there are any to be
 // imported.
-- (void)startImportingCredentialsWithSecurityDomainSecrets:
-    (NSArray<NSData*>*)securityDomainSecrets;
+- (void)startImportingCredentialsWithTrustedVaultKeys:
+    (NSArray<NSData*>*)trustedVaultKeys;
 
 @end
 

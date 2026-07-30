@@ -261,8 +261,7 @@ be describing additional metrics about the same event.
 </event>
 
 <event name="Accessibility.CanvasHasNonTrivialFallback">
-  <owner>aleventhal@chromium.org</owner>
-  <owner>aleventhal@google.com</owner>
+  <owner>lucasradaelli@google.com</owner>
   <summary>
     Recorded once for any page that had a canvas element with non-trivial
     fallback content beyond plain text. Only recorded if a11y is turned on (~10%
@@ -484,7 +483,7 @@ be describing additional metrics about the same event.
 </event>
 
 <event name="Accessibility.Renderer">
-  <owner>aleventhal@chromium.org</owner>
+  <owner>lucasradaelli@google.com</owner>
   <owner>nektar@chromium.org</owner>
   <summary>
     Tracks the amount of time sending accessibility events from web renderers.
@@ -12158,11 +12157,6 @@ be describing additional metrics about the same event.
     will be recorded once per visit to the HistoryClusters UI and logged when
     the UI is closed or navigated away from.
   </summary>
-  <metric name="FinalState" enum="HistoryClustersFinalState">
-    <summary>
-      The final state, or outcome, of an interaction on the HistoryClusters UI.
-    </summary>
-  </metric>
   <metric name="InitialState" enum="HistoryClustersInitialState">
     <summary>
       The initial state that describes how an interaction with the
@@ -20270,6 +20264,17 @@ be describing additional metrics about the same event.
         </statistics>
       </history>
     </aggregation>
+  </metric>
+  <metric name="InitialGeolocationAccuracySelection">
+    <summary>
+      An enum of type GeolocationAccuracy (see
+      https://source.chromium.org/search?q=class:%5CbGeolocationAccuracy%5Cb).
+      This is only emitted for geolocation permission prompts with
+      precise/approximate options (corresponding to
+      ContentSettingsType::GEOLOCATION_WITH_OPTIONS). In that case, it is either
+      0 (kPrecise) or 1 (kApproximate) and represents the preselected accuracy
+      option in the prompt.
+    </summary>
   </metric>
   <metric name="OsPromptScreen" enum="ElementAnchoredBubbleVariant">
     <summary>

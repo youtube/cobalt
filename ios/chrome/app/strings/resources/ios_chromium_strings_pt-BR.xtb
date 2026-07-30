@@ -117,6 +117,7 @@ Aguarde alguns minutos antes de trocar de conta. Se você mudar de conta agora, 
 <translation id="3581385059720151202">Pesquisar recursos visuais no Chromium</translation>
 <translation id="3582640969619785896">O Chromium vai oferecer a opção de salvar sua senha</translation>
 <translation id="3594315078412605236">Gerenciar formas de pagamento no Chromium</translation>
+<translation id="3600428265489994557">Faça login no Chromium</translation>
 <translation id="3617143087229977194">Abra as configurações de apps padrão no iOS, toque em "App de navegação" e selecione o Chromium.</translation>
 <translation id="3634039384458740619">Abrir configurações do Chromium</translation>
 <translation id="3639997914391704523">O Chromium pode verificar suas senhas quando você faz login com sua Conta do Google.</translation>
@@ -324,7 +325,7 @@ Só uma pessoa com sua senha longa pode ler seus dados criptografados. Essa senh
 <translation id="8385503371191508165">Comece a salvar chaves de acesso com o Gerenciador de Senhas</translation>
 <translation id="8390323835464055390">Faça login com suas senhas e chaves de acesso salvas em qualquer app usando o Chromium para preenchimento automático</translation>
 <translation id="8409374867500149834">Você tem a segurança reforçada do Chromium contra sites perigosos</translation>
-<translation id="8543509361021925846">{THRESHOLD,plural, =1{Isso acontece quando o Chromium não é usado por {THRESHOLD} minuto. Os dados salvos apenas neste dispositivo enquanto sua conta estava conectada serão excluídos. Isso pode incluir histórico e senhas.}one{Isso acontece quando o Chromium não é usado por {THRESHOLD} minuto. Os dados salvos apenas neste dispositivo enquanto sua conta estava conectada serão excluídos. Isso pode incluir histórico e senhas.}other{Isso acontece quando o Chromium não é usado por {THRESHOLD} minutos. Os dados salvos apenas neste dispositivo enquanto sua conta estava conectada serão excluídos. Isso pode incluir histórico e senhas.}}</translation>
+<translation id="8543509361021925846">{THRESHOLD,plural, =1{Isso acontece quando o Chromium não é usado por {THRESHOLD} minuto. Os dados salvos apenas neste dispositivo enquanto sua conta estava conectada serão excluídos. Isso pode incluir histórico e senhas.}one{Isso acontece quando o Chromium não é usado por {THRESHOLD} minuto. Os dados salvos apenas neste dispositivo enquanto sua conta estava conectada serão excluídos. Isso pode incluir histórico e senhas.}other{Isso acontece quando o Chromium não é usado por {THRESHOLD} minutos. Os dados salvos apenas neste dispositivo enquanto sua conta estava conectada serão excluídos, incluindo histórico e senhas.}}</translation>
 <translation id="8586442755830160949">Copyright <ph name="YEAR" /> Autores do Chromium. Todos os direitos reservados.</translation>
 <translation id="8602103377623855616">Página do Chromium</translation>
 <translation id="865600487977764604">Protege você no Chromium e pode ser usado para melhorar a segurança em outros apps do Google quando sua conta está conectada.</translation>
@@ -351,7 +352,6 @@ Só uma pessoa com sua senha longa pode ler seus dados criptografados. Essa senh
 <translation id="900560297598578021">Login feito como <ph name="EMAIL" />.
 
 Seus dados foram criptografados com a senha longa em <ph name="TIME" />. Digite-a para usar e salvar os dados do Chromium na sua Conta do Google.</translation>
-<translation id="9022552996538154597">Fazer login no Chromium</translation>
 <translation id="9031260906956926157">Alguns dos seus dados do Chromium ainda não foram salvos na sua Conta do Google.
 Aguarde alguns minutos antes de sair. Se você sair agora, esses dados serão excluídos.</translation>
 <translation id="9050790730841755540">Use o Chromium sempre que abrir links em outros apps.</translation>

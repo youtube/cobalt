@@ -134,8 +134,7 @@ PseudoElement* PseudoElement::Create(Element* parent,
          pseudo_id == kPseudoIdCheckMark || pseudo_id == kPseudoIdPickerIcon ||
          pseudo_id == kPseudoIdInterestHint || pseudo_id == kPseudoIdBackdrop ||
          pseudo_id == kPseudoIdMarker || pseudo_id == kPseudoIdColumn ||
-         pseudo_id == kPseudoIdOverscrollAreaParent ||
-         pseudo_id == kPseudoIdOverscrollClientArea);
+         pseudo_id == kPseudoIdOverscrollAreaParent);
   return MakeGarbageCollected<PseudoElement>(parent, pseudo_id,
                                              pseudo_argument);
 }
@@ -187,11 +186,6 @@ const QualifiedName& PseudoElementTagName(PseudoId pseudo_id) {
       DEFINE_STATIC_LOCAL(QualifiedName, overscroll_area_parent,
                           (AtomicString("::internal-overscroll-area-parent")));
       return overscroll_area_parent;
-    }
-    case kPseudoIdOverscrollClientArea: {
-      DEFINE_STATIC_LOCAL(QualifiedName, overscroll_client_area,
-                          (AtomicString("::internal-overscroll-client-area")));
-      return overscroll_client_area;
     }
     case kPseudoIdScrollMarkerGroup: {
       DEFINE_STATIC_LOCAL(QualifiedName, scroll_marker_group,
@@ -304,7 +298,6 @@ bool PseudoElement::IsWebExposed(PseudoId pseudo_id, const Node* parent) {
         return RuntimeEnabledFeatures::CSSMarkerNestedPseudoElementEnabled();
       return true;
     case kPseudoIdOverscrollAreaParent:
-    case kPseudoIdOverscrollClientArea:
       return false;
     default:
       return true;
@@ -431,6 +424,33 @@ const ComputedStyle* PseudoElement::AdjustedLayoutStyle(
   return nullptr;
 }
 
+const ContentData* PseudoElement::GetContentData() const {
+  if (ContentData* content_data = GetAltContentData()) {
+    return content_data;
+  }
+  if (const ComputedStyle* style = GetComputedStyle()) {
+    return style->GetContentData();
+  }
+  return nullptr;
+}
+
+ContentData* PseudoElement::CreateMutableAltContentDataForCountersIfNeeded() {
+  if (ContentData* content_data = GetAltContentData()) {
+    return content_data;
+  }
+  const ComputedStyle* style = GetComputedStyle();
+  if (!style) {
+    return nullptr;
+  }
+  const ContentData* style_content = style->GetContentData();
+  if (!style_content || !style_content->HasAltCounterContent()) {
+    return nullptr;
+  }
+  ContentData* content_data = style_content->Clone();
+  SetAltContentData(content_data);
+  return content_data;
+}
+
 void PseudoElement::Dispose() {
   DCHECK(ParentOrShadowHostElement());
 
@@ -546,40 +566,65 @@ void PseudoElement::AttachLayoutTree(AttachContext& context) {
 
   DCHECK(!style.ContentBehavesAsNormal());
   DCHECK(!style.ContentPreventsBoxGeneration());
-  for (ContentData* content = style.GetContentData(); content;
+
+  const ContentData* style_content = style.GetContentData();
+  const bool has_alt_counter = style_content->HasAltCounterContent();
+
+  ContentData* mutable_content = nullptr;
+  if (has_alt_counter) {
+    mutable_content = style_content->Clone();
+    SetAltContentData(mutable_content);
+    if (context.counters_context.AttachmentRootIsDocumentElement()) {
+      for (ContentData* content = mutable_content; content;
+           content = content->Next()) {
+        if (auto* alt_counter_data =
+                DynamicTo<AltCounterContentData>(content)) {
+          alt_counter_data->UpdateText(context.counters_context,
+                                       GetDocument().GetStyleEngine(),
+                                       *layout_object);
+        }
+      }
+    } else {
+      GetDocument().GetStyleEngine().MarkCountersDirty();
+    }
+  } else {
+    if (GetAltContentData()) {
+      SetAltContentData(nullptr);
+    }
+  }
+
+  const ContentData* content_for_layout =
+      mutable_content ? mutable_content : style_content;
+
+  for (const ContentData* content = content_for_layout; content;
        content = content->Next()) {
-    if (auto* alt_counter_data = DynamicTo<AltCounterContentData>(content)) {
-      alt_counter_data->UpdateText(context.counters_context,
-                                   GetDocument().GetStyleEngine(),
-                                   *layout_object);
+    if (content->IsAltText() || content->IsAltCounter()) {
       continue;
     }
-    if (!content->IsAltText()) {
-      LayoutObject* child = content->CreateLayoutObject(*layout_object);
-      if (layout_object->IsChildAllowed(child, style)) {
-        layout_object->AddChild(child);
-        if (child->IsQuote()) {
-          StyleContainmentScopeTree& tree =
-              GetDocument().GetStyleEngine().EnsureStyleContainmentScopeTree();
-          StyleContainmentScope* scope =
-              tree.FindOrCreateEnclosingScopeForElement(*this);
-          scope->AttachQuote(*To<LayoutQuote>(child));
-          tree.UpdateOutermostQuotesDirtyScope(scope);
-        }
-        if (auto* layout_counter = DynamicTo<LayoutCounter>(child)) {
-          if (context.counters_context.AttachmentRootIsDocumentElement()) {
-            Vector<int> counter_values =
-                context.counters_context.GetCounterValues(
-                    *layout_object, layout_counter->Identifier(),
-                    layout_counter->Separator().IsNull());
-            layout_counter->UpdateCounter(std::move(counter_values));
-          } else {
-            GetDocument().GetStyleEngine().MarkCountersDirty();
-          }
-        }
-      } else {
-        child->Destroy();
+    LayoutObject* child = content->CreateLayoutObject(*layout_object);
+    if (layout_object->IsChildAllowed(child, style)) {
+      layout_object->AddChild(child);
+      if (child->IsQuote()) {
+        StyleContainmentScopeTree& tree =
+            GetDocument().GetStyleEngine().EnsureStyleContainmentScopeTree();
+        StyleContainmentScope* scope =
+            tree.FindOrCreateEnclosingScopeForElement(*this);
+        scope->AttachQuote(*To<LayoutQuote>(child));
+        tree.UpdateOutermostQuotesDirtyScope(scope);
       }
+      if (auto* layout_counter = DynamicTo<LayoutCounter>(child)) {
+        if (context.counters_context.AttachmentRootIsDocumentElement()) {
+          Vector<int> counter_values =
+              context.counters_context.GetCounterValues(
+                  *layout_object, layout_counter->Identifier(),
+                  layout_counter->Separator().IsNull());
+          layout_counter->UpdateCounter(std::move(counter_values));
+        } else {
+          GetDocument().GetStyleEngine().MarkCountersDirty();
+        }
+      }
+    } else {
+      child->Destroy();
     }
   }
   context.counters_context.LeaveObject(*layout_object);
@@ -703,7 +748,6 @@ bool PseudoElementLayoutObjectIsNeeded(PseudoId pseudo_id,
     case kPseudoIdViewTransitionOld:
     case kPseudoIdColumn:
     case kPseudoIdOverscrollAreaParent:
-    case kPseudoIdOverscrollClientArea:
       return true;
     case kPseudoIdCheckMark:
     case kPseudoIdBefore:

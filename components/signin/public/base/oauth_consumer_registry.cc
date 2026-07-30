@@ -4,6 +4,7 @@
 
 #include "components/signin/public/base/oauth_consumer_registry.h"
 
+#include "base/feature_list.h"
 #include "google_apis/gaia/gaia_constants.h"
 
 namespace {
@@ -75,7 +76,6 @@ constexpr char kEduCoexistenceLoginHandlerName[] =
 constexpr char kEduAccountLoginHandlerName[] = "edu_account_login_handler";
 constexpr char kChromeosFamilyLinkUserMetricsProviderName[] =
     "chromeos_family_link_user_metrics_provider";
-constexpr char kEnterpriseIdentityServiceName[] = "enterprise_identity_service";
 constexpr char kPromotionEligibilityCheckerName[] =
     "promotion_eligibility_checker";
 constexpr char kPasswordManagerLeakDetectionName[] =
@@ -109,10 +109,16 @@ constexpr char kAuthServiceGlanceablesClassroomName[] =
 constexpr char kAuthServiceTasksClientName[] = "auth_service_tasks_client";
 constexpr char kYouTubeMusicName[] = "youtube_music";
 constexpr char kContextualTasksName[] = "contextual_tasks";
+constexpr char kDevtoolsGdpName[] = "devtools_gdp_client";
+constexpr char kAshDriveIntegrationName[] = "ash_drive_integration";
+constexpr char kAshClassroomPageHandlerName[] = "ash_classroom_page_handler";
+constexpr char kAshScannerKeyedServiceName[] = "ash_scanner_keyed_service";
 
 }  // namespace
 
 namespace signin {
+
+BASE_FEATURE(kWebHistoryUseSpecificScope, base::FEATURE_ENABLED_BY_DEFAULT);
 
 OAuthConsumerRegistry::OAuthConsumerRegistry() = default;
 OAuthConsumerRegistry::~OAuthConsumerRegistry() = default;
@@ -262,9 +268,15 @@ OAuthConsumer OAuthConsumerRegistry::GetOAuthConsumerFromId(
           /*name=*/kPasswordSharingRecipientsDownloaderName,
           /*scopes=*/{GaiaConstants::kChromeSyncOAuth2Scope});
     case OAuthConsumerId::kWebHistoryService:
-      return OAuthConsumer(
-          /*name=*/kWebHistoryServiceName,
-          /*scopes=*/{GaiaConstants::kChromeSyncOAuth2Scope});
+      if (base::FeatureList::IsEnabled(kWebHistoryUseSpecificScope)) {
+        return OAuthConsumer(
+            /*name=*/kWebHistoryServiceName,
+            /*scopes=*/{GaiaConstants::kWebHistoryOAuth2Scope});
+      } else {
+        return OAuthConsumer(
+            /*name=*/kWebHistoryServiceName,
+            /*scopes=*/{GaiaConstants::kChromeSyncOAuth2Scope});
+      }
     case OAuthConsumerId::kComposeboxQueryController:
       return OAuthConsumer(
           /*name=*/kComposeboxQueryControllerName,
@@ -342,10 +354,6 @@ OAuthConsumer OAuthConsumerRegistry::GetOAuthConsumerFromId(
       return OAuthConsumer(
           /*name=*/kChromeosFamilyLinkUserMetricsProviderName,
           /*scopes=*/{});
-    case OAuthConsumerId::kEnterpriseIdentityService:
-      return OAuthConsumer(
-          /*name=*/kEnterpriseIdentityServiceName,
-          /*scopes=*/{GaiaConstants::kDeviceManagementServiceOAuth});
     case OAuthConsumerId::kPromotionEligibilityChecker:
       return OAuthConsumer(
           /*name=*/kPromotionEligibilityCheckerName,
@@ -473,6 +481,32 @@ OAuthConsumer OAuthConsumerRegistry::GetOAuthConsumerFromId(
           /*name=*/kContextualTasksName,
           /*scopes=*/{GaiaConstants::kChromeSyncOAuth2Scope,
                       GaiaConstants::kClearCutOAuth2Scope});
+    case OAuthConsumerId::kEnterprisePlusAddress:
+      return GetOAuthConsumerForEnterprisePlusAddress();
+    case OAuthConsumerId::kGlicUserStatus:
+      return GetOAuthConsumerForGlicUserStatus();
+    case OAuthConsumerId::kDevtoolsGdp:
+      return OAuthConsumer(
+          /*name=*/kDevtoolsGdpName,
+          /*scopes=*/{GaiaConstants::kGdpOAuth2Scope});
+    case OAuthConsumerId::kAshDriveIntegration:
+      return OAuthConsumer(
+          /*name=*/kAshDriveIntegrationName,
+          /*scopes=*/{GaiaConstants::kDriveReadOnlyOAuth2Scope});
+    case OAuthConsumerId::kAshBocaClassroomPageHandler:
+      return OAuthConsumer(
+          /*name=*/kAshClassroomPageHandlerName,
+          /*scopes=*/{
+              GaiaConstants::kClassroomReadOnlyRostersOAuth2Scope,
+              GaiaConstants::kClassroomReadOnlyCoursesOAuth2Scope,
+              GaiaConstants::kClassroomReadOnlyCourseWorkStudentsOAuth2Scope,
+              GaiaConstants::kClassroomProfileEmailOauth2Scope,
+              GaiaConstants::kClassroomProfilePhotoUrlScope,
+              GaiaConstants::kClassroomCourseWorkMaterialsOAuthScope});
+    case OAuthConsumerId::kAshScannerKeyedService:
+      return OAuthConsumer(
+          /*name=*/kAshScannerKeyedServiceName,
+          /*scopes=*/{GaiaConstants::kContactsOAuth2Scope});
   }
 }
 

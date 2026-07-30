@@ -239,6 +239,8 @@ TEST(PropertyTreeTest, UndoOverscroll) {
   viewport_property_ids.inner_scroll = scroll_node.id;
   scroll_tree.SetElasticOverscroll(scroll_node,
                                    overscroll_offset.OffsetFromOrigin());
+  transform_tree.SetDrawnElasticOverscroll(
+      scroll_node.element_id, overscroll_offset.OffsetFromOrigin());
 
   TransformNode fixed_node;
   fixed_node.should_undo_overscroll = true;
@@ -248,6 +250,16 @@ TEST(PropertyTreeTest, UndoOverscroll) {
                                   &viewport_property_ids);  // overscroll_node
   transform_tree.UpdateTransforms(3, &viewport_property_ids);  // fixed_node
 
+#if BUILDFLAG(IS_ANDROID)
+  // On Android, we expect the UndoOverscroll to not run.
+  gfx::Transform expected;
+  expected.MakeIdentity();
+  EXPECT_TRANSFORM_EQ(expected, transform_tree.Node(fixed_node.id)->to_parent);
+
+  gfx::RectF expected_clip_rect(clip_rect);
+  EXPECT_EQ(clip_tree.Node(viewport_property_ids.outer_clip)->clip,
+            expected_clip_rect);
+#else
   gfx::Transform expected;
   expected.Translate(overscroll_offset.OffsetFromOrigin());
   EXPECT_TRANSFORM_EQ(expected, transform_tree.Node(fixed_node.id)->to_parent);
@@ -256,6 +268,89 @@ TEST(PropertyTreeTest, UndoOverscroll) {
   expected_clip_rect.set_height(clip_rect.height() + overscroll_offset.y());
   EXPECT_EQ(clip_tree.Node(viewport_property_ids.outer_clip)->clip,
             expected_clip_rect);
+#endif
+}
+
+TEST(PropertyTreeTest,
+     ElasticOverscrollInnerViewportRespectsPageScaleAndPivot) {
+  FakeProtectedSequenceSynchronizer synchronizer;
+  PropertyTrees property_trees(synchronizer);
+
+  TransformTree& transform_tree = property_trees.transform_tree_mutable();
+  ScrollTree& scroll_tree = property_trees.scroll_tree_mutable();
+  ViewportPropertyIds viewport_property_ids;
+
+  // Use a non-one page scale to exercise inner-viewport pivot scaling.
+  constexpr float kPageScale = 2.f;
+  transform_tree.set_page_scale_factor(kPageScale);
+
+  // Transform node that will receive the elastic overscroll stretch/translate.
+  TransformNode overscroll_transform;
+  overscroll_transform.local.MakeIdentity();
+  overscroll_transform.id = transform_tree.Insert(overscroll_transform, 0);
+  viewport_property_ids.overscroll_elasticity_transform =
+      overscroll_transform.id;
+
+  // Inner viewport scroll node with non-empty container bounds.
+  ScrollNode inner_scroll;
+  inner_scroll.parent_id = 0;
+  inner_scroll.transform_id = overscroll_transform.id;
+  inner_scroll.scrolls_inner_viewport = true;
+
+  inner_scroll.element_id = ElementId(1u);
+  inner_scroll.container_bounds = gfx::Size(100, 200);
+  inner_scroll.id = scroll_tree.Insert(inner_scroll, 0);
+  viewport_property_ids.inner_scroll = inner_scroll.id;
+
+  // Wire ElementId -> scroll node id so FindNodeFromElementId works.
+  property_trees.scroll_tree_mutable().SetElementIdForNodeId(
+      inner_scroll.id, inner_scroll.element_id);
+
+  // Overscroll in both axes to stretch/translate from both "far edges".
+  const gfx::Vector2dF kElasticOverscroll(10.f, 20.f);
+  ASSERT_TRUE(
+      scroll_tree.SetElasticOverscroll(inner_scroll, kElasticOverscroll));
+  transform_tree.SetDrawnElasticOverscroll(inner_scroll.element_id,
+                                           kElasticOverscroll);
+
+  // Run the transform update to apply elastic overscroll.
+  transform_tree.UpdateTransforms(overscroll_transform.id,
+                                  &viewport_property_ids);
+
+  const TransformNode* node = transform_tree.Node(overscroll_transform.id);
+  ASSERT_TRUE(node);
+
+#if BUILDFLAG(IS_ANDROID)
+  // Create expected transform.
+  gfx::Transform expected;
+
+  // Pivot in physical space.
+  gfx::PointF pivot(inner_scroll.container_bounds.width(),
+                    inner_scroll.container_bounds.height());
+
+  // Scale pivot to content space.
+  pivot.Scale(1.f / kPageScale);
+
+  // Apply pivot logic.
+  expected.Translate(pivot.OffsetFromOrigin());
+  const float expected_scale_x =
+      1.f +
+      std::abs(kElasticOverscroll.x()) / inner_scroll.container_bounds.width();
+  const float expected_scale_y =
+      1.f +
+      std::abs(kElasticOverscroll.y()) / inner_scroll.container_bounds.height();
+  expected.Scale(expected_scale_x, expected_scale_y);
+  expected.Translate(-pivot.OffsetFromOrigin());
+
+  EXPECT_TRANSFORM_EQ(expected, node->to_parent);
+
+#else
+  // Non-Android: expect a simple translate by overscroll.
+  gfx::Transform expected;
+  expected.Translate(-kElasticOverscroll.x(), -kElasticOverscroll.y());
+
+  EXPECT_TRANSFORM_EQ(expected, node->to_parent);
+#endif
 }
 
 // Tests that elastic overscroll is applied correctly when the content is
@@ -305,6 +400,8 @@ TEST(PropertyTreeTest, ElasticOverscrollWithScrollOffset) {
 
   const gfx::Vector2dF overscroll_delta(0.f, 50.f);
   scroll_tree.SetElasticOverscroll(scroll_node, overscroll_delta);
+  transform_tree.SetDrawnElasticOverscroll(scroll_node.element_id,
+                                           overscroll_delta);
 
   transform_tree.UpdateTransforms(transform_node.id, &viewport_property_ids);
 

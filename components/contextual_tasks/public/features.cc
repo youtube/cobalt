@@ -45,6 +45,10 @@ const base::FeatureParam<bool> kOnlyUseTitlesForSimilarity(
 const base::FeatureParam<double> kMinMultiSignalScore{
     &kContextualTasksContext, "ContextualTasksContextMinMultiSignalScore", 0.8};
 
+const base::FeatureParam<double> kContentVisibilityThreshold{
+    &kContextualTasksContext,
+    "ContextualTasksContextContentVisibilityThreshold", 0.7};
+
 const base::FeatureParam<double> kContextualTasksContextLoggingSampleRate{
     &kContextualTasksContextLogging, "ContextualTasksContextLoggingSampleRate",
     1.0};
@@ -80,12 +84,35 @@ const base::FeatureParam<bool> kEnableLensInContextualTasks(
     "EnableLensInContextualTasks",
     true);
 
+const base::FeatureParam<bool> kForceGscInTabMode(&kContextualTasks,
+                                                  "ForceGscInTabMode",
+                                                  true);
+
 // The user agent suffix to use for requests from the contextual tasks UI.
-// TODO(crbug.com/454388385): Remove "WGA/1.0" once our custom user agent
-// is allowlisted. This is a temporary workaround to unblock the
-// authentication flow.
 const base::FeatureParam<std::string> kContextualTasksUserAgentSuffix{
-    &kContextualTasks, "user-agent-suffix", "WGA/1.0"};
+    &kContextualTasks, "user-agent-suffix", "Cobrowsing/1.0"};
+
+const base::FeatureParam<bool> kEnableSteadyComposeboxVoiceSearch(
+    &kContextualTasksContext,
+    "EnableSteadyComposeboxVoiceSearch",
+    true);
+
+const base::FeatureParam<bool> kEnableExpandedComposeboxVoiceSearch(
+    &kContextualTasksContext,
+    "EnableExpandedComposeboxVoiceSearch",
+    true);
+
+bool GetIsExpandedComposeboxVoiceSearchEnabled() {
+  return kEnableExpandedComposeboxVoiceSearch.Get();
+}
+
+bool GetIsSteadyComposeboxVoiceSearchEnabled() {
+  return kEnableSteadyComposeboxVoiceSearch.Get();
+}
+
+bool ShouldForceGscInTabMode() {
+  return kForceGscInTabMode.Get();
+}
 
 std::string GetContextualTasksAiPageUrl() {
   return kContextualTasksAiPageUrl.Get();
@@ -104,9 +131,11 @@ const base::FeatureParam<std::string> kContextualTasksNextboxImageFileTypes{
     &kContextualTasksContextMenu, "ContextualTasksNextboxImageFileTypes",
     "image/jpeg,image/png"};
 
-const base::FeatureParam<std::string> kContextualTasksNextboxAttachmentFileTypes{
-    &kContextualTasksContextMenu, "ContextualTasksNextboxAttachmentFileTypes",
-    "text/plain,application/pdf"};
+const base::FeatureParam<std::string>
+    kContextualTasksNextboxAttachmentFileTypes{
+        &kContextualTasksContextMenu,
+        "ContextualTasksNextboxAttachmentFileTypes",
+        "text/plain,application/pdf"};
 
 const base::FeatureParam<int> kContextualTasksNextboxMaxFileSize{
     &kContextualTasksContextMenu, "ContextualTasksNextboxMaxFileSize",

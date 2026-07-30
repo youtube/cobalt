@@ -19,6 +19,16 @@ export interface ContextualTasksComposeboxElement {
   };
 }
 
+const DEBOUNCE_TIMEOUT: number = 20;
+
+function debounce(context: Object, func: () => void, delay: number) {
+  let timeout: number;
+  return function(...args: []) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(context, args), delay);
+  };
+}
+
 export class ContextualTasksComposeboxElement extends CrLitElement {
   static get is() {
     return 'contextual-tasks-composebox';
@@ -32,9 +42,8 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
     return {
       composeboxHeight_: {type: Number},
       composeboxDropdownHeight_: {type: Number},
-      isComposeboxFocused: {type: Boolean, reflect: true},
-      showContextMenu: {
-        reflect: true,
+      isComposeboxFocused_: {type: Boolean, reflect: true},
+      showContextMenu_: {
         type: Boolean,
         value: loadTimeData.getBoolean('composeboxShowContextMenu'),
       },
@@ -43,8 +52,9 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
 
   protected accessor composeboxHeight_: number = 0;
   protected accessor composeboxDropdownHeight_: number = 0;
-  protected accessor isComposeboxFocused: boolean = false;
-  protected accessor showContextMenu: boolean = loadTimeData.getBoolean('composeboxShowContextMenu');
+  protected accessor isComposeboxFocused_: boolean = false;
+  protected accessor showContextMenu_: boolean =
+      loadTimeData.getBoolean('composeboxShowContextMenu');
   private eventTracker_: EventTracker = new EventTracker();
   private composeboxResizeObserver_: ResizeObserver|null = null;
   private composeboxDropdownResizeObserver_: ResizeObserver|null = null;
@@ -55,10 +65,14 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
     const composebox = this.$.composebox;
     if (composebox) {
       this.eventTracker_.add(composebox, 'composebox-focus-in', () => {
-        this.isComposeboxFocused = true;
+        this.isComposeboxFocused_ = true;
       });
       this.eventTracker_.add(composebox, 'composebox-focus-out', () => {
-        this.isComposeboxFocused = false;
+        this.isComposeboxFocused_ = false;
+        if (composebox.animationState === GlowAnimationState.SUBMITTING ||
+            composebox.animationState === GlowAnimationState.LISTENING) {
+          return;
+        }
         composebox.animationState = GlowAnimationState.NONE;
       });
       this.eventTracker_.add(composebox, 'composebox-submit', () => {
@@ -67,13 +81,14 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
         composebox.clearAutocompleteMatches();
       });
 
-      this.composeboxResizeObserver_ = new ResizeObserver(() => {
+      this.composeboxResizeObserver_ = new ResizeObserver(debounce(this, () => {
         this.composeboxHeight_ = composebox.offsetHeight;
-      });
-      this.composeboxDropdownResizeObserver_ = new ResizeObserver(() => {
-        this.composeboxDropdownHeight_ =
-            composebox.getMatchesElement().offsetHeight;
-      });
+      }, DEBOUNCE_TIMEOUT));
+      this.composeboxDropdownResizeObserver_ =
+          new ResizeObserver(debounce(this, () => {
+            this.composeboxDropdownHeight_ =
+                composebox.getMatchesElement().offsetHeight;
+          }, DEBOUNCE_TIMEOUT));
       this.composeboxResizeObserver_.observe(composebox);
       this.composeboxDropdownResizeObserver_.observe(
           composebox.getMatchesElement());

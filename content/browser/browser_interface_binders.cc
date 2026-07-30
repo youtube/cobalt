@@ -332,14 +332,16 @@ void BindColorChooserFactoryForFrame(
 }
 
 void BindQuotaManagerHost(
-    RenderFrameHostImpl* host,
+    RenderFrameHost* host,
     mojo::PendingReceiver<blink::mojom::QuotaManagerHost> receiver) {
-  host->GetStoragePartition()->GetQuotaContext()->BindQuotaManagerHost(
-      host->GetStorageKey(), std::move(receiver));
+  RenderFrameHostImpl::From(host)
+      ->GetStoragePartition()
+      ->GetQuotaContext()
+      ->BindQuotaManagerHost(host->GetStorageKey(), std::move(receiver));
 }
 
 void BindSharedWorkerConnector(
-    RenderFrameHostImpl* host,
+    RenderFrameHost* host,
     mojo::PendingReceiver<blink::mojom::SharedWorkerConnector> receiver) {
   SharedWorkerConnectorImpl::Create(host->GetGlobalId(), std::move(receiver));
 }
@@ -679,7 +681,7 @@ void BindMediaPlayerObserverClientHandler(
 }
 
 void BindSocketManager(
-    RenderFrameHostImpl* frame,
+    RenderFrameHost* frame,
     mojo::PendingReceiver<network::mojom::P2PSocketManager> receiver) {
   static_cast<RenderProcessHostImpl*>(frame->GetProcess())
       ->BindP2PSocketManager(
@@ -702,93 +704,13 @@ void BindRenderFrameHostImpl(RenderFrameHost* host,
                           RenderFrameHostImpl*,
                           mojo::PendingReceiver<Interface>>
 {
-  (static_cast<RenderFrameHostImpl*>(host)->*Method)(std::move(receiver));
+  (RenderFrameHostImpl::From(host)->*Method)(std::move(receiver));
 }
 
 }  // namespace
 
 // Documents/frames
 void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
-  // WebRTC p2p connections are disallowed in fenced frames. Creation of
-  // RTCPeerConnection is already disabled in the renderer, so in theory this
-  // unbound interface should never present an issue.
-  bool should_ban_p2p =
-      base::FeatureList::IsEnabled(
-          blink::features::kFencedFramesLocalUnpartitionedDataAccess) &&
-      host->IsNestedWithinFencedFrame();
-  if (!should_ban_p2p) {
-    map->Add<network::mojom::P2PSocketManager>(
-        base::BindRepeating(&BindSocketManager, base::Unretained(host)));
-  }
-
-  map->Add<blink::mojom::PeerConnectionTrackerHost>(
-      base::BindRepeating(&RenderFrameHostImpl::BindPeerConnectionTrackerHost,
-                          base::Unretained(host)));
-
-  map->Add<blink::mojom::PermissionService>(base::BindRepeating(
-      &RenderFrameHostImpl::CreatePermissionService, base::Unretained(host)));
-
-  map->Add<blink::mojom::PresentationService>(base::BindRepeating(
-      &RenderFrameHostImpl::GetPresentationService, base::Unretained(host)));
-
-  map->Add<blink::mojom::QuotaManagerHost>(
-      base::BindRepeating(&BindQuotaManagerHost, base::Unretained(host)));
-
-  map->Add<blink::mojom::ReportingServiceProxy>(base::BindRepeating(
-      &CreateReportingServiceProxyForFrame, base::Unretained(host)));
-
-  map->Add<blink::mojom::SharedWorkerConnector>(
-      base::BindRepeating(&BindSharedWorkerConnector, base::Unretained(host)));
-
-  map->Add<media::mojom::SpeechRecognizer>(
-      base::BindRepeating(&SpeechRecognitionDispatcherHost::Create,
-                          host->GetProcess()->GetDeprecatedID(),
-                          host->GetRoutingID()),
-      GetIOThreadTaskRunner({}));
-
-  map->Add<blink::mojom::SpeechSynthesis>(base::BindRepeating(
-      &RenderFrameHostImpl::GetSpeechSynthesis, base::Unretained(host)));
-
-#if !BUILDFLAG(IS_ANDROID)
-  map->Add<blink::mojom::DeviceAPIService>(base::BindRepeating(
-      &RenderFrameHostImpl::GetDeviceInfoService, base::Unretained(host)));
-  map->Add<blink::mojom::ManagedConfigurationService>(
-      base::BindRepeating(&RenderFrameHostImpl::GetManagedConfigurationService,
-                          base::Unretained(host)));
-#endif  // !BUILDFLAG(IS_ANDROID)
-
-  map->Add<blink::mojom::WebUsbService>(base::BindRepeating(
-      &RenderFrameHostImpl::CreateWebUsbService, base::Unretained(host)));
-
-  map->Add<blink::mojom::WebSocketConnector>(base::BindRepeating(
-      &RenderFrameHostImpl::CreateWebSocketConnector, base::Unretained(host)));
-
-  map->Add<blink::mojom::LockManager>(base::BindRepeating(
-      &RenderFrameHostImpl::CreateLockManager, base::Unretained(host)));
-
-  map->Add<blink::mojom::IDBFactory>(base::BindRepeating(
-      &RenderFrameHostImpl::CreateIDBFactory, base::Unretained(host)));
-
-  map->Add<blink::mojom::BucketManagerHost>(base::BindRepeating(
-      &RenderFrameHostImpl::CreateBucketManagerHost, base::Unretained(host)));
-
-  map->Add<blink::mojom::FileChooser>(
-      base::BindRepeating(&FileChooserImpl::Create, base::Unretained(host)));
-
-  map->Add<blink::mojom::FileUtilitiesHost>(
-      base::BindRepeating(FileUtilitiesHostImpl::Create,
-                          host->GetProcess()->GetDeprecatedID()),
-      base::ThreadPool::CreateSequencedTaskRunner(
-          {base::MayBlock(), base::TaskPriority::USER_VISIBLE}));
-
-  map->Add<device::mojom::GamepadMonitor>(&device::GamepadMonitor::Create);
-
-  map->Add<blink::mojom::WebSensorProvider>(base::BindRepeating(
-      &RenderFrameHostImpl::GetSensorProvider, base::Unretained(host)));
-
-  map->Add<payments::mojom::PaymentManager>(base::BindRepeating(
-      &RenderFrameHostImpl::CreatePaymentManager, base::Unretained(host)));
-
   map->Add<handwriting::mojom::HandwritingRecognitionService>(
       &CreateHandwritingRecognitionService);
 
@@ -1133,6 +1055,87 @@ void PopulateBinderMapWithContext(
   map->Add<blink::mojom::NotificationService>(
       &BindRenderFrameHostImpl<
           &RenderFrameHostImpl::CreateNotificationService>);
+
+  // WebRTC p2p connections are disallowed in fenced frames. Creation of
+  // RTCPeerConnection is already disabled in the renderer, so in theory this
+  // unbound interface should never present an issue.
+  bool should_ban_p2p =
+      base::FeatureList::IsEnabled(
+          blink::features::kFencedFramesLocalUnpartitionedDataAccess) &&
+      host->IsNestedWithinFencedFrame();
+  if (!should_ban_p2p) {
+    map->Add<network::mojom::P2PSocketManager>(&BindSocketManager);
+  }
+
+  map->Add<blink::mojom::PeerConnectionTrackerHost>(
+      &BindRenderFrameHostImpl<
+          &RenderFrameHostImpl::BindPeerConnectionTrackerHost>);
+
+  map->Add<blink::mojom::PermissionService>(
+      &BindRenderFrameHostImpl<&RenderFrameHostImpl::CreatePermissionService>);
+
+  map->Add<blink::mojom::PresentationService>(
+      &BindRenderFrameHostImpl<&RenderFrameHostImpl::GetPresentationService>);
+
+  map->Add<blink::mojom::QuotaManagerHost>(&BindQuotaManagerHost);
+
+  map->Add<blink::mojom::ReportingServiceProxy>(
+      &CreateReportingServiceProxyForFrame);
+
+  map->Add<blink::mojom::SharedWorkerConnector>(&BindSharedWorkerConnector);
+
+  map->Add<media::mojom::SpeechRecognizer>(
+      base::BindRepeating(&SpeechRecognitionDispatcherHost::Create,
+                          host->GetProcess()->GetDeprecatedID()),
+      GetIOThreadTaskRunner({}));
+
+  map->Add<blink::mojom::SpeechSynthesis>(
+      &BindRenderFrameHostImpl<&RenderFrameHostImpl::GetSpeechSynthesis>);
+
+#if !BUILDFLAG(IS_ANDROID)
+  map->Add<blink::mojom::DeviceAPIService>(
+      &BindRenderFrameHostImpl<&RenderFrameHostImpl::GetDeviceInfoService>);
+  map->Add<blink::mojom::ManagedConfigurationService>(
+      &BindRenderFrameHostImpl<
+          &RenderFrameHostImpl::GetManagedConfigurationService>);
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+  map->Add<blink::mojom::WebUsbService>(
+      &BindRenderFrameHostImpl<&RenderFrameHostImpl::CreateWebUsbService>);
+
+  map->Add<blink::mojom::WebSocketConnector>(
+      &BindRenderFrameHostImpl<&RenderFrameHostImpl::CreateWebSocketConnector>);
+
+  map->Add<blink::mojom::LockManager>(
+      &BindRenderFrameHostImpl<&RenderFrameHostImpl::CreateLockManager>);
+
+  map->Add<blink::mojom::IDBFactory>(
+      &BindRenderFrameHostImpl<&RenderFrameHostImpl::CreateIDBFactory>);
+
+  map->Add<blink::mojom::BucketManagerHost>(
+      &BindRenderFrameHostImpl<&RenderFrameHostImpl::CreateBucketManagerHost>);
+
+  map->Add<blink::mojom::FileChooser>(&FileChooserImpl::Create);
+
+  map->Add<blink::mojom::FileUtilitiesHost>(
+      base::BindRepeating(
+          [](ChildProcessId id, RenderFrameHost*,
+             mojo::PendingReceiver<blink::mojom::FileUtilitiesHost> receiver) {
+            // TODO(crbug.com/379869738) Remove GetUnsafeValue.
+            FileUtilitiesHostImpl::Create(id.GetUnsafeValue(),
+                                          std::move(receiver));
+          },
+          host->GetProcess()->GetID()),
+      base::ThreadPool::CreateSequencedTaskRunner(
+          {base::MayBlock(), base::TaskPriority::USER_VISIBLE}));
+
+  map->Add<device::mojom::GamepadMonitor>(&device::GamepadMonitor::Create);
+
+  map->Add<blink::mojom::WebSensorProvider>(
+      &BindRenderFrameHostImpl<&RenderFrameHostImpl::GetSensorProvider>);
+
+  map->Add<payments::mojom::PaymentManager>(
+      &BindRenderFrameHostImpl<&RenderFrameHostImpl::CreatePaymentManager>);
 
   map->Add<blink::mojom::BackgroundFetchService>(
       &BackgroundFetchServiceImpl::CreateForFrame);

@@ -222,12 +222,12 @@ class TimeallTest(unittest.TestCase):
         benchmark_options = kwargs['benchmark_options']
         self.assertEqual(len(benchmark_options), 1)
         options = benchmark_options[0]
-        self.assertEqual(options.benchmark, 'module_internal_nosig')
+        self.assertEqual(options.benchmark, 'chrome_junit_sig')
         self.assertEqual(options.r, 1)
-        self.assertEqual(options.e, 'android_34_google_apis_x64_local.textpb')
+        self.assertEqual(options.e, '')
         self.assertTrue(options.i)
         self.assertTrue(options.n)
-        self.assertTrue(options.s)
+        self.assertFalse(options.s)
 
     @unittest.mock.patch('random.choice',
                          return_value='android_31_google_apis_x64_local.textpb')
@@ -239,17 +239,16 @@ class TimeallTest(unittest.TestCase):
         mock_run_benchmarks.assert_called_once()
         _, kwargs = mock_run_benchmarks.call_args
         benchmark_options = kwargs['benchmark_options']
-        self.assertEqual(len(benchmark_options), 32)
+        self.assertEqual(len(benchmark_options), 40)
 
         # Spot check the first and last generated options
         first_options = benchmark_options[0]
-        self.assertEqual(first_options.benchmark, 'module_internal_nosig')
+        self.assertEqual(first_options.benchmark, 'chrome_junit_sig')
         self.assertEqual(first_options.r, 3)
-        self.assertEqual(first_options.e,
-                         'android_34_google_apis_x64_local.textpb')
+        self.assertEqual(first_options.e, '')
         self.assertTrue(first_options.i)
         self.assertTrue(first_options.n)
-        self.assertTrue(first_options.s)
+        self.assertFalse(first_options.s)
 
         last_options = benchmark_options[-1]
         self.assertEqual(last_options.benchmark, 'cta_test_sig')
@@ -258,7 +257,7 @@ class TimeallTest(unittest.TestCase):
                          'android_31_google_apis_x64_local.textpb')
         self.assertTrue(last_options.i)
         self.assertFalse(last_options.n)
-        self.assertFalse(last_options.s)
+        self.assertTrue(last_options.s)
 
 
 if __name__ == '__main__':

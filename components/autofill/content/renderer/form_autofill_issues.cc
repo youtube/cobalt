@@ -226,6 +226,8 @@ void EmitFormControlIssues(const WebDocument& document,
   }
 
   for (const WebFormControlElement& element : elements) {
+    EmitAutofillOrManualTextIssue(
+        document, DenseSet<PermissionsPolicyFeature>::all(), emit);
     EmitAriaLabelledByDevtoolsIssue(document, element, emit);
     EmitAutocompleteAttributeDevtoolsIssue(document, element, emit);
     EmitInputWithEmptyIdAndNameDevtoolsIssue(document, element, emit);
@@ -322,6 +324,40 @@ void EmitFormIssues(const WebDocument& document,
   for (const FormData& form : forms) {
     CheckForLabelsWithIncorrectForAttribute(document, form.fields(),
                                             emit_limited);
+  }
+}
+
+void EmitAutofillOrManualTextIssue(const WebDocument& document,
+                                   DenseSet<PermissionsPolicyFeature> features,
+                                   EmitCallback emit) {
+  const WebLocalFrame* frame = document.GetFrame();
+  if (!frame) {
+    return;
+  }
+  const bool is_autofill_disabled =
+      features.contains(PermissionsPolicyFeature::kAutofill) &&
+      !frame->IsFeatureEnabled(
+          network::mojom::PermissionsPolicyFeature::kAutofill) &&
+      base::FeatureList::IsEnabled(
+          features::kAutofillPolicyControlledFeatureAutofill);
+  const bool is_manual_text_disabled =
+      features.contains(PermissionsPolicyFeature::kManualText) &&
+      !frame->IsFeatureEnabled(
+          network::mojom::PermissionsPolicyFeature::kManualText) &&
+      base::FeatureList::IsEnabled(
+          features::kAutofillPolicyControlledFeatureManualText);
+  if (is_autofill_disabled && is_manual_text_disabled) {
+    emit(document,
+         GenericIssueErrorType::
+             kAutofillAndManualTextPolicyControlledFeaturesInfo,
+         document.GetDomNodeId(), {});
+  } else if (is_autofill_disabled) {
+    emit(document, GenericIssueErrorType::kAutofillPolicyControlledFeatureInfo,
+         document.GetDomNodeId(), {});
+  } else if (is_manual_text_disabled) {
+    emit(document,
+         GenericIssueErrorType::kManualTextPolicyControlledFeatureInfo,
+         document.GetDomNodeId(), {});
   }
 }
 

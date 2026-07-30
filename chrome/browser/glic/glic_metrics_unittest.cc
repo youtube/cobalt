@@ -136,27 +136,27 @@ class GlicMetricsTestBase : public testing::Test {
       : task_environment_(base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
 
   void SetUp() override {
-    testing_profile_manager_ = std::make_unique<TestingProfileManager>(
-        TestingBrowserProcess::GetGlobal());
-    ASSERT_TRUE(testing_profile_manager_->SetUp());
     TestingBrowserProcess::GetGlobal()->SetStatusTray(
         std::make_unique<MockStatusTray>());
-    TestingBrowserProcess::GetGlobal()->CreateGlobalFeaturesForTesting();
+    testing_profile_manager_ =
+        TestingBrowserProcess::GetGlobal()->SetUpGlobalFeaturesForTesting(
+            /*profile_manager=*/true);
 #if BUILDFLAG(IS_CHROMEOS)
     glic_user_session_test_helper_.PreProfileSetUp(
         testing_profile_manager_->profile_manager());
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
     profile_ = testing_profile_manager_->CreateTestingProfile("profile");
-    ForceSigninAndModelExecutionCapability(profile_);
+    ForceSigninAndGlicCapability(profile_);
   }
 
   void TearDown() override {
     // The order of some of these operations is important to avoid
     // dangling pointer crashes.
-    TestingBrowserProcess::GetGlobal()->GetFeatures()->Shutdown();
     profile_ = nullptr;
-    testing_profile_manager_.reset();
+
+    TestingBrowserProcess::GetGlobal()->TearDownGlobalFeaturesForTesting(
+        std::move(testing_profile_manager_));
 
 #if BUILDFLAG(IS_CHROMEOS)
     glic_user_session_test_helper_.PostProfileTearDown();

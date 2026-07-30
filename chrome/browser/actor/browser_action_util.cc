@@ -15,9 +15,11 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/notimplemented.h"
 #include "base/numerics/safe_conversions.h"
+#include "base/strings/to_string.h"
 #include "base/trace_event/trace_event.h"
 #include "base/types/expected.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/actor_metrics.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/aggregated_journal.h"
 #include "chrome/browser/actor/shared_types.h"
@@ -83,6 +85,7 @@ using apc::SelectAction;
 using apc::TypeAction;
 using apc::WaitAction;
 using ::optimization_guide::DocumentIdentifierUserData;
+using ::page_content_annotations::FetchPageContextError;
 using ::page_content_annotations::FetchPageContextOptions;
 using ::page_content_annotations::FetchPageContextResult;
 using ::page_content_annotations::FetchPageContextResultCallbackArg;
@@ -785,7 +788,21 @@ void FillInTabObservation(
 
 namespace {
 
+apc::TabObservation::TabObservationResult ToTabObservationResult(
+    FetchPageContextError error) {
+  switch (error) {
+    case FetchPageContextError::kUnknown:
+      return apc::TabObservation::TAB_OBSERVATION_UNKNOWN_ERROR;
+    case FetchPageContextError::kWebContentsChanged:
+      return apc::TabObservation::TAB_OBSERVATION_WEB_CONTENTS_CHANGED;
+    case FetchPageContextError::kPageContextNotEligible:
+      return apc::TabObservation::TAB_OBSERVATION_PAGE_CONTEXT_NOT_ELIGIBLE;
+      ;
+  }
+}
+
 void FetchCallback(
+    TabHandle tab_handle,
     base::WeakPtr<Profile> profile,
     TaskId task_id,
     base::RepeatingClosure barrier,
@@ -804,22 +821,63 @@ void FetchCallback(
     return;
   }
 
-  if (!result.has_value()) {
-    auto* actor_service = actor::ActorKeyedService::Get(profile.get());
-    actor_service->GetJournal().Log(
-        GURL(), task_id, result.error(),
-        JournalDetailsBuilder().Add("tabId", tab_observation->id()).Build());
-    // For now record everything as a timeout.
+  auto* actor_service = actor::ActorKeyedService::Get(profile.get());
+  TabInterface* const tab = tab_handle.Get();
+
+  if (!tab || !tab->GetContents()) {
+    actor_service->GetJournal().Log(GURL(), task_id, "FetchCallback",
+                                    JournalDetailsBuilder()
+                                        .Add("tabId", tab_observation->id())
+                                        .AddError("TabWentAway")
+                                        .Build());
     tab_observation->set_result(
-        apc::TabObservation::TAB_OBSERVATION_SCREENSHOT_TIMEOUT);
+        apc::TabObservation::TAB_OBSERVATION_TAB_WENT_AWAY);
+    return;
+  }
+
+  if (tab->GetContents()->IsCrashed()) {
+    actor_service->GetJournal().Log(GURL(), task_id, "FetchCallback",
+                                    JournalDetailsBuilder()
+                                        .Add("tabId", tab_observation->id())
+                                        .AddError("Page crashed")
+                                        .Build());
+    tab_observation->set_result(
+        apc::TabObservation::TAB_OBSERVATION_PAGE_CRASHED);
+    return;
+  }
+
+  if (std::optional<std::string> error_message =
+          ActorKeyedService::ExtractErrorMessageIfFailed(result)) {
+    actor_service->GetJournal().Log(
+        GURL(), task_id, *error_message,
+        JournalDetailsBuilder().Add("tabId", tab_observation->id()).Build());
+  }
+
+  if (!result.has_value()) {
+    tab_observation->set_result(
+        ToTabObservationResult(result.error().error_code));
     return;
   }
 
   FetchPageContextResult& fetch_result = **result;
 
-  // RequestTabObservation should return an error if these aren't filled in.
-  CHECK(fetch_result.screenshot_result.has_value());
-  CHECK(fetch_result.annotated_page_content_result.has_value());
+  bool has_apc = fetch_result.annotated_page_content_result.has_value();
+  tab_observation->set_annotated_page_content_result(
+      has_apc ? apc::TabObservation::ANNOTATED_PAGE_CONTENT_OK
+              : apc::TabObservation::ANNOTATED_PAGE_CONTENT_ERROR);
+
+  bool has_screenshot = fetch_result.screenshot_result.has_value();
+  tab_observation->set_screenshot_result(
+      has_screenshot ? apc::TabObservation::SCREENSHOT_OK
+                     : apc::TabObservation::SCREENSHOT_ERROR);
+
+  // Context for actor observations should always have an APC and a screenshot,
+  // return failure if either is missing.
+  if (!has_apc || !has_screenshot) {
+    tab_observation->set_result(
+        apc::TabObservation::TAB_OBSERVATION_FETCH_ERROR);
+    return;
+  }
 
   tab_observation->set_result(apc::TabObservation::TAB_OBSERVATION_OK);
   {
@@ -833,10 +891,9 @@ void FetchCallback(
         (fetch_result.annotated_page_content_result.value().end_time -
          start_time)
             .InMilliseconds());
-    base::UmaHistogramMediumTimes(
-        "Actor.PageContext.APC.Duration",
+    RecordPageContextApcDuration(
         fetch_result.annotated_page_content_result.value().end_time -
-            fetch_context_time);
+        fetch_context_time);
   }
 
   {
@@ -848,8 +905,7 @@ void FetchCallback(
     latency_step->set_latency_stop_ms(
         (fetch_result.screenshot_result.value().end_time - start_time)
             .InMilliseconds());
-    base::UmaHistogramMediumTimes(
-        "Actor.PageContext.Screenshot.Duration",
+    RecordPageContextScreenshotDuration(
         fetch_result.screenshot_result.value().end_time - fetch_context_time);
   }
 
@@ -997,14 +1053,13 @@ void BuildActionsResultWithObservations(
   }
 
   actor_service->GetJournal().Log(
-      GURL(), TaskId(), "Observing Tabs",
+      GURL(), task.id(), "Observing Tabs",
       JournalDetailsBuilder()
           .Add("tab_observations", last_acted_tabs.size())
           .Add("tabs_to_fetch", tabs_to_fetch.size())
           .Build());
 
-  base::UmaHistogramCounts1000("Actor.PageContext.TabCount",
-                               tabs_to_fetch.size());
+  RecordPageContextTabCount(tabs_to_fetch.size());
 
   if (skip_async_observation_information) {
     std::move(callback).Run(std::move(response), std::move(journal_entry));
@@ -1019,8 +1074,8 @@ void BuildActionsResultWithObservations(
     // by the barrier which is ref-counted.
     actor_service->RequestTabObservation(
         *tab, task.id(),
-        base::BindOnce(FetchCallback, profile->GetWeakPtr(), task.id(), barrier,
-                       base::Unretained(tab_observation),
+        base::BindOnce(FetchCallback, tab->GetHandle(), profile->GetWeakPtr(),
+                       task.id(), barrier, base::Unretained(tab_observation),
                        action_results, actions_start_time,
                        base::TimeTicks::Now(), base::Unretained(latency_info)));
   }

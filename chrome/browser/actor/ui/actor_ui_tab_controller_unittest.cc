@@ -14,6 +14,7 @@
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
 #include "chrome/browser/actor/actor_keyed_service_fake.h"
 #include "chrome/browser/actor/ui/actor_border_view_controller.h"
+#include "chrome/browser/actor/ui/actor_ui_metrics_types.h"
 #include "chrome/browser/actor/ui/actor_ui_tab_controller_interface.h"
 #include "chrome/browser/actor/ui/actor_ui_window_controller.h"
 #include "chrome/browser/actor/ui/mocks/mock_actor_ui_state_manager.h"
@@ -135,12 +136,11 @@ class ActorUiTabControllerTest : public content::RenderViewHostTestHarness {
         .WillByDefault(ReturnNewScopedClosureRunner());
 
     actor_ui_tab_controller_ = std::make_unique<ActorUiTabController>(
-        mock_tab_, actor_keyed_service(),
-        std::make_unique<ActorUiTabControllerFactory>());
+        mock_tab_, actor_keyed_service());
 
     mock_handoff_button_controller_ =
         std::make_unique<MockHandoffButtonController>(
-            /*anchor_view=*/nullptr);
+            /*anchor_view=*/nullptr, /*window_controller*/ nullptr);
     handoff_button_controller_registration_ =
         actor_ui_tab_controller_->RegisterHandoffButtonController(
             mock_handoff_button_controller_.get());
@@ -360,20 +360,6 @@ TEST_F(ActorUiTabControllerTest, BorderGlowChangesOnUiTabStateChange) {
   tab_controller()->OnUiTabStateChange(ui_tab_state_glow_on, base::DoNothing());
 }
 
-TEST_F(ActorUiTabControllerTest, HandoffButtonHidesWhenInImmersiveMode) {
-  EXPECT_CALL(*handoff_button_controller(),
-              UpdateState(_, /*is_visible=*/false, _));
-
-  ON_CALL(*immersive_mode_controller(), IsEnabled())
-      .WillByDefault(Return(true));
-  HandoffButtonState handoff_button_state(
-      true, HandoffButtonState::ControlOwnership::kActor);
-  UiTabState ui_tab_state(ActorOverlayState(), handoff_button_state);
-  base::test::TestFuture<bool> future;
-  tab_controller()->OnUiTabStateChange(ui_tab_state, future.GetCallback());
-  EXPECT_TRUE(future.Get());
-}
-
 TEST_F(ActorUiTabControllerTest,
        OnUiTabStateChange_SameStateRunsCallbackOnceAndDoesNotUpdateState) {
   ActorOverlayState actor_overlay_state{.is_active = true};
@@ -571,6 +557,27 @@ TEST_F(ActorUiTabControllerTest, RegisterCallbackWhileRegisteredDeathTest) {
       (void)tab_controller()->RegisterActorTabIndicatorStateChangedCallback(
           valid_tab_indicator_cb),
       "");
+}
+
+TEST_F(ActorUiTabControllerTest, PropagatesMouseTargetToCallback) {
+  ActorOverlayState actor_overlay_state;
+  actor_overlay_state.is_active = true;
+  actor_overlay_state.mouse_target = gfx::Point(123, 456);
+
+  HandoffButtonState handoff_button_state;
+  UiTabState ui_tab_state(actor_overlay_state, handoff_button_state);
+
+  EXPECT_CALL(mock_overlay_callback_, Call(/*visibility=*/true, _, _))
+      .WillOnce([](bool visibility, ActorOverlayState state,
+                   base::OnceClosure callback) {
+        EXPECT_TRUE(state.mouse_target.has_value());
+        EXPECT_EQ(state.mouse_target.value(), gfx::Point(123, 456));
+        std::move(callback).Run();
+      });
+
+  base::test::TestFuture<bool> future;
+  tab_controller()->OnUiTabStateChange(ui_tab_state, future.GetCallback());
+  EXPECT_TRUE(future.Wait());
 }
 
 }  // namespace

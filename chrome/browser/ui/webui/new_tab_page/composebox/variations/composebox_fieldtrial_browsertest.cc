@@ -37,7 +37,8 @@ class TestingAimEligibilityService : public ChromeAimEligibilityService {
       : ChromeAimEligibilityService(pref_service,
                                     template_url_service,
                                     /*url_loader_factory=*/nullptr,
-                                    /*identity_manager=*/nullptr),
+                                    /*identity_manager=*/nullptr,
+                                    /*is_off_the_record=*/false),
         is_locally_eligible_(is_locally_eligible),
         is_server_eligible_(is_server_eligible),
         server_eligibility_enabled_(server_eligibility_enabled) {}
@@ -130,19 +131,19 @@ class NtpFieldTrialBrowserTest
       return false;
     }
 
-    // If the generic feature is overridden, it takes precedence.
-    if (override_feature) {
-      return feature;
-    }
-
     // If the server eligibility is enabled, return overall eligibility alone.
     // The service will control locale rollout so there's no need to check
     // locale or the state of kMyFeature below.
-    if (service->IsServerEligibilityEnabled()) {
-      expected_enabled = service->IsAimEligible();
-    } else {
-      // Otherwise, check the generic entrypoint feature default value.
-      expected_enabled = IsFeatureEnabledByDefault();
+    if (service->IsServerEligibilityEnabled() && !service->IsAimEligible()) {
+      return false;
+    }
+
+    // Otherwise, check the generic entrypoint feature default value.
+    expected_enabled = IsFeatureEnabledByDefault();
+
+    // If the generic feature is overridden, it takes precedence.
+    if (override_feature) {
+      return feature;
     }
 
     return expected_enabled;

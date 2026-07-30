@@ -177,10 +177,8 @@ ContextProviderCommandBuffer::CreateForRaster(
     bool support_locking,
     const gpu::SharedMemoryLimits& memory_limits,
     command_buffer_metrics::ContextType type,
-    bool enable_gpu_rasterization,
     bool lose_context_when_out_of_memory) {
   auto attributes = gpu::mojom::RasterCreationAttribs::New();
-  attributes->enable_gpu_rasterization = enable_gpu_rasterization;
   attributes->lose_context_when_out_of_memory = lose_context_when_out_of_memory;
 
   return base::MakeRefCounted<ContextProviderCommandBuffer>(

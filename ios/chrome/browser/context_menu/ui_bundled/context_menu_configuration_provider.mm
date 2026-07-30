@@ -24,6 +24,8 @@
 #import "ios/chrome/browser/favicon/model/ios_chrome_favicon_loader_factory.h"
 #import "ios/chrome/browser/incognito_reauth/ui_bundled/incognito_reauth_commands.h"
 #import "ios/chrome/browser/incognito_reauth/ui_bundled/incognito_reauth_scene_agent.h"
+#import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
+#import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/lens/ui_bundled/lens_availability.h"
@@ -189,57 +191,9 @@ NSString* const kAlertAccessibilityIdentifier = @"AlertAccessibilityIdentifier";
                                                actionProvider:actionProvider];
 }
 
-#pragma mark - Properties
-
-- (web::WebState*)webState {
-  if (base::FeatureList::IsEnabled(kEnableLensOverlay) && _baseWebState) {
-    return _baseWebState.get();
-  }
-  web::WebState* activeWebState =
-      self.browser ? self.browser->GetWebStateList()->GetActiveWebState()
-                   : nullptr;
-  if (activeWebState) {
-    // Check if there is an alternate webState.
-    ReaderModeTabHelper* readerModeTabHelper =
-        ReaderModeTabHelper::FromWebState(activeWebState);
-    if (readerModeTabHelper) {
-      web::WebState* readerModeWebState =
-          readerModeTabHelper->GetReaderModeWebState();
-      if (readerModeWebState) {
-        return readerModeWebState;
-      }
-    }
-  }
-  return activeWebState;
-}
-
-#pragma mark - Private
-
-// Returns a preview for the images in contextual menu for a given image web
-// state.
-- (UIContextMenuContentPreviewProvider)
-    contextMenuContentPreviewProviderForWebState:(web::WebState*)webState
-                                          params:
-                                              (web::ContextMenuParams)params {
-  if (!params.src_url.is_valid() || params.link_url.is_valid()) {
-    return nil;
-  }
-
-  ImagePreviewViewController* previewViewController =
-      [[ImagePreviewViewController alloc]
-          initWithSrcURL:net::NSURLWithGURL(params.src_url)
-                webState:webState];
-  [previewViewController loadPreview];
-  return ^() {
-    return previewViewController;
-  };
-}
-
-// Returns an action based contextual menu for a given web state (link, image,
-// copy and intent detection actions).
-- (UIContextMenuActionProvider)
-    contextMenuActionProviderForWebState:(web::WebState*)webState
-                                  params:(web::ContextMenuParams)params {
+- (UIMenu*)contextMenuForWebState:(web::WebState*)webState
+                           params:(web::ContextMenuParams)params
+                         scenario:(MenuScenarioHistogram)menuScenario {
   // Reset the URL.
   _URLToLoad = GURL();
 
@@ -261,12 +215,6 @@ NSString* const kAlertAccessibilityIdentifier = @"AlertAccessibilityIdentifier";
   web::Referrer referrer(lastCommittedURL, web::ReferrerPolicyDefault);
 
   NSMutableArray<UIMenuElement*>* menuElements = [[NSMutableArray alloc] init];
-  // TODO(crbug.com/40823789) add scenario for not a link and not an image.
-  MenuScenarioHistogram menuScenario =
-      [self getMenuScenarioHistogramWithWebState:webState
-                                         isImage:isImage
-                                          isLink:isLink];
-
   NSString* menuTitle = nil;
   UIAction* showFullURL = nil;
 
@@ -353,8 +301,79 @@ NSString* const kAlertAccessibilityIdentifier = @"AlertAccessibilityIdentifier";
     return nil;
   }
 
-  UIMenu* menu = [UIMenu menuWithTitle:menuTitle children:menuElements];
+  return [UIMenu menuWithTitle:menuTitle children:menuElements];
+}
 
+- (void)recordMenuShown:(MenuScenarioHistogram)scenario {
+  RecordMenuShown(scenario);
+}
+
+#pragma mark - Properties
+
+- (web::WebState*)webState {
+  if (base::FeatureList::IsEnabled(kEnableLensOverlay) && _baseWebState) {
+    return _baseWebState.get();
+  }
+  web::WebState* activeWebState =
+      self.browser ? self.browser->GetWebStateList()->GetActiveWebState()
+                   : nullptr;
+  if (activeWebState) {
+    // Check if there is an alternate webState.
+    ReaderModeTabHelper* readerModeTabHelper =
+        ReaderModeTabHelper::FromWebState(activeWebState);
+    if (readerModeTabHelper) {
+      web::WebState* readerModeWebState =
+          readerModeTabHelper->GetReaderModeWebState();
+      if (readerModeWebState) {
+        return readerModeWebState;
+      }
+    }
+  }
+  return activeWebState;
+}
+
+#pragma mark - Private
+
+// Returns a preview for the images in contextual menu for a given image web
+// state.
+- (UIContextMenuContentPreviewProvider)
+    contextMenuContentPreviewProviderForWebState:(web::WebState*)webState
+                                          params:
+                                              (web::ContextMenuParams)params {
+  if (!params.src_url.is_valid() || params.link_url.is_valid()) {
+    return nil;
+  }
+
+  ImagePreviewViewController* previewViewController =
+      [[ImagePreviewViewController alloc]
+          initWithSrcURL:net::NSURLWithGURL(params.src_url)
+                webState:webState];
+  [previewViewController loadPreview];
+  return ^() {
+    return previewViewController;
+  };
+}
+
+// Returns an action based contextual menu for a given web state (link, image,
+// copy and intent detection actions).
+- (UIContextMenuActionProvider)
+    contextMenuActionProviderForWebState:(web::WebState*)webState
+                                  params:(web::ContextMenuParams)params {
+  const bool isLink = params.link_url.is_valid();
+  const bool isImage = params.src_url.is_valid();
+
+  // TODO(crbug.com/40823789) add scenario for not a link and not an image.
+  MenuScenarioHistogram menuScenario =
+      [self getMenuScenarioHistogramWithWebState:webState
+                                         isImage:isImage
+                                          isLink:isLink];
+
+  UIMenu* menu = [self contextMenuForWebState:webState
+                                       params:params
+                                     scenario:menuScenario];
+  if (menu.children.count == 0) {
+    return nil;
+  }
   UIContextMenuActionProvider actionProvider =
       ^(NSArray<UIMenuElement*>* suggestedActions) {
         RecordMenuShown(menuScenario);
@@ -512,8 +531,11 @@ NSString* const kAlertAccessibilityIdentifier = @"AlertAccessibilityIdentifier";
   __weak __typeof(self) weakSelf = self;
 
   // Launch the Gemini experience with an image attached.
-  // TODO(crbug.com/457469273): Add more eligibility checks.
-  if (IsImageContextMenuGeminiEntryPointEnabled()) {
+  BOOL canShowGeminiElement =
+      IsImageContextMenuGeminiEntryPointEnabled() &&
+      BwgServiceFactory::GetForProfile(self.browser->GetProfile())
+          ->IsBwgAvailableForWebState(webState);
+  if (canShowGeminiElement) {
     ProceduralBlock geminiElementCallback = ^{
       [weakSelf openGeminiWithImageURL:imageURL referrer:referrer];
     };
@@ -1085,8 +1107,9 @@ NSString* const kAlertAccessibilityIdentifier = @"AlertAccessibilityIdentifier";
 - (void)openGeminiWithImage:(UIImage*)image {
   id<BWGCommands> handler =
       HandlerForProtocol(_browser->GetCommandDispatcher(), BWGCommands);
-  [handler startBWGFlowWithImageAttachment:image
-                                entryPoint:bwg::EntryPoint::ImageContextMenu];
+  [handler
+      startGeminiFlowWithImageAttachment:image
+                              entryPoint:bwg::EntryPoint::ImageContextMenu];
 }
 
 @end

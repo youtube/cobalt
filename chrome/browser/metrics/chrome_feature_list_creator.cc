@@ -12,6 +12,8 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/path_service.h"
+#include "base/time/default_clock.h"
+#include "base/time/default_tick_clock.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "chrome/browser/about_flags.h"
@@ -25,6 +27,7 @@
 #include "chrome/common/chrome_switches.h"
 #include "chrome/installer/util/initial_preferences.h"
 #include "components/content_settings/core/common/features.h"
+#include "components/network_time/network_time_tracker.h"
 #include "components/prefs/json_pref_store.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
@@ -36,6 +39,7 @@
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "content/public/common/content_switches.h"
 #include "services/network/public/cpp/network_switches.h"
+#include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "ui/base/resource/resource_bundle.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -95,7 +99,11 @@ GetSwitchDependentFeatureOverrides(const base::CommandLine& command_line) {
 
 }  // namespace
 
-ChromeFeatureListCreator::ChromeFeatureListCreator() = default;
+// static
+ChromeFeatureListCreator* ChromeFeatureListCreator::GetInstance() {
+  static base::NoDestructor<ChromeFeatureListCreator> instance;
+  return instance.get();
+}
 
 ChromeFeatureListCreator::~ChromeFeatureListCreator() = default;
 
@@ -147,12 +155,22 @@ ChromeFeatureListCreator::TakeChromeBrowserPolicyConnector() {
   return std::move(browser_policy_connector_);
 }
 
+std::unique_ptr<network_time::NetworkTimeTracker>
+ChromeFeatureListCreator::TakeNetworkTimeTracker() {
+  CHECK(network_time_tracker_);
+  return std::move(network_time_tracker_);
+}
+
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
 std::unique_ptr<installer::InitialPreferences>
 ChromeFeatureListCreator::TakeInitialPrefs() {
   return std::move(installer_initial_prefs_);
 }
 #endif
+
+ChromeFeatureListCreator::ChromeFeatureListCreator() {
+  CreateNetworkTimeTracker();
+}
 
 void ChromeFeatureListCreator::CreatePrefService() {
   base::FilePath local_state_file;
@@ -243,6 +261,21 @@ void ChromeFeatureListCreator::ConvertFlagsToSwitches() {
   about_flags::ConvertFlagsToSwitches(&flags_storage,
                                       base::CommandLine::ForCurrentProcess(),
                                       flags_ui::kAddSentinels);
+}
+
+void ChromeFeatureListCreator::CreateNetworkTimeTracker() {
+  // The NetworkTimeTracker is needed before the PrefService and
+  // URLLoaderFactory can be fully initialized, so we only partially create it
+  // now (we pass nullptr for both values). The PrefService and URLLoaderFactory
+  // will be provided later, via the Initialize() method invoked by the
+  // BrowserProcessImpl constructor.
+  network_time_tracker_ = std::make_unique<network_time::NetworkTimeTracker>(
+      std::make_unique<base::DefaultClock>(),
+      std::make_unique<base::DefaultTickClock>(),
+      /*pref_service=*/nullptr,
+      /*url_loader_factory=*/nullptr,
+      /*network_time_pref_delegate=*/std::nullopt);
+  CHECK(!network_time_tracker_->is_initialized());
 }
 
 void ChromeFeatureListCreator::SetUpFieldTrials(

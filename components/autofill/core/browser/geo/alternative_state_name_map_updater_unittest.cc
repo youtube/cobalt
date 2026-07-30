@@ -11,6 +11,7 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/callback_helpers.h"
+#include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
@@ -50,15 +51,13 @@ class AlternativeStateNameMapUpdaterTest : public ::testing::Test {
   AlternativeStateNameMapUpdaterTest() = default;
 
   void SetUp() override {
-    autofill_client_.SetPrefs(test::PrefServiceForTesting());
     alternative_state_name_map_updater_ =
         std::make_unique<AlternativeStateNameMapUpdater>(
-            autofill_client_.GetPrefs(), &address_data_manager_);
+            &address_data_manager_);
   }
 
  protected:
   base::test::TaskEnvironment task_environment_;
-  TestAutofillClient autofill_client_;
   TestAddressDataManager address_data_manager_;
   std::unique_ptr<AlternativeStateNameMapUpdater>
       alternative_state_name_map_updater_;
@@ -103,8 +102,7 @@ TEST_F(AlternativeStateNameMapUpdaterTest, TestLoadStatesData) {
        {AlternativeStateNameMap::StateName(u"Bavaria")}}};
   base::RunLoop run_loop;
   alternative_state_name_map_updater_->LoadStatesDataForTesting(
-      country_to_state_names_list_mapping, autofill_client_.GetPrefs(),
-      run_loop.QuitClosure());
+      country_to_state_names_list_mapping, run_loop.QuitClosure());
   run_loop.Run();
 
   EXPECT_FALSE(
@@ -123,8 +121,7 @@ TEST_F(AlternativeStateNameMapUpdaterTest, TestLoadChromeStatesData) {
        {AlternativeStateNameMap::StateName(u"kujawskopomorskie")}}};
   base::RunLoop run_loop;
   alternative_state_name_map_updater_->LoadStatesDataForTesting(
-      country_to_state_names_list_mapping, autofill_client_.GetPrefs(),
-      run_loop.QuitClosure());
+      country_to_state_names_list_mapping, run_loop.QuitClosure());
   run_loop.Run();
 
   EXPECT_FALSE(
@@ -146,8 +143,7 @@ TEST_F(AlternativeStateNameMapUpdaterTest, NoTaskIsPosted) {
        {AlternativeStateNameMap::StateName(u"Bavaria")}}};
   base::RunLoop run_loop;
   alternative_state_name_map_updater_->LoadStatesDataForTesting(
-      country_to_state_names_list_mapping, autofill_client_.GetPrefs(),
-      run_loop.QuitClosure());
+      country_to_state_names_list_mapping, run_loop.QuitClosure());
   run_loop.Run();
 
   EXPECT_TRUE(
@@ -166,8 +162,7 @@ TEST_F(AlternativeStateNameMapUpdaterTest, TestLoadStatesDataUTF8) {
 
   base::RunLoop run_loop;
   alternative_state_name_map_updater_->LoadStatesDataForTesting(
-      country_to_state_names_list_mapping, autofill_client_.GetPrefs(),
-      run_loop.QuitClosure());
+      country_to_state_names_list_mapping, run_loop.QuitClosure());
   run_loop.Run();
 
   std::optional<StateEntry> entry1 =
@@ -209,8 +204,7 @@ TEST_F(AlternativeStateNameMapUpdaterTest,
 
   base::RunLoop run_loop;
   alternative_state_name_map_updater_->LoadStatesDataForTesting(
-      country_to_state_names, autofill_client_.GetPrefs(),
-      run_loop.QuitClosure());
+      country_to_state_names, run_loop.QuitClosure());
   run_loop.Run();
 
   std::optional<StateEntry> entry1 =
@@ -262,8 +256,7 @@ TEST_F(AlternativeStateNameMapUpdaterTest,
 
   base::RunLoop run_loop;
   MockAlternativeStateNameMapUpdater mock_alternative_state_name_updater(
-      run_loop.QuitClosure(), autofill_client_.GetPrefs(),
-      &address_data_manager_);
+      run_loop.QuitClosure(), &address_data_manager_);
   address_data_manager_.AddProfile(profile);
   run_loop.Run();
 
@@ -285,8 +278,7 @@ TEST_F(AlternativeStateNameMapUpdaterTest, LoadAllCountryFiles) {
 
   base::RunLoop run_loop;
   alternative_state_name_map_updater_->LoadStatesDataForTesting(
-      std::move(country_to_state_names), autofill_client_.GetPrefs(),
-      run_loop.QuitClosure());
+      std::move(country_to_state_names), run_loop.QuitClosure());
   run_loop.Run();
 
   // The test's purpose is to ensure that loading and processing all files does

@@ -35,6 +35,7 @@
 #include "chrome/browser/ui/omnibox/omnibox_popup_state_manager.h"
 #include "chrome/browser/ui/omnibox/omnibox_popup_view.h"
 #include "chrome/browser/ui/omnibox/omnibox_view.h"
+#include "chrome/browser/ui/views/omnibox/omnibox_popup_closer.h"
 #include "components/bookmarks/browser/bookmark_model.h"
 #include "components/dom_distiller/core/url_constants.h"
 #include "components/dom_distiller/core/url_utils.h"
@@ -1179,8 +1180,9 @@ bool OmniboxEditModel::OnEscapeKeyPressed() {
   if (controller_->IsPopupOpen()) {
     base::UmaHistogramEnumeration(kOmniboxEscapeHistogramName,
                                   OmniboxEscapeAction::kClosePopup);
-    if (view_) {
-      view_->CloseOmniboxPopup();
+    if (auto* popup_closer = controller_->client()->GetOmniboxPopupCloser()) {
+      popup_closer->CloseWithReason(
+          omnibox::PopupCloseReason::kEscapeKeyPressed);
     }
     return true;
   }
@@ -1526,7 +1528,6 @@ void OmniboxEditModel::OnCurrentMatchChanged() {
   match.GetKeywordUIState(service,
                           controller_->client()->IsHistoryEmbeddingsEnabled(),
                           &keyword, &keyword_placeholder, &is_keyword_hint);
-  OnPopupResultChanged();
 
   if (!is_keyword_selected() && !is_keyword_hint && !keyword.empty()) {
     // We just entered keyword mode, so remove the keyword from the input.
@@ -1544,6 +1545,11 @@ void OmniboxEditModel::OnCurrentMatchChanged() {
                      /*is_temporary_text=*/false, match.inline_autocompletion,
                      keyword, keyword_placeholder, is_keyword_hint,
                      match.additional_text, match);
+
+  // Notify observers after the match has been safely copied to |current_match_|
+  // in OnPopupDataChanged(). This prevents use-after-free if observers
+  // invalidate the autocomplete results. See https://crbug.com/462736555.
+  OnPopupResultChanged();
 }
 
 // static
@@ -2940,12 +2946,7 @@ void OmniboxEditModel::SetKeywordPlaceholder(
 }
 
 void OmniboxEditModel::SetIsKeywordHint(bool is_keyword_hint) {
-  const bool old_keyword_selected = is_keyword_selected();
   is_keyword_hint_ = is_keyword_hint;
-  const bool new_keyword_selected = is_keyword_selected();
-  if (old_keyword_selected != new_keyword_selected) {
-    observers_.Notify(&Observer::OnKeywordStateChanged, new_keyword_selected);
-  }
 }
 
 void OmniboxEditModel::RecordAiModeMetrics(const std::u16string& query_text,

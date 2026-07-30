@@ -480,14 +480,21 @@ public final class ChildProcessLauncherHelperImpl {
     }
 
     /**
+     * @see {@link ChildProcessLauncherHelper#initilize()}.
+     */
+    public static void initialize() {
+        assert ThreadUtils.runningOnUiThread();
+        // initialize() is safe to check feature flags because it is executed after C++
+        // native context is initialized.
+        boolean activated = ScopedServiceBindingBatch.tryActivate(LauncherThread.getHandler());
+        Log.i(TAG, "ScopedServiceBindingBatch.tryActivate: %b", activated);
+    }
+
+    /**
      * @see {@link ChildProcessLauncherHelper#startBindingManagement(Context)}.
      */
     public static void startBindingManagement(final Context context) {
         assert ThreadUtils.runningOnUiThread();
-        // startBindingManagement() is safe to check feature flags because it is executed after C++
-        // native context is initialized.
-        boolean activated = ScopedServiceBindingBatch.tryActivate(LauncherThread.getHandler());
-        Log.i(TAG, "ScopedServiceBindingBatch.tryActivate: %b", activated);
         LauncherThread.post(
                 new Runnable() {
                     @Override
@@ -903,7 +910,8 @@ public final class ChildProcessLauncherHelperImpl {
             boolean boostForPendingViews,
             boolean boostForLoading,
             boolean isSpareRenderer,
-            @ChildProcessImportance int importance) {
+            @ChildProcessImportance int importance,
+            boolean hasActiveClients) {
         assert LauncherThread.runningOnLauncherThread();
         assert mLauncher.getPid() == pid
                 : "The provided pid ("
@@ -982,6 +990,12 @@ public final class ChildProcessLauncherHelperImpl {
         // should be applied first.
         if (visible && !mVisible) {
             if (mBindingManager != null) mBindingManager.addConnection(connection);
+        } else if (!hasActiveClients
+                && ContentFeatureList.sRemoveCachedProcessFromBindingManager.isEnabled()) {
+            // If all RenderWidgetHost tied to the process connection are inactive (i.e. in
+            // bfcache), the process connection should be downgraded to NORMAL priority by removing
+            // from the BindingManager.
+            if (mBindingManager != null) mBindingManager.removeConnection(connection);
         }
         mVisible = visible;
 

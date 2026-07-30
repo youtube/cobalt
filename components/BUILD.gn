@@ -60,7 +60,7 @@ if (is_ios) {
       sources = [
         "//third_party/dom_distiller_js/dist/test/data/out/domdistillerjstest.js",
         "//third_party/dom_distiller_js/dist/test/data/war/test.html",
-        "//third_party/node/node_modules/chai/chai.js",
+        "//third_party/node/node_modules/chai/index.js",
         "//third_party/node/node_modules/mocha/mocha.js",
         "dom_distiller/core/javascript/dom_distiller_viewer.js",
         "dom_distiller/core/javascript/domdistiller.js",
@@ -257,7 +257,6 @@ test("components_unittests") {
     "//components/language/core/language_model:unit_tests",
     "//components/language_detection/core:unit_tests",
     "//components/language_detection/core/browser:unit_tests",
-    "//components/legion:unit_tests",
     "//components/lens:unit_tests",
     "//components/leveldb_proto:unit_tests",
     "//components/local_state:unit_tests",
@@ -371,6 +370,7 @@ test("components_unittests") {
     "//components/sync_device_info:unit_tests",
     "//components/sync_preferences:unit_tests",
     "//components/sync_preferences/cross_device_pref_tracker:unit_tests",
+    "//components/sync_preferences/synced_set_up:unit_tests",
     "//components/sync_user_events:unit_tests",
     "//components/system_cpu:unit_tests",
     "//components/system_media_controls:unit_tests",
@@ -623,7 +623,6 @@ test("components_unittests") {
       "//components/blocked_content:unit_tests",
       "//components/content_settings/browser/ui:unit_tests",
       "//components/headless/test:unit_tests",
-      "//components/ip_protection:unit_tests",
       "//components/media_router/browser:unit_tests",
       "//components/media_router/common:unit_tests",
       "//components/media_router/common/providers/cast/channel:unit_tests",
@@ -751,6 +750,7 @@ test("components_unittests") {
       "//components/access_code_cast/common:unit_tests",
       "//components/headless/console_message_logger:unit_tests",
       "//components/headless/screen_info:unit_tests",
+      "//components/legion:unit_tests",
       "//components/live_caption:unit_tests",
       "//components/password_manager/core/browser/actor_login/internal:unit_tests",
       "//components/soda:unit_tests",
@@ -1337,7 +1337,6 @@ if (use_blink) {
       "autofill/core/browser/ml_model/field_classification_model_executor_perftest.cc",
       "discardable_memory/common/discardable_shared_memory_heap_perftest.cc",
       "omnibox/browser/history_quick_provider_performance_unittest.cc",
-      "persistent_cache/persistent_cache_perftest.cc",
       "subresource_filter/core/common/perftests/indexed_ruleset_perftest.cc",
       "test/run_all_perftests.cc",
       "visitedlink/test/visitedlink_perftest.cc",
@@ -1353,8 +1352,6 @@ if (use_blink) {
       "//components/history/core/test",
       "//components/omnibox/browser",
       "//components/omnibox/browser:test_support",
-      "//components/persistent_cache",
-      "//components/persistent_cache:test_support",
       "//components/subresource_filter/core/common",
       "//components/subresource_filter/tools:tools_lib",
       "//components/test:test_support",
@@ -1394,6 +1391,10 @@ if (use_blink) {
         "//components/safe_browsing/core/browser/db:v4_test_util",
         "//crypto",
       ]
+    }
+
+    if (!is_fuchsia) {
+      deps += [ "//components/persistent_cache:perf_tests" ]
     }
 
     # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and

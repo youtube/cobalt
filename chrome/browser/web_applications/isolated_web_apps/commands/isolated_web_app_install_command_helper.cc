@@ -32,6 +32,7 @@
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_integrity_block_data.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_trust_checker.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
+#include "chrome/browser/web_applications/isolated_web_apps/runtime_data/chrome_iwa_runtime_data_provider.h"
 #include "chrome/browser/web_applications/jobs/manifest_to_web_app_install_info_job.h"
 #include "chrome/browser/web_applications/web_app_icon_operations.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
@@ -45,7 +46,6 @@
 #include "components/webapps/browser/installable/installable_manager.h"
 #include "components/webapps/browser/web_contents/web_app_url_loader.h"
 #include "components/webapps/isolated_web_apps/bundle_operations/bundle_operations.h"
-#include "components/webapps/isolated_web_apps/iwa_key_distribution_info_provider.h"
 #include "components/webapps/isolated_web_apps/types/iwa_version.h"
 #include "components/webapps/isolated_web_apps/types/source.h"
 #include "components/webapps/isolated_web_apps/types/storage_location.h"
@@ -243,27 +243,6 @@ GetIsolatedWebAppById(const WebAppRegistrar& registrar,
   return *iwa;
 }
 
-base::flat_map<SignedWebBundleId, std::reference_wrapper<const WebApp>>
-GetInstalledIwas(const WebAppRegistrar& registrar) {
-  base::flat_map<SignedWebBundleId, std::reference_wrapper<const WebApp>>
-      installed_iwas;
-  for (const WebApp& web_app : registrar.GetApps()) {
-    if (!web_app.isolation_data().has_value()) {
-      continue;
-    }
-    auto url_info = IsolatedWebAppUrlInfo::Create(web_app.start_url());
-    if (!url_info.has_value()) {
-      LOG(ERROR) << "Unable to calculate IsolatedWebAppUrlInfo from "
-                 << web_app.start_url();
-      continue;
-    }
-
-    installed_iwas.try_emplace(url_info->web_bundle_id(), std::ref(web_app));
-  }
-
-  return installed_iwas;
-}
-
 KeyRotationLookupResult LookupRotatedKey(
     const SignedWebBundleId& web_bundle_id,
     base::optional_ref<base::Value::Dict> debug_log) {
@@ -274,7 +253,7 @@ KeyRotationLookupResult LookupRotatedKey(
   };
 
   const auto* kr_info =
-      IwaKeyDistributionInfoProvider::GetInstance().GetKeyRotationInfo(
+      ChromeIwaRuntimeDataProvider::GetInstance().GetKeyRotationInfo(
           web_bundle_id.id());
   if (!kr_info) {
     return KeyRotationLookupResult::kNoKeyRotation;
@@ -291,7 +270,7 @@ KeyRotationLookupResult LookupRotatedKey(
 KeyRotationData GetKeyRotationData(const SignedWebBundleId& web_bundle_id,
                                    const IsolationData& isolation_data) {
   const auto* kr_info =
-      IwaKeyDistributionInfoProvider::GetInstance().GetKeyRotationInfo(
+      ChromeIwaRuntimeDataProvider::GetInstance().GetKeyRotationInfo(
           web_bundle_id.id());
   CHECK(kr_info && kr_info->public_key)
       << "`GetKeyRotationData()` must only be called if `LookupRotatedKey()` "

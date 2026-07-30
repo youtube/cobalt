@@ -20,7 +20,7 @@
 #import "components/prefs/pref_service.h"
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_animator.h"
-#import "ios/chrome/browser/intelligence/bwg/metrics/bwg_metrics.h"
+#import "ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intelligence/page_action_menu/ui/page_action_menu_entrypoint_view.h"
@@ -338,11 +338,13 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
       [[UIIndirectScribbleInteraction alloc] initWithDelegate:self];
   [_locationBarSteadyView addInteraction:scribbleInteraction];
 
-  DCHECK(self.editView) << "The edit view must be set at this point";
+  if (!IsComposeboxIOSEnabled()) {
+    DCHECK(self.editView) << "The edit view must be set at this point";
 
-  [self.view addSubview:self.editView];
-  self.editView.translatesAutoresizingMaskIntoConstraints = NO;
-  AddSameConstraints(self.editView, self.view);
+    [self.view addSubview:self.editView];
+    self.editView.translatesAutoresizingMaskIntoConstraints = NO;
+    AddSameConstraints(self.editView, self.view);
+  }
 
   [self.view addSubview:self.locationBarSteadyView];
   self.locationBarSteadyView.translatesAutoresizingMaskIntoConstraints = NO;
@@ -1069,7 +1071,8 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
     _pageActionMenuEntrypointView.newBadgeVisible = NO;
   }
   if (IsDirectBWGEntryPoint()) {
-    [self.BWGHandler startBWGFlowWithEntryPoint:bwg::EntryPoint::OmniboxChip];
+    [self.BWGHandler
+        startGeminiFlowWithEntryPoint:bwg::EntryPoint::OmniboxChip];
   } else {
     RecordAIHubIconTapped();
     [self.pageActionMenuHandler showPageActionMenu];

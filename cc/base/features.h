@@ -154,6 +154,11 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kInitImageDecodeLastUseTime);
 // frame production to 60Hz.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kThrottleMainFrameTo60Hz);
 
+#if BUILDFLAG(IS_ANDROID)
+// Same as above, for WebView.
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kThrottleMainFrameTo60HzWebView);
+#endif
+
 // When main frame production is throttled, whether the throttling should be
 // paused for some duration after an urgent main frame request is processed.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kBoostFrameRateForUrgentMainFrame);
@@ -290,6 +295,13 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(
 // transfer cache entry serialization and upload steps, as well as during
 // raster dark mode filter generation.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kUnlockDuringGpuImageOperations);
+
+// Controls whether ProxyMain will post a state change to the cc/scheduler when
+// idle time is requested.
+// When enabled, ProxyMain will try to determine if it's safe to idle using it's
+// own state. When disabled, ProxyMain will rely on state change callbacks from
+// the scheduler.
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kMainIdleBypassScheduler);
 
 }  // namespace features
 

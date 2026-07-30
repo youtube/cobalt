@@ -142,7 +142,8 @@ class InstallIsolatedWebAppCommand
     kCantValidateManifest = 5,
     kCantRetrieveIcons = 6,
     kCantInstall = 7,
-    kMaxValue = kCantInstall
+    kAppNotPermitted = 8,
+    kMaxValue = kAppNotPermitted
   };
 
   void ReportFailure(InstallIwaError error,
@@ -152,7 +153,7 @@ class InstallIsolatedWebAppCommand
 
   Profile& profile();
 
-  void CheckNotInstalledAlready(base::OnceClosure next_step_callback);
+  void CheckCanBeInstalled(base::OnceClosure next_step_callback);
 
   void CopyToProfileDirectory(base::OnceClosure next_step_callback);
 
@@ -171,8 +172,11 @@ class InstallIsolatedWebAppCommand
       base::OnceCallback<void(PrepareInstallInfoJob::InstallInfoOrFailure)>
           next_step_callback);
 
-  void FinalizeInstall(PrepareInstallInfoJob::InstallInfoOrFailure result);
+  void ProcessInstallInfoResultAndProceed(
+      base::OnceCallback<void(WebAppInstallInfo)> next_step_callback,
+      PrepareInstallInfoJob::InstallInfoOrFailure result);
 
+  void FinalizeInstall(WebAppInstallInfo install_info);
   void OnFinalizeInstall(const IwaVersion& attempted_version,
                          const webapps::AppId& unused_app_id,
                          webapps::InstallResultCode install_result_code);

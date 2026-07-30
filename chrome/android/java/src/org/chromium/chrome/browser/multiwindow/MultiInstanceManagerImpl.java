@@ -14,7 +14,6 @@ import android.content.Intent;
 import android.content.res.Configuration;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.DisplayManager.DisplayListener;
-import android.util.Pair;
 import android.view.Display;
 
 import androidx.annotation.VisibleForTesting;
@@ -41,10 +40,11 @@ import org.chromium.chrome.browser.lifecycle.DestroyObserver;
 import org.chromium.chrome.browser.lifecycle.NativeInitObserver;
 import org.chromium.chrome.browser.lifecycle.PauseResumeWithNativeObserver;
 import org.chromium.chrome.browser.lifecycle.RecreateObserver;
+import org.chromium.chrome.browser.lifecycle.StartStopWithNativeObserver;
 import org.chromium.chrome.browser.lifecycle.TopResumedActivityChangedObserver;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.InstanceAllocationType;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.NewWindowAppSource;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
-import org.chromium.chrome.browser.multiwindow.MultiWindowUtils.InstanceAllocationType;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncFeatures;
@@ -78,7 +78,8 @@ public class MultiInstanceManagerImpl extends MultiInstanceManager
                 MultiWindowModeStateDispatcher.MultiWindowModeObserver,
                 DestroyObserver,
                 MenuOrKeyboardActionController.MenuOrKeyboardActionHandler,
-                TopResumedActivityChangedObserver {
+                TopResumedActivityChangedObserver,
+                StartStopWithNativeObserver {
 
     private @Nullable Boolean mMergeTabsOnResume;
 
@@ -268,6 +269,13 @@ public class MultiInstanceManagerImpl extends MultiInstanceManager
     // TopResumedActivityChangedObserver implementation.
     @Override
     public void onTopResumedActivityChanged(boolean isTopResumedActivity) {}
+
+    // StartStopWithNativeObserver implementation.
+    @Override
+    public void onStartWithNative() {}
+
+    @Override
+    public void onStopWithNative() {}
 
     @Override
     public void onPauseWithNative() {
@@ -509,9 +517,12 @@ public class MultiInstanceManagerImpl extends MultiInstanceManager
     }
 
     @Override
-    public Pair<Integer, Integer> allocInstanceId(
-            int windowId, int taskId, boolean preferNew, @SupportedProfileType int profileType) {
-        return Pair.create(0, InstanceAllocationType.DEFAULT); // Use a default index 0.
+    public AllocatedIdInfo allocInstanceId(
+            int windowId, int taskId, boolean preferNew, boolean isIncognitoIntent) {
+        return new AllocatedIdInfo(
+                0,
+                InstanceAllocationType.DEFAULT,
+                SupportedProfileType.MIXED); // Use a default index 0.
     }
 
     @Override
@@ -560,7 +571,9 @@ public class MultiInstanceManagerImpl extends MultiInstanceManager
         TabGroupModelFilter filter =
                 selector.getTabGroupModelFilterProvider().getTabGroupModelFilter(false);
 
-        assumeNonNull(filter);
+        // Skip if there is no regular/normal windows.
+        if (filter == null) return;
+
         Profile profile = filter.getTabModel().getProfile();
         if (profile == null || !TabGroupSyncFeatures.isTabGroupSyncEnabled(profile)) return;
 

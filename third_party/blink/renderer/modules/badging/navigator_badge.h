@@ -9,6 +9,7 @@
 #include "third_party/blink/public/mojom/badging/badging.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
@@ -18,8 +19,11 @@ class Navigator;
 class WorkerNavigator;
 
 class NavigatorBadge final : public GarbageCollected<NavigatorBadge>,
-                             public GarbageCollectedMixin {
+                             public Supplement<ExecutionContext> {
  public:
+  static constexpr auto kSupplementIndex =
+      ExecutionContext::Supplements::kNavigatorBadge;
+
   static NavigatorBadge& From(ScriptState*);
   explicit NavigatorBadge(ExecutionContext*);
 
@@ -61,8 +65,6 @@ class NavigatorBadge final : public GarbageCollected<NavigatorBadge>,
   static bool IsAllowed(ScriptState* script_state);
 
   mojo::Remote<mojom::blink::BadgeService> badge_service();
-
-  Member<ExecutionContext> execution_context_;
 };
 
 }  // namespace blink

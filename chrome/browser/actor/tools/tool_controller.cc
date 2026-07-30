@@ -22,6 +22,7 @@
 #include "chrome/common/actor/journal_details_builder.h"
 #include "chrome/common/chrome_features.h"
 #include "components/tabs/public/tab_interface.h"
+#include "content/public/browser/web_contents.h"
 #include "third_party/abseil-cpp/absl/strings/str_format.h"
 #include "url/gurl.h"
 
@@ -219,6 +220,9 @@ void ToolController::Cancel() {
   if (state_ != State::kInit && state_ != State::kReady) {
     weak_ptr_factory_.InvalidateWeakPtrs();
     observation_delayer_.reset();
+    if (active_state_) {
+      active_state_->tool->Cancel();
+    }
     active_state_.reset();
     SetState(State::kReady);
   }
@@ -237,11 +241,15 @@ void ToolController::DidFinishToolInvoke(mojom::ActionResultPtr result) {
     return;
   }
 
+  WaitForObservation(std::move(result));
+}
+
+void ToolController::WaitForObservation(mojom::ActionResultPtr result) {
   if (tabs::TabInterface* target_tab =
           active_state_->tool->GetTargetTab().Get()) {
     observation_delayer_->Wait(
         *target_tab,
-        base::BindOnce(&ToolController::PostInvokeTool,
+        base::BindOnce(&ToolController::ObservationDelayComplete,
                        weak_ptr_factory_.GetWeakPtr(), std::move(result)));
   } else {
     journal().Log(active_state_->tool->JournalURL(), task_->id(),
@@ -250,6 +258,32 @@ void ToolController::DidFinishToolInvoke(mojom::ActionResultPtr result) {
                       .AddError("Tab is gone when tool finishes successfully")
                       .Build());
     PostInvokeTool(std::move(result));
+  }
+}
+
+void ToolController::ObservationDelayComplete(
+    mojom::ActionResultPtr action_result,
+    ObservationDelayController::Result observation_result) {
+  switch (observation_result) {
+    case ObservationDelayController::Result::kOk:
+      PostInvokeTool(std::move(action_result));
+      break;
+    case ObservationDelayController::Result::kPageNavigated: {
+      if (tabs::TabInterface* tab = active_state_->tool->GetTargetTab().Get()) {
+        size_t last_navigation_count = observation_delayer_->NavigationCount();
+        // The page navigated, restart the observation.
+        journal().Log(active_state_->tool->JournalURL(), task_->id(),
+                      "ToolController Restarting Observation", {});
+        observation_delayer_ = std::make_unique<ObservationDelayController>(
+            *tab->GetContents()->GetPrimaryMainFrame(), task_->id(), journal(),
+            observation_page_stability_config_);
+        observation_delayer_->SetNavigationCount(last_navigation_count + 1);
+        WaitForObservation(std::move(action_result));
+      } else {
+        PostInvokeTool(std::move(action_result));
+      }
+      break;
+    }
   }
 }
 

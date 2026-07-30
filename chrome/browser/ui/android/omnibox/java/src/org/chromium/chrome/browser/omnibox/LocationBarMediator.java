@@ -27,6 +27,7 @@ import androidx.annotation.DrawableRes;
 import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.content.res.AppCompatResources;
 
+import org.chromium.base.Callback;
 import org.chromium.base.CallbackController;
 import org.chromium.base.CommandLine;
 import org.chromium.base.ObserverList;
@@ -35,9 +36,11 @@ import org.chromium.base.UserData;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.metrics.TimingMetric;
+import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneshotSupplier;
+import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.base.ui.KeyboardUtils;
@@ -64,7 +67,9 @@ import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
 import org.chromium.chrome.browser.omnibox.UrlBar.UrlBarDelegate;
 import org.chromium.chrome.browser.omnibox.UrlBarCoordinator.SelectionState;
+import org.chromium.chrome.browser.omnibox.fusebox.FuseboxAttachmentModelList.FuseboxAttachmentChangeListener;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator;
+import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.FuseboxState;
 import org.chromium.chrome.browser.omnibox.geo.GeolocationHeader;
 import org.chromium.chrome.browser.omnibox.status.StatusCoordinator;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
@@ -125,6 +130,7 @@ class LocationBarMediator
                 VoiceRecognitionHandler.Observer,
                 UrlBarDelegate,
                 OnKeyListener,
+                FuseboxAttachmentChangeListener,
                 ComponentCallbacks,
                 TemplateUrlService.TemplateUrlServiceObserver,
                 BackPressHandler,
@@ -185,6 +191,7 @@ class LocationBarMediator
     private final LocationBarDataProvider mLocationBarDataProvider;
     private final @Nullable BrowserControlsStateProvider mBrowserControlsStateProvider;
     private final LocationBarEmbedderUiOverrides mEmbedderUiOverrides;
+    private final LocationBarEmbedder mLocationBarEmbedder;
     private StatusCoordinator mStatusCoordinator;
     private AutocompleteCoordinator mAutocompleteCoordinator;
     private @Nullable OmniboxPrerender mOmniboxPrerender;
@@ -227,8 +234,8 @@ class LocationBarMediator
     // Tracks if the location bar is laid out in a focused state due to an ntp scroll.
     private boolean mIsLocationBarFocusedFromNtpScroll;
     private @BrandedColorScheme int mBrandedColorScheme = BrandedColorScheme.APP_DEFAULT;
-    private final ObservableSupplierImpl<Boolean> mBackPressStateSupplier =
-            new ObservableSupplierImpl<>();
+    private final SettableNonNullObservableSupplier<Boolean> mBackPressStateSupplier =
+            ObservableSuppliers.createNonNull(false);
     private final ObservableSupplier<TabModelSelector> mTabModelSelectorSupplier;
     private @Nullable SearchEngineUtils mSearchEngineUtils;
     private @Nullable AddToHomescreenCoordinator mAddToHomescreenCoordinatorForTesting;
@@ -267,10 +274,12 @@ class LocationBarMediator
             ObservableSupplier<@AutocompleteRequestType Integer> autocompleteRequestTypeSupplier,
             @Nullable PageZoomIndicatorCoordinator pageZoomIndicatorCoordinator,
             FuseboxCoordinator fuseboxCoordinator,
-            @Nullable MultiInstanceManager multiInstanceManager) {
+            @Nullable MultiInstanceManager multiInstanceManager,
+            LocationBarEmbedder locationBarEmbedder) {
         mContext = context;
         mLocationBarLayout = locationBarLayout;
         mLocationBarDataProvider = locationBarDataProvider;
+        mLocationBarEmbedder = locationBarEmbedder;
         mFuseboxCoordinator = fuseboxCoordinator;
         mLocationBarDataProvider.addObserver(this);
         mEmbedderUiOverrides = embedderUiOverrides;
@@ -306,37 +315,43 @@ class LocationBarMediator
                         mContext,
                         mIsTablet,
                         this::shouldShowBookmarkButton,
-                        this::updateBookmarkButtonVisibility);
+                        this::setBookmarkButtonVisibility);
         mInstallButtonToolbarWidthConsumer =
                 new ButtonToolbarWidthConsumer(
                         mContext,
                         mIsTablet,
                         this::shouldShowInstallButton,
-                        this::updateInstallButtonVisibility);
+                        this::setInstallButtonVisibility);
         mMicButtonToolbarWidthConsumer =
                 new ButtonToolbarWidthConsumer(
                         mContext,
                         mIsTablet,
                         this::shouldShowMicButton,
-                        this::updateMicButtonVisibility);
+                        this::setMicButtonVisibility);
         mLensButtonToolbarWidthConsumer =
                 new ButtonToolbarWidthConsumer(
                         mContext,
                         mIsTablet,
                         this::shouldShowLensButton,
-                        this::updateLensButtonVisibility);
+                        this::setLensButtonVisibility);
         mZoomButtonToolbarWidthConsumer =
                 new ButtonToolbarWidthConsumer(
                         mContext,
                         mIsTablet,
                         this::shouldShowZoomButton,
-                        this::updateZoomButtonVisibility);
+                        (result) -> mLocationBarLayout.setZoomButtonVisibility(result));
 
         mPersistEditingState =
                 OmniboxFeatures.sOmniboxImprovementForLFF.isEnabled()
                         && OmniboxFeatures.sOmniboxImprovementForLFFPersistEditingState.getValue()
                         && mIsTablet;
         mMultiInstanceManager = multiInstanceManager;
+
+        mFuseboxCoordinator
+                .getFuseboxStateSupplier()
+                .addObserver(
+                        mCallbackController.makeCancelable(s -> updateNavigateButtonVisibility()));
+        mFuseboxCoordinator.addAttachmentChangeListener(this);
     }
 
     /**
@@ -363,6 +378,7 @@ class LocationBarMediator
     @SuppressWarnings("NullAway")
     /* package */ void destroy() {
         mCallbackController.destroy();
+        mFuseboxCoordinator.removeAttachmentChangeListener(this);
         TemplateUrlService templateUrlService = mTemplateUrlServiceSupplier.get();
         if (templateUrlService != null) {
             templateUrlService.removeObserver(this);
@@ -941,6 +957,7 @@ class LocationBarMediator
                 }
             }
 
+            mAutocompleteCoordinator.onUrlAnimationFinished(mUrlHasFocus);
             for (UrlFocusChangeListener listener : mUrlFocusChangeListeners) {
                 listener.onUrlAnimationFinished(mUrlHasFocus);
             }
@@ -986,6 +1003,15 @@ class LocationBarMediator
         if (hasFocus) {
             mUrlFocusedWithoutAnimations = false;
         }
+
+        // Propagate signals to AutocompleteCoordinator ahead of everyone else.
+        // Autocomplete requires certain signals, such as AutocompleteRequestType
+        // and PageClassification to be correct throughout from the moment the focus
+        // is gained to the moment the focus is lost.
+        //
+        // This call is permitted to happen before anyone else is activated, and
+        // must be called before everyone else cleans up.
+        mAutocompleteCoordinator.onUrlFocusChange(hasFocus);
 
         for (UrlFocusChangeListener listener : mUrlFocusChangeListeners) {
             listener.onUrlFocusChange(hasFocus);
@@ -1386,17 +1412,23 @@ class LocationBarMediator
         mLocationBarLayout.setDeleteButtonVisibility(isUrlBarFocusedWithUserInput());
     }
 
+    /**
+     * @see FuseboxAttachmentChangeListener#onAttachmentsListChanged()
+     */
+    @Override
+    public void onAttachmentListChanged() {
+        updateNavigateButtonVisibility();
+    }
+
     private void updateNavigateButtonVisibility() {
-        @AutocompleteRequestType
-        int autocompleteRequestType = mAutocompleteRequestTypeSupplier.get();
-        boolean isMultimodalEnabled = OmniboxFeatures.sOmniboxMultimodalInput.isEnabled();
-        boolean navigateButtonVisible =
-                isUrlBarFocusedWithUserInput()
-                        && isMultimodalEnabled
-                        && (mUrlCoordinator.isTextWrapped()
-                                || autocompleteRequestType == AutocompleteRequestType.AI_MODE
-                                || autocompleteRequestType
-                                        == AutocompleteRequestType.IMAGE_GENERATION);
+        // TODO(crbug.com/464003589): Update the hasTextOrAttachments to include
+        // getAttachmentsPresentSupplier check.
+        boolean hasTextOrAttachments =
+                !TextUtils.isEmpty(mUrlCoordinator.getTextWithAutocomplete());
+        // TODO(crbug.com/464003589): || mFuseboxCoordinator.getAttachmentsPresentSupplier().get();
+        boolean isExpandedFusebox =
+                mFuseboxCoordinator.getFuseboxStateSupplier().get() == FuseboxState.EXPANDED;
+        boolean navigateButtonVisible = mUrlHasFocus && isExpandedFusebox && hasTextOrAttachments;
         mLocationBarLayout.setNavigateButtonVisibility(navigateButtonVisible);
     }
 
@@ -1414,22 +1446,26 @@ class LocationBarMediator
                 || mPageZoomIndicatorCoordinator.isZoomLevelDefault()) {
             return false;
         }
-        return !mPageZoomIndicatorCoordinator.isZoomLevelDefault();
+        return !mPageZoomIndicatorCoordinator.isZoomLevelDefault()
+                || mPageZoomIndicatorCoordinator.isPopupWindowShowing();
     }
 
     private void updateZoomButtonVisibility() {
         if (mPageZoomIndicatorCoordinator == null) return;
-        setZoomButtonVisibility(
-                shouldShowZoomButton() || mPageZoomIndicatorCoordinator.isPopupWindowShowing());
-    }
-
-    private void setZoomButtonVisibility(boolean shouldShowZoomButton) {
-        mLocationBarLayout.setZoomButtonVisibility(
-                shouldShowZoomButton && mZoomButtonToolbarWidthConsumer.hasSpaceToShow());
+        if (!ChromeFeatureList.sToolbarTabletResizeRefactor.isEnabled()) {
+            mLocationBarLayout.setZoomButtonVisibility(shouldShowZoomButton());
+            return;
+        }
+        // Embedder will handle visibility changes.
+        mLocationBarEmbedder.onWidthConsumerVisibilityChanged();
     }
 
     public void updateZoomButtonVisibilityForTesting() {
         updateZoomButtonVisibility();
+    }
+
+    public ToolbarWidthConsumer getBookmarkButtonToolbarWidthConsumerForTesting() {
+        return mBookmarkButtonToolbarWidthConsumer;
     }
 
     private @Nullable WebContents getWebContentsForCurrentTab() {
@@ -2013,7 +2049,7 @@ class LocationBarMediator
     }
 
     @Override
-    public ObservableSupplier<Boolean> getHandleBackPressChangedSupplier() {
+    public NonNullObservableSupplier<Boolean> getHandleBackPressChangedSupplier() {
         return mBackPressStateSupplier;
     }
 
@@ -2171,7 +2207,7 @@ class LocationBarMediator
     private static class ButtonToolbarWidthConsumer implements ToolbarWidthConsumer {
         private final int mButtonWidth;
         private final Supplier<Boolean> mShouldShowButton;
-        private final Runnable mUpdateButtonVisibility;
+        private final Callback<Boolean> mUpdateButtonVisibility;
         private final boolean mIsTablet;
         private boolean mHasSpaceToShow;
 
@@ -2179,7 +2215,7 @@ class LocationBarMediator
                 Context context,
                 boolean isTablet,
                 Supplier<Boolean> shouldShowButton,
-                Runnable updateButtonVisibility) {
+                Callback<Boolean> updateButtonVisibility) {
             mShouldShowButton = shouldShowButton;
             mIsTablet = isTablet;
             mUpdateButtonVisibility = updateButtonVisibility;
@@ -2206,11 +2242,11 @@ class LocationBarMediator
 
             if (mShouldShowButton.get() && availableWidth >= mButtonWidth) {
                 mHasSpaceToShow = true;
-                mUpdateButtonVisibility.run();
+                mUpdateButtonVisibility.onResult(true);
                 return mButtonWidth;
             }
             mHasSpaceToShow = false;
-            mUpdateButtonVisibility.run();
+            mUpdateButtonVisibility.onResult(false);
             return 0;
         }
 

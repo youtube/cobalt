@@ -37,8 +37,10 @@
 #include "third_party/blink/renderer/core/css/css_layer_block_rule.h"
 #include "third_party/blink/renderer/core/css/css_media_rule.h"
 #include "third_party/blink/renderer/core/css/css_nested_declarations_rule.h"
+#include "third_party/blink/renderer/core/css/css_position_try_rule.h"
 #include "third_party/blink/renderer/core/css/css_property_names.h"
 #include "third_party/blink/renderer/core/css/css_property_rule.h"
+#include "third_party/blink/renderer/core/css/css_property_source_data.h"
 #include "third_party/blink/renderer/core/css/css_property_value_set.h"
 #include "third_party/blink/renderer/core/css/css_rule_list.h"
 #include "third_party/blink/renderer/core/css/css_scope_rule.h"
@@ -1344,7 +1346,7 @@ CSSRule* InspectorStyleSheet::SetStyleText(
     }
 
     auto new_text =
-        String("@font-feature-values ") + old_prefix + text + old_suffix + "}";
+        StrCat({"@font-feature-values ", old_prefix, text, old_suffix, "}"});
 
     // @font-feature-values rules don't support text replacement. Instead, we
     // find the old rule's index in the style sheet, insert a new rule, and

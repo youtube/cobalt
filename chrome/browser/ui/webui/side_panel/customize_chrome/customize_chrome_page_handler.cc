@@ -19,6 +19,7 @@
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
 #include "chrome/browser/enterprise/util/managed_browser_utils.h"
 #include "chrome/browser/extensions/settings_api_helpers.h"
+#include "chrome/browser/new_tab_page/modules/modules_constants.h"
 #include "chrome/browser/new_tab_page/new_tab_page_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search/background/ntp_background_service_factory.h"
@@ -478,6 +479,8 @@ void CustomizeChromePageHandler::SetMostVisitedSettings(
   std::set<ntp_tiles::TileType> types_set(types.begin(), types.end());
   std::set<ntp_tiles::TileType> current_tile_types = GetTileTypes();
 
+  // Disable shortcuts auto-removal upon user interaction.
+  DisableShortcutsAutoRemoval(profile_);
   if ((base::Contains(current_tile_types, ntp_tiles::TileType::kCustomLinks) !=
            base::Contains(types_set, ntp_tiles::TileType::kCustomLinks) ||
        (base::Contains(current_tile_types, ntp_tiles::TileType::kTopSites) !=
@@ -597,11 +600,13 @@ void CustomizeChromePageHandler::UpdateFooterSettings() {
 }
 
 void CustomizeChromePageHandler::SetModulesVisible(bool visible) {
+  DisableModuleAutoRemoval(profile_, ntp_modules::kAllModulesId);
   profile_->GetPrefs()->SetBoolean(prefs::kNtpModulesVisible, visible);
 }
 
 void CustomizeChromePageHandler::SetModuleDisabled(const std::string& module_id,
                                                    bool disabled) {
+  DisableModuleAutoRemoval(profile_, module_id);
   ScopedListPrefUpdate update(profile_->GetPrefs(), prefs::kNtpDisabledModules);
   base::Value::List& list = update.Get();
   base::Value module_id_value(module_id);

@@ -28,6 +28,8 @@ origin_files = glob([
     "url/**",
     # https://crrev.com/c/5800287
     "components/network_time/**",
+    # https://crrev.com/c/7217451
+    "tools/metrics/**",
   ]) + glob(["base/**"]) - glob([
     # Exclude test files to reduce the number of gn2bp files
     "base/tracing/test/**",
@@ -253,6 +255,11 @@ origin_files = glob([
     # and they can confuse linters on the AOSP file as they incorrectly assume
     # they will be used.
     "**/*.aconfig",
+
+    # Exclude TEST_MAPPING files that may be present in some subprojects (e.g.
+    # Perfetto). These files may accidentally be picked up by test
+    # infrastructure on the Android side, with surprising results.
+    "**/TEST_MAPPING",
 
     # Exclude Typescript files. Realistically Cronet will never use Typescript,
     # and they tend to create a lot of diff noise, especially from Perfetto.

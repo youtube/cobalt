@@ -83,6 +83,12 @@
   }
   _viewController.delegate = self;
 
+  if ([self.baseViewController
+          conformsToProtocol:@protocol(OmniboxPopupPresenterDelegate)]) {
+    _viewController.proxiedPresenterDelegate =
+        static_cast<id<OmniboxPopupPresenterDelegate>>(self.baseViewController);
+  }
+
   UrlLoadingBrowserAgent* urlLoadingBrowserAgent =
       UrlLoadingBrowserAgent::FromBrowser(self.browser);
   web::WebState::CreateParams params =
@@ -147,6 +153,10 @@
   _navigationMediator = nil;
 }
 
+- (BOOL)isPresented {
+  return _viewController.presentingViewController != nil;
+}
+
 #pragma mark - UIViewControllerTransitioningDelegate
 
 - (id<UIViewControllerAnimatedTransitioning>)
@@ -187,6 +197,15 @@
                     self.browser->GetWebStateList()->GetActiveWebState());
 }
 
+#pragma mark - OmniboxStateProvider
+
+- (BOOL)isOmniboxFocused {
+  // The omnibox is always considered focused while the composebox coordinator
+  // is started, which can be proxied by the presence of the input plate
+  // coordinator.
+  return _aimComposeboxCoordinator != nil;
+}
+
 #pragma mark - Private
 
 // Sends the command to get the composebox dismissed. If not `immediately`,
@@ -200,7 +219,8 @@
 
 - (ComposeboxTheme*)createTheme {
   return [[ComposeboxTheme alloc]
-      initWithInputPlatePosition:[self inputPlatePositionPreference]];
+      initWithInputPlatePosition:[self inputPlatePositionPreference]
+                       incognito:self.isOffTheRecord];
 }
 
 - (ComposeboxInputPlatePosition)inputPlatePositionPreference {

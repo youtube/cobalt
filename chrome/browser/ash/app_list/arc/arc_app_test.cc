@@ -31,7 +31,9 @@
 #include "chrome/test/base/testing_profile.h"
 #include "chromeos/ash/components/browser_context_helper/annotated_account_id.h"
 #include "chromeos/ash/components/dbus/concierge/concierge_client.h"
+#include "chromeos/ash/components/dbus/dlcservice/dlcservice_client.h"
 #include "chromeos/ash/experiences/arc/arc_util.h"
+#include "chromeos/ash/experiences/arc/dlc_installer/arc_dlc_installer.h"
 #include "chromeos/ash/experiences/arc/intent_helper/arc_intent_helper_bridge.h"
 #include "chromeos/ash/experiences/arc/mojom/app.mojom-shared.h"
 #include "chromeos/ash/experiences/arc/session/arc_bridge_service.h"
@@ -129,6 +131,11 @@ void ArcAppTest::PreProfileSetUp() {
     ash::ConciergeClient::InitializeFake(/*fake_cicerone_client=*/nullptr);
   }
 
+  if (!ash::DlcserviceClient::Get()) {
+    dlcservice_client_initialized_ = true;
+    ash::DlcserviceClient::InitializeFake();
+  }
+
   // ChromeBrowserMainPartsAsh::PreCreateMainMessageLoop:
   if (user_manager_mode_ == UserManagerMode::kCreate) {
     CHECK(!session_manager::SessionManager::Get())
@@ -144,9 +151,12 @@ void ArcAppTest::PreProfileSetUp() {
   arc_service_manager_ = std::make_unique<arc::ArcServiceManager>();
   // ConciergeClient must outlive ArcSessionManager.
   CHECK(ash::ConciergeClient::Get());
-  arc_session_manager_ =
-      arc::CreateTestArcSessionManager(std::make_unique<arc::ArcSessionRunner>(
-          base::BindRepeating(arc::FakeArcSession::Create)));
+
+  arc_dlc_installer_ = std::make_unique<arc::ArcDlcInstaller>();
+  arc_session_manager_ = arc::CreateTestArcSessionManager(
+      std::make_unique<arc::ArcSessionRunner>(
+          base::BindRepeating(arc::FakeArcSession::Create)),
+      arc_dlc_installer_.get());
   DCHECK(arc::ArcSessionManager::Get());
   arc::ArcSessionManager::SetUiEnabledForTesting(false);
 
@@ -413,6 +423,9 @@ void ArcAppTest::PreProfileTearDown() {
 
   apps::ArcAppsFactory::GetInstance()->ShutDownForTesting(profile_);
 
+  arc_session_manager_.reset();
+  arc_dlc_installer_.reset();
+
   if (initialize_real_intent_helper_bridge_) {
     arc_service_manager_->arc_bridge_service()->intent_helper()->CloseInstance(
         intent_helper_instance_.get());
@@ -453,6 +466,11 @@ void ArcAppTest::PostProfileTearDown() {
 
     CHECK(user_manager_.Get());
     user_manager_.Reset();
+  }
+
+  if (dlcservice_client_initialized_) {
+    ash::DlcserviceClient::Shutdown();
+    dlcservice_client_initialized_ = false;
   }
 
   // ConciergeClient may be initialized from other testing utility, such as

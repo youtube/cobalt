@@ -21,6 +21,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/sparse_histogram.h"
 #include "base/notreached.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
@@ -1311,34 +1312,12 @@ int HttpNetworkTransaction::DoGenerateProxyAuthToken() {
         target, AuthURL(target), request_->network_anonymization_key,
         session_->http_auth_cache(), session_->http_auth_handler_factory(),
         session_->host_resolver());
-  int rv = auth_controllers_[target]->MaybeGenerateAuthToken(
+  return auth_controllers_[target]->MaybeGenerateAuthToken(
       request_, io_callback_, net_log_);
-  // TODO(crbug.com/359404121): Remove this histogram after the investigation
-  // completes.
-  const bool blocked = rv == ERR_IO_PENDING;
-  if (blocked) {
-    blocked_generate_proxy_auth_token_start_time_ = base::TimeTicks::Now();
-  }
-  base::UmaHistogramBoolean(
-      base::StrCat({"Net.NetworkTransaction.GenerateProxyAuthTokenBlocked",
-                    IsGoogleHostWithAlpnH3(url_.host()) ? "GoogleHost." : ".",
-                    NegotiatedProtocolToHistogramSuffix(negotiated_protocol_)}),
-      blocked);
-  return rv;
 }
 
 int HttpNetworkTransaction::DoGenerateProxyAuthTokenComplete(int rv) {
   DCHECK_NE(ERR_IO_PENDING, rv);
-  // TODO(crbug.com/359404121): Remove this histogram after the investigation
-  // completes.
-  if (!blocked_generate_proxy_auth_token_start_time_.is_null()) {
-    base::UmaHistogramTimes(
-        base::StrCat(
-            {"Net.NetworkTransaction.GenerateProxyAuthTokenBlockTime",
-             IsGoogleHostWithAlpnH3(url_.host()) ? "GoogleHost." : ".",
-             NegotiatedProtocolToHistogramSuffix(negotiated_protocol_)}),
-        base::TimeTicks::Now() - blocked_generate_proxy_auth_token_start_time_);
-  }
   if (rv == OK)
     next_state_ = STATE_GENERATE_SERVER_AUTH_TOKEN;
   return rv;
@@ -1357,35 +1336,12 @@ int HttpNetworkTransaction::DoGenerateServerAuthToken() {
   }
   if (!ShouldApplyServerAuth())
     return OK;
-  int rv = auth_controllers_[target]->MaybeGenerateAuthToken(
+  return auth_controllers_[target]->MaybeGenerateAuthToken(
       request_, io_callback_, net_log_);
-  // TODO(crbug.com/359404121): Remove this histogram after the investigation
-  // completes.
-  const bool blocked = rv == ERR_IO_PENDING;
-  if (blocked) {
-    blocked_generate_server_auth_token_start_time_ = base::TimeTicks::Now();
-  }
-  base::UmaHistogramBoolean(
-      base::StrCat({"Net.NetworkTransaction.GenerateServerAuthTokenBlocked",
-                    IsGoogleHostWithAlpnH3(url_.host()) ? "GoogleHost." : ".",
-                    NegotiatedProtocolToHistogramSuffix(negotiated_protocol_)}),
-      blocked);
-  return rv;
 }
 
 int HttpNetworkTransaction::DoGenerateServerAuthTokenComplete(int rv) {
   DCHECK_NE(ERR_IO_PENDING, rv);
-  // TODO(crbug.com/359404121): Remove this histogram after the investigation
-  // completes.
-  if (!blocked_generate_server_auth_token_start_time_.is_null()) {
-    base::UmaHistogramTimes(
-        base::StrCat(
-            {"Net.NetworkTransaction.GenerateServerAuthTokenBlockTime",
-             IsGoogleHostWithAlpnH3(url_.host()) ? "GoogleHost." : ".",
-             NegotiatedProtocolToHistogramSuffix(negotiated_protocol_)}),
-        base::TimeTicks::Now() -
-            blocked_generate_server_auth_token_start_time_);
-  }
   if (rv == OK)
     next_state_ = STATE_INIT_REQUEST_BODY;
   return rv;
@@ -1438,13 +1394,6 @@ int HttpNetworkTransaction::BuildRequestHeaders(
   if (ShouldApplyServerAuth() && HaveAuth(HttpAuth::AUTH_SERVER))
     auth_controllers_[HttpAuth::AUTH_SERVER]->AddAuthorizationHeader(
         &request_headers_);
-
-  bool is_proxied_request =
-      proxy_info_.is_for_ip_protection() && !proxy_info_.is_direct();
-  if (features::kIpPrivacyAddHeaderToProxiedRequests.Get() &&
-      is_proxied_request) {
-    request_headers_.SetHeader("IP-Protection", "1");
-  }
 
   request_headers_.MergeFrom(request_->extra_headers);
 
@@ -1655,9 +1604,14 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
       return ERR_METHOD_NOT_SUPPORTED;
   }
 
-  if (can_send_early_data_ &&
-      response_.headers->response_code() == HTTP_TOO_EARLY) {
-    return HandleIOError(ERR_EARLY_DATA_REJECTED);
+  if (response_.headers->response_code() == HTTP_TOO_EARLY) {
+    if (can_send_early_data_ && IsSecureRequest()) {
+      SSLInfo ssl_info;
+      stream_->GetSSLInfo(&ssl_info);
+      if (ssl_info.is_valid() && ssl_info.early_data_accepted) {
+        return HandleIOError(ERR_EARLY_DATA_REJECTED);
+      }
+    }
   }
 
   // Check for an intermediate 100 Continue response.  An origin server is

@@ -535,6 +535,8 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
         codec = AudioCodec::kIAMF;
         profile = entry.iacb.profile == 0 ? AudioCodecProfile::kIAMF_SIMPLE
                                           : AudioCodecProfile::kIAMF_BASE;
+        extra_data = entry.iacb.ia_descriptors;
+
         // The correct values for the channel layout and sample rate can
         // be parsed from the descriptor bitstream prepended to each sample.
         // They are set to the following values here to create a valid
@@ -797,8 +799,8 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       if (entry.video_color_space.IsSpecified())
         video_config.set_color_space_info(entry.video_color_space);
 
-      if (entry.hdr_metadata.has_value() && entry.hdr_metadata->IsValid()) {
-        video_config.set_hdr_metadata(entry.hdr_metadata.value());
+      if (!entry.hdr_metadata.IsEmpty() && entry.hdr_metadata.IsValid()) {
+        video_config.set_hdr_metadata(entry.hdr_metadata);
       }
 
       DVLOG(1) << "video_track_id=" << video_track_id

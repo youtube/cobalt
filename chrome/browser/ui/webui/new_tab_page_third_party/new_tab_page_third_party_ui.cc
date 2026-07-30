@@ -71,12 +71,15 @@ void CreateAndAddNewTabPageThirdPartyUiHtmlSource(Profile* profile,
                                            undo_accelerator.GetShortcutText()));
   static constexpr webui::LocalizedString kStrings[] = {
       {"linkRemove", IDS_NTP_CUSTOM_LINKS_REMOVE},
+      {"linkRemoveA11y", IDS_NTP_MOST_VISITED_SITES_REMOVE},
       {"linkRemovedMsg", IDS_NTP_CONFIRM_MSG_SHORTCUT_REMOVED},
       {"restoreThumbnailsShort", IDS_NEW_TAB_RESTORE_THUMBNAILS_SHORT_LINK},
       {"title", IDS_NEW_TAB_TITLE},
       {"undo", IDS_NEW_TAB_UNDO_THUMBNAIL_REMOVE},
       {"showMore", IDS_NTP_SHOW_MORE_BUTTON_LABEL},
       {"showLess", IDS_NTP_SHOW_LESS_BUTTON_LABEL},
+      {"shortcutsInactivityRemovalMsg",
+       IDS_NTP_MOST_VISITED_SHORTCUTS_INACTIVITY_REMOVAL},
   };
 
   source->AddLocalizedStrings(kStrings);

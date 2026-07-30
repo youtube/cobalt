@@ -9,6 +9,10 @@
 
 extern const CGFloat kOmniboxPlaceholderAlpha;
 
+extern NSString* const kOmniboxCancelButtonAccessibilityIdentifier;
+
+extern NSString* const kOmniboxClearButtonAccessibilityIdentifier;
+
 extern NSString* const kOmniboxLeadingImageDefaultAccessibilityIdentifier;
 
 extern NSString* const kOmniboxLeadingImageEmptyTextAccessibilityIdentifier;

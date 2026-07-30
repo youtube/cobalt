@@ -249,7 +249,7 @@
 <translation id="1149841949061115313">LTC 渠道</translation>
 <translation id="1150742937785306405">允许用户在其设备上开启或关闭 <ph name="PRIVACY_SANDBOX_NAME" /> 网站建议采用的广告设置。</translation>
 <translation id="1151353063931113432">在这些网站上允许图片</translation>
-<translation id="1151987132434751822">可对哪些身份验证方案采用政策凭据。可设为下列值之一：
+<translation id="1151987132434751822">可对哪些身份验证方案采用政策凭证。可设为下列值之一：
             * basic
             * digest
             * ntlm
@@ -1163,7 +1163,7 @@ First-Party Set 中的所有网站都必须是采用 HTTPS 协议的可注册网
 
       如果此政策已停用或未设置，远程协助主机会在用户的环境中运行，而且远程用户将无法与本地用户的桌面设备上需有较高权限才能使用的窗口交互。</translation>
 <translation id="1834796168555733063">禁止使用密码管理工具保存通行密钥</translation>
-<translation id="1836380138559328229">在设备级别保存有效的 Wi-Fi 凭据</translation>
+<translation id="1836380138559328229">在设备级别保存有效的 Wi-Fi 凭证</translation>
 <translation id="1837165432382702436">页面的高度（以微米为单位）</translation>
 <translation id="1838075279369174832">通过设置此政策，您可以控制在 <ph name="PRODUCT_OS_NAME" /> 上登录和重新进行身份验证时，可以使用哪些本地身份验证方式。
 
@@ -1248,17 +1248,6 @@ First-Party Set 中的所有网站都必须是采用 HTTPS 协议的可注册网
 
 对于 <ph name="PRODUCT_NAME" />，此政策仅在已使用 <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" /> 注册相应设备后才有效。
 对于 <ph name="PRODUCT_OS_NAME" />，此政策一直有效。</translation>
-<translation id="1878535132109943599">如果此政策设为启用，<ph name="LOCAL_NETWORK_ACCESS" />请求将仅在 <ph name="CHROME_DEVTOOLS_NAME" />中显示警告，因为<ph name="LOCAL_NETWORK_ACCESS" />检查失败。
-
-如果此政策设为停用或未设置，系统将会通过默认方式处理<ph name="LOCAL_NETWORK_ACCESS" />请求。
-
-如需了解<ph name="LOCAL_NETWORK_ACCESS" />限制，请访问 https://wicg.github.io/local-network-access/。
-
-这项企业政策只是暂时性政策，将在 M146 之后移除。
-
-从长远来看，可以使用政策 <ph name="LOCAL_NETWORK_ACCESS_ALLOWED_FOR_URLS_POLICY_NAME" /> 将网址格式列入许可名单，以便自动向这些网址授予<ph name="LOCAL_NETWORK_ACCESS" />权限。
-
-请注意，如果启用了政策 <ph name="LOCAL_NETWORK_ACCESS_RESTRICTIONS_ENABLED_POLICY_NAME" />，它将优先于此政策。</translation>
 <translation id="187961648719201562">删除现有本地文件（自 137 版起受支持）</translation>
 <translation id="1883274744253492031">允许混合内容自动升级</translation>
 <translation id="1885782360784839335">允许使用整个标签页显示宣传内容</translation>
@@ -1555,7 +1544,7 @@ First-Party Set 中的所有网站都必须是采用 HTTPS 协议的可注册网
 <translation id="2096932573113293941">请求用户许可运行需要授权的插件</translation>
 <translation id="2098658257603918882">启用关于使用情况和崩溃相关数据的报告</translation>
 <translation id="2099380339157427935">不在任务栏中显示“退出”按钮</translation>
-<translation id="2100630160869631650">添加预先填充的 Kerberos 账号。如果 Kerberos 凭据与登录凭据相匹配，则可以将账号配置为重复使用登录凭据，方法是分别为主账号和密码指定“<ph name="LOGIN_EMAIL_PLACEHOLDER" />”和“<ph name="PASSWORD_PLACEHOLDER" />”；这样一来，除非配置了双重身份验证，否则系统便可以自动检索 Kerberos 票据。用户无法修改通过此政策添加的账号。
+<translation id="2100630160869631650">添加预先填充的 Kerberos 账号。如果 Kerberos 凭证与登录凭证相匹配，则可以将账号配置为重复使用登录凭证，方法是分别为主账号和密码指定“<ph name="LOGIN_EMAIL_PLACEHOLDER" />”和“<ph name="PASSWORD_PLACEHOLDER" />”；这样一来，除非配置了双重身份验证，否则系统便可以自动检索 Kerberos 票据。用户无法修改通过此政策添加的账号。
 
           如果已启用此政策，系统会将此政策定义的账号列表添加到 Kerberos 账号设置。
 
@@ -1736,7 +1725,7 @@ IPv4 地址的前缀为 0010；IPv6 地址的前缀为 0020。对于双栈网络
 
 如果已停用此政策，用户将无法使用此功能。
 
-      如果您设置了此政策，用户便无法在 <ph name="PRODUCT_NAME" /> 中更改它。如果未设置此政策，系统会允许执行凭据泄露检查，但用户可关闭该功能。</translation>
+      如果您设置了此政策，用户便无法在 <ph name="PRODUCT_NAME" /> 中更改它。如果未设置此政策，系统会允许执行凭证泄露检查，但用户可关闭该功能。</translation>
 <translation id="2208976000652006649">在使用 POST 的搜索网址中所需的参数</translation>
 <translation id="2212011154693551439">默认情况下，chrome://history/grouped 中会以网页分组的方式显示“Chrome 历史记录”页面。</translation>
 <translation id="2212207215880394506">不允许使用生成式 AI 照片编辑功能。</translation>
@@ -1825,7 +1814,7 @@ IPv4 地址的前缀为 0010；IPv6 地址的前缀为 0020。对于双栈网络
 
 如果此政策已停用或未设置，用户便可在使用移动网络连接时将文件传输到 Google 云端硬盘。</translation>
 <translation id="2269319728625047531">在登录期间允许显示同步同意声明</translation>
-<translation id="2269837888511509900">允许共享用户凭据</translation>
+<translation id="2269837888511509900">允许共享用户凭证</translation>
 <translation id="2270747976331889601">为本地信任锚启用 TLS 1.3 安全功能。</translation>
 <translation id="22754818344448444">允许用户选择要加载的桌面布局模板</translation>
 <translation id="2277117728011250860">不允许使用无障碍性能过滤机制。</translation>
@@ -2053,7 +2042,7 @@ IPv4 地址的前缀为 0010；IPv6 地址的前缀为 0020。对于双栈网络
 <translation id="2436302465999055995">将 <ph name="LACROS_NAME" /> 设为唯一可用的浏览器（尚未实施）</translation>
 <translation id="2437963451532167293">使用缓存加密。</translation>
 <translation id="2439187682308339104">不允许任何网站通过 WebHID API 请求对 HID 设备的访问权限</translation>
-<translation id="2439733504887695659">允许关闭针对所输入凭据的密码泄露警示</translation>
+<translation id="2439733504887695659">允许关闭针对所输入凭证的密码泄露警示</translation>
 <translation id="2446029789419870019">允许使用该功能并改进 AI 模型</translation>
 <translation id="2446244536806499267">播放音频时不将用户视为空闲</translation>
 <translation id="2450392422484526374">如果此政策设为 true，则会启用静默打印，即在打开打印预览窗口后立即将其关闭，并在默认打印机上使用默认选项打印。如果默认打印机是“另存为 PDF”，文件将保存到“下载内容”文件夹中。
@@ -2369,11 +2358,11 @@ IPv4 地址的前缀为 0010；IPv6 地址的前缀为 0020。对于双栈网络
 <translation id="2633907568797306353">允许启用 Phone Hub 通知</translation>
 <translation id="2634265675787412567">在 macOS 13.5 或更高版本上，<ph name="PRODUCT_NAME" /> 可将通行密钥/WebAuthn 创建请求直接定向到 iCloud 钥匙串。如果 iCloud 钥匙串同步功能尚未启用，系统会提示用户通过 iCloud 登录，或者可能会提示用户启用 iCloud 钥匙串同步功能。
 
-如果此政策设为 false，系统默认不会使用 iCloud 钥匙串，而会改为采取之前的行为（即在 <ph name="PRODUCT_NAME" /> 个人资料中创建凭据）。用户仍能选择将 iCloud 钥匙串作为一个选项，并且登录时或许仍会看到 iCloud 钥匙串凭据。
+如果此政策设为 false，系统默认不会使用 iCloud 钥匙串，而会改为采取之前的行为（即在 <ph name="PRODUCT_NAME" /> 个人资料中创建凭证）。用户仍能选择将 iCloud 钥匙串作为一个选项，并且登录时或许仍会看到 iCloud 钥匙串凭证。
 
-如果此政策设为“true”，每当 WebAuthn 请求与所选的选项兼容时，系统默认便会在 iCloud 钥匙串中创建凭据。
+如果此政策设为“true”，每当 WebAuthn 请求与所选的选项兼容时，系统默认便会在 iCloud 钥匙串中创建凭证。
 
-如果未设置此政策，默认设置将取决于多种因素，例如是否启用了 iCloud 云盘，以及用户近期是否使用过其 <ph name="PRODUCT_NAME" /> 个人资料中的凭据或在其中创建了凭据。</translation>
+如果未设置此政策，默认设置将取决于多种因素，例如是否启用了 iCloud 云盘，以及用户近期是否使用过其 <ph name="PRODUCT_NAME" /> 个人资料中的凭证或在其中创建了凭证。</translation>
 <translation id="2635872253077105112">通过设置此政策，您可以控制要在备用浏览器中打开的网站列表。每项内容都会被视为一条规则，用于确定要在备用浏览器中打开的网站。<ph name="PRODUCT_NAME" /> 会使用这些规则来确定是否应在备用浏览器中打开某个网址。如果 <ph name="IE_PRODUCT_NAME" /> 插件已开启，当规则无匹配项时，<ph name="IE_PRODUCT_NAME" /> 会切换回 <ph name="PRODUCT_NAME" />。如果规则之间相互冲突，<ph name="PRODUCT_NAME" /> 会使用最具体的规则。
 
       如果您不设置此政策，系统不会将任何网站加入列表。
@@ -2619,7 +2608,7 @@ IPv4 地址的前缀为 0010；IPv6 地址的前缀为 0020。对于双栈网络
 <translation id="2853757230661166968">允许应用捕获和覆盖默认系统快捷键。</translation>
 <translation id="285480231336205327">启用高反差模式</translation>
 <translation id="285627849510728211">设定日间高级电池充电模式配置</translation>
-<translation id="2856932965866813330">允许与其他用户共享用户凭据</translation>
+<translation id="2856932965866813330">允许与其他用户共享用户凭证</translation>
 <translation id="28600673996840076">允许使用 Google 个人资料图片或本地图片自定义用户头像图片。</translation>
 <translation id="2864207379891420023">配置扩展程序安装许可名单</translation>
 <translation id="2866387633548787857">停用快速切换功能</translation>
@@ -3110,6 +3099,7 @@ ClearCrossSiteCrossBrowsingContextGroupWindowName 变体可控制是否为顶层
 <translation id="3169872426103732947">显示默认网址，并且允许用户切换到完整网址</translation>
 <translation id="3171369832001535378">设备网络主机名模板</translation>
 <translation id="3173844121395372156">此政策已被弃用且不再受支持，请改用“<ph name="NATIVE_MESSAGING_ALLOWLIST_POLICY_NAME" />”政策。</translation>
+<translation id="3175063338945713984">存储空间配额 API 根据功能发布流程返回相应值。</translation>
 <translation id="3177537290334203187">在确定网站能否向网络端点发送请求时使用默认行为。</translation>
 <translation id="3177802893484440532">要求为本地信任锚执行在线 OCSP/CRL 检查</translation>
 <translation id="3179533009079100620">显示个人资料选择器</translation>
@@ -3254,6 +3244,7 @@ Microsoft Outlook 卡片需要由管理员进行额外配置。如需详细了�
 
 如果已停用 <ph name="NTPCARDSVISIBLE" />，系统将不会显示 Outlook 卡片。如果已启用 <ph name="NTPCARDSVISIBLE" />，同时已启用此政策，且有待显示的数据，那么系统将显示 Outlook 卡片。如果未设置 <ph name="NTPCARDSVISIBLE" />，但已启用此政策，同时用户已在“自定义 Chrome”中启用 Outlook 卡片，且有待显示的数据，那么系统将显示 Outlook 卡片。</translation>
 <translation id="3261592499545947104">应在证书还差多少秒到期时触发续订操作</translation>
+<translation id="326182244921429468">存储空间配额 API 返回动态值。</translation>
 <translation id="3262080895269946462">允许第三方情境下的 WebSQL 默认处于停用状态。</translation>
 <translation id="326341982850521928">启用色彩校正</translation>
 <translation id="3263892501786842604">允许在“新标签页”页面上的搜索框中显示 <ph name="GOOGLE_LENS_PRODUCT_NAME" />按钮（如果支持的话）。</translation>
@@ -4409,6 +4400,11 @@ ServiceWorkerAutoPreload 功能会在 ServiceWorker 引导过程开始的同时�
 
 
 扩展程序的可用性仍由其他政策控制。</translation>
+<translation id="4112585124048467596">如果您设置了此政策，系统将会从同步操作（无论是 <ph name="CHROME_SYNC_NAME" />还是漫游个人资料同步）中排除所有指定的数据类型。这有助于缩减漫游个人资料的大小，或者限制向 <ph name="CHROME_SYNC_NAME" />服务器上传的数据类型。
+
+      此政策当前可用的数据类型为：“apps”“autofill”“bookmarks”“extensions”“preferences”“passwords”“payments”“productComparison”“readingList”“tabs”“themes”“typedUrls”“wifiConfigurations”。这些名称区分大小写！
+
+      注意：只有 <ph name="PRODUCT_NAME" /> 版本 123 及更高版本支持动态政策刷新。停用“autofill”也会停用“payments”。“typedUrls”是指所有浏览记录。</translation>
 <translation id="4115501011761259824">对所有受影响客户启用 First-Party Sets 功能</translation>
 <translation id="4120401094617902941">对运行时计数器进行数据采样和收集的时间间隔。所允许的最短时间间隔为 1 天。
 
@@ -5497,7 +5493,7 @@ JavaScript 优化政策的例外情况仅在网站级别 (eTLD+1) 上强制执�
 <translation id="4825777333376170738">停用设备自助服务终端会话报告功能</translation>
 <translation id="4826326557828204741">当闲置延迟时间已过且使用电池供电时应执行的操作</translation>
 <translation id="4826701474986856664">在用户登录期间显示人体存在传感器界面</translation>
-<translation id="4826977043372474305">自助服务终端 Wi-Fi 凭据存储在自助服务终端级别</translation>
+<translation id="4826977043372474305">自助服务终端 Wi-Fi 凭证存储在自助服务终端级别</translation>
 <translation id="4827727182370777723">默认的本地字体权限设置</translation>
 <translation id="482803100714220060">显示完整网址</translation>
 <translation id="4832373379539003927">控制 <ph name="PRODUCT_NAME" /> 中的 PDF 查看器是否支持 PDF 文档中的 XFA 表单。
@@ -5777,7 +5773,7 @@ JavaScript 优化政策的例外情况仅在网站级别 (eTLD+1) 上强制执�
 <translation id="4988291787868618635">闲置延迟时间已过时执行的操作</translation>
 <translation id="4991786313466977061">控制是否显示企业标记</translation>
 <translation id="4995123966071996433">不允许端口转发到 Linux 虚拟机</translation>
-<translation id="4996068111491152684"><ph name="PRODUCT_OS_NAME" />登录凭据不会被用于网络身份验证。</translation>
+<translation id="4996068111491152684"><ph name="PRODUCT_OS_NAME" />登录凭证不会被用于网络身份验证。</translation>
 <translation id="4996086761250834365">允许进行 <ph name="PLUGIN_VM_NAME" /> 产品分析</translation>
 <translation id="4996161752665479028">启用终端系统应用中的 SSH</translation>
 <translation id="499654521603185442">网站遥测数据报告</translation>
@@ -6299,32 +6295,32 @@ JavaScript 优化政策的例外情况仅在网站级别 (eTLD+1) 上强制执�
 
 如果此政策已停用，系统将无法删除浏览器历史记录和下载记录。即使此政策停用，浏览和下载记录也不一定会保留。用户可能能够直接修改或删除历史记录数据库文件，而且浏览器本身也可能会随时将任意或所有历史记录项设为失效或进行归档。</translation>
 <translation id="5322649594584715998">以标准速率将电池充满。此模式会停用自动调节充电和受限充电模式。</translation>
-<translation id="5322726025747768984">设置此政策时，系统会按照您的设置来配置规则，从而根据目标网址和其他条件来选择浏览器使用的代理。如果您通过 <ph name="PROXY_SETTINGS_POLICY_NAME" /> 政策、<ph name="PROXY_SETTINGS_EXTENSION_API" /> 扩展程序 API 或自己手动设置了代理，则此政策将优先于这些代理设置。
+<translation id="5322726025747768984">设置此政策会配置一系列规则，根据目标网址和其他条件来选择浏览器使用的代理。此政策优先于您通过 <ph name="PROXY_SETTINGS_POLICY_NAME" /> 政策、<ph name="PROXY_SETTINGS_EXTENSION_API" /> 扩展程序 API 或手动用户设置指定的任何代理设置。
 
 如果您未设置此政策，则其他代理政策或用户设置不会受到影响。
 
-当浏览器需要决定使用哪个代理时，系统会按顺序评估 <ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> 政策的条目，直到某个条目满足以下所有条件为止：
+当浏览器需要决定使用哪个代理时，系统会按顺序评估 <ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> 政策的条目，直到有条目满足以下所有条件为止：
   * 与 <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> 中的至少 1 个网址格式匹配。
   * 与 <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> 中的所有网址格式都不匹配。
-  * 符合 <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" />（如果已指定为一个非空列表）的条目表示的所有条件。
-如果找到匹配项，<ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> 中的值将作为代理。如果未找到匹配项，则代理设置将回退到 <ph name="PROXY_SETTINGS_POLICY_NAME" /> 政策中的设置。
+  * 符合由 <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" />（如果已指定为一个非空列表）的条目表示的所有条件。
+如果找到匹配项，<ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> 中的值将用作代理。如果未找到匹配项，则代理设置将回退到 <ph name="PROXY_SETTINGS_POLICY_NAME" /> 政策中的设置。
 
 <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> 和 <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> 支持的网址格式都记录在这里：https://chromium.googlesource.com/chromium/src/+/HEAD/net/docs/proxy.md#proxy-config-url-patterns。
 
-<ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> 字段条目与 PAC 文件的字符串值相对应，例如：
+<ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> 字段条目对应于 PAC 文件的字符串值，例如：
   * DIRECT
   * PROXY host:port
   * HTTPS host:port
   * SOCKS4 host:port
   * SOCKS5 host:port
-或者，您也可以直接使用与网址格式类似的代理说明符来指定代理，例如：
+或者，您也可以直接使用与网址类似的代理说明符来指定代理，例如：
   * http://host:port
   * https://host:port
   * socks4://host:port
   * socks5://host:port
-列表中的第一个可访问的条目将用作代理。系统会忽略列表中的无效条目。
+列表中第一个可连接的条目将用作代理。系统会忽略列表中的无效条目。
 
-<ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> 字段列出了所有必须满足的条件，只有满足后，系统才会使用其替换规则来决定要使用的代理。如果未设置该字段，只要 <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> 中至少有 1 个匹配的主机，系统就会使用与该主机匹配的条目。
+<ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> 字段包含一系列条件，只有满足所有这些条件，系统才会使用其替换规则来决定要使用的代理。如果未设置该字段，只要 <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> 中至少有 1 个匹配的主机，系统就会使用相应条目。
 
 <ph name="PROXY_OVERRIDE_RULES_DNS_PROBE" /> 条件会检查提供的 DNS <ph name="PROXY_OVERRIDE_RULES_HOST" /> 是否能够解析为 IP 地址。如果 <ph name="PROXY_OVERRIDE_RULES_RESULT" /> 的值为“<ph name="PROXY_OVERRIDE_RULES_RESOLVED" />”，则视为满足条件。如果该值设为 <ph name="PROXY_OVERRIDE_RULES_NOT_FOUND" />，则当解析失败时，系统会认为已满足条件。</translation>
 <translation id="5323200200131319468">在登录屏幕上启用语音反馈</translation>
@@ -6988,7 +6984,7 @@ Microsoft SharePoint 和 OneDrive 卡片需要由管理员进行额外配置。�
 <translation id="5705055136345677598">停用后台模式</translation>
 <translation id="5705632645298500887">设置屏幕截取内容的存储位置</translation>
 <translation id="5705828032077475554">报告 CRD 会话</translation>
-<translation id="5706929446669049441">禁止共享用户凭据</translation>
+<translation id="5706929446669049441">禁止共享用户凭证</translation>
 <translation id="57072195677044908">停用资料分离</translation>
 <translation id="5708969689202733975">配置所允许的“快速解锁”模式</translation>
 <translation id="5714563837055244378">启用 Android 应用至 Web 应用分享功能。</translation>
@@ -7192,7 +7188,7 @@ Microsoft SharePoint 和 OneDrive 卡片需要由管理员进行额外配置。�
 
       如果此政策设为 false 或未设置，系统将不允许 <ph name="PLUGIN_VM_NAME" /> 收集数据。
       如果此政策设为 true，<ph name="PLUGIN_VM_NAME" /> 可能会收集 <ph name="PLUGIN_VM_NAME" /> 使用情况数据，然后整合并全面分析该数据以提升 <ph name="PLUGIN_VM_NAME" /> 使用体验。</translation>
-<translation id="5872738620659477303">将 Google 凭据绑定到设备</translation>
+<translation id="5872738620659477303">将 Google 凭证绑定到设备</translation>
 <translation id="5873333871812203119">允许网页出于播放受保护内容的目的使用标识符</translation>
 <translation id="5875873062228321803">此政策旨在配置允许使用的最低 <ph name="PRODUCT_OS_NAME" />版本的要求。
 
@@ -8205,8 +8201,8 @@ Related Website Set 中的所有网站都必须是采用 HTTPS 协议的可注�
           要在设备闲置时锁定屏幕，您最好采用以下方式：让系统在进入暂停状态时锁定屏幕，并指示 <ph name="PRODUCT_OS_NAME" />在闲置延迟时间过后进入暂停状态。只有在以下情况下才应使用此政策：屏幕锁定时间应显著早于系统进入暂停状态的时间，或者完全不需要在设备闲置时暂停系统。
 
           指定的政策值应以毫秒为单位，且必须小于闲置延迟时间。</translation>
-<translation id="6496139622896320246">如果此政策设为启用，<ph name="PRODUCT_OS_NAME" /> 会自动在设备级别保存有效的自助服务终端 Wi-Fi 凭据：设备上的任何其他自助服务终端应用或用户都可以使用该有效 Wi-Fi。
-如果此政策未设置或设为停用，自助服务终端的有效 Wi-Fi 凭据将存储在自助服务终端级别：在自助服务终端应用中配置的 Wi-Fi 只能在该自助服务终端应用中使用。
+<translation id="6496139622896320246">如果此政策设为启用，<ph name="PRODUCT_OS_NAME" /> 会自动在设备级别保存有效的自助服务终端 Wi-Fi 凭证：设备上的任何其他自助服务终端应用或用户都可以使用该有效 Wi-Fi。
+如果此政策未设置或设为停用，自助服务终端的有效 Wi-Fi 凭证将存储在自助服务终端级别：在自助服务终端应用中配置的 Wi-Fi 只能在该自助服务终端应用中使用。
 除非没有其他可用选项（例如 OpenNetworkConfiguration 政策），否则不建议使用此政策。</translation>
 <translation id="6497085755801788141">使用内置证书验证程序</translation>
 <translation id="6499579502664610993">覆盖 Related Website Set。</translation>
@@ -8459,7 +8455,7 @@ Related Website Set 中的所有网站都必须是采用 HTTPS 协议的可注�
 
       如果此政策已停用或未设置，打印命令将触发打印预览屏幕。</translation>
 <translation id="6655274714135630366">磁盘映像的十六进制编码 SHA-256 哈希。</translation>
-<translation id="6655844456903132379">如果此政策已启用，HTTP 身份验证机制会遵循 KDC 政策的审批结果。换言之，如果 KDC 政策在服务工单上设置了 <ph name="OK_AS_DELEGATE" />，<ph name="PRODUCT_NAME" /> 便会向正在访问的服务委派用户凭据。请参阅 RFC 5896 ( https://tools.ietf.org/html/rfc5896.html )。<ph name="AUTH_NEGOTIATE_DELEGATE_ALLOWLIST_POLICY_NAME" /> 也应允许使用该服务。
+<translation id="6655844456903132379">如果此政策已启用，HTTP 身份验证机制会遵循 KDC 政策的审批结果。换言之，如果 KDC 政策在服务工单上设置了 <ph name="OK_AS_DELEGATE" />，<ph name="PRODUCT_NAME" /> 便会向正在访问的服务委派用户凭证。请参阅 RFC 5896 ( https://tools.ietf.org/html/rfc5896.html )。<ph name="AUTH_NEGOTIATE_DELEGATE_ALLOWLIST_POLICY_NAME" /> 也应允许使用该服务。
 
 如果此政策已停用或未设置，那么在支持的平台上，只会遵循 <ph name="AUTH_NEGOTIATE_DELEGATE_ALLOWLIST_POLICY_NAME" /> 政策，KDC 政策会被忽略。
 
@@ -8975,7 +8971,7 @@ Related Website Set 中的所有网站都必须是采用 HTTPS 协议的可注�
 通过设置此政策，您可以针对列入许可清单的网址，控制是否报告网站网址的打开和关闭事件。
 如果未设置此政策，系统将不会报告任何网站事件。
 如需详细了解有效的网址格式，请访问 https://chromeenterprise.google/policies/url-patterns/。设置此政策时，只能使用 HTTP 和 HTTPS 网址协议。</translation>
-<translation id="7007704186032892878">将每个自助服务终端应用的有效 Wi-Fi 凭据公开到设备级别</translation>
+<translation id="7007704186032892878">将每个自助服务终端应用的有效 Wi-Fi 凭证公开到设备级别</translation>
 <translation id="7008308728445338159">启用 DNS 拦截检查功能</translation>
 <translation id="7009043124653876961">禁止在用户输入内容时显示表情符号建议</translation>
 <translation id="7010006999849135962">针对远程访问主机启用无 PIN 码身份验证</translation>
@@ -9580,7 +9576,7 @@ JavaScript 优化政策的例外情况仅在网站级别 (eTLD+1) 上强制执�
 
       如果此政策已停用或未设置，则意味着已注册的设备既不会记录也不会报告 TPM 安全状态。
       例外情况：对于 M95 及更低版本，TPM 信息由 <ph name="REPORT_DEVICE_HARDWARE_STATUS" /> 控制。</translation>
-<translation id="739556497251174388">允许将 <ph name="PRODUCT_OS_NAME" />登录凭据重用于网络身份验证</translation>
+<translation id="739556497251174388">允许将 <ph name="PRODUCT_OS_NAME" />登录凭证重用于网络身份验证</translation>
 <translation id="7395790871181951311">阻止独立式应用连接智能卡</translation>
 <translation id="7396487166653169044">此政策允许您设置一个网站网址格式列表，用于指定允许哪些网站在运行 JavaScript 时启用 JIT（即时）编译器。
 
@@ -10445,7 +10441,7 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
 <translation id="804935152359592405">配置“<ph name="CLASS_TOOLS_NAME" />”的网络限制</translation>
 <translation id="8050080920415773384">本机打印</translation>
 <translation id="8056237304861875584">允许启用 Phone Hub 任务延续功能。</translation>
-<translation id="8056273037819805106"><ph name="PRODUCT_OS_NAME" />登录凭据会被用于向受管理的代理进行网络身份验证。</translation>
+<translation id="8056273037819805106"><ph name="PRODUCT_OS_NAME" />登录凭证会被用于向受管理的代理进行网络身份验证。</translation>
 <translation id="8056800559672904373">受管理的账号必须是主账号，无任何辅助账号，而且允许用户在创建个人资料时导入现有浏览数据</translation>
 <translation id="8059164285174960932">远程访问客户端获取身份验证令牌的网址</translation>
 <translation id="8059352177830050556">启用设备背光信息报告功能</translation>
@@ -10668,6 +10664,7 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
       未设置此政策时，如果 <ph name="DEFAULT_PLUGINS_SETTING_POLICY_NAME" /> 已设置，系统便会将它应用于所有网站，否则就会应用用户的个人设置。
 
       如需详细了解有效的网址格式，请访问 https://chromeenterprise.google/policies/url-patterns。不过，从 M85 开始，此政策已不再支持主机名中含有“*”和“[*.]”通配符的格式。</translation>
+<translation id="8251975082850036657">存储空间配额 API 返回静态值。</translation>
 <translation id="82530263956734297">要从屏蔽名单中排除的扩展程序 ID</translation>
 <translation id="8254749125469750814">无需通过云服务验证是否可以安装扩展程序。</translation>
 <translation id="8256006033157034334">此政策已被弃用且不再受支持，请改用 <ph name="PRINTERS_BULK_ACCESS_MODE_POLICY_NAME_POLICY_NAME" />。</translation>
@@ -11756,6 +11753,7 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
       此政策仅适用于 Family Link 用户。</translation>
 <translation id="8947415621777543415">报告设备位置</translation>
 <translation id="8948062138228904066">身份验证服务器许可名单</translation>
+<translation id="8951145747995737852">控制存储空间配额 API 是否返回静态值</translation>
 <translation id="8951350807133946005">设置磁盘缓存目录</translation>
 <translation id="8952611478149810182">我们正在 Chromium 中更改针对已停用的表单控件分派事件的行为，以便更好地兼容其他浏览器并提升开发者体验。
 
@@ -11850,13 +11848,6 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
        从 <ph name="PRODUCT_NAME" /> 84 开始，此政策将失效。</translation>
 <translation id="9010080992450148617">允许已加入高级保护计划的用户将下载内容发送给 Google 进行深度扫描</translation>
 <translation id="9012101302849557459">延长对 <ph name="MS_WIN_NAME" />、<ph name="MAC_OS_NAME" /> 和 <ph name="LINUX_OS_NAME" /> 上的 Chrome 应用的支持时间。</translation>
-<translation id="9012332684658600011">如果此政策设为启用，只要因<ph name="LOCAL_NETWORK_ACCESS" />检查失败而应在 <ph name="CHROME_DEVTOOLS_NAME" />中显示警告，系统就会改为屏蔽主要请求。
-
-如果此政策设为停用或未设置，系统将会通过默认方式处理<ph name="LOCAL_NETWORK_ACCESS" />请求。
-
-如需了解<ph name="LOCAL_NETWORK_ACCESS" />限制，请访问 https://wicg.github.io/local-network-access/。
-
-此政策已被弃用，因为<ph name="LOCAL_NETWORK_ACCESS" />默认已启动。此政策将在未来版本中移除。</translation>
 <translation id="9013875414788074110">在用户登录期间，<ph name="PRODUCT_OS_NAME" />可根据服务器（在线）或使用缓存密码（离线）对用户进行身份验证。
 
       如果将此政策的值设为 -1，用户可以无限期地离线进行身份验证。将此政策设为任何其他值时，即指定了用户自最后一次使用在线身份验证起多长时间后必须再次使用在线身份验证。
@@ -12141,6 +12132,10 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
 <translation id="966425658642788645">应用默认行为</translation>
 <translation id="971677226939413180">不提供“以图片形式打印”选项供用户选择。</translation>
 <translation id="974349541138387272">指定所需 DNS-over-HTTPS 解析器的 URI 模板</translation>
+<translation id="975005959611437646">如果启用了此设置，存储空间配额 API 会返回一个静态值，该值等于当前用量 + 最小用量（10 GiB，磁盘空间向上取整到最接近的 GiB 数值）。
+如果停用了此设置，存储空间配额 API 通常会返回一个动态值，该值与设备上的总可用空间成正比，无论实际用量是多少。
+如果未设置此设置，存储空间配额 API 将采用默认的 Chrome 行为。
+具有无限存储权限的网站不受此设置的影响。强制执行的配额也不受影响。</translation>
 <translation id="976415389478739655">要求用户的设备连上受管理的网络，才能加入“<ph name="CLASS_TOOLS_NAME" />”课程</translation>
 <translation id="978619365985286086">课程管理工具设置</translation>
 <translation id="978658824596356870">24 小时制</translation>

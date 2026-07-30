@@ -37,7 +37,7 @@ scoped_refptr<VideoFrame> GpuMemoryBufferVideoFrameMapper::MapFrame(
   }
 
   if (video_frame->storage_type() !=
-      VideoFrame::StorageType::STORAGE_GPU_MEMORY_BUFFER) {
+      VideoFrame::StorageType::STORAGE_MAPPABLE_SHARED_IMAGE) {
     VLOGF(1) << "VideoFrame's storage type is not GPU_MEMORY_BUFFER: "
              << video_frame->storage_type();
     return nullptr;
@@ -49,7 +49,7 @@ scoped_refptr<VideoFrame> GpuMemoryBufferVideoFrameMapper::MapFrame(
     return nullptr;
   }
 
-  auto scoped_mapping = video_frame->MapGMBOrSharedImage();
+  auto scoped_mapping = video_frame->GetSharedImage()->Map();
   if (!scoped_mapping) {
     VLOGF(1) << "Failed to get the mapped memory.";
     return nullptr;
@@ -59,7 +59,7 @@ scoped_refptr<VideoFrame> GpuMemoryBufferVideoFrameMapper::MapFrame(
   std::array<base::span<uint8_t>, VideoFrame::kMaxPlanes> planes = {};
 
   for (size_t i = 0; i < num_planes; i++) {
-    planes[i] = scoped_mapping->GetMemoryAsSpan(i);
+    planes[i] = scoped_mapping->GetMemoryForPlane(i);
   }
 
   scoped_refptr<VideoFrame> mapped_frame;
@@ -85,10 +85,11 @@ scoped_refptr<VideoFrame> GpuMemoryBufferVideoFrameMapper::MapFrame(
   // is unmapped on destruction.
   mapped_frame->AddDestructionObserver(base::BindOnce(
       [](scoped_refptr<const FrameResource> frame,
-         std::unique_ptr<VideoFrame::ScopedMapping> scoped_mapping) {
+         std::unique_ptr<gpu::ClientSharedImage::ScopedMapping>
+             scoped_mapping) {
         CHECK(scoped_mapping);
-        // The VideoFrame::ScopedMapping must be destroyed before the
-        // FrameResource that produced it in order to avoid dangling pointers.
+        // The ScopedMapping must be destroyed before the FrameResource that
+        // produced it in order to avoid dangling pointers.
         scoped_mapping.reset();
       },
       std::move(video_frame), std::move(scoped_mapping)));

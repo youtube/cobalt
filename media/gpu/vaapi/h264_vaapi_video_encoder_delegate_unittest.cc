@@ -196,8 +196,12 @@ void ValidateTemporalLayerStructure(uint8_t num_temporal_layers,
     return;
   }
 
-  EXPECT_EQ(frame_num, previous_frame_num + ref);
-  previous_frame_num = frame_num;
+  // If frame_num is so big that it hits max frame num, then this needs to be
+  // |previous_frame_num + 1 %  max_frame_num|.
+  EXPECT_EQ(frame_num, previous_frame_num + 1);
+  if (ref) {
+    previous_frame_num = frame_num;
+  }
 }
 
 class MockVaapiWrapper : public VaapiWrapper {
@@ -210,10 +214,12 @@ class MockVaapiWrapper : public VaapiWrapper {
   bool GetSupportedPackedHeaders(VideoCodecProfile profile,
                                  bool& packed_sps,
                                  bool& packed_pps,
-                                 bool& packed_slice) override {
+                                 bool& packed_slice,
+                                 bool& packed_raw) override {
     packed_sps = true;
     packed_pps = true;
     packed_slice = true;
+    packed_raw = true;
     return true;
   }
 

@@ -56,15 +56,17 @@ import org.chromium.base.IntentUtils;
 import org.chromium.base.Log;
 import org.chromium.base.PowerMonitor;
 import org.chromium.base.TraceEvent;
+import org.chromium.base.UnownedUserDataHost;
 import org.chromium.base.memory.MemoryPurgeManager;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.supplier.OneshotSupplierImpl;
-import org.chromium.base.supplier.UnownedUserDataSupplier;
+import org.chromium.base.supplier.SettableObservableSupplier;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.ActivityUtils;
@@ -81,6 +83,7 @@ import org.chromium.chrome.browser.ai.AiAssistantService;
 import org.chromium.chrome.browser.app.appmenu.AppMenuPropertiesDelegateImpl;
 import org.chromium.chrome.browser.app.download.DownloadMessageUiDelegate;
 import org.chromium.chrome.browser.app.metrics.LaunchCauseMetrics;
+import org.chromium.chrome.browser.app.tab_activity_glue.PopupCreator;
 import org.chromium.chrome.browser.app.tab_activity_glue.ReparentingDelegateFactory;
 import org.chromium.chrome.browser.app.tab_activity_glue.TabReparentingController;
 import org.chromium.chrome.browser.app.tabmodel.AsyncTabParamsManagerSingleton;
@@ -310,31 +313,31 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     protected final ObservableSupplierImpl<EdgeToEdgeController> mEdgeToEdgeControllerSupplier =
             new ObservableSupplierImpl<>();
 
-    protected final ManualFillingComponentSupplier mManualFillingComponentSupplier =
-            new ManualFillingComponentSupplier();
+    protected final SettableObservableSupplier<ManualFillingComponent>
+            mManualFillingComponentSupplier = ObservableSuppliers.createMonotonic();
 
     /** Used to access the {@link ShareDelegate} from {@link WindowAndroid}. */
-    private final UnownedUserDataSupplier<ShareDelegate> mShareDelegateSupplier =
-            new ShareDelegateSupplier();
+    private final SettableObservableSupplier<ShareDelegate> mShareDelegateSupplier =
+            ObservableSuppliers.createMonotonic();
 
     private final ObservableSupplierImpl<TabModelOrchestrator> mTabModelOrchestratorSupplier =
             new ObservableSupplierImpl<>();
 
     /** Used to access the {@link TabModelSelector} from {@link WindowAndroid}. */
-    private final UnownedUserDataSupplier<TabModelSelector> mTabModelSelectorSupplier =
-            new TabModelSelectorSupplier();
+    private final SettableObservableSupplier<TabModelSelector> mTabModelSelectorSupplier =
+            ObservableSuppliers.createMonotonic();
 
     /** Used to access the {@link EphemeralTabCoordinator} from {@link WindowAndroid}. */
-    private final UnownedUserDataSupplier<EphemeralTabCoordinator>
-            mEphemeralTabCoordinatorSupplier = new EphemeralTabCoordinatorSupplier();
+    private final SettableObservableSupplier<EphemeralTabCoordinator>
+            mEphemeralTabCoordinatorSupplier = ObservableSuppliers.createMonotonic();
 
     /** Used to hold a mutable reference to a {@link TabCreatorManager}. */
     private final ObservableSupplierImpl<TabCreatorManager> mTabCreatorManagerSupplier =
             new ObservableSupplierImpl<>();
 
     // TODO(crbug.com/40182241): Move ownership to RootUiCoordinator.
-    private final UnownedUserDataSupplier<BrowserControlsManager> mBrowserControlsManagerSupplier =
-            new BrowserControlsManagerSupplier();
+    private final SettableObservableSupplier<BrowserControlsManager>
+            mBrowserControlsManagerSupplier = ObservableSuppliers.createMonotonic();
 
     protected final TabModelSelectorProfileSupplier mTabModelProfileSupplier =
             new TabModelSelectorProfileSupplier(mTabModelSelectorSupplier);
@@ -554,7 +557,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
 
         mStylusWritingCoordinator =
                 new StylusWritingCoordinator(
-                        this, getLifecycleDispatcher(), getActivityTabProvider());
+                        this, getLifecycleDispatcher(), mActivityTabProvider.asObservable());
 
         // Create the orchestrator that manages Tab models and persistence
         mTabModelOrchestrator = createTabModelOrchestrator();
@@ -613,11 +616,12 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     }
 
     private void setupUnownedUserDataSuppliers() {
-        mShareDelegateSupplier.attach(getWindowAndroid().getUnownedUserDataHost());
-        mTabModelSelectorSupplier.attach(getWindowAndroid().getUnownedUserDataHost());
-        mEphemeralTabCoordinatorSupplier.attach(getWindowAndroid().getUnownedUserDataHost());
-        mManualFillingComponentSupplier.attach(getWindowAndroid().getUnownedUserDataHost());
-        mBrowserControlsManagerSupplier.attach(getWindowAndroid().getUnownedUserDataHost());
+        UnownedUserDataHost host = getWindowAndroid().getUnownedUserDataHost();
+        ShareDelegateSupplier.attach(host, mShareDelegateSupplier);
+        TabModelSelectorSupplier.attach(host, mTabModelSelectorSupplier);
+        EphemeralTabCoordinatorSupplier.attach(host, mEphemeralTabCoordinatorSupplier);
+        ManualFillingComponentSupplier.attach(host, mManualFillingComponentSupplier);
+        BrowserControlsManagerSupplier.attach(host, mBrowserControlsManagerSupplier);
         // BrowserControlsManager is ready immediately.
         mBrowserControlsManagerSupplier.set(
                 new BrowserControlsManager(
@@ -683,7 +687,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
             getBrowserControlsManager()
                     .initialize(
                             (ControlContainer) findViewById(R.id.control_container),
-                            getActivityTabProvider(),
+                            mActivityTabProvider,
                             getTabModelSelector(),
                             mRootUiCoordinator.getControlContainerHeightResource());
 
@@ -697,7 +701,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
                             this,
                             mRootUiCoordinator.getBottomSheetController(),
                             getLifecycleDispatcher(),
-                            getActivityTabProvider(),
+                            mActivityTabProvider,
                             getTabModelSelectorSupplier(),
                             mTabModelProfileSupplier,
                             new ShareDelegateImpl.ShareSheetDelegate(),
@@ -1039,6 +1043,9 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
             TabModel currentTabModel,
             @Nullable MultiInstanceManager multiInstanceManager) {
         try (TraceEvent e = TraceEvent.scoped("ChromeActivity.initializeChromeAndroidTask")) {
+            // Initialize PopupCreator early so that ChromeAndroidTaskTracker can use it
+            // to create intents for popup windows.
+            PopupCreator.initializePopupIntentCreator();
             // 1. Obtain a ChromeAndroidTask that represents the Task (window) for this Activity.
             var chromeAndroidTaskTracker = ChromeAndroidTaskTrackerFactory.getInstance();
             if (chromeAndroidTaskTracker == null) {
@@ -1337,7 +1344,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         if (mFullscreenVideoPictureInPictureController == null) {
             mFullscreenVideoPictureInPictureController =
                     new FullscreenVideoPictureInPictureController(
-                            this, getActivityTabProvider(), getFullscreenManager());
+                            this, mActivityTabProvider, getFullscreenManager());
         }
 
         return mFullscreenVideoPictureInPictureController;
@@ -1677,8 +1684,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
             EnterpriseInfo.OwnedState enterpriseInfoState =
                     EnterpriseInfo.getInstance().getDeviceEnterpriseInfoSync();
 
-            if (ChromeFeatureList.isEnabled(ChromeFeatureList.ANDROID_PDF_ASSIST_CONTENT)
-                    && tab.getNativePage() instanceof PdfPage pdfPage) {
+            if (tab.getNativePage() instanceof PdfPage pdfPage) {
 
                 RecordHistogram.recordBooleanHistogram(
                         "Android.Pdf.AssistContent.IsEnterpriseInfoCached",
@@ -1700,7 +1706,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
                 String pageContentStructuredData =
                         PageContentProviderImpl.getAssistContentStructuredDataForUrl(
                                 tab.getUrl().getSpec(),
-                                getActivityTabProvider(),
+                                mActivityTabProvider,
                                 enterpriseInfoState.mProfileOwned);
                 PageContentProviderMetrics.recordWebStructuredDataAttachedToAssistContent(
                         tab, pageContentStructuredData != null);
@@ -1797,13 +1803,13 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         if (manualFillingComponent != null) {
             manualFillingComponent.destroy();
         }
-        mManualFillingComponentSupplier.destroy();
+        ManualFillingComponentSupplier.destroy(mManualFillingComponentSupplier);
 
         var browserControlsManager = mBrowserControlsManagerSupplier.get();
         if (browserControlsManager != null) {
             browserControlsManager.destroy();
         }
-        mBrowserControlsManagerSupplier.destroy();
+        BrowserControlsManagerSupplier.destroy(mBrowserControlsManagerSupplier);
 
         if (mLegacyTabStartupMetricsTracker != null) {
             mLegacyTabStartupMetricsTracker.destroy();
@@ -1819,17 +1825,9 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
 
         mBookmarkModelSupplier.set(null);
 
-        if (mShareDelegateSupplier != null) {
-            mShareDelegateSupplier.destroy();
-        }
-
-        if (mTabModelSelectorSupplier != null) {
-            mTabModelSelectorSupplier.destroy();
-        }
-
-        if (mEphemeralTabCoordinatorSupplier != null) {
-            mEphemeralTabCoordinatorSupplier.destroy();
-        }
+        mShareDelegateSupplier.destroy();
+        mTabModelSelectorSupplier.destroy();
+        EphemeralTabCoordinatorSupplier.destroy(mEphemeralTabCoordinatorSupplier);
 
         if (mBottomContainer != null) {
             mBottomContainer.destroy();
@@ -2153,8 +2151,8 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         return mTabModelSelectorSupplier;
     }
 
-    /** Returns an {@link ObservableSupplierImpl} for {@link EphemeralTabCoordinatorSupplier}. */
-    public final ObservableSupplierImpl<EphemeralTabCoordinator>
+    /** Returns an {@link SettableObservableSupplier} for {@link EphemeralTabCoordinator}. */
+    public final SettableObservableSupplier<EphemeralTabCoordinator>
             getEphemeralTabCoordinatorSupplier() {
         return mEphemeralTabCoordinatorSupplier;
     }
@@ -2356,7 +2354,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
      * @return An {@link ObservableSupplier} that will supply the {@link LayoutManagerImpl} when it
      *     is ready.
      */
-    public ObservableSupplier<LayoutManagerImpl> getLayoutManagerSupplier() {
+    public final ObservableSupplier<LayoutManagerImpl> getLayoutManagerSupplier() {
         return mLayoutManagerSupplier;
     }
 
@@ -2411,9 +2409,6 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
 
             // On automotive, ignore density changes to prevent Chrome from exiting fullscreen.
             // See https://crbug.com/352816133.
-            // TODO(https://crbug.com/354039289): densityDpi is overridden on the Configuration so
-            // changes to densityDpi won't show up in the newConfig. Once Chrome migrates to adapt
-            // app, test this flow again.
             if (newConfig.densityDpi != mConfig.densityDpi) {
                 if (!DeviceInfo.isAutomotive()) {
                     doRecreateActivity();
@@ -2553,7 +2548,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
                 };
         getTabModelSelectorSupplier().addObserver(mSelectionPopupBackPressInitCallback);
 
-        mCloseListenerManager = new CloseListenerManager(getActivityTabProvider());
+        mCloseListenerManager = new CloseListenerManager(mActivityTabProvider.asObservable());
         mBackPressManager.addHandler(mCloseListenerManager, BackPressHandler.Type.CLOSE_WATCHER);
     }
 
@@ -3272,7 +3267,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
                 R.style.ThemeOverlay_BrowserUI_TabbedMode_Incognito;
         mThemeResourceProvider =
                 new TabStateThemeResourceProvider(
-                        this, resourceId, getActivityTabProvider(), getLayoutManagerSupplier());
+                        this, resourceId, mActivityTabProvider, mLayoutManagerSupplier);
     }
 
     @Override

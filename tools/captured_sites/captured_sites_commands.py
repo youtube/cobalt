@@ -439,10 +439,11 @@ class TestCommand(Command):
 
     if self.options.store_log:
       if not os.path.isdir(self.log_data_dir_path):
-        print('Required LOG_DATA_DIR "%s" cannot be found' %
+        print('Required CAPTURED_SITES_LOG_DATA_DIR "%s" cannot be found' %
               self.log_data_dir_path)
-        raise ValueError('Must set environment variable $LOG_DATA_DIR or '
-                         'ensure default _DEFAULT_LOG_DATA_DIR exists')
+        raise ValueError('Must set environment variable '
+                         '$CAPTURED_SITES_LOG_DATA_DIR or ensure default '
+                         '_DEFAULT_LOG_DATA_DIR exists')
       logging_scenario_site_param = self.gtest_parameter.replace('*', 'all')
       self.command_args.append(
           '--test-launcher-summary-output={}/{}_output.json'.format(
@@ -554,6 +555,12 @@ class WprCommand(Command):
     ]
 
     self.command_args.append(_WPR_INJECT_SCRIPTS)
+
+    # If the WPR key file ever changes, it'll become incompatible with
+    # certificates stored in the archive, causing errors. So don't
+    # read/write archive certificates. Instead, mint new certificates at
+    # runtime using the root certificate and key files.
+    self.command_args.append('--no_archive_certificates')
 
     if self.options.subhead == 'replay':
       self.command_args.append('--serve_response_in_chronological_sequence')

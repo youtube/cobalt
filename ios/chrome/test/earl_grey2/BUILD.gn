@@ -187,6 +187,7 @@ chrome_ios_eg2_test("ios_chrome_ui_eg2tests_module") {
   xcode_test_application_name = "ios_chrome_eg2tests"
 
   deps = [
+    "//ios/chrome/browser/ai_prototyping/test:eg2_tests",
     "//ios/chrome/browser/autofill/ui_bundled/authentication:eg2_tests",
     "//ios/chrome/browser/autofill/ui_bundled/bottom_sheet:eg2_tests",
     "//ios/chrome/browser/autofill/ui_bundled/form_input_accessory:eg2_tests",
@@ -194,6 +195,7 @@ chrome_ios_eg2_test("ios_chrome_ui_eg2tests_module") {
     "//ios/chrome/browser/bring_android_tabs/ui_bundled:eg2_tests",
     "//ios/chrome/browser/browser_view/test:eg2_tests",
     "//ios/chrome/browser/bubble/ui_bundled:eg2_tests",
+    "//ios/chrome/browser/composebox/ui:eg2_tests",
     "//ios/chrome/browser/content_suggestions/ui_bundled/app_bundle_promo/test:eg2_tests",
     "//ios/chrome/browser/content_suggestions/ui_bundled/price_tracking_promo/test:eg2_tests",
     "//ios/chrome/browser/content_suggestions/ui_bundled/safety_check/test:eg2_tests",
@@ -220,6 +222,7 @@ chrome_ios_eg2_test("ios_chrome_ui_eg2tests_module") {
     "//ios/chrome/browser/keyboard/ui_bundled:eg2_tests",
     "//ios/chrome/browser/lens_overlay/ui:eg2_tests",
     "//ios/chrome/browser/link_to_text/ui_bundled:eg2_tests",
+    "//ios/chrome/browser/location_bar/badge/ui:eg2_tests",
     "//ios/chrome/browser/ntp/ui_bundled:eg2_tests",
     "//ios/chrome/browser/omnibox/eg_tests:eg2_tests",
     "//ios/chrome/browser/omnibox/eg_tests/inttest:eg2_tests",
@@ -234,7 +237,7 @@ chrome_ios_eg2_test("ios_chrome_ui_eg2tests_module") {
     "//ios/chrome/browser/popup_menu/ui_bundled/overflow_menu:eg2_tests",
     "//ios/chrome/browser/popup_menu/ui_bundled/overflow_menu/destination_usage_history:eg2_tests",
     "//ios/chrome/browser/price_notifications/ui_bundled:eg2_tests",
-    "//ios/chrome/browser/qr_scanner/ui_bundled:eg2_tests",
+    "//ios/chrome/browser/qr_scanner/test:eg2_tests",
     "//ios/chrome/browser/reader_mode/ui:eg2_tests",
     "//ios/chrome/browser/reading_list/ui_bundled:eg2_tests",
     "//ios/chrome/browser/recent_tabs/test:eg2_tests",

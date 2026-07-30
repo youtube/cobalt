@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ash/chromebox_for_meetings/artemis/local_data_source.h"
 
+#include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
@@ -219,7 +220,7 @@ TEST(ArtemisLocalDataSourceTest, TestBufferSizeIsCapped) {
   // Verify that returned data is capped at the limit.
   auto callback =
       base::BindLambdaForTesting([&](const std::vector<std::string>& data) {
-        EXPECT_EQ((int)data.size(), 1);
+        EXPECT_EQ(data.size(), 1u);
       });
   source.Fetch(std::move(callback));
 }

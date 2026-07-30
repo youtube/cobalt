@@ -26,6 +26,7 @@
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
 #include "cc/animation/animation_host.h"
+#include "cc/base/features.h"
 #include "cc/input/scroll_elasticity_helper.h"
 #include "cc/layers/content_layer_client.h"
 #include "cc/layers/heads_up_display_layer.h"
@@ -69,6 +70,8 @@
 #include "cc/trees/layer_tree_impl.h"
 #include "cc/trees/paint_holding_reason.h"
 #include "cc/trees/property_tree_layer_tree_delegate.h"
+#include "cc/trees/proxy.h"
+#include "cc/trees/proxy_main.h"
 #include "cc/trees/scroll_node.h"
 #include "cc/trees/single_thread_proxy.h"
 #include "cc/trees/swap_promise.h"
@@ -2607,8 +2610,12 @@ class LayerTreeHostTestGpuRasterDeviceSizeChanged : public LayerTreeHostTest {
   void SetUpUnboundContextProviders(
       viz::TestContextProvider* context_provider,
       viz::TestContextProvider* worker_provider) override {
-    context_provider->UnboundTestRasterInterface()->set_gpu_rasterization(true);
-    worker_provider->UnboundTestRasterInterface()->set_gpu_rasterization(true);
+    context_provider->GetWritableGpuFeatureInfo()
+        .status_values[gpu::GPU_FEATURE_TYPE_GPU_TILE_RASTERIZATION] =
+        gpu::kGpuFeatureStatusEnabled;
+    worker_provider->GetWritableGpuFeatureInfo()
+        .status_values[gpu::GPU_FEATURE_TYPE_GPU_TILE_RASTERIZATION] =
+        gpu::kGpuFeatureStatusEnabled;
   }
 
   void CommitCompleteOnThread(LayerTreeHostImpl* host_impl) override {
@@ -4430,8 +4437,15 @@ class LayerTreeHostTestUIResource : public LayerTreeHostTest {
         ASSERT_EQ(2u, sii->shared_image_count());
         break;
       case 2:
-        // One texture left after one deletion.
-        ASSERT_EQ(1u, sii->shared_image_count());
+        if (TreesInViz()) {
+          // In TreesInViz mode, client can not delete its resource until the
+          // export count is 0, which onlt happens when viz sends an ack back.
+          // The image count will be reduced at later frames.
+          ASSERT_EQ(2u, sii->shared_image_count());
+        } else {
+          // One texture left after one deletion.
+          ASSERT_EQ(1u, sii->shared_image_count());
+        }
         break;
       case 3:
         // Resource manager state should not change when delete is called on an
@@ -4456,6 +4470,10 @@ class LayerTreeHostTestUIResource : public LayerTreeHostTest {
   void CreateResource() {
     ui_resources_[num_ui_resources_++] =
         FakeScopedUIResource::Create(layer_tree_host()->GetUIResourceManager());
+  }
+
+  bool TreesInViz() {
+    return base::FeatureList::IsEnabled(features::kTreesInViz);
   }
 
   std::array<std::unique_ptr<FakeScopedUIResource>, 5> ui_resources_;
@@ -6882,9 +6900,10 @@ class LayerTreeHostTestGpuRasterizationDisabled : public LayerTreeHostTest {
       viz::TestContextProvider* context_provider,
       viz::TestContextProvider* worker_provider) override {
     // The test contexts have gpu raster disabled by default.
-    gpu::Capabilities worker_caps =
-        worker_provider->UnboundTestRasterInterface()->capabilities();
-    EXPECT_FALSE(worker_caps.gpu_rasterization);
+    const auto& gpu_feature_info = worker_provider->UnboundGpuFeatureInfo();
+    EXPECT_NE(gpu_feature_info
+                  .status_values[gpu::GPU_FEATURE_TYPE_GPU_TILE_RASTERIZATION],
+              gpu::kGpuFeatureStatusEnabled);
   }
 
   void SetupTree() override {
@@ -6925,8 +6944,12 @@ class LayerTreeHostTestGpuRasterizationSupportedButDisabled
   void SetUpUnboundContextProviders(
       viz::TestContextProvider* context_provider,
       viz::TestContextProvider* worker_provider) override {
-    context_provider->UnboundTestRasterInterface()->set_gpu_rasterization(true);
-    worker_provider->UnboundTestRasterInterface()->set_gpu_rasterization(true);
+    context_provider->GetWritableGpuFeatureInfo()
+        .status_values[gpu::GPU_FEATURE_TYPE_GPU_TILE_RASTERIZATION] =
+        gpu::kGpuFeatureStatusEnabled;
+    worker_provider->GetWritableGpuFeatureInfo()
+        .status_values[gpu::GPU_FEATURE_TYPE_GPU_TILE_RASTERIZATION] =
+        gpu::kGpuFeatureStatusEnabled;
   }
 
   void InitializeSettings(LayerTreeSettings* settings) override {
@@ -6967,8 +6990,12 @@ class LayerTreeHostTestGpuRasterizationEnabled : public LayerTreeHostTest {
   void SetUpUnboundContextProviders(
       viz::TestContextProvider* context_provider,
       viz::TestContextProvider* worker_provider) override {
-    context_provider->UnboundTestRasterInterface()->set_gpu_rasterization(true);
-    worker_provider->UnboundTestRasterInterface()->set_gpu_rasterization(true);
+    context_provider->GetWritableGpuFeatureInfo()
+        .status_values[gpu::GPU_FEATURE_TYPE_GPU_TILE_RASTERIZATION] =
+        gpu::kGpuFeatureStatusEnabled;
+    worker_provider->GetWritableGpuFeatureInfo()
+        .status_values[gpu::GPU_FEATURE_TYPE_GPU_TILE_RASTERIZATION] =
+        gpu::kGpuFeatureStatusEnabled;
   }
 
   void SetupTree() override {
@@ -7008,10 +7035,12 @@ class LayerTreeHostTestGpuRasterizationEnabledWithMSAA : public LayerTreeTest {
   void SetUpUnboundContextProviders(
       viz::TestContextProvider* context_provider,
       viz::TestContextProvider* worker_provider) override {
-    auto* compositor = context_provider->UnboundTestRasterInterface();
-    compositor->set_gpu_rasterization(true);
-    auto* worker = worker_provider->UnboundTestRasterInterface();
-    worker->set_gpu_rasterization(true);
+    context_provider->GetWritableGpuFeatureInfo()
+        .status_values[gpu::GPU_FEATURE_TYPE_GPU_TILE_RASTERIZATION] =
+        gpu::kGpuFeatureStatusEnabled;
+    worker_provider->GetWritableGpuFeatureInfo()
+        .status_values[gpu::GPU_FEATURE_TYPE_GPU_TILE_RASTERIZATION] =
+        gpu::kGpuFeatureStatusEnabled;
   }
 
   void InitializeSettings(LayerTreeSettings* settings) override {
@@ -7185,9 +7214,79 @@ class LayerTreeHostTestBeginMainFrameTimeIsAlsoImplTime
 
 // TODO(mithro): Re-enable the multi-threaded version of this test
 // http://crbug.com/537621
-// SINGLE_AND_MULTI_THREAD_TEST_F(
-//    LayerTreeHostTestBeginMainFrameTimeIsAlsoImplTime);
 SINGLE_THREAD_TEST_F(LayerTreeHostTestBeginMainFrameTimeIsAlsoImplTime);
+
+// Tests the flag for kMainIdleBypassScheduler works as expected, pausing
+// the main frame until the next begin_frame time.
+class LayerTreeHostTestBypassSchedulerPauseUntil : public LayerTreeHostTest {
+ public:
+  LayerTreeHostTestBypassSchedulerPauseUntil() = default;
+
+  void BeginTest() override {
+    scoped_feature_list_.InitAndEnableFeature(
+        features::kMainIdleBypassScheduler);
+    // Send a main frame to kick off the test.
+    PostSetNeedsCommitToMainThread();
+    // We expect that Main will go idle until the frame interval is over.
+    layer_tree_host()->RequestBeginMainFrameNotExpected(true);
+  }
+
+  void DidActivateTreeOnThread(LayerTreeHostImpl* impl) override {
+    begin_frame_args = impl->CurrentBeginFrameArgs();
+  }
+
+  void DidCommitAndDrawFrame() override {
+    // Once we draw the frame, pause the renderer.
+    auto paused = layer_tree_host()->PauseRendering();
+  }
+
+  void BeginMainFrameNotExpectedUntil(base::TimeTicks time) override {
+    ASSERT_EQ(time, begin_frame_args.frame_time + begin_frame_args.interval);
+    EndTest();
+  }
+
+ protected:
+  base::test::ScopedFeatureList scoped_feature_list_;
+  viz::BeginFrameArgs begin_frame_args;
+};
+
+MULTI_THREAD_TEST_F(LayerTreeHostTestBypassSchedulerPauseUntil);
+
+// Tests the flag for kMainIdleBypassScheduler works as expected, where
+// pausing and hiding the renderer in the middle of the frame lifecycle
+// causes the main thread to receive the idle signal.
+class LayerTreeHostTestBypassSchedulerPauseSoon : public LayerTreeHostTest {
+ public:
+  LayerTreeHostTestBypassSchedulerPauseSoon() = default;
+
+  void BeginTest() override {
+    scoped_feature_list_.InitAndEnableFeature(
+        features::kMainIdleBypassScheduler);
+    // Send a main frame to kick off the test.
+    PostSetNeedsCommitToMainThread();
+  }
+
+  void BeginMainFrame(const viz::BeginFrameArgs& args) override {
+    // Request that we idle the main frame after we have a main
+    // frame in flight.
+    layer_tree_host()->RequestBeginMainFrameNotExpected(true);
+  }
+
+  void DidCommitAndDrawFrame() override {
+    // Once we draw the frame, pause the renderer and set the host
+    // as being invisible. This triggers the auto-pause check.
+    scoped_pause_rendering_ = layer_tree_host()->PauseRendering();
+    layer_tree_host()->SetVisible(false);
+  }
+
+  void BeginMainFrameNotExpectedSoon() override { EndTest(); }
+
+ protected:
+  base::test::ScopedFeatureList scoped_feature_list_;
+  std::unique_ptr<ScopedPauseRendering> scoped_pause_rendering_;
+};
+
+MULTI_THREAD_TEST_F(LayerTreeHostTestBypassSchedulerPauseSoon);
 
 class LayerTreeHostTestActivateOnInvisible : public LayerTreeHostTest {
  public:
@@ -7669,8 +7768,12 @@ class RasterizeWithGpuRasterizationCreatesResources : public LayerTreeHostTest {
   void SetUpUnboundContextProviders(
       viz::TestContextProvider* context_provider,
       viz::TestContextProvider* worker_provider) override {
-    context_provider->UnboundTestRasterInterface()->set_gpu_rasterization(true);
-    worker_provider->UnboundTestRasterInterface()->set_gpu_rasterization(true);
+    context_provider->GetWritableGpuFeatureInfo()
+        .status_values[gpu::GPU_FEATURE_TYPE_GPU_TILE_RASTERIZATION] =
+        gpu::kGpuFeatureStatusEnabled;
+    worker_provider->GetWritableGpuFeatureInfo()
+        .status_values[gpu::GPU_FEATURE_TYPE_GPU_TILE_RASTERIZATION] =
+        gpu::kGpuFeatureStatusEnabled;
   }
 
   void SetupTree() override {
@@ -7712,8 +7815,12 @@ class GpuRasterizationRasterizesBorderTiles : public LayerTreeHostTest {
   void SetUpUnboundContextProviders(
       viz::TestContextProvider* context_provider,
       viz::TestContextProvider* worker_provider) override {
-    context_provider->UnboundTestRasterInterface()->set_gpu_rasterization(true);
-    worker_provider->UnboundTestRasterInterface()->set_gpu_rasterization(true);
+    context_provider->GetWritableGpuFeatureInfo()
+        .status_values[gpu::GPU_FEATURE_TYPE_GPU_TILE_RASTERIZATION] =
+        gpu::kGpuFeatureStatusEnabled;
+    worker_provider->GetWritableGpuFeatureInfo()
+        .status_values[gpu::GPU_FEATURE_TYPE_GPU_TILE_RASTERIZATION] =
+        gpu::kGpuFeatureStatusEnabled;
   }
 
   void SetupTree() override {
@@ -8346,8 +8453,12 @@ class GpuRasterizationSucceedsWithLargeImage : public LayerTreeHostTest {
   void SetUpUnboundContextProviders(
       viz::TestContextProvider* context_provider,
       viz::TestContextProvider* worker_provider) override {
-    context_provider->UnboundTestRasterInterface()->set_gpu_rasterization(true);
-    worker_provider->UnboundTestRasterInterface()->set_gpu_rasterization(true);
+    context_provider->GetWritableGpuFeatureInfo()
+        .status_values[gpu::GPU_FEATURE_TYPE_GPU_TILE_RASTERIZATION] =
+        gpu::kGpuFeatureStatusEnabled;
+    worker_provider->GetWritableGpuFeatureInfo()
+        .status_values[gpu::GPU_FEATURE_TYPE_GPU_TILE_RASTERIZATION] =
+        gpu::kGpuFeatureStatusEnabled;
   }
 
   void InitializeSettings(LayerTreeSettings* settings) override {
@@ -8435,6 +8546,10 @@ SINGLE_AND_MULTI_THREAD_TEST_F(LayerTreeHostTestSubmitFrameMetadata);
 
 class LayerTreeHostTestSubmitFrameResources : public LayerTreeHostTest {
  protected:
+  LayerTreeHostTestSubmitFrameResources()
+      : LayerTreeTest(kDefaultRendererType,
+                      /*disable_trees_in_viz=*/true) {}
+
   std::unique_ptr<TestLayerTreeFrameSink> CreateLayerTreeFrameSink(
       const viz::RendererSettings& renderer_settings,
       double refresh_rate,
@@ -10036,7 +10151,8 @@ class LayerTreeHostTestViewTransitionsPropagatedToMetadata
             base::BindLambdaForTesting(
                 [this](const viz::ViewTransitionElementResourceRects&) {
                   CommitLambdaCalled();
-                })));
+                }),
+            false));
   }
 
   void CommitLambdaCalled() { ++num_lambda_calls_; }

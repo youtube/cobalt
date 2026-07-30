@@ -20,7 +20,6 @@ class GlicLegacySidePanelCoordinator;
 }  // namespace glic
 
 namespace tabs {
-class GlicActorTaskIconController;
 class GlicActorNudgeController;
 }  // namespace tabs
 #endif
@@ -199,6 +198,7 @@ class AppBrowserController;
 
 namespace omnibox {
 class AiModePageActionController;
+class OmniboxPopupCloser;
 }  // namespace omnibox
 
 // This class owns the core controllers for features that are scoped to a given
@@ -299,10 +299,6 @@ class BrowserWindowFeatures {
   // implementation is not inlined.
   SidePanelUI* side_panel_ui();
 
-  SidePanelCoordinator* side_panel_coordinator() {
-    return side_panel_coordinator_.get();
-  }
-
   lens::LensOverlayEntryPointController* lens_overlay_entry_point_controller() {
     return lens_overlay_entry_point_controller_.get();
   }
@@ -313,10 +309,6 @@ class BrowserWindowFeatures {
 
   tabs::TabDeclutterController* tab_declutter_controller() {
     return tab_declutter_controller_.get();
-  }
-
-  tabs::VerticalTabStripStateController* vertical_tab_strip_state_controller() {
-    return vertical_tab_strip_state_controller_.get();
   }
 
   tabs::GlicNudgeController* glic_nudge_controller() {
@@ -502,6 +494,10 @@ class BrowserWindowFeatures {
     return searchbox_context_data_.get();
   }
 
+  omnibox::OmniboxPopupCloser* omnibox_popup_closer() {
+    return omnibox_popup_closer_.get();
+  }
+
   static ui::UserDataFactoryWithOwner<BrowserWindowInterface>&
   GetUserDataFactoryForTesting();
 
@@ -642,8 +638,6 @@ class BrowserWindowFeatures {
   std::unique_ptr<tabs::GlicNudgeController> glic_nudge_controller_;
 
 #if BUILDFLAG(ENABLE_GLIC)
-  std::unique_ptr<tabs::GlicActorTaskIconController>
-      glic_actor_task_icon_controller_;
   std::unique_ptr<tabs::GlicActorNudgeController> glic_actor_nudge_controller_;
   std::unique_ptr<ActorTaskListBubbleController>
       actor_task_list_bubble_controller_;
@@ -780,6 +774,8 @@ class BrowserWindowFeatures {
       ai_mode_page_action_controller_;
 
   std::unique_ptr<SearchboxContextData> searchbox_context_data_;
+
+  std::unique_ptr<omnibox::OmniboxPopupCloser> omnibox_popup_closer_;
 
   // Keep this member last to ensure embedder features are torn down first, in
   // reverse order of initialization.

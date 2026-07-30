@@ -524,6 +524,9 @@
 [submodule "third_party/tflite/src"]
 	path = third_party/tflite/src
 	url = https://chromium.googlesource.com/external/github.com/tensorflow/tensorflow
+[submodule "third_party/litert/src"]
+	path = third_party/litert/src
+	url = https://chromium.googlesource.com/external/github.com/google-ai-edge/LiteRT
 [submodule "third_party/vulkan-deps"]
 	path = third_party/vulkan-deps
 	url = https://chromium.googlesource.com/vulkan-deps
@@ -848,10 +851,6 @@
 	path = clusterfuzz-data
 	url = https://chrome-internal.googlesource.com/chrome/tools/clusterfuzz-data
 	gclient-condition = checkout_clusterfuzz_data and checkout_src_internal
-[submodule "third_party/android_tools_internal"]
-	path = third_party/android_tools_internal
-	url = https://chrome-internal.googlesource.com/clank/third_party/android_tools
-	gclient-condition = checkout_android and checkout_src_internal
 [submodule "third_party/widevine/cdm/chromeos"]
 	path = third_party/widevine/cdm/chromeos
 	url = https://chrome-internal.googlesource.com/chrome/deps/widevine/cdm/chromeos

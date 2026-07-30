@@ -43,6 +43,7 @@
 #include "media/base/media_log.h"
 #include "media/base/media_switches.h"
 #include "media/base/video_codecs.h"
+#include "media/base/video_encoder.h"
 #include "media/base/video_frame.h"
 #include "media/base/video_util.h"
 #include "media/base/win/color_space_util_win.h"
@@ -738,7 +739,7 @@ void MediaFoundationVideoEncodeAccelerator::QueueInput(
 
   result.generate_sample_on_wait_sync_token =
       command_buffer_helper_ && !frame->HasNativeGpuMemoryBuffer() &&
-      !frame->IsMappableSharedImageEnabled() && frame->HasSharedImage();
+      !frame->HasMappableSharedImage() && frame->HasSharedImage();
   if (result.generate_sample_on_wait_sync_token) {
     TRACE_EVENT0("media",
                  "MediaFoundationVideoEncodeAccelerator::"
@@ -1253,9 +1254,6 @@ void MediaFoundationVideoEncodeAccelerator::SetCommandBufferHelperCB(
   // access textures, with D3DImageBacking handling synchronization.
   bool use_shared_device =
       gpu_preferences_.gr_context_type == gpu::GrContextType::kGraphiteDawn;
-  if (workarounds_.disable_mfvea_shared_device) {
-    use_shared_device = false;
-  }
   SetState(kAcquiringCommandBuffer);
   gpu_task_runner_ = gpu_task_runner;
   gpu_task_runner->PostTaskAndReplyWithResult(
@@ -1785,13 +1783,15 @@ HRESULT MediaFoundationVideoEncodeAccelerator::ProcessInput(
       input_since_keyframe_count_ = 0;
     }
 
-    int max_quantizer = AVEncQPtoQindex(codec_, GetMaxQuantizer(codec_));
+    int max_quantizer = QuantizerToQIndex(codec_, GetMaxQuantizer(codec_));
     std::optional<uint8_t> quantizer;
     int temporal_id = 0;
     if (input.options.quantizer.has_value()) {
-      quantizer = std::clamp(static_cast<int>(AVEncQPtoQindex(
-                                 codec_, input.options.quantizer.value())),
-                             1, max_quantizer);
+      int q_val = input.options.quantizer.value();
+      if (!base::FeatureList::IsEnabled(kStandardizeVP9AndAV1Quantizer)) {
+        q_val = QuantizerToQIndex(codec_, q_val);
+      }
+      quantizer = std::clamp(q_val, 1, max_quantizer);
     } else if (rate_ctrl_ && !input.discard_output) {
       VideoRateControlWrapper::FrameParams frame_params{};
       frame_params.frame_type =
@@ -1830,7 +1830,7 @@ HRESULT MediaFoundationVideoEncodeAccelerator::ProcessInput(
       hr = codec_api_->SetValue(&CODECAPI_AVEncVideoSelectLayer, &var);
       RETURN_ON_HR_FAILURE(hr, "Couldn't set select temporal layer", hr);
       var.vt = VT_UI8;
-      var.ullVal = QindextoAVEncQP(codec_, quantizer.value());
+      var.ullVal = QIndexToQuantizer(codec_, quantizer.value());
       DVLOG(3) << "Setting CODECAPI_AVEncVideoEncodeQP to " << var.ullVal;
       hr = codec_api_->SetValue(&CODECAPI_AVEncVideoEncodeQP, &var);
       RETURN_ON_HR_FAILURE(hr, "Couldn't set frame QP", hr);
@@ -1880,7 +1880,7 @@ HRESULT MediaFoundationVideoEncodeAccelerator::PopulateInputSampleBuffer(
     scoped_refptr<VideoFrame> frame) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   auto input_sample = input.input_sample;
-  if (!frame->HasMappableGpuBuffer() && !frame->IsMappable() &&
+  if (!frame->HasMappableSharedImage() && !frame->IsMappable() &&
       !input.generate_sample_on_wait_sync_token) {
     LOG(ERROR) << "Unsupported video frame storage type";
     return MF_E_INVALID_STREAM_DATA;
@@ -1933,7 +1933,7 @@ HRESULT MediaFoundationVideoEncodeAccelerator::PopulateInputSampleBuffer(
   hr = input_sample->SetSampleDuration(sample_duration);
   RETURN_ON_HR_FAILURE(hr, "SetSampleDuration() failed", hr);
 
-  if (frame->HasMappableGpuBuffer() ||
+  if (frame->HasMappableSharedImage() ||
       input.generate_sample_on_wait_sync_token) {
     if ((frame->HasNativeGpuMemoryBuffer() ||
          input.generate_sample_on_wait_sync_token) &&
@@ -2096,7 +2096,7 @@ HRESULT MediaFoundationVideoEncodeAccelerator::CopyInputSampleBufferFromGpu(
 
     ComD3D11Device1 device1;
     hr = d3d_device.As(&device1);
-    RETURN_ON_HR_FAILURE(hr, "Failed to query ID3D11Device1", hr);
+    CHECK_EQ(hr, S_OK);
     hr = device1->OpenSharedResource1(
         buffer_handle.dxgi_handle().buffer_handle(),
         IID_PPV_ARGS(&input_texture));
@@ -2231,7 +2231,7 @@ HRESULT MediaFoundationVideoEncodeAccelerator::PopulateInputSampleBufferGpu(
 
     ComD3D11Device1 device1;
     hr = d3d_device.As(&device1);
-    RETURN_ON_HR_FAILURE(hr, "Failed to query ID3D11Device1", hr);
+    CHECK_EQ(hr, S_OK);
 
     hr = device1->OpenSharedResource1(
         buffer_handle.dxgi_handle().buffer_handle(),
@@ -2366,7 +2366,7 @@ void MediaFoundationVideoEncodeAccelerator::ProcessOutput() {
     }
     // Bits 0-15: Default QP.
     if (SUCCEEDED(hr)) {
-      frame_qp = AVEncQPtoQindex(codec_, frame_qp_from_sample & 0xfffful);
+      frame_qp = QuantizerToQIndex(codec_, frame_qp_from_sample & 0xfffful);
     }
   }
   if (should_notify_reports_average_qp_change) {

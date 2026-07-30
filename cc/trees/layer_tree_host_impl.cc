@@ -140,10 +140,12 @@
 #include "gpu/command_buffer/client/shared_image_interface.h"
 #include "gpu/command_buffer/common/shared_image_capabilities.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
+#include "gpu/config/gpu_feature_info.h"
 #include "gpu/ipc/client/client_shared_image_interface.h"
 #include "services/metrics/public/cpp/ukm_recorder.h"
 #include "third_party/perfetto/include/perfetto/tracing/track.h"
 #include "third_party/perfetto/protos/perfetto/trace/track_event/chrome_latency_info.pbzero.h"
+#include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/gpu/ganesh/GrDirectContext.h"
 #include "ui/gfx/display_color_spaces.h"
@@ -180,6 +182,18 @@ constexpr size_t kContainsSrgbCacheSize = 3;
 static_assert(kContainsSrgbCacheSize ==
                   gfx::DisplayColorSpaces::kConfigCount / 2,
               "sRGB cache must match the size of DisplayColorSpaces");
+
+enum HasDamageDataBits : uint32_t {
+  kHandleVisibilityChangedMask = 1 << 0,
+  kViewportDamageMask = 1 << 1,
+  kReferencedSurfacesChangedMask = 1 << 2,
+  kNewLocalSurfaceIdMask = 1 << 3,
+  kPrimaryMainFrameItemSequenceNumberMask = 1 << 4,
+  kRootSurfaceDamageMask = 1 << 5,
+  kHasCopyRequestsMask = 1 << 6,
+  kHudWantsToDrawMask = 1 << 7,
+  kHasViewTransitionRequestsMask = 1 << 8,
+};
 
 void AccumulateInvalidatedArea(
     LayerImpl* layer,
@@ -589,8 +603,6 @@ LayerTreeHostImpl::LayerTreeHostImpl(
   browser_controls_offset_manager_ = BrowserControlsOffsetManager::Create(
       this, settings.top_controls_show_threshold,
       settings.top_controls_hide_threshold);
-  progress_bar_offset_manager_ =
-      base::WrapUnique(new ProgressBarOffsetManager());
 
   if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kDisableLayerTreeHostMemoryPressure)) {
@@ -1337,6 +1349,212 @@ static viz::CompositorRenderPass* FindRenderPassById(
   return it == list.end() ? nullptr : it->get();
 }
 
+uint32_t LayerTreeHostImpl::GetHasDamageData() const {
+  uint32_t has_damage_data = 0;
+
+  // When touch handle visibility changes there is no visible damage
+  // because touch handles are composited in the browser. However we
+  // still want the browser to be notified that the handles changed
+  // through the |ViewHostMsg_SwapCompositorFrame| IPC so we keep
+  // track of handle visibility changes here.
+  if (active_tree()->HandleVisibilityChanged()) {
+    has_damage_data |= kRootSurfaceDamageMask;
+  }
+
+  if (!viewport_damage_rect_.IsEmpty()) {
+    has_damage_data |= kViewportDamageMask;
+  }
+
+  // If the set of referenced surfaces has changed then we must submit a new
+  // CompositorFrame to update surface references.
+  if (last_draw_referenced_surfaces_ != active_tree()->SurfaceRanges()) {
+    has_damage_data |= kReferencedSurfacesChangedMask;
+  }
+
+  // If we have a new LocalSurfaceId, we must always submit a CompositorFrame
+  // because the parent is blocking on us.
+  if (last_draw_local_surface_id_ != GetCurrentLocalSurfaceId()) {
+    has_damage_data |= kNewLocalSurfaceIdMask;
+  }
+
+  const LayerTreeImpl* active_tree = active_tree_.get();
+  // Make sure we propagate the primary main item sequence number. If there is
+  // no stored sequence number, we don't need to damage: either damage will
+  // happen anyway, or we're not generating metadata entries.
+  if (last_draw_render_frame_metadata_ &&
+      last_draw_render_frame_metadata_
+              ->primary_main_frame_item_sequence_number !=
+          active_tree->primary_main_frame_item_sequence_number()) {
+    has_damage_data |= kPrimaryMainFrameItemSequenceNumberMask;
+  }
+
+  // If the root render surface has no visible damage, then don't generate a
+  // frame at all.
+  const RenderSurfaceImpl* root_surface = active_tree->RootRenderSurface();
+  if (root_surface->GetDamageRect().Intersects(root_surface->content_rect())) {
+    has_damage_data |= kRootSurfaceDamageMask;
+  }
+
+  if (active_tree->property_trees()->effect_tree().HasCopyRequests()) {
+    has_damage_data |= kHasCopyRequestsMask;
+  }
+
+  if (active_tree->hud_layer() &&
+      active_tree->hud_layer()->IsAnimatingHUDContents()) {
+    has_damage_data |= kHudWantsToDrawMask;
+  }
+
+  if (active_tree->HasViewTransitionRequests()) {
+    has_damage_data |= kHasViewTransitionRequestsMask;
+  }
+
+  return has_damage_data;
+}
+void LayerTreeHostImpl::AddDamageDataCrashKeys(uint32_t damage_data,
+                                               bool is_viz) {
+  if (!base::FeatureList::IsEnabled(features::kTreesInViz)) {
+    // Only add crash keys when the feature is enabled.
+    return;
+  }
+  bool handle_visibility_changed = damage_data & kHandleVisibilityChangedMask;
+  bool viewport_damage_rect_not_empty = damage_data & kViewportDamageMask;
+  bool referenced_surfaces_changed =
+      damage_data & kReferencedSurfacesChangedMask;
+  bool local_surface_id_changed = damage_data & kNewLocalSurfaceIdMask;
+  bool primary_main_frame_item_sequence_number_changed =
+      damage_data & kPrimaryMainFrameItemSequenceNumberMask;
+  bool root_surface_has_visible_damage = damage_data & kRootSurfaceDamageMask;
+  bool has_copy_requests = damage_data & kHasCopyRequestsMask;
+  bool hud_wants_to_draw = damage_data & kHudWantsToDrawMask;
+  bool has_view_transition_requests =
+      damage_data & kHasViewTransitionRequestsMask;
+
+  if (is_viz) {
+    static auto* const kHandleVisibilityChanged =
+        base::debug::AllocateCrashKeyString("cchd_handle_visibility_changed_vz",
+                                            base::debug::CrashKeySize::Size32);
+    base::debug::SetCrashKeyString(
+        kHandleVisibilityChanged, handle_visibility_changed ? "true" : "false");
+
+    static auto* const kViewportDamageRectNotEmpty =
+        base::debug::AllocateCrashKeyString(
+            "cchd_viewport_damage_rect_not_empty_vz",
+            base::debug::CrashKeySize::Size32);
+    base::debug::SetCrashKeyString(
+        kViewportDamageRectNotEmpty,
+        viewport_damage_rect_not_empty ? "true" : "false");
+
+    static auto* const kReferencedSurfacesChanged =
+        base::debug::AllocateCrashKeyString(
+            "cchd_referenced_surfaces_changed_vz",
+            base::debug::CrashKeySize::Size32);
+    base::debug::SetCrashKeyString(
+        kReferencedSurfacesChanged,
+        referenced_surfaces_changed ? "true" : "false");
+
+    static auto* const kLocalSurfaceIdChanged =
+        base::debug::AllocateCrashKeyString("cchd_local_surface_id_changed_vz",
+                                            base::debug::CrashKeySize::Size32);
+    base::debug::SetCrashKeyString(kLocalSurfaceIdChanged,
+                                   local_surface_id_changed ? "true" : "false");
+
+    static auto* const kSeqNumChanged = base::debug::AllocateCrashKeyString(
+        "cchd_pmfi_sequence_number_changed_vz",
+        base::debug::CrashKeySize::Size32);
+    base::debug::SetCrashKeyString(
+        kSeqNumChanged,
+        primary_main_frame_item_sequence_number_changed ? "true" : "false");
+
+    static auto* const kRootSurfaceHasVisibleDamage =
+        base::debug::AllocateCrashKeyString(
+            "cchd_root_surface_has_visible_damage_vz",
+            base::debug::CrashKeySize::Size32);
+    base::debug::SetCrashKeyString(
+        kRootSurfaceHasVisibleDamage,
+        root_surface_has_visible_damage ? "true" : "false");
+
+    static auto* const kHudWantsToDraw = base::debug::AllocateCrashKeyString(
+        "cchd_hud_wants_to_draw_vz", base::debug::CrashKeySize::Size32);
+    base::debug::SetCrashKeyString(kHudWantsToDraw,
+                                   hud_wants_to_draw ? "true" : "false");
+
+    static auto* const kHasCopyRequests = base::debug::AllocateCrashKeyString(
+        "cchd_has_copy_requests_vz", base::debug::CrashKeySize::Size32);
+    base::debug::SetCrashKeyString(kHasCopyRequests,
+                                   has_copy_requests ? "true" : "false");
+
+    static auto* const kHasViewTransitionRequests =
+        base::debug::AllocateCrashKeyString(
+            "cchd_has_view_transition_requests_vz",
+            base::debug::CrashKeySize::Size32);
+    base::debug::SetCrashKeyString(
+        kHasViewTransitionRequests,
+        has_view_transition_requests ? "true" : "false");
+  } else {
+    static auto* const kHandleVisibilityChanged =
+        base::debug::AllocateCrashKeyString("cchd_handle_visibility_changed_cl",
+                                            base::debug::CrashKeySize::Size32);
+    base::debug::SetCrashKeyString(
+        kHandleVisibilityChanged, handle_visibility_changed ? "true" : "false");
+
+    static auto* const kViewportDamageRectNotEmpty =
+        base::debug::AllocateCrashKeyString(
+            "cchd_viewport_damage_rect_not_empty_cl",
+            base::debug::CrashKeySize::Size32);
+    base::debug::SetCrashKeyString(
+        kViewportDamageRectNotEmpty,
+        viewport_damage_rect_not_empty ? "true" : "false");
+
+    static auto* const kReferencedSurfacesChanged =
+        base::debug::AllocateCrashKeyString(
+            "cchd_referenced_surfaces_changed_cl",
+            base::debug::CrashKeySize::Size32);
+    base::debug::SetCrashKeyString(
+        kReferencedSurfacesChanged,
+        referenced_surfaces_changed ? "true" : "false");
+
+    static auto* const kLocalSurfaceIdChanged =
+        base::debug::AllocateCrashKeyString("cchd_local_surface_id_changed_cl",
+                                            base::debug::CrashKeySize::Size32);
+    base::debug::SetCrashKeyString(kLocalSurfaceIdChanged,
+                                   local_surface_id_changed ? "true" : "false");
+
+    static auto* const kSeqNumChanged = base::debug::AllocateCrashKeyString(
+        "cchd_pmfi_sequence_number_changed_"
+        "cl",
+        base::debug::CrashKeySize::Size32);
+    base::debug::SetCrashKeyString(
+        kSeqNumChanged,
+        primary_main_frame_item_sequence_number_changed ? "true" : "false");
+
+    static auto* const kRootSurfaceHasVisibleDamage =
+        base::debug::AllocateCrashKeyString(
+            "cchd_root_surface_has_visible_damage_cl",
+            base::debug::CrashKeySize::Size32);
+    base::debug::SetCrashKeyString(
+        kRootSurfaceHasVisibleDamage,
+        root_surface_has_visible_damage ? "true" : "false");
+
+    static auto* const kHudWantsToDraw = base::debug::AllocateCrashKeyString(
+        "cchd_hud_wants_to_draw_cl", base::debug::CrashKeySize::Size32);
+    base::debug::SetCrashKeyString(kHudWantsToDraw,
+                                   hud_wants_to_draw ? "true" : "false");
+
+    static auto* const kHasCopyRequests = base::debug::AllocateCrashKeyString(
+        "cchd_has_copy_requests_cl", base::debug::CrashKeySize::Size32);
+    base::debug::SetCrashKeyString(kHasCopyRequests,
+                                   has_copy_requests ? "true" : "false");
+
+    static auto* const kHasViewTransitionRequests =
+        base::debug::AllocateCrashKeyString(
+            "cchd_has_view_transition_requests_cl",
+            base::debug::CrashKeySize::Size32);
+    base::debug::SetCrashKeyString(
+        kHasViewTransitionRequests,
+        has_view_transition_requests ? "true" : "false");
+  }
+}
+
 bool LayerTreeHostImpl::HasDamage() const {
   DCHECK(!active_tree()->needs_update_draw_properties());
   DCHECK(CanDraw());
@@ -1403,9 +1621,11 @@ DrawResult LayerTreeHostImpl::CalculateRenderPasses(FrameData* frame,
       active_tree_->RootRenderSurface()->damage_tracker()->GetDamageReasons();
 
   bool has_damage = HasDamage();
+  last_frame_has_damage_data_ = GetHasDamageData();
 
   if (expects_to_draw) {
     // Force drawing, but assert in DCHECK builds.
+    AddDamageDataCrashKeys(last_frame_has_damage_data_, /*is_viz=*/true);
     DUMP_WILL_BE_CHECK(has_damage)
         << "crbug.com/454680865: Has no damage while expects_to_draw is set";
     has_damage = true;
@@ -1773,6 +1993,10 @@ void LayerTreeHostImpl::InvalidateContentOnImplSide() {
           events_metrics_manager_.TakeSavedEventsMetrics());
     }
     AnimatePendingTreeAfterCommit();
+  }
+
+  if (input_delegate_) {
+    input_delegate_->DidImplSideInvalidate();
   }
 
   UpdateSyncTreeAfterCommitOrImplSideInvalidation();
@@ -2621,11 +2845,7 @@ viz::CompositorFrameMetadata LayerTreeHostImpl::MakeCompositorFrameMetadata() {
       metadata.frame_token,
       active_tree_->TakeSuccessfulPresentationCallbacks());
 
-  if (input_delegate_) {
-    metadata.is_handling_interaction =
-        GetActivelyScrollingType() != ActivelyScrollingType::kNone ||
-        input_delegate_->IsHandlingTouchSequence();
-  }
+  metadata.is_handling_interaction = IsHandlingInteraction();
 
   auto active_types = FrameSequenceTrackerActiveTypes();
   metadata.is_handling_animation = HasMainThreadAnimation(active_types) ||
@@ -3266,9 +3486,11 @@ viz::CompositorFrame LayerTreeHostImpl::GenerateCompositorFrame(
         OnCompositorFrameTransitionDirectiveProcessed(request->sequence_id());
       } else {
         metadata.transition_directives.push_back(request->ConstructDirective(
-            view_transition_element_map, display_color_spaces));
+            view_transition_element_map, display_color_spaces,
+            request->delay_layer_tree_view_deletion()));
         if (request->maybe_cross_frame_sink() &&
-            features::ShouldAckCOREarlyForViewTransition()) {
+            features::ShouldAckCOREarlyForViewTransition() &&
+            request->delay_layer_tree_view_deletion()) {
           OnCompositorFrameTransitionDirectiveProcessed(request->sequence_id());
           if (request->type() ==
               ViewTransitionRequest::Type::kAnimateRenderer) {
@@ -3288,7 +3510,8 @@ viz::CompositorFrame LayerTreeHostImpl::GenerateCompositorFrame(
     }
     if (features::ShouldAckCOREarlyForViewTransition()) {
       for (auto& request : active_tree_->view_transition_requests()) {
-        if (request->maybe_cross_frame_sink()) {
+        if (request->maybe_cross_frame_sink() &&
+            request->delay_layer_tree_view_deletion()) {
           OnCompositorFrameTransitionDirectiveProcessed(request->sequence_id());
           if (request->type() ==
               ViewTransitionRequest::Type::kAnimateRenderer) {
@@ -3306,8 +3529,15 @@ viz::CompositorFrame LayerTreeHostImpl::GenerateCompositorFrame(
   // wait for animations from old RenderFrame, in case there are issues with old
   // RenderFrame being stuck, and we send CopyOutputRequest Ack early for
   // fast-path ViewTransition navigations.
+  bool delay_layer_tree_view_deletion = false;
+  for (auto& request : active_tree_->view_transition_requests()) {
+    if (request->delay_layer_tree_view_deletion()) {
+      delay_layer_tree_view_deletion = true;
+      break;
+    }
+  }
   if (features::ShouldAckCOREarlyForViewTransition() &&
-      has_view_transition_with_animate) {
+      delay_layer_tree_view_deletion && has_view_transition_with_animate) {
     frame_deadline = 240;
   }
   metadata.deadline =
@@ -3553,6 +3783,7 @@ void LayerTreeHostImpl::UpdateRasterCapabilities() {
   const auto& context_caps = worker_context_provider->ContextCapabilities();
   const auto& shared_image_caps =
       worker_context_provider->SharedImageInterface()->GetCapabilities();
+  const auto& gpu_feature_info = worker_context_provider->GetGpuFeatureInfo();
 
   raster_caps_.max_texture_size = context_caps.max_texture_size;
   raster_caps_.ui_rgba_format =
@@ -3562,7 +3793,10 @@ void LayerTreeHostImpl::UpdateRasterCapabilities() {
       settings_.use_gpu_memory_buffer_resources &&
       shared_image_caps.supports_scanout_shared_images;
 
-  if (settings_.gpu_rasterization_disabled || !context_caps.gpu_rasterization) {
+  if (settings_.gpu_rasterization_disabled ||
+      gpu_feature_info
+              .status_values[gpu::GPU_FEATURE_TYPE_GPU_TILE_RASTERIZATION] !=
+          gpu::kGpuFeatureStatusEnabled) {
     // This is the GPU compositing but software rasterization path. Pick the
     // best format for GPU textures to be uploaded to.
     raster_caps_.tile_format =
@@ -3635,6 +3869,7 @@ void LayerTreeHostImpl::
 }
 
 bool LayerTreeHostImpl::WillBeginImplFrame(const viz::BeginFrameArgs& args) {
+  last_frame_has_damage_data_ = 0;
   if (!settings().single_thread_proxy_scheduler) {
     client_->SetWaitingForScrollEvent(input_delegate_ &&
                                       input_delegate_->IsCurrentlyScrolling() &&
@@ -3713,6 +3948,8 @@ bool LayerTreeHostImpl::WillBeginImplFrame(const viz::BeginFrameArgs& args) {
     DCHECK(ok);
     DamageTracker::UpdateDamageTracking(active_tree_.get());
     bool has_damage = HasDamage();
+    last_frame_has_damage_data_ = GetHasDamageData();
+
     // Animations are updated after we attempt to draw. If the frame is aborted,
     // update animations now.
     if (!has_damage)
@@ -3983,6 +4220,19 @@ ActivelyScrollingType LayerTreeHostImpl::GetActivelyScrollingType() const {
   if (!input_delegate_)
     return ActivelyScrollingType::kNone;
   return input_delegate_->GetActivelyScrollingType();
+}
+
+bool LayerTreeHostImpl::IsHandlingInteraction() const {
+  if (settings().trees_in_viz_in_viz_process) {
+    return is_handling_interaction_from_client_;
+  }
+
+  if (input_delegate_) {
+    return GetActivelyScrollingType() != ActivelyScrollingType::kNone ||
+           input_delegate_->IsHandlingTouchSequence();
+  }
+
+  return false;
 }
 
 bool LayerTreeHostImpl::IsCurrentScrollMainRepainted() const {

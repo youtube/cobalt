@@ -17,6 +17,7 @@ import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import {ContentController, ContentType} from '../content/content_controller.js';
 import type {ContentListener, ContentState} from '../content/content_controller.js';
 import {NodeStore} from '../content/node_store.js';
+import type {SettingsPrefs} from '../content/read_anything_types.js';
 import {SelectionController} from '../content/selection_controller.js';
 import type {LanguageToastElement} from '../read_aloud/language_toast.js';
 import {SpeechController} from '../read_aloud/speech_controller.js';
@@ -25,7 +26,6 @@ import {TextSegmenter} from '../read_aloud/text_segmenter.js';
 import {VoiceLanguageController} from '../read_aloud/voice_language_controller.js';
 import type {VoiceLanguageListener} from '../read_aloud/voice_language_controller.js';
 import {VoiceNotificationManager} from '../read_aloud/voice_notification_manager.js';
-import type {SettingsPrefs} from '../shared/common.js';
 import {getWordCount, minOverflowLengthToScroll} from '../shared/common.js';
 import {ReadAnythingLogger, TimeFrom} from '../shared/read_anything_logger.js';
 
@@ -214,6 +214,8 @@ export class AppElement extends AppElementBase implements SpeechListener,
       return false;
     };
 
+    document.onkeydown = this.onKeyDown_.bind(this);
+
     /////////////////////////////////////////////////////////////////////
     // Called by ReadAnythingUntrustedPageHandler via callback router. //
     /////////////////////////////////////////////////////////////////////
@@ -261,6 +263,10 @@ export class AppElement extends AppElementBase implements SpeechListener,
 
     chrome.readingMode.onLockScreen = () => {
       this.speechController_.onLockScreen();
+    };
+
+    chrome.readingMode.readingModeWillClose = () => {
+      this.speechController_.onReadingModeWillClose();
     };
 
     chrome.readingMode.onTtsEngineInstalled = () => {

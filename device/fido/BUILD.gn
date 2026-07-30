@@ -18,19 +18,12 @@ component("fido") {
     "attested_credential_data.h",
     "authenticator_data.cc",
     "authenticator_data.h",
-    "authenticator_selection_criteria.cc",
-    "authenticator_selection_criteria.h",
     "cbor_extract.cc",
     "cbor_extract.h",
     "ed25519_public_key.cc",
     "ed25519_public_key.h",
-    "fido_constants.cc",
-    "fido_constants.h",
     "fido_parsing_utils.cc",
     "fido_parsing_utils.h",
-    "fido_transport_protocol.cc",
-    "fido_transport_protocol.h",
-    "fido_types.h",
     "fido_user_verification_requirement.cc",
     "fido_user_verification_requirement.h",
     "opaque_attestation_statement.cc",
@@ -41,19 +34,13 @@ component("fido") {
     "prf_input.h",
     "public_key.cc",
     "public_key.h",
-    "public_key_credential_descriptor.cc",
-    "public_key_credential_descriptor.h",
-    "public_key_credential_params.cc",
-    "public_key_credential_params.h",
-    "public_key_credential_rp_entity.cc",
-    "public_key_credential_rp_entity.h",
-    "public_key_credential_user_entity.cc",
-    "public_key_credential_user_entity.h",
     "rsa_public_key.cc",
     "rsa_public_key.h",
   ]
 
   defines = [ "IS_DEVICE_FIDO_IMPL" ]
+
+  public_deps = [ "//device/fido/public" ]
 
   deps = [
     "//base",
@@ -67,10 +54,10 @@ component("fido") {
 
   if (use_blink) {
     sources += [
-      "cable/cable_discovery_data.cc",
-      "cable/cable_discovery_data.h",
       "cable/noise.cc",
       "cable/noise.h",
+      "cable/pairing.cc",
+      "cable/pairing.h",
       "cable/v2_constants.h",
       "cable/v2_handshake.cc",
       "cable/v2_handshake.h",
@@ -78,8 +65,6 @@ component("fido") {
       "cable/websocket_adapter.h",
       "discoverable_credential_metadata.cc",
       "discoverable_credential_metadata.h",
-      "features.cc",
-      "features.h",
       "json_request.cc",
       "json_request.h",
       "network_context_factory.h",
@@ -91,10 +76,11 @@ component("fido") {
       "//device/base",
       "//device/fido/strings",
       "//services/data_decoder/public/cpp",
+      "//third_party/blink/public/mojom:authenticator_mojo_bindings",
       "//ui/base",
     ]
 
-    public_deps = [
+    public_deps += [
       "//base",
       "//device/bluetooth",
       "//device/bluetooth/public/cpp",
@@ -354,8 +340,8 @@ if (use_blink) {
       ":fido",
       "//components/cbor",
       "//components/device_event_log",
-      "//content/public/common",  # for authenticator.mojom
       "//services/network/public/mojom",
+      "//third_party/blink/public/mojom:authenticator_mojo_bindings",
     ]
     configs += [ "//build/config/compiler:wexit_time_destructors" ]
   }
@@ -370,11 +356,11 @@ if (use_blink) {
       ":cablev2_authenticator",
       ":fido",
       "//components/cbor",
-      "//content/public/common",  # for authenticator.mojom
       "//crypto",
       "//net/traffic_annotation:test_support",
       "//services/network:test_support",
       "//services/network/public/mojom",
+      "//third_party/blink/public/mojom:authenticator_mojo_bindings",
     ]
   }
 

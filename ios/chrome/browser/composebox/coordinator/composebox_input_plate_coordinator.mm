@@ -15,6 +15,7 @@
 #import "components/omnibox/composebox/ios/composebox_query_controller_ios.h"
 #import "components/search_engines/template_url_service.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
+#import "ios/chrome/browser/aim/model/ios_chrome_aim_eligibility_service_factory.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_entrypoint.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_input_plate_mediator.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_mode_holder.h"
@@ -137,22 +138,26 @@ const CGFloat kSnackbarBottomMargin = 10;
   _voiceSearchController =
       ios::provider::CreateVoiceSearchController(self.browser);
 
-  auto query_contoller_config_params = std::make_unique<
+  auto query_controller_config_params = std::make_unique<
       contextual_search::ContextualSearchContextController::ConfigParams>();
-  query_contoller_config_params->send_lns_surface = false;
-  query_contoller_config_params->enable_multi_context_input_flow = true;
-  query_contoller_config_params->enable_viewport_images = true;
+  query_controller_config_params->send_lns_surface = false;
+  query_controller_config_params->enable_multi_context_input_flow = true;
+  query_controller_config_params->enable_viewport_images = true;
+  query_controller_config_params
+      ->prioritize_suggestions_for_the_first_attached_document = true;
 
   _contextualService =
       ContextualSearchServiceFactory::GetForProfile(self.profile);
 
   std::unique_ptr<contextual_search::ContextualSearchSessionHandle>
       contextualSearchSession = _contextualService->CreateSession(
-          std::move(query_contoller_config_params),
+          std::move(query_controller_config_params),
           contextual_search::ContextualSearchSource::kOmnibox);
 
   FaviconLoader* faviconLoader =
       IOSChromeFaviconLoaderFactory::GetForProfile(self.profile);
+  TemplateURLService* templateURLService =
+      ios::TemplateURLServiceFactory::GetForProfile(self.profile);
   _mediator = [[ComposeboxInputPlateMediator alloc]
       initWithContextualSearchSession:std::move(contextualSearchSession)
                          webStateList:self.browser->GetWebStateList()
@@ -160,7 +165,10 @@ const CGFloat kSnackbarBottomMargin = 10;
                persistTabContextAgent:PersistTabContextBrowserAgent::
                                           FromBrowser(self.browser)
                           isIncognito:self.isOffTheRecord
-                           modeHolder:_modeHolder];
+                           modeHolder:_modeHolder
+                   templateURLService:templateURLService
+                aimEligibilityService:IOSChromeAimEligibilityServiceFactory::
+                                          GetForProfile(self.profile)];
   _mediator.URLLoader = _URLLoader;
   _mediator.consumer = _viewController;
   _mediator.delegate = self;
@@ -276,12 +284,9 @@ const CGFloat kSnackbarBottomMargin = 10;
     [self showMaxAttachmentSnackbarError];
     return;
   }
-  if (!_picker) {
     [self
         composeboxViewControllerMayShowGalleryPicker:composeboxViewController];
-  }
   [_viewController presentViewController:_picker animated:YES completion:nil];
-  _picker = nil;
 }
 
 - (void)composeboxViewControllerDidTapCameraButton:
@@ -306,12 +311,9 @@ const CGFloat kSnackbarBottomMargin = 10;
 
 - (void)composeboxViewControllerMayShowGalleryPicker:
     (ComposeboxInputPlateViewController*)composeboxViewController {
-  if (_picker) {
-    return;
-  }
   PHPickerConfiguration* config = [[PHPickerConfiguration alloc]
       initWithPhotoLibrary:PHPhotoLibrary.sharedPhotoLibrary];
-  config.selectionLimit = 1;
+  config.selectionLimit = [_mediator maxNumberOfGalleryItemsAllowed];
   config.filter = [PHPickerFilter imagesFilter];
   _picker = [[PHPickerViewController alloc] initWithConfiguration:config];
   _picker.delegate = self;
@@ -374,14 +376,15 @@ const CGFloat kSnackbarBottomMargin = 10;
 - (void)picker:(PHPickerViewController*)picker
     didFinishPicking:(NSArray<PHPickerResult*>*)results {
   [picker dismissViewControllerAnimated:YES completion:nil];
-
+  _picker = nil;
   if (results.count == 0) {
     return;
   }
 
-  PHPickerResult* result = results.firstObject;
-  [_mediator processImageItemProvider:result.itemProvider
-                              assetID:result.assetIdentifier];
+  for (PHPickerResult* result in results) {
+    [_mediator processImageItemProvider:result.itemProvider
+                                assetID:result.assetIdentifier];
+  }
 }
 
 #pragma mark - UIDocumentPickerDelegate
@@ -413,8 +416,8 @@ const CGFloat kSnackbarBottomMargin = 10;
 
 #pragma mark - ComposeboxInputPlateMediatorDelegate
 
-- (void)reloadAutocompleteSuggestions {
-  [_omniboxCoordinator clearSuggestionsAndRestartAutocomplete];
+- (void)reloadAutocompleteSuggestionsRestarting:(BOOL)restart {
+  [_omniboxCoordinator clearSuggestionsWithRestartAutocomplete:restart];
 }
 
 - (void)showAttachmentLimitError {

@@ -26,7 +26,14 @@ chromium-metrics-reviews@google.com.
 
 <enums>
 
+<enum name="ActiveGpuDisplayInfo">
+  <int value="0" label="Unknown"/>
+  <int value="1" label="Likely Built-in"/>
+  <int value="2" label="Likely External"/>
+</enum>
+
 <enum name="ActiveGpuInfo">
+  <int value="0" label="None"/>
   <int value="1" label="Intel"/>
   <int value="2" label="NVIDIA"/>
   <int value="4" label="AMD"/>
@@ -1263,6 +1270,14 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Two or more"/>
 </enum>
 
+<enum name="GpuVendorId">
+  <int value="-1" label="Unknown"/>
+  <int value="4098" label="AMD"/>
+  <int value="4318" label="NVIDIA"/>
+  <int value="5140" label="Microsoft"/>
+  <int value="32902" label="Intel"/>
+</enum>
+
 <enum name="HighlightedTabDiscardStatus">
   <int value="0" label="NoTabsHighlighted"/>
   <int value="1" label="AllHighlightedTabsNonDiscarded"/>
@@ -1274,6 +1289,18 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="AES128"/>
   <int value="2" label="SampleAES"/>
   <int value="3" label="SampleAESCTR"/>
+</enum>
+
+<enum name="ImplementationClassification">
+  <int value="0" label="Non-plugin; Apple"/>
+  <int value="1" label="Non-plugin; third-party 'built-in' transport"/>
+  <int value="2" label="Non-plugin; third-party 'other' transport"/>
+  <int value="3" label="Non-plugin; third-party 'virtual' transport"/>
+  <int value="4"
+      label="Non-plugin; third-party transport value none of the above"/>
+  <int value="5" label="Plugin; Apple"/>
+  <int value="6" label="Plugin; third-party extension"/>
+  <int value="7" label="Plugin; third-party non-extension"/>
 </enum>
 
 <enum name="MakeAudioStreamStatus">

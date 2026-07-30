@@ -24,12 +24,12 @@
 #import "ios/chrome/test/earl_grey/chrome_earl_grey.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey_ui.h"
 #import "ios/chrome/test/earl_grey/chrome_matchers.h"
+#import "ios/chrome/test/earl_grey/chrome_matchers_app_interface.h"
 #import "ios/chrome/test/earl_grey/web_http_server_chrome_test_case.h"
 #import "ios/testing/earl_grey/earl_grey_test.h"
 #import "net/test/embedded_test_server/embedded_test_server.h"
 #import "ui/base/l10n/l10n_util.h"
 
-using chrome_test_util::BookmarksDeleteSwipeButton;
 using chrome_test_util::BookmarksHomeDoneButton;
 using chrome_test_util::BookmarksNavigationBarBackButton;
 using chrome_test_util::BookmarksSaveEditDoneButton;
@@ -38,7 +38,6 @@ using chrome_test_util::ButtonWithAccessibilityLabelId;
 using chrome_test_util::ContextBarCenterButtonWithLabel;
 using chrome_test_util::ContextBarLeadingButtonWithLabel;
 using chrome_test_util::KindOfTest;
-using chrome_test_util::OmniboxText;
 using chrome_test_util::ScrollToTop;
 using chrome_test_util::SearchBar;
 using chrome_test_util::TabGridEditButton;
@@ -296,7 +295,8 @@ BookmarkStorageType kindOfTestToStorageType(KindOfTest kind) {
       performAction:grey_swipeFastInDirection(kGREYDirectionLeft)];
 
   // Verify the delete confirmation button doesn't show up.
-  [[EarlGrey selectElementWithMatcher:BookmarksDeleteSwipeButton()]
+  [[EarlGrey selectElementWithMatcher:[ChromeMatchersAppInterface
+                                          swipeActionDeleteButton]]
       assertWithMatcher:grey_nil()];
 }
 
@@ -1203,10 +1203,8 @@ BookmarkStorageType kindOfTestToStorageType(KindOfTest kind) {
                  expectedCount:0
                      inStorage:kindOfTestToStorageType(kindOfTest)];
   // Open the page.
-  std::string expectedURLContent = bookmarkedURL.GetContent();
   [ChromeEarlGrey loadURL:bookmarkedURL];
-  [[EarlGrey selectElementWithMatcher:OmniboxText(expectedURLContent)]
-      assertWithMatcher:grey_notNil()];
+  [ChromeEarlGrey waitForWebStateVisibleURL:bookmarkedURL];
 
   // Verify that the folder has only one element.
   NSString* folderTitle = @"Sticky Folder";
@@ -1403,12 +1401,10 @@ BookmarkStorageType kindOfTestToStorageType(KindOfTest kind) {
 - (void)util_testAddBookmarkInNewFolder:(KindOfTest)kindOfTest {
   GREYAssertTrue(self.testServer->Start(), @"Server did not start.");
   const GURL bookmarkedURL = self.testServer->GetURL("/pony.html");
-  const std::string expectedURLContent = bookmarkedURL.GetContent();
   NSString* expectedTitle = @"ponies";  // See pony.html.
 
   [ChromeEarlGrey loadURL:bookmarkedURL];
-  [[EarlGrey selectElementWithMatcher:OmniboxText(expectedURLContent)]
-      assertWithMatcher:grey_notNil()];
+  [ChromeEarlGrey waitForWebStateVisibleURL:bookmarkedURL];
 
   [BookmarkEarlGreyUI starCurrentTab];
 

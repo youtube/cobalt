@@ -389,8 +389,6 @@ BASE_FEATURE(kIOSDownloadNoUIUpdateInBackground,
 
 BASE_FEATURE(kIOSSaveToDriveClientFolder, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kIOSManageAccountStorage, base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kEnableFeedBackgroundRefresh, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kEnableFeedAblation, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -653,53 +651,6 @@ bool IsIOSKeyboardAccessoryTwoBubbleEnabled() {
   return base::FeatureList::IsEnabled(kIOSKeyboardAccessoryTwoBubble);
 }
 
-BASE_FEATURE(kTabResumption, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// A parameter to indicate whether the native UI is enabled for the discover
-// feed.
-const char kDiscoverFeedIsNativeUIEnabled[] = "DiscoverFeedIsNativeUIEnabled";
-
-const char kTabResumptionThresholdParameterName[] =
-    "tab-resumption-sync-threshold";
-
-bool IsTabResumptionEnabled() {
-  return base::FeatureList::IsEnabled(kTabResumption);
-}
-
-const base::TimeDelta TabResumptionForXDevicesTimeThreshold() {
-  // Default to 12 hours.
-  int threshold = base::GetFieldTrialParamByFeatureAsInt(
-      kTabResumption, kTabResumptionThresholdParameterName,
-      /*default_value*/ 12 * 3600);
-  return base::Seconds(threshold);
-}
-
-BASE_FEATURE(kTabResumptionImages, base::FEATURE_ENABLED_BY_DEFAULT);
-
-const char kTabResumptionImagesTypes[] = "tr-images-type";
-const char kTabResumptionImagesTypesSalient[] = "salient";
-const char kTabResumptionImagesTypesThumbnails[] = "thumbnails";
-
-bool IsTabResumptionImagesSalientEnabled() {
-  if (!base::FeatureList::IsEnabled(kTabResumptionImages)) {
-    return false;
-  }
-  std::string image_type = base::GetFieldTrialParamByFeatureAsString(
-      kTabResumptionImages, kTabResumptionImagesTypes, "");
-
-  return image_type == kTabResumptionImagesTypesSalient;
-}
-
-bool IsTabResumptionImagesThumbnailsEnabled() {
-  if (!base::FeatureList::IsEnabled(kTabResumptionImages)) {
-    return false;
-  }
-  std::string image_type = base::GetFieldTrialParamByFeatureAsString(
-      kTabResumptionImages, kTabResumptionImagesTypes, "");
-
-  return image_type == kTabResumptionImagesTypesThumbnails || image_type == "";
-}
-
 BASE_FEATURE(kInactiveNavigationAfterAppLaunchKillSwitch,
              "kInactiveNavigationAfterAppLaunchKillSwitch",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -887,8 +838,6 @@ bool IsRefactorToolbarsSize() {
   return base::FeatureList::IsEnabled(kRefactorToolbarsSize);
 }
 
-BASE_FEATURE(kNewShareExtension, base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kIPHAblation, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLensOverlayDisableIPHPanGesture,
@@ -945,12 +894,6 @@ bool IsIPHGestureRecognitionImprovementEnabled() {
       kIPHGestureRecognitionAblation, kIPHGestureRecognitionImprovement, false);
 }
 
-BASE_FEATURE(kNonModalSignInPromo, base::FEATURE_ENABLED_BY_DEFAULT);
-
-bool IsNonModalSignInPromoEnabled() {
-  return base::FeatureList::IsEnabled(kNonModalSignInPromo);
-}
-
 BASE_FEATURE(kIOSOneTapMiniMapRestrictions, base::FEATURE_DISABLED_BY_DEFAULT);
 
 const char kIOSOneTapMiniMapRestrictionCrossValidateParamName[] =
@@ -997,8 +940,6 @@ constexpr base::FeatureParam<double>
 BASE_FEATURE(kIOSOneTapMiniMapRemoveSectionsBreaks,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kIOSMiniMapUniversalLink, base::FEATURE_DISABLED_BY_DEFAULT);
-
 bool IsNotificationCollisionManagementEnabled() {
   return base::FeatureList::IsEnabled(kNotificationCollisionManagement);
 }
@@ -1008,12 +949,6 @@ BASE_FEATURE(kNotificationCollisionManagement,
 
 BASE_FEATURE(kIOSProvidesAppNotificationSettings,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kSignInButtonNoAvatar, base::FEATURE_ENABLED_BY_DEFAULT);
-
-bool IsSignInButtonNoAvatarEnabled() {
-  return base::FeatureList::IsEnabled(kSignInButtonNoAvatar);
-}
 
 BASE_FEATURE(kNTPBackgroundCustomization, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -1067,12 +1002,6 @@ bool IsBestOfAppLensInteractivePromoEnabled() {
 bool IsBestOfAppLensAnimatedPromoEnabled() {
   return IsBestOfAppFREEnabled() && (base::GetFieldTrialParamValueByFeature(
                                          kBestOfAppFRE, "variant") == "2");
-}
-
-BASE_FEATURE(kFeedbackIncludeGWSVariations, base::FEATURE_ENABLED_BY_DEFAULT);
-
-bool IsFeedbackIncludeGWSVariationsEnabled() {
-  return base::FeatureList::IsEnabled(kFeedbackIncludeGWSVariations);
 }
 
 bool IsDefaultBrowserPromoPropensityModelEnabled() {
@@ -1277,4 +1206,10 @@ BASE_FEATURE(kIOSWebContextMenuNewTitle, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsIOSWebContextMenuNewTitleEnabled() {
   return base::FeatureList::IsEnabled(kIOSWebContextMenuNewTitle);
+}
+
+BASE_FEATURE(kCloseOtherTabs, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsCloseOtherTabsEnabled() {
+  return base::FeatureList::IsEnabled(kCloseOtherTabs);
 }

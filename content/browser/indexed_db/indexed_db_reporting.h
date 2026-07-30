@@ -9,6 +9,7 @@
 #include <string>
 
 #include "base/logging.h"
+#include "base/memory/raw_ref.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
 #include "base/time/time.h"
@@ -97,6 +98,26 @@ enum class IndexedDBAction {
   kMaxValue = kDatabaseDeleteAttempt,
 };
 
+// Accumulates the elapsed time between construction and destruction into
+// `duration`.
+class ScopedTimeAccumulator {
+ public:
+  explicit ScopedTimeAccumulator(base::TimeDelta& duration)
+      : duration_(duration), start_time_(base::TimeTicks::Now()) {}
+  ~ScopedTimeAccumulator() {
+    *duration_ += base::TimeTicks::Now() - start_time_;
+  }
+
+  ScopedTimeAccumulator(const ScopedTimeAccumulator&) = delete;
+  ScopedTimeAccumulator& operator=(const ScopedTimeAccumulator&) = delete;
+  ScopedTimeAccumulator(ScopedTimeAccumulator&&) = delete;
+  ScopedTimeAccumulator& operator=(ScopedTimeAccumulator&&) = delete;
+
+ private:
+  const raw_ref<base::TimeDelta> duration_;
+  base::TimeTicks start_time_;
+};
+
 void ReportOpenStatus(BackingStoreOpenResult result,
                       const storage::BucketLocator& bucket_locator);
 
@@ -109,14 +130,13 @@ inline constexpr static std::string_view ToVariantSuffix(bool in_memory) {
   return in_memory ? ".InMemory" : ".OnDisk";
 }
 
-// Logs `duration` to `histogram_name` suffixed with ".Duration" and a variant
+// Logs `duration` to `histogram_name` suffixed with a variant
 // indicating whether the backing store is `in_memory` or on-disk.
 inline void LogDuration(const base::TimeDelta& duration,
                         std::string_view histogram_name,
                         bool in_memory) {
   base::UmaHistogramTimes(
-      base::StrCat({histogram_name, ".Duration", ToVariantSuffix(in_memory)}),
-      duration);
+      base::StrCat({histogram_name, ToVariantSuffix(in_memory)}), duration);
 }
 
 // Logs `status` to `histogram_name` suffixed with a variant indicating whether

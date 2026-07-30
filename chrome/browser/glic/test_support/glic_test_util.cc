@@ -4,6 +4,7 @@
 
 #include "chrome/browser/glic/test_support/glic_test_util.h"
 
+#include "base/strings/strcat.h"
 #include "base/task/current_thread.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
@@ -17,6 +18,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "components/prefs/pref_service.h"
+#include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
@@ -223,10 +225,10 @@ void GlicInstanceTracker::Clear() {
   });
 }
 
-void ForceSigninAndModelExecutionCapability(Profile* profile) {
+void ForceSigninAndGlicCapability(Profile* profile) {
   SetFRECompletion(profile, prefs::FreStatus::kCompleted);
   SigninWithPrimaryAccount(profile);
-  SetModelExecutionCapability(profile, true);
+  SetGlicCapability(profile, true);
 }
 
 void SigninWithPrimaryAccount(Profile* profile) {
@@ -241,7 +243,7 @@ void SigninWithPrimaryAccount(Profile* profile) {
   signin::UpdateAccountInfoForAccount(identity_manager, account_info);
 }
 
-void SetModelExecutionCapability(Profile* profile, bool enabled) {
+void SetGlicCapability(Profile* profile, bool enabled) {
   auto* const identity_manager = IdentityManagerFactory::GetForProfile(profile);
   AccountInfo primary_account =
       identity_manager->FindExtendedAccountInfoByAccountId(
@@ -249,8 +251,16 @@ void SetModelExecutionCapability(Profile* profile, bool enabled) {
   ASSERT_FALSE(primary_account.IsEmpty());
 
   AccountCapabilitiesTestMutator mutator(&primary_account.capabilities);
-  mutator.set_can_use_model_execution_features(enabled);
+  SetGlicCapability(mutator, enabled);
+
   signin::UpdateAccountInfoForAccount(identity_manager, primary_account);
+}
+
+void SetGlicCapability(AccountCapabilitiesTestMutator& mutator, bool enabled) {
+  base::FeatureList::IsEnabled(
+      switches::kGlicEligibilitySeparateAccountCapability)
+      ? mutator.set_can_use_gemini_in_chrome(enabled)
+      : mutator.set_can_use_model_execution_features(enabled);
 }
 
 void SetFRECompletion(Profile* profile, prefs::FreStatus fre_status) {

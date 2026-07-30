@@ -175,6 +175,13 @@ class CC_EXPORT TileDisplayLayerImpl
       std::vector<float> proposed_tiling_scales) {
     proposed_tiling_scales_for_deletion_ = std::move(proposed_tiling_scales);
   }
+  const gfx::Rect& recorded_bounds_for_testing() const {
+    return recorded_bounds_;
+  }
+  const std::vector<float>& proposed_tiling_scales_for_deletion_for_testing()
+      const {
+    return proposed_tiling_scales_for_deletion_;
+  }
   bool nearest_neighbor() const { return nearest_neighbor_; }
 
   // LayerImpl overrides:
@@ -218,7 +225,8 @@ class CC_EXPORT TileDisplayLayerImpl
                                  AppendQuadsData* append_quads_data,
                                  viz::SharedQuadState* shared_quad_state,
                                  const Occlusion& scaled_occlusion,
-                                 const gfx::Vector2d& quad_offset) override;
+                                 const gfx::Vector2d& quad_offset,
+                                 float max_contents_scale) override;
   float GetMaximumContentsScaleForUseInAppendQuads() override;
   float GetIdealContentsScaleKey() const override;
   void AppendQuadsForResourcelessSoftwareDraw(

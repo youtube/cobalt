@@ -41,6 +41,7 @@
 
 #include "base/auto_reset.h"
 #include "base/notreached.h"
+#include "base/strings/strcat.h"
 #include "base/time/time.h"
 #include "base/trace_event/typed_macros.h"
 #include "base/unguessable_token.h"
@@ -1671,12 +1672,6 @@ bool FrameLoader::ShouldClose(bool is_reload) {
       continue;
     }
     descendant_frame->GetDocument()->BeforeUnloadDoneWillUnload();
-  }
-
-  if (!frame_->IsDetached() && frame_->IsOutermostMainFrame() &&
-      base::FeatureList::IsEnabled(features::kMemoryCacheStrongReference)) {
-    MemoryCache::Get()->SavePageResourceStrongReferences(
-        frame_->AllResourcesUnderFrame());
   }
 
   if (!is_reload) {

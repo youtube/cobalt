@@ -168,9 +168,7 @@ config("skia_library_config") {
   }
 
   defines += [
-    # https://crbug.com/443057959
-    #"SK_DISABLE_LEGACY_INIT_DECODERS",
-
+    "SK_DISABLE_LEGACY_INIT_DECODERS",
     "SK_DISABLE_LEGACY_PNG_WRITEBUFFER",
   ]
 
@@ -466,11 +464,6 @@ component("skia") {
   if (is_fuchsia) {
     public += skia_ports_fontmgr_fuchsia_public
     sources += skia_ports_fontmgr_fuchsia_sources
-
-    # This is already here if use_blink is set
-    if (!use_blink) {
-      sources += skia_ports_fontmgr_custom_sources
-    }
     deps += [
       "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.fonts:fuchsia.fonts_hlcpp",
       "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.io:fuchsia.io_hlcpp",

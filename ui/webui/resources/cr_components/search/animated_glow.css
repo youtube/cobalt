@@ -204,7 +204,8 @@
   * Deepest backdrop, behind .gradient, to block input text
   * in dragging mode.
   */
-  background-color: var(--search-animated-glow-background);
+  background-color: var(--cr-composebox-background-color,
+      --search-animated-glow-background);
   border-radius: inherit;
   content: '';
   inset: 0px;
@@ -355,8 +356,7 @@
 
 :host([animation-state='listening']) .background::before {
   animation:
-      plate-background-blur-on-expand var(--expand-timing_),
-      color-pulse-on-expand-listen var(--expand-timing_)
+      plate-background-blur-on-listen var(--expand-timing_)
 }
 
 @keyframes plate-background-blur-on-expand {
@@ -371,20 +371,26 @@
   }
 }
 
+@keyframes plate-background-blur-on-listen {
+  0% {
+    filter: blur(0);
+  }
+  12% {
+    filter: blur(2px);
+  }
+  30% {
+    filter: blur(0.1px);
+  }
+  100% {
+    filter: blur(0);
+  }
+}
+
 @keyframes color-pulse-on-expand {
   40% {
     background: var(--color-composebox-scrim-background);
   }
   58% {
-    background: var(--color-composebox-scrim-background);
-  }
-}
-
-@keyframes color-pulse-on-expand-listen {
-  17% {
-    background: var(--color-composebox-scrim-background);
-  }
-  100% {
     background: var(--color-composebox-scrim-background);
   }
 }

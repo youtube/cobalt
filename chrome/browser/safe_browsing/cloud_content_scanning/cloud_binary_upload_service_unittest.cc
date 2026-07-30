@@ -31,6 +31,7 @@
 #include "chrome/common/chrome_paths.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/enterprise/common/proto/connectors.pb.h"
+#include "components/enterprise/connectors/core/cloud_content_scanning/binary_upload_request.h"
 #include "components/enterprise/connectors/core/features.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
@@ -46,6 +47,8 @@ using testing::_;
 namespace safe_browsing {
 
 namespace {
+
+using ::enterprise_connectors::BinaryUploadRequest;
 
 enterprise_connectors::CloudAnalysisSettings CloudAnalysisSettingsWithUrl(
     const std::string& url) {
@@ -81,13 +84,16 @@ class FakeConnectorUploadRequest : public ConnectorUploadRequest {
       std::optional<enterprise_connectors::ContentAnalysisResponse> response,
       int http_status,
       Callback callback)
-      : ConnectorUploadRequest(nullptr,
-                               GURL(),
-                               /*metadata=*/"",
-                               /*data=*/"",
-                               /*histogram_suffix=*/"",
-                               TRAFFIC_ANNOTATION_FOR_TESTS,
-                               base::DoNothing()),
+      : ConnectorUploadRequest(
+            nullptr,
+            GURL(),
+            /*metadata=*/"",
+            /*data=*/"",
+            ConnectorUploadRequest::STRING,
+            /*histogram_suffix=*/"",
+            TRAFFIC_ANNOTATION_FOR_TESTS,
+            base::DoNothing(),
+            base::SingleThreadTaskRunner::GetCurrentDefault()),
         should_succeed_(should_succeed),
         response_(response),
         http_status_(http_status),
@@ -132,6 +138,7 @@ class FakeConnectorUploadRequestFactory : public ConnectorUploadRequestFactory {
       const GURL& base_url,
       const std::string& metadata,
       const std::string& data,
+      ConnectorUploadRequest::DataSource data_source,
       const std::string& histogram_suffix,
       const net::NetworkTrafficAnnotationTag& traffic_annotation,
       ConnectorUploadRequest::Callback callback) override {
@@ -210,20 +217,20 @@ class CloudBinaryUploadServiceTest : public ::testing::Test {
   }
 
   void UploadForDeepScanning(
-      std::unique_ptr<BinaryUploadService::Request> request,
+      std::unique_ptr<BinaryUploadRequest> request,
       enterprise_connectors::ScanRequestUploadResult auth_check_for_enterprise =
-          enterprise_connectors::ScanRequestUploadResult::SUCCESS) {
+          enterprise_connectors::ScanRequestUploadResult::kSuccess) {
     service_->SetAuthForTesting("fake_device_token", auth_check_for_enterprise);
     service_->MaybeUploadForDeepScanning(std::move(request));
   }
 
   void ReceiveMessageForRequest(
-      BinaryUploadService::Request::Id request_id,
+      BinaryUploadRequest::Id request_id,
       const enterprise_connectors::ContentAnalysisResponse& response) {
     service_->OnGetResponse(request_id, response);
   }
 
-  void ReceiveResponseFromUpload(BinaryUploadService::Request::Id request_id,
+  void ReceiveResponseFromUpload(BinaryUploadRequest::Id request_id,
                                  bool success,
                                  const std::string& response) {
     service_->OnUploadComplete(request_id, success,
@@ -254,12 +261,12 @@ class CloudBinaryUploadServiceTest : public ::testing::Test {
       request->set_device_token("fake_device_token");
     }
     ON_CALL(*request, GetRequestData(_))
-        .WillByDefault([](BinaryUploadService::Request::DataCallback callback) {
-          BinaryUploadService::Request::Data data;
+        .WillByDefault([](BinaryUploadRequest::DataCallback callback) {
+          BinaryUploadRequest::Data data;
           data.contents = "contents";
           data.size = data.contents.size();
           std::move(callback).Run(
-              enterprise_connectors::ScanRequestUploadResult::SUCCESS,
+              enterprise_connectors::ScanRequestUploadResult::kSuccess,
               std::move(data));
         });
 
@@ -308,12 +315,12 @@ TEST_F(CloudBinaryUploadServiceTest, PassesForLargeFile) {
       enterprise_connectors::AnalysisConnector::FILE_ATTACHED);
   ON_CALL(*request, GetRequestData(_))
       .WillByDefault(
-          [file_path](BinaryUploadService::Request::DataCallback callback) {
-            BinaryUploadService::Request::Data data;
+          [file_path](BinaryUploadRequest::DataCallback callback) {
+            BinaryUploadRequest::Data data;
             data.path = file_path;
             data.size = 4;  // Must not be zero.
             std::move(callback).Run(
-                enterprise_connectors::ScanRequestUploadResult::FILE_TOO_LARGE,
+                enterprise_connectors::ScanRequestUploadResult::kFileTooLarge,
                 std::move(data));
           });
   UploadForDeepScanning(std::move(request));
@@ -321,7 +328,7 @@ TEST_F(CloudBinaryUploadServiceTest, PassesForLargeFile) {
   content::RunAllTasksUntilIdle();
 
   EXPECT_EQ(scanning_result,
-            enterprise_connectors::ScanRequestUploadResult::FILE_TOO_LARGE);
+            enterprise_connectors::ScanRequestUploadResult::kFileTooLarge);
 }
 
 TEST_F(CloudBinaryUploadServiceTest, FailsForLargeFile) {
@@ -343,12 +350,12 @@ TEST_F(CloudBinaryUploadServiceTest, FailsForLargeFile) {
       enterprise_connectors::AnalysisConnector::FILE_ATTACHED);
   ON_CALL(*request, GetRequestData(_))
       .WillByDefault(
-          [file_path](BinaryUploadService::Request::DataCallback callback) {
-            BinaryUploadService::Request::Data data;
+          [file_path](BinaryUploadRequest::DataCallback callback) {
+            BinaryUploadRequest::Data data;
             data.path = file_path;
             data.size = 4;  // Must not be zero.
             std::move(callback).Run(
-                enterprise_connectors::ScanRequestUploadResult::FILE_TOO_LARGE,
+                enterprise_connectors::ScanRequestUploadResult::kFileTooLarge,
                 std::move(data));
           });
   UploadForDeepScanning(std::move(request));
@@ -356,7 +363,7 @@ TEST_F(CloudBinaryUploadServiceTest, FailsForLargeFile) {
   content::RunAllTasksUntilIdle();
 
   EXPECT_EQ(scanning_result,
-            enterprise_connectors::ScanRequestUploadResult::UPLOAD_FAILURE);
+            enterprise_connectors::ScanRequestUploadResult::kUploadFailure);
 }
 
 TEST_F(CloudBinaryUploadServiceTest, FailsForEncryptedFile) {
@@ -384,12 +391,12 @@ TEST_F(CloudBinaryUploadServiceTest, FailsForEncryptedFile) {
       enterprise_connectors::AnalysisConnector::FILE_ATTACHED);
   ON_CALL(*request, GetRequestData(_))
       .WillByDefault(
-          [file_path](BinaryUploadService::Request::DataCallback callback) {
-            BinaryUploadService::Request::Data data;
+          [file_path](BinaryUploadRequest::DataCallback callback) {
+            BinaryUploadRequest::Data data;
             data.path = file_path;
             data.size = 4;  // Must not be zero.
             std::move(callback).Run(
-                enterprise_connectors::ScanRequestUploadResult::FILE_ENCRYPTED,
+                enterprise_connectors::ScanRequestUploadResult::kFileEncrypted,
                 std::move(data));
           });
   UploadForDeepScanning(std::move(request));
@@ -397,7 +404,7 @@ TEST_F(CloudBinaryUploadServiceTest, FailsForEncryptedFile) {
   content::RunAllTasksUntilIdle();
 
   EXPECT_EQ(scanning_result,
-            enterprise_connectors::ScanRequestUploadResult::UPLOAD_FAILURE);
+            enterprise_connectors::ScanRequestUploadResult::kUploadFailure);
 }
 
 TEST_F(CloudBinaryUploadServiceTest, PassesForEncryptedFileIfEnabled) {
@@ -424,12 +431,12 @@ TEST_F(CloudBinaryUploadServiceTest, PassesForEncryptedFileIfEnabled) {
       enterprise_connectors::AnalysisConnector::FILE_ATTACHED);
   ON_CALL(*request, GetRequestData(_))
       .WillByDefault(
-          [file_path](BinaryUploadService::Request::DataCallback callback) {
-            BinaryUploadService::Request::Data data;
+          [file_path](BinaryUploadRequest::DataCallback callback) {
+            BinaryUploadRequest::Data data;
             data.path = file_path;
             data.size = 4;  // Must not be zero.
             std::move(callback).Run(
-                enterprise_connectors::ScanRequestUploadResult::FILE_ENCRYPTED,
+                enterprise_connectors::ScanRequestUploadResult::kFileEncrypted,
                 std::move(data));
           });
   UploadForDeepScanning(std::move(request));
@@ -439,7 +446,7 @@ TEST_F(CloudBinaryUploadServiceTest, PassesForEncryptedFileIfEnabled) {
   content::RunAllTasksUntilIdle();
 
   EXPECT_EQ(scanning_result,
-            enterprise_connectors::ScanRequestUploadResult::FILE_ENCRYPTED);
+            enterprise_connectors::ScanRequestUploadResult::kFileEncrypted);
 }
 
 TEST_F(CloudBinaryUploadServiceTest, Succeeds) {
@@ -453,7 +460,7 @@ TEST_F(CloudBinaryUploadServiceTest, Succeeds) {
   content::RunAllTasksUntilIdle();
 
   EXPECT_EQ(scanning_result,
-            enterprise_connectors::ScanRequestUploadResult::SUCCESS);
+            enterprise_connectors::ScanRequestUploadResult::kSuccess);
 }
 
 TEST_F(CloudBinaryUploadServiceTest, SucceedsForAuthentication) {
@@ -472,7 +479,7 @@ TEST_F(CloudBinaryUploadServiceTest, SucceedsForAuthentication) {
           [&run_loop](enterprise_connectors::ScanRequestUploadResult
                           auth_check_result) {
             EXPECT_EQ(auth_check_result,
-                      enterprise_connectors::ScanRequestUploadResult::SUCCESS);
+                      enterprise_connectors::ScanRequestUploadResult::kSuccess);
             run_loop.Quit();
           }),
       "fake_device_token",
@@ -483,7 +490,7 @@ TEST_F(CloudBinaryUploadServiceTest, SucceedsForAuthentication) {
   content::RunAllTasksUntilIdle();
 
   EXPECT_EQ(scanning_result,
-            enterprise_connectors::ScanRequestUploadResult::SUCCESS);
+            enterprise_connectors::ScanRequestUploadResult::kSuccess);
 }
 
 TEST_F(CloudBinaryUploadServiceTest, PasteSucceeds) {
@@ -499,7 +506,7 @@ TEST_F(CloudBinaryUploadServiceTest, PasteSucceeds) {
   content::RunAllTasksUntilIdle();
 
   EXPECT_EQ(scanning_result,
-            enterprise_connectors::ScanRequestUploadResult::SUCCESS);
+            enterprise_connectors::ScanRequestUploadResult::kSuccess);
 }
 
 TEST_F(CloudBinaryUploadServiceTest, PasteImageResumableSucceeds) {
@@ -524,12 +531,12 @@ TEST_F(CloudBinaryUploadServiceTest, PasteImageResumableSucceeds) {
   request->set_analysis_connector(
       enterprise_connectors::AnalysisConnector::BULK_DATA_ENTRY);
   ON_CALL(*request, GetRequestData(_))
-      .WillByDefault([](BinaryUploadService::Request::DataCallback callback) {
-        BinaryUploadService::Request::Data data;
+      .WillByDefault([](BinaryUploadRequest::DataCallback callback) {
+        BinaryUploadRequest::Data data;
         data.contents = "contents";
         data.size = data.contents.size();
         std::move(callback).Run(
-            enterprise_connectors::ScanRequestUploadResult::SUCCESS,
+            enterprise_connectors::ScanRequestUploadResult::kSuccess,
             std::move(data));
       });
 
@@ -538,7 +545,7 @@ TEST_F(CloudBinaryUploadServiceTest, PasteImageResumableSucceeds) {
 
   EXPECT_TRUE(resumable_factory.called());
   EXPECT_EQ(scanning_result,
-            enterprise_connectors::ScanRequestUploadResult::SUCCESS);
+            enterprise_connectors::ScanRequestUploadResult::kSuccess);
 
   ResumableUploadRequest::RegisterFactoryForTests(nullptr);
 }
@@ -565,12 +572,12 @@ TEST_F(CloudBinaryUploadServiceTest, PasteImageResumableFails) {
   request->set_analysis_connector(
       enterprise_connectors::AnalysisConnector::BULK_DATA_ENTRY);
   ON_CALL(*request, GetRequestData(_))
-      .WillByDefault([](BinaryUploadService::Request::DataCallback callback) {
-        BinaryUploadService::Request::Data data;
+      .WillByDefault([](BinaryUploadRequest::DataCallback callback) {
+        BinaryUploadRequest::Data data;
         data.contents = "contents";
         data.size = data.contents.size();
         std::move(callback).Run(
-            enterprise_connectors::ScanRequestUploadResult::SUCCESS,
+            enterprise_connectors::ScanRequestUploadResult::kSuccess,
             std::move(data));
       });
 
@@ -579,7 +586,7 @@ TEST_F(CloudBinaryUploadServiceTest, PasteImageResumableFails) {
 
   EXPECT_TRUE(resumable_factory.called());
   EXPECT_EQ(scanning_result,
-            enterprise_connectors::ScanRequestUploadResult::UPLOAD_FAILURE);
+            enterprise_connectors::ScanRequestUploadResult::kUploadFailure);
 
   ResumableUploadRequest::RegisterFactoryForTests(nullptr);
 }
@@ -597,7 +604,7 @@ TEST_F(CloudBinaryUploadServiceTest, FailsWhenUploadFails) {
   content::RunAllTasksUntilIdle();
 
   EXPECT_EQ(scanning_result,
-            enterprise_connectors::ScanRequestUploadResult::UPLOAD_FAILURE);
+            enterprise_connectors::ScanRequestUploadResult::kUploadFailure);
 }
 
 TEST_F(CloudBinaryUploadServiceTest, FailsWhenUploadFails_Authentication) {
@@ -615,13 +622,13 @@ TEST_F(CloudBinaryUploadServiceTest, FailsWhenUploadFails_Authentication) {
   // The auth request failing to upload means that the result for the real
   // request is UNAUTHORIZED.
   EXPECT_EQ(scanning_result,
-            enterprise_connectors::ScanRequestUploadResult::UNAUTHORIZED);
+            enterprise_connectors::ScanRequestUploadResult::kUnauthorized);
 }
 
 TEST_F(CloudBinaryUploadServiceTest,
        ReturnsIncompleteResponseWhenTheFirstResponseIsIncomplete) {
   enterprise_connectors::ScanRequestUploadResult scanning_result =
-      enterprise_connectors::ScanRequestUploadResult::UNKNOWN;
+      enterprise_connectors::ScanRequestUploadResult::kUnknown;
   enterprise_connectors::ContentAnalysisResponse scanning_response;
   std::unique_ptr<MockRequest> request = MakeRequest(
       &scanning_result, &scanning_response, /*is_advanced_protection*/ false);
@@ -632,7 +639,7 @@ TEST_F(CloudBinaryUploadServiceTest,
 
   MockRequest* raw_request = request.get();
   UploadForDeepScanning(std::move(request));
-  BinaryUploadService::Request::Id request_id = raw_request->id();
+  BinaryUploadRequest::Id request_id = raw_request->id();
   content::RunAllTasksUntilIdle();
 
   // Simulate receiving the DLP response
@@ -647,7 +654,7 @@ TEST_F(CloudBinaryUploadServiceTest,
   // All the scans should be synchronous, so the result is marked as incomplete.
   EXPECT_EQ(
       scanning_result,
-      enterprise_connectors::ScanRequestUploadResult::INCOMPLETE_RESPONSE);
+      enterprise_connectors::ScanRequestUploadResult::kIncompleteResponse);
 
   // Simulate receiving the malware response
   response.clear_results();
@@ -660,12 +667,12 @@ TEST_F(CloudBinaryUploadServiceTest,
 
   EXPECT_EQ(
       scanning_result,
-      enterprise_connectors::ScanRequestUploadResult::INCOMPLETE_RESPONSE);
+      enterprise_connectors::ScanRequestUploadResult::kIncompleteResponse);
 }
 
 TEST_F(CloudBinaryUploadServiceTest, TimesOut) {
   enterprise_connectors::ScanRequestUploadResult scanning_result =
-      enterprise_connectors::ScanRequestUploadResult::UNKNOWN;
+      enterprise_connectors::ScanRequestUploadResult::kUnknown;
   enterprise_connectors::ContentAnalysisResponse scanning_response;
   std::unique_ptr<MockRequest> request = MakeRequest(
       &scanning_result, &scanning_response, /*is_advanced_protection*/ false);
@@ -680,12 +687,12 @@ TEST_F(CloudBinaryUploadServiceTest, TimesOut) {
   task_environment_.FastForwardBy(base::Seconds(300));
 
   EXPECT_EQ(scanning_result,
-            enterprise_connectors::ScanRequestUploadResult::TIMEOUT);
+            enterprise_connectors::ScanRequestUploadResult::kTimeout);
 }
 
 TEST_F(CloudBinaryUploadServiceTest, OnUploadCompleteAfterTimeout) {
   enterprise_connectors::ScanRequestUploadResult scanning_result =
-      enterprise_connectors::ScanRequestUploadResult::UNKNOWN;
+      enterprise_connectors::ScanRequestUploadResult::kUnknown;
   enterprise_connectors::ContentAnalysisResponse scanning_response;
   std::unique_ptr<MockRequest> request = MakeRequest(
       &scanning_result, &scanning_response, /*is_advanced_protection*/ false);
@@ -697,21 +704,21 @@ TEST_F(CloudBinaryUploadServiceTest, OnUploadCompleteAfterTimeout) {
 
   MockRequest* raw_request = request.get();
   UploadForDeepScanning(std::move(request));
-  BinaryUploadService::Request::Id request_id = raw_request->id();
+  BinaryUploadRequest::Id request_id = raw_request->id();
   content::RunAllTasksUntilIdle();
   task_environment_.FastForwardBy(base::Seconds(300));
   EXPECT_EQ(scanning_result,
-            enterprise_connectors::ScanRequestUploadResult::TIMEOUT);
+            enterprise_connectors::ScanRequestUploadResult::kTimeout);
 
   // Expect nothing to change if the upload finishes after the timeout.
   ReceiveResponseFromUpload(request_id, false, "");
   EXPECT_EQ(scanning_result,
-            enterprise_connectors::ScanRequestUploadResult::TIMEOUT);
+            enterprise_connectors::ScanRequestUploadResult::kTimeout);
 }
 
 TEST_F(CloudBinaryUploadServiceTest, OnGetResponseAfterTimeout) {
   enterprise_connectors::ScanRequestUploadResult scanning_result =
-      enterprise_connectors::ScanRequestUploadResult::UNKNOWN;
+      enterprise_connectors::ScanRequestUploadResult::kUnknown;
   enterprise_connectors::ContentAnalysisResponse scanning_response;
   std::unique_ptr<MockRequest> request = MakeRequest(
       &scanning_result, &scanning_response, /*is_advanced_protection*/ false);
@@ -723,23 +730,23 @@ TEST_F(CloudBinaryUploadServiceTest, OnGetResponseAfterTimeout) {
 
   MockRequest* raw_request = request.get();
   UploadForDeepScanning(std::move(request));
-  BinaryUploadService::Request::Id request_id = raw_request->id();
+  BinaryUploadRequest::Id request_id = raw_request->id();
   content::RunAllTasksUntilIdle();
   task_environment_.FastForwardBy(base::Seconds(300));
   EXPECT_EQ(scanning_result,
-            enterprise_connectors::ScanRequestUploadResult::TIMEOUT);
+            enterprise_connectors::ScanRequestUploadResult::kTimeout);
 
   // Expect nothing to change if we get a message after the timeout.
   ReceiveMessageForRequest(request_id,
                            enterprise_connectors::ContentAnalysisResponse());
   EXPECT_EQ(scanning_result,
-            enterprise_connectors::ScanRequestUploadResult::TIMEOUT);
+            enterprise_connectors::ScanRequestUploadResult::kTimeout);
 }
 
 TEST_F(CloudBinaryUploadServiceTest,
        OnUnauthorized_RetrySucceeds_ShouldReturnSuccess) {
   enterprise_connectors::ScanRequestUploadResult scanning_result =
-      enterprise_connectors::ScanRequestUploadResult::UNKNOWN;
+      enterprise_connectors::ScanRequestUploadResult::kUnknown;
   enterprise_connectors::ContentAnalysisResponse scanning_response;
   std::unique_ptr<MockRequest> request = MakeRequest(
       &scanning_result, &scanning_response, /*is_advanced_protection*/ false);
@@ -760,20 +767,20 @@ TEST_F(CloudBinaryUploadServiceTest,
   ExpectNetworkResponse(true, simulated_response);
 
   EXPECT_EQ(scanning_result,
-            enterprise_connectors::ScanRequestUploadResult::UNKNOWN);
+            enterprise_connectors::ScanRequestUploadResult::kUnknown);
   // Set the previous auth check to be unauthorized.
   UploadForDeepScanning(std::move(request),
                         /*auth_check_for_enterprise=*/enterprise_connectors::
-                            ScanRequestUploadResult::UNAUTHORIZED);
+                            ScanRequestUploadResult::kUnauthorized);
   content::RunAllTasksUntilIdle();
   EXPECT_EQ(scanning_result,
-            enterprise_connectors::ScanRequestUploadResult::SUCCESS);
+            enterprise_connectors::ScanRequestUploadResult::kSuccess);
 }
 
 TEST_F(CloudBinaryUploadServiceTest,
        OnUnauthorized_RetryFails_ShouldReturnUnAuthorized) {
   enterprise_connectors::ScanRequestUploadResult scanning_result =
-      enterprise_connectors::ScanRequestUploadResult::UNKNOWN;
+      enterprise_connectors::ScanRequestUploadResult::kUnknown;
   enterprise_connectors::ContentAnalysisResponse scanning_response;
   std::unique_ptr<MockRequest> request = MakeRequest(
       &scanning_result, &scanning_response, /*is_advanced_protection*/ false);
@@ -785,17 +792,17 @@ TEST_F(CloudBinaryUploadServiceTest,
                         net::HTTP_UNAUTHORIZED);
   UploadForDeepScanning(std::move(request),
                         /*auth_check_for_enterprise=*/enterprise_connectors::
-                            ScanRequestUploadResult::UNAUTHORIZED);
+                            ScanRequestUploadResult::kUnauthorized);
 
   content::RunAllTasksUntilIdle();
   EXPECT_EQ(scanning_result,
-            enterprise_connectors::ScanRequestUploadResult::UNAUTHORIZED);
+            enterprise_connectors::ScanRequestUploadResult::kUnauthorized);
 }
 
 TEST_F(CloudBinaryUploadServiceTest,
        TwoUploads_AuthCheckFailsThenSucceeds_ShouldReturnSuccess) {
   enterprise_connectors::ScanRequestUploadResult scanning_result_1 =
-      enterprise_connectors::ScanRequestUploadResult::UNKNOWN;
+      enterprise_connectors::ScanRequestUploadResult::kUnknown;
   enterprise_connectors::ContentAnalysisResponse scanning_response_1;
   std::unique_ptr<MockRequest> request_1 =
       MakeRequest(&scanning_result_1, &scanning_response_1,
@@ -808,11 +815,11 @@ TEST_F(CloudBinaryUploadServiceTest,
 
   content::RunAllTasksUntilIdle();
   EXPECT_EQ(scanning_result_1,
-            enterprise_connectors::ScanRequestUploadResult::UNAUTHORIZED);
+            enterprise_connectors::ScanRequestUploadResult::kUnauthorized);
 
   // Prepare the second scanning request.
   enterprise_connectors::ScanRequestUploadResult scanning_result_2 =
-      enterprise_connectors::ScanRequestUploadResult::UNKNOWN;
+      enterprise_connectors::ScanRequestUploadResult::kUnknown;
   enterprise_connectors::ContentAnalysisResponse scanning_response_2;
   std::unique_ptr<MockRequest> request_2 =
       MakeRequest(&scanning_result_2, &scanning_response_2,
@@ -836,12 +843,12 @@ TEST_F(CloudBinaryUploadServiceTest,
 
   content::RunAllTasksUntilIdle();
   EXPECT_EQ(scanning_result_2,
-            enterprise_connectors::ScanRequestUploadResult::SUCCESS);
+            enterprise_connectors::ScanRequestUploadResult::kSuccess);
 }
 
 TEST_F(CloudBinaryUploadServiceTest, OnGetSynchronousResponse) {
   enterprise_connectors::ScanRequestUploadResult scanning_result =
-      enterprise_connectors::ScanRequestUploadResult::UNKNOWN;
+      enterprise_connectors::ScanRequestUploadResult::kUnknown;
   enterprise_connectors::ContentAnalysisResponse scanning_response;
   std::unique_ptr<MockRequest> request = MakeRequest(
       &scanning_result, &scanning_response, /*is_advanced_protection*/ false);
@@ -863,7 +870,7 @@ TEST_F(CloudBinaryUploadServiceTest, OnGetSynchronousResponse) {
   content::RunAllTasksUntilIdle();
 
   EXPECT_EQ(scanning_result,
-            enterprise_connectors::ScanRequestUploadResult::SUCCESS);
+            enterprise_connectors::ScanRequestUploadResult::kSuccess);
 }
 
 TEST_F(CloudBinaryUploadServiceTest,
@@ -890,7 +897,7 @@ TEST_F(CloudBinaryUploadServiceTest,
 
   EXPECT_EQ(
       scanning_result,
-      enterprise_connectors::ScanRequestUploadResult::INCOMPLETE_RESPONSE);
+      enterprise_connectors::ScanRequestUploadResult::kIncompleteResponse);
 }
 
 TEST_F(CloudBinaryUploadServiceTest, IsAuthorizedValidTimer) {
@@ -906,10 +913,10 @@ TEST_F(CloudBinaryUploadServiceTest, IsAuthorizedValidTimer) {
 TEST_F(CloudBinaryUploadServiceTest, IsAuthorizedMultipleDMTokens) {
   service_->SetAuthForTesting(
       "valid_dm_token",
-      enterprise_connectors::ScanRequestUploadResult::SUCCESS);
+      enterprise_connectors::ScanRequestUploadResult::kSuccess);
   service_->SetAuthForTesting(
       "invalid_dm_token",
-      enterprise_connectors::ScanRequestUploadResult::UNAUTHORIZED);
+      enterprise_connectors::ScanRequestUploadResult::kUnauthorized);
   // Fail all requests so that the auth retry logic will not change the pre-set
   // authorization status.
   ExpectNetworkResponse(false, enterprise_connectors::ContentAnalysisResponse(),
@@ -931,7 +938,7 @@ TEST_F(CloudBinaryUploadServiceTest, IsAuthorizedMultipleDMTokens) {
         base::BindOnce([](enterprise_connectors::ScanRequestUploadResult
                               auth_check_result) {
           EXPECT_EQ(auth_check_result,
-                    enterprise_connectors::ScanRequestUploadResult::SUCCESS);
+                    enterprise_connectors::ScanRequestUploadResult::kSuccess);
         }),
         "valid_dm_token", connector);
     service_->IsAuthorized(
@@ -940,7 +947,7 @@ TEST_F(CloudBinaryUploadServiceTest, IsAuthorizedMultipleDMTokens) {
                               auth_check_result) {
           EXPECT_EQ(
               auth_check_result,
-              enterprise_connectors::ScanRequestUploadResult::UNAUTHORIZED);
+              enterprise_connectors::ScanRequestUploadResult::kUnauthorized);
         }),
         "invalid_dm_token", connector);
   }
@@ -952,7 +959,7 @@ TEST_F(CloudBinaryUploadServiceTest,
       ->SetAdvancedProtectionStatusForTesting(/*enrolled=*/true);
 
   enterprise_connectors::ScanRequestUploadResult scanning_result =
-      enterprise_connectors::ScanRequestUploadResult::UNKNOWN;
+      enterprise_connectors::ScanRequestUploadResult::kUnknown;
   enterprise_connectors::ContentAnalysisResponse scanning_response;
   std::unique_ptr<MockRequest> request = MakeRequest(
       &scanning_result, &scanning_response, /*is_advanced_protection*/ true);
@@ -970,16 +977,16 @@ TEST_F(CloudBinaryUploadServiceTest,
   ExpectNetworkResponse(true, simulated_response);
 
   EXPECT_EQ(scanning_result,
-            enterprise_connectors::ScanRequestUploadResult::UNKNOWN);
+            enterprise_connectors::ScanRequestUploadResult::kUnknown);
 
   UploadForDeepScanning(std::move(request),
                         /*auth_check_for_enterprise=*/enterprise_connectors::
-                            ScanRequestUploadResult::UNAUTHORIZED);
+                            ScanRequestUploadResult::kUnauthorized);
 
   content::RunAllTasksUntilIdle();
 
   EXPECT_EQ(scanning_result,
-            enterprise_connectors::ScanRequestUploadResult::SUCCESS);
+            enterprise_connectors::ScanRequestUploadResult::kSuccess);
 }
 
 TEST_F(CloudBinaryUploadServiceTest, AdvancedProtectionDlpRequestUnauthorized) {
@@ -987,7 +994,7 @@ TEST_F(CloudBinaryUploadServiceTest, AdvancedProtectionDlpRequestUnauthorized) {
       ->SetAdvancedProtectionStatusForTesting(/*enrolled=*/true);
 
   enterprise_connectors::ScanRequestUploadResult scanning_result =
-      enterprise_connectors::ScanRequestUploadResult::UNKNOWN;
+      enterprise_connectors::ScanRequestUploadResult::kUnknown;
   enterprise_connectors::ContentAnalysisResponse scanning_response;
   std::unique_ptr<MockRequest> request = MakeRequest(
       &scanning_result, &scanning_response, /*is_advanced_protection*/ true);
@@ -1007,21 +1014,21 @@ TEST_F(CloudBinaryUploadServiceTest, AdvancedProtectionDlpRequestUnauthorized) {
   ExpectNetworkResponse(true, simulated_response);
 
   EXPECT_EQ(scanning_result,
-            enterprise_connectors::ScanRequestUploadResult::UNKNOWN);
+            enterprise_connectors::ScanRequestUploadResult::kUnknown);
 
   UploadForDeepScanning(std::move(request),
                         /*auth_check_for_enterprise=*/enterprise_connectors::
-                            ScanRequestUploadResult::UNAUTHORIZED);
+                            ScanRequestUploadResult::kUnauthorized);
 
   // The result is set synchronously on unauthorized requests, so it is
   // UNAUTHORIZED before and after waiting.
   EXPECT_EQ(scanning_result,
-            enterprise_connectors::ScanRequestUploadResult::UNAUTHORIZED);
+            enterprise_connectors::ScanRequestUploadResult::kUnauthorized);
 
   content::RunAllTasksUntilIdle();
 
   EXPECT_EQ(scanning_result,
-            enterprise_connectors::ScanRequestUploadResult::UNAUTHORIZED);
+            enterprise_connectors::ScanRequestUploadResult::kUnauthorized);
 }
 
 TEST_F(CloudBinaryUploadServiceTest,
@@ -1030,7 +1037,7 @@ TEST_F(CloudBinaryUploadServiceTest,
                                                    /*value*/ true);
 
   enterprise_connectors::ScanRequestUploadResult scanning_result =
-      enterprise_connectors::ScanRequestUploadResult::UNKNOWN;
+      enterprise_connectors::ScanRequestUploadResult::kUnknown;
   enterprise_connectors::ContentAnalysisResponse scanning_response;
   std::unique_ptr<MockRequest> request = MakeRequest(
       &scanning_result, &scanning_response, /*is_advanced_protection*/ true);
@@ -1045,16 +1052,16 @@ TEST_F(CloudBinaryUploadServiceTest,
   ExpectNetworkResponse(true, simulated_response);
 
   EXPECT_EQ(scanning_result,
-            enterprise_connectors::ScanRequestUploadResult::UNKNOWN);
+            enterprise_connectors::ScanRequestUploadResult::kUnknown);
 
   UploadForDeepScanning(std::move(request),
                         /*auth_check_for_enterprise=*/enterprise_connectors::
-                            ScanRequestUploadResult::UNAUTHORIZED);
+                            ScanRequestUploadResult::kUnauthorized);
 
   content::RunAllTasksUntilIdle();
 
   EXPECT_EQ(scanning_result,
-            enterprise_connectors::ScanRequestUploadResult::SUCCESS);
+            enterprise_connectors::ScanRequestUploadResult::kSuccess);
 }
 
 TEST_F(CloudBinaryUploadServiceTest, ConnectorUrlParams) {
@@ -1186,7 +1193,7 @@ TEST_F(CloudBinaryUploadServiceTest, GetUploadUrl) {
 
 TEST_F(CloudBinaryUploadServiceTest, RequestQueue) {
   enterprise_connectors::ScanRequestUploadResult scanning_result =
-      enterprise_connectors::ScanRequestUploadResult::UNKNOWN;
+      enterprise_connectors::ScanRequestUploadResult::kUnknown;
   enterprise_connectors::ContentAnalysisResponse scanning_response;
   std::vector<MockRequest*> requests;
 
@@ -1220,7 +1227,7 @@ TEST_F(CloudBinaryUploadServiceTest, RequestQueue) {
   content::RunAllTasksUntilIdle();
 
   EXPECT_EQ(scanning_result,
-            enterprise_connectors::ScanRequestUploadResult::SUCCESS);
+            enterprise_connectors::ScanRequestUploadResult::kSuccess);
 }
 
 TEST_F(CloudBinaryUploadServiceTest, TestMaxParallelRequestsFlag) {
@@ -1280,7 +1287,7 @@ TEST_F(CloudBinaryUploadServiceTest, EmptyFileRequest) {
                   enterprise_connectors::ScanRequestUploadResult result,
                   enterprise_connectors::ContentAnalysisResponse response) {
                 ASSERT_EQ(
-                    enterprise_connectors::ScanRequestUploadResult::SUCCESS,
+                    enterprise_connectors::ScanRequestUploadResult::kSuccess,
                     result);
                 run_loop.Quit();
               }));
@@ -1305,8 +1312,8 @@ TEST_F(CloudBinaryUploadServiceTest, RunsStartCallback) {
           enterprise_connectors::AnalysisSettings(), file_path,
           file_path.BaseName(), "fake/mimetype", false, base::DoNothing(),
           base::BindLambdaForTesting(
-              [&run_loop,
-               &was_started](const BinaryUploadService::Request& request) {
+              [&run_loop, &was_started](
+                  const enterprise_connectors::BinaryUploadRequest& request) {
                 was_started = true;
                 run_loop.Quit();
               }));

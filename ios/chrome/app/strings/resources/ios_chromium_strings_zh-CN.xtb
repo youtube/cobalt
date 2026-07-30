@@ -117,6 +117,7 @@
 <translation id="3581385059720151202">在 Chromium 中搜索影像内容</translation>
 <translation id="3582640969619785896">Chromium 会询问您是否保存密码</translation>
 <translation id="3594315078412605236">在 Chromium 中管理支付方式</translation>
+<translation id="3600428265489994557">登录 Chromium</translation>
 <translation id="3617143087229977194">在 iOS 中打开“默认应用”设置，然后点按“浏览器应用”并选择“Chromium”。</translation>
 <translation id="3634039384458740619">打开 Chromium 设置</translation>
 <translation id="3639997914391704523">您需要先登录 Google 账号才能使用 Chromium 的密码检查功能。</translation>
@@ -351,7 +352,6 @@
 <translation id="900560297598578021">目前登录的账号是 <ph name="EMAIL" />。
 
 您的数据已于 <ph name="TIME" />使用您的口令加密。请输入该口令，以便将 Chromium 数据保存在您的 Google 账号中并使用这些数据。</translation>
-<translation id="9022552996538154597">登录 Chromium</translation>
 <translation id="9031260906956926157">部分 Chromium 数据尚未保存到您的 Google 账号。
 请尝试等待几分钟，然后再退出账号。如果现在就退出账号，这些数据将被删除。</translation>
 <translation id="9050790730841755540">每次点按其他应用中的链接时，都使用 Chromium 打开。</translation>

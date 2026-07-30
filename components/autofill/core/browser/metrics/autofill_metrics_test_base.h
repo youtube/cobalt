@@ -81,6 +81,8 @@ class MockAutofillDriver : public TestAutofillDriver {
               (mojom::FormActionType action_type,
                mojom::ActionPersistence action_persistence,
                base::span<const FormFieldData> data,
+               const FillId& fill_id,
+               bool supports_refill,
                const url::Origin& triggered_origin,
                (const base::flat_map<FieldGlobalId, FieldType>&),
                (const Section&)),
@@ -229,7 +231,7 @@ class AutofillMetricsBaseTest : public WithTestAutofillClientDriverManager<
     // Clear the AutofillField::initial_value() and set the
     // AutofillField::autofilled_type() according to the `form_description`.
     if (FormStructure* form_structure =
-            autofill_manager().FindCachedFormById(form.global_id())) {
+            test_api(autofill_manager()).FindCachedFormById(form.global_id())) {
       for (auto [field, field_description] :
            base::zip(form_structure->fields(), form_description.fields)) {
         test_api(*field).set_initial_value(u"");

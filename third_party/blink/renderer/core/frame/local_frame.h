@@ -83,7 +83,6 @@
 #include "third_party/blink/renderer/core/frame/widget_creation_observer.h"
 #include "third_party/blink/renderer/core/loader/back_forward_cache_loader_helper_impl.h"
 #include "third_party/blink/renderer/core/loader/frame_loader.h"
-#include "third_party/blink/renderer/platform/forward_declared_member.h"
 #include "third_party/blink/renderer/platform/graphics/touch_action.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
@@ -95,6 +94,7 @@
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_unique_receiver_set.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
 #include "third_party/blink/renderer/platform/scheduler/public/frame_scheduler.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/perfetto/include/perfetto/tracing/traced_value_forward.h"
 #include "ui/gfx/geometry/transform.h"
 #include "ui/gfx/image/image_skia.h"
@@ -169,18 +169,14 @@ class URLLoader;
 struct BlinkTransferableMessage;
 struct WebScriptSource;
 class WindowControlsOverlayChangedDelegate;
-class ImageDownloaderImpl;
-class RemoteObjectGatewayFactoryImpl;
-class RemoteObjectGatewayImpl;
-class TextSuggestionBackendImpl;
-class DevToolsFrontendImpl;
-class InspectorFrontendClient;
 
 namespace v8_compile_hints {
 class V8LocalCompileHintsProducer;
 }  // namespace v8_compile_hints
 
 enum class BackForwardCacheAware;
+
+extern template class CORE_EXTERN_TEMPLATE_EXPORT Supplement<LocalFrame>;
 
 // A LocalFrame is a frame hosted inside this process.
 //
@@ -195,8 +191,17 @@ enum class BackForwardCacheAware;
 class CORE_EXPORT LocalFrame final
     : public Frame,
       public FrameScheduler::Delegate,
-      public BackForwardCacheLoaderHelperImpl::Delegate {
+      public BackForwardCacheLoaderHelperImpl::Delegate,
+      public Supplementable<LocalFrame, 5> {
  public:
+  enum class Supplements {
+    kRemoteObjectGatewayImpl = 0,
+    kRemoteObjectGatewayFactoryImpl = 1,
+    kImageDownloaderImpl = 2,
+    kTextSuggestionBackendImpl = 3,
+    kDevToolsFrontendImpl = 4
+  };
+
   // Returns the LocalFrame instance for the given |frame_token|.
   static LocalFrame* FromFrameToken(const LocalFrameToken& frame_token);
 
@@ -979,51 +984,6 @@ class CORE_EXPORT LocalFrame final
 
   void PerformSpellCheck();
 
-  TextSuggestionBackendImpl* GetTextSuggestionBackendImpl() const {
-    return text_suggestion_backend_impl_;
-  }
-  void SetTextSuggestionBackendImpl(
-      TextSuggestionBackendImpl* text_suggestion_backend_impl) {
-    text_suggestion_backend_impl_ = text_suggestion_backend_impl;
-  }
-
-  ForwardDeclaredMember<ImageDownloaderImpl> GetImageDownloaderImpl() const {
-    return image_downloader_impl_;
-  }
-  void SetImageDownloaderImpl(
-      ForwardDeclaredMember<ImageDownloaderImpl> image_downloader_impl) {
-    image_downloader_impl_ = image_downloader_impl;
-  }
-
-  ForwardDeclaredMember<RemoteObjectGatewayFactoryImpl>
-  GetRemoteObjectGatewayFactoryImpl() const {
-    return remote_object_gateway_factory_impl_;
-  }
-  void SetRemoteObjectGatewayFactoryImpl(
-      ForwardDeclaredMember<RemoteObjectGatewayFactoryImpl>
-          remote_object_gateway_factory_impl) {
-    remote_object_gateway_factory_impl_ = remote_object_gateway_factory_impl;
-  }
-
-  ForwardDeclaredMember<RemoteObjectGatewayImpl> GetRemoteObjectGatewayImpl()
-      const {
-    return remote_object_gateway_impl_;
-  }
-  void SetRemoteObjectGatewayImpl(ForwardDeclaredMember<RemoteObjectGatewayImpl>
-                                      remote_object_gateway_impl) {
-    remote_object_gateway_impl_ = remote_object_gateway_impl;
-  }
-
-  ForwardDeclaredMember<DevToolsFrontendImpl, InspectorFrontendClient>
-  GetDevToolsFrontendImpl() const {
-    return dev_tools_frontend_impl_;
-  }
-  void SetDevToolsFrontendImpl(
-      ForwardDeclaredMember<DevToolsFrontendImpl, InspectorFrontendClient>
-          dev_tools_frontend_impl) {
-    dev_tools_frontend_impl_ = dev_tools_frontend_impl;
-  }
-
  private:
   friend class FrameNavigationDisabler;
   // LocalFrameMojoHandler is a part of LocalFrame.
@@ -1299,14 +1259,6 @@ class CORE_EXPORT LocalFrame final
 
   // Whether caret browsing mode has been overridden by the embedder or not.
   bool is_caret_browsing_overridden_ = false;
-
-  Member<TextSuggestionBackendImpl> text_suggestion_backend_impl_;
-  ForwardDeclaredMember<ImageDownloaderImpl> image_downloader_impl_;
-  ForwardDeclaredMember<RemoteObjectGatewayFactoryImpl>
-      remote_object_gateway_factory_impl_;
-  ForwardDeclaredMember<RemoteObjectGatewayImpl> remote_object_gateway_impl_;
-  ForwardDeclaredMember<DevToolsFrontendImpl, InspectorFrontendClient>
-      dev_tools_frontend_impl_;
 
   void OnStorageAccessCallback(base::OnceCallback<void(bool)> callback,
                                mojom::blink::StorageTypeAccessed storage_type,

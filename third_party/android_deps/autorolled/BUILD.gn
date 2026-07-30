@@ -51,7 +51,7 @@ template("define_autorolled_targets") {
     enable_bytecode_checks = false
 
     # To remove visibility constraint, add this dependency to
-    # //third_party/android_deps/autorolled/build.gradle.
+    # //third_party/android_deps/autorolled/build.gradle.template
     visibility = [
       ":*",
       "//third_party/androidx:*",
@@ -875,6 +875,15 @@ template("define_autorolled_targets") {
     }
 
     # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
+    java_prebuilt("org_jetbrains_kotlinx_atomicfu_jvm_java") {
+      jar_path = "autorolled/cipd/libs/org_jetbrains_kotlinx_atomicfu_jvm/atomicfu-jvm.jar"
+      output_name = "org_jetbrains_kotlinx_atomicfu_jvm"
+      supports_android = true
+      enable_bytecode_checks = false
+      deps = [ "//third_party/kotlin_stdlib:kotlin_stdlib_java" ]
+    }
+
+    # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
     java_prebuilt("org_jetbrains_kotlinx_kotlinx_coroutines_android_java") {
       jar_path = "autorolled/cipd/libs/org_jetbrains_kotlinx_kotlinx_coroutines_android/kotlinx-coroutines-android.jar"
       output_name = "org_jetbrains_kotlinx_kotlinx_coroutines_android"
@@ -958,7 +967,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -973,7 +982,7 @@ template("define_autorolled_targets") {
         enable_bytecode_checks = false
 
         # To remove visibility constraint, add this dependency to
-        # //third_party/android_deps/autorolled/build.gradle.
+        # //third_party/android_deps/autorolled/build.gradle.template
         visibility = [
           ":*",
           "//third_party/androidx:*",
@@ -991,7 +1000,7 @@ template("define_autorolled_targets") {
         enable_bytecode_checks = false
 
         # To remove visibility constraint, add this dependency to
-        # //third_party/android_deps/autorolled/build.gradle.
+        # //third_party/android_deps/autorolled/build.gradle.template
         visibility = [
           ":*",
           "//third_party/androidx:*",
@@ -1015,7 +1024,7 @@ template("define_autorolled_targets") {
         enable_bytecode_checks = false
 
         # To remove visibility constraint, add this dependency to
-        # //third_party/android_deps/autorolled/build.gradle.
+        # //third_party/android_deps/autorolled/build.gradle.template
         visibility = [
           ":*",
           "//third_party/androidx:*",
@@ -1038,7 +1047,7 @@ template("define_autorolled_targets") {
         enable_bytecode_checks = false
 
         # To remove visibility constraint, add this dependency to
-        # //third_party/android_deps/autorolled/build.gradle.
+        # //third_party/android_deps/autorolled/build.gradle.template
         visibility = [
           ":*",
           "//third_party/androidx:*",
@@ -1061,7 +1070,7 @@ template("define_autorolled_targets") {
         enable_bytecode_checks = false
 
         # To remove visibility constraint, add this dependency to
-        # //third_party/android_deps/autorolled/build.gradle.
+        # //third_party/android_deps/autorolled/build.gradle.template
         visibility = [
           ":*",
           "//third_party/androidx:*",
@@ -1081,7 +1090,7 @@ template("define_autorolled_targets") {
         enable_bytecode_checks = false
 
         # To remove visibility constraint, add this dependency to
-        # //third_party/android_deps/autorolled/build.gradle.
+        # //third_party/android_deps/autorolled/build.gradle.template
         visibility = [
           ":*",
           "//third_party/androidx:*",
@@ -1101,7 +1110,7 @@ template("define_autorolled_targets") {
         enable_bytecode_checks = false
 
         # To remove visibility constraint, add this dependency to
-        # //third_party/android_deps/autorolled/build.gradle.
+        # //third_party/android_deps/autorolled/build.gradle.template
         visibility = [
           ":*",
           "//third_party/androidx:*",
@@ -1123,7 +1132,7 @@ template("define_autorolled_targets") {
         enable_bytecode_checks = false
 
         # To remove visibility constraint, add this dependency to
-        # //third_party/android_deps/autorolled/build.gradle.
+        # //third_party/android_deps/autorolled/build.gradle.template
         visibility = [
           ":*",
           "//third_party/androidx:*",
@@ -1142,7 +1151,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1157,7 +1166,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1175,7 +1184,7 @@ template("define_autorolled_targets") {
         enable_bytecode_checks = false
 
         # To remove visibility constraint, add this dependency to
-        # //third_party/android_deps/autorolled/build.gradle.
+        # //third_party/android_deps/autorolled/build.gradle.template
         visibility = [
           ":*",
           "//third_party/androidx:*",
@@ -1192,7 +1201,7 @@ template("define_autorolled_targets") {
         enable_bytecode_checks = false
 
         # To remove visibility constraint, add this dependency to
-        # //third_party/android_deps/autorolled/build.gradle.
+        # //third_party/android_deps/autorolled/build.gradle.template
         visibility = [
           ":*",
           "//third_party/androidx:*",
@@ -1219,7 +1228,7 @@ template("define_autorolled_targets") {
         enable_bytecode_checks = false
 
         # To remove visibility constraint, add this dependency to
-        # //third_party/android_deps/autorolled/build.gradle.
+        # //third_party/android_deps/autorolled/build.gradle.template
         visibility = [
           ":*",
           "//third_party/androidx:*",
@@ -1240,7 +1249,7 @@ template("define_autorolled_targets") {
         enable_bytecode_checks = false
 
         # To remove visibility constraint, add this dependency to
-        # //third_party/android_deps/autorolled/build.gradle.
+        # //third_party/android_deps/autorolled/build.gradle.template
         visibility = [
           ":*",
           "//third_party/androidx:*",
@@ -1264,7 +1273,7 @@ template("define_autorolled_targets") {
         enable_bytecode_checks = false
 
         # To remove visibility constraint, add this dependency to
-        # //third_party/android_deps/autorolled/build.gradle.
+        # //third_party/android_deps/autorolled/build.gradle.template
         visibility = [
           ":*",
           "//third_party/androidx:*",
@@ -1281,7 +1290,7 @@ template("define_autorolled_targets") {
         enable_bytecode_checks = false
 
         # To remove visibility constraint, add this dependency to
-        # //third_party/android_deps/autorolled/build.gradle.
+        # //third_party/android_deps/autorolled/build.gradle.template
         visibility = [
           ":*",
           "//third_party/androidx:*",
@@ -1303,7 +1312,7 @@ template("define_autorolled_targets") {
         enable_bytecode_checks = false
 
         # To remove visibility constraint, add this dependency to
-        # //third_party/android_deps/autorolled/build.gradle.
+        # //third_party/android_deps/autorolled/build.gradle.template
         visibility = [
           ":*",
           "//third_party/androidx:*",
@@ -1323,7 +1332,7 @@ template("define_autorolled_targets") {
         enable_bytecode_checks = false
 
         # To remove visibility constraint, add this dependency to
-        # //third_party/android_deps/autorolled/build.gradle.
+        # //third_party/android_deps/autorolled/build.gradle.template
         visibility = [
           ":*",
           "//third_party/androidx:*",
@@ -1343,7 +1352,7 @@ template("define_autorolled_targets") {
         enable_bytecode_checks = false
 
         # To remove visibility constraint, add this dependency to
-        # //third_party/android_deps/autorolled/build.gradle.
+        # //third_party/android_deps/autorolled/build.gradle.template
         visibility = [
           ":*",
           "//third_party/androidx:*",
@@ -1368,7 +1377,7 @@ template("define_autorolled_targets") {
         enable_bytecode_checks = false
 
         # To remove visibility constraint, add this dependency to
-        # //third_party/android_deps/autorolled/build.gradle.
+        # //third_party/android_deps/autorolled/build.gradle.template
         visibility = [
           ":*",
           "//third_party/androidx:*",
@@ -1389,7 +1398,7 @@ template("define_autorolled_targets") {
         enable_bytecode_checks = false
 
         # To remove visibility constraint, add this dependency to
-        # //third_party/android_deps/autorolled/build.gradle.
+        # //third_party/android_deps/autorolled/build.gradle.template
         visibility = [
           ":*",
           "//third_party/androidx:*",
@@ -1421,7 +1430,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1437,7 +1446,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1453,7 +1462,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1477,7 +1486,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1498,7 +1507,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1520,7 +1529,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1537,7 +1546,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1557,7 +1566,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1576,7 +1585,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1595,7 +1604,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1617,7 +1626,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1638,7 +1647,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1656,7 +1665,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1678,7 +1687,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1700,7 +1709,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1721,7 +1730,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1738,7 +1747,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1753,7 +1762,7 @@ template("define_autorolled_targets") {
     # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
     java_group("com_squareup_okio_okio_java") {
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1764,7 +1773,7 @@ template("define_autorolled_targets") {
     # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
     java_group("com_squareup_wire_wire_runtime_java") {
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1784,7 +1793,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1805,7 +1814,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1822,7 +1831,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1855,7 +1864,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1870,7 +1879,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1888,7 +1897,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1904,7 +1913,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1913,9 +1922,22 @@ template("define_autorolled_targets") {
     }
 
     # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
+    java_group("org_jetbrains_kotlinx_atomicfu_java") {
+      # To remove visibility constraint, add this dependency to
+      # //third_party/android_deps/autorolled/build.gradle.template
+      visibility = [
+        ":*",
+        "//third_party/androidx:*",
+      ]
+      deps = [
+        "//third_party/android_deps:org_jetbrains_kotlinx_atomicfu_jvm_java",
+      ]
+    }
+
+    # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
     java_group("org_jetbrains_kotlinx_kotlinx_coroutines_core_java") {
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1933,7 +1955,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1948,7 +1970,7 @@ template("define_autorolled_targets") {
     # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
     java_group("org_jetbrains_kotlinx_kotlinx_coroutines_test_java") {
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1966,7 +1988,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1981,7 +2003,7 @@ template("define_autorolled_targets") {
     # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
     java_group("org_jetbrains_kotlinx_kotlinx_serialization_core_java") {
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -1998,7 +2020,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -2018,7 +2040,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -2034,7 +2056,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -2055,7 +2077,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -2077,7 +2099,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -2093,7 +2115,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -2113,7 +2135,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -2135,7 +2157,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -2157,7 +2179,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -2184,7 +2206,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -2204,7 +2226,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -2234,7 +2256,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -2255,7 +2277,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",
@@ -2276,7 +2298,7 @@ template("define_autorolled_targets") {
       enable_bytecode_checks = false
 
       # To remove visibility constraint, add this dependency to
-      # //third_party/android_deps/autorolled/build.gradle.
+      # //third_party/android_deps/autorolled/build.gradle.template
       visibility = [
         ":*",
         "//third_party/androidx:*",

@@ -322,6 +322,7 @@ if (_is_default_toolchain) {
       "//chrome/browser/android/content:java",
       "//chrome/browser/android/cookies:java",
       "//chrome/browser/android/crypto:java",
+      "//chrome/browser/android/customtabs:java",
       "//chrome/browser/android/customtabs/branding:java",
       "//chrome/browser/android/extensions:java",
       "//chrome/browser/android/intents:java",
@@ -402,6 +403,7 @@ if (_is_default_toolchain) {
       "//chrome/browser/history_clusters:java",
       "//chrome/browser/hub:factory_java",
       "//chrome/browser/hub:java",
+      "//chrome/browser/hub:pane_base_java",
       "//chrome/browser/image_descriptions:java",
       "//chrome/browser/incognito:java",
       "//chrome/browser/incognito_window:java",
@@ -742,6 +744,7 @@ if (_is_default_toolchain) {
       "//third_party/android_deps:chromium_play_services_availability_java",
       "//third_party/android_deps:com_airbnb_android_lottie_java",
       "//third_party/android_deps:com_google_code_findbugs_jsr305_java",
+      "//third_party/android_deps:com_google_errorprone_error_prone_annotations_java",
       "//third_party/android_deps:guava_android_java",
       "//third_party/android_deps:material_design_java",
       "//third_party/android_deps:playcore_java",
@@ -774,6 +777,7 @@ if (_is_default_toolchain) {
       "//third_party/blink/public:blink_headers_java",
       "//third_party/blink/public/common:common_java",
       "//third_party/blink/public/mojom:android_mojo_bindings_java",
+      "//third_party/blink/public/mojom:authenticator_mojo_bindings_java",
       "//third_party/blink/public/mojom:mojom_core_java",
       "//third_party/blink/public/mojom:mojom_platform_java",
       "//third_party/gif_player:gif_player_java",
@@ -801,6 +805,7 @@ if (_is_default_toolchain) {
       ":resource_id_javagen",
       "//chrome:offline_pages_enum_javagen",
       "//chrome/browser:screenshot_mode_enum",
+      "//chrome/browser/media/webrtc:java_enums",
       "//chrome/browser/notifications/scheduler/public:jni_enums",
       "//components/dom_distiller/core:distiller_type_java",
       "//components/ntp_tiles:ntp_tiles_enums_java",
@@ -1129,7 +1134,6 @@ if (_is_default_toolchain) {
       "//chrome/browser/search_engines/android:junit",
       "//chrome/browser/search_resumption:junit",
       "//chrome/browser/serial/android:junit",
-      "//chrome/browser/settings:junit_tests",
       "//chrome/browser/signin/services/android:junit",
       "//chrome/browser/single_tab/android:junit",
       "//chrome/browser/supervised_user:junit",
@@ -1350,6 +1354,7 @@ if (_is_default_toolchain) {
       "javatests:chrome_test_java_org.chromium.chrome.browser.browser_controls",
       "javatests:chrome_test_java_org.chromium.chrome.browser.browserservices",
       "javatests:chrome_test_java_org.chromium.chrome.browser.browsing_data",
+      "javatests:chrome_test_java_org.chromium.chrome.browser.chrome_item_picker",
       "javatests:chrome_test_java_org.chromium.chrome.browser.collaboration",
       "javatests:chrome_test_java_org.chromium.chrome.browser.compositor",
       "javatests:chrome_test_java_org.chromium.chrome.browser.contextualsearch",
@@ -2081,7 +2086,10 @@ if (_is_default_toolchain) {
   }
 
   generate_jni("base_module_jni") {
-    sources = [ "java/src/org/chromium/chrome/browser/metrics/UmaUtils.java" ]
+    sources = [
+      "java/src/org/chromium/chrome/browser/init/InitializeFeatureList.java",
+      "java/src/org/chromium/chrome/browser/metrics/UmaUtils.java",
+    ]
   }
 
   # Target for classes which should be in the base module, even when //chrome code
@@ -2121,6 +2129,7 @@ if (_is_default_toolchain) {
       "java/src/org/chromium/chrome/browser/download/DownloadBroadcastManager.java",
       "java/src/org/chromium/chrome/browser/download/DownloadForegroundService.java",
       "java/src/org/chromium/chrome/browser/incognito/IncognitoNotificationService.java",
+      "java/src/org/chromium/chrome/browser/init/InitializeFeatureList.java",
       "java/src/org/chromium/chrome/browser/media/MediaCaptureNotificationService.java",
       "java/src/org/chromium/chrome/browser/media/ui/ChromeMediaNotificationControllerServices.java",
       "java/src/org/chromium/chrome/browser/metrics/SimpleStartupForegroundSessionDetector.java",
@@ -2399,7 +2408,6 @@ if (_is_default_toolchain) {
       "//chrome/browser/ui/android/webid/internal:javatests",
       "//chrome/browser/ui/plus_addresses/android:javatests",
       "//components/embedder_support/android:virtual_structure_javatests",
-      "//components/ip_protection/android/android_auth_client_lib/javatests:ip_protection_auth_javatests",
     ]
 
     if (is_desktop_android) {
@@ -2419,7 +2427,6 @@ if (_is_default_toolchain) {
     additional_apks = [
       "//chrome/android/webapk/shell_apk:javatests_webapk",
       "//chrome/test/android/chrome_public_test_support:chrome_public_test_support_apk",
-      "//components/ip_protection/android/android_auth_client_lib/testing/mock_service:ip_protection_auth_test_service_apk",
       "//components/media_router/test/android/media_router_test_support:media_router_test_support_apk",
     ]
 
@@ -2998,7 +3005,6 @@ if (_is_default_toolchain) {
       "java/src/org/chromium/chrome/browser/app/tabmodel/TabGroupSyncDepsProvider.java",
       "java/src/org/chromium/chrome/browser/app/tabmodel/TabStoragePackager.java",
       "java/src/org/chromium/chrome/browser/app/tabwindow/TabWindowManagerObserver.java",
-      "java/src/org/chromium/chrome/browser/autofill/AutofillAccessibilityUtils.java",
       "java/src/org/chromium/chrome/browser/autofill/AutofillExpirationDateFixFlowBridge.java",
       "java/src/org/chromium/chrome/browser/autofill/AutofillFallbackSurfaceLauncher.java",
       "java/src/org/chromium/chrome/browser/autofill/AutofillNameFixFlowBridge.java",
@@ -3083,6 +3089,7 @@ if (_is_default_toolchain) {
       "java/src/org/chromium/chrome/browser/init/NativeStartupBridge.java",
       "java/src/org/chromium/chrome/browser/lens/LensPolicyUtils.java",
       "java/src/org/chromium/chrome/browser/login/ChromeHttpAuthHandler.java",
+      "java/src/org/chromium/chrome/browser/media/AutoPictureInPicturePermissionController.java",
       "java/src/org/chromium/chrome/browser/media/DocumentPictureInPictureActivity.java",
       "java/src/org/chromium/chrome/browser/media/MediaCaptureDevicesDispatcherAndroid.java",
       "java/src/org/chromium/chrome/browser/media/PictureInPictureActivity.java",
@@ -3294,7 +3301,6 @@ if (_is_default_toolchain) {
       "//chrome/browser/supervised_user:test_support",
       "//components/crash/android:crash_android",
       "//components/external_intents/android:test_support",
-      "//components/ip_protection/android/android_auth_client_lib/cpp:ip_protection_auth_test_natives",
       "//components/minidump_uploader",
       "//components/paint_preview/player/android:test_support",
       "//components/sync",

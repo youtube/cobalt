@@ -161,6 +161,10 @@ BASE_FEATURE(kFeatureManagementDisableChromeCompose,
 // feature management module.
 BASE_FEATURE(kFeatureManagementGlic, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If true, it enabled GLIC on 8GB devices (or higher) bypassing the CBX device
+// requirement.
+BASE_FEATURE(kGlicEnableFor8GbDevices, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables rounded windows. This flag is intended to be controlled by the
 // feature management module.
 BASE_FEATURE(kFeatureManagementRoundedWindows,
@@ -200,11 +204,6 @@ bool IsQuickShareV2Enabled() {
 
 // Enables the Office files upload workflow to improve Office files support.
 BASE_FEATURE(kUploadOfficeToCloud, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables the Office files upload workflow for enterprise users to improve
-// Office files support.
-BASE_FEATURE(kUploadOfficeToCloudForEnterprise,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables syncing of user's Office files upload workflow preferences for
 // enterprise users, such as whether to ask before moving files to the cloud.
@@ -292,10 +291,6 @@ BASE_FEATURE(kNotebookLmAppShelfPin, base::FEATURE_ENABLED_BY_DEFAULT);
 // Resets the act of pinning the NotebookLM preinstalled app to the shelf, used
 // for manual testing.
 BASE_FEATURE(kNotebookLmAppShelfPinReset, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables support for protocols handlers registered via web app manifest.
-BASE_FEATURE(kWebAppManifestProtocolHandlerSupport,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls whether Vids is preinstalled.
 BASE_FEATURE(kVidsAppPreinstall, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -455,11 +450,6 @@ bool IsUploadOfficeToCloudEnabled() {
   return base::FeatureList::IsEnabled(kUploadOfficeToCloud);
 }
 
-bool IsUploadOfficeToCloudForEnterpriseEnabled() {
-  return base::FeatureList::IsEnabled(kUploadOfficeToCloud) &&
-         base::FeatureList::IsEnabled(kUploadOfficeToCloudForEnterprise);
-}
-
 bool IsUploadOfficeToCloudSyncEnabled() {
   return base::FeatureList::IsEnabled(kUploadOfficeToCloudSync);
 }
@@ -496,10 +486,6 @@ bool IsSystemBlurEnabled() {
 
 bool IsFeatureManagementHistoryEmbeddingEnabled() {
   return base::FeatureList::IsEnabled(kFeatureManagementHistoryEmbedding);
-}
-
-bool IsWebAppManifestProtocolHandlerSupportEnabled() {
-  return base::FeatureList::IsEnabled(kWebAppManifestProtocolHandlerSupport);
 }
 
 }  // namespace chromeos::features

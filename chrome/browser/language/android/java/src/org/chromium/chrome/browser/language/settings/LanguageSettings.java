@@ -7,6 +7,7 @@ package org.chromium.chrome.browser.language.settings;
 import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -28,12 +29,15 @@ import org.chromium.chrome.browser.language.LanguageSplitInstaller;
 import org.chromium.chrome.browser.language.R;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.preferences.PrefServiceUtil;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.settings.ChromeBaseSettingsFragment;
 import org.chromium.chrome.browser.settings.ChromeManagedPreferenceDelegate;
 import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
+import org.chromium.chrome.browser.settings.search.ChromeBaseSearchIndexProvider;
 import org.chromium.chrome.browser.translate.TranslateBridge;
 import org.chromium.components.browser_ui.settings.ChromeSwitchPreference;
 import org.chromium.components.browser_ui.settings.SettingsUtils;
+import org.chromium.components.browser_ui.settings.search.SettingsIndexData;
 import org.chromium.components.prefs.PrefChangeRegistrar;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.user_prefs.UserPrefs;
@@ -96,7 +100,7 @@ public class LanguageSettings extends ChromeBaseSettingsFragment
      *
      * @return Whether or not to show the detailed language preferences.
      */
-    private boolean shouldShowDetailedPreferences() {
+    private static boolean shouldShowDetailedPreferences() {
         return ChromeFeatureList.isEnabled(ChromeFeatureList.DETAILED_LANGUAGE_SETTINGS)
                 || GlobalAppLocaleController.getInstance().isOverridden();
     }
@@ -248,6 +252,7 @@ public class LanguageSettings extends ChromeBaseSettingsFragment
                     public boolean onPreferenceChange(Preference preference, Object newValue) {
                         boolean enabled = (boolean) newValue;
                         getPrefService().setBoolean(Pref.OFFER_TRANSLATE_ENABLED, enabled);
+                        updateTranslateAdvancedSectionIndex(enabled);
                         contentLanguagesPreference.notifyPrefChanged();
                         translationAdvancedSection.setVisible(enabled);
                         LanguagesManager.recordAction(
@@ -453,5 +458,46 @@ public class LanguageSettings extends ChromeBaseSettingsFragment
     @Override
     public @Nullable String getMainMenuKey() {
         return "languages";
+    }
+
+    public static final ChromeBaseSearchIndexProvider SEARCH_INDEX_DATA_PROVIDER =
+            new ChromeBaseSearchIndexProvider(
+                    LanguageSettings.class.getName(),
+                    shouldShowDetailedPreferences()
+                            ? R.xml.languages_detailed_preferences
+                            : R.xml.languages_preferences) {
+
+                @Override
+                public void updateDynamicPreferences(
+                        Context context, SettingsIndexData indexData, Profile profile) {
+                    if (shouldShowDetailedPreferences()) {
+                        indexData.updateEntryForKey(
+                                LanguageSettings.class.getName(),
+                                APP_LANGUAGE_PREFERENCE_KEY,
+                                R.string.default_lang_subtitle);
+                        if (!UserPrefs.get(profile).getBoolean(Pref.OFFER_TRANSLATE_ENABLED)) {
+                            updateTranslateAdvancedSectionIndex(false);
+                        }
+                    }
+                }
+            };
+
+    private static void updateTranslateAdvancedSectionIndex(boolean enabled) {
+        var indexData = SettingsIndexData.getInstance();
+        if (indexData == null) return;
+
+        String prefFrag = LanguageSettings.class.getName();
+        if (enabled) {
+            indexData.addEntryForKey(
+                    prefFrag, TARGET_LANGUAGE_KEY, R.string.languages_settings_target);
+            indexData.addEntryForKey(
+                    prefFrag, ALWAYS_LANGUAGES_KEY, R.string.languages_settings_automatic);
+            indexData.addEntryForKey(
+                    prefFrag, NEVER_LANGUAGES_KEY, R.string.languages_settings_dont_offer_langs);
+        } else {
+            indexData.removeEntryForKey(prefFrag, TARGET_LANGUAGE_KEY);
+            indexData.removeEntryForKey(prefFrag, ALWAYS_LANGUAGES_KEY);
+            indexData.removeEntryForKey(prefFrag, NEVER_LANGUAGES_KEY);
+        }
     }
 }

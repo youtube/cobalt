@@ -165,7 +165,10 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
     private static final String MAIN_FRAGMENT_TAG = "settings_main";
     public static final String MULTI_COLUMN_FRAGMENT_TAG = "multi_column_settings";
 
-    private final Map<Fragment, ContainmentItemDecoration> mItemDecorations = new HashMap<>();
+    private final Map<PreferenceFragmentCompat, ContainmentItemDecoration> mItemDecorations =
+            new HashMap<>();
+    private final Map<PreferenceFragmentCompat, ViewTreeObserver.OnGlobalLayoutListener>
+            mGlobalLayoutListeners = new HashMap<>();
 
     private @Nullable SettingsSearchCoordinator mSearchCoordinator;
 
@@ -239,14 +242,26 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                                 @NonNull Fragment fragment,
                                 @NonNull View v,
                                 @Nullable Bundle savedInstanceState) {
-                            applyContainmentForFragment(fragment);
+                            if (!(fragment
+                                    instanceof PreferenceFragmentCompat preferenceFragmentCompat))
+                                return;
+                            postUpdateContainmentOnLayout(preferenceFragmentCompat);
                         }
 
                         @Override
                         public void onFragmentViewDestroyed(
                                 @NonNull FragmentManager fm, @NonNull Fragment f) {
-                            if (f instanceof PreferenceFragmentCompat) {
-                                mItemDecorations.remove(f);
+                            if (f instanceof PreferenceFragmentCompat preferenceFragmentCompat) {
+                                mItemDecorations.remove(preferenceFragmentCompat);
+                                ViewTreeObserver.OnGlobalLayoutListener listener =
+                                        mGlobalLayoutListeners.remove(preferenceFragmentCompat);
+                                if (listener != null
+                                        && preferenceFragmentCompat.getView() != null) {
+                                    preferenceFragmentCompat
+                                            .getView()
+                                            .getViewTreeObserver()
+                                            .removeOnGlobalLayoutListener(listener);
+                                }
                             }
                         }
                     },
@@ -294,6 +309,7 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
             if (isMultiColumnSettingEnabled()) {
                 assert mMultiColumnSettings != null;
                 createMultiColumnTitleUpdater();
+                if (ChromeFeatureList.sSearchInSettings.isEnabled()) createSearchCoordinator();
             } else {
                 mTitleUpdater = new TitleUpdater();
                 fragmentManager.registerFragmentLifecycleCallbacks(
@@ -322,8 +338,41 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
     @Override
     public void onConfigurationChanged(@NonNull Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-        updateContainmentForMultiColumnLayout();
+        if (mMultiColumnSettings != null) {
+            for (Fragment fragment :
+                    mMultiColumnSettings.getChildFragmentManager().getFragments()) {
+                if (fragment.isAdded()
+                        && fragment instanceof PreferenceFragmentCompat preferenceFragmentCompat) {
+                    postUpdateContainmentOnLayout(preferenceFragmentCompat);
+                }
+            }
+        }
         if (mSearchCoordinator != null) mSearchCoordinator.onConfigurationChanged(newConfig);
+    }
+
+    // Helper method to post containment update on layout completion.
+    private void postUpdateContainmentOnLayout(PreferenceFragmentCompat fragment) {
+        if (fragment.getView() == null) return;
+
+        // If there's an existing listener, remove it to avoid multiple triggers.
+        if (mGlobalLayoutListeners.containsKey(fragment)) {
+            fragment.getView()
+                    .getViewTreeObserver()
+                    .removeOnGlobalLayoutListener(mGlobalLayoutListeners.get(fragment));
+        }
+
+        ViewTreeObserver.OnGlobalLayoutListener listener =
+                new ViewTreeObserver.OnGlobalLayoutListener() {
+                    @Override
+                    public void onGlobalLayout() {
+                        if (fragment.getView() == null) return;
+                        fragment.getView().getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                        mGlobalLayoutListeners.remove(fragment);
+                        updateFragmentContainment(fragment);
+                    }
+                };
+        fragment.getView().getViewTreeObserver().addOnGlobalLayoutListener(listener);
+        mGlobalLayoutListeners.put(fragment, listener);
     }
 
     @Override
@@ -359,7 +408,6 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                                     createMultiColumTitleUpdaterInternal(
                                             v.findViewById(R.id.settings_title_in_detailed_pane));
                                     fm.unregisterFragmentLifecycleCallbacks(this);
-                                    createSearchCoordinator();
                                 }
                             },
                             false);
@@ -379,11 +427,15 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
     }
 
     private void createSearchCoordinator() {
-        assert ChromeFeatureList.sSearchInSettings.isEnabled();
         Callback<Integer> updateFirstVisibleTitle =
                 isMultiColumnSettingEnabled()
-                        ? assumeNonNull(mMultiColumnTitleUpdater)::setFirstVisibleTitleIndex
+                        ? this::updateFirstVisibleTitle
                         : CallbackUtils.emptyCallback();
+        // TODO(crbug.com/439911511): Refactor to use `isTwoColumnSettingsVisible` instead of
+        // `getUseMultiColumn`.
+        // Ensure `mMultiColumnSettings.isTwoColumn()` is reliable by confirming layout pass
+        // completion
+        // before direct replacement, as premature usage can lead to incorrect behavior.
         mSearchCoordinator =
                 new SettingsSearchCoordinator(
                         this,
@@ -393,6 +445,10 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                         mProfile,
                         updateFirstVisibleTitle);
         mSearchCoordinator.initializeSearchUi();
+    }
+
+    private void updateFirstVisibleTitle(int index) {
+        assumeNonNull(mMultiColumnTitleUpdater).setFirstVisibleTitleIndex(index);
     }
 
     private void onTitleTapped(@Nullable String entryName) {
@@ -425,107 +481,40 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
 
     @Override
     public void onPreferencesUpdated(PreferenceFragmentCompat fragment) {
-        applyContainmentForFragment(fragment);
+        postUpdateContainmentOnLayout(fragment);
     }
 
     /**
      * Applies or removes containment styling for fragments within the multi-column settings layout
      * based on whether the multi-column layout is currently active.
      */
-    private void updateContainmentForMultiColumnLayout() {
-        if (mMultiColumnSettings == null) {
-            return;
-        }
-
-        for (Fragment rootFragment :
-                mMultiColumnSettings.getChildFragmentManager().getFragments()) {
-            if (rootFragment.isAdded()) {
-                if (getUseMultiColumn()) {
-                    removeContainmentForFragment(rootFragment);
-                } else {
-                    applyContainmentForFragment(rootFragment);
-                }
-            }
-        }
-    }
-
-    /**
-     * Helper method to validate and cast a fragment for containment styling.
-     *
-     * @param f The fragment to check.
-     * @return The casted {@link PreferenceFragmentCompat} if valid for styling, otherwise null.
-     */
-    private @Nullable PreferenceFragmentCompat resolveFragmentForContainment(Fragment f) {
-        if (!(f instanceof PreferenceFragmentCompat fragment) || fragment.getListView() == null) {
-            return null;
-        }
-        return fragment;
-    }
-
-    /**
-     * Removes containment from the given fragment.
-     *
-     * @param f The fragment to remove the styling from.
-     */
-    private void removeContainmentForFragment(Fragment f) {
-        PreferenceFragmentCompat fragment = resolveFragmentForContainment(f);
-        if (!isContainmentEnabled() || !(fragment instanceof MainSettings)) {
-            return;
-        }
-
-        ContainmentItemDecoration itemDecoration = mItemDecorations.get(fragment);
-        if (itemDecoration != null) {
-            fragment.getListView().removeItemDecoration(itemDecoration);
-            mItemDecorations.remove(fragment);
-
-            fragment.requireContext()
-                    .getTheme()
-                    .applyStyle(R.style.ThemeOverlay_Chromium_Settings_MainPanel, true);
-
-            // Force a re-inflation of all views to ensure they pick up the new theme.
-            reInflateViews(fragment);
-        }
-        applyMainSettingsFragmentDecoration((MainSettings) fragment);
-    }
-
-    /**
-     * Returns whether containment should be skipped for the given fragment, specifically for
-     * MainSettings when in multi-column, two-pane mode.
-     */
-    private boolean shouldSkipContainmentForMainSettings(PreferenceFragmentCompat fragment) {
-        return fragment instanceof MainSettings && isMultiColumnSettingsVisible();
-    }
-
-    public boolean isMultiColumnSettingsVisible() {
-        return getUseMultiColumn()
-                && mMultiColumnSettings != null
-                && mMultiColumnSettings.isTwoPane();
-    }
-
-    /**
-     * Applies containment styling to the given fragment if containment is enabled and the fragment
-     * is a valid {@link PreferenceFragmentCompat} with a list view. This method also handles
-     * skipping containment for MainSettings when in multi-column, two-pane mode.
-     *
-     * @param f The fragment to apply the styling to.
-     */
-    private void applyContainmentForFragment(Fragment f) {
-        PreferenceFragmentCompat fragment = resolveFragmentForContainment(f);
+    private void updateFragmentContainment(PreferenceFragmentCompat fragment) {
         if (!isContainmentEnabled() || fragment == null) {
             return;
         }
 
-        // For MainSettings, skip containment if multi-column layout is visible.
-        if (shouldSkipContainmentForMainSettings(fragment)) {
-            fragment.requireContext()
-                    .getTheme()
-                    .applyStyle(R.style.ThemeOverlay_Chromium_Settings_MainPanel, true);
-            applyMainSettingsFragmentDecoration((MainSettings) fragment);
-            return;
+        if (isTwoColumnSettingsVisible() && fragment instanceof MainSettings mainSettingsFragment) {
+            applyMainSettingsFragmentDecoration(mainSettingsFragment);
+        } else {
+            applyContainmentForFragment(fragment);
         }
+    }
 
-        // Here, if fragment is MainSettings, this is running in single-column layout.
-        // So, we should disable selection highlight.
+    /** Returns true if two-column mode is visible. */
+    public boolean isTwoColumnSettingsVisible() {
+        return isMultiColumnSettingEnabled()
+                && mMultiColumnSettings != null
+                && mMultiColumnSettings.isTwoColumn();
+    }
+
+    /**
+     * Applies containment styling to the given fragment if containment is enabled and the fragment
+     * is a valid {@link PreferenceFragmentCompat} with a list view.
+     *
+     * @param fragment The fragment to apply the styling to.
+     */
+    private void applyContainmentForFragment(PreferenceFragmentCompat fragment) {
+        // Disable selection highlight of MainSettings in single-column layout
         if (fragment instanceof MainSettings mainSettings) {
             mainSettings.setMultiColumnSettings(null, null);
         }
@@ -537,37 +526,21 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
         final var recyclerView = fragment.getListView();
         if (recyclerView == null) return;
 
-        recyclerView
-                .getViewTreeObserver()
-                .addOnGlobalLayoutListener(
-                        new ViewTreeObserver.OnGlobalLayoutListener() {
-                            @Override
-                            public void onGlobalLayout() {
-                                // Remove the listener immediately to ensure it only runs once.
-                                recyclerView
-                                        .getViewTreeObserver()
-                                        .removeOnGlobalLayoutListener(this);
+        ContainmentItemController controller = new ContainmentItemController(SettingsActivity.this);
+        ContainmentItemDecoration itemDecoration = mItemDecorations.get(fragment);
+        if (itemDecoration == null) {
+            itemDecoration = new ContainmentItemDecoration(controller);
+            mItemDecorations.put(fragment, itemDecoration);
+            recyclerView.addItemDecoration(itemDecoration);
+        }
+        itemDecoration.updatePreferenceStyles(
+                controller.generatePreferenceStyles(
+                        SettingsUtils.getVisiblePreferences(fragment.getPreferenceScreen())));
+        recyclerView.invalidateItemDecorations();
 
-                                ContainmentItemController controller =
-                                        new ContainmentItemController(SettingsActivity.this);
-                                ContainmentItemDecoration itemDecoration =
-                                        mItemDecorations.get(fragment);
-                                if (itemDecoration == null) {
-                                    itemDecoration = new ContainmentItemDecoration(controller);
-                                    mItemDecorations.put(fragment, itemDecoration);
-                                    recyclerView.addItemDecoration(itemDecoration);
-                                }
-                                itemDecoration.updatePreferenceStyles(
-                                        controller.generatePreferenceStyles(
-                                                SettingsUtils.getVisiblePreferences(
-                                                        fragment.getPreferenceScreen())));
-                                recyclerView.invalidateItemDecorations();
-
-                                // Force a re-inflation of all views to ensure they pick up the new
-                                // theme.
-                                reInflateViews(fragment);
-                            }
-                        });
+        // Force a re-inflation of all views to ensure they pick up the new
+        // theme.
+        reInflateViews(fragment);
     }
 
     private void applyMainSettingsFragmentDecoration(MainSettings mainSettings) {
@@ -581,6 +554,10 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
         int selectedBackgroundColor =
                 SemanticColorUtils.getSettingsMainMenuSelectedBackgroundColor(
                         mainSettings.requireContext());
+        // TODO(crbug.com/439911511): `SelectionDecoration`'s name does not fully capture its
+        // current responsibility, which inadvertently includes handling decoration removal
+        // for `MainSettings` when in two-column mode. Consider renaming it to reflect this broader
+        // role.
         mainSettings.setMultiColumnSettings(
                 mMultiColumnSettings,
                 new SelectionDecoration(
@@ -813,9 +790,7 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
         if (mTitleUpdater != null) {
             getSupportFragmentManager().unregisterFragmentLifecycleCallbacks(mTitleUpdater);
         }
-        if (ChromeFeatureList.sSearchInSettings.isEnabled()) {
-            assumeNonNull(mSearchCoordinator).destroy();
-        }
+        if (mSearchCoordinator != null) mSearchCoordinator.destroy();
         super.onDestroy();
     }
 
@@ -852,11 +827,11 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        if (ChromeFeatureList.sSearchInSettings.isEnabled()) {
-            assert mSearchCoordinator != null;
-            assumeNonNull(mSearchCoordinator).hideHelpAndFeedbackIcon();
+        if (mSearchCoordinator != null) {
+            mSearchCoordinator.hideHelpAndFeedbackIcon();
             return false;
         }
+
         // By default, every screen in Settings shows a "Help & feedback" menu item.
         MenuItem help =
                 menu.add(
@@ -894,6 +869,11 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
 
         if (item.getItemId() == android.R.id.home) {
             if (mMultiColumnSettings != null) {
+                if (mMultiColumnSettings.isTwoColumn()) {
+                    // In two pane mode, selecting back always exits from the settings activity.
+                    finish();
+                    return true;
+                }
                 // PreferenceHeaderFragmentCompat implements back button behavior.
                 // In order to forward the event to there, translate the event to the back button.
                 onBackPressed();
@@ -1124,7 +1104,20 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                 @Nullable Bundle savedInstanceState) {
             if (fragment instanceof PreferenceFragmentCompat
                     || MAIN_FRAGMENT_TAG.equals(fragment.getTag())) {
-                WideDisplayPadding.apply(fragment, SettingsActivity.this);
+                // TODO(crbug.com/439911511): Have this logic in the same place as other layout
+                // updates
+                view.getViewTreeObserver()
+                        .addOnGlobalLayoutListener(
+                                new ViewTreeObserver.OnGlobalLayoutListener() {
+                                    @Override
+                                    public void onGlobalLayout() {
+                                        if (fragment.getView() == null) return;
+                                        fragment.getView()
+                                                .getViewTreeObserver()
+                                                .removeOnGlobalLayoutListener(this);
+                                        WideDisplayPadding.apply(fragment, SettingsActivity.this);
+                                    }
+                                });
             }
         }
     }

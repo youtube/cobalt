@@ -38,11 +38,17 @@ class OmniboxPopupWebUIContent : public OmniboxPopupWebUIBaseContent {
   OmniboxPopupWebUIContent& operator=(const OmniboxPopupWebUIContent&) = delete;
   ~OmniboxPopupWebUIContent() override;
 
+  // WebUIContentsWrapper::Host:
+  void ShowUI() override;
+
   bool include_location_bar_cutout() const { return !top_rounded_corners(); }
 
   bool wants_focus() const { return wants_focus_; }
 
  private:
+  // Returns the WebUI Omnibox Handler. Can return null.
+  WebuiOmniboxHandler* omnibox_handler();
+
   // Indicate whether this WebUI content wants to receive activation and focus.
   bool wants_focus_ = false;
 

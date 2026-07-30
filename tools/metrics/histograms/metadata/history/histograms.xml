@@ -237,7 +237,6 @@ chromium-metrics-reviews@google.com.
     <variant name="ChannelIds" summary="ChannelIds"/>
     <variant name="CodeCaches" summary="CodeCaches"/>
     <variant name="Conversions" summary="Conversions"/>
-    <variant name="DeferredCookies" summary="DeferredCookies"/>
     <variant name="EmbedderData" summary="EmbedderData"/>
     <variant name="HttpAndMediaCaches" summary="HttpAndMediaCaches"/>
     <variant name="HttpCache" summary="HttpCache"/>
@@ -2822,7 +2821,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="History.MonthlyHostCount" units="hosts"
-    expires_after="2026-03-29">
+    expires_after="2026-05-31">
   <owner>mpearson@chromium.org</owner>
   <owner>sky@chromium.org</owner>
   <component>1456716</component>
@@ -2834,7 +2833,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="History.MonthlyURLCount" units="urls"
-    expires_after="2026-03-29">
+    expires_after="2026-05-31">
   <owner>mpearson@chromium.org</owner>
   <owner>sky@chromium.org</owner>
   <component>1456716</component>
@@ -2846,7 +2845,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="History.MostVisitedTilesVisualDeduplication" units="tiles"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>hitarthkothari@google.com</owner>
   <owner>ckitagawa@chromium.org</owner>
   <summary>
@@ -3185,7 +3184,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="History.WeeklyURLCount" units="URLs"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>mpearson@chromium.org</owner>
   <owner>sky@chromium.org</owner>
   <component>1456716</component>

@@ -20,9 +20,11 @@
 
 @class ComposeboxMetricsRecorder;
 @protocol ComposeboxURLLoader;
+class AimEligibilityService;
 class FaviconLoader;
 class GURL;
 class PersistTabContextBrowserAgent;
+class TemplateURLService;
 class WebStateList;
 
 namespace contextual_search {
@@ -32,7 +34,7 @@ class ContextualSearchSessionHandle;
 // Delegate for the ComposeboxInputPlateMediator.
 @protocol ComposeboxInputPlateMediatorDelegate
 // Reloads the composebox autocomplete suggestions.
-- (void)reloadAutocompleteSuggestions;
+- (void)reloadAutocompleteSuggestionsRestarting:(BOOL)restart;
 // Informs the delegate that adding an attachment failed due to limit.
 - (void)showAttachmentLimitError;
 // Informs the delegate that item upload has failed.
@@ -65,7 +67,10 @@ class ContextualSearchSessionHandle;
              persistTabContextAgent:
                  (PersistTabContextBrowserAgent*)persistTabContextAgent
                         isIncognito:(BOOL)isIncognito
-                         modeHolder:(ComposeboxModeHolder*)modeHolder;
+                         modeHolder:(ComposeboxModeHolder*)modeHolder
+                 templateURLService:(TemplateURLService*)templateURLService
+              aimEligibilityService:
+                  (AimEligibilityService*)aimEligibilityService;
 
 - (void)disconnect;
 
@@ -78,6 +83,10 @@ class ContextualSearchSessionHandle;
 
 // Returns whether more attachments can be added.
 - (BOOL)canAddMoreAttachments;
+
+// Returns the maximum number of gallery items allowed based on the current
+// composebox mode.
+- (NSUInteger)maxNumberOfGalleryItemsAllowed;
 
 @end
 

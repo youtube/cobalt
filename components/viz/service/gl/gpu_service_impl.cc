@@ -158,6 +158,16 @@ void RunGetPeakGpuMemoryUsageCallbackOnMainThread(
   std::move(callback).Run(peak_memory, std::move(allocation_per_source));
 }
 
+gpu::GpuPersistentCache::AsyncDiskWriteOpts
+GetPersistentCacheAsyncDiskWriteOpts() {
+  gpu::GpuPersistentCache::AsyncDiskWriteOpts async_opts;
+  async_opts.task_runner = base::ThreadPool::CreateSequencedTaskRunner(
+      {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+       base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN});
+  async_opts.max_pending_bytes_to_write = gpu::GetDefaultGpuDiskCacheSize();
+  return async_opts;
+}
+
 }  // namespace
 
 GpuServiceImpl::GpuServiceImpl(
@@ -182,6 +192,9 @@ GpuServiceImpl::GpuServiceImpl(
 #if BUILDFLAG(ENABLE_VULKAN)
       vulkan_implementation_(init_params.vulkan_implementation),
 #endif
+      persistent_caches_(
+          /*max_in_memory_cache_size=*/gpu::GetDefaultGpuDiskCacheSize(),
+          /*async_write_options=*/GetPersistentCacheAsyncDiskWriteOpts()),
       clear_shader_cache_(base::FeatureList::IsEnabled(
           features::kClearGrShaderDiskCacheOnInvalidPrefix)) {
   DCHECK(!io_runner_->BelongsToCurrentThread());
@@ -223,21 +236,11 @@ GpuServiceImpl::GpuServiceImpl(
     if (dawn_context_provider_) {
       // GpuServiceImpl holds the instance of DawnContextProvider, so it
       // outlives the DawnContextProvider.
-      std::unique_ptr<gpu::webgpu::DawnCachingInterface> caching_interface;
       if (features::kSkiaGraphiteDawnUsePersistentCache.Get()) {
-        auto memory_cache = base::MakeRefCounted<gpu::MemoryCache>(
-            gpu::GetDefaultGpuDiskCacheSize());
-        gpu::GpuPersistentCache::AsyncDiskWriteOpts async_opts;
-        async_opts.task_runner = base::ThreadPool::CreateSequencedTaskRunner(
-            {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
-             base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN});
-        async_opts.max_pending_bytes_to_write =
-            gpu::GetDefaultGpuDiskCacheSize();
-        caching_interface = dawn_caching_interface_factory_->CreateInstance(
-            gpu::kGraphiteDawnGpuDiskCacheHandle,
-            base::MakeRefCounted<gpu::GpuPersistentCache>(
-                "GraphiteDawn", std::move(memory_cache),
-                std::move(async_opts)));
+        auto persistent_cache =
+            persistent_caches_.GetCache(gpu::kGraphiteDawnGpuDiskCacheHandle);
+        dawn_context_provider_->SetCachingInterface(
+            std::move(persistent_cache));
       } else {
         auto cache_blob_callback = base::BindRepeating(
             [](GpuServiceImpl* self, const std::string& key,
@@ -246,11 +249,13 @@ GpuServiceImpl::GpuServiceImpl(
                                     blob);
             },
             base::Unretained(this));
-        caching_interface = dawn_caching_interface_factory_->CreateInstance(
-            gpu::kGraphiteDawnGpuDiskCacheHandle,
-            std::move(cache_blob_callback));
+        auto dawn_caching_interface =
+            dawn_caching_interface_factory_->CreateInstance(
+                gpu::kGraphiteDawnGpuDiskCacheHandle,
+                std::move(cache_blob_callback));
+        dawn_context_provider_->SetCachingInterface(
+            std::move(dawn_caching_interface));
       }
-      dawn_context_provider_->SetCachingInterface(std::move(caching_interface));
     }
 #endif  // BUILDFLAG(SKIA_USE_DAWN)
   } else if (gpu_preferences_.gr_context_type ==
@@ -277,7 +282,10 @@ GpuServiceImpl::GpuServiceImpl(
 }
 
 GpuServiceImpl::GpuServiceImpl()
-    : clear_shader_cache_(base::FeatureList::IsEnabled(
+    : persistent_caches_(
+          /*max_in_memory_cache_size=*/gpu::GetDefaultGpuDiskCacheSize(),
+          /*async_write_options=*/GetPersistentCacheAsyncDiskWriteOpts()),
+      clear_shader_cache_(base::FeatureList::IsEnabled(
           features::kClearGrShaderDiskCacheOnInvalidPrefix)) {}
 
 GpuServiceImpl::~GpuServiceImpl() {
@@ -482,7 +490,7 @@ void GpuServiceImpl::InitializeWithHostInternal(
       &use_shader_cache_shm_count_->data, std::move(default_offscreen_surface),
       vulkan_context_provider(), metal_context_provider(),
       dawn_context_provider(), dawn_caching_interface_factory(),
-      gr_context_options_provider_);
+      gr_context_options_provider_, &persistent_caches_);
 
   media_gpu_channel_manager_ = std::make_unique<media::MediaGpuChannelManager>(
       gpu_channel_manager_.get());
@@ -893,7 +901,11 @@ void GpuServiceImpl::EstablishGpuChannel(int32_t client_id,
     return;
   }
   mojo::MessagePipe pipe;
-  gpu_channel->Init(pipe.handle0.release(), shutdown_event_);
+  if (features::IsLegacyIpcDisabled()) {
+    gpu_channel->Start(std::move(pipe.handle0));
+  } else {
+    gpu_channel->Init(pipe.handle0.release(), shutdown_event_);
+  }
 
   media_gpu_channel_manager_->AddChannel(client_id, channel_token);
 
@@ -923,19 +935,19 @@ void GpuServiceImpl::SetChannelPersistentCachePendingBackend(
     persistent_cache::PendingBackend pending_backend) {
   TRACE_EVENT2("gpu", "GpuServiceImpl::SetChannelPersistentCachePendingBackend",
                "client_id", client_id, "handle_type", GetHandleType(handle));
-#if BUILDFLAG(SKIA_USE_DAWN)
-  // TODO(399642827): Support other cache types.
-  CHECK_EQ(client_id, gpu::kGraphiteDawnClientId);
-  CHECK_EQ(GetHandleType(handle), gpu::GpuDiskCacheType::kDawnGraphite);
-  if (!dawn_context_provider_) {
-    return;
-  }
 
-  auto* cache = dawn_context_provider_->GetCachingInterface();
+  // TODO(399642827): Support persistent cache for non-reserved clients (WebGPU,
+  // WebGL)
+  CHECK(gpu::IsReservedGpuDiskCacheHandle(handle));
+  // The persistent cache does not use a separate cache for the display
+  // compositor.
+  CHECK_NE(client_id, gpu::kDisplayCompositorClientId);
+
+  scoped_refptr<gpu::GpuPersistentCache> cache =
+      persistent_caches_.GetCache(handle);
   CHECK(cache);
-  cache->InitializePersistentCache(std::move(pending_backend),
-                                   use_shader_cache_shm_count_);
-#endif
+  cache->InitializeCache(std::move(pending_backend),
+                         use_shader_cache_shm_count_);
 }
 
 void GpuServiceImpl::SetChannelDiskCacheHandle(

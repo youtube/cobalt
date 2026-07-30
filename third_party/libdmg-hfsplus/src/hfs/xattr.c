@@ -1,20 +1,22 @@
 #include <stdlib.h>
 #include <string.h>
-#include <hfs/hfsplus.h>
+
+#include "common.h"
+#include "hfs/hfsplus.h"
 
 static inline void flipAttrData(HFSPlusAttrData* data) {
-  FLIPENDIAN(data->recordType);
-  FLIPENDIAN(data->size);
+	FLIPENDIAN(data->recordType);
+	FLIPENDIAN(data->size);
 }
 
 static inline void flipAttrForkData(HFSPlusAttrForkData* data) {
-  FLIPENDIAN(data->recordType);
-  flipForkData(&data->theFork);
+	FLIPENDIAN(data->recordType);
+	flipForkData(&data->theFork);
 }
 
 static inline void flipAttrExtents(HFSPlusAttrExtents* data) {
-  FLIPENDIAN(data->recordType);
-  flipExtentRecord(&data->extents);
+	FLIPENDIAN(data->recordType);
+	flipExtentRecord(&data->extents);
 }
 
 static int attrCompare(BTKey* vLeft, BTKey* vRight) {
@@ -40,10 +42,11 @@ static int attrCompare(BTKey* vLeft, BTKey* vRight) {
 				cLeft = left->name.unicode[i];
 				cRight = right->name.unicode[i];
 
-				if(cLeft < cRight)
+				if(cLeft < cRight) {
 					return -1;
-				else if(cLeft > cRight)
+				} else if(cLeft > cRight) {
 					return 1;
+				}
 			}
 		}
 
@@ -53,11 +56,11 @@ static int attrCompare(BTKey* vLeft, BTKey* vRight) {
 			/* do a safety check on key length. Otherwise, bad things may happen later on when we try to add or remove with this key */
 			/*if(left->keyLength == right->keyLength) {
 			  return 0;
-			  } else if(left->keyLength < right->keyLength) {
+			} else if(left->keyLength < right->keyLength) {
 			  return -1;
-			  } else {
+			} else {
 			  return 1;
-			  }*/
+			}*/
 			return 0;
 		}
 	}
@@ -80,8 +83,9 @@ static BTKey* attrKeyRead(off_t offset, io_func* io) {
 	FLIPENDIAN(key->startBlock);
 	FLIPENDIAN(key->name.length);
 
-	if(!READ(io, offset + UNICODE_START, key->name.length * sizeof(uint16_t), ((unsigned char *)key) + UNICODE_START))
+	if(!READ(io, offset + UNICODE_START, key->name.length * sizeof(uint16_t), ((unsigned char *)key) + UNICODE_START)) {
 		return NULL;
+	}
 
 	for(i = 0; i < key->name.length; i++) {
 		FLIPENDIAN(key->name.unicode[i]);
@@ -173,46 +177,54 @@ static BTKey* attrDataRead(off_t offset, io_func* io) {
 
 static int updateAttributes(Volume* volume, HFSPlusAttrKey* skey, HFSPlusAttrRecord* srecord) {
 	HFSPlusAttrKey key;
-	HFSPlusAttrRecord* record;
-	int ret, len;
 	int exact;
 
 	// Must copy the leading `keyLength` field itself.
 	memcpy(&key, skey, skey->keyLength + sizeof(uint16_t));
 
-	record = (HFSPlusAttrRecord*) search(volume->attrTree, (BTKey*)(&key), &exact, NULL, NULL);
-	if(exact && record) {
-		free(record);
-		record = NULL;
+	HFSPlusAttrRecord* foundRecord =
+		(HFSPlusAttrRecord*) search(volume->attrTree, (BTKey*)(&key), &exact, NULL, NULL);
+
+	if(exact && foundRecord) {
+		free(foundRecord);
+		foundRecord = NULL;
 		removeFromBTree(volume->attrTree, (BTKey*)(&key));
 	}
 
 	switch(srecord->recordType) {
-		case kHFSPlusAttrInlineData:
-			len = srecord->attrData.size + sizeof(HFSPlusAttrData);
-			record = (HFSPlusAttrRecord*) malloc(len);
-      			memcpy(record, srecord, len);
-			flipAttrData((HFSPlusAttrData*) record);
-			ret = addToBTree(volume->attrTree, (BTKey*)(&key), len, (unsigned char *)record);
-			free(record);
-			break;
-		case kHFSPlusAttrForkData:
-			record = (HFSPlusAttrRecord*) malloc(sizeof(HFSPlusAttrForkData));
-      			memcpy(record, srecord, sizeof(HFSPlusAttrForkData));
-			flipAttrForkData((HFSPlusAttrForkData*) record);
-			ret = addToBTree(volume->attrTree, (BTKey*)(&key), sizeof(HFSPlusAttrForkData), (unsigned char *)record);
-			free(record);
-			break;
-		case kHFSPlusAttrExtents:
-			record = (HFSPlusAttrRecord*) malloc(sizeof(HFSPlusAttrExtents));
-      			memcpy(record, srecord, sizeof(HFSPlusAttrExtents));
-			flipAttrExtents((HFSPlusAttrExtents*) record);
-			ret = addToBTree(volume->attrTree, (BTKey*)(&key), sizeof(HFSPlusAttrExtents), (unsigned char *)record);
-			free(record);
-			break;
+		case kHFSPlusAttrInlineData: {
+			int len = srecord->attrData.size + sizeof(HFSPlusAttrData);
+			HFSPlusAttrData* dataRecord = malloc(len);
+			ASSERT(dataRecord, "updateAttributes (AttrInlineData) OOM");
+			memcpy(dataRecord, srecord, len);
+			flipAttrData(dataRecord);
+			int ret = addToBTree(volume->attrTree, (BTKey*)(&key), len, (unsigned char *)dataRecord);
+			free(dataRecord);
+			return ret;
+		}
+		case kHFSPlusAttrForkData: {
+			HFSPlusAttrForkData *forkRecord = malloc(sizeof(HFSPlusAttrForkData));
+			ASSERT(forkRecord, "updateAttributes (ForkData) OOM");
+			memcpy(forkRecord, srecord, sizeof(HFSPlusAttrForkData));
+			flipAttrForkData(forkRecord);
+			int ret = addToBTree(volume->attrTree, (BTKey*)(&key), sizeof(HFSPlusAttrForkData), (unsigned char *)forkRecord);
+			free(forkRecord);
+			return ret;
+		}
+		case kHFSPlusAttrExtents: {
+			HFSPlusAttrExtents* extentsRecord = malloc(sizeof(HFSPlusAttrExtents));
+			ASSERT(extentsRecord, "updateAttributes (Extents) OOM");
+			memcpy(extentsRecord, srecord, sizeof(HFSPlusAttrExtents));
+			flipAttrExtents(extentsRecord);
+			int ret = addToBTree(volume->attrTree, (BTKey*)(&key), sizeof(HFSPlusAttrExtents), (unsigned char *)extentsRecord);
+			free(extentsRecord);
+			return ret;
+		}
+		default: {
+			ASSERT(FALSE, "cannot updateAttributes with bad recordType");
+			return FALSE;  // unreachable
+		}
 	}
-
-	return ret;
 }
 
 size_t getAttribute(Volume* volume, uint32_t fileID, const char* name, uint8_t** data) {
@@ -235,8 +247,9 @@ size_t getAttribute(Volume* volume, uint32_t fileID, const char* name, uint8_t**
 	record = (HFSPlusAttrRecord*) search(volume->attrTree, (BTKey*)(&key), &exact, NULL, NULL);
 
 	if(exact == FALSE) {
-		if(record)
+		if(record) {
 			free(record);
+		}
 
 		return 0;
 	}
@@ -285,8 +298,9 @@ int setAttribute(Volume* volume, uint32_t fileID, const char* name, uint8_t* dat
 int unsetAttribute(Volume* volume, uint32_t fileID, const char* name) {
 	HFSPlusAttrKey key;
 
-	if(!volume->attrTree)
+	if(!volume->attrTree) {
 		return FALSE;
+	}
 
 	memset(&key, 0 , sizeof(HFSPlusAttrKey));
 	key.fileID = fileID;
@@ -324,8 +338,8 @@ XAttrList* getAllExtendedAttributes(HFSCatalogNodeID CNID, Volume* volume) {
 		return NULL;
 
 	free(record);
-	
-	while(nodeNumber != 0) {    
+
+	while(nodeNumber != 0) {
 		descriptor = readBTNodeDescriptor(nodeNumber, tree);
 
 		while(recordNumber < descriptor->numRecords) {

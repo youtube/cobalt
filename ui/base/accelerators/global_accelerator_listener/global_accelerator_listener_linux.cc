@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/nix/xdg_util.h"
 #include "base/strings/string_number_conversions.h"
@@ -67,8 +68,8 @@ GlobalAcceleratorListenerLinux::~GlobalAcceleratorListenerLinux() {
   CloseSession();
 }
 
-void GlobalAcceleratorListenerLinux::OnServiceStarted(bool service_started) {
-  service_started_ = service_started;
+void GlobalAcceleratorListenerLinux::OnServiceStarted(uint32_t version) {
+  service_started_ = (version != 0);
 
   if (!*service_started_) {
     bound_commands_.clear();

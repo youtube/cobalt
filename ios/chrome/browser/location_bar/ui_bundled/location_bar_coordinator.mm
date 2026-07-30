@@ -17,9 +17,8 @@
 #import "components/profile_metrics/browser_profile_type.h"
 #import "components/search_engines/util.h"
 #import "components/strings/grit/components_strings.h"
+#import "ios/chrome/browser/autocomplete/model/autocomplete_browser_agent.h"
 #import "ios/chrome/browser/autocomplete/model/autocomplete_scheme_classifier_impl.h"
-#import "ios/chrome/browser/autocomplete/model/autocomplete_service.h"
-#import "ios/chrome/browser/autocomplete/model/autocomplete_service_factory.h"
 #import "ios/chrome/browser/badges/ui_bundled/badge_button_factory.h"
 #import "ios/chrome/browser/badges/ui_bundled/badge_delegate.h"
 #import "ios/chrome/browser/badges/ui_bundled/badge_mediator.h"
@@ -63,8 +62,6 @@
 #import "ios/chrome/browser/omnibox/coordinator/omnibox_coordinator.h"
 #import "ios/chrome/browser/omnibox/coordinator/popup/omnibox_popup_coordinator.h"
 #import "ios/chrome/browser/omnibox/model/chrome_omnibox_client_ios.h"
-#import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_position_browser_agent.h"
-#import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_state_provider.h"
 #import "ios/chrome/browser/omnibox/model/placeholder_service/placeholder_service.h"
 #import "ios/chrome/browser/omnibox/model/placeholder_service/placeholder_service_factory.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_presentation_context.h"
@@ -123,7 +120,6 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
     LocationBarSteadyViewConsumer,
     LocationBarViewControllerDelegate,
     WebLocationBarDelegate,
-    OmniboxStateProvider,
     URLDragDataSource> {
   // API endpoint for omnibox.
   std::unique_ptr<WebLocationBarImpl> _locationBar;
@@ -251,27 +247,30 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
   _locationBarModel = std::make_unique<LocationBarModelImpl>(
       _locationBarModelDelegate.get(), kMaxURLDisplayChars);
 
-  self.omniboxCoordinator = [[OmniboxCoordinator alloc]
-      initWithBaseViewController:nil
-                         browser:self.browser
-                   omniboxClient:std::make_unique<ChromeOmniboxClientIOS>(
-                                     _locationBar.get(), self.browser,
-                                     feature_engagement::TrackerFactory::
-                                         GetForProfile(self.profile))
-             presentationContext:OmniboxPresentationContext::kLocationBar];
-  self.omniboxCoordinator.focusDelegate = self.delegate;
+  if (!IsComposeboxIOSEnabled()) {
+    self.omniboxCoordinator = [[OmniboxCoordinator alloc]
+        initWithBaseViewController:nil
+                           browser:self.browser
+                     omniboxClient:std::make_unique<ChromeOmniboxClientIOS>(
+                                       _locationBar.get(), self.browser,
+                                       feature_engagement::TrackerFactory::
+                                           GetForProfile(self.profile))
+               presentationContext:OmniboxPresentationContext::kLocationBar];
+    self.omniboxCoordinator.focusDelegate = self.delegate;
 
-  self.omniboxCoordinator.presenterDelegate = self.popupPresenterDelegate;
-  [self.omniboxCoordinator start];
+    self.omniboxCoordinator.presenterDelegate = self.popupPresenterDelegate;
+    [self.omniboxCoordinator start];
 
-  [self.omniboxCoordinator.managedViewController
-      willMoveToParentViewController:self.viewController];
-  [self.viewController
-      addChildViewController:self.omniboxCoordinator.managedViewController];
-  [self.viewController setEditView:self.omniboxCoordinator.editView];
-  [self.omniboxCoordinator.managedViewController
-      didMoveToParentViewController:self.viewController];
-  self.viewController.offsetProvider = [self.omniboxCoordinator offsetProvider];
+    [self.omniboxCoordinator.managedViewController
+        willMoveToParentViewController:self.viewController];
+    [self.viewController
+        addChildViewController:self.omniboxCoordinator.managedViewController];
+    [self.viewController setEditView:self.omniboxCoordinator.editView];
+    [self.omniboxCoordinator.managedViewController
+        didMoveToParentViewController:self.viewController];
+    self.viewController.offsetProvider =
+        [self.omniboxCoordinator offsetProvider];
+  }
 
   if (IsAskGeminiChipEnabled() || IsProactiveSuggestionsFrameworkEnabled() ||
       IsLocationBarBadgeMigrationEnabled()) {
@@ -409,19 +408,11 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
   _omniboxFullscreenUIUpdater = std::make_unique<FullscreenUIUpdater>(
       fullscreenController, self.viewController);
 
-  OmniboxPositionBrowserAgent* omniboxPositionBrowserAgent =
-      OmniboxPositionBrowserAgent::FromBrowser(self.browser);
-  /// The location bar is the OmniboxStateProvider because omnibox is used both
-  /// in browser and lens overlay.
-  if (omniboxPositionBrowserAgent) {
-    omniboxPositionBrowserAgent->SetOmniboxStateProvider(self);
-  }
-
-  AutocompleteService* autocompleteService =
-      AutocompleteServiceFactory::GetForProfile(self.profile);
-  if (autocompleteService) {
+  AutocompleteBrowserAgent* autocompleteBrowserAgent =
+      AutocompleteBrowserAgent::FromBrowser(self.browser);
+  if (autocompleteBrowserAgent) {
     __weak __typeof__(self) weakSelf = self;
-    autocompleteService->RegisterWebStateListForPrefetching(
+    autocompleteBrowserAgent->RegisterWebStateListForPrefetching(
         IsComposeboxIOSEnabled() ? OmniboxPresentationContext::kComposebox
                                  : OmniboxPresentationContext::kLocationBar,
         self.webStateList,
@@ -461,15 +452,11 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 
   // The popup has to be destroyed before the location bar.
   [self.omniboxCoordinator stop];
-  // TODO(crbug.com/462700929): Cleanup the service's objects like when it was
-  // owned by the omnibox. Remove this workaround once the service can be safely
-  // cleaned up during shutdown.
-  AutocompleteService* autocompleteService =
-      AutocompleteServiceFactory::GetForProfile(self.profile);
-  if (autocompleteService) {
-    autocompleteService->UnregisterWebStateListForPrefetching(
+  AutocompleteBrowserAgent* autocompleteBrowserAgent =
+      AutocompleteBrowserAgent::FromBrowser(self.browser);
+  if (autocompleteBrowserAgent) {
+    autocompleteBrowserAgent->UnregisterWebStateListForPrefetching(
         self.webStateList);
-    autocompleteService->RemoveServices();
   }
   [self.badgeMediator disconnect];
   self.badgeMediator = nil;
@@ -626,6 +613,7 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
     id<BrowserCoordinatorCommands> commands = HandlerForProtocol(
         self.browser->GetCommandDispatcher(), BrowserCoordinatorCommands);
     [commands hideComposeboxImmediately:NO];
+    return;
   }
   if (self.isCancellingOmniboxEdit) {
     return;
@@ -751,7 +739,7 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 }
 
 - (BOOL)shouldShowAIHubNewFeatureBadge {
-  if (!base::FeatureList::IsEnabled(kAIHubNewBadge)) {
+  if (!IsAIHubNewBadgeEnabled()) {
     return NO;
   }
   return _tracker->ShouldTriggerHelpUI(

@@ -30,6 +30,7 @@
 #include "third_party/blink/renderer/core/frame/navigator.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
@@ -62,10 +63,14 @@ bool VerifyCustomHandlerURLSyntax(const KURL& full_url,
 // NavigatorContentUtils::From() via [register/unregister]ProtocolHandler.
 class MODULES_EXPORT NavigatorContentUtils final
     : public GarbageCollected<NavigatorContentUtils>,
-      public GarbageCollectedMixin {
+      public Supplement<Navigator> {
  public:
-  explicit NavigatorContentUtils(NavigatorContentUtilsClient* client)
-      : client_(client) {}
+  static constexpr auto kSupplementIndex =
+      Navigator::Supplements::kNavigatorContentUtils;
+
+  NavigatorContentUtils(Navigator& navigator,
+                        NavigatorContentUtilsClient* client)
+      : Supplement<Navigator>(navigator), client_(client) {}
   ~NavigatorContentUtils();
 
   static void registerProtocolHandler(Navigator&,

@@ -17,12 +17,14 @@ import androidx.annotation.ColorInt;
 
 import org.chromium.base.Callback;
 import org.chromium.base.DeviceInfo;
+import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.OneShotCallback;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.cc.input.BrowserControlsState;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsOffsetTagsInfo;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider.ControlsPosition;
@@ -133,7 +135,7 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
     private int mFindToolbarToken = TokenHolder.INVALID_TOKEN;
 
     private final int mIndexOfLocationBarInToolbar;
-    private int mLayerYOffset;
+    private int mLayerYOffset = UNSPECIFIED_TOOLBAR_OFFSET;
 
     /**
      * Creates a new {@link TopToolbarCoordinator}.
@@ -194,7 +196,7 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
             Supplier<ResourceManager> resourceManagerSupplier,
             HistoryDelegate historyDelegate,
             boolean initializeWithIncognitoColors,
-            ObservableSupplier<@Nullable Integer> constraintsSupplier,
+            NullableObservableSupplier<@BrowserControlsState Integer> constraintsSupplier,
             ObservableSupplier<Boolean> compositorInMotionSupplier,
             BrowserStateBrowserControlsVisibilityDelegate
                     browserStateBrowserControlsVisibilityDelegate,
@@ -204,12 +206,11 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
             OneshotSupplier<TabStripTransitionDelegate> tabStripTransitionDelegateSupplier,
             @Nullable OnLongClickListener onLongClickListener,
             ToolbarProgressBar progressBar,
-            ObservableSupplier<@Nullable Tab> tabSupplier,
+            NullableObservableSupplier<Tab> tabSupplier,
             ObservableSupplier<Boolean> toolbarNavControlsEnabledSupplier,
             @Nullable BackButtonCoordinator backButtonCoordinator,
             @Nullable ForwardButtonCoordinator forwardButtonCoordinator,
             @Nullable HomeButtonDisplay homeButtonDisplay,
-            @Nullable ExtensionToolbarCoordinator extensionToolbarCoordinator,
             TopControlsStacker topControlsStacker,
             BrowserControlsStateProvider browserControlsStateProvider,
             Supplier<Integer> incognitoWindowCountSupplier) {
@@ -286,7 +287,6 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
                 mBackButtonCoordinator,
                 forwardButtonCoordinator,
                 homeButtonDisplay,
-                extensionToolbarCoordinator,
                 normalThemeColorProvider,
                 incognitoStateProvider,
                 incognitoWindowCountSupplier);
@@ -338,7 +338,7 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
             @Nullable OnClickListener bookmarkClickHandler,
             @Nullable OnClickListener customTabsBackClickHandler,
             LayoutManager layoutManager,
-            ObservableSupplier<@Nullable Tab> tabSupplier,
+            NullableObservableSupplier<Tab> tabSupplier,
             BrowserControlsVisibilityManager browserControlsVisibilityManager,
             TopUiThemeColorProvider topUiThemeColorProvider,
             ObservableSupplier<Integer> bottomToolbarControlsOffsetSupplier,
@@ -389,6 +389,7 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
 
         mTabStripTransitionDelegateSupplier.runSyncOrOnAvailable(
                 (tabStripTransitionDelegate) -> {
+                    if (mControlContainer == null) return;
                     mTabStripTransitionCoordinator =
                             new TabStripTransitionCoordinator(
                                     browserControlsVisibilityManager,
@@ -403,6 +404,19 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
                             .registerComponentCallbacks(mTabStripTransitionCoordinator);
                     mToolbarLayout.setTabStripTransitionCoordinator(mTabStripTransitionCoordinator);
                 });
+    }
+
+    /**
+     * Sets the {@link ExtensionToolbarCoordinator}.
+     *
+     * <p>This method is not called if the extension toolbar is unavailable. If it is called, it is
+     * after native initialization.
+     *
+     * @param extensionToolbarCoordinator The {@link ExtensionToolbarCoordinator} to be set.
+     */
+    public void setExtensionToolbarCoordinator(
+            ExtensionToolbarCoordinator extensionToolbarCoordinator) {
+        mToolbarLayout.setExtensionToolbarCoordinator(extensionToolbarCoordinator);
     }
 
     /** Returns the color of the hairline drawn underneath the toolbar. */
@@ -926,6 +940,7 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
         // Remove the offset tag on animation starts, so the toolbar does not set the yOffset
         // while the compositor moves the layer with offset tags.
         mOverlayCoordinator.setOffsetTagInfo(null);
+        updateSceneLayerYOffset();
     }
 
     // In compositor, the position of the toolbar depends on the capture. As of Nov 2025, the

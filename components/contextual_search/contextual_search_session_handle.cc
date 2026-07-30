@@ -4,6 +4,8 @@
 
 #include "components/contextual_search/contextual_search_session_handle.h"
 
+#include <vector>
+
 #include "base/memory/ptr_util.h"
 #include "base/unguessable_token.h"
 #include "components/contextual_search/contextual_search_context_controller.h"
@@ -11,8 +13,31 @@
 #include "components/contextual_search/contextual_search_service.h"
 #include "components/lens/contextual_input.h"
 #include "components/lens/proto/server/lens_overlay_response.pb.h"
+#include "contextual_search_context_controller.h"
+#include "contextual_search_types.h"
 
 namespace contextual_search {
+
+namespace {
+
+std::vector<FileInfo> TokensToFileInfos(
+    ContextualSearchContextController* controller,
+    const std::vector<base::UnguessableToken>& tokens) {
+  std::vector<FileInfo> file_infos;
+  if (!controller) {
+    return file_infos;
+  }
+  for (const auto& token : tokens) {
+    const auto* file_info = controller->GetFileInfo(token);
+    if (!file_info) {
+      continue;
+    }
+    file_infos.push_back(*file_info);
+  }
+  return file_infos;
+}
+
+}  // namespace
 
 ContextualSearchSessionHandle::ContextualSearchSessionHandle(
     base::WeakPtr<ContextualSearchService> service,
@@ -198,9 +223,6 @@ bool ContextualSearchSessionHandle::DeleteFile(
 
 void ContextualSearchSessionHandle::ClearFiles() {
   uploaded_context_tokens_.clear();
-  if (auto* controller = GetController()) {
-    controller->ClearFiles();
-  }
 }
 
 GURL ContextualSearchSessionHandle::CreateSearchUrl(
@@ -238,7 +260,16 @@ ContextualSearchSessionHandle::CreateClientToAimRequest(
     return lens::ClientToAimMessage();
   }
 
-  create_client_to_aim_request_info->file_tokens = uploaded_context_tokens_;
+  // Move the uploaded tokens to the request's file_tokens.
+  create_client_to_aim_request_info->file_tokens =
+      std::exchange(uploaded_context_tokens_, {});
+
+  // Copy the tokens from this request to the list of all submitted tokens.
+  submitted_context_tokens_.insert(
+      submitted_context_tokens_.end(),
+      create_client_to_aim_request_info->file_tokens.begin(),
+      create_client_to_aim_request_info->file_tokens.end());
+
   // TODO(crbug.com/463705266): Add metrics recording.
 
   return context_controller->CreateClientToAimRequest(
@@ -248,6 +279,25 @@ ContextualSearchSessionHandle::CreateClientToAimRequest(
 std::vector<base::UnguessableToken>
 ContextualSearchSessionHandle::GetUploadedContextTokens() const {
   return uploaded_context_tokens_;
+}
+
+std::vector<base::UnguessableToken>
+ContextualSearchSessionHandle::GetSubmittedContextTokens() const {
+  return submitted_context_tokens_;
+}
+
+std::vector<FileInfo>
+ContextualSearchSessionHandle::GetUploadedContextFileInfos() const {
+  return TokensToFileInfos(GetController(), uploaded_context_tokens_);
+}
+
+std::vector<FileInfo>
+ContextualSearchSessionHandle::GetSubmittedContextFileInfos() const {
+  return TokensToFileInfos(GetController(), submitted_context_tokens_);
+}
+
+void ContextualSearchSessionHandle::ClearSubmittedContextTokens() {
+  submitted_context_tokens_.clear();
 }
 
 base::WeakPtr<ContextualSearchSessionHandle>

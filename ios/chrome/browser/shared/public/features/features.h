@@ -473,9 +473,6 @@ BASE_DECLARE_FEATURE(kIOSDownloadNoUIUpdateInBackground);
 // Feature flag enabling the client folder implementation of Save to Drive.
 BASE_DECLARE_FEATURE(kIOSSaveToDriveClientFolder);
 
-// Feature flag enabling account storage management.
-BASE_DECLARE_FEATURE(kIOSManageAccountStorage);
-
 // Feature flag to enable feed background refresh.
 // Use IsFeedBackgroundRefreshEnabled() instead of this constant directly.
 BASE_DECLARE_FEATURE(kEnableFeedBackgroundRefresh);
@@ -488,7 +485,6 @@ extern const char kContentPushNotificationsExperimentType[];
 
 // Feature flag to enable the content notifications.
 BASE_DECLARE_FEATURE(kContentPushNotifications);
-
 
 // Feature flag to enable Content Notification Provisional without any
 // conditions.
@@ -652,46 +648,10 @@ bool IsIOSKeyboardAccessoryDefaultViewEnabled();
 // enabled.
 bool IsIOSKeyboardAccessoryTwoBubbleEnabled();
 
-// Feature that enables tab resumption.
-BASE_DECLARE_FEATURE(kTabResumption);
-
-// Whether the tab resumption feature is enabled.
-bool IsTabResumptionEnabled();
-
-// Feature that enables images for Tab Resumption.
-BASE_DECLARE_FEATURE(kTabResumptionImages);
-
-// A parameter to choose what type of images are enabled in
-// `kTabResumptionImages` experiment (default to all).
-extern const char kTabResumptionImagesTypes[];
-
-// A parameter value for `kTabResumptionImagesTypes` to only enable salient
-// images images for tab resumption.
-extern const char kTabResumptionImagesTypesSalient[];
-
-// A parameter value for `kTabResumptionImagesTypes` to only enable thumbnails
-// images images for tab resumption.
-extern const char kTabResumptionImagesTypesThumbnails[];
-
 // A parameter to indicate whether the native UI is enabled for the discover
 // feed.
 // TODO(crbug.com/40246814): Remove this.
 extern const char kDiscoverFeedIsNativeUIEnabled[];
-
-// Feature parameters for the tab resumption feature. The threshold for tabs
-// fetched from sync in seconds. Default to 12 hours.
-extern const char kTabResumptionThresholdParameterName[];
-
-// Whether the tab resumption with salient images for distant tabs (or fallback
-// for local tabs) is enabled.
-bool IsTabResumptionImagesSalientEnabled();
-
-// Whether the tab resumption with salient images for local tabs is enabled.
-bool IsTabResumptionImagesThumbnailsEnabled();
-
-// Convenience method for determining the tab resumption time threshold for
-// X-Devices tabs only.
-const base::TimeDelta TabResumptionForXDevicesTimeThreshold();
 
 // Kill switch for disabling the navigations when the application is in
 // foreground inactive state after opening an external app.
@@ -900,9 +860,6 @@ BASE_DECLARE_FEATURE(kRefactorToolbarsSize);
 
 bool IsRefactorToolbarsSize();
 
-// Feature flag to enable the new share extension UI and entries.
-BASE_DECLARE_FEATURE(kNewShareExtension);
-
 // Feature that disables all IPH messages.
 BASE_DECLARE_FEATURE(kIPHAblation);
 
@@ -933,12 +890,6 @@ bool ShouldCancelTouchesInViewForIPH();
 
 // Returns true if the IPH gesture recognition improvements are enabled.
 bool IsIPHGestureRecognitionImprovementEnabled();
-
-// Feature flag for enabling the non-modal sign-in promo.
-BASE_DECLARE_FEATURE(kNonModalSignInPromo);
-
-// Returns whether the non-modal sign-in promo is enabled.
-bool IsNonModalSignInPromoEnabled();
 
 // Feature flag to remove section breaks when detecting addresses.
 BASE_DECLARE_FEATURE(kIOSOneTapMiniMapRemoveSectionsBreaks);
@@ -973,9 +924,6 @@ extern const char kIOSOneTapMiniMapRestrictionMinAlphanumProportionParamName[];
 extern const base::FeatureParam<double>
     kIOSOneTapMiniMapRestrictionMinAlphanumProportionParam;
 
-// Feature flag to forward Maps Universal links to native maps.
-BASE_DECLARE_FEATURE(kIOSMiniMapUniversalLink);
-
 // Returns whether notification collision management is enabled.
 bool IsNotificationCollisionManagementEnabled();
 
@@ -985,12 +933,6 @@ BASE_DECLARE_FEATURE(kNotificationCollisionManagement);
 // Feature flag to enable integration with iOS's
 // providesAppNotificationSettings.
 BASE_DECLARE_FEATURE(kIOSProvidesAppNotificationSettings);
-
-// Feature flag for enabling the sign-in button without avatar.
-BASE_DECLARE_FEATURE(kSignInButtonNoAvatar);
-
-// Returns whether the sign-in button without avatar is enabled.
-bool IsSignInButtonNoAvatarEnabled();
 
 // Feature flag to enable background customization on the NTP.
 BASE_DECLARE_FEATURE(kNTPBackgroundCustomization);
@@ -1036,12 +978,6 @@ bool IsBestOfAppLensInteractivePromoEnabled();
 
 // Whether the Lens Animated Promo variant of `kBestOfAppFRE` is enabled.
 bool IsBestOfAppLensAnimatedPromoEnabled();
-
-// Feature flag to include GWS variations in feedback.
-BASE_DECLARE_FEATURE(kFeedbackIncludeGWSVariations);
-
-// Whether the feature to include GWS variations in feedback is enabled.
-bool IsFeedbackIncludeGWSVariationsEnabled();
 
 // Whether the `kDefaultBrowserPromoPropensityModel` feature is enabled.
 bool IsDefaultBrowserPromoPropensityModelEnabled();
@@ -1196,5 +1132,11 @@ BASE_DECLARE_FEATURE(kIOSWebContextMenuNewTitle);
 
 // Returns true if the IOSWebContextMenuNewTitle feature is enabled.
 bool IsIOSWebContextMenuNewTitleEnabled();
+
+// Enables the CloseOtherTabs feature.
+BASE_DECLARE_FEATURE(kCloseOtherTabs);
+
+// Returns true if the CloseOtherTabs feature is enabled.
+bool IsCloseOtherTabsEnabled();
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_FEATURES_FEATURES_H_

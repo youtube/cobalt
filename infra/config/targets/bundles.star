@@ -637,10 +637,12 @@ targets.bundle(
 )
 
 # Test suites that need to run on hardware that is close to real Android device.
-# See https://crbug.com/40204012#comment5 for details.
 targets.bundle(
     name = "android_hardware_specific_gtests",
     targets = [
+        # https://crbug.com/466313164#comment3
+        "android_webview_unittests",
+        # https://crbug.com/40204012#comment5
         "cc_unittests",
         "viz_unittests",
     ],
@@ -1422,7 +1424,7 @@ targets.bundle(
     name = "chromeos_jacuzzi_rel_skylab_tests",
     targets = [
         targets.bundle(
-            targets = "chromeos_chrome_all_tast_tests_tfc",
+            targets = "chromeos_chrome_all_tast_tests",
             mixins = [
                 "chromeos-tast-public-builder",
                 "tfc-exclude-public",
@@ -1435,7 +1437,7 @@ targets.bundle(
             ],
         ),
         targets.bundle(
-            targets = "chromeos_chrome_criticalstaging_tast_tests_tfc",
+            targets = "chromeos_chrome_criticalstaging_tast_tests",
             mixins = [
                 "chromeos-tast-public-builder",
                 "skylab-20-tests-per-shard",
@@ -1446,7 +1448,7 @@ targets.bundle(
             ],
         ),
         targets.bundle(
-            targets = "chromeos_chrome_disabled_tast_tests_tfc",
+            targets = "chromeos_chrome_disabled_tast_tests",
             mixins = [
                 "chromeos-tast-public-builder",
                 "tfc-run-public",
@@ -1489,7 +1491,7 @@ targets.bundle(
     name = "chromeos_octopus_rel_skylab_tests",
     targets = [
         targets.bundle(
-            targets = "chromeos_chrome_all_tast_tests_tfc",
+            targets = "chromeos_chrome_all_tast_tests",
             mixins = [
                 "chromeos-tast-public-builder",
                 "tfc-exclude-public",
@@ -1501,7 +1503,7 @@ targets.bundle(
             ],
         ),
         targets.bundle(
-            targets = "chromeos_chrome_criticalstaging_tast_tests_tfc",
+            targets = "chromeos_chrome_criticalstaging_tast_tests",
             mixins = [
                 "chromeos-tast-public-builder",
                 "skylab-50-tests-per-shard",
@@ -1512,7 +1514,7 @@ targets.bundle(
             ],
         ),
         targets.bundle(
-            targets = "chromeos_chrome_disabled_tast_tests_tfc",
+            targets = "chromeos_chrome_disabled_tast_tests",
             mixins = [
                 "chromeos-tast-public-builder",
                 "tfc-run-public",
@@ -2140,6 +2142,16 @@ targets.bundle(
         "non_android_and_cast_and_chromeos_chromium_gtests",
         "non_android_chromium_gtests_no_nacl",
         "vr_platform_specific_chromium_gtests",
+    ],
+)
+
+# Use this for targets for which we only need the bare minimum coverage on
+# Linux.
+targets.bundle(
+    name = "chromium_linux_gtests_once",
+    targets = [
+        "trees_in_viz_blink_platform_unittests",
+        "trees_in_viz_cc_unittests",
     ],
 )
 
@@ -3145,6 +3157,14 @@ targets.bundle(
     targets = [
         "fuchsia_sizes",
     ],
+    per_test_modifications = {
+        "fuchsia_sizes": targets.mixin(
+            args = [
+                "--sizes-path",
+                "tools/fuchsia/size_tests/fyi_sizes_smoketest.json",
+            ],
+        ),
+    },
 )
 
 targets.bundle(
@@ -3484,6 +3504,27 @@ targets.bundle(
                     "--no-xvfb",
                 ],
             ),
+            "skia_gold_test",
+        ],
+    },
+)
+
+targets.bundle(
+    name = "gpu_common_gtests_passthrough_swiftshader",
+    targets = [
+        "gl_tests_passthrough",
+        "gl_unittests",
+    ],
+    per_test_modifications = {
+        "gl_tests_passthrough": targets.mixin(
+            args = [
+                "--use-gl=angle",
+            ],
+            swarming = targets.swarming(
+                shards = 2,
+            ),
+        ),
+        "gl_unittests": [
             "skia_gold_test",
         ],
     },
@@ -5495,7 +5536,7 @@ targets.bundle(
 )
 
 # Please also change ios_code_coverage_tests for any change in this suite.
-# TODO(crbug.com/441038354): comebine simulators for the same test target once
+# TODO(crbug.com/441038354): combine simulators for the same test target once
 # iOS26 performance issue is resolved on the VMs
 targets.bundle(
     name = "ios_simulator_full_configs_tests",
@@ -5553,6 +5594,7 @@ targets.bundle(
                 "xcodebuild_sim_runner",
             ],
             variants = [
+                "SIM_IPAD_PRO_7TH_GEN_26_0",
                 "SIM_IPHONE_16_26_0",
             ],
         ),
@@ -6695,71 +6737,6 @@ targets.bundle(
     targets = [
         "test_traffic_annotation_auditor",
     ],
-)
-
-targets.bundle(
-    name = "trees_in_viz_fyi_blink_web_tests",
-    targets = [
-        "blink_web_tests",
-    ],
-    mixins = [
-        targets.mixin(
-            args = [
-                "--flag-specific=trees-in-viz",
-            ],
-        ),
-    ],
-)
-
-targets.bundle(
-    name = "trees_in_viz_fyi_gtests",
-    targets = [
-        "blink_unittests",
-        "blink_platform_unittests",
-        "browser_tests",
-        "cc_unittests",
-        "content_browsertests",
-    ],
-    mixins = [
-        targets.mixin(
-            args = [
-                "--enable-features=TreesInViz",
-            ],
-        ),
-    ],
-    per_test_modifications = {
-        "blink_unittests": targets.mixin(
-            args = [
-                "--test-launcher-filter-file=../../testing/buildbot/filters/trees_in_viz.blink_unittests.filter",
-            ],
-        ),
-        "blink_platform_unittests": targets.mixin(
-            args = [
-                "--test-launcher-filter-file=../../testing/buildbot/filters/trees_in_viz.blink_platform_unittests.filter",
-            ],
-        ),
-        "browser_tests": targets.mixin(
-            args = [
-                "--test-launcher-filter-file=../../testing/buildbot/filters/trees_in_viz.browser_tests.filter",
-            ],
-            swarming = targets.swarming(
-                shards = 16,
-            ),
-        ),
-        "cc_unittests": targets.mixin(
-            args = [
-                "--test-launcher-filter-file=../../testing/buildbot/filters/trees_in_viz.cc_unittests.filter",
-            ],
-        ),
-        "content_browsertests": targets.mixin(
-            args = [
-                "--test-launcher-filter-file=../../testing/buildbot/filters/trees_in_viz.content_browsertests.filter",
-            ],
-            swarming = targets.swarming(
-                shards = 8,
-            ),
-        ),
-    },
 )
 
 targets.bundle(

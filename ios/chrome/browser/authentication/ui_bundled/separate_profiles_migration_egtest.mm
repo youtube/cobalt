@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #import "base/containers/flat_set.h"
+#import "base/strings/strcat.h"
 #import "base/strings/sys_string_conversions.h"
 #import "components/sync/base/features.h"
 #import "ios/chrome/browser/authentication/test/separate_profiles_util.h"
@@ -118,7 +119,7 @@
   }
 }
 
-// TODO(crbug.com/433320893): Re-enable this test.
+// TODO(crbug.com/411035267): Re-enable this test.
 - (void)DISABLED_testMigrateWithManagedPrimaryAccount {
   // A personal and a managed identity exist on the device.
   FakeSystemIdentity* const personalIdentity =

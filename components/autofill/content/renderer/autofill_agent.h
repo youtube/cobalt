@@ -162,10 +162,11 @@ class AutofillAgent : public content::RenderFrameObserver,
   void TriggerFormExtraction() override;
   void TriggerFormExtractionWithResponse(
       base::OnceCallback<void(bool)> callback) override;
-  void ApplyFieldsAction(
-      mojom::FormActionType action_type,
-      mojom::ActionPersistence action_persistence,
-      const std::vector<FormFieldData::FillData>& fields) override;
+  void ApplyFieldsAction(mojom::FormActionType action_type,
+                         mojom::ActionPersistence action_persistence,
+                         const std::vector<FormFieldData::FillData>& fields,
+                         const FillId& fill_id,
+                         bool supports_refill) override;
   void ApplyFieldAction(mojom::FieldActionType action_type,
                         mojom::ActionPersistence action_persistence,
                         FieldRendererId field_id,
@@ -506,6 +507,11 @@ class AutofillAgent : public content::RenderFrameObserver,
     base::TimeTicks time;
     FieldRendererId field = {};
   } last_ask_for_values_to_fill_;
+
+  struct {
+    bool has_warned = false;
+    std::vector<base::ScopedClosureRunner> remove_listeners;
+  } input_warnings_;
 
   const bool replace_form_element_observer_ = false;
 

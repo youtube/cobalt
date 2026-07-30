@@ -38,7 +38,8 @@ class XPathExpression;
 class XPathResult;
 
 class CORE_EXPORT DocumentXPathEvaluator final
-    : public GarbageCollected<DocumentXPathEvaluator> {
+    : public GarbageCollected<DocumentXPathEvaluator>,
+      public GarbageCollectedMixin {
  public:
   static DocumentXPathEvaluator& From(Document&);
 
@@ -55,10 +56,11 @@ class CORE_EXPORT DocumentXPathEvaluator final
                                const ScriptValue&,
                                ExceptionState&);
 
-  DocumentXPathEvaluator() = default;
-  void Trace(Visitor*) const;
+  explicit DocumentXPathEvaluator(Document&);
+  void Trace(Visitor*) const override;
 
  private:
+  Member<Document> document_;
   Member<XPathEvaluator> xpath_evaluator_;
 };
 

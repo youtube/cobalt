@@ -96,14 +96,6 @@ BASE_FEATURE(kBeforeUnloadBrowserResponseQueue,
 #endif
 );
 
-// When this feature is enabled, requests to localhost initiated from non-secure
-// contexts in the `unknown` IP address space are blocked.
-//
-// See also:
-//  - kBlockInsecurePrivateNetworkRequests
-BASE_FEATURE(kBlockInsecurePrivateNetworkRequestsFromUnknown,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 #if BUILDFLAG(IS_ANDROID)
 // Whether to hide paste popup on GestureScrollBegin or GestureScrollUpdate.
 BASE_FEATURE(kHidePastePopupOnGSB, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -344,6 +336,11 @@ BASE_FEATURE(kIgnoreDuplicateNavsOnlyWithUserGesture,
 
 // A feature flag for the memory-backed code cache.
 BASE_FEATURE(kInMemoryCodeCache, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Whether initial WebUI navigations should synchronously go from navigation
+// start to commit, by doing e.g. in-renderer body loading.
+BASE_FEATURE(kInitialWebUISyncNavStartToCommit,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables the ability to use the updateIfOlderThanMs field in the trusted
 // bidding response to trigger a post-auction update if the group has been
@@ -606,6 +603,18 @@ BASE_FEATURE(kReusePrerenderingProcessForMainFrames,
 // now anyway; they don't work.
 BASE_FEATURE(kRestrictOrientationLockToPhones,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, inactive renderers (e.g. in back-forward cache) are removed
+// from the binding manager to lower their priority.
+BASE_FEATURE(kRemoveCachedProcessFromBindingManager,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
+
+// Fix for scrolling to focused editable input fields after tapping to show the
+// on-screen keyboard (crbug.com/462636368).
+#if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kScrollAfterOSKViewportShrinkFix,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 BASE_FEATURE(kServiceWorkerAvoidMainThreadForInitialization,

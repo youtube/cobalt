@@ -107,7 +107,18 @@ enum class CredentialRequestResult {
   kOtherSuccess = 14,
   kOtherError = 15,
 
-  kMaxValue = kOtherError,
+  kAndroidFido2Success = 16,
+  kAndroidFido2Error = 17,
+  kAndroidCredManSuccess = 18,
+  kAndroidCredManError = 19,
+  kAndroidFido2HybridSuccess = 20,
+  kAndroidFido2HybridError = 21,
+  kAndroidFido2LegacySuccess = 22,
+  kAndroidFido2LegacyError = 23,
+  kAndroidIdentityCredentialsSuccess = 24,
+  kAndroidIdentityCredentialsError = 25,
+
+  kMaxValue = kAndroidIdentityCredentialsError,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/webauthn/enums.xml:WebAuthenticationCredentialRequestResult)
 

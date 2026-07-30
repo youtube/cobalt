@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "base/strings/strcat.h"
 #include "chrome/browser/collaboration/messaging/messaging_backend_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
@@ -22,7 +23,7 @@
 #include "chrome/browser/ui/toasts/toast_view.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/ui/views/frame/tab_strip_view_interface.h"
+#include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
 #include "chrome/browser/ui/views/tabs/tab.h"
 #include "chrome/browser/ui/views/tabs/tab_group_header.h"
 #include "chrome/browser/ui/views/tabs/tab_icon.h"
@@ -176,15 +177,16 @@ class CollaborationMessagingObserverBrowserTest
         browser()->profile());
   }
 
-  TabStripViewInterface* GetTabStripView(Browser* target_browser) {
+  TabStripRegionView* GetTabStripView(Browser* target_browser) {
     return BrowserView::GetBrowserViewForBrowser(target_browser)
         ->tab_strip_view();
   }
 
   TabIcon* GetTabIcon(Browser* target_browser, int index) {
-    return GetTabStripView(target_browser)
-        ->GetTabAnchorViewAt(index)
-        ->GetTabIconForTesting();
+    return views::AsViewClass<TabIcon>(
+        GetTabStripView(target_browser)
+            ->GetTabAnchorViewAt(index)
+            ->GetViewByElementId(kTabIconElementId));
   }
 
   views::View* GetTabGroupHeader(Browser* target_browser,
@@ -198,9 +200,8 @@ class CollaborationMessagingObserverBrowserTest
 
   CollaborationMessagingTabData* GetTabDataAtIndex(Browser* target_browser,
                                                    int index) {
-    return GetTabInterface(target_browser, index)
-        ->GetTabFeatures()
-        ->collaboration_messaging_tab_data();
+    return tab_groups::CollaborationMessagingTabData::From(
+        GetTabInterface(target_browser, index));
   }
 
   bool AddTab(Browser* target_browser) {

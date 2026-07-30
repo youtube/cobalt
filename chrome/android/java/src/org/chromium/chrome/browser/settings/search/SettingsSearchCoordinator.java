@@ -47,7 +47,11 @@ import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.settings.MainSettings;
 import org.chromium.chrome.browser.settings.MultiColumnSettings;
-import org.chromium.chrome.browser.settings.search.SettingsIndexData.SearchResults;
+import org.chromium.chrome.browser.site_settings.ChromeSiteSettingsDelegate;
+import org.chromium.components.browser_ui.settings.search.SearchIndexProvider;
+import org.chromium.components.browser_ui.settings.search.SettingsIndexData;
+import org.chromium.components.browser_ui.settings.search.SettingsIndexData.SearchResults;
+import org.chromium.components.browser_ui.site_settings.SiteSettings;
 import org.chromium.components.browser_ui.widget.containment.ContainmentItemDecoration;
 import org.chromium.components.browser_ui.widget.displaystyle.UiConfig;
 import org.chromium.components.browser_ui.widget.displaystyle.ViewResizer;
@@ -77,7 +81,7 @@ public class SettingsSearchCoordinator {
     private final AppCompatActivity mActivity;
     private final BooleanSupplier mUseMultiColumnSupplier;
     private @Nullable final MultiColumnSettings mMultiColumnSettings;
-    private final Map<Fragment, ContainmentItemDecoration> mItemDecorations;
+    private final Map<PreferenceFragmentCompat, ContainmentItemDecoration> mItemDecorations;
     private final Handler mHandler = new Handler();
     private final Profile mProfile;
     private final Callback<Integer> mUpdateFirstVisibleTitle;
@@ -87,6 +91,7 @@ public class SettingsSearchCoordinator {
     private @Nullable Runnable mRemoveResultChildViewListener;
     private @Nullable UiConfig mBoxUiConfig;
     private @Nullable UiConfig mQueryUiConfig;
+    private @Nullable Runnable mTurnOffHighlight;
 
     // Whether the back action handler for MultiColumnSettings was set. This is set lazily when
     // search UI gets focus for the first time.
@@ -144,7 +149,7 @@ public class SettingsSearchCoordinator {
             AppCompatActivity activity,
             BooleanSupplier useMultiColumnSupplier,
             @Nullable MultiColumnSettings multiColumnSettings,
-            Map<Fragment, ContainmentItemDecoration> itemDecorations,
+            Map<PreferenceFragmentCompat, ContainmentItemDecoration> itemDecorations,
             Profile profile,
             Callback<Integer> updateFirstVisibleTitle) {
         mActivity = activity;
@@ -172,6 +177,7 @@ public class SettingsSearchCoordinator {
         LayoutInflater.from(mActivity).inflate(R.layout.settings_search_box, searchBoxParent, true);
         LayoutInflater.from(mActivity).inflate(R.layout.settings_search_query, actionBar, true);
         View searchBox = mActivity.findViewById(R.id.search_box);
+        setSearchBoxBottomMargin(searchBox, mUseMultiColumn);
         searchBox.setOnClickListener(v -> enterSearchState());
 
         if (mMultiColumnSettings != null) {
@@ -243,7 +249,7 @@ public class SettingsSearchCoordinator {
     @EnsuresNonNull("mIndexData")
     private void initIndex() {
         if (mIndexData == null) {
-            mIndexData = new SettingsIndexData();
+            mIndexData = SettingsIndexData.createInstance();
         } else {
             if (!mIndexData.needsIndexing()) return;
         }
@@ -271,11 +277,22 @@ public class SettingsSearchCoordinator {
         // Allow providers to make runtime modifications (e.g., hide preferences). Sometimes we also
         // need to update the title of a pref.
         for (SearchIndexProvider provider : providers) {
-            provider.updateDynamicPreferences(mActivity, mIndexData, mProfile);
+            if (provider instanceof ChromeSearchIndexProvider chromeProvider) {
+                chromeProvider.updateDynamicPreferences(mActivity, mIndexData, mProfile);
+            } else {
+                provider.updateDynamicPreferences(mActivity, mIndexData);
+            }
         }
+
+        // Some exceptions whose dynamic preferences cannot be updated via SearchIndexProvider
+        // #updateDynamicPreferences.
+        SiteSettings.updateDynamicPreferences(
+                mActivity, new ChromeSiteSettingsDelegate(mActivity, mProfile), mIndexData);
 
         // Resolve headers and remove any orphaned entries.
         mIndexData.resolveIndex(mainSettingsClassName);
+
+        mIndexData.setNeedsIndexing(false);
     }
 
     /**
@@ -515,6 +532,7 @@ public class SettingsSearchCoordinator {
         View query = mActivity.findViewById(R.id.search_query_container);
         if (mUseMultiColumn) {
             ViewGroup actionBar = mActivity.findViewById(R.id.action_bar);
+            setSearchBoxBottomMargin(searchBox, true);
             assumeNonNull(actionBar).addView(searchBox);
             if (mFragmentState == FS_RESULTS) {
                 // Make the query edit UI visible which was hidden in single-column mode.
@@ -523,6 +541,7 @@ public class SettingsSearchCoordinator {
         } else {
             // Search bar goes beneath the toolbar (app_bar_layout) in single-column layout.
             ViewGroup appBarLayout = mActivity.findViewById(R.id.app_bar_layout);
+            setSearchBoxBottomMargin(searchBox, false);
             appBarLayout.addView(searchBox);
 
             // Query edit UI should be hidden while we're browsing results.
@@ -537,6 +556,12 @@ public class SettingsSearchCoordinator {
                 }
             }
         }
+    }
+
+    private void setSearchBoxBottomMargin(View searchBox, boolean multiColumn) {
+        var lp = (ViewGroup.MarginLayoutParams) searchBox.getLayoutParams();
+        lp.bottomMargin = multiColumn ? 0 : getPixelSize(R.dimen.settings_search_ui_bottom_margin);
+        searchBox.setLayoutParams(lp);
     }
 
     private void setUpQueryEdit(EditText queryEdit) {
@@ -682,6 +707,10 @@ public class SettingsSearchCoordinator {
             // In single-column mode, search UI is hidden and title is shown instead in the toolbar.
             mActivity.findViewById(R.id.search_query_container).setVisibility(View.GONE);
         }
+        if (mTurnOffHighlight != null) {
+            mTurnOffHighlight.run();
+            mTurnOffHighlight = null;
+        }
     }
 
     private void showResultPreference(PreferenceFragmentCompat fragment, String key) {
@@ -712,6 +741,13 @@ public class SettingsSearchCoordinator {
                                                 view, getHighlightParams(fragment, pos));
                                         listView.removeOnChildAttachStateChangeListener(this);
                                         mRemoveResultChildViewListener = null;
+                                        mHandler.post(
+                                                () -> {
+                                                    mTurnOffHighlight =
+                                                            () ->
+                                                                    ViewHighlighter
+                                                                            .turnOffHighlight(view);
+                                                });
                                     };
                             mHandler.postDelayed(mRemoveResultChildViewListener, 200);
                         }
@@ -732,7 +768,11 @@ public class SettingsSearchCoordinator {
                     @Override
                     public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
                         fragment.scrollToPreference(key);
-                        listView.removeOnScrollListener(this);
+                        if (mTurnOffHighlight != null) {
+                            mTurnOffHighlight.run();
+                            mTurnOffHighlight = null;
+                            listView.removeOnScrollListener(this);
+                        }
                     }
                 });
     }
@@ -753,5 +793,8 @@ public class SettingsSearchCoordinator {
     public void destroy() {
         // Title supplier should be nulled out as we step out of Settings for cleanup.
         SearchResultsPreferenceFragment.reset();
+        if (mIndexData != null) {
+            SettingsIndexData.reset();
+        }
     }
 }

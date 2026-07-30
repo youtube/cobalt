@@ -78,11 +78,6 @@ AX_BASE_EXPORT BASE_DECLARE_FEATURE(
     kAccessibilityPerformanceMeasurementExperiment);
 AX_BASE_EXPORT bool IsAccessibilityPerformanceMeasurementExperimentEnabled();
 
-// Use AXBitset to save boolean attributes in ui/accessibility instead of a
-// vector.
-AX_BASE_EXPORT BASE_DECLARE_FEATURE(kAccessibilityUseAXBitset);
-AX_BASE_EXPORT bool IsAccessibilityUseAXBitsetEnabled();
-
 enum class AccessibilityPerformanceMeasurementExperimentGroup {
   kAXModeComplete,
   kWebContentsOnly,
@@ -188,6 +183,12 @@ AX_BASE_EXPORT BASE_DECLARE_FEATURE(kUiaProvider);
 // side-effects on assistive technologies.
 // TODO(https://crbug.com/402375302): Remove in M139.
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kUiaEventOptimization);
+
+// Enables MathML support in Windows UI Automation (UIA) implementation by
+// adding a custom property for exposing mathematical content to assistive
+// technologies.
+AX_BASE_EXPORT BASE_DECLARE_FEATURE(kUiaMathMlSupport);
+AX_BASE_EXPORT bool IsUiaMathMlSupportEnabled();
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -357,6 +358,10 @@ AX_BASE_EXPORT bool IsReadAnythingReadAloudTSTextSegmentationEnabled();
 // Enable the omnibox entrypoint for Read Anything.
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kReadAnythingOmniboxChip);
 AX_BASE_EXPORT bool IsReadAnythingOmniboxChipEnabled();
+
+// Enable the line focus feature for Read Anything.
+AX_BASE_EXPORT BASE_DECLARE_FEATURE(kReadAnythingLineFocus);
+AX_BASE_EXPORT bool IsReadAnythingLineFocusEnabled();
 
 // Enable images to be distilled via algorithm. Should be disabled by
 // default.

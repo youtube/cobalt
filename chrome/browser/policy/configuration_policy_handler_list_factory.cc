@@ -224,13 +224,13 @@
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+#include "chrome/browser/extensions/extension_management_constants.h"
 #include "chrome/browser/extensions/policy_handlers.h"
 #include "extensions/browser/pref_names.h"
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/extensions/api/messaging/native_messaging_policy_handler.h"
-#include "chrome/browser/extensions/extension_management_constants.h"
 #include "extensions/common/manifest.h"
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
@@ -413,9 +413,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     base::Value::Type::LIST },
   { key::kPrivacySandboxFingerprintingProtectionEnabled,
     prefs::kFingerprintingProtectionEnabled,
-    base::Value::Type::BOOLEAN },
-  { key::kPrivacySandboxIpProtectionEnabled,
-    prefs::kIpProtectionEnabled,
     base::Value::Type::BOOLEAN },
   { key::kHttpsUpgradesEnabled,
     prefs::kHttpsUpgradesEnabled,
@@ -2236,11 +2233,11 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     base::Value::Type::BOOLEAN },
 #endif  // !BUILDFLAG(IS_MAC) && BUILDFLAG(ENABLE_EXTENSIONS)
 
-#if !BUILDFLAG(IS_CHROMEOS) && BUILDFLAG(ENABLE_EXTENSIONS)
+#if !BUILDFLAG(IS_CHROMEOS) && BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   { key::kBlockExternalExtensions,
     extensions::pref_names::kBlockExternalExtensions,
     base::Value::Type::BOOLEAN },
-#endif // !BUILDFLAG(IS_CHROMEOS) && BUILDFLAG(ENABLE_EXTENSIONS)
+#endif // !BUILDFLAG(IS_CHROMEOS) && BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   { key::kExtensionExtendedBackgroundLifetimeForPortConnectionsToUrls,
@@ -2284,9 +2281,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kCORSNonWildcardRequestHeadersSupport,
     prefs::kCorsNonWildcardRequestHeadersSupport,
     base::Value::Type::BOOLEAN },
-  { key::kUserAgentReduction,
-    prefs::kUserAgentReduction,
-    base::Value::Type::INTEGER},
 #if BUILDFLAG(IS_MAC)
   { key::kWarnBeforeQuittingEnabled,
     prefs::kConfirmToQuitEnabled,
@@ -2418,9 +2412,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     prefs::kCACertificateManagementAllowed,
     base::Value::Type::INTEGER },
 #endif  // !BUILDFLAG(IS_ANDROID)
-  { key::kLocalNetworkAccessRestrictionsEnabled,
-    prefs::kManagedLocalNetworkAccessRestrictionsEnabled,
-    base::Value::Type::BOOLEAN },
   { key::kLocalNetworkAccessRestrictionsTemporaryOptOut,
     prefs::kManagedLocalNetworkAccessRestrictionsTemporaryOptOut,
     base::Value::Type::BOOLEAN },
@@ -2529,7 +2520,7 @@ const SchemaValidatingPolicyToPreferenceMapEntry kSchemaValidatingPolicyMap[] =
 };
 // clang-format on
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 void GetExtensionAllowedTypesMap(
     std::vector<std::unique_ptr<StringMappingListPolicyHandler::MappingEntry>>*
         result) {
@@ -2541,7 +2532,7 @@ void GetExtensionAllowedTypesMap(
             name, std::make_unique<base::Value>(manifest_type)));
   }
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
 // Future policies are not supported on Stable and Beta by default.
 bool AreFuturePoliciesEnabledByDefault() {
@@ -2934,11 +2925,10 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
               key::kProfileSeparationSettings,
               key::kProfileSeparationDataMigrationSettings,
               key::kProfileSeparationDomainExceptionList}));
-  handlers->AddHandler(std::make_unique<CloudUserOnlyPolicyHandler>(
+  handlers->AddHandler(std::make_unique<CloudUserOnlyPolicyChecker>(
       std::make_unique<SimplePolicyHandler>(key::kProfileSeparationSettings,
                                             prefs::kProfileSeparationSettings,
                                             base::Value::Type::INTEGER)));
-
 
   handlers->AddHandler(std::make_unique<SimpleDeprecatingPolicyHandler>(
       std::make_unique<SimplePolicyHandler>(
@@ -2958,14 +2948,14 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
   handlers->AddHandler(std::make_unique<SimplePolicyHandler>(
       key::kEnterpriseCustomLabelForBrowser,
       prefs::kEnterpriseCustomLabelForBrowser, base::Value::Type::STRING));
-  handlers->AddHandler(std::make_unique<CloudUserOnlyPolicyHandler>(
+  handlers->AddHandler(std::make_unique<CloudUserOnlyPolicyChecker>(
       std::make_unique<SimplePolicyHandler>(
           key::kEnterpriseCustomLabel, prefs::kEnterpriseCustomLabelForProfile,
           base::Value::Type::STRING)));
 
   handlers->AddHandler(std::make_unique<URLPolicyHandler>(
       key::kEnterpriseLogoUrlForBrowser, prefs::kEnterpriseLogoUrlForBrowser));
-  handlers->AddHandler(std::make_unique<CloudUserOnlyPolicyHandler>(
+  handlers->AddHandler(std::make_unique<CloudUserOnlyPolicyChecker>(
       std::make_unique<URLPolicyHandler>(key::kEnterpriseLogoUrl,
                                          prefs::kEnterpriseLogoUrlForProfile)));
 
@@ -2976,6 +2966,15 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
           policy::SchemaOnErrorStrategy::SCHEMA_STRICT,
           policy::SimpleSchemaValidatingPolicyHandler::RECOMMENDED_PROHIBITED,
           policy::SimpleSchemaValidatingPolicyHandler::MANDATORY_ALLOWED));
+
+  handlers->AddHandler(std::make_unique<CloudOnlyPolicyChecker>(
+      std::make_unique<URLSchemeListPolicyHandler>(
+          key::kSaaSReportDomainUrlsForBrowser,
+          enterprise_reporting::kSaaSReportDomainUrlsForBrowser)));
+  handlers->AddHandler(std::make_unique<CloudUserOnlyPolicyChecker>(
+      std::make_unique<URLSchemeListPolicyHandler>(
+          key::kSaaSReportDomainUrlsForProfile,
+          enterprise_reporting::kSaaSReportDomainUrlsForProfile)));
 
 #elif BUILDFLAG(IS_CHROMEOS)
   handlers->AddHandler(
@@ -3015,12 +3014,12 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
       key::kForceBrowserSignin, prefs::kForceBrowserSignin,
       base::Value::Type::BOOLEAN));
 
-  handlers->AddHandler(std::make_unique<CloudUserOnlyPolicyHandler>(
+  handlers->AddHandler(std::make_unique<CloudUserOnlyPolicyChecker>(
       std::make_unique<SimplePolicyHandler>(
           key::kUserSecuritySignalsReporting,
           enterprise_reporting::kUserSecuritySignalsReporting,
           base::Value::Type::BOOLEAN)));
-  handlers->AddHandler(std::make_unique<CloudUserOnlyPolicyHandler>(
+  handlers->AddHandler(std::make_unique<CloudUserOnlyPolicyChecker>(
       std::make_unique<SimplePolicyHandler>(
           key::kUserSecurityAuthenticatedReporting,
           enterprise_reporting::kUserSecurityAuthenticatedReporting,
@@ -3367,8 +3366,6 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
       std::make_unique<extensions::ExtensionInstallBlockListPolicyHandler>());
   handlers->AddHandler(
       std::make_unique<extensions::ExtensionInstallForceListPolicyHandler>());
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
-#if BUILDFLAG(ENABLE_EXTENSIONS)
   handlers->AddHandler(
       std::make_unique<extensions::ExtensionURLPatternListPolicyHandler>(
           key::kExtensionInstallSources,
@@ -3380,6 +3377,8 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
       key::kExtensionUnpublishedAvailability,
       extensions::pref_names::kExtensionUnpublishedAvailability,
       /*min=*/0, /*max=*/1, /*clamp=*/false));
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+#if BUILDFLAG(ENABLE_EXTENSIONS)
   handlers->AddHandler(std::make_unique<ExtensionDeveloperModePolicyHandler>());
   handlers->AddHandler(std::make_unique<SimplePolicyHandler>(
       key::kExtensionInstallCloudPolicyChecksEnabled,
@@ -3529,7 +3528,7 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
           std::move(gen_ai_default_policies))));
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
-  handlers->AddHandler(std::make_unique<CloudUserOnlyPolicyHandler>(
+  handlers->AddHandler(std::make_unique<CloudUserOnlyPolicyChecker>(
       std::make_unique<SimplePolicyHandler>(
           key::kTabGroupSharingSettings,
           collaboration::prefs::kSharedTabGroupsManagedAccountSetting,
@@ -3545,7 +3544,7 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(ENTERPRISE_CACHE_ENCRYPTION)
-  handlers->AddHandler(std::make_unique<CloudUserOnlyPolicyHandler>(
+  handlers->AddHandler(std::make_unique<CloudUserOnlyPolicyChecker>(
       std::make_unique<SimplePolicyHandler>(
           key::kCacheEncryptionEnabled,
           enterprise_connectors::kCacheEncryptionEnabledPref,

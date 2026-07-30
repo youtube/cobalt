@@ -19,6 +19,8 @@ chromium::import! {
     "//mojo/public/rust/mojom_parser:validation_parser";
 }
 
+use std::iter;
+
 use mojom_parser_core::*;
 use parser_unittests_rust::parser_unittests::*;
 use rust_gtest_interop::prelude::*;
@@ -37,16 +39,19 @@ where
             .map_err(anyhow::Error::msg)?
             // We currently don't do anything with handles, so only look at the data field
             .data;
+
         // FOR_RELEASE: It would be nice to use the `verify_` macros from googletest
         // that return a result, if we get access to them.
-        expect_eq!(
-            value,
-            parse_single_value_for_testing(wire_data.as_ref(), T::wire_type())?.try_into()?
-        );
         // FOR_RELEASE: We shouldn't need to clone here
+        // Doing deparse tests first is helpful when writing tests because it
+        // helps check that we wrote the wire data string correctly.
         expect_eq!(
             wire_data.as_ref(),
             deparse_single_value_for_testing(&value.clone().into(), T::wire_type())?
+        );
+        expect_eq!(
+            value,
+            parse_single_value_for_testing(wire_data.as_ref(), T::wire_type())?.try_into()?
         );
         Ok(())
     };
@@ -494,6 +499,578 @@ fn test_unions() -> anyhow::Result<()> {
             "[s4]3000 [u4]0 ",                                  // WithNestedUnion.n2
             "[anchr]u4_w_u_ptr [u4]16 [u4]6 [dist8]u4_f1_ptr ", // BaseUnion::f1 - u4.w.u.u
             "[anchr]u4_f1_ptr [u4]24 [u4]0 [s1]12 [u1]0 [s2]13 [s4]14 [s8]15"  // FourInts
+        ),
+    )?;
+
+    Ok(())
+}
+
+#[gtest(MojomParser, TestArrayParsing)]
+fn test_array_parsing() -> anyhow::Result<()> {
+    // array<int16>
+    validate_parsing::<Vec<i16>>(
+        vec![1, -2, 3, -4, 5],
+        "[u4]18 [u4]5 [s2]1 [s2]-2 [s2]3 [s2]-4 [s2]5 [u2]0 [u4]0",
+    )?;
+
+    validate_parsing::<Vec<i16>>(vec![], "[u4]8 [u4]0")?;
+
+    // array<uint64, 3>
+    validate_parsing::<[u64; 3]>([5, 6, 7], "[u4]32 [u4]3 [u8]5 [u8]6 [u8]7")?;
+    // Wrong number of elements
+    validate_parsing_failure::<[u64; 3]>("[u4]32 [u4]4 [u8]5 [u8]6 [u8]7 [u8]8")?;
+
+    // array<bool>
+    validate_parsing::<Vec<bool>>(
+        vec![true, true, false, true, false, false, true, false, true],
+        "[u4]10 [u4]9 [b]01001011 [b]00000001 [u2]0 [u4]0",
+    )?;
+
+    // array<bool, 20>
+    validate_parsing::<[bool; 20]>(
+        [
+            false, true, true, false, true, true, false, true, true, false, true, true, false,
+            true, true, false, true, true, false, true,
+        ],
+        "[u4]11 [u4]20 [b]10110110 [b]01101101 [b]00001011 [u1]0 [u4]0",
+    )?;
+
+    // array<TestEnum>
+    validate_parsing::<Vec<TestEnum>>(
+        vec![TestEnum::Zero, TestEnum::Four, TestEnum::Seven],
+        "[u4]20 [u4]3 [u4]0 [u4]4 [u4]7 [u4]0",
+    )?;
+
+    // Bad enum value
+    validate_parsing_failure::<Vec<TestEnum>>("[u4]24 [u4]3 [u4]0 [u4]99 [u4]4")?;
+
+    // array<BaseUnion>
+    validate_parsing::<Vec<BaseUnion>>(
+        vec![BaseUnion::n1(10), BaseUnion::u1(20), BaseUnion::e1(TestEnum::Three)],
+        concat!(
+            "[u4]56 [u4]3 ", // Array header
+            "[u4]16 [u4]0 [u8]10 ",
+            "[u4]16 [u4]1 [u8]20 ",
+            "[u4]16 [u4]2 [u8]3",
+        ),
+    )?;
+
+    // Bad union value in array
+    validate_parsing_failure::<Vec<BaseUnion>>(concat!(
+        "[u4]48 [u4]3 ", // Array header
+        "[u4]16 [u4]0 [u8]10 ",
+        "[u4]16 [u4]99 [u8]20 ", // Invalid discriminant
+        "[u4]16 [u4]2 [u8]3",
+    ))?;
+
+    // array<FourInts>
+    validate_parsing::<Vec<FourInts>>(
+        vec![FourInts { a: 1, b: 2, c: 3, d: 4 }, FourInts { a: 5, b: 6, c: 7, d: 8 }],
+        concat!(
+            "[u4]24 [u4]2 ", // Array header
+            "[dist8]fourints_0_ptr ",
+            "[dist8]fourints_1_ptr ",
+            "[anchr]fourints_0_ptr ",
+            "[u4]24 [u4]0 [s1]1 [u1]0 [s2]2 [s4]3 [s8]4 ", // FourInts 0
+            "[anchr]fourints_1_ptr ",
+            "[u4]24 [u4]0 [s1]5 [u1]0 [s2]6 [s4]7 [s8]8", // FourInts 1
+        ),
+    )?;
+
+    // array<array<uint8>>
+    validate_parsing::<Vec<Vec<u8>>>(
+        vec![vec![1, 2], vec![3, 4, 5]],
+        concat!(
+            "[u4]24 [u4]2 ", // Array header
+            "[dist8]nested_0_ptr ",
+            "[dist8]nested_1_ptr ",
+            "[anchr]nested_0_ptr ",
+            "[u4]10 [u4]2 [u1]1 [u1]2 [u2]0 [u4]0 ", // Inner array 0
+            "[anchr]nested_1_ptr ",
+            "[u4]11 [u4]3 [u1]3 [u1]4 [u1]5 [u1]0 [u4]0", // Inner array 1
+        ),
+    )?;
+
+    // array<array<uint8, 2>, 3>
+    validate_parsing::<[[u8; 2]; 3]>(
+        [[6, 7], [8, 9], [10, 11]],
+        concat!(
+            "[u4]32 [u4]3 ", // Outer array header
+            "[dist8]nested_sized_0_ptr ",
+            "[dist8]nested_sized_1_ptr ",
+            "[dist8]nested_sized_2_ptr ",
+            "[anchr]nested_sized_0_ptr ",
+            "[u4]10 [u4]2 [u1]6 [u1]7 [u2]0 [u4]0 ", // Inner array 0
+            "[anchr]nested_sized_1_ptr ",
+            "[u4]10 [u4]2 [u1]8 [u1]9 [u2]0 [u4]0 ", // Inner array 1
+            "[anchr]nested_sized_2_ptr ",
+            "[u4]10 [u4]2 [u1]10 [u1]11 [u2]0 [u4]0", // Inner array 2
+        ),
+    )?;
+
+    // array<NestedUnion>
+    validate_parsing::<Vec<NestedUnion>>(
+        vec![NestedUnion::n(30), NestedUnion::u(BaseUnion::n1(40)), NestedUnion::n(50)],
+        concat!(
+            "[u4]56 [u4]3 ", // Array header
+            "[u4]16 [u4]0 [u8]30 ",
+            "[u4]16 [u4]1 [dist8]nested_union_1_ptr ",
+            "[u4]16 [u4]0 [u8]50 ",
+            "[anchr]nested_union_1_ptr ",
+            "[u4]16 [u4]0 [u8]40",
+        ),
+    )?;
+
+    Ok(())
+}
+
+// Note that tests involving maps are especially tricky, because semantically
+// the order of (key, value) pairs doesn't matter, but since we do exact
+// comparisons it matters when we specify the wire data here.
+// Our implementation uses a BTreeMap to guarantee that we always serialize in
+// a sorted order.
+#[gtest(MojomParser, TestMapParsing)]
+fn test_map_parsing() -> anyhow::Result<()> {
+    use std::collections::HashMap;
+
+    validate_parsing::<HashMap<i8, i8>>(
+        [(1, 10), (3, 40), (8, 99)].into(),
+        concat!(
+            // Map header
+            "[u4]24 [u4]0 [dist8]keys_ptr [dist8]values_ptr ",
+            // keys array
+            "[anchr]keys_ptr ",
+            "[u4]11 [u4]3 ", // Keys header: size, num_elements
+            "[s1]1 [s1]3 [s1]8 [u1]0 [u4]0 ",
+            // values array
+            "[anchr]values_ptr ",
+            "[u4]11 [u4]3 ", // Values header: size, num_elements
+            "[s1]10 [s1]40 [s1]99 [u1]0 [u4]0 ",
+        ),
+    )?;
+
+    // Empty maps are fine
+    validate_parsing::<HashMap<i8, i8>>(
+        [].into(),
+        concat!(
+            // Map struct
+            "[u4]24 [u4]0 [dist8]keys_ptr [dist8]values_ptr ",
+            // keys array
+            "[anchr]keys_ptr [u4]8 [u4]0 ",
+            // values array
+            "[anchr]values_ptr [u4]8 [u4]0 ",
+        ),
+    )?;
+
+    // Mismatched sizes are not fine
+    validate_parsing_failure::<HashMap<i8, i8>>(concat!(
+        // Map struct
+        "[u4]24 [u4]0 [dist8]keys_ptr [dist8]values_ptr ",
+        // keys array
+        "[anchr]keys_ptr [u4]9 [u4]1 ",
+        "[s1]1 [s1]0 [s2]0 [s4]0 ",
+        // values array
+        "[anchr]values_ptr [u4]8 [u4]0 ",
+    ))?;
+    validate_parsing_failure::<HashMap<i8, i8>>(concat!(
+        // Map struct
+        "[u4]24 [u4]0 [dist8]keys_ptr [dist8]values_ptr ",
+        // keys array
+        "[anchr]keys_ptr [u4]9 [u4]1 ",
+        "[s1]1 [s1]0 [s2]0 [s4]0 ",
+        // values array
+        "[anchr]values_ptr [u4]10 [u4]2 ",
+        "[s1]2 [s1]3 [s2]0 [s4]0 ",
+    ))?;
+
+    // Nor are duplicate keys
+    validate_parsing_failure::<HashMap<i8, i8>>(concat!(
+        // Map struct
+        "[u4]24 [u4]0 [dist8]keys_ptr [dist8]values_ptr ",
+        // keys array
+        "[anchr]keys_ptr [u4]10 [u4]2 ",
+        "[s1]1 [s1]1 [s2]0 [s4]0 ",
+        // values array
+        "[anchr]values_ptr [u4]10 [u4]2 ",
+        "[s1]2 [s1]3 [s2]0 [s4]0 ",
+    ))?;
+
+    validate_parsing::<HashMap<bool, u16>>(
+        [(false, 1020), (true, 3040)].into(),
+        concat!(
+            // Map header
+            "[u4]24 [u4]0 [dist8]keys_ptr [dist8]values_ptr ",
+            // keys array
+            "[anchr]keys_ptr ",
+            "[u4]9 [u4]2 [b]00000010 [u1]0 [u2]0 [u4]0 ",
+            // values array
+            "[anchr]values_ptr ",
+            "[u4]12 [u4]2 [u2]1020 [u2]3040 [u4]0",
+        ),
+    )?;
+
+    validate_parsing::<HashMap<TestEnum, i32>>(
+        [(TestEnum::Seven, -2), (TestEnum::Four, -3), (TestEnum::Zero, -1), (TestEnum::Three, -3)]
+            .into(),
+        concat!(
+            // Map header
+            "[u4]24 [u4]0 [dist8]keys_ptr [dist8]values_ptr ",
+            // keys array
+            "[anchr]keys_ptr ",
+            // Note that keys are sorted in ascending order
+            "[u4]24 [u4]4 [u4]0 [u4]3 [u4]4 [u4]7 ",
+            // values array
+            "[anchr]values_ptr ",
+            // And the values are sorted to match
+            "[u4]24 [u4]4 [s4]-1 [s4]-3 [s4]-3 [s4]-2 ",
+        ),
+    )?;
+
+    validate_parsing::<HashMap<i8, FourInts>>(
+        [(1, FourInts { a: 1, b: 2, c: 3, d: 4 }), (5, FourInts { a: 5, b: 6, c: 7, d: 8 })].into(),
+        concat!(
+            // Map header
+            "[u4]24 [u4]0 [dist8]keys_ptr [dist8]values_ptr ",
+            // keys array
+            "[anchr]keys_ptr [u4]10 [u4]2 [s1]1 [s1]5 [u2]0 [u4]0 ",
+            // values array
+            "[anchr]values_ptr ",
+            "[u4]24 [u4]2 [dist8]v0 [dist8]v1 ",
+            "[anchr]v0 [u4]24 [u4]0 [s1]1 [u1]0 [s2]2 [s4]3 [s8]4 ",
+            "[anchr]v1 [u4]24 [u4]0 [s1]5 [u1]0 [s2]6 [s4]7 [s8]8 ",
+        ),
+    )?;
+
+    validate_parsing::<HashMap<i8, NestedUnion>>(
+        [
+            (-1, NestedUnion::n(10)),
+            (-2, NestedUnion::u(BaseUnion::e1(TestEnum::Seven))),
+            (-3, NestedUnion::n(23)),
+        ]
+        .into(),
+        concat!(
+            // Map header
+            "[u4]24 [u4]0 [dist8]keys_ptr [dist8]values_ptr ",
+            // keys array
+            "[anchr]keys_ptr [u4]11 [u4]3 [s1]-3 [s1]-2 [s1]-1 [s1]0 [u4]0 ",
+            // values array
+            "[anchr]values_ptr ",
+            "[u4]56 [u4]3 ",
+            "[u4]16 [u4]0 [u8]23 ",
+            "[u4]16 [u4]1 [dist8]v1 ",
+            "[u4]16 [u4]0 [u8]10 ",
+            "[anchr]v1 [u4]16 [u4]2 [u8]7",
+        ),
+    )?;
+
+    validate_parsing::<HashMap<i8, HashMap<i16, u32>>>(
+        [(1, [(10, 100), (20, 200)].into()), (2, [(30, 300), (40, 400), (50, 500)].into())].into(),
+        concat!(
+            // Toplevel map header
+            "[u4]24 [u4]0 [dist8]keys_ptr [dist8]values_ptr ",
+            // Toplevel keys array
+            "[anchr]keys_ptr [u4]10 [u4]2 [s1]1 [s1]2 [u2]0 [u4]0 ",
+            // Toplevel values array
+            "[anchr]values_ptr ",
+            "[u4]24 [u4]2 [dist8]v0 [dist8]v1 ",
+            // First nested map
+            "[anchr]v0 [u4]24 [u4]0 [dist8]v0_keys [dist8]v0_values ",
+            "[anchr]v0_keys [u4]12 [u4]2 [s2]10 [s2]20 [u4]0 ",
+            "[anchr]v0_values [u4]16 [u4]2 [u4]100 [u4]200 ",
+            // Second nested map
+            "[anchr]v1 [u4]24 [u4]0 [dist8]v1_keys [dist8]v1_values ",
+            "[anchr]v1_keys [u4]14 [u4]3 [s2]30 [s2]40 [s2]50 [u2]0 ",
+            "[anchr]v1_values [u4]20 [u4]3 [u4]300 [u4]400 [u4]500 [u4]0 ",
+        ),
+    )?;
+
+    Ok(())
+}
+
+// Create the expected wire format representation of string.
+fn str_wire_format(str: &str) -> String {
+    let size = 8 + str.len();
+    let num_chars = str.len();
+    let padding = (8 - (str.len() % 8)) % 8;
+    let body: String =
+        str.as_bytes().iter().fold("".to_string(), |acc, b| format!("{acc} [u1]{b}"));
+    let padding: String = iter::repeat_n("[u1]0 ", padding).collect();
+    format!("[u4]{size} [u4]{num_chars} {body} {padding}")
+}
+
+#[gtest(MojomParser, TestStringParsing)]
+fn test_string_parsing() -> anyhow::Result<()> {
+    use std::collections::HashMap;
+
+    validate_parsing::<MojomString>(MojomString::from_str("hello"), &str_wire_format("hello"))?;
+
+    validate_parsing::<Vec<MojomString>>(
+        vec![
+            MojomString::from_str("life"),
+            MojomString::from_str("universe"),
+            MojomString::from_str("everything"),
+        ],
+        &format!(
+            "{} {} {} {} {} {} {} {}",
+            "[u4]32 [u4]3 ",
+            "[dist8]life_ptr [dist8]universe_ptr [dist8]everything_ptr",
+            "[anchr]life_ptr",
+            &str_wire_format("life"),
+            "[anchr]universe_ptr",
+            &str_wire_format("universe"),
+            "[anchr]everything_ptr",
+            &str_wire_format("everything"),
+        ),
+    )?;
+
+    validate_parsing::<HashMap<u8, MojomString>>(
+        [(10, MojomString::from_str("ten")), (20, MojomString::from_str("twenty"))].into(),
+        &format!(
+            "{} {} {} {} {} {} {} {} {}",
+            "[u4]24 [u4]0 [dist8]keys_ptr [dist8]values_ptr ",
+            "[anchr]keys_ptr ",
+            "[u4]10 [u4]2 [u1]10 [u1]20 [u2]0 [u4]0 ",
+            "[anchr]values_ptr ",
+            "[u4]24 [u4]2 [dist8]ten_ptr [dist8]twenty_ptr ",
+            "[anchr]ten_ptr ",
+            &str_wire_format("ten"),
+            "[anchr]twenty_ptr ",
+            &str_wire_format("twenty"),
+        ),
+    )?;
+
+    validate_parsing::<HashMap<MojomString, i16>>(
+        [("three".to_string().into(), 3), ("four".to_string().into(), 4)].into(),
+        &format!(
+            "{} {} {} {} {} {} {} {} {}",
+            "[u4]24 [u4]0 [dist8]keys_ptr [dist8]values_ptr ",
+            "[anchr]keys_ptr ",
+            "[u4]24 [u4]2 [dist8]four_ptr [dist8]three_ptr ",
+            "[anchr]four_ptr ",
+            &str_wire_format("four"),
+            "[anchr]three_ptr ",
+            &str_wire_format("three"),
+            "[anchr]values_ptr ",
+            "[u4]12 [u4]2 [s2]4 [s2]3 [u4]0 ",
+        ),
+    )?;
+    Ok(())
+}
+
+#[gtest(MojomParser, TestComplexUnionParsing)]
+fn test_complex_union_parsing() -> anyhow::Result<()> {
+    // HoldsComplexTypes: string
+    validate_parsing::<HoldsComplexTypes>(
+        HoldsComplexTypes::str(MojomString::from_str("union_string")),
+        &format!(
+            "[u4]16 [u4]0 [dist8]union_str_ptr [anchr]union_str_ptr {}",
+            &str_wire_format("union_string")
+        ),
+    )?;
+
+    validate_parsing::<ComplexUnionHolder>(
+        ComplexUnionHolder { u: HoldsComplexTypes::str(MojomString::from_str("union_string")) },
+        &format!(
+            "[u4]24 [u4]0 [u4]16 [u4]0 [dist8]union_str_ptr [anchr]union_str_ptr {}",
+            &str_wire_format("union_string")
+        ),
+    )?;
+
+    // HoldsComplexTypes: array<int16>
+    validate_parsing::<HoldsComplexTypes>(
+        HoldsComplexTypes::arr(vec![-10, -20, -30]),
+        concat!(
+            "[u4]16 [u4]1 [dist8]union_arr_ptr ",
+            "[anchr]union_arr_ptr [u4]14 [u4]3 [s2]-10 [s2]-20 [s2]-30 [u2]0"
+        ),
+    )?;
+
+    // HoldsComplexTypes: map<uint8, uint8>
+    validate_parsing::<HoldsComplexTypes>(
+        HoldsComplexTypes::m([(100, 1), (101, 2)].into()),
+        concat!(
+            "[u4]16 [u4]2 [dist8]union_map_ptr ",
+            "[anchr]union_map_ptr [u4]24 [u4]0 [dist8]keys_ptr [dist8]values_ptr ",
+            "[anchr]keys_ptr [u4]10 [u4]2 [u1]100 [u1]101 [u2]0 [u4]0 ",
+            "[anchr]values_ptr [u4]10 [u4]2 [u1]1 [u1]2 [u2]0 [u4]0 ",
+        ),
+    )?;
+    Ok(())
+}
+
+#[gtest(MojomParser, TestNullableParsing)]
+fn test_nullable_parsing() -> anyhow::Result<()> {
+    validate_parsing::<NullableBasics>(
+        NullableBasics { b: None, n1: None, n2: None, empty: None, e: None, fourints: None },
+        "[u4]32 [u4]0 [b]00000000 [u1]0 [u2]0 [u4]0 [u8]0 [u8]0",
+    )?;
+
+    validate_parsing::<NullableBasics>(
+        NullableBasics {
+            b: Some(true),
+            n1: None,
+            n2: Some(12),
+            empty: None,
+            e: None,
+            fourints: Some(FourInts { a: 1, b: 2, c: 3, d: 4 }),
+        },
+        concat!(
+            "[u4]32 [u4]0 [b]00001011 [u1]12 [u2]0 [u4]0 [u8]0 [dist8]fourints_ptr ",
+            "[anchr]fourints_ptr [u4]24 [u4]0 [s1]1 [u1]0 [s2]2 [s4]3 [s8]4",
+        ),
+    )?;
+
+    validate_parsing::<NullableBasics>(
+        NullableBasics {
+            b: None,
+            n1: Some(33),
+            n2: None,
+            empty: Some(Empty {}),
+            e: Some(TestEnum::Four),
+            fourints: None,
+        },
+        concat!(
+            "[u4]32 [u4]0 [b]00010100 [u1]0 [u2]33 [u4]4 [dist8]empty_ptr [u8]0 ",
+            "[anchr]empty_ptr [u4]8 [u4]0",
+        ),
+    )?;
+
+    validate_parsing::<NullableBasics>(
+        NullableBasics {
+            b: Some(false),
+            n1: Some(44),
+            n2: Some(22),
+            empty: Some(Empty {}),
+            e: Some(TestEnum::Zero),
+            fourints: Some(FourInts { a: 1, b: 2, c: 3, d: 4 }),
+        },
+        concat!(
+            "[u4]32 [u4]0 [b]00011101 [u1]22 [u2]44 [u4]0 [dist8]empty_ptr [dist8]fourints_ptr ",
+            "[anchr]empty_ptr [u4]8 [u4]0 ",
+            "[anchr]fourints_ptr [u4]24 [u4]0 [s1]1 [u1]0 [s2]2 [s4]3 [s8]4",
+        ),
+    )?;
+
+    validate_parsing::<ArraysOfNullables>(
+        ArraysOfNullables {
+            bools: vec![
+                Some(true),
+                None,
+                Some(false),
+                None,
+                None,
+                Some(true),
+                Some(true),
+                Some(false),
+                Some(true),
+                None,
+                None,
+                Some(false),
+            ],
+            empties: vec![None, Some(Empty {}), None, Some(Empty {})],
+            enums: vec![Some(TestEnum::Seven), None, Some(TestEnum::Zero), Some(TestEnum::Seven)],
+            unions: vec![Some(BaseUnion::n1(5)), None, Some(BaseUnion::b1(true))],
+        },
+        concat!(
+            "[u4]40 [u4]0 [dist8]bools_ptr [dist8]empties_ptr [dist8]enums_ptr [dist8]unions_ptr ",
+            "[anchr]bools_ptr [u4]12 [u4]12 [b]11100101 [b]00001001 [b]01100001 [b]00000001 [u4]0 ",
+            "[anchr]empties_ptr [u4]40 [u4]4 [u8]0 [dist8]empty_ptr_1 [u8]0 [dist8]empty_ptr_2 ",
+            "[anchr]empty_ptr_1 [u4]8 [u4]0 ",
+            "[anchr]empty_ptr_2 [u4]8 [u4]0 ",
+            "[anchr]enums_ptr [u4]28 [u4]4 [b]00001101 [u1]0 [u2]0 [u4]7 [u4]0 [u4]0 [u4]7 [u4]0 ",
+            "[anchr]unions_ptr [u4]56 [u4]3 ",
+            "[u4]16 [u4]0 [u8]5 ",
+            "[u8]0 [u8]0 ",
+            "[u4]16 [u4]3 [u8]1"
+        ),
+    )?;
+
+    validate_parsing::<NullableArrays>(
+        NullableArrays { null_arr: None, double_null_arr: None },
+        "[u4]24 [u4]0 [u8]0 [u8]0",
+    )?;
+
+    validate_parsing::<NullableArrays>(
+        NullableArrays {
+            null_arr: Some(vec![true, false, true]),
+            double_null_arr: Some(vec![Some(true), None, Some(false), Some(true)]),
+        },
+        concat!(
+            "[u4]24 [u4]0 [dist8]null_arr_ptr [dist8]double_null_arr_ptr ",
+            "[anchr]null_arr_ptr [u4]9 [u4]3 [b]00000101 [u1]0 [u2]0 [u4]0 ",
+            "[anchr]double_null_arr_ptr [u4]10 [u4]4 [b]00001101 [b]00001001 [u2]0 [u4]0"
+        ),
+    )?;
+
+    validate_parsing::<UnionWithNullables>(UnionWithNullables::e(None), "[u4]16 [u4]0 [u8]0")?;
+    validate_parsing::<UnionWithNullables>(UnionWithNullables::str(None), "[u4]16 [u4]1 [u8]0")?;
+    validate_parsing::<UnionWithNullables>(UnionWithNullables::u(None), "[u4]16 [u4]2 [u8]0")?;
+
+    validate_parsing::<UnionWithNullables>(
+        UnionWithNullables::e(Some(Empty {})),
+        "[u4]16 [u4]0 [dist8]empty_ptr [anchr]empty_ptr [u4]8 [u4]0",
+    )?;
+    validate_parsing::<UnionWithNullables>(
+        UnionWithNullables::str(Some(MojomString::from_str("union_string"))),
+        &format!(
+            "[u4]16 [u4]1 [dist8]union_str_ptr [anchr]union_str_ptr {}",
+            &str_wire_format("union_string")
+        ),
+    )?;
+    validate_parsing::<UnionWithNullables>(
+        UnionWithNullables::u(Some(BaseUnion::n1(123))),
+        "[u4]16 [u4]2 [dist8]u_ptr [anchr]u_ptr [u4]16 [u4]0 [u8]123",
+    )?;
+
+    validate_parsing::<NullableOthers>(
+        NullableOthers { u: None, m: None, str: None },
+        "[u4]40 [u4]0 [u8]0 [u8]0 [u8]0 [u8]0",
+    )?;
+    validate_parsing::<NullableOthers>(
+        NullableOthers {
+            u: Some(UnionWithNullables::u(None)),
+            m: None,
+            str: Some(MojomString::from_str("holla")),
+        },
+        &format!(
+            "{} {} {}",
+            "[u4]40 [u4]0 [u4]16 [u4]2 [u8]0 [u8]0 [dist8]str_ptr ",
+            "[anchr]str_ptr ",
+            &str_wire_format("holla")
+        ),
+    )?;
+    validate_parsing::<NullableOthers>(
+        NullableOthers {
+            u: Some(UnionWithNullables::u(Some(BaseUnion::f1(FourInts {
+                a: 1,
+                b: 2,
+                c: 3,
+                d: 4,
+            })))),
+            m: None,
+            str: None,
+        },
+        concat!(
+            "[u4]40 [u4]0 [u4]16 [u4]2 [dist8]u_inner_ptr [u8]0 [u8]0 ",
+            "[anchr]u_inner_ptr [u4]16 [u4]6 [dist8]f1_ptr ",
+            "[anchr]f1_ptr [u4]24 [u4]0 [s1]1 [u1]0 [s2]2 [s4]3 [s8]4"
+        ),
+    )?;
+    validate_parsing::<NullableOthers>(
+        NullableOthers {
+            u: Some(UnionWithNullables::u(Some(BaseUnion::n1(42)))),
+            m: Some([(1, 2), (3, 4)].into()),
+            str: Some(MojomString::from_str("hello")),
+        },
+        &format!(
+            "{} {} {} {} {} {} {}",
+            "[u4]40 [u4]0 [u4]16 [u4]2 [dist8]u_inner_ptr [dist8]m_ptr [dist8]str_ptr ",
+            "[anchr]u_inner_ptr [u4]16 [u4]0 [u8]42 ",
+            "[anchr]m_ptr [u4]24 [u4]0 [dist8]keys_ptr [dist8]values_ptr ",
+            "[anchr]keys_ptr [u4]10 [u4]2 [u1]1 [u1]3 [u2]0 [u4]0 ",
+            "[anchr]values_ptr [u4]10 [u4]2 [u1]2 [u1]4 [u2]0 [u4]0 ",
+            "[anchr]str_ptr ",
+            &str_wire_format("hello")
         ),
     )?;
 

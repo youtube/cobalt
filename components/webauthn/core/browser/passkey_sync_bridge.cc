@@ -10,6 +10,7 @@
 #include <numeric>
 #include <optional>
 #include <string>
+#include <variant>
 
 #include "base/containers/contains.h"
 #include "base/containers/flat_set.h"
@@ -275,41 +276,38 @@ base::flat_set<std::string> PasskeySyncBridge::GetAllSyncIds() const {
 }
 
 std::vector<sync_pb::WebauthnCredentialSpecifics>
-PasskeySyncBridge::GetAllPasskeys() const {
+PasskeySyncBridge::GetPasskeys(std::variant<AnyRp, std::string_view> rp_id,
+                               ShadowedCredentials shadowed_credentials) const {
   std::vector<sync_pb::WebauthnCredentialSpecifics> passkeys;
-  std::ranges::transform(data_, std::back_inserter(passkeys),
-                         [](const auto& pair) { return pair.second; });
-  return passkeys;
-}
 
-std::vector<sync_pb::WebauthnCredentialSpecifics>
-PasskeySyncBridge::GetUnShadowedPasskeys() const {
-  std::vector<sync_pb::WebauthnCredentialSpecifics> passkeys = GetAllPasskeys();
-  return passkey_model_utils::FilterShadowedCredentials(passkeys);
-}
-
-std::optional<sync_pb::WebauthnCredentialSpecifics>
-PasskeySyncBridge::GetPasskeyByCredentialId(
-    const std::string& rp_id,
-    const std::string& credential_id) const {
-  // Even if a passkey with a credential ID exists, we must not return it if it
-  // has been shadowed. To do that, first collect all passkeys for the RP ID,
-  // then filter shadowed ones, and see if one with the matching credential ID
-  // remains.
-  std::vector<sync_pb::WebauthnCredentialSpecifics> passkeys;
+  const std::string_view* specific_rp_id =
+      std::get_if<std::string_view>(&rp_id);
   for (const auto& sync_id_and_passkey : data_) {
     const sync_pb::WebauthnCredentialSpecifics& passkey =
         sync_id_and_passkey.second;
-    if (passkey.rp_id() == rp_id) {
+    if (!specific_rp_id || passkey.rp_id() == *specific_rp_id) {
       passkeys.emplace_back(passkey);
     }
   }
-  passkeys = passkey_model_utils::FilterShadowedCredentials(passkeys);
-  for (const sync_pb::WebauthnCredentialSpecifics& passkey : passkeys) {
+
+  if (shadowed_credentials == PasskeyModel::ShadowedCredentials::kExclude) {
+    return passkey_model_utils::FilterShadowedCredentials(passkeys);
+  }
+
+  return passkeys;
+}
+
+std::optional<sync_pb::WebauthnCredentialSpecifics>
+PasskeySyncBridge::GetPasskey(std::variant<AnyRp, std::string_view> rp_id,
+                              std::string_view credential_id,
+                              ShadowedCredentials shadowed_credentials) const {
+  for (const sync_pb::WebauthnCredentialSpecifics& passkey :
+       GetPasskeys(rp_id, shadowed_credentials)) {
     if (passkey.credential_id() == credential_id) {
       return passkey;
     }
   }
+
   return std::nullopt;
 }
 
@@ -335,18 +333,6 @@ PasskeySyncBridge::GetPasskeyByUserId(const std::string& rp_id,
     }
   }
   return std::nullopt;
-}
-
-std::vector<sync_pb::WebauthnCredentialSpecifics>
-PasskeySyncBridge::GetPasskeysForRelyingPartyId(
-    const std::string& rp_id) const {
-  std::vector<sync_pb::WebauthnCredentialSpecifics> passkeys;
-  for (const auto& passkey : data_) {
-    if (passkey.second.rp_id() == rp_id) {
-      passkeys.emplace_back(passkey.second);
-    }
-  }
-  return passkey_model_utils::FilterShadowedCredentials(passkeys);
 }
 
 bool PasskeySyncBridge::DeletePasskey(const std::string& credential_id,

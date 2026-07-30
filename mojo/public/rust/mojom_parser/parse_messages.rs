@@ -20,7 +20,7 @@ use crate::parse_primitives::ParserData;
 // now, just handle the different possible header versions manually.
 fn parse_header(data: &mut ParserData) -> ParsingResult<()> {
     use crate::parse_primitives::*;
-    let size_in_bytes = crate::parse_values::parse_size(data)?;
+    let size_in_bytes = crate::parse_values::parse_size(data, false, false)?;
     let version_number = parse_u32(data)?;
     let _interface_id = parse_u32(data)?;
     let _msg_name = parse_u32(data)?;
@@ -68,13 +68,18 @@ pub fn parse_message(data_slice: &[u8], ty: &MojomWireType) -> ParsingResult<Moj
     match ty {
         MojomWireType::Pointer {
             nested_data_type:
-                PackedStructuredType::Struct { packed_field_names, packed_field_types },
+                PackedStructuredType::Struct {
+                    packed_field_names,
+                    packed_field_types,
+                    num_elements_in_value,
+                },
             ..
         } => {
             let ret = crate::parse_values::parse_struct(
                 &mut data,
                 packed_field_names,
                 packed_field_types,
+                *num_elements_in_value,
             )?;
             if data.remaining_bytes() != 0 {
                 // We don't support the interface ID struct yet

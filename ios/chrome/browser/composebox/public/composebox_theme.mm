@@ -9,10 +9,12 @@
 @implementation ComposeboxTheme
 
 - (instancetype)initWithInputPlatePosition:
-    (ComposeboxInputPlatePosition)position {
+                    (ComposeboxInputPlatePosition)position
+                                 incognito:(BOOL)incognito {
   self = [super init];
   if (self) {
     _inputPlatePosition = position;
+    _incognito = incognito;
   }
 
   return self;
@@ -37,6 +39,9 @@
 }
 
 - (UIColor*)inputPlateBackgroundColor {
+  if (self.incognito) {
+    return [UIColor colorNamed:kStaticGrey900Color];
+  }
   if (self.isTopInputPlate) {
     return [UIColor colorNamed:kTextfieldBackgroundColor];
   }
@@ -45,6 +50,9 @@
 }
 
 - (UIColor*)closeButtonBackgroundColor {
+  if (self.incognito) {
+    return [UIColor colorNamed:kStaticGrey900Color];
+  }
   return [UIColor colorNamed:kTextfieldBackgroundColor];
 }
 
@@ -64,7 +72,15 @@
       return [UIColor colorNamed:kBlueHaloColor];
     }
   } else {
-    return [UIColor colorNamed:kSecondaryBackgroundColor];
+    return [UIColor clearColor];
+  }
+}
+
+- (UIColor*)aimButtonBorderColorWithAIMEnabled:(BOOL)AIMEnabled {
+  if (AIMEnabled) {
+    return [UIColor clearColor];
+  } else {
+    return [UIColor colorNamed:kGrey400Color];
   }
 }
 
@@ -78,6 +94,23 @@
 
 - (UIColor*)imageGenerationButtonTextColor {
   return [UIColor colorNamed:kTextPrimaryColor];
+}
+
+- (UIColor*)sendButtonForegroundColorHighlighted:(BOOL)highlighted {
+  CGFloat alpha = highlighted ? 0.6 : 1;
+  return [[UIColor colorNamed:kSolidWhiteColor] colorWithAlphaComponent:alpha];
+}
+
+- (UIColor*)sendButtonBackgroundColorHighlighted:(BOOL)highlighted {
+  CGFloat alpha = highlighted ? 0.6 : 1;
+  return [[UIColor colorNamed:kBlue600Color] colorWithAlphaComponent:alpha];
+}
+
+- (UIColor*)pdfSymbolColor {
+  UITraitCollection* lightStyle = [UITraitCollection
+      traitCollectionWithUserInterfaceStyle:UIUserInterfaceStyleLight];
+  return [[UIColor colorNamed:kRed500Color]
+      resolvedColorWithTraitCollection:lightStyle];
 }
 
 @end

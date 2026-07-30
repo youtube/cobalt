@@ -403,11 +403,6 @@ void AddClickabilityReasons(
   if (has_mouse_click) {
     interaction_info.clickability_reasons.push_back(Reason::kMouseClick);
   }
-  // TODO(linnan): Remove this once consumers move to use kMouseClick and
-  // kMouseHover.
-  if (has_mouse_hover || has_mouse_click) {
-    interaction_info.clickability_reasons.push_back(Reason::kMouseEvents);
-  }
 
   if (element.HasJSBasedEventListeners(event_type_names::kKeydown) ||
       element.HasJSBasedEventListeners(event_type_names::kKeypress) ||
@@ -461,6 +456,36 @@ void AddClickabilityReasons(
   if (element.HasTabIndexWasSetExplicitly()) {
     interaction_info.clickability_reasons.push_back(Reason::kTabIndex);
   }
+}
+
+// Returns whether interaction is determined to be disabled.
+bool AddInteractionDisabledReasons(
+    const Element& element,
+    bool is_aria_disabled,
+    mojom::blink::AIPageContentNodeInteractionInfo& interaction_info) {
+  using Reason = mojom::blink::AIPageContentInteractionDisabledReason;
+
+  bool is_disabled = false;
+
+  if (is_aria_disabled) {
+    interaction_info.interaction_disabled_reasons.push_back(
+        Reason::kAriaDisabled);
+    is_disabled = true;
+  }
+
+  if (auto* form_control_element = DynamicTo<HTMLFormControlElement>(&element);
+      form_control_element && form_control_element->IsActuallyDisabled()) {
+    interaction_info.interaction_disabled_reasons.push_back(Reason::kDisabled);
+    is_disabled = true;
+  }
+
+  const ComputedStyle& style = element.ComputedStyleRef();
+  if (style.Cursor() == ECursor::kNotAllowed) {
+    interaction_info.interaction_disabled_reasons.push_back(
+        Reason::kCursorNotAllowed);
+  }
+
+  return is_disabled;
 }
 
 bool ShouldSkipSubtree(const LayoutObject& object) {
@@ -2016,11 +2041,16 @@ void AIPageContentAgent::ContentBuilder::AddNodeInteractionInfo(
       mojom::blink::AIPageContentNodeInteractionInfo::New();
   AddInteractionInfoForHitTesting(node, *node_interaction_info);
 
-  auto* form_control_element = DynamicTo<HTMLFormControlElement>(node);
-  const bool disabled =
-      (form_control_element && form_control_element->IsActuallyDisabled()) ||
-      is_aria_disabled;
-  if (disabled) {
+  auto* element = DynamicTo<Element>(object.GetNode());
+  bool is_disabled = false;
+  if (element) {
+    is_disabled = AddInteractionDisabledReasons(*element, is_aria_disabled,
+                                                *node_interaction_info);
+  }
+
+  // TODO(linnan): Remove `is_disabled` when consumers move to use
+  // `interaction_disabled_reasons`.
+  if (is_disabled) {
     if (node_interaction_info->document_scoped_z_order) {
       attributes.node_interaction_info = std::move(node_interaction_info);
       // `is_disabled` is only set for nodes with `document_scoped_z_order`.
@@ -2042,12 +2072,9 @@ void AIPageContentAgent::ContentBuilder::AddNodeInteractionInfo(
     return;
   }
 
-  if (auto* element = DynamicTo<Element>(object.GetNode())) {
+  if (element) {
     AddClickabilityReasons(*element, *attributes.aria_role,
                            *node_interaction_info);
-    // TODO(khushalsagar): Remove is_clickability.
-    node_interaction_info->is_clickable =
-        !node_interaction_info->clickability_reasons.empty();
     node_interaction_info->is_focusable =
         element->IsFocusable(Element::UpdateBehavior::kAssertNoLayoutUpdates);
   }

@@ -509,6 +509,56 @@ TEST_F(HlsRenditionManagerTest, MP4SplitCodecs) {
   rm.Reselect(GetVariantCb());
 }
 
+TEST_F(HlsRenditionManagerTest, MultipleAudioOnlyAudioGroups) {
+  auto rm = GetRenditionManager(
+      "#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"G1\",NAME=\"EN-G1-DEF\",LANGUAGE="
+      "\"en\",DEFAULT=YES,AUTOSELECT=YES",
+      "#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"G1\",NAME=\"SP-G1-ALT\",LANGUAGE="
+      "\"esp\",DEFAULT=NO,URI=\"/hls/audio-spa.m3u8\"",
+      "#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"G1\",NAME=\"FR-G1-ALT\",LANGUAGE="
+      "\"fra\",DEFAULT=NO,URI=\"/hls/audio-fra.m3u8\"",
+      "#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"G1\",NAME=\"DE-G1-ALT\",LANGUAGE="
+      "\"ger\",DEFAULT=NO,URI=\"/hls/audio-ger.m3u8\"",
+      "#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"G2\",NAME=\"ZH-G2-ALT\",LANGUAGE="
+      "\"zh\",DEFAULT=NO,URI=\"/hls/audio-zh.m3u8\"",
+      "#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"G2\",NAME=\"SP-G2-ALT\",LANGUAGE="
+      "\"esp\",DEFAULT=NO,URI=\"/hls/audio-kor.m3u8\"",
+      "#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"G2\",NAME=\"JP-G2-ALT\",LANGUAGE="
+      "\"jp\",DEFAULT=NO,URI=\"/hls/audio-jp.m3u8\"",
+      "#EXT-X-STREAM-INF:BANDWIDTH=1,CODECS=\"audio.codec\",AUDIO=\"G1\"",
+      "/hls/audio-eng.m3u8",
+      "#EXT-X-STREAM-INF:BANDWIDTH=2,CODECS=\"audio.codec\",AUDIO=\"G1\"",
+      "/hls/audio-eng.m3u8",
+      "#EXT-X-STREAM-INF:BANDWIDTH=3,CODECS=\"audio.codec\",AUDIO=\"G2\"",
+      "/hls/audio-eng2.m3u8",
+      "#EXT-X-STREAM-INF:BANDWIDTH=4,CODECS=\"audio.codec\",AUDIO=\"G2\"",
+      "/hls/audio-eng2.m3u8");
+  rm.SetAbrAlgorithmForTesting(std::make_unique<FixedAbrAlgorithm>(100000000));
+
+  auto sequence = rm.GetSelectableAudioRenditions();
+  std::vector<MediaTrack> renditions = {sequence.begin(), sequence.end()};
+
+  ASSERT_EQ(renditions.size(), 8u);
+  ASSERT_EQ(renditions[0].label().value(), "DE-G1-ALT");
+  ASSERT_EQ(renditions[1].label().value(), "Default");
+  ASSERT_EQ(renditions[2].label().value(), "EN-G1-DEF");
+  ASSERT_EQ(renditions[3].label().value(), "FR-G1-ALT");
+  ASSERT_EQ(renditions[4].label().value(), "JP-G2-ALT");
+  ASSERT_EQ(renditions[5].label().value(), "SP-G1-ALT");
+  ASSERT_EQ(renditions[6].label().value(), "SP-G2-ALT");
+  ASSERT_EQ(renditions[7].label().value(), "ZH-G2-ALT");
+
+  // The last variant is preferred since it has the highest bandwidth, and no
+  // default.
+  EXPECT_CALL(*this, VariantSelected("/hls/audio-eng2.m3u8", "NONE"));
+  rm.Reselect(GetVariantCb());
+  /*
+    const auto french_id = renditions[2].track_id();
+    EXPECT_CALL(*this, VariantSelected("/hls/audio-fra.m3u8", "NONE"));
+    rm.SetPreferredAudioRendition(french_id);
+    */
+}
+
 TEST_F(HlsRenditionManagerTest, MultipleRenditionGroupsVariantsOutOfOrder) {
   auto rm = GetRenditionManager(
       "#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"stereo\",LANGUAGE=\"en\",NAME="
@@ -570,6 +620,14 @@ TEST_F(HlsRenditionManagerTest, MultipleRenditionGroupsVariantsOutOfOrder) {
                                      "/audio/surround/en/320kbit.m3u8"));
   rm.Reselect(GetVariantCb());
   testing::Mock::VerifyAndClearExpectations(this);
+
+  {
+    auto sequence = rm.GetSelectableAudioRenditions();
+    std::vector<MediaTrack> renditions = {sequence.begin(), sequence.end()};
+    ASSERT_EQ(renditions.size(), 2u);
+    ASSERT_EQ(renditions[0].label().value(), "English");
+    ASSERT_EQ(renditions[1].label().value(), "Dubbing");
+  }
 
   // Notify a network downgrade, but not one that would preclude our 10285kbps
   // stream. Verify no response.
@@ -708,11 +766,11 @@ TEST_F(HlsRenditionManagerTest, AudioOnlyRenditionSelectionOverrides) {
 TEST_F(HlsRenditionManagerTest, VariantNames) {
   {
     // Differentiated by resolution
-    auto variants =
-        GetRenditionManager(
-            MakeVariantStr(1234, "1920x1080", std::nullopt), "playlist1.m3u8",
-            MakeVariantStr(1234, "1366x768", std::nullopt), "playlist2.m3u8")
-            .GetSelectableVideoRenditions();
+    auto rm = GetRenditionManager(
+        MakeVariantStr(1234, "1920x1080", std::nullopt), "playlist1.m3u8",
+        MakeVariantStr(1234, "1366x768", std::nullopt), "playlist2.m3u8");
+    auto sequence = rm.GetSelectableVideoRenditions();
+    std::vector<MediaTrack> variants(sequence.begin(), sequence.end());
     ASSERT_EQ(variants.size(), 2u);
     ASSERT_EQ(variants[0].label().value(), "1920x1080");
     ASSERT_EQ(variants[1].label().value(), "1366x768");
@@ -720,11 +778,12 @@ TEST_F(HlsRenditionManagerTest, VariantNames) {
 
   {
     // No differentiation
-    auto variants =
-        GetRenditionManager(
-            MakeVariantStr(1234, "1920x1080", std::nullopt), "playlist1.m3u8",
-            MakeVariantStr(1234, "1920x1080", std::nullopt), "playlist2.m3u8")
-            .GetSelectableVideoRenditions();
+    auto rm = GetRenditionManager(
+        MakeVariantStr(1234, "1920x1080", std::nullopt), "playlist1.m3u8",
+        MakeVariantStr(1234, "1920x1080", std::nullopt), "playlist2.m3u8");
+    sequence::Sequence<MediaTrack> auto sequence =
+        rm.GetSelectableVideoRenditions();
+    std::vector<MediaTrack> variants(sequence.begin(), sequence.end());
     ASSERT_EQ(variants.size(), 2u);
     ASSERT_EQ(variants[0].label().value(), "Stream: 1");
     ASSERT_EQ(variants[1].label().value(), "Stream: 2");
@@ -732,11 +791,11 @@ TEST_F(HlsRenditionManagerTest, VariantNames) {
 
   {
     // Same resolution, differentiated by framerate
-    auto variants =
-        GetRenditionManager(
-            MakeVariantStr(1234, "1920x1080", "24.00"), "playlist1.m3u8",
-            MakeVariantStr(1234, "1920x1080", "60.00"), "playlist2.m3u8")
-            .GetSelectableVideoRenditions();
+    auto rm = GetRenditionManager(
+        MakeVariantStr(1234, "1920x1080", "24.00"), "playlist1.m3u8",
+        MakeVariantStr(1234, "1920x1080", "60.00"), "playlist2.m3u8");
+    auto sequence = rm.GetSelectableVideoRenditions();
+    std::vector<MediaTrack> variants(sequence.begin(), sequence.end());
     ASSERT_EQ(variants.size(), 2u);
     ASSERT_EQ(variants[0].label().value(), "24fps");
     ASSERT_EQ(variants[1].label().value(), "60fps");
@@ -744,11 +803,11 @@ TEST_F(HlsRenditionManagerTest, VariantNames) {
 
   {
     // No differentiation
-    auto variants =
-        GetRenditionManager(
-            MakeVariantStr(1234, "1920x1080", "60.00"), "playlist1.m3u8",
-            MakeVariantStr(1234, "1920x1080", "60.00"), "playlist2.m3u8")
-            .GetSelectableVideoRenditions();
+    auto rm = GetRenditionManager(
+        MakeVariantStr(1234, "1920x1080", "60.00"), "playlist1.m3u8",
+        MakeVariantStr(1234, "1920x1080", "60.00"), "playlist2.m3u8");
+    auto sequence = rm.GetSelectableVideoRenditions();
+    std::vector<MediaTrack> variants(sequence.begin(), sequence.end());
     ASSERT_EQ(variants.size(), 2u);
     ASSERT_EQ(variants[0].label().value(), "Stream: 1");
     ASSERT_EQ(variants[1].label().value(), "Stream: 2");
@@ -756,11 +815,11 @@ TEST_F(HlsRenditionManagerTest, VariantNames) {
 
   {
     // Only bandwidth differentiation
-    auto variants =
-        GetRenditionManager(
-            MakeVariantStr(831270, "1920x1080", "60.00"), "playlist1.m3u8",
-            MakeVariantStr(1144430, "1920x1080", "60.00"), "playlist2.m3u8")
-            .GetSelectableVideoRenditions();
+    auto rm = GetRenditionManager(
+        MakeVariantStr(831270, "1920x1080", "60.00"), "playlist1.m3u8",
+        MakeVariantStr(1144430, "1920x1080", "60.00"), "playlist2.m3u8");
+    auto sequence = rm.GetSelectableVideoRenditions();
+    std::vector<MediaTrack> variants(sequence.begin(), sequence.end());
     ASSERT_EQ(variants.size(), 2u);
     ASSERT_EQ(variants[0].label().value(), "831 Kbps");
     ASSERT_EQ(variants[1].label().value(), "1.1 Mbps");
@@ -768,11 +827,11 @@ TEST_F(HlsRenditionManagerTest, VariantNames) {
 
   {
     // Bandwidth differentiation greater than 0.1Mbps, but less than 1 Mbps.
-    auto variants =
-        GetRenditionManager(
-            MakeVariantStr(1144430, "1920x1080", "60.00"), "playlist1.m3u8",
-            MakeVariantStr(1344430, "1920x1080", "60.00"), "playlist2.m3u8")
-            .GetSelectableVideoRenditions();
+    auto rm = GetRenditionManager(
+        MakeVariantStr(1144430, "1920x1080", "60.00"), "playlist1.m3u8",
+        MakeVariantStr(1344430, "1920x1080", "60.00"), "playlist2.m3u8");
+    auto sequence = rm.GetSelectableVideoRenditions();
+    std::vector<MediaTrack> variants(sequence.begin(), sequence.end());
     ASSERT_EQ(variants.size(), 2u);
     ASSERT_EQ(variants[0].label().value(), "1.1 Mbps");
     ASSERT_EQ(variants[1].label().value(), "1.3 Mbps");
@@ -780,11 +839,11 @@ TEST_F(HlsRenditionManagerTest, VariantNames) {
 
   {
     // Bandwidth differentiation resolution too small to differentiate names
-    auto variants =
-        GetRenditionManager(
-            MakeVariantStr(1144430, "1920x1080", "60.00"), "playlist1.m3u8",
-            MakeVariantStr(1144432, "1920x1080", "60.00"), "playlist2.m3u8")
-            .GetSelectableVideoRenditions();
+    auto rm = GetRenditionManager(
+        MakeVariantStr(1144430, "1920x1080", "60.00"), "playlist1.m3u8",
+        MakeVariantStr(1144432, "1920x1080", "60.00"), "playlist2.m3u8");
+    auto sequence = rm.GetSelectableVideoRenditions();
+    std::vector<MediaTrack> variants(sequence.begin(), sequence.end());
     ASSERT_EQ(variants.size(), 2u);
     ASSERT_EQ(variants[0].label().value(), "Stream: 1");
     ASSERT_EQ(variants[1].label().value(), "Stream: 2");
@@ -792,19 +851,110 @@ TEST_F(HlsRenditionManagerTest, VariantNames) {
 
   {
     // Differentiated by cross prodoct of resolution and bandwidth
-    auto variants =
-        GetRenditionManager(
-            MakeVariantStr(831270, "1920x1080", "60.00"), "playlist1.m3u8",
-            MakeVariantStr(1144430, "1920x1080", "24.00"), "playlist2.m3u8",
-            MakeVariantStr(1234, "1366x768", "60.00"), "playlist3.m3u8",
-            MakeVariantStr(67989, "1366x768", "24.00"), "playlist4.m3u8")
-            .GetSelectableVideoRenditions();
+    auto rm = GetRenditionManager(
+        MakeVariantStr(831270, "1920x1080", "60.00"), "playlist1.m3u8",
+        MakeVariantStr(1144430, "1920x1080", "24.00"), "playlist2.m3u8",
+        MakeVariantStr(1234, "1366x768", "60.00"), "playlist3.m3u8",
+        MakeVariantStr(67989, "1366x768", "24.00"), "playlist4.m3u8");
+    auto sequence = rm.GetSelectableVideoRenditions();
+    std::vector<MediaTrack> variants(sequence.begin(), sequence.end());
     ASSERT_EQ(variants.size(), 4u);
     ASSERT_EQ(variants[0].label().value(), "1366x768 60fps");
     ASSERT_EQ(variants[1].label().value(), "1366x768 24fps");
     ASSERT_EQ(variants[2].label().value(), "1920x1080 60fps");
     ASSERT_EQ(variants[3].label().value(), "1920x1080 24fps");
   }
+}
+
+TEST_F(HlsRenditionManagerTest, SetPreferredVideoRenditionTests) {
+  // Differentiated by cross prodoct of resolution and bandwidth
+  auto rm = GetRenditionManager(
+      "#EXT-X-STREAM-INF:BANDWIDTH=100000,CODECS=\"video.codec,audio.codec\""
+      ",AUDIO=\"A1\"",
+      "V1/manifest.m3u8",
+      "#EXT-X-STREAM-INF:BANDWIDTH=500000,CODECS=\"video.codec,audio.codec\""
+      ",AUDIO=\"A1\",VIDEO=\"V2\"",
+      "V2/manifest.m3u8",
+      "#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS=\"video.codec,audio.codec\""
+      ",AUDIO=\"A2\"",
+      "V3/manifest.m3u8",
+      "#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"A1\",NAME=\"de-s\",URI=\"de.m3u8\","
+      "LANGUAGE=\"de\"",
+      "#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"A1\",NAME=\"fr-s\",URI=\"fr.m3u8\","
+      "LANGUAGE=\"fr\"",
+      "#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"A1\",NAME=\"en-s\",AUTOSELECT=YES,"
+      "LANGUAGE=\"en\",DEFAULT=YES",
+      "#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"A2\",NAME=\"de-ss\",URI=\"des."
+      "m3u8\",LANGUAGE=\"de\"",
+      "#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"A2\",NAME=\"fr-ss\",URI=\"frs."
+      "m3u8\",LANGUAGE=\"fr\"",
+      "#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"A2\",NAME=\"en-ss\",AUTOSELECT=YES,"
+      "LANGUAGE=\"en\",DEFAULT=YES",
+      "#EXT-X-MEDIA:TYPE=VIDEO,GROUP-ID=\"V2\",NAME=\"top\",URI=\"top.m3u8\"",
+      "#EXT-X-MEDIA:TYPE=VIDEO,GROUP-ID=\"V2\",NAME=\"left\",URI=\"left."
+      "m3u8\"",
+      "#EXT-X-MEDIA:TYPE=VIDEO,GROUP-ID=\"V2\",NAME=\"center\",AUTOSELECT="
+      "YES");
+  rm.SetAbrAlgorithmForTesting(std::make_unique<FixedAbrAlgorithm>(100000000));
+
+  // Alternate video renditions aren't supported, so we should only have
+  // the V1,V2,V3 manifests, and not "top" or "left" alternates.
+  auto vt_sequence = rm.GetSelectableVideoRenditions();
+  std::vector<MediaTrack> video(vt_sequence.begin(), vt_sequence.end());
+  ASSERT_EQ(video.size(), 3u);
+  ASSERT_EQ(video[0].label().value(), "100 Kbps");
+  ASSERT_EQ(video[1].label().value(), "500 Kbps");
+  ASSERT_EQ(video[2].label().value(), "2.0 Mbps");
+
+  // Check the preferred variant, and that there is no audio rendition, since
+  // the auto-selected one has no URL.
+  EXPECT_CALL(*this, VariantSelected("/V3/manifest.m3u8", "NONE"));
+  rm.Reselect(GetVariantCb());
+
+  {
+    // The selectable renditions should come from A2.
+    auto at_sequence = rm.GetSelectableAudioRenditions();
+    std::vector<MediaTrack> audio = {at_sequence.begin(), at_sequence.end()};
+    ASSERT_EQ(audio.size(), 3u);
+    ASSERT_EQ(audio[0].label().value(), "de-ss");
+    ASSERT_EQ(audio[1].label().value(), "fr-ss");
+    ASSERT_EQ(audio[2].label().value(), "en-ss");
+
+    // Change to french audio, should trigger a cb call.
+    EXPECT_CALL(*this, VariantSelected("/V3/manifest.m3u8", "/frs.m3u8"));
+    rm.SetPreferredAudioRendition(MediaTrack::Id("fr-ss"));
+  }
+
+  // Selecting the V1 video stream will change which audio group is selected,
+  // but the language match feature here should kick in keep the lower tier
+  // french audio selected
+  EXPECT_CALL(*this, VariantSelected("/V1/manifest.m3u8", "/fr.m3u8"));
+  rm.SetPreferredVideoRendition(video[0].track_id());
+
+  {
+    // The selectable renditions should come from A1. now
+    auto at_sequence = rm.GetSelectableAudioRenditions();
+    std::vector<MediaTrack> audio = {at_sequence.begin(), at_sequence.end()};
+    ASSERT_EQ(audio.size(), 3u);
+    ASSERT_EQ(audio[0].label().value(), "de-s");
+    ASSERT_EQ(audio[1].label().value(), "fr-s");
+    ASSERT_EQ(audio[2].label().value(), "en-s");
+  }
+
+  // Disabling the preference should do nothing, but allows ABR to take over
+  // in the future.
+  EXPECT_CALL(*this, VariantSelected(_, _)).Times(0);
+  rm.SetPreferredVideoRendition(std::nullopt);
+
+  // On a bandwidth signal, the ABR system should kick back to the high bitrate
+  // playback, and keep french audio.
+  EXPECT_CALL(*this, VariantSelected("/V3/manifest.m3u8", "/frs.m3u8"));
+  rm.UpdateNetworkSpeed(100000000);
+
+  // Disabling audio preference won't immediately switch to english, in order to
+  // preserve continuity.
+  EXPECT_CALL(*this, VariantSelected(_, _)).Times(0);
+  rm.SetPreferredAudioRendition(std::nullopt);
 }
 
 }  // namespace media::hls
