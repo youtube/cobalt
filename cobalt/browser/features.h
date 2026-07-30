@@ -62,6 +62,9 @@ extern const base::Feature kInMemoryUpdatesMemoryBuffer;
 // Sets the memory buffer size in bytes.
 extern const base::FeatureParam<int> kInMemoryUpdatesMemoryBufferParam;
 
+// Sets Cobalt Resident Memory sampling interval in bytes (default 128KB).
+extern const base::FeatureParam<int> kCobaltResidentMemorySamplingIntervalParam;
+
 }  // namespace features
 }  // namespace cobalt
 

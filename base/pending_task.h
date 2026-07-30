@@ -12,9 +12,6 @@
 #include "base/location.h"
 #include "base/task/delay_policy.h"
 #include "base/time/time.h"
-#if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"
-#endif
 
 namespace base {
 
@@ -85,10 +82,7 @@ struct BASE_EXPORT TaskMetadata {
   int sequence_num = 0;
 
   bool task_backtrace_overflow = false;
-#if BUILDFLAG(IS_COBALT)
-  ::base::memory::MemoryContext memory_context =
-      ::base::memory::MemoryContext::kUnknown;
-#endif
+
 };
 
 // Contains data about a pending task. Stored in TaskQueue and DelayedTaskQueue

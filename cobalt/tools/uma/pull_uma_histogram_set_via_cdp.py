@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright 2025 The Cobalt Authors. All Rights Reserved.
+# Copyright 2026 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -55,9 +55,14 @@ def _print_q(message: str, quiet: bool):
     print(message)
 
 
-def is_package_running_android(package_name: str) -> bool:
+def is_package_running_android(package_name: str,
+                               device_id: str = None) -> bool:
   """Checks if a given Android package is currently running."""
-  stdout, _ = run_adb_command(['adb', 'shell', 'pidof', package_name])
+  cmd = ['adb']
+  if device_id:
+    cmd += ['-s', device_id]
+  cmd += ['shell', 'pidof', package_name]
+  stdout, _ = run_adb_command(cmd)
   return bool(stdout and stdout.strip().isdigit())
 
 
@@ -71,11 +76,14 @@ def is_cobalt_running_linux(process_name: str = 'cobalt') -> bool:
     return False
 
 
-def stop_package(package_name: str, quiet: bool) -> bool:
+def stop_package(package_name: str, quiet: bool, device_id: str = None) -> bool:
   """Attempts to force-stop an Android package."""
   _print_q(f'Attempting to stop package \'{package_name}\'...', quiet)
-  _, stderr = run_adb_command(
-      ['adb', 'shell', 'am', 'force-stop', package_name])
+  cmd = ['adb']
+  if device_id:
+    cmd += ['-s', device_id]
+  cmd += ['shell', 'am', 'force-stop', package_name]
+  _, stderr = run_adb_command(cmd)
   if stderr:
     _print_q(f'Error stopping package \'{package_name}\': {stderr}', quiet)
     return False
@@ -84,12 +92,18 @@ def stop_package(package_name: str, quiet: bool) -> bool:
   return True
 
 
-def launch_cobalt(package_name: str, activity_name: str, url: str, quiet: bool):
+def launch_cobalt(package_name: str,
+                  activity_name: str,
+                  url: str,
+                  quiet: bool,
+                  device_id: str = None):
   """Launches the Cobalt application with a specified URL.
        Returns True on success and False upon failure."""
-  command_str = (f'adb shell am start -n {package_name}/{activity_name} '
-                 f'--esa commandLineArgs \'--remote-allow-origins=*,'
-                 f'--url=\"{url}\"\'')
+  adb_prefix = f'adb -s {device_id} ' if device_id else 'adb '
+  command_str = (
+      f'{adb_prefix}shell am start -n {package_name}/{activity_name} '
+      f'--esa commandLineArgs \'--remote-allow-origins=*,'
+      f'--url=\"{url}\"\'')
   stdout, stderr = run_adb_command(command_str, shell=True)
   if stderr:
     _print_q(f'Error launching Cobalt: {stderr}', quiet)
@@ -101,18 +115,24 @@ def launch_cobalt(package_name: str, activity_name: str, url: str, quiet: bool):
     return True
 
 
-def get_websocket_url(platform: str, port: int, quiet: bool):
+def get_websocket_url(platform: str,
+                      port: int,
+                      quiet: bool,
+                      device_id: str = None):
   """
     Connects to the Cobalt DevTools Protocol endpoint to get the WebSocket URL.
     """
   if platform == 'android':
     for i in range(MAX_WEBSOCKET_RETRIES):
       try:
-        devs = list(device_utils.DeviceUtils.HealthyDevices())
-        if not devs:
-          _print_q('Error: No healthy Android devices found.', quiet)
-          return None
-        dev = devs[0]
+        if device_id:
+          dev = device_utils.DeviceUtils(device_id)
+        else:
+          devs = list(device_utils.DeviceUtils.HealthyDevices())
+          if not devs:
+            _print_q('Error: No healthy Android devices found.', quiet)
+            return None
+          dev = devs[0]
         dev.adb.Forward(
             f'tcp:{port}',
             'localabstract:content_shell_devtools_remote',
@@ -242,7 +262,8 @@ def _interact_via_cdp(websocket_url: str, histograms: list, output_file,
                       url: str, quiet: bool):
   ws = None
   try:
-    ws = websocket.create_connection(websocket_url)
+    ws = websocket.create_connection(websocket_url, timeout=5)
+    ws.settimeout(5)
     _print_q(f'Connected to WebSocket: {websocket_url}', quiet)
 
     message_id = 1
@@ -277,6 +298,8 @@ def _interact_via_cdp(websocket_url: str, histograms: list, output_file,
 
     _print_cobalt_histogram_names(ws, message_id, histograms, output_file,
                                   quiet)
+  except (websocket.WebSocketException, ConnectionError) as e:
+    _print_q(f'[WARNING] CDP CONNECTION DROPPED: {e}', quiet)
   except Exception as e:  # pylint: disable=broad-exception-caught
     _print_q(f'An error occurred: {e}', quiet)
   finally:
@@ -296,7 +319,8 @@ def loop(websocket_url: str, stop_event, histograms: list, args, output_file):
 
     app_is_running = False
     if args.platform == 'android':
-      app_is_running = is_package_running_android(args.package_name)
+      app_is_running = is_package_running_android(args.package_name,
+                                                  args.device)
     elif args.platform == 'linux':
       app_is_running = is_cobalt_running_linux()
 
@@ -324,16 +348,17 @@ def _run_main(args, output_file):
   stop_event = threading.Event()
 
   if args.platform == 'android' and not args.no_manage_cobalt:
-    if not is_package_running_android(args.package_name):
+    if not is_package_running_android(args.package_name, args.device):
       launch_cobalt(
           package_name=args.package_name,
           activity_name=DEFAULT_COBALT_ACTIVITY_NAME,
           url=args.url,
-          quiet=args.quiet)
+          quiet=args.quiet,
+          device_id=args.device)
       _print_q(f'Waiting for {args.package_name} to start...', args.quiet)
       started = False
       for _ in range(5):  # Poll for 5 seconds
-        if is_package_running_android(args.package_name):
+        if is_package_running_android(args.package_name, args.device):
           started = True
           _print_q(f'{args.package_name} has started.', args.quiet)
           break
@@ -348,11 +373,14 @@ def _run_main(args, output_file):
   time.sleep(1)
 
   websocket_url = get_websocket_url(
-      platform=args.platform, port=args.port, quiet=args.quiet)
+      platform=args.platform,
+      port=args.port,
+      quiet=args.quiet,
+      device_id=args.device)
   if not websocket_url:
     _print_q('Websocket not found. Exiting...', args.quiet)
     if args.platform == 'android' and not args.no_manage_cobalt:
-      stop_package(args.package_name, args.quiet)
+      stop_package(args.package_name, args.quiet, args.device)
     return
 
   polling_thread = threading.Thread(
@@ -377,7 +405,7 @@ def _run_main(args, output_file):
   finally:
     stop_event.set()
     if args.platform == 'android' and not args.no_manage_cobalt:
-      stop_package(args.package_name, args.quiet)
+      stop_package(args.package_name, args.quiet, args.device)
   _print_q('\nDONE!!!\n', args.quiet)
 
 
@@ -400,6 +428,7 @@ def main():
       choices=['android', 'linux'],
       default='android',
       help='The platform to run on (android or linux).')
+  parser.add_argument('--device', help='Optional device serial to connect to.')
   parser.add_argument(
       '--poll-interval-s',
       type=float,

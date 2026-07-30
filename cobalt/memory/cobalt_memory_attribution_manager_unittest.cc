@@ -20,8 +20,10 @@
 #include "base/feature_list.h"
 #include "base/memory/cobalt_memory_attribution_observer.h"
 #include "base/memory/cobalt_memory_context.h"
+#include "base/memory/cobalt_resident_memory_observer.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/task_environment.h"
 #include "cobalt/browser/features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -39,9 +41,12 @@ class CobaltMemoryAttributionManagerTest : public testing::Test {
         cobalt::features::kCobaltMemoryAttributionManager);
     manager_ = CobaltMemoryAttributionManager::Get();
     auto* observer = base::memory::CobaltMemoryAttributionObserver::Get();
+    auto* resident_observer = base::memory::CobaltResidentMemoryObserver::Get();
     // Reset counters and snapshots for clean test state.
     for (size_t i = 0; i < static_cast<size_t>(MemoryContext::kCount); ++i) {
       observer->GetCounters()[i].value.store(0, std::memory_order_relaxed);
+      resident_observer->GetCounters()[i].value.store(
+          0, std::memory_order_relaxed);
       manager_->last_snapshots_[i] = 0;
     }
     manager_->last_report_time_ = base::TimeTicks::Now();
@@ -65,6 +70,7 @@ class CobaltMemoryAttributionManagerTest : public testing::Test {
         .value.load(std::memory_order_relaxed);
   }
 
+  base::test::SingleThreadTaskEnvironment task_environment_;
   base::test::ScopedFeatureList scoped_feature_list_;
   CobaltMemoryAttributionManager* manager_;
 };
@@ -203,6 +209,129 @@ TEST_F(CobaltMemoryAttributionManagerTest,
   });
   new_thread.join();
   EXPECT_TRUE(thread_executed.load(std::memory_order_relaxed));
+}
+
+TEST_F(CobaltMemoryAttributionManagerTest,
+       ResidentMemoryObserverTracksLiveSamples) {
+  auto* observer = base::memory::CobaltResidentMemoryObserver::Get();
+
+  // We need to bypass ScopedMuteThreadSamples for this test,
+  // since SampleAdded EXPECTS it to be muted.
+  base::PoissonAllocationSampler::ScopedMuteThreadSamples mute_samples;
+
+  void* mock_ptr1 = reinterpret_cast<void*>(0x1000);
+  void* mock_ptr2 = reinterpret_cast<void*>(0x2000);
+
+  EXPECT_EQ(observer->GetCounters()[static_cast<size_t>(MemoryContext::kDOM)]
+                .value.load(),
+            0u);
+  EXPECT_EQ(observer->GetCounters()[static_cast<size_t>(MemoryContext::kMedia)]
+                .value.load(),
+            0u);
+
+  {
+    ScopedMemoryContext dom_context(MemoryContext::kDOM);
+    observer->SampleAdded(
+        mock_ptr1, 100, 1024,
+        base::allocator::dispatcher::AllocationSubsystem::kPartitionAllocator,
+        nullptr);
+  }
+
+  {
+    ScopedMemoryContext media_context(MemoryContext::kMedia);
+    observer->SampleAdded(
+        mock_ptr2, 200, 2048,
+        base::allocator::dispatcher::AllocationSubsystem::kPartitionAllocator,
+        nullptr);
+  }
+
+  EXPECT_EQ(observer->GetCounters()[static_cast<size_t>(MemoryContext::kDOM)]
+                .value.load(),
+            1024u);
+  EXPECT_EQ(observer->GetCounters()[static_cast<size_t>(MemoryContext::kMedia)]
+                .value.load(),
+            2048u);
+
+  // Free DOM
+  observer->SampleRemoved(mock_ptr1);
+  EXPECT_EQ(observer->GetCounters()[static_cast<size_t>(MemoryContext::kDOM)]
+                .value.load(),
+            0u);
+  EXPECT_EQ(observer->GetCounters()[static_cast<size_t>(MemoryContext::kMedia)]
+                .value.load(),
+            2048u);
+
+  // Free Media
+  observer->SampleRemoved(mock_ptr2);
+  EXPECT_EQ(observer->GetCounters()[static_cast<size_t>(MemoryContext::kDOM)]
+                .value.load(),
+            0u);
+  EXPECT_EQ(observer->GetCounters()[static_cast<size_t>(MemoryContext::kMedia)]
+                .value.load(),
+            0u);
+}
+
+TEST_F(CobaltMemoryAttributionManagerTest,
+       ResidentMemoryObserverMultiThreadedDoesNotUnderflow) {
+  manager_->Start(60, 1024);
+
+  constexpr int kNumThreads = 4;
+  constexpr int kAllocationsPerThread = 1000;
+
+  std::vector<std::thread> threads;
+  for (int i = 0; i < kNumThreads; ++i) {
+    threads.emplace_back([]() {
+      // Mute thread samples to satisfy reentrancy protection in the sampler.
+      base::PoissonAllocationSampler::ScopedMuteThreadSamples mute_samples;
+      auto* observer = base::memory::CobaltResidentMemoryObserver::Get();
+
+      for (int j = 0; j < kAllocationsPerThread; ++j) {
+        void* ptr = malloc(16);
+        observer->SampleAdded(
+            ptr, 16, 1024,
+            base::allocator::dispatcher::AllocationSubsystem::kAllocatorShim,
+            nullptr);
+        observer->SampleRemoved(ptr);
+        free(ptr);
+      }
+    });
+  }
+
+  for (auto& t : threads) {
+    t.join();
+  }
+
+  // Underflows would result in UINT64_MAX, producing massive numbers.
+  EXPECT_LE(base::memory::CobaltResidentMemoryObserver::Get()
+                ->GetCounters()[static_cast<size_t>(MemoryContext::kUnknown)]
+                .value.load(),
+            1000u * kNumThreads * 1024u);
+
+  manager_->Stop();
+}
+
+TEST_F(CobaltMemoryAttributionManagerTest, StopCleansUpLiveSamples) {
+  manager_->Start(60, 1024);
+
+  void* ptr = malloc(16);
+  {
+    base::PoissonAllocationSampler::ScopedMuteThreadSamples mute_samples;
+    base::memory::CobaltResidentMemoryObserver::Get()->SampleAdded(
+        ptr, 16, 1024,
+        base::allocator::dispatcher::AllocationSubsystem::kAllocatorShim,
+        nullptr);
+  }
+
+  manager_->Stop();
+
+  // Test that Stop() successfully cleared the internal dictionary.
+  // SampleRemoved on a dangling pointer should safely no-op instead of crash.
+  {
+    base::PoissonAllocationSampler::ScopedMuteThreadSamples mute_samples;
+    base::memory::CobaltResidentMemoryObserver::Get()->SampleRemoved(ptr);
+  }
+
+  free(ptr);
 }
 
 }  // namespace memory

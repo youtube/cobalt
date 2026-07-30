@@ -16,12 +16,14 @@
 #include "base/android/jni_android.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
+#include "base/memory/cobalt_memory_context.h"
 #include "base/command_line.h"
 #include "base/threading/platform_thread_internal_posix.h"
 #include "base/threading/thread_id_name_manager.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "base/tasks_jni/ThreadUtils_jni.h"
+
 
 namespace base {
 
@@ -97,6 +99,10 @@ GetCurrentThreadPriorityForPlatformForTest() {
 
 void PlatformThread::SetName(const std::string& name) {
   SetNameCommon(name);
+
+#if BUILDFLAG(IS_COBALT)
+  CobaltSetMemoryContextForThread(name.c_str());
+#endif
 
   // Like linux, on android we can get the thread names to show up in the
   // debugger by setting the process name for the LWP.

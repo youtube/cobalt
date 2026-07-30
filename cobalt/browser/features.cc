@@ -63,5 +63,8 @@ BASE_FEATURE(kInMemoryUpdatesMemoryBuffer,
 const base::FeatureParam<int> kInMemoryUpdatesMemoryBufferParam{
     &kInMemoryUpdatesMemoryBuffer, "memory_buffer_bytes", 35 * 1024 * 1024};
 
+const base::FeatureParam<int> kCobaltResidentMemorySamplingIntervalParam{
+    &kCobaltMemoryAttributionManager, "sampling-interval", 131072};
+
 }  // namespace features
 }  // namespace cobalt
