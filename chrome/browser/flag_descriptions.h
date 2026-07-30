@@ -1476,6 +1476,13 @@ inline constexpr char kGlicExperimentalTriggeringName[] =
     "Glic experimental triggering";
 inline constexpr char kGlicExperimentalTriggeringDescription[] =
     "Enables GLIC experimental triggering";
+inline constexpr char
+    kGlicExperimentalTriggeringSuppressDoneNotificationName[] =
+        "Glic experimental triggering suppress done notification";
+inline constexpr char
+    kGlicExperimentalTriggeringSuppressDoneNotificationDescription[] =
+        "Suppresses the done notification for GLIC experimental triggering "
+        "tasks";
 inline constexpr char kGlicActorAutofillName[] = "Glic actor autofill";
 inline constexpr char kGlicActorAutofillDescription[] =
     "Enables autofill actions for the Glic actor. Specific fillable types may "
@@ -1502,6 +1509,18 @@ inline constexpr char kGlicActorSkipScreenshotName[] =
 inline constexpr char kGlicActorSkipScreenshotDescription[] =
     "If enabled, Glic actor will skip capturing and uploading screenshots when "
     "an actor turn is completed.";
+
+inline constexpr char kActorObserveScreenshotDefaultName[] =
+    "Actor observe screenshot default";
+inline constexpr char kActorObserveScreenshotDefaultDescription[] =
+    "If enabled, the actor framework will capture screenshots by default when "
+    "requested.";
+
+inline constexpr char kActorObservePageContentDefaultName[] =
+    "Actor observe page content default";
+inline constexpr char kActorObservePageContentDefaultDescription[] =
+    "If enabled, the actor framework will capture page content by default when "
+    "requested.";
 inline constexpr char kGlicCaptureRegionDescription[] =
     "Enables Glic to capture a region of the screen.";
 inline constexpr char kGlicCaptureRegionName[] = "Glic Capture Region";
@@ -1662,6 +1681,11 @@ inline constexpr char
         "allowed "
         "for enterprise users on Android.";
 
+inline constexpr char kEnableDownloadEnterpriseScanName[] =
+    "Enable enterprise download scanning on Android";
+inline constexpr char kEnableDownloadEnterpriseScanDescription[] =
+    "Enables enterprise deep scanning of downloads on Android.";
+
 inline constexpr char kEnableExperimentalCookieFeaturesName[] =
     "Enable experimental cookie features";
 inline constexpr char kEnableExperimentalCookieFeaturesDescription[] =
@@ -1786,11 +1810,6 @@ inline constexpr char kDevToolsWebMCPSupportName[] =
     "WebMCP support in DevTools";
 inline constexpr char kDevToolsWebMCPSupportDescription[] =
     "Enables WebMCP support in DevTools.";
-
-inline constexpr char kDesktopPWAsBorderlessName[] = "Desktop PWA Borderless";
-inline constexpr char kDesktopPWAsBorderlessDescription[] =
-    "Enable web app manifests to declare borderless mode as a display "
-    "override. Prototype implementation of: go/borderless-mode.";
 
 inline constexpr char kDomStorageSqliteName[] = "DOM Storage SQLite Backend";
 inline constexpr char kDomStorageSqliteDescription[] =
@@ -1947,6 +1966,8 @@ inline constexpr char kIwaKeyDistributionComponentExpCohortName[] =
     "Experimental cohort for the Iwa Key Distribution component";
 inline constexpr char kIwaKeyDistributionComponentExpCohortDescription[] =
     "Specifies the experimental cohort for the Iwa Key Distribution component.";
+inline constexpr char kIwaKeyDistributionComponentExpCohortStagingName[] =
+    "Staging";
 
 inline constexpr char kEnableUnframedIwaName[] =
     "Unframed display mode for Isolated Web Apps";
@@ -2284,11 +2305,6 @@ inline constexpr char kIPHExtensionsRequestAccessButtonFeatureDescription[] =
     "Enables In-Product-Help that appears when at least one extension is "
     "requesting access to the current page. This feature is gated by "
     "extensions-menu-access-control.";
-inline constexpr char kExtensionManifestV2DeprecationDisabledName[] =
-    "Extension Manifest V2 Deprecation Disabled Stage";
-inline constexpr char kExtensionManifestV2DeprecationDisabledDescription[] =
-    "Displays a warning that affected MV2 extensions were turned off due to "
-    "the Manifest V2 deprecation.";
 inline constexpr char kExtensionManifestV2DeprecationUnsupportedName[] =
     "Extension Manifest V2 Deprecation Unsupported Stage";
 inline constexpr char kExtensionManifestV2DeprecationUnsupportedDescription[] =
@@ -2364,6 +2380,13 @@ inline constexpr char kFedCmNonceInParamsName[] = "FedCmNonceInParams";
 inline constexpr char kFedCmNonceInParamsDescription[] =
     "Removes nonce as an explicit parameter of the FedCM API. When enabled, a "
     "nonce may be passed in params.";
+
+inline constexpr char kFedCmWebIdentitySubdomainName[] =
+    "FedCmWebIdentitySubdomain";
+inline constexpr char kFedCmWebIdentitySubdomainDescription[] =
+    "Enables subdomain-first discovery for the FedCM well-known file. "
+    "Fetches https://web-identity.<eTLD+1>/.well-known/web-identity first "
+    "and falls back to the apex URL on failure.";
 
 inline constexpr char kFedCmWellKnownEndpointValidationName[] =
     "FedCmWellKnownEndpointValidation";
@@ -3968,16 +3991,6 @@ inline constexpr char kRendererSideContentDecodingDescription[] =
     "network service sends compressed HTTP response bodies to the renderer "
     "process.";
 
-inline constexpr char kBackgroundCompactMessageName[] =
-    "Enable Background Compaction";
-inline constexpr char kBackgroundCompactDescription[] =
-    "Compact memory for all tabs while chrome is backgrounded";
-inline constexpr char kRunningCompactMessageName[] =
-    "Enable Running Compaction";
-inline constexpr char kRunningCompactDescription[] =
-    "Compact memory tabs that haven't been used in a while while chrome "
-    "is running.";
-
 inline constexpr char kRcapsDynamicProfileCountryName[] =
     "Dynamic Profile Country";
 inline constexpr char kRcapsDynamicProfileCountryDescription[] =
@@ -3991,11 +4004,6 @@ inline constexpr char kRustyBmpDescription[] =
 inline constexpr char kQuicName[] = "Experimental QUIC protocol";
 inline constexpr char kQuicDescription[] =
     "Enable experimental QUIC protocol support.";
-
-inline constexpr char kQuickAppAccessTestUIName[] =
-    "Internal test: quick app access";
-inline constexpr char kQuickAppAccessTestUIDescription[] =
-    "Show an app in the quick app access area at the start of the session";
 
 inline constexpr char kQuickShareV2Name[] = "Quick Share v2";
 inline constexpr char kQuickShareV2Description[] =
@@ -4289,12 +4297,6 @@ inline constexpr char kProfileCreationDeclineSigninCTAExperimentDescription[] =
     "As part of the Sign In Level Up experiment, changes the decline "
     "sign in CTA string in profile creation entry points";
 
-inline constexpr char kShowProfilePickerToAllUsersExperimentName[] =
-    "Show profile picker to all users";
-inline constexpr char kShowProfilePickerToAllUsersExperimentDescription[] =
-    "As part of the Growth experiments, show the profile picker to users who "
-    "only have one profile";
-
 inline constexpr char kSmoothScrollingName[] = "Smooth Scrolling";
 inline constexpr char kSmoothScrollingDescription[] =
     "Animate smoothly when scrolling page content.";
@@ -4431,6 +4433,11 @@ inline constexpr char kToolbarAppMenuLabelResizingName[] =
     "Toolbar App Menu Label Resizing";
 inline constexpr char kToolbarAppMenuLabelResizingDescription[] =
     "Enables resizing of the app menu label in the toolbar.";
+
+inline constexpr char kToolbarGlicButtonResizingName[] =
+    "Toolbar Glic Button Label Resizing";
+inline constexpr char kToolbarGlicButtonResizingDescription[] =
+    "Enables resizing of the glic button in the toolbar.";
 
 inline constexpr char kRoundedIconsName[] = "Rounded Icons";
 inline constexpr char kRoundedIconsDescription[] = "Enables rounded icons.";
@@ -5331,6 +5338,12 @@ inline constexpr char kHomeButtonRemovalName[] = "Home Button Removal";
 inline constexpr char kHomeButtonRemovalDescription[] =
     "Enables the Home Button Removal feature.";
 
+inline constexpr char kUpdatePaddingForDisplayCalculationName[] =
+    "Update Padding For Display Calculation";
+inline constexpr char kUpdatePaddingForDisplayCalculationDescription[] =
+    "When this is enabled, padding for display style calculations will use the "
+    "width of the containing view, not the entire screen width.";
+
 inline constexpr char kUpdateTabGroupColorsName[] = "Update Tab Group Colors";
 inline constexpr char kUpdateTabGroupColorsDescription[] =
     "Enable updating tab group colors.";
@@ -5622,6 +5635,15 @@ inline constexpr char kEdgeToEdgeExtraLogsName[] = "edge-to-edge-extra-logs";
 inline constexpr char kEdgeToEdgeExtraLogsDescription[] =
     "When this is enabled, extra logs will be emitted for tracking "
     "edge-to-edge state and inset updates.";
+
+inline constexpr char kWebAppShortEdgesCutoutModeName[] =
+    "Web App Short Edges Cutout Mode";
+inline constexpr char kWebAppShortEdgesCutoutModeDescription[] =
+    "When enabled, installed PWAs (display: standalone or display: fullscreen) "
+    "that opt in via viewport-fit=cover draw under the status and navigation "
+    "bars on Android, with non-zero CSS env(safe-area-inset-*) values for "
+    "controls. Standalone webapps that do not declare viewport-fit=cover are "
+    "unaffected.";
 
 inline constexpr char kEnableAccessibilityLabeledByName[] =
     "Enable Accessibility LabeledBy";

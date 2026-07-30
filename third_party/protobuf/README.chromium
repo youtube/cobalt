@@ -283,3 +283,43 @@ Description of the patches:
 
   See go/chrome-protobuf-wkt for an overview of how protobuf WKTs are supported
   in Chrome.
+
+- 0061-fix-invalid-enum-class-export.patch
+
+  Removes invalid PROTOBUF_EXPORTs on enum classes in text_format.h.
+  Under C++ / MSVC, dllexport attributes cannot be applied to enum classes,
+  which triggers -Wignored-attributes under Clang on Windows component builds.
+
+- 0062-fix-dllexport-explicit-instantiation-decl.patch
+
+  Fixes -Wdllexport-explicit-instantiation-decl compiler warning in map_field.h
+  and map_field.cc by replacing the unconditional PROTOBUF_EXPORT with
+  PROTOBUF_EXPORT_TEMPLATE_DECLARE (which resolves to empty) and
+  PROTOBUF_EXPORT_TEMPLATE_DEFINE (which resolves to dllexport/dllimport) to
+  correctly declare and export explicit template instantiations.
+
+- 0063-workaround-windows-constinit-pregenerated.patch
+
+  Fixes 'variable does not have a constant initializer' errors with constinit
+  specifiers in java_features.pb.cc and plugin.pb.cc in Windows component builds.
+  In component builds, pointers to dllimport symbols are not constexpr at compile
+  time, so variables that reference these imported pointers cannot be constant-
+  initialized. This patch uses PROTOBUF_CONSTINIT_WITH_PTR (from patch 0030)
+  for these variables, which evaluates to empty on component builds.
+
+- 0064-time-util-no-export.patch
+
+  Do not export symbols in time_util.h.
+
+  This util was meant to be compiled with protobuf full. Since Chromium uses
+  protobuf lite (and lite WKTs, such as duration and timestamp), we can't make
+  it a part of protobuf as we would get a dependency cycle. Not exporting
+  symbols allows us to use it as a separate target.
+
+- 0065-gzip-stream-no-export.patch
+
+  Do not export symbols in gzip_stream.h.
+
+  This util was meant to be compiled with protobuf full. However, it depends on
+  zlib, so instead of making Chromium's protobuf depend on zlib, the utility is
+  compiled as a separate target, and not exported.

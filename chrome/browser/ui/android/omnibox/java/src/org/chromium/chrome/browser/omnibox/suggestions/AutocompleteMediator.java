@@ -384,6 +384,9 @@ class AutocompleteMediator
     void updateVisualsForState(@BrandedColorScheme int brandedColorScheme) {
         mDropdownViewInfoListManager.setBrandedColorScheme(brandedColorScheme);
         mListPropertyModel.set(SuggestionListProperties.COLOR_SCHEME, brandedColorScheme);
+        mListPropertyModel.set(
+                SuggestionListProperties.FUSEBOX_LAYOUT_MODE,
+                mFuseboxCoordinator.getFuseboxLayoutModeSupplier().get());
         if (mOmniboxSuggestionsVisualStateObserver != null) {
             mOmniboxSuggestionsVisualStateObserver.onOmniboxSuggestionsBackgroundColorChanged(
                     OmniboxResourceProvider.getSuggestionsDropdownBackgroundColor(
@@ -734,11 +737,12 @@ class AutocompleteMediator
     public void onSuggestionClicked(AutocompleteMatch suggestion, int matchIndex, GURL url) {
         if (!isInInputSession()) return;
 
-        // Android hub should always switch to tab if one is available.
+        // Android hub and @tabs starter pack should always switch to tab if one is available.
         // TODO(crbug.com/369438026): Remove this block once switch-to-tab is the default action.
         boolean isAndroidHub =
                 mAutocompleteInput.getPageClassification() == PageClassification.ANDROID_HUB_VALUE;
-        if (isAndroidHub && suggestion.hasTabMatch()) {
+        boolean isTabsResult = suggestion.getType() == OmniboxSuggestionType.OPEN_TAB;
+        if ((isAndroidHub || isTabsResult) && suggestion.hasTabMatch()) {
             // Consider switching to tab for all other suggestion types that are not tab groups.
             if (suggestion.getType() == OmniboxSuggestionType.TAB_GROUP) {
                 switchToTabGroup(suggestion);
@@ -1292,7 +1296,8 @@ class AutocompleteMediator
         boolean fuseboxOnTablet = mEmbedder.isTablet() && fuseboxState != FuseboxState.DISABLED;
         boolean separatedFuseboxOnTablet =
                 fuseboxOnTablet && getFuseboxLayoutMode() == FuseboxLayoutMode.TOOLBAR;
-        mListPropertyModel.set(SuggestionListProperties.ROUND_TOP_CORNERS, !fuseboxOnTablet);
+        mListPropertyModel.set(
+                SuggestionListProperties.ROUND_TOP_CORNERS, !separatedFuseboxOnTablet);
         mListPropertyModel.set(
                 SuggestionListProperties.DRAW_OVER_ANCHOR, !separatedFuseboxOnTablet);
     }

@@ -17,8 +17,8 @@
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/sync/base/custom_passphrase_bootstrap_token.h"
 #include "components/sync/base/time.h"
-#include "components/sync/engine/nigori/nigori.h"
 #include "components/sync/engine/sync_status.h"
+#include "components/sync/nigori/nigori.h"
 #include "components/sync/nigori/required_passphrase_verifier_impl.h"
 #include "components/sync/test/mock_sync_engine.h"
 #include "components/sync/test/sync_service_crypto_test_utils.h"
@@ -46,8 +46,8 @@ using testing::SaveArg;
 sync_pb::EncryptedData MakeEncryptedData(
     const std::string& passphrase,
     const KeyDerivationParams& derivation_params) {
-  std::unique_ptr<Nigori> nigori =
-      Nigori::CreateByDerivation(derivation_params, passphrase);
+  std::unique_ptr<Nigori> nigori = Nigori::CreateByDerivation(
+      NigoriPassKey::ForTesting(), derivation_params, passphrase);
 
   const std::string unencrypted = "test";
   sync_pb::EncryptedData encrypted;
@@ -71,8 +71,8 @@ std::unique_ptr<RequiredPassphraseVerifier> CreateVerifier(
 CustomPassphraseBootstrapToken CreateBootstrapToken(
     const std::string& passphrase,
     const KeyDerivationParams& derivation_params) {
-  std::unique_ptr<Nigori> nigori =
-      Nigori::CreateByDerivation(derivation_params, passphrase);
+  std::unique_ptr<Nigori> nigori = Nigori::CreateByDerivation(
+      NigoriPassKey::ForTesting(), derivation_params, passphrase);
 
   sync_pb::NigoriKey proto;
   proto.set_deprecated_name(nigori->GetKeyName());
@@ -245,6 +245,55 @@ TEST_F(SyncServiceCryptoTest, ShouldExposePassphraseRequired) {
   EXPECT_CALL(delegate_, SetEncryptionBootstrapToken(_, _));
   EXPECT_TRUE(crypto_.SetDecryptionPassphrase(kTestPassphrase));
   EXPECT_FALSE(crypto_.IsPassphraseRequired());
+}
+
+TEST_F(SyncServiceCryptoTest, ShouldHandleKeystoreKeysRequired) {
+  crypto_.SetSyncEngine(CoreAccountInfo(), &engine_);
+  ASSERT_FALSE(crypto_.IsPassphraseRequired());
+  ASSERT_FALSE(crypto_.HasCryptoError());
+
+  // Mimic the engine determining that keystore keys are required.
+  EXPECT_CALL(delegate_, ReconfigureDataTypesDueToCrypto());
+  crypto_.OnKeystoreKeysRequired();
+
+  EXPECT_FALSE(crypto_.IsPassphraseRequired());
+  EXPECT_TRUE(crypto_.HasCryptoError());
+  VerifyAndClearExpectations();
+
+  // Mimic the engine confirming that keystore keys are accepted.
+  EXPECT_CALL(delegate_, ReconfigureDataTypesDueToCrypto());
+  crypto_.OnKeystoreKeysAccepted();
+
+  EXPECT_FALSE(crypto_.IsPassphraseRequired());
+  EXPECT_FALSE(crypto_.HasCryptoError());
+}
+
+TEST_F(SyncServiceCryptoTest,
+       ShouldHandleKeystoreKeysAcceptedAfterPassphraseRequired) {
+  crypto_.SetSyncEngine(CoreAccountInfo(), &engine_);
+  ASSERT_FALSE(crypto_.IsPassphraseRequired());
+  ASSERT_FALSE(crypto_.HasCryptoError());
+
+  // Mimic the engine determining that a passphrase is required (half-migrated
+  // keystore state).
+  EXPECT_CALL(delegate_, ReconfigureDataTypesDueToCrypto());
+  crypto_.OnPassphraseRequired(CreateVerifier(
+      KeyDerivationParams::CreateForPbkdf2(), sync_pb::EncryptedData()));
+
+  EXPECT_TRUE(crypto_.IsPassphraseRequired());
+  EXPECT_TRUE(crypto_.HasCryptoError());
+  VerifyAndClearExpectations();
+
+  // Mimic the engine confirming that keystore keys are accepted (resolving the
+  // encryption). This shouldn't happen in real scenarios where the user was
+  // actually in a half-migrated state, but it is technially reachable so it is
+  // reasonable to expect that the crypto error would be resolved in this case
+  // too.
+  EXPECT_CALL(delegate_, ReconfigureDataTypesDueToCrypto());
+  crypto_.OnKeystoreKeysAccepted();
+
+  EXPECT_FALSE(crypto_.IsPassphraseRequired());
+  EXPECT_FALSE(crypto_.HasCryptoError());
 }
 
 // Regression test for crbug.com/1306831.

@@ -179,7 +179,13 @@ class GlicPinnedTabManagerImpl::PinnedTabObserver
 
  private:
   void CheckOriginChangeAndMaybeDeleteSelf(const url::Origin& new_origin) {
-    if (last_origin_ == new_origin) {
+    // If the origin has not changed, or if both the old and new origins are
+    // opaque, we update `last_origin_` and return early without unpinning.
+    // Opaque origins always have different unique nonces, but transitioning
+    // between them (e.g., initial blank page loads) is safe to ignore.
+    if (last_origin_ == new_origin ||
+        (last_origin_.opaque() && new_origin.opaque())) {
+      last_origin_ = new_origin;
       return;
     }
     last_origin_ = new_origin;
@@ -380,6 +386,14 @@ bool GlicPinnedTabManagerImpl::PinTabs(
   return pinning_fully_succeeded;
 }
 
+void GlicPinnedTabManagerImpl::SetPinTrigger(tabs::TabHandle tab_handle,
+                                             GlicPinTrigger trigger) {
+  if (auto* usage = GetPinnedTabUsageInternal(tab_handle)) {
+    usage->pin_event.trigger = trigger;
+    usage->pin_event.timestamp = base::TimeTicks::Now();
+  }
+}
+
 bool GlicPinnedTabManagerImpl::UnpinTabs(
     base::span<const tabs::TabHandle> tab_handles,
     GlicUnpinTrigger trigger) {
@@ -460,13 +474,15 @@ bool GlicPinnedTabManagerImpl::IsTabPinned(tabs::TabHandle tab_handle) const {
   return !!GetPinnedTabEntry(tab_handle);
 }
 
-std::vector<content::WebContents*> GlicPinnedTabManagerImpl::GetPinnedTabs()
+std::vector<tabs::TabInterface*> GlicPinnedTabManagerImpl::GetPinnedTabs()
     const {
-  std::vector<content::WebContents*> pinned_contents;
+  std::vector<tabs::TabInterface*> pinned_tabs;
   for (auto& entry : pinned_tabs_) {
-    pinned_contents.push_back(entry.tab_observer->web_contents());
+    if (auto* tab = entry.tab_handle.Get()) {
+      pinned_tabs.push_back(tab);
+    }
   }
-  return pinned_contents;
+  return pinned_tabs;
 }
 
 std::optional<GlicPinnedTabUsage> GlicPinnedTabManagerImpl::GetPinnedTabUsage(

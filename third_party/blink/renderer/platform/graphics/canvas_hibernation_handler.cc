@@ -441,8 +441,8 @@ void CanvasHibernationHandler::Hibernate(
   // No HibernationEvent reported on success. This is on purppose to avoid
   // non-complementary stats. Each HibernationScheduled event is paired with
   // exactly one failure or exit event.
-  provider->FlushCanvas2D();
-  scoped_refptr<StaticBitmapImage> snapshot = provider->SnapshotForCanvas2D();
+  provider->Flush();
+  scoped_refptr<StaticBitmapImage> snapshot = provider->Snapshot();
   if (!snapshot) {
     ReportHibernationEvent(
         HibernationEvent::kHibernationAbortedDueSnapshotFailure);
@@ -455,8 +455,8 @@ void CanvasHibernationHandler::Hibernate(
         HibernationEvent::kHibernationAbortedDueSnapshotFailure);
     return;
   }
-  SaveForHibernation(std::move(sw_image),
-                     provider->ReleaseRecorderForCanvas2D(), context, delay);
+  SaveForHibernation(std::move(sw_image), provider->ReleaseRecorder(), context,
+                     delay);
 
   delegate_->ResetResourceProvider();
   delegate_->ClearCanvas2DLayerTexture();

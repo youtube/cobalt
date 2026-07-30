@@ -12,6 +12,7 @@ import {BrowserProxyImpl} from './browser_proxy.js';
 import type {BrowserProxy} from './browser_proxy.js';
 import {getCss} from './readonly_omnibox.css.js';
 import {getHtml} from './readonly_omnibox.html.js';
+import {getEventDispositionFlags} from './toolbar_button.js';
 import type {OmniboxTextPortion} from './toolbar_ui_api_data_model.mojom-webui.js';
 import {OmniboxTextColor} from './toolbar_ui_api_data_model.mojom-webui.js';
 
@@ -56,6 +57,21 @@ export class ReadonlyOmniboxElement extends CrLitElement {
 
   private browserProxy_: BrowserProxy = BrowserProxyImpl.getInstance();
 
+  // Keys that may need to be forwarded to the browser.
+  private maybeForwardKeys: Set<string>;
+
+  constructor() {
+    super();
+    this.maybeForwardKeys = new Set([
+      'Control',
+      'Enter',
+      'Escape',
+      'ArrowUp',
+      'ArrowDown',
+      ' ',
+    ]);
+  }
+
   override firstUpdated(changedProperties: PropertyValues<this>): void {
     super.firstUpdated(changedProperties);
     this.$.textContainerWrap.addEventListener(
@@ -65,6 +81,7 @@ export class ReadonlyOmniboxElement extends CrLitElement {
     textInput.addEventListener('blur', this.onInputBlur.bind(this));
     textInput.addEventListener('input', this.onInputInput.bind(this));
     textInput.addEventListener('keydown', this.onInputKeyDown.bind(this));
+    textInput.addEventListener('keyup', this.onInputKeyUp.bind(this));
   }
 
   override updated(changedProperties: PropertyValues<this>): void {
@@ -174,11 +191,6 @@ export class ReadonlyOmniboxElement extends CrLitElement {
   }
 
   private onInputKeyDown(event: KeyboardEvent): void {
-    // TODO(crbug.com/500653057): shouldn't do this if shift is down.
-    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-      event.preventDefault();
-    }
-
     const inlineAutocompletion = this.omniboxViewState.inlineAutocompletion;
     if (inlineAutocompletion.length > 0) {
       // If the current input state (its value and selection) matches its last
@@ -217,12 +229,37 @@ export class ReadonlyOmniboxElement extends CrLitElement {
       }
     }
 
-    this.browserProxy_.toolbarUIHandler.onOmniboxAction({
-      key: {
-        key: event.key,
-        selection: this.getSelection(),
-      },
-    });
+    if (this.maybeForwardKeys.has(event.key)) {
+      // TODO(crbug.com/503785596): shouldn't do this if shift is down.
+      if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+        event.preventDefault();
+      }
+
+      this.browserProxy_.toolbarUIHandler.onOmniboxAction({
+        key: {
+          key: event.key,
+          isKeyDown: true,
+          selection: this.getSelection(),
+          modifiers: getEventDispositionFlags(event),
+        },
+      });
+    }
+  }
+
+  private onInputKeyUp(event: KeyboardEvent): void {
+    // OmniboxEditModel keeps track of state of control key separately, and
+    // needs to be notified of its releases. Everything else is handled on
+    // keydown.
+    if (event.key === 'Control') {
+      this.browserProxy_.toolbarUIHandler.onOmniboxAction({
+        key: {
+          key: event.key,
+          isKeyDown: false,
+          selection: this.getSelection(),
+          modifiers: getEventDispositionFlags(event),
+        },
+      });
+    }
   }
 
   private getSelection(): MojomRange {

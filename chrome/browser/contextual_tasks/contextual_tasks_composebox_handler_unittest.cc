@@ -9,6 +9,8 @@
 #include <vector>
 
 #include "base/containers/span.h"
+#include "base/files/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
 #include "base/run_loop.h"
@@ -3406,4 +3408,179 @@ TEST_F(ContextualTasksComposeboxHandlerTest,
   // Verify: No context was uploaded, pending uploads are back to 0.
   ASSERT_FALSE(handler_->IsAnyContextUploading());
   ASSERT_FALSE(handler_->HasPendingQueryForTesting());
+}
+
+TEST_F(ContextualTasksComposeboxHandlerTest,
+       SubmitQuery_WaitsForModalityChipUpload) {
+  base::Uuid task_id = base::Uuid::GenerateRandomV4();
+  EXPECT_CALL(*mock_ui_, GetTaskId())
+      .WillRepeatedly(
+          testing::ReturnRefOfCopy(std::optional<base::Uuid>(task_id)));
+
+  // Setup context.
+  contextual_tasks::ContextualTask task(task_id);
+  auto context =
+      std::make_unique<contextual_tasks::ContextualTaskContext>(task);
+  EXPECT_CALL(*mock_contextual_tasks_service_ptr_,
+              GetContextForTask(testing::_, testing::_, testing::_, testing::_))
+      .WillOnce(
+          [&context](
+              const base::Uuid&,
+              const std::set<contextual_tasks::ContextualTaskContextSource>&,
+              std::unique_ptr<contextual_tasks::ContextDecorationParams>,
+              base::OnceCallback<void(
+                  std::unique_ptr<contextual_tasks::ContextualTaskContext>)>
+                  callback) { std::move(callback).Run(std::move(context)); });
+
+  base::UnguessableToken token = base::UnguessableToken::Create();
+
+  // Setup FileInfo representing a server-injected modality chip in kProcessing
+  // status.
+  contextual_search::FileInfo uploading_info{};
+  uploading_info.upload_status =
+      contextual_search::ContextUploadStatus::kProcessing;
+  uploading_info.mime_type = lens::MimeType::kUnknown;
+  auto input_data = std::make_unique<lens::ContextualInputData>();
+  input_data->modality_chip_props.emplace();
+  input_data->modality_chip_props->set_id("test_chip_id");
+  uploading_info.input_data = std::move(input_data);
+
+  EXPECT_CALL(*mock_controller_, GetFileInfo(token))
+      .WillRepeatedly(testing::Return(&uploading_info));
+
+  // Expect no queries are sent immediately because the chip is still uploading.
+  EXPECT_CALL(*mock_ui_, PostMessageToWebview(testing::_)).Times(0);
+
+  // Simulate the status transition to kProcessing, which should register the
+  // modality chip in the handler's pending uploads set.
+  SimulateUploadStatusChanged(
+      token, lens::MimeType::kUnknown,
+      contextual_search::ContextUploadStatus::kProcessing, std::nullopt);
+
+  // Verify the chip is tracked as uploading.
+  ASSERT_TRUE(handler_->IsAnyContextUploading());
+  ASSERT_EQ(handler_->GetNumContextUploading(), 1);
+
+  // Submit query manually. It should be stashed.
+  handler_->SubmitQuery("Test query", 0, false, false, false, false);
+  ASSERT_TRUE(handler_->HasPendingQueryForTesting());
+
+  // Now expect the stashed query to be sent when the chip completes
+  // successfully.
+  EXPECT_CALL(*mock_controller_, CreateClientToAimRequest(testing::_))
+      .WillOnce(testing::Return(lens::ClientToAimMessage()));
+  EXPECT_CALL(*mock_ui_, PostMessageToWebview(testing::_)).Times(1);
+
+  // Simulate transition to kUploadSuccessful.
+  SimulateUploadStatusChanged(
+      token, lens::MimeType::kUnknown,
+      contextual_search::ContextUploadStatus::kUploadSuccessful, std::nullopt);
+
+  // Verify pending uploads are cleared and the query has been sent.
+  ASSERT_FALSE(handler_->IsAnyContextUploading());
+  ASSERT_FALSE(handler_->HasPendingQueryForTesting());
+  ASSERT_EQ(handler_->GetNumContextUploading(), 0);
+}
+
+TEST_F(ContextualTasksComposeboxHandlerTest, MultiFilesSelected) {
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
+  base::FilePath file1_path = temp_dir.GetPath().AppendASCII("file1.pdf");
+  base::FilePath file2_path = temp_dir.GetPath().AppendASCII("file2.png");
+
+  std::string file1_content = "dummy pdf content";
+  std::string file2_content = "dummy image content";
+
+  ASSERT_TRUE(base::WriteFile(file1_path, file1_content));
+  ASSERT_TRUE(base::WriteFile(file2_path, file2_content));
+
+  std::vector<ui::SelectedFileInfo> files;
+  files.emplace_back(file1_path, file1_path);
+  files.emplace_back(file2_path, file2_path);
+
+  base::RunLoop run_loop;
+  int file_contexts_added = 0;
+  EXPECT_CALL(mock_searchbox_page_, AddFileContext(testing::_, testing::_))
+      .Times(2)
+      .WillRepeatedly([&](const base::UnguessableToken& token,
+                          searchbox::mojom::SelectedFileInfoPtr file_info) {
+        file_contexts_added++;
+        if (file_info->file_name == "file1.pdf") {
+          EXPECT_EQ(file_info->mime_type, "application/pdf");
+        } else if (file_info->file_name == "file2.png") {
+          EXPECT_EQ(file_info->mime_type, "image/png");
+        }
+        if (file_contexts_added == 2) {
+          run_loop.Quit();
+        }
+      });
+
+  handler_->MultiFilesSelected(files);
+
+  // Wait for ThreadPool tasks to finish processing files.
+  run_loop.Run();
+
+  EXPECT_EQ(handler_->GetNumContextUploading(), 2);
+}
+
+TEST_F(ContextualTasksComposeboxHandlerTest,
+       UpdateStateFromUrl_SoftNavigation) {
+  // Arrange: Setup local config with Canvas tool and its url params.
+  omnibox::SearchboxConfig config;
+  auto* canvas_config = config.add_tool_configs();
+  canvas_config->set_tool(omnibox::ToolMode::TOOL_MODE_CANVAS);
+  auto* canvas_param = canvas_config->add_aim_url_params();
+  canvas_param->set_param_key("rc");
+  canvas_param->set_param_value("1");
+
+  // Create composebox handler using a custom callback that binds the local
+  // config.
+  auto mock_callback = base::BindRepeating(
+      [](contextual_search::ContextualSearchSessionHandle* session_handle,
+         const omnibox::SearchboxConfig config) {
+        return std::make_unique<contextual_search::InputStateModel>(
+            *session_handle, config, GURL(), /*is_off_the_record=*/false,
+            /*browser_identity_matches_aim_identity=*/false);
+      },
+      session_handle_.get(), config);
+
+  mojo::PendingRemote<composebox::mojom::Page> page_remote;
+  mojo::PendingReceiver<composebox::mojom::Page> page_receiver =
+      page_remote.InitWithNewPipeAndPassReceiver();
+  mojo::PendingRemote<searchbox::mojom::Page> searchbox_page_remote;
+  mojo::PendingReceiver<searchbox::mojom::Page> searchbox_page_receiver =
+      searchbox_page_remote.InitWithNewPipeAndPassReceiver();
+  auto custom_handler = std::make_unique<TestContextualTasksComposeboxHandler>(
+      mock_ui_.get(), profile(), web_contents(),
+      mojo::PendingReceiver<composebox::mojom::PageHandler>(),
+      std::move(page_remote),
+      mojo::PendingReceiver<searchbox::mojom::PageHandler>(),
+      std::move(searchbox_page_remote),
+      base::BindRepeating(
+          &ContextualTasksUI::GetOrCreateContextualSessionHandle,
+          base::Unretained(mock_ui_.get())),
+      base::BindRepeating(&ContextualTasksUI::ClearContextualSessionHandle,
+                          base::Unretained(mock_ui_.get())),
+      std::move(mock_callback));
+
+  custom_handler->InitializeInputStateModel();
+
+  contextual_search::InputStateModel* model =
+      custom_handler->TakeInputStateModelForTesting();
+  ASSERT_NE(model, nullptr);
+
+  // Default tool is unspecified.
+  EXPECT_EQ(model->get_state_for_testing().active_tool,
+            omnibox::ToolMode::TOOL_MODE_UNSPECIFIED);
+
+  // Act: Simulate soft navigation by calling UpdateStateFromUrl with Canvas
+  // GURL.
+  GURL canvas_url("https://example.com/?rc=1");
+  custom_handler->UpdateStateFromUrl(canvas_url);
+
+  // Assert: Verify the tool successfully restored/persisted to Canvas.
+  EXPECT_EQ(model->get_state_for_testing().active_tool,
+            omnibox::ToolMode::TOOL_MODE_CANVAS);
+  EXPECT_TRUE(model->get_state_for_testing().is_canvas_query_submitted);
 }

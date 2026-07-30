@@ -41,7 +41,7 @@ class GlicPinnedTabManager {
   // Registers a callback to be invoked when the collection of pinned tabs
   // changes.
   using PinnedTabsChangedCallback =
-      base::RepeatingCallback<void(const std::vector<content::WebContents*>&)>;
+      base::RepeatingCallback<void(const std::vector<tabs::TabInterface*>&)>;
   virtual base::CallbackListSubscription AddPinnedTabsChangedCallback(
       PinnedTabsChangedCallback callback) = 0;
 
@@ -75,7 +75,14 @@ class GlicPinnedTabManager {
   virtual bool PinTabs(base::span<const tabs::TabHandle> tab_handles,
                        GlicPinTrigger trigger) = 0;
 
-  // Unins the specified tabs. If any of the tab handles correspond to a tab
+  // Overwrites the pin trigger and timestamp for an already-pinned tab.
+  // This should ONLY be used when transitioning the context of a pinned tab
+  // to a new conversation/instance session (such as during an in-place
+  // conversation switch), without performing a full unpin and re-pin.
+  virtual void SetPinTrigger(tabs::TabHandle tab_handle,
+                             GlicPinTrigger trigger) = 0;
+
+  // Unpins the specified tabs. If any of the tab handles correspond to a tab
   // that either doesn't exist or is not pinned, it will be skipped and we will
   // similarly return false to indicate that the function was not fully
   // successful.
@@ -104,7 +111,7 @@ class GlicPinnedTabManager {
       tabs::TabHandle tab_handle) const = 0;
 
   // Fetches the current list of pinned tabs.
-  virtual std::vector<content::WebContents*> GetPinnedTabs() const = 0;
+  virtual std::vector<tabs::TabInterface*> GetPinnedTabs() const = 0;
 
   // Subscribes to changes in pin candidates.
   virtual void SubscribeToPinCandidates(

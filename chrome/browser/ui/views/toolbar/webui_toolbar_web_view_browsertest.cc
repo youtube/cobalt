@@ -58,6 +58,7 @@
 #include "chrome/browser/ui/views/toolbar/reload_button.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/browser/ui/views/toolbar/webui_pinned_toolbar_actions.h"
+#include "chrome/browser/ui/views/toolbar/webui_test_utils.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/browser/ui/webui/webui_toolbar/utils/toolbar_button_utils.h"
 #include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_ui.h"
@@ -184,11 +185,6 @@ bool WaitForButtonVisible(content::WebContents* web_contents,
   });
 }
 
-WebUIToolbarWebView* GetWebUIToolbarWebView(Browser* browser) {
-  return BrowserView::GetBrowserViewForBrowser(browser)
-      ->toolbar_button_provider()
-      ->GetWebUIToolbarViewForTesting();
-}
 
 void PinButton(Browser* browser, views::WebView* web_view, const char* pref) {
   browser->profile()->GetPrefs()->SetBoolean(pref, true);
@@ -431,45 +427,6 @@ WebUIToolbarWebView* SetUpAndPinHomeButton(Browser* browser) {
   return webui_toolbar_view;
 }
 
-void SetUpWebUI(const ui::ElementIdentifier& element_id,
-                ui::TrackedElement** element_out,
-                WebUIToolbarWebView** webui_toolbar_view_out,
-                views::WebView** web_view_out,
-                Browser* browser) {
-  // Wait for the WebUIToolbarWebView to be available.
-  *webui_toolbar_view_out = nullptr;
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
-    if (!browser_view || !browser_view->toolbar()) {
-      return false;
-    }
-    ToolbarButtonProvider* provider = browser_view->toolbar();
-    *webui_toolbar_view_out = provider->GetWebUIToolbarViewForTesting();
-    return *webui_toolbar_view_out != nullptr;
-  }));
-  ASSERT_TRUE(*webui_toolbar_view_out);
-
-  if (element_id == kWebUIToolbarElementIdentifier) {
-    // We already have the view, and the Basic test doesn't strictly need the
-    // TrackedElement. ElementTracker might be flaky or slow here.
-    *element_out = views::ElementTrackerViews::GetInstance()->GetElementForView(
-        *webui_toolbar_view_out);
-  } else {
-    ASSERT_TRUE(base::test::RunUntil([&]() {
-      *element_out = BrowserElements::From(browser)->GetElement(element_id);
-      return *element_out != nullptr;
-    }));
-    ASSERT_TRUE(*element_out);
-  }
-
-  ASSERT_EQ((*webui_toolbar_view_out)->children().size(), 1u);
-  *web_view_out = views::AsViewClass<views::WebView>(
-      (*webui_toolbar_view_out)->children()[0].get());
-  ASSERT_TRUE(*web_view_out);
-
-  // Wait for the WebView to finish composition.
-  content::WaitForCopyableViewInWebContents((*web_view_out)->GetWebContents());
-}
 
 }  // namespace
 
@@ -482,6 +439,7 @@ class WebUIToolbarWebViewPixelBrowserTest : public InProcessBrowserTest {
          features::kWebUISplitTabsButton, features::kWebUIBackForwardButton,
          features::kWebUIHomeButton, features::kWebUIPinnedToolbarActions,
          tabs::kHorizontalTabStripComboButton, features::kWebUILocationBar,
+         features::kWebUIExtensionsContainer,
          features::kSkipIPCChannelPausingForNonGuests,
          features::kWebUIInProcessResourceLoadingV2,
          features::kInitialWebUISyncNavStartToCommit},
@@ -1698,6 +1656,7 @@ class WebUIToolbarWebViewBrowserTest : public InProcessBrowserTest {
       : WebUIToolbarWebViewBrowserTest(
             {features::kInitialWebUI, features::kWebUIReloadButton,
              features::kWebUISplitTabsButton, features::kWebUIHomeButton,
+             features::kWebUIExtensionsContainer,
              features::kSkipIPCChannelPausingForNonGuests,
              features::kWebUIInProcessResourceLoadingV2,
              features::kInitialWebUISyncNavStartToCommit},
@@ -2920,6 +2879,14 @@ class WebUIPinnedToolbarActionsBrowserTest
       SetPinnableProperty(mapping.first, true);
     }
     model_ = PinnedToolbarActionsModel::Get(browser()->profile());
+    WebUIToolbarWebView* webui_toolbar_view = GetWebUIToolbarWebView(browser());
+    // cast to get to the non-const variant.
+    static_cast<views::View*>(webui_toolbar_view)
+        ->GetColorProvider()
+        ->SetColorForTesting(ui::kColorIcon, SK_ColorYELLOW);
+    static_cast<views::View*>(webui_toolbar_view)
+        ->GetColorProvider()
+        ->SetColorForTesting(ui::kColorMenuIcon, SK_ColorMAGENTA);
   }
 
   void TearDownOnMainThread() override {
@@ -3212,20 +3179,30 @@ IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest, RouteMediaIcons) {
 
   toolbar_ui_api::mojom::PinnedToolbarAction mojom_action =
       toolbar_ui_api::mojom::PinnedToolbarAction::kRouteMedia;
+  const bool rounded_icons = features::IsRoundedIconsEnabled();
 
   const auto kRouteMediaIcons = std::to_array<Test>({
-      {base::raw_ref(vector_icons::kMediaRouterIdleChromeRefreshOldIcon),
-       std::string_view("pinned-toolbar-action:RouteMediaIdle")},
-      {base::raw_ref(vector_icons::kMediaRouterWarningChromeRefreshOldIcon),
-       std::string_view("pinned-toolbar-action:RouteMediaWarning")},
-      {base::raw_ref(vector_icons::kMediaRouterPausedOldIcon),
-       std::string_view("pinned-toolbar-action:RouteMediaPaused")},
-      {base::raw_ref(vector_icons::kMediaRouterActiveChromeRefreshOldIcon),
-       std::string_view("pinned-toolbar-action:RouteMediaActive")},
       {base::raw_ref(features::IsRoundedIconsEnabled()
-                         ? kCastIcon
-                         : kCastChromeRefreshOldIcon),
-       std::string_view("pinned-toolbar-action:RouteMedia")},
+                         ? vector_icons::kCastIcon
+                         : vector_icons::kMediaRouterIdleChromeRefreshOldIcon),
+       std::string_view("pinned-toolbar-action:RouteMediaIdle")},
+      {base::raw_ref(
+           features::IsRoundedIconsEnabled()
+               ? vector_icons::kCastWarningIcon
+               : vector_icons::kMediaRouterWarningChromeRefreshOldIcon),
+       std::string_view("pinned-toolbar-action:RouteMediaWarning")},
+      {base::raw_ref(features::IsRoundedIconsEnabled()
+                         ? vector_icons::kCastPauseIcon
+                         : vector_icons::kMediaRouterPausedOldIcon),
+       std::string_view("pinned-toolbar-action:RouteMediaPaused")},
+      {base::raw_ref(
+           features::IsRoundedIconsEnabled()
+               ? vector_icons::kCastConnectedIcon
+               : vector_icons::kMediaRouterActiveChromeRefreshOldIcon),
+       std::string_view("pinned-toolbar-action:RouteMediaActive")},
+      {base::raw_ref(rounded_icons ? kCastIcon : kCastChromeRefreshOldIcon),
+       rounded_icons ? std::string_view("webui-toolbar:cast")
+                     : std::string_view("pinned-toolbar-action:RouteMedia")},
   });
 
   for (const auto& test : kRouteMediaIcons) {
@@ -3238,9 +3215,12 @@ IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest, RouteMediaIcons) {
               EvalJsOnPinnedButton(
                   web_contents, mojom_action,
                   "return btn?.getAttribute('iron-icon') || '(null)'"));
-    EXPECT_EQ("(null)", EvalJsOnPinnedButton(
-                            web_contents, mojom_action,
-                            "return btn?.getAttribute('style') || '(null)'"));
+
+    // And the color.
+    EXPECT_EQ(
+        "--cr-icon-button-fill-color: rgba(255, 0, 255, 1.00);",
+        EvalJsOnPinnedButton(web_contents, mojom_action,
+                             "return btn?.getAttribute('style') || '(null)'"));
 
     UnpinAction(kActionRouteMedia, mojom_action);
   }
@@ -3252,8 +3232,10 @@ IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest,
   auto* action_item = static_cast<actions::StatefulImageActionItem*>(
       actions::ActionManager::Get().FindAction(
           kActionRouteMedia, browser()->GetActions()->root_action_item()));
-  action_item->SetStatefulImage(
-      ui::ImageModel::FromVectorIcon(vector_icons::kPasswordManagerOldIcon));
+  action_item->SetStatefulImage(ui::ImageModel::FromVectorIcon(
+      features::IsRoundedIconsEnabled()
+          ? vector_icons::kPasswordManagerIcon
+          : vector_icons::kPasswordManagerOldIcon));
   PinAction(
       kActionShowPasswordsBubbleOrPage,
       toolbar_ui_api::mojom::PinnedToolbarAction::kShowPasswordsBubbleOrPage);
@@ -3264,7 +3246,8 @@ IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest,
                               kShowPasswordsBubbleOrPage,
                           "return btn?.getAttribute('iron-icon') || '(null)'"));
   EXPECT_EQ(
-      "--cr-icon-image: url(rhs_icons/password_manager.svg)",
+      "--cr-icon-image: url(rhs_icons/password_manager.svg);"
+      "--cr-icon-button-fill-color: rgba(255, 255, 0, 1.00);",
       EvalJsOnPinnedButton(web_contents,
                            toolbar_ui_api::mojom::PinnedToolbarAction::
                                kShowPasswordsBubbleOrPage,

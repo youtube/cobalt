@@ -19,6 +19,7 @@
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
 #include "ui/gfx/font.h"
@@ -72,6 +73,9 @@ ReplayRecordingBubbleView::ReplayRecordingBubbleView(
 ReplayRecordingBubbleView::~ReplayRecordingBubbleView() = default;
 
 void ReplayRecordingBubbleView::Init() {
+  SetMainImage(ui::ImageModel::FromVectorIcon(vector_icons::kPlayArrowOldIcon,
+                                              ui::kColorIcon, 100));
+
   const auto* layout_provider = views::LayoutProvider::Get();
 
   SetLayoutManager(std::make_unique<views::BoxLayout>(
@@ -143,7 +147,9 @@ void ReplayRecordingBubbleView::AddRecentTasks() {
     auto* icon =
         task_container->AddChildView(std::make_unique<views::ImageView>());
     icon->SetImage(ui::ImageModel::FromVectorIcon(
-        vector_icons::kScreenRecordOldIcon, ui::kColorIcon, /*icon_size=*/32));
+        features::IsRoundedIconsEnabled() ? vector_icons::kScreenRecordIcon
+                                          : vector_icons::kScreenRecordOldIcon,
+        ui::kColorIcon, /*icon_size=*/32));
 
     auto* task_text_container =
         task_container->AddChildView(std::make_unique<views::View>());

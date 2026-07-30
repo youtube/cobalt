@@ -8,7 +8,6 @@
 #include "ash/constants/ash_features.h"
 #include "ash/public/cpp/system/toast_data.h"
 #include "ash/webui/boca_ui/url_constants.h"
-#include "ash/webui/system_apps/public/system_web_app_type.h"
 #include "ash/wm/window_state.h"
 #include "base/containers/span.h"
 #include "base/memory/raw_ptr.h"
@@ -38,6 +37,7 @@
 #include "chromeos/ash/components/boca/on_task/on_task_notifications_manager.h"
 #include "chromeos/ash/components/boca/on_task/util/mock_clock.h"
 #include "chromeos/ash/components/boca/proto/bundle.pb.h"
+#include "chromeos/ash/components/system_web_apps/system_web_app_type.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -878,7 +878,7 @@ IN_PROC_BROWSER_TEST_F(OnTaskLockedSessionNavigationThrottleInteractiveUITest,
   popup_activation_waiter.WaitForActivation();
   ASSERT_EQ(GlobalBrowserCollection::GetInstance()->GetSize(),
             original_browser_count + 1);
-  EXPECT_FALSE(popup_browser->is_delete_scheduled());
+  EXPECT_FALSE(popup_browser->IsDeleteScheduled());
   EXPECT_FALSE(window_tracker->CanOpenNewPopup());
   ASSERT_TRUE(window_tracker->oauth_in_progress());
 
@@ -976,7 +976,7 @@ IN_PROC_BROWSER_TEST_F(OnTaskLockedSessionNavigationThrottleInteractiveUITest,
   // The authorized oauth popup should still be open.
   ASSERT_EQ(GlobalBrowserCollection::GetInstance()->GetSize(),
             original_browser_count + 1);
-  EXPECT_FALSE(popup_browser->is_delete_scheduled());
+  EXPECT_FALSE(popup_browser->IsDeleteScheduled());
 
   // Cleanup authorized popup.
   ui_test_utils::BrowserDestroyedObserver popup_closed_observer(popup_browser);
@@ -1066,7 +1066,7 @@ IN_PROC_BROWSER_TEST_F(OnTaskLockedSessionNavigationThrottleInteractiveUITest,
   // OAuth popup)).
   ASSERT_EQ(GlobalBrowserCollection::GetInstance()->GetSize(),
             original_browser_count + 1);
-  EXPECT_FALSE(popup_browser->is_delete_scheduled());
+  EXPECT_FALSE(popup_browser->IsDeleteScheduled());
 
   // Cleanup authorized popup.
   ui_test_utils::BrowserDestroyedObserver popup_closed_observer(popup_browser);
@@ -1150,7 +1150,7 @@ IN_PROC_BROWSER_TEST_F(OnTaskLockedSessionNavigationThrottleInteractiveUITest,
   popup_activation_waiter.WaitForActivation();
   ASSERT_EQ(GlobalBrowserCollection::GetInstance()->GetSize(),
             original_browser_count + 1);
-  EXPECT_FALSE(popup_browser->is_delete_scheduled());
+  EXPECT_FALSE(popup_browser->IsDeleteScheduled());
   EXPECT_FALSE(window_tracker->CanOpenNewPopup());
 
   // The oauth popup in reality should close once the login flow is complete.

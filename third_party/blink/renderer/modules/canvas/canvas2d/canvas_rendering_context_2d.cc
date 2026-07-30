@@ -356,7 +356,7 @@ bool CanvasRenderingContext2D::WritePixels(const SkImageInfo& orig_info,
       recorder->RestartRecording();
     }
   } else {
-    provider->FlushCanvas2D();
+    provider->Flush();
 
     // Short-circuit out if an error occurred while flushing the recording.
     if (!provider->IsValid()) {
@@ -364,7 +364,7 @@ bool CanvasRenderingContext2D::WritePixels(const SkImageInfo& orig_info,
     }
   }
 
-  return provider->WritePixelsForCanvas2D(orig_info, pixels, row_bytes, x, y);
+  return provider->WritePixels(orig_info, pixels, row_bytes, x, y);
 }
 
 bool CanvasRenderingContext2D::ShouldAntialias() const {
@@ -459,7 +459,7 @@ MemoryManagedPaintCanvas* CanvasRenderingContext2D::GetOrCreatePaintCanvas() {
     // the autoflush limit.
     if (layer_count_ == 0) [[likely]] {
       // TODO(crbug.com/1246486): Make auto-flushing layer friendly.
-      provider->FlushIfRecordingLimitExceededForCanvas2D();
+      provider->FlushIfRecordingLimitExceeded();
     }
   } else {
     // If we have no provider, try creating one.
@@ -489,7 +489,7 @@ const MemoryManagedPaintRecorder* CanvasRenderingContext2D::Recorder() const {
   if (provider == nullptr) [[unlikely]] {
     return nullptr;
   }
-  return &provider->RecorderForCanvas2D();
+  return &provider->Recorder();
 }
 
 MemoryManagedPaintRecorder* CanvasRenderingContext2D::Recorder() {
@@ -497,7 +497,7 @@ MemoryManagedPaintRecorder* CanvasRenderingContext2D::Recorder() {
   if (provider == nullptr) [[unlikely]] {
     return nullptr;
   }
-  return &provider->RecorderForCanvas2D();
+  return &provider->Recorder();
 }
 
 void CanvasRenderingContext2D::WillDraw(
@@ -519,7 +519,7 @@ void CanvasRenderingContext2D::WillDraw(
   if (CanvasResourceProvider* provider = GetResourceProvider();
       layer_count_ == 0 && provider != nullptr) [[likely]] {
     // TODO(crbug.com/1246486): Make auto-flushing layer friendly.
-    provider->FlushIfRecordingLimitExceededForCanvas2D();
+    provider->FlushIfRecordingLimitExceeded();
   }
 }
 
@@ -529,7 +529,7 @@ std::optional<cc::PaintRecord> CanvasRenderingContext2D::FlushCanvas(
   if (provider == nullptr) [[unlikely]] {
     return std::nullopt;
   }
-  return provider->FlushCanvas2D(reason);
+  return provider->Flush(reason);
 }
 
 bool CanvasRenderingContext2D::WillSetFont() const {
@@ -745,12 +745,12 @@ CanvasRenderingContext2D::PaintRenderingResultsToResource(
 }
 
 const std::optional<cc::PaintRecord>&
-CanvasRenderingContext2D::GetLastRecordingForCanvas2D() {
+CanvasRenderingContext2D::GetLastRecording() {
   auto* provider = GetResourceProvider();
   if (!provider) {
     return empty_recording_;
   }
-  return provider->LastRecordingForCanvas2D();
+  return provider->LastRecording();
 }
 
 bool CanvasRenderingContext2D::CanCreateResourceProvider() {
@@ -767,8 +767,8 @@ scoped_refptr<StaticBitmapImage> blink::CanvasRenderingContext2D::GetImage() {
     return nullptr;
   }
 
-  resource_provider_->FlushCanvas2D();
-  return resource_provider_->SnapshotForCanvas2D();
+  resource_provider_->Flush();
+  return resource_provider_->Snapshot();
 }
 
 ImageData* CanvasRenderingContext2D::getImageDataInternal(
@@ -815,7 +815,7 @@ void CanvasRenderingContext2D::FinalizeFrame(FlushReason reason) {
   HTMLCanvasElement* host = canvas();
   CHECK(host);
 
-  GetResourceProvider()->FlushCanvas2D(reason);
+  GetResourceProvider()->Flush(reason);
   if (reason == FlushReason::kCanvasPushFrame) {
     if (host->IsDisplayed()) {
       // Make sure the GPU is never more than two animation frames behind.
@@ -1246,7 +1246,7 @@ void CanvasRenderingContext2D::DropAndRecreateExistingResourceProvider() {
     return;
   }
   std::unique_ptr<MemoryManagedPaintRecorder> recorder =
-      old_provider->ReleaseRecorderForCanvas2D();
+      old_provider->ReleaseRecorder();
   canvas()->ResetLayer();
   ReplaceResourceProvider(nullptr);
 
@@ -1263,7 +1263,7 @@ void CanvasRenderingContext2D::DropAndRecreateExistingResourceProvider() {
 
   resource_provider_->RestoreBackBufferForCanvas2D(
       image->PaintImageForCurrentFrame());
-  resource_provider_->SetRecorderForCanvas2D(std::move(recorder));
+  resource_provider_->SetRecorder(std::move(recorder));
 
   canvas()->UpdateMemoryUsage();
 }
@@ -1321,8 +1321,7 @@ void CanvasRenderingContext2D::WakeUpFromHibernation() {
                     PaintImage::GetNextContentId());
   builder.set_id(PaintImage::GetNextId());
   resource_provider_->RestoreBackBufferForCanvas2D(builder.TakePaintImage());
-  resource_provider_->SetRecorderForCanvas2D(
-      hibernation_handler->ReleaseRecorder());
+  resource_provider_->SetRecorder(hibernation_handler->ReleaseRecorder());
   // The hibernation image is no longer valid, clear it.
   hibernation_handler->Clear();
   DCHECK(!hibernation_handler->IsHibernating());

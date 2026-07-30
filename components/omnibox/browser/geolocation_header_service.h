@@ -56,12 +56,21 @@ class GeolocationHeaderService : public KeyedService {
   // Returns true if a location is available and cached.
   bool HasCachedLocation() const;
 
+  // Returns the accuracy level of the current cached position if a fresh
+  // location is available. Otherwise, returns std::nullopt.
+  std::optional<GeolocationAccuracy> GetCachedLocationAccuracy() const;
+
   // Returns the serialized X-Geo header if a valid, fresh location is
   // available and the url matches the DSE. Otherwise, returns std::nullopt.
-  // If `for_automatic_sending` is true, returns the header only if site
-  // level permissions are explicitly granted (ALLOW).
-  // If `for_automatic_sending` is false, returns the header only if site
-  // level permissions are not explicitly granted (ASK/DENY).
+  // - `for_automatic_sending` is true when this is called for search matches
+  //    that will 'invisibly' add geo header. So it returns the header only if
+  //    site level permissions are explicitly granted (ALLOW).
+  // - `for_automatic_sending` is false when this is called for search matches
+  //    that will explicitly warn the user a geo header is included. So it
+  //    returns the header only if site level permissions are not explicitly
+  //    granted (ASK/DENY).
+  // TODO(crbug.com/507036994, andypaicu) Add explanation why we want geo header
+  //   match even if the user has selected DENY.
   std::optional<std::string> GetLocationHeader(const GURL& url,
                                                bool for_automatic_sending);
 

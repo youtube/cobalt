@@ -167,18 +167,6 @@ HanKerning::CharType HanKerning::GetCharType(UChar ch,
   NOTREACHED();
 }
 
-inline bool HanKerning::ShouldKern(CharType type, CharType last_type) {
-  return type == CharType::kOpen &&
-         (last_type == CharType::kOpen || last_type == CharType::kMiddle ||
-          last_type == CharType::kClose || last_type == CharType::kOpenNarrow);
-}
-
-inline bool HanKerning::ShouldKernLast(CharType type, CharType last_type) {
-  return last_type == CharType::kClose &&
-         (type == CharType::kClose || type == CharType::kMiddle ||
-          type == CharType::kCloseNarrow);
-}
-
 HanKerning::CharType HanKerning::GetCharTypeWithCache(const String& text,
                                                       wtf_size_t index,
                                                       const FontData& font_data,
@@ -422,13 +410,11 @@ HanKerning::FontData::FontData(const SimpleFontData& font,
   }
 
 #if BUILDFLAG(IS_WIN)
-  if (RuntimeEnabledFeatures::TextSpacingTrimYuGothicUIEnabled()) {
-    // Exclude "Yu Gothic UI" until the fonts are fixed. crbug.com/331123676
-    const String postscript_name = font.PlatformData().GetPostScriptName();
-    if (postscript_name.starts_with("YuGothicUI")) [[unlikely]] {
-      has_alternate_spacing = false;
-      return;
-    }
+  // Exclude "Yu Gothic UI" until the fonts are fixed. crbug.com/331123676
+  const String postscript_name = font.PlatformData().GetPostScriptName();
+  if (postscript_name.starts_with("YuGothicUI")) [[unlikely]] {
+    has_alternate_spacing = false;
+    return;
   }
 #endif  // BUILDFLAG(IS_WIN)
 

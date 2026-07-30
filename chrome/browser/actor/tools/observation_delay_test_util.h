@@ -10,10 +10,10 @@
 
 #include "base/functional/callback.h"
 #include "base/functional/callback_forward.h"
-#include "chrome/browser/actor/aggregated_journal.h"
 #include "chrome/browser/actor/tools/observation_delay_controller.h"
 #include "chrome/browser/actor/tools/page_stability_test_util.h"
-#include "chrome/common/actor/task_id.h"
+#include "components/actor/core/aggregated_journal.h"
+#include "components/actor/core/task_id.h"
 #include "url/gurl.h"
 
 namespace content {

@@ -62,11 +62,12 @@ class SqlPersistentStore::Backend {
                                         base::TimeTicks start_time);
   Error DeleteDoomedEntries(ResIdList res_ids_to_delete,
                             base::TimeTicks start_time);
-  ResIdListOrErrorAndStoreStatus DeleteLiveEntry(const CacheEntryKey& key,
-                                                 base::TimeTicks start_time);
+  HashAndResIdListOrErrorAndStoreStatus DeleteLiveEntry(
+      const CacheEntryKey& key,
+      base::TimeTicks start_time);
 
   ErrorAndStoreStatus DeleteAllEntries(base::TimeTicks start_time);
-  ResIdListOrErrorAndStoreStatus DeleteLiveEntriesBetween(
+  HashAndResIdListOrErrorAndStoreStatus DeleteLiveEntriesBetween(
       base::Time initial_time,
       base::Time end_time,
       base::flat_set<ResId> excluded_res_ids,
@@ -92,6 +93,9 @@ class SqlPersistentStore::Backend {
       EntryWriteBuffer buffer,
       bool truncate,
       bool doomed_new_entry,
+      bool sparse_write,
+      int64_t header_size,
+      int64_t max_sparse_data_size,
       base::TimeTicks start_time);
   ReadResultOrError ReadEntryData(const CacheEntryKey& key,
                                   ResId res_id,
@@ -213,6 +217,11 @@ class SqlPersistentStore::Backend {
     int64_t start;
   };
 
+  struct UpdateResourceResult {
+    bool doomed;
+    int64_t bytes_usage;
+  };
+
   void DatabaseErrorCallback(int error, sql::Statement* statement);
 
   Error InitializeInternal(bool& corruption_detected);
@@ -223,20 +232,28 @@ class SqlPersistentStore::Backend {
                                        base::Time creation_time,
                                        bool run_existance_check,
                                        bool& corruption_detected);
-  Error DoomEntryInternal(ResId res_id, bool& corruption_detected);
+  Error DoomEntryInternal(const CacheEntryKey& key,
+                          ResId res_id,
+                          bool& corruption_detected);
   Error DeleteDoomedEntryInternal(ResId res_id);
   Error DeleteDoomedEntriesInternal(const ResIdList& res_ids_to_delete,
                                     bool& corruption_detected);
-  ResIdListOrError DeleteLiveEntryInternal(const CacheEntryKey& key,
-                                           bool& corruption_detected);
+  HashAndResIdListOrError DeleteLiveEntryInternal(const CacheEntryKey& key,
+                                                  bool& corruption_detected);
   Error DeleteAllEntriesInternal(bool& corruption_detected);
-  ResIdListOrError DeleteLiveEntriesBetweenInternal(
+  HashAndResIdListOrError DeleteLiveEntriesBetweenInternal(
       base::Time initial_time,
       base::Time end_time,
       const base::flat_set<ResId>& excluded_res_ids,
       bool& corruption_detected);
   Error UpdateEntryLastUsedByKeyInternal(const CacheEntryKey& key,
                                          base::Time last_used);
+  base::expected<UpdateResourceResult, Error> UpdateResourceForWriteEntry(
+      ResId res_id,
+      int64_t body_end_delta,
+      int64_t total_size_delta,
+      int64_t expected_new_body_end,
+      bool& corruption_detected);
   Error WriteEntryBodyDataHelper(
       const CacheEntryKey& key,
       ResId res_id,
@@ -265,6 +282,9 @@ class SqlPersistentStore::Backend {
       EntryWriteBuffer buffer,
       bool truncate,
       bool doomed_new_entry,
+      bool sparse_write,
+      int64_t header_size,
+      int64_t max_sparse_data_size,
       bool& corruption_detected);
   ReadResultOrError ReadEntryDataInternal(const CacheEntryKey& key,
                                           ResId res_id,
@@ -324,16 +344,22 @@ class SqlPersistentStore::Backend {
                        bool& corruption_detected);
   // Deletes all blobs associated with a given res_id.
   Error DeleteBlobsByResId(ResId res_id);
-  // Deletes all blobs associated with a list of entry res_ids.
-  Error DeleteBlobsByResIds(const std::vector<ResId>& res_ids);
+  // Deletes multiple blobs from the `blobs` table by their `res_id`s.
+  Error DeleteBlobsByResIds(const ResIdList& res_ids);
+  Error DeleteBlobsByResIds(const HashAndResIdList& hash_and_res_ids);
   // Deletes a single resource entry from the `resources` table by its `res_id`.
   Error DeleteResourceByResId(ResId res_id);
+  // Deletes a single resource entry from the `resources` table by its `res_id`
+  // and returns the `cache_key_hash` of the deleted entry.
+  HashOrError DeleteResourceByResIdReturnHash(ResId res_id);
   // Deletes a single live resource entry from the `resources` table by its
-  // `res_id` and returns the `bytes_usage` of the deleted entry.
-  Int64OrError DeleteLiveResourceByResIdReturnUsage(ResId res_id);
+  // `res_id` and returns the `bytes_usage` and `cache_key_hash` of the deleted
+  // entry.
+  UsageAndHashOrError DeleteLiveResourceByResIdReturnUsageAndHash(ResId res_id);
   // Deletes multiple resource entries from the `resources` table by their
   // `res_id`s.
-  Error DeleteResourcesByResIds(const std::vector<ResId>& res_ids);
+  Error DeleteResourcesByResIds(const ResIdList& res_ids);
+  Error DeleteResourcesByResIds(const HashAndResIdList& hash_and_res_ids);
 
   // Selects a list of eviction candidates from the `resources` table.
   // Entries in `high_priority_res_ids` are less likely to be selected as

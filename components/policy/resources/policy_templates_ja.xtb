@@ -2789,6 +2789,13 @@ WebSocket 以外のリクエストの上限を変更するには、<ph name="MAX
 <translation id="2866726566162790531">すべての HTTP 認証を許可するオリジンのリスト</translation>
 <translation id="2868756546751652023">インスタント テザリングの使用をユーザーに許可する</translation>
 <translation id="286898786908566256">Chrome から Android デバイスへの電話番号の送信をユーザーに許可する</translation>
+<translation id="287087426320717057">このポリシーでは、ユーザーにすべての種類のファームウェアの更新を許可するかどうかを設定します。
+
+      このポリシーを有効に設定するか未設定のままにした場合、デバイス所有者などのユーザーにファームウェアの更新を許可します。
+
+      このポリシーを無効に設定した場合、すべてのユーザーにファームウェアの更新を許可しません。
+
+      このポリシーは、外部周辺機器のファームウェアの更新と、<ph name="PRODUCT_OS_FLEX_NAME" /> デバイスの内部コンポーネントのファームウェアの更新に適用されます。<ph name="PRODUCT_OS_NAME" /> デバイスの内部コンポーネントのファームウェアの更新には適用されません。</translation>
 <translation id="2872098849906555324">Google ドライブの同期を無効にする</translation>
 <translation id="2872189563975139803">企業プロファイル分離設定</translation>
 <translation id="2872961005593481000">終了</translation>
@@ -3333,7 +3340,6 @@ ClearCrossSiteCrossBrowsingContextGroupWindowName バリエーションでは、
 <translation id="3229163415739929305">ポリシーを有効に設定するか未設定のままにした場合、ブラウジングの利便性向上を目的としたページ読み込みメタデータと機械学習モデルの取得を許可します。
       このポリシーを無効に設定した場合、一部の機能が正常に動作しない可能性があります。</translation>
 <translation id="3231311173895401135">サポートするかどうかをブラウザが判断する</translation>
-<translation id="3231684792162319504">Gemini の試験運用版の適用を許可しない</translation>
 <translation id="3231837273069128027">このポリシーでは、<ph name="TPM_FIRMWARE_UPDATE_TPM" /> ファームウェアの更新処理について設定します。
 
       個々の設定は JSON プロパティで指定できます。
@@ -5058,7 +5064,6 @@ WebSQL は M112 で削除されました。</translation>
 <translation id="4435032708588431506">QUIC を許可する</translation>
 <translation id="443665821428652897">ブラウザのシャットダウンでサイトのデータを削除する（サポート終了予定）</translation>
 <translation id="4436941175475497595">印刷プレビューを無効にする</translation>
-<translation id="4436992815485865052">Gemini の試験運用版の適用を許可する</translation>
 <translation id="4439336120285389675">サポートが終了したウェブ プラットフォーム機能を一時的に再度有効にすることができ、該当する機能のリストを指定します。
 
       このポリシーを利用して、管理者はサポートが終了したウェブ プラットフォーム機能を一時的に再び有効にできます。機能は文字列タグで指定します。このポリシーで指定したリスト内のタグに対応する機能が再び有効になります。
@@ -6369,7 +6374,6 @@ Attribution Reporting API のサポート終了により、このポリシーは
 <translation id="5255790642269910630">このポリシーを設定した場合、各ディスプレイは再起動のたびに、またポリシーの値を変更した後で初めて接続したときに、指定方向に回転します。ユーザーはログイン後に設定ページからディスプレイの回転方法を変更できますが、次に再起動するときには設定はポリシーの値に戻ります。このポリシーは、メインと予備のディスプレイに適用されます。
 
 このポリシーを設定しない場合、デフォルト値として 0 度が使用され、ユーザーはこの値を自由に変更できます。この場合、再起動時にデフォルト値が再適用されることはありません。</translation>
-<translation id="5256792633540454282">Gemini の試験運用版の適用を制御する</translation>
 <translation id="5257395339965216304">ホストされているアプリデータ</translation>
 <translation id="5258445772095084618">Linux アプリのサポートに必要な仮想マシンの使用を関連付けられていないユーザーに許可する</translation>
 <translation id="5258651513421638932">独立したアプリによるスマートカードへの接続を許可する</translation>
@@ -7337,7 +7341,6 @@ https://wiki.samba.org/index.php/Samba_4.6_Features_added/changed#Kerberos_clien
 
       このポリシーはサポートが終了しています。代わりに <ph name="PRINTERS_BULK_BLOCKLIST" /> を使用してください。</translation>
 <translation id="591088232153082363">バッテリー使用状況のパターンに基づいてバッテリー充電を自動調整する。</translation>
-<translation id="5911656389795271430">これは試験運用版のポリシーです。</translation>
 <translation id="5913506885872855604">特定の内部アドレス範囲を「公開」として扱い、<ph name="LOCAL_NETWORK_ACCES" /> のチェックが行われないようにするために使用できます。もしくは、内部で使用される可能性のある特定の公開アドレス範囲を「ローカル」として扱い、<ph name="LOCAL_NETWORK_ACCESS" /> のチェックで保護されるようにすることもできます。
 
 IP アドレス空間のオーバーライドには次の 2 つの形式があります。
@@ -8031,6 +8034,25 @@ Origin-Agent-Cluster HTTP ヘッダーは、オリジンキー エージェン�
 <translation id="6383774771168138899"><ph name="MICROSOFT_ONE_DRIVE_NAME" /> と <ph name="MICROSOFT_365_NAME" /> の<ph name="CLOUD_UPLOAD_NAME" /> フローを設定する</translation>
 <translation id="6384542789059421431">ブラウザのサイドパネルにおけるデフォルトの検索エンジンの検索結果ページの表示を有効にします。</translation>
 <translation id="6389240462871677239">独立したウェブアプリのオリジンに Controlled Frame の使用を許可する</translation>
+<translation id="6393598243777822017">このポリシーでは、<ph name="PRODUCT_NAME" /> のサイドパネルやタブでの <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> のスマートタブ共有機能を制御します。
+
+なお、このポリシーはウェブ上の <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> には影響しません。このポリシーは、ユーザーが <ph name="PRODUCT_NAME" /> の使用時に情報を共有するかどうかのみを制御します。
+
+0 = ユーザーはページやファイルのコンテンツを <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> と共有できます。
+
+1 = ユーザーはページやファイルのコンテンツを <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> と共有できません。コンテキストを共有するためのエントリ ポイントとサイドパネルは無効になるか、非表示になります。
+
+<ph name="GOOGLE_SEARCH_PRODUCT_NAME" /> がユーザーのデフォルトの検索エンジンでない場合、この機能は無効になっているため、このポリシーは無視されます。
+
+このポリシーは、<ph name="AI_MODE_SETTINGS_POLICY_NAME" /> ポリシーとは関係なく動作します。<ph name="AI_MODE_SETTINGS_POLICY_NAME" /> ポリシーはアドレスバーまたは新しいタブページの検索ボックスのエントリ ポイントのみを制御し、このポリシーはサイドパネルやタブでのコンテキストの共有を制御します。
+
+また、このポリシーは、<ph name="GEMINI_SETTINGS_POLICY_NAME" /> を使用して無効にできる組み込みの <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> にも影響しません。
+
+<ph name="SEARCH_CONTENT_SHARING_SETTINGS_POLICY_NAME" /> が無効になっている場合、このポリシーは無視されます。
+
+このポリシーを未設定のままにした場合、動作は <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> ポリシーによって決まります。
+
+生成 AI 機能のデータ処理について詳しくは、https://support.google.com/chrome/a?p=generative_ai_settings をご覧ください。</translation>
 <translation id="6394350458541421998">このポリシーは <ph name="PRODUCT_OS_NAME" /> バージョン 29 で廃止されました。PresentationScreenDimDelayScale ポリシーを代わりに使用してください。</translation>
 <translation id="6397588391180665797">登録済みデバイスのユーザーのネットワーク設定を報告します。
 

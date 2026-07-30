@@ -12,6 +12,7 @@
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
 #import "base/time/time.h"
+#import "components/feature_engagement/public/event_constants.h"
 #import "components/feature_engagement/public/feature_constants.h"
 #import "components/feature_engagement/public/tracker.h"
 #import "components/optimization_guide/proto/features/common_quality_data.pb.h"
@@ -88,6 +89,14 @@ namespace {
 // the bottom toolbar. To properly position the floaty closer to the toolbar,
 // this constant is used to remove some of that innate padding.
 const CGFloat kFloatyIntrinsicPaddingCorrection = 8.0;
+
+// The vertical offset clearance required to position the dormant Live session
+// snackbar cleanly above the floaty pill. Note this includes the full floaty
+// height.
+// TODO(crbug.com/512576285): Confirm offset value with UI.
+// TODO(crbug.com/513881624): Get the actual floaty height separately, if
+// possible, so this constant can just represent the offset.
+const CGFloat kDormantSnackbarOffsetFromFloaty = 100.0;
 
 // Used for forcing fullscreen progress value.
 const CGFloat kFullscreenEnabled = 0.0;
@@ -500,11 +509,41 @@ void GeminiBrowserAgent::ShowSignInRequiredSnackbar(
   [snackbar_handler showSnackbarMessage:message];
 }
 
+void GeminiBrowserAgent::ShowLiveSessionDormantSnackbar() {
+  PrepareFloatyToBeShown();
+  fullscreen_disabler_timer_.Stop();
+
+  id<SnackbarCommands> snackbar_handler =
+      HandlerForProtocol(browser_->GetCommandDispatcher(), SnackbarCommands);
+  SnackbarMessage* message = [[SnackbarMessage alloc]
+      initWithTitle:l10n_util::GetNSString(
+                        IDS_IOS_GEMINI_LIVE_CONTINUE_SESSION_SNACKBAR)];
+  base::WeakPtr<GeminiBrowserAgent> weak_self = weak_factory_.GetWeakPtr();
+  message.completionHandler = ^(BOOL completed) {
+    if (weak_self) {
+      weak_self->SetIsShowingLiveSessionDormantSnackbar(false);
+    }
+  };
+
+  CGFloat floaty_offset = GetFullyExpandedFloatyOffset();
+  CGFloat snackbar_offset = floaty_offset + kDormantSnackbarOffsetFromFloaty;
+
+  [snackbar_handler showSnackbarMessage:message bottomOffset:snackbar_offset];
+}
+
+void GeminiBrowserAgent::SetIsShowingLiveSessionDormantSnackbar(bool showing) {
+  is_showing_live_session_dormant_snackbar_ = showing;
+  if (!showing) {
+    ResetFullscreenDisabler();
+  }
+}
+
 void GeminiBrowserAgent::StartGeminiFlow(UIViewController* base_view_controller,
                                          GeminiStartupState* startup_state) {
   gemini::EntryPoint entry_point = startup_state.entryPoint;
   bool will_show_first_run = !HasCompletedFirstRun();
   RecordGeminiEntryPointClick(entry_point, will_show_first_run);
+  RecordInvocationPageType();
 
   // TODO(crbug.com/507509815): Link to Gemini sign in flow.
   if (IsAppStoreInAppEventsEnabled() &&
@@ -587,6 +626,38 @@ CGFloat GeminiBrowserAgent::GetFloatyOffset() {
   return offset;
 }
 
+CGFloat GeminiBrowserAgent::GetFullyExpandedFloatyOffset() {
+  CHECK(IsFullscreenInitialized());
+  CGFloat max_bottom_inset =
+      IsFullscreenRefactoringEnabled()
+          ? FullscreenBrowserAgent::FromBrowser(browser_)->max_insets().bottom
+          : fullscreen_controller_->GetMaxViewportInsets().bottom;
+
+  SceneState* scene_state = browser_->GetSceneState();
+
+  if (!IsFullscreenRefactoringEnabled() && IsChromeNextIaEnabled()) {
+    // The legacy FullscreenController is unaware of the App Bar's height.
+    // If the App Bar is at the bottom, explicitly account for it to ensure
+    // the floaty positions correctly above it.
+    LayoutGuideCenter* layout_guide_center =
+        LayoutGuideCenterForScene(scene_state);
+    UIView* app_bar_view =
+        [layout_guide_center referencedViewUnderName:kAppBarGuide];
+    if (app_bar_view &&
+        scene_state.layoutState.appBarPosition == AppBarPosition::kBottom) {
+      max_bottom_inset += kAppBarHeight;
+    }
+  }
+
+  if (scene_state && scene_state.window && IsLandscape(scene_state.window)) {
+    max_bottom_inset += scene_state.window.safeAreaInsets.bottom;
+  }
+
+  CGFloat offset = max_bottom_inset - kFloatyIntrinsicPaddingCorrection;
+
+  return offset;
+}
+
 CGFloat GeminiBrowserAgent::GetFloatyProgress() {
   if (IsFullscreenRefactoringEnabled()) {
     // If there is a collapsing bottom toolbar, track the bottom progress.
@@ -638,6 +709,9 @@ bool GeminiBrowserAgent::ShouldShowFloatyForSource(
 void GeminiBrowserAgent::UpdateActiveTabHelperWithPresentedSource(
     gemini::FloatyUpdateSource source,
     bool is_presented) {
+  if (ShouldIgnoreUpdateForDormantSnackbar(source)) {
+    return;
+  }
   web::WebState* web_state = browser_->GetWebStateList()->GetActiveWebState();
   GeminiTabHelper* gemini_tab_helper = GetActiveTabHelper(web_state);
   if (!gemini_tab_helper) {
@@ -669,7 +743,7 @@ void GeminiBrowserAgent::PresentFloaty(UIViewController* base_view_controller,
   }
 
   // Fetch zero-state suggestions while the floaty is being presented.
-  if (IsZeroStateSuggestionsAskGeminiEnabled()) {
+  if (IsZeroStateSuggestionsEnabled()) {
     gemini_tab_helper->ExecuteZeroStateSuggestions(base::DoNothing());
   }
 
@@ -725,13 +799,23 @@ void GeminiBrowserAgent::OnProcessingStatusChanged(
       ios::provider::GetCurrentMode() != ios::provider::GeminiViewMode::kLive) {
     return;
   }
+
+  processing_status_ = processing_status;
   switch (processing_status) {
-    case ios::provider::GeminiClientMode::kListening:
+    case ios::provider::GeminiClientMode::kTranscribing:
       RequestPageContextGeneration();
       break;
+    case ios::provider::GeminiClientMode::kResponding: {
+      // Update partial page context (i.e., live sharing context label) when
+      // transitioning out of the transcribing (i.e., speaking) state.
+      UpdateFloatyWithPartialPageContext();
+      break;
+    }
     case ios::provider::GeminiClientMode::kDormant:
+      is_showing_live_session_dormant_snackbar_ = true;
       ios::provider::SwitchToMode(ios::provider::GeminiViewMode::kFloaty,
                                   /*animated=*/true);
+      ShowLiveSessionDormantSnackbar();
       break;
     default:
       // No-op.
@@ -746,6 +830,11 @@ void GeminiBrowserAgent::CollapseFloatyIfInvoked() {
 
   ios::provider::UpdateGeminiViewState(
       ios::provider::GeminiViewState::kCollapsed, /*animated=*/true);
+}
+
+void GeminiBrowserAgent::OnGeminiLiveUserDidBargeIn() {
+  processing_status_ = ios::provider::GeminiClientMode::kTranscribing;
+  RequestPageContextGeneration();
 }
 
 void GeminiBrowserAgent::SetLastShownViewState(
@@ -768,6 +857,14 @@ void GeminiBrowserAgent::SetLastShownViewState(
     elapsed_minimized_floaty_time_ = base::TimeTicks::Now();
   }
   last_shown_view_state_ = view_state;
+}
+
+void GeminiBrowserAgent::OnLiveButtonTapped() {
+  feature_engagement::Tracker* tracker =
+      feature_engagement::TrackerFactory::GetForProfile(browser_->GetProfile());
+  if (tracker) {
+    tracker->NotifyEvent(feature_engagement::events::kIOSGeminiLiveUsed);
+  }
 }
 
 void GeminiBrowserAgent::DismissGeminiFromOtherWindows(
@@ -838,6 +935,7 @@ void GeminiBrowserAgent::DismissFloaty() {
   }
   active_hiding_sources_.clear();
   is_hidden_by_keyboard_ = false;
+  processing_status_ = ios::provider::GeminiClientMode::kUnknown;
   elapsed_minimized_floaty_time_ = base::TimeTicks();
   // TODO(crbug.com/484045717): Refactor to merge these two provider calls.
   if (IsGeminiCopresenceEnabled()) {
@@ -882,9 +980,18 @@ bool GeminiBrowserAgent::ShouldSourceReshowFloaty(
   }
 }
 
+bool GeminiBrowserAgent::ShouldIgnoreUpdateForDormantSnackbar(
+    gemini::FloatyUpdateSource source) const {
+  return is_showing_live_session_dormant_snackbar_ &&
+         source == gemini::FloatyUpdateSource::Snackbar;
+}
+
 void GeminiBrowserAgent::HideFloatyIfInvoked(
     bool animated,
     gemini::FloatyUpdateSource source) {
+  if (ShouldIgnoreUpdateForDormantSnackbar(source)) {
+    return;
+  }
   UpdateActiveTabHelperWithPresentedSource(source, /*is_presented=*/true);
 
   if (!is_floaty_invoked_) {
@@ -913,6 +1020,9 @@ void GeminiBrowserAgent::HideFloatyIfInvoked(
 void GeminiBrowserAgent::ShowFloatyIfInvoked(
     bool animated,
     gemini::FloatyUpdateSource source) {
+  if (ShouldIgnoreUpdateForDormantSnackbar(source)) {
+    return;
+  }
   UpdateActiveTabHelperWithPresentedSource(source, /*is_presented=*/false);
 
   if (!is_floaty_invoked_ || !ShouldShowFloatyForSource(source)) {
@@ -1028,12 +1138,19 @@ void GeminiBrowserAgent::OnScrollEvent() {
 void GeminiBrowserAgent::OnPageContextUpdated(web::WebState* web_state) {
   UpdateGeminiAvailability();
 
+  // Update page context for Gemini Live only when the user is not speaking, as
+  // when they start wording their query, the page context should be locked in.
+  if (IsGeminiLiveEnabled() &&
+      ios::provider::GetCurrentMode() == ios::provider::GeminiViewMode::kLive &&
+      processing_status_ == ios::provider::GeminiClientMode::kTranscribing) {
+    return;
+  }
+
   GeminiTabHelper* tab_helper = GetActiveTabHelper(web_state);
   if (!tab_helper || (!is_floaty_invoked_ && IsGeminiCopresenceEnabled())) {
     return;
   }
 
-  // This update is from the active tab. Propagate it to the provider.
   GeminiPageContext* gemini_page_context = tab_helper->GetPartialPageContext();
   PropagatePageContextToProvider(gemini_page_context);
 }
@@ -1152,6 +1269,17 @@ void GeminiBrowserAgent::PropagatePageContextToProvider(
   ios::provider::UpdatePageContext(gemini_page_context);
 }
 
+void GeminiBrowserAgent::UpdateFloatyWithPartialPageContext() {
+  web::WebState* active_web_state =
+      browser_->GetWebStateList()->GetActiveWebState();
+  GeminiTabHelper* tab_helper = GetActiveTabHelper(active_web_state);
+  if (tab_helper) {
+    GeminiPageContext* gemini_page_context =
+        tab_helper->GetPartialPageContext();
+    PropagatePageContextToProvider(gemini_page_context);
+  }
+}
+
 GeminiConfiguration* GeminiBrowserAgent::CreateGeminiConfiguration(
     UIViewController* base_view_controller,
     GeminiStartupState* startup_state,
@@ -1188,14 +1316,15 @@ GeminiConfiguration* GeminiBrowserAgent::CreateGeminiConfiguration(
   feature_engagement::Tracker* tracker =
       feature_engagement::TrackerFactory::GetForProfile(browser_->GetProfile());
   if (tracker) {
-    config.geminiLiveIPHShouldShow = tracker->ShouldTriggerHelpUI(
+    config.shouldShowGeminiLiveIPH = tracker->ShouldTriggerHelpUI(
         feature_engagement::kIPHiOSGeminiLiveIPHFeature);
-    config.geminiLiveNewBadgeShouldShow = tracker->ShouldTriggerHelpUI(
+    config.shouldShowGeminiLiveNewBadge = tracker->ShouldTriggerHelpUI(
         feature_engagement::kIPHiOSGeminiLiveNewBadgeFeature);
   } else {
-    config.geminiLiveIPHShouldShow = NO;
-    config.geminiLiveNewBadgeShouldShow = NO;
+    config.shouldShowGeminiLiveIPH = NO;
+    config.shouldShowGeminiLiveNewBadge = NO;
   }
+  config.geminiLiveIPHText = l10n_util::GetNSString(IDS_IOS_GEMINI_LIVE_IPH);
 
   config.geminiLocationPermissionState =
       ios::provider::GeminiLocationPermissionState::kUnknown;
@@ -1296,6 +1425,12 @@ void GeminiBrowserAgent::SetSessionCommandHandlers() {
 }
 
 void GeminiBrowserAgent::OnPageContentPrefChanged() {
+  if (IsGeminiLiveEnabled() &&
+      ios::provider::GetCurrentMode() == ios::provider::GeminiViewMode::kLive &&
+      processing_status_ == ios::provider::GeminiClientMode::kTranscribing) {
+    return;
+  }
+
   web::WebState* active_web_state =
       browser_->GetWebStateList()->GetActiveWebState();
   GeminiTabHelper* tab_helper = GetActiveTabHelper(active_web_state);
@@ -1339,4 +1474,15 @@ GeminiTabHelper* GeminiBrowserAgent::GetActiveTabHelper(
     }
   }
   return nullptr;
+}
+
+void GeminiBrowserAgent::RecordInvocationPageType() {
+  web::WebState* web_state = browser_->GetWebStateList()->GetActiveWebState();
+  IOSGeminiInvocationPageType page_type =
+      IOSGeminiInvocationPageType::kNoWebState;
+  GeminiTabHelper* tab_helper = GetActiveTabHelper(web_state);
+  if (tab_helper) {
+    page_type = tab_helper->GetCurrentPageType();
+  }
+  RecordGeminiInvocationPageType(page_type);
 }

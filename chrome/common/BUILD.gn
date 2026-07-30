@@ -125,12 +125,8 @@ static_library("common_lib") {
     "actor/action_result.cc",
     "actor/action_result.h",
     "actor/actor_constants.h",
-    "actor/actor_logging.h",
-    "actor/journal_details_builder.cc",
-    "actor/journal_details_builder.h",
     "actor/page_stability_metrics_common.cc",
     "actor/page_stability_metrics_common.h",
-    "actor/task_id.h",
     "chrome_content_client.cc",
     "chrome_content_client.h",
     "chrome_content_client_constants.cc",
@@ -193,6 +189,7 @@ static_library("common_lib") {
     "//chrome/common/profiler",
     "//chrome/common/search:mojo_bindings",
     "//chrome/installer/util:with_no_strings",
+    "//components/actor/core:task_id",
     "//components/client_hints/common",
     "//components/cloud_devices/common",
     "//components/component_updater",
@@ -502,6 +499,7 @@ component("chrome_features") {
 static_library("url_constants") {
   visibility = [
     "//chrome/browser/contextual_tasks/*",
+    "//chrome/browser/renderer_context_menu/*",
     "//chrome/browser/ui/android",
     "//chrome/common/*",
   ]
@@ -687,27 +685,11 @@ mojom("mojo_bindings") {
     sources += [ "sandbox_status_extension_android.mojom" ]
   }
 
-  cpp_typemaps = [
-    {
-      types = [
-        {
-          mojom = "actor.mojom.TaskId"
-          cpp = "::actor::TaskId"
-        },
-      ]
-      traits_headers = [
-        "actor_mojom_traits.h",
-        "actor/task_id.h",
-      ]
-      traits_public_deps = [ "//base" ]
-    },
-  ]
-
   if (is_mac) {
     sources += [ "mac/app_shim.mojom" ]
     deps +=
         [ "//components/metrics/public/mojom:histogram_fetcher_mojo_bindings" ]
-    cpp_typemaps += [
+    cpp_typemaps = [
       {
         types = [
           {

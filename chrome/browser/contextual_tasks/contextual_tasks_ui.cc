@@ -25,6 +25,7 @@
 #include "chrome/browser/contextual_tasks/contextual_tasks_composebox_handler_interface.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_context_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_context_service_factory.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_eligibility_manager.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_internals_page_handler.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_page_handler.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_panel_controller.h"
@@ -124,6 +125,10 @@ void AddContextMenuItemEligibilityLoadTimeData(content::WebUIDataSource* source,
                                                Profile* profile) {
   AimEligibilityService* aim_eligibility_service =
       AimEligibilityServiceFactory::GetForProfile(profile);
+  bool is_aim_eligible =
+      aim_eligibility_service && aim_eligibility_service->IsAimEligible();
+  source->AddBoolean("isAimEligible", is_aim_eligible);
+
   if (aim_eligibility_service &&
       aim_eligibility_service->GetSearchboxConfig()->has_hint_text()) {
     source->AddString(
@@ -423,14 +428,10 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       {"oauthErrorDialogBody", IDS_CONTEXTUAL_TASKS_OAUTH_ERROR_DIALOG_BODY},
       {"oauthErrorDialogReloadButton",
        IDS_CONTEXTUAL_TASKS_OAUTH_ERROR_DIALOG_RELOAD_BUTTON},
-      {"stsTryItHeader", IDS_STS_IPH_TRY_IT_HEADER},
-      {"stsTryItBody", IDS_STS_IPH_TRY_IT_BODY},
       {"stsTryItLink", IDS_STS_IPH_TRY_IT_LINK},
       {"stsTryItBodyEnd", IDS_STS_IPH_TRY_IT_BODY_END},
       {"stsTryItTurnOn", IDS_STS_IPH_TRY_IT_TURN_ON},
       {"stsTryItNotNow", IDS_STS_IPH_TRY_IT_NOT_NOW},
-      {"stsDefaultOnHeader", IDS_STS_IPH_DEFAULT_ON_HEADER},
-      {"stsDefaultOnBody", IDS_STS_IPH_DEFAULT_ON_BODY},
       {"stsDefaultOnLink", IDS_STS_IPH_DEFAULT_ON_LINK},
       {"stsDefaultOnBodyEnd", IDS_STS_IPH_DEFAULT_ON_BODY_END},
       {"stsDefaultOnTurnOn", IDS_STS_IPH_DEFAULT_ON_TURN_ON},
@@ -441,6 +442,37 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
 #endif
   };
   source->AddLocalizedStrings(kLocalizedStrings);
+
+  int stsDefaultOnHeaderId = IDS_STS_IPH_DEFAULT_ON_HEADER;
+  int stsDefaultOnBodyId = IDS_STS_IPH_DEFAULT_ON_BODY;
+  switch (contextual_tasks::kSmartTabSharingIphDefaultOnOption.Get()) {
+    case contextual_tasks::SmartTabSharingIphDefaultOnOption::kIphDefaultOnV1:
+      stsDefaultOnHeaderId = IDS_STS_IPH_DEFAULT_ON_HEADER;
+      stsDefaultOnBodyId = IDS_STS_IPH_DEFAULT_ON_BODY;
+      break;
+    case contextual_tasks::SmartTabSharingIphDefaultOnOption::kIphDefaultOnV2:
+      stsDefaultOnHeaderId = IDS_STS_IPH_DEFAULT_ON_HEADER_V2;
+      stsDefaultOnBodyId = IDS_STS_IPH_DEFAULT_ON_BODY_V2;
+      break;
+  }
+  source->AddLocalizedString("stsDefaultOnHeader", stsDefaultOnHeaderId);
+  source->AddLocalizedString("stsDefaultOnBody", stsDefaultOnBodyId);
+
+  int stsTryItHeaderId = IDS_STS_IPH_TRY_IT_HEADER;
+  int stsTryItBodyId = IDS_STS_IPH_TRY_IT_BODY;
+  switch (contextual_tasks::kSmartTabSharingIphTryItPromoOption.Get()) {
+    case contextual_tasks::SmartTabSharingIphTryItPromoOption::kIphTryItPromoV1:
+      stsTryItHeaderId = IDS_STS_IPH_TRY_IT_HEADER;
+      stsTryItBodyId = IDS_STS_IPH_TRY_IT_BODY;
+      break;
+    case contextual_tasks::SmartTabSharingIphTryItPromoOption::kIphTryItPromoV2:
+      stsTryItHeaderId = IDS_STS_IPH_TRY_IT_HEADER_V2;
+      stsTryItBodyId = IDS_STS_IPH_TRY_IT_BODY_V2;
+      break;
+  }
+  source->AddLocalizedString("stsTryItHeader", stsTryItHeaderId);
+  source->AddLocalizedString("stsTryItBody", stsTryItBodyId);
+
   source->AddLocalizedString(
       "lensSearchButtonLabel",
       IDS_TOOLTIP_LENS_REINVOKE_VISUAL_SELECTION_A11Y_LABEL);
@@ -602,11 +634,19 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       base::JoinString(contextual_tasks::GetContextualTasksSignInDomains(),
                        ","));
 
+  // Determine and cache contextual tasks eligibility on initialization. This
+  // prevents the expand button from dynamically appearing or changing state
+  // mid-session, avoiding a jarring user experience.
+  is_contextual_tasks_eligible_on_init_ =
+      ui_service_ && ui_service_->GetEligibilityManager() &&
+      ui_service_->GetEligibilityManager()->IsEligible();
+
   // Expand button experiment state.
   source->AddBoolean(
       "expandButtonEnabled",
-      contextual_tasks::GetExpandButtonOption() ==
-          contextual_tasks::ExpandButtonOption::kSidePanelExpandButton);
+      is_contextual_tasks_eligible_on_init_ &&
+          contextual_tasks::GetExpandButtonOption() ==
+              contextual_tasks::ExpandButtonOption::kSidePanelExpandButton);
 
   source->AddBoolean("caretAnimationEnabled",
                      base::FeatureList::IsEnabled(
@@ -695,7 +735,6 @@ const std::optional<base::Uuid>& ContextualTasksUI::GetTaskId() {
 
 void ContextualTasksUI::SetTaskId(std::optional<base::Uuid> id) {
   task_id_ = id;
-  PushTaskDetailsToPage();
   // Initialize input state once task id is available.
   if (composebox_handler_) {
     composebox_handler_->InitializeInputStateModel();
@@ -708,7 +747,6 @@ const std::optional<std::string>& ContextualTasksUI::GetThreadId() {
 
 void ContextualTasksUI::SetThreadId(std::optional<std::string> id) {
   thread_id_ = id;
-  PushTaskDetailsToPage();
 }
 
 const std::optional<std::string>& ContextualTasksUI::GetThreadTitle() {
@@ -722,19 +760,9 @@ void ContextualTasksUI::SetThreadTitle(std::optional<std::string> title) {
   }
 }
 
-void ContextualTasksUI::SetAimUrl(const GURL& url) {
-  if (page_) {
-    page_->SetAimUrl(url);
-  }
-#if !BUILDFLAG(IS_ANDROID)
-  tracked_zoom_host_ = url.host();
-  UpdateZoom();
-#endif
-}
-
-void ContextualTasksUI::UpdateModelModeFromUrl(const GURL& url) {
+void ContextualTasksUI::UpdateStateFromUrl(const GURL& url) {
   if (composebox_handler_) {
-    composebox_handler_->UpdateModelFromUrl(url);
+    composebox_handler_->UpdateStateFromUrl(url);
   }
 }
 
@@ -1313,12 +1341,22 @@ bool ContextualTasksUI::IsActiveTabContextSuggestionShowing() const {
          auto_suggestion_manager_->GetCurrentSuggestion() != nullptr;
 }
 
-void ContextualTasksUI::PushTaskDetailsToPage() {
-  page_->SetTaskDetails(task_id_.value_or(base::Uuid()));
+void ContextualTasksUI::PushTaskDetailsToPage(std::optional<base::Uuid> id,
+                                              const GURL& url,
+                                              bool replace_navigation_entry) {
+  page_->SetTaskDetails(id.value_or(base::Uuid()), url,
+                        replace_navigation_entry);
+#if !BUILDFLAG(IS_ANDROID)
+  tracked_zoom_host_ = url.host();
+  UpdateZoom();
+#endif
 }
 
 bool ContextualTasksUI::CanExpandToFullTab() const {
-  return was_ai_page_;
+  // Employs the cached contextual tasks eligibility value calculated on
+  // initialization. Mid-session updates are ignored to ensure the expand
+  // affordance remains static and consistent.
+  return was_ai_page_ && is_contextual_tasks_eligible_on_init_;
 }
 
 mojo::Remote<contextual_tasks::mojom::Page>&
@@ -1398,7 +1436,6 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
           << url;
   bool is_ai_page = ui_service_->IsAiUrl(url);
   task_info_delegate_->SetIsAiPage(is_ai_page);
-  task_info_delegate_->SetAimUrl(url);
 
 #if BUILDFLAG(IS_ANDROID)
   // On Android, the toolbar needs to be explicitly notified to refresh its
@@ -1416,10 +1453,7 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
   }
   task_info_delegate_->SetInNlm(in_nlm);
 
-  if (base::FeatureList::IsEnabled(
-          contextual_tasks::kContextualTasksUpdateModelOnNavigation)) {
-    task_info_delegate_->UpdateModelModeFromUrl(url);
-  }
+  task_info_delegate_->UpdateStateFromUrl(url);
 
   OMNIBOX_LOG("embedded_page_nav") << navigation_handle->GetURL().spec();
 
@@ -1451,6 +1485,7 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
     UpdateDarkModePreferenceFromUrl(web_contents(), url);
   }
   bool is_url_changed = false;
+  bool last_committed_url_was_empty = last_committed_url_.is_empty();
   if (!ContextualTasksUI::AreUrlsEqual(
           url, last_committed_url_)) {
     last_committed_url_ = url;
@@ -1486,6 +1521,11 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
     base::Uuid new_task_id = task.GetTaskId();
     task_info_delegate_->SetTaskId(new_task_id);
     task_info_delegate_->SetThreadId(std::nullopt);
+    // Replace state if last committed URL was empty (i.e. the page is
+    // reloaded), otherwise push new state.
+    task_info_delegate_->PushTaskDetailsToPage(
+        new_task_id, url,
+        /*replace_navigation_entry=*/last_committed_url_was_empty);
     task_info_delegate_->SetThreadTitle(std::nullopt);
 
     task_info_delegate_->PrepareForTaskChange();
@@ -1498,9 +1538,7 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
   }
 
   std::string query_value;
-  if (net::GetValueForKeyInQuery(url, "q", &query_value)) {
-    task_info_delegate_->SetThreadTitle(query_value);
-  }
+  net::GetValueForKeyInQuery(url, "q", &query_value);
 
   std::string url_thread_id;
   if (!net::GetValueForKeyInQuery(url, "mtid", &url_thread_id)) {
@@ -1568,6 +1606,18 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
     }
   }
   task_info_delegate_->SetThreadId(url_thread_id);
+  auto new_task_id = task_info_delegate_->GetTaskId();
+  // Replace state if old task id and new task id is the same, otherwise push
+  // new state. This is to make sure navigation stack works when switching
+  // between tasks.
+  bool replace_navigation_entry = (old_task_id == new_task_id);
+  task_info_delegate_->PushTaskDetailsToPage(new_task_id, url,
+                                             replace_navigation_entry);
+
+  // Update title after navigation to make sure the current navigation updates.
+  if (!query_value.empty()) {
+    task_info_delegate_->SetThreadTitle(query_value);
+  }
 
   std::optional<std::string> mstk;
   std::string url_param_mstk;

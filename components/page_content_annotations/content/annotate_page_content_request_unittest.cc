@@ -22,6 +22,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
@@ -937,6 +938,67 @@ TEST_P(AnnotatePageContentRequestTest, GetAsyncOnPdfPages) {
   histogram_tester.ExpectTotalCount(kPdfTextExtractionSizeHistogram, 0);
 }
 
+TEST_P(AnnotatePageContentRequestTest,
+       GetAsync_WaitsForOnDemandEvenWhenAutomaticExtractionDisabled) {
+  // Do not enable automatic extraction.
+
+  // Override the request with an async fetcher to control completion.
+  FetchPageContextResultCallback saved_callback;
+  base::RunLoop run_loop;
+  request_ = nullptr;
+  web_contents()->RemoveUserData(AnnotatedPageContentRequest::UserDataKey());
+  AnnotatedPageContentRequest::CreateForWebContents(
+      web_contents(), extraction_service(),
+      base::BindRepeating(
+          [](FetchPageContextResultCallback* saved,
+             base::RepeatingClosure quit_closure, content::WebContents&,
+             const FetchPageContextOptions&,
+             std::unique_ptr<FetchPageProgressListener>,
+             FetchPageContextResultCallback callback) {
+            *saved = std::move(callback);
+            quit_closure.Run();
+          },
+          &saved_callback, run_loop.QuitClosure()),
+      base::BindRepeating([](content::WebContents* web_contents) {
+        return std::make_optional(reinterpret_cast<int64_t>(web_contents));
+      }));
+  request_ = AnnotatedPageContentRequest::FromWebContents(web_contents());
+
+  SimulatePageLoad();
+
+  // 1. Trigger on-demand extraction.
+  base::test::TestFuture<std::optional<ExtractedPageContentResult>>
+      on_demand_future;
+  request_->RefreshExtractedPageContentAndEligibilityForPage(
+      on_demand_future.GetCallback());
+
+  // Wait for the fetcher to be called and saved.
+  run_loop.Run();
+  ASSERT_TRUE(saved_callback);
+
+  // 2. Now call GetCachedContentAndEligibilityAsync. It should wait because
+  // there is an active on-demand extraction bypassing observers.
+  base::test::TestFuture<std::optional<ExtractedPageContentResult>>
+      async_future;
+  request_->GetCachedContentAndEligibilityAsync(async_future.GetCallback());
+
+  EXPECT_FALSE(async_future.IsReady());
+  EXPECT_FALSE(on_demand_future.IsReady());
+
+  // 3. Complete the extraction.
+  auto page_content =
+      std::make_unique<optimization_guide::AIPageContentResult>();
+  auto result = std::make_unique<FetchPageContextResult>();
+  result->annotated_page_content_result =
+      PageContentResultWithEndTime(std::move(*page_content));
+  std::move(saved_callback).Run(std::move(result));
+
+  // 4. Both should resolve successfully.
+  EXPECT_TRUE(on_demand_future.Get().has_value());
+  EXPECT_TRUE(async_future.Get().has_value());
+  EXPECT_EQ(extraction_service().extraction_count(), 1);
+}
+
 TEST_P(AnnotatePageContentRequestTest, Metrics_OnLoadTrigger) {
   base::HistogramTester histogram_tester;
   SetTriggeringMode("on_load");
@@ -958,6 +1020,18 @@ TEST_P(AnnotatePageContentRequestTest, Metrics_OnLoadTrigger) {
   histogram_tester.ExpectUniqueSample(
       "OptimizationGuide.PageContentExtraction.TriggerSource",
       AnnotatedPageContentRequest::TriggerSource::kOnLoad, 1);
+
+  base::ThreadPoolInstance::Get()->FlushForTesting();
+
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.AnnotatedPageContent.ProtoSize",
+      1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.AnnotatedPageContent.NodeCount",
+      1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.AnnotatedPageContent.WordCount",
+      1);
 }
 
 TEST_P(AnnotatePageContentRequestTest, Metrics_OnHiddenTrigger) {
@@ -986,6 +1060,18 @@ TEST_P(AnnotatePageContentRequestTest, Metrics_OnHiddenTrigger) {
   histogram_tester.ExpectTotalCount(
       "OptimizationGuide.PageContentExtraction.AutomaticOnLoad.OverallLatency",
       0);
+
+  base::ThreadPoolInstance::Get()->FlushForTesting();
+
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.AnnotatedPageContent.ProtoSize",
+      1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.AnnotatedPageContent.NodeCount",
+      1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.AnnotatedPageContent.WordCount",
+      1);
 }
 
 TEST_P(AnnotatePageContentRequestTest, Metrics_OnDemandTrigger) {
@@ -993,6 +1079,9 @@ TEST_P(AnnotatePageContentRequestTest, Metrics_OnDemandTrigger) {
 
   SimulatePageLoad();
   WaitForExtraction();
+
+  // Ensures `histogram_tester` starts clean.
+  base::ThreadPoolInstance::Get()->FlushForTesting();
 
   base::HistogramTester histogram_tester;
 
@@ -1015,6 +1104,67 @@ TEST_P(AnnotatePageContentRequestTest, Metrics_OnDemandTrigger) {
   histogram_tester.ExpectUniqueSample(
       "OptimizationGuide.PageContentExtraction.OnDemand.StateAtRequest2", 4,
       1);  // 4 corresponds to Lifecycle::kExtracted
+
+  base::ThreadPoolInstance::Get()->FlushForTesting();
+
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.AnnotatedPageContent.ProtoSize",
+      1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.AnnotatedPageContent.NodeCount",
+      1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.AnnotatedPageContent.WordCount",
+      1);
+}
+
+TEST_P(AnnotatePageContentRequestTest,
+       OnDemandTrigger_WithoutObserversOrFeature) {
+  SimulatePageLoad();
+
+  base::HistogramTester histogram_tester;
+
+  base::test::TestFuture<std::optional<ExtractedPageContentResult>> future;
+  request_->RefreshExtractedPageContentAndEligibilityForPage(
+      future.GetCallback());
+
+  EXPECT_TRUE(future.Get().has_value());
+
+  histogram_tester.ExpectUniqueSample(
+      "OptimizationGuide.PageContentExtraction.TriggerSource",
+      AnnotatedPageContentRequest::TriggerSource::kOnDemand, 1);
+  histogram_tester.ExpectUniqueSample(
+      "OptimizationGuide.PageContentExtraction.OnDemand.EnabledReason",
+      PageContentExtractionEnablementReason::kBypassedObservers, 1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.OnDemand.Latency", 1);
+  histogram_tester.ExpectUniqueSample(
+      "OptimizationGuide.PageContentExtraction.OnDemand.Success", true, 1);
+}
+
+TEST_P(AnnotatePageContentRequestTest,
+       OnDemandTrigger_WithoutObserversOrFeature_KillSwitchDisabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      features::kPageContentExtractionAllowOnDemandWithoutObservers);
+
+  SimulatePageLoad();
+
+  base::HistogramTester histogram_tester;
+
+  base::test::TestFuture<std::optional<ExtractedPageContentResult>> future;
+  request_->RefreshExtractedPageContentAndEligibilityForPage(
+      future.GetCallback());
+
+  EXPECT_FALSE(future.Get().has_value());
+
+  histogram_tester.ExpectUniqueSample(
+      "OptimizationGuide.PageContentExtraction.OnDemand.EnabledReason",
+      PageContentExtractionEnablementReason::kDisabled, 1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.TriggerSource", 0);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.OnDemand.Latency", 0);
 }
 
 TEST_P(AnnotatePageContentRequestTest, Metrics_CacheHit) {
@@ -1085,6 +1235,18 @@ TEST_P(AnnotatePageContentRequestTest,
   histogram_tester.ExpectUniqueSample(
       "OptimizationGuide.PageContentExtraction.TriggerSource",
       AnnotatedPageContentRequest::TriggerSource::kOnHidden, 1);
+
+  base::ThreadPoolInstance::Get()->FlushForTesting();
+
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.AnnotatedPageContent.ProtoSize",
+      1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.AnnotatedPageContent.NodeCount",
+      1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.AnnotatedPageContent.WordCount",
+      1);
 }
 
 TEST_P(AnnotatePageContentRequestTest,
@@ -1107,6 +1269,18 @@ TEST_P(AnnotatePageContentRequestTest,
   histogram_tester.ExpectUniqueSample(
       "OptimizationGuide.PageContentExtraction.TriggerSource",
       AnnotatedPageContentRequest::TriggerSource::kOnHidden, 1);
+
+  base::ThreadPoolInstance::Get()->FlushForTesting();
+
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.AnnotatedPageContent.ProtoSize",
+      1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.AnnotatedPageContent.NodeCount",
+      1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.AnnotatedPageContent.WordCount",
+      1);
 }
 
 TEST_P(AnnotatePageContentRequestTest,
@@ -1164,6 +1338,18 @@ TEST_P(AnnotatePageContentRequestTest,
   histogram_tester.ExpectTotalCount(
       "OptimizationGuide.PageContentExtraction.AutomaticOnLoad.OverallLatency",
       1);
+
+  base::ThreadPoolInstance::Get()->FlushForTesting();
+
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.AnnotatedPageContent.ProtoSize",
+      2);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.AnnotatedPageContent.NodeCount",
+      2);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.AnnotatedPageContent.WordCount",
+      2);
 }
 
 TEST_P(AnnotatePageContentRequestTest, OnLoadTriggerPDFExtraction) {
@@ -1364,6 +1550,61 @@ TEST_P(AnnotatePageContentRequestTest, AboutBlankNavigation_NoExtraction) {
 
   // Extraction should not be triggered for about:blank in either case.
   EXPECT_EQ(extraction_service().extraction_count(), 0);
+}
+
+class ExampleObserver : public PageContentExtractionService::Observer {
+ public:
+  void OnPageContentExtracted(content::Page& page,
+                              PageContent page_content) override {}
+};
+
+TEST_P(AnnotatePageContentRequestTest, OnHideFix_FeatureEnabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      features::kAnnotatedPageContentExtractionOnHideFix);
+
+  // 1. Simulate page load while service is disabled (no feature flag, no
+  // observers).
+  SimulatePageLoad();
+  EXPECT_EQ(extraction_service().extraction_count(), 0);
+
+  // 2. Dynamically add an observer after load completes. Service is now
+  // enabled.
+  ExampleObserver example_observer;
+  extraction_service().AddObserver(&example_observer);
+
+  // 3. Hide the tab. With the fix enabled, the on_hide event is ignored.
+  web_contents()->WasHidden();
+  task_environment()->FastForwardBy(
+      features::GetAnnotatedPageContentCaptureDelay());
+  EXPECT_EQ(extraction_service().extraction_count(), 0);
+
+  extraction_service().RemoveObserver(&example_observer);
+}
+
+TEST_P(AnnotatePageContentRequestTest, OnHideFix_FeatureDisabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      features::kAnnotatedPageContentExtractionOnHideFix);
+
+  // 1. Simulate page load while service is disabled (no feature flag, no
+  // observers).
+  SimulatePageLoad();
+  EXPECT_EQ(extraction_service().extraction_count(), 0);
+
+  // 2. Dynamically add an observer after load completes. Service is now
+  // enabled.
+  ExampleObserver example_observer;
+  extraction_service().AddObserver(&example_observer);
+
+  // 3. Hide the tab. When fix is disabled, it falls through to on_load block.
+  // The kill switch prevents a CHECK crash, and instead schedules an
+  // extraction.
+  web_contents()->WasHidden();
+  WaitForExtraction();
+  EXPECT_EQ(extraction_service().extraction_count(), 1);
+
+  extraction_service().RemoveObserver(&example_observer);
 }
 
 INSTANTIATE_TEST_SUITE_P(All,

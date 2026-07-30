@@ -552,7 +552,6 @@
 <translation id="3387650086002190359">Преузимање датотеке <ph name="FILE_NAME" /> није успело због грешака система датотека.</translation>
 <translation id="3417835166382867856">Претражите картице</translation>
 <translation id="3430670036890315772">Ако искључите закључавање профила, уклонићете сачуване информације</translation>
-<translation id="3435465986463792564">Имате много прозора? Њима можете да управљате одавде.</translation>
 <translation id="3435575784518354875">Да бисте задржали приступ лозинкама, извезите их одмах, ажурирајте Google Play услуге, па их поново увезите у Google менаџер лозинки. <ph name="BEGIN_LINK" />Погледајте комплетна упутства<ph name="END_LINK" />.</translation>
 <translation id="3435738964857648380">Безбедност</translation>
 <translation id="3435914367318771664">Додај картицу у нову групу</translation>
@@ -1016,6 +1015,7 @@ Google налог можда има друге облике историје п�
 <translation id="5370504953185181057"><ph name="TAB_TITLE" />, закачена картица без архивирања за дељење</translation>
 <translation id="5375374982898812658">Одмах ћете изгубити приступ групи картица <ph name="GROUP_NAME" /> и она ће бити избрисана са свих уређаја</translation>
 <translation id="5375577065097716013">Тражите слику уз Google објектив <ph name="BEGIN_NEW" />Ново<ph name="END_NEW" /></translation>
+<translation id="537865165090710757">Сачувај и дели</translation>
 <translation id="5390367025924544771"><ph name="WEBSITE_ORIGIN" /> жели да користи личне податке из дигиталног новчаника. Наставите само уколико сматрате да је овај сајт поуздан. Опасни сајтови могу да вас преваре да откријете ствари попут пуног имена и презимена или броја личне карте.</translation>
 <translation id="5395376160638294582">Уверите се да увек можете да користите Chrome податке на Google налогу</translation>
 <translation id="539881862970320163">Предложена је јака лозинка. Тастатура је сакривена.</translation>
@@ -1070,6 +1070,7 @@ Google налог можда има друге облике историје п�
 <translation id="5628604359369369630">Није прочитано. Доступно је офлајн</translation>
 <translation id="5631483240431073854">Управљај отвореним картицама</translation>
 <translation id="5632485077360054581">Покажи ми како</translation>
+<translation id="5639031457248936693"><ph name="WEBSITE" /> треба да добије дозволу за покретање додатка <ph name="EXTENSION_NAME" /></translation>
 <translation id="564121214411935612">Пријављени сте као <ph name="USER_NAME" />. Грешка у вези са Google налогом. Отвара подешавања.</translation>
 <translation id="5641456720590409793"><ph name="BEGIN_LINK1" />Историја претраге<ph name="END_LINK1" /> и <ph name="BEGIN_LINK2" />други облици активности<ph name="END_LINK2" /> могу да буду сачувани на Google налогу</translation>
 <translation id="5648166631817621825">Последњих 7 дана</translation>
@@ -1099,6 +1100,7 @@ Google налог можда има друге облике историје п�
 <translation id="5763514718066511291">Додирните да бисте копирали URL за ову апликацију</translation>
 <translation id="5765517223145864268">Реците нам нешто о свом доживљају. Или <ph name="BEGIN_LINK" />промените подешавања<ph name="END_LINK" />.</translation>
 <translation id="5776970333778123608">Неважни подаци</translation>
+<translation id="5788665823391532892">Пријави проблем...</translation>
 <translation id="5793665092639000975">Користи се <ph name="SPACE_USED" /> од <ph name="SPACE_AVAILABLE" /></translation>
 <translation id="5797949256525811424">Блокирана тема</translation>
 <translation id="580893287573699959">Управљајте темама и претрагама које вас интересују</translation>
@@ -1876,6 +1878,7 @@ Google налог можда има друге облике историје п�
 <translation id="8765617695893461815">{NUM_PASSWORDS,plural, =1{Chrome је пронашао слабу лозинку коју можете да побољшате}one{Chrome је пронашао # слабу лозинку коју можете да побољшате}few{Chrome је пронашао # слабе лозинке које можете да побољшате}other{Chrome је пронашао # слабих лозинки које можете да побољшате}}</translation>
 <translation id="8766529642647037772">Желите ли да направите истакнути линк попут овог?</translation>
 <translation id="8769783688897433958">Прикажи информације о сајту и дозволе</translation>
+<translation id="8786293874273448556"><ph name="WEBSITE" /> треба да добије дозволу за покретање додатака (<ph name="COUNT" />)</translation>
 <translation id="8788265440806329501">Историја навигације је затворена</translation>
 <translation id="8790193082819560975">Додирните да бисте претражили опције куповине за производ на новој картици.</translation>
 <translation id="8798449543960971550">Прочитано</translation>

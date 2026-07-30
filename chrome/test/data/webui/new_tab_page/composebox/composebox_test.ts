@@ -492,7 +492,7 @@ suite('NewTabPageComposeboxTest', () => {
   test('isCollapsible attribute sets expanding state when true', async () => {
     createComposeboxElement(testProxy);
     const collapsibleBox = testProxy.element;
-    (collapsibleBox as any).isCollapsible = true;
+    collapsibleBox.isCollapsible = true;
     document.body.appendChild(collapsibleBox);
     await collapsibleBox.updateComplete;
 
@@ -531,7 +531,7 @@ suite('NewTabPageComposeboxTest', () => {
 
   test('isCollapsible attribute sets expanded state with file', async () => {
     createComposeboxElement(testProxy);
-    (testProxy.element as any).isCollapsible = true;
+    testProxy.element.isCollapsible = true;
     await microtasksFinished();
 
     testProxy.element.$.composebox.dispatchEvent(new FocusEvent('focusin'));
@@ -596,7 +596,7 @@ suite('NewTabPageComposeboxTest', () => {
     createComposeboxElement(testProxy);
     const collapsibleBox = testProxy.element;
     const collapsibleInput = collapsibleBox.getInputElement().$.input;
-    (collapsibleBox as any).isCollapsible = false;
+    collapsibleBox.isCollapsible = false;
     await collapsibleBox.updateComplete;
 
     // Blur the input first, since connectedCallback focuses it by
@@ -614,7 +614,7 @@ suite('NewTabPageComposeboxTest', () => {
     createComposeboxElement(testProxy);
     const collapsibleBox = testProxy.element;
     const collapsibleInput = collapsibleBox.getInputElement().$.input;
-    (collapsibleBox as any).isCollapsible = true;
+    collapsibleBox.isCollapsible = true;
     await collapsibleBox.updateComplete;
 
     collapsibleInput.focus();
@@ -1089,10 +1089,11 @@ suite('NewTabPageComposeboxTest', () => {
         hintText: '',
         maxInputsByType: {},
         maxTotalInputs: 0,
+        isCanvasQuerySubmitted: false,
       } as InputState;
       testProxy.searchboxCallbackRouterRemote.onInputStateChanged(inputState);
       await microtasksFinished();
-      assertDeepEquals((testProxy.element as any).inputState, inputState);
+      assertDeepEquals(testProxy.element.inputState, inputState);
     });
 
     test('setDefaultModel uses activeModel from backend', async () => {
@@ -1494,21 +1495,22 @@ suite('NewTabPageComposeboxResizeObserverTest', () => {
         assertEquals(1, hostObserver.length);
         assertEquals(1, dropdownObserver.length);
 
-        const hostResizeEvent =
-            eventToPromise('composebox-resize', testProxy.element);
+        const hostResizeEvent = eventToPromise<CustomEvent<{height: number}>>(
+            'composebox-resize', testProxy.element);
         hostObserver[0]!.trigger();
         // Advance the debounce used by setupResizeObservers_().
         mockTimer.tick(RESIZE_DEBOUNCE_TIMEOUT_MS);
         await microtasksFinished();
-        const hostEvent: any = await hostResizeEvent;
+        const hostEvent = await hostResizeEvent;
         assertTrue(hostEvent.detail.height !== undefined);
 
         const dropdownResizeEvent =
-            eventToPromise('composebox-resize', testProxy.element);
+            eventToPromise<CustomEvent<{dropdownHeight: number}>>(
+                'composebox-resize', testProxy.element);
         dropdownObserver[0]!.trigger();
         mockTimer.tick(RESIZE_DEBOUNCE_TIMEOUT_MS);
         await microtasksFinished();
-        const dropdownEvent: any = await dropdownResizeEvent;
+        const dropdownEvent = await dropdownResizeEvent;
         assertTrue(dropdownEvent.detail.dropdownHeight !== undefined);
       });
 

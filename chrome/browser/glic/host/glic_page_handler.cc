@@ -28,7 +28,6 @@
 #include "base/version_info/version_info.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_task.h"
-#include "chrome/browser/actor/aggregated_journal.h"
 #include "chrome/browser/actor/aggregated_journal_file_serializer.h"
 #include "chrome/browser/actor/aggregated_journal_in_memory_serializer.h"
 #include "chrome/browser/actor/autofill_selection_dialog_event_handler.h"
@@ -88,12 +87,12 @@
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
-#include "chrome/common/actor/journal_details_builder.h"
-#include "chrome/common/actor/task_id.h"
 #include "chrome/common/actor_webui.mojom.h"
 #include "chrome/common/channel_info.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/webui_url_constants.h"
+#include "components/actor/core/aggregated_journal.h"
+#include "components/actor/core/journal_details_builder.h"
 #include "components/autofill/core/browser/integrators/actor/actor_form_filling_types.h"
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/feature_engagement/public/event_constants.h"
@@ -175,7 +174,6 @@ struct EqualsTraits<::SkBitmap> {
 namespace glic {
 
 namespace {
-
 
 #if BUILDFLAG(IS_MAC)
 constexpr mojom::Platform kPlatform = mojom::Platform::kMacOS;
@@ -1056,7 +1054,8 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     if (auto* web_contents = tab->GetContents()) {
       if (auto* selection_overlay_controller =
               SelectionOverlayController::FromTabWebContents(web_contents)) {
-        selection_overlay_controller->DeleteRegion(id);
+        selection_overlay_controller->DeleteRegion(id,
+                                                   /*is_using_keyboard=*/false);
       }
     }
 #else
@@ -1431,10 +1430,6 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     web_client_->NotifyActorTaskListRowClicked(task_id);
   }
 
-  void NotifySkillToInvokeChanged(mojom::SkillPtr skill) override {
-    web_client_->NotifySkillToInvokeChanged(std::move(skill));
-  }
-
   // BrowserAttachmentObserver implementation.
   void CanAttachToBrowserChanged(bool can_attach) override {
     NotifyCanAttachChanged();
@@ -1506,12 +1501,10 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     }
   }
 
-  void OnPinningChanged(
-      const std::vector<content::WebContents*>& pinned_contents) {
+  void OnPinningChanged(const std::vector<tabs::TabInterface*>& pinned_tabs) {
     std::vector<glic::mojom::TabDataPtr> tab_data;
-    for (content::WebContents* web_contents : pinned_contents) {
-      tab_data.push_back(
-          CreateTabData(tabs::TabInterface::GetFromContents(web_contents)));
+    for (tabs::TabInterface* tab : pinned_tabs) {
+      tab_data.push_back(CreateTabData(tab));
     }
     web_client_->NotifyPinnedTabsChanged(std::move(tab_data));
   }

@@ -1,0 +1,32 @@
+[
+  {
+    "os": [
+      "linux",
+      "mac",
+      "win",
+      "chromeos"
+    ],
+    "policy_pref_mapping_tests": [
+      {
+        "policies": {
+          "GeminiSparkSettings": 1
+        },
+        "prefs": {
+          "glic.spark_policy_settings": {
+            "value": 1
+          }
+        }
+      },
+      {
+        "policies": {
+          "GeminiSparkSettings": 0
+        },
+        "prefs": {
+          "glic.spark_policy_settings": {
+            "value": 0
+          }
+        }
+      }
+    ]
+  }
+]

@@ -157,6 +157,7 @@ using ::net::test::IsOk;
 using ::testing::Contains;
 using ::testing::ElementsAre;
 using ::testing::Eq;
+using ::testing::Ge;
 using ::testing::Key;
 using ::testing::Not;
 using ::testing::Optional;
@@ -989,9 +990,8 @@ class URLLoaderTest : public testing::Test {
 
     client_.RunUntilComplete();
     if (body) {
-      EXPECT_EQ(body->size(),
-                static_cast<size_t>(
-                    client()->completion_status().decoded_body_length));
+      EXPECT_EQ(static_cast<int64_t>(body->size()),
+                client()->completion_status().decoded_body_length);
     }
 
     delete_run_loop.Run();
@@ -1015,17 +1015,14 @@ class URLLoaderTest : public testing::Test {
     EXPECT_EQ(expected, body);
     // The file isn't compressed, so both encoded and decoded body lengths
     // should match the read body length.
-    EXPECT_EQ(
-        expected.size(),
-        static_cast<size_t>(client()->completion_status().decoded_body_length));
-    EXPECT_EQ(
-        expected.size(),
-        static_cast<size_t>(client()->completion_status().encoded_body_length));
+    EXPECT_EQ(static_cast<int64_t>(expected.size()),
+              client()->completion_status().decoded_body_length);
+    EXPECT_EQ(static_cast<int64_t>(expected.size()),
+              client()->completion_status().encoded_body_length);
     // Over the wire length should include headers, so should be longer.
     // TODO(mmenke): Worth adding better tests for encoded_data_length?
-    EXPECT_LT(
-        expected.size(),
-        static_cast<size_t>(client()->completion_status().encoded_data_length));
+    EXPECT_LT(static_cast<int64_t>(expected.size()),
+              client()->completion_status().encoded_data_length);
   }
 
   void SetUpContext(const GURL& url, bool is_trusted) {
@@ -8553,8 +8550,8 @@ TEST_F(URLLoaderTest, ReadAndDiscardBody) {
   const std::string file = "simple_page.html";
   const GURL url = test_server()->GetURL("/" + file);
   std::optional<int64_t> file_size = base::GetFileSize(GetTestFilePath(file));
-  ASSERT_TRUE(file_size.has_value());
-  int64_t actual_size = file_size.value();
+  ASSERT_THAT(file_size, Optional(Ge(0)));
+  const base::ByteSize actual_size(base::as_unsigned(file_size.value()));
 
   TestURLLoaderClient loader_client;
   ResourceRequest request = CreateResourceRequest("GET", url);
@@ -8576,8 +8573,10 @@ TEST_F(URLLoaderTest, ReadAndDiscardBody) {
   loader_client.RunUntilComplete();
   const auto& completion_status = loader_client.completion_status();
   EXPECT_EQ(completion_status.error_code, net::OK);
-  EXPECT_EQ(completion_status.decoded_body_length, actual_size);
-  EXPECT_EQ(completion_status.encoded_body_length, actual_size);
+  EXPECT_EQ(completion_status.decoded_body_length,
+            static_cast<int64_t>(actual_size.InBytes()));
+  EXPECT_EQ(completion_status.encoded_body_length,
+            static_cast<int64_t>(actual_size.InBytes()));
 
   delete_run_loop.Run();
 }
@@ -9201,6 +9200,31 @@ TEST_F(URLLoaderTest, PerformSyntheticResponseFallbackFailure) {
 
   // Load the request and expect it to fail with net::ERR_INSUFFICIENT_RESOURCES.
   EXPECT_EQ(net::ERR_INSUFFICIENT_RESOURCES, LoadRequest(request));
+}
+
+TEST_F(URLLoaderTest, LogsRequestedUrlLengthForLongUrls) {
+  base::HistogramTester histogram_tester;
+  std::string long_path(8200, 'a');
+  GURL long_url = test_server()->GetURL("/" + long_path);
+
+  ResourceRequest request = CreateResourceRequest("GET", long_url);
+  EXPECT_EQ(LoadRequest(request), net::OK);
+
+  histogram_tester.ExpectUniqueSample(
+      "Net.RequestedUrlLength", long_url.GetWithoutRef().spec().length(), 1);
+}
+
+TEST_F(URLLoaderTest, DoesNotLogRequestedUrlLengthForShortUrls) {
+  base::HistogramTester histogram_tester;
+  size_t base_len = test_server()->GetURL("/").spec().length();
+  std::string path(1000 - base_len, 'a');
+  GURL short_url = test_server()->GetURL("/" + path);
+  ASSERT_EQ(1000u, short_url.spec().length());
+
+  ResourceRequest request = CreateResourceRequest("GET", short_url);
+  EXPECT_EQ(LoadRequest(request), net::OK);
+
+  histogram_tester.ExpectTotalCount("Net.RequestedUrlLength", 0);
 }
 
 }  // namespace network

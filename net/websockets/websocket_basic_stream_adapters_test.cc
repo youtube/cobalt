@@ -394,7 +394,8 @@ class WebSocketSpdyStreamAdapterTest : public TestWithTaskEnvironment {
              SocketTag(),
              NetworkAnonymizationKey(),
              SecureDnsPolicy::kAllow,
-             /*disable_cert_verification_network_fetches=*/false),
+             /*disable_cert_verification_network_fetches=*/false,
+             handles::kInvalidNetworkHandle),
         session_(SpdySessionDependencies::SpdyCreateSession(&session_deps_)),
         ssl_(SYNCHRONOUS, OK) {}
 
@@ -1295,12 +1296,13 @@ class WebSocketQuicStreamAdapterTest
         /*server_info=*/nullptr,
         QuicSessionAliasKey(
             url::SchemeHostPort(),
-            QuicSessionKey(
-                "mail.example.org", 80, PRIVACY_MODE_DISABLED,
-                ProxyChain::Direct(), SessionUsage::kDestination, SocketTag(),
-                NetworkAnonymizationKey(), SecureDnsPolicy::kAllow,
-                /*require_dns_https_alpn=*/false,
-                /*disable_cert_verification_network_fetches=*/false)),
+            QuicSessionKey("mail.example.org", 80, PRIVACY_MODE_DISABLED,
+                           ProxyChain::Direct(), SessionUsage::kDestination,
+                           SocketTag(), NetworkAnonymizationKey(),
+                           SecureDnsPolicy::kAllow,
+                           /*require_dns_https_alpn=*/false,
+                           /*disable_cert_verification_network_fetches=*/false,
+                           handles::kInvalidNetworkHandle)),
         /*require_confirmation=*/false,
         /*migrate_session_early_v2=*/false,
         /*migrate_session_on_network_change_v2=*/false,

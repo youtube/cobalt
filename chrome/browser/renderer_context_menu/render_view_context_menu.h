@@ -48,7 +48,7 @@
 #endif
 
 class AccessibilityLabelsMenuObserver;
-class Browser;
+class BrowserWindowInterface;
 #if BUILDFLAG(ENABLE_COMPOSE)
 class ChromeComposeClient;
 #endif
@@ -181,7 +181,7 @@ class RenderViewContextMenu
 
   // This may return nullptr (e.g. for WebUI dialogs). Virtual to allow tests to
   // override.
-  virtual Browser* GetBrowser() const;
+  virtual BrowserWindowInterface* GetBrowser() const;
 
   // May return nullptr if the WebContents does not have an associated
   // BrowserWindowInterface (e.g. in isolated WebUI, or in tests).
@@ -342,6 +342,10 @@ class RenderViewContextMenu
   void AppendPrintPreviewItems();
   void AppendSearchWebForImageItems();
   void AppendGlicShareImageItem();
+  bool CanAppendRegionSearchItem() const;
+  bool CanAppendGlicShareImageItem() const;
+  void AppendLensGeminiSection();
+  void AppendRevisedTextSelectionSection();
   void AppendProtocolHandlerSubMenu();
   void AppendSharingItems();
   void AppendClickToCallItem();
@@ -354,6 +358,8 @@ class RenderViewContextMenu
   void AddItemWithOptionalIcon(int command,
                                int string,
                                const gfx::VectorIcon& icon);
+  bool IsPasswordField() const;
+  bool ShouldUseSimplifiedTextSelection() const;
 
   std::unique_ptr<ui::DataTransferEndpoint> CreateDataEndpoint(
       bool notify_if_restricted) const;

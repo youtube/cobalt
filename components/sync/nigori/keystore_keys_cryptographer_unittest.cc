@@ -4,9 +4,9 @@
 
 #include "components/sync/nigori/keystore_keys_cryptographer.h"
 
-#include "components/sync/engine/nigori/key_derivation_params.h"
-#include "components/sync/engine/nigori/nigori.h"
 #include "components/sync/nigori/cryptographer_impl.h"
+#include "components/sync/nigori/key_derivation_params.h"
+#include "components/sync/nigori/nigori.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -18,7 +18,8 @@ using testing::Eq;
 using testing::NotNull;
 
 std::string ComputeKeystoreKeyName(const std::string& keystore_key) {
-  return Nigori::CreateByDerivation(KeyDerivationParams::CreateForPbkdf2(),
+  return Nigori::CreateByDerivation(NigoriPassKey::ForTesting(),
+                                    KeyDerivationParams::CreateForPbkdf2(),
                                     keystore_key)
       ->GetKeyName();
 }

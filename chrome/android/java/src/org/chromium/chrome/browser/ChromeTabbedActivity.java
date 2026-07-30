@@ -139,6 +139,7 @@ import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.feed.FeedSurfaceTracker;
 import org.chromium.chrome.browser.feed.FeedUma;
 import org.chromium.chrome.browser.feedback.OmniboxFeedbackSource;
+import org.chromium.chrome.browser.finds.FindsFeatures;
 import org.chromium.chrome.browser.finds.FindsManager;
 import org.chromium.chrome.browser.finds.FindsService;
 import org.chromium.chrome.browser.flags.ActivityType;
@@ -146,6 +147,7 @@ import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.fullscreen.FullscreenOptions;
 import org.chromium.chrome.browser.gesturenav.NavigationSheet;
+import org.chromium.chrome.browser.glic.GlicKeyedService.GlicInvocationSource;
 import org.chromium.chrome.browser.glic.GlicKeyedServiceFactory;
 import org.chromium.chrome.browser.history.HistoryManager;
 import org.chromium.chrome.browser.history.HistoryManagerUtils;
@@ -211,6 +213,7 @@ import org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationMetricsUtils;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.ntp_customization.policy.NtpCustomizationPolicyManager;
+import org.chromium.chrome.browser.ntp_customization.theme.NtpCustomizationPromoManager;
 import org.chromium.chrome.browser.ntp_customization.theme.daily_refresh.NtpThemeDailyRefreshManager;
 import org.chromium.chrome.browser.offlinepages.OfflinePageUtils;
 import org.chromium.chrome.browser.paint_preview.StartupPaintPreviewHelper;
@@ -707,19 +710,6 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
     private TipsPromoCoordinator mTipsPromoCoordinator;
     private RecentlyClosedEntriesManager mRecentlyClosedEntriesManager;
     private FindsManager mFindsManager;
-    private @Nullable Boolean mCanEnableEdgeToEdgeForCustomizedThemeOnPhone;
-
-    private final Supplier<Boolean> mUrlBarVisibleSupplier =
-            () -> {
-                if (isInOverviewMode()) {
-                    return false;
-                }
-                if (isTablet()) {
-                    TabModel model = getCurrentTabModel();
-                    return model != null && model.getCount() != 0;
-                }
-                return true;
-            };
 
     /** Constructs a ChromeTabbedActivity. */
     public ChromeTabbedActivity() {
@@ -1161,7 +1151,9 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
 
             Callback<Boolean> glicClickHandler =
                     (preventClose) ->
-                            ((TabbedRootUiCoordinator) mRootUiCoordinator).toggleGlic(preventClose);
+                            ((TabbedRootUiCoordinator) mRootUiCoordinator)
+                                    .toggleGlic(
+                                            preventClose, GlicInvocationSource.TOP_CHROME_BUTTON);
 
             mLayoutManager =
                     new LayoutManagerChromeTablet(
@@ -1641,7 +1633,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
 
             initiateArchivedTabsAutoDeletePromoManager();
 
-            if (ChromeFeatureList.isEnabled(ChromeFeatureList.CHROME_FINDS)) {
+            if (FindsFeatures.sChromeFinds.isEnabled()) {
                 Profile profile = getProfileProviderSupplier().get().getOriginalProfile();
                 FindsService findsService = FindsService.getForProfile(profile);
                 if (findsService != null) {
@@ -3244,8 +3236,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                 mBookmarkManagerOpenerSupplier,
                 getXrSpaceModeObservableSupplier(),
                 mInactivityTrackerSupplier,
-                getBottomBarHostManager(),
-                mUrlBarVisibleSupplier);
+                getBottomBarHostManager());
     }
 
     @Override
@@ -3613,15 +3604,8 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
 
             @Override
             public boolean supportCustomizedNtpTheme() {
-                if (getTabletMode().isTablet) return true;
-
-                // On phones, we need to check if edge-to-edge is enabled.
-                if (mCanEnableEdgeToEdgeForCustomizedThemeOnPhone == null) {
-                    mCanEnableEdgeToEdgeForCustomizedThemeOnPhone =
-                            NtpCustomizationUtils.canEnableEdgeToEdgeForCustomizedTheme(
-                                    getWindowAndroid(), /* isTablet= */ false);
-                }
-                return mCanEnableEdgeToEdgeForCustomizedThemeOnPhone;
+                return NtpCustomizationPromoManager.canTriggerCustomizationPromo(
+                        getWindowAndroid(), getTabletMode().isTablet);
             }
         };
     }
@@ -4454,6 +4438,13 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                             getWindowAndroid(),
                             DefaultBrowserPromoUtils.DefaultBrowserPromoEntryPoint.APP_MENU);
             RecordUserAction.record("MobileMenuDefaultBrowserPromo");
+        } else if (id == R.id.homepage_menu_id) {
+            HomepageManager.getInstance()
+                    .openHomepage(
+                            getActivityTab(),
+                            getTabCreatorManagerSupplier().get(),
+                            getCurrentTabModel().isIncognito());
+            RecordUserAction.record("MobileMenuHomepage");
         } else if (id == R.id.tab_search) {
             mHubSearchClient.requestOmniboxForResult(
                     mHubSearchClient

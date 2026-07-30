@@ -258,18 +258,16 @@ URLLoaderPostInterceptor::RequestHandler(
 
   const auto& [matcher, response] = expectations_.front();
   if (matcher->Match(request_body)) {
-    const net::HttpStatusCode response_code(response.response_code);
-    const std::string response_body(response.response_body);
-    expectations_.pop();
     ++hit_count_;
 
-    std::unique_ptr<net::test_server::BasicHttpResponse> http_response(
-        new net::test_server::BasicHttpResponse);
-    http_response->set_code(response_code);
-    http_response->set_content(response_body);
+    std::unique_ptr<net::test_server::BasicHttpResponse> http_response =
+        std::make_unique<net::test_server::BasicHttpResponse>();
+    http_response->set_code(response.response_code);
+    http_response->set_content(response.response_body);
     for (const auto& [key, value] : response.extra_headers) {
       http_response->AddCustomHeader(key, value);
     }
+    expectations_.pop();
     return http_response;
   }
 

@@ -150,6 +150,56 @@ class ExperimentalTriggeringUpdatesHandler
     }
   }
 
+  void OnUpdate(glic::mojom::ExperimentalTriggeringUpdatePtr update,
+                glic::mojom::SubscriberObservationType observation) override {
+    switch (observation) {
+      case glic::mojom::SubscriberObservationType::kComplete:
+        SendTaskUpdateMessage(TaskUpdate::COMPLETE);
+        break;
+      case glic::mojom::SubscriberObservationType::kError:
+        SendTaskUpdateMessage(TaskUpdate::FAILED);
+        break;
+      case glic::mojom::SubscriberObservationType::kUpdate:
+        if (!update) {
+          DLOG(ERROR) << "Received kUpdate observation with null update";
+          return;
+        }
+        switch (update->type) {
+          case glic::mojom::ExperimentalTriggeringUpdateType::kWorklog:
+            SendTaskUpdateMessage(TaskUpdate::RUNNING, TaskUpdate::WORKLOG,
+                                  std::move(update->data));
+            break;
+          case glic::mojom::ExperimentalTriggeringUpdateType::kPaused:
+            SendTaskUpdateMessage(TaskUpdate::PAUSED, std::nullopt,
+                                  std::move(update->data));
+            break;
+          case glic::mojom::ExperimentalTriggeringUpdateType::
+              kTerminalCompletion:
+            SendTaskUpdateMessage(TaskUpdate::COMPLETE,
+                                  TaskUpdate::FINAL_RESPONSE,
+                                  std::move(update->data));
+            break;
+          case glic::mojom::ExperimentalTriggeringUpdateType::kTerminalStopped:
+            SendTaskUpdateMessage(TaskUpdate::STOPPED, std::nullopt,
+                                  std::move(update->data));
+            break;
+          case glic::mojom::ExperimentalTriggeringUpdateType::kTerminalFailed:
+            SendTaskUpdateMessage(TaskUpdate::FAILED, TaskUpdate::ERROR_MESSAGE,
+                                  std::move(update->data));
+            break;
+          case glic::mojom::ExperimentalTriggeringUpdateType::kYieldToUser:
+            SendTaskUpdateMessage(TaskUpdate::YIELD, std::nullopt,
+                                  std::move(update->data));
+            break;
+          case glic::mojom::ExperimentalTriggeringUpdateType::kUnknown:
+            SendTaskUpdateMessage(TaskUpdate::UNKNOWN_STATE, std::nullopt,
+                                  std::move(update->data));
+            break;
+        }
+        break;
+    }
+  }
+
  private:
   // Checks if experimental triggering is allowed for the profile. If NOT
   // allowed, handles the rejection by logging metrics, sending a FAILED
@@ -225,6 +275,9 @@ class ExperimentalTriggeringUpdatesHandler
       if (!browser_window) {
         DLOG(ERROR) << "No browser window found for Profile for "
                        "GlicExperimentalTriggering";
+        SendTaskUpdateMessage(TaskUpdate::FAILED, TaskUpdate::ERROR_MESSAGE,
+                              "No active browser window found.");
+        message_handler_->OnUpdatesHandlerCleanup(context_id_);
         return;
       }
     }
@@ -239,19 +292,22 @@ class ExperimentalTriggeringUpdatesHandler
         },
         weak_ptr_factory_.GetWeakPtr());
     options.on_error = base::BindOnce(
-        [](base::WeakPtr<GlicExperimentalTriggeringMessageHandler>
-               message_handler,
+        [](base::WeakPtr<ExperimentalTriggeringUpdatesHandler> updates_handler,
            const std::string& context_id, glic::GlicInvokeError error) {
-          // TODO(b/505825633): Propagate the error to the actuation
-          // request sender.
           DLOG(WARNING) << "Glic invocation failed with error: "
                         << static_cast<int>(error);
-
-          if (message_handler) {
-            message_handler->OnUpdatesHandlerCleanup(context_id);
+          if (updates_handler) {
+            updates_handler->SendTaskUpdateMessage(
+                TaskUpdate::FAILED, TaskUpdate::ERROR_MESSAGE,
+                "Glic invocation failed with error: " +
+                    base::NumberToString(static_cast<int>(error)));
+            if (updates_handler->message_handler_) {
+              updates_handler->message_handler_->OnUpdatesHandlerCleanup(
+                  context_id);
+            }
           }
         },
-        message_handler_, context_id_);
+        weak_ptr_factory_.GetWeakPtr(), context_id_);
 
     instance_ =
         glic_service->InvokeWithAutoSubmit(passkey_, std::move(options));
@@ -272,59 +328,6 @@ class ExperimentalTriggeringUpdatesHandler
     }
   }
 
-  // TODO(b/495930541): Move this to the public accessor area above.
- public:
-  void OnUpdate(glic::mojom::ExperimentalTriggeringUpdatePtr update,
-                glic::mojom::SubscriberObservationType observation) override {
-    switch (observation) {
-      case glic::mojom::SubscriberObservationType::kComplete:
-        SendTaskUpdateMessage(TaskUpdate::COMPLETE);
-        break;
-      case glic::mojom::SubscriberObservationType::kError:
-        SendTaskUpdateMessage(TaskUpdate::FAILED);
-        break;
-      case glic::mojom::SubscriberObservationType::kUpdate:
-        if (!update) {
-          DLOG(ERROR) << "Received kUpdate observation with null update";
-          return;
-        }
-        switch (update->type) {
-          case glic::mojom::ExperimentalTriggeringUpdateType::kWorklog:
-            SendTaskUpdateMessage(TaskUpdate::RUNNING, TaskUpdate::WORKLOG,
-                                  std::move(update->data));
-            break;
-          case glic::mojom::ExperimentalTriggeringUpdateType::kPaused:
-            SendTaskUpdateMessage(TaskUpdate::PAUSED, std::nullopt,
-                                  std::move(update->data));
-            break;
-          case glic::mojom::ExperimentalTriggeringUpdateType::
-              kTerminalCompletion:
-            SendTaskUpdateMessage(TaskUpdate::COMPLETE,
-                                  TaskUpdate::FINAL_RESPONSE,
-                                  std::move(update->data));
-            break;
-          case glic::mojom::ExperimentalTriggeringUpdateType::kTerminalStopped:
-            SendTaskUpdateMessage(TaskUpdate::STOPPED, std::nullopt,
-                                  std::move(update->data));
-            break;
-          case glic::mojom::ExperimentalTriggeringUpdateType::kTerminalFailed:
-            SendTaskUpdateMessage(TaskUpdate::FAILED, TaskUpdate::ERROR_MESSAGE,
-                                  std::move(update->data));
-            break;
-          case glic::mojom::ExperimentalTriggeringUpdateType::kYieldToUser:
-            SendTaskUpdateMessage(TaskUpdate::YIELD, std::nullopt,
-                                  std::move(update->data));
-            break;
-          case glic::mojom::ExperimentalTriggeringUpdateType::kUnknown:
-            SendTaskUpdateMessage(TaskUpdate::UNKNOWN_STATE, std::nullopt,
-                                  std::move(update->data));
-            break;
-        }
-        break;
-    }
-  }
-
- private:
   void ProcessDeviceOptInRequest(base::ScopedClosureRunner cleanup_runner) {
 #if !BUILDFLAG(IS_ANDROID)
     if (!message_handler_) {
@@ -369,6 +372,9 @@ class ExperimentalTriggeringUpdatesHandler
     task_metadata->set_sender_sequence_number(++sequence_number_);
     if (last_seen_sequence_number_.has_value()) {
       task_metadata->set_last_seen_sequence_number(*last_seen_sequence_number_);
+    }
+    if (instance_ && instance_->conversation_id()) {
+      task_metadata->set_conversation_id(*instance_->conversation_id());
     }
     return message;
   }

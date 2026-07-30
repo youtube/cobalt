@@ -117,7 +117,7 @@
     {
         "name": "browser",
         "group": "androidx.browser",
-        "version": "1.10.0"
+        "version": "1.11.0-SNAPSHOT"
     },
     {
         "name": "app",
@@ -1657,7 +1657,7 @@
     {
         "name": "protobuf-javalite",
         "group": "com.google.protobuf",
-        "version": "4.35.0-RC2"
+        "version": "4.35.0"
     },
     {
         "name": "protobuf-lite",
@@ -2127,17 +2127,17 @@
     {
         "name": "asm",
         "group": "org.ow2.asm",
-        "version": "9.10"
+        "version": "9.10.1"
     },
     {
         "name": "asm-commons",
         "group": "org.ow2.asm",
-        "version": "9.10"
+        "version": "9.10.1"
     },
     {
         "name": "asm-tree",
         "group": "org.ow2.asm",
-        "version": "9.10"
+        "version": "9.10.1"
     },
     {
         "name": "reactive-streams",

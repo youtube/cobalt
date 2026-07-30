@@ -208,6 +208,7 @@ constexpr int kBrowserAppMenuRefreshCollapsedMargin = 2;
 constexpr int kLargeSpaceBetweenButtons = 6;
 constexpr int kInsideBorderAroundGlicButtons = 2;
 constexpr int kOutsideBorderAroundGlicButtons = 11;
+constexpr int kGlicButtonMargin = 5;
 
 // Returns whether `point` should be treated as part of the caption area in
 // `view`. Recursively traverses into icon containers to correctly handle
@@ -544,8 +545,10 @@ void ToolbarView::Init() {
         AddChildView(std::make_unique<BatterySaverButton>(browser_view_));
   }
 
-  performance_intervention_button_ = AddChildView(
-      std::make_unique<PerformanceInterventionButton>(browser_view_));
+  if (!features::IsWebUIPerformanceInterventionButtonEnabled()) {
+    performance_intervention_button_ = AddChildView(
+        std::make_unique<PerformanceInterventionButton>(browser_view_));
+  }
 
   if (media_button) {
     media_button_ = AddChildView(std::move(media_button));
@@ -573,6 +576,8 @@ void ToolbarView::Init() {
     InitGlicContainer();
 
     glic_button_ = AddChildView(CreateGlicButton());
+    glic_button_->SetProperty(views::kMarginsKey,
+                              gfx::Insets::VH(0, kGlicButtonMargin));
     UpdateGlicButtonVisibility();
   }
 

@@ -153,10 +153,6 @@ bool HTMLFormElement::IsValidElement() {
   return true;
 }
 
-bool HTMLFormElement::IsValidWebMCPForm() const {
-  return active_webmcp_tool_ && active_webmcp_tool_->IsValidTool();
-}
-
 bool HTMLFormElement::IsActiveToolSubmitButton(
     const HTMLFormControlElement* element) const {
   if (!MatchesToolFormActivePseudoClass()) {
@@ -166,13 +162,12 @@ bool HTMLFormElement::IsActiveToolSubmitButton(
 }
 
 bool HTMLFormElement::MatchesToolFormActivePseudoClass() const {
-  return IsValidWebMCPForm() && active_webmcp_tool_->CurrentlyRunning();
+  return active_webmcp_tool_ && active_webmcp_tool_->CurrentlyRunning();
 }
 
 std::optional<base::UnguessableToken>
 HTMLFormElement::GetActiveWebMCPToolInvocationId() const {
-  return (IsValidWebMCPForm() && active_webmcp_tool_ &&
-          active_webmcp_tool_->CurrentlyRunning())
+  return (active_webmcp_tool_ && active_webmcp_tool_->CurrentlyRunning())
              ? active_webmcp_tool_->InvocationId()
              : std::nullopt;
 }
@@ -371,7 +366,7 @@ void HTMLFormElement::ScheduleDeclarativeWebMCPToolRegistration() {
     // Cancel the pending registration of `this`, since we no longer represent a
     // valid tool.
     mcp_registration_task_.Cancel();
-    if (!IsValidWebMCPForm()) {
+    if (!active_webmcp_tool_) {
       return;
     }
 
@@ -425,7 +420,7 @@ void HTMLFormElement::RegisterDeclarativeWebMCPTool() {
     return;
   }
 
-  if (IsValidWebMCPForm()) {
+  if (active_webmcp_tool_) {
     String new_schema = active_webmcp_tool_->ComputeInputSchema();
 
     bool name_or_description_changed =
@@ -456,8 +451,7 @@ void HTMLFormElement::RegisterDeclarativeWebMCPTool() {
   active_webmcp_tool_->SetLastComputedSchema(
       active_webmcp_tool_->ComputeInputSchema());
 
-  model_context->RegisterDeclarativeTool(name, description,
-                                         active_webmcp_tool_);
+  model_context->RegisterDeclarativeTool(active_webmcp_tool_);
 }
 
 Node::InsertionNotificationRequest HTMLFormElement::InsertedInto(
@@ -717,7 +711,7 @@ void HTMLFormElement::PrepareForSubmission(const Event* event,
     // We also re-perform this validation *after* dispatching the submit event.
     executing_tool = active_webmcp_tool_;
     declarative_webmcp_call =
-        IsValidWebMCPForm() && active_webmcp_tool_->CurrentlyRunning();
+        active_webmcp_tool_ && active_webmcp_tool_->CurrentlyRunning();
     std::optional<base::AutoReset<bool>> mcp_tool_submit_scope;
     if (declarative_webmcp_call) {
       mcp_tool_submit_scope.emplace(&active_webmcp_tool_->is_handling_submit_,
@@ -771,9 +765,8 @@ void HTMLFormElement::PrepareForSubmission(const Event* event,
           DispatchEvent(*submit_event) == DispatchEventResult::kNotCanceled;
       // `DispatchEvent()` above could have disconnected `this` from the DOM. In
       // that case, the form would have been unregistered as a tool,
-      // `active_webmcp_tool_` will be null, and `IsValidWebMCPForm()` will be
-      // false; there's no need to react to the Promise held by
-      // `SubmitEvent::respondWith()`.
+      // `active_webmcp_tool_` will be null; there's no need to react to the
+      // Promise held by `SubmitEvent::respondWith()`.
       //
       // If `active_webmcp_tool_` is non-null here, but the form gets
       // unregistered as a tool asynchronously before `promise` fulfills, then
@@ -1185,7 +1178,7 @@ void HTMLFormElement::Associate(ListedElement& e) {
   listed_elements_for_autofill_.clear();
   if (e.ToHTMLElement().FastHasAttribute(html_names::kFormAttr))
     has_elements_associated_by_form_attribute_ = true;
-  ScheduleWebMCPSchemaUpdate();
+  ScheduleWebMCPSchemaUpdateIfActive();
 }
 
 void HTMLFormElement::Disassociate(ListedElement& e) {
@@ -1194,7 +1187,7 @@ void HTMLFormElement::Disassociate(ListedElement& e) {
   listed_elements_for_autofill_are_dirty_ = true;
   listed_elements_for_autofill_.clear();
   RemoveFromPastNamesMap(e.ToHTMLElement());
-  ScheduleWebMCPSchemaUpdate();
+  ScheduleWebMCPSchemaUpdateIfActive();
 }
 
 bool HTMLFormElement::IsURLAttribute(const Attribute& attribute) const {
@@ -1690,11 +1683,11 @@ void HTMLFormElement::UseCountPropertyAccess(
           : WebFeature::kDOMClobberedNotShadowedFormPropertyAccessed);
 }
 
-void HTMLFormElement::ScheduleWebMCPSchemaUpdate() {
+void HTMLFormElement::ScheduleWebMCPSchemaUpdateIfActive() {
   if (!RuntimeEnabledFeatures::WebMCPEnabled(GetExecutionContext())) {
     return;
   }
-  if (!IsValidWebMCPForm()) {
+  if (!active_webmcp_tool_) {
     return;
   }
   ScheduleDeclarativeWebMCPToolRegistration();

@@ -1810,6 +1810,7 @@ source_set("unit_tests") {
     "activity_log/counting_policy_unittest.cc",
     "activity_log/database_string_table_unittest.cc",
     "activity_log/fullstream_ui_policy_unittest.cc",
+    "api/activity_log_private/activity_log_private_api_unittest.cc",
     "api/bookmarks/bookmarks_api_unittest.cc",
     "api/browsing_data/browsing_data_unittest.cc",
     "api/chrome_extensions_api_client_unittest.cc",
@@ -1830,6 +1831,8 @@ source_set("unit_tests") {
     "api/declarative_net_request/dnr_test_base.cc",
     "api/declarative_net_request/dnr_test_base.h",
     "api/declarative_net_request/ruleset_manager_unittest.cc",
+    "api/declarative_webrequest/webrequest_action_unittest.cc",
+    "api/declarative_webrequest/webrequest_rules_registry_unittest.cc",
     "api/developer_private/developer_private_api_unittest.cc",
     "api/developer_private/extension_info_generator_unittest.cc",
     "api/enterprise_hardware_platform/enterprise_hardware_platform_api_unittest.cc",
@@ -1840,6 +1843,7 @@ source_set("unit_tests") {
     "api/notifications/extension_notification_handler_unittest.cc",
     "api/omnibox/omnibox_unittest.cc",
     "api/omnibox/suggestion_parser_unittest.cc",
+    "api/page_capture/page_capture_api_unittest.cc",
     "api/permissions/permissions_api_helpers_unittest.cc",
     "api/preference/preference_api_prefs_unittest.cc",
     "api/proxy/proxy_api_helpers_unittest.cc",
@@ -1848,6 +1852,7 @@ source_set("unit_tests") {
     "api/storage/policy_value_store_unittest.cc",
     "api/storage/settings_sync_unittest.cc",
     "api/storage/storage_session_unittest.cc",
+    "api/tabs/windows_util_unittest.cc",
     "api/web_navigation/frame_navigation_state_unittest.cc",
     "api/web_request/web_request_api_unittest.cc",
     "api/web_request/web_request_event_details_unittest.cc",
@@ -1869,6 +1874,7 @@ source_set("unit_tests") {
     "event_router_forwarder_unittest.cc",
     "extension_action_icon_factory_unittest.cc",
     "extension_action_runner_unittest.cc",
+    "extension_allowlist_unittest.cc",
     "extension_commands_global_registry_unittest.cc",
     "extension_error_controller_unittest.cc",
     "extension_garbage_collector_unittest.cc",
@@ -1921,6 +1927,7 @@ source_set("unit_tests") {
     "updater/extension_updater_unittest.cc",
     "user_script_listener_unittest.cc",
     "user_script_world_configuration_manager_unittest.cc",
+    "webstore_installer_unittest.cc",
     "zipfile_installer_unittest.cc",
   ]
 
@@ -1956,6 +1963,7 @@ source_set("unit_tests") {
     "//chrome/browser/supervised_user:test_support",
     "//chrome/browser/sync",
     "//chrome/browser/ui/extensions",
+    "//chrome/browser/update_client",
     "//chrome/test:test_support",
     "//components/bookmarks/managed",
     "//components/bookmarks/test",
@@ -1982,6 +1990,7 @@ source_set("unit_tests") {
     "//extensions/browser:crx_installer",
     "//extensions/browser:cws_item_service_proto_gen",
     "//extensions/browser:test_support",
+    "//extensions/browser:webstore_installer",
     "//extensions/browser/forced_extensions",
     "//extensions/browser/updater",
     "//extensions/common:test_support",
@@ -1999,9 +2008,6 @@ source_set("unit_tests") {
 
   if (enable_extensions) {
     sources += [
-      "api/activity_log_private/activity_log_private_api_unittest.cc",
-      "api/declarative_webrequest/webrequest_action_unittest.cc",
-      "api/declarative_webrequest/webrequest_rules_registry_unittest.cc",
       "api/device_permissions_manager_unittest.cc",
       "api/enterprise_reporting_private/enterprise_reporting_private_unittest.cc",
       "api/file_system/file_system_api_unittest.cc",
@@ -2022,7 +2028,6 @@ source_set("unit_tests") {
       "api/image_writer_private/xz_extractor_unittest.cc",
       "api/language_settings_private/language_settings_private_api_unittest.cc",
       "api/language_settings_private/language_settings_private_delegate_unittest.cc",
-      "api/page_capture/page_capture_api_unittest.cc",
       "api/passwords_private/password_access_auth_timeout_handler_unittest.cc",
       "api/passwords_private/password_check_delegate_unittest.cc",
       "api/passwords_private/passwords_private_utils_unittest.cc",
@@ -2035,13 +2040,11 @@ source_set("unit_tests") {
       "api/socket/tls_socket_unittest.cc",
       "api/socket/udp_socket_unittest.cc",
       "api/sockets_tcp_server/sockets_tcp_server_api_unittest.cc",
-      "api/tabs/windows_util_unittest.cc",
       "app_tab_helper_unittest.cc",
       "blocklist_states_interaction_unittest.cc",
       "chrome_app_icon_unittest.cc",
       "chrome_app_sorting_unittest.cc",
       "error_console/error_console_unittest.cc",
-      "extension_allowlist_unittest.cc",
       "extension_error_ui_default_unittest.cc",
       "initial_external_extension_loader_unittest.cc",
       "manifest_v2_experiment_manager_unittest.cc",
@@ -2051,7 +2054,6 @@ source_set("unit_tests") {
       "safe_browsing_verdict_handler_unittest.cc",
       "update_install_gate_unittest.cc",
       "warning_badge_service_unittest.cc",
-      "webstore_installer_unittest.cc",
     ]
 
     deps += [
@@ -2060,7 +2062,6 @@ source_set("unit_tests") {
       "//chrome/browser/password_manager",
       "//chrome/browser/spellchecker",
       "//chrome/browser/ui/global_error:test_support",
-      "//chrome/browser/update_client",
       "//chrome/browser/web_applications:web_app_test",
       "//chrome/browser/web_applications:web_applications_test_support",
       "//chrome/browser/webapps:desktop",
@@ -2071,7 +2072,6 @@ source_set("unit_tests") {
       "//components/password_manager/core/browser/sharing",
       "//components/password_manager/core/browser/sharing:test_support",
       "//components/webauthn/core/browser:test_support",
-      "//extensions/browser:webstore_installer",
       "//ui/base/clipboard:clipboard_test_support",
     ]
 

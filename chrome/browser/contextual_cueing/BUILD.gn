@@ -6,6 +6,7 @@ source_set("contextual_cueing") {
   sources = [
     "contextual_cueing_controller.h",
     "contextual_cueing_enums.h",
+    "contextual_cueing_metrics.h",
     "contextual_cueing_service.h",
     "contextual_cueing_service_factory.h",
     "contextual_cueing_web_contents_observer.h",
@@ -13,6 +14,7 @@ source_set("contextual_cueing") {
     "cueing_log.h",
     "features.h",
     "nudge_cap_tracker.h",
+    "prefs.h",
   ]
 
   public_deps = [
@@ -41,7 +43,6 @@ source_set("impl") {
     "contextual_cueing_menu_model.cc",
     "contextual_cueing_menu_model.h",
     "contextual_cueing_metrics.cc",
-    "contextual_cueing_metrics.h",
     "contextual_cueing_service.cc",
     "contextual_cueing_service_factory.cc",
     "contextual_cueing_web_contents_observer.cc",

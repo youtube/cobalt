@@ -21,7 +21,12 @@ namespace features {
 
 BASE_DECLARE_FEATURE(kAllowEyeDropperWGCScreenCapture);
 
+// Enables a compositor-driven rotation animation for the tab load throbber.
+BASE_DECLARE_FEATURE(kCompositorLoadingThrobber);
+
 BASE_DECLARE_FEATURE(kCreateNewTabGroupAppMenuTopLevel);
+
+BASE_DECLARE_FEATURE(kCtrlTabMru);
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 BASE_DECLARE_FEATURE(kDseIntegrity);
@@ -215,6 +220,8 @@ inline constexpr char kTabHoverCardImagesCrossfadePreviewAtParameterName[] =
 inline constexpr char kTabHoverCardAdditionalMaxWidthDelay[] =
     "additional_max_width_delay";
 
+BASE_DECLARE_FEATURE(kTabStripSkipSelectionEventOnActivation);
+
 // If enabled, use desktop widget to show tab modal dialogs.
 BASE_DECLARE_FEATURE(kTabModalUsesDesktopWidget);
 
@@ -335,6 +342,8 @@ bool IsWebUISplitTabsButtonEnabled();
 // Controls whether the WebUI version of the Avatar Button is used.
 BASE_DECLARE_FEATURE(kWebUIAvatarButton);
 bool IsWebUIAvatarButtonEnabled();
+
+bool IsWebUIPerformanceInterventionButtonEnabled();
 
 bool IsWebUIAppMenuButtonEnabled();
 

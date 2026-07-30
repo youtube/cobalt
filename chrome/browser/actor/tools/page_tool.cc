@@ -12,7 +12,7 @@
 #include "chrome/browser/actor/actor_proto_conversion.h"
 #include "chrome/browser/actor/actor_tab_data.h"
 #include "chrome/browser/actor/actor_task.h"
-#include "chrome/browser/actor/aggregated_journal.h"
+#include "chrome/browser/actor/aggregated_journal_render_frame_binder.h"
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/actor/tools/observation_delay_controller.h"
 #include "chrome/browser/actor/tools/page_target_util.h"
@@ -20,10 +20,11 @@
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/common/actor.mojom-forward.h"
 #include "chrome/common/actor/action_result.h"
-#include "chrome/common/actor/journal_details_builder.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_render_frame.mojom.h"
 #include "components/actor/core/actor_features.h"
+#include "components/actor/core/aggregated_journal.h"
+#include "components/actor/core/journal_details_builder.h"
 #include "components/actor/public/mojom/actor_types.mojom.h"
 #include "components/enterprise/connectors/core/features.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
@@ -535,7 +536,7 @@ void PageTool::Invoke(ToolCallback callback) {
   RenderFrameHost& frame = *GetFrame();
   invoke_callback_ = std::move(callback);
 
-  journal().EnsureJournalBound(frame);
+  AggregatedJournalRenderFrameBinder::EnsureBound(journal(), frame);
 
   if (base::FeatureList::IsEnabled(
           features::kGlicActorSplitValidateAndExecute) &&

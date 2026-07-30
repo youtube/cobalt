@@ -2818,6 +2818,13 @@ PAC 樣式的字串：
 <translation id="2866726566162790531">允許所有 HTTP 驗證機制的來源清單</translation>
 <translation id="2868756546751652023">允許使用者使用即時網路共用功能</translation>
 <translation id="286898786908566256">允許使用者將電話號碼從 Chrome 傳送到自己的 Android 裝置</translation>
+<translation id="287087426320717057">這項政策可讓使用者啟動任何類型的韌體更新。
+
+      如果將這項政策設為啟用或未設定，使用者 (例如裝置擁有者) 就能啟動韌體更新。
+
+      如果將這項政策設為停用，所有使用者都無法套用韌體更新。
+
+      這項政策適用於 <ph name="PRODUCT_OS_FLEX_NAME" /> 裝置的外部周邊裝置韌體更新和內部元件韌體更新，不會影響 <ph name="PRODUCT_OS_NAME" /> 裝置的內部元件韌體更新。</translation>
 <translation id="2872098849906555324">停用 Google 雲端硬碟同步功能</translation>
 <translation id="2872189563975139803">企業設定檔區隔設定</translation>
 <translation id="2872961005593481000">關閉</translation>
@@ -3366,7 +3373,6 @@ ClearCrossSiteCrossBrowsingContextGroupWindowName 變化版本會控制是否要
 <translation id="3229163415739929305">如果將這項政策設為啟用或不設定，系統會啟用網頁載入中繼資料擷取功能和強化瀏覽體驗的機器學習模型。
       如果將這項政策設為停用，則可能會造成部分功能無法正常運作。</translation>
 <translation id="3231311173895401135">允許瀏覽器決定是否支援</translation>
-<translation id="3231684792162319504">不允許 Gemini 實驗功能觸發機制。</translation>
 <translation id="3231837273069128027">你可以透過這項政策來設定 <ph name="TPM_FIRMWARE_UPDATE_TPM" /> 韌體更新的可用性和行為。
 
       指定 JSON 屬性中的個別設定：
@@ -5064,7 +5070,6 @@ Protected Audience API 已淘汰，因此這項政策已在 <ph name="PRODUCT_NA
 <translation id="4435032708588431506">允許 QUIC</translation>
 <translation id="443665821428652897">瀏覽器關閉時清除網站資料 (已淘汰)</translation>
 <translation id="4436941175475497595">停用列印預覽</translation>
-<translation id="4436992815485865052">允許 Gemini 實驗功能觸發機制。</translation>
 <translation id="4439336120285389675">指定要暫時重新啟用的已淘汰網路平台功能清單。
 
       這項政策可讓管理員在限定時間內重新啟用已淘汰的網路平台功能。系統會使用字串標記辨識功能，並根據這項政策在清單中指定的標記重新啟用對應的功能。
@@ -6438,7 +6443,6 @@ Attribution Reporting API 已淘汰，因此這項政策已在 <ph name="PRODUCT
 <translation id="5255790642269910630">如果設定這項政策，政策值變更後的首次連線以及每次重新啟動時，裝置螢幕都會旋轉到指定方向。使用者可在登入後前往設定頁面變更螢幕旋轉設定，但裝置重新啟動後就會恢復成設定值。這項政策適用於主要螢幕和次要螢幕。
 
 如果未設定，預設值為 0 度，使用者可自行變更。在這種情況下，系統不會在重新啟動時重新套用預設值。</translation>
-<translation id="5256792633540454282">控管 Gemini 實驗功能觸發機制</translation>
 <translation id="5257395339965216304">代管的應用程式資料</translation>
 <translation id="5258445772095084618">允許無關聯使用者透過虛擬機器執行 Linux 應用程式</translation>
 <translation id="5258651513421638932">允許隔離應用程式連線到智慧卡</translation>
@@ -7411,7 +7415,6 @@ Microsoft SharePoint 和 OneDrive 資訊卡需要額外的管理員設定。想�
 
       這項政策已遭淘汰，請改用 <ph name="PRINTERS_BULK_BLOCKLIST" />。</translation>
 <translation id="591088232153082363">根據電池用量模式自動調整充電方式。</translation>
-<translation id="5911656389795271430">這是實驗功能政策。</translation>
 <translation id="5913506885872855604">你可以將某些內部位址範圍視為「公開」，因此不會受到 <ph name="LOCAL_NETWORK_ACCES" /> 檢查。反之，如果某些公開位址範圍可能用於內部，你可以將其視為「本機」，讓 <ph name="LOCAL_NETWORK_ACCESS" /> 檢查保護這些位址範圍。
 
 IP 位址空間覆寫有兩種形式：
@@ -8104,6 +8107,24 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 <translation id="6383774771168138899">設定 <ph name="MICROSOFT_ONE_DRIVE_NAME" /> 和 <ph name="MICROSOFT_365_NAME" /> 的<ph name="CLOUD_UPLOAD_NAME" />資料流</translation>
 <translation id="6384542789059421431">允許在瀏覽器側邊面板中顯示預設搜尋引擎的搜尋結果頁面。</translation>
 <translation id="6389240462871677239">允許隔離網頁應用程式來源使用受控頁框</translation>
+<translation id="6393598243777822017">這項政策控管能否透過 <ph name="PRODUCT_NAME" /> 的側邊面板或分頁，使用 <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />的智慧分頁共用功能。
+
+請注意，這項政策不會影響 <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />在網頁的運作方式，只會控管使用者在 <ph name="PRODUCT_NAME" /> 中如何與其共用資訊。
+
+0 = 使用者可以與 <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />共用網頁或檔案內容。
+
+1 = 使用者無法與 <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />共用網頁或檔案內容。系統會停用或隱藏共用內容的進入點和側邊面板。
+如果預設搜尋引擎不是 <ph name="GOOGLE_SEARCH_PRODUCT_NAME" />，系統會因功能已停用而忽略這項政策。
+
+這項政策與 <ph name="AI_MODE_SETTINGS_POLICY_NAME" /> 政策無關。<ph name="AI_MODE_SETTINGS_POLICY_NAME" /> 政策只會控管網址列或新分頁搜尋框的進入點，這項政策則控管透過側邊面板或分頁共用內容的功能。
+
+這項政策也不會控管 <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> 整合功能，該功能可由 <ph name="GEMINI_SETTINGS_POLICY_NAME" /> 停用。
+
+請注意，如果停用 <ph name="SEARCH_CONTENT_SHARING_SETTINGS_POLICY_NAME" />，系統就會忽略這項政策。
+
+如果未設定這項政策，系統就會以 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 政策決定行為。
+
+如要進一步瞭解生成式 AI 功能的資料處理方式，請前往 https://support.google.com/chrome/a?p=generative_ai_settings。</translation>
 <translation id="6394350458541421998">我們已於 <ph name="PRODUCT_OS_NAME" />版本 29 中移除這項政策。請改用 PresentationScreenDimDelayScale 政策。</translation>
 <translation id="6397588391180665797">回報已註冊裝置上的使用者網路設定。
 

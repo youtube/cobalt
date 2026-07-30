@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "mojo/public/cpp/bindings/clone_traits.h"
+#include "skia/ext/skia_utils_base.h"
 
 MockToolbarUIObserver::MockToolbarUIObserver() = default;
 MockToolbarUIObserver::~MockToolbarUIObserver() = default;
@@ -54,8 +55,13 @@ CreateValidNavigationControlsState() {
           toolbar_ui_api::mojom::LhsChipsState::New(
               toolbar_ui_api::mojom::SecurityChipState::New(
                   toolbar_ui_api::IconHandle(),
-                  toolbar_ui_api::mojom::SecurityLevel::kNone, std::u16string(),
-                  /*is_clickable=*/false, /*is_text_dangerous=*/false,
+                  toolbar_ui_api::mojom::SecurityLevel::kNone,
+                  /*text=*/std::u16string(),
+                  toolbar_ui_api::mojom::SecurityChipAccessibilityState::New(
+                      /*label=*/std::u16string(),
+                      /*description=*/std::u16string()),
+                  /*is_clickable=*/false,
+                  /*is_text_dangerous=*/false,
                   /*is_visible=*/true),
               std::vector<toolbar_ui_api::mojom::ContentSettingImageStatePtr>(),
               /*permission_dashboard=*/nullptr)),
@@ -73,7 +79,11 @@ std::ostream& operator<<(
   return out << "{handle_id: " << icon_update->handle_id
              << ", icon_url_or_name: "
              << icon_update->icon_url_or_name.value_or(std::string("(nullopt)"))
-             << ", icon_type: " << icon_update->icon_type << "}";
+             << ", icon_type: " << icon_update->icon_type << ", color: "
+             << (icon_update->color.has_value()
+                     ? skia::SkColorToHexString(*icon_update->color)
+                     : std::string("(nullopt)"))
+             << "}";
 }
 
 }  // namespace mojo

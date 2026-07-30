@@ -213,7 +213,7 @@ class TabImpl implements Tab {
     /** {@link WebContents} showing the current page, or {@code null} if the tab is frozen. */
     private @Nullable WebContents mWebContents;
 
-    /** The parent view of the ContentView and the InfoBarContainer. */
+    /** The ContentView of this tab. */
     private @Nullable ContentView mContentView;
 
     /**
@@ -1251,6 +1251,11 @@ class TabImpl implements Tab {
     @CalledByNative
     private void destroyInternal(boolean deleteNativeWebContents) {
         ThreadUtils.assertOnUiThread();
+
+        // Ensure the tab signals to C++ it was removed from the TabModel. This should be a no-op
+        // for most tab closures, but during activity shutdown/recreation it can be relevant.
+        clearCurrentTabSupplier(DetachReason.DELETE);
+
         // Set at the start since destroying the WebContents can lead to calling back into
         // this class.
         mIsDestroyed = true;
@@ -1288,10 +1293,6 @@ class TabImpl implements Tab {
             mWindowAndroid.getOcclusionSupplier().removeObserver(mOcclusionCallback);
         }
 
-        // Destroys the native tab after destroying the ContentView but before destroying the
-        // InfoBarContainer. The native tab should be destroyed before the infobar container as
-        // destroying the native tab cleanups up any remaining infobars. The infobar container
-        // expects all infobars to be cleaned up before its own destruction.
         if (mNativeTabAndroid != 0) {
             TabImplJni.get().destroy(mNativeTabAndroid);
             assert mNativeTabAndroid == 0;
@@ -2089,7 +2090,7 @@ class TabImpl implements Tab {
     }
 
     @CalledByNative
-    private void clearNativePtr() {
+    void clearNativePtr() {
         assert mNativeTabAndroid != 0;
         var oldValue = sTabMap.remove(mNativeTabAndroid);
         assert oldValue == this;
@@ -3073,7 +3074,10 @@ class TabImpl implements Tab {
 
     void setNativePtrForTesting(long nativePtr) {
         setNativePtr(nativePtr);
-        ResettersForTesting.register(this::clearNativePtr);
+        ResettersForTesting.register(
+                () -> {
+                    if (mNativeTabAndroid != 0) clearNativePtr();
+                });
     }
 
     /**

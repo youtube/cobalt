@@ -37,6 +37,7 @@
 #include "components/content_settings/core/browser/cookie_settings.h"
 #include "components/prefs/pref_member.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
+#include "content/public/browser/global_request_id.h"
 #include "content/public/common/url_constants.h"
 #include "content/public/test/browser_task_environment.h"
 #include "extensions/browser/api/declarative_net_request/test_utils.h"
@@ -139,6 +140,16 @@ bool GenerateInfoSpec(content::BrowserContext* browser_context,
   }
   return ExtraInfoSpec::InitFromValue(base::Value(std::move(list)), result);
 }
+
+class PlaceholderProxy : public WebRequestAPI::Proxy {
+ public:
+  void HandleAuthRequest(
+      const net::AuthChallengeInfo& auth_info,
+      scoped_refptr<net::HttpResponseHeaders> response_headers,
+      int32_t request_id,
+      WebRequestAPI::AuthRequestCallback callback) override {}
+  void OnDNRExtensionUnloaded(const Extension* extension) override {}
+};
 
 }  // namespace
 
@@ -351,8 +362,7 @@ TEST_F(ExtensionWebRequestTest, PollutedPrefsActivationConverges) {
 
   // The defensive cleanup in the lazy path should collapse the duplicates into
   // a single inactive listener.
-  EXPECT_EQ(1u, event_router->GetInactiveListenerCountForTesting(&profile_,
-                                                                 kEventName));
+  EXPECT_EQ(1u, event_router->GetInactiveListenerCount(&profile_, kEventName));
 
   // Activate the listener (as it happens when the service worker spins up).
   // `DCHECK_LE(erased, 1u)` holds and activation should succeed.
@@ -364,8 +374,7 @@ TEST_F(ExtensionWebRequestTest, PollutedPrefsActivationConverges) {
   EXPECT_EQ(1u,
             event_router->GetListenerCountForTesting(&profile_, kEventName));
   // The inactive entry should have been consumed by activation.
-  EXPECT_EQ(0u, event_router->GetInactiveListenerCountForTesting(&profile_,
-                                                                 kEventName));
+  EXPECT_EQ(0u, event_router->GetInactiveListenerCount(&profile_, kEventName));
 }
 
 // Regression test for ExtensionNavigationRegistry::CanRedirect logic bug.
@@ -447,6 +456,36 @@ TEST_F(ExtensionWebRequestTest, InitFromValue) {
 
   // BLOCKING and ASYNC_BLOCKING are mutually exclusive.
   TestInitFromValue(&profile_, "blocking,asyncBlocking", false, 0);
+}
+
+TEST_F(ExtensionWebRequestTest, AssociateProxyWithRequestIdCollision) {
+  WebRequestAPI::ProxySet proxy_set;
+
+  auto proxy1 = std::make_unique<PlaceholderProxy>();
+  auto* proxy1_ptr = proxy1.get();
+  proxy_set.AddProxy(std::move(proxy1));
+
+  content::GlobalRequestID id =
+      content::GlobalRequestID::MakeBrowserInitiated();
+  EXPECT_TRUE(proxy_set.AssociateProxyWithRequestId(proxy1_ptr, id));
+
+  // Re-associating the same request ID should fail (collision).
+  EXPECT_FALSE(proxy_set.AssociateProxyWithRequestId(proxy1_ptr, id));
+  // The original association should remain intact.
+  EXPECT_EQ(proxy_set.GetProxyFromRequestId(id), proxy1_ptr);
+
+  auto proxy2 = std::make_unique<PlaceholderProxy>();
+  auto* proxy2_ptr = proxy2.get();
+  proxy_set.AddProxy(std::move(proxy2));
+
+  // Associating the same request ID with a different proxy should also fail.
+  EXPECT_FALSE(proxy_set.AssociateProxyWithRequestId(proxy2_ptr, id));
+  // The original association should still remain intact.
+  EXPECT_EQ(proxy_set.GetProxyFromRequestId(id), proxy1_ptr);
+
+  // Destroy the colliding proxy and ensure the victim's mapping survives.
+  proxy_set.RemoveProxy(proxy2_ptr);
+  EXPECT_EQ(proxy_set.GetProxyFromRequestId(id), proxy1_ptr);
 }
 
 TEST(ExtensionWebRequestHelpersTest,

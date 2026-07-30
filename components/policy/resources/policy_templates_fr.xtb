@@ -145,6 +145,7 @@ Les formats d'URL ne doivent pas entrer en conflit avec ceux de la règle <ph na
 Pour en savoir plus sur les formats d'URL valides, veuillez consulter https://chromeenterprise.google/policies/url-patterns. La valeur <ph name="WILDCARD_VALUE" /> n'est pas acceptée pour cette règle.</translation>
 <translation id="1082802595100075771">Laisser les utilisateurs choisir s'ils veulent employer un service Google anonyme pour qu'une description soit ajoutée automatiquement aux images sans libellé</translation>
 <translation id="1084697375611053264">Spécifie la liste des domaines d'applis Web tiers autorisés à utiliser <ph name="DESK_API_NAME" /> pour contrôler les bureaux <ph name="PRODUCT_OS_NAME" />. Ces formats d'URL doivent respecter le format défini pour la propriété "matches" dans https://developer.chrome.com/docs/extensions/mv3/manifest/externally_connectable/#reference</translation>
+<translation id="1086596047220085412">Paramètres du partage intelligent d'onglets</translation>
 <translation id="1087057100912843460">Autoriser les mises à jour</translation>
 <translation id="1087187152710800704">Refuse par défaut l'autorisation de gestion des fenêtres sur tous les sites</translation>
 <translation id="1087437665304381368">Cette règle permet de ne contrôler que le mode développeur <ph name="PRODUCT_OS_NAME" />. Si vous voulez bloquer l'accès aux options pour les développeurs Android, vous devez définir la règle <ph name="DEVELOPER_TOOLS_DISABLED_POLICY_NAME" />.</translation>
@@ -1073,6 +1074,7 @@ Cette règle constitue une solution temporaire au cas où des entreprises rencon
       Consultez également la règle "<ph name="REMOTE_ACCESS_HOST_CLIENT_DOMAIN_LIST_POLICY_NAME" />".
 
       Remarque : Ce paramètre ignore la règle "<ph name="REMOTE_ACCESS_HOST_DOMAIN_POLICY_NAME" />", le cas échéant.</translation>
+<translation id="1723571018091915166">Ne pas autoriser le partage intelligent d'onglets avec les intégrations du <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />.</translation>
 <translation id="172374442286684480">Autoriser tous les sites à définir des données locales</translation>
 <translation id="1729169799290004131">Cette règle permet de définir le niveau de luminosité de l'écran (en pourcentage), ce qui désactive les fonctionnalités de réglage automatique de la luminosité. En outre, le niveau initial de luminosité de l'écran est ajusté à la valeur définie dans cette règle. Toutefois, les utilisateurs peuvent modifier ce paramètre.
 
@@ -2885,6 +2887,13 @@ Cette règle ne peut être configurée que comme règle relative aux utilisateur
 <translation id="2866726566162790531">Liste des origines autorisant toutes les authentifications HTTP</translation>
 <translation id="2868756546751652023">Autoriser le partage de connexion instantané pour les utilisateurs</translation>
 <translation id="286898786908566256">Autoriser les utilisateurs à envoyer des numéros de téléphone depuis Chrome vers leur appareil Android</translation>
+<translation id="287087426320717057">Cette règle permet aux utilisateurs de lancer n'importe quel type de mise à jour du micrologiciel.
+
+      Si cette règle est activée ou qu'elle n'est pas configurée, les utilisateurs, comme le propriétaire de l'appareil, peuvent lancer des mises à jour du micrologiciel.
+
+      Si elle est désactivée, aucun utilisateur ne peut appliquer de mises à jour du micrologiciel.
+
+      Cette règle s'applique aux mises à jour du micrologiciel des périphériques externes et des composants internes pour les appareils <ph name="PRODUCT_OS_FLEX_NAME" />. Elle n'a pas d'incidence sur les mises à jour du micrologiciel des composants internes pour les appareils <ph name="PRODUCT_OS_NAME" />.</translation>
 <translation id="2872098849906555324">Désactiver la synchronisation Google Drive</translation>
 <translation id="2872189563975139803">Paramètres de séparation des profils d'entreprise</translation>
 <translation id="2872961005593481000">Éteindre</translation>
@@ -3453,7 +3462,6 @@ Si cette règle n'est pas configurée, le nouveau comportement sera utilisé tou
 <translation id="3229163415739929305">Si cette règle est activée, ou si elle n'est pas définie, l'extraction des métadonnées de chargement de la page et les modèles de machine learning qui améliorent l'expérience de navigation sont activés.
       Si cette règle est désactivée, certaines fonctionnalités peuvent ne pas fonctionner correctement.</translation>
 <translation id="3231311173895401135">Laisser le navigateur décider de la prise en charge</translation>
-<translation id="3231684792162319504">Empêcher le déclenchement expérimental de Gemini.</translation>
 <translation id="3231837273069128027">Cette règle permet de configurer la disponibilité et le comportement des mises à jour du micrologiciel <ph name="TPM_FIRMWARE_UPDATE_TPM" />.
 
       Spécifiez les paramètres individuels dans les propriétés JSON :
@@ -5186,7 +5194,6 @@ Si cette règle est configurée, les utilisateurs ne peuvent pas la modifier dan
 <translation id="4435032708588431506">Autoriser le protocole QUIC</translation>
 <translation id="443665821428652897">Effacer les données des sites à la fermeture du navigateur (obsolète)</translation>
 <translation id="4436941175475497595">Désactiver l'aperçu avant impression</translation>
-<translation id="4436992815485865052">Autoriser le déclenchement expérimental de Gemini.</translation>
 <translation id="4439336120285389675">Répertorier les fonctionnalités abandonnées de la plate-forme en ligne à réactiver provisoirement.
 
       Cette règle permet aux administrateurs de réactiver des fonctionnalités abandonnées de la plate-forme en ligne pendant une durée limitée. Ces fonctionnalités sont identifiées par une balise de chaîne. Les fonctionnalités correspondant aux balises incluses dans la liste renvoyée par cette règle sont réactivées.
@@ -6593,7 +6600,6 @@ Remarque : Cette fonctionnalité n'est pas encore disponible au grand public. S
 <translation id="5255790642269910630">Si cette règle est configurée, chaque écran pivote en fonction de l'orientation spécifiée, à chaque redémarrage ainsi que la première fois qu'il est affiché après une modification de la valeur de cette règle. Une fois connectés, les utilisateurs peuvent modifier le paramètre de rotation d'écran. Toutefois, le paramètre initial sera rétabli au redémarrage suivant. Cette règle s'applique à l'écran principal, ainsi qu'aux écrans secondaires.
 
 Si cette règle n'est pas configurée, la valeur par défaut est de 0 degré, et les utilisateurs sont libres de la modifier. Dans ce cas, la valeur par défaut n'est pas rétablie au redémarrage.</translation>
-<translation id="5256792633540454282">Contrôle le déclenchement expérimental de Gemini</translation>
 <translation id="5257395339965216304">Données des applications hébergées</translation>
 <translation id="5258445772095084618">Autoriser les utilisateurs non affiliés à se servir des machines virtuelles nécessaires pour faire fonctionner les applis Linux</translation>
 <translation id="5258651513421638932">Autoriser la connexion aux cartes à puce pour les applications isolées</translation>
@@ -7596,7 +7602,6 @@ Sous <ph name="MAC_OS_NAME" />, cette règle n'est disponible que sur les instan
 
       Cette règle étant obsolète, veuillez utiliser la règle <ph name="PRINTERS_BULK_BLOCKLIST" /> à la place.</translation>
 <translation id="591088232153082363">Recharge intelligente basée sur le modèle d'utilisation de la batterie.</translation>
-<translation id="5911656389795271430">Cette règle est expérimentale.</translation>
 <translation id="5913506885872855604">Vous pouvez utiliser cette option pour traiter certaines plages d'adresses internes comme "publiques", afin qu'elles ne soient pas soumises aux vérifications de l‘<ph name="LOCAL_NETWORK_ACCES" />. Inversement, cette option peut être utilisée pour traiter certaines plages d'adresses publiques susceptibles d'être utilisées en interne comme "locales", afin qu'elles soient protégées par des vérifications de l‘<ph name="LOCAL_NETWORK_ACCESS" />.
 
 Les remplacements d'espace d'adressage IP prennent deux formes :
@@ -8315,6 +8320,25 @@ Pour en savoir plus sur la gestion des données pour les fonctionnalités d'IA g
 <translation id="6383774771168138899">Configurer le flux <ph name="CLOUD_UPLOAD_NAME" /> pour <ph name="MICROSOFT_ONE_DRIVE_NAME" /> et <ph name="MICROSOFT_365_NAME" /></translation>
 <translation id="6384542789059421431">Activer l'affichage des pages de résultats du moteur de recherche par défaut dans un panneau latéral du navigateur.</translation>
 <translation id="6389240462871677239">Autoriser les origines d'applications Web isolées à utiliser Controlled Frame</translation>
+<translation id="6393598243777822017">Cette règle contrôle la fonctionnalité de partage intelligent d'onglets du <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> via le panneau latéral ou les onglets de <ph name="PRODUCT_NAME" />.
+
+Sachez que cette règle n'a pas d'incidence sur le <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> sur le Web. Elle contrôle uniquement la façon dont les utilisateurs peuvent partager des informations avec ce mode lorsqu'ils utilisent <ph name="PRODUCT_NAME" />.
+
+0 : les utilisateurs peuvent partager le contenu de la page ou du fichier avec le <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />.
+
+1 : les utilisateurs ne peuvent pas partager le contenu de la page ou du fichier avec le <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />. Les points d'entrée pour partager le contexte et le panneau latéral sont alors désactivés ou masqués.
+
+Cette règle est ignorée lorsque la <ph name="GOOGLE_SEARCH_PRODUCT_NAME" /> n'est pas le moteur de recherche par défaut des utilisateurs, car la fonctionnalité est désactivée.
+
+Cette règle est indépendante de la règle <ph name="AI_MODE_SETTINGS_POLICY_NAME" />. La règle <ph name="AI_MODE_SETTINGS_POLICY_NAME" /> ne contrôle que les points d'entrée sur l'omnibox ou le champ de recherche de la page "Nouvel onglet", tandis que cette règle contrôle le partage de contexte via le panneau latéral ou les onglets.
+
+Cette règle ne contrôle pas non plus l'intégration de <ph name="GOOGLE_GEMINI_PRODUCT_NAME" />, qui peut être désactivée par <ph name="GEMINI_SETTINGS_POLICY_NAME" />.
+
+Sachez que si <ph name="SEARCH_CONTENT_SHARING_SETTINGS_POLICY_NAME" /> est désactivée, cette règle est ignorée.
+
+Si cette règle n'est pas configurée, son comportement est déterminé par la règle <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />.
+
+Pour en savoir plus sur la gestion des données pour les fonctionnalités d'IA générative, veuillez consulter https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="6394350458541421998">Cette règle a été supprimée à partir de la version 29 de <ph name="PRODUCT_OS_NAME" />. Veuillez utiliser la règle PresentationScreenDimDelayScale à la place.</translation>
 <translation id="6397588391180665797">Signale la configuration du réseau des utilisateurs sur les appareils enregistrés.
 
@@ -10735,6 +10759,7 @@ Si cette règle est désactivée ou n'est pas configurée, les utilisateurs peuv
 
 Si la règle <ph name="ENABLE_MEDIA_ROUTER_POLICY_NAME" /> est désactivée, elle n'a aucune incidence, et l'icône de la barre d'outils n'est pas affichée.</translation>
 <translation id="7933141401888114454">Autoriser la création de comptes utilisateurs supervisés</translation>
+<translation id="793360449603660370">Autoriser le partage intelligent d'onglets avec les intégrations du <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />.</translation>
 <translation id="793473937901685727">Définir la disponibilité des certificats pour les applications ARC</translation>
 <translation id="7936302526928951356">La chaîne user-agent ne figera pas la version majeure.</translation>
 <translation id="7936632434238618620">Permet de définir une liste de formats d'URL indiquant les sites pour lesquels Chrome peut sélectionner automatiquement un certificat client. Cette valeur doit être un ensemble de dictionnaires convertis en chaînes JSON, chacun d'entre eux se présentant sous la forme <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_EXAMPLE" />, où <ph name="URL_PATTERN_PLACEHOLDER" /> correspond à un schéma de paramètre de contenu. Le filtre <ph name="FILTER_PLACEHOLDER" /> limite les certificats client parmi lesquels le navigateur effectue une sélection automatique. Indépendamment du filtre, seuls les certificats correspondant à la demande de certificat du serveur sont sélectionnés. Sur Android et iOS, Chrome ne peut sélectionner que les certificats client qu'il a lui-même provisionnés. Il ne peut pas accéder aux certificats installés au niveau du système d'exploitation.

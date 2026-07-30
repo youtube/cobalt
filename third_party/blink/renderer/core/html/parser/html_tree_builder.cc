@@ -406,8 +406,8 @@ HTMLTreeBuilder::HTMLTreeBuilder(HTMLDocumentParser* parser,
   // http://www.whatwg.org/specs/web-apps/current-work/multipage/the-end.html#fragment-case
   // For efficiency, we skip step 4.2 ("Let root be a new html element with no
   // attributes") and instead use the DocumentFragment as a root node.
-  tree_.OpenElements()->PushRootNode(MakeGarbageCollected<HTMLStackItem>(
-      fragment_target, HTMLStackItem::kItemForDocumentFragmentNode));
+  tree_.OpenElements()->PushRootNode(
+      HTMLStackItem::CreateForDocumentFragment(fragment_target));
 
   if (IsA<HTMLTemplateElement>(*context_element))
     template_insertion_modes_.push_back(kTemplateContentsMode);
@@ -423,8 +423,8 @@ void HTMLTreeBuilder::FragmentParsingContext::Init(
   DCHECK(fragment_target);
   DCHECK(!fragment_target->HasChildren());
   fragment_target_ = fragment_target;
-  context_element_stack_item_ = MakeGarbageCollected<HTMLStackItem>(
-      context_element, HTMLStackItem::kItemForContextElement);
+  context_element_stack_item_ =
+      HTMLStackItem::CreateForContextElement(context_element);
 }
 
 void HTMLTreeBuilder::FragmentParsingContext::Trace(Visitor* visitor) const {

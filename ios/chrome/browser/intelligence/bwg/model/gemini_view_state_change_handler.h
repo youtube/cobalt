@@ -28,6 +28,12 @@ class GeminiViewStateChangeHandlerTarget {
   // future interactions.
   virtual void SetLastShownViewState(
       ios::provider::GeminiViewState view_state) = 0;
+
+  // Called when the user taps the Live button.
+  virtual void OnLiveButtonTapped() = 0;
+
+  // Called when the user barges in during Gemini Live session.
+  virtual void OnGeminiLiveUserDidBargeIn() = 0;
 };
 
 // Handler for the Gemini view state changes.

@@ -1559,18 +1559,18 @@ button[interestfor] {
 
 [interestfor]::interest-button {
   content: '\24D8' / '';
-  display: inline-block;
+  display: if(media(hover:hover): none; else: inline-block);
   color: inherit;
   background-color: transparent;
   box-sizing: border-box;
-  margin-inline-start: 0.25em;
-  min-block-size: max(24px, 1lh);
   min-inline-size: 24px;
+  min-block-size: max(24px, 1lh);
+  margin-inline-start: 0.25em;
+  margin-block: min(-24px, -1lh);
   text-align: center;
   user-select: none;
   cursor: help;
 }
-
 [interestfor]::interest-button:hover {
   background-color: color-mix(in lab, currentColor 10%, transparent);
 }
@@ -2473,6 +2473,19 @@ select optgroup optgroup {
 
 :-internal-overscroll-target:not(:overscroll-open) {
   interactivity: inert;
+}
+
+[overscrollarea]::backdrop,
+:-internal-overscroll-target::backdrop {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0,0,0,0.1);
+}
+
+[overscrollarea]:overscroll-open::backdrop,
+:-internal-overscroll-target:overscroll-open::backdrop {
+  display: block;
 }
 
 @supports blink-feature(CustomizableCombobox) {

@@ -232,6 +232,7 @@ class CORE_EXPORT ChromeClient : public GarbageCollected<ChromeClient> {
   virtual void UnregisterFromCommitObservation(CommitObserver*) = 0;
 
   virtual void WillCommitCompositorFrame() = 0;
+  virtual void RequestFrameWithoutVSyncFromRoot(LocalFrame& frame) {}
 
   virtual bool StartDeferringCommits(LocalFrame& main_frame,
                                      base::TimeDelta timeout,
@@ -548,6 +549,12 @@ class CORE_EXPORT ChromeClient : public GarbageCollected<ChromeClient> {
   virtual void JavaScriptChangedValue(HTMLFormControlElement&,
                                       const String& old_value,
                                       bool was_autofilled) {}
+
+  // Returns true if the given HTMLFormControlElement is eligible for Autofill
+  // by the embedder's Autofill client.
+  virtual bool IsAutofillableElement(const HTMLFormControlElement&) {
+    return false;
+  }
 
   // Input method editor related functions.
   virtual void ShowVirtualKeyboardOnElementFocus(LocalFrame&) {}

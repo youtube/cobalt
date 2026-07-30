@@ -172,7 +172,11 @@ class ProcessManager : public KeyedService,
   void IncrementLazyKeepaliveCount(const Extension* extension,
                                    Activity::Type activity_type,
                                    const std::string& extra_data);
-  void DecrementLazyKeepaliveCount(const Extension* extension,
+
+  // Decrements the keepalive count. Returns true if the specified activity was
+  // successfully matched and decremented; returns false if the activity was
+  // not found or if the keepalive count was already zero.
+  bool DecrementLazyKeepaliveCount(const Extension* extension,
                                    Activity::Type activity_type,
                                    const std::string& extra_data);
 
@@ -275,6 +279,9 @@ class ProcessManager : public KeyedService,
   }
 
   std::vector<WorkerId> GetAllWorkersIdsForTesting();
+  void ReleaseLazyKeepaliveCountForFrameForTesting(
+      content::RenderFrameHost* render_frame_host);
+  void CloseLazyBackgroundPageNowForTesting(const ExtensionId& extension_id);
 
  protected:
   // Not owned. Also used by IncognitoProcessManager.
@@ -330,7 +337,7 @@ class ProcessManager : public KeyedService,
   // Internal implementation of DecrementLazyKeepaliveCount with an
   // `extension_id` known to have a lazy background page.
   void DecrementLazyKeepaliveCount(const ExtensionId& extension_id);
-  void DecrementLazyKeepaliveCount(const ExtensionId& extension_id,
+  bool DecrementLazyKeepaliveCount(const ExtensionId& extension_id,
                                    Activity::Type activity_type,
                                    const std::string& extra_data);
 

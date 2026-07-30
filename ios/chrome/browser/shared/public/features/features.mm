@@ -385,7 +385,7 @@ bool IsIOSKeyboardAccessoryDefaultViewEnabled() {
   return base::FeatureList::IsEnabled(kIOSKeyboardAccessoryDefaultView);
 }
 
-BASE_FEATURE(kIOSKeyboardAccessoryTwoBubble, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kIOSKeyboardAccessoryTwoBubble, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsIOSKeyboardAccessoryTwoBubbleEnabled() {
   return base::FeatureList::IsEnabled(kIOSKeyboardAccessoryTwoBubble);
@@ -396,7 +396,7 @@ BASE_FEATURE_PARAM(bool,
                    kIOSKeyboardAccessoryTwoBubbleKeyboardIconParam,
                    &kIOSKeyboardAccessoryTwoBubble,
                    kIOSKeyboardAccessoryTwoBubbleKeyboardIconParamName,
-                   false);
+                   true);
 
 BASE_FEATURE(kInactiveNavigationAfterAppLaunchKillSwitch,
              "kInactiveNavigationAfterAppLaunchKillSwitch",
@@ -475,7 +475,7 @@ bool IsIOSExpandedTipsEnabled() {
   return base::FeatureList::IsEnabled(kIOSExpandedTips);
 }
 
-BASE_FEATURE(kProvisionalNotificationAlert, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kProvisionalNotificationAlert, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsProvisionalNotificationAlertEnabled() {
   return base::FeatureList::IsEnabled(kProvisionalNotificationAlert);

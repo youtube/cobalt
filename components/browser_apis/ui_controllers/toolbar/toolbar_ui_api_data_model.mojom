@@ -4,9 +4,11 @@
 
 module toolbar_ui_api.mojom;
 
+import "components/browser_apis/browser_controls/browser_controls_api_data_model.mojom";
 import "components/content_settings/core/common/content_settings_types.mojom";
 import "mojo/public/mojom/base/string16.mojom";
 import "mojo/public/mojom/base/time.mojom";
+import "skia/public/mojom/skcolor.mojom";
 import "ui/gfx/range/mojom/range.mojom";
 
 // A reference to a separately uploaded icon. See IconHandle in icon_handle.h
@@ -38,6 +40,9 @@ struct IconUpdate {
   //                that's not controlled by pen colors.
   string? icon_url_or_name;
   IconType icon_type;
+
+  // Color to apply to vector icons.
+  skia.mojom.SkColor? color;
 };
 
 // The context menu types that can be opened with ToolbarUIService's
@@ -122,12 +127,16 @@ struct OmniboxActionTextInput {
 };
 
 struct OmniboxActionKey {
-  // For now this is just key down, but will likely be more in the future.
+  // True if this is a key down event, false if it's key up.
+  bool is_key_down = true;
 
   // KeyboardEvent.key of the event; nothing else should be stored in this
   // field.
   string key;
   gfx.mojom.Range selection;
+
+  // Modifier keys held during event.
+  array<browser_controls_api.mojom.EventDispositionFlag> modifiers;
 };
 
 union OmniboxAction {
@@ -443,10 +452,16 @@ enum SecurityLevel {
   kWarning,
 };
 
+struct SecurityChipAccessibilityState {
+  mojo_base.mojom.String16 label;
+  mojo_base.mojom.String16 description;
+};
+
 struct SecurityChipState {
   IconHandle icon;
   SecurityLevel security_level;
   mojo_base.mojom.String16 text;
+  SecurityChipAccessibilityState accessibility_state;
   bool is_clickable;
   // True specifically when the text is exactly "Dangerous" (e.g. Malware). This
   // represents a higher alert state than the standard kDangerous security

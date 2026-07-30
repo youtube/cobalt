@@ -425,13 +425,13 @@ public class LocationBarMediatorTest {
     @Test
     public void testDestroyEndsInput() {
         AutocompleteInput input = mSessionState.getAutocompleteInput();
-
         mMediator.beginInput(input);
         assertTrue(mSessionState.isSessionActive());
         assertTrue(input.getRequestTypeSupplier().hasObservers());
 
         mMediator.destroy();
         assertFalse(mSessionState.isSessionActive());
+        mSessionState.destroy();
         assertFalse(input.getRequestTypeSupplier().hasObservers());
     }
 
@@ -1196,22 +1196,6 @@ public class LocationBarMediatorTest {
             // Step 4: no other actions can be taken: bail
             assertFalse(mMediator.handleEscPress());
         }
-    }
-
-    @Test
-    public void testHandleEscPress_fuseboxPopupShowing() {
-        mMediator.onFinishNativeInitialization();
-        mProfileSupplier.set(mProfile);
-        mMediator.onUrlFocusChange(true);
-
-        AutocompleteInput input = mSessionState.getAutocompleteInput();
-        input.setUserText("some text");
-
-        when(mFuseboxCoordinator.handleHidePopup()).thenReturn(true);
-
-        assertTrue(mMediator.handleEscPress());
-        verify(mFuseboxCoordinator).handleHidePopup();
-        verify(mAutocompleteCoordinator, never()).stopAutocomplete();
     }
 
     @Test
@@ -2936,5 +2920,24 @@ public class LocationBarMediatorTest {
         mMediator.deleteButtonClicked(null);
         assertEquals(AutocompleteRequestType.SEARCH, input.getRequestType());
         verify(mLocationBarLayout, atLeastOnce()).setDeleteButtonVisibility(false);
+    }
+
+    @Test
+    public void testIsKeyboardSuppressed() {
+        SettableNonNullObservableSupplier<Integer> popupStateSupplier =
+                ObservableSuppliers.createNonNull(FuseboxCoordinator.PopupState.HIDDEN);
+        doReturn(popupStateSupplier).when(mFuseboxCoordinator).getPopupStateSupplier();
+
+        // 1. Popup state is HIDDEN -> not suppressed
+        popupStateSupplier.set(FuseboxCoordinator.PopupState.HIDDEN);
+        assertFalse(mMediator.isKeyboardSuppressed());
+
+        // 2. Popup state is FLOATING -> not suppressed
+        popupStateSupplier.set(FuseboxCoordinator.PopupState.FLOATING);
+        assertFalse(mMediator.isKeyboardSuppressed());
+
+        // 3. Popup state is BOTTOM -> suppressed
+        popupStateSupplier.set(FuseboxCoordinator.PopupState.BOTTOM);
+        assertTrue(mMediator.isKeyboardSuppressed());
     }
 }

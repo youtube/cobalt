@@ -1585,6 +1585,10 @@ void WebFrameWidgetImpl::SetBackgroundColor(SkColor color) {
       SkColor4f::FromColor(color));
 }
 
+void WebFrameWidgetImpl::SendEarlyFinalBeginMainFrame() {
+  widget_base_->LayerTreeHost()->RequestImmediateBeginMainFrame();
+}
+
 void WebFrameWidgetImpl::SetOverscrollBehavior(
     const cc::OverscrollBehavior& overscroll_behavior) {
   if (!View()->does_composite())
@@ -3853,8 +3857,9 @@ bool WebFrameWidgetImpl::GetSelectionBoundsInWindow(
       gfx::Rect(bounding_box_root_frame));
 
   // if the bounds are the same return false.
-  if (focus_rect_in_dips == *focus && anchor_rect_in_dips == *anchor)
+  if (focus_rect_in_dips == *focus && anchor_rect_in_dips == *anchor) {
     return false;
+  }
   *focus = focus_rect_in_dips;
   *anchor = anchor_rect_in_dips;
   *bounding_box = bounding_box_in_dips;
@@ -4766,10 +4771,15 @@ void WebFrameWidgetImpl::CalculateSelectionBounds(
   if (bounding_box_in_root_frame) {
     Range* range =
         CreateRange(selection.GetSelectionInDOMTree().ComputeRange());
-    const gfx::Rect bounding_box = ToEnclosingRect(range->BoundingRect());
+    // This bounding box is in CSS pixels.
+    // TODO(https://issues.chromium.org/515746975) : BoundingRect should be in
+    // DIPs.
+    gfx::RectF bounding_box = range->BoundingRect();
+    bounding_box.Scale(local_frame->LayoutZoomFactor());
+    const gfx::Rect bounding_box_rect = ToEnclosingRect(bounding_box);
     range->Dispose();
     *bounding_box_in_root_frame = visual_viewport.RootFrameToViewport(
-        local_frame->View()->ConvertToRootFrame(bounding_box));
+        local_frame->View()->ConvertToRootFrame(bounding_box_rect));
   }
 }
 

@@ -188,7 +188,6 @@
 #import "ios/chrome/browser/phone_number/ui_bundled/country_code_picker_coordinator.h"
 #import "ios/chrome/browser/picture_in_picture/coordinator/picture_in_picture_coordinator.h"
 #import "ios/chrome/browser/picture_in_picture/public/picture_in_picture_configuration.h"
-#import "ios/chrome/browser/plus_addresses/coordinator/plus_address_bottom_sheet_coordinator.h"
 #import "ios/chrome/browser/popup_menu/coordinator/popup_menu_coordinator.h"
 #import "ios/chrome/browser/prerender/model/prerender_browser_agent.h"
 #import "ios/chrome/browser/prerender/model/prerender_browser_agent_delegate.h"
@@ -565,9 +564,6 @@ const char kChromeAppStoreUrl[] =
     CardUnmaskAuthenticationCoordinator* cardUnmaskAuthenticationCoordinator;
 
 @property(nonatomic, strong)
-    PlusAddressBottomSheetCoordinator* plusAddressBottomSheetCoordinator;
-
-@property(nonatomic, strong)
     AutofillEditProfileCoordinator* autofillEditProfileCoordinator;
 
 @property(nonatomic, strong)
@@ -884,8 +880,11 @@ const char kChromeAppStoreUrl[] =
         [LayoutGuideCenterForBrowser(self.browser)
             referencedViewUnderName:kTabGridBottomToolbarGuide];
     if (IsChromeNextIaEnabled()) {
-      // On iPad, the bottom toolbar is not present so return 0 offset.
-      if (!IsSplitToolbarMode(self.viewController)) {
+      // On iPad, or if the bottom toolbar view is not yet installed in the
+      // active window hierarchy, return 0 offset to avoid undefined coordinate
+      // conversions.
+      if (!IsSplitToolbarMode(self.viewController) ||
+          !tabGridBottomToolbarView.window) {
         return 0;
       }
       CGPoint originOfBottomToolbar =
@@ -926,8 +925,9 @@ const char kChromeAppStoreUrl[] =
   UIView* bottomToolbar = [LayoutGuideCenterForBrowser(self.browser)
       referencedViewUnderName:kSecondaryToolbarGuide];
   if (IsChromeNextIaEnabled()) {
-    // On iPad, the bottom toolbar is not present so return 0 offset.
-    if (!IsSplitToolbarMode(self.viewController)) {
+    // On iPad, or if the bottom toolbar view is not yet installed in the active
+    // window hierarchy (e.g. when bottom omnibox is disabled), return 0 offset.
+    if (!IsSplitToolbarMode(self.viewController) || !bottomToolbar.window) {
       return 0;
     }
     CGPoint originOfBottomToolbar = [bottomToolbar convertPoint:CGPointZero
@@ -1856,9 +1856,6 @@ const char kChromeAppStoreUrl[] =
   [self.cardUnmaskAuthenticationCoordinator stop];
   self.cardUnmaskAuthenticationCoordinator = nil;
 
-  [self.plusAddressBottomSheetCoordinator stop];
-  self.plusAddressBottomSheetCoordinator = nil;
-
   [self dismissSaveCardBottomSheet];
 
   [self.virtualCardEnrollmentBottomSheetCoordinator stop];
@@ -2410,14 +2407,6 @@ const char kChromeAppStoreUrl[] =
   }
 }
 
-- (void)showPlusAddressesBottomSheet {
-  self.plusAddressBottomSheetCoordinator =
-      [[PlusAddressBottomSheetCoordinator alloc]
-          initWithBaseViewController:self.viewController
-                             browser:self.browser];
-  [self.plusAddressBottomSheetCoordinator start];
-}
-
 - (void)showSaveCardBottomSheetOnOriginWebState:(web::WebState*)originWebState {
   if (self.saveCardBottomSheetCoordinator) {
     [self.saveCardBottomSheetCoordinator stop];
@@ -2932,11 +2921,6 @@ const char kChromeAppStoreUrl[] =
   self.cardUnmaskAuthenticationCoordinator = nil;
 }
 
-- (void)dismissPlusAddressBottomSheet {
-  [self.plusAddressBottomSheetCoordinator stop];
-  self.plusAddressBottomSheetCoordinator = nil;
-}
-
 - (void)dismissVirtualCardEnrollmentBottomSheet {
   [self.virtualCardEnrollmentBottomSheetCoordinator stop];
   self.virtualCardEnrollmentBottomSheetCoordinator = nil;
@@ -3194,9 +3178,6 @@ const char kChromeAppStoreUrl[] =
 
   [self.paymentsSuggestionBottomSheetCoordinator stop];
   self.paymentsSuggestionBottomSheetCoordinator = nil;
-
-  [self.plusAddressBottomSheetCoordinator stop];
-  self.plusAddressBottomSheetCoordinator = nil;
 
   [self dismissSaveCardBottomSheet];
 
@@ -3918,7 +3899,7 @@ const char kChromeAppStoreUrl[] =
   // isn't visible.
   // TODO(crbug.com/476145805): Move WebState related checks to tab helper.
   bool isWebStateVisible = self.activeWebState->IsVisible();
-  if (!isWebStateVisible) {
+  if (!isWebStateVisible && !IsChromeNextIaEnabled()) {
     geminiTabHelper->UpdatePresentedSource(source, /*is_presented=*/false);
     geminiBrowserAgent->HideFloatyIfInvoked(
         animated, gemini::FloatyUpdateSource::IneligibleSite);

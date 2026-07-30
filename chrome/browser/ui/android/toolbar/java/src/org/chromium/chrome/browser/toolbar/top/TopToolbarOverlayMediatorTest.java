@@ -28,11 +28,13 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
+import org.chromium.base.ContextUtils;
 import org.chromium.base.MathUtils;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.chrome.R;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsOffsetTagsInfo;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider.ControlsPosition;
@@ -50,7 +52,7 @@ import org.chromium.ui.modelutil.PropertyModel;
 public class TopToolbarOverlayMediatorTest {
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
-    @Mock private Context mContext;
+    private Context mContext;
     @Mock private LayoutStateProvider mLayoutStateProvider;
     @Mock private BrowserControlsStateProvider mBrowserControlsStateProvider;
     @Mock private ToolbarThemeColorProvider mToolbarThemeColorProvider;
@@ -59,9 +61,12 @@ public class TopToolbarOverlayMediatorTest {
     @Mock private ToolbarProgressBar mProgressBar;
 
     @Captor private ArgumentCaptor<TabObserver> mTabObserverCaptor;
+
     @Captor
     private ArgumentCaptor<BrowserControlsStateProvider.Observer> mBrowserControlsObserverCaptor;
+
     @Captor private ArgumentCaptor<LayoutStateProvider.LayoutStateObserver> mLayoutObserverCaptor;
+
     @Captor
     private ArgumentCaptor<ClipDrawableProgressBar.ProgressBarObserver> mProgressBarObserverCaptor;
 
@@ -78,6 +83,8 @@ public class TopToolbarOverlayMediatorTest {
 
     @Before
     public void beforeTest() {
+        mContext = ContextUtils.getApplicationContext();
+        mContext.setTheme(R.style.Theme_BrowserUI_DayNight);
         TopToolbarOverlayMediator.setToolbarBackgroundColorForTesting(Color.RED);
         TopToolbarOverlayMediator.setUrlBarColorForTesting(Color.BLUE);
         TopToolbarOverlayMediator.setIsTabletForTesting(false);
@@ -120,6 +127,7 @@ public class TopToolbarOverlayMediatorTest {
         verify(mTab).addObserver(mTabObserverCaptor.capture());
         verify(mBrowserControlsStateProvider).addObserver(mBrowserControlsObserverCaptor.capture());
         verify(mLayoutStateProvider).addObserver(mLayoutObserverCaptor.capture());
+        verify(mToolbarThemeColorProvider).addThemeColorObserver(mMediator);
 
         mLayoutObserverCaptor.getValue().onStartedShowing(LayoutType.BROWSING);
     }
@@ -367,6 +375,7 @@ public class TopToolbarOverlayMediatorTest {
 
         mMediator.destroy();
 
+        verify(mToolbarThemeColorProvider).removeThemeColorObserver(mMediator);
         assertFalse(mTabSupplier.hasObservers());
         assertFalse(mBottomToolbarControlsOffsetSupplier.hasObservers());
         assertFalse(mSuppressToolbarSceneLayerSupplier.hasObservers());
@@ -448,5 +457,59 @@ public class TopToolbarOverlayMediatorTest {
                 700.0f,
                 mModel.get(TopToolbarOverlayProperties.LEGACY_CONTENT_OFFSET),
                 MathUtils.EPSILON);
+    }
+
+    @Test
+    public void testOffsetTagDuringHeightAnimation() {
+        BrowserControlsOffsetTagsInfo originalOffsetTag = new BrowserControlsOffsetTagsInfo();
+        mMediator.updateOffsetTag(originalOffsetTag);
+
+        // Set position to BOTTOM.
+        doReturn(ControlsPosition.BOTTOM).when(mBrowserControlsStateProvider).getControlsPosition();
+        mBrowserControlsObserverCaptor
+                .getValue()
+                .onControlsPositionChanged(ControlsPosition.BOTTOM);
+
+        // Verify initial state is set to bottom tag.
+        assertEquals(
+                originalOffsetTag.getBottomControlsOffsetTag(),
+                mModel.get(TopToolbarOverlayProperties.TOOLBAR_OFFSET_TAG));
+
+        // Trigger bottom controls height animation started.
+        mBrowserControlsObserverCaptor.getValue().onBottomControlsHeightAnimationStarted();
+
+        // Verify the tag in mModel is cleared (null) during animation.
+        assertNull(mModel.get(TopToolbarOverlayProperties.TOOLBAR_OFFSET_TAG));
+
+        // Trigger tag/constraint change during animation.
+        BrowserControlsOffsetTagsInfo newOffsetTag = new BrowserControlsOffsetTagsInfo();
+        mBrowserControlsObserverCaptor
+                .getValue()
+                .onOffsetTagsInfoChanged(null, newOffsetTag, 0, false);
+
+        // Verify the model tag remains null during animation (it is not prematurely overwritten).
+        assertNull(mModel.get(TopToolbarOverlayProperties.TOOLBAR_OFFSET_TAG));
+
+        // Trigger bottom controls height animation ended.
+        mBrowserControlsObserverCaptor.getValue().onBottomControlsHeightAnimationEnded();
+
+        // Verify the tag in mModel is restored to the latest tag (newOffsetTag) after animation.
+        assertEquals(
+                newOffsetTag.getBottomControlsOffsetTag(),
+                mModel.get(TopToolbarOverlayProperties.TOOLBAR_OFFSET_TAG));
+    }
+
+    @Test
+    public void testThemeColorChanged() {
+        // Clear testing overrides to allow mock invocation
+        TopToolbarOverlayMediator.setToolbarBackgroundColorForTesting(null);
+        TopToolbarOverlayMediator.setUrlBarColorForTesting(null);
+
+        int color = Color.GREEN;
+        when(mToolbarThemeColorProvider.getToolbarBackgroundColor(mTab)).thenReturn(color);
+
+        mMediator.onThemeColorChanged(color, false);
+
+        assertEquals(color, mModel.get(TopToolbarOverlayProperties.TOOLBAR_BACKGROUND_COLOR));
     }
 }

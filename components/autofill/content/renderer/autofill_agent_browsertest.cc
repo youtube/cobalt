@@ -23,14 +23,14 @@
 #include "base/test/gmock_callback_support.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
+#include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "components/autofill/content/common/mojom/autofill_driver.mojom.h"
 #include "components/autofill/content/renderer/autofill_agent_test_api.h"
 #include "components/autofill/content/renderer/autofill_renderer_test.h"
 #include "components/autofill/content/renderer/form_autofill_util.h"
-#include "components/autofill/content/renderer/form_tracker.h"
-#include "components/autofill/content/renderer/form_tracker_test_api.h"
 #include "components/autofill/content/renderer/test_utils.h"
 #include "components/autofill/core/common/aliases.h"
 #include "components/autofill/core/common/autofill_features.h"
@@ -56,6 +56,7 @@
 #include "third_party/blink/public/web/web_option_element.h"
 #include "third_party/blink/public/web/web_select_element.h"
 #include "third_party/blink/public/web/web_view.h"
+#include "v8/include/v8.h"
 
 namespace autofill {
 
@@ -102,15 +103,6 @@ class MockAutofillAgent : public AutofillAgent {
   }
 };
 
-class MockFormTracker : public FormTracker {
- public:
-  using FormTracker::FormTracker;
-  MOCK_METHOD(void,
-              ElementDisappeared,
-              (const blink::WebElement& element),
-              (override));
-};
-
 template <typename... Args>
 auto FieldsAre(Args&&... matchers) {
   return Property("FormData::fields", &FormData::fields,
@@ -142,19 +134,9 @@ auto HasButtonTitles(ButtonTitleList titles) {
                   std::move(titles));
 }
 
-auto HasFieldIdAttribute(std::u16string id_attribute) {
-  return Property("FormFieldData::id_attribute", &FormFieldData::id_attribute,
-                  std::move(id_attribute));
-}
-
 auto HasSelectedText(std::u16string selected_text) {
   return Property("FormFieldData::selected_text", &FormFieldData::selected_text,
                   selected_text);
-}
-
-auto HasValue(std::u16string value) {
-  return Property("FormFieldData::value", &FormFieldData::value,
-                  std::move(value));
 }
 
 // Matches a FormData with |num| FormData::fields.
@@ -188,15 +170,6 @@ void EnablePlatformAutofillForFrame(content::RenderFrame* render_frame) {
 // TODO(crbug.com/41268731): Add many more test cases.
 class AutofillAgentTest : public test::AutofillRendererTest {
  public:
-  void SetUp() override {
-    test::AutofillRendererTest::SetUp();
-    std::unique_ptr<MockFormTracker> tracker =
-        std::make_unique<MockFormTracker>(
-            GetMainRenderFrame(), autofill_agent(), password_autofill_agent());
-    tracker->SetUserGestureRequired(FormTracker::UserGestureRequired(true));
-    test_api(autofill_agent()).set_form_tracker(std::move(tracker));
-  }
-
   FormRendererId GetFormRendererIdById(std::string_view id) {
     return form_util::GetFormRendererId(GetWebElementById(id));
   }
@@ -233,13 +206,6 @@ class AutofillAgentTest : public test::AutofillRendererTest {
     SimulatePointRightClick(
         GetWebElementById(target).BoundsInWidget().CenterPoint());
     task_environment_.RunUntilIdle();
-  }
-
-  FormTracker& form_tracker() {
-    return test_api(autofill_agent()).form_tracker();
-  }
-  MockFormTracker& mock_form_tracker() {
-    return static_cast<MockFormTracker&>(form_tracker());
   }
 
   std::vector<FormFieldData::FillData> GetFillData(
@@ -857,11 +823,11 @@ TEST_F(AutofillAgentTest,
     first_input = form.querySelectorAll('input')[0];
     first_input.id = 'new_name'
   )");
-  base::test::RunUntil([&] {
+  EXPECT_TRUE(base::test::RunUntil([&] {
     return !test_api(autofill_agent())
                 .process_forms_after_dynamic_change_timer()
                 .IsRunning();
-  });
+  }));
 
   ASSERT_EQ(num_extracted_forms(), 1u);
   ASSERT_EQ(extracted_forms.rbegin()->second->fields().size(), 1u);
@@ -890,11 +856,11 @@ TEST_F(AutofillAgentTest,
     second_input.id = 'new_field';
     form.appendChild(second_input);
   )");
-  base::test::RunUntil([&] {
+  EXPECT_TRUE(base::test::RunUntil([&] {
     return !test_api(autofill_agent())
                 .process_forms_after_dynamic_change_timer()
                 .IsRunning();
-  });
+  }));
 
   ASSERT_EQ(num_extracted_forms(), 1u);
   // The added input should be visible in the cache now.
@@ -918,11 +884,11 @@ TEST_F(AutofillAgentTest, DynamicElementNotificationFiltering_AddForm) {
     second_form.appendChild(input);
     document.body.appendChild(second_form);
   )");
-  base::test::RunUntil([&] {
+  EXPECT_TRUE(base::test::RunUntil([&] {
     return !test_api(autofill_agent())
                 .process_forms_after_dynamic_change_timer()
                 .IsRunning();
-  });
+  }));
 
   ASSERT_EQ(num_extracted_forms(), 2u);
 }
@@ -1077,385 +1043,6 @@ INSTANTIATE_TEST_SUITE_P(
       return info.param.test_name;
     });
 
-class AutofillAgentSubmissionTest : public AutofillAgentTest,
-                                    public testing::WithParamInterface<int> {
- public:
-  AutofillAgentSubmissionTest() {
-    EXPECT_LE(GetParam(), 3);
-    std::vector<base::test::FeatureRef> features = {
-        features::kAutofillFixFormTracking,
-        features::kAutofillReplaceCachedWebElementsByRendererIds,
-        features::kAutofillReplaceFormElementObserver};
-
-    std::vector<base::test::FeatureRef> enabled_features(
-        features.begin(), features.begin() + GetParam());
-    std::vector<base::test::FeatureRef> disabled_features(
-        features.begin() + GetParam(), features.end());
-    scoped_feature_list_.InitWithFeatures(enabled_features, disabled_features);
-  }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-INSTANTIATE_TEST_SUITE_P(AutofillSubmissionTest,
-                         AutofillAgentSubmissionTest,
-                         ::testing::Values(0, 1, 2, 3));
-
-// Test that AutofillAgent::JavaScriptChangedValue updates the
-// last interacted saved state.
-TEST_P(AutofillAgentSubmissionTest,
-       JavaScriptChangedValueUpdatesLastInteractedSavedState) {
-  if (!base::FeatureList::IsEnabled(
-          features::kAutofillReplaceFormElementObserver)) {
-    GTEST_SKIP();
-  }
-  LoadHTML(R"(<form id="form_id"><input id="text_id"></form>)");
-
-  blink::WebFormElement form =
-      GetWebElementById("form_id").DynamicTo<blink::WebFormElement>();
-  FormRendererId form_id = form_util::GetFormRendererId(form);
-
-  ExecuteJavaScriptForTests(
-      R"(document.forms[0].elements[0].value = 'js_set_value';)");
-  std::optional<FormData> provisionally_saved_form =
-      test_api(form_tracker()).provisionally_saved_form();
-  // Since we do not have a tracked form yet, the JS call should not update (in
-  // this case set) the last interacted form.
-  ASSERT_FALSE(provisionally_saved_form.has_value());
-
-  SimulateUserInputChangeForElementById("text_id", "user_set_value");
-  provisionally_saved_form =
-      test_api(form_tracker()).provisionally_saved_form();
-  ASSERT_TRUE(provisionally_saved_form.has_value());
-  EXPECT_EQ(provisionally_saved_form->renderer_id(), form_id);
-  ASSERT_EQ(1u, provisionally_saved_form->fields().size());
-  EXPECT_EQ(u"user_set_value", provisionally_saved_form->fields()[0].value());
-
-  ExecuteJavaScriptForTests(
-      R"(document.forms[0].elements[0].value = 'js_set_value';)");
-  provisionally_saved_form =
-      test_api(form_tracker()).provisionally_saved_form();
-  // Since we now have a tracked form and JS modified the same form, we should
-  // see the JS modification reflected in the last interacted saved form.
-  ASSERT_TRUE(provisionally_saved_form.has_value());
-  EXPECT_EQ(provisionally_saved_form->renderer_id(), form_id);
-  ASSERT_EQ(1u, provisionally_saved_form->fields().size());
-  EXPECT_EQ(u"js_set_value", provisionally_saved_form->fields()[0].value());
-  EXPECT_EQ(u"user_set_value",
-            provisionally_saved_form->fields()[0].user_input());
-}
-
-// Test that AutofillAgent::ApplyFormAction(mojom::ActionPersistence::kFill)
-// updates the last interacted saved state when the <input>s have no containing
-// <form>.
-TEST_P(AutofillAgentSubmissionTest,
-       FormlessApplyFormActionUpdatesLastInteractedSavedState) {
-  LoadHTML(R"(
-    <input id="text_id">
-  )");
-
-  blink::WebFormControlElement field =
-      GetWebElementById("text_id").DynamicTo<blink::WebFormControlElement>();
-  ASSERT_TRUE(field);
-
-  FormFieldData form_field;
-  form_util::WebFormControlElementToFormFieldForTesting(
-      blink::WebFormElement(), field, &autofill_agent().field_data_manager(),
-      &form_field);
-
-  form_field.set_value(u"autofilled");
-  form_field.set_is_autofilled_according_to_renderer(true);
-
-  ASSERT_EQ(field.GetAutofillState(), blink::WebAutofillState::kNotFilled);
-  FormData form;
-  form.set_fields({form_field});
-  autofill_agent().ApplyFieldsAction(
-      mojom::FormActionType::kFill, mojom::ActionPersistence::kFill,
-      GetFillData(form.fields()), FillId::Create(),
-      /*supports_refill=*/false);
-  ASSERT_EQ(field.GetAutofillState(), blink::WebAutofillState::kAutofilled);
-
-  std::optional<FormData> provisionally_saved_form =
-      test_api(form_tracker()).provisionally_saved_form();
-  ASSERT_TRUE(provisionally_saved_form.has_value());
-  ASSERT_EQ(1u, provisionally_saved_form->fields().size());
-  EXPECT_EQ(u"autofilled", provisionally_saved_form->fields()[0].value());
-}
-
-// Test that AutofillAgent::ApplyFormAction(mojom::ActionPersistence::kFill)
-// updates the last interacted saved state when the <input>s have a containing
-// <form>.
-TEST_P(AutofillAgentSubmissionTest,
-       FormApplyFormActionUpdatesLastInteractedSavedState) {
-  LoadHTML(R"(
-    <form id="form_id">
-      <input id="text_id">
-    </form>
-  )");
-
-  blink::WebFormElement form_element =
-      GetWebElementById("form_id").DynamicTo<blink::WebFormElement>();
-  ASSERT_EQ(1u, form_element.GetFormControlElements().size());
-  blink::WebFormControlElement field = form_element.GetFormControlElements()[0];
-  ASSERT_TRUE(field);
-  ASSERT_EQ("text_id", field.GetIdAttribute().Ascii());
-
-  FormData form = *form_util::ExtractFormData(
-      form_element.GetDocument(), form_element,
-      *base::MakeRefCounted<FieldDataManager>(), kCallTimerStateDummy,
-      /*button_titles_cache=*/nullptr);
-
-  ASSERT_EQ(1u, form.fields().size());
-  test_api(form).field(0).set_value(u"autofilled");
-  test_api(form).field(0).set_is_autofilled_according_to_renderer(true);
-
-  ASSERT_EQ(field.GetAutofillState(), blink::WebAutofillState::kNotFilled);
-  autofill_agent().ApplyFieldsAction(
-      mojom::FormActionType::kFill, mojom::ActionPersistence::kFill,
-      GetFillData(form.fields()), FillId::Create(),
-      /*supports_refill=*/false);
-  ASSERT_EQ(field.GetAutofillState(), blink::WebAutofillState::kAutofilled);
-
-  std::optional<FormData> provisionally_saved_form =
-      test_api(form_tracker()).provisionally_saved_form();
-  ASSERT_TRUE(provisionally_saved_form.has_value());
-  ASSERT_EQ(1u, provisionally_saved_form->fields().size());
-  EXPECT_EQ(u"autofilled", provisionally_saved_form->fields()[0].value());
-}
-
-TEST_P(AutofillAgentSubmissionTest,
-       HideElementTriggersFormTracker_DisplayNone) {
-  LoadHTML(R"(
-    <form id="form_id">
-      <input id="field_id">
-    </form>
-  )");
-  blink::WebElement element = GetWebElementById("field_id");
-
-  EXPECT_CALL(mock_form_tracker(), ElementDisappeared(element));
-  ExecuteJavaScriptForTests(
-      R"(document.forms[0].elements[0].style.display = 'none';)");
-  GetWebFrameWidget()->UpdateAllLifecyclePhases(
-      blink::DocumentUpdateReason::kTest);
-}
-
-TEST_P(AutofillAgentSubmissionTest,
-       HideElementTriggersFormTracker_VisibilityHidden) {
-  LoadHTML(R"(
-    <form id="form_id">
-      <input id="field_id">
-    </form>
-  )");
-  blink::WebElement element = GetWebElementById("field_id");
-
-  EXPECT_CALL(mock_form_tracker(), ElementDisappeared(element));
-  ExecuteJavaScriptForTests(
-      R"(document.forms[0].elements[0].style.visibility = 'hidden';)");
-  GetWebFrameWidget()->UpdateAllLifecyclePhases(
-      blink::DocumentUpdateReason::kTest);
-}
-
-TEST_P(AutofillAgentSubmissionTest, HideElementTriggersFormTracker_TypeHidden) {
-  LoadHTML(R"(
-    <form id="form_id">
-      <input id="field_id">
-    </form>
-  )");
-  blink::WebElement element = GetWebElementById("field_id");
-
-  EXPECT_CALL(mock_form_tracker(), ElementDisappeared(element));
-  ExecuteJavaScriptForTests(
-      R"(document.forms[0].elements[0].setAttribute('type', 'hidden');)");
-  GetWebFrameWidget()->UpdateAllLifecyclePhases(
-      blink::DocumentUpdateReason::kTest);
-}
-
-TEST_P(AutofillAgentSubmissionTest, HideElementTriggersFormTracker_HiddenTrue) {
-  LoadHTML(R"(
-    <form id="form_id">
-      <input id="field_id">
-    </form>
-  )");
-  blink::WebElement element = GetWebElementById("field_id");
-
-  EXPECT_CALL(mock_form_tracker(), ElementDisappeared(element));
-  ExecuteJavaScriptForTests(
-      R"(document.forms[0].elements[0].setAttribute('hidden', 'true');)");
-  GetWebFrameWidget()->UpdateAllLifecyclePhases(
-      blink::DocumentUpdateReason::kTest);
-}
-
-TEST_P(AutofillAgentSubmissionTest, HideElementTriggersFormTracker_ShadowDom) {
-  LoadHTML(R"(
-   <form id="form_id">
-    <div>
-      <template shadowrootmode="open">
-        <slot></slot>
-      </template>
-      <input id="field_id">
-    </div>
-  </form>
-  )");
-  blink::WebElement element = GetWebElementById("field_id");
-
-  EXPECT_CALL(mock_form_tracker(), ElementDisappeared(element));
-  ExecuteJavaScriptForTests(R"(field_id.slot = "unknown";)");
-  GetWebFrameWidget()->UpdateAllLifecyclePhases(
-      blink::DocumentUpdateReason::kTest);
-}
-
-// Test that an inferred form submission as a result of a page deleting ALL of
-// the <input>s (that the user has edited) on a page with no <form> sends the
-// contents of all of the fields to the browser.
-TEST_P(AutofillAgentSubmissionTest,
-       FormlessOnInferredFormSubmissionAfterXhrAndAllInputsRemoved) {
-  LoadHTML(R"(
-    <div id='shipping'>
-    Name: <input type='text' id='name'><br>
-    Address: <input type='text' id='address'>
-    </div>
-  )");
-
-  SimulateUserInputChangeForElementById("name", "Ariel");
-  SimulateUserInputChangeForElementById("address", "Atlantica");
-
-  EXPECT_CALL(autofill_driver(),
-              FormSubmitted(
-                  AllOf(FieldsAre(HasFieldIdAttribute(u"name"),
-                                  HasFieldIdAttribute(u"address")),
-                        FieldsAre(HasValue(u"Ariel"), HasValue(u"Atlantica"))),
-                  _));
-
-  // Simulate inferred form submission as a result the focused field being
-  // removed after an AJAX call.
-  ExecuteJavaScriptForTests(
-      R"(document.getElementById('shipping').innerHTML = '')");
-  form_tracker().AjaxSucceeded();
-}
-
-// Tests that an inferred form submission as a result of a page deleting ALL of
-// the <input>s that the user has edited but NOT ALL of the <inputs> on the page
-// sends the user-edited <inputs> to the browser.
-TEST_P(AutofillAgentSubmissionTest,
-       FormlessOnInferredFormSubmissionAfterXhrAndSomeInputsRemoved) {
-  LoadHTML(R"(
-    Search: <input type='text' id='search'><br>
-    <div id='shipping'>
-    Name: <input type='text' id='name'><br>
-    Address: <input type='text' id='address'>
-    </div>
-  )");
-
-  SimulateUserInputChangeForElementById("name", "Ariel");
-  SimulateUserInputChangeForElementById("address", "Atlantica");
-
-  EXPECT_CALL(autofill_driver(),
-              FormSubmitted(AllOf(FieldsAre(HasFieldIdAttribute(u"search"),
-                                            HasFieldIdAttribute(u"name"),
-                                            HasFieldIdAttribute(u"address")),
-                                  FieldsAre(HasValue(u""), HasValue(u"Ariel"),
-                                            HasValue(u"Atlantica"))),
-                            _));
-
-  // Simulate inferred form submission as a result the focused field being
-  // removed after an AJAX call.
-  ExecuteJavaScriptForTests(R"(document.getElementById('shipping').remove();)");
-  form_tracker().AjaxSucceeded();
-}
-
-// Test scenario WHERE:
-// - AutofillAgent::OnProbablyFormSubmitted() is called as a result of a page
-// navigation. AND
-// - There is no <form> element.
-// AND
-// - An <input> other than the last interacted <input> is hidden.
-// THAT
-// The edited <input>s are sent to the browser.
-TEST_P(AutofillAgentSubmissionTest,
-       FormlessOnNavigationAfterSomeInputsRemoved) {
-  LoadHTML(R"(
-    Name: <input type='text' id='name'><br>
-    Address: <input type='text' id='address'>
-  )");
-
-  SimulateUserInputChangeForElementById("name", "Ariel");
-  SimulateUserInputChangeForElementById("address", "Atlantica");
-
-  EXPECT_CALL(autofill_driver(),
-              FormSubmitted(
-                  AllOf(FieldsAre(HasFieldIdAttribute(u"name"),
-                                  HasFieldIdAttribute(u"address")),
-                        FieldsAre(HasValue(u"Ariel"), HasValue(u"Atlantica"))),
-                  _));
-
-  // Remove element that the user did not interact with last.
-  ExecuteJavaScriptForTests(R"(document.getElementById('name').remove();)");
-  // Simulate page navigation.
-  test_api(form_tracker())
-      .DidStartNavigation(blink::WebNavigationType::kWebNavigationTypeOther);
-}
-
-// Test that in the scenario that:
-// - The user autofills a form which dynamically removes -
-//   during autofill - `AutofillAgent::last_queried_element_` from the DOM
-//   hierarchy.
-// THAT
-// - Inferred form submission as a result of the page removing the <form> from
-//   the DOM hierarchy does not send fields which were removed from the DOM
-//   hierarchy at autofill time.
-TEST_P(AutofillAgentSubmissionTest,
-       OnInferredFormSubmissionAfterAutofillRemovesLastQueriedElement) {
-  LoadHTML(R"(
-    <form id="form">
-      <input id="input1">
-      <input id="input2" onchange="document.getElementById('input1').remove();">
-    </form>
-  )");
-
-  blink::WebFormElement form_element =
-      GetWebElementById("form").DynamicTo<blink::WebFormElement>();
-  ASSERT_TRUE(form_element);
-  std::optional<FormData> form = form_util::ExtractFormData(
-      GetDocument(), form_element, autofill_agent().field_data_manager(),
-      kCallTimerStateDummy, /*button_titles_cache=*/nullptr);
-  ASSERT_TRUE(form.has_value());
-
-  std::vector<blink::WebFormControlElement> field_elements =
-      form_element.GetFormControlElements();
-
-  for (const blink::WebFormControlElement& field_element : field_elements) {
-    ASSERT_EQ(field_element.GetAutofillState(),
-              blink::WebAutofillState::kNotFilled);
-  }
-
-  for (FormFieldData& field : test_api(*form).fields()) {
-    field.set_value(field.id_attribute() + u" autofilled");
-    field.set_is_autofilled_according_to_renderer(true);
-  }
-
-  // Update `AutofillAgent::last_queried_element_`.
-  static_cast<content::RenderFrameObserver*>(&autofill_agent())
-      ->FocusedElementChanged(field_elements[0]);
-
-  autofill_agent().ApplyFieldsAction(
-      mojom::FormActionType::kFill, mojom::ActionPersistence::kFill,
-      GetFillData(form->fields()), FillId::Create(),
-      /*supports_refill=*/false);
-
-  for (const blink::WebFormControlElement& field_element : field_elements) {
-    ASSERT_EQ(field_element.GetAutofillState(),
-              blink::WebAutofillState::kAutofilled);
-  }
-
-  EXPECT_CALL(autofill_driver(),
-              FormSubmitted(AllOf(FieldsAre(HasFieldIdAttribute(u"input2")),
-                                  FieldsAre(HasValue(u"input2 autofilled"))),
-                            _));
-  ExecuteJavaScriptForTests(R"(document.getElementById('form').remove();)");
-  form_tracker().AjaxSucceeded();
-}
-
 class AutofillAgentTestNavigationReset : public AutofillAgentTest {
  public:
   std::unique_ptr<AutofillAgent> CreateAutofillAgent(
@@ -1601,6 +1188,54 @@ TEST_F(AutofillAgentTestFocus, FireFocusEventsForNullElement) {
   FocusedElementChanged("contenteditable");
   checkpoint.Call("null");
   FocusedElementChanged(blink::WebElement());
+}
+
+// Tests that focusing an input element, removing it from the DOM, and then
+// shifting focus away allows the input element to be garbage collected (i.e.,
+// it doesn't leak memory via C++ persistent roots in AutofillAgent).
+TEST_F(AutofillAgentTestFocus, InputElementIsGarbageCollectedAfterRemoval) {
+  // Setup FinalizationRegistry in JS to track the element.
+  ExecuteJavaScriptForTests(R"(
+    window.element_collected = false;
+    window.registry = new FinalizationRegistry(() => {
+      window.element_collected = true;
+    });
+
+    // Create and append input.
+    window.input_element = document.createElement("input");
+    window.input_element.id = "test_leak_input";
+    document.body.appendChild(window.input_element);
+
+    // Register it.
+    window.registry.register(window.input_element, "token");
+  )");
+
+  // Focus the element using JS focus.
+  Focus("test_leak_input");
+  EXPECT_EQ(autofill_agent().last_queried_element(),
+            GetWebElementById("test_leak_input"));
+
+  // Remove the element and release JS reference.
+  ExecuteJavaScriptForTests(R"(
+    {
+      let el = document.getElementById("test_leak_input");
+      el.remove();
+    }
+    window.input_element = null; // Release JS reference.
+  )");
+
+  // Focus uneditable to trigger focus loss in AutofillAgent.
+  Focus("uneditable");
+
+  // Trigger GC and wait until the element is collected.
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    Isolate()->RequestGarbageCollectionForTesting(
+        v8::Isolate::kFullGarbageCollection);
+    int collected = 0;
+    return ExecuteJavaScriptAndReturnIntValue(
+               u"window.element_collected ? 1 : 0", &collected) &&
+           collected == 1;
+  }));
 }
 
 // This test fixture initializes the agent to use platform autofill. The agent
@@ -2022,10 +1657,8 @@ class AutofillAgentAtMemoryTest : public AutofillAgentTest {
 };
 
 TEST_F(AutofillAgentAtMemoryTest, AtMemorySearchTrigger) {
-  EXPECT_CALL(mock_form_tracker(), ElementDisappeared(_))
-      .Times(testing::AnyNumber());
-
   LoadHTML(R"(<input id="f">)");
+
   WaitForFormsSeen();
   Focus("f");
 
@@ -2502,6 +2135,114 @@ TEST_F(AutofillAgentAtMemoryInactivityNudgeTest, InactivityTriggersNudge) {
           _));
 
   task_environment_.FastForwardBy(base::Seconds(5));
+}
+
+class EmailVerificationObserverTest : public AutofillAgentTest {
+ public:
+  EmailVerificationObserverTest() = default;
+};
+
+// Tests that the verification token is injected into the token field if the
+// email field's current value still matches the verified email address.
+TEST_F(EmailVerificationObserverTest,
+       EmailVerificationObserverSharesTokenIfEmailMatches) {
+  EXPECT_CALL(autofill_driver(), FormsSeen);
+  LoadHTML(R"(<body>
+    <form id="form">
+      <input type="email" id="email" value="a@example.com">
+      <input type="hidden" id="verification" autocomplete="email-verification-token">
+    </form>
+  </body>)");
+  WaitForFormsSeen();
+
+  blink::WebFormElement form_element =
+      GetWebElementById("form").DynamicTo<blink::WebFormElement>();
+  blink::WebFormControlElement email_element =
+      GetFormControlElementById("email");
+  blink::WebFormControlElement verification_element =
+      GetFormControlElementById("verification");
+
+  autofill_agent().SendEmailVerificationToken(
+      form_util::GetFieldRendererId(email_element), "a@example.com",
+      form_util::GetFieldRendererId(verification_element), "evt_token_123");
+
+  EXPECT_CALL(autofill_driver(), OnEmailVerificationTokenShared());
+
+  test_api(autofill_agent())
+      .email_verification_observer()
+      .WillSendSubmitEvent(form_element);
+
+  EXPECT_EQ(u"evt_token_123", verification_element.Value().Utf16());
+}
+
+// Tests that the verification token is NOT injected if the email field's
+// current value has changed since verification.
+TEST_F(EmailVerificationObserverTest,
+       EmailVerificationObserverDoesNotShareTokenIfEmailChanges) {
+  EXPECT_CALL(autofill_driver(), FormsSeen);
+  LoadHTML(R"(<body>
+    <form id="form">
+      <input type="email" id="email" value="a@example.com">
+      <input type="hidden" id="verification" autocomplete="email-verification-token">
+    </form>
+  </body>)");
+  WaitForFormsSeen();
+
+  blink::WebFormElement form_element =
+      GetWebElementById("form").DynamicTo<blink::WebFormElement>();
+  blink::WebFormControlElement email_element =
+      GetFormControlElementById("email");
+  blink::WebFormControlElement verification_element =
+      GetFormControlElementById("verification");
+
+  autofill_agent().SendEmailVerificationToken(
+      form_util::GetFieldRendererId(email_element), "a@example.com",
+      form_util::GetFieldRendererId(verification_element), "evt_token_123");
+
+  email_element.SetValue(blink::WebString::FromUtf16(u"b@example.com"));
+
+  EXPECT_CALL(autofill_driver(), OnEmailVerificationTokenShared()).Times(0);
+
+  test_api(autofill_agent())
+      .email_verification_observer()
+      .WillSendSubmitEvent(form_element);
+
+  EXPECT_EQ(u"", verification_element.Value().Utf16());
+}
+
+// Tests that the verification token is NOT injected if the email field has
+// been cleared since verification.
+TEST_F(EmailVerificationObserverTest,
+       EmailVerificationObserverDoesNotShareTokenIfEmailIsCleared) {
+  EXPECT_CALL(autofill_driver(), FormsSeen);
+  LoadHTML(R"(<body>
+    <form id="form">
+      <input type="email" id="email" value="a@example.com">
+      <input type="hidden" id="verification" autocomplete="email-verification-token">
+    </form>
+  </body>)");
+  WaitForFormsSeen();
+
+  blink::WebFormElement form_element =
+      GetWebElementById("form").DynamicTo<blink::WebFormElement>();
+  blink::WebFormControlElement email_element =
+      GetFormControlElementById("email");
+  blink::WebFormControlElement verification_element =
+      GetFormControlElementById("verification");
+
+  autofill_agent().SendEmailVerificationToken(
+      form_util::GetFieldRendererId(email_element), "a@example.com",
+      form_util::GetFieldRendererId(verification_element), "evt_token_123");
+
+  email_element.SetValue(blink::WebString::FromUtf16(u""));
+
+  EXPECT_CALL(autofill_driver(), OnEmailVerificationTokenShared()).Times(0);
+
+  test_api(autofill_agent())
+      .email_verification_observer()
+      .WillSendSubmitEvent(form_element);
+
+  EXPECT_EQ(u"", verification_element.Value().Utf16());
 }
 
 }  // namespace

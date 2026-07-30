@@ -392,11 +392,16 @@ constexpr CGFloat kOuterSeparatorVerticalOffset = 4;
 
 #pragma mark - ToolbarConsumer
 
+- (void)setAssistantButtonVisible:(BOOL)visible enabled:(BOOL)enabled {
+  _assistantButton.forceHidden = !visible;
+  _assistantButton.enabled = enabled;
+}
+
 - (void)setCanGoBack:(BOOL)canGoBack {
   _backButton.enabled = canGoBack;
 }
 
-- (void)setCanGoForward:(BOOL)canGoForward {
+- (void)setCanGoForward:(BOOL)canGoForward animated:(BOOL)animated {
   if (_forwardButton.enabled == canGoForward) {
     return;
   }
@@ -405,8 +410,17 @@ constexpr CGFloat kOuterSeparatorVerticalOffset = 4;
     _forwardButton.enabled = YES;
   }
 
-  // `_navigationButtonsContainer` is resized by sliding over its right edge to
-  // reveal or hide the `_forwardButton`.
+  // If no animation is requested, snap instantly.
+  if (!animated) {
+    _forwardButton.hidden = !canGoForward;
+    if (!canGoForward) {
+      _forwardButton.enabled = NO;
+    }
+    [self.view layoutIfNeeded];
+    return;
+  }
+
+  // Otherwise, do the smooth fade.
   __weak __typeof(self) weakSelf = self;
   ToolbarButton* forwardButton = _forwardButton;
   [UIView animateWithDuration:kAnimationDuration
@@ -870,6 +884,10 @@ constexpr CGFloat kOuterSeparatorVerticalOffset = 4;
 - (void)updateButtons:(NSArray<UIView*>*)buttons
     forFullscreenProgress:(CGFloat)progress {
   for (UIView* button in buttons) {
+    if (button.hidden) {
+      button.alpha = 0;
+      continue;
+    }
     if (progress > 0.99) {
       button.alpha = 1;
       button.transform = CGAffineTransformIdentity;
@@ -1255,11 +1273,17 @@ constexpr CGFloat kOuterSeparatorVerticalOffset = 4;
 
   _portraitOrientationConstraints = @[
     [_locationBarContainer.leadingAnchor
-        constraintEqualToAnchor:_leadingStackView.trailingAnchor
-                       constant:kLocationBarStackViewMarginPortrait],
-    [_locationBarContainer.trailingAnchor
-        constraintEqualToAnchor:_trailingStackView.leadingAnchor
-                       constant:-kLocationBarStackViewMarginPortrait],
+        constraintGreaterThanOrEqualToAnchor:_leadingStackView.trailingAnchor
+                                    constant:
+                                        kLocationBarStackViewMarginPortrait],
+    [_trailingStackView.leadingAnchor
+        constraintGreaterThanOrEqualToAnchor:_locationBarContainer
+                                                 .trailingAnchor
+                                    constant:
+                                        kLocationBarStackViewMarginPortrait],
+    [_locationBarContainer.centerXAnchor
+        constraintEqualToAnchor:self.view.centerXAnchor],
+    widthConstraint,
   ];
 
   CGFloat regularMargin = kLocationBarStackViewMarginRegularRegular;
@@ -1273,7 +1297,6 @@ constexpr CGFloat kOuterSeparatorVerticalOffset = 4;
                                     constant:regularMargin],
     [_locationBarContainer.centerXAnchor
         constraintEqualToAnchor:self.view.centerXAnchor],
-
     widthConstraint,
   ];
 
@@ -1315,11 +1338,11 @@ constexpr CGFloat kOuterSeparatorVerticalOffset = 4;
   [NSLayoutConstraint deactivateConstraints:_landscapeOrientationConstraints];
   [NSLayoutConstraint deactivateConstraints:_regularRegularConstraints];
 
-  if (IsRegularXRegularSizeClass(self.view.window)) {
+  if (IsRegularXRegularSizeClass(self)) {
     _leadingStackLeadingConstraint.constant = kStackViewMarginRegularRegular;
     _trailingStackTrailingConstraint.constant = kStackViewMarginRegularRegular;
     [NSLayoutConstraint activateConstraints:_regularRegularConstraints];
-  } else if (IsIPhoneLandscape(self.view.window)) {
+  } else if (IsIPhoneLandscape(self)) {
     _leadingStackLeadingConstraint.constant = kStackViewMarginLandscape;
     _trailingStackTrailingConstraint.constant = kStackViewMarginLandscape;
     [NSLayoutConstraint activateConstraints:_landscapeOrientationConstraints];
@@ -1371,8 +1394,7 @@ constexpr CGFloat kOuterSeparatorVerticalOffset = 4;
 
 // Handles assistant button tap.
 - (void)assistantButtonTapped {
-  /// TODO(crbug.com/493956100): Implement this button (iPad).
-  NOTIMPLEMENTED();
+  [self.mutator assistantButtonTapped];
 }
 
 // Handles tools menu button tap.
@@ -1404,6 +1426,9 @@ constexpr CGFloat kOuterSeparatorVerticalOffset = 4;
   }
 
   BOOL visibilityChanged = hideToolbar != self.view.isHidden;
+
+  // While browsing (non-NTP), the toolbar should be reset to be fully visible
+  // if it is not already.
   BOOL needsToolbarReset =
       !_NTPVisible &&
       (!CGAffineTransformIsIdentity(_locationBarContainer.transform) ||
@@ -1414,10 +1439,36 @@ constexpr CGFloat kOuterSeparatorVerticalOffset = 4;
     return;
   }
 
+  BOOL toolbarWillAppear = visibilityChanged && !hideToolbar;
+
+  if (toolbarWillAppear) {
+    __weak __typeof(self) weakSelf = self;
+    [UIView performWithoutAnimation:^{
+      __strong __typeof(self) strongSelf = weakSelf;
+      if (!strongSelf) {
+        return;
+      }
+      // When unhiding the toolbar (e.g. when navigating forward from the NTP
+      // when the toolbar is hidden), resolve the parent constraints instantly.
+      // This prevents a race condition with the toolbar height and prevents
+      // visual glitching where the toolbar appears initially out of place.
+      [strongSelf applyToolbarVisibility:hideToolbar
+                       needsToolbarReset:needsToolbarReset];
+      [strongSelf.view.superview layoutIfNeeded];
+    }];
+  } else {
+    [self applyToolbarVisibility:hideToolbar
+               needsToolbarReset:needsToolbarReset];
+  }
+}
+
+// Helper for `-updateToolbarVisibility`. Applies the computed toolbar
+// visibility state and resets location bar transforms and transparency if
+// needed.
+- (void)applyToolbarVisibility:(BOOL)hideToolbar
+             needsToolbarReset:(BOOL)needsToolbarReset {
   self.view.hidden = hideToolbar;
 
-  // Resets the position of the location bar and the alpha of the toolbar. While
-  // browsing (non-NTP), the toolbar should be fully visible.
   if (needsToolbarReset) {
     _locationBarContainer.transform = CGAffineTransformIdentity;
     _locationBarContainer.alpha = 1.0;

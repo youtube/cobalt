@@ -65,15 +65,17 @@ ReloadButton::ReloadButton(
                     nullptr),
       metrics_recorder_(std::make_unique<WaapUIMetricsRecorder>(profile)),
       command_updater_(command_updater),
-      reload_icon_(vector_icons::kReloadChromeRefreshOldIcon),
+      reload_icon_(features::IsRoundedIconsEnabled()
+                       ? vector_icons::kRefreshIcon
+                       : vector_icons::kReloadChromeRefreshOldIcon),
       reload_touch_icon_(features::IsRoundedIconsEnabled()
                              ? kRefreshIcon
                              : kReloadTouchOldIcon),
       stop_icon_(features::IsRoundedIconsEnabled()
-                     ? kCloseSmallIcon
+                     ? kCloseIcon
                      : kNavigateStopChromeRefreshOldIcon),
       stop_touch_icon_(features::IsRoundedIconsEnabled()
-                           ? kCloseSmallIcon
+                           ? kCloseIcon
                            : kNavigateStopTouchOldIcon),
       double_click_timer_delay_(views::GetDoubleClickInterval()),
       mode_switch_timer_delay_(base::Milliseconds(1350)),

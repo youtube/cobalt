@@ -11,6 +11,7 @@ import './pinned_toolbar_actions.js';
 import './avatar_button.js';
 import './icon_table.js';
 import './icon_from_table.js';
+import './icons.html.js';
 
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import {TrackedElementManager} from '//resources/js/tracked_element/tracked_element_manager.js';
@@ -21,7 +22,7 @@ import {HelpBubbleMixinLit} from 'chrome://resources/cr_components/help_bubble/h
 
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
-import {BrowserProxyImpl, INVALID_NAVIGATION_CONTROLS_STATE_LISTENER_HANDLE} from './browser_proxy.js';
+import {BrowserProxyImpl, EventDispositionFlag, INVALID_NAVIGATION_CONTROLS_STATE_LISTENER_HANDLE} from './browser_proxy.js';
 import type {BrowserProxy, IconUpdate, NavigationControlsState, NavigationControlsStateListenerHandle} from './browser_proxy.js';
 import {IconTable} from './icon_table.js';
 import {MetricsRecorder} from './metrics_recorder.js';
@@ -45,6 +46,8 @@ import {ContentSettingsIconsElement} from './content_settings_icons.js';
 import type {IconFromTableElement} from './icon_from_table.js';
 import {LocationBarElement} from './location_bar.js';
 import {LocationIconElement} from './location_icon.js';
+import {PointerProxyImpl} from './pointer_proxy.js';
+import type {PointerProxy} from './pointer_proxy.js';
 import {PermissionChipElement} from './permission_chip.js';
 import {ReadonlyOmniboxElement} from './readonly_omnibox.js';
 import {getClickSourceType, getContextMenuSourceType} from './toolbar_button.js';
@@ -54,6 +57,7 @@ export {
   ContentSettingIconElement,
   ContentSettingImageType,
   ContentSettingsIconsElement,
+  EventDispositionFlag,
   getClickSourceType,
   getContextMenuSourceType,
   IconTable,
@@ -66,6 +70,7 @@ export {
   PermissionChipElement,
   PermissionChipTheme,
   PermissionPromptStyle,
+  PointerProxyImpl,
   ReadonlyOmniboxElement,
   TrackedElementManager,
 };
@@ -74,6 +79,7 @@ export type {
   LocationBarState,
   OmniboxAction,
   PermissionChipState,
+  PointerProxy,
 };
 // clang-format on
 
@@ -174,6 +180,10 @@ export class ToolbarAppElement extends AppElementBase {
           icon: {handleId: 0n},
           securityLevel: 0,
           text: '',
+          accessibilityState: {
+            label: '',
+            description: '',
+          },
           isClickable: false,
           isTextDangerous: false,
           isVisible: true,

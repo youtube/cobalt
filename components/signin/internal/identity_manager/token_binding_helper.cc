@@ -25,6 +25,8 @@
 #include "base/time/time.h"
 #include "base/types/expected.h"
 #include "base/types/expected_macros.h"
+#include "components/signin/public/base/binding_key_registration_token_helper.h"
+#include "components/signin/public/base/binding_key_registration_token_result.h"
 #include "components/signin/public/base/session_binding_utils.h"
 #include "components/unexportable_keys/background_task_priority.h"
 #include "components/unexportable_keys/service_error.h"
@@ -88,7 +90,17 @@ void TokenBindingHelper::SetBindingKey(
     base::span<const uint8_t> wrapped_binding_key) {
   if (wrapped_binding_key.empty()) {
     // No need in storing an empty key, just remove the entry if any.
-    binding_keys_.erase(account_id);
+    auto it = binding_keys_.find(account_id);
+    if (it == binding_keys_.end()) {
+      return;
+    }
+
+    binding_keys_.erase(it);
+    if (binding_keys_.empty()) {
+      // Make sure that any new binding key registration starts using a new key
+      // after the latest binding key is removed.
+      registration_token_helper_.reset();
+    }
     return;
   }
 
@@ -103,6 +115,39 @@ bool TokenBindingHelper::HasBindingKey(const CoreAccountId& account_id) const {
 
 void TokenBindingHelper::ClearAllKeys() {
   binding_keys_.clear();
+  registration_token_helper_.reset();
+}
+
+void TokenBindingHelper::GenerateBindingKeyRegistrationToken(
+    std::string_view supported_algorithms,
+    std::string_view auth_code,
+    base::OnceCallback<void(
+        std::optional<signin::BindingKeyRegistrationTokenResult>)> callback) {
+  if (!registration_token_helper_) {
+    std::vector<uint8_t> wrapped_binding_key_to_reuse;
+    if (!binding_keys_.empty()) {
+      // All bound tokens are supposed to use the same key, so we're taking an
+      // arbitrary key.
+      wrapped_binding_key_to_reuse = binding_keys_.begin()->second.wrapped_key;
+    }
+    if (!wrapped_binding_key_to_reuse.empty()) {
+      // Ignore the value of `supported_algorithms` in favor of an existing
+      // binding key.
+      registration_token_helper_ =
+          std::make_unique<signin::BindingKeyRegistrationTokenHelper>(
+              *unexportable_key_service_,
+              std::move(wrapped_binding_key_to_reuse));
+    } else {
+      registration_token_helper_ =
+          std::make_unique<signin::BindingKeyRegistrationTokenHelper>(
+              *unexportable_key_service_,
+              signin::ParseSignatureAlgorithmList(supported_algorithms));
+    }
+  }
+
+  registration_token_helper_->GenerateForTokenBinding(
+      GaiaUrls::GetInstance()->oauth2_chrome_client_id(), auth_code,
+      GURL("https://accounts.google.com/accountmanager"), std::move(callback));
 }
 
 void TokenBindingHelper::GenerateBindingKeyAssertion(
@@ -178,6 +223,17 @@ void TokenBindingHelper::CopyBindingKeyFromAnotherTokenService(
   unexportable_key_service_->FromWrappedSigningKeySlowlyAsync(
       // TODO(crbug.com/455538352): Implement metrics.
       wrapped_binding_key, kTokenBindingPriority, base::DoNothing());
+}
+
+void TokenBindingHelper::PerformTokenBindingUpgrade(
+    const CoreAccountId& account_id,
+    std::string_view challenge) {
+  // TODO(crbug.com/514242898): Perform an LST upgrade after creating a
+  // registration token with the upgrade key.
+}
+
+base::WeakPtr<TokenBindingHelper> TokenBindingHelper::GetWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 TokenBindingHelper::BindingKeyData::BindingKeyData(

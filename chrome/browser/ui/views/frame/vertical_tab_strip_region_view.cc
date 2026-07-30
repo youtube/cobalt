@@ -32,8 +32,6 @@
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/hover_tab_selector.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
-#include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_service.h"
-#include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_service_feature.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/views/animations/tab_strip_animations.h"
@@ -119,9 +117,6 @@ VerticalTabStripRegionView::VerticalTabStripRegionView(
   SetPaintToLayer();
   // Because corners may be transparent, this must be set to false.
   layer()->SetFillsBoundsOpaquely(false);
-  // Because tab icons may render outside of the bounds, this must be set to
-  // true.
-  layer()->SetMasksToBounds(true);
 
   const int region_horizontal_padding =
       GetLayoutConstant(LayoutConstant::kVerticalTabStripHorizontalPadding);
@@ -541,7 +536,7 @@ void VerticalTabStripRegionView::InitializeTabStrip() {
   TabStripModel* tab_strip_model = browser_view_->browser()->GetTabStripModel();
   CHECK(tab_strip_model);
   auto drag_handler = std::make_unique<VerticalTabDragHandlerImpl>(
-      *tab_strip_model, *root_node_.get());
+      *tab_strip_model, *root_node_.get(), *this);
   drag_handler_ = drag_handler.get();
 
   CHECK(!tab_strip_controller_);

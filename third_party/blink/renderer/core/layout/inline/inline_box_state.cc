@@ -12,6 +12,7 @@
 #include "third_party/blink/renderer/core/layout/geometry/logical_size.h"
 #include "third_party/blink/renderer/core/layout/inline/inline_item_result.h"
 #include "third_party/blink/renderer/core/layout/inline/line_box_fragment_builder.h"
+#include "third_party/blink/renderer/core/layout/inline/line_info.h"
 #include "third_party/blink/renderer/core/layout/inline/line_utils.h"
 #include "third_party/blink/renderer/core/layout/layout_result.h"
 #include "third_party/blink/renderer/core/layout/layout_text_combine.h"
@@ -19,7 +20,7 @@
 #include "third_party/blink/renderer/core/layout/relative_utils.h"
 #include "third_party/blink/renderer/core/layout/svg/layout_svg_inline_text.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
-#include "third_party/blink/renderer/core/style/fit_text.h"
+#include "third_party/blink/renderer/core/style/text_fit.h"
 #include "third_party/blink/renderer/core/svg/svg_length_functions.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/shape_result_view.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/clear_collection_scope.h"
@@ -107,7 +108,7 @@ void InlineBoxState::ResetStyle(const ComputedStyle& style_ref,
 void InlineBoxState::ComputeTextMetrics(const ComputedStyle& styleref,
                                         const Font& fontref,
                                         FontBaseline ifc_baseline,
-                                        const FitTextBlockScale* scale) {
+                                        const TextFitBlockScale* scale) {
   const auto baseline_type =
       styleref.CssDominantBaseline() == EDominantBaseline::kAuto
           ? ifc_baseline
@@ -236,7 +237,7 @@ void InlineBoxState::ResetTextMetrics() {
 void InlineBoxState::EnsureTextMetrics(const ComputedStyle& styleref,
                                        const Font& fontref,
                                        FontBaseline ifc_baseline,
-                                       const FitTextBlockScale* scale) {
+                                       const TextFitBlockScale* scale) {
   if (text_metrics.IsEmpty())
     ComputeTextMetrics(styleref, fontref, ifc_baseline, scale);
 }
@@ -289,12 +290,12 @@ void InlineLayoutStateStack::Trace(Visitor* visitor) const {
 
 InlineBoxState* InlineLayoutStateStack::OnBeginPlaceItems(
     const InlineNode& node,
-    const ComputedStyle& line_style,
-    const InlineItemResults& line_items,
+    const LineInfo& line_info,
     FontBaseline baseline_type,
     bool line_height_quirk,
     bool should_scale_line_height,
     LogicalLineItems* line_box) {
+  const ComputedStyle& line_style = line_info.LineStyle();
   has_block_in_inline_ = false;
   is_svg_text_ = node.IsSvgText();
   if (stack_.empty()) {
@@ -309,8 +310,7 @@ InlineBoxState* InlineLayoutStateStack::OnBeginPlaceItems(
       box.fragment_start = line_box->size();
       if (box.needs_box_fragment) {
         DCHECK_NE(&box, stack_.data());
-        auto text_block_scale = FindTextScale(
-            should_scale_line_height, line_items, 0, stack_.size() - i - 1);
+        TextFitBlockScale text_block_scale{line_info.TextFitScale(), nullptr};
         AddBoxFragmentPlaceholder(&box, text_block_scale, line_box,
                                   baseline_type);
       }
@@ -334,17 +334,15 @@ InlineBoxState* InlineLayoutStateStack::OnBeginPlaceItems(
   // Initialize the box state for the line box.
   InlineBoxState& line_box_state = LineBoxState();
   if (line_box_state.style != &line_style ||
-      (line_style.TextFit().Type() != FitTextType::kNone &&
-       line_style.TextFit().Target() != FitTextTarget::kConsistent)) {
+      (line_style.GetTextFit().Type() != TextFitType::kNone &&
+       line_style.GetTextFit().Target() != TextFitTarget::kConsistent)) {
     line_box_state.ResetStyle(line_style, node.IsSvgText(),
                               *node.GetLayoutBox());
 
     // Use a "strut" (a zero-width inline box with the element's font and
     // line height properties) as the initial metrics for the line box.
     // https://drafts.csswg.org/css2/visudet.html#strut
-    auto text_scale = FindTextScale(should_scale_line_height, line_items,
-                                    /* start_index */ 0,
-                                    /* initial_nesting_level */ 0);
+    TextFitBlockScale text_scale{line_info.TextFitScale(), nullptr};
     line_box_state.text_fit_scale = text_scale.TotalScale(*line_box_state.font);
     if (!line_height_quirk) {
       line_box_state.ComputeTextMetrics(line_style, *line_box_state.font,
@@ -376,7 +374,7 @@ InlineBoxState* InlineLayoutStateStack::OnOpenTag(
     const InlineItem& item,
     const InlineItemResult& item_result,
     FontBaseline baseline_type,
-    const FitTextBlockScale& text_scale,
+    const TextFitBlockScale& text_scale,
     LogicalLineItems* line_box) {
   InlineBoxState* box =
       OnOpenTag(space, item, item_result, baseline_type, *line_box);
@@ -501,7 +499,7 @@ void InlineLayoutStateStack::OnBlockInInline(const FontHeight& metrics,
 // from placeholders.
 void InlineLayoutStateStack::AddBoxFragmentPlaceholder(
     InlineBoxState* box,
-    const FitTextBlockScale& text_scale,
+    const TextFitBlockScale& text_scale,
     LogicalLineItems* line_box,
     FontBaseline baseline_type) {
   DCHECK(box != stack_.data() &&

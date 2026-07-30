@@ -4,6 +4,7 @@
 
 #include "components/page_content_annotations/content/annotate_page_content_request.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -28,7 +29,9 @@
 #include "components/content_extraction/content/browser/inner_text.h"
 #include "components/history/core/browser/features.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
+#include "components/optimization_guide/content/browser/page_content_proto_util.h"
 #include "components/optimization_guide/content/browser/page_context_eligibility.h"
+#include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "components/page_content_annotations/content/annotate_page_content_request_metrics.h"
 #include "components/page_content_annotations/content/browser/page_settled_monitor.h"
 #include "components/page_content_annotations/content/page_content_extraction_service.h"
@@ -535,7 +538,7 @@ void AnnotatedPageContentRequest::RequestAnnotatedPageContentSync(
 
 std::optional<AnnotatedPageContentRequest::TriggerSource>
 AnnotatedPageContentRequest::ShouldScheduleExtraction(bool on_hide) const {
-  if (!page_content_extraction_service_->ShouldEnablePageContentExtraction()) {
+  if (!ShouldAllowPageContentExtraction()) {
     return std::nullopt;
   }
 
@@ -571,6 +574,14 @@ AnnotatedPageContentRequest::ShouldScheduleExtraction(bool on_hide) const {
       CHECK(is_hidden_);
       return TriggerSource::kOnHidden;
     }
+  } else if (base::FeatureList::IsEnabled(
+                 features::kAnnotatedPageContentExtractionOnHideFix) &&
+             on_hide) {
+    // Ignore visibility events when not configured to trigger on hide, or if
+    // the page is a PDF (which skips on-hidden triggers). This prevents
+    // triggering on hide when observers register after load is complete and the
+    // page is stable.
+    return std::nullopt;
   }
 
   if (lifecycle_ != Lifecycle::kNavigated) {
@@ -584,9 +595,9 @@ AnnotatedPageContentRequest::ShouldScheduleExtraction(bool on_hide) const {
           features::PageContentExtractionTriggeringMode::kOnLoadAndHidden;
 
   if (trigger_on_load || !on_demand_callbacks_.empty()) {
-    // TODO(b/490161242): Investigate why this check can fail and then consider
-    // re-enabling it.
-    // CHECK(!on_hide);
+    CHECK(!base::FeatureList::IsEnabled(
+              features::kAnnotatedPageContentExtractionOnHideFix) ||
+          !on_hide);
     if (!on_demand_callbacks_.empty()) {
       return TriggerSource::kOnDemand;
     }
@@ -604,8 +615,19 @@ void AnnotatedPageContentRequest::OnPageContextFetched(
   base::UmaHistogramEnumeration(
       "OptimizationGuide.PageContentExtraction.TriggerSource", trigger_source);
 
-  CHECK_EQ(stop_loading_timer_.has_value(), extraction_timer_.has_value());
+  // When using PageSettledMonitor, it's possible for the page to be considered
+  // "settled" (triggering extraction) before the browser considers it to have
+  // "stopped loading". If `DidStopLoading()` fires while an extraction is
+  // already in progress, `stop_loading_timer_` will be initialized, but
+  // `extraction_timer_` will remain null (since it is only initialized in
+  // StartExtraction if `stop_loading_timer_` already exists). In this race
+  // condition, we simply skip recording the AutomaticOnLoad latency metrics.
+  if (!use_page_settled_monitor_) {
+    CHECK_EQ(stop_loading_timer_.has_value(), extraction_timer_.has_value());
+  }
+
   if (trigger_source == TriggerSource::kOnLoad && extraction_timer_) {
+    CHECK(stop_loading_timer_);
     base::UmaHistogramTimes(
         "OptimizationGuide.PageContentExtraction.AutomaticOnLoad."
         "ExtractionLatency",
@@ -681,6 +703,11 @@ void AnnotatedPageContentRequest::OnPageContextFetched(
                                  extraction_time, is_eligible_for_server_upload,
                                  std::move(screenshot_data));
 
+  CHECK(cached_content_);
+  CHECK(cached_content_->page_content);
+
+  RecordAnnotatedPageContentMetrics(cached_content_->page_content->data);
+
   ResolveAllCallbacksWith(cached_content_);
 }
 
@@ -694,6 +721,42 @@ void AnnotatedPageContentRequest::OnInnerTextReceived(
                       base::TimeTicks::Now() - start_time);
   UMA_HISTOGRAM_CUSTOM_COUNTS("OptimizationGuide.InnerText.TotalSize2",
                               result->inner_text.length() / 1024, 10, 5000, 50);
+}
+
+void AnnotatedPageContentRequest::RecordAnnotatedPageContentMetrics(
+    const optimization_guide::proto::AnnotatedPageContent& proto) {
+  // Note: Similar structural and performance metrics are recorded globally (but
+  // without caller/client granularity) during extraction in
+  // PageContentProtoProvider.
+  //
+  // TODO(b/515360778): Consider granularizing the global metrics in
+  // PageContentProtoProvider by caller/client to avoid duplicate metrics
+  // gathering.
+  base::ThreadPool::PostTask(
+      FROM_HERE, {base::TaskPriority::BEST_EFFORT},
+      base::BindOnce(
+          [](const optimization_guide::proto::AnnotatedPageContent proto) {
+            optimization_guide::ContentNodeMetrics metrics;
+            optimization_guide::ComputeContentNodeMetrics(proto.root_node(),
+                                                          &metrics);
+
+            size_t proto_size = proto.ByteSizeLong();
+            UMA_HISTOGRAM_CUSTOM_COUNTS(
+                "OptimizationGuide.PageContentExtraction.AnnotatedPageContent."
+                "ProtoSize",
+                proto_size / 1024, 10, 5000, 50);
+            UMA_HISTOGRAM_CUSTOM_COUNTS(
+                "OptimizationGuide.PageContentExtraction.AnnotatedPageContent."
+                "NodeCount",
+                metrics.node_count, 1,
+                optimization_guide::kMaxNodeLimitForMetrics, 50);
+            UMA_HISTOGRAM_CUSTOM_COUNTS(
+                "OptimizationGuide.PageContentExtraction.AnnotatedPageContent."
+                "WordCount",
+                metrics.word_count, 1,
+                optimization_guide::kMaxWordLimitForMetrics, 50);
+          },
+          proto));
 }
 
 #if BUILDFLAG(ENABLE_PDF)
@@ -781,8 +844,18 @@ bool AnnotatedPageContentRequest::IsPdf() const {
   return web_contents()->GetContentsMimeType() == pdf::kPDFMimeType;
 }
 
+bool AnnotatedPageContentRequest::ShouldAllowPageContentExtraction() const {
+  // Setting `is_on_demand` to true when there are pending callbacks does not
+  // risk allowing automatic extractions unnecessarily because concurrent
+  // extractions are prevented by the lifecycle state machine
+  // (kScheduled/kRunning checks), and `on_demand_callbacks_` is cleared
+  // whenever an extraction completes or is cancelled.
+  return page_content_extraction_service_->ShouldEnablePageContentExtraction(
+      /*is_on_demand=*/!on_demand_callbacks_.empty());
+}
+
 bool AnnotatedPageContentRequest::ShouldAsyncWaitForExtraction() const {
-  if (!page_content_extraction_service_->ShouldEnablePageContentExtraction()) {
+  if (!ShouldAllowPageContentExtraction()) {
     return false;
   }
 
@@ -838,7 +911,15 @@ void AnnotatedPageContentRequest::GetServerUploadEligibilityAsync(
 void AnnotatedPageContentRequest::
     RefreshExtractedPageContentAndEligibilityForPage(
         GetExtractedPageContentAndEligibilityCallback callback) {
-  if (!page_content_extraction_service_->ShouldEnablePageContentExtraction()) {
+  PageContentExtractionEnablementReason enablement_source =
+      page_content_extraction_service_
+          ->GetPageContentExtractionEnablementReason(/*is_on_demand=*/true);
+
+  base::UmaHistogramEnumeration(
+      "OptimizationGuide.PageContentExtraction.OnDemand.EnabledReason",
+      enablement_source);
+
+  if (enablement_source == PageContentExtractionEnablementReason::kDisabled) {
     std::move(callback).Run(std::nullopt);
     return;
   }

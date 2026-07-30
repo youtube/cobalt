@@ -217,6 +217,9 @@ BASE_FEATURE(kIPHReadingModeKeyboardShortcutFeature,
 BASE_FEATURE(kIPHReadingModePageActionLabelFeature,
              "IPH_ReadingModePageActionLabel",
              base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kIPHReadingModePresentationModeFeature,
+             "IPH_ReadingModePresentationMode",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHReadingModeSidePanelFeature,
              "IPH_ReadingModeSidePanel",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -360,6 +363,9 @@ BASE_FEATURE(kIPHAutoDarkUserEducationMessageFeature,
 BASE_FEATURE(kIPHAutoDarkUserEducationMessageOptInFeature,
              "IPH_AutoDarkUserEducationMessageOptIn",
              base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kIPHBookmarksBarFeature,
+             "IPH_BookmarksBar",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHCCTHistory,
              "IPH_CCTHistory",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1053,6 +1059,9 @@ constinit const base::FeatureParam<std::string> kSearchPromotionArm{
 constinit const base::FeatureParam<std::string> kSearchPromotionStoreUrl{
     &kIPHSearchPromotionFeature, "store_url",
     "https://microsoftedge.microsoft.com/addons/detail/google-search-for-edge/"
+    "dakcooigljlhlgibgdfadgphfnoooacj"};
+constinit const base::FeatureParam<std::string> kSearchPromotionExtensionId{
+    &kIPHSearchPromotionFeature, "extension_id",
     "dakcooigljlhlgibgdfadgphfnoooacj"};
 constinit const base::FeatureParam<std::string> kSearchPromotionInstructionsUrl{
     &kIPHSearchPromotionFeature, "instructions_url", ""};

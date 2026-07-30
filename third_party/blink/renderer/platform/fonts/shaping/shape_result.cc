@@ -47,6 +47,7 @@
 #include "third_party/blink/renderer/platform/fonts/shaping/glyph_bounds_accumulator.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/shape_result_run.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/shape_result_spacing.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/text/text_break_iterator.h"
 #include "third_party/blink/renderer/platform/wtf/size_assertions.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
@@ -81,9 +82,15 @@ struct SameSizeAsHarfBuzzRunGlyphData {
 ASSERT_SIZE(HarfBuzzRunGlyphData, SameSizeAsHarfBuzzRunGlyphData);
 
 struct SameSizeAsRunInfo {
+  STACK_ALLOCATED();
+
+ public:
   struct GlyphDataCollection {
-    Vector<int> glyphs;
-    Vector<int> offsets;
+    STACK_ALLOCATED();
+
+   public:
+    HeapVector<int> glyphs;
+    HeapVector<int> offsets;
   } glyph_data;
   Member<void*> pointer2[2];
   int integers[5];
@@ -99,8 +106,11 @@ struct SameSizeAsShapeResultCharacterData {
 ASSERT_SIZE(ShapeResultCharacterData, SameSizeAsShapeResultCharacterData);
 
 struct SameSizeAsShapeResult {
-  Vector<int> character_position_;
-  Vector<UntracedMember<void*>, 1> runs_;
+  STACK_ALLOCATED();
+
+ public:
+  HeapVector<int> character_position_;
+  HeapVector<Member<ShapeResultRun>, 1> runs_;
   float width;
   unsigned start_index_;
   unsigned bitfields;
@@ -888,20 +898,27 @@ float ShapeResult::ForEachGraphemeClusters(const StringView& text,
     const unsigned num_glyphs = run->glyph_data_.size();
     for (unsigned i = 0; i < num_glyphs; ++i) {
       const HarfBuzzRunGlyphData& glyph_data = run->glyph_data_[i];
-      uint16_t current_character_index =
+      const uint16_t current_character_index =
           run->start_index_ + glyph_data.character_index + run_offset;
-      bool is_run_end = (i + 1 == num_glyphs);
-      bool is_cluster_end =
-          is_run_end || (run->GlyphToCharacterIndex(i + 1) + run_offset !=
-                         current_character_index);
-
-      if ((rtl && current_character_index >= to) ||
-          (!rtl && current_character_index < from)) {
+      const bool is_bounds_check_enabled =
+          RuntimeEnabledFeatures::GraphemeClusterBoundsCheckEnabled();
+      if (is_bounds_check_enabled && current_character_index >= text.length())
+          [[unlikely]] {
+        NOTREACHED();
+      }
+      if (is_bounds_check_enabled
+              ? current_character_index < from || current_character_index >= to
+              : (rtl && current_character_index >= to) ||
+                    (!rtl && current_character_index < from)) {
         advance_so_far += glyph_data.advance;
         rtl ? --cluster_start : ++cluster_start;
         continue;
       }
 
+      const bool is_run_end = (i + 1 == num_glyphs);
+      const bool is_cluster_end =
+          is_run_end || (run->GlyphToCharacterIndex(i + 1) + run_offset !=
+                         current_character_index);
       cluster_advance += glyph_data.advance;
 
       if (text.Is8Bit()) {

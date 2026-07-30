@@ -92,6 +92,9 @@ BASE_FEATURE(kCheckingNoExtensionIdInExtensionIpcs,
              "EMF_NO_EXTENSION_ID_FOR_EXTENSION_SOURCE",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kComponentExtensionAllowWorkerChromeResources,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kEnableWebHidInWebView, base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(ENABLE_DESKTOP_ANDROID_EXTENSIONS)
@@ -112,8 +115,6 @@ BASE_FEATURE(kExtensionManifestV2Unsupported, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kExtensionManifestV2ExceptionList,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kExtensionManifestV2Disabled, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kExtensionsBackgroundCompilation,
              base::FEATURE_DISABLED_BY_DEFAULT);

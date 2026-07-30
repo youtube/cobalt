@@ -74,6 +74,7 @@ import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.FuseboxLay
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.FuseboxState;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.omnibox.suggestions.action.OmniboxActionDelegateImpl;
+import org.chromium.chrome.browser.omnibox.suggestions.action.OmniboxActionInSuggest;
 import org.chromium.chrome.browser.omnibox.suggestions.header.HeaderProcessor;
 import org.chromium.chrome.browser.preloading.PreloadingFeatureMap;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -124,6 +125,7 @@ public class AutocompleteMediatorUnitTest {
     private static final int HEADER_MIN_HEIGHT = 15;
     private static final GURL PAGE_URL = new GURL("https://www.site.com/page.html");
     private static final String PAGE_TITLE = "Page Title";
+    private static final String TABS_STARTER_PACK_KEYWORD = "@tabs";
 
     public @Rule MockitoRule mMockitoRule = MockitoJUnit.rule();
 
@@ -858,6 +860,38 @@ public class AutocompleteMediatorUnitTest {
 
     @Test
     @SmallTest
+    public void onSuggestionClicked_TabsStarterPack() {
+        mMediator.onNativeInitialized();
+        mMediator.beginInput(createEmptySession());
+        mMediator
+                .getAutocompleteInputForTesting()
+                .setSiteSearchData(new SiteSearchData(TABS_STARTER_PACK_KEYWORD, "Tabs"));
+        doReturn(true).when(mOmniboxActionDelegate).switchToTab(anyInt(), any());
+        GURL url = new GURL("https://example.com");
+        AutocompleteMatch match =
+                new AutocompleteMatchBuilder()
+                        .setHasTabMatch(true)
+                        .setType(OmniboxSuggestionType.OPEN_TAB)
+                        .setActions(
+                                List.of(
+                                        new OmniboxActionInSuggest(
+                                                /* nativeInstance= */ 0,
+                                                "hint",
+                                                "acc",
+                                                /* actionType= */ 1002,
+                                                "",
+                                                /* tabId= */ 123,
+                                                /* presentationMode= */ 1)))
+                        .build();
+
+        mMediator.onSuggestionClicked(match, 0, url);
+
+        verify(mOmniboxActionDelegate).switchToTab(eq(123), eq(url));
+        verify(mAutocompleteDelegate, never()).loadUrl(any());
+    }
+
+    @Test
+    @SmallTest
     public void onSuggestionClicked_doesNotOpenInNewTab() {
         mMediator.beginInput(createEmptySession());
         GURL url = JUnitTestGURLs.BLUE_1;
@@ -904,6 +938,7 @@ public class AutocompleteMediatorUnitTest {
 
     @Test
     @SmallTest
+    @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT)
     public void onSuggestionClicked_aimIsSentSuggestionText() {
         String suggestionText = "test suggestion";
         AutocompleteMatch match =
@@ -914,7 +949,8 @@ public class AutocompleteMediatorUnitTest {
 
         mMediator.onSuggestionClicked(match, /* matchIndex= */ 0, JUnitTestGURLs.RED_1);
 
-        verify(mComposeboxQueryControllerBridge).getAimUrl(any(), eq(suggestionText), any());
+        verify(mComposeboxQueryControllerBridge)
+                .getAimUrlFromInputState(eq(JUnitTestGURLs.RED_1), eq(suggestionText), any());
         verifyNoMoreInteractions(mAutocompleteDelegate);
     }
 
@@ -1624,6 +1660,7 @@ public class AutocompleteMediatorUnitTest {
 
     @Test
     @SmallTest
+    @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT)
     public void loadTypedOmniboxText_aimUrl() {
         var session = createEmptySession();
         var autocompleteInput = session.getAutocompleteInput();
@@ -1642,7 +1679,7 @@ public class AutocompleteMediatorUnitTest {
                             return null;
                         })
                 .when(mComposeboxQueryControllerBridge)
-                .getAimUrl(any(), any(), any());
+                .getAimUrlFromInputState(any(), any(), any());
 
         AutocompleteMatch defaultMatch =
                 AutocompleteMatchBuilder.searchWithType(OmniboxSuggestionType.SEARCH_SUGGEST)
@@ -1663,6 +1700,7 @@ public class AutocompleteMediatorUnitTest {
 
     @Test
     @SmallTest
+    @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT)
     public void loadTypedOmniboxText_imageGenerationUrl() {
         var session = createEmptySession();
         var autocompleteInput = session.getAutocompleteInput();
@@ -1685,7 +1723,7 @@ public class AutocompleteMediatorUnitTest {
                             return null;
                         })
                 .when(mComposeboxQueryControllerBridge)
-                .getImageGenerationUrl(any(), any(), any());
+                .getAimUrlFromInputState(any(), any(), any());
 
         AutocompleteMatch defaultMatch =
                 AutocompleteMatchBuilder.searchWithType(OmniboxSuggestionType.SEARCH_SUGGEST)
@@ -1764,7 +1802,7 @@ public class AutocompleteMediatorUnitTest {
         mFuseboxStateSupplier.set(FuseboxState.EXPANDED);
         RobolectricUtil.runAllBackgroundAndUi();
 
-        assertFalse(mListModel.get(SuggestionListProperties.ROUND_TOP_CORNERS));
+        assertTrue(mListModel.get(SuggestionListProperties.ROUND_TOP_CORNERS));
         assertTrue(mListModel.get(SuggestionListProperties.DRAW_OVER_ANCHOR));
     }
 

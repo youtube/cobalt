@@ -7,6 +7,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "net/base/features.h"
 #include "net/base/network_anonymization_key.h"
+#include "net/base/network_handle.h"
 #include "net/base/privacy_mode.h"
 #include "net/dns/public/secure_dns_policy.h"
 #include "net/socket/socket_tag.h"
@@ -196,7 +197,8 @@ TEST(HttpStreamKeyTest, ToSpdySessionKey) {
                            PRIVACY_MODE_DISABLED, ProxyChain::Direct(),
                            SessionUsage::kDestination, SocketTag(),
                            NetworkAnonymizationKey(), SecureDnsPolicy::kAllow,
-                           /*disable_cert_verification_network_fetches=*/true));
+                           /*disable_cert_verification_network_fetches=*/true,
+                           handles::kInvalidNetworkHandle));
 }
 
 TEST(HttpStreamKeyTest, ToSpdySessionKeyWithTargetNetworkEquality) {
@@ -213,11 +215,9 @@ TEST(HttpStreamKeyTest, ToSpdySessionKeyWithTargetNetworkEquality) {
       SecureDnsPolicy::kAllow,
       /*disable_cert_network_fetches=*/true, 2);
 
-  // TODO(https://crbug.com/495684670): Update these assertions to _NE once
-  //  SpdySessionKey supports target_network.
-  ASSERT_EQ(key.CalculateSpdySessionKey(),
+  ASSERT_NE(key.CalculateSpdySessionKey(),
             target_network_1_key.CalculateSpdySessionKey());
-  ASSERT_EQ(target_network_1_key.CalculateSpdySessionKey(),
+  ASSERT_NE(target_network_1_key.CalculateSpdySessionKey(),
             target_network_2_key.CalculateSpdySessionKey());
 }
 
@@ -251,7 +251,8 @@ TEST(HttpStreamKeyTest, CalculateQuicSessionAliasKey) {
                            SessionUsage::kDestination, SocketTag(),
                            NetworkAnonymizationKey(), SecureDnsPolicy::kAllow,
                            /*require_dns_https_alpn=*/false,
-                           /*disable_cert_verification_network_fetches=*/true));
+                           /*disable_cert_verification_network_fetches=*/true,
+                           handles::kInvalidNetworkHandle));
   EXPECT_EQ(https_key.destination(), kHttpsHost);
 
   // H2 alt services should result in empty QUIC session alias keys.
@@ -276,7 +277,8 @@ TEST(HttpStreamKeyTest, CalculateQuicSessionAliasKey) {
                            SessionUsage::kDestination, SocketTag(),
                            NetworkAnonymizationKey(), SecureDnsPolicy::kAllow,
                            /*require_dns_https_alpn=*/false,
-                           /*disable_cert_verification_network_fetches=*/true));
+                           /*disable_cert_verification_network_fetches=*/true,
+                           handles::kInvalidNetworkHandle));
   EXPECT_EQ(different_origin_key.destination(), kHttpsAliasHost);
 }
 
@@ -299,10 +301,8 @@ TEST(HttpStreamKeyTest, CalculateQuicSessionAliasKeyTargetNetworkEquality) {
                     /*disable_cert_network_fetches=*/true, 2)
           .CalculateQuicSessionAliasKey();
 
-  // TODO(https://crbug.com/495684670): Update these assertions to _NE once
-  // QuicSessionAliasKey supports target_network.
-  EXPECT_EQ(key, target_network_1_key);
-  EXPECT_EQ(target_network_1_key, target_network_2_key);
+  EXPECT_NE(key, target_network_1_key);
+  EXPECT_NE(target_network_1_key, target_network_2_key);
 }
 
 }  // namespace net

@@ -81,7 +81,6 @@
 <translation id="1275718070701477396">선택됨</translation>
 <translation id="1279024913354609713">허용 안함</translation>
 <translation id="1285320974508926690">이 사이트 번역 안함</translation>
-<translation id="1287229685519872919">Google Workspace 데이터</translation>
 <translation id="1291506870746876680">사이트를 나가면 <ph name="BEGIN_BOLD" />"<ph name="SITE_NAME" />"<ph name="END_BOLD" /> 권한이 사용 안함으로 재설정됩니다.</translation>
 <translation id="1293491796138057740">정보는 <ph name="USER_EMAIL" />의 Google 월렛에 저장됩니다. Google 제품 전반에서 이 정보를 사용하여 양식을 더 빠르게 작성할 수 있습니다.</translation>
 <translation id="1293556467332435079">파일</translation>
@@ -168,7 +167,6 @@
 <translation id="1547610699249301703">비밀번호 공유</translation>
 <translation id="1554043146674176775">AI 모드 사용 중지</translation>
 <translation id="1554477036522844996">새 창</translation>
-<translation id="1554605811306591212">Google <ph name="TERMS" />, <ph name="KOREAN_LOCATION_TERMS" />, <ph name="PRIVACY_NOTICE" />이 적용됩니다. Gemini는 AI이며 인물 등에 관한 정보 제공 시 실수를 할 수 있습니다.</translation>
 <translation id="1558391695376153246">시크릿 탭 닫기</translation>
 <translation id="1565371473877914088">새 시크릿 탭</translation>
 <translation id="1567960978791353852">읽기 모드 표시</translation>
@@ -374,6 +372,7 @@
 <translation id="2251686759395008410">메뉴 → 방문 기록</translation>
 <translation id="2252378061043785266">이 사이트 표시 안 함</translation>
 <translation id="2252749852083403809"><ph name="USER_EMAIL" />의 Drive에 저장 중입니다.</translation>
+<translation id="225614027745146050">환영합니다.</translation>
 <translation id="2256933947031277845">조직에서 특정 계정으로만 로그인하도록 허용합니다.</translation>
 <translation id="2257567812274161158">동기화가 작동하지 않습니다.</translation>
 <translation id="2258326562203545455">{count,plural, =1{Google 계정({email})에 북마크를 저장할 수 있습니다.}other{Google 계정({email})에 북마크를 저장할 수 있습니다.}}</translation>
@@ -434,7 +433,6 @@
 <translation id="2468444275314013497">브라우저 문제 없음</translation>
 <translation id="2473876017985765807"><ph name="WEBSITE" /> 비밀번호는 이미 저장되어 있습니다.</translation>
 <translation id="247430852844518481">나중에 이 페이지를 다시 방문하도록 알림을 설정할 수 있습니다.</translation>
-<translation id="2478246185006364308">Google 약관</translation>
 <translation id="2479148705183875116">설정으로 이동</translation>
 <translation id="2482878487686419369">알림</translation>
 <translation id="2484459871750294497">이 기능을 사용 설정하는 방법</translation>
@@ -827,7 +825,6 @@
 <translation id="3941941395924123592">{COUNT,plural, =1{탭 {COUNT}개 닫기}other{탭 {COUNT}개 닫기}}</translation>
 <translation id="3946483119107054883">CSV로 다운로드</translation>
 <translation id="3948600256434252210">오른쪽으로 스와이프하여 시크릿 모드에서 탐색할 수 있습니다.</translation>
-<translation id="3949712484278252781">Gemini와의 대화 내용이나 <ph name="GOOGLE_WORKSPACE_DATA" />는 인적 검토자의 검토를 거치거나 생성형 AI 모델을 개선하는 데 사용되지 않습니다.</translation>
 <translation id="3950479158728806902">패스키를 자동으로 생성하여 더 빠르게 로그인</translation>
 <translation id="3950820424414687140">로그인</translation>
 <translation id="395377504920307820">계정 없이 사용</translation>
@@ -848,7 +845,6 @@
 <translation id="3994911892367422121">확인</translation>
 <translation id="3995521777587992544">페이지 로드 진행률 표시줄입니다. <ph name="EMAIL" /> 이메일이 로드되어 있습니다.</translation>
 <translation id="3997522473364371632">관리자가 비밀번호 공유를 사용 중지했습니다.</translation>
-<translation id="4000707564769984863">시청하기: <ph name="WATCH_LINK" /></translation>
 <translation id="4002066346123236978">제목</translation>
 <translation id="4004204301268239848">어느 기기에서나 사용할 수 있도록 비밀번호가 Google 계정에 저장됩니다.</translation>
 <translation id="4007463141047732631">그룹 수정</translation>
@@ -879,7 +875,6 @@
 <translation id="4129768137228347731"><ph name="ENTITY_TYPE" /> 파일을 저장할까요?</translation>
 <translation id="4133139945030148655">사용할 준비가 완료되었습니다</translation>
 <translation id="4133265950310064865">향상된 보호 모드</translation>
-<translation id="4142372594294312814">생성형 AI에 관해 반드시 알아야 할 5가지</translation>
 <translation id="4145507240503767005"><ph name="SEARCH_ENGINE_NAME" />, <ph name="SEARCH_ENGINE_DOMAIN" /></translation>
 <translation id="4147897805161313378">Google 포토</translation>
 <translation id="4148023517926189160">웹사이트에서 파일을 다운로드하여 내 캘린더에 추가하려고 합니다.</translation>
@@ -961,7 +956,6 @@
 <translation id="441218095371040430">키보드 사용</translation>
 <translation id="4415276339145661267">Google 계정 관리</translation>
 <translation id="4416582610654027550">유효한 URL을 입력하세요.</translation>
-<translation id="441868831736628555">개인정보처리방침</translation>
 <translation id="4420409367264901497">북마크 수정</translation>
 <translation id="4425365312778464779">관리 계정임</translation>
 <translation id="443008484043213881">도구</translation>
@@ -1241,7 +1235,6 @@
 <translation id="5329451663851195956">아래로 당겨 새로고침할 수 있습니다.</translation>
 <translation id="5336910966955551309">즐겨 찾는 사이트를 고정하려면 길게 탭하세요</translation>
 <translation id="5338512273860059533">로그인이 진행 중입니다.</translation>
-<translation id="5340148832014094861"><ph name="GOOGLE_TERMS" /> 및 <ph name="GEMINI_APPS_PRIVACY" />이 적용됩니다. Gemini는 AI이며, 인물 등에 관한 정보 제공 시 실수를 할 수 있습니다.</translation>
 <translation id="5343472494710226394">내 관심분야에 기반한 뉴스, 스포츠, 콘텐츠입니다.</translation>
 <translation id="5352128922772839949">파일 저장</translation>
 <translation id="5355191726083956201">향상된 보호 모드를 사용 중입니다.</translation>
@@ -1532,7 +1525,6 @@ Handoff는 설정의 일반 섹션에서도 사용 설정할 수 있으며, 이�
 <translation id="6327249202318869726">계정에서 Gemini가 사용 중지되었습니다. 자세한 내용은 관리자에게 문의하세요.</translation>
 <translation id="6331836477476466332">더 안전하고 강력한 브라우저</translation>
 <translation id="6337234675334993532">암호화</translation>
-<translation id="6337313937331295309">Gemini 앱 개인정보처리방침</translation>
 <translation id="633809752005859102">문제가 발생했습니다. 조사해 보겠습니다.</translation>
 <translation id="6339793034470834130">Web Inspector를 사용하려면 케이블을 사용해 컴퓨터에서 Safari에 연결한 다음 Develop(개발자용) 메뉴에서 iPhone에 액세스하세요. 컴퓨터에서 Safari 설정의 Advanced(고급) 섹션에 있는 Develop(개발자용) 메뉴를 사용 설정할 수 있습니다</translation>
 <translation id="6340285871011301182">부분 번역을 사용할 수 없습니다.</translation>
@@ -1812,13 +1804,13 @@ Handoff는 설정의 일반 섹션에서도 사용 설정할 수 있으며, 이�
 <translation id="7261217796641151584">그룹 공유</translation>
 <translation id="7266578100016339897">이렇게 하면 정리 상태를 유지할 수 있습니다. 설정에서 언제든지 변경할 수 있습니다</translation>
 <translation id="7272437679830969316">신원을 인증할 수 없습니다. 비밀번호가 복사되지 않았습니다.</translation>
-<translation id="7275307913765547631">대한민국 위치 서비스 약관</translation>
 <translation id="728025568708172005">둘러보기</translation>
 <translation id="7280980607183752256">이 파일은 가져올 수 없습니다.</translation>
 <translation id="7282197670900591579">시트론 테마</translation>
 <translation id="7293429513719260019">언어 선택</translation>
 <translation id="7300448350764260141">온라인 위협으로부터 보호하는 기능을 더욱 강화하세요</translation>
 <translation id="7311244614769792472">검색 결과 없음</translation>
+<translation id="7312823817809783355">내 작업</translation>
 <translation id="7313347584264171202">여기에서 시크릿 탭을 확인할 수 있습니다</translation>
 <translation id="7322186060879266048">{count,plural, =1{키보드 위에 자동 완성 옵션 {count}개가 있습니다.}other{키보드 위에 자동 완성 옵션 {count}개가 있습니다.}}</translation>
 <translation id="7328162502911382168">(<ph name="COUNT" />명)</translation>
@@ -1826,6 +1818,7 @@ Handoff는 설정의 일반 섹션에서도 사용 설정할 수 있으며, 이�
 <translation id="7345061034321640811">가져오기가 허용되지 않습니다</translation>
 <translation id="7347998088283246662">비밀번호, 방문 기록, 북마크 등을 가져오세요.</translation>
 <translation id="7352651011704765696">문제가 발생했습니다</translation>
+<translation id="7357999308187750900">모두 보기</translation>
 <translation id="7364796246159120393">파일 선택</translation>
 <translation id="736564850024123010">주소 표시줄 위치를 전환하여 맞춤 환경을 이용하세요</translation>
 <translation id="7366909168761621528">인터넷 사용 기록</translation>
@@ -1885,7 +1878,6 @@ Handoff는 설정의 일반 섹션에서도 사용 설정할 수 있으며, 이�
 <translation id="7512909159512473473">암호 입력…</translation>
 <translation id="7514365320538308">다운로드</translation>
 <translation id="7514530647142300459">Google 계정(<ph name="EMAIL" />)의 비밀번호를 계속 사용하세요.</translation>
-<translation id="7522587739845660862">사용자 위치에 관한 정보</translation>
 <translation id="7522948500476882302">파일을 다운로드할 때 1개월 후에 자동으로 삭제되도록 선택할 수 있습니다.</translation>
 <translation id="7524055474074101597">여러 앱에서 비밀번호 등의 정보에 액세스하세요.</translation>
 <translation id="7525067979554623046">만들기</translation>
@@ -1902,7 +1894,6 @@ Handoff는 설정의 일반 섹션에서도 사용 설정할 수 있으며, 이�
 <translation id="7582666837709186351">카메라를 사용하여 사진 또는 주변에 있는 텍스트를 번역하세요.</translation>
 <translation id="7582857256643797524">기기에서 사용 설정된 설정입니다</translation>
 <translation id="7583004045319035904">시크릿 탭을 잠금 해제하려면 <ph name="BIOMETRIC_AUTHENITCATION_TYPE" /> 인증을 사용하세요.</translation>
-<translation id="7588149553568293500">선택 사항에 관해 알아보기.</translation>
 <translation id="7596103009408415410">{COUNT,plural, =1{비활성 탭 {COUNT}개를 닫으시겠습니까?}other{비활성 탭 {COUNT}개를 닫으시겠습니까?}}</translation>
 <translation id="7598439272585186139">보안 강화</translation>
 <translation id="7600965453749440009"><ph name="LANGUAGE" /> 번역 안함</translation>
@@ -2028,7 +2019,6 @@ Handoff는 설정의 일반 섹션에서도 사용 설정할 수 있으며, 이�
 <translation id="7996239959906074962">설정…</translation>
 <translation id="800361585186029508">입력된 URL을 Chrome에서 엽니다.</translation>
 <translation id="8005666035647241369">이 기기의 Google 비밀번호 관리자에 저장</translation>
-<translation id="8006265839264939135">약관</translation>
 <translation id="8010488806779226127">탐색하는 동안 더 많은 작업을 할 수 있도록 지원하는 기능을 살펴보세요</translation>
 <translation id="8011489434346330032">웹 인스펙터</translation>
 <translation id="8014007212279733632">본인 인증을 완료하여 민감한 정보 자동 완성</translation>
@@ -2351,7 +2341,6 @@ Handoff는 설정의 일반 섹션에서도 사용 설정할 수 있으며, 이�
 <translation id="9066097352053395362">북마크 수정 숨기기</translation>
 <translation id="9070824521421603770">로그아웃되고 탭이 닫힙니다</translation>
 <translation id="9072837124205571418">모든 기기의 탭 그룹</translation>
-<translation id="9075970015528364598">Google AI 개선을 위해 채팅을 검토하고 사용합니다. <ph name="LEARN_ABOUT_CHOICES" /> <ph name="INFO_ABOUT_LOCATION" />도 활동과 함께 저장됩니다.</translation>
 <translation id="9081058212938299310"><ph name="USERNAME" />님의 비밀번호를 업데이트하시겠습니까?</translation>
 <translation id="9083838294503912307">모든 기기에서 동기화 및 맞춤설정하려면 동기화를 사용 설정하세요.</translation>
 <translation id="9084367296493549256">{count,plural, =1{보안을 위협할 수 있는 취약한 비밀번호가 {count}개 있습니다. 안전을 위해 지금 문제를 해결하세요.}other{보안을 위협할 수 있는 취약한 비밀번호가 {count}개 있습니다. 안전을 위해 지금 문제를 해결하세요.}}</translation>

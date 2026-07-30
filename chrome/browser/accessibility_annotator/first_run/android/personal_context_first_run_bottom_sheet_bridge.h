@@ -10,7 +10,7 @@
 #include "base/android/jni_android.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/functional/callback.h"
-#include "components/accessibility_annotator/first_run/accessibility_annotator_first_run_types.h"
+#include "components/accessibility_annotator/first_run/personal_context_first_run_types.h"
 
 namespace content {
 class WebContents;
@@ -25,7 +25,7 @@ class PersonalContextFirstRunBottomSheetBridge {
  public:
   PersonalContextFirstRunBottomSheetBridge(
       content::WebContents* web_contents,
-      base::OnceCallback<void(accessibility_annotator::InfoResult)> callback);
+      base::OnceCallback<void(NoticeResult)> callback);
 
   PersonalContextFirstRunBottomSheetBridge(
       const PersonalContextFirstRunBottomSheetBridge&) = delete;
@@ -65,7 +65,7 @@ class PersonalContextFirstRunBottomSheetBridge {
   base::android::ScopedJavaGlobalRef<jobject> java_obj_;
 
   // Callback to run when the flow completes with a result.
-  base::OnceCallback<void(accessibility_annotator::InfoResult)> callback_;
+  base::OnceCallback<void(NoticeResult)> callback_;
 };
 
 }  // namespace personal_context

@@ -21,6 +21,7 @@
 #include "components/payments/content/payment_request_converter.h"
 #include "components/payments/content/payment_request_web_contents_manager.h"
 #include "components/payments/content/secure_payment_confirmation_transaction_mode.h"
+#include "components/payments/content/secure_payment_confirmation_validation.h"
 #include "components/payments/core/error_message_util.h"
 #include "components/payments/core/error_strings.h"
 #include "components/payments/core/features.h"
@@ -42,6 +43,7 @@
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
+#include "mojo/public/cpp/bindings/message.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "services/network/public/cpp/is_potentially_trustworthy.h"
 #include "third_party/blink/public/common/features.h"
@@ -169,6 +171,42 @@ void PaymentRequest::Init(
     log_.Error(errors::kMethodNameRequired);
     ResetAndDeleteThis();
     return;
+  }
+
+  // If SPC is enabled and present, it must be the only payment method. This
+  // should be validated by the renderer, but we double check here in case of a
+  // misbehaving renderer.
+  if (base::FeatureList::IsEnabled(::features::kSecurePaymentConfirmation) &&
+      method_data.size() > 1 &&
+      std::ranges::any_of(method_data, [](const auto& datum) {
+        return datum->supported_method == methods::kSecurePaymentConfirmation;
+      })) {
+    mojo::ReportBadMessage(
+        "If present, secure-payment-confirmation must be the only payment "
+        "method");
+    ResetAndDeleteThis();
+    return;
+  }
+
+  for (const mojom::PaymentMethodDataPtr& method_data_entry : method_data) {
+    if (method_data_entry->supported_method ==
+        methods::kSecurePaymentConfirmation) {
+      // If SPC is disabled, |secure_payment_confirmation| can be null.
+      // This is valid; later on we will fail to create the SPC payment app.
+      if (!method_data_entry->secure_payment_confirmation) {
+        continue;
+      }
+
+      std::string error_message;
+      if (!IsValidSecurePaymentConfirmationRequest(
+              method_data_entry->secure_payment_confirmation, &error_message)) {
+        log_.Error(error_message);
+        mojo::ReportBadMessage("Invalid SecurePaymentConfirmationRequest: " +
+                               error_message);
+        ResetAndDeleteThis();
+        return;
+      }
+    }
   }
 
   if (!details || !details->id || !details->total) {

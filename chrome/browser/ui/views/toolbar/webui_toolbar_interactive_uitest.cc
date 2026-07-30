@@ -10,12 +10,14 @@
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/memory/weak_ptr.h"
+#include "base/observer_list.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "build/buildflag.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/themes/theme_service.h"
@@ -29,10 +31,13 @@
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
+#include "chrome/browser/ui/views/location_bar/webui_location_bar.h"
 #include "chrome/browser/ui/views/toolbar/reload_button.h"
 #include "chrome/browser/ui/views/toolbar/reload_control.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
+#include "chrome/browser/ui/views/toolbar/webui_and_views_toolbar_interactive_uitest_base.h"
 #include "chrome/browser/ui/views/toolbar/webui_reload_control.h"
+#include "chrome/browser/ui/views/toolbar/webui_test_utils.h"
 #include "chrome/browser/ui/views/toolbar/webui_toolbar_web_view.h"
 #include "chrome/browser/ui/waap/initial_web_ui_manager.h"
 #include "chrome/common/chrome_features.h"
@@ -46,20 +51,21 @@
 #include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "ui/aura/client/drag_drop_client.h"
+#include "ui/aura/client/drag_drop_client_observer.h"
+#include "ui/base/dragdrop/mojom/drag_drop_types.mojom.h"
+#include "ui/base/dragdrop/os_exchange_data.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/base/ui_base_switches.h"
-#include "ui/gfx/geometry/point.h"
-#include "ui/gfx/geometry/vector2d.h"
+#include "ui/display/screen.h"
 #include "ui/views/interaction/interaction_test_util_views.h"
 #include "ui/views/metrics.h"
 #include "ui/views/test/view_skia_gold_pixel_diff.h"
 
 namespace {
 
-DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kTabId);
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kTab2Id);
-DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kWebUIToolbarId);
 
 // An observer for reload button tests that tracks completed and committed
 // navigations.
@@ -146,45 +152,6 @@ class OnDemandHttpResponse : public net::test_server::BasicHttpResponse {
   base::WeakPtrFactory<OnDemandHttpResponse> weak_ptr_factory_{this};
 };
 
-void SetUpWebUI(const ui::ElementIdentifier& element_id,
-                ui::TrackedElement** element_out,
-                WebUIToolbarWebView** webui_toolbar_view_out,
-                views::WebView** web_view_out,
-                Browser* browser) {
-  // Wait for the WebUIToolbarWebView to be available.
-  *webui_toolbar_view_out = nullptr;
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
-    if (!browser_view || !browser_view->toolbar()) {
-      return false;
-    }
-    ToolbarButtonProvider* provider = browser_view->toolbar();
-    *webui_toolbar_view_out = provider->GetWebUIToolbarViewForTesting();
-    return *webui_toolbar_view_out != nullptr;
-  }));
-  ASSERT_TRUE(*webui_toolbar_view_out);
-
-  if (element_id == kWebUIToolbarElementIdentifier) {
-    // We already have the view, and the Basic test doesn't strictly need the
-    // TrackedElement. ElementTracker might be flaky or slow here.
-    *element_out = views::ElementTrackerViews::GetInstance()->GetElementForView(
-        *webui_toolbar_view_out);
-  } else {
-    ASSERT_TRUE(base::test::RunUntil([&]() {
-      *element_out = BrowserElements::From(browser)->GetElement(element_id);
-      return *element_out != nullptr;
-    }));
-    ASSERT_TRUE(*element_out);
-  }
-
-  ASSERT_EQ((*webui_toolbar_view_out)->children().size(), 1u);
-  *web_view_out = views::AsViewClass<views::WebView>(
-      (*webui_toolbar_view_out)->children()[0].get());
-  ASSERT_TRUE(*web_view_out);
-
-  // Wait for the WebView to finish composition.
-  content::WaitForCopyableViewInWebContents((*web_view_out)->GetWebContents());
-}
 
 }  // namespace
 
@@ -260,7 +227,7 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarPixelInteractiveUiTest, IncognitoBasic) {
 // browser tests can't mock out time, and because the WebUI logic is handled in
 // a renderer, and so updated to/from the WebUI toolbar are always asynchronous.
 class WebUIToolbarViewsInteractiveUiTest
-    : public InteractiveBrowserTest,
+    : public WebUIAndViewsToolbarInteractiveUiTestBase,
       public testing::WithParamInterface<bool> {
  public:
   WebUIToolbarViewsInteractiveUiTest() {
@@ -303,7 +270,7 @@ class WebUIToolbarViewsInteractiveUiTest
   bool IsWebUIReloadButtonEnabled() const { return GetParam(); }
 
   void SetUpOnMainThread() override {
-    InteractiveBrowserTest::SetUpOnMainThread();
+    WebUIAndViewsToolbarInteractiveUiTestBase::SetUpOnMainThread();
 
     embedded_test_server()->RegisterRequestHandler(base::BindRepeating(
         &WebUIToolbarViewsInteractiveUiTest::HandleDelayedRequest,
@@ -405,142 +372,13 @@ class WebUIToolbarViewsInteractiveUiTest
     return embedded_test_server()->GetURL(kDelayedPath);
   }
 
-  views::WebView* GetToolbarWebView() {
-    return BrowserView::GetBrowserViewForBrowser(browser())
-        ->toolbar_button_provider()
-        ->GetWebUIToolbarViewForTesting()
-        ->GetWebViewForTesting();
-  }
-
-  // Waits until the reload button is "ready" after a navigation completes -
-  // that means the reload icon is displaying, and not in the double-click
-  // timeout period. Note that since the reload button is showing, we also
-  // know the button isn't disabled, and the enable timer isn't running, since
-  // those only happen while showing the stop icon.
-  MultiStep WaitForReloadButtonReady() {
-    if (IsWebUIReloadButtonEnabled()) {
-      return WaitForJsResultAt(kWebUIToolbarId, kReloadButtonDeepQuery,
-                               "el => (!el.showStopIcon &&"
-                               "  !el.doubleClickReloadIconTimer_.isRunning())",
-                               true);
-    }
-    return PollUntil(
-        base::BindRepeating(
-            [](const ReloadButton* reload_button) {
-              return reload_button->GetVisibleMode() ==
-                         ReloadButton::Mode::kReload &&
-                     !reload_button->GetDoubleClickTimerIsRunning();
-            },
-            base::Unretained(&GetNonWebUIReloadButton())),
-        "Reload button ready");
-  }
-
-  // Waits for the reload button to show an enabled stop icon.
-  MultiStep WaitForReloadButtonStopIcon() {
-    if (IsWebUIReloadButtonEnabled()) {
-      return WaitForJsResultAt(kWebUIToolbarId, kReloadButtonDeepQuery,
-                               R"(el => (el.showStopIcon && !el.isDisabled))",
-                               true);
-    }
-    return PollUntil(base::BindRepeating(
-                         [](const ReloadButton* reload_button) {
-                           return reload_button->GetVisibleMode() ==
-                                      ReloadButton::Mode::kStop &&
-                                  reload_button->GetEnabled();
-                         },
-                         base::Unretained(&GetNonWebUIReloadButton())),
-                     "Reload button showing enabled stop icon");
-  }
-
-  // Waits for the reload button to show a disabled stop icon.
-  MultiStep WaitForReloadButtonDisabledStopIcon() {
-    if (IsWebUIReloadButtonEnabled()) {
-      return WaitForJsResultAt(kWebUIToolbarId, kReloadButtonDeepQuery,
-                               R"(el => (el.showStopIcon && el.isDisabled))",
-                               true);
-    }
-    return PollUntil(base::BindRepeating(
-                         [](const ReloadButton* reload_button) {
-                           return reload_button->GetVisibleMode() ==
-                                      ReloadButton::Mode::kStop &&
-                                  !reload_button->GetEnabled();
-                         },
-                         base::Unretained(&GetNonWebUIReloadButton())),
-                     "Reload button showing disabled stop icon");
-  }
-
   // Called at the start of reload button tests. Instruments the initial tab and
   // moves the mouse off of the reload button. See MoveMouseOffOfReloadButton()
   // for why it's a good idea to move the cursor off of the toolbar at the start
   // of reload button tests.
   MultiStep SetUpReloadButtonTest() {
-    return Steps(InstrumentTab(kTabId), InstrumentReloadButton(),
-                 MoveMouseOffOfReloadButton());
-  }
-
-  MultiStep InstrumentReloadButton() {
-    if (IsWebUIReloadButtonEnabled()) {
-      return Steps(
-          InstrumentNonTabWebView(kWebUIToolbarId, GetToolbarWebView()),
-          WaitForReloadButtonReady());
-    }
-    return WaitForReloadButtonReady();
-  }
-
-  // Moves mouse over the reload button and, if the WebUI reload button is
-  // enabled, waits for the ":hover" state to be applied to the button, since
-  // the WebUI implementation depends on that state, unlike the Views
-  // implementation, which queries the current location of the cursor instead.
-  MultiStep MoveMouseOverReloadButton() {
-    if (IsWebUIReloadButtonEnabled()) {
-      return Steps(MoveMouseTo(kWebUIToolbarId, kReloadButtonDeepQuery),
-                   WaitForReloadHover(/*hover=*/true));
-    }
-    return Steps(MoveMouseTo(kReloadButtonElementId));
-  }
-
-  // Move cursor off of the reload button, and if using the WebUI reload
-  // button, wait for the ":hover" state to be removed. This is useful because
-  // hovering over the reload button affects reload button state (e.g.,
-  // hovering when load stops will temporarily disable the button, which
-  // affects tests). No wait is necessary with the views toolbar button,
-  // because it checks the current location of the cursor, rather than relying
-  // on a state that may take a little time to update.
-  //
-  // InstrumentReloadButton() must be called before this step is run, so it
-  // can find the reload button to wait until it realizes the mouse is not
-  // hovering over it.
-  //
-  // In theory, it doesn't actually matter where the cursor as moved, as long
-  // as it's not on the reload but still on top of the browser window (to make
-  // sure simulated events are propagated). However, to remove the ":hover"
-  // state on Mac, the cursor needs to still be over the toolbar on that
-  // platform.
-  //
-  // TODO(crbug.com/503006742): Remove the use of back/forward button on Mac
-  // once this is fixed.
-  MultiStep MoveMouseOffOfReloadButton() {
-#if BUILDFLAG(IS_MAC)
-    if (IsWebUIReloadButtonEnabled()) {
-      return Steps(MoveMouseTo(kWebUIToolbarId, kBackForwardButtonDeepQuery),
-                   WaitForReloadHover(/*hover=*/false));
-    }
-#endif  // BUILDFLAG(IS_MAC)
-    return Steps(MoveMouseTo(kTabId));
-  }
-
-  // Waits for the reload button's CSS property to have / not have the
-  // ":hover" property, depending on `hover`. InstrumentReloadButton() must be
-  // called before this step is run. Step only makes sense when
-  // IsWebUIReloadButtonEnabled() is true. The Views reload button makes
-  // system calls to get the location of the cursor, so always gets the most
-  // up-to-date position.
-  MultiStep WaitForReloadHover(bool hover) {
-    CHECK(IsWebUIReloadButtonEnabled());
-    return WaitForJsResultAt(kWebUIToolbarId, kReloadButtonDeepQuery,
-                             R"(el => el.renderRoot.querySelector(
-                                'cr-icon-button')?.matches(':hover'))",
-                             hover);
+    return Steps(InstrumentToolbar(), MoveMouseOffOfReloadButton(),
+                 WaitForReloadButtonReady());
   }
 
   // Waits for the specified amount of time.
@@ -557,23 +395,6 @@ class WebUIToolbarViewsInteractiveUiTest
         delay));
     SetStepDescription(step, "DoWaitForTime()");
     return step;
-  }
-
-  ReloadControl& GetReloadControl() {
-    BrowserView* const browser_view =
-        BrowserView::GetBrowserViewForBrowser(browser());
-    ToolbarButtonProvider* provider = browser_view->toolbar_button_provider();
-    return *provider->GetReloadButton();
-  }
-
-  WebUIReloadControl& GetWebUIReloadButton() {
-    CHECK(IsWebUIReloadButtonEnabled());
-    return static_cast<WebUIReloadControl&>(GetReloadControl());
-  }
-
-  ReloadButton& GetNonWebUIReloadButton() {
-    CHECK(!IsWebUIReloadButtonEnabled());
-    return static_cast<ReloadButton&>(GetReloadControl());
   }
 
   // Sets the double click interval for the reload button. May only be called
@@ -596,7 +417,7 @@ class WebUIToolbarViewsInteractiveUiTest
           // interval, otherwise. Use milliseconds to avoid overflow, since
           // base::Values can only hold 32-bit ints.
           WaitForJsResultAt(
-              kWebUIToolbarId, kReloadButtonDeepQuery,
+              WebUIToolbarId(), WebUIReloadButtonDeepQuery(),
               R"(el => Number(el.state.doubleClickInterval.microseconds)/1000)",
               static_cast<int>(double_click_interval.InMilliseconds())));
 
@@ -620,7 +441,7 @@ class WebUIToolbarViewsInteractiveUiTest
       // The WebUI reload button mode switch timer is handled entirely in
       // Javascript, so have to call into Javascript to set its duration.
       step = CheckJsResultAt(
-          kWebUIToolbarId, kReloadButtonDeepQuery,
+          WebUIToolbarId(), WebUIReloadButtonDeepQuery(),
           content::JsReplace(
               R"(el => el.modeSwitchIntervalMs_ = $1)",
               static_cast<int>(mode_switch_interval.InMilliseconds())),
@@ -643,7 +464,7 @@ class WebUIToolbarViewsInteractiveUiTest
   StepBuilder ExpectReloadButtonMode(ReloadControl::Mode expected_mode) {
     if (IsWebUIReloadButtonEnabled()) {
       return CheckJsResultAt(
-          kWebUIToolbarId, kReloadButtonDeepQuery,
+          WebUIToolbarId(), WebUIReloadButtonDeepQuery(),
           content::JsReplace(
               R"(el => (el.showStopIcon == $1 && !el.isDisabled))",
               expected_mode == ReloadControl::Mode::kStop),
@@ -664,7 +485,7 @@ class WebUIToolbarViewsInteractiveUiTest
     StepBuilder step;
     if (IsWebUIReloadButtonEnabled()) {
       step =
-          CheckJsResultAt(kWebUIToolbarId, kReloadButtonDeepQuery,
+          CheckJsResultAt(WebUIToolbarId(), WebUIReloadButtonDeepQuery(),
                           R"(el => (el.showStopIcon && el.isDisabled))", true);
     } else {
       step = Do(base::BindOnce(
@@ -722,11 +543,6 @@ class WebUIToolbarViewsInteractiveUiTest
  private:
   static constexpr std::string_view kDelayedPath = "/delayed";
 
-  const WebContentsInteractionTestUtil::DeepQuery kReloadButtonDeepQuery = {
-      "toolbar-app", "reload-button"};
-  const WebContentsInteractionTestUtil::DeepQuery kBackForwardButtonDeepQuery =
-      {"toolbar-app", "back-forward-button"};
-
   // Number of steps with a particular description. Helps in debugging when
   // there are multiple identical steps, which is not uncommon in these tests.
   std::map<std::string, int> step_with_description_counts_;
@@ -751,9 +567,9 @@ IN_PROC_BROWSER_TEST_P(WebUIToolbarViewsInteractiveUiTest, ReloadButton) {
   ReloadButtonTestNavigationObserver observer(
       browser()->tab_strip_model()->GetActiveWebContents());
 
-  RunTestSequence(SetUpReloadButtonTest(), NavigateWebContents(kTabId, url),
+  RunTestSequence(SetUpReloadButtonTest(), NavigateWebContents(TabId(), url),
                   WaitForReloadButtonReady(), MoveMouseOverReloadButton(),
-                  ClickMouse(), WaitForWebContentsNavigation(kTabId, url));
+                  ClickMouse(), WaitForWebContentsNavigation(TabId(), url));
 
   EXPECT_EQ(observer.num_started_navigations(), 2u);
   EXPECT_EQ(observer.num_finished_navigations(), 2u);
@@ -831,18 +647,18 @@ IN_PROC_BROWSER_TEST_P(WebUIToolbarViewsInteractiveUiTest,
       browser()->tab_strip_model()->GetActiveWebContents());
 
   RunTestSequence(
-      SetUpReloadButtonTest(), NavigateWebContents(kTabId, url),
+      SetUpReloadButtonTest(), NavigateWebContents(TabId(), url),
       // Set a short double click interval.
       SetReloadButtonDoubleClickInterval(base::Milliseconds(100)),
       WaitForReloadButtonReady(), MoveMouseOverReloadButton(), ClickMouse(),
-      WaitForWebContentsNavigation(kTabId, url),
+      WaitForWebContentsNavigation(TabId(), url),
       // Make sure the reload button is ready before trying to load again, to
       // avoid any races. This is not able to check that the exact interval is
       // respected, unfortunately. Also note that this waits until the icon is
       // no longer disabled, as may happen on commit if the cursor is hovering
       // over the button.
       WaitForReloadButtonReady(), ClickMouse(),
-      WaitForWebContentsNavigation(kTabId, url));
+      WaitForWebContentsNavigation(TabId(), url));
 
   EXPECT_EQ(observer.num_started_navigations(), 3u);
   EXPECT_EQ(observer.num_finished_navigations(), 3u);
@@ -881,7 +697,7 @@ IN_PROC_BROWSER_TEST_P(WebUIToolbarViewsInteractiveUiTest,
   const GURL url = embedded_test_server()->GetURL("/title1.html");
 
   RunTestSequence(
-      SetUpReloadButtonTest(), NavigateWebContents(kTabId, url),
+      SetUpReloadButtonTest(), NavigateWebContents(TabId(), url),
       // Set the double click interval to be long enough to avoid any chance of
       // it passing during the test.
       SetReloadButtonDoubleClickInterval(base::Hours(1)),
@@ -889,7 +705,7 @@ IN_PROC_BROWSER_TEST_P(WebUIToolbarViewsInteractiveUiTest,
       // Click reload button for initial tab, and wait for navigation to
       // start. Waiting for navigation start prevents racily creating a new
       // tab before navigating the old one starts.
-      ClickMouse(), WaitForWebContentsNavigation(kTabId, url),
+      ClickMouse(), WaitForWebContentsNavigation(TabId(), url),
       MoveMouseOffOfReloadButton(),
       // Move mouse off of the reload button to avoid the reload button
       // potentially becoming disabled on load complete for the initial load
@@ -913,7 +729,7 @@ IN_PROC_BROWSER_TEST_P(WebUIToolbarViewsInteractiveUiTest,
       browser()->tab_strip_model()->GetActiveWebContents());
 
   RunTestSequence(
-      SetUpReloadButtonTest(), NavigateWebContents(kTabId, url),
+      SetUpReloadButtonTest(), NavigateWebContents(TabId(), url),
       // Set the double click interval to be long enough to avoid any chance of
       // it passing during the test.
       SetReloadButtonDoubleClickInterval(base::Hours(1)),
@@ -927,7 +743,7 @@ IN_PROC_BROWSER_TEST_P(WebUIToolbarViewsInteractiveUiTest,
       // Switch back to the original tab, and press the reload button again.
       // The double-click delay should not apply, due to the tab switch.
       SelectTab(kTabStripElementId, 0), WaitForReloadButtonReady(),
-      ClickMouse(), WaitForWebContentsNavigation(kTabId, url));
+      ClickMouse(), WaitForWebContentsNavigation(TabId(), url));
 
   EXPECT_EQ(observer.num_started_navigations(), 2u);
   EXPECT_EQ(observer.num_finished_navigations(), 2u);
@@ -1035,19 +851,6 @@ IN_PROC_BROWSER_TEST_P(WebUIToolbarViewsInteractiveUiTest,
 // reload, but the cursor is moved off of the button before the load completes.
 IN_PROC_BROWSER_TEST_P(WebUIToolbarViewsInteractiveUiTest,
                        ReloadButtonIconMouseMovedOffOfButton) {
-  // On Mac, moving the mouse is not enough to update the `:hover` state.
-  // While MoveMouseOverReloadButton() simulates a right click to help work
-  // around it, subsequently moving the mouse off of the reload button runs into
-  // issues as well, and clicking doesn't seem to work around that, so skip the
-  // test on Mac for now.
-  //
-  // TODO(crbug.com/503006729): Remove this block once the issue is fixed.
-#if BUILDFLAG(IS_MAC)
-  if (IsWebUIReloadButtonEnabled()) {
-    GTEST_SKIP();
-  }
-#endif
-
   ReloadButtonTestNavigationObserver observer(
       browser()->tab_strip_model()->GetActiveWebContents());
 
@@ -1221,12 +1024,155 @@ IN_PROC_BROWSER_TEST_P(WebUIToolbarGlassFrameInteractiveUiTest, ReloadButton) {
   ReloadButtonTestNavigationObserver observer(
       browser()->tab_strip_model()->GetActiveWebContents());
 
-  RunTestSequence(SetUpReloadButtonTest(), NavigateWebContents(kTabId, url),
+  RunTestSequence(SetUpReloadButtonTest(), NavigateWebContents(TabId(), url),
                   WaitForReloadButtonReady(), MoveMouseOverReloadButton(),
-                  ClickMouse(), WaitForWebContentsNavigation(kTabId, url));
+                  ClickMouse(), WaitForWebContentsNavigation(TabId(), url));
 
   EXPECT_EQ(observer.num_started_navigations(), 2u);
   EXPECT_EQ(observer.num_finished_navigations(), 2u);
   EXPECT_EQ(observer.num_committed_navigations(), 2u);
 }
 #endif  // BUILDFLAG(IS_MAC)
+
+#if defined(USE_AURA)
+class TestDragDropClient : public aura::client::DragDropClient {
+ public:
+  explicit TestDragDropClient(aura::Window* root_window)
+      : root_window_(root_window) {
+    client_ = aura::client::GetDragDropClient(root_window_);
+    aura::client::SetDragDropClient(root_window_, this);
+  }
+  ~TestDragDropClient() override {
+    for (auto& observer : observers_) {
+      observer.OnDragDropClientDestroying();
+    }
+    aura::client::SetDragDropClient(root_window_, client_);
+  }
+
+  // aura::client::DragDropClient:
+  ui::mojom::DragOperation StartDragAndDrop(
+      std::unique_ptr<ui::OSExchangeData> data,
+      aura::Window* root_window,
+      aura::Window* source_window,
+      const gfx::Point& screen_location,
+      int allowed_operations,
+      ui::mojom::DragEventSource source) override {
+    drag_triggered_ = true;
+    auto urls =
+        data->GetURLs(ui::FilenameToURLPolicy::DO_NOT_CONVERT_FILENAMES);
+    if (!urls.empty()) {
+      dragged_url_ = urls[0].url;
+    }
+    for (auto& observer : observers_) {
+      observer.OnDragStarted();
+    }
+    return ui::mojom::DragOperation::kCopy;
+  }
+  void DragCancel() override {}
+  bool IsDragDropInProgress() override { return false; }
+  void AddObserver(aura::client::DragDropClientObserver* observer) override {
+    observers_.AddObserver(observer);
+    if (drag_triggered_) {
+      observer->OnDragStarted();
+    }
+  }
+  void RemoveObserver(aura::client::DragDropClientObserver* observer) override {
+    observers_.RemoveObserver(observer);
+  }
+#if BUILDFLAG(IS_LINUX)
+  void UpdateDragImage(const gfx::ImageSkia& image,
+                       const gfx::Vector2d& offset) override {}
+#endif  // BUILDFLAG(IS_LINUX)
+
+  bool drag_triggered() const { return drag_triggered_; }
+  const GURL& dragged_url() const { return dragged_url_; }
+
+ private:
+  bool drag_triggered_ = false;
+  GURL dragged_url_;
+  raw_ptr<aura::Window> root_window_;
+  raw_ptr<aura::client::DragDropClient> client_;
+  base::ObserverList<aura::client::DragDropClientObserver>::Unchecked
+      observers_;
+};
+#endif  // defined(USE_AURA)
+
+class WebUIToolbarViewsLocationBarInteractiveUiTest
+    : public WebUIAndViewsToolbarInteractiveUiTestBase {
+ public:
+  WebUIToolbarViewsLocationBarInteractiveUiTest() {
+    feature_list_.InitWithFeatures(
+        {features::kInitialWebUI, features::kWebUIBackForwardButton,
+         features::kWebUIReloadButton, features::kWebUIHomeButton,
+         features::kWebUISplitTabsButton, features::kWebUILocationBar},
+        {});
+  }
+
+  ~WebUIToolbarViewsLocationBarInteractiveUiTest() override = default;
+
+  void SetUpOnMainThread() override {
+    WebUIAndViewsToolbarInteractiveUiTestBase::SetUpOnMainThread();
+    ASSERT_TRUE(embedded_test_server()->Start());
+
+    // Wait for the toolbar to load.
+    ASSERT_TRUE(base::test::RunUntil([browser = browser()]() {
+      InitialWebUIManager* manager = InitialWebUIManager::From(browser);
+      return !manager || !manager->IsShowPending();
+    }));
+  }
+
+ protected:
+  const WebContentsInteractionTestUtil::DeepQuery kLocationIconDeepQuery = {
+      "toolbar-app", "#location-bar", "location-icon"};
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+#if defined(USE_AURA) && !BUILDFLAG(IS_CHROMEOS)
+#define MAYBE_DragLocationIcon DragLocationIcon
+#else
+#define MAYBE_DragLocationIcon DISABLED_DragLocationIcon
+#endif
+IN_PROC_BROWSER_TEST_F(WebUIToolbarViewsLocationBarInteractiveUiTest,
+                       MAYBE_DragLocationIcon) {
+#if defined(USE_AURA) && !BUILDFLAG(IS_CHROMEOS)
+  const GURL initial_url = embedded_test_server()->GetURL("/title1.html");
+
+  std::unique_ptr<TestDragDropClient> drag_drop_client;
+
+  RunTestSequence(
+      // Setup and navigate to a page.
+      WaitForToolbarLoaded(), NavigateWebContents(TabId(), initial_url),
+
+      // Wait until the icon is actually clickable.
+      WaitForJsResultAt(WebUIToolbarId(), kLocationIconDeepQuery,
+                        "el => el.clickable"),
+
+      // Setup interception and trigger drag.
+      Do(base::BindLambdaForTesting([&]() {
+        auto* root_window = BrowserView::GetBrowserViewForBrowser(browser())
+                                ->GetWidget()
+                                ->GetNativeWindow()
+                                ->GetRootWindow();
+        drag_drop_client = std::make_unique<TestDragDropClient>(root_window);
+      })),
+
+      // Move to icon and perform drag gesture.
+      MoveMouseTo(WebUIToolbarId(), kLocationIconDeepQuery),
+      DragMouseTo(base::BindOnce([]() -> gfx::Point {
+        return display::Screen::Get()->GetCursorScreenPoint() +
+               gfx::Vector2d(0, 20);
+      })),
+
+      // Verify that drag was triggered with correct data.
+      PollUntil(base::BindLambdaForTesting([&]() {
+                  return drag_drop_client->drag_triggered() &&
+                         drag_drop_client->dragged_url() == initial_url;
+                }),
+                "Drag was triggered with correct URL"),
+
+      // Cleanup.
+      Do(base::BindLambdaForTesting([&]() { drag_drop_client.reset(); })));
+#endif  // defined(USE_AURA) && !BUILDFLAG(IS_CHROMEOS)
+}

@@ -694,6 +694,7 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature("V8Flag_verify_bytecode_light"),
         Flag.baseFeature("V8Flag_enforce_global_heap_limit"),
         Flag.baseFeature("V8Flag_turbolev"),
+        Flag.baseFeature("V8Flag_sqrt_allocation_limits"),
         Flag.baseFeature("V8FlushBaselineCode"),
         Flag.baseFeature("V8FlushCodeBasedOnTabVisibility"),
         Flag.baseFeature("V8FlushCodeBasedOnTime"),
@@ -919,6 +920,8 @@ public final class ProductionSupportedFlagList {
                 "LCPTimingPredictorPrerender2",
                 "When enabled, Prerender2 by Speculation Rules API is delayed until LCP is"
                         + " finished."),
+        Flag.baseFeature(
+                BlinkFeatures.PRERENDER2_MEMORY_CONTROLS, "Controls memory limits for Prerender2."),
         Flag.baseFeature(
                 "SelectParserRelaxation",
                 "Enables new HTML parser behavior for the <select> element."),
@@ -1147,6 +1150,9 @@ public final class ProductionSupportedFlagList {
                     + " beforehand during WebView provider initialization. This is expected to"
                     + " improve startup performance especially when async startup takes place."),
         Flag.baseFeature(
+                AwFeatures.WEBVIEW_BACKGROUND_CLASS_PRELOADING,
+                "Enables preloading WebView classes on a background thread during early startup."),
+        Flag.baseFeature(
                 AwFeatures.WEBVIEW_BYPASS_PROVISIONAL_COOKIE_MANAGER,
                 "When enabled, the temporary cookie manager used before WebView startup is"
                         + " bypassed. If WebView isn't already started up, calling"
@@ -1207,9 +1213,6 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 "HttpCacheInitializeDiskCacheBackendEarly",
                 "If true, Initialize disk cache backend early for HTTP cache."),
-        Flag.baseFeature(
-                "PartitionAllocLockTuneSpin",
-                "When enabled, PartitionAlloc's SpinningMutex will use a different spin count."),
         Flag.baseFeature(
                 ContentFeatures.ANDROID_PK_AUTOCORRECT_UNDERLINE,
                 "When enabled, physical keyboard autocorrect underline will display"),

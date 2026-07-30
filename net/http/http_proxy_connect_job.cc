@@ -775,8 +775,9 @@ int HttpProxyConnectJob::DoQuicProxyCreateSession() {
       kH2QuicTunnelPriority, socket_tag(), params_->network_anonymization_key(),
       params_->secure_dns_policy(),
       /*require_dns_https_alpn=*/false, ssl_config.GetCertVerifyFlags(),
-      GURL("https://" + proxy_server.ToString()), net_log(),
-      &quic_net_error_details_, MultiplexedSessionCreationInitiator::kUnknown,
+      GURL("https://" + proxy_server.ToString()), params_->target_network(),
+      net_log(), &quic_net_error_details_,
+      MultiplexedSessionCreationInitiator::kUnknown,
       /*management_config=*/std::nullopt,
       /*failed_on_default_network_callback=*/CompletionOnceCallback(),
       base::BindOnce(&HttpProxyConnectJob::OnIOComplete,
@@ -936,7 +937,8 @@ SpdySessionKey HttpProxyConnectJob::CreateSpdySessionKey() const {
       params_->proxy_server().host_port_pair(), PRIVACY_MODE_DISABLED,
       session_key_proxy_chain, SessionUsage::kProxy, socket_tag(),
       params_->network_anonymization_key(), params_->secure_dns_policy(),
-      /*disable_cert_verification_network_fetches=*/true);
+      /*disable_cert_verification_network_fetches=*/true,
+      params_->target_network());
 }
 
 // static

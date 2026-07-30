@@ -67,6 +67,7 @@
 #import "ios/chrome/browser/composebox/public/composebox_input_plate_controls.h"
 #import "ios/chrome/browser/composebox/public/composebox_model_option.h"
 #import "ios/chrome/browser/composebox/public/features.h"
+#import "ios/chrome/browser/composebox/shared/coordinator/composebox_attachment_diff.h"
 #import "ios/chrome/browser/composebox/shared/coordinator/composebox_picker_image_result.h"
 #import "ios/chrome/browser/composebox/shared/metrics/composebox_metrics_recorder.h"
 #import "ios/chrome/browser/composebox/ui/composebox_input_item.h"
@@ -313,6 +314,11 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
   ComposeboxEntrypoint _entrypoint;
   // The previously observed mode of the composebox.
   ComposeboxMode _previousMode;
+}
+
+- (void)setMetricsRecorder:(ComposeboxMetricsRecorder*)metricsRecorder {
+  _metricsRecorder = metricsRecorder;
+  _stateManager.metricsRecorder = metricsRecorder;
 }
 
 - (instancetype)
@@ -1311,33 +1317,26 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
                             (std::set<web::WebStateID>)cachedWebStateIDs
                      fromExternalWebState:(web::WebState*)externalWebState
                                    source:(ComposeboxInputItemSource)source {
-  [self.metricsRecorder recordTabPickerTabsAttached:selectedWebStateIDs.size()];
-
   _pageContextWrappers.clear();
 
   // Remove tabs from context that were deselected in the tab picker.
   std::set<web::WebStateID> alreadyProcessedIDsFromCurrentWebState =
       [self attachedWebStateIDsInCurrentContext];
-  std::set<web::WebStateID> deselectedIDs;
-  set_difference(alreadyProcessedIDsFromCurrentWebState.begin(),
-                 alreadyProcessedIDsFromCurrentWebState.end(),
-                 selectedWebStateIDs.begin(), selectedWebStateIDs.end(),
-                 inserter(deselectedIDs, deselectedIDs.begin()));
-  [self removeDeselectedIDs:deselectedIDs];
+  composebox::TabDiff currentContextDiff = composebox::ComputeTabDiff(
+      alreadyProcessedIDsFromCurrentWebState, selectedWebStateIDs);
+  [self removeDeselectedIDs:currentContextDiff.removed];
 
   // Prevent duplicate tabs from external web states from being added to
   // context.
   std::set<web::WebStateID> alreadyProcessedIDs = [self allAttachedWebStateIDs];
-  std::set<web::WebStateID> newlyAddedIDs;
-  set_difference(selectedWebStateIDs.begin(), selectedWebStateIDs.end(),
-                 alreadyProcessedIDs.begin(), alreadyProcessedIDs.end(),
-                 inserter(newlyAddedIDs, newlyAddedIDs.begin()));
+  composebox::TabDiff allDiff =
+      composebox::ComputeTabDiff(alreadyProcessedIDs, selectedWebStateIDs);
 
-  if (newlyAddedIDs.empty()) {
+  if (allDiff.added.empty()) {
     return;
   }
 
-  for (const web::WebStateID& candidateID : newlyAddedIDs) {
+  for (const web::WebStateID& candidateID : allDiff.added) {
     web::WebState* candidateWebState;
 
     if (!externalWebState) {
@@ -1906,18 +1905,10 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
   [self removeItem:item];
 }
 
-/// Updates the consumer items and maybe trigger AIM.
+/// Updates the consumer items.
 - (void)updateConsumerItems {
   DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
   [self.consumer setItems:_items.containedItems];
-
-  // AI mode is implicitly enabled by items attachment.
-  BOOL shouldSwitchToAIM = !_items.empty && [_modeHolder isRegularSearch];
-  if (shouldSwitchToAIM) {
-    [self.metricsRecorder
-        recordAiModeActivationSource:AiModeActivationSource::kImplicit];
-    _modeHolder.mode = ComposeboxMode::kAIM;
-  }
 }
 
 - (void)updateButtonsVisibility {
@@ -2056,8 +2047,8 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
     if (_contextualSearchSession) {
       _contextualSearchSession->DeleteFile(item.serverToken);
     }
-    [_items removeItem:item];
   }
+  [_items removeItems:invalidatedItems];
 
   if (invalidatedItems.count > 0) {
     [self notifyContextChanged];

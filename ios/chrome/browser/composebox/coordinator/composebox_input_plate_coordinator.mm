@@ -6,6 +6,10 @@
 
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 
+#import <algorithm>
+#import <iterator>
+#import <set>
+
 #import "base/memory/raw_ptr.h"
 #import "components/application_locale_storage/application_locale_storage.h"
 #import "components/contextual_search/contextual_search_service.h"
@@ -34,6 +38,7 @@
 #import "ios/chrome/browser/composebox/public/composebox_model_option.h"
 #import "ios/chrome/browser/composebox/public/composebox_theme.h"
 #import "ios/chrome/browser/composebox/public/features.h"
+#import "ios/chrome/browser/composebox/shared/coordinator/composebox_attachment_diff.h"
 #import "ios/chrome/browser/composebox/shared/coordinator/composebox_picker_presenter.h"
 #import "ios/chrome/browser/composebox/shared/metrics/composebox_metrics_recorder.h"
 #import "ios/chrome/browser/composebox/shared/ui/composebox_snackbar_presenter.h"
@@ -165,8 +170,9 @@ contextual_search::ContextualSearchSource ContextualSearchSourceFromEntrypoint(
     _theme = theme;
     // If there a shared metrics recorder, reuse it to maintain the same
     // recording session.
-    _metricsRecorder =
-        focusParams.metricsRecorder ?: [[ComposeboxMetricsRecorder alloc] init];
+    _metricsRecorder = focusParams.metricsRecorder
+                           ?: [[ComposeboxMetricsRecorder alloc]
+                                  initWithEntrypoint:_entrypoint];
     _modeHolder = modeHolder;
     _focusParams = focusParams;
   }
@@ -503,6 +509,13 @@ contextual_search::ContextualSearchSource ContextualSearchSourceFromEntrypoint(
 
 - (void)composeboxViewController:
             (ComposeboxInputPlateViewController*)composeboxViewController
+                  didSelectModel:(ComposeboxModelOption)modelOption {
+  [_mediator setModelOption:modelOption explicitUserAction:YES];
+  [_metricsRecorder recordModelSelected:modelOption];
+}
+
+- (void)composeboxViewController:
+            (ComposeboxInputPlateViewController*)composeboxViewController
                 didTapSendButton:(UIButton*)button {
   [_omniboxCoordinator acceptInput];
 }
@@ -803,6 +816,15 @@ contextual_search::ContextualSearchSource ContextualSearchSourceFromEntrypoint(
         (std::set<web::WebStateID>)selectedWebStateIDs
                     cachedWebStateIDs:
                         (std::set<web::WebStateID>)cachedWebStateIDs {
+  std::set<web::WebStateID> alreadyProcessedIDs =
+      [_mediator allAttachedWebStateIDs];
+  composebox::TabDiff diff =
+      composebox::ComputeTabDiff(alreadyProcessedIDs, selectedWebStateIDs);
+
+  if (diff.added.size() > 0) {
+    [_metricsRecorder recordTabPickerTabsAttached:diff.added.size()];
+  }
+
   [_mediator attachSelectedTabsWithWebStateIDs:selectedWebStateIDs
                              cachedWebStateIDs:cachedWebStateIDs];
 }

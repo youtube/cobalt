@@ -32,9 +32,11 @@
 #include <limits>
 #include <memory>
 
+#include "base/byte_size.h"
 #include "base/debug/alias.h"
 #include "base/feature_list.h"
 #include "base/notreached.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/strings/escape.h"
 #include "base/system/sys_info.h"
 #include "base/timer/elapsed_timer.h"
@@ -128,11 +130,6 @@ const FontPlatformData* FontCache::GetFontPlatformData(
     const FontFaceCreationParams& creation_params,
     AlternateFontName alternate_font_name) {
   TRACE_EVENT0("fonts", "FontCache::GetFontPlatformData");
-
-  if (!platform_init_) {
-    platform_init_ = true;
-    PlatformInit();
-  }
 
 #if !BUILDFLAG(IS_MAC)
   if (creation_params.CreationType() == kCreateFontByFamily &&
@@ -314,8 +311,9 @@ void FontCache::MaybePreloadSystemFonts() {
     return;
   }
 
-  if (base::SysInfo::AmountOfPhysicalMemory().InGiB() <
-      features::kPreloadSystemFontsRequiredMemoryGB.Get()) {
+  if (base::SysInfo::AmountOfTotalPhysicalMemory() <
+      base::GiBU(base::saturated_cast<uint64_t>(
+          features::kPreloadSystemFontsRequiredMemoryGB.Get()))) {
     return;
   }
 

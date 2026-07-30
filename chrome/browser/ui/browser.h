@@ -560,15 +560,14 @@ class Browser : public TabStripModelObserver,
   //    the next phase happens. Note that this phase may be aborted.
   // 2. The Browser window is hidden, and a task is posted that results in
   //    deleting the Browser (Views is responsible for posting the task). This
-  //    phase can not be stopped. During this phase is_delete_scheduled()
+  //    phase can not be stopped. During this phase IsDeleteScheduled()
   //    returns true.
   //
   // Note that there are other cases that may delay closing, such as downloads,
   // but that is done before any of these steps.
   // TODO(crbug.com/40064092): See about unifying IsAttemptingToCloseBrowser()
-  // and is_delete_scheduled().
+  // and IsDeleteScheduled().
   bool IsAttemptingToCloseBrowser() const;
-  bool is_delete_scheduled() const { return is_delete_scheduled_; }
 
   // Invoked when the window containing us is closing. Performs the necessary
   // cleanup.
@@ -600,10 +599,6 @@ class Browser : public TabStripModelObserver,
   // NOTE: Within each of the following sections, the IDs are ordered roughly by
   // how they appear in the GUI/menus (left to right, top to bottom, etc.).
 
-  // See the description of
-  // FullscreenController::ToggleFullscreenModeWithExtension.
-  void ToggleFullscreenModeWithExtension(const GURL& extension_url);
-
   // Deprecated: Use capabilities()->SupportsWindowFeature instead.
   bool SupportsWindowFeature(WindowFeature feature) const;
 
@@ -612,10 +607,6 @@ class Browser : public TabStripModelObserver,
 
   // Show various bits of UI
   void OpenFile();
-
-  // Whether the specified WebContents can be saved.
-  // Saving can be disabled e.g. for the DevTools window.
-  bool CanSaveContents(content::WebContents* web_contents) const;
 
   /////////////////////////////////////////////////////////////////////////////
 
@@ -633,15 +624,7 @@ class Browser : public TabStripModelObserver,
       TabStripModel* tab_strip_model,
       const TabStripModelChange& change,
       const TabStripSelectionChange& selection) override;
-  void OnTabGroupChanged(const TabGroupChange& change) override;
-  void OnTabPinnedStateChanged(tabs::TabInterface* tab, int index) override;
-  void TabGroupedStateChanged(TabStripModel* tab_strip_model,
-                              std::optional<tab_groups::TabGroupId> old_group,
-                              std::optional<tab_groups::TabGroupId> new_group,
-                              tabs::TabInterface* tab,
-                              int index) override;
   void TabStripEmpty() override;
-  void OnSplitTabChanged(const SplitTabChange& change) override;
 
   // Overridden from content::WebContentsDelegate:
   void ActivateContents(content::WebContents* contents) override;
@@ -1054,11 +1037,7 @@ class Browser : public TabStripModelObserver,
 
   chrome::BrowserCommandController* GetCommandController();
 
-  // Session restore functions ////////////////////////////////////////////////
 
-  // Notifies the history database of the index for all tabs whose index is
-  // >= index.
-  void SyncHistoryWithTabs(int index);
 
   // In-progress download termination handling /////////////////////////////////
 
@@ -1121,15 +1100,7 @@ class Browser : public TabStripModelObserver,
       const content::StoragePartitionConfig& partition_config,
       content::SessionStorageNamespace* session_storage_namespace);
 
-  void UpdateTabGroupSessionDataForTab(
-      tabs::TabInterface* tab,
-      std::optional<tab_groups::TabGroupId> group);
 
-  void UpdateSplitTabSessionData(
-      tabs::TabInterface* tab,
-      std::optional<split_tabs::SplitTabId> split_id);
-
-  void UpdateSplitTabSessionVisualData(const split_tabs::SplitTabId& split_id);
 
   // Create `FindBarController` if it does not exist.
   // TODO(crbug.com/423956131): Convert to `GetFindBarController` which returns

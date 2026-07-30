@@ -14,6 +14,7 @@
 #include "ash/constants/ash_pref_names.h"
 #include "ash/constants/notifier_catalogs.h"
 #include "ash/public/cpp/notification_utils.h"
+#include "ash/strings/grit/ash_strings.h"
 #include "ash/webui/settings/public/constants/routes.mojom.h"
 #include "base/check_deref.h"
 #include "base/files/file_util.h"
@@ -50,6 +51,7 @@
 #include "services/device/public/cpp/usb/usb_utils.h"
 #include "services/device/public/mojom/usb_enumeration_options.mojom.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/chromeos/styles/cros_tokens_color_mappings.h"
 #include "ui/gfx/paint_vector_icon.h"
 
@@ -286,7 +288,9 @@ void ShowNotificationForDevice(const std::string& guid,
   std::u16string vm_name_button_text;
   std::vector<std::u16string> vm_names_in_notification;
   rich_notification_data.small_image = gfx::Image(gfx::CreateVectorIcon(
-      vector_icons::kUsbOldIcon, 64, gfx::kGoogleBlue800));
+      ::features::IsRoundedIconsEnabled() ? vector_icons::kUsbIcon
+                                          : vector_icons::kUsbOldIcon,
+      64, gfx::kGoogleBlue800));
 
   rich_notification_data.accent_color_id = cros_tokens::kCrosSysPrimary;
 

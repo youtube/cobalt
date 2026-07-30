@@ -330,6 +330,12 @@ ContentBrowserClient::GetBaselinePermissionsPolicyForIsolatedApp(
   return {};
 }
 
+void ContentBrowserClient::EnsureRequiredHeadersForIsolatedApp(
+    BrowserContext* browser_context,
+    const GURL& url,
+    network::mojom::URLResponseHead* response_head,
+    const std::optional<FrameTreeNodeId>& frame_tree_node) {}
+
 bool ContentBrowserClient::ShouldTryToUseExistingProcessHost(
     BrowserContext* browser_context,
     const GURL& url) {
@@ -426,6 +432,12 @@ bool ContentBrowserClient::IsTopChromeWebUIURL(const GURL& url) {
 bool ContentBrowserClient::IsMultiCaptureAllowed(
     content::RenderFrameHost* render_frame_host) {
   return false;
+}
+
+content::WebContents*
+ContentBrowserClient::GetWebContentsFromWindowIfCaptureHandleAllowed(
+    gfx::NativeWindow window) {
+  return nullptr;
 }
 
 size_t ContentBrowserClient::GetMaxRendererProcessCountOverride() {
@@ -1074,6 +1086,11 @@ ContentBrowserClient::GetWindowsSecurityAttributeName() const {
   // Embedders should override this method and return the name of the security
   // attribute previously assigned to the browser's process token.
   return std::nullopt;
+}
+
+std::vector<uintptr_t> ContentBrowserClient::GetAslrBeaconAddresses(
+    sandbox::mojom::Sandbox sandbox_type) {
+  return {};
 }
 
 #endif  // BUILDFLAG(IS_WIN)
@@ -1792,6 +1809,12 @@ bool ContentBrowserClient::IsCrossOriginSubframeAllowedToShowFilePicker(
     RenderFrameHost* render_frame_host,
     const url::Origin& requesting_origin) {
   return false;
+}
+
+std::optional<network::ParsedPermissionsPolicy>
+ContentBrowserClient::GetContainerPolicyOverrideForCommit(
+    NavigationHandle& navigation_handle) {
+  return std::nullopt;
 }
 
 bool ContentBrowserClient::ShouldSkipBeforeUnloadDialog(

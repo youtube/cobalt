@@ -36,7 +36,8 @@ base::expected<std::unique_ptr<WaitTool>, ToolExecutionResult> WaitTool::Create(
 
   base::WeakPtr<web::WebState> observe_web_state;
   if (action.has_observe_tab_id()) {
-    auto resolution_result = ResolveTab(action.observe_tab_id(), profile);
+    base::expected<TabResolutionResult, ToolExecutionResult> resolution_result =
+        ResolveTab(action.observe_tab_id(), profile);
     if (resolution_result.has_value()) {
       observe_web_state = resolution_result.value().web_state;
     }
@@ -62,6 +63,9 @@ base::WeakPtr<web::WebState> WaitTool::GetTargetWebState() const {
 }
 
 ToolType WaitTool::GetToolType() const {
+  if (wait_duration_ <= base::TimeDelta()) {
+    return ToolType::kWaitZeroDuration;
+  }
   return ToolType::kWait;
 }
 

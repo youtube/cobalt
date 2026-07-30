@@ -379,6 +379,31 @@ are declared in tools/grit/grit_args.gni.
         <message name="IDS_BACKGROUND_APP_INSTALLED_BALLOON_BODY" desc="The contents of the balloon that is displayed when a background app is installed">
           <ph name="APP_NAME">$1<ex>Background App</ex></ph> will launch at system startup and continue to run in the background even once you've closed all other <ph name="PRODUCT_NAME">$2<ex>Google Chrome</ex></ph> windows.
         </message>
+        <!-- Search Promotion specific strings -->
+        <message name="IDS_SEARCH_PROMOTION_IPH_TITLE_ARM_A" desc="Title of the search promotion IPH bubble for Arm A.">
+          Bring Google Search to Edge
+        </message>
+        <message name="IDS_SEARCH_PROMOTION_IPH_BODY_ARM_A" desc="Body text of the search promotion IPH bubble for Arm A.">
+          Use Google Search right from your browser's address bar and when you open a new tab.
+        </message>
+        <message name="IDS_SEARCH_PROMOTION_IPH_CTA_ARM_A" desc="Custom CTA button text of the search promotion IPH bubble for Arm A.">
+          Open Edge
+        </message>
+        <message name="IDS_SEARCH_PROMOTION_IPH_DISMISS_ARM_A" desc="Custom Dismiss button text of the search promotion IPH bubble for Arm A.">
+          No Thanks
+        </message>
+        <message name="IDS_SEARCH_PROMOTION_IPH_TITLE_ARM_B" desc="Title of the search promotion IPH bubble for Arm B.">
+          Install Google Search for Microsoft Edge extension
+        </message>
+        <message name="IDS_SEARCH_PROMOTION_IPH_BODY_ARM_B" desc="Body text of the search promotion IPH bubble for Arm B.">
+          Use Google Search right from your browser's address bar and when you open a new tab.
+        </message>
+        <message name="IDS_SEARCH_PROMOTION_IPH_CTA_ARM_B" desc="Custom CTA button text of the search promotion IPH bubble for Arm B.">
+          Install for Edge
+        </message>
+        <message name="IDS_SEARCH_PROMOTION_IPH_DISMISS_ARM_B" desc="Custom Dismiss button text of the search promotion IPH bubble for Arm B.">
+          No Thanks
+        </message>
       </if>
       <message name="IDS_BACKGROUND_CRASHED_APP_BALLOON_MESSAGE" desc="The contents of the balloon that is displayed when a background app crashes">
         <ph name="APP_NAME">$1<ex>Background App</ex></ph> has crashed. Click this balloon to restart the app.
@@ -832,6 +857,9 @@ are declared in tools/grit/grit_args.gni.
           <message name="IDS_CONTENT_CONTEXT_COPY" desc="The name of the Copy command in the content area context menu">
             &amp;Copy
           </message>
+          <message name="IDS_CONTENT_CONTEXT_COPY_SELECTION" desc="The name of the Copy command with selection in the content area context menu">
+            &amp;Copy "<ph name="SELECTION">$1<ex>text</ex></ph>"
+          </message>
           <message name="IDS_CONTENT_CONTEXT_PASTE" desc="The name of the Paste command in the content area context menu" meaning="'Paste' menu command in sentence case">
             &amp;Paste
           </message>
@@ -1156,6 +1184,9 @@ are declared in tools/grit/grit_args.gni.
           </message>
           <message name="IDS_CONTENT_CONTEXT_COPY" desc="In Title Case: The name of the Copy command in the content area context menu">
             &amp;Copy
+          </message>
+          <message name="IDS_CONTENT_CONTEXT_COPY_SELECTION" desc="The name of the Copy command with selection in the content area context menu">
+            &amp;Copy "<ph name="SELECTION">$1<ex>text</ex></ph>"
           </message>
           <!-- Paste and Match Style / Paste as Plain Text -->
           <if expr="is_macosx">
@@ -2111,10 +2142,6 @@ are declared in tools/grit/grit_args.gni.
                desc="Download page message: Server problem.">
         Unknown server error. Please try again, or contact the server administrator.
       </message>
-      <message name="IDS_DOWNLOAD_INTERRUPTED_DESCRIPTION_WEB_DRIVE_ERROR"
-               desc="Download page message: Upload failed.">
-        <ph name="WEB_DRIVE_MESSAGE">$1<ex>Storage limit reached.</ex></ph> (<ph name="SUPPORT_INFO">$2<ex>Request ID 12345</ex></ph>)
-      </message>
       <message name="IDS_DOWNLOAD_INTERRUPTED_STATUS_SHUTDOWN"
                desc="Shutdown.">
         Shutdown
@@ -2194,10 +2221,6 @@ are declared in tools/grit/grit_args.gni.
                  desc="The title of a download notification: the current download status is finished successufully.">
                  Download complete
         </message>
-        <message name="IDS_DOWNLOAD_STATUS_PAGE_READY_TITLE"
-                 desc="The title of a download notification for offline pages not stored in Downloads.">
-                 Page is ready to view
-        </message>
         <message name="IDS_DOWNLOAD_STATUS_SCAN_TITLE"
                  desc="The title of a download notification: the current download is being scanned.">
                  Scanning <ph name="FILE_NAME">$1<ex>somedocument.pdf</ex></ph>
@@ -2244,15 +2267,6 @@ are declared in tools/grit/grit_args.gni.
       <!-- TODO(dbeam): can this be merged with IDS_DOWNLOAD_FILE_REMOVED? -->
       <message name="IDS_DOWNLOAD_STATUS_REMOVED" desc="Text that appears under the downloaded files that have been removed.">
         Removed
-      </message>
-      <message name="IDS_DOWNLOAD_STATUS_UPLOADING" desc="Status text for a download item that is being uploaded.">
-        Sending to <ph name="WEB_DRIVE">$1<ex>Google Drive</ex></ph>
-      </message>
-      <message name="IDS_DOWNLOAD_STATUS_UPLOADED" desc="Status text for a download item that has been uploaded.">
-        Saved to <ph name="WEB_DRIVE">$1<ex>Google Drive</ex></ph>
-      </message>
-      <message name="IDS_DOWNLOAD_STATUS_UPLOAD_INTERRUPTED" desc="Status text for a download item that was interrupted during reroute upload.">
-        Failed to save to <ph name="WEB_DRIVE">$1<ex>Google Drive</ex></ph> - <ph name="INTERRUPT_REASON">$2<ex>Disk full</ex></ph>
       </message>
       <message name="IDS_DOWNLOAD_STATUS_INTERRUPTED" desc="Status text for a download item that was interrupted.">
         Failed - <ph name="INTERRUPT_REASON">$1<ex>Disk full</ex></ph>
@@ -2495,10 +2509,6 @@ are declared in tools/grit/grit_args.gni.
                desc="In the download view, 'Retry' button text to retry downloading a file.">
         Retry
       </message>
-      <message name="IDS_DOWNLOAD_LINK_SHOW_IN_WEB_DRIVE"
-                desc="In the download view, 'Show in web_drive' link text">
-          Show in <ph name="LOCATION">$1<ex>Google Drive</ex></ph>
-      </message>
       <if expr="not is_macosx">
         <message name="IDS_DOWNLOAD_LINK_SHOW"
                  desc="In the download view, 'Show in folder' link text">
@@ -2570,17 +2580,9 @@ are declared in tools/grit/grit_args.gni.
       <message name="IDS_DOWNLOAD_TOAST_CLEARED_ALL" desc="Toast message for clearing all download entries">
         Cleared all
       </message>
-      <message name="IDS_DOWNLOAD_DEEP_SCAN"
-               desc="In the download view, the 'Scan' button when prompt for deep scan">
-        Scan
-      </message>
       <message name="IDS_DOWNLOAD_DEEP_SCAN_UPDATED"
                desc="In the download view, the 'Scan' button when prompt for deep scan">
         Scan for malware
-      </message>
-      <message name="IDS_DOWNLOAD_BYPASS_DEEP_SCAN"
-               desc="In the download view, the 'Open' button when prompt for deep scan">
-        Open
       </message>
       <message name="IDS_DOWNLOAD_LOCAL_PASSWORD_SCAN"
         desc="On the downloads page, the label for the button to check a download for malware">
@@ -3024,10 +3026,6 @@ are declared in tools/grit/grit_args.gni.
                desc="When a download is blocked because of warnings, let the user know.">
         Blocked
       </message>
-      <message name="IDS_DOWNLOAD_BUBBLE_STATUS_MALWARE"
-               desc="Malware warning for the user.">
-        Malware
-      </message>
       <message name="IDS_DOWNLOAD_BUBBLE_STATUS_SUSPICIOUS"
         desc="Let the user know the download is suspicious and may need additional safety checks">
         Suspicious
@@ -3035,10 +3033,6 @@ are declared in tools/grit/grit_args.gni.
       <message name="IDS_DOWNLOAD_BUBBLE_STATUS_DEEP_SCANNED_FAILED_UPDATED"
         desc="Let the user know the deep scanning failed, and they should be cautious">
         Scan failed
-      </message>
-      <message name="IDS_DOWNLOAD_BUBBLE_CHECKBOX_BYPASS"
-               desc="The label on the checkbox with which the user chooses to bypass blocked download.">
-        I understand this download will harm my computer
       </message>
       <message name="IDS_DOWNLOAD_BUBBLE_CONTINUE"
                desc="Label for the Continue button on the blocked download bubble subpage.">
@@ -3075,10 +3069,6 @@ are declared in tools/grit/grit_args.gni.
       <message name="IDS_DOWNLOAD_BUBBLE_SCAN"
                desc="Label for the button prompting for Deep Scanning">
         Scan
-      </message>
-      <message name="IDS_DOWNLOAD_BUBBLE_OPEN"
-               desc="Label for the button prompting to bypass Deep Scanning">
-        Open
       </message>
       <message name="IDS_DOWNLOAD_BUBBLE_SCAN_UPDATED"
                desc="Label for the button prompting for Deep Scanning">
@@ -3127,14 +3117,6 @@ are declared in tools/grit/grit_args.gni.
       <message name="IDS_DOWNLOAD_BUBBLE_INTERRUPTED_STATUS_FILE_TOO_LARGE"
                desc="Status text for a download item that was interrupted because the file is too large for the file system.">
         File is too big for this device
-      </message>
-      <message name="IDS_DOWNLOAD_BUBBLE_INTERRUPTED_SUBPAGE_SUMMARY_FILE_TOO_LARGE"
-               desc="Subpage summary text for a download item that was interrupted because the file is too large for the file system.">
-        This file is too big for your device to manage. Try to download it on another device
-      </message>
-      <message name="IDS_DOWNLOAD_BUBBLE_INTERRUPTED_STATUS_UNFINISHED"
-               desc="Status text for a download item that was interrupted and could not finish.">
-        Couldn&#x2019;t finish download
       </message>
       <message name="IDS_DOWNLOAD_BUBBLE_INTERRUPTED_SUBPAGE_SUMMARY_BLOCKED_ORGANIZATION"
                desc="Subpage summary text for a download item that was blocked by the organization.">
@@ -3196,10 +3178,6 @@ are declared in tools/grit/grit_args.gni.
                desc="Text for the link to the settings page allowing the user to turn on Safe Browsing. This string will be embedded in a longer sentence that makes up the whole label.">
         Turn on Safe Browsing
       </message>
-      <message name="IDS_DOWNLOAD_BUBBLE_STATUS_DANGEROUS"
-               desc="Dangerous warning for the user.">
-        Dangerous
-      </message>
       <message name="IDS_DOWNLOAD_BUBBLE_STATUS_ENCRYPTED"
                desc="Dangerous warning for an encrypted file.">
         Encrypted
@@ -3215,14 +3193,6 @@ are declared in tools/grit/grit_args.gni.
       <message name="IDS_DOWNLOAD_BUBBLE_SUBPAGE_SUMMARY_ADVANCED_PROTECTION"
                desc="Subpage summary of warning for a file blocked by Advanced Protection.">
         This file is not commonly downloaded and has been blocked by Advanced Protection
-      </message>
-      <message name="IDS_DOWNLOAD_BUBBLE_STATUS_UNCOMMON_FILE"
-               desc="Dangerous warning for a file with uncommon content.">
-        Uncommon file
-      </message>
-      <message name="IDS_DOWNLOAD_BUBBLE_SUBPAGE_SUMMARY_UNCOMMON_FILE"
-               desc="Subpage summary for warning for a file with uncommon content.">
-        This file is not commonly downloaded and may be dangerous
       </message>
       <message name="IDS_DOWNLOAD_BUBBLE_STATUS_UNKNOWN_SOURCE"
                desc="Dangerous warning for a file (like an extension) from an unknown source.">
@@ -3275,10 +3245,6 @@ are declared in tools/grit/grit_args.gni.
       <message name="IDS_DOWNLOAD_BUBBLE_SUBPAGE_SUMMARY_SCAN_FAILED"
                desc="Subpage summary of dangerous warning for a file with failed scan.">
         Your organization blocked this file because the scan failed.
-      </message>
-      <message name="IDS_DOWNLOAD_BUBBLE_TRY_AGAIN"
-               desc="Retry button when a download is failed">
-        Try again
       </message>
       <message name="IDS_DOWNLOAD_BUBBLE_STATUS_ASYNC_SCANNING_ENTERPRISE"
                desc="Status text for a download item that is being scanned by enterprise policy.">
@@ -10106,6 +10072,12 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_READING_MODE_LINKS_LABEL" desc="Accessibility label for the links menu item in reading mode.">
         Links
       </message>
+      <message name="IDS_READING_MODE_PRESENTATION_MODE_IPH_BODY" desc="Text for the help bubble describing how to toggle reading mode from immersive mode to side panel mode.">
+        Switch back to the side-by-side view by opening Settings, then View, and select Side Panel.
+      </message>
+      <message name="IDS_READING_MODE_PRESENTATION_MODE_IPH_SCREENREADER" is_accessibility_with_no_ui="true" desc="Text for the help bubble describing how to toggle reading mode from immersive mode to side panel mode.">
+        Switch back to the side-by-side view by opening Settings, then View, and select Side Panel.
+      </message>
 
       <!-- Google Lens side panel -->
       <message name="IDS_GOOGLE_LENS_TITLE" desc="Title of the Google Lens side panel">
@@ -11204,69 +11176,6 @@ Keep your key file in a safe place. You will need it to create new versions of y
         Try using tab groups to organize tasks, for online shopping, and more
       </message>
 
-      <!-- Saved Tab Group Tutorial Strings -->
-      <if expr="use_titlecase">
-        <message name="IDS_TUTORIAL_SAVED_TAB_GROUP_ADD_TAB_TO_GROUP" desc="The description of the 'right click and save' step">
-          Right-click a tab and select "Add Tab to New Group"
-        </message>
-      </if>
-      <if expr="not use_titlecase">
-        <message name="IDS_TUTORIAL_SAVED_TAB_GROUP_ADD_TAB_TO_GROUP" desc="The description of the 'right click and save' step">
-          Right-click a tab and select "Add tab to new group"
-        </message>
-      </if>
-
-      <message name="IDS_TUTORIAL_SAVED_TAB_GROUP_OPEN_EDITOR" desc="The description of the 'open editor' step">
-        Right-click on the group
-      </message>
-
-      <if expr="use_titlecase">
-        <message name="IDS_TUTORIAL_SAVED_TAB_GROUP_NAME_SAVE_GROUP" desc="The description of the 'name, save and exit' step">
-          Turn on "Save Group"
-        </message>
-      </if>
-      <if expr="not use_titlecase">
-        <message name="IDS_TUTORIAL_SAVED_TAB_GROUP_NAME_SAVE_GROUP" desc="The description of the 'name, save and exit' step">
-          Turn on "Save group"
-        </message>
-      </if>
-
-      <if expr="use_titlecase">
-        <message name="IDS_TUTORIAL_SAVED_TAB_GROUP_HIDE_GROUP" desc="The description of the 'hide group' step">
-          Select "Hide Group" to remove the group from your tab strip
-        </message>
-      </if>
-      <if expr="not use_titlecase">
-        <message name="IDS_TUTORIAL_SAVED_TAB_GROUP_HIDE_GROUP" desc="The description of the 'hide group' step">
-          Select "Hide group" to remove the group from your tab strip
-        </message>
-      </if>
-
-      <message name="IDS_TUTORIAL_SAVED_TAB_GROUP_REOPEN_GROUP" desc="The description of the 'name, save and exit' step">
-        To reopen the group, click on the group
-      </message>
-
-      <message name="IDS_TUTORIAL_SAVED_TAB_GROUP_SUCCESS_DESCRIPTION" desc="The description of the success step">
-        You can now use saved tab groups across your signed in desktop devices
-      </message>
-
-      <!-- Side Panel Tutorial Strings -->
-      <message name="IDS_TUTORIAL_SIDE_PANEL_READING_LIST_OPEN_SIDE_PANEL" desc="The description of the 'open side panel' step in side panel reading list tutorial">
-        Click the side panel icon to open it
-      </message>
-      <message name="IDS_TUTORIAL_SIDE_PANEL_READING_LIST_ADD_TAB" desc="The description of the 'add tab' step in side panel reading list tutorial">
-        Now add the current tab to your list
-      </message>
-      <message name="IDS_TUTORIAL_SIDE_PANEL_READING_LIST_MARK_READ" desc="The description of the 'mark as read' step in side panel reading list tutorial">
-        Select “Mark as read” to move the page to the bottom of your list
-      </message>
-      <message name="IDS_TUTORIAL_SIDE_PANEL_READING_LIST_CLICK_DROPDOWN" desc="The description of the 'click drop down' step in side panel reading list tutorial">
-        Click the drop down to choose another panel
-      </message>
-      <message name="IDS_TUTORIAL_SIDE_PANEL_READING_LIST_SUCCESS_BODY" desc="The description of the body text in the 'success' step in side panel reading list tutorial">
-        Try using the side panel for bookmarks, journeys, and more
-      </message>
-
       <!-- Customize Chrome Tutorial Strings -->
       <message name="IDS_TUTORIAL_CUSTOMIZE_CHROME_START_TUTORIAL_IPH" desc="The description of the IPH to start the customize chrome tutorial">
         Customize Chrome to give your browser a new look
@@ -11291,9 +11200,6 @@ Keep your key file in a safe place. You will need it to create new versions of y
       </message>
 
       <!-- Password Manager Tutorial Strings -->
-      <message name="IDS_TUTORIAL_PASSWORD_MANAGER_OPEN_MENU" desc="The description of the 'open menu' step in password manager tutorial">
-        Open the menu
-      </message>
       <if expr="use_titlecase">
         <message name="IDS_TUTORIAL_PASSWORD_MANAGER_CLICK_PASSWORDS_MENU" desc="The description of the 'click passwords and autofill' step in password manager tutorial">
           Click “Passwords and Autofill”
@@ -11304,9 +11210,6 @@ Keep your key file in a safe place. You will need it to create new versions of y
           Click “Passwords and autofill”
         </message>
       </if>
-      <message name="IDS_TUTORIAL_PASSWORD_MANAGER_SELECT_SETTINGS" desc="The description of the 'select settings' step in password manager tutorial">
-        Click “Settings”
-      </message>
       <message name="IDS_TUTORIAL_PASSWORD_MANAGER_ADD_SHORTCUT" desc="The description of the 'add shortcut' step in password manager tutorial">
         Click “Add Shortcut”
       </message>
@@ -11315,17 +11218,8 @@ Keep your key file in a safe place. You will need it to create new versions of y
       </message>
 
       <!-- Lens Overlay Tutorial Strings -->
-      <message name="IDS_TUTORIAL_LENS_OVERLAY_INTRO_HEADER" desc="Header for the intro of the Lens overlay tutorial">
-        Search what’s on your screen with Google Lens
-      </message>
-      <message name="IDS_TUTORIAL_LENS_OVERLAY_INTRO_BODY" desc="Description for the intro of the Lens overlay tutorial">
-        Learn more about products, places, or text you see on your screen
-      </message>
       <message name="IDS_TUTORIAL_LENS_OVERLAY_CLICK_ADDRESS_BAR" desc="The description of the 'click the address bar' step in Lens overlay tutorial">
         Click the address bar
-      </message>
-      <message name="IDS_TUTORIAL_LENS_OVERLAY_CLICK_LENS" desc="The description of the 'select the Google Lens button' step in Lens overlay tutorial">
-        Select the Google Lens button
       </message>
       <message name="IDS_TUTORIAL_LENS_OVERLAY_HOMEWORK_INTRO_HEADER" desc="Header for the intro of the Lens overlay homework tutorial">
         Get homework help with Google Lens
@@ -11336,17 +11230,8 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_TUTORIAL_LENS_OVERLAY_HOMEWORK_CLICK_LENS" desc="The description of the 'select Search with Google Lens' step in Lens overlay tutorial">
         Select the Google Lens button, then click and drag over a problem
       </message>
-      <message name="IDS_TUTORIAL_LENS_OVERLAY_SELECT" desc="The description of the 'click and drag to search' step in Lens overlay tutorial">
-        Click and drag over images or highlight text to search
-      </message>
       <message name="IDS_TUTORIAL_LENS_OVERLAY_CLICK_SEARCH_BOX" desc="The description of the 'search box' step in Lens overlay tutorial">
         Add more details or ask a question about your selection to refine your search
-      </message>
-      <message name="IDS_TUTORIAL_LENS_OVERLAY_CLICK_PIN_ICON" desc="The description of the 'pin to toolbar' step in Lens overlay tutorial">
-        Pin Google Lens to your toolbar for easy access next time
-      </message>
-      <message name="IDS_TUTORIAL_LENS_OVERLAY_SUCCESS_BODY" desc="Success text at the end of Lens overlay tutorial">
-        You can now use Google Lens to search anything you see on your screen
       </message>
 
       <!-- Browser Hung Plugin Detector -->
@@ -18060,9 +17945,6 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_WEBAUTHN_PIN_ENTRY_ERROR_FAILED" desc="Error message. Displayed when the user attempts to enter the PIN code for their security key (an external physical device for user authentication), but the entered PIN is incorrect.">
         Incorrect PIN
       </message>
-      <message name="IDS_WEBAUTHN_PIN_SETUP_ERROR_FAILED" desc="Error message. Displayed when the user attempts to set up a PIN code for their security key (an external physical device for user authentication), and but the entered PIN contains invalid characters.">
-        PIN contains invalid characters
-      </message>
       <message name="IDS_WEBAUTHN_PIN_TAP_AGAIN_DESCRIPTION" desc="Description of a dialog shown after the user first activated their security key (an external physical device for user authentication) and provided the PIN for it.">
         Touch your security key again to complete the request.
       </message>
@@ -18080,9 +17962,6 @@ Please help our engineers fix this problem. Tell us what happened right before y
       </message>
       <message name="IDS_WEBAUTHN_PIN_ENTRY_ERROR_SAME_AS_CURRENT" desc="Error message. Displayed when the user attempts to set a new PIN code for their security key (an external physical device for user authentication), and the new PIN is the same as the currently set PIN.">
         Create a new PIN that's different from your current PIN
-      </message>
-      <message name="IDS_WEBAUTHN_USE_PHONE_WITH_NAME" desc="Text that appears on a button to save or use a passkey on the user's phone. It identifies the phone by name.">
-        Use <ph name="DEVICE_NAME">$1<ex>Ted's Pixel 6 Pro</ex></ph>
       </message>
 
       <!-- WebAuthn authenticator internal user verification -->
@@ -18156,12 +18035,6 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_WEBAUTHN_CREATE_PASSKEY_CHOOSE_DEVICE_TITLE" desc="The title of a dialog prompting the user to create a passkey for signing into a website. Refer to Glossary for the meaning of 'passkey'; do not translate it as 'password'.">
         Choose where to save your passkey for <ph name="APP_NAME">$1<ex>example.com</ex></ph>
       </message>
-      <message name="IDS_WEBAUTHN_USE_PASSKEY_CHOOSE_DEVICE_TITLE" desc="The title of a dialog prompting the user to use a passkey for signing into a website. Refer to Glossary for the meaning of 'passkey'; do not translate it as 'password'.">
-         Use your passkey
-      </message>
-      <message name="IDS_WEBAUTHN_USE_PASSKEY_CHOOSE_DEVICE_BODY" desc="The body of a dialog prompting the user to use a passkey for signing into a website. Refer to Glossary for the meaning of 'passkey'; do not translate it as 'password'.">
-         Choose which device has the passkey for <ph name="APP_NAME">$1<ex>example.com</ex></ph>
-      </message>
       <message name="IDS_WEBAUTHN_USE_PASSKEY_TITLE" desc="The title of a dialog prompting the user to use a passkey for signing into a website. Refer to Glossary for the meaning of 'passkey'; do not translate it as 'password'.">
          Use a saved passkey for <ph name="APP_NAME">$1<ex>example.com</ex></ph>
       </message>
@@ -18171,29 +18044,11 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_WEBAUTHN_CHOOSE_PASSKEY_BODY" desc="The body of a dialog prompting the user to choose a passkey from a list to sign into a website. Refer to Glossary for the meaning of 'passkey'; do not translate it as 'password'.">
         Which passkey do you want to use for <ph name="APP_NAME">$1<ex>example.com</ex></ph>?
       </message>
-      <message name="IDS_WEBAUTHN_CREATE_PASSKEY_QR_TITLE" desc="The title of a dialog prompting the user to create a passkey to sign into a website. Refer to Glossary for the meaning of 'passkey'; do not translate it as 'password'.">
-         Create a passkey on a phone or tablet
-      </message>
-      <message name="IDS_WEBAUTHN_CREATE_PASSKEY_QR_BODY" desc="The body of a dialog prompting the user to create a passkey to sign into a website. Refer to Glossary for the meaning of 'passkey'; do not translate it as 'password'.">
-        Scan this QR code with a camera on the device where you want to create a passkey for <ph name="APP_NAME">$1<ex>example.com</ex></ph>
-      </message>
-      <message name="IDS_WEBAUTHN_USE_PASSKEY_QR_TITLE" desc="The title of a dialog prompting the user to use a passkey to sign into a website. Refer to Glossary for the meaning of 'passkey'; do not translate it as 'password'.">
-         Use a passkey from another device?
-      </message>
-      <message name="IDS_WEBAUTHN_USE_PASSKEY_QR_BODY" desc="The body of a dialog prompting the user to use a passkey to sign into a website. Refer to Glossary for the meaning of 'passkey'; do not translate it as 'password'.">
-         Scan this QR code with the device that has the passkey you want to use for <ph name="APP_NAME">$1<ex>example.com</ex></ph>
-      </message>
       <message name="IDS_WEBAUTHN_QR_CODE_ALT_TEXT" desc="Alt text for an image depicting a QR code. This will be read by screen readers to help blind and low vision users scan a QR code.">
         QR code
       </message>
       <message name="IDS_WEBAUTHN_USE_A_DIFFERENT_PASSKEY" desc="Label on a secondary button on a dialog for creating or using a passkey to sign into a website. Clicking this button will show a menu that lets the user pick a different passkey or device (such as a phone or hardware security key) to sign in. Refer to Glossary for the meaning of 'passkey'; do not translate it as 'password'.">
          Use a different passkey
-      </message>
-      <message name="IDS_WEBAUTHN_QR_CREATE_PASSKEY_ON_SECURITY_KEY_LABEL" desc="Label on a modal dialog with a QR code. The label indicates to the user that instead of scanning the QR code with a phone, they can insert and activate a security key to create a passkey instead. Refer to Glossary for the meaning of 'passkey'; do not translate it as 'password'.">
-         If you want to create a passkey for <ph name="APP_NAME">$1<ex>google.com</ex></ph> on a USB security key, insert and touch it now
-      </message>
-      <message name="IDS_WEBAUTHN_QR_USE_PASSKEY_ON_SECURITY_KEY_LABEL" desc="Label on a modal dialog with a QR code. The label indicates to the user that instead of scanning the QR code with a phone, they can insert and activate a security key to sign in with a passkey instead. Refer to Glossary for the meaning of 'passkey'; do not translate it as 'password'.">
-         If your passkey for <ph name="APP_NAME">$1<ex>google.com</ex></ph> is on a USB security key, insert and touch it now
       </message>
 
       <!-- Multi source passkey picker -->
@@ -18202,9 +18057,6 @@ Please help our engineers fix this problem. Tell us what happened right before y
       </message>
       <message name="IDS_WEBAUTHN_THIS_DEVICE_LABEL" desc="The label for a list of passkeys the user can choose from the device they are using.">
         On this device
-      </message>
-      <message name="IDS_WEBAUTHN_FROM_PHONE_LABEL" desc="The label for a list of passkeys the user can choose from a phone they own.">
-        From "<ph name="PHONE_NAME">$1<ex>Pixel 7</ex></ph>"
       </message>
       <message name="IDS_WEBAUTHN_OTHER_DEVICES_LABEL" desc="The label for a list of passkeys and their sources the user can choose from devices other than the one they are using. The list includes both passkeys (e.g. 'Juan Perez | Passkey from Pixel 7') and devices that may have passkeys (e.g. 'USB Security Key').">
         On other devices
@@ -18252,9 +18104,6 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <!-- WebAuthn GPM desktop passkeys -->
       <message name="IDS_WEBAUTHN_CREATE" desc="Text link that appears on a button to create a passkey.">
         Create
-      </message>
-      <message name="IDS_WEBAUTHN_CREATE_PASSKEY" desc="Text link that appears on a button to create a passkey. Refer to Glossary for the meaning of 'passkey'; do not translate it as 'password'.">
-        Create passkey
       </message>
       <message name="IDS_WEBAUTHN_GPM_CREATE_PASSKEY_TITLE" desc="This string appears in a dialog users see after they choose to create a sign-in method called a passkey on a website. 'To sign in to' means to sign in to the site or app they are creating a passkey for. Refer to Glossary for the meaning of 'passkey'; do not translate it as 'password'.">
         Create a passkey to sign in to <ph name="APP_NAME">$1<ex>example.com</ex></ph>?
@@ -18316,29 +18165,14 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_WEBAUTHN_GPM_CREATE_ALPHANUMERIC_PIN_ACCESSIBILITY" desc="The accessibility label that is announced by a screen reader when a focus lands on a Google Password Manager PIN textfield during creation of an alphanumeric pin.">
         Create an alphanumeric recovery PIN for Google Password Manager
       </message>
-      <message name="IDS_WEBAUTHN_GPM_CREATE_SIX_DIGIT_PIN_ACCESSIBILITY" desc="The accessibility label that is announced by a screen reader when a focus lands on a Google Password Manager PIN textfield during creation of a 6-digit pin.">
-        Create a 6-digit recovery PIN for Google Password Manager
-      </message>
-      <message name="IDS_WEBAUTHN_GPM_CREATE_SIX_DIGIT_PIN_ACCESSIBILITY_WITH_FOCUSED_DIGIT" desc="The accessibility label that is announced by a screen reader when a focus lands on a Google Password Manager PIN textfield during creation of a 6-digit pin, additionally informing which digit needs to be typed.">
-        Create a 6-digit recovery PIN for Google Password Manager, PIN digit <ph name="NUM_DIGIT">$1<ex>3</ex></ph> of 6
-      </message>
       <message name="IDS_WEBAUTHN_GPM_CREATE_PIN_DESC" desc="The description of a dialog that is shown when a user is creating a Google Password Manager PIN explaining that it will be used to access their passkeys on all devices. Refer to Glossary for the meaning of 'passkey'; do not translate it as 'password'">
         This helps you access your saved passkeys on any device
       </message>
       <message name="IDS_WEBAUTHN_GPM_ENTER_PIN_TITLE" desc="The title of a dialog that is shown when a user has to verify their presence in passkey creation / sign-in flows by using their Google Password Manager PIN.">
         Enter your PIN
       </message>
-      <message name="IDS_WEBAUTHN_GPM_ENTER_ALPHANUMERIC_PIN_ACCESSIBILITY" desc="The accessibility label that is announced by a screen reader when a focus lands on a Google Password Manager PIN textfield when entering an alphanumeric pin for user verification.">
-        Enter your alphanumeric PIN for Google Password Manager
-      </message>
       <message name="IDS_WEBAUTHN_GPM_ENTER_ALPHANUMERIC_PIN_ACCESSIBILITY_WITH_WEBSITE" desc="The accessibility label that is announced by a screen reader when a focus lands on a Google Password Manager PIN textfield when entering an alphanumeric pin for user verification, additionally informing about the reason for user verification.">
         <ph name="SITE">$1<ex>example.com</ex></ph> wants to verify it's you. Enter your alphanumeric PIN for Google Password Manager
-      </message>
-      <message name="IDS_WEBAUTHN_GPM_ENTER_SIX_DIGIT_PIN_ACCESSIBILITY" desc="The accessibility label that is announced by a screen reader when a focus lands on a Google Password Manager PIN textfield when entering a 6-digit pin for user verification.">
-        Enter your 6-digit PIN for Google Password Manager
-      </message>
-      <message name="IDS_WEBAUTHN_GPM_ENTER_SIX_DIGIT_PIN_ACCESSIBILITY_WITH_FOCUSED_DIGIT" desc="The accessibility label that is announced by a screen reader when a focus lands on a Google Password Manager PIN textfield when entering a 6-digit pin for user verification, additionally informing about the reason for user verification and which digit needs to be typed.">
-        <ph name="SITE">$1<ex>example.com</ex></ph> wants to verify it's you. Enter your 6-digit PIN for Google Password Manager, PIN digit <ph name="NUM_DIGIT">$2<ex>3</ex></ph> of 6
       </message>
       <message name="IDS_WEBAUTHN_GPM_ENTER_PIN_DESC" desc="The description of a dialog that is shown when a user is verifying their presence in passkey creation / sign-in flows explaining that the website requires that.">
         <ph name="SITE">$1<ex>example.com</ex></ph> wants to verify it's you
@@ -19771,6 +19605,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
     <if expr="enable_pdf">
       <message name="IDS_PDF_GLIC_SUMMARIZE" desc="Button label for the button to summarize PDFs.">
         Summarize
+      </message>
+      <message name="IDS_PDF_GLIC_SUMMARIZE_WITH_GEMINI" desc="Button label for the button to summarize PDFs, used in an experiment arm where the button mentions Gemini.">
+        Summarize with Gemini
       </message>
       <message name="IDS_PDF_GLIC_SUMMARIZE_TOOLTIP" desc="Tooltip for the button to summarize PDFs with Gemini.">
         Summarize with Gemini

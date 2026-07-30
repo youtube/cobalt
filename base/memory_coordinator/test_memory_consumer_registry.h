@@ -8,11 +8,11 @@
 #include <stddef.h>
 
 #include <cstddef>
-#include <vector>
 
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "base/memory_coordinator/memory_consumer_registry.h"
+#include "base/observer_list.h"
 
 namespace base {
 
@@ -27,9 +27,9 @@ class TestMemoryConsumerRegistry : public MemoryConsumerRegistry {
   void OnMemoryConsumerAdded(uint32_t consumer_id,
                              std::string_view consumer_name,
                              std::optional<MemoryConsumerTraits> traits,
-                             RegisteredMemoryConsumer consumer) override;
+                             MemoryConsumer* consumer) override;
   void OnMemoryConsumerRemoved(uint32_t consumer_id,
-                               RegisteredMemoryConsumer consumer) override;
+                               MemoryConsumer* consumer) override;
 
   // Invokes UpdateMemoryLimit(percentage) on all consumers.
   void NotifyUpdateMemoryLimit(int percentage);
@@ -41,10 +41,11 @@ class TestMemoryConsumerRegistry : public MemoryConsumerRegistry {
                                     OnceClosure on_notification_sent_callback);
   void NotifyReleaseMemoryAsync(OnceClosure on_notification_sent_callback);
 
-  size_t size() const { return memory_consumers_.size(); }
+  size_t size() const { return size_; }
 
  private:
-  std::vector<RegisteredMemoryConsumer> memory_consumers_;
+  ObserverList<MemoryConsumer> memory_consumers_;
+  size_t size_ = 0;
 
   WeakPtrFactory<TestMemoryConsumerRegistry> weak_ptr_factory_{this};
 };

@@ -80,6 +80,7 @@ import org.chromium.chrome.browser.feed.FeedFeatures;
 import org.chromium.chrome.browser.feed.FeedServiceBridge;
 import org.chromium.chrome.browser.feed.FeedServiceBridgeJni;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.homepage.HomepageManager;
 import org.chromium.chrome.browser.hub.HubManager;
 import org.chromium.chrome.browser.hub.Pane;
 import org.chromium.chrome.browser.hub.PaneId;
@@ -3673,6 +3674,42 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     }
 
     @Test
+    @EnableFeatures(ChromeFeatureList.GLIC)
+    public void glicItemEnabled() {
+        setUpMocksForPageMenu();
+        when(mTab.getUrl()).thenReturn(JUnitTestGURLs.EXAMPLE_URL);
+        when(mTab.isIncognito()).thenReturn(false);
+
+        ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
+
+        assertTrue(isMenuVisible(modelList, R.id.glic_menu_id));
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.GLIC)
+    public void glicItemDisabled_Incognito() {
+        setUpMocksForPageMenu();
+        when(mTab.getUrl()).thenReturn(JUnitTestGURLs.EXAMPLE_URL);
+        when(mTab.isIncognito()).thenReturn(true);
+
+        ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
+
+        assertFalse(isMenuVisible(modelList, R.id.glic_menu_id));
+    }
+
+    @Test
+    @DisableFeatures(ChromeFeatureList.GLIC)
+    public void glicItemDisabled_FeatureDisabled() {
+        setUpMocksForPageMenu();
+        when(mTab.getUrl()).thenReturn(JUnitTestGURLs.EXAMPLE_URL);
+        when(mTab.isIncognito()).thenReturn(false);
+
+        ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
+
+        assertFalse(isMenuVisible(modelList, R.id.glic_menu_id));
+    }
+
+    @Test
     @EnableFeatures({ChromeFeatureList.SUBMENUS_IN_APP_MENU})
     public void testToggleBookmarksBarMenuItemString() {
         when(mTab.getUrl()).thenReturn(org.chromium.url.JUnitTestGURLs.EXAMPLE_URL);
@@ -3944,6 +3981,34 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         ListItem groupItem = findItemById(subItems, R.id.tab_group_menu_item_id);
         assertNotNull(groupItem);
         assertEquals("Group 1", groupItem.model.get(AppMenuItemProperties.TITLE));
+    }
+
+    @Test
+    public void testHomepageMenuItem_shouldShow() {
+        setUpMocksForPageMenu();
+        when(mTab.getUrl()).thenReturn(JUnitTestGURLs.EXAMPLE_URL);
+
+        HomepageManager homepageManagerMock = mock(HomepageManager.class);
+        HomepageManager.setInstanceForTesting(homepageManagerMock);
+        when(homepageManagerMock.shouldShowHomepageMenuItem()).thenReturn(true);
+
+        ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
+        ListItem homepageItem = findItemById(modelList, R.id.homepage_menu_id);
+        assertNotNull("Homepage menu item should be visible", homepageItem);
+    }
+
+    @Test
+    public void testHomepageMenuItem_shouldNotShow() {
+        setUpMocksForPageMenu();
+        when(mTab.getUrl()).thenReturn(JUnitTestGURLs.EXAMPLE_URL);
+
+        HomepageManager homepageManagerMock = mock(HomepageManager.class);
+        HomepageManager.setInstanceForTesting(homepageManagerMock);
+        when(homepageManagerMock.shouldShowHomepageMenuItem()).thenReturn(false);
+
+        ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
+        ListItem homepageItem = findItemById(modelList, R.id.homepage_menu_id);
+        assertNull("Homepage menu item should not be visible", homepageItem);
     }
 
     private static MenuItem item(Object id, MenuItem... subItems) {

@@ -294,7 +294,11 @@ class BasicHandshakeStreamTestSetup : public HandshakeStreamTestSetup {
  public:
   void SetUpExpectations(
       MockWebSocketStreamRequestAPI& stream_request) override {
-    EXPECT_CALL(stream_request, OnBasicHandshakeStreamCreated(_)).Times(1);
+    EXPECT_CALL(stream_request, OnBasicHandshakeStreamCreated(_))
+        .WillOnce([](WebSocketBasicHandshakeStream* handshake_stream) {
+          handshake_stream->SetWebSocketKeyForTesting(
+              "dGhlIHNhbXBsZSBub25jZQ==");
+        });
   }
 
   std::unique_ptr<WebSocketHandshakeStreamBase> CreateStream(
@@ -310,17 +314,8 @@ class BasicHandshakeStreamTestSetup : public HandshakeStreamTestSetup {
             WebSocketStandardResponse(
                 WebSocketExtraHeadersToString(extra_response_headers)));
 
-    std::unique_ptr<WebSocketHandshakeStreamBase> handshake =
-        create_helper.CreateBasicStream(std::move(socket_handle), false,
-                                        &websocket_endpoint_lock_manager_);
-
-    // If in future the implementation type returned by CreateBasicStream()
-    // changes, this static_cast will be wrong. However, in that case the
-    // test will fail and AddressSanitizer should identify the issue.
-    static_cast<WebSocketBasicHandshakeStream*>(handshake.get())
-        ->SetWebSocketKeyForTesting("dGhlIHNhbXBsZSBub25jZQ==");
-
-    return handshake;
+    return create_helper.CreateBasicStream(std::move(socket_handle), false,
+                                           &websocket_endpoint_lock_manager_);
   }
 
   void DoHandshake(WebSocketHandshakeStreamBase* handshake,
@@ -386,7 +381,8 @@ class Http2HandshakeStreamTestSetup : public HandshakeStreamTestSetup {
         HostPortPair::FromURL(kUrl), PRIVACY_MODE_DISABLED,
         ProxyChain::Direct(), SessionUsage::kDestination, SocketTag(),
         NetworkAnonymizationKey(), SecureDnsPolicy::kAllow,
-        /*disable_cert_verification_network_fetches=*/false);
+        /*disable_cert_verification_network_fetches=*/false,
+        handles::kInvalidNetworkHandle);
     spdy_session_ =
         CreateSpdySession(http_network_session_.get(), key, NetLogWithSource());
 
@@ -622,12 +618,13 @@ class Http3HandshakeStreamTestSetup : public HandshakeStreamTestSetup {
         /*server_info=*/nullptr,
         QuicSessionAliasKey(
             url::SchemeHostPort(),
-            QuicSessionKey(
-                "mail.example.org", 80, PRIVACY_MODE_DISABLED,
-                ProxyChain::Direct(), SessionUsage::kDestination, SocketTag(),
-                NetworkAnonymizationKey(), SecureDnsPolicy::kAllow,
-                /*require_dns_https_alpn=*/false,
-                /*disable_cert_verification_network_fetches=*/false)),
+            QuicSessionKey("mail.example.org", 80, PRIVACY_MODE_DISABLED,
+                           ProxyChain::Direct(), SessionUsage::kDestination,
+                           SocketTag(), NetworkAnonymizationKey(),
+                           SecureDnsPolicy::kAllow,
+                           /*require_dns_https_alpn=*/false,
+                           /*disable_cert_verification_network_fetches=*/false,
+                           handles::kInvalidNetworkHandle)),
         /*require_confirmation=*/false,
         /*migrate_session_early_v2=*/false,
         /*migrate_session_on_network_change_v2=*/false,

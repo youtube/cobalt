@@ -786,30 +786,49 @@ StyleRuleBase* StyleRuleBase::Clone(
           To<StyleRuleFontFeature>(*this));
     case kImport:
       return MakeGarbageCollected<StyleRuleImport>(To<StyleRuleImport>(*this));
-    case kKeyframes:
+    case kKeyframes: {
+      StyleRuleKeyframes* keyframes_rule = To<StyleRuleKeyframes>(this);
+      HeapVector<Member<StyleRuleKeyframe>> new_keyframes;
+      for (const Member<StyleRuleKeyframe>& keyframe :
+           keyframes_rule->Keyframes()) {
+        new_keyframes.push_back(To<StyleRuleKeyframe>(
+            keyframe->Clone(new_parent, mixin_parameter_bindings)));
+      }
       return MakeGarbageCollected<StyleRuleKeyframes>(
-          To<StyleRuleKeyframes>(*this));
+          std::move(new_keyframes), keyframes_rule->GetName(),
+          keyframes_rule->Version(), keyframes_rule->IsVendorPrefixed());
+    }
     case kLayerStatement:
       return MakeGarbageCollected<StyleRuleLayerStatement>(
           To<StyleRuleLayerStatement>(*this));
     case kNamespace:
       return MakeGarbageCollected<StyleRuleNamespace>(
           To<StyleRuleNamespace>(*this));
-    case kCounterStyle:
+    case kCounterStyle: {
+      auto* counter_style = To<StyleRuleCounterStyle>(this);
       return MakeGarbageCollected<StyleRuleCounterStyle>(
-          To<StyleRuleCounterStyle>(*this));
-    case kKeyframe:
+          counter_style->GetName(),
+          counter_style->Properties().ImmutableCopyIfNeeded());
+    }
+    case kKeyframe: {
+      auto* keyframe_rule = To<StyleRuleKeyframe>(this);
+      std::unique_ptr<Vector<KeyframeOffset>> keys =
+          std::make_unique<Vector<KeyframeOffset>>(keyframe_rule->Keys());
       return MakeGarbageCollected<StyleRuleKeyframe>(
-          To<StyleRuleKeyframe>(*this));
+          std::move(keys), keyframe_rule->Properties().ImmutableCopyIfNeeded());
+    }
     case kCharset:
       return MakeGarbageCollected<StyleRuleCharset>(
           To<StyleRuleCharset>(*this));
     case kViewTransition:
       return MakeGarbageCollected<StyleRuleViewTransition>(
           To<StyleRuleViewTransition>(*this));
-    case kPositionTry:
+    case kPositionTry: {
+      auto* position_try = To<StyleRulePositionTry>(this);
       return MakeGarbageCollected<StyleRulePositionTry>(
-          To<StyleRulePositionTry>(*this));
+          position_try->Name(),
+          position_try->Properties().ImmutableCopyIfNeeded());
+    }
     case kCustomMedia:
       return MakeGarbageCollected<StyleRuleCustomMedia>(
           To<StyleRuleCustomMedia>(*this));

@@ -398,7 +398,7 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
 
 - (void)viewWillLayoutSubviews {
   [super viewWillLayoutSubviews];
-  [self updateModuleWidth];
+  [self updateModuleWidthWithWidth:self.view.frame.size.width];
 }
 
 #pragma mark - UIContentContainer
@@ -1154,10 +1154,8 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
   return _isAIMAllowed && IsAimEnabledInNtp();
 }
 
-// Returns YES if scroll should be skipped when focusing the omnibox.
 - (BOOL)shouldSkipScrollToFocusOmnibox {
-  return self.scrolledToMinimumHeight ||
-         (IsSplitToolbarMode(self) && !CanShowTabStrip(self));
+  return self.scrolledToMinimumHeight || [self shouldPinFakeOmnibox];
 }
 
 // Returns the collection view containing all NTP content.
@@ -1217,7 +1215,7 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
   self.transitioningToLandscape =
       IsChromeNextIaEnabled() && [self isOrientationLandscapeForSize:size];
 
-  [self updateModuleWidth];
+  [self updateModuleWidthWithWidth:size.width];
   [self handleStickyElementsForScrollPosition:[self scrollPosition] force:YES];
 
   CGFloat heightAboveFeedDifference =
@@ -1442,9 +1440,7 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
 
   if (self.shouldAnimateHeader) {
     BOOL animateScrollAnimation =
-        IsChromeNextIaEnabled()
-            ? (IsSplitToolbarMode(self) || CanShowTabStrip(self))
-            : !self.disableScrollAnimation;
+        IsChromeNextIaEnabled() ? YES : !self.disableScrollAnimation;
     UIEdgeInsets insets = self.collectionView.safeAreaInsets;
     [self.headerViewController
         updateFakeOmniboxForOffset:[self adjustedOffset].y
@@ -1773,11 +1769,11 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
 }
 
 // Updates the width constraint of `moduleLayoutGuide`.
-- (void)updateModuleWidth {
+- (void)updateModuleWidthWithWidth:(CGFloat)viewWidth {
   CGFloat oldWidth = _moduleWidth.constant;
   CGFloat widthMultiplier = (100 - kHomeModuleMinimumPadding) / 100;
-  CGFloat width = MIN(self.view.frame.size.width * widthMultiplier,
-                      kDiscoverFeedContentMaxWidth);
+  CGFloat width =
+      MIN(viewWidth * widthMultiplier, kDiscoverFeedContentMaxWidth);
 
   BOOL existingConstraintUpdated = NO;
   if (!_moduleWidth) {
@@ -1859,7 +1855,7 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
   CGFloat minimumHeight = collectionViewHeight + headerHeight;
   if (!CanShowTabStrip(self.collectionView)) {
     minimumHeight -= self.collectionView.contentInset.bottom;
-    if (IsSplitToolbarMode(self)) {
+    if ([self shouldPinFakeOmnibox]) {
       minimumHeight -= [self stickyOmniboxHeight];
     } else {
       // Add in half of the margin between the fakebox and the rest of the

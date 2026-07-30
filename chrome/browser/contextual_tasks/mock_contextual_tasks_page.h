@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "chrome/browser/contextual_tasks/contextual_tasks.mojom.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_types.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -22,8 +23,12 @@ class MockContextualTasksPage : public mojom::Page {
   mojo::PendingRemote<mojom::Page> BindAndGetRemote();
 
   MOCK_METHOD(void, SetThreadTitle, (const std::string& title), (override));
-  MOCK_METHOD(void, SetTaskDetails, (const base::Uuid& uuid), (override));
-  MOCK_METHOD(void, SetAimUrl, (const GURL& url), (override));
+  MOCK_METHOD(void,
+              SetTaskDetails,
+              (const base::Uuid& uuid,
+               const GURL& url,
+               bool replace_navigation_entry),
+              (override));
   MOCK_METHOD(void, OnSidePanelStateChanged, (), (override));
   MOCK_METHOD(void,
               PostMessageToWebview,
@@ -69,6 +74,10 @@ class MockContextualTasksPage : public mojom::Page {
               (override));
   MOCK_METHOD(void, OnSidePanelPinStateChanged, (bool is_pinned), (override));
   MOCK_METHOD(void, SetInNlm, (bool in_nlm), (override));
+  MOCK_METHOD(void,
+              OnWindowClosed,
+              (const ContextualWindowId& window_id),
+              (override));
 
  private:
   mojo::Receiver<mojom::Page> receiver_{this};

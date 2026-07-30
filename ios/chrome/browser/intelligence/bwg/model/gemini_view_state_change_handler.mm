@@ -52,4 +52,18 @@
   }
 }
 
+- (void)geminiLiveUserDidTapLiveButton {
+  if (!_target) {
+    return;
+  }
+  _target->OnLiveButtonTapped();
+}
+
+- (void)geminiLiveUserDidBargeIn {
+  if (!_target) {
+    return;
+  }
+  _target->OnGeminiLiveUserDidBargeIn();
+}
+
 @end

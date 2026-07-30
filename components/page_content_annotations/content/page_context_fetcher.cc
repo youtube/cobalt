@@ -4,27 +4,31 @@
 
 #include "components/page_content_annotations/content/page_context_fetcher.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "base/check.h"
 #include "base/check_op.h"
 #include "base/containers/flat_map.h"
 #include "base/feature_list.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
-#include "base/numerics/safe_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
@@ -33,35 +37,42 @@
 #include "components/content_extraction/content/browser/inner_text.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/optimization_guide/content/browser/page_content_proto_util.h"
-#include "components/optimization_guide/content/browser/page_context_eligibility.h"
 #include "components/optimization_guide/core/page_content_proto_serializer.h"
+#include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "components/page_content_annotations/content/page_content_screenshot_service.h"
 #include "components/page_content_annotations/content/page_context_fetcher_metrics.h"
+#include "components/page_content_annotations/content/page_context_fetcher_options.h"
 #include "components/paint_preview/common/mojom/paint_preview_types.mojom.h"
 #include "components/paint_preview/common/redaction_params.h"
 #include "components/pdf/common/constants.h"
 #include "components/viz/common/frame_sinks/copy_output_result.h"
 #include "components/viz/common/surfaces/tracked_element_rects.h"
+#include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
-#include "mojo/public/cpp/base/proto_wrapper.h"
 #include "net/base/schemeful_site.h"
 #include "pdf/buildflags.h"
 #include "third_party/abseil-cpp/absl/strings/str_format.h"
 #include "third_party/blink/public/common/features.h"
+#include "third_party/blink/public/common/tokens/tokens.h"
 #include "third_party/blink/public/mojom/content_extraction/ai_page_content.mojom.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkCanvas.h"
+#include "third_party/skia/include/core/SkColor.h"
+#include "third_party/skia/include/core/SkPaint.h"
 #include "ui/gfx/codec/jpeg_codec.h"
 #include "ui/gfx/codec/png_codec.h"
 #include "ui/gfx/codec/webp_codec.h"
+#include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/size.h"
 #include "ui/gfx/geometry/skia_conversions.h"
 #include "url/origin.h"
 
 #if BUILDFLAG(ENABLE_PDF)
 #include "components/pdf/browser/pdf_document_helper.h"
+#include "pdf/mojom/pdf.mojom.h"
 #endif  // BUILDFLAG(ENABLE_PDF)
 
 namespace page_content_annotations {
@@ -423,8 +434,14 @@ void PageContextFetcher::FetchStart(content::WebContents& aweb_contents,
     if (progress_listener_) {
       progress_listener_->BeginAPC();
     }
+    const bool use_tracked_elements_for_password_screenshot_redaction =
+        base::FeatureList::IsEnabled(
+            blink::features::kAIPageContentTrackedElementsPassword) &&
+        options.screenshot_options &&
+        !options.screenshot_options->use_paint_preview();
     ai_page_content_options->include_passwords_for_redaction =
-        base::FeatureList::IsEnabled(kGlicScreenshotPasswordRedaction);
+        base::FeatureList::IsEnabled(kGlicScreenshotPasswordRedaction) &&
+        !use_tracked_elements_for_password_screenshot_redaction;
     ai_page_content_options->include_sensitive_payments_for_redaction =
         base::FeatureList::IsEnabled(kGlicScreenshotSensitivePaymentRedaction);
     // OTP redaction reuses the shared APC Autofill feature gate because there
@@ -435,7 +452,7 @@ void PageContextFetcher::FetchStart(content::WebContents& aweb_contents,
         base::FeatureList::IsEnabled(
             optimization_guide::features::
                 kAnnotatedPageContentAutofillOtpRedactions);
-    screenshot_needs_redaction_ =
+    screenshot_needs_redaction_using_apc_ =
         ai_page_content_options->include_passwords_for_redaction ||
         ai_page_content_options->include_sensitive_payments_for_redaction ||
         ai_page_content_options->include_otps_for_redaction;
@@ -712,12 +729,7 @@ void PageContextFetcher::ReceivedViewportBitmapOrError(
     if (progress_listener_) {
       progress_listener_->ScreenshotCaptured(*bitmap);
     }
-
-    if (!CollectTrackedElementRectsForIframes(tracked_element_rects)) {
-      ReceivedEncodedScreenshot(
-          base::unexpected("Failed to collect iframe info from screenshot."));
-      return;
-    }
+    ProcessTrackedElementRects(tracked_element_rects);
     MaybeAddIframeInfoToAPC();
     RedactAndEncodeScreenshotIfNeeded();
   } else {
@@ -769,8 +781,9 @@ void PageContextFetcher::RedactAndEncodeScreenshotIfNeeded() {
     return;
   }
 
-  if (!screenshot_needs_redaction_) {
-    RedactAndEncodeScreenshot({});
+  if (!screenshot_needs_redaction_using_apc_) {
+    RedactAndEncodeScreenshot(
+        std::move(tracked_element_bounds_for_screenshot_redaction_));
     return;
   }
 
@@ -779,14 +792,22 @@ void PageContextFetcher::RedactAndEncodeScreenshotIfNeeded() {
     return;
   }
 
+  std::vector<gfx::Rect> visible_bounding_boxes_for_redaction =
+      std::move(tracked_element_bounds_for_screenshot_redaction_);
+
   // Once APC is done, any requested password, OTP, or sensitive-payment
   // redaction implies we have final bounding boxes to redact.
   CHECK(pending_result_);
   CHECK(pending_result_->annotated_page_content_result.has_value());
 
-  std::vector<gfx::Rect> visible_bounding_boxes_for_redaction =
+  const std::vector<gfx::Rect>& visible_bounding_boxes_for_redaction_from_apc =
       pending_result_->annotated_page_content_result
           ->visible_bounding_boxes_for_redaction;
+  visible_bounding_boxes_for_redaction.insert(
+      visible_bounding_boxes_for_redaction.end(),
+      visible_bounding_boxes_for_redaction_from_apc.begin(),
+      visible_bounding_boxes_for_redaction_from_apc.end());
+
   RedactAndEncodeScreenshot(std::move(visible_bounding_boxes_for_redaction));
 }
 
@@ -886,13 +907,13 @@ void PageContextFetcher::ReceivedAnnotatedPageContent(
   if (has_result) {
     pending_result_->annotated_page_content_result.emplace(
         std::move(content.value()));
-    screenshot_needs_redaction_ =
+    screenshot_needs_redaction_using_apc_ =
         !pending_result_->annotated_page_content_result
              ->visible_bounding_boxes_for_redaction.empty();
   } else {
     pending_result_->annotated_page_content_result =
         base::unexpected(content.error());
-    screenshot_needs_redaction_ = false;
+    screenshot_needs_redaction_using_apc_ = false;
   }
   annotated_page_content_done_ = true;
   base::UmaHistogramTimes("Glic.PageContextFetcher.GetAnnotatedPageContent",
@@ -943,18 +964,24 @@ void PageContextFetcher::RunCallbackIfComplete() {
   std::move(callback_).Run(base::ok(std::move(pending_result_)));
 }
 
-bool PageContextFetcher::CollectTrackedElementRectsForIframes(
+void PageContextFetcher::ProcessTrackedElementRects(
+    const viz::TrackedElementRects& tracked_element_rects) {
+  CollectTrackedElementRectsForIframes(tracked_element_rects);
+  CollectTrackedElementRectsForPassword(tracked_element_rects);
+}
+
+void PageContextFetcher::CollectTrackedElementRectsForIframes(
     const viz::TrackedElementRects& tracked_element_rects) {
   if (!base::FeatureList::IsEnabled(
           blink::features::kAIPageContentTrackedElementsIframe)) {
-    return true;
+    return;
   }
 
   iframe_info_.clear();
   const auto iframe_tracking_feature =
       viz::TrackedElementFeature::kIframeTracking;
   if (!tracked_element_rects.contains(iframe_tracking_feature)) {
-    return true;
+    return;
   }
 
   // Build a map from local frame token to RFH. We can use this to get the
@@ -983,34 +1010,29 @@ bool PageContextFetcher::CollectTrackedElementRectsForIframes(
 
     // Iframe tracked elements should always have a parent frame token and a
     // frame token.
-    if (!element.frame_token.has_value() ||
-        !element.parent_frame_token.has_value()) {
-      return false;
+    if (element.frame_token.has_value() &&
+        element.parent_frame_token.has_value()) {
+      // If we can't find the RFH associated with the iframe, we cannot
+      // determine the iframe's url/origin. This could happen if the screenshot
+      // is displaying stale content. We should leave the url and origin empty
+      // in this case.
+      auto it = frame_token_to_rfh.find(element.parent_frame_token.value());
+      if (it != frame_token_to_rfh.end()) {
+        content::RenderFrameHost* parent_rfh = it->second;
+        int renderer_process_id = parent_rfh->GetProcess()->GetID().value();
+        content::RenderFrameHost* iframe_rfh =
+            optimization_guide::GetRenderFrameHostForToken(
+                renderer_process_id, element.frame_token.value());
+        if (iframe_rfh) {
+          iframe_info.set_url(iframe_rfh->GetLastCommittedURL().spec());
+          optimization_guide::SecurityOriginSerializer::Serialize(
+              iframe_rfh->GetLastCommittedOrigin(),
+              iframe_info.mutable_security_origin());
+        }
+      }
     }
-
-    // If we can't find the RFH associated with the iframe, we cannot determine
-    // the iframe's url/origin. This could happen if the screenshot is
-    // displaying stale content. We should fail in this case.
-    auto it = frame_token_to_rfh.find(element.parent_frame_token.value());
-    if (it == frame_token_to_rfh.end()) {
-      return false;
-    }
-    content::RenderFrameHost* parent_rfh = it->second;
-    int renderer_process_id = parent_rfh->GetProcess()->GetID().value();
-    content::RenderFrameHost* iframe_rfh =
-        optimization_guide::GetRenderFrameHostForToken(
-            renderer_process_id, element.frame_token.value());
-    if (!iframe_rfh) {
-      return false;
-    }
-
-    iframe_info.set_url(iframe_rfh->GetLastCommittedURL().spec());
-    optimization_guide::SecurityOriginSerializer::Serialize(
-        iframe_rfh->GetLastCommittedOrigin(),
-        iframe_info.mutable_security_origin());
     iframe_info_.push_back(std::move(iframe_info));
   }
-  return true;
 }
 
 void PageContextFetcher::MaybeAddIframeInfoToAPC() {
@@ -1035,6 +1057,25 @@ void PageContextFetcher::MaybeAddIframeInfoToAPC() {
           ->mutable_screenshot_info();
   for (const auto& iframe_info : iframe_info_) {
     *screenshot_info->add_iframe_info() = iframe_info;
+  }
+}
+
+void PageContextFetcher::CollectTrackedElementRectsForPassword(
+    const viz::TrackedElementRects& tracked_element_rects) {
+  if (!(base::FeatureList::IsEnabled(kGlicScreenshotPasswordRedaction) &&
+        base::FeatureList::IsEnabled(
+            blink::features::kAIPageContentTrackedElementsPassword))) {
+    return;
+  }
+
+  auto it =
+      tracked_element_rects.find(viz::TrackedElementFeature::kPasswordTracking);
+  if (it == tracked_element_rects.end()) {
+    return;
+  }
+  for (const viz::TrackedElementRect& rect : it->second) {
+    tracked_element_bounds_for_screenshot_redaction_.push_back(
+        rect.visible_bounds);
   }
 }
 
@@ -1081,15 +1122,6 @@ const base::FeatureParam<base::TimeDelta> kScreenshotTimeout{
 const base::FeatureParam<base::TimeDelta> kScreenshotTimeoutBrowserAllowance{
     &kGlicTabScreenshotExperiment, "screenshot_timeout_allowance_ms",
     base::Milliseconds(500)};
-
-PdfOptions::PdfOptions(Format format, uint32_t size_limit)
-    : format_(format), size_limit_(size_limit) {
-  CHECK_GT(size_limit, 0u);
-}
-
-FetchPageContextOptions::FetchPageContextOptions() = default;
-
-FetchPageContextOptions::~FetchPageContextOptions() = default;
 
 FetchPageContextResult::FetchPageContextResult()
     : screenshot_result(base::unexpected("Uninitialized")),

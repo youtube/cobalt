@@ -47,11 +47,11 @@
 #include "components/sync/base/time.h"
 #include "components/sync/base/user_selectable_type.h"
 #include "components/sync/engine/loopback_server/loopback_server_entity.h"
-#include "components/sync/engine/nigori/cross_user_sharing_public_private_key_pair.h"
-#include "components/sync/engine/nigori/key_derivation_params.h"
-#include "components/sync/engine/nigori/nigori.h"
 #include "components/sync/nigori/cross_user_sharing_keys.h"
+#include "components/sync/nigori/cross_user_sharing_public_private_key_pair.h"
 #include "components/sync/nigori/cryptographer_impl.h"
+#include "components/sync/nigori/key_derivation_params.h"
+#include "components/sync/nigori/nigori.h"
 #include "components/sync/protocol/nigori_local_data.pb.h"
 #include "components/sync/service/sync_service.h"
 #include "components/sync/service/sync_user_settings.h"
@@ -122,12 +122,14 @@ constexpr GaiaId::Literal kDefaultGaiaId("gaia_id_for_user1_gmail.com");
 MATCHER_P(IsDataEncryptedWith, key_params, "") {
   const sync_pb::EncryptedData& encrypted_data = arg;
   std::unique_ptr<syncer::Nigori> nigori = syncer::Nigori::CreateByDerivation(
-      key_params.derivation_params, key_params.password);
+      syncer::NigoriPassKey::ForTesting(), key_params.derivation_params,
+      key_params.password);
   return encrypted_data.key_name() == nigori->GetKeyName();
 }
 
 std::string ComputeKeyName(const KeyParamsForTesting& key_params) {
-  return syncer::Nigori::CreateByDerivation(key_params.derivation_params,
+  return syncer::Nigori::CreateByDerivation(syncer::NigoriPassKey::ForTesting(),
+                                            key_params.derivation_params,
                                             key_params.password)
       ->GetKeyName();
 }
@@ -2412,6 +2414,49 @@ IN_PROC_BROWSER_TEST_P(SingleClientNigoriWithWebApiTest,
     EXPECT_TRUE(WaitForPasswordForms({password_form1, password_form2}));
   }
   EXPECT_FALSE(GetSecurityDomainsServer()->ReceivedInvalidRequest());
+}
+
+IN_PROC_BROWSER_TEST_P(
+    SingleClientNigoriSyncTest,
+    ShouldPauseSyncForEncryptedTypesWhenKeystoreKeysRequired) {
+  const std::vector<std::vector<uint8_t>>& server_keystore_keys =
+      GetFakeServer()->GetKeystoreKeys();
+  ASSERT_THAT(server_keystore_keys, SizeIs(1));
+
+  std::vector<uint8_t> wrong_keystore_key = server_keystore_keys[0];
+  wrong_keystore_key[0] ^= 0xFF;
+
+  const KeyParamsForTesting kWrongKeystoreKeyParams =
+      KeystoreKeyParamsForTesting(wrong_keystore_key);
+
+  SetNigoriInFakeServer(
+      BuildKeystoreNigoriSpecifics(
+          /*keybag_keys_params=*/{kWrongKeystoreKeyParams},
+          /*keystore_decryptor_params=*/kWrongKeystoreKeyParams,
+          /*keystore_key_params=*/kWrongKeystoreKeyParams),
+      GetFakeServer());
+
+  const std::u16string kBookmarkTitle = u"Bookmark title";
+  const GURL kBookmarkUrl = GURL("https://example.com");
+  GetFakeServer()->InjectEntity(bookmarks_helper::CreateBookmarkServerEntity(
+      kBookmarkTitle, kBookmarkUrl));
+
+  ASSERT_TRUE(SetupSync(NO_WAITING));
+
+  EXPECT_TRUE(KeystoreKeysRequiredChecker(GetSyncService(0)).Wait());
+
+  // Bookmarks are unencrypted and should continue to sync.
+  EXPECT_TRUE(
+      bookmarks_helper::BookmarksTitleChecker(0, kBookmarkTitle, 1).Wait());
+
+  // Passwords are encrypted and should be paused.
+  EXPECT_FALSE(GetSyncService(0)->GetActiveDataTypes().Has(syncer::PASSWORDS));
+
+  // The user-facing error should NOT indicate that a passphrase is required,
+  // nor should it show any user-actionable errors.
+  EXPECT_FALSE(GetSyncService(0)->GetUserSettings()->IsPassphraseRequired());
+  EXPECT_EQ(GetSyncService(0)->GetUserActionableError(),
+            syncer::SyncService::UserActionableError::kNone);
 }
 
 // ChromeOS doesn't have unconsented primary accounts.

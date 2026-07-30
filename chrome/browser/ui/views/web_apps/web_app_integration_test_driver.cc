@@ -56,7 +56,6 @@
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -707,10 +706,10 @@ class UninstallCompleteWaiter final : public BrowserCollectionObserver,
     if (app_browser != nullptr) {
       LOG(INFO) << base::StringPrintf(
           "An app browser is still open at %p: IsAttemptingToClose(): %v, "
-          "is_delete_scheduled(): %v",
+          "IsDeleteScheduled(): %v",
           app_browser,
           app_browser->capabilities()->IsAttemptingToCloseBrowser(),
-          app_browser->GetBrowserForMigrationOnly()->is_delete_scheduled());
+          app_browser->IsDeleteScheduled());
       return;
     }
 
@@ -5074,7 +5073,8 @@ WebAppIntegrationTest::WebAppIntegrationTest() : helper_(this) {
 #endif  // !BUILDFLAG(IS_CHROMEOS)
   enabled_features.push_back(blink::features::kWebAppMigrationApi);
 
-  scoped_feature_list_.InitWithFeatures(enabled_features, {});
+  scoped_feature_list_.InitWithFeatures(enabled_features,
+                                        {features::kWebAppInstallDialog});
 }
 
 WebAppIntegrationTest::~WebAppIntegrationTest() = default;

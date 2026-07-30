@@ -6,6 +6,7 @@ module toolbar_ui_api.mojom;
 
 import "components/browser_apis/ui_controllers/toolbar/toolbar_ui_api_data_model.mojom";
 import "components/content_settings/core/common/content_settings_types.mojom";
+import "ui/base/dragdrop/mojom/drag_drop_types.mojom";
 import "ui/base/mojom/menu_source_type.mojom";
 import "ui/gfx/geometry/mojom/geometry.mojom";
 import "mojo/public/mojom/base/empty.mojom";
@@ -46,9 +47,9 @@ interface ToolbarUIService {
                   gfx.mojom.RectF bounds_in_css_pixels,
                   ui.mojom.MenuSourceType source);
 
-  // Handles user interaction with the readonly omnibox, delegating to the
-  // popup as appropriate.
-  OnOmniboxAction(OmniboxAction action);
+  // Handles user interaction with the omnibox
+  OnOmniboxAction(OmniboxAction action)
+      => result<mojo_base.mojom.Empty, mojo_base.mojom.Error>;
 
   // Called when the page finishes initialization.
   OnPageInitialized();
@@ -86,6 +87,9 @@ interface ToolbarUIService {
 
   // Called when a collapse animation finishes.
   OnLhsChipCollapseAnimationEnded(LhsChipIdentifier identifier);
+
+  // Called when a drag gesture is detected on an LHS chip.
+  OnLhsChipDrag(LhsChipIdentifier identifier, ui.mojom.DragEventSource source);
 
   // Sets the home page to the currently dragged url, if any, and displays the
   // home page undo bubble.

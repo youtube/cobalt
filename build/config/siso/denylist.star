@@ -14,24 +14,31 @@ def __step_config(ctx, step_config):
     #
     # How to remove a script from this list and enable remote execution:
     # 1. Remove the script path from `python_scripts` (or other lists below).
-    # 2. Run a remote build for the target using strict remote mode to check for missing inputs:
-    #    autoninja -C out/Default -strict_remote -config=default-remote <target>
+    # 2. Run a remote build in strict remote mode to check for missing inputs.
+    #    NOTE: By appending '^' to the script path (relative to the build directory,
+    #    typically starting with '../../'), you can build targets that use the script
+    #    as an input:
+    #    autoninja -C out/Default -strict_remote -config=default-remote ../../<script_path>^
     # 3. If the build fails due to missing inputs on RBE (e.g., helper scripts or assets):
     #    - Fix this in the corresponding `BUILD.gn` (not in Siso star files) by adding the
     #      missing files to the `inputs` list of the action target.
+    #      If the missing inputs are imported Python scripts, consider using
+    #      `action_with_pydeps` instead of manually listing them in `inputs`.
     # 4. Re-build and verify the action succeeds remotely.
     python_scripts = [
         "base/win/embedded_i18n/create_string_rc.py",
         "build/modules/unified/generate_system_modulemap.py",
+        # Reads .gclient_entries which is outside of the source tree.
+        "build/private_code_test/list_gclient_deps.py",
         "build/private_code_test/ninja_parser.py",
         "build/rust/gni_impl/rustc_print_cfg.py",
         "build/rust/gni_impl/write_rustflags.py",
         "chrome/test/chromedriver/embed_mobile_devices_in_cpp.py",
-        "components/autofill/core/browser/data_model/autofill_ai/transpile_entity_schema.py",
         "components/language/content/browser/ulp_language_code_locator/ulp_serialized_to_static_c.py",
         "components/optimization_guide/tools/gen_on_device_proto_descriptors.py",
+        # Requires dynamic globbing of hundreds of policy definition YAML files
+        # under components/policy/resources/templates/ directory.
         "components/policy/resources/policy_templates.py",
-        "components/policy/tools/template_writers/template_formatter.py",
         "components/resources/ssl/ssl_error_assistant/gen_ssl_error_assistant_proto.py",
         "components/safe_browsing/content/resources/gen_file_type_proto.py",
         "components/safe_browsing/content/resources/real_time_url_checks_allowlist/gen_real_time_url_allowlist_proto.py",
@@ -39,26 +46,29 @@ def __step_config(ctx, step_config):
         "components/zucchini/fuzzers/generate_fuzzer_data.py",
         "mojo/public/tools/bindings/minify_with_terser.py",
         "remoting/tools/build/remoting_copy_locales.py",
-        "remoting/tools/build/remoting_localize.py",
         "testing/libfuzzer/fuzzers/generate_v8_inspector_fuzzer_corpus.py",
         "testing/libfuzzer/research/domatolpm/fuzzer_generator.py",
         "testing/libfuzzer/research/domatolpm/generator.py",
         "testing/libfuzzer/research/fuzzilli_idl_fuzzing/generator.py",
         "testing/scripts/rust/generate_script.py",
-        "third_party/blink/renderer/bindings/scripts/check_generated_file_list.py",
+        # Dynamically walks and loads 160+ translated grd files (xtb) and requires
+        # full grit python libraries. Too many dynamic dependencies to track.
         "third_party/blink/renderer/build/scripts/generate_permission_element_grd.py",
-        "third_party/blink/renderer/build/scripts/make_instrumenting_probes.py",
-        "third_party/blink/renderer/build/scripts/run_with_pythonpath.py",
-        "third_party/blink/renderer/core/lcp_critical_path_predictor/generate_element_locator_binary_proto.py",
+        # Dynamically walks and reads multiple test image files under
+        # web_tests/images/resources/ directory, making input tracking too complex.
         "third_party/blink/renderer/modules/webcodecs/fuzzer_seed_corpus/generate_image_corpus.py",
         "third_party/cast_core/public/src/build/chromium/cast_core_grpc_generator_wrapper.py",
         "third_party/catapult/tracing/bin/generate_about_tracing_contents",
+        # Requires JDK to run. Additionally, it dynamically parses .js_library
+        # metadata files to determine JS source files to load at runtime, making
+        # input tracking too complex for static analysis without Starlark handlers.
         "third_party/closure_compiler/js_binary.py",
         "third_party/dawn/generator/dawn_gpu_info_generator.py",
         "third_party/dawn/generator/dawn_json_generator.py",
         "third_party/dawn/generator/dawn_version_generator.py",
         "third_party/dawn/generator/opengl_loader_generator.py",
         "third_party/dawn/src/tint/cmd/bench/generate_benchmark_inputs.py",
+        "third_party/dawn/tools/run.py",
         "third_party/dawn/webgpu-cts/scripts/compile_src.py",
         "third_party/dawn/webgpu-cts/scripts/copy_files.py",
         "third_party/dawn/webgpu-cts/scripts/gen_ts_dep_lists.py",
@@ -84,14 +94,16 @@ def __step_config(ctx, step_config):
         "tools/grit/grit.py",
         "tools/grit/pak_util.py",
         "tools/grit/preprocess_if_expr.py",
+        "tools/json_schema_compiler/compiler.py",
+        "tools/json_schema_compiler/feature_compiler.py",
         "tools/licenses/licenses.py",
-        "tools/media_engagement_preload/make_dafsa.py",
-        "tools/metrics/histograms/generate_expired_histograms_array.py",
+
+        # merge_xml.py relies on expand_owners.py, which
+        # executes dirmd (depot_tools) that queries local git repository
+        # metadata. This cannot run inside clean RBE sandboxes.
+        # TODO: Consider recoding the parsing in Python to sever the link to
+        # dirmd, as this dependency keeps causing various problems.
         "tools/metrics/histograms/merge_xml.py",
-        "tools/metrics/private_metrics/gen_private_metrics_builders.py",
-        "tools/metrics/structured/gen_events.py",
-        "tools/metrics/structured/gen_validator.py",
-        "tools/metrics/ukm/gen_builders.py",
         "tools/nocompile/wrapper.py",
         "tools/polymer/css_to_wrapper.py",
         "tools/polymer/html_to_wrapper.py",

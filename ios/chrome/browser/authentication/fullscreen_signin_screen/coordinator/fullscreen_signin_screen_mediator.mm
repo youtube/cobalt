@@ -247,6 +247,11 @@ enum class SigninScreenState {
     self.localPrefService->SetBoolean(prefs::kEulaAccepted, true);
     self.localPrefService->SetBoolean(metrics::prefs::kMetricsReportingEnabled,
                                       self.UMAReportingUserChoice);
+    metrics::MetricsReportingLevel level =
+        self.UMAReportingUserChoice ? metrics::MetricsReportingLevel::kBasic
+                                    : metrics::MetricsReportingLevel::kNone;
+    metrics::MetricsReportingChoiceService::SetMetricsReportingLevel(
+        self.localPrefService, level);
     self.localPrefService->CommitPendingWrite();
   }
 }
@@ -344,6 +349,7 @@ enum class SigninScreenState {
     case signin_ui::CancelationReason::kUserCanceled:
     case signin_ui::CancelationReason::kFailed:
     case signin_ui::CancelationReason::kAgeMismatchCanceled:
+    case signin_ui::CancelationReason::kSignInNotAllowed:
       return;
   }
 }

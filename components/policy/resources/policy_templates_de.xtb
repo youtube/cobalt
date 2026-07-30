@@ -145,6 +145,7 @@ URL‑Muster dürfen nicht im Konflikt mit „<ph name="CONTROLLED_FRAME_ALLOWED
 Ausführliche Informationen zu gültigen URL‑Mustern findest du unter https://chromeenterprise.google/policies/url-patterns. Der Platzhalter „<ph name="WILDCARD_VALUE" />“ ist kein akzeptierter Wert für diese Richtlinie.</translation>
 <translation id="1082802595100075771">Zulassen, dass Nutzer einen anonymen Google-Dienst verwenden, um automatische Beschreibungen für unbeschriftete Bilder zu erhalten</translation>
 <translation id="1084697375611053264">Damit wird die Liste der Domains von Drittanbieter-Webanwendungen festgelegt, die die <ph name="DESK_API_NAME" /> zur Steuerung von <ph name="PRODUCT_OS_NAME" />-Desktops verwenden dürfen. Diese URL-Muster müssen dem Format entsprechen, das im Attribut „matches“ unter https://developer.chrome.com/docs/extensions/mv3/manifest/externally_connectable/#reference festgelegt ist.</translation>
+<translation id="1086596047220085412">Einstellungen für das intelligente Teilen von Tabs</translation>
 <translation id="1087057100912843460">Updates zulassen</translation>
 <translation id="1087187152710800704">Die Berechtigung für die Fensterverwaltung wird standardmäßig auf allen Websites verweigert</translation>
 <translation id="1087437665304381368">Mit dieser Richtlinie wird nur der <ph name="PRODUCT_OS_NAME" />-Entwicklermodus gesteuert. Wenn du den Zugriff auf Android-Entwickleroptionen verhindern möchtest, musst du die Richtlinie "<ph name="DEVELOPER_TOOLS_DISABLED_POLICY_NAME" />" konfigurieren.</translation>
@@ -1077,6 +1078,7 @@ Diese Richtlinie ist eine vorübergehende Problemumgehung für den Fall, dass di
       Siehe auch <ph name="REMOTE_ACCESS_HOST_CLIENT_DOMAIN_LIST_POLICY_NAME" />.
 
       Hinweis: Sofern vorhanden, wird <ph name="REMOTE_ACCESS_HOST_DOMAIN_POLICY_NAME" /> mit dieser Einstellung überschrieben.</translation>
+<translation id="1723571018091915166">Intelligentes Teilen von Tabs mit <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />-Integrationen nicht zulassen.</translation>
 <translation id="172374442286684480">Speichern von lokalen Daten für alle Websites zulassen</translation>
 <translation id="1729169799290004131">Wenn die Richtlinie konfiguriert ist, wird die Bildschirmhelligkeit in % festgelegt und Funktionen zur automatischen Anpassung der Bildschirmhelligkeit werden deaktiviert. Die Bildschirmhelligkeit wird anfangs an den Richtlinienwert angepasst, aber der Nutzer kann sie später ändern.
 
@@ -2150,6 +2152,7 @@ Ist diese Richtlinie konfiguriert, können Nutzer den Wert nicht überschreiben.
 
 Ist sie nicht konfiguriert, ist der Datenschutzbildschirm anfangs deaktiviert, Nutzer können ihn jedoch steuern.</translation>
 <translation id="2413899611035194909">Optionen für Bedienungshilfen im Taskleistenmenü des Anmeldebildschirms anzeigen</translation>
+<translation id="2414712434655365347">HTTP-Header-Einschleusung für bestimmte URL-Muster konfigurieren</translation>
 <translation id="2415715982424988916">Entdecken (seit Version 91 unterstützt)</translation>
 <translation id="2420958105721932612">Gibt an, wie eine App installiert wird. AVAILABLE: Die App wird nicht automatisch installiert, Nutzer können sie jedoch installieren. Wenn die Richtlinie nicht festgelegt wird, ist diese Option standardmäßig ausgewählt. FORCE_INSTALLED: Die App wird automatisch installiert und Nutzer können sie nicht deinstallieren. BLOCKED: Die App ist gesperrt und kann nicht installiert werden. Falls die App unter einer früheren Richtlinie installiert wurde, wird sie deinstalliert.</translation>
 <translation id="2421400544595297401">Nicht zugehörige Nutzer dürfen keine Android-Apps verwenden</translation>
@@ -2883,6 +2886,13 @@ Diese Richtlinie kann nur als Cloud-Nutzerrichtlinie konfiguriert werden.</trans
 <translation id="2866726566162790531">Liste der Ursprünge, für die alle HTTP-Authentifizierungsschemas zulässig sind</translation>
 <translation id="2868756546751652023">Nutzer dürfen Instant Tethering verwenden</translation>
 <translation id="286898786908566256">Nutzer dürfen Telefonnummern aus Chrome an ihr Android-Gerät senden</translation>
+<translation id="287087426320717057">Mit dieser Richtlinie können Nutzer jegliche Art von Firmware-Updates starten.
+
+      Wenn die Richtlinie aktiviert oder nicht konfiguriert ist, können Nutzer, beispielsweise der Eigentümer des Geräts, Firmware-Updates starten.
+
+      Ist diese Richtlinie deaktiviert, können Nutzer keine Firmware-Updates anwenden.
+
+      Diese Richtlinie gilt für Firmware-Updates von Peripheriegeräten und internen Komponenten von <ph name="PRODUCT_OS_FLEX_NAME" />-Geräten. Firmware-Updates interner Komponenten von <ph name="PRODUCT_OS_NAME" />-Geräten sind von dieser Richtlinie nicht betroffen.</translation>
 <translation id="2872098849906555324">Google Drive-Synchronisierung deaktivieren</translation>
 <translation id="2872189563975139803">Einstellungen für die Trennung von Unternehmensprofilen</translation>
 <translation id="2872961005593481000">Herunterfahren</translation>
@@ -3450,7 +3460,6 @@ Wenn diese Richtlinie nicht konfiguriert ist, wird genau wie bei den anderen Chr
 <translation id="3229163415739929305">Wenn die Richtlinie aktiviert oder nicht konfiguriert ist, werden Metadaten zum Seitenaufbau und Modelle zum maschinellen Lernen abgerufen, die die Browsernutzung verbessern.
       Ist sie deaktiviert, funktionieren einige Funktionen eventuell nicht richtig.</translation>
 <translation id="3231311173895401135">Unterstützung vom Browser entscheiden lassen</translation>
-<translation id="3231684792162319504">Experimentelles Auslösen von Gemini nicht zulassen.</translation>
 <translation id="3231837273069128027">Mit dieser Richtlinie werden Verfügbarkeit und Verhalten von <ph name="TPM_FIRMWARE_UPDATE_TPM" />-Firmware-Updates konfiguriert.
 
       Gib einzelne Einstellungen in den JSON-Eigenschaften an:
@@ -5185,7 +5194,6 @@ Wenn diese Richtlinie konfiguriert ist, kann sie von Nutzern in <ph name="PRODUC
 <translation id="4435032708588431506">QUIC-Protokoll zulassen</translation>
 <translation id="443665821428652897">Websitedaten beim Schließen des Browsers löschen (veraltet)</translation>
 <translation id="4436941175475497595">Druckvorschau deaktivieren</translation>
-<translation id="4436992815485865052">Experimentelles Auslösen von Gemini zulassen.</translation>
 <translation id="4439336120285389675">Mit dieser Richtlinie kann eine Liste mit eingestellten Webplattformfunktionen festgelegt werden, die vorübergehend wieder aktiviert werden sollen.
 
       Mit der Richtlinie haben Administratoren die Möglichkeit, eingestellte Webplattformfunktionen für einen begrenzten Zeitraum wieder zu aktivieren. Die Funktionen werden durch ein String-Tag identifiziert und die Funktionen, die den Tags in der Liste entsprechen, die durch diese Richtlinie festgelegt wurde, werden wieder aktiviert.
@@ -6591,7 +6599,6 @@ Hinweis: Diese Funktion ist noch nicht allgemein verfügbar. Wenn du sie aktivie
 <translation id="5255790642269910630">Ist die Richtlinie konfiguriert, wird jeder Bildschirm anhand der festgelegten Bildschirmausrichtung gedreht, wenn das Gerät neu gestartet oder der Bildschirm nach einer Änderung des Richtlinienwerts zum ersten Mal angeschlossen wird. Nachdem ein Nutzer sich angemeldet hat, kann er die Bildschirmausrichtung auf der Einstellungsseite ändern, sie wird aber nach dem nächsten Neustart zurückgesetzt. Diese Richtlinie gilt sowohl für primäre als auch sekundäre Bildschirme.
 
 Ist die Richtlinie nicht konfiguriert, wird der Standardwert von 0 Grad verwendet und Nutzer können die Bildschirmausrichtung ändern. Die Bildschirmausrichtung wird dann nach dem Neustart nicht zurückgesetzt.</translation>
-<translation id="5256792633540454282">Steuert das experimentelle Auslösen von Gemini</translation>
 <translation id="5257395339965216304">Daten für gehostete Apps</translation>
 <translation id="5258445772095084618">Zulassen, dass nicht verknüpfte Nutzer virtuelle Maschinen verwenden, die für Linux-Apps benötigt werden</translation>
 <translation id="5258651513421638932">Isolierten Apps erlauben, eine Verbindung zu Smartcards herzustellen</translation>
@@ -7584,7 +7591,6 @@ Unter <ph name="MAC_OS_NAME" /> steht diese Richtlinie nur bei Instanzen zur Ver
 
       Diese Richtlinie wurde eingestellt. Bitte verwende stattdessen die Richtlinie <ph name="PRINTERS_BULK_BLOCKLIST" />.</translation>
 <translation id="591088232153082363">Lädt den Akku basierend auf der Akkunutzung intelligent auf.</translation>
-<translation id="5911656389795271430">Dies ist eine experimentelle Richtlinie.</translation>
 <translation id="5913506885872855604">Damit können bestimmte interne Adressbereiche als „öffentlich“ behandelt und somit nicht <ph name="LOCAL_NETWORK_ACCES" />-Prüfungen unterzogen werden. Umgekehrt kann dies verwendet werden, um bestimmte öffentliche Adressbereiche, die möglicherweise intern verwendet werden, als „lokal“ zu behandeln, sodass sie durch <ph name="LOCAL_NETWORK_ACCESS" />-Prüfungen geschützt sind.
 
 Überschreibungen des IP-Adressbereichs haben zwei Formen:
@@ -8016,6 +8022,25 @@ In Version 114 und höher ist diese Richtlinie optional, wenn die Richtlinie �
 <translation id="624219423122512710">Aktionen bei inaktivem Browser</translation>
 <translation id="6244061205361004687">Nutzern erlauben, VPN-Verbindungen manuell zu trennen oder zu ändern</translation>
 <translation id="6244210204546589761">Beim Start zu öffnende URLs</translation>
+<translation id="6245828368576563662">Mit dieser Richtlinie lässt sich eine Liste von Regeln definieren, um benutzerdefinierte HTTP-Header in Webanfragen einzuschleusen, die mit bestimmten URL-Mustern übereinstimmen. Header, die durch diese Richtlinie festgelegt werden, haben Vorrang vor Headern, die ursprünglich bereits in der Anfrage vorhanden waren, sowie vor Änderungen, die von Nutzern oder Erweiterungen vorgenommen werden.
+
+Ein häufiger Anwendungsfall für diese Richtlinie ist die Durchsetzung von Mandanten-Zugriffskontrollen durch das Einschleusen benutzerdefinierter Header (z. B. <ph name="EXAMPLE_HEADER_NAME" />).
+
+Die Richtlinie akzeptiert eine Liste von Regeln. Jede Regel enthält:
+
+* <ph name="PATTERNS_KEY" />: Eine Liste von URL-Mustern, die abgeglichen werden sollen. Wie ein URL-Muster formatiert wird, erfährst du unter https://support.google.com/chrome/a?p=url_blocklist_filter_format.
+
+* <ph name="HEADERS_KEY" />: Eine Liste von Objekten, die die einzufügenden Header repräsentieren. Jedes Objekt enthält:
+
+  * <ph name="HEADER_NAME_KEY" />: Den Namen des einzuschleusenden Headers.
+
+  * <ph name="HEADER_VALUE_KEY" />: Den Wert des einzuschleusenden Headers.
+
+Wenn mehrere Regeln auf eine Anfrage zutreffen, werden Header aus allen übereinstimmenden Regeln angewendet. Falls mehrere Header denselben Namen haben, wird der Header mit dem spezifischsten URL-Muster angewendet. Sind die Muster gleich spezifisch, wird der Header angewendet, der zuletzt in der Liste erscheint.
+
+Headernamen müssen RFC 2616 (https://www.rfc-editor.org/rfc/rfc2616) entsprechen. Headerwerte dürfen keine NUL-, CR- oder LF-Zeichen enthalten. Einzelne Header dürfen eine Größe von 8 KB nicht überschreiten. Ungültige Header und URL-Muster werden ignoriert.
+
+Diese Richtlinie ist auf insgesamt 500 URL-Muster über alle Regeln hinweg begrenzt. Jede Regel darf maximal 20 Header enthalten. Muster und Header, die diese Grenzwerte überschreiten, werden ignoriert.</translation>
 <translation id="624595269193747921">Gibt an, ob die Suche nach dem passenden Drucker auf eine bestimmte Gruppe von Druckern beschränkt werden soll.</translation>
 <translation id="6246290059248303618">Mediensteuerelemente für <ph name="PRODUCT_NAME" />-Sitzungen anzeigen, die von anderen Geräten im lokalen Netzwerk gestartet wurden</translation>
 <translation id="6247316685259031374">Mit dieser Richtlinie kann die Sandbox für den Audioprozess konfiguriert werden.
@@ -8303,6 +8328,25 @@ Weitere Informationen zur Datenverarbeitung bei auf generativer KI basierenden 
 <translation id="6383774771168138899">Konfiguration des <ph name="CLOUD_UPLOAD_NAME" />-Ablaufs für <ph name="MICROSOFT_ONE_DRIVE_NAME" /> und <ph name="MICROSOFT_365_NAME" /></translation>
 <translation id="6384542789059421431">Dadurch werden die Suchergebnisseiten der Standardsuchmaschine in der Seitenleiste des Browsers angezeigt.</translation>
 <translation id="6389240462871677239">Ursprüngen isolierter Web-Apps erlauben, Controlled Frame zu verwenden</translation>
+<translation id="6393598243777822017">Mit dieser Richtlinie wird die Verwendung der Funktion „Intelligente Tabfreigabe“ des <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> über die Seitenleiste oder die Tabs in <ph name="PRODUCT_NAME" /> gesteuert.
+
+Diese Richtlinie wirkt sich nicht auf die Webversion von <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> aus. Sie legt nur fest, wie Nutzer Informationen teilen können, wenn sie <ph name="PRODUCT_NAME" /> verwenden.
+
+0 = Nutzer können Seiten- oder Dateiinhalte mit <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> teilen.
+
+1 = Nutzer können keine Seiten- oder Dateiinhalte mit <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> teilen. Die Zugangspunkte zum Teilen von Kontext und die Seitenleiste werden deaktiviert oder ausgeblendet.
+
+Diese Richtlinie wird ignoriert, wenn <ph name="GOOGLE_SEARCH_PRODUCT_NAME" /> nicht die Standardsuchmaschine der Nutzer ist, da die Funktion deaktiviert ist.
+
+Diese Richtlinie ist unabhängig von der Richtlinie „<ph name="AI_MODE_SETTINGS_POLICY_NAME" />“. Die Richtlinie „<ph name="AI_MODE_SETTINGS_POLICY_NAME" />“ steuert nur Zugangspunkte in der Omnibox oder im Suchfeld auf der Seite „Neuer Tab“, während diese Richtlinie das Teilen von Kontext über die Seitenleiste oder Tabs steuert.
+
+Diese Richtlinie steuert auch nicht die <ph name="GOOGLE_GEMINI_PRODUCT_NAME" />-Integration, die von <ph name="GEMINI_SETTINGS_POLICY_NAME" /> deaktiviert werden kann.
+
+Wenn „<ph name="SEARCH_CONTENT_SHARING_SETTINGS_POLICY_NAME" />“ deaktiviert ist, wird diese Richtlinie ignoriert.
+
+Wenn diese Richtlinie nicht konfiguriert ist, wird das Verhalten der Funktion durch die Richtlinie „<ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />“ bestimmt.
+
+Weitere Informationen zur Datenverarbeitung bei auf generativer KI basierenden Funktionen findest du unter https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="6394350458541421998">Diese Richtlinie ist ab <ph name="PRODUCT_OS_NAME" />-Version 29 nicht mehr vorhanden. Verwende stattdessen die Richtlinie "PresentationScreenDimDelayScale".</translation>
 <translation id="6397588391180665797">Mit dieser Richtlinie wird festgelegt, ob die Netzwerkkonfiguration von Nutzern auf angemeldeten Geräten ausgegeben wird.
 
@@ -10718,6 +10762,7 @@ Ist die Richtlinie deaktiviert oder nicht konfiguriert, können Nutzer das Symbo
 
 Wenn die Richtlinie „<ph name="ENABLE_MEDIA_ROUTER_POLICY_NAME" />“ deaktiviert ist, hat der Richtlinienwert keine Auswirkungen und das Symbol wird nicht angezeigt.</translation>
 <translation id="7933141401888114454">Erstellung von betreuten Nutzern aktivieren</translation>
+<translation id="793360449603660370">Intelligentes Teilen von Tabs mit <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />-Integrationen zulassen.</translation>
 <translation id="793473937901685727">Verfügbarkeit von Zertifikaten für ARC-Apps festlegen</translation>
 <translation id="7936302526928951356">Im User-Agent-String wird die Hauptversion nicht festgeschrieben.</translation>
 <translation id="7936632434238618620">Mit dieser Richtlinie kannst du eine Liste von URL-Mustern erstellen, durch die Websites angegeben werden, für die Chrome automatisch ein Clientzertifikat auswählen kann. Der Wert ist ein Array von String-JSON-Wörterbüchern. Jedes Wörterbuch muss das Format <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_EXAMPLE" /> haben, wobei <ph name="URL_PATTERN_PLACEHOLDER" /> ein Muster zum Festlegen der Inhalte ist. <ph name="FILTER_PLACEHOLDER" /> schränkt ein, aus welchen Clientzertifikaten der Browser automatisch auswählt. Unabhängig vom Filter werden nur Zertifikate ausgewählt, die mit der Zertifizierungsanforderung des Servers übereinstimmen. Unter Android und iOS kann Chrome nur Clientzertifikate auswählen, die Chrome selbst bereitgestellt hat. Chrome kann nicht auf Zertifikate zugreifen, die auf Betriebssystemebene installiert sind.

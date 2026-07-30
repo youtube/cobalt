@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_INDIGO_INDIGO_IMAGE_REPLACEMENT_MANAGER_H_
 
 #include "base/types/expected.h"
+#include "base/types/pass_key.h"
 #include "chrome/browser/indigo/api_client.h"
 #include "chrome/browser/indigo/indigo_image_replacement.h"
 #include "content/public/browser/page_user_data.h"
@@ -14,6 +15,7 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/mojom/image_replacement/image_replacement.mojom.h"
 #include "ui/gfx/geometry/quad_f.h"
+#include "ui/gfx/geometry/rect.h"
 #include "url/gurl.h"
 
 namespace content {
@@ -21,6 +23,9 @@ class Page;
 }  // namespace content
 
 namespace indigo {
+
+class IndigoPageActionController;
+enum class ResetType;
 
 // Manages a group of related ImageReplacements created by the content script
 // run by IndigoAgent. The manager uses the "primary" ImageReplacement's
@@ -50,7 +55,8 @@ class IndigoImageReplacementManager
       bool is_primary);
   IndigoImageReplacement* GetImageReplacementForFrame(
       const content::RenderFrameHost& rfh);
-  void ResetAllReplacements();
+  // Resets all image replacements owned and managed by this class.
+  void ResetAllReplacements(base::PassKey<IndigoPageActionController>);
   const GURL& generated_image_url() const { return generated_image_url_; }
 
   // blink::mojom::ImageReplacementHost implementation:
@@ -69,11 +75,14 @@ class IndigoImageReplacementManager
       mojo::ReceiverId receiver_id,
       base::expected<GeneratedImage, GenerateImageError> result);
   void OnReceiverDisconnected();
+  void Reset(ResetType reset_type);
 
   mojo::ReceiverSet<blink::mojom::ImageReplacementHost, IndigoImageReplacement>
       receivers_;
   bool primary_registered_ = false;
   GURL generated_image_url_;
+  // TODO(b/513370913): Remove this when bounds are no longer needed here.
+  gfx::Rect primary_bounds_;
   base::WeakPtrFactory<IndigoImageReplacementManager> weak_ptr_factory_{this};
 };
 

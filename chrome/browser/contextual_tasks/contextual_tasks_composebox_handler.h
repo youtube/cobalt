@@ -102,7 +102,7 @@ class ContextualTasksComposeboxHandler
   void CreateAndSendQueryMessage(const std::string& query);
 
   void ResetInputStateModel() override;
-  void UpdateModelFromUrl(const GURL& url) override;
+  void UpdateStateFromUrl(const GURL& url) override;
   void UpdateSuggestedTabContext(
       const contextual_tasks::SuggestedTabInfo* suggested_tab) override;
   void OnTaskChanged() override;
@@ -134,6 +134,8 @@ class ContextualTasksComposeboxHandler
   }
   // ui::SelectFileDialog::Listener:
   void FileSelected(const ui::SelectedFileInfo& file, int index) override;
+  void MultiFilesSelected(
+      const std::vector<ui::SelectedFileInfo>& files) override;
   void FileSelectionCanceled() override;
   void OnFileRead(std::unique_ptr<FileData> file_data);
 

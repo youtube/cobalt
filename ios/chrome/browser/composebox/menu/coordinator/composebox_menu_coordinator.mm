@@ -4,6 +4,8 @@
 
 #import "ios/chrome/browser/composebox/menu/coordinator/composebox_menu_coordinator.h"
 
+#import <algorithm>
+#import <iterator>
 #import <memory>
 #import <set>
 #import <vector>
@@ -19,6 +21,7 @@
 #import "ios/chrome/browser/composebox/model/ios_contextual_search_service_factory.h"
 #import "ios/chrome/browser/composebox/public/composebox_attachment_selection.h"
 #import "ios/chrome/browser/composebox/public/composebox_focus_params.h"
+#import "ios/chrome/browser/composebox/shared/coordinator/composebox_attachment_diff.h"
 #import "ios/chrome/browser/composebox/shared/coordinator/composebox_picker_presenter.h"
 #import "ios/chrome/browser/composebox/shared/metrics/composebox_metrics_recorder.h"
 #import "ios/chrome/browser/composebox/ui/composebox_ui_input_state.h"
@@ -118,7 +121,8 @@ CGFloat const kSheetTopPadding = 40.0f;
         contextual_search::ContextualSearchSource::kNewTabPage,
         lens::LensOverlayInvocationSource::kNtpContextualQuery);
 
-    _metricsRecorder = [[ComposeboxMetricsRecorder alloc] init];
+    _metricsRecorder =
+        [[ComposeboxMetricsRecorder alloc] initWithEntrypoint:_entrypoint];
     if (_sessionHandle) {
       _metricsRecorder.contextualSearchMetricsRecorder =
           _sessionHandle->GetMetricsRecorder();
@@ -145,6 +149,7 @@ CGFloat const kSheetTopPadding = 40.0f;
                 sessionHandle:_sessionHandle.get()
                    entrypoint:_entrypoint
                   isIncognito:profile->IsOffTheRecord()];
+    _stateManager.metricsRecorder = _metricsRecorder;
 
     std::set<web::WebStateID> emptySet;
     _inputState = [_stateManager computeUIInputStateWithFavicon:nil
@@ -156,7 +161,8 @@ CGFloat const kSheetTopPadding = 40.0f;
           initWithEntrypoint:_entrypoint
                   inputState:_inputState
                 webStateList:self.browser->GetWebStateList()
-      preselectedAttachments:_preselection];
+      preselectedAttachments:_preselection
+             metricsRecorder:_metricsRecorder];
   _mediator.delegate = self;
 
   _viewController.sheetPresentationController.prefersGrabberVisible = YES;
@@ -206,9 +212,13 @@ CGFloat const kSheetTopPadding = 40.0f;
     _metricsRecorder.contextualSearchMetricsRecorder = nullptr;
   }
   _metricsRecorder = nil;
-  [_viewController.presentingViewController dismissViewControllerAnimated:YES
-                                                               completion:nil];
+  if (!_viewController.isBeingDismissed) {
+    [_viewController.presentingViewController
+        dismissViewControllerAnimated:YES
+                           completion:nil];
+  }
   _viewController = nil;
+  [_mediator disconnect];
   _mediator = nil;
   _pickerPresenter = nil;
   [_stateManager disconnect];
@@ -381,6 +391,15 @@ CGFloat const kSheetTopPadding = 40.0f;
         (std::set<web::WebStateID>)selectedWebStateIDs
                     cachedWebStateIDs:
                         (std::set<web::WebStateID>)cachedWebStateIDs {
+  std::set<web::WebStateID> alreadyProcessedIDs =
+      [_mediator allAttachedWebStateIDs];
+  composebox::TabDiff diff =
+      composebox::ComputeTabDiff(alreadyProcessedIDs, selectedWebStateIDs);
+
+  if (diff.added.size() > 0) {
+    [_metricsRecorder recordTabPickerTabsAttached:diff.added.size()];
+  }
+
   [_mediator processWebStateIDs:selectedWebStateIDs
               cachedWebStateIDs:cachedWebStateIDs];
 }
@@ -455,8 +474,8 @@ CGFloat const kSheetTopPadding = 40.0f;
 
 - (void)composeboxMenuViewControllerDidRequestClose:
     (ComposeboxMenuViewController*)composeboxMenuViewController {
-  [_viewController.presentingViewController dismissViewControllerAnimated:YES
-                                                               completion:nil];
+  // Calls stop to dismiss the view controller.
+  [self.delegate composeboxMenuCoordinatorDidDismissMenu:self];
 }
 
 @end

@@ -499,7 +499,6 @@ config("compiler") {
         "-fno-asynchronous-unwind-tables",
       ]
       rustflags += [ "-Cforce-unwind-tables=no" ]
-      defines += [ "NO_UNWIND_TABLES" ]
     } else {
       cflags += [ "-funwind-tables" ]
       rustflags += [ "-Cforce-unwind-tables=yes" ]
@@ -1157,6 +1156,11 @@ config("linker") {
   # properly symbolize stack crashes (http://crbug.com/919499).
   if ((use_lld || use_mold) && is_android) {
     ldflags += [ "-Wl,--no-rosegment" ]
+  }
+
+  if (is_android && experimental_linker_path != "") {
+    # Wild linker does not support the default of android+relr.
+    ldflags += [ "-Wl,--pack-dyn-relocs=relr" ]
   }
 
   # TODO(crbug.com/40242425): Cleanup undefined symbol errors caught by

@@ -40,7 +40,6 @@ source_set("webauthn") {
       "authenticator_request_dialog_model.h",
       "authenticator_request_scheduler.h",
       "authenticator_transport.h",
-      "cablev2_devices.h",
       "change_pin_controller.h",
       "change_pin_controller_impl.h",
       "chrome_authenticator_request_delegate.h",
@@ -128,7 +127,6 @@ source_set("impl") {
       "authenticator_request_dialog_controller.cc",
       "authenticator_request_dialog_model.cc",
       "authenticator_request_scheduler.cc",
-      "cablev2_devices.cc",
       "change_pin_controller.cc",
       "change_pin_controller_impl.cc",
       "chrome_authenticator_request_delegate.cc",
@@ -270,12 +268,11 @@ source_set("chrome_web_authentication_delegate") {
     ]
 
     if (is_chromeos) {
-      deps += [
-        "//chromeos/components/webauthn",
-        "//components/user_manager",
-      ]
+      deps += [ "//chromeos/components/webauthn" ]
     }
   }
+
+  deps += [ "//chrome/browser/enterprise" ]
 }
 
 if (!is_android) {

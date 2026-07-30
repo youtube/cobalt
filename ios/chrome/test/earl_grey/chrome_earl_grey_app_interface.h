@@ -73,6 +73,10 @@ enum class TipsNotificationType;
 // Opens `URL` using some connected scene.
 + (void)sceneOpenURL:(NSString*)spec;
 
+// Continues `userActivity` using some connected scene with a specific URL.
++ (void)sceneContinueUserActivityWithType:(NSString*)activityType
+                                      url:(NSString*)urlString;
+
 // Loads the URL `spec` in the current WebState with transition type
 // ui::PAGE_TRANSITION_TYPED and returns without waiting for the page to load.
 + (void)startLoadingURL:(NSString*)spec;
@@ -212,6 +216,9 @@ enum class TipsNotificationType;
 
 // Returns the index of active tab in normal mode.
 + (NSUInteger)indexOfActiveNormalTab;
+
+// Returns YES if the current active WebState is showing a new tab page.
++ (BOOL)isCurrentTabNTP;
 
 #pragma mark - Window utilities (EG2)
 

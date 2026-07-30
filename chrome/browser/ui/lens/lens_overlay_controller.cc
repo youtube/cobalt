@@ -113,6 +113,7 @@
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
 #include "ui/base/interaction/element_tracker.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/base/webui/web_ui_util.h"
 #include "ui/base/window_open_disposition_utils.h"
 #include "ui/compositor/compositor.h"
@@ -1353,12 +1354,8 @@ int LensOverlayController::GetToolResourceId() {
   return IDS_LENS_OVERLAY_RENDERER_LABEL;
 }
 
-ui::ElementIdentifier LensOverlayController::GetViewContainerId() {
+ui::ElementIdentifier LensOverlayController::GetViewContainerId() const {
   return kLensOverlayViewElementId;
-}
-
-bool LensOverlayController::UsesContentsContainerView() {
-  return false;
 }
 
 SidePanelType LensOverlayController::GetSidePanelType() {
@@ -1519,14 +1516,17 @@ LensOverlayController::GetPreselectionBubbleConfig() {
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
       .icon = &vector_icons::kGoogleLensMonochromeLogoIcon
 #else
-      .icon = &vector_icons::kSearchChromeRefreshOldIcon
+      .icon = &(features::IsRoundedIconsEnabled()
+                    ? vector_icons::kSearchIcon
+                    : vector_icons::kSearchChromeRefreshOldIcon)
 #endif
   };
 }
 
 bool LensOverlayController::IsOverlayViewShared() const {
-  // The view that host's Lens's WebUI is a direct child of the BrowserView,
-  // which means it can be shared across different tabs.
+  // The view that hosts Lens's WebUI is a direct child of the BrowserView,
+  // which means it can be shared across different tabs. It also means Lens
+  // WebUI does not support split view at the moment.
   return true;
 }
 

@@ -172,9 +172,8 @@ class ContextualTasksUI
   void SetThreadId(std::optional<std::string> id) override;
   const std::optional<std::string>& GetThreadTitle() override;
   void SetThreadTitle(std::optional<std::string> title) override;
-  void SetAimUrl(const GURL& url) override;
   void SetIsAiPage(bool is_ai_page) override;
-  void UpdateModelModeFromUrl(const GURL& url) override;
+  void UpdateStateFromUrl(const GURL& url) override;
   bool IsShownInTab() override;
   BrowserWindowInterface* GetBrowser() override;
   content::WebContents* GetWebUIWebContents() override;
@@ -338,9 +337,9 @@ class ContextualTasksUI
                                        const GURL& url);
 
   // Update the task's details in the WebUI.
-  void PushTaskDetailsToPage();
-
-  bool CanExpandToFullTab();
+  void PushTaskDetailsToPage(std::optional<base::Uuid> id,
+                             const GURL& url,
+                             bool replace_navigation_entry) override;
 
   contextual_tasks::ContextualTasksPanelController* GetPanelController();
 
@@ -425,6 +424,7 @@ class ContextualTasksUI
   WebUIState previous_web_ui_state_ = WebUIState::kUnknown;
   bool was_ai_page_ = false;
   bool is_lens_overlay_showing_ = false;
+  bool is_contextual_tasks_eligible_on_init_ = false;
 
   // Scoped observation for contextual_tasks_service_.
   base::ScopedObservation<contextual_tasks::ContextualTasksService,

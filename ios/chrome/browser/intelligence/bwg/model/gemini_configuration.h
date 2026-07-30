@@ -97,10 +97,13 @@ class PageContext;
 @property(nonatomic, assign) BOOL imageRemixIPHShouldShow;
 
 // Whether to show the Gemini Live onboarding in-product help.
-@property(nonatomic, assign) BOOL geminiLiveIPHShouldShow;
+@property(nonatomic, assign) BOOL shouldShowGeminiLiveIPH;
 
 // Whether to show the Gemini Live "new" badge.
-@property(nonatomic, assign) BOOL geminiLiveNewBadgeShouldShow;
+@property(nonatomic, assign) BOOL shouldShowGeminiLiveNewBadge;
+
+// The text to display for the Gemini Live in-product help.
+@property(nonatomic, copy) NSString* geminiLiveIPHText;
 
 // The initial bottom offset of the floaty.
 @property(nonatomic, assign) CGFloat initialBottomOffset;

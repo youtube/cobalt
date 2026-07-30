@@ -57,6 +57,11 @@ class BrowserAutofillManagerTestApi : public AutofillManagerTestApi {
     manager_->bnpl_manager_ = std::move(bnpl_manager);
   }
 
+  void set_autofill_ai_access_manager(
+      std::unique_ptr<AutofillAiAccessManager> manager) {
+    manager_->autofill_ai_access_manager_ = std::move(manager);
+  }
+
   void OnFormProcessed(const FormData& form,
                        const FormStructure& form_structure) {
     manager_->OnFormProcessed(form, form_structure);
@@ -88,10 +93,8 @@ class BrowserAutofillManagerTestApi : public AutofillManagerTestApi {
 
   std::vector<Suggestion> GetProfileSuggestions(const FormData& form,
                                                 const FormFieldData& field) {
-    FormStructure* form_structure;
-    AutofillField* autofill_field;
-    CHECK(manager_->GetCachedFormAndField(form.global_id(), field.global_id(),
-                                          &form_structure, &autofill_field));
+    auto [form_structure, autofill_field] =
+        manager_->GetCachedFormAndField(form.global_id(), field.global_id());
     return manager_->GetProfileSuggestions(
         form, CHECK_DEREF(form_structure), field, CHECK_DEREF(autofill_field),
         mojom::AutofillSuggestionTriggerSource::kFormControlElementClicked);

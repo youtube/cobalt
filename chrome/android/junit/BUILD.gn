@@ -891,7 +891,8 @@ if (is_android) {
       "src/org/chromium/chrome/browser/media/document_picture_in_picture_header/DocumentPictureInPictureHeaderCoordinatorUnitTest.java",
       "src/org/chromium/chrome/browser/media/document_picture_in_picture_header/DocumentPictureInPictureHeaderMediatorUnitTest.java",
       "src/org/chromium/chrome/browser/media/document_picture_in_picture_header/DocumentPictureInPictureHeaderViewBinderUnitTest.java",
-      "src/org/chromium/chrome/browser/media/immersive_playback/ImmersivePlaybackConfirmationDialogTest.java",
+      "src/org/chromium/chrome/browser/media/immersive_playback/ImmersivePlaybackSnackbarControllerTest.java",
+      "src/org/chromium/chrome/browser/media/immersive_playback/ImmersiveVideoFormatSelectionDialogTest.java",
       "src/org/chromium/chrome/browser/media/ui/MediaNotificationActionsUpdatedTest.java",
       "src/org/chromium/chrome/browser/media/ui/MediaNotificationControllerTest.java",
       "src/org/chromium/chrome/browser/media/ui/MediaNotificationFaviconTest.java",
@@ -950,6 +951,7 @@ if (is_android) {
     deps = [
       ":chrome_junit_tests_helper",
       "//chrome/browser/composeplate/android:java",
+      "//chrome/browser/ntp_customization:ntp_customization_test_support_java",
       "//chrome/browser/segmentation_platform:client_util_java",
       "//third_party/android_deps:com_airbnb_android_lottie_java",
     ]
@@ -1352,6 +1354,10 @@ if (is_android) {
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/pinned_tabs_strip/PinnedTabStripItemViewBinderUnitTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/pinned_tabs_strip/PinnedTabStripMediatorTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/pinned_tabs_strip/PinnedTabStripViewBinderTest.java",
+      "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/vertical_tabs/TabVerticalViewBinderUnitTest.java",
+      "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/vertical_tabs/VerticalTabListCoordinatorUnitTest.java",
+      "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/vertical_tabs/VerticalTabUtilsUnitTest.java",
+      "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/vertical_tabs/VerticalTabsSideUiCoordinatorUnitTest.java",
       "//chrome/android/features/tab_ui/junit/src/org/chromium/chrome/browser/tasks/tab_management/ArchivedTabsCardViewBinderUnitTest.java",
       "//chrome/android/features/tab_ui/junit/src/org/chromium/chrome/browser/tasks/tab_management/ArchivedTabsDialogCoordinatorUnitTest.java",
       "//chrome/android/features/tab_ui/junit/src/org/chromium/chrome/browser/tasks/tab_management/ArchivedTabsMessageServiceUnitTest.java",
@@ -1386,8 +1392,6 @@ if (is_android) {
       "//chrome/android/features/tab_ui/junit/src/org/chromium/chrome/browser/tasks/tab_management/TabListMediatorUnitTest.java",
       "//chrome/android/features/tab_ui/junit/src/org/chromium/chrome/browser/tasks/tab_management/TabStripSnapshotterTest.java",
       "//chrome/android/features/tab_ui/junit/src/org/chromium/chrome/browser/tasks/tab_management/TabUiMetricsHelperUnitTest.java",
-      "//chrome/android/features/tab_ui/junit/src/org/chromium/chrome/browser/tasks/tab_management/vertical_tabs/VerticalTabUtilsUnitTest.java",
-      "//chrome/android/features/tab_ui/junit/src/org/chromium/chrome/browser/tasks/tab_management/vertical_tabs/VerticalTabsSideUiCoordinatorUnitTest.java",
     ]
 
     deps = [

@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright 2026 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+<org.chromium.chrome.browser.tab_bottom_sheet.peek_view.TabBottomSheetPeekView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingStart="@dimen/tab_bottom_sheet_peek_padding_start"
+    android:paddingEnd="@dimen/tab_bottom_sheet_peek_padding_end"
+    android:paddingTop="@dimen/tab_bottom_sheet_peek_padding_top"
+    android:gravity="center_vertical">
+
+    <ImageView
+        android:id="@+id/peek_icon"
+        android:layout_width="@dimen/tab_bottom_sheet_peek_icon_size"
+        android:layout_height="@dimen/tab_bottom_sheet_peek_icon_size"
+        android:layout_marginStart="@dimen/tab_bottom_sheet_peek_icon_margin_start"
+        android:layout_marginEnd="@dimen/tab_bottom_sheet_peek_icon_margin_end"
+        android:layout_alignParentStart="true"
+        android:layout_centerVertical="true"
+        android:src="@drawable/ic_spark_blue_16dp"
+        android:scaleType="fitCenter"
+        android:importantForAccessibility="no"/>
+
+    <org.chromium.ui.widget.ChromeImageButton
+        android:id="@+id/peek_close_button"
+        android:layout_width="?attr/minInteractTargetSize"
+        android:layout_height="?attr/minInteractTargetSize"
+        android:layout_alignParentEnd="true"
+        android:layout_centerVertical="true"
+        android:src="@drawable/material_ic_close_24dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/close"
+        app:tint="@color/default_icon_color_tint_list" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/peek_action_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:minHeight="?attr/minInteractTargetSize"
+        android:minWidth="?attr/minInteractTargetSize"
+        android:gravity="center"
+        android:layout_toStartOf="@id/peek_close_button"
+        android:layout_centerVertical="true"
+        android:layout_marginEnd="@dimen/tab_bottom_sheet_peek_button_margin_end"
+        android:textAppearance="@style/TextAppearance.Button.Text.Filled"
+        android:visibility="gone"
+        android:insetTop="0dp"
+        android:insetBottom="0dp"
+        android:insetLeft="0dp"
+        android:insetRight="0dp"
+        app:iconPadding="0dp"
+        app:iconGravity="textStart"
+        style="?attr/materialButtonStyle"/>
+
+    <LinearLayout
+        android:id="@+id/peek_text_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="?attr/minInteractTargetSize"
+        android:orientation="vertical"
+        android:gravity="center_vertical"
+        android:layout_toEndOf="@id/peek_icon"
+        android:layout_toStartOf="@id/peek_action_button"
+        android:layout_centerVertical="true"
+        android:layout_marginEnd="@dimen/tab_bottom_sheet_peek_text_container_margin_end">
+
+        <TextView
+            android:id="@+id/peek_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="start"
+            android:textAppearance="@style/TextAppearance.TextMediumThick.Primary"
+            android:ellipsize="end"
+            android:singleLine="true" />
+
+        <TextView
+            android:id="@+id/peek_description"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/tab_bottom_sheet_peek_description_margin_top"
+            android:gravity="start"
+            android:textAppearance="@style/TextAppearance.TextSmall.Secondary"
+            android:ellipsize="end"
+            android:singleLine="true" />
+    </LinearLayout>
+</org.chromium.chrome.browser.tab_bottom_sheet.peek_view.TabBottomSheetPeekView>

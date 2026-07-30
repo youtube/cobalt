@@ -24,20 +24,37 @@ import org.chromium.ui.modelutil.PropertyModel;
 class ContextMenuHeaderViewBinder {
     public static void bind(PropertyModel model, View view, PropertyKey propertyKey) {
         if (propertyKey == ListMenuItemProperties.TITLE) {
-            TextView titleText = view.findViewById(R.id.menu_header_title);
-            titleText.setText(model.get(ListMenuItemProperties.TITLE));
-            titleText.setVisibility(
+            TextView altText = view.findViewById(R.id.menu_header_alt_text);
+            altText.setText(model.get(ListMenuItemProperties.TITLE));
+            altText.setVisibility(
                     TextUtils.isEmpty(model.get(ListMenuItemProperties.TITLE))
                             ? View.GONE
                             : View.VISIBLE);
-        } else if (propertyKey == ContextMenuHeaderProperties.TITLE_MAX_LINES) {
-            final int maxLines = model.get(ContextMenuHeaderProperties.TITLE_MAX_LINES);
-            final TextView titleText = view.findViewById(R.id.menu_header_title);
-            titleText.setMaxLines(maxLines);
+        } else if (propertyKey == ContextMenuHeaderProperties.ALT_TEXT_MAX_LINES) {
+            final int maxLines = model.get(ContextMenuHeaderProperties.ALT_TEXT_MAX_LINES);
+            final TextView altText = view.findViewById(R.id.menu_header_alt_text);
+            altText.setMaxLines(maxLines);
             if (maxLines == Integer.MAX_VALUE) {
-                titleText.setEllipsize(null);
+                altText.setEllipsize(null);
             } else {
-                titleText.setEllipsize(TextUtils.TruncateAt.END);
+                altText.setEllipsize(TextUtils.TruncateAt.END);
+            }
+        } else if (propertyKey == ContextMenuHeaderProperties.PAGE_TITLE) {
+            final TextView pageTitleText = view.findViewById(R.id.menu_header_page_title);
+            pageTitleText.setText(model.get(ContextMenuHeaderProperties.PAGE_TITLE));
+            pageTitleText.setVisibility(
+                    TextUtils.isEmpty(model.get(ContextMenuHeaderProperties.PAGE_TITLE))
+                            ? View.GONE
+                            : View.VISIBLE);
+
+        } else if (propertyKey == ContextMenuHeaderProperties.PAGE_TITLE_MAX_LINES) {
+            final int maxLines = model.get(ContextMenuHeaderProperties.PAGE_TITLE_MAX_LINES);
+            final TextView pageTitle = view.findViewById(R.id.menu_header_page_title);
+            pageTitle.setMaxLines(maxLines);
+            if (maxLines == Integer.MAX_VALUE) {
+                pageTitle.setEllipsize(null);
+            } else {
+                pageTitle.setEllipsize(TextUtils.TruncateAt.END);
             }
         } else if (propertyKey == ContextMenuHeaderProperties.URL) {
             TextView urlText = view.findViewById(R.id.menu_header_url);

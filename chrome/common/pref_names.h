@@ -575,10 +575,6 @@ inline constexpr char kStartupBrowserWindowLaunchSuppressed[] =
 inline constexpr char kLoginExtensionApiDataForNextLoginAttempt[] =
     "extensions_api.login.data_for_next_login_attempt";
 
-// String containing last RSU lookup key uploaded. Empty until first upload.
-inline constexpr char kLastRsuDeviceIdUploaded[] =
-    "rsu.last_rsu_device_id_uploaded";
-
 // Int64 pref indicating the time in microseconds since Windows epoch when the
 // timer for update required which will block user session was started. If the
 // timer is not started the pref holds the default value base::Time().
@@ -596,11 +592,6 @@ inline constexpr char kUpdateRequiredWarningPeriod[] =
 // when System-proxy and ARC++ are enabled by policy.
 inline constexpr char kSystemProxyUserTrafficHostAndPort[] =
     "system_proxy.user_traffic_host_and_port";
-
-// Boolean pref indicating whether the supervised user has migrated EDU
-// secondary account to ARC++.
-inline constexpr char kEduCoexistenceArcMigrationCompleted[] =
-    "account_manager.edu_coexistence_arc_migration_completed";
 
 // A dictionary storing the string representation of
 // chromeos::settings::mojom::Setting IDs for the unique OS Settings changed.
@@ -695,6 +686,10 @@ inline constexpr char kSplitViewDragAndDropNudgeShownCount[] =
 // target to create a new tab, after the nudge had been shown.
 inline constexpr char kSplitViewDragAndDropNudgeUsedCount[] =
     "browser.split_view_drag_and_drop_nudge_used_count";
+
+// A boolean pref set to true if Ctrl-Tab should switch between the two most
+// recently used tabs.
+inline constexpr char kCtrlTabMru[] = "browser.ctrl_tab_mru";
 
 // A boolean pref set to true if Gemini integration be enabled. This is managed
 // by enterprise policy.
@@ -1128,9 +1123,6 @@ inline constexpr char kGCMProductCategoryForSubtypes[] =
 
 // Whether a user is allowed to use Easy Unlock.
 inline constexpr char kEasyUnlockAllowed[] = "easy_unlock.allowed";
-
-// Preference storing Easy Unlock pairing data.
-inline constexpr char kEasyUnlockPairing[] = "easy_unlock.pairing";
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 // Used to indicate whether or not the toolbar redesign bubble has been shown
@@ -2442,13 +2434,6 @@ inline constexpr char kShortcutMigrationVersion[] =
     "browser.shortcut_migration_version";
 #endif  // BUILDFLAG(IS_WIN)
 
-#if BUILDFLAG(IS_CHROMEOS)
-// The RLZ brand code, if enabled.
-inline constexpr char kRLZBrand[] = "rlz.brand";
-// Whether RLZ pings are disabled.
-inline constexpr char kRLZDisabled[] = "rlz.disabled";
-#endif
-
 // An integer that is incremented whenever changes are made to app shortcuts.
 // Increasing this causes all app shortcuts to be recreated.
 inline constexpr char kAppShortcutsVersion[] = "apps.shortcuts_version";
@@ -2854,24 +2839,6 @@ inline constexpr char kCaretBrowsingEnabled[] =
 inline constexpr char kShowCaretBrowsingDialog[] =
     "settings.a11y.caretbrowsing.show_dialog";
 
-#if BUILDFLAG(IS_CHROMEOS)
-// String enum pref determining what should happen when a user who authenticates
-// via a security token is removing this token. "IGNORE" - nothing happens
-// (default). "LOGOUT" - The user is logged out. "LOCK" - The session is locked.
-inline constexpr char kSecurityTokenSessionBehavior[] =
-    "security_token_session_behavior";
-// When the above pref is set to "LOGOUT" or "LOCK", this integer pref
-// determines the duration of a notification that appears when the smart card is
-// removed. The action will only happen after the notification timed out. If
-// this pref is set to 0, the action happens immediately.
-inline constexpr char kSecurityTokenSessionNotificationSeconds[] =
-    "security_token_session_notification_seconds";
-// This string pref is set when the notification after the action mentioned
-// above is about to be displayed. It contains the domain that manages the user
-// who was logged out, to be used as part of the notification message.
-inline constexpr char kSecurityTokenSessionNotificationScheduledDomain[] =
-    "security_token_session_notification_scheduled";
-#endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_ANDROID)
 // Boolean pref controlling whether immersive AR sessions are enabled

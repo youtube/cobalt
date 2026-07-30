@@ -31,6 +31,11 @@
 
 namespace optimization_guide {
 class PageContextEligibility;
+
+namespace proto {
+class AnnotatedPageContent;
+}  // namespace proto
+
 }  // namespace optimization_guide
 
 namespace page_content_annotations {
@@ -148,6 +153,11 @@ class AnnotatedPageContentRequest
 
   bool IsPdf() const;
 
+  // Returns true if page content extraction is allowed, either because
+  // automatic extraction is enabled, or because we have an allowed on-demand
+  // request that bypasses observer requirements.
+  bool ShouldAllowPageContentExtraction() const;
+
   // Returns true if the async getter should wait for the extraction to
   // complete, or false if it should return immediately (with cached content or
   // nullopt).
@@ -174,6 +184,9 @@ class AnnotatedPageContentRequest
   void OnInnerTextReceived(
       base::TimeTicks start_time,
       std::unique_ptr<content_extraction::InnerTextResult> result);
+
+  void RecordAnnotatedPageContentMetrics(
+      const optimization_guide::proto::AnnotatedPageContent& proto);
 
   void ResolveAllCallbacksWith(
       const std::optional<ExtractedPageContentResult>& result);

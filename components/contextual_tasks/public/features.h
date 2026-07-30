@@ -72,9 +72,6 @@ BASE_DECLARE_FEATURE(kContextualTasksHideMenuOnAiPage);
 // Enables hiding the close button when in vertical tabs or immersive mode.
 BASE_DECLARE_FEATURE(kContextualTasksHideCloseButtonInVerticalTabs);
 
-// Enables updating the model from URL parameters on every inner navigation.
-BASE_DECLARE_FEATURE(kContextualTasksUpdateModelOnNavigation);
-
 // Enables intercepting YouTube links with timestamps to seek video instead of
 // navigating.
 BASE_DECLARE_FEATURE(kContextualTasksVideoCitations);
@@ -100,8 +97,9 @@ BASE_DECLARE_FEATURE(kContextualTasksJavaFusebox);
 // Enables overriding side panel to show Bottom Sheet on demand.
 BASE_DECLARE_FEATURE(kContextualTasksOverrideShowBottomSheetOnLargeScreen);
 
-bool GetIsContextualTasksUpdateModeOnNavigationEnabled();
-
+// When enabled, AIM must send the browser a message to initiate the cobrowse
+// experience for link clicks.
+BASE_DECLARE_FEATURE(kAimTriggeredThreadLinks);
 bool GetIsContextualTasksPdfCitationsEnabled();
 
 bool GetIsContextualTasksLazyFetchClusterInfoEnabled();
@@ -129,8 +127,47 @@ extern const base::FeatureParam<double> kTabSelectionScoreThreshold;
 // Minimum score required for a tab to be considered visible.
 extern const base::FeatureParam<double> kContentVisibilityThreshold;
 
+// Whether to use the immediately previous visited tab as the active tab signal
+// fallback.
+extern const base::FeatureParam<bool> kEnablePreviousTabFallback;
+// Recency threshold for using the previous visited tab as active tab signal.
+extern const base::FeatureParam<base::TimeDelta> kPreviousTabRecencyThreshold;
+
 // Whether Smart Tab Sharing is enabled for the ContextualTasksContext feature.
 extern const base::FeatureParam<bool> kContextualTasksContextSmartTabSharing;
+
+// Option for smart tab sharing IPH first time prompt.
+enum class SmartTabSharingIphFirstTimePromptOption {
+  kIphFirstTimePromptV1,
+  kIphFirstTimePromptV2,
+};
+extern const base::FeatureParam<SmartTabSharingIphFirstTimePromptOption>
+    kSmartTabSharingIphFirstTimePromptOption;
+
+// Option for smart tab sharing IPH default on variants.
+enum class SmartTabSharingIphDefaultOnOption {
+  kIphDefaultOnV1,
+  kIphDefaultOnV2,
+};
+extern const base::FeatureParam<SmartTabSharingIphDefaultOnOption>
+    kSmartTabSharingIphDefaultOnOption;
+
+// Option for smart tab sharing IPH try it promo variants.
+enum class SmartTabSharingIphTryItPromoOption {
+  kIphTryItPromoV1,
+  kIphTryItPromoV2,
+};
+extern const base::FeatureParam<SmartTabSharingIphTryItPromoOption>
+    kSmartTabSharingIphTryItPromoOption;
+
+// Option for smart tab sharing megaplus string.
+enum class SmartTabSharingMegaplusStringOption {
+  kMegaplusV1,
+  kMegaplusV2,
+  kMegaplusV3,
+};
+extern const base::FeatureParam<SmartTabSharingMegaplusStringOption>
+    kSmartTabSharingMegaplusStringOption;
 
 // Task string to use for formatting the query embedding.
 extern const base::FeatureParam<std::string> kQueryEmbeddingTask;

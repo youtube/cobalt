@@ -17,6 +17,7 @@
 #include "components/personal_context/core/personal_context_debug_features.h"
 #include "components/personal_context/core/personal_context_features.h"
 #include "components/personal_context/core/personal_context_prefs.h"
+#include "components/personal_context/core/personal_context_types.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
@@ -177,9 +178,10 @@ const base::flat_set<int32_t>& GetPersonalContextEligibleTiers() {
     return kDisabledNotEligible;
   }
 
-  if (pref_service->GetBoolean(prefs::kShouldShowPersonalContextFirstRunInfo)) {
-    MaybeOutputReason(debug_message, "Info not yet acknowledged.");
-    return kDisabledPendingInfo;
+  if (pref_service->GetBoolean(
+          prefs::kPersonalContextInAutofillNoticeShouldBeShown)) {
+    MaybeOutputReason(debug_message, "Notice not yet acknowledged.");
+    return kDisabledShouldShowNotice;
   }
 
   return kEnabled;
@@ -211,7 +213,7 @@ PersonalContextEnablementServiceImpl::PersonalContextEnablementServiceImpl(
   if (pref_service_) {
     pref_registrar_.Init(pref_service_);
     pref_registrar_.Add(
-        prefs::kShouldShowPersonalContextFirstRunInfo,
+        prefs::kPersonalContextInAutofillNoticeShouldBeShown,
         base::BindRepeating(
             &PersonalContextEnablementServiceImpl::UpdateEnablementState,
             base::Unretained(this)));
@@ -256,12 +258,18 @@ PersonalContextEnablementServiceImpl::ComputeEnablementState() {
     return kDisabledNotEligible;
   }
 
-  if (!SatisfiesOptInRequirements(account_settings_service_.get())) {
+  if (!SatisfiesMiscellaneousRequirements(country_code_)) {
     return kDisabledNotEligible;
   }
 
-  if (!SatisfiesMiscellaneousRequirements(country_code_)) {
+  if (!account_settings_service_) {
     return kDisabledNotEligible;
+  }
+
+  if (!SatisfiesOptInRequirements(account_settings_service_.get())) {
+    return personal_context::features::IsPersonalContextFirstRunOptInEnabled()
+               ? kDisabledNeedsOptIn
+               : kDisabledNotEligible;
   }
 
   return SatisfiesPreferenceRequirements(pref_service_.get());
@@ -282,7 +290,8 @@ void PersonalContextEnablementServiceImpl::OnPrimaryAccountChanged(
   if (event_details.GetEventTypeFor(signin::ConsentLevel::kSignin) ==
       signin::PrimaryAccountChangeEvent::Type::kCleared) {
     if (pref_service_) {
-      pref_service_->ClearPref(prefs::kShouldShowPersonalContextFirstRunInfo);
+      pref_service_->ClearPref(
+          prefs::kPersonalContextInAutofillNoticeShouldBeShown);
     }
   }
   UpdateEnablementState();

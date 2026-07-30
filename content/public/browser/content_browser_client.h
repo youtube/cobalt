@@ -203,6 +203,7 @@ namespace mojom {
 class NetworkContext;
 class NetworkService;
 class TrustedURLLoaderHeaderClient;
+class URLResponseHead;
 }  // namespace mojom
 struct ResourceRequest;
 }  // namespace network
@@ -715,6 +716,22 @@ class CONTENT_EXPORT ContentBrowserClient {
   GetBaselinePermissionsPolicyForIsolatedApp(BrowserContext* browser_context,
                                              const url::Origin& app_origin);
 
+  // Isolated Apps rely on specific COOP/COEP/CSP headers as a a protective
+  // measure; however, it's possible for an Isolated App page to register a
+  // service worker with a fetch handler and accidentally bypass this protection
+  // layer. This function allows the embedder to inspect the headers that are
+  // about to be served as part of the response for an Isolated App resource
+  // request and modify them accordingly.
+  // `frame_tree_node` is only expected to be non-null for navigations.
+  // For dedicated/shared workers, it should be std::nullopt as they are
+  // only expected to run for already installed IWAs, where the source
+  // can be determined without an inspection context.
+  virtual void EnsureRequiredHeadersForIsolatedApp(
+      BrowserContext* browser_context,
+      const GURL& url,
+      network::mojom::URLResponseHead* response_head,
+      const std::optional<FrameTreeNodeId>& frame_tree_node);
+
   // Returns whether a new process should be created or an existing one should
   // be reused based on the URL we want to load. This should return false,
   // unless there is a good reason otherwise.
@@ -837,6 +854,11 @@ class CONTENT_EXPORT ContentBrowserClient {
   // getAllScreensMedia API.
   virtual bool IsMultiCaptureAllowed(
       content::RenderFrameHost* render_frame_host);
+
+  // Returns the WebContents associated with the given window if it is allowed
+  // to expose a capture handle. Returns nullptr otherwise.
+  virtual content::WebContents* GetWebContentsFromWindowIfCaptureHandleAllowed(
+      gfx::NativeWindow window);
 
   // Allow the embedder to control the maximum renderer process count. Only
   // applies if it is set to a non-zero value.  Once this limit is exceeded,
@@ -1841,6 +1863,12 @@ class CONTENT_EXPORT ContentBrowserClient {
   // be used in child process tokens, or nullopt if there is no security
   // attribute.
   virtual std::optional<std::wstring> GetWindowsSecurityAttributeName() const;
+
+  // Returns a list of base addresses that should be reserved in sandboxed
+  // child processes to force the OS to choose a different ASLR base for them.
+  // The addresses are later freed in the child process.
+  virtual std::vector<uintptr_t> GetAslrBeaconAddresses(
+      sandbox::mojom::Sandbox sandbox_type);
 #endif
 
   // Binds a new media remoter service to |receiver|, if supported by the
@@ -3068,6 +3096,13 @@ class CONTENT_EXPORT ContentBrowserClient {
   virtual bool IsCrossOriginSubframeAllowedToShowFilePicker(
       RenderFrameHost* render_frame_host,
       const url::Origin& requesting_origin);
+
+  // Returns an override that fully replaces the parent-imposed
+  // `frame_policy.container_policy` at commit, or `std::nullopt` to
+  // leave it untouched. Called from `CommitNavigation()` only; not
+  // invoked on page-activating navigations (BFCache, prerender).
+  virtual std::optional<network::ParsedPermissionsPolicy>
+  GetContainerPolicyOverrideForCommit(NavigationHandle& navigation_handle);
 
   // Checks if the BeforeUnload Dialog event should be skipped.
   virtual bool ShouldSkipBeforeUnloadDialog(content::RenderFrameHost* rfh);

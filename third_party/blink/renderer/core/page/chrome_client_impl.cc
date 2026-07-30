@@ -40,6 +40,7 @@
 #include "cc/animation/animation_host.h"
 #include "cc/animation/animation_timeline.h"
 #include "cc/layers/picture_layer.h"
+#include "cc/trees/layer_tree_host.h"
 #include "cc/trees/paint_holding_reason.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
 #include "third_party/blink/public/common/widget/constants.h"
@@ -298,6 +299,11 @@ void ChromeClientImpl::DidChangeBackgroundColor(SkColor4f background_color,
   web_view_->DidChangeBackgroundColor(background_color, color_adjust);
 }
 
+void ChromeClientImpl::RequestFrameWithoutVSyncFromRoot(LocalFrame& frame) {
+  if (auto* widget = frame.GetWidgetForLocalRoot()) {
+    widget->SendEarlyFinalBeginMainFrame();
+  }
+}
 void ChromeClientImpl::FocusPage() {
   DCHECK(web_view_);
   web_view_->Focus();
@@ -1407,6 +1413,17 @@ void ChromeClientImpl::JavaScriptChangedValue(HTMLFormControlElement& element,
     fill_client->JavaScriptChangedValue(WebFormControlElement(&element),
                                         old_value, was_autofilled);
   }
+}
+
+bool ChromeClientImpl::IsAutofillableElement(
+    const HTMLFormControlElement& element) {
+  Document& doc = element.GetDocument();
+  if (WebAutofillClient* fill_client =
+          AutofillClientFromFrame(doc.GetFrame())) {
+    return fill_client->IsAutofillableElement(
+        WebFormControlElement(const_cast<HTMLFormControlElement*>(&element)));
+  }
+  return false;
 }
 
 gfx::Transform ChromeClientImpl::GetDeviceEmulationTransform() const {

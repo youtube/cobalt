@@ -631,7 +631,7 @@ void AutofillKeyboardAccessoryControllerImpl::Show(
     suggestions_filling_product_ = FillingProduct::kAtMemory;
     if (auto* client =
             ChromeAutofillClient::FromWebContents(web_contents_.get())) {
-      client->ShowAtMemoryBottomSheet();
+      client->ShowAtMemoryBottomSheet(suggestions);
     }
     delegate_->OnSuggestionsShown(suggestions);
     return;
@@ -710,8 +710,8 @@ void AutofillKeyboardAccessoryControllerImpl::UpdateDataListValues(
 }
 
 bool AutofillKeyboardAccessoryControllerImpl::HasSuggestions() const {
-  return !suggestions_.empty() &&
-         IsStandaloneSuggestionType(suggestions_[0].type);
+  return std::ranges::any_of(suggestions_, &IsStandaloneSuggestionType,
+                             &Suggestion::type);
 }
 
 // AutofillKeyboardAccessoryController implementation:
