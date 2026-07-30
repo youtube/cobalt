@@ -57,7 +57,7 @@ void GlicIphController::MaybeShowPromo() {
     return;
   }
   auto* const contents = tab->GetContents();
-  if (!contents->GetURL().SchemeIsHTTPOrHTTPS() ||
+  if (!contents || !contents->GetURL().SchemeIsHTTPOrHTTPS() ||
       contents->GetURL().GetHost() == GetGuestURL().GetHost() ||
       !contents->IsDocumentOnLoadCompletedInPrimaryMainFrame() ||
       !GlicEnabling::IsEnabledForProfile(window_->GetProfile())) {
@@ -85,10 +85,6 @@ void GlicIphController::OnShowPromoResult(
   // trying to check.
   if (result.is_blocked_this_instance()) {
     show_timer_.Stop();
-  }
-
-  if (result == user_education::FeaturePromoResult::Success() && !show_cta_) {
-    glic_service_->TryPreloadFre(glic::GlicPrewarmingFreSource::kIph);
   }
 }
 

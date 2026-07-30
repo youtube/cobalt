@@ -169,7 +169,9 @@ std::vector<Suggestion> GetFooterSuggestions(
   }
   if (base::FeatureList::IsEnabled(
           autofill::features::
-              kSuggestionManageButtonSplitForEnhancedAutofill)) {
+              kSuggestionManageButtonSplitForEnhancedAutofill) &&
+      base::FeatureList::IsEnabled(
+          autofill::features::kYourSavedInfoSettingsPage)) {
     CHECK(suggestions_contain_travel_entity ||
           suggestions_contain_identity_docs_entity);
 
@@ -314,6 +316,7 @@ std::vector<const EntityInstance*> DedupedEntitiesForSuggestions(
       case EntityInstance::RecordType::kServerWallet:
         return true;
       case EntityInstance::RecordType::kLocal:
+      case EntityInstance::RecordType::kAccessibilityAnnotator:
         return false;
     }
     NOTREACHED();

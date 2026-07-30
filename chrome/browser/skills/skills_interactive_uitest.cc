@@ -66,12 +66,8 @@ class SkillsInteractiveUiTest
     scoped_feature_list_.InitWithFeatures(
         /*enabled_features=*/{features::kGlic, features::kGlicRollout,
                               features::kSkillsEnabled,
-                              features::kGlicMultiInstance,
-                              features::kGlicUnifiedFreScreen,
-                              glic::mojom::features::kGlicMultiTab,
                               features::kGlicMultitabUnderlines},
         /*disabled_features=*/{features::kGlicWarming,
-                               features::kGlicFreWarming,
                                features::kGlicTrustFirstOnboarding});
     // Ensure that we open the FRE.
     glic_test_environment().SetFreStatusForNewProfiles(std::nullopt);

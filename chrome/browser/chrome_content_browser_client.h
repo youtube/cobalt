@@ -263,10 +263,11 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
                       const GURL& site_url) override;
   bool MayReuseHost(content::RenderProcessHost* process_host) override;
   size_t GetProcessCountToIgnoreForLimit() override;
-  std::optional<std::vector<blink::mojom::IsolatedAppPermissionPolicyEntryPtr>>
-  GetPermissionsPolicyForIsolatedWebApp(
+  bool SupportsBaselinePermissionsPolicyForIsolatedApp() override;
+  std::vector<blink::mojom::IsolatedAppPermissionPolicyEntryPtr>
+  GetBaselinePermissionsPolicyForIsolatedApp(
       content::BrowserContext* browser_context,
-      const url::Origin& iwa_origin) override;
+      const url::Origin& app_origin) override;
   bool ShouldTryToUseExistingProcessHost(
       content::BrowserContext* browser_context,
       const GURL& url) override;
@@ -300,6 +301,7 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
 #if !BUILDFLAG(IS_ANDROID)
   bool IsInitialWebUIURL(const GURL& url) override;
 #endif  // !BUILDFLAG(IS_ANDROID)
+  bool IsTopChromeWebUIURL(const GURL& url) override;
   bool IsIsolatedContextAllowedForUrl(content::BrowserContext* browser_context,
                                       const GURL& lock_url) override;
   bool IsMultiCaptureAllowed(
@@ -726,7 +728,7 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner)
       override;
   content::ContentBrowserClient::URLLoaderRequestHandler
-  CreateURLLoaderHandlerForServiceWorkerNavigationPreload(
+  CreateURLLoaderHandlerForServiceWorkerInitiatedNavigationRequest(
       content::FrameTreeNodeId frame_tree_node_id,
       const network::ResourceRequest& resource_request) override;
   bool WillInterceptWebSocket(content::RenderFrameHost* frame) override;
@@ -871,6 +873,18 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
 
   bool IsBuiltinComponent(content::BrowserContext* browser_context,
                           const url::Origin& origin) override;
+
+  void StartRtcDiagnosticLogging(
+      content::RenderFrameHost& frame_host,
+      bool should_upload_on_stop,
+      base::flat_map<std::string, std::string> metadata,
+      base::OnceCallback<void(const std::string&)> callback) override;
+
+  void FinishRtcDiagnosticLogging(content::RenderFrameHost& frame_host,
+                                  base::OnceClosure callback) override;
+
+  void CancelRtcDiagnosticLogging(content::RenderFrameHost& frame_host,
+                                  base::OnceClosure callback) override;
 
   bool ShouldBlockRendererDebugURL(
       const GURL& url,

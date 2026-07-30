@@ -10,6 +10,7 @@ android_library("java") {
   sources = [
     "android/java/src/org/chromium/chrome/browser/ui/side_panel_container/SidePanelContainerCoordinator.java",
     "android/java/src/org/chromium/chrome/browser/ui/side_panel_container/SidePanelContent.java",
+    "android/java/src/org/chromium/chrome/browser/ui/side_panel_container/dev/SidePanelDevFeature.java",
   ]
   deps = [ "//build/android:build_java" ]
 }
@@ -18,7 +19,13 @@ android_library("java") {
 android_library_factory("factory_java") {
   deps = [
     ":java",
+    "//base:supplier_java",
+    "//chrome/browser/profiles/android:java",
     "//chrome/browser/ui/side_ui/public:java",
+    "//ui/android:ui_java",
   ]
-  sources = [ "//chrome/browser/ui/side_panel_container/internal/android/java/src/org/chromium/chrome/browser/ui/side_panel_container/SidePanelContainerCoordinatorFactory.java" ]
+  sources = [
+    "//chrome/browser/ui/side_panel_container/internal/android/java/src/org/chromium/chrome/browser/ui/side_panel_container/SidePanelContainerCoordinatorFactory.java",
+    "//chrome/browser/ui/side_panel_container/internal/android/java/src/org/chromium/chrome/browser/ui/side_panel_container/dev/SidePanelDevFeatureFactory.java",
+  ]
 }

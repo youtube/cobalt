@@ -192,6 +192,21 @@ BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
                            kChromeIdentitySurveyLaunchWithDelayDuration);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+// If enabled, disables feedback for U18 users on desktop platforms.
+// The iOS version is kDisableU18FeedbackIos flag.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kDisableU18FeedbackDesktop);
+enum class U18FeedbackDesktopState {
+  kEnabled,
+  // Simulates U18 user.
+  kForced,
+};
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+extern const base::FeatureParam<U18FeedbackDesktopState>
+    kDisableU18FeedbackDesktopState;
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
 #if BUILDFLAG(IS_ANDROID)
 // Whether activityless sign-in should be used for all entry points.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
@@ -280,6 +295,11 @@ extern const base::FeatureParam<SeamlessSigninPromoType>
     kSeamlessSigninPromoType;
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kEnableSearchAIModeSigninPromo);
+#endif
+
 #if BUILDFLAG(IS_IOS)
 // Feature flag controlling whether the CanSignInToChrome account capability
 // should be used to determine whether an account is eligible for sign-in.
@@ -297,9 +317,45 @@ extern const base::FeatureParam<base::TimeDelta>
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 // This feature controls running visually refreshed first run and profile
-// creation flows.
+// creation flows for users outside of the search engine choice regions. To
+// enable the refresh in search engine choice screen regions,
+// `kFirstRunDesktopChoiceScreenRefresh` needs to be enabled as well.
+//
+// Clients should never use this feature directly to determine if the
+// refresh is enabled, they should use `IsFirstRunDesktopRefreshEnabled()`
+// instead.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kFirstRunDesktopRefresh);
+// This feature controls running visually refreshed first run and profile
+// creation flows, including the choice screen, for users in search engine
+// choice screen regions. This feature is no-op if `kFirstRunDesktopRefresh` is
+// disabled.
+//
+// Clients should never use this feature directly to determine if the
+// refresh is enabled, they should use `IsFirstRunDesktopRefreshEnabled()`
+// instead.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kFirstRunDesktopChoiceScreenRefresh);
+// A helper function to determine if the first run desktop refresh is enabled
+// (see `kFirstRunDesktopRefresh` and `kFirstRunDesktopChoiceScreenRefresh`
+// flags).
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+bool IsFirstRunDesktopRefreshEnabled(bool is_in_search_engine_choice_region);
+enum class FirstRunDesktopSignInPromoVariation {
+  // Default sign-in promo containing both sign-in and don't sign-in buttons
+  // next to each other on the promo page.
+  kDefault = 0,
+  // Sign-in promo containing both sign-in and don't sign-in buttons but the
+  // don't sign in button is moved to the top corner of the promo page and the
+  // page informs the user they can create an account in the next step(s).
+  kDontSignInInTheTopCorner = 1,
+  // Sign-in promo containing only the sign-in button on the promo page. The
+  // don't sign in button is moved to the Gaia page.
+  kDontSignInOnGaiaPage = 2,
+};
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+extern const base::FeatureParam<FirstRunDesktopSignInPromoVariation>
+    kFirstRunDesktopSignInPromoVariation;
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
@@ -415,6 +471,13 @@ extern const base::FeatureParam<ProfilePickerVariation>
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kProfilesReordering);
 
+#if BUILDFLAG(IS_IOS)
+// Feature flag controlling whether Chrome uses the contextual version of
+// relevant account capabilities on supported platforms.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kReadContextualAccountCapabilities);
+#endif
+
 #if !BUILDFLAG(IS_ANDROID)
 // Kill switch for Device Management Service OAuth scope.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
@@ -454,6 +517,18 @@ extern const base::FeatureParam<int> kContextualSigninPromoDismissedThreshold;
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kSignInPromoMaterialNextUI);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+// Feature to show a promo on the avatar pill on profile startup.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kSigninPromoOnAvatarPill);
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
+                           kSigninPromoOnAvatarPillStartupDelayForPromoShow);
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
+                           kSigninPromoOnAvatarPillDelayForNextPromoAllowed);
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 // Feature flag used for testing purposes only:
 //

@@ -71,7 +71,6 @@
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/glic_actor_nudge_controller.h"
 #include "chrome/browser/ui/tabs/glic_nudge_controller.h"
-#include "chrome/browser/ui/tabs/organization/tab_declutter_controller.h"
 #include "chrome/browser/ui/tabs/projects/projects_panel_state_controller.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/most_recent_shared_tab_update_store.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
@@ -199,13 +198,15 @@
 #include "chrome/browser/ui/overscroll_pref_manager.h"
 #endif  // defined(USE_AURA)
 
-class BrowserWindowFeatures::ExtensionKeybindingRegistryDelegateTabStrip final
+namespace {
+
+class ExtensionKeybindingRegistryDelegateTabStrip final
     : public extensions::ExtensionKeybindingRegistry::Delegate {
  public:
   explicit ExtensionKeybindingRegistryDelegateTabStrip(
       TabStripModel& tab_strip_model)
       : tab_strip_model_(tab_strip_model) {}
-  ~ExtensionKeybindingRegistryDelegateTabStrip() = default;
+  ~ExtensionKeybindingRegistryDelegateTabStrip() override = default;
 
   ExtensionKeybindingRegistryDelegateTabStrip(
       const ExtensionKeybindingRegistryDelegateTabStrip& other) = delete;
@@ -219,6 +220,8 @@ class BrowserWindowFeatures::ExtensionKeybindingRegistryDelegateTabStrip final
  private:
   const raw_ref<TabStripModel> tab_strip_model_;
 };
+
+}  // namespace
 
 BrowserWindowFeatures::BrowserWindowFeatures() = default;
 BrowserWindowFeatures::~BrowserWindowFeatures() = default;
@@ -291,12 +294,6 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
 
       most_recent_shared_tab_update_store_ =
           std::make_unique<tab_groups::MostRecentSharedTabUpdateStore>(browser);
-    }
-
-    if (features::IsTabstripDeclutterEnabled() &&
-        (profile->IsRegularProfile() || profile->IsGuestSession())) {
-      tab_declutter_controller_ =
-          std::make_unique<tabs::TabDeclutterController>(browser);
     }
 
     if (glic::GlicEnabling::IsProfileEligible(profile)) {
@@ -464,6 +461,7 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
   embedder_browser_window_features_ =
       GetUserDataFactory().CreateInstance<EmbedderBrowserWindowFeatures>(
           *browser, browser);
+  embedder_browser_window_features_->Init(browser);
 }
 
 void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
@@ -669,14 +667,12 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
 
   // Focus manager can be null in tests.
   if (focus_manager) {
-    extension_keybinding_delegate_ =
-        std::make_unique<ExtensionKeybindingRegistryDelegateTabStrip>(
-            *browser->GetTabStripModel());
     extension_keybinding_registry_ =
         std::make_unique<ExtensionKeybindingRegistryViews>(
             profile, focus_manager,
             extensions::ExtensionKeybindingRegistry::ALL_EXTENSIONS,
-            extension_keybinding_delegate_.get());
+            std::make_unique<ExtensionKeybindingRegistryDelegateTabStrip>(
+                *browser->GetTabStripModel()));
   }
 
   if (browser->is_type_normal()) {

@@ -73,6 +73,15 @@ void MediaStateObserver::OnIsBeingMirroredChanged(
   UpdateMediaState();
 }
 
+void MediaStateObserver::MediaPictureInPictureChanged(
+    bool is_in_picture_in_picture) {
+  if (is_in_pip_ == is_in_picture_in_picture) {
+    return;
+  }
+  is_in_pip_ = is_in_picture_in_picture;
+  UpdateMediaState();
+}
+
 base::CallbackListSubscription
 MediaStateObserver::MaybeSubscribeToRecentlyAudible() {
   if (base::FeatureList::IsEnabled(media::kEnableAudioMonitoringOnAndroid)) {
@@ -98,15 +107,18 @@ void MediaStateObserver::UpdateAudibleState(bool audible) {
 
 void MediaStateObserver::UpdateMediaState() {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  MediaState new_state = MediaState::NONE;
+  tabs::MediaState new_state = tabs::MediaState::kNone;
   if (is_being_mirrored_) {
-    new_state = MediaState::SHARING;
+    new_state = tabs::MediaState::kSharing;
   } else if (is_capturing_video_ || is_capturing_audio_) {
-    new_state = MediaState::RECORDING;
+    new_state = tabs::MediaState::kRecording;
+  } else if (is_in_pip_) {
+    new_state = tabs::MediaState::kPictureInPicture;
   } else if (is_audible_) {
-    new_state = is_audio_muted_ ? MediaState::MUTED : MediaState::AUDIBLE;
+    new_state =
+        is_audio_muted_ ? tabs::MediaState::kMuted : tabs::MediaState::kAudible;
   } else {
-    new_state = MediaState::NONE;
+    new_state = tabs::MediaState::kNone;
   }
 
   if (media_state_ == new_state) {
@@ -119,7 +131,7 @@ void MediaStateObserver::UpdateMediaState() {
   }
 
   media_state_ = new_state;
-  tab->SetMediaState(new_state);
+  tab->SetMediaState(static_cast<int>(new_state));
 }
 
 WEB_CONTENTS_USER_DATA_KEY_IMPL(MediaStateObserver);

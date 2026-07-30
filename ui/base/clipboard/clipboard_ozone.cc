@@ -473,9 +473,9 @@ void ClipboardOzone::OnPreShutdown() {
   async_clipboard_ozone_->OnPreShutdown();
 }
 
-std::optional<DataTransferEndpoint> ClipboardOzone::GetSource(
-    ClipboardBuffer buffer) const {
-  return async_clipboard_ozone_->ReadSourceAndWait(buffer);
+void ClipboardOzone::GetSource(ClipboardBuffer buffer,
+                               GetSourceCallback callback) const {
+  async_clipboard_ozone_->ReadSourceAsync(buffer, std::move(callback));
 }
 
 const ClipboardSequenceNumberToken& ClipboardOzone::GetSequenceNumber(
@@ -489,8 +489,10 @@ bool ClipboardOzone::IsFormatAvailable(
     const DataTransferEndpoint* data_dst) const {
   DCHECK(CalledOnValidThread());
 
-  if (!IsReadAllowed(GetSource(buffer), data_dst, base::span<uint8_t>()))
+  if (!IsReadAllowed(async_clipboard_ozone_->ReadSourceAndWait(buffer),
+                     data_dst, base::span<uint8_t>())) {
     return false;
+  }
 
   auto available_types = async_clipboard_ozone_->RequestMimeTypes(buffer);
   return std::ranges::contains(available_types, format.GetName());
@@ -500,11 +502,18 @@ void ClipboardOzone::Clear(ClipboardBuffer buffer) {
   async_clipboard_ozone_->Clear(buffer);
 }
 
-std::vector<std::u16string> ClipboardOzone::GetStandardFormats(
+void ClipboardOzone::GetStandardFormats(
     ClipboardBuffer buffer,
-    const DataTransferEndpoint* data_dst) const {
-  auto available_types = async_clipboard_ozone_->RequestMimeTypes(buffer);
-  return GetStandardFormatsFromMimeTypes(available_types);
+    const std::optional<DataTransferEndpoint>& data_dst,
+    GetStandardFormatsCallback callback) const {
+  async_clipboard_ozone_->GetAvailableMimeTypesAsync(
+      buffer, base::BindOnce(
+                  [](GetStandardFormatsCallback callback,
+                     const std::vector<std::string>& available_types) {
+                    std::move(callback).Run(
+                        GetStandardFormatsFromMimeTypes(available_types));
+                  },
+                  std::move(callback)));
 }
 
 void ClipboardOzone::ReadAvailableTypes(
@@ -514,13 +523,14 @@ void ClipboardOzone::ReadAvailableTypes(
   DCHECK(CalledOnValidThread());
 
   async_clipboard_ozone_->GetAvailableMimeTypesAsync(
-      buffer,
-      base::BindOnce(&ClipboardOzone::OnReadAvailableTypes,
-                     weak_factory_.GetWeakPtr(), buffer, std::move(callback)));
+      buffer, base::BindOnce(&ClipboardOzone::OnReadAvailableTypes,
+                             weak_factory_.GetWeakPtr(), buffer, data_dst,
+                             std::move(callback)));
 }
 
 void ClipboardOzone::OnReadAvailableTypes(
     ClipboardBuffer buffer,
+    const std::optional<DataTransferEndpoint>& data_dst,
     ReadAvailableTypesCallback callback,
     const std::vector<std::string>& available_types) const {
   std::vector<std::u16string> types =

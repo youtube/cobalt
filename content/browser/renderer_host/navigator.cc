@@ -525,8 +525,11 @@ void Navigator::DidNavigate(
   }
 #endif  // BUILDFLAG(IS_ANDROID)
 
+  // Run tasks that must execute just before the commit.
+  delegate_->DidNavigateAnyFramePreCommit(navigation_request.get(),
+                                          was_within_same_document);
+
   if (ui::PageTransitionIsMainFrame(params.transition)) {
-    // Run tasks that must execute just before the commit.
     delegate_->DidNavigateMainFramePreCommit(navigation_request.get(),
                                              was_within_same_document);
   }
@@ -588,6 +591,8 @@ void Navigator::DidNavigate(
       view_transition_commit_info(
           navigation_request->GetViewTransitionResources(),
           navigation_request->HasViewTransitionDelayLayerTreeViewDeletion());
+  const bool is_backward_navigation =
+      navigation_request->GetNavigationEntryOffset() < 0;
   frame_tree_node->render_manager()->DidNavigateFrame(
       render_frame_host,
       navigation_request->common_params().has_possibly_filtered_user_gesture,
@@ -595,7 +600,8 @@ void Navigator::DidNavigate(
       navigation_request->browsing_context_group_swap()
           .ShouldClearProxiesOnCommit(),
       navigation_request->commit_params().frame_policy, allow_paint_holding,
-      view_transition_commit_info, navigation_request->GetURL());
+      view_transition_commit_info, navigation_request->GetURL(),
+      is_backward_navigation);
 
   // Reset the old frame host's weak pointer to auction initiator page when it
   // is a cross-document navigation and the frame does not go into bfcache.
@@ -860,6 +866,8 @@ void Navigator::Navigate(std::unique_ptr<NavigationRequest> request,
   bool is_duplicate_navigation = false;
   bool start_diff_under_threshold = false;
   base::TimeDelta nav_start_diff;
+  bool is_on_target_origin =
+      GetContentClient()->IsUrlInIgnoreDuplicateNavsOrigins(request->GetURL());
   if (ongoing_navigation_request &&
       ongoing_navigation_request->IsRendererInitiated() ==
           request->IsRendererInitiated() &&
@@ -907,11 +915,23 @@ void Navigator::Navigate(std::unique_ptr<NavigationRequest> request,
       base::UmaHistogramEnumeration(
           "Navigation.BrowserInitiated.DuplicateNavCookieStatus.UnderThreshold",
           cookie_status);
+      if (is_on_target_origin) {
+        base::UmaHistogramEnumeration(
+            "Navigation.BrowserInitiated.DuplicateNavCookieStatus."
+            "UnderThreshold.OnTargetOrigins",
+            cookie_status);
+      }
     }
   }
   base::UmaHistogramBoolean(
       "Navigation.BrowserInitiated.IsDuplicateWithoutThresholdCheck2",
       is_duplicate_navigation);
+  if (is_on_target_origin) {
+    base::UmaHistogramBoolean(
+        "Navigation.BrowserInitiated.IsDuplicateWithoutThresholdCheck2."
+        "OnTargetOrigins",
+        is_duplicate_navigation);
+  }
   if (is_duplicate_navigation) {
     // The navigation is similar to a previous navigation. Check if it's started
     // close enough to the start of the previous navigation, in which case we
@@ -922,6 +942,16 @@ void Navigator::Navigate(std::unique_ptr<NavigationRequest> request,
     base::UmaHistogramTimes(
         "Navigation.BrowserInitiated.DuplicateNavStartTimeDiff2",
         nav_start_diff);
+    if (is_on_target_origin) {
+      base::UmaHistogramBoolean(
+          "Navigation.BrowserInitiated.DuplicateNavIsUnderThreshold2."
+          "OnTargetOrigins",
+          start_diff_under_threshold);
+      base::UmaHistogramTimes(
+          "Navigation.BrowserInitiated.DuplicateNavStartTimeDiff2."
+          "OnTargetOrigins",
+          nav_start_diff);
+    }
     if (!request->IsRendererInitiated()) {
       const auto& new_input_start = request->common_params().input_start;
       const auto& old_input_start =
@@ -944,6 +974,12 @@ void Navigator::Navigate(std::unique_ptr<NavigationRequest> request,
         base::UmaHistogramTimes(
             "Navigation.BrowserInitiated.DuplicateNavInputTimeDiff2",
             input_diff);
+        if (is_on_target_origin) {
+          base::UmaHistogramTimes(
+              "Navigation.BrowserInitiated.DuplicateNavInputTimeDiff2."
+              "OnTargetOrigins",
+              input_diff);
+        }
       }
     }
     if (start_diff_under_threshold &&

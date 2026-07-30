@@ -7,6 +7,7 @@ source_set("internal") {
     ":*",
     "..:impl",
     "//chrome/browser:*",
+    "//chrome/browser/ui/lens:*",
     "//chrome/test:*",
     "//components/omnibox/composebox/ios:*",
   ]
@@ -77,6 +78,7 @@ source_set("unit_tests") {
     "//components/lens",
     "//components/omnibox/composebox:mojo_bindings",
     "//components/search_engines:test_support",
+    "//components/sessions:session_id",
     "//components/signin/public/identity_manager:test_support",
     "//components/variations",
     "//services/data_decoder/public/cpp",

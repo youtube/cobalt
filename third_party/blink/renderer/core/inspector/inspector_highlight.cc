@@ -80,27 +80,15 @@ class HighlightPathBuilder {
   std::unique_ptr<protocol::ListValue> Release() { return std::move(path_); }
 
   void AppendPath(const Path& path, float scale) {
-    ApplyInfo apply_info{this, scale};
-    path.Apply(&apply_info, &HighlightPathBuilder::AppendPathElement);
+    path.Apply([this, scale](const PathElement& path_element) {
+      AppendPathElement(path_element, scale);
+    });
   }
 
  protected:
   virtual gfx::PointF TranslatePoint(const gfx::PointF& point) { return point; }
 
  private:
-  struct ApplyInfo {
-    STACK_ALLOCATED();
-
-   public:
-    HighlightPathBuilder* builder;
-    float scale;
-  };
-
-  static void AppendPathElement(void* info, const PathElement& path_element) {
-    const ApplyInfo* apply_info = static_cast<ApplyInfo*>(info);
-    apply_info->builder->AppendPathElement(path_element, apply_info->scale);
-  }
-
   void AppendPathElement(const PathElement&, float scale);
   void AppendPathCommandAndPoints(const char* command,
                                   base::span<const gfx::PointF> points,
@@ -1849,6 +1837,14 @@ std::unique_ptr<protocol::DictionaryValue> BuildGridInfoForGrid(
   // Columns
   LayoutUnit column_top = rows.front();
   LayoutUnit column_height = rows.back() - rows.front();
+
+  if (grid->StyleRef().GetWritingMode() == WritingMode::kVerticalLr) {
+    grid_info->setValue(
+        "writingModeRoot",
+        BuildPosition(LocalToAbsolutePoint(
+            element, PhysicalOffset(grid->ContentLeft(), grid->ContentTop()),
+            scale)));
+  }
   grid_info->setValue(
       "columns",
       BuildTrackPaths(grid, containing_view, columns, column_top, column_height,

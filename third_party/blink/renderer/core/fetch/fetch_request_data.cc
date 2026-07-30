@@ -95,8 +95,9 @@ FetchRequestData* FetchRequestData::Create(
   for (const auto& pair : fetch_api_request->headers) {
     // TODO(leonhsl): Check sources of |fetch_api_request.headers| to make clear
     // whether we really need this filter.
-    if (EqualIgnoringASCIICase(pair.key, "referer"))
+    if (EqualIgnoringAsciiCase(pair.key, "referer")) {
       continue;
+    }
     if (for_service_worker_fetch_event == ForServiceWorkerFetchEvent::kTrue &&
         IsExcludedHeaderForServiceWorkerFetchEvent(pair.key)) {
       continue;
@@ -190,6 +191,7 @@ FetchRequestData* FetchRequestData::Create(
   request->SetIntegrity(fetch_api_request->integrity);
   request->SetKeepalive(fetch_api_request->keepalive);
   request->SetIsHistoryNavigation(fetch_api_request->is_history_navigation);
+  request->SetIsReloadNavigation(fetch_api_request->is_reload);
   request->SetPriority(ConvertRequestPriorityToResourceLoadPriority(
       fetch_api_request->priority));
   if (fetch_api_request->fetch_window_id)
@@ -240,6 +242,7 @@ FetchRequestData* FetchRequestData::CloneExceptBody() {
   request->ad_auction_headers_ = ad_auction_headers_;
   request->shared_storage_writable_ = shared_storage_writable_;
   request->is_history_navigation_ = is_history_navigation_;
+  request->is_reload_navigation_ = is_reload_navigation_;
   request->window_id_ = window_id_;
   request->trust_token_params_ = trust_token_params_;
   request->attribution_reporting_eligibility_ =

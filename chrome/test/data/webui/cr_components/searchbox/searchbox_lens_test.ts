@@ -25,7 +25,8 @@ suite('Lens search', () => {
   async function areMatchesShowing(): Promise<boolean> {
     await testProxy.callbackRouterRemote.$.flushForTesting();
     await microtasksFinished();
-    return window.getComputedStyle(realbox.$.matches).display !== 'none';
+    return window.getComputedStyle(realbox.getSuggestionsElement()).display !==
+        'none';
   }
 
   suiteSetup(() => {
@@ -93,13 +94,14 @@ suite('Lens search', () => {
     document.body.appendChild(realbox);
 
     // Act.
-    realbox.$.input.value = '';
-    realbox.$.input.dispatchEvent(new MouseEvent('mousedown', {button: 0}));
+    realbox.$.input.inputElement.value = '';
+    realbox.$.input.inputElement.dispatchEvent(
+        new MouseEvent('mousedown', {button: 0}));
 
     const matches = [createAutocompleteMatch()];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
         createAutocompleteResultForTesting({
-          input: realbox.$.input.value.trimStart(),
+          input: realbox.$.input.inputElement.value.trimStart(),
           matches,
         }));
     await testProxy.callbackRouterRemote.$.flushForTesting();

@@ -486,6 +486,7 @@ chromium-metrics-reviews@google.com.
   <int value="7" label="Reset Component Updater"/>
   <int value="8" label="Disable Supervision Checks"/>
   <int value="9" label="Disable Startup Tasks Logic"/>
+  <int value="10" label="Disable Crashy Class"/>
 <!-- LINT.ThenChange(/android_webview/java/src/org/chromium/android_webview/common/SafeModeActionIds.java:SafeModeActionIds) -->
 
 </enum>
@@ -660,7 +661,7 @@ chromium-metrics-reviews@google.com.
   <int value="107" label="WebSettingsCompat.getBackForwardCacheEnabled"/>
   <int value="108" label="Profile.prefetchUrl"/>
   <int value="109" label="Profile.prefetchUrlWithParams"/>
-  <int value="110" label="Profile.clearPrefetch"/>
+  <int value="110" label="Profile.clearPrefetch (deprecated)"/>
   <int value="111" label="Profile.cancelPrefetch"/>
   <int value="112" label="WebViewCompat.setDefaultTrafficStatsTag"/>
   <int value="113" label="WebViewCompat.setDefaultTrafficStatsUid"/>
@@ -669,7 +670,7 @@ chromium-metrics-reviews@google.com.
   <int value="116" label="WebViewCompat.prerenderUrlWithParams"/>
   <int value="117" label="WebStorageCompat.deleteBrowsingData"/>
   <int value="118" label="WebStorageCompat.deleteBrowsingDataForSite"/>
-  <int value="119" label="Profile.setSpeculativeLoadingConfig"/>
+  <int value="119" label="Profile.setSpeculativeLoadingConfig (deprecated)"/>
   <int value="120" label="WebViewCompat.saveState"/>
   <int value="121" label="WebViewCompat.getNavigationClient"/>
   <int value="122" label="WebViewCompat.setNavigationClient"/>
@@ -1450,7 +1451,9 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="MDoc scheme"/>
   <int value="5" label="openid4vp"/>
   <int value="6" label="OpenId4Vci"/>
-  <int value="7" label="Haip"/>
+  <int value="7" label="Haip (Deprecated)"/>
+  <int value="8" label="haip-vp"/>
+  <int value="9" label="haip-vci"/>
 </enum>
 
 <enum name="NewWindowAppSource">

@@ -267,7 +267,7 @@ static bool MatchesLangPseudoClass(
       return {language_range_, subtag_start_, subtag_end_ - subtag_start_};
     }
     bool Matches(const LanguageTagIterator& other) const {
-      return EqualIgnoringASCIICase(CurrentSubtag(), other.CurrentSubtag());
+      return EqualIgnoringAsciiCase(CurrentSubtag(), other.CurrentSubtag());
     }
     bool MatchesWildcard() const {
       StringView subtag = CurrentSubtag();
@@ -713,6 +713,7 @@ SelectorChecker::FeaturelessMatch SelectorChecker::MatchShadowHost(
     case CSSSelector::kPseudoEnabled:
     case CSSSelector::kPseudoEnd:
     case CSSSelector::kPseudoFileSelectorButton:
+    case CSSSelector::kPseudoFiltered:
     case CSSSelector::kPseudoFirstChild:
     case CSSSelector::kPseudoFirstLetter:
     case CSSSelector::kPseudoFirstLine:
@@ -1260,7 +1261,7 @@ static bool AttributeValueMatches(const Attribute& attribute_item,
       // so even for a case-insensitive match, we test that first.
       return selector_value == value ||
              (case_insensitive &&
-              EqualIgnoringASCIICase(selector_value, value));
+              EqualIgnoringAsciiCase(selector_value, value));
     case CSSSelector::kAttributeSet:
       return true;
     case CSSSelector::kAttributeList: {
@@ -2562,6 +2563,13 @@ bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
         }
       }
       return false;
+    case CSSSelector::kPseudoFiltered:
+      CHECK(RuntimeEnabledFeatures::CustomizableComboboxEnabled() ||
+            RuntimeEnabledFeatures::FilterableSelectEnabled());
+      if (auto* option = DynamicTo<HTMLOptionElement>(element)) {
+        return option->IsFiltered();
+      }
+      return false;
     case CSSSelector::kPseudoInterestSource:
       DCHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled());
       return element.GetInterestState() != Element::InterestState::kNoInterest;
@@ -2892,9 +2900,9 @@ bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
       }
 
       TextDirection direction;
-      if (EqualIgnoringASCIICase(argument, "ltr")) {
+      if (EqualIgnoringAsciiCase(argument, "ltr")) {
         direction = TextDirection::kLtr;
-      } else if (EqualIgnoringASCIICase(argument, "rtl")) {
+      } else if (EqualIgnoringAsciiCase(argument, "rtl")) {
         direction = TextDirection::kRtl;
       } else {
         break;

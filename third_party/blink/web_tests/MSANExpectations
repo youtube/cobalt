@@ -72,7 +72,7 @@ crbug.com/931660 [ Linux ] fast/history/replacestate-nocrash.html [ Pass Timeout
 # Sheriff 2019-11-11
 
 
-crbug.com/856601 [ Linux ] external/wpt/compression/compression-stream.tentative.any.serviceworker.html [ Pass Timeout ]
+crbug.com/856601 [ Linux ] external/wpt/compression/compression-stream.any.serviceworker.html [ Pass Timeout ]
 
 # Sheriff 2020-02-10
 crbug.com/1050559 [ Linux ] external/wpt/WebCryptoAPI/derive_bits_keys/hkdf.https.any.worker.html?1-1000 [ Skip ]
@@ -188,3 +188,8 @@ crbug.com/459235322 [ Linux ] webaudio/OfflineAudioContext/offlineaudiocontext-p
 
 # Times out under MSan, similar to crbug.com/459235322.
 crbug.com/480249475 [ Linux ] external/wpt/css/css-pseudo/input-element-pseudo-open.optional.html [ Pass Timeout ]
+
+# Flaky on Linux MSan.
+crbug.com/488337157 [ Linux ] external/wpt/css/css-pseudo/input-element-pseudo-open-click.optional.html [ Failure Pass ]
+crbug.com/490381610 [ Linux ] external/wpt/wasm/core/simd/simd_f32x4_arith.wast.js.html [ Failure Pass ]
+crbug.com/446167772 [ Linux ] external/wpt/webcodecs/audio-encoder-codec-specific.https.any.html [ Failure Pass ]

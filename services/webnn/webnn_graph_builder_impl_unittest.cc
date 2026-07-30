@@ -113,14 +113,13 @@ class FakeWebNNContextImpl final : public WebNNContextImpl {
       WebNNGraphImpl::ComputeResourceInfo compute_resource_info,
       base::flat_map<OperandId, std::unique_ptr<WebNNConstantOperand>>
       /*constant_operands*/,
-      base::flat_map<OperandId, WebNNTensorImpl*>
+      base::flat_map<OperandId, scoped_refptr<WebNNTensorImpl>>
       /*constant_tensor_operands*/,
       CreateGraphImplCallback callback) override {
     // Asynchronously resolve `callback` so there's an opportunity for
     // subsequent messages to be (illegally) sent from the `WebNNGraphBuilder`
     // remote before it's disconnected.
-    scheduler_task_runner()->PostTask(
-        FROM_HERE,
+    gpu_sequence()->ScheduleGpuTask(
         base::BindOnce(
             [](mojo::PendingAssociatedReceiver<mojom::WebNNGraph> receiver,
                base::WeakPtr<WebNNContextImpl> context,

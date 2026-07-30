@@ -85,7 +85,6 @@ import org.chromium.chrome.R;
 import org.chromium.chrome.browser.app.appmenu.AppMenuPropertiesDelegateImpl;
 import org.chromium.chrome.browser.browser_controls.BrowserStateBrowserControlsVisibilityDelegate;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
-import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider.CustomTabProfileType;
 import org.chromium.chrome.browser.browserservices.intents.CustomButtonParams.ButtonType;
 import org.chromium.chrome.browser.customtabs.CustomTabIntentDataProvider.CustomTabsButtonState;
 import org.chromium.chrome.browser.customtabs.CustomTabsConnection;
@@ -101,6 +100,7 @@ import org.chromium.chrome.browser.dom_distiller.ReaderModeManager;
 import org.chromium.chrome.browser.ephemeraltab.EphemeralTabCoordinator;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.flags.CustomTabProfileType;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.omnibox.LocationBar;
 import org.chromium.chrome.browser.omnibox.LocationBarDataProvider;
@@ -815,7 +815,7 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
             LocationBarModel locationBarModel,
             ActionMode.Callback actionModeCallback,
             Supplier<@Nullable ModalDialogManager> modalDialogManagerSupplier,
-            Supplier<EphemeralTabCoordinator> ephemeralTabCoordinatorSupplier,
+            Supplier<@Nullable EphemeralTabCoordinator> ephemeralTabCoordinatorSupplier,
             BrowserStateBrowserControlsVisibilityDelegate controlsVisibilityDelegate,
             TabCreator tabCreator) {
         mLocationBarModel = locationBarModel;
@@ -1648,7 +1648,7 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
         private static final int TOTAL_POST_BRANDING_KEYS = 2;
 
         private LocationBarDataProvider mLocationBarDataProvider;
-        private @Nullable Supplier<EphemeralTabCoordinator> mEphemeralTabCoordinatorSupplier;
+        private Supplier<@Nullable EphemeralTabCoordinator> mEphemeralTabCoordinatorSupplier;
         private Supplier<@Nullable ModalDialogManager> mModalDialogManagerSupplier;
         private UrlBarCoordinator mUrlCoordinator;
         private @Nullable TabCreator mTabCreator;
@@ -2091,7 +2091,7 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
         public void init(
                 LocationBarDataProvider locationBarDataProvider,
                 Supplier<@Nullable ModalDialogManager> modalDialogManagerSupplier,
-                Supplier<EphemeralTabCoordinator> ephemeralTabCoordinatorSupplier,
+                Supplier<@Nullable EphemeralTabCoordinator> ephemeralTabCoordinatorSupplier,
                 TabCreator tabCreator,
                 ActionMode.Callback actionModeCallback) {
             mLocationBarDataProvider = locationBarDataProvider;

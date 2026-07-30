@@ -530,9 +530,9 @@ BASE_FEATURE(kAutofillEnableExpirationDateImprovements,
 // country codes / names.
 // See GetStreetAddressForInput() in field_filling_address_util.cc for a details
 // description.
-// TODO(crbug.com/40249216). Clean up when launched.
+// TODO(crbug.com/40249065). Clean up when launched.
 BASE_FEATURE(kAutofillEnableFillingPhoneCountryCodesByAddressCountryCodes,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Control if Autofill supports German transliteration.
 // TODO(crbug.com/328968064): Remove when/if launched.
@@ -723,6 +723,12 @@ BASE_FEATURE(kAutofillImprovePhoneFieldParser,
 BASE_FEATURE(kAutofillImprovePhoneNumberRationalization,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If enabled, global rules are applied to rewrite empty string values like
+// "null" to an empty string. These rules are applied for all types during
+// address normalization.
+BASE_FEATURE(kAutofillIntroduceGlobalEmptyValueRewriterRules,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // TODO(crbug.com/346507576): Remove once the experiment is over.
 // When enabled, makes autocomplete label sensitive.
 BASE_FEATURE(kAutofillLabelSensitiveAutocomplete,
@@ -854,6 +860,12 @@ BASE_FEATURE(kAutofillPolicyControlledFeatureAutofill,
 // `kAutofillCrossOriginAutofill`.
 // TODO(crbug.com/40178859): Enable this feature.
 BASE_FEATURE(kAutofillPolicyControlledFeatureManualText,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If the feature is enabled, Autofill popups perform additional check to
+// detect if they are obscured by top-level HTML form popups (e.g color picker).
+// If so, Autofill Popup won't be shown.
+BASE_FEATURE(kAutofillPopupCheckHtmlFormPopupOverlap,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If the feature is enabled, before triggering suggestion acceptance, the row
@@ -1123,6 +1135,13 @@ BASE_FEATURE(kUseSettingsAddressEditorInPaymentsRequest,
 // autofill") labels and icons to "Your saved info".
 BASE_FEATURE(kYourSavedInfoBrandingInSettings,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Kill switch for indicators of settings controlled by a policy or extension.
+// Applies to toggles on identity docs settings page, travel settings page,
+// and the Enhanced Autofill opt-in.
+// TODO(crbug.com/489667079): Remove when launched.
+BASE_FEATURE(kYourSavedInfoPolicyAndExtentionToggleIndicators,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Defines if the "Your Saved Info" page is eligible to be shown in Chrome
 // settings.

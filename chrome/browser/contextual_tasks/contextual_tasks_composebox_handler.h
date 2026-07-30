@@ -50,7 +50,7 @@ class ContextualTasksComposeboxHandler : public ComposeboxHandler,
                                          public ui::SelectFileDialog::Listener {
  public:
   friend class ContextualTasksComposeboxHandlerTest;
-  using GetInputStateModelCallback =
+  using TakeInputStateModelCallback =
       base::OnceCallback<std::unique_ptr<contextual_search::InputStateModel>()>;
 
   ContextualTasksComposeboxHandler(
@@ -62,7 +62,7 @@ class ContextualTasksComposeboxHandler : public ComposeboxHandler,
       mojo::PendingReceiver<searchbox::mojom::PageHandler>
           pending_searchbox_handler,
       GetSessionHandleCallback get_session_callback,
-      GetInputStateModelCallback get_input_model_callback);
+      TakeInputStateModelCallback take_input_model_callback);
   ~ContextualTasksComposeboxHandler() override;
 
   // composebox::mojom::PageHandler:
@@ -85,7 +85,7 @@ class ContextualTasksComposeboxHandler : public ComposeboxHandler,
   void OnTaskChanged();
 
   // We override this method to inject an existing `InputStateModel` if one is
-  // provided by the ContextualTasksUI via the `get_input_model_callback_`.
+  // provided by the ContextualTasksUI via the `take_input_model_callback_`.
   void InitializeInputStateModel() override;
 
   void AddFileContextFromBrowser(
@@ -97,9 +97,9 @@ class ContextualTasksComposeboxHandler : public ComposeboxHandler,
   void OnFileUploadStatusChanged(
       const base::UnguessableToken& file_token,
       lens::MimeType mime_type,
-      contextual_search::FileUploadStatus file_upload_status,
-      const std::optional<contextual_search::FileUploadErrorType>& error_type)
-      override;
+      contextual_search::ContextUploadStatus file_upload_status,
+      const std::optional<contextual_search::ContextUploadErrorType>&
+          error_type) override;
 
   void CreateAndSendQueryMessage(const std::string& query);
 
@@ -150,7 +150,7 @@ class ContextualTasksComposeboxHandler : public ComposeboxHandler,
   // Potentially submits query if no other context is uploading.
   void MarkContextUploadFinished(const base::UnguessableToken& token);
 
-  GetInputStateModelCallback get_input_model_callback_;
+  TakeInputStateModelCallback take_input_model_callback_;
 
   // Called when a delayed context upload (tab) has finished.
   // Potentially submits query if no other context is uploading.
@@ -206,7 +206,7 @@ class ContextualTasksComposeboxHandler : public ComposeboxHandler,
   void OnVisualSelectionAdded(
       base::UnguessableToken overlay_token,
       base::expected<base::UnguessableToken,
-                     contextual_search::FileUploadErrorType> token);
+                     contextual_search::ContextUploadErrorType> token);
 
   LensSearchController* GetLensSearchController() const;
 

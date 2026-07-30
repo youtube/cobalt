@@ -29,6 +29,7 @@
 <translation id="126567311906253476"><ph name="USER_EMAIL" /> 계정으로 Gmail 또는 YouTube와 같은 Google 서비스에 로그인하면 동일한 계정으로 Chromium에 자동으로 로그인할 수 있습니다.</translation>
 <translation id="1290883685122687410">설정 오류: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">새 Chromium 프로필 설정</translation>
+<translation id="132092532143527429">Chromium의 Gemini로 사용해 보기</translation>
 <translation id="1324107359134968521">블루투스 기기를 탐색하려면 Chromium에 블루투스 액세스 권한이 필요합니다. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">언어 감지</translation>
 <translation id="1330742950061766891">Chromium 권장 브라우저 설정 사용</translation>
@@ -240,6 +241,7 @@
 <translation id="3509308970982693815">Chromium 창을 모두 닫고 다시 시도해 보세요.</translation>
 <translation id="3522404737534491619">창을 공유하려면 시스템 설정에서 Chromium의 화면 녹화를 허용하세요.</translation>
 <translation id="3530103706039034513"><ph name="EXISTING_USER" /> 계정은 이미 로그인되어 있습니다.  방문 기록을 별도로 보관하려면 내 프로필에서 <ph name="USER_EMAIL_ADDRESS" /> 주소로 Chromium에 로그인하세요.</translation>
+<translation id="3531741627422851418">휴대기기에서 Chromium 브라우저를 다운로드할 수 있는 QR 코드</translation>
 <translation id="3561853857681580870">화면을 공유하려면 시스템 설정에서 Chromium의 화면 녹화를 허용하세요.</translation>
 <translation id="3588112919289558122">향상된 보호 모드는 Chromium에서 인식하지 못하는 사이트에 대해 JavaScript 최적화를 사용 중지합니다</translation>
 <translation id="3597003331831379823">승격된 권한으로 설정을 실행할 수 없습니다. <ph name="METAINSTALLER_ERROR" /></translation>
@@ -375,7 +377,6 @@
 <translation id="5174969993834422967">기본적으로 알림을 차단하는 중입니다. 이 사이트의 알림을 허용하려면 위치 표시줄의 오른쪽 모서리에 있는 알림 아이콘을 클릭하세요.</translation>
 <translation id="5174983315706567306">디스크 공간이 충분하지 않습니다.</translation>
 <translation id="5187123684706427865">Chromium 계정에 재인증이 필요함</translation>
-<translation id="5219681158518957165">권장 브라우저 설정 사용</translation>
 <translation id="5224391634244552924">저장된 비밀번호가 없습니다. 비밀번호를 저장하면 Chromium에서 확인할 수 있습니다.</translation>
 <translation id="5231355151045086930">Chromium에서 로그아웃</translation>
 <translation id="5234764350956374838">닫기</translation>
@@ -609,6 +610,7 @@ Chromium에서 설정을 복구할 수 없습니다.</translation>
 <translation id="7622753900276619808">이제 Chromium에서 더 많은 기능을 사용할 수 있습니다.</translation>
 <translation id="7624307931717240213">이 정보는 서비스 개선에 사용됩니다. 개인정보처리방침 및 서비스 약관을 확인하세요.</translation>
 <translation id="7649070708921625228">도움말</translation>
+<translation id="7650134251917003571">Chromium 앱 다운로드</translation>
 <translation id="7656340475565475526">Chromium이 대신 탐색하도록 허용</translation>
 <translation id="7658239707568436148">취소</translation>
 <translation id="7686590090926151193">Chromium이 기본 브라우저로 설정되어 있지 않습니다</translation>

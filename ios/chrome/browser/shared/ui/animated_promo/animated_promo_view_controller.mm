@@ -5,6 +5,7 @@
 #import "ios/chrome/browser/shared/ui/animated_promo/animated_promo_view_controller.h"
 
 #import "base/check.h"
+#import "ios/chrome/browser/shared/ui/animated_promo/animated_promo_utils.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/ui/button_stack/button_stack_configuration.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
@@ -24,19 +25,12 @@ constexpr CGFloat kCustomSpacingAfterImageWithoutAnimation = 0;
 // Default spacing applied between elements in the alert screen layout.
 constexpr CGFloat kCustomSpacing = 8;
 
-// Offset to raise the alertScreen's top anchor for devices with a regular
-// size class.
-constexpr CGFloat kCustomTopOffsetForRegularSizeClass = -24;
+// Vertical center offset for tablets.
+constexpr CGFloat kTabletCenterOffset = 40;
 
 }  // namespace
 
-@interface AnimatedPromoViewController ()
-
-@end
-
 @implementation AnimatedPromoViewController {
-  // Custom animation view used in the full-screen promo in dark mode.
-  id<LottieAnimation> _animationViewWrapperDarkMode;
 
   // Child view controller used to display the alert screen for the promo.
   ConfirmationAlertViewController* _alertScreen;
@@ -63,6 +57,7 @@ constexpr CGFloat kCustomTopOffsetForRegularSizeClass = -24;
   alertScreen.subtitleString = _subtitleString;
   alertScreen.configuration.primaryActionString = _primaryActionString;
   alertScreen.configuration.secondaryActionString = _secondaryActionString;
+  alertScreen.configuration.tertiaryActionString = _tertiaryActionString;
   [alertScreen reloadConfiguration];
   alertScreen.actionHandler = _actionHandler;
   alertScreen.shouldFillInformationStack = YES;
@@ -125,8 +120,7 @@ constexpr CGFloat kCustomTopOffsetForRegularSizeClass = -24;
 // The offset from center Y to place the divider between the animation and the
 // confirmation alert screen.
 - (CGFloat)centerYOffset {
-  return CanShowTabStrip(_alertScreen) ? kCustomTopOffsetForRegularSizeClass
-                                       : 0;
+  return CanShowTabStrip(_alertScreen) ? -kTabletCenterOffset : 0;
 }
 
 // Creates and returns the LottieAnimation view for the `animationAssetName`.
@@ -280,25 +274,18 @@ constexpr CGFloat kCustomTopOffsetForRegularSizeClass = -24;
   [self updateAlertScreenTopAnchorConstraint];
 }
 
-// Updates the animations for the styl used (light/dark mode).
+// Updates the animations for the style used (light/dark mode).
 - (void)updateForDarkMode {
   if (self.useLegacyDarkMode) {
     [self updateUIForSizeClass];
     return;
   }
-  if (self.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark) {
-    [self updateAnimationWithColorProvider:self.darkModeColorProvider];
-  } else {
-    [self updateAnimationWithColorProvider:self.lightModeColorProvider];
-  }
-}
 
-// Updates the _animationViewWrapper with colors from `colorProvider`.
-- (void)updateAnimationWithColorProvider:
-    (NSDictionary<NSString*, UIColor*>*)colorProvider {
-  for (NSString* keypath in colorProvider.allKeys) {
-    [self.animationViewWrapper setColorValue:colorProvider[keypath]
-                                  forKeypath:keypath];
+  for (NSString* keypath in self.lightModeColorProvider.allKeys) {
+    UIColor* lightColor = self.lightModeColorProvider[keypath];
+    UIColor* darkColor = self.darkModeColorProvider[keypath];
+    ConfigureAnimationCustomColor(self.animationViewWrapper, keypath,
+                                  lightColor, darkColor);
   }
 }
 

@@ -22,7 +22,7 @@ class SharedURLLoaderFactory;
 
 namespace remoting {
 
-class MessagingClient;
+class CorpMessagingClient;
 class RsaKeyPair;
 
 // CorpSignalStrategy implements SignalStrategy using the Corp messaging service
@@ -50,15 +50,15 @@ class CorpSignalStrategy : public SignalStrategy {
   const SignalingAddress& GetLocalAddress() const override;
   void AddListener(Listener* listener) override;
   void RemoveListener(Listener* listener) override;
-  bool SendMessage(const SignalingAddress& destination_address,
-                   SignalingMessage&& message) override;
+  bool SendMessage(JingleMessage&& message) override;
+  bool SendReply(JingleMessageReply&& message) override;
   std::string GetNextId() override;
   bool IsSignInError() const override;
 
  private:
   // CorpSignalStrategyTest uses the private c'tor w/ a fake messaging client.
   friend class CorpSignalStrategyTest;
-  CorpSignalStrategy(std::unique_ptr<MessagingClient> messaging_client,
+  CorpSignalStrategy(std::unique_ptr<CorpMessagingClient> messaging_client,
                      const SignalingAddress& local_address);
 
   class Core;

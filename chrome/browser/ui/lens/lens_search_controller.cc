@@ -229,6 +229,9 @@ void LensSearchController::OpenLensOverlay(
   if (IsOff()) {
     // Setup all state necessary for this Lens session.
     StartLensSession(invocation_source);
+  } else {
+    // Update the invocation source if the session is already active.
+    invocation_source_ = invocation_source;
   }
 
   should_show_csb_ = should_show_csb;
@@ -638,6 +641,16 @@ LensSearchController::invocation_source() {
   return invocation_source_;
 }
 
+void LensSearchController::SetInvocationSource(
+    lens::LensOverlayInvocationSource invocation_source) {
+  invocation_source_ = invocation_source;
+
+  // Inform the UI of the state change with the new invocation source.
+  if (results_panel_router_ && results_panel_router_->IsEntryShowing()) {
+    results_panel_router_->OnOverlayShown();
+  }
+}
+
 std::unique_ptr<LensOverlayController>
 LensSearchController::CreateLensOverlayController(
     tabs::TabInterface* tab,
@@ -794,7 +807,7 @@ bool LensSearchController::RunLensEligibilityChecks(
   // If the user hasn't granted permission, request user permission before
   // showing the UI.
   if (!lens::CanSharePageScreenshotWithLensOverlay(pref_service_) ||
-      (lens::IsLensOverlayContextualSearchboxEnabled() &&
+      (lens::IsLensOverlayContextualSearchboxEnabled(GetProfile()) &&
        !lens::CanSharePageContentWithLensOverlay(pref_service_))) {
     if (!lens_permission_bubble_controller_) {
       lens_permission_bubble_controller_ =
@@ -1125,3 +1138,6 @@ void LensSearchController::OnPageContextUpdatedForZeroStateRequest(
   }
 }
 
+Profile* LensSearchController::GetProfile() {
+  return Profile::FromBrowserContext(tab_->GetContents()->GetBrowserContext());
+}

@@ -76,6 +76,7 @@
 <translation id="1698376642261615901">Chrome은 웹페이지와 애플리케이션을 빠르게 실행하는 웹 브라우저입니다. 또한 빠르고 안정적이며 사용하기 쉽습니다. Chrome에 기본적으로 제공되는 악성코드 및 피싱 방지 기능으로 웹을 더 안전하게 탐색하세요.</translation>
 <translation id="1713301662689114961">{0,plural, =1{1시간 후 Chrome이 다시 시작됩니다}other{#시간 후 Chrome이 다시 시작됩니다}}</translation>
 <translation id="1722488837206509557">이렇게 하면 사용 가능한 기기 중에서 선택하고 해당 기기에 콘텐츠를 표시할 수 있습니다.</translation>
+<translation id="177180974022074201">Chrome의 Gemini로 사용해 보기</translation>
 <translation id="1786003790898721085"><ph name="TARGET_DEVICE_NAME" />에서 Chrome에 로그인되어 있는지 확인한 다음 다시 전송해 보세요.</translation>
 <translation id="1786044937610313874">Chrome에서 바로가기 열기</translation>
 <translation id="178701303897325119">이 확장 프로그램은 더 이상 지원되지 않습니다. 대신 Chrome에서 삭제할 것을 권장합니다.</translation>
@@ -225,6 +226,7 @@
 <translation id="3226612997184048185">Google 계정에도 북마크를 저장하면 Chrome에서 제품 가격을 추적하고 가격이 인하되면 알림을 받을 수 있습니다.</translation>
 <translation id="3242123554343253302">Chrome 프로필 추가</translation>
 <translation id="3245429137663807393">Chrome 사용 보고서를 공유하면, 내가 방문한 URL이 이 보고서에 포함됩니다.</translation>
+<translation id="3259748324892322072">Chrome 앱 다운로드</translation>
 <translation id="3286538390144397061">지금 다시 시작</translation>
 <translation id="3292333338048274092">그런 다음 Chrome을 다시 시작해야 합니다.</translation>
 <translation id="3324218984287646518">Google 렌즈에 이 동영상에 관해 질문하기</translation>
@@ -282,7 +284,6 @@
 <translation id="3892148308691398805">텍스트 복사</translation>
 <translation id="3893985792899396936">Chrome 도움말: 렌즈로 검색</translation>
 <translation id="3906096710440765802">Chrome에 로그인하여 모든 기기에서 내 비밀번호, 북마크 등을 사용하세요.</translation>
-<translation id="3921132130819999051">Chrome이 대신 탐색하도록 허용</translation>
 <translation id="3941890832296813527">설치 오류: 설치 프로그램 파일 이름이 잘못되었거나 지원되지 않습니다.</translation>
 <translation id="395904275706073188">보호된 페이지는 읽을 수 없습니다. 다른 페이지를 사용해 보세요.</translation>
 <translation id="3968962723676998462"><ph name="ACCOUNT_EMAIL" /> 계정에서 Chrome 데이터를 사용하고 저장하려면 비밀번호를 입력하세요</translation>
@@ -497,7 +498,6 @@ Chrome에서 설정을 복구할 수 없습니다.</translation>
 <translation id="6173637689840186878"><ph name="PAGE_TITLE" /> - Chrome 베타</translation>
 <translation id="6180522807229584611">이 탭은 추가 리소스를 사용하고 있습니다. 성능을 개선하려면 Chrome에서 이 탭을 비활성화하도록 허용하세요.</translation>
 <translation id="6182736845697986886">업데이트 서버 내부 오류로 인해 설치할 수 없습니다.</translation>
-<translation id="6183773856988300112">Chrome의 Gemini는 자동 탐색을 사용하여 탭에서 작동하고 사용자가 지정한 작업을 완료합니다. <ph name="LINK_BEGIN" />자세히 알아보기<ph name="LINK_END" /></translation>
 <translation id="6187085551300363958">Chrome 도움말: 비밀번호 저장</translation>
 <translation id="6192058120268468905">Chrome의 내 계정</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" />에서 Chrome 작동 방식에 영향을 줄 수 있는 확장 프로그램을 추가했습니다.
@@ -533,6 +533,7 @@ Chrome에서 설정을 복구할 수 없습니다.</translation>
 <translation id="6481963882741794338">맞춤설정 등의 목적으로 Chrome과 다른 Google 서비스를 연결합니다</translation>
 <translation id="648319183876919572">향상된 세이프 브라우징은 위험한 웹사이트와 다운로드로부터 사용자를 보호합니다.</translation>
 <translation id="6489302989675808168">사용 중 • Chrome에서 이 확장 프로그램의 출처를 확인할 수 없습니다.</translation>
+<translation id="6491330562720922580">휴대기기에서 Chrome 브라우저를 다운로드할 수 있는 QR 코드</translation>
 <translation id="6493527311031785448">Chrome에서 <ph name="AUTHENTICATION_PURPOSE" />을(를) 시도하는 중입니다.</translation>
 <translation id="6497147134301593682">Chrome이 자동으로 종료되었습니다</translation>
 <translation id="6506909944137591434">Chrome에서 주변의 3D 지도를 만들려면 카메라 권한이 필요합니다.</translation>

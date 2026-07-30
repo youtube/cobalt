@@ -352,7 +352,7 @@ class InspectorPostBodyParser : public RefCounted<InspectorPostBodyParser> {
     // Concatenate all parts into a single buffer.
     Vector<char> combined;
     for (const auto& part : raw_parts_) {
-      combined.AppendRange(part.begin(), part.end());
+      combined.append_range(part);
     }
 
     // Try to decode as UTF-8 first.
@@ -921,7 +921,7 @@ static bool FormDataToString(
 
 static String StringFromASCII(const std::string& str) {
   String ret(str);
-  DCHECK(ret.ContainsOnlyASCIIOrEmpty());
+  DCHECK(ret.ContainsOnlyAsciiOrEmpty());
   return ret;
 }
 
@@ -1538,7 +1538,7 @@ void InspectorNetworkAgent::PrepareRequest(DocumentLoader* loader,
       // for this request to assure the request will be allowed.
       // TODO: Should we store the referrer header somewhere other than
       // |extra_request_headers_|?
-      if (EqualIgnoringASCIICase(header_name, http_names::kReferer)) {
+      if (EqualIgnoringAsciiCase(header_name, http_names::kReferer)) {
         request.SetReferrerString(value);
         request.SetReferrerPolicy(network::mojom::ReferrerPolicy::kAlways);
       } else {

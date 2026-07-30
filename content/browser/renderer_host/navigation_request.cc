@@ -6159,6 +6159,8 @@ void NavigationRequest::OnWillProcessResponseChecksComplete(
           common_params_->has_possibly_filtered_user_gesture;
       resource_request->mode = network::mojom::RequestMode::kNavigate;
       resource_request->transition_type = common_params_->transition;
+      resource_request->is_reload_navigation =
+          NavigationTypeUtils::IsReload(common_params_->navigation_type);
       resource_request->trusted_params =
           network::ResourceRequest::TrustedParams();
       resource_request->trusted_params->isolation_info = GetIsolationInfo();
@@ -6508,6 +6510,13 @@ void NavigationRequest::CommitErrorPage(
   // Use a separate cache shard, and no cookies, for error pages.
   isolation_info_for_subresources_ =
       net::IsolationInfo::CreateTransient(/*nonce=*/std::nullopt);
+
+  // Before sending the commit parameters to the renderer process, sanitize
+  // the redirect URLs to avoid leaking potentially sensitive data into
+  // processes which are cross-site. There is no dependency on the
+  // cross-site-ness, therefore just sanitize unilaterally.
+  SanitizeRedirectsForCommit(commit_params_);
+
   GetRenderFrameHost()->FailedNavigation(
       this, *common_params_, *commit_params_, has_stale_copy_in_cache_,
       net_error_, extended_error_code_, error_page_content, *document_token_);
@@ -7286,6 +7295,8 @@ void NavigationRequest::UpdateNavigationHandleTimingsOnResponseReceived(
         response_head_->load_timing_internal_info->create_stream_delay;
     navigation_handle_timing_.connected_callback_delay =
         response_head_->load_timing_internal_info->connected_callback_delay;
+    navigation_handle_timing_.accept_ch_frame_received =
+        response_head_->load_timing_internal_info->accept_ch_frame_received;
     navigation_handle_timing_.initialize_stream_delay =
         response_head_->load_timing_internal_info->initialize_stream_delay;
     navigation_handle_timing_.session_details = {
@@ -12287,17 +12298,18 @@ PrerenderHostId NavigationRequest::GetPrerenderHostId() const {
   return prerender_host_id_;
 }
 
+bool NavigationRequest::IsInitialWebUISyncNavigation() {
+  return IsInitialWebUINavigation() &&
+         base::FeatureList::IsEnabled(
+             features::kInitialWebUISyncNavStartToCommit);
+}
+
 bool NavigationRequest::IsInitialWebUINavigation() {
 #if !BUILDFLAG(IS_ANDROID)
   return GetContentClient()->browser()->IsInitialWebUIURL(GetURL());
 #else
   return false;
 #endif
-}
-bool NavigationRequest::IsInitialWebUISyncNavigation() {
-  return IsInitialWebUINavigation() &&
-         base::FeatureList::IsEnabled(
-             features::kInitialWebUISyncNavStartToCommit);
 }
 
 }  // namespace content

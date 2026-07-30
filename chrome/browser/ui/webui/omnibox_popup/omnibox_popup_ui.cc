@@ -83,6 +83,8 @@ OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
                                          /*enable_lens_search=*/false);
 
   source->AddBoolean("isTopChromeSearchbox", true);
+  source->AddBoolean("omniboxAimPopupEnabled",
+                     omnibox::IsAimPopupFeatureEnabled());
   source->AddBoolean(
       "omniboxPopupDebugEnabled",
       base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxPopupDebug));
@@ -124,6 +126,9 @@ OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
                          composebox_config.is_pdf_upload_enabled();
   source->AddBoolean("composeboxShowPdfUpload", show_pdf_upload);
 
+  source->AddBoolean(
+      "caretAnimationEnabled",
+      base::FeatureList::IsEnabled(omnibox::kOmniboxAnimatedCaret));
   source->AddBoolean("composeboxCloseByClickOutside",
                      omnibox::kCloseComposeboxByClickOutside.Get());
   source->AddBoolean("composeboxCloseByEscape",
@@ -293,10 +298,6 @@ OmniboxPopupUI::GetOrCreateContextualSessionHandle() {
           omnibox::CreateQueryControllerConfigParams(),
           contextual_search::ContextualSearchSource::kOmnibox,
           lens::LensOverlayInvocationSource::kOmniboxContextualQuery);
-      // TODO(crbug.com/469875271): Determine what to do with the return value
-      // of this call, or move this call to a different location.
-      shared_session_handle_->CheckSearchContentSharingSettings(
-          profile_->GetPrefs());
     }
   }
   return shared_session_handle_.get();

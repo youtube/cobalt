@@ -153,6 +153,7 @@ class CONTENT_EXPORT WebContentsAccessibilityAndroid
 
   // Tree methods.
   int32_t GetRootId(JNIEnv* env);
+  size_t GetAccessibilityTreeSizeForExperiment(JNIEnv* env);
   bool IsNodeValid(JNIEnv* env, int32_t id);
 
   void HitTest(JNIEnv* env, int32_t x, int32_t y);
@@ -189,7 +190,7 @@ class CONTENT_EXPORT WebContentsAccessibilityAndroid
                          int32_t id,
                          const base::android::JavaRef<jstring>& value);
   void SetSelection(JNIEnv* env, int32_t id, int32_t start, int32_t end);
-  void SetExtendedSelection(JNIEnv* env,
+  bool SetExtendedSelection(JNIEnv* env,
                             int32_t id,
                             int32_t start_node_id,
                             int32_t start_node_offset,
@@ -403,7 +404,9 @@ class CONTENT_EXPORT WebContentsAccessibilityAndroid
   BrowserAccessibilityAndroid* GetAccessibilityFocus() const;
 
   void HandlePageLoaded(int32_t unique_id);
-  void HandleContentChanged(int32_t unique_id);
+  // If |set_subtree_changed| is true, the TYPE_WINDOW_CONTENT_CHANGED event
+  // will signal that this change is affecting its underlying subtree.
+  void HandleContentChanged(int32_t unique_id, bool set_subtree_changed);
   void HandleFocusChanged(int32_t unique_id, bool is_root_or_frame_root);
   void HandleCheckStateChanged(int32_t unique_id);
   void HandleClicked(int32_t unique_id);
@@ -427,14 +430,20 @@ class CONTENT_EXPORT WebContentsAccessibilityAndroid
   bool OnHoverEvent(const ui::MotionEventAndroid& event);
   void HandleHover(int32_t unique_id);
   void HandleNavigate(int32_t root_id);
+  void HandleInitialLoadComplete(int32_t root_id);
   void UpdateMaxNodesInCache();
   void ClearNodeInfoCacheForGivenId(int32_t unique_id);
+  void ValidateA11yCacheForExperiment();
   void HandleEndOfTestSignal();
   std::u16string GenerateAccessibilityNodeInfoString(int32_t unique_id);
 
   base::WeakPtr<WebContentsAccessibilityAndroid> GetWeakPtr();
 
   base::android::ScopedJavaLocalRef<jintArray> GetChildIdsForTesting(
+      JNIEnv* env,
+      int32_t unique_id);
+
+  base::android::ScopedJavaLocalRef<jintArray> GetChildIdsForExperiment(
       JNIEnv* env,
       int32_t unique_id);
 

@@ -74,7 +74,10 @@ source_set("profile") {
     "refcounted_profile_keyed_service_factory.h",
   ]
 
-  public_deps = [ "//base" ]
+  public_deps = [
+    "//base",
+    "//components/media_router/common",
+  ]
 
   # Cannot depend on //chrome/browser:browser.
   deps = [
@@ -85,7 +88,6 @@ source_set("profile") {
     "//components/keyed_service/content",
     "//components/language/core/browser",
     "//components/live_caption:constants",
-    "//components/media_router/common",
     "//components/pref_registry",
     "//components/prefs",
     "//components/profile_metrics",
@@ -200,6 +202,7 @@ source_set("profile_util_impl") {
     "//chrome/browser:browser_process",
     "//chrome/browser/autofill",
     "//chrome/browser/bookmarks",
+    "//chrome/browser/browsing_topics",
     "//chrome/browser/history",
     "//chrome/browser/password_manager/factories",
     "//chrome/browser/prefs",
@@ -288,6 +291,7 @@ source_set("profiles_extra_parts_impl") {
     "//chrome/browser/bluetooth",
     "//chrome/browser/bookmarks",
     "//chrome/browser/breadcrumbs",
+    "//chrome/browser/browsing_topics",
     "//chrome/browser/btm",
     "//chrome/browser/client_hints",
     "//chrome/browser/collaboration",
@@ -303,14 +307,21 @@ source_set("profiles_extra_parts_impl") {
     "//chrome/browser/contextual_tasks:ui",
     "//chrome/browser/custom_handlers",
     "//chrome/browser/data_sharing",
+    "//chrome/browser/digital_credentials",
     "//chrome/browser/dom_distiller",
+    "//chrome/browser/domain_reliability",
     "//chrome/browser/engagement",
     "//chrome/browser/favicon",
     "//chrome/browser/feature_engagement",
     "//chrome/browser/file_system_access",
+    "//chrome/browser/finds",
     "//chrome/browser/glic",
+    "//chrome/browser/heavy_ad_intervention",
     "//chrome/browser/history",
+    "//chrome/browser/history_clusters",
+    "//chrome/browser/history_embeddings",
     "//chrome/browser/k_anonymity_service",
+    "//chrome/browser/language_detection",
     "//chrome/browser/lookalikes",
     "//chrome/browser/media/router",
     "//chrome/browser/media/webrtc",
@@ -467,6 +478,10 @@ source_set("profiles_extra_parts_impl") {
     deps += [ ":profile_util" ]
   }
 
+  if (is_win || is_mac || is_linux || is_chromeos) {
+    deps += [ "//chrome/browser/multistep_filter" ]
+  }
+
   if (is_win || is_mac || is_linux) {
     deps += [
       "//chrome/browser/browser_switcher",
@@ -559,6 +574,7 @@ source_set("unit_tests") {
     "//base",
     "//base/test:test_support",
     "//chrome/browser",
+    "//chrome/browser/browsing_topics",
     "//chrome/browser/signin",
     "//chrome/test:test_support",
     "//components/prefs:test_support",

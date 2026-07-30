@@ -933,6 +933,9 @@ int URLLoader::ProcessAcceptCHFrameOnConnected(
     base::UmaHistogramBoolean("Net.URLLoader.AcceptCHFrameReceivedOnHttp3",
                               !info.accept_ch_frame.empty());
   }
+  if (!info.accept_ch_frame.empty()) {
+    accept_ch_frame_received_ = true;
+  }
   if (!accept_ch_frame_interceptor_) {
     return net::OK;
   }
@@ -943,7 +946,7 @@ int URLLoader::ProcessAcceptCHFrameOnConnected(
 
 mojom::URLResponseHeadPtr URLLoader::BuildResponseHead() const {
   CHECK(request_cookies_.empty() || include_request_cookies_with_response_);
-  return url_loader_util::BuildResponseHead(
+  mojom::URLResponseHeadPtr response = url_loader_util::BuildResponseHead(
       *url_request_, request_cookies_,
       local_network_access_interceptor_.ClientAddressSpace(),
       local_network_access_interceptor_.ResponseAddressSpace().value_or(
@@ -952,6 +955,11 @@ mojom::URLResponseHeadPtr URLLoader::BuildResponseHead() const {
       include_load_timing_internal_info_with_response_,
       /*response_start=*/base::TimeTicks::Now(), devtools_observer_.get(),
       devtools_request_id().value_or(""));
+  if (response->load_timing_internal_info) {
+    response->load_timing_internal_info->accept_ch_frame_received =
+        accept_ch_frame_received_;
+  }
+  return response;
 }
 
 void URLLoader::OnReceivedRedirect(net::URLRequest* url_request,
@@ -2025,7 +2033,16 @@ void URLLoader::NotifyCompleted(int error_code) {
     status.exists_in_cache = url_request_->response_info().was_cached;
     status.completion_time = base::TimeTicks::Now();
     status.encoded_data_length = url_request_->GetTotalReceivedBytes();
-    status.encoded_body_length = url_request_->GetRawBodyBytes();
+    // For responses served from cache where the original encoded body size
+    // is stored (e.g., shared dictionary compressed responses where the cache
+    // stores the decompressed body), use the stored value. Otherwise, use the
+    // raw body bytes from the request.
+    const auto& resp_info = url_request_->response_info();
+    if (resp_info.encoded_body_size.has_value()) {
+      status.encoded_body_length = resp_info.encoded_body_size.value();
+    } else {
+      status.encoded_body_length = url_request_->GetRawBodyBytes();
+    }
     status.decoded_body_length = total_written_bytes_;
     status.resolve_error_info =
         url_request_->response_info().resolve_error_info;
@@ -2677,15 +2694,9 @@ void URLLoader::MaybeCollectDurableMessage(size_t new_data_offset,
     return;
   }
 
-  int64_t raw_bytes_cur_size = url_request_->GetRawBodyBytes();
-  int64_t raw_bytes_delta =
-      raw_bytes_cur_size - devtools_durable_message_raw_size_;
-  durable_message_writer_->AddBytes(
-      base::as_byte_span(
-          base::span(*pending_write_)
-              .subspan(new_data_offset, static_cast<size_t>(num_bytes))),
-      raw_bytes_delta);
-  devtools_durable_message_raw_size_ = raw_bytes_cur_size;
+  durable_message_writer_->AddBytes(base::as_byte_span(
+      base::span(*pending_write_)
+          .subspan(new_data_offset, static_cast<size_t>(num_bytes))));
 }
 
 void URLLoader::PerformSyntheticResponseFallback() {

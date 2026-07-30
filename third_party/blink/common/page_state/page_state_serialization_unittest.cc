@@ -9,6 +9,7 @@
 #include <cmath>
 
 #include "base/base64.h"
+#include "base/containers/span.h"
 #include "base/files/file_util.h"
 #include "base/path_service.h"
 #include "base/pickle.h"
@@ -457,7 +458,7 @@ TEST_F(PageStateSerializationTest, BadMessagesTest1) {
   // Bad real number.
   p.WriteInt(-1);
 
-  std::string s(p.data_as_char(), p.size());
+  std::string s(p.AsStringView());
 
   ExplodedPageState output;
   EXPECT_FALSE(DecodePageState(s, &output));
@@ -472,7 +473,7 @@ TEST_F(PageStateSerializationTest, BadMessagesTest2) {
   for (int i = 0; i < 6; ++i)
     p.WriteInt(-1);
   // More misc fields.
-  p.WriteData(reinterpret_cast<const char*>(&d), sizeof(d));
+  p.WriteData(base::byte_span_from_ref(base::allow_nonunique_obj, d));
   p.WriteInt(1);
   p.WriteInt(1);
   p.WriteInt(0);
@@ -483,7 +484,7 @@ TEST_F(PageStateSerializationTest, BadMessagesTest2) {
   p.WriteInt(1);
   p.WriteInt(static_cast<int>(HTTPBodyElementType::kTypeData));
 
-  std::string s(p.data_as_char(), p.size());
+  std::string s(p.AsStringView());
 
   ExplodedPageState output;
   EXPECT_FALSE(DecodePageState(s, &output));

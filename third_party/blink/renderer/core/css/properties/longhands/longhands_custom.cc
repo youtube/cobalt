@@ -3895,6 +3895,31 @@ const CSSValue* Cy::CSSValueFromComputedStyleInternal(
   return ComputedStyleUtils::ZoomAdjustedPixelValueForLength(style.Cy(), style);
 }
 
+const CSSValue* PathLength::ParseSingleValue(
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    CSSParserLocalContext& local_context) const {
+  if (stream.Peek().Id() == CSSValueID::kNone) {
+    return css_parsing_utils::ConsumeIdent(stream);
+  }
+  return css_parsing_utils::ConsumeNumber(
+      stream, context, local_context,
+      CSSPrimitiveValue::ValueRange::kNonNegative);
+}
+
+const CSSValue* PathLength::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject*,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  float path_length = style.PathLength();
+  if (path_length < 0) {
+    return CSSIdentifierValue::Create(CSSValueID::kNone);
+  }
+  return CSSNumericLiteralValue::Create(path_length,
+                                        CSSPrimitiveValue::UnitType::kNumber);
+}
+
 const CSSValue* D::ParseSingleValue(CSSParserTokenStream& stream,
                                     const CSSParserContext&,
                                     CSSParserLocalContext&) const {
@@ -4026,7 +4051,7 @@ void AdjustDisplayKeywords(DisplayValidationResult& result) {
         } else if (inside == CSSValueID::kGrid) {
           new_id = CSSValueID::kInlineGrid;
         } else if (inside == CSSValueID::kGridLanes) {
-          new_id = CSSValueID::kInlineGrid;
+          new_id = CSSValueID::kInlineGridLanes;
         } else if (inside == CSSValueID::kTable) {
           new_id = CSSValueID::kInlineTable;
         }
@@ -4316,6 +4341,8 @@ const CSSValue* DynamicRangeLimit::ParseSingleValue(
   if (stream.Peek().FunctionId() != CSSValueID::kDynamicRangeLimitMix) {
     return nullptr;
   }
+  CSSParserLocalContext::FunctionLocalContext function_context(
+      CSSValueID::kDynamicRangeLimitMix, local_context);
 
   HeapVector<Member<const CSSValue>> limits;
   HeapVector<Member<const CSSPrimitiveValue>> percentages;
@@ -12892,22 +12919,15 @@ const CSSValue* WillChange::ParseSingleValue(
           *MakeGarbageCollected<CSSCustomIdentValue>(unresolved_property));
       stream.ConsumeIncludingWhitespace();
     } else {
-      switch (stream.Peek().Id()) {
-        case CSSValueID::kNone:
-        case CSSValueID::kAll:
-        case CSSValueID::kAuto:
-        case CSSValueID::kDefault:
-        case CSSValueID::kInitial:
-        case CSSValueID::kInherit:
-        case CSSValueID::kRevert:
-          return nullptr;
-        case CSSValueID::kContents:
-        case CSSValueID::kScrollPosition:
-          values->Append(*css_parsing_utils::ConsumeIdent(stream));
-          break;
-        default:
-          stream.ConsumeIncludingWhitespace();
-          break;
+      CSSValueID id = stream.Peek().Id();
+      if (id == CSSValueID::kContents || id == CSSValueID::kScrollPosition) {
+        values->Append(*css_parsing_utils::ConsumeIdent(stream));
+      } else if (!css_parsing_utils::IsCustomIdent<
+                     CSSValueID::kNone, CSSValueID::kAll, CSSValueID::kAuto>(
+                     id)) {
+        return nullptr;
+      } else {
+        stream.ConsumeIncludingWhitespace();
       }
     }
 

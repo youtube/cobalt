@@ -11,8 +11,8 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/browser/extensions/extension_apitest.h"
+#include "chrome/browser/extensions/extension_url_overrides.h"
 #include "chrome/browser/extensions/extension_util.h"
-#include "chrome/browser/extensions/extension_web_ui.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/url_constants.h"
 #include "components/prefs/pref_service.h"
@@ -48,8 +48,8 @@ class ExtensionOverrideTest : public ExtensionApiTest {
 
   bool CheckHistoryOverridesContainsNoDupes() {
     // There should be no duplicate entries in the preferences.
-    const base::DictValue& overrides =
-        profile()->GetPrefs()->GetDict(ExtensionWebUI::kExtensionURLOverrides);
+    const base::DictValue& overrides = profile()->GetPrefs()->GetDict(
+        ExtensionUrlOverrides::kExtensionURLOverrides);
 
     const base::ListValue* values = overrides.FindList("history");
     if (!values)
@@ -195,9 +195,16 @@ IN_PROC_BROWSER_TEST_F(ExtensionOverrideTest, OverrideNewTabSplitMode) {
   }
 }
 
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_OverrideBookmarks DISABLED_OverrideBookmarks
+#else
+#define MAYBE_OverrideBookmarks OverrideBookmarks
+#endif  // BUILDFLAG(IS_ANDROID)
 // Test for overriding the bookmarks page with an extension with "incognito":
 // "spanning" (default if "incognito" is unspecified).
-IN_PROC_BROWSER_TEST_F(ExtensionOverrideTest, OverrideBookmarks) {
+// TODO(crbug.com/489464287): Flaky on desktop Android. It fails, only on the
+// bots, with the extension not controlling the URL native-chrome://bookmarks.
+IN_PROC_BROWSER_TEST_F(ExtensionOverrideTest, MAYBE_OverrideBookmarks) {
   scoped_refptr<const Extension> extension =
       LoadExtension(data_dir().AppendASCII("bookmarks"));
   {
@@ -237,9 +244,17 @@ IN_PROC_BROWSER_TEST_F(ExtensionOverrideTest, OverrideBookmarks) {
   }
 }
 
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_OverrideBookmarksSplitMode DISABLED_OverrideBookmarksSplitMode
+#else
+#define MAYBE_OverrideBookmarksSplitMode OverrideBookmarksSplitMode
+#endif  // BUILDFLAG(IS_ANDROID)
 // Test for overriding the Bookmarks page with an "incognito": "split"
 // extension.
-IN_PROC_BROWSER_TEST_F(ExtensionOverrideTest, OverrideBookmarksSplitMode) {
+// TODO(crbug.com/489464287): Flaky on desktop Android. It fails, only on the
+// bots, with the extension not controlling the URL native-chrome://bookmarks.
+IN_PROC_BROWSER_TEST_F(ExtensionOverrideTest,
+                       MAYBE_OverrideBookmarksSplitMode) {
   scoped_refptr<const Extension> extension =
       LoadExtension(data_dir().AppendASCII("bookmarks_split_mode"));
   {
@@ -459,7 +474,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionOverrideTest, ShouldNotCreateDuplicateEntries) {
   // Simulate several LoadExtension() calls happening over the lifetime of
   // a preferences file without corresponding UnloadExtension() calls.
   for (size_t i = 0; i < 3; ++i) {
-    ExtensionWebUI::RegisterOrActivateChromeURLOverrides(
+    ExtensionUrlOverrides::RegisterOrActivateChromeURLOverrides(
         profile(), URLOverrides::GetChromeURLOverrides(extension));
   }
 
@@ -483,13 +498,13 @@ IN_PROC_BROWSER_TEST_F(ExtensionOverrideTest, ShouldCleanUpDuplicateEntries) {
 
   {
     ScopedDictPrefUpdate update(profile()->GetPrefs(),
-                                ExtensionWebUI::kExtensionURLOverrides);
+                                ExtensionUrlOverrides::kExtensionURLOverrides);
     update->Set("history", std::move(list));
   }
 
   ASSERT_FALSE(CheckHistoryOverridesContainsNoDupes());
 
-  ExtensionWebUI::InitializeChromeURLOverrides(profile());
+  ExtensionUrlOverrides::InitializeChromeURLOverrides(profile());
 
   ASSERT_TRUE(CheckHistoryOverridesContainsNoDupes());
 }

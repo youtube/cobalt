@@ -26,7 +26,6 @@ class OSExchangeData;
 namespace views {
 class ActionViewController;
 class Label;
-class LabelButton;
 }  // namespace views
 
 class ProjectsPanelNoTabGroupsView;
@@ -40,6 +39,9 @@ class ProjectsPanelTabGroupsView : public views::View,
  public:
   using TabGroupMovedCallback =
       base::RepeatingCallback<void(const base::Uuid&, int)>;
+  using DragUpdatedCallback =
+      base::RepeatingCallback<void(const gfx::Point& location)>;
+  using DragExitedCallback = base::RepeatingClosure;
 
   ProjectsPanelTabGroupsView(
       actions::ActionItem* root_action_item,
@@ -49,7 +51,8 @@ class ProjectsPanelTabGroupsView : public views::View,
       ProjectsPanelTabGroupsItemView::MoreButtonPressedCallback
           more_button_callback = base::DoNothing(),
       TabGroupMovedCallback tab_group_moved_callback = base::DoNothing(),
-      base::RepeatingClosure create_new_tab_group_callback = base::DoNothing());
+      DragUpdatedCallback drag_updated_callback = base::DoNothing(),
+      DragExitedCallback drag_exited_callback = base::DoNothing());
   ProjectsPanelTabGroupsView(const ProjectsPanelTabGroupsView&) = delete;
   ProjectsPanelTabGroupsView& operator=(const ProjectsPanelTabGroupsView&) =
       delete;
@@ -82,16 +85,15 @@ class ProjectsPanelTabGroupsView : public views::View,
 
   std::optional<gfx::Rect> GetDropIndicatorBoundsForTesting() const;
 
-  const std::vector<ProjectsPanelTabGroupsItemView*> item_views_for_testing() {
+  // Returns the number of tab groups currently displayed in the UI.
+  int num_tab_groups() { return item_views_.size(); }
+
+  std::vector<ProjectsPanelTabGroupsItemView*> item_views_for_testing() const {
     return item_views_;
   }
 
   ProjectsPanelNoTabGroupsView* no_tab_groups_view_for_testing() {
     return no_tab_groups_view_;
-  }
-
-  views::LabelButton* create_new_tab_group_button_for_testing() {
-    return create_new_tab_group_button_;
   }
 
   static void disable_animations_for_testing();
@@ -134,8 +136,9 @@ class ProjectsPanelTabGroupsView : public views::View,
   ProjectsPanelTabGroupsItemView::MoreButtonPressedCallback
       more_button_callback_;
   TabGroupMovedCallback tab_group_moved_callback_;
+  DragUpdatedCallback drag_updated_callback_;
+  DragExitedCallback drag_exited_callback_;
   raw_ptr<views::Label> title_ = nullptr;
-  raw_ptr<views::LabelButton> create_new_tab_group_button_ = nullptr;
   raw_ptr<ProjectsPanelNoTabGroupsView> no_tab_groups_view_ = nullptr;
   std::vector<ProjectsPanelTabGroupsItemView*> item_views_;
 

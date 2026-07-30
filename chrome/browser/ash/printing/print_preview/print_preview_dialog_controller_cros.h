@@ -6,13 +6,21 @@
 #define CHROME_BROWSER_ASH_PRINTING_PRINT_PREVIEW_PRINT_PREVIEW_DIALOG_CONTROLLER_CROS_H_
 
 #include <map>
+#include <memory>
 
 #include "base/observer_list_types.h"
 #include "base/unguessable_token.h"
 #include "chrome/browser/ui/webui/ash/print_preview_cros/print_preview_cros_dialog.h"
 #include "components/printing/common/print.mojom.h"
 
+namespace base {
+template <typename T>
+class NoDestructor;
+}  // namespace base
+
 namespace ash {
+
+class PrintPreviewDialogControllerCrosTest;
 
 // For ChromeOS print preview, this is a singleton class that is responsible for
 // creation and destruction of print preview dialogs. It maintains a 1:1
@@ -30,12 +38,12 @@ class PrintPreviewDialogControllerCros
     virtual void OnDialogClosed(const base::UnguessableToken& token) = 0;
   };
 
-  PrintPreviewDialogControllerCros();
+  static PrintPreviewDialogControllerCros* GetInstance();
+
   PrintPreviewDialogControllerCros(const PrintPreviewDialogControllerCros&) =
       delete;
   PrintPreviewDialogControllerCros& operator=(
       const PrintPreviewDialogControllerCros&) = delete;
-  ~PrintPreviewDialogControllerCros() override;
 
   void AddObserver(DialogControllerObserver* observer);
   void RemoveObserver(DialogControllerObserver* observer);
@@ -51,6 +59,7 @@ class PrintPreviewDialogControllerCros
       base::UnguessableToken token,
       ::printing::mojom::RequestPrintPreviewParams params);
 
+  void ClosePrintPreviewDialog(base::UnguessableToken token);
   void RemovePrintPreviewDialog(base::UnguessableToken token);
 
   // printing::print_preview::PrintPreviewCrosDialogObserver:
@@ -59,6 +68,13 @@ class PrintPreviewDialogControllerCros
   bool HasDialogForToken(base::UnguessableToken token);
 
  private:
+  friend class base::NoDestructor<PrintPreviewDialogControllerCros>;
+  friend class PrintPreviewDialogControllerCrosTest;
+  friend struct std::default_delete<PrintPreviewDialogControllerCros>;
+
+  PrintPreviewDialogControllerCros();
+  ~PrintPreviewDialogControllerCros() override;
+
   struct InitiatorData {
     base::UnguessableToken token;
     ::printing::mojom::RequestPrintPreviewParams request_params;

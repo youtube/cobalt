@@ -58,6 +58,7 @@
 <translation id="1204075260022434100">{count,plural, =1{Bogmærket er gemt i "{title}" på din konto {email}}one{{count} bogmærke er gemt i "{title}" på din konto {email}}other{{count} bogmærker er gemt i "{title}" på din konto {email}}}</translation>
 <translation id="1207493287814084192">17.30</translation>
 <translation id="1217294226280635614">Opdelt visning</translation>
+<translation id="1218730690561976633">Slå brugerverificering til/fra for forbedret autofyld</translation>
 <translation id="1219674500290482172">Der kunne ikke oprettes forbindelse til internettet.</translation>
 <translation id="1223498995510244364">Opsummer</translation>
 <translation id="1227113644794103810">Inaktive faner</translation>
@@ -193,6 +194,7 @@
 <translation id="1657011748321897393">Deling mislykkedes. Du har ikke forbindelse til netværket.</translation>
 <translation id="1668001730617725852">Åbn i en ny fanegruppe</translation>
 <translation id="1674504678466460478"><ph name="SOURCE_LANGUAGE" /> til <ph name="TARGET_LANGUAGE" /></translation>
+<translation id="1678855624321223424">På baggrund af din organisations politikker kan denne fil indeholde følsomme oplysninger</translation>
 <translation id="168389590065701766">Du kan nu åbne Google Lens via din adresselinje og søge efter alt det, du ser</translation>
 <translation id="1689333818294560261">Kaldenavn</translation>
 <translation id="169048873465870056">Vil du fjerne fanen og slette gruppen?</translation>
@@ -599,6 +601,7 @@
 <translation id="3174662312949010067">Du kan også bruge gemte adgangskoder på dine andre enheder.</translation>
 <translation id="3177338796769255211">Log ind for at få adgang til dine bogmærker m.m. på alle dine enheder</translation>
 <translation id="3181954750937456830">Beskyttet browsing (beskytter dig og din enhed mod farlige websites)</translation>
+<translation id="3183362380688692618">Ny fanegruppe…</translation>
 <translation id="3186796054637504691">Ryd historik og websitedata</translation>
 <translation id="3190736958609431397">Hold ikke længere øje</translation>
 <translation id="3208260410153224535">Din organisation har deaktiveret login. Nye bogmærker, adgangskoder m.m. gemmes kun på denne enhed.</translation>
@@ -668,6 +671,7 @@
 <translation id="3476450923187944815">Få adgang til dine adgangskoder i andre apps.</translation>
 <translation id="3485558910355485767">Nyt inkognitovindue</translation>
 <translation id="3488501490964659223">Fanerne er blevet lukket, og browserdataene er blevet slettet. Du er blevet logget ud</translation>
+<translation id="3490396108106323715">Del aktuel fane</translation>
 <translation id="3493531032208478708"><ph name="BEGIN_LINK" />Få flere oplysninger<ph name="END_LINK" /> om anbefalet indhold</translation>
 <translation id="349446645805573740">Vælg, hvor du vil gemme "<ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" />"</translation>
 <translation id="3504377992102007712">Indstillinger</translation>
@@ -694,6 +698,7 @@
 <translation id="3565012355885596568">Billederne kunne ikke indlæses</translation>
 <translation id="3565930036634619844">Fane. <ph name="TAB_INDEX" /> af <ph name="NUMBER_OF_TABS" />.</translation>
 <translation id="3567168891086460374">Gem på en anden måde</translation>
+<translation id="3572503683475187385">Den aktuelle fane deles med Gemini, når du starter en ny chat. Når du deler en fane med Gemini, sendes dens indhold og webadresse til Google. <ph name="BEGIN_LINK" />Få flere oplysninger<ph name="END_LINK" /></translation>
 <translation id="3572607909481582402">På din Google-konto</translation>
 <translation id="3575234738189584619">Søg med Lens</translation>
 <translation id="3575426792457739946">Denne liste indeholder alle indlæste profiler.</translation>
@@ -737,6 +742,7 @@
 <translation id="3751873026576444885">Stop med at søge på din skærm med Google Lens</translation>
 <translation id="3753408171347588045">Overvågning af priser</translation>
 <translation id="3753618528540214374">Grågrønt tema</translation>
+<translation id="3759491607478608474">Del indholdet på den aktuelle fane med Gemini for at få mere relevante svar</translation>
 <translation id="3762232513783804601">Udviklet til din iPad</translation>
 <translation id="3768725474733206671">Åbn seneste fane</translation>
 <translation id="3779810277399252432">Ingen internetforbindelse.</translation>
@@ -984,6 +990,7 @@
 <translation id="4650125387981512669">Fortsæt som <ph name="FIRST_RUN_ACCOUNT_NAME" /></translation>
 <translation id="4651927776207937667">{count,plural, =1{Skjul efter 1 minut}one{Skjul efter {count} minut}other{Skjul efter {count} minutter}}</translation>
 <translation id="4652817563047461855">Sørg for, at dine adgangskoder er beskyttet, find ud af, om de er blevet kompromitteret, og få gode råd til, hvordan du beskytter dig selv online. <ph name="BEGIN_LINK" />Få flere oplysninger<ph name="END_LINK" /></translation>
+<translation id="4653053602672040238">Aktivér fannedeling</translation>
 <translation id="4658335131052370646">Gem</translation>
 <translation id="466307903888586355">Din organisation har blokeret muligheden for at gemme filer</translation>
 <translation id="4668929960204016307">,</translation>
@@ -1112,6 +1119,7 @@
 <translation id="507187271399539513">{count,plural, =1{{position} af {count} betalingsmetode}one{{position} af {count} betalingsmetode}other{{position} af {count} betalingsmetoder}}</translation>
 <translation id="5075939510584558547">Gem uden kryptering</translation>
 <translation id="5076534614343816664">Prissporing</translation>
+<translation id="507762438756999615">Filen kan ikke deles på grund af din organisations politikker</translation>
 <translation id="5078303485429639424">Aktivér notifikationer for <ph name="FEATURE_NAME" /></translation>
 <translation id="5079950360618752063">Brug den foreslåede adgangskode</translation>
 <translation id="5083464117946352670">Kan ikke fastslå filstørrelse.</translation>
@@ -1297,6 +1305,7 @@ Handoff skal være aktiveret i afsnittet Generelt i Indstillinger, og dine enhed
 <translation id="5718049162805123412">Du bør ændre disse med det samme</translation>
 <translation id="5721040778297053709">Placer kreditkortet i dette felt</translation>
 <translation id="572328651809341494">Seneste faner</translation>
+<translation id="5724590854763964497">Din aktuelle fane deles som standard, når du starter en ny chat. Når faner deles, sendes deres indhold og webadresser til Google, men oplysningerne anvendes ikke til at forbedre generativ AI-modeller. Du kan til enhver tid ændre denne indstilling.</translation>
 <translation id="5724941645893276623">Tilføj en ny fane for at surfe privat på nettet</translation>
 <translation id="5728072125198221967">Tilknyttede Google-tjenester</translation>
 <translation id="5728700505257787410">Der var et problem med at logge ind på din konto.</translation>
@@ -1964,6 +1973,8 @@ Handoff skal være aktiveret i afsnittet Generelt i Indstillinger, og dine enhed
 <translation id="8059533439631660104">Skjuler sektionen.</translation>
 <translation id="8061584726507121204">Historik</translation>
 <translation id="8064946459644399612">Dine præferencer for siden Ny fane er anvendt</translation>
+<translation id="8065136076319366194">Lagring anbefales ikke</translation>
+<translation id="8065556469005366939">Få mere relevante svar ved at dele dine faner</translation>
 <translation id="8069394452933076548">Vælg, hvornår faner, der ikke er blevet brugt for nylig, skal flyttes til sektionen for inaktive faner.</translation>
 <translation id="8073670137947914548">Downloaden er fuldført</translation>
 <translation id="8076492880354921740">Faner</translation>
@@ -1985,6 +1996,7 @@ Handoff skal være aktiveret i afsnittet Generelt i Indstillinger, og dine enhed
 <translation id="8131740175452115882">Bekræft</translation>
 <translation id="8132598642024322408">Koster nu <ph name="PRICE" />. Førprisen var <ph name="PREVIOUS_PRICE" />.</translation>
 <translation id="813370552429173916">Du bør bruge en unik adgangskode til hvert website og hver app. Hvis nogen får kendskab til en genbrugt adgangskode, kan vedkommende bruge den til at få adgang til dine andre konti. Klik for at åbne websitet og ændre dine adgangskoder nu.</translation>
+<translation id="8133810265969517544">Deling anbefales ikke</translation>
 <translation id="8135556271852808840">{count,plural, =1{{count} lukket fane}one{{count} lukket fane}other{{count} lukkede faner}}</translation>
 <translation id="8135643032449715400">{COUNT,plural, =1{1 anden}one{# anden}other{# andre}}</translation>
 <translation id="8150167929304790980">Fulde navn</translation>
@@ -2132,6 +2144,7 @@ Handoff skal være aktiveret i afsnittet Generelt i Indstillinger, og dine enhed
 <translation id="8660600697590740984">Lens-billede, du har kopieret</translation>
 <translation id="866266761389616183">Øv, surt!</translation>
 <translation id="8663764600409216912">Du bruger adgangskoder, der er svære at gætte</translation>
+<translation id="8664992138761940052">Din aktuelle fane deles som standard, når du starter en ny chat. Når faner deles, sendes deres indhold og webadresser til Google Du kan til enhver tid ændre denne indstilling.</translation>
 <translation id="8668210798914567634">Denne side er gemt på din læseliste.</translation>
 <translation id="8672642291731179042">Oversæt sider</translation>
 <translation id="8672733398999596205">Aktivér alle</translation>
@@ -2233,6 +2246,7 @@ Handoff skal være aktiveret i afsnittet Generelt i Indstillinger, og dine enhed
 <translation id="8976414606286374109">Kort gemmes på din Google-konto.</translation>
 <translation id="8981454092730389528">Aktivitetsadministration på Google</translation>
 <translation id="8988107725234939347"><ph name="WEBSITE_TITLE" />, fastgjort website</translation>
+<translation id="8990960056509724223">Filen kunne ikke gemmes på grund af din organisations politikker</translation>
 <translation id="8998289560386111590">Ikke tilgængelig på din enhed</translation>
 <translation id="9000532564152265066">Alle faner</translation>
 <translation id="9003677638446136377">Kontrollér igen</translation>

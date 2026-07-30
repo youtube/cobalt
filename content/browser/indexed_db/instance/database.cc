@@ -226,7 +226,7 @@ StatusOr<int64_t> Database::DeleteDatabase(std::vector<PartitionedLock> locks,
   Status s = LogStatus(backing_store_db_->DeleteDatabase(
                            std::move(locks), std::move(on_complete)),
                        "IndexedDB.BackingStore.DeleteDatabase",
-                       bucket_context_->in_memory());
+                       bucket_context_->GetHistogramSuffix());
   backing_store_db_.reset();
   if (!s.ok()) {
     return base::unexpected(s);
@@ -307,16 +307,15 @@ void Database::RegisterAndScheduleTransaction(Transaction* transaction) {
 
 Status Database::RunTasks() {
   // First execute any pending tasks in the connection coordinator.
-  ConnectionCoordinator::ExecuteTaskResult task_state;
-  Status status;
-  do {
-    std::tie(task_state, status) =
+  while (true) {
+    StatusOr<ConnectionCoordinator::ExecuteTaskResult> task_state =
         connection_coordinator_.ExecuteTask(!connections_.empty());
-  } while (task_state == ConnectionCoordinator::ExecuteTaskResult::kMoreTasks);
-
-  if (task_state == ConnectionCoordinator::ExecuteTaskResult::kError) {
-    CHECK(!status.ok());
-    return status;
+    if (!task_state.has_value()) {
+      return task_state.error();
+    }
+    if (task_state != ConnectionCoordinator::ExecuteTaskResult::kMoreTasks) {
+      break;
+    }
   }
 
   bool transactions_removed = true;
@@ -1019,7 +1018,7 @@ void Database::CallUpgradeTransactionStartedForTesting(int64_t old_version) {
 Status Database::OpenInternal() {
   auto result = LOG_RESULT(backing_store()->CreateOrOpenDatabase(name_),
                            "IndexedDB.BackingStore.CreateOrOpenDatabase",
-                           bucket_context_->in_memory());
+                           bucket_context_->GetHistogramSuffix());
   if (result.has_value()) {
     backing_store_db_ = std::move(result.value());
     return Status::OK();

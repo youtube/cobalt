@@ -8,9 +8,11 @@
 
 #include "base/check.h"
 #include "base/i18n/char_iterator.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/strings/utf_string_conversions.h"
 #include "content/browser/accessibility/browser_accessibility_android.h"
 #include "content/browser/accessibility/web_contents_accessibility_android.h"
+#include "content/common/features.h"
 #include "content/public/common/content_features.h"
 #include "ui/accessibility/accessibility_features.h"
 #include "ui/accessibility/ax_event_generator.h"
@@ -58,6 +60,18 @@ BrowserAccessibilityManagerAndroid::BrowserAccessibilityManagerAndroid(
     : ui::BrowserAccessibilityManager(node_id_delegate, delegate),
       web_contents_accessibility_(std::move(web_contents_accessibility)),
       prune_tree_for_screen_reader_(true) {
+  if (base::FeatureList::IsEnabled(
+          features::kAccessibilityRequestScopedContentChangedEvents)) {
+    SetAccessibilityEventsCallbackForTesting(
+        base::BindRepeating(&BrowserAccessibilityManagerAndroid::
+                                OnAccessibilityEventsProcessedForExperiment,
+                            base::Unretained(this)));
+    SetLocationChangeCallbackForTesting(
+        base::BindRepeating(&BrowserAccessibilityManagerAndroid::
+                                OnAccessibilityEventsProcessedForExperiment,
+                            base::Unretained(this)));
+  }
+
   // The Java layer handles the root scroll offset.
   use_root_scroll_offsets_when_computing_bounds_ = false;
 
@@ -210,7 +224,9 @@ void BrowserAccessibilityManagerAndroid::FireLocationChanged(
 
   BrowserAccessibilityAndroid* android_node =
       static_cast<BrowserAccessibilityAndroid*>(node);
-  wcax->HandleContentChanged(android_node->GetUniqueId());
+  bool set_subtree_changed = !base::FeatureList::IsEnabled(
+      features::kAccessibilityRequestScopedContentChangedEvents);
+  wcax->HandleContentChanged(android_node->GetUniqueId(), set_subtree_changed);
 }
 
 void BrowserAccessibilityManagerAndroid::FireSourceEvent(
@@ -237,12 +253,67 @@ void BrowserAccessibilityManagerAndroid::FireSourceEvent(
     case ax::mojom::Event::kHover:
       HandleHoverEvent(node);
       break;
+    case ax::mojom::Event::kLoadComplete:
+      wcax->HandleInitialLoadComplete(
+          static_cast<BrowserAccessibilityAndroid*>(node)->GetUniqueId());
+      break;
     case ax::mojom::Event::kScrolledToAnchor:
       wcax->HandleScrolledToAnchor(android_node->GetUniqueId());
       break;
     default:
       break;
   }
+}
+
+void BrowserAccessibilityManagerAndroid::FireDocumentSelectionChangedEvent(
+    WebContentsAccessibilityAndroid* wcax) {
+  ui::AXNodeID focus_id = ax_tree()->GetUnignoredSelection().focus_object_id;
+  ui::AXNodeID anchor_id = ax_tree()->GetUnignoredSelection().anchor_object_id;
+  BrowserAccessibilityAndroid* focus_object =
+      static_cast<BrowserAccessibilityAndroid*>(GetFromID(focus_id));
+
+  const bool extended_selection_enabled =
+      base::FeatureList::IsEnabled(features::kAccessibilityExtendedSelection);
+  const bool expose_children_enabled = base::FeatureList::IsEnabled(
+      features::kAccessibilityExposeNonAtomicTextFieldChildren);
+
+  if (extended_selection_enabled) {
+    bool should_send_to_root = false;
+
+    if (expose_children_enabled) {
+      // Send the event to the root of the frame if selection should be
+      // cleared, or multiple nodes are selected, or
+      // a non-atomic text field. Atomic text fields will continue to receive
+      // their event on them, the rest should go to the root web area.
+      // Note that this is to support contenteditables, where the
+      // contenteditable root itself is a non-atomic text field, and its
+      // children may be editable.
+      should_send_to_root = !focus_object || focus_id != anchor_id ||
+                            !focus_object->IsAtomicTextField();
+    } else {
+      // Send the event to the root of the frame if selection should be
+      // cleared, or multiple nodes are selected, or the node is not editable.
+      should_send_to_root = !focus_object || focus_id != anchor_id ||
+                            !focus_object->IsTextField();
+    }
+
+    if (should_send_to_root) {
+      BrowserAccessibilityAndroid* android_root_object =
+          static_cast<BrowserAccessibilityAndroid*>(
+              GetFromAXNode(ax_tree()->root()));
+      ClearNodeInfoCacheForGivenId(android_root_object->GetUniqueId());
+      wcax->HandleTextSelectionChanged(android_root_object->GetUniqueId());
+      return;
+    }
+  } else if (!focus_object) {
+    // If focus object does not exist and extended selection is not
+    // enabled, there is nothing more to do since previous selection node is
+    // not known here and can't be cleared.
+    return;
+  }
+
+  // Send event to the focus node.
+  wcax->HandleTextSelectionChanged(focus_object->GetUniqueId());
 }
 
 void BrowserAccessibilityManagerAndroid::FireGeneratedEvent(
@@ -263,7 +334,12 @@ void BrowserAccessibilityManagerAndroid::FireGeneratedEvent(
   // the Android system that the accessibility hierarchy rooted at this
   // node has changed.
   if (event_type != ui::AXEventGenerator::Event::SUBTREE_CREATED) {
-    wcax->HandleContentChanged(android_node->GetUniqueId());
+    bool set_subtree_changed =
+        !base::FeatureList::IsEnabled(
+            features::kAccessibilityRequestScopedContentChangedEvents) ||
+        event_type == ui::AXEventGenerator::Event::CHILDREN_CHANGED;
+    wcax->HandleContentChanged(android_node->GetUniqueId(),
+                               set_subtree_changed);
   }
 
   switch (event_type) {
@@ -308,37 +384,7 @@ void BrowserAccessibilityManagerAndroid::FireGeneratedEvent(
       break;
     }
     case ui::AXEventGenerator::Event::DOCUMENT_SELECTION_CHANGED: {
-      ui::AXNodeID focus_id =
-          ax_tree()->GetUnignoredSelection().focus_object_id;
-      ui::BrowserAccessibility* focus_object = GetFromID(focus_id);
-      if (base::FeatureList::IsEnabled(
-              features::kAccessibilityExtendedSelection)) {
-        ui::AXNodeID anchor_id =
-            ax_tree()->GetUnignoredSelection().anchor_object_id;
-        // Send the event to the root of the frame if selection should be
-        // cleared, or multiple nodes are selected, or the node is not editable.
-        if (!focus_object || focus_id != anchor_id ||
-            !focus_object->IsTextField()) {
-          BrowserAccessibilityAndroid* android_root_object =
-              static_cast<BrowserAccessibilityAndroid*>(
-                  GetFromAXNode(ax_tree()->root()));
-          ClearNodeInfoCacheForGivenId(android_root_object->GetUniqueId());
-          wcax->HandleTextSelectionChanged(android_root_object->GetUniqueId());
-          break;
-        }
-      } else {
-        // If focus object does not exist and extended selection is not
-        // enabled, there is nothing more to do since previous selection node is
-        // not known here and can't be cleared.
-        if (!focus_object) {
-          break;
-        }
-      }
-
-      // Send event to the focus node.
-      BrowserAccessibilityAndroid* android_focus_object =
-          static_cast<BrowserAccessibilityAndroid*>(focus_object);
-      wcax->HandleTextSelectionChanged(android_focus_object->GetUniqueId());
+      FireDocumentSelectionChangedEvent(wcax);
       break;
     }
     case ui::AXEventGenerator::Event::EXPANDED: {
@@ -856,6 +902,16 @@ BrowserAccessibilityManagerAndroid::GenerateAccessibilityNodeInfoString(
 std::optional<std::vector<std::string>>
 BrowserAccessibilityManagerAndroid::GetMetadataForTree() const {
   return GetTreeData().metadata;
+}
+
+// TODO(crbug.com/485227837): Remove experiment's methods
+void BrowserAccessibilityManagerAndroid::
+    OnAccessibilityEventsProcessedForExperiment() {
+  WebContentsAccessibilityAndroid* wcax = GetWebContentsAXFromRootManager();
+  if (!wcax) {
+    return;
+  }
+  wcax->ValidateA11yCacheForExperiment();
 }
 
 }  // namespace content

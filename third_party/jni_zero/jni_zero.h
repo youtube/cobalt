@@ -32,25 +32,6 @@ extern JNI_ZERO_COMPONENT_BUILD_EXPORT LeakedJavaGlobalRef<jobject>
     g_empty_list;
 extern JNI_ZERO_COMPONENT_BUILD_EXPORT LeakedJavaGlobalRef<jobject> g_empty_map;
 
-// Cast JavaRef<From>& to ScopedJavaLocalRef<To>.
-template <typename From, typename To>
-jni_zero::ScopedJavaLocalRef<To> Cast(JNIEnv* env,
-                                      const jni_zero::JavaRef<From>& ref) {
-  jni_zero::ScopedJavaLocalRef<From> owned_ref =
-      jni_zero::ScopedJavaLocalRef<From>(ref);
-  return jni_zero::ScopedJavaLocalRef<To>::Adopt(
-      env, static_cast<To>(owned_ref.Release()));
-}
-
-// Cast ScopedJavaLocalRef<From>&& to ScopedJavaLocalRef<To>.
-template <typename From, typename To>
-jni_zero::ScopedJavaLocalRef<To> Cast(
-    JNIEnv* env,
-    jni_zero::ScopedJavaLocalRef<From>&& ref) {
-  return jni_zero::ScopedJavaLocalRef<To>::Adopt(
-      env, static_cast<To>(ref.Release()));
-}
-
 }  // namespace jni_zero
 
 #endif  // JNI_ZERO_JNI_ZERO_H_

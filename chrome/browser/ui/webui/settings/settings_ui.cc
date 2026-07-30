@@ -137,6 +137,7 @@
 #include "crypto/crypto_buildflags.h"
 #include "device/vr/buildflags/buildflags.h"
 #include "printing/buildflags/buildflags.h"
+#include "services/device/public/cpp/device_features.h"
 #include "services/network/public/cpp/features.h"
 #include "third_party/blink/public/common/features.h"
 #include "ui/accessibility/accessibility_features.h"
@@ -356,6 +357,10 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
                           false);
 #endif
 
+  html_source->AddBoolean("sensorsAllowAskBlockPermissionModelEnabled",
+                          base::FeatureList::IsEnabled(
+                              features::kSensorsAllowAskBlockPermissionModel));
+
   html_source->AddBoolean("enableHashPrefixRealTimeLookups",
                           safe_browsing::hash_realtime_utils::
                               IsHashRealTimeLookupEligibleInSession());
@@ -437,6 +442,12 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
       "enableYourSavedInfoBranding",
       base::FeatureList::IsEnabled(
           autofill::features::kYourSavedInfoBrandingInSettings));
+
+  html_source->AddBoolean(
+      "enableYourSavedInfoPolicyAndExtentionToggleIndicators",
+      base::FeatureList::IsEnabled(
+          autofill::features::
+              kYourSavedInfoPolicyAndExtentionToggleIndicators));
 
   AddSettingsPageUIHandler(std::make_unique<AboutHandler>(profile));
   AddSettingsPageUIHandler(std::make_unique<ResetSettingsHandler>(profile));
@@ -632,11 +643,6 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
                           show_glic_section || show_ai_features_section);
   html_source->AddBoolean("showAiPageAiFeatureSection",
                           show_ai_features_section);
-
-  // Delete Browsing Data
-  html_source->AddBoolean(
-      "enableDeleteBrowsingDataRevamp",
-      base::FeatureList::IsEnabled(browsing_data::features::kDbdRevampDesktop));
 
   html_source->AddBoolean(
       "enableSupportForHomeAndWork",

@@ -227,7 +227,7 @@ bool IsSmartTabGroupingEnabled() {
   return base::FeatureList::IsEnabled(kSmartTabGrouping);
 }
 
-BASE_FEATURE(kPersistTabContext, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kPersistTabContext, base::FEATURE_ENABLED_BY_DEFAULT);
 
 const char kPersistTabContextStorageParam[] = "storage_implementation";
 const char kPersistTabContextExtractionTimingParam[] = "extraction_timing";
@@ -237,7 +237,7 @@ BASE_FEATURE_PARAM(int,
                    kPersistTabContextStorageFeatureParam,
                    &kPersistTabContext,
                    kPersistTabContextStorageParam,
-                   static_cast<int>(PersistTabStorageType::kFileSystem));
+                   static_cast<int>(PersistTabStorageType::kSQLite));
 
 BASE_FEATURE_PARAM(int,
                    kPersistTabContextExtractionTimingFeatureParam,
@@ -292,7 +292,7 @@ bool IsCleanupPersistedTabContextsEnabled() {
 }
 
 // The default Time-To-Live in days for persisted contexts.
-constexpr int kPersistTabContextDefaultTTL = 21;
+constexpr int kPersistTabContextDefaultTTL = 7;
 
 BASE_FEATURE_PARAM(int,
                    kPersistTabContextTTLParam,
@@ -370,7 +370,7 @@ bool IsPageContextExtractorRefactoredEnabled() {
   return base::FeatureList::IsEnabled(kPageContextExtractorRefactored);
 }
 
-BASE_FEATURE(kGeminiRefactoredFRE, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGeminiRefactoredFRE, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsGeminiRefactoredFREEnabled() {
   return base::FeatureList::IsEnabled(kGeminiRefactoredFRE);
@@ -385,6 +385,9 @@ bool IsGeminiUpdatedEligibilityEnabled() {
 BASE_FEATURE(kGeminiImageRemixTool, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiImageRemixToolEnabled() {
+  if (!IsGeminiRefactoredFREEnabled()) {
+    return false;
+  }
   return base::FeatureList::IsEnabled(kGeminiImageRemixTool);
 }
 
@@ -416,6 +419,16 @@ bool IsGeminiImageRemixToolShowBelowSearchImageEnabled() {
   }
   return base::GetFieldTrialParamByFeatureAsBool(
       kGeminiImageRemixTool, kGeminiImageRemixToolShowBelowSearchImage, false);
+}
+
+const char kGeminiImageRemixToolRemovePageContext[] = "RemovePageContext";
+
+bool IsGeminiImageRemixToolRemovePageContextEnabled() {
+  if (!IsGeminiImageRemixToolEnabled()) {
+    return false;
+  }
+  return base::GetFieldTrialParamByFeatureAsBool(
+      kGeminiImageRemixTool, kGeminiImageRemixToolRemovePageContext, false);
 }
 
 BASE_FEATURE(kGeminiEligibilityAblation, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -453,16 +466,10 @@ double GetGeminiCopresenceResponseReadyInterval() {
       kGeminiCopresenceResponseReadyIntervalDefault);
 }
 
-const char kGeminiCopresenceZeroStateWithChatHistory[] =
-    "GeminiCopresenceZeroStateWithChatHistory";
+BASE_FEATURE(kGeminiChatPersistence, base::FEATURE_DISABLED_BY_DEFAULT);
 
-bool IsGeminiCopresenceZeroStateWithChatHistoryEnabled() {
-  if (!IsGeminiCopresenceEnabled()) {
-    return false;
-  }
-
-  return base::GetFieldTrialParamByFeatureAsBool(
-      kGeminiCopresence, kGeminiCopresenceZeroStateWithChatHistory, false);
+bool IsGeminiChatPersistenceEnabled() {
+  return base::FeatureList::IsEnabled(kGeminiChatPersistence);
 }
 
 const char kGeminiCopresenceWithFullscreenDisabler[] =
@@ -605,4 +612,22 @@ BASE_FEATURE(kGeminiFloatyAllPages, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiFloatyAllPagesEnabled() {
   return base::FeatureList::IsEnabled(kGeminiFloatyAllPages);
+}
+
+BASE_FEATURE(kGeminiMapsRichUI, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsGeminiMapsRichUIEnabled() {
+  return base::FeatureList::IsEnabled(kGeminiMapsRichUI);
+}
+
+BASE_FEATURE(kGeminiUnaryMigration, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsGeminiUnaryMigrationEnabled() {
+  return base::FeatureList::IsEnabled(kGeminiUnaryMigration);
+}
+
+BASE_FEATURE(kGeminiBinaryMigration, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsGeminiBinaryMigrationEnabled() {
+  return base::FeatureList::IsEnabled(kGeminiBinaryMigration);
 }

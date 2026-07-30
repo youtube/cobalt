@@ -63,6 +63,19 @@ BASE_FEATURE(kContextualTasksSendFullVersionListEnabled,
 BASE_FEATURE(kContextualTasksUrlRedirectToAimUrl,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If enabled, animates the caret.
+BASE_FEATURE(kContextualTasksAnimatedCaret, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kContextualTasksEnableFileHint, base::FEATURE_ENABLED_BY_DEFAULT);
+
+#if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kContextualTasksInsertWebContentsAt,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#else
+BASE_FEATURE(kContextualTasksInsertWebContentsAt,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
+
 const base::FeatureParam<bool> kContextualTasksLockAndUnlockInputCapability(
     &kContextualTasks,
     "ContextualTasksLockAndUnlockInputCapability",
@@ -137,7 +150,7 @@ constexpr base::FeatureParam<ExpandButtonOption>::Option kExpandButtonOption[] =
 const base::FeatureParam<ExpandButtonOption> kExpandButtonOptions(
     &kContextualTasks,
     "ContextualTasksExpandButtonOptions",
-    ExpandButtonOption::kSidePanelExpandButton,
+    ExpandButtonOption::kToolbarCloseButton,
     &kExpandButtonOption);
 
 const base::FeatureParam<bool> kTaskScopedSidePanel(
@@ -439,6 +452,10 @@ bool ShouldEnableCookieSync() {
 bool ShouldEnableLockAndUnlockInputCapability() {
   return base::FeatureList::IsEnabled(kContextualTasks) &&
          kContextualTasksLockAndUnlockInputCapability.Get();
+}
+
+bool GetEnableFileHint() {
+  return base::FeatureList::IsEnabled(kContextualTasksEnableFileHint);
 }
 
 ExpandButtonOption GetExpandButtonOption() {

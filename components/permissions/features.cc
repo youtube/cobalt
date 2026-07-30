@@ -46,6 +46,9 @@ BASE_FEATURE(kPermissionOnDeviceNotificationPredictions,
 BASE_FEATURE(kPermissionOnDeviceGeolocationPredictions,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kPermissionPromiseLifetimeModulationAndroid,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Controls whether to trigger showing a HaTS survey, with the given
 // `probability` and `trigger_id`. The `probability` parameter is defined and
 // handled by the HatsService itself. If the parameter
@@ -86,10 +89,6 @@ BASE_FEATURE(kRecordChooserPermissionLastVisitedTimestamps,
 // visible in the Embedded content settings page.
 BASE_FEATURE(kShowRelatedWebsiteSetsPermissionGrants,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// When enabled, Quiet prompts triggered by CPSS will have "Get Notifications?"
-// as the the chip text instead of the usual "Notifications Blocked".
-BASE_FEATURE(kCpssQuietChipTextUpdate, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCpssUseTfliteSignatureRunner, base::FEATURE_ENABLED_BY_DEFAULT);
 

@@ -92,6 +92,7 @@ suite('AppTest', function() {
       // Use setup instead of suiteSetup to ensure a clean state for each test.
       document.body.innerHTML = window.trustedTypes!.emptyHTML;
       loadTimeData.overrideValues({
+        omniboxAimPopupEnabled: true,
         searchboxLayoutMode: 'TallTopContext',
       });
 
@@ -212,6 +213,9 @@ suite('AppTest', function() {
     setup(async () => {
       // Use setup instead of suiteSetup to ensure a clean state for each test.
       document.body.innerHTML = window.trustedTypes!.emptyHTML;
+      loadTimeData.overrideValues({
+        omniboxAimPopupEnabled: true,
+      });
       localApp = document.createElement('omnibox-popup-app');
       document.body.appendChild(localApp);
 
@@ -281,7 +285,7 @@ suite('AppTestSelectionControl', () => {
     testProxy.page.stepSelection(
         SelectionDirection.kBackward, SelectionStep.kStateOrLine);
     testProxy.page.openCurrentSelection(WindowOpenDisposition.CURRENT_TAB);
-    const [selection, disposition] =
+    const [_sequenceId, selection, disposition] =
         await testProxy.handler.whenCalled('openPopupSelection');
     assertEquals(WindowOpenDisposition.CURRENT_TAB, disposition);
     assertDeepEquals(
@@ -301,7 +305,7 @@ suite('AppTestSelectionControl', () => {
     testProxy.page.stepSelection(
         SelectionDirection.kBackward, SelectionStep.kWholeLine);
     testProxy.page.openCurrentSelection(WindowOpenDisposition.CURRENT_TAB);
-    const [selection, disposition] =
+    const [_sequenceId, selection, disposition] =
         await testProxy.handler.whenCalled('openPopupSelection');
     assertEquals(WindowOpenDisposition.CURRENT_TAB, disposition);
     assertDeepEquals(

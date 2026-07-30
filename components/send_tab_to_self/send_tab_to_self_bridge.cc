@@ -27,6 +27,7 @@
 #include "components/send_tab_to_self/page_context.h"
 #include "components/send_tab_to_self/pref_names.h"
 #include "components/send_tab_to_self/proto/send_tab_to_self.pb.h"
+#include "components/send_tab_to_self/proto_conversions.h"
 #include "components/send_tab_to_self/target_device_info.h"
 #include "components/sync/base/deletion_origin.h"
 #include "components/sync/model/data_type_local_change_processor.h"
@@ -34,6 +35,7 @@
 #include "components/sync/model/metadata_batch.h"
 #include "components/sync/model/metadata_change_list.h"
 #include "components/sync/model/mutable_data_batch.h"
+#include "components/sync_device_info/device_name_util.h"
 #include "components/sync_device_info/local_device_info_util.h"
 #include "components/sync_sessions/open_tabs_ui_delegate.h"
 #include "components/sync_sessions/session_sync_service.h"
@@ -365,6 +367,10 @@ const SendTabToSelfEntry* SendTabToSelfBridge::AddEntry(
       guid, url, trimmed_title, shared_time, GetLocalFullName(),
       target_device_cache_guid, context);
 
+  // The size is recorded before potential truncation (dropping) of the context
+  // due to the per-entity size limit.
+  RecordPageContextSize(PageContextToProto(context).ByteSizeLong());
+
   std::unique_ptr<DataTypeStore::WriteBatch> batch = store_->CreateWriteBatch();
   // This entry is new. Add it to the store and model.
   auto entity_data = CopyToEntityData(entry->AsLocalProto().specifics());
@@ -520,7 +526,8 @@ SendTabToSelfBridge::GetTargetDeviceInfoSortedList() {
       continue;
     }
 
-    SharingDeviceNames device_names = GetSharingDeviceNames(device);
+    syncer::DeviceDisplayNames device_names =
+        syncer::GetDeviceDisplayNames(device);
 
     // Don't include this device if it has the same name as the local device.
     if (device_names.full_name == local_full_name) {
@@ -585,8 +592,7 @@ void SendTabToSelfBridge::NotifyRemoteSendTabToSelfEntryAdded(
   }
 
 #if BUILDFLAG(IS_IOS)
-  if (IsSendTabIOSPushNotificationsEnabledWithMagicStackCard() &&
-      !new_local_entries.empty()) {
+  if (!new_local_entries.empty()) {
     pref_service_->SetString(prefs::kIOSSendTabToSelfLastReceivedTabURLPref,
                              new_local_entries.back()->GetURL().spec());
   }
@@ -702,7 +708,7 @@ std::string SendTabToSelfBridge::GetLocalFullName() const {
       change_processor()->TrackedCacheGuid());
   CHECK(local_device, base::NotFatalUntil::M148);
 
-  return GetSharingDeviceNames(local_device).full_name;
+  return syncer::GetDeviceDisplayNames(local_device).full_name;
 }
 
 bool SendTabToSelfBridge::ShouldIncludeDevice(

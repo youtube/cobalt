@@ -88,8 +88,9 @@ struct ProfileMenuAvatarButtonPromoInfo {
     kBatchUploadBookmarksPromo = 2,
     kBatchUploadWindows10DepreciationPromo = 3,
     kSyncPromo = 4,
+    kSigninPromo = 5,
 
-    kMaxValue = kSyncPromo,
+    kMaxValue = kSigninPromo,
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/signin/enums.xml:ProfileMenuAvatarButtonPromoType)
 
@@ -102,10 +103,11 @@ struct ProfileMenuAvatarButtonPromoInfo {
 };
 
 // Records the show count at which the AvatarButton was showing `promo_type`
-// that lead to the promo being accepted.
+// for `gaia_id` that lead to the promo being accepted. `gaia_id` may be empty
+// which will record the value from the Profile prefs.
 void RecordAvatarButtonPromoAcceptedAtPromoShownCount(
     ProfileMenuAvatarButtonPromoInfo::Type promo_type,
-    signin::IdentityManager* identity_manager,
+    const GaiaId& gaia_id,
     PrefService& prefs);
 
 // Access point used to mark the source from the AvatarButton click event for
@@ -121,6 +123,11 @@ void ComputeProfileMenuAvatarButtonPromoInfo(
     Profile& profile,
     base::OnceCallback<void(ProfileMenuAvatarButtonPromoInfo)> result_callback);
 
+// This class manages the Signin State and Used/Shown count for the AvatarButton
+// promos based on the `ProfileMenuAvatarButtonPromoInfo::Type` that is
+// inquired.
+// It does not take care of the PromoType computation, which is done separately
+// via `ComputeProfileMenuAvatarButtonPromoInfo()`.
 class AvatarButtonPromoManager : public signin::IdentityManager::Observer {
  public:
   explicit AvatarButtonPromoManager(signin::IdentityManager* identity_manager,
@@ -138,22 +145,27 @@ class AvatarButtonPromoManager : public signin::IdentityManager::Observer {
   AvatarButtonPromoManager(AvatarButtonPromoManager&&) = delete;
   AvatarButtonPromoManager& operator=(AvatarButtonPromoManager&&) = delete;
 
+  static void RegisterProfilePrefs(PrefRegistrySimple* registry);
+
   bool ShouldShowPromo(ProfileMenuAvatarButtonPromoInfo::Type promo_type);
   void RecordPromoShown(ProfileMenuAvatarButtonPromoInfo::Type promo_type);
-  void RecordPromoUsed(ProfileMenuAvatarButtonPromoInfo::Type promo_type);
+  // Returns the `GaiaId` of the account tied to the promo being used. Might
+  // return an empty `GaiaID` if no account is tied to the promo.
+  GaiaId RecordPromoUsed(ProfileMenuAvatarButtonPromoInfo::Type promo_type);
 
   // signin::IdentityManager::Observer:
   void OnIdentityManagerShutdown(IdentityManager* identity_manager) override;
 
  private:
   bool ArePromotionsEnabled() const;
-  // Returns an empty account if the profile sign in state is anything different
-  // than signed in.
-  AccountInfo GetSignedInAccountInfo() const;
+
+  bool IsSigninStateAlignedWithPromoType(
+      ProfileMenuAvatarButtonPromoInfo::Type promo_type) const;
 
   raw_ptr<signin::IdentityManager> identity_manager_;
   // Only nullptr after the `identity_manager_` starts shutting down.
   std::unique_ptr<SigninPrefs> signin_prefs_;
+  raw_ptr<PrefService> pref_service_;
 
   const int max_shown_count_ = 0;
   const int max_used_count_ = 0;

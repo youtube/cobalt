@@ -170,7 +170,7 @@ class WebContentsImplBrowserTest : public ContentBrowserTest {
   bool IsInFullscreen() {
     WebContentsImpl* web_contents =
         static_cast<WebContentsImpl*>(shell()->web_contents());
-    return !!web_contents->current_fullscreen_frame_id_;
+    return !!web_contents->current_fullscreen_frame_id_for_testing();
   }
 
  protected:
@@ -3511,13 +3511,6 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, TitleUpdateOnRestore) {
 
   // Set up all the expected title change in the original WebContents.
   std::queue<std::u16string> original_expected_title_changes;
-  if (!base::FeatureList::IsEnabled(
-          features::kSkipRedundantNavigationStateNotification)) {
-    // The first "title change" is not an actual title change, it's triggered by
-    // a INVALIDATE_TYPE_ALL NotifyNavigationStateChanged call from
-    // NavigationControllerImpl::DiscardNonCommittedEntries().
-    original_expected_title_changes.push(u"");
-  }
   // When the navigation to `main_url` commits, the document title is not set
   // yet, so we use the URL as the title.
   original_expected_title_changes.push(main_url_as_title);
@@ -3565,18 +3558,6 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, TitleUpdateOnRestore) {
 
   // Set up all the expected title change in the new WebContents.
   std::queue<std::u16string> new_expected_title_changes;
-  if (!base::FeatureList::IsEnabled(
-          features::kSkipRedundantNavigationStateNotification)) {
-    // Similar to the original WebContents' case above, the first "title change"
-    // is not an actual title change, but instead triggered by a
-    // INVALIDATE_TYPE_ALL NotifyNavigationStateChanged call from
-    // NavigationControllerImpl::DiscardNonCommittedEntries(). For the original
-    // WebContents' case we expect an empty title because there's no entries and
-    // GetNavigationEntryForTitle() returns null. However, in the new
-    // WebContents we already have the restored entry, so we will use the
-    // entry's title.
-    new_expected_title_changes.push(main_title);
-  }
   // When the navigation to `main_url` commits, we also got another "update"
   // that is not really a title change, but it is triggered by a
   // INVALIDATE_TYPE_ALL NotifyNavigationStateChanged call from
@@ -3938,7 +3919,7 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, NotifyFullscreenAcquired) {
       static_cast<RenderFrameHostImpl*>(ChildFrameAt(main_frame, 0));
 
   std::set<raw_ptr<RenderFrameHostImpl, SetExperimental>> fullscreen_frames;
-  EXPECT_EQ(fullscreen_frames, web_contents->fullscreen_frames_);
+  EXPECT_EQ(fullscreen_frames, web_contents->fullscreen_frames_for_testing());
   EXPECT_FALSE(IsInFullscreen());
 
   // Make the top page fullscreen.
@@ -3949,9 +3930,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, NotifyFullscreenAcquired) {
   }
 
   fullscreen_frames.insert(main_frame);
-  EXPECT_EQ(fullscreen_frames, web_contents->fullscreen_frames_);
+  EXPECT_EQ(fullscreen_frames, web_contents->fullscreen_frames_for_testing());
   EXPECT_EQ(main_frame->GetGlobalId(),
-            web_contents->current_fullscreen_frame_id_);
+            web_contents->current_fullscreen_frame_id_for_testing());
 
   // Make the child frame fullscreen.
   {
@@ -3962,9 +3943,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, NotifyFullscreenAcquired) {
   }
 
   fullscreen_frames.insert(child_frame);
-  EXPECT_EQ(fullscreen_frames, web_contents->fullscreen_frames_);
+  EXPECT_EQ(fullscreen_frames, web_contents->fullscreen_frames_for_testing());
   EXPECT_EQ(child_frame->GetGlobalId(),
-            web_contents->current_fullscreen_frame_id_);
+            web_contents->current_fullscreen_frame_id_for_testing());
 
   // Exit fullscreen on the child frame.
   // This will not work with --site-per-process until crbug.com/617369
@@ -3977,9 +3958,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, NotifyFullscreenAcquired) {
     }
 
     fullscreen_frames.erase(child_frame);
-    EXPECT_EQ(fullscreen_frames, web_contents->fullscreen_frames_);
+    EXPECT_EQ(fullscreen_frames, web_contents->fullscreen_frames_for_testing());
     EXPECT_EQ(main_frame->GetGlobalId(),
-              web_contents->current_fullscreen_frame_id_);
+              web_contents->current_fullscreen_frame_id_for_testing());
   }
 }
 
@@ -4031,13 +4012,13 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, FullscreenAfterFrameUnload) {
   EXPECT_TRUE(NavigateToURL(shell(), url_a));
   RenderFrameHostImpl* main_frame =
       static_cast<RenderFrameHostImpl*>(web_contents->GetPrimaryMainFrame());
-  EXPECT_EQ(0u, web_contents->fullscreen_frames_.size());
+  EXPECT_EQ(0u, web_contents->fullscreen_frames_for_testing().size());
 
   // 2) Make it fullscreen.
   FullscreenWebContentsObserver observer(web_contents, main_frame);
   EXPECT_TRUE(ExecJs(main_frame, "document.body.webkitRequestFullscreen();"));
   observer.Wait();
-  EXPECT_EQ(1u, web_contents->fullscreen_frames_.size());
+  EXPECT_EQ(1u, web_contents->fullscreen_frames_for_testing().size());
 
   // 3) Navigate cross origin. Act as if the old frame was very slow delivering
   //    the unload ack and stayed in pending deletion for a while. Even if the
@@ -4047,7 +4028,7 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, FullscreenAfterFrameUnload) {
   main_frame->SetUnloadACKCallbackForTesting(unload_ack_filter);
   main_frame->DisableUnloadTimerForTesting();
   EXPECT_TRUE(NavigateToURL(shell(), url_b));
-  EXPECT_EQ(0u, web_contents->fullscreen_frames_.size());
+  EXPECT_EQ(0u, web_contents->fullscreen_frames_for_testing().size());
 }
 
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
@@ -4066,7 +4047,7 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
       static_cast<RenderFrameHostImpl*>(ChildFrameAt(main_frame, 0));
 
   std::set<raw_ptr<RenderFrameHostImpl, SetExperimental>> nodes;
-  EXPECT_EQ(nodes, web_contents->fullscreen_frames_);
+  EXPECT_EQ(nodes, web_contents->fullscreen_frames_for_testing());
   EXPECT_FALSE(IsInFullscreen());
 
   // Make the top page fullscreen.
@@ -4077,9 +4058,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   }
 
   nodes.insert(main_frame);
-  EXPECT_EQ(nodes, web_contents->fullscreen_frames_);
+  EXPECT_EQ(nodes, web_contents->fullscreen_frames_for_testing());
   EXPECT_EQ(main_frame->GetGlobalId(),
-            web_contents->current_fullscreen_frame_id_);
+            web_contents->current_fullscreen_frame_id_for_testing());
 
   // Make the child frame fullscreen.
   {
@@ -4090,16 +4071,145 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   }
 
   nodes.insert(child_frame);
-  EXPECT_EQ(nodes, web_contents->fullscreen_frames_);
+  EXPECT_EQ(nodes, web_contents->fullscreen_frames_for_testing());
   EXPECT_EQ(child_frame->GetGlobalId(),
-            web_contents->current_fullscreen_frame_id_);
+            web_contents->current_fullscreen_frame_id_for_testing());
 
   // Perform a cross origin navigation on the main frame.
   EXPECT_TRUE(
       NavigateToURL(shell(), embedded_test_server()->GetURL(
                                  "c.com", "/cross_site_iframe_factory.html")));
-  EXPECT_EQ(0u, web_contents->fullscreen_frames_.size());
+  EXPECT_EQ(0u, web_contents->fullscreen_frames_for_testing().size());
   EXPECT_FALSE(IsInFullscreen());
+}
+
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
+                       FullscreenNoExitOnIframeNavigate) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  WebContentsImpl* web_contents =
+      static_cast<WebContentsImpl*>(shell()->web_contents());
+  TestWCDelegateForDialogsAndFullscreen test_delegate(web_contents);
+
+  GURL url = embedded_test_server()->GetURL(
+      "a.com", "/cross_site_iframe_factory.html?a(b{allowfullscreen})");
+  EXPECT_TRUE(NavigateToURL(shell(), url));
+  RenderFrameHostImpl* main_frame = web_contents->GetPrimaryMainFrame();
+
+  // Make the top page fullscreen.
+  {
+    FullscreenWebContentsObserver observer(web_contents, main_frame);
+    EXPECT_TRUE(ExecJs(main_frame, "document.body.requestFullscreen();"));
+    observer.Wait();
+  }
+  EXPECT_TRUE(web_contents->IsFullscreen());
+
+  // Navigate the iframe to a different page.
+  GURL url_c = embedded_test_server()->GetURL("c.com", "/title1.html");
+  EXPECT_TRUE(
+      content::NavigateToURLFromRenderer(ChildFrameAt(main_frame, 0), url_c));
+
+  // Fullscreen should NOT be exited.
+  EXPECT_TRUE(web_contents->IsFullscreen());
+  EXPECT_EQ(1u, web_contents->fullscreen_frames_for_testing().size());
+}
+
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
+                       FullscreenNoExitOnIframeSameDocumentNavigate) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  WebContentsImpl* web_contents =
+      static_cast<WebContentsImpl*>(shell()->web_contents());
+  TestWCDelegateForDialogsAndFullscreen test_delegate(web_contents);
+
+  GURL url = embedded_test_server()->GetURL(
+      "a.com", "/cross_site_iframe_factory.html?a(b{allowfullscreen})");
+  EXPECT_TRUE(NavigateToURL(shell(), url));
+  auto* main_frame = web_contents->GetPrimaryMainFrame();
+  auto* child_frame = ChildFrameAt(main_frame, 0);
+
+  // Make the top page fullscreen.
+  {
+    FullscreenWebContentsObserver observer(web_contents, main_frame);
+    EXPECT_TRUE(ExecJs(main_frame, "document.body.requestFullscreen();"));
+    observer.Wait();
+  }
+  EXPECT_TRUE(web_contents->IsFullscreen());
+
+  // Navigate the iframe same-document.
+  EXPECT_TRUE(ExecJs(child_frame, "location.hash = 'foo';"));
+  EXPECT_TRUE(WaitForLoadStop(web_contents));
+
+  // Fullscreen should NOT be exited.
+  EXPECT_TRUE(web_contents->IsFullscreen());
+  EXPECT_EQ(1u, web_contents->fullscreen_frames_for_testing().size());
+}
+
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
+                       FullscreenExitOnIframeNavigateWhileIframeIsFullscreen) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  WebContentsImpl* web_contents =
+      static_cast<WebContentsImpl*>(shell()->web_contents());
+  TestWCDelegateForDialogsAndFullscreen test_delegate(web_contents);
+  test_delegate.WillWaitForFullscreenExit();
+
+  GURL url = embedded_test_server()->GetURL(
+      "a.com", "/cross_site_iframe_factory.html?a(b{allowfullscreen})");
+  EXPECT_TRUE(NavigateToURL(shell(), url));
+  auto* main_frame = web_contents->GetPrimaryMainFrame();
+  auto* child_frame = ChildFrameAt(main_frame, 0);
+
+  // Make the child frame fullscreen.
+  {
+    FullscreenWebContentsObserver observer(web_contents, child_frame);
+    EXPECT_TRUE(ExecJs(child_frame, "document.body.requestFullscreen();"));
+    observer.Wait();
+  }
+  EXPECT_TRUE(web_contents->IsFullscreen());
+  EXPECT_EQ(child_frame->GetGlobalId(),
+            web_contents->current_fullscreen_frame_id_for_testing());
+
+  // Navigate the iframe to a different page.
+  GURL url_c = embedded_test_server()->GetURL("c.com", "/title1.html");
+  EXPECT_TRUE(
+      content::NavigateToURLFromRenderer(ChildFrameAt(main_frame, 0), url_c));
+
+  // Fullscreen should be exited.
+  EXPECT_FALSE(web_contents->IsFullscreen());
+  // On Android, it can take some time for `fullscreen_frames_` to get updated.
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return web_contents->fullscreen_frames_for_testing().empty();
+  })) << "Timed out waiting for fullscreen frames to be cleared.";
+}
+
+IN_PROC_BROWSER_TEST_F(
+    WebContentsImplBrowserTest,
+    FullscreenExitOnMainFrameNavigateWhileIframeIsFullscreen) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  WebContentsImpl* web_contents =
+      static_cast<WebContentsImpl*>(shell()->web_contents());
+  TestWCDelegateForDialogsAndFullscreen test_delegate(web_contents);
+  test_delegate.WillWaitForFullscreenExit();
+
+  GURL url = embedded_test_server()->GetURL(
+      "a.com", "/cross_site_iframe_factory.html?a(b{allowfullscreen})");
+  EXPECT_TRUE(NavigateToURL(shell(), url));
+  auto* main_frame = web_contents->GetPrimaryMainFrame();
+  auto* child_frame = ChildFrameAt(main_frame, 0);
+
+  // Make the child frame fullscreen.
+  {
+    FullscreenWebContentsObserver observer(web_contents, child_frame);
+    EXPECT_TRUE(ExecJs(child_frame, "document.body.requestFullscreen();"));
+    observer.Wait();
+  }
+  EXPECT_TRUE(web_contents->IsFullscreen());
+
+  // Navigate the main frame to a different page.
+  GURL url_c = embedded_test_server()->GetURL("c.com", "/title1.html");
+  EXPECT_TRUE(NavigateToURL(shell(), url_c));
+
+  // Fullscreen should be exited.
+  EXPECT_FALSE(web_contents->IsFullscreen());
+  EXPECT_EQ(0u, web_contents->fullscreen_frames_for_testing().size());
 }
 
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
@@ -4115,9 +4225,8 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   RenderFrameHostImpl* main_frame = web_contents->GetPrimaryMainFrame();
   RenderFrameHostImpl* child_frame =
       static_cast<RenderFrameHostImpl*>(ChildFrameAt(main_frame, 0));
-
   std::set<raw_ptr<RenderFrameHostImpl, SetExperimental>> fullscreen_frames;
-  EXPECT_EQ(fullscreen_frames, web_contents->fullscreen_frames_);
+  EXPECT_TRUE(web_contents->fullscreen_frames_for_testing().empty());
   EXPECT_FALSE(IsInFullscreen());
 
   // Make the top page fullscreen.
@@ -4128,9 +4237,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   }
 
   fullscreen_frames.insert(main_frame);
-  EXPECT_EQ(fullscreen_frames, web_contents->fullscreen_frames_);
+  EXPECT_EQ(fullscreen_frames, web_contents->fullscreen_frames_for_testing());
   EXPECT_EQ(main_frame->GetGlobalId(),
-            web_contents->current_fullscreen_frame_id_);
+            web_contents->current_fullscreen_frame_id_for_testing());
 
   // Make the child frame fullscreen.
   {
@@ -4141,9 +4250,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   }
 
   fullscreen_frames.insert(child_frame);
-  EXPECT_EQ(fullscreen_frames, web_contents->fullscreen_frames_);
+  EXPECT_EQ(fullscreen_frames, web_contents->fullscreen_frames_for_testing());
   EXPECT_EQ(child_frame->GetGlobalId(),
-            web_contents->current_fullscreen_frame_id_);
+            web_contents->current_fullscreen_frame_id_for_testing());
 
   // Exit fullscreen on the child frame.
   {
@@ -4153,9 +4262,9 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   }
 
   fullscreen_frames.erase(child_frame);
-  EXPECT_EQ(fullscreen_frames, web_contents->fullscreen_frames_);
+  EXPECT_EQ(fullscreen_frames, web_contents->fullscreen_frames_for_testing());
   EXPECT_EQ(main_frame->GetGlobalId(),
-            web_contents->current_fullscreen_frame_id_);
+            web_contents->current_fullscreen_frame_id_for_testing());
 }
 
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, PropagateFullscreenOptions) {
@@ -4167,7 +4276,7 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, PropagateFullscreenOptions) {
 
   GURL url = embedded_test_server()->GetURL("a.com", "/page_with_iframe.html");
   EXPECT_TRUE(NavigateToURL(web_contents, url));
-  RenderFrameHostImpl* main_frame = web_contents->GetPrimaryMainFrame();
+  auto* main_frame = web_contents->GetPrimaryMainFrame();
 
   EXPECT_FALSE(IsInFullscreen());
 
@@ -4187,8 +4296,8 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, PropagateFullscreenOptions) {
 
   EXPECT_TRUE(test_delegate.fullscreen_options().prefers_navigation_bar);
 
-  RenderFrameHostImpl* child_frame =
-      static_cast<RenderFrameHostImpl*>(ChildFrameAt(main_frame, 0));
+  auto* child_frame = ChildFrameAt(main_frame, 0);
+
   // Make the child frame fullscreen without system navigation ui.
   {
     test_delegate.WillWaitForFullscreenOption();
@@ -5613,7 +5722,7 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 // frame and mouse up is on OOF iframe, the mouse up event is delivered to the
 // main frame as well to clear cached mouse states including autoscroll
 // selection state.
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
 // TODO(crbug.com/421826783): Re-enable this test
 // TODO(crbug.com/475802008): Re-enable this test
 #define MAYBE_MouseUpInOOPIframeShouldCancelMainFrameAutoscrollSelection \
@@ -5621,7 +5730,7 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 #else
 #define MAYBE_MouseUpInOOPIframeShouldCancelMainFrameAutoscrollSelection \
   MouseUpInOOPIframeShouldCancelMainFrameAutoscrollSelection
-#endif  // BUILDFLAG(IS_MAC)
+#endif
 IN_PROC_BROWSER_TEST_F(
     WebContentsImplBrowserTest,
     MAYBE_MouseUpInOOPIframeShouldCancelMainFrameAutoscrollSelection) {
@@ -5684,10 +5793,8 @@ IN_PROC_BROWSER_TEST_F(
                      "    resolve(true);"
                      "  });"
                      "});"));
-  SimulateKeyPress(web_contents, ui::DomKey::FromCharacter('A'),
-                   ui::DomCode::US_A, ui::VKEY_A, false, false, false, false);
-  SimulateKeyPress(web_contents, ui::DomKey::FromCharacter('B'),
-                   ui::DomCode::US_B, ui::VKEY_B, false, false, false, false);
+  SimulateCharTyped(web_contents, 'A');
+  SimulateCharTyped(web_contents, 'B');
   RunUntilInputProcessed(web_contents->GetRenderWidgetHostWithPageFocus());
   EXPECT_TRUE(ExecJs(web_contents,
                      "var inputElement = document.getElementById('input1');"
@@ -5751,10 +5858,8 @@ IN_PROC_BROWSER_TEST_F(
                    ->root_view_receive_additional_mouse_up_);
 
   // Type again in input element, insert text should be left to right.
-  SimulateKeyPress(web_contents, ui::DomKey::FromCharacter('E'),
-                   ui::DomCode::US_E, ui::VKEY_E, false, false, false, false);
-  SimulateKeyPress(web_contents, ui::DomKey::FromCharacter('F'),
-                   ui::DomCode::US_F, ui::VKEY_F, false, false, false, false);
+  SimulateCharTyped(web_contents, 'E');
+  SimulateCharTyped(web_contents, 'F');
   RunUntilInputProcessed(web_contents->GetRenderWidgetHostWithPageFocus());
   EXPECT_TRUE(ExecJs(web_contents,
                      "var inputElement = document.getElementById('input1');"

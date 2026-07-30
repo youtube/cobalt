@@ -116,6 +116,7 @@ import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaym
 import android.graphics.Rect;
 import android.text.SpannableString;
 import android.text.style.ClickableSpan;
+import android.text.style.StyleSpan;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -438,6 +439,13 @@ public class TouchToFillPaymentMethodViewTest {
     private static final String LEGAL_MESSAGE_LINE = "legal message";
     private static final Consumer<String> MOCK_LINK_OPENER = mock(Consumer.class);
     private static final String ISSUER_TITLE_TEXT = "Link account and pay with Affirm?";
+    private static final String BNPL_TERMS =
+            "Payment plans are subject to eligibility.\n"
+                    + "To hide pay later options, go to payment settings";
+    private static final String BNPL_AI_TERMS =
+            "Payment plans are subject to eligibility. Content from the checkout page is shared"
+                + " with Google to offer these options. To hide pay later options, go to payment"
+                + " settings";
 
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
@@ -2014,30 +2022,23 @@ public class TouchToFillPaymentMethodViewTest {
 
     @Test
     @MediumTest
-    public void testBnplProgressTermsLinkDisabled() {
+    @EnableFeatures({ChromeFeatureList.AUTOFILL_ENABLE_AI_BASED_AMOUNT_EXTRACTION})
+    public void testBnplProgressTerms_AiBasedAmountExtractionEnabled() {
         Runnable actionCallback = mock(Runnable.class);
         runOnUiThreadBlocking(
                 () -> {
                     mTouchToFillPaymentMethodModel
                             .get(SHEET_ITEMS)
                             .add(
-                                    TouchToFillPaymentMethodMediator
-                                            .buildTermsForBnplSelectionProgress(
-                                                    mActivityTestRule.getActivity(),
-                                                    /* isInProgress= */ true,
-                                                    actionCallback));
+                                    TouchToFillPaymentMethodMediator.buildTermsForBnplProgressUi(
+                                            mActivityTestRule.getActivity(), actionCallback));
                     mTouchToFillPaymentMethodModel.set(VISIBLE, true);
                 });
         BottomSheetTestSupport.waitForOpen(mBottomSheetController);
 
         TextView termsLabel =
                 mTouchToFillPaymentMethodView.getContentView().findViewById(R.id.bnpl_terms_label);
-        assertThat(
-                termsLabel.getText().toString(),
-                is(
-                        "Payment plans are subject to eligibility."
-                                + '\n'
-                                + "To hide pay later options, go to payment settings"));
+        assertThat(termsLabel.getText().toString(), is(BNPL_AI_TERMS));
         assertNotNull(termsLabel.getMovementMethod());
         SpannableString spannableString = (SpannableString) termsLabel.getText();
         ClickableSpan[] spans =
@@ -2049,30 +2050,118 @@ public class TouchToFillPaymentMethodViewTest {
 
     @Test
     @MediumTest
-    public void testBnplSelectionTermsLinkEnabled() {
+    @DisableFeatures({ChromeFeatureList.AUTOFILL_ENABLE_AI_BASED_AMOUNT_EXTRACTION})
+    public void testBnplProgressTerms_AiBasedAmountExtractionDisabled() {
         Runnable actionCallback = mock(Runnable.class);
         runOnUiThreadBlocking(
                 () -> {
                     mTouchToFillPaymentMethodModel
                             .get(SHEET_ITEMS)
                             .add(
-                                    TouchToFillPaymentMethodMediator
-                                            .buildTermsForBnplSelectionProgress(
-                                                    mActivityTestRule.getActivity(),
-                                                    /* isInProgress= */ false,
-                                                    actionCallback));
+                                    TouchToFillPaymentMethodMediator.buildTermsForBnplProgressUi(
+                                            mActivityTestRule.getActivity(), actionCallback));
                     mTouchToFillPaymentMethodModel.set(VISIBLE, true);
                 });
         BottomSheetTestSupport.waitForOpen(mBottomSheetController);
 
         TextView termsLabel =
                 mTouchToFillPaymentMethodView.getContentView().findViewById(R.id.bnpl_terms_label);
-        assertThat(
-                termsLabel.getText().toString(),
-                is(
-                        "Payment plans are subject to eligibility."
-                                + '\n'
-                                + "To hide pay later options, go to payment settings"));
+        assertThat(termsLabel.getText().toString(), is(BNPL_TERMS));
+        assertNotNull(termsLabel.getMovementMethod());
+        SpannableString spannableString = (SpannableString) termsLabel.getText();
+        ClickableSpan[] spans =
+                spannableString.getSpans(0, spannableString.length(), ClickableSpan.class);
+        assertEquals("There should be exactly one clickable span", 1, spans.length);
+        spans[0].onClick(termsLabel);
+        verify(actionCallback, never()).run();
+    }
+
+    @Test
+    @MediumTest
+    @EnableFeatures({ChromeFeatureList.AUTOFILL_ENABLE_AI_BASED_AMOUNT_EXTRACTION})
+    public void testBnplSelectionTerms_AiBasedAmountExtractionEnabled() {
+        Runnable actionCallback = mock(Runnable.class);
+        runOnUiThreadBlocking(
+                () -> {
+                    mTouchToFillPaymentMethodModel
+                            .get(SHEET_ITEMS)
+                            .add(
+                                    TouchToFillPaymentMethodMediator.buildTermsForBnplSelectionUi(
+                                            mActivityTestRule.getActivity(),
+                                            /* hasSeenAiTerms= */ true,
+                                            actionCallback));
+                    mTouchToFillPaymentMethodModel.set(VISIBLE, true);
+                });
+        BottomSheetTestSupport.waitForOpen(mBottomSheetController);
+
+        TextView termsLabel =
+                mTouchToFillPaymentMethodView.getContentView().findViewById(R.id.bnpl_terms_label);
+        assertThat(termsLabel.getText().toString(), is(BNPL_AI_TERMS));
+        assertNotNull(termsLabel.getMovementMethod());
+        SpannableString spannableString = (SpannableString) termsLabel.getText();
+        ClickableSpan[] spans =
+                spannableString.getSpans(0, spannableString.length(), ClickableSpan.class);
+        assertEquals("There should be exactly one clickable span", 1, spans.length);
+        spans[0].onClick(termsLabel);
+        waitForEvent(actionCallback).run();
+    }
+
+    @Test
+    @MediumTest
+    @EnableFeatures({ChromeFeatureList.AUTOFILL_ENABLE_AI_BASED_AMOUNT_EXTRACTION})
+    public void testBnplSelectionTerms_AiBasedAmountExtractionEnabled_HasNotSeenAiTerms() {
+        Runnable actionCallback = mock(Runnable.class);
+        runOnUiThreadBlocking(
+                () -> {
+                    mTouchToFillPaymentMethodModel
+                            .get(SHEET_ITEMS)
+                            .add(
+                                    TouchToFillPaymentMethodMediator.buildTermsForBnplSelectionUi(
+                                            mActivityTestRule.getActivity(),
+                                            /* hasSeenAiTerms= */ false,
+                                            actionCallback));
+                    mTouchToFillPaymentMethodModel.set(VISIBLE, true);
+                });
+        BottomSheetTestSupport.waitForOpen(mBottomSheetController);
+
+        TextView termsLabel =
+                mTouchToFillPaymentMethodView.getContentView().findViewById(R.id.bnpl_terms_label);
+        assertThat(termsLabel.getText().toString(), is(BNPL_AI_TERMS));
+        assertNotNull(termsLabel.getMovementMethod());
+        SpannableString spannableString = (SpannableString) termsLabel.getText();
+
+        ClickableSpan[] clickableSpans =
+                spannableString.getSpans(0, spannableString.length(), ClickableSpan.class);
+        assertEquals("There should be exactly one clickable span", 1, clickableSpans.length);
+        clickableSpans[0].onClick(termsLabel);
+        waitForEvent(actionCallback).run();
+
+        StyleSpan[] styleSpans =
+                spannableString.getSpans(0, spannableString.length(), StyleSpan.class);
+        assertEquals("There should be exactly one style span", 1, styleSpans.length);
+    }
+
+    @Test
+    @MediumTest
+    @DisableFeatures({ChromeFeatureList.AUTOFILL_ENABLE_AI_BASED_AMOUNT_EXTRACTION})
+    public void testBnplSelectionTerms_AiBasedAmountExtractionDisabled() {
+        Runnable actionCallback = mock(Runnable.class);
+        runOnUiThreadBlocking(
+                () -> {
+                    mTouchToFillPaymentMethodModel
+                            .get(SHEET_ITEMS)
+                            .add(
+                                    TouchToFillPaymentMethodMediator.buildTermsForBnplSelectionUi(
+                                            mActivityTestRule.getActivity(),
+                                            /* hasSeenAiTerms= */ true,
+                                            actionCallback));
+                    mTouchToFillPaymentMethodModel.set(VISIBLE, true);
+                });
+        BottomSheetTestSupport.waitForOpen(mBottomSheetController);
+
+        TextView termsLabel =
+                mTouchToFillPaymentMethodView.getContentView().findViewById(R.id.bnpl_terms_label);
+        assertThat(termsLabel.getText().toString(), is(BNPL_TERMS));
         assertNotNull(termsLabel.getMovementMethod());
         SpannableString spannableString = (SpannableString) termsLabel.getText();
         ClickableSpan[] spans =

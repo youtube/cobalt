@@ -306,7 +306,7 @@ export class VoiceSelectionMenuElement extends VoiceSelectionMenuElementBase
     this.fire(ToolbarEvent.LANGUAGE_MENU_OPEN);
   }
 
-  protected onLanguageMenuClose_(event: CustomEvent) {
+  protected onLanguageMenuClose_(event: CustomEvent<void>) {
     event.preventDefault();
     event.stopPropagation();
 
@@ -407,8 +407,9 @@ export class VoiceSelectionMenuElement extends VoiceSelectionMenuElementBase
 
   protected voiceLabel_(selected: boolean, voiceName: string) {
     const selectedPrefix = selected ? loadTimeData.getString('selected') : '';
-    return selectedPrefix + ' ' +
-        loadTimeData.getStringF('readingModeLanguageMenuItemLabel', voiceName);
+    return `${selectedPrefix} ${
+        loadTimeData.getStringF(
+            'readingModeLanguageMenuItemLabel', voiceName)}`;
   }
 
   protected shouldDisableButton_(voiceDropdown: VoiceDropdownItem) {

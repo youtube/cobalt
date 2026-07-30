@@ -232,6 +232,7 @@ class StyleBuilderConverter {
   template <typename T>
   static T ConvertLineWidth(StyleResolverState&, const CSSValue&);
   static int ConvertBorderWidth(const StyleResolverState&, const CSSValue&);
+  static int ConvertOutlineOffset(const StyleResolverState&, const CSSValue&);
   static uint16_t ConvertColumnRuleWidth(StyleResolverState&, const CSSValue&);
   static Superellipse ConvertCornerShape(const StyleResolverState&,
                                          const CSSValue&);
@@ -253,6 +254,7 @@ class StyleBuilderConverter {
   static TabSize ConvertLengthOrTabSpaces(StyleResolverState&, const CSSValue&);
   static Length ConvertLineHeight(StyleResolverState&, const CSSValue&);
   static float ConvertNumberOrPercentage(StyleResolverState&, const CSSValue&);
+  static float ConvertPathLength(StyleResolverState&, const CSSValue&);
   static int ConvertInteger(StyleResolverState&, const CSSValue&);
   template <int NoneValue = 0>
   static int ConvertIntegerOrNone(StyleResolverState&, const CSSValue&);

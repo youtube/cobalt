@@ -8,7 +8,6 @@
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/web/web_script_tool_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/capture_source_location.h"
-#include "third_party/blink/renderer/bindings/core/v8/v8_model_context_options.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_model_context_tool.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_script_runner.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_tool_annotations.h"
@@ -19,6 +18,8 @@
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/html/html_script_element.h"
+#include "third_party/blink/renderer/core/probe/core_probes.h"
+#include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/source_location.h"
 #include "third_party/blink/renderer/platform/json/json_parser.h"
 #include "third_party/blink/renderer/platform/json/json_values.h"
@@ -42,14 +43,34 @@ STATIC_ASSERT_ENUM(ScriptToolErrorCode::kToolCancelled,
 namespace {
 
 String ValidateAndStringifyObject(ScriptState* script_state,
+                                  ExceptionState& exception_state,
                                   const ScriptObject& input) {
   v8::Local<v8::String> value;
+  TryRethrowScope rethrow_scope(script_state->GetIsolate(), exception_state);
   if (!v8::JSON::Stringify(script_state->GetContext(), input.V8Object())
            .ToLocal(&value)) {
+    CHECK(rethrow_scope.HasCaught());
     return String();
   }
-  return ToBlinkString<String>(script_state->GetIsolate(), value,
-                               kDoNotExternalize);
+  String result = ToBlinkString<String>(script_state->GetIsolate(), value,
+                                        kDoNotExternalize);
+  // JSON.stringify() can fail to produce a string in one of two ways:
+  //   1. It can throw an exception (as with unserializable objects), which is
+  //   handled by `rethrow_scope` above; or
+  //   2. It can return the `undefined` JavaScript value, which stringifies as
+  //   the String literal "undefined". We need to check for this, and consider
+  //   it a failure.
+  // This matches the semantics of
+  // https://infra.spec.whatwg.org/#serialize-a-javascript-value-to-a-json-string,
+  // which the spec uses in
+  // https://webmachinelearning.github.io/webmcp/#dom-modelcontext-registertool.
+  if (result == "undefined") {
+    exception_state.ThrowTypeError(
+        "invalid input schema: toJSON() returns undefined");
+    return String();
+  }
+
+  return result;
 }
 
 ScriptObject JSONStringToScriptObject(ScriptState* script_state,
@@ -183,9 +204,53 @@ void ModelContext::ForEachScriptTool(
 void ModelContext::registerTool(ScriptState* script_state,
                                 ModelContextTool* tool,
                                 ExceptionState& exception_state) {
-  if (!RegisterTool(script_state, tool, exception_state)) {
+  if (tool_map_.find(tool->name()) != tool_map_.end()) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+                                      "Duplicate tool name");
     return;
   }
+
+  if (!tool->name() || tool->name().empty()) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+                                      "Tool name is required");
+    return;
+  }
+
+  if (!tool->description() || tool->description().empty()) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+                                      "Description is required");
+    return;
+  }
+
+  String input_schema;
+  if (tool->hasInputSchema()) {
+    input_schema = ValidateAndStringifyObject(script_state, exception_state,
+                                              tool->inputSchema());
+    if (!input_schema) {
+      // Exception already thrown by ValidateAndStringifyObject
+      return;
+    }
+  }
+
+  auto script_tool = mojom::blink::ScriptTool::New();
+  script_tool->name = tool->name();
+  script_tool->description = tool->description();
+  script_tool->input_schema = input_schema;
+
+  if (tool->hasAnnotations()) {
+    script_tool->annotations = mojom::blink::ScriptToolAnnotations::New();
+    CHECK(tool->annotations()->hasReadOnlyHint());
+    script_tool->annotations->read_only = tool->annotations()->readOnlyHint();
+  }
+
+  auto* tool_data = MakeGarbageCollected<ToolData>(
+      base::PassKey<ModelContext>(), std::move(script_tool),
+      /*v8_tool_function=*/tool->execute(),
+      CaptureSourceLocation(ExecutionContext::From(script_state)));
+
+  tool_map_.insert(tool->name(), tool_data);
+  probe::WebMCPToolAdded(document_, *tool_data);
+  OnToolsChanged();
 }
 
 void ModelContext::unregisterTool(const String& tool_name,
@@ -197,40 +262,25 @@ void ModelContext::unregisterTool(const String& tool_name,
     return;
   }
 
+  probe::WebMCPToolRemoved(document_, *it->value);
   tool_map_.erase(it);
   OnToolsChanged();
 }
 
-void ModelContext::SetScriptToolDeclaration(
-    const String& name,
-    ScriptToolDeclaration* tool_declaration) const {
+std::optional<ScriptToolDeclaration> ModelContext::GetScriptToolDeclaration(
+    const String& name) const {
   auto it = tool_map_.find(name);
-  if (it != tool_map_.end()) {
-    const mojom::blink::ScriptTool& script_tool = it->value->ScriptTool();
-    tool_declaration->description = script_tool.description;
-    tool_declaration->input_schema = script_tool.input_schema;
-    if (script_tool.annotations) {
-      tool_declaration->read_only = script_tool.annotations->read_only;
-    }
+  if (it == tool_map_.end()) {
+    return std::nullopt;
   }
-}
-
-void ModelContext::provideContext(ScriptState* script_state,
-                                  const ModelContextOptions* options,
-                                  ExceptionState& exception_state) {
-  auto prev_tool_map = std::move(tool_map_);
-
-  for (auto tool : options->tools()) {
-    if (!RegisterTool(script_state, tool, exception_state)) {
-      tool_map_ = std::move(prev_tool_map);
-      return;
-    }
+  ScriptToolDeclaration declaration;
+  const mojom::blink::ScriptTool& script_tool = it->value->ScriptTool();
+  declaration.description = script_tool.description;
+  declaration.input_schema = script_tool.input_schema;
+  if (script_tool.annotations) {
+    declaration.read_only = script_tool.annotations->read_only;
   }
-}
-
-void ModelContext::clearContext() {
-  tool_map_.clear();
-  OnToolsChanged();
+  return declaration;
 }
 
 std::optional<uint32_t> ModelContext::ExecuteTool(
@@ -428,63 +478,13 @@ std::optional<uint32_t> ModelContext::ExecuteV8Tool(
   return execution_id;
 }
 
-bool ModelContext::RegisterTool(ScriptState* script_state,
-                                ModelContextTool* tool,
-                                ExceptionState& exception_state) {
-  if (tool_map_.find(tool->name()) != tool_map_.end()) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
-                                      "Duplicate tool name");
-    return false;
-  }
-
-  if (!tool->name() || tool->name().empty()) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
-                                      "Tool name is required");
-    return false;
-  }
-
-  if (!tool->description() || tool->description().empty()) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
-                                      "Description is required");
-    return false;
-  }
-
-  String input_schema;
-  if (tool->hasInputSchema()) {
-    input_schema =
-        ValidateAndStringifyObject(script_state, tool->inputSchema());
-    if (!input_schema) {
-      exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
-                                        "Invalid input schema");
-      return false;
-    }
-  }
-
-  auto script_tool = mojom::blink::ScriptTool::New();
-  script_tool->name = tool->name();
-  script_tool->description = tool->description();
-  script_tool->input_schema = input_schema;
-
-  if (tool->hasAnnotations()) {
-    script_tool->annotations = mojom::blink::ScriptToolAnnotations::New();
-    script_tool->annotations->read_only = tool->annotations()->readOnlyHint();
-  }
-
-  auto* tool_data = MakeGarbageCollected<ToolData>(
-      base::PassKey<ModelContext>(), std::move(script_tool),
-      /*v8_tool_function=*/tool->execute(),
-      CaptureSourceLocation(ExecutionContext::From(script_state)));
-
-  tool_map_.insert(tool->name(), tool_data);
-  OnToolsChanged();
-  UseCounter::Count(document_, WebFeature::kModelContextRegisterTool);
-  return true;
-}
-
 void ModelContext::RegisterDeclarativeTool(
     String name,
     String description,
     DeclarativeWebMCPTool* declarative_tool) {
+  UseCounter::Count(document_,
+                    WebFeature::kModelContextRegisterDeclarativeTool);
+
   auto script_tool = mojom::blink::ScriptTool::New();
   script_tool->name = name;
   script_tool->description = description;
@@ -492,10 +492,9 @@ void ModelContext::RegisterDeclarativeTool(
 
   auto* tool_data = MakeGarbageCollected<ToolData>(
       base::PassKey<ModelContext>(), std::move(script_tool), declarative_tool);
-  tool_map_.insert(name, std::move(tool_data));
+  tool_map_.insert(name, tool_data);
+  probe::WebMCPToolAdded(document_, *tool_data);
   OnToolsChanged();
-  UseCounter::Count(document_,
-                    WebFeature::kModelContextRegisterDeclarativeTool);
 }
 
 void ModelContext::OnToolExecuted(uint32_t execution_id,
@@ -529,8 +528,7 @@ void ModelContext::PauseExecution() {
   script_tool_host_remote_->PauseExecution();
 }
 
-HeapVector<Member<const ModelContext::ToolData>> ModelContext::ListTools()
-    const {
+HeapVector<Member<const ToolData>> ModelContext::ListTools() const {
   HeapVector<Member<const ToolData>> tools;
   tools.ReserveInitialCapacity(tool_map_.size());
 
@@ -562,25 +560,25 @@ void ModelContext::Trace(Visitor* visitor) const {
   visitor->Trace(script_tool_host_remote_);
 }
 
-const String& ModelContext::ToolData::Name() const {
+const String& ToolData::Name() const {
   return script_tool_->name;
 }
 
-SourceLocation* ModelContext::ToolData::GetSourceLocation() const {
+SourceLocation* ToolData::GetSourceLocation() const {
   return source_location_;
 }
 
-Element* ModelContext::ToolData::BackingFormElement() const {
+Element* ToolData::BackingFormElement() const {
   return declarative_tool_ ? declarative_tool_->FormElement() : nullptr;
 }
 
-void ModelContext::ToolData::Trace(Visitor* visitor) const {
+void ToolData::Trace(Visitor* visitor) const {
   visitor->Trace(v8_tool_function_);
   visitor->Trace(declarative_tool_);
   visitor->Trace(source_location_);
 }
 
-void ModelContext::ToolData::RefreshDeclarativeInputSchema() {
+void ToolData::RefreshDeclarativeInputSchema() {
   if (declarative_tool_) {
     script_tool_->input_schema = declarative_tool_->ComputeInputSchema();
   }

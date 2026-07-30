@@ -237,8 +237,6 @@ BASE_FEATURE(kMlUrlSearchBlending, DISABLED);
 // `kMlUrlScoring` & `kMlUrlSearchBlending`.
 BASE_FEATURE(kUrlScoringModel, enable_if(!IS_ANDROID));
 
-BASE_FEATURE(kAnimateSuggestionsListAppearance, ENABLED);
-
 // If enabled, sends a signal when a user touches down on a search suggestion to
 // |SearchPrefetchService|. |SearchPrefetchService| will then prefetch
 // suggestion iff the SearchNavigationPrefetch feature and "touch_down" param
@@ -340,6 +338,9 @@ BASE_FEATURE(kOmniboxDebugLogs, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kThinkingModelIconUpdate, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If enabled, animates the caret in the omnibox.
+BASE_FEATURE(kOmniboxAnimatedCaret, base::FEATURE_ENABLED_BY_DEFAULT);
+
 #if BUILDFLAG(IS_ANDROID)
 // Accelerates time from cold start to focused Omnibox on low-end devices,
 // prioritizing Omnibox focus and background initialization.
@@ -376,7 +377,6 @@ namespace android {
 static int64_t JNI_OmniboxFeatureMap_GetNativeMap(JNIEnv* env) {
   static const base::Feature* const kFeaturesExposedToJava[] = {
       &kDiagnostics,
-      &kAnimateSuggestionsListAppearance,
       &kOmniboxTouchDownTriggerForPrefetch,
       &kOmniboxAsyncViewInflation,
       &kRichAutocompletion,

@@ -51,11 +51,22 @@ void ActorLoginFederatedCredentialsFetcher::Fetch(
     return;
   }
 
+  if (metrics_helper_) {
+    metrics_helper_->RecordFederatedHangingFedCmRequestExists(
+        source->HasPendingRequest());
+  }
+
   std::vector<GURL> supported_idps = {GURL(kSupportedIdentityProvider)};
+
   source->GetIdentityCredentialSuggestions(
       supported_idps, base::BindOnce(&ActorLoginFederatedCredentialsFetcher::
                                          OnGetIdentityCredentialSuggestions,
                                      weak_ptr_factory_.GetWeakPtr()));
+}
+
+void ActorLoginFederatedCredentialsFetcher::SetMetricsHelper(
+    ActorLoginMetricsHelper* metrics_helper) {
+  metrics_helper_ = metrics_helper;
 }
 
 void ActorLoginFederatedCredentialsFetcher::OnGetIdentityCredentialSuggestions(
@@ -86,10 +97,15 @@ void ActorLoginFederatedCredentialsFetcher::OnGetIdentityCredentialSuggestions(
     credential.display_origin = url_formatter::FormatOriginForSecurityDisplay(
         request_origin_, url_formatter::SchemeDisplay::OMIT_HTTP_AND_HTTPS);
 
-    credential.federation_detail = FederationDetail{
-        .idp_origin = url::Origin::Create(
-            account->identity_provider->idp_metadata.config_url),
-        .account_id = account->id};
+    FederationDetail& federation_detail =
+        credential.federation_detail.emplace();
+    federation_detail.idp_origin = url::Origin::Create(
+        account->identity_provider->idp_metadata.config_url);
+    federation_detail.account_id = account->id;
+    federation_detail.account_picture = account->decoded_picture;
+    federation_detail.brand_icon =
+        account->identity_provider->idp_metadata.brand_decoded_icon;
+
     credential.immediatelyAvailableToLogin = true;
     result.push_back(std::move(credential));
   }

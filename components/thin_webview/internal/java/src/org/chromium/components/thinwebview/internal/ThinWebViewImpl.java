@@ -4,7 +4,6 @@
 
 package org.chromium.components.thinwebview.internal;
 
-import android.app.Activity;
 import android.content.Context;
 import android.view.View;
 import android.view.ViewGroup;
@@ -27,6 +26,7 @@ import org.chromium.content_public.browser.SelectionClient;
 import org.chromium.content_public.browser.SelectionPopupController;
 import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.content_public.browser.selection.SelectionDropdownMenuDelegate;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
 import org.chromium.ui.base.WindowAndroid;
@@ -58,11 +58,10 @@ public class ThinWebViewImpl extends FrameLayout implements ThinWebView {
             ThinWebViewConstraints constraints,
             IntentRequestTracker intentRequestTracker) {
         super(context);
-        Activity activity = ContextUtils.activityFromContext(context);
-        if (activity != null) {
+        if (ContextUtils.activityFromContext(context) != null) {
             mWindowAndroid =
-                    ActivityWindowAndroid.create(
-                            activity,
+                    new ActivityWindowAndroid(
+                            context,
                             /* listenToActivityState= */ true,
                             intentRequestTracker,
                             /* insetObserver= */ null,
@@ -114,7 +113,11 @@ public class ThinWebViewImpl extends FrameLayout implements ThinWebView {
             @Nullable View contentView,
             @Nullable WebContentsDelegateAndroid delegate) {
         attachWebContents(
-                webContents, contentView, delegate, /* contextMenuPopulatorFactory= */ null);
+                webContents,
+                contentView,
+                delegate,
+                /* contextMenuPopulatorFactory= */ null,
+                /* selectionDropdownMenuDelegate= */ null);
     }
 
     @Override
@@ -122,7 +125,8 @@ public class ThinWebViewImpl extends FrameLayout implements ThinWebView {
             WebContents webContents,
             @Nullable View contentView,
             @Nullable WebContentsDelegateAndroid delegate,
-            @Nullable ContextMenuPopulatorFactory contextMenuPopulatorFactory) {
+            @Nullable ContextMenuPopulatorFactory contextMenuPopulatorFactory,
+            @Nullable SelectionDropdownMenuDelegate selectionDropdownMenuDelegate) {
         if (mNativeThinWebViewImpl == 0) return;
         // Native code holds only a weak reference to this object.
         mWebContentsDelegate = delegate;
@@ -131,6 +135,9 @@ public class ThinWebViewImpl extends FrameLayout implements ThinWebView {
 
         // Allow highlighting text.
         SelectionPopupController controller = SelectionPopupController.fromWebContents(webContents);
+        if (selectionDropdownMenuDelegate != null) {
+            controller.setDropdownMenuDelegate(selectionDropdownMenuDelegate);
+        }
         controller.setActionModeCallback(new ThinWebViewActionModeCallback(webContents));
         controller.setSelectionClient(SelectionClient.createSmartSelectionClient(webContents));
 
@@ -165,6 +172,12 @@ public class ThinWebViewImpl extends FrameLayout implements ThinWebView {
     }
 
     @Override
+    public void setInsets(int top, int left, int bottom, int right) {
+        if (mNativeThinWebViewImpl == 0) return;
+        ThinWebViewImplJni.get().setInsets(mNativeThinWebViewImpl, top, left, bottom, right);
+    }
+
+    @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         if (mNativeThinWebViewImpl == 0) return;
         if (w != oldw || h != oldh) {
@@ -189,6 +202,8 @@ public class ThinWebViewImpl extends FrameLayout implements ThinWebView {
         long init(ThinWebViewImpl self, CompositorView compositorView, WindowAndroid windowAndroid);
 
         void destroy(long nativeThinWebView);
+
+        void setInsets(long nativeThinWebView, int top, int left, int bottom, int right);
 
         void setWebContents(
                 long nativeThinWebView,

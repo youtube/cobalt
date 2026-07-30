@@ -27,23 +27,25 @@ export class ComposeboxFileInputsElement extends CrLitElement {
   static override get properties() {
     return {
       disableFileInputs: {type: Boolean},
-      attachmentFileTypes_: {type: Array},
-      imageFileTypes_: {type: Array},
+      attachmentFileTypes_: {type: String},
+      imageFileTypes_: {type: String},
     };
   }
 
   accessor disableFileInputs: boolean = false;
-  protected accessor attachmentFileTypes_: string[] =
-      loadTimeData.getString('composeboxAttachmentFileTypes').split(',');
-  protected accessor imageFileTypes_: string[] =
-      loadTimeData.getString('composeboxImageFileTypes').split(',');
+  // Comma separated list of file types.
+  protected accessor attachmentFileTypes_: string =
+      loadTimeData.getString('composeboxAttachmentFileTypes');
+  // Comma separated list of file types.
+  protected accessor imageFileTypes_: string =
+      loadTimeData.getString('composeboxImageFileTypes');
 
-  protected openFileUpload_() {
+  protected onOpenFileUpload_() {
     assert(this.$.fileInput);
     this.$.fileInput.click();
   }
 
-  protected openImageUpload_() {
+  protected onOpenImageUpload_() {
     assert(this.$.imageInput);
     this.$.imageInput.click();
   }
@@ -51,7 +53,7 @@ export class ComposeboxFileInputsElement extends CrLitElement {
 
   protected onFileChange_(e: Event) {
     const input = e.target as HTMLInputElement;
-    this.fire('on-file-change', {files: input.files});
+    this.fire('file-change', {files: input.files});
     input.value = '';
   }
 }

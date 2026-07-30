@@ -27,6 +27,7 @@
 <translation id="126567311906253476">เมื่อลงชื่อเข้าใช้บริการของ Google อย่าง Gmail หรือ YouTube ด้วย <ph name="USER_EMAIL" /> คุณจะลงชื่อเข้าใช้ Chromium ด้วยบัญชีเดียวกันได้โดยอัตโนมัติ</translation>
 <translation id="1290883685122687410">ข้อผิดพลาดในการตั้งค่า: <ph name="METAINSTALLER_EXIT_CODE" /> <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">ตั้งค่าโปรไฟล์ Chromium ใหม่</translation>
+<translation id="132092532143527429">ลองใช้ Gemini ใน Chromium</translation>
 <translation id="1324107359134968521">Chromium ต้องการสิทธิ์เข้าถึงบลูทูธเพื่อสำรวจอุปกรณ์บลูทูธ <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">ตรวจหาภาษา</translation>
 <translation id="1330742950061766891">ใช้การตั้งค่าเบราว์เซอร์ที่ Chromium แนะนำ</translation>
@@ -238,6 +239,7 @@
 <translation id="3509308970982693815">โปรดปิดหน้าต่าง Chromium ทั้งหมดแล้วลองอีกครั้ง</translation>
 <translation id="3522404737534491619">หากต้องการแชร์หน้าต่าง ให้อนุญาตการบันทึกหน้าจอสำหรับ Chromium ใน "การตั้งค่าระบบ"</translation>
 <translation id="3530103706039034513"><ph name="EXISTING_USER" /> ลงชื่อเข้าใช้อยู่แล้ว  หากต้องการแยกการท่องเว็บของคุณไว้ต่างหาก ให้ลงชื่อเข้าใช้ Chromium ในโปรไฟล์ของคุณเองด้วย <ph name="USER_EMAIL_ADDRESS" /></translation>
+<translation id="3531741627422851418">คิวอาร์โค้ดสำหรับดาวน์โหลดเบราว์เซอร์ Chromium บนมือถือ</translation>
 <translation id="3561853857681580870">หากต้องการแชร์หน้าจอ ให้อนุญาตการบันทึกหน้าจอสำหรับ Chromium ใน "การตั้งค่าระบบ"</translation>
 <translation id="3588112919289558122">การปกป้องที่ดียิ่งขึ้นจะปิดการเพิ่มประสิทธิภาพ JavaScript สำหรับเว็บไซต์ที่ Chromium ไม่รู้จัก</translation>
 <translation id="3597003331831379823">เรียกใช้การตั้งค่าด้วยสิทธิ์ในระดับสูงขึ้นไม่สำเร็จ <ph name="METAINSTALLER_ERROR" /></translation>
@@ -373,7 +375,6 @@
 <translation id="5174969993834422967">คุณมักจะบล็อกการแจ้งเตือน หากต้องการให้เว็บไซต์ส่งการแจ้งเตือน ให้คลิกไอคอนการแจ้งเตือนที่มุมขวาของแถบตําแหน่ง</translation>
 <translation id="5174983315706567306">มีพื้นที่ในดิสก์ไม่เพียงพอ</translation>
 <translation id="5187123684706427865">บัญชี Chromium ต้องมีการตรวจสอบสิทธิ์อีกครั้ง</translation>
-<translation id="5219681158518957165">ใช้การตั้งค่าเบราว์เซอร์ที่แนะนำ</translation>
 <translation id="5224391634244552924">ไม่มีรหัสผ่านที่บันทึกไว้ Chromium จะตรวจสอบรหัสผ่านได้เมื่อคุณบันทึกรหัสผ่านไว้</translation>
 <translation id="5231355151045086930">ออกจากระบบ Chromium</translation>
 <translation id="5234764350956374838">ปิด</translation>
@@ -607,6 +608,7 @@ Chromium ไม่สามารถกู้คืนการตั้งค�
 <translation id="7622753900276619808">ตอนนี้คุณมีฟีเจอร์เพิ่มเติมใน Chromium</translation>
 <translation id="7624307931717240213">เราใช้ข้อมูลเพื่อปรับปรุงบริการนี้ ดูนโยบายความเป็นส่วนตัวและข้อกำหนดในการให้บริการ</translation>
 <translation id="7649070708921625228">ความช่วยเหลือ</translation>
+<translation id="7650134251917003571">ดาวน์โหลดแอป Chromium</translation>
 <translation id="7656340475565475526">ให้ Chromium ท่องเว็บแทนคุณ</translation>
 <translation id="7658239707568436148">ยกเลิก</translation>
 <translation id="7686590090926151193">Chromium ไม่ใช่เบราว์เซอร์เริ่มต้น</translation>

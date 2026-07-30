@@ -10,6 +10,7 @@ import("//build/config/features.gni")
 import("//build/config/ui.gni")
 import("//build/nocompile.gni")
 import("//components/guest_view/buildflags/buildflags.gni")
+import("//components/surface_embed/buildflags/buildflags.gni")
 import("//components/viz/common/debugger/viz_debugger.gni")
 import("//content/common/features.gni")
 import("//content/public/common/features.gni")
@@ -1901,6 +1902,12 @@ test("content_browsertests") {
     ]
   }
 
+  if (enable_surface_embed) {
+    sources += [
+      "../browser/surface_embed/surface_embed_connector_impl_browsertest.cc",
+    ]
+  }
+
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
   configs += [ "//build/config:precompiled_headers" ]
@@ -1945,6 +1952,7 @@ test("content_browsertests") {
     "//components/services/storage",
     "//components/services/storage/public/cpp",
     "//components/services/storage/public/mojom:test_api",
+    "//components/surface_embed/buildflags",
     "//components/ukm:test_support",
     "//components/ukm/content",
     "//components/url_formatter",
@@ -2805,6 +2813,7 @@ test("content_unittests") {
     "../browser/preloading/preloading_config_unittest.cc",
     "../browser/preloading/preloading_data_impl_unittest.cc",
     "../browser/preloading/preloading_decider_unittest.cc",
+    "../browser/preloading/prerender/prerender_handle_impl_unittest.cc",
     "../browser/preloading/prerender/prerender_host_registry_unittest.cc",
     "../browser/preloading/prerender/prerender_host_unittest.cc",
     "../browser/preloading/prerender/prerender_metrics_unittest.cc",
@@ -2873,6 +2882,7 @@ test("content_unittests") {
     "../browser/renderer_host/media/preferred_audio_output_device_manager_unittest.cc",
     "../browser/renderer_host/media/render_frame_audio_input_stream_factory_unittest.cc",
     "../browser/renderer_host/media/render_frame_audio_output_stream_factory_unittest.cc",
+    "../browser/renderer_host/media/rtc_logging_dispatcher_unittest.cc",
     "../browser/renderer_host/media/service_video_capture_device_launcher_unittest.cc",
     "../browser/renderer_host/media/service_video_capture_provider_unittest.cc",
     "../browser/renderer_host/media/video_capture_buffer_pool_unittest.cc",
@@ -3075,6 +3085,7 @@ test("content_unittests") {
     "../common/memory_coordinator/memory_pressure_listener_policy_unittest.cc",
     "../common/memory_coordinator/mojom/memory_consumer_traits_unittest.cc",
     "../common/pseudonymization_salt_unittest.cc",
+    "../common/scheduler_loop_quarantine_task_observer_unittest.cc",
     "../common/service_worker/race_network_request_read_buffer_manager_unittest.cc",
     "../common/service_worker/race_network_request_simple_buffer_manager_unittest.cc",
     "../common/service_worker/race_network_request_url_loader_client_unittest.cc",
@@ -3139,6 +3150,7 @@ test("content_unittests") {
   if (is_ios && target_platform == "iphoneos") {
     sources += [
       "../browser/date_time_chooser/ios/date_time_chooser_util_unittest.mm",
+      "../browser/renderer_host/ios_extended_text_input_traits_unittest.mm",
       "../browser/renderer_host/render_widget_host_view_ios_uiview_unittest.mm",
     ]
   }

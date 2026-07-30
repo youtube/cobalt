@@ -4,7 +4,9 @@
 
 #include "content/renderer/worker/fetch_client_settings_object_helpers.h"
 
+#include "content/renderer/policy_container_util.h"
 #include "third_party/blink/public/platform/web_fetch_client_settings_object.h"
+#include "third_party/blink/public/platform/web_policy_container.h"
 
 namespace content {
 
@@ -12,7 +14,8 @@ blink::mojom::FetchClientSettingsObjectPtr
 FetchClientSettingsObjectFromWebToMojom(
     const blink::WebFetchClientSettingsObject& web_settings_object) {
   return blink::mojom::FetchClientSettingsObject::New(
-      web_settings_object.referrer_policy,
+      FromWebPolicyContainerPolicies(
+          web_settings_object.policy_container_policies),
       web_settings_object.outgoing_referrer,
       web_settings_object.insecure_requests_policy);
 }
@@ -20,7 +23,8 @@ FetchClientSettingsObjectFromWebToMojom(
 blink::WebFetchClientSettingsObject FetchClientSettingsObjectFromMojomToWeb(
     const blink::mojom::FetchClientSettingsObjectPtr& mojom_settings_object) {
   return blink::WebFetchClientSettingsObject(
-      mojom_settings_object->referrer_policy,
+      ToWebPolicyContainerPolicies(
+          mojom_settings_object->policy_container_policies),
       mojom_settings_object->outgoing_referrer,
       mojom_settings_object->insecure_requests_policy);
 }

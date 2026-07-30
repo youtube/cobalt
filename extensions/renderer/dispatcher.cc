@@ -535,7 +535,6 @@ void Dispatcher::WillEvaluateServiceWorkerOnWorkerThread(
     const GURL& service_worker_scope,
     const GURL& script_url,
     const blink::ServiceWorkerToken& service_worker_token) {
-  const base::TimeTicks start_time = base::TimeTicks::Now();
   service_worker_context_state = ServiceWorkerContextState::kInitializing;
 
   // TODO(crbug.com/40626913): We may want to give service workers not
@@ -673,9 +672,6 @@ void Dispatcher::WillEvaluateServiceWorkerOnWorkerThread(
   WorkerThreadDispatcher::GetServiceWorkerData()->Init();
   g_worker_script_context_set.Get().Insert(base::WrapUnique(context));
 
-  const base::TimeDelta elapsed = base::TimeTicks::Now() - start_time;
-  UMA_HISTOGRAM_TIMES(
-      "Extensions.DidInitializeServiceWorkerContextOnWorkerThread2", elapsed);
   service_worker_context_state = ServiceWorkerContextState::kInitialized;
 }
 
@@ -695,7 +691,8 @@ void Dispatcher::WillReleaseScriptContext(
 void Dispatcher::DidStartServiceWorkerContextOnWorkerThread(
     int64_t service_worker_version_id,
     const GURL& service_worker_scope,
-    const GURL& script_url) {
+    const GURL& script_url,
+    const blink::ServiceWorkerToken& service_worker_token) {
   if (!ExtensionAPIEnabledForServiceWorkerScript(service_worker_scope,
                                                  script_url)) {
     return;
@@ -739,7 +736,8 @@ void Dispatcher::DidStartServiceWorkerContextOnWorkerThread(
       CHECK(!extension_id.empty());
       service_worker_data->GetServiceWorkerHost()->DidStartServiceWorkerContext(
           extension_id, *service_worker_data->activation_sequence(),
-          service_worker_scope, service_worker_version_id, thread_id);
+          service_worker_scope, service_worker_version_id, thread_id,
+          service_worker_token);
     }
   } else {
     CHECK(service_worker_data);
@@ -748,7 +746,8 @@ void Dispatcher::DidStartServiceWorkerContextOnWorkerThread(
     CHECK(!extension_id.empty());
     service_worker_data->GetServiceWorkerHost()->DidStartServiceWorkerContext(
         extension_id, *service_worker_data->activation_sequence(),
-        service_worker_scope, service_worker_version_id, thread_id);
+        service_worker_scope, service_worker_version_id, thread_id,
+        service_worker_token);
   }
 }
 
@@ -756,7 +755,8 @@ void Dispatcher::WillDestroyServiceWorkerContextOnWorkerThread(
     v8::Local<v8::Context> v8_context,
     int64_t service_worker_version_id,
     const GURL& service_worker_scope,
-    const GURL& script_url) {
+    const GURL& script_url,
+    const blink::ServiceWorkerToken& service_worker_token) {
   // Note that using ExtensionAPIEnabledForServiceWorkerScript() won't work here
   // as RendererExtensionRegistry might have already unloaded this extension.
   // Use the existence of ServiceWorkerData as the source of truth instead.
@@ -780,7 +780,8 @@ void Dispatcher::WillDestroyServiceWorkerContextOnWorkerThread(
           script_context);
       service_worker_data->GetServiceWorkerHost()->DidStopServiceWorkerContext(
           extension_id, *service_worker_data->activation_sequence(),
-          service_worker_scope, service_worker_version_id, thread_id);
+          service_worker_scope, service_worker_version_id, thread_id,
+          service_worker_token);
     }
     // Note: we have to remove the context (and thus perform invalidation on
     // the native handlers) prior to removing the worker data, which destroys

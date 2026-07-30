@@ -158,6 +158,42 @@ void AddDefaultZeroStateStrings(content::WebUIDataSource* source) {
   source->AddString("friendlyZeroStateTitleAfterName", "");
 }
 
+bool ContextualTasksUI::AreUrlsEqual(const GURL& a,
+                                     const GURL& b) {
+  if (a == b) {
+    return true;
+  }
+
+  if (a.host() != b.host()) {
+    return false;
+  }
+
+  GURL::Replacements replacements;
+  replacements.ClearQuery();
+  if (a.ReplaceComponents(replacements) != b.ReplaceComponents(replacements)) {
+    return false;
+  }
+
+  std::vector<std::pair<std::string_view, std::string_view>> a_params;
+  for (net::QueryIterator it(a); !it.IsAtEnd(); it.Advance()) {
+    a_params.emplace_back(it.GetKey(), it.GetValue());
+  }
+
+  std::vector<std::pair<std::string_view, std::string_view>> b_params;
+  for (net::QueryIterator it(b); !it.IsAtEnd(); it.Advance()) {
+    b_params.emplace_back(it.GetKey(), it.GetValue());
+  }
+
+  if (a_params.size() != b_params.size()) {
+    return false;
+  }
+
+  std::sort(a_params.begin(), a_params.end());
+  std::sort(b_params.begin(), b_params.end());
+
+  return a_params == b_params;
+}
+
 void AddZeroStateStrings(content::WebUIDataSource* source, Profile* profile) {
   if (!profile) {
     AddDefaultZeroStateStrings(source);
@@ -191,9 +227,8 @@ void AddZeroStateStrings(content::WebUIDataSource* source, Profile* profile) {
     source->AddString("friendlyZeroStateGaiaName", gaia_name);
     source->AddString("friendlyZeroStateTitleBeforeName",
                       parts[0].substr(0, offsets[0]));
-    source->AddString(
-        "friendlyZeroStateTitleAfterName",
-        parts[0].substr(offsets[0] + gaia_name.length()));
+    source->AddString("friendlyZeroStateTitleAfterName",
+                      parts[0].substr(offsets[0] + gaia_name.length()));
   } else {
     // Fallback to default behavior if name replacement fails.
     source->AddString("friendlyZeroStateGaiaName", "");
@@ -389,6 +424,7 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
   source->AddBoolean(
       "enableLockAndUnlockInputCapability",
       contextual_tasks::ShouldEnableLockAndUnlockInputCapability());
+  source->AddBoolean("enableFileHint", contextual_tasks::GetEnableFileHint());
 
   source->AddString(
       "composeboxSource",
@@ -422,6 +458,10 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       "expandButtonEnabled",
       contextual_tasks::GetExpandButtonOption() ==
           contextual_tasks::ExpandButtonOption::kSidePanelExpandButton);
+
+  source->AddBoolean("caretAnimationEnabled",
+                     base::FeatureList::IsEnabled(
+                         contextual_tasks::kContextualTasksAnimatedCaret));
 
   // Set up chrome://contextual-tasks/internals debug UI.
   source->AddResourcePath(
@@ -630,7 +670,7 @@ void ContextualTasksUI::CreatePageHandler(
       base::BindRepeating(
           &ContextualTasksUI::GetOrCreateContextualSessionHandle,
           base::Unretained(this)),
-      base::BindRepeating(&ContextualTasksUI::GetInputStateModel,
+      base::BindRepeating(&ContextualTasksUI::TakeInputStateModel,
                           base::Unretained(this)));
   composebox_handler_->SetPage(std::move(pending_searchbox_page));
 }
@@ -687,7 +727,7 @@ ContextualTasksUI::GetOrCreateContextualSessionHandle() {
 }
 
 std::unique_ptr<contextual_search::InputStateModel>
-ContextualTasksUI::GetInputStateModel() {
+ContextualTasksUI::TakeInputStateModel() {
   if (!task_id_.has_value()) {
     return nullptr;
   }
@@ -696,7 +736,7 @@ ContextualTasksUI::GetInputStateModel() {
   auto* helper = ContextualSearchWebContentsHelper::GetOrCreateForWebContents(
       web_contents);
 
-  return helper->GetInputStateModelForTask(task_id_.value());
+  return helper->TakeInputStateModelForTask(task_id_.value());
 }
 
 void ContextualTasksUI::MoveTaskUiToNewTab() {
@@ -911,9 +951,16 @@ void ContextualTasksUI::OnPageContextEligibilityChecked(
 
 void ContextualTasksUI::TransferNavigationToEmbeddedPage(
     content::OpenURLParams params) {
+  OMNIBOX_LOG("nav_trace") << "ContextualTasks navigation trace: "
+             "TransferNavigationToEmbeddedPage called for URL: "
+          << params.url;
   bool is_allowed_url = ui_service_->IsValidSearchResultsPage(params.url) ||
                         ui_service_->IsAiUrl(params.url);
   if (!embedded_web_contents_ || !is_allowed_url) {
+    OMNIBOX_LOG("nav_trace")
+        << "ContextualTasks navigation trace: TransferNavigationToEmbeddedPage "
+           "returning early because embedded_web_contents_="
+        << !!embedded_web_contents_ << " is_allowed_url=" << is_allowed_url;
     return;
   }
 
@@ -922,6 +969,8 @@ void ContextualTasksUI::TransferNavigationToEmbeddedPage(
   //                  partition.
   params.frame_tree_node_id =
       embedded_web_contents_->GetPrimaryMainFrame()->GetFrameTreeNodeId();
+  OMNIBOX_LOG("nav_trace") << "ContextualTasks navigation trace: "
+             "TransferNavigationToEmbeddedPage opening URL in embedded page";
   embedded_web_contents_->OpenURL(params, /*navigation_handle_callback=*/{});
 }
 
@@ -970,6 +1019,8 @@ ContextualTasksUI::FrameNavObserver::FrameNavObserver(
 
 void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
+  OMNIBOX_LOG("nav_trace") << "ContextualTasks navigation trace: "
+             "FrameNavObserver::DidFinishNavigation called";
   if (!ui_service_ || !contextual_tasks_service_) {
     return;
   }
@@ -977,6 +1028,9 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
   // Ignore sub-frame and uncommitted navigations.
   if (!navigation_handle->IsInMainFrame() ||
       !navigation_handle->HasCommitted()) {
+    OMNIBOX_LOG("nav_trace") << "ContextualTasks navigation trace: "
+               "FrameNavObserver::DidFinishNavigation returning early, not "
+               "main frame or not committed";
     return;
   }
 
@@ -985,6 +1039,9 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
   // Notify the WebUI if the new page is an AI page so it can adjust the UI
   // accordingly.
   const GURL& url = navigation_handle->GetURL();
+  OMNIBOX_LOG("nav_trace") << "ContextualTasks navigation trace: "
+             "FrameNavObserver::DidFinishNavigation URL: "
+          << url;
   bool is_ai_page = ui_service_->IsAiUrl(url);
   task_info_delegate_->SetIsAiPage(is_ai_page);
 
@@ -993,6 +1050,13 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
   // Set whether this navigation is to a zero state so the UI can adjust
   // accordingly.
   const bool is_zero_state = ContextualTasksUI::IsZeroState(url, ui_service_);
+
+  // Record the HTTP response code of the inner frame contents if response
+  // headers are available.
+  if (auto* response_headers = navigation_handle->GetResponseHeaders()) {
+    contextual_tasks::RecordInnerFrameContentsHttpResponseCode(
+        response_headers->response_code(), is_zero_state);
+  }
 
   // Check if the zero state status has changed since the last navigation.
   const bool has_zero_state_changed =
@@ -1004,16 +1068,23 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
   }
 
   bool is_url_changed = false;
-  if (url != last_committed_url_) {
+  if (!ContextualTasksUI::AreUrlsEqual(
+          url, last_committed_url_)) {
     last_committed_url_ = url;
     is_url_changed = true;
   }
 
   if (!is_url_changed) {
+    OMNIBOX_LOG("nav_trace") << "ContextualTasks navigation trace: "
+               "FrameNavObserver::DidFinishNavigation returning early, URL "
+               "unchanged";
     return;
   }
 
   if (!is_ai_page) {
+    OMNIBOX_LOG("nav_trace")
+        << "ContextualTasks navigation trace: "
+           "FrameNavObserver::DidFinishNavigation returning early, not AI page";
     return;
   }
 
@@ -1021,6 +1092,8 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
       (!base::FeatureList::IsEnabled(
            contextual_tasks::kEnableNotifyZeroStateRenderedCapability) ||
        navigation_handle->IsSameDocument())) {
+    OMNIBOX_LOG("nav_trace") << "ContextualTasks navigation trace: "
+               "FrameNavObserver::DidFinishNavigation zero state logic";
     // Create a new task for zero state, since there's no thread to associate
     // this with yet.
     contextual_tasks::ContextualTask task =
@@ -1047,6 +1120,9 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
 
   std::string url_thread_id;
   if (!net::GetValueForKeyInQuery(url, "mtid", &url_thread_id)) {
+    OMNIBOX_LOG("nav_trace") << "ContextualTasks navigation trace: "
+               "FrameNavObserver::DidFinishNavigation returning early, no "
+               "mtid in URL";
     return;
   }
 
@@ -1099,6 +1175,9 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
         pending_task_title_mismatch || is_new_conversation || is_thread_switch;
 
     if (should_create_new_task) {
+      OMNIBOX_LOG("nav_trace") << "ContextualTasks navigation trace: "
+                 "FrameNavObserver::DidFinishNavigation "
+                 "should_create_new_task is true";
       task_changed = true;
       auto task = contextual_tasks_service_->CreateTaskFromUrl(url);
       task_info_delegate_->SetTaskId(task.GetTaskId());

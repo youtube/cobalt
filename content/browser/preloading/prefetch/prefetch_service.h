@@ -132,8 +132,8 @@ class CONTENT_EXPORT PrefetchService : public PrefetchContainer::Observer {
   // so consideration should be taken if updating the
   // underlying implementation (or its dependencies).
   bool IsPrefetchDuplicate(
-      GURL& url,
-      std::optional<net::HttpNoVarySearchData> no_vary_search_hint);
+      const GURL& url,
+      const std::optional<net::HttpNoVarySearchData>& no_vary_search_hint);
 
   // Whether the prefetch attempt for `key` has failed or discarded.
   // Note: the semantics of this method is not super clear and thus is exposed
@@ -368,8 +368,7 @@ class CONTENT_EXPORT PrefetchService : public PrefetchContainer::Observer {
   void OnDeterminedHead(const PrefetchContainer& prefetch_container) override;
   void OnPrefetchCompletedOrFailed(
       const PrefetchContainer& prefetch_container,
-      const network::URLLoaderCompletionStatus& completion_status,
-      const std::optional<int>& response_code) override;
+      const network::URLLoaderCompletionStatus& completion_status) override;
 
   enum class HandlePrefetchContainerResult {
     // No prefetch was available to be used.

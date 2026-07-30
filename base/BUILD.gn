@@ -376,8 +376,8 @@ component("base") {
     "memory/aligned_memory.cc",
     "memory/aligned_memory.h",
     "memory/asan_interface.h",
-    "memory/available_physical_memory_monitor.cc",
-    "memory/available_physical_memory_monitor.h",
+    "memory/available_memory_monitor.cc",
+    "memory/available_memory_monitor.h",
     "memory/free_deleter.h",
     "memory/memory_pressure_level.h",
     "memory/memory_pressure_listener.cc",
@@ -2893,7 +2893,6 @@ if (is_mac) {
 static_library("base_static") {
   sources = [
     "base_export.h",
-    "base_switches.cc",
     "base_switches.h",
     "immediate_crash.h",
   ]
@@ -3559,7 +3558,7 @@ test("base_unittests") {
     "logging_unittest.cc",
     "macros/is_empty_unittest.cc",
     "memory/aligned_memory_unittest.cc",
-    "memory/available_physical_memory_monitor_unittest.cc",
+    "memory/available_memory_monitor_unittest.cc",
     "memory/discardable_memory_backing_field_trial_unittest.cc",
     "memory/discardable_shared_memory_unittest.cc",
     "memory/memory_pressure_listener_unittest.cc",
@@ -4679,7 +4678,7 @@ if (is_android) {
   java_cpp_strings("java_switches_srcjar") {
     # External code should depend on ":base_java" instead.
     visibility = [ ":*" ]
-    sources = [ "base_switches.cc" ]
+    sources = [ "base_switches.h" ]
     template = "android/java/src/org/chromium/base/BaseSwitches.java.tmpl"
   }
 
@@ -5513,7 +5512,7 @@ if (is_android) {
     sources = [
       "android/java/src/org/chromium/base/AconfigFlaggedApiDelegate.java",
       "android/java/src/org/chromium/base/BindingRequestQueue.java",
-      "android/java/src/org/chromium/base/PasswordEchoSplitSettingDelegate.java",
+      "android/java/src/org/chromium/base/PasswordEchoSettingDelegate.java",
       "android/java/src/org/chromium/base/SelectionActionMenuClientWrapper.java",
       "android/java/src/org/chromium/base/serial/SerialManager.java",
       "android/java/src/org/chromium/base/serial/SerialPort.java",
@@ -6029,7 +6028,10 @@ if (is_android) {
 # Keep the list of fuzzer_tests in alphabetical order.
 fuzzer_test("base64_decode_fuzzer") {
   sources = [ "base64_decode_fuzzer.cc" ]
-  deps = [ "//base" ]
+  deps = [
+    "//base",
+    "//testing/libfuzzer:libfuzzer_base_wrappers",
+  ]
 }
 
 fuzzer_test("base64_encode_fuzzer") {
@@ -6037,6 +6039,7 @@ fuzzer_test("base64_encode_fuzzer") {
   deps = [
     "//base",
     "//base/test:test_support",
+    "//testing/libfuzzer:libfuzzer_base_wrappers",
   ]
 }
 
@@ -6047,19 +6050,28 @@ fuzzer_test("base64url_fuzzer") {
 
 fuzzer_test("base_json_correctness_fuzzer") {
   sources = [ "json/json_correctness_fuzzer.cc" ]
-  deps = [ ":base" ]
+  deps = [
+    ":base",
+    "//testing/libfuzzer:libfuzzer_base_wrappers",
+  ]
   dict = "//testing/libfuzzer/fuzzers/dicts/json.dict"
 }
 
 fuzzer_test("base_json_reader_fuzzer") {
   sources = [ "json/json_reader_fuzzer.cc" ]
-  deps = [ "//base" ]
+  deps = [
+    "//base",
+    "//testing/libfuzzer:libfuzzer_base_wrappers",
+  ]
   dict = "//testing/libfuzzer/fuzzers/dicts/json.dict"
 }
 
 fuzzer_test("base_json_string_escape_fuzzer") {
   sources = [ "json/string_escape_fuzzer.cc" ]
-  deps = [ "//base" ]
+  deps = [
+    "//base",
+    "//testing/libfuzzer:libfuzzer_base_wrappers",
+  ]
 }
 
 if (is_mac) {
@@ -6096,7 +6108,10 @@ fuzzer_test("command_line_fuzzer") {
 
 fuzzer_test("escape_fuzzer") {
   sources = [ "strings/escape_fuzzer.cc" ]
-  deps = [ "//base" ]
+  deps = [
+    "//base",
+    "//testing/libfuzzer:libfuzzer_base_wrappers",
+  ]
 }
 
 fuzzer_test("file_path_fuzzer") {
@@ -6107,19 +6122,28 @@ fuzzer_test("file_path_fuzzer") {
 if (is_linux || is_chromeos) {
   fuzzer_test("mime_util_xdg_fuzzer") {
     sources = [ "nix/mime_util_xdg_fuzzer.cc" ]
-    deps = [ "//base" ]
+    deps = [
+      "//base",
+      "//testing/libfuzzer:libfuzzer_base_wrappers",
+    ]
   }
 }
 
 fuzzer_test("base_persistent_histogram_allocator_fuzzer") {
   sources = [ "metrics/persistent_histogram_allocator_fuzzer.cc" ]
-  deps = [ "//base" ]
+  deps = [
+    "//base",
+    "//testing/libfuzzer:libfuzzer_base_wrappers",
+  ]
   seed_corpus = "//base/test/data/pma_corpus"
 }
 
 fuzzer_test("string_number_conversions_fuzzer") {
   sources = [ "strings/string_number_conversions_fuzzer.cc" ]
-  deps = [ "//base" ]
+  deps = [
+    "//base",
+    "//testing/libfuzzer:libfuzzer_base_wrappers",
+  ]
 }
 
 fuzzer_test("string_pattern_fuzzer") {
@@ -6129,7 +6153,10 @@ fuzzer_test("string_pattern_fuzzer") {
 
 fuzzer_test("string_tokenizer_fuzzer") {
   sources = [ "strings/string_tokenizer_fuzzer.cc" ]
-  deps = [ "//base" ]
+  deps = [
+    "//base",
+    "//testing/libfuzzer:libfuzzer_base_wrappers",
+  ]
 }
 
 fuzzer_test("substring_set_matcher_fuzzer") {
@@ -6144,7 +6171,10 @@ fuzzer_test("sys_string_conversions_fuzzer") {
 
 fuzzer_test("time_delta_from_string_fuzzer") {
   sources = [ "time/time_delta_from_string_fuzzer.cc" ]
-  deps = [ "//base" ]
+  deps = [
+    "//base",
+    "//testing/libfuzzer:libfuzzer_base_wrappers",
+  ]
 }
 
 fuzzer_test("time_fuzzer") {

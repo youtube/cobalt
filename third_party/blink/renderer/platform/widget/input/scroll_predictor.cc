@@ -32,6 +32,16 @@ ScrollPredictor::ScrollPredictor()
       PredictorFactory::GetPredictorTypeFromName(predictor_name);
   predictor_ = PredictorFactory::GetPredictor(predictor_type);
 
+  // Initialize the synthetic predictor. Defaults to Kalman for better
+  // stability if enabled, otherwise use the same predictor as real events.
+  if (base::FeatureList::IsEnabled(
+          blink::features::kScrollPredictorSyntheticKalman)) {
+    synthetic_predictor_ = PredictorFactory::GetPredictor(
+        input_prediction::PredictorType::kScrollPredictorTypeKalman);
+  } else {
+    synthetic_predictor_ = PredictorFactory::GetPredictor(predictor_type);
+  }
+
   filtering_enabled_ =
       base::FeatureList::IsEnabled(blink::features::kFilteringScrollPrediction);
 
@@ -113,7 +123,8 @@ std::unique_ptr<EventWithCallback> ScrollPredictor::ResampleScrollEvents(
 
     if (should_resample_scroll_events_) {
       ResampleEvent(frame_time, frame_interval,
-                    event_with_callback->event_pointer(), trace_id);
+                    event_with_callback->event_pointer(), trace_id,
+                    /*use_synthetic_predictor=*/false);
       // Sync the predicted `delta_y` to `metrics` for AverageLag metric.
       auto* metrics = event_with_callback->metrics()
                           ? event_with_callback->metrics()->AsScrollUpdate()
@@ -150,7 +161,7 @@ ScrollPredictor::GenerateSyntheticScrollUpdate(
   ui::LatencyInfo latency_info;
   latency_info.set_trace_id(base::trace_event::GetNextGlobalTraceId());
   ResampleEvent(frame_time, frame_interval, &gesture_event,
-                latency_info.trace_id());
+                latency_info.trace_id(), /*use_synthetic_predictor=*/true);
 
   // TODO(b/329346768): We should also add a new `BEGIN` stage, instead of
   // re-using the one that is explicitly about the `content::RenderWidgetHost`.
@@ -199,30 +210,36 @@ ScrollPredictor::GenerateSyntheticScrollUpdate(
 bool ScrollPredictor::HasPrediction(base::TimeTicks frame_time,
                                     base::TimeDelta frame_interval) const {
   // If the last real user event is too old, stop generating synthetic events
-  // to avoid creating "phantom" scroll motion. We use MaxResampleTime() as
-  // the timeout, which is 20ms.
+  // to avoid creating "phantom" scroll motion.
   base::TimeTicks prediction_time = frame_time;
   if (base::FeatureList::IsEnabled(
           blink::features::kScrollPredictorRefinedHasPrediction)) {
     prediction_time += ResampleLatency(frame_interval);
   }
 
+  base::TimeDelta max_resample_time =
+      blink::features::kScrollPredictorMaxResampleTime.Get();
+
   if (!last_prediction_update_timestamp_.is_null() &&
-      prediction_time - last_prediction_update_timestamp_ >
-          predictor_->MaxResampleTime()) {
+      prediction_time - last_prediction_update_timestamp_ > max_resample_time) {
     return false;
   }
 
-  return predictor_->HasPrediction();
+  return synthetic_predictor_->HasPrediction();
 }
 
 void ScrollPredictor::Reset() {
   predictor_->Reset();
+  synthetic_predictor_->Reset();
   if (filtering_enabled_) {
     filter_ = filter_factory_->CreateFilter();
   }
   current_event_accumulated_delta_ = gfx::PointF();
   last_predicted_accumulated_delta_ = gfx::PointF();
+  last_real_delta_ = gfx::Vector2dF();
+  last_resample_time_ = base::TimeTicks();
+  last_raw_synthetic_pos_ = gfx::PointF();
+  last_raw_linear_pos_ = gfx::PointF();
   last_prediction_update_timestamp_ = base::TimeTicks();  // Reset the timestamp
   metrics_handler_.Reset();
 }
@@ -244,11 +261,13 @@ void ScrollPredictor::UpdatePredictionForEventAfterSampleTime(
   }
 
   if (last_prediction_update_timestamp_ < gesture_event.TimeStamp()) {
-    predictor_->Update(
-        {current_event_accumulated_delta_ +
-             gfx::Vector2dF(gesture_event.data.scroll_update.delta_x,
-                            gesture_event.data.scroll_update.delta_y),
-         gesture_event.TimeStamp()});
+    ui::InputPredictor::InputData data = {
+        current_event_accumulated_delta_ +
+            gfx::Vector2dF(gesture_event.data.scroll_update.delta_x,
+                           gesture_event.data.scroll_update.delta_y),
+        gesture_event.TimeStamp()};
+    predictor_->Update(data);
+    synthetic_predictor_->Update(data);
     last_prediction_update_timestamp_ = gesture_event.TimeStamp();
   }
 }
@@ -279,6 +298,7 @@ void ScrollPredictor::UpdatePrediction(const WebInputEvent& event,
   // each event once.
   if (last_prediction_update_timestamp_ < gesture_event.TimeStamp()) {
     predictor_->Update(data);
+    synthetic_predictor_->Update(data);
     last_prediction_update_timestamp_ = gesture_event.TimeStamp();
   }
 
@@ -290,9 +310,16 @@ void ScrollPredictor::UpdatePrediction(const WebInputEvent& event,
 void ScrollPredictor::ResampleEvent(base::TimeTicks frame_time,
                                     base::TimeDelta frame_interval,
                                     WebInputEvent* event,
-                                    int64_t trace_id) {
+                                    int64_t trace_id,
+                                    bool use_synthetic_predictor) {
+  ui::InputPredictor* predictor =
+      use_synthetic_predictor ? synthetic_predictor_.get() : predictor_.get();
+  DCHECK(predictor);
   DCHECK(event->GetType() == WebInputEvent::Type::kGestureScrollUpdate);
   WebGestureEvent* gesture_event = static_cast<WebGestureEvent*>(event);
+
+  float original_delta_x = gesture_event->data.scroll_update.delta_x;
+  float original_delta_y = gesture_event->data.scroll_update.delta_y;
 
   TRACE_EVENT_BEGIN(
       "input", "ScrollPredictor::ResampleScrollEvents",
@@ -300,40 +327,98 @@ void ScrollPredictor::ResampleEvent(base::TimeTicks frame_time,
         auto* event = ctx.event<perfetto::protos::pbzero::ChromeTrackEvent>();
         auto* scroll_data = event->set_scroll_deltas();
         scroll_data->set_trace_id(trace_id);
-        scroll_data->set_original_delta_x(
-            gesture_event->data.scroll_update.delta_x);
-        scroll_data->set_original_delta_y(
-            gesture_event->data.scroll_update.delta_y);
+        scroll_data->set_original_delta_x(original_delta_x);
+        scroll_data->set_original_delta_y(original_delta_y);
       });
   gfx::PointF predicted_accumulated_delta =
       last_predicted_accumulated_delta_ +
-      gfx::Vector2dF(gesture_event->data.scroll_update.delta_x,
-                     gesture_event->data.scroll_update.delta_y);
+      gfx::Vector2dF(original_delta_x, original_delta_y);
 
   base::TimeDelta prediction_delta = frame_time - gesture_event->TimeStamp();
   bool predicted = false;
+  // Tracks if the synthetic predictor's delta was successfully applied.
+  bool used_synthetic_delta = false;
 
   // For resampling, we don't want to predict too far away because the result
-  // will likely be inaccurate in that case. We cut off the prediction to the
-  // maximum available for the current predictor
-  prediction_delta = std::min(prediction_delta, predictor_->MaxResampleTime());
+  // will likely be inaccurate in that case.
+  prediction_delta = std::min(
+      prediction_delta, blink::features::kScrollPredictorMaxResampleTime.Get());
 
   base::TimeTicks prediction_time =
       gesture_event->TimeStamp() + prediction_delta;
 
-  auto result = predictor_->GeneratePrediction(prediction_time, frame_interval);
+  base::TimeTicks active_prediction_time = prediction_time;
+  if (!predictor->AppliesResampleLatencyInternally()) {
+    // Add resample latency to the prediction time to be consistent with the
+    // linear resampler producing the input at VSync + kResampleLatency.
+    active_prediction_time += ResampleLatency(frame_interval);
+  }
+
+  auto result =
+      predictor->GeneratePrediction(active_prediction_time, frame_interval);
+
+  if (!use_synthetic_predictor) {
+    // For real input frames, cache the absolute positions of both predictors.
+    // This establishes the anchors required to calculate relative step deltas
+    // during subsequent synthetic frames.
+    last_real_delta_ = gfx::Vector2dF(original_delta_x, original_delta_y);
+    last_raw_linear_pos_ = result ? result->pos : predicted_accumulated_delta;
+    // Cache the synthetic predictor's output.
+    auto syn_res = synthetic_predictor_->GeneratePrediction(
+        active_prediction_time, frame_interval);
+    last_raw_synthetic_pos_ = syn_res ? syn_res->pos : gfx::PointF();
+  }
+
   if (result) {
-    predicted_accumulated_delta = result->pos;
+    if (use_synthetic_predictor) {
+      // For synthetic gap-filling, apply the predictor's relative movement
+      // to |last_predicted_accumulated_delta_|. This provides positional
+      // continuity and prevents visual snapping when transitioning between
+      // predictors.
+      gfx::Vector2dF step_delta = gfx::Vector2dF();
+
+      if (!last_raw_synthetic_pos_.IsOrigin()) {
+        step_delta = result->pos - last_raw_synthetic_pos_;
+        used_synthetic_delta = true;
+      } else if (!last_raw_linear_pos_.IsOrigin()) {
+        // The synthetic predictor may not be stabilized. If it lacks a valid
+        // anchor, fall back to the primary predictor's delta to preserve scroll
+        // momentum.
+        if (auto fallback_res = predictor_->GeneratePrediction(
+                active_prediction_time, frame_interval)) {
+          step_delta = fallback_res->pos - last_raw_linear_pos_;
+          last_raw_linear_pos_ = fallback_res->pos;
+        }
+      }
+      last_raw_synthetic_pos_ = result->pos;
+
+      predicted_accumulated_delta =
+          last_predicted_accumulated_delta_ + step_delta;
+      result->pos = predicted_accumulated_delta;
+    } else {
+      // For frame containing real input events, use the result from primary
+      // predictor.
+      predicted_accumulated_delta = result->pos;
+    }
     gesture_event->SetTimeStamp(result->time_stamp);
     predicted = true;
   }
 
   // Feed the filter with the first non-predicted events but only apply
-  // filtering on predicted events
+  // filtering on predicted events.
   gfx::PointF filtered_pos = predicted_accumulated_delta;
-  if (filtering_enabled_ && filter_->Filter(prediction_time, &filtered_pos) &&
-      predicted)
+
+  // Allow bypassing the stateful filter for synthetic frames to evaluate the
+  // raw performance of the synthetic predictor without compounding filter lag.
+  const bool bypass_filter =
+      used_synthetic_delta &&
+      base::FeatureList::IsEnabled(
+          blink::features::kScrollPredictorFilteringBypassOnSynthetic);
+
+  if (filtering_enabled_ && !bypass_filter &&
+      filter_->Filter(active_prediction_time, &filtered_pos) && predicted) {
     predicted_accumulated_delta = filtered_pos;
+  }
 
   // If the last resampled GSU over predict the delta, new GSU might try to
   // scroll back to make up the difference, which cause the scroll to jump
@@ -341,14 +426,16 @@ void ScrollPredictor::ResampleEvent(base::TimeTicks frame_time,
   // direction to the original event.
   gfx::Vector2dF new_delta =
       predicted_accumulated_delta - last_predicted_accumulated_delta_;
+
+  const gfx::Vector2dF reference_delta =
+      !use_synthetic_predictor
+          ? gfx::Vector2dF(original_delta_x, original_delta_y)
+          : last_real_delta_;
+
   gesture_event->data.scroll_update.delta_x =
-      (new_delta.x() * gesture_event->data.scroll_update.delta_x < 0)
-          ? 0
-          : new_delta.x();
+      (new_delta.x() * reference_delta.x() < 0) ? 0 : new_delta.x();
   gesture_event->data.scroll_update.delta_y =
-      (new_delta.y() * gesture_event->data.scroll_update.delta_y < 0)
-          ? 0
-          : new_delta.y();
+      (new_delta.y() * reference_delta.y() < 0) ? 0 : new_delta.y();
   TRACE_EVENT_END("input", [&](perfetto::EventContext ctx) {
     auto* event = ctx.event<perfetto::protos::pbzero::ChromeTrackEvent>();
     auto* scroll_data = event->set_scroll_deltas();
@@ -366,6 +453,7 @@ void ScrollPredictor::ResampleEvent(base::TimeTicks frame_time,
                                        result->time_stamp, frame_time,
                                        true /* Scrolling */);
   }
+  last_resample_time_ = gesture_event->TimeStamp();
 }
 
 }  // namespace blink

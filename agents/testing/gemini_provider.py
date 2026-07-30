@@ -286,6 +286,11 @@ def _configure_gemini_cli(home_dir: pathlib.Path,
     else:
         settings_json = {}
 
+    settings_json.setdefault('general', {})
+    # Retry flaky connection timeouts, which happen on occasion when running
+    # prompt eval tests.
+    settings_json['general']['retryFetchErrors'] = True
+
     settings_json.setdefault('telemetry', {})
     settings_json['telemetry']['enabled'] = True
     settings_json['telemetry']['outfile'] = str(telemetry_outfile)
@@ -337,9 +342,12 @@ def _get_gemini_cli_arguments(
     node_bin = provider_vars.get('node_bin')
     if node_bin:
         command.append(node_bin)
-    gemini_cli_bin = provider_vars.get('gemini_cli_bin',
-                                       gemini_helpers.get_gemini_executable())
-    command.extend([gemini_cli_bin, '-y', '--model', MODEL])
+    gemini_cli_bin = provider_vars.get('gemini_cli_bin')
+    if gemini_cli_bin:
+        command.append(gemini_cli_bin)
+    else:
+        command = gemini_helpers.get_gemini_command()
+    command.extend(['-y', '--model', MODEL])
 
     sandbox_flags = []
     if provider_vars.get('sandbox', False):

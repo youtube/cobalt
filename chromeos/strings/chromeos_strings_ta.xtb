@@ -167,6 +167,7 @@
 <translation id="1621067168122174824">சார்ஜ் சோதனையை இயக்கு</translation>
 <translation id="1622402072367425417">ஒளிரும் குமிழ்கள்</translation>
 <translation id="1626590945318984973">ஷார்ட்கட் இல்லை. ஃபங்க்ஷன் மற்றும் <ph name="META_KEY" /> பட்டன்களைப் பயன்படுத்தாமல் புதிய ஷார்ட்கட்டை அழுத்தவும்.</translation>
+<translation id="163774412591892664">உங்கள் சாதனத்தை நிர்வாகி முடக்கியுள்ளார், அதன் இருப்பிடத்தை அவரால் அணுக முடியும்.</translation>
 <translation id="1639239467298939599">ஏற்றுகிறது</translation>
 <translation id="1641857168437328880">டாக்குமெண்ட் ஃபீடர் (ஒரு பக்கம்)</translation>
 <translation id="1642396894598555413">சைக்கிள்கள்</translation>
@@ -727,6 +728,7 @@
 <translation id="4212169537710712814"><ph name="LANGUAGE_NAME" /> டிரான்ஸ்கிரிப்ஷன் மாடல் பதிவிறக்கப்பட்டது</translation>
 <translation id="42126664696688958">ஏற்றுமதி செய்</translation>
 <translation id="4213104098953699324">USB கீபோர்டு</translation>
+<translation id="4217571870635786043">சொல்வதை எழுதுவது</translation>
 <translation id="4227825898293920515">கடவுச்சொல் காலாவதியாக இன்னும் <ph name="TIME" /></translation>
 <translation id="4238516577297848345">அச்சுப் பணி எதுவும் செயலில் இல்லை</translation>
 <translation id="4239069858505860023">GPRS</translation>
@@ -1685,6 +1687,7 @@
 <translation id="8420955526972171689">வன்பொருள் சிக்கல்களைக் கண்டறிய சோதனைகளை இயக்கலாம், பிழையறிந்து திருத்தலாம்</translation>
 <translation id="8422748173858722634">IMEI</translation>
 <translation id="8424039430705546751">கீழ்</translation>
+<translation id="8427213022735114808">உரை புலங்களில் குரல் தட்டச்சை அனுமதிக்க, டிக்டேஷன் அம்சம் உங்கள் குரலை Googleளுக்கு அனுப்பும்.</translation>
 <translation id="8428213095426709021">அமைப்புகள்</translation>
 <translation id="8431300646573772016">ChromeOSஸில் புதியவை</translation>
 <translation id="8433186206711564395">நெட்வொர்க் அமைப்புகள்</translation>
@@ -1723,6 +1726,7 @@
 <translation id="8584654835905316966"><ph name="DEVICE_NAME" />க்கான நிலைபொருளின் <ph name="VERSION" /> பதிப்பை நிறுவ சாதனத்தை மீண்டும் தொடங்க வேண்டும். உங்கள் கம்ப்யூட்டர் சில முறை மறுபடி தொடங்கப்படலாம். இது வழக்கமானதே.</translation>
 <translation id="8593058461203131755">மீடியாவை இடைநிறுத்துவதற்கான ஐகான்</translation>
 <translation id="8620617069779373398">ரோமிங் நிலை</translation>
+<translation id="8624524972189162859">உங்கள் <ph name="DOMAIN_NAME" /> நிர்வாகி உங்கள் சாதனத்தை முடக்கியுள்ளார், அதன் இருப்பிடத்தை அணுகலாம்.</translation>
 <translation id="8626489604350149811"><ph name="APN_NAME" />க்கான கூடுதல் செயல்கள்</translation>
 <translation id="86356131183441916">வெளிர் ஊதா</translation>
 <translation id="8647595191512746911">ஆடியோ டிரான்ஸ்கிரிப்ஷன்</translation>

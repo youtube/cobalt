@@ -186,7 +186,6 @@ test("components_unittests") {
 
   deps = [
     "//base",
-    "//components/accessibility_annotator/annotation_reducer:unit_tests",
     "//components/accessibility_annotator/core:unit_tests",
     "//components/activity_reporter:unit_tests",
     "//components/affiliations/core/browser:unit_tests",
@@ -263,6 +262,7 @@ test("components_unittests") {
     "//components/memory_pressure:unit_tests",
     "//components/metrics:unit_tests",
     "//components/metrics/demographics:unit_tests",
+    "//components/multistep_filter:unit_tests",
     "//components/named_mojo_ipc_server:unit_tests",
     "//components/navigation_metrics:unit_tests",
     "//components/net_log:unit_tests",
@@ -405,6 +405,7 @@ test("components_unittests") {
       "//components/enterprise/common:unit_tests",
       "//components/enterprise/connectors/core:cloud_content_scanning_unittests",
       "//components/enterprise/connectors/core:unit_tests",
+      "//components/enterprise/data_protection:unit_tests",
       "//components/enterprise/obfuscation/core:unit_tests",
     ]
   }
@@ -767,10 +768,7 @@ test("components_unittests") {
   }
 
   if (!is_android && !is_ios && !is_fuchsia && !is_castos) {
-    deps += [
-      "//components/accessibility_annotator/content/content_annotator:unit_tests",
-      "//components/passage_embeddings/content:unit_tests",
-    ]
+    deps += [ "//components/accessibility_annotator/content/content_annotator:unit_tests" ]
   }
 
   if (enable_guest_contents) {

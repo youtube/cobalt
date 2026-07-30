@@ -94,7 +94,9 @@
 #include "third_party/blink/renderer/core/timing/performance_timing.h"
 #include "third_party/blink/renderer/core/timing/performance_timing_for_reporting.h"
 #include "third_party/blink/renderer/core/timing/responsiveness_metrics.h"
+#include "third_party/blink/renderer/core/timing/soft_navigation_context.h"
 #include "third_party/blink/renderer/core/timing/soft_navigation_entry.h"
+#include "third_party/blink/renderer/core/timing/soft_navigation_heuristics.h"
 #include "third_party/blink/renderer/core/timing/visibility_state_entry.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_deque.h"
 #include "third_party/blink/renderer/platform/heap/forward.h"
@@ -112,7 +114,6 @@
 namespace blink {
 
 BASE_FEATURE(kEventTimingReportingInStrictOrderOnly,
-             "EventTimingReportingInStrictOrderOnly",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 static constexpr base::TimeDelta kLongTaskObserverThreshold =
@@ -451,6 +452,7 @@ void WindowPerformance::BuildJSONValue(V8ObjectBuilder& builder) const {
 void WindowPerformance::Trace(Visitor* visitor) const {
   visitor->Trace(event_timing_entries_);
   visitor->Trace(entries_waiting_for_interaction_id_for_issue328902994_);
+  visitor->Trace(active_event_timing_entries_);
   visitor->Trace(first_pointer_down_event_timing_);
   visitor->Trace(event_counts_);
   visitor->Trace(navigation_);
@@ -583,7 +585,8 @@ PerformanceEventTiming* WindowPerformance::EventTimingProcessingStart(
       .enqueued_to_main_thread_time =
           responsiveness_metrics_->CurrentInteractionEventQueuedTimestamp(),
       .processing_start_time = processing_start,
-      .is_processing_fully_nested_in_another_event = (event_nesting_level_ > 0),
+      .is_processing_fully_nested_in_another_event =
+          !active_event_timing_entries_.empty(),
   };
 
   if (pointer_event) {
@@ -626,10 +629,9 @@ PerformanceEventTiming* WindowPerformance::EventTimingProcessingStart(
   PerformanceEventTiming* entry = PerformanceEventTiming::Create(
       event_type, reporting_info, event.cancelable(), hit_test_target,
       DomWindow(), NavigationId());
+  active_event_timing_entries_.push_back(entry);
   event_timing_entries_.push_back(entry);
-
   current_event_ = &event;
-  event_nesting_level_++;
 
   responsiveness_metrics_->TryAssignInteractionId(entry);
 
@@ -645,8 +647,8 @@ void WindowPerformance::EventTimingProcessingEnd(
   CHECK(!processing_end.is_null());
 
   CHECK(entry);
-  CHECK_GT(event_nesting_level_, 0u);
-  event_nesting_level_--;
+  CHECK(!active_event_timing_entries_.empty());
+  active_event_timing_entries_.pop_back();
 
   const AtomicString& event_type = entry->name();
 
@@ -1116,6 +1118,14 @@ void WindowPerformance::FlushEventTiming(
     InteractiveDetector* interactive_detector,
     Member<PerformanceEventTiming> entry) {
   CHECK(entry);
+
+  // Some events (like `navigate` or `popstate`) are gated on a feature flag.
+  // We always measure them, but don't always report them to metrics/tracing/
+  // perf timeline. `eventCounts()` has a map of supported event types.
+  if (!eventCounts()->IsSupportedEventType(entry->name())) {
+    return;
+  }
+
   if (base::FeatureList::IsEnabled(kEventTimingReportingInStrictOrderOnly)) {
     CHECK(entry->IsReadyForReporting());
   } else {
@@ -1523,12 +1533,13 @@ void WindowPerformance::AddSoftNavigationEntry(
     const DOMPaintTimingInfo& paint_timing_info,
     uint32_t navigation_id,
     V8NavigationType::Enum navigation_type,
+    uint64_t interaction_id,
     InteractionContentfulPaint* largest_interaction_contentful_paint) {
   CHECK(RuntimeEnabledFeatures::SoftNavigationHeuristicsEnabled(
       GetExecutionContext()));
   SoftNavigationEntry* entry = MakeGarbageCollected<SoftNavigationEntry>(
       name, MonotonicTimeToDOMHighResTimeStamp(timestamp), paint_timing_info,
-      DomWindow(), navigation_id, navigation_type,
+      DomWindow(), navigation_id, navigation_type, interaction_id,
       largest_interaction_contentful_paint);
 
   if (HasObserverFor(PerformanceEntry::kSoftNavigation)) {

@@ -58,4 +58,30 @@ void RecordNotificationThrottled() {
                                 NotificationStatus::kThrottled);
 }
 
+void RecordScrollPositionGenerationTime(base::TimeDelta time) {
+  base::UmaHistogramTimes("Sharing.SendTabToSelf.ScrollPosition.GenerationTime",
+                          time);
+}
+
+void RecordScrollPositionGenerationOutcome(
+    ScrollPositionGenerationOutcome outcome) {
+  base::UmaHistogramEnumeration(
+      "Sharing.SendTabToSelf.ScrollPosition.GenerationOutcome", outcome);
+}
+
+void RecordScrollPositionSelectorLength(size_t length) {
+  base::UmaHistogramCounts1000(
+      "Sharing.SendTabToSelf.ScrollPosition.SelectorLength", length);
+}
+
+void RecordHasScrollPositionOnOpened(bool has_scroll_position) {
+  base::UmaHistogramBoolean(
+      "Sharing.SendTabToSelf.NotificationClicked.HasScrollPosition",
+      has_scroll_position);
+}
+
+void RecordPageContextSize(size_t size) {
+  base::UmaHistogramCounts10000("Sharing.SendTabToSelf.PageContextSize", size);
+}
+
 }  // namespace send_tab_to_self

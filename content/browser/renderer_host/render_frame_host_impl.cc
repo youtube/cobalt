@@ -47,6 +47,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/to_string.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/syslog_logging.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
@@ -157,6 +158,7 @@
 #include "content/browser/renderer_host/render_widget_host_view_base.h"
 #include "content/browser/renderer_host/render_widget_host_view_child_frame.h"
 #include "content/browser/renderer_host/view_transition_opt_in_state.h"
+#include "content/browser/sandboxed_opaque_origin_creator.h"
 #include "content/browser/scoped_active_url.h"
 #include "content/browser/security/coop/cross_origin_opener_policy_reporter.h"
 #include "content/browser/serial/serial_service.h"
@@ -1950,6 +1952,30 @@ bool ShouldContributePriorityToProcess(
     case RenderFrameHostImpl::LifecycleStateImpl::kReadyToBeDeleted:
       return false;
   }
+}
+
+bool VerifyHeaderPermissionsPolicyAgainstBaseline(
+    const network::ParsedPermissionsPolicy& header_policy,
+    const std::vector<blink::mojom::IsolatedAppPermissionPolicyEntryPtr>&
+        baseline_policy) {
+  const auto features_in_manifest = base::MakeFlatSet<std::string>(
+      baseline_policy, std::less(),
+      [](const auto& entry) { return entry->feature; });
+  const auto& permission_policy_to_feature_map =
+      blink::GetPermissionsPolicyFeatureToNameMap();
+  for (const auto& feature_in_headers : header_policy) {
+    const auto* name_mapping = base::FindOrNull(
+        permission_policy_to_feature_map, feature_in_headers.feature);
+    // Okay state: returned feature is valid (in the mapping) and is
+    // mentioned in the manifest.
+    if (name_mapping && features_in_manifest.contains(*name_mapping)) {
+      continue;
+    }
+    // Bad state: renderer added new permission policies, which means that
+    // it's most likely compromised.
+    return false;
+  }
+  return true;
 }
 }  // namespace
 
@@ -5053,7 +5079,8 @@ void RenderFrameHostImpl::OnCreateChildFrame(
     const blink::FramePolicy& frame_policy,
     const blink::mojom::FrameOwnerProperties& frame_owner_properties,
     blink::FrameOwnerElementType owner_type,
-    ukm::SourceId document_ukm_source_id) {
+    ukm::SourceId document_ukm_source_id,
+    std::unique_ptr<base::UnguessableToken> sandbox_origin_token) {
   // TODO(lukasza): Call ReceivedBadMessage when |frame_unique_name| is empty.
   DCHECK(!frame_unique_name.empty());
   DCHECK(browser_interface_broker_receiver.is_valid());
@@ -5091,7 +5118,7 @@ void RenderFrameHostImpl::OnCreateChildFrame(
       frame_unique_name, is_created_by_script, frame_token,
       devtools_frame_token, document_token, frame_policy,
       frame_owner_properties, was_discarded_, owner_type,
-      /*is_dummy_frame_for_inner_tree=*/false);
+      /*is_dummy_frame_for_inner_tree=*/false, std::move(sandbox_origin_token));
 }
 
 void RenderFrameHostImpl::OnPreloadingHeuristicsModelDone(const GURL& url,
@@ -5121,10 +5148,17 @@ void RenderFrameHostImpl::CreateChildFrame(
   int new_routing_id = IPC::mojom::kRoutingIdNone;
   base::UnguessableToken devtools_frame_token;
   blink::DocumentToken document_token;
+  // The sandbox_origin_token was stored by the browser process when it
+  // pre-allocated the frame routing IDs, and also sent to the renderer in
+  // `FrameRoutingInfo`. Both browser and renderer use this token to
+  // deterministically generate identical opaque origins for the new frame's
+  // initial empty document. It is passed directly to
+  // `SetOriginDependentStateOfNewFrame()` (via `AddChild()`).
+  std::unique_ptr<base::UnguessableToken> sandbox_origin_token;
   if (!static_cast<RenderProcessHostImpl*>(GetProcess())
            ->TakeStoredDataForFrameToken(frame_token, new_routing_id,
-                                         devtools_frame_token,
-                                         document_token)) {
+                                         devtools_frame_token, document_token,
+                                         sandbox_origin_token)) {
     bad_message::ReceivedBadMessage(
         GetProcess(), bad_message::RFH_CREATE_CHILD_FRAME_TOKENS_NOT_FOUND);
     return;
@@ -5149,7 +5183,7 @@ void RenderFrameHostImpl::CreateChildFrame(
                      frame_name, frame_unique_name, is_created_by_script,
                      frame_token, devtools_frame_token, document_token,
                      frame_policy, *frame_owner_properties, owner_type,
-                     document_ukm_source_id);
+                     document_ukm_source_id, std::move(sandbox_origin_token));
 }
 
 void RenderFrameHostImpl::DidNavigate(
@@ -5582,7 +5616,8 @@ blink::StorageKey RenderFrameHostImpl::CalculateStorageKey(
 }
 
 void RenderFrameHostImpl::SetOriginDependentStateOfNewFrame(
-    RenderFrameHostImpl* creator_frame) {
+    RenderFrameHostImpl* creator_frame,
+    std::unique_ptr<base::UnguessableToken> sandbox_origin_token) {
   // This method should only be called for *new* frames, that haven't committed
   // a navigation yet.
   DCHECK(!has_committed_any_navigation_);
@@ -5596,9 +5631,44 @@ void RenderFrameHostImpl::SetOriginDependentStateOfNewFrame(
       network::mojom::WebSandboxFlags::kOrigin ==
       (browsing_context_state_->active_sandbox_flags() &
        network::mojom::WebSandboxFlags::kOrigin);
-  url::Origin new_frame_origin = new_frame_should_be_sandboxed
-                                     ? creator_origin.DeriveNewOpaqueOrigin()
-                                     : creator_origin;
+
+  url::Origin new_frame_origin;
+  if (base::FeatureList::IsEnabled(
+          blink::features::kUseSandboxTokenForOriginDerivation)) {
+    if (new_frame_should_be_sandboxed) {
+      if (sandbox_origin_token) {
+        // Child iframes always receive a token during creation, so verify
+        // we are in a child iframe.
+        CHECK(parent_);
+        last_sandbox_origin_token_for_testing_ = *sandbox_origin_token;
+        new_frame_origin = content::SandboxedOpaqueOriginCreator::
+            CreateOriginForSandboxedFrame(
+                base::PassKey<RenderFrameHostImpl>(), *sandbox_origin_token,
+                creator_origin.GetTupleOrPrecursorTupleIfOpaque());
+      } else {
+        // When no sandbox origin token is provided for a sandboxed window,
+        // generate one now and use it to create the sandboxed origin. This
+        // only happens for renderer-initiated top-level windows
+        // (window.open()). Child iframes always receive a token during
+        // creation, so verify we're not in the child iframe path.
+        CHECK(!parent_);
+        sandbox_origin_token_ = std::make_unique<base::UnguessableToken>(
+            base::UnguessableToken::Create());
+        last_sandbox_origin_token_for_testing_ = *sandbox_origin_token_;
+        new_frame_origin = content::SandboxedOpaqueOriginCreator::
+            CreateOriginForSandboxedFrame(
+                base::PassKey<RenderFrameHostImpl>(), *sandbox_origin_token_,
+                creator_origin.GetTupleOrPrecursorTupleIfOpaque());
+      }
+    } else {
+      new_frame_origin = creator_origin;
+    }
+  } else {
+    new_frame_origin = new_frame_should_be_sandboxed
+                           ? creator_origin.DeriveNewOpaqueOrigin()
+                           : creator_origin;
+  }
+
   isolation_info_ = ComputeIsolationInfoInternal(
       new_frame_origin, net::IsolationInfo::RequestType::kOther,
       IsCredentialless(),
@@ -5706,7 +5776,8 @@ FrameTreeNode* RenderFrameHostImpl::AddChild(
     base::UnguessableToken devtools_frame_token,
     const blink::FramePolicy& frame_policy,
     std::string frame_name,
-    std::string frame_unique_name) {
+    std::string frame_unique_name,
+    std::unique_ptr<base::UnguessableToken> sandbox_origin_token) {
   DCHECK(lifecycle_state_ == LifecycleStateImpl::kActive ||
          lifecycle_state_ == LifecycleStateImpl::kPrerendering);
 
@@ -5730,7 +5801,8 @@ FrameTreeNode* RenderFrameHostImpl::AddChild(
   // after the first commit) and other state (such as the
   // RuntimeFeatureStateReadContext) from its parent. See also
   // https://crbug.com/932067.
-  child->current_frame_host()->SetOriginDependentStateOfNewFrame(this);
+  child->current_frame_host()->SetOriginDependentStateOfNewFrame(
+      this, std::move(sandbox_origin_token));
 
   children_.push_back(std::move(child));
   return children_.back().get();
@@ -6817,7 +6889,7 @@ void RenderFrameHostImpl::ProcessBeforeUnloadCompletedFromFrame(
   if (!proceed || treat_as_final_completion_callback) {
     beforeunload_pending_replies_.clear();
   } else {
-    beforeunload_pending_replies_.erase(frame);
+    beforeunload_pending_replies_.erase(frame->GetGlobalId());
     if (!beforeunload_pending_replies_.empty()) {
       return;
     }
@@ -9246,6 +9318,32 @@ void RenderFrameHostImpl::TextSelectionChanged(const std::u16string& text,
   RecordAction(base::UserMetricsAction("TextSelectionChanged"));
   has_selection_ = !text.empty();
   GetRenderWidgetHost()->SelectionChanged(text, offset, range);
+
+  // The `text` parameter contains the surrounding text of the selection, and
+  // `offset` is the offset of the surrounding text in the full text.
+  // The `range` parameter is the range of the selection in the full text.
+  // To extract the selected text, we adjust the range to be relative to the
+  // `text` string.
+  std::u16string_view selected_text;
+  if (!text.empty() && range.IsValid()) {
+    // Range relative to the full text.
+    uint32_t selection_start = range.start();
+    uint32_t selection_end = range.end();
+
+    // Check if the selection range is within the provided text segment.
+    if (selection_start >= offset && selection_end >= selection_start) {
+      size_t relative_start = selection_start - offset;
+      size_t length = selection_end - selection_start;
+
+      std::u16string_view text_view(text);
+      // Ensure the requested substring is within bounds of the available text.
+      if (relative_start <= text_view.length()) {
+        selected_text = text_view.substr(relative_start, length);
+      }
+    }
+  }
+
+  delegate_->TextSelectionChanged(this, selected_text);
 }
 
 void RenderFrameHostImpl::DidReceiveUserActivation() {
@@ -9953,6 +10051,13 @@ void RenderFrameHostImpl::CreateNewWindow(
   TRACE_EVENT2("navigation", "RenderFrameHostImpl::CreateNewWindow",
                "render_frame_host", this, "url", params->target_url);
 
+  // TODO(crbug.com/487768779): Move all `params` validation from this function
+  // into VerifyCreateNewWindowParams.
+  if (!VerifyCreateNewWindowParams(*this, *params)) {
+    std::move(callback).Run(mojom::CreateNewWindowStatus::kBlocked, nullptr);
+    return;
+  }
+
   // Filter out invalid UNKNOWN disposition to prevent renderer-triggered
   // browser crashes.
   if (params->disposition == WindowOpenDisposition::UNKNOWN) {
@@ -10169,11 +10274,27 @@ void RenderFrameHostImpl::CreateNewWindow(
   // below, we at least want to transmit screen info based on the screen of the
   // initiating frame, which is what new_rwh is constructed with.
   visual_properties.screen_infos = new_rwh->GetScreenInfos();
+
+  // Sandbox origin token handling for popups:
+  // Normally sandboxed popups token is generated by
+  // `SetOriginDependentStateOfNewFrame()`. Popups that escape sandbox (CSP
+  // "sandbox" + "allow-popups-to-escape-sandbox"):
+  //   - Browser sees no sandbox flags, so `TakeSandboxOriginToken()` is null
+  //   - Renderer still inherits CSP sandbox flags and will create opaque origin
+  //   - So generate a new token here as fallback
+  //
+  // TODO(crbug.com/486082219): Remove this fallback logic and only set
+  // sandbox_origin_token when the window is actually sandboxed.
+  auto token = new_main_rfh->TakeSandboxOriginToken();
+  std::optional<base::UnguessableToken> sandbox_origin_token =
+      token ? std::make_optional(*token)
+            : std::make_optional(base::UnguessableToken::Create());
+
   mojom::CreateNewWindowReplyPtr reply = mojom::CreateNewWindowReply::New(
       new_main_rfh->GetFrameToken(), new_main_rfh->GetRoutingID(),
       new_rwh->GetRoutingID(), visual_properties, cloned_namespace->id(),
       new_main_rfh->GetDevToolsFrameToken(), wait_for_debugger,
-      new_main_rfh->GetDocumentToken(),
+      new_main_rfh->GetDocumentToken(), std::move(sandbox_origin_token),
       new_main_rfh->policy_container_host()->CreatePolicyContainerForBlink(),
       new_main_rfh->GetSiteInstance()->browsing_instance_token(),
       delegate_->GetColorProviderColorMaps(),
@@ -12036,7 +12157,7 @@ bool RenderFrameHostImpl::CheckOrDispatchBeforeUnloadForSubtree(
 
   if (run_beforeunload_for_legacy) {
     DCHECK(send_ipc);
-    beforeunload_pending_replies_.insert(this);
+    beforeunload_pending_replies_.insert(GetGlobalId());
     SendBeforeUnload(is_reload, GetWeakPtr(), /*for_legacy=*/true);
   }
 
@@ -12111,7 +12232,7 @@ RenderFrameHostImpl::CheckOrDispatchBeforeUnloadForFrame(
   while (!rfh->is_local_root() && rfh != this) {
     rfh = rfh->GetParent();
   }
-  if (beforeunload_pending_replies_.contains(rfh)) {
+  if (beforeunload_pending_replies_.contains(rfh->GetGlobalId())) {
     return FrameIterationAction::kContinue;
   }
 
@@ -12119,7 +12240,9 @@ RenderFrameHostImpl::CheckOrDispatchBeforeUnloadForFrame(
   // innermost frame, as Blink will walk all local (same-SiteInstanceGroup)
   // descendants. Detect cases like this and skip them.
   bool has_same_site_ancestor = false;
-  for (RenderFrameHostImpl* added_rfh : beforeunload_pending_replies_) {
+  for (const GlobalRenderFrameHostId& id : beforeunload_pending_replies_) {
+    RenderFrameHostImpl* added_rfh = RenderFrameHostImpl::FromID(id);
+    CHECK(added_rfh);
     if (rfh->IsDescendantOfWithinFrameTree(added_rfh) &&
         rfh->GetSiteInstance()->group() ==
             added_rfh->GetSiteInstance()->group()) {
@@ -12147,7 +12270,7 @@ RenderFrameHostImpl::CheckOrDispatchBeforeUnloadForFrame(
 
   // Add |rfh| to the list of frames that need to receive beforeunload
   // ACKs.
-  beforeunload_pending_replies_.insert(rfh);
+  beforeunload_pending_replies_.insert(rfh->GetGlobalId());
 
   SendBeforeUnload(is_reload, rfh->GetWeakPtr(), /*for_legacy=*/false);
   return FrameIterationAction::kContinue;
@@ -12508,13 +12631,19 @@ void RenderFrameHostImpl::CommitNavigation(
   DCHECK_EQ(this, navigation_request->GetRenderFrameHost());
   AssertBrowserContextShutdownHasntStarted();
 
-  if (IsOutermostMainFrame() && GetSiteInstance()
-                                    ->GetWebExposedIsolationInfo()
-                                    .is_isolated_application()) {
+  if (IsOutermostMainFrame() &&
+      GetSiteInstance()
+          ->GetWebExposedIsolationInfo()
+          .is_isolated_application() &&
+      GetContentClient()
+          ->browser()
+          ->SupportsBaselinePermissionsPolicyForIsolatedApp()) {
     commit_params->isolated_app_policy =
-        GetContentClient()->browser()->GetPermissionsPolicyForIsolatedWebApp(
-            GetBrowserContext(),
-            url::Origin::Create(navigation_request->GetURL()));
+        GetContentClient()
+            ->browser()
+            ->GetBaselinePermissionsPolicyForIsolatedApp(
+                GetBrowserContext(),
+                url::Origin::Create(navigation_request->GetURL()));
   }
 
   bool is_same_document =
@@ -14254,11 +14383,12 @@ void RenderFrameHostImpl::ResetPermissionsPolicy(
     return;
   }
 
-  auto isolation_info = GetSiteInstance()->GetWebExposedIsolationInfo();
-
-  if (IsOutermostMainFrame() && isolation_info.is_isolated_application()) {
-    // Isolated Apps start with a base policy as defined by the
-    // permissions_policy field in its Web App Manifest, which is an allowlist,
+  if (IsOutermostMainFrame() && GetSiteInstance()
+                                    ->GetWebExposedIsolationInfo()
+                                    .is_isolated_application()) {
+    // Isolated Apps might be augmented with a baseline permissions policy
+    // depending on the embedder (in //chrome this is defined by the
+    // permissions_policy field in its Web App Manifest, which is an allowlist),
     // and then have headers further restrict the policy if applicable. This
     // needs to be handled differently than the normal permissions policy
     // behavior, which uses a fully permissive policy as its base permissions
@@ -14268,8 +14398,18 @@ void RenderFrameHostImpl::ResetPermissionsPolicy(
     // Interpretation of the permission policies and merging is done in the
     // renderer. However, as it is untrusted, we perform a sanity check whether
     // it did not add any new policies which would mean it's been compromised.
-    if (!VerifyIsolatedWebAppPermissionsPolicyIsSubsetOfManifest(
-            header_policy)) {
+    if (!header_policy.empty() &&
+        GetContentClient()
+            ->browser()
+            ->SupportsBaselinePermissionsPolicyForIsolatedApp() &&
+        !VerifyHeaderPermissionsPolicyAgainstBaseline(
+            header_policy,
+            GetContentClient()
+                ->browser()
+                ->GetBaselinePermissionsPolicyForIsolatedApp(
+                    GetBrowserContext(), GetSiteInstance()
+                                             ->GetWebExposedIsolationInfo()
+                                             .origin()))) {
       bad_message::ReceivedBadMessage(
           GetProcess(), bad_message::BadMessageReason::
                             RFH_NEW_ISOLATED_WEB_APP_PERMISSION_POLICIES);
@@ -14289,45 +14429,6 @@ void RenderFrameHostImpl::ResetPermissionsPolicy(
 
   permissions_policy_ = network::PermissionsPolicy::CreateFromParentPolicy(
       parent_policy, header_policy, container_policy, last_committed_origin_);
-}
-
-bool RenderFrameHostImpl::
-    VerifyIsolatedWebAppPermissionsPolicyIsSubsetOfManifest(
-        const network::ParsedPermissionsPolicy& header_policy) {
-  if (header_policy.empty()) {
-    return true;
-  }
-
-  ASSIGN_OR_RETURN(
-      const auto isolated_app_policy,
-      GetContentClient()->browser()->GetPermissionsPolicyForIsolatedWebApp(
-          GetBrowserContext(),
-          GetSiteInstance()->GetWebExposedIsolationInfo().origin()),
-      [] {
-        // The only way this could happen is if the renderer has
-        // been compromised and added new permission policies that
-        // were not in the manifest.
-        return false;
-      });
-
-  const auto features_in_manifest = base::MakeFlatSet<std::string>(
-      isolated_app_policy, std::less(),
-      [](const auto& entry) { return entry->feature; });
-  const auto& permission_policy_to_feature_map =
-      blink::GetPermissionsPolicyFeatureToNameMap();
-  for (const auto& feature_in_headers : header_policy) {
-    const auto* name_mapping = base::FindOrNull(
-        permission_policy_to_feature_map, feature_in_headers.feature);
-    // Okay state: returned feature is valid (in the mapping) and is
-    // mentioned in the manifest.
-    if (name_mapping && features_in_manifest.contains(*name_mapping)) {
-      continue;
-    }
-    // Bad state: renderer added new permission policies, which means that
-    // it's most likely compromised.
-    return false;
-  }
-  return true;
 }
 
 void RenderFrameHostImpl::CreateAudioInputStreamFactory(
@@ -18124,7 +18225,7 @@ void RenderFrameHostImpl::MaybeEvictFromBackForwardCache() {
   RenderFrameHostImpl* outermost_main_frame = GetOutermostMainFrame();
   BackForwardCacheCanStoreDocumentResultWithTree bfcache_eligibility =
       GetBackForwardCache().GetCurrentBackForwardCacheEligibility(
-          outermost_main_frame);
+          outermost_main_frame, /*is_becoming_forward_entry=*/false);
 
   TRACE_EVENT("navigation",
               "RenderFrameHostImpl::MaybeEvictFromBackForwardCache",

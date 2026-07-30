@@ -37,6 +37,7 @@
 #include "chrome/browser/profiles/profile_test_util.h"
 #include "chrome/browser/profiles/profiles_state.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
+#include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
 #include "chrome/browser/signin/signin_promo_util.h"
 #include "chrome/browser/signin/signin_ui_delegate.h"
 #include "chrome/browser/signin/signin_ui_util.h"
@@ -277,13 +278,15 @@ class AvatarToolbarButtonBaseBrowserTest {
     // By default make all delays infinite to avoid flakiness. The tests that
     // needs to test bypass the delay effects will have to enforce timing out
     // the delays using
-    // `AvatarToolbarButton::ClearActiveStateForTesting()`. This allows to
-    // properly test the behavior pre/post delay without being time dependent.
+    // `AvatarToolbarButton::ClearActiveStateForTesting()` or StateProvider
+    // methods/events. This allows to properly test the behavior pre/post delay
+    // without being time dependent.
     SetInfiniteAvatarDelay(AvatarDelayType::kNameGreeting);
     SetInfiniteAvatarDelay(AvatarDelayType::kOnSignin);
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
     SetInfiniteAvatarDelay(AvatarDelayType::kSigninPendingText);
     SetInfiniteAvatarDelay(AvatarDelayType::kPromo);
+    SetInfiniteAvatarDelay(AvatarDelayType::kSignedOutPromo);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
   }
 
@@ -746,6 +749,9 @@ class AvatarToolbarButtonBaseBrowserTest {
       case signin::ProfileMenuAvatarButtonPromoInfo::Type::kSyncPromo:
         CHECK(switches::IsAvatarSyncPromoFeatureEnabled());
         break;
+      case signin::ProfileMenuAvatarButtonPromoInfo::Type::kSigninPromo:
+        // TODO(crbug.com/486109449): Adapt the tests to support this promo.
+        NOTREACHED() << "Test for this promo is not supported yet.";
     }
   }
 #endif
@@ -1578,6 +1584,9 @@ class MAYBE_AvatarToolbarButtonPromoBrowserTest
             {{syncer::kReplaceSyncPromosWithSignInPromos, false},
              {switches::kAvatarButtonSyncPromoForTesting, true}});
         break;
+      case signin::ProfileMenuAvatarButtonPromoInfo::Type::kSigninPromo:
+        // TODO(crbug.com/486109449): Adapt the tests to support this promo.
+        NOTREACHED() << "Test for this promo is not supported yet.";
     }
   }
 
@@ -1601,6 +1610,9 @@ class MAYBE_AvatarToolbarButtonPromoBrowserTest
         return l10n_util::GetStringUTF16(IDS_AVATAR_BUTTON_SYNC_PROMO);
       case signin::ProfileMenuAvatarButtonPromoInfo::Type::kSyncPromo:
         return l10n_util::GetStringUTF16(IDS_AVATAR_BUTTON_SYNC_PROMO);
+      case signin::ProfileMenuAvatarButtonPromoInfo::Type::kSigninPromo:
+        // TODO(crbug.com/486109449): Adapt the tests to support this promo.
+        NOTREACHED() << "Test for this promo is not supported yet.";
     }
   }
 
@@ -1626,6 +1638,9 @@ IN_PROC_BROWSER_TEST_P(MAYBE_AvatarToolbarButtonPromoBrowserTest,
     case signin::ProfileMenuAvatarButtonPromoInfo::Type::kSyncPromo:
       EXPECT_EQ(avatar->GetText(), std::u16string());
       break;
+    case signin::ProfileMenuAvatarButtonPromoInfo::Type::kSigninPromo:
+      // TODO(crbug.com/486109449): Adapt the tests to support this promo.
+      NOTREACHED() << "Test for this promo is not supported yet.";
   }
 }
 
@@ -1951,6 +1966,9 @@ TEST_WITH_SIGNED_IN_FROM_PRE(IN_PROC_BROWSER_TEST_P,
     case signin::ProfileMenuAvatarButtonPromoInfo::Type::kSyncPromo:
       EnableSync(test_email(), test_given_name());
       break;
+    case signin::ProfileMenuAvatarButtonPromoInfo::Type::kSigninPromo:
+      // TODO(crbug.com/486109449): Adapt the tests to support this promo.
+      NOTREACHED() << "Test for this promo is not supported yet.";
   }
 
   // The button should return to the normal state.
@@ -2138,6 +2156,9 @@ TEST_WITH_SIGNED_IN_FROM_PRE(IN_PROC_BROWSER_TEST_P,
                   kProfileMenuPrimaryButtonWithWindows10DepreciationActionFromAvatarPromo,
               testing::_));
       break;
+    case signin::ProfileMenuAvatarButtonPromoInfo::Type::kSigninPromo:
+      // TODO(crbug.com/486109449): Adapt the tests to support this promo.
+      NOTREACHED() << "Test for this promo is not supported yet.";
   }
   ASSERT_NO_FATAL_FAILURE(
       ClickIdentityButton(coordinator->GetProfileMenuViewBaseForTesting()));
@@ -2196,6 +2217,9 @@ TEST_WITH_SIGNED_IN_FROM_PRE(IN_PROC_BROWSER_TEST_P,
                                            account_name_2));
       avatar->ClearActiveStateForTesting();
       break;
+    case signin::ProfileMenuAvatarButtonPromoInfo::Type::kSigninPromo:
+      // TODO(crbug.com/486109449): Adapt the tests to support this promo.
+      NOTREACHED() << "Test for this promo is not supported yet.";
   }
   // The promo should be shown for the new account (rate limiting is per
   // account).
@@ -2248,6 +2272,122 @@ INSTANTIATE_TEST_SUITE_P(
                   kBatchUploadBookmarksPromo,
               signin::ProfileMenuAvatarButtonPromoInfo::Type::
                   kBatchUploadWindows10DepreciationPromo}));
+
+// TODO(crbug.com/331746545): Check flaky test issue on windows.
+#if BUILDFLAG(IS_WIN)
+#define MAYBE_AvatarToolbarButtonSignedOutPromoBrowserTest \
+  DISABLED_AvatarToolbarButtonSignedOutPromoBrowserTest
+#else
+#define MAYBE_AvatarToolbarButtonSignedOutPromoBrowserTest \
+  AvatarToolbarButtonSignedOutPromoBrowserTest
+#endif
+class MAYBE_AvatarToolbarButtonSignedOutPromoBrowserTest
+    : public AvatarToolbarButtonWithInteractiveFeaturePromoBrowserTest {
+ public:
+  MAYBE_AvatarToolbarButtonSignedOutPromoBrowserTest() {
+    scoped_feature_list_.InitWithFeatures(
+        /*enabled_features=*/{syncer::kReplaceSyncPromosWithSignInPromos,
+                              switches::kSigninPromoOnAvatarPill},
+        /*disabled_features=*/{});
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(MAYBE_AvatarToolbarButtonSignedOutPromoBrowserTest,
+                       SignedOutPromoTriggeredOnStartupAfterDelayExpired) {
+  AvatarToolbarButton* avatar = GetAvatarToolbarButton(browser());
+  ASSERT_EQ(avatar->GetText(), std::u16string());
+
+  ASSERT_TRUE(avatar->GetStateAndFireSignedOutTriggerDelayTimerForTesting());
+  EXPECT_EQ(avatar->GetText(),
+            l10n_util::GetStringUTF16(IDS_AVATAR_BUTTON_SIGNIN_PROMO));
+
+  Browser* new_browser = CreateBrowser(browser()->GetProfile());
+  AvatarToolbarButton* new_avatar = GetAvatarToolbarButton(new_browser);
+  EXPECT_FALSE(avatar->GetStateAndFireSignedOutTriggerDelayTimerForTesting());
+  EXPECT_EQ(new_avatar->GetText(),
+            l10n_util::GetStringUTF16(IDS_AVATAR_BUTTON_SIGNIN_PROMO));
+}
+
+// TODO(crbug.com/331746545): Check flaky test issue on windows.
+#if BUILDFLAG(IS_WIN)
+#define MAYBE_AvatarToolbarButtonSignedOutPromoOverriddenIdentityManagerBrowserTest \
+  DISABLED_AvatarToolbarButtonSignedOutPromoOverriddenIdentityManagerBrowserTest
+#else
+#define MAYBE_AvatarToolbarButtonSignedOutPromoOverriddenIdentityManagerBrowserTest \
+  AvatarToolbarButtonSignedOutPromoOverriddenIdentityManagerBrowserTest
+#endif
+// This test setup does not load the RefreshTokens until explicitly dnoe through
+// the `LoadRefreshTokens()`.
+class
+    MAYBE_AvatarToolbarButtonSignedOutPromoOverriddenIdentityManagerBrowserTest
+    : public AvatarToolbarButtonBaseBrowserTest,
+      public InProcessBrowserTest {
+ public:
+  MAYBE_AvatarToolbarButtonSignedOutPromoOverriddenIdentityManagerBrowserTest() {
+    scoped_feature_list_.InitWithFeatures(
+        /*enabled_features=*/{syncer::kReplaceSyncPromosWithSignInPromos,
+                              switches::kSigninPromoOnAvatarPill},
+        /*disabled_features=*/{});
+  }
+
+  // AvatarToolbarButtonBaseBrowserTest
+  Browser* GetBrowser() const override { return browser(); }
+
+  // InProcessBrowserTest
+  void SetUpBrowserContextKeyedServices(
+      content::BrowserContext* context) override {
+    IdentityTestEnvironmentProfileAdaptor::
+        SetIdentityTestEnvironmentFactoriesOnBrowserContext(context);
+
+    // Sets up the identity test environment and reset the refresh token
+    // loading, before a browser is created.
+    CHECK(!browser());
+    identity_test_env_adaptor_ =
+        std::make_unique<IdentityTestEnvironmentProfileAdaptor>(
+            Profile::FromBrowserContext(context));
+    identity_test_env()->ResetToAccountsNotYetLoadedFromDiskState();
+  }
+
+  void TearDownOnMainThread() override {
+    ClearMockBatchUploadDelegate();
+    identity_test_env_adaptor_.reset();
+  }
+
+  void LoadRefreshTokens() {
+    identity_test_env()->ReloadAccountsFromDisk();
+    signin::WaitForRefreshTokensLoaded(GetIdentityManager());
+  }
+
+ private:
+  signin::IdentityTestEnvironment* identity_test_env() {
+    return identity_test_env_adaptor_->identity_test_env();
+  }
+
+  std::unique_ptr<IdentityTestEnvironmentProfileAdaptor>
+      identity_test_env_adaptor_;
+
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(
+    MAYBE_AvatarToolbarButtonSignedOutPromoOverriddenIdentityManagerBrowserTest,
+    SignedOutPromoTriggerDelayTimerStartAfterRefreshTokensAreLoaded) {
+  ASSERT_FALSE(GetIdentityManager()->AreRefreshTokensLoaded());
+  AvatarToolbarButton* avatar = GetAvatarToolbarButton(browser());
+  ASSERT_EQ(avatar->GetText(), std::u16string());
+  // Timer is not started as long as the refresh tokens are not loaded.
+  EXPECT_FALSE(avatar->GetStateAndFireSignedOutTriggerDelayTimerForTesting());
+
+  LoadRefreshTokens();
+  ASSERT_TRUE(GetIdentityManager()->AreRefreshTokensLoaded());
+  // Timer is now started and the promo computation happens.
+  EXPECT_TRUE(avatar->GetStateAndFireSignedOutTriggerDelayTimerForTesting());
+  EXPECT_EQ(avatar->GetText(),
+            l10n_util::GetStringUTF16(IDS_AVATAR_BUTTON_SIGNIN_PROMO));
+}
 
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 

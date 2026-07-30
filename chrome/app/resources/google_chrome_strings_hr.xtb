@@ -72,6 +72,7 @@
 <translation id="1698376642261615901">Google Chrome jest web-preglednik koji web-stranice i aplikacije pokreće brzinom svjetlosti. Brz je, stabilan i jednostavan za upotrebu. Sigurnije pregledavajte web uz zaštitu protiv zlonamjernog i špijunskog softvera koja je ugrađena u Google Chrome.</translation>
 <translation id="1713301662689114961">{0,plural, =1{Chrome će se ponovo pokrenuti za sat vremena}one{Chrome će se ponovo pokrenuti za # h}few{Chrome će se ponovo pokrenuti za # h}other{Chrome će se ponovo pokrenuti za # h}}</translation>
 <translation id="1722488837206509557">To će vam omogućiti odabir između dostupnih uređaja i prikaz sadržaja na njima.</translation>
+<translation id="177180974022074201">Isprobajte uz Gemini u Chromeu</translation>
 <translation id="1786003790898721085">Obavezno se prijavite na Chrome na uređaju <ph name="TARGET_DEVICE_NAME" /> i nakon toga ponovno pokušajte sa slanjem.</translation>
 <translation id="1786044937610313874">Prečaci se otvaraju u Chromeu</translation>
 <translation id="178701303897325119">Ovo proširenje više nije podržano. Chrome preporučuje da ga uklonite.</translation>
@@ -221,6 +222,7 @@
 <translation id="3226612997184048185">Ako oznake spremate i na Google račun, cijene proizvoda možete pratiti u Chromeu i primati obavijesti kad cijena padne</translation>
 <translation id="3242123554343253302">Dodajte profil u Chromeu</translation>
 <translation id="3245429137663807393">Ako dijelite i izvješća o upotrebi Chromea, ta izvješća uključuju URL-ove koje posjećujete</translation>
+<translation id="3259748324892322072">Preuzmite aplikaciju Chrome</translation>
 <translation id="3286538390144397061">Ponovo pokreni sad</translation>
 <translation id="3292333338048274092">Tada ćete morati ponovo pokrenuti Chrome.</translation>
 <translation id="3324218984287646518">Postavite pitanja Google objektivu o tom videozapisu</translation>
@@ -279,7 +281,6 @@
 <translation id="3892148308691398805">Kopiranje teksta</translation>
 <translation id="3893985792899396936">Savjet za Chrome: pretražujte pomoću Objektiva</translation>
 <translation id="3906096710440765802">Prijavite se u Chrome da biste mogli pristupiti svojim zaporkama, oznakama i drugim podacima na svim svojim uređajima</translation>
-<translation id="3921132130819999051">Dopustite Chromeu da pregledava umjesto vas</translation>
 <translation id="3941890832296813527">Pogreška pri instalaciji: naziv datoteke programa za instalaciju nije važeći ili nije podržan.</translation>
 <translation id="395904275706073188">Zaštićene stranice nije moguće čitati. Pokušajte s nekom drugom stranicom.</translation>
 <translation id="3968962723676998462">Unesite šifru kako biste upotrebljavali i spremali podatke iz Chromea na svojem računu, <ph name="ACCOUNT_EMAIL" /></translation>
@@ -490,7 +491,6 @@
 <translation id="6173637689840186878"><ph name="PAGE_TITLE" /> – Google Chrome Beta</translation>
 <translation id="6180522807229584611">Ova kartica upotrebljava dodatne resurse. Da biste poboljšali izvedbu, dopustite Chromeu da ih deaktivira.</translation>
 <translation id="6182736845697986886">Instalacija nije uspjela zbog interne pogreške poslužitelja ažuriranja.</translation>
-<translation id="6183773856988300112">Gemini u Chromeu upotrebljava automatsko pregledavanje za rad na vašim karticama i dovršavanje zadataka koje mu dodijelite. <ph name="LINK_BEGIN" />Saznajte više<ph name="LINK_END" /></translation>
 <translation id="6187085551300363958">Savjet za Chrome: spremite zaporke</translation>
 <translation id="6192058120268468905">Vaš račun u Chromeu</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" /> dodao je proširenje koje može promijeniti Chromeov način rada.
@@ -526,6 +526,7 @@
 <translation id="6481963882741794338">Povezivanje Chromea i drugih Googleovih usluga radi personalizacije i u druge svrhe</translation>
 <translation id="648319183876919572">Poboljšano sigurno pregledavanje pruža vam više zaštite od opasnih web-lokacija i preuzimanja</translation>
 <translation id="6489302989675808168">Uključeno • Chrome ne može provjeriti odakle dolazi ovo proširenje</translation>
+<translation id="6491330562720922580">QR kôd za preuzimanje preglednika Chrome na mobilne uređaje</translation>
 <translation id="6493527311031785448">Google Chrome pokušava sljedeće: <ph name="AUTHENTICATION_PURPOSE" /></translation>
 <translation id="6497147134301593682">Chrome je automatski zatvoren</translation>
 <translation id="6506909944137591434">Chrome treba dopuštenje za fotoaparat kako bi mogao izraditi 3D kartu vašeg okruženja</translation>

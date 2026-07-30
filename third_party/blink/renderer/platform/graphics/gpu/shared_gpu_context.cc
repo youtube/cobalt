@@ -21,23 +21,22 @@
 #include "third_party/blink/public/platform/web_graphics_context_3d_provider.h"
 #include "third_party/blink/public/platform/web_url.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/webgraphics_shared_image_interface_provider_impl.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/scheduler/public/main_thread.h"
 #include "third_party/blink/renderer/platform/scheduler/public/post_cross_thread_task.h"
+#include "third_party/blink/renderer/platform/wtf/bind_post_task.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
 
 namespace blink {
 
 namespace {
 
-namespace {
-
-std::optional<bool>
-    g_native_mappable_shared_images_supported_for_canvas_2d_for_testing;
+std::optional<bool> g_use_mappable_shared_images_for_canvas_2d_for_testing;
 std::optional<bool> g_low_latency_usage_supported_for_canvas_2d_for_testing;
-}
+std::optional<bool> g_webgl_image_chromium_enabled_for_testing;
 
 #if BUILDFLAG(IS_APPLE)
-bool Canvas2DSharedImagesBackedByIOSurface() {
+bool IsDelegatedCompositingEnabled() {
   static const bool backed_by_io_surface =
       base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kEnableGpuMemoryBufferCompositorResources);
@@ -47,17 +46,17 @@ bool Canvas2DSharedImagesBackedByIOSurface() {
 
 }  // namespace
 
-SharedGpuContext* SharedGpuContext::GetInstanceForCurrentThread() {
-  DEFINE_THREAD_SAFE_STATIC_LOCAL(ThreadSpecific<SharedGpuContext>,
-                                  thread_specific_instance, ());
-  return thread_specific_instance;
+SharedGpuContext* SharedGpuContext::GetInstanceForCurrentSequence() {
+  static base::SequenceLocalStorageSlot<SharedGpuContext>
+      sequence_local_instance;
+  return &sequence_local_instance.GetOrCreateValue();
 }
 
 SharedGpuContext::SharedGpuContext() = default;
 
 // static
 bool SharedGpuContext::IsGpuCompositingEnabled() {
-  SharedGpuContext* this_ptr = GetInstanceForCurrentThread();
+  SharedGpuContext* this_ptr = GetInstanceForCurrentSequence();
   if (IsMainThread()) {
     // On the main thread we have the opportunity to keep
     // is_gpu_compositing_disabled_ up to date continuously without locking
@@ -82,7 +81,7 @@ bool SharedGpuContext::IsGpuCompositingEnabled() {
 
 base::WeakPtr<WebGraphicsContext3DProviderWrapper>
 SharedGpuContext::ContextProviderWrapper() {
-  SharedGpuContext* this_ptr = GetInstanceForCurrentThread();
+  SharedGpuContext* this_ptr = GetInstanceForCurrentSequence();
   bool only_if_gpu_compositing = false;
   this_ptr->CreateContextProviderIfNeeded(only_if_gpu_compositing);
   if (!this_ptr->context_provider_wrapper_)
@@ -92,7 +91,7 @@ SharedGpuContext::ContextProviderWrapper() {
 
 base::WeakPtr<WebGraphicsContext3DProviderWrapper>
 SharedGpuContext::GetExistingContextProviderWrapper() {
-  SharedGpuContext* this_ptr = GetInstanceForCurrentThread();
+  SharedGpuContext* this_ptr = GetInstanceForCurrentSequence();
   if (!this_ptr->context_provider_wrapper_) {
     return nullptr;
   }
@@ -102,7 +101,7 @@ SharedGpuContext::GetExistingContextProviderWrapper() {
 // static
 WebGraphicsSharedImageInterfaceProvider*
 SharedGpuContext::SharedImageInterfaceProvider() {
-  SharedGpuContext* this_ptr = GetInstanceForCurrentThread();
+  SharedGpuContext* this_ptr = GetInstanceForCurrentSequence();
   this_ptr->CreateSharedImageInterfaceProviderIfNeeded();
   if (!this_ptr->shared_image_interface_provider_) {
     return nullptr;
@@ -113,33 +112,35 @@ SharedGpuContext::SharedImageInterfaceProvider() {
 
 static void CreateContextProviderOnMainThread(
     bool only_if_gpu_compositing,
-    bool* gpu_compositing_disabled,
-    std::unique_ptr<WebGraphicsContext3DProviderWrapper>* wrapper,
-    base::WaitableEvent* waitable_event) {
+    CrossThreadOnceFunction<
+        void(bool, std::unique_ptr<WebGraphicsContext3DProviderWrapper>)>
+        callback) {
   DCHECK(IsMainThread());
 
-  *gpu_compositing_disabled = Platform::Current()->IsGpuCompositingDisabled();
-  if (*gpu_compositing_disabled && only_if_gpu_compositing) {
-    waitable_event->Signal();
+  bool is_gpu_compositing_disabled =
+      Platform::Current()->IsGpuCompositingDisabled();
+  if (is_gpu_compositing_disabled && only_if_gpu_compositing) {
+    std::move(callback).Run(is_gpu_compositing_disabled, nullptr);
     return;
   }
 
+  std::unique_ptr<WebGraphicsContext3DProviderWrapper> wrapper;
   auto context_provider =
       Platform::Current()->CreateRasterGraphicsContextProvider(
           WebURL(), Platform::RasterContextType::kSharedGpuContextWorker);
   if (context_provider) {
-    *wrapper = std::make_unique<WebGraphicsContext3DProviderWrapper>(
+    wrapper = std::make_unique<WebGraphicsContext3DProviderWrapper>(
         std::move(context_provider));
   }
 
-  waitable_event->Signal();
+  std::move(callback).Run(is_gpu_compositing_disabled, std::move(wrapper));
 }
 
-void SharedGpuContext::CreateContextProviderIfNeeded(
+bool SharedGpuContext::CreateContextProviderIfNeededNoPost(
     bool only_if_gpu_compositing) {
   // Once true, |is_gpu_compositing_disabled_| will always stay true.
   if (is_gpu_compositing_disabled_ && only_if_gpu_compositing)
-    return;
+    return true;
 
   // TODO(danakj): This needs to check that the context is being used on the
   // thread it was made on, or else lock it.
@@ -148,7 +149,7 @@ void SharedGpuContext::CreateContextProviderIfNeeded(
     // If the context isn't lost then |is_gpu_compositing_disabled_| state
     // hasn't changed yet. RenderThreadImpl::CompositingModeFallbackToSoftware()
     // will lose the context to let us know if it changes.
-    return;
+    return true;
   }
 
   is_gpu_compositing_disabled_ = false;
@@ -162,11 +163,14 @@ void SharedGpuContext::CreateContextProviderIfNeeded(
           std::make_unique<WebGraphicsContext3DProviderWrapper>(
               std::move(context_provider));
     }
-  } else if (IsMainThread()) {
+    return true;
+  }
+
+  if (IsMainThread()) {
     is_gpu_compositing_disabled_ =
         Platform::Current()->IsGpuCompositingDisabled();
     if (is_gpu_compositing_disabled_ && only_if_gpu_compositing)
-      return;
+      return true;
     std::unique_ptr<blink::WebGraphicsContext3DProvider> context_provider;
     context_provider =
         Platform::Current()->CreateSharedOffscreenGraphicsContext3DProvider();
@@ -175,26 +179,90 @@ void SharedGpuContext::CreateContextProviderIfNeeded(
           std::make_unique<WebGraphicsContext3DProviderWrapper>(
               std::move(context_provider));
     }
-  } else {
-    // This synchronous round-trip to the main thread is the reason why
-    // SharedGpuContext encasulates the context provider: so we only have to do
-    // this once per thread.
-    base::WaitableEvent waitable_event;
-    scoped_refptr<base::SingleThreadTaskRunner> task_runner =
-        Thread::MainThread()->GetTaskRunner(MainThreadTaskRunnerRestricted());
-    PostCrossThreadTask(
-        *task_runner, FROM_HERE,
-        CrossThreadBindOnce(
-            &CreateContextProviderOnMainThread, only_if_gpu_compositing,
-            CrossThreadUnretained(&is_gpu_compositing_disabled_),
-            CrossThreadUnretained(&context_provider_wrapper_),
-            CrossThreadUnretained(&waitable_event)));
-    waitable_event.Wait();
-    if (context_provider_wrapper_ &&
-        !context_provider_wrapper_->ContextProvider().BindToCurrentSequence()) {
-      context_provider_wrapper_ = nullptr;
-    }
+    return true;
   }
+
+  return false;
+}
+
+void SharedGpuContext::CreateContextProviderIfNeeded(
+    bool only_if_gpu_compositing) {
+  if (CreateContextProviderIfNeededNoPost(only_if_gpu_compositing)) {
+    return;
+  }
+
+  // This synchronous round-trip to the main thread is the reason why
+  // SharedGpuContext encasulates the context provider: so we only have to do
+  // this once per thread.
+  base::WaitableEvent waitable_event;
+  scoped_refptr<base::SingleThreadTaskRunner> task_runner =
+      Thread::MainThread()->GetTaskRunner(MainThreadTaskRunnerRestricted());
+  PostCrossThreadTask(
+      *task_runner, FROM_HERE,
+      CrossThreadBindOnce(
+          &CreateContextProviderOnMainThread, only_if_gpu_compositing,
+          CrossThreadBindOnce(
+              [](bool* is_gpu_compositing_disabled_out,
+                 std::unique_ptr<WebGraphicsContext3DProviderWrapper>*
+                     wrapper_out,
+                 base::WaitableEvent* waitable_event,
+                 bool is_gpu_compositing_disabled,
+                 std::unique_ptr<WebGraphicsContext3DProviderWrapper> wrapper) {
+                *is_gpu_compositing_disabled_out = is_gpu_compositing_disabled;
+                *wrapper_out = std::move(wrapper);
+                waitable_event->Signal();
+              },
+              CrossThreadUnretained(&is_gpu_compositing_disabled_),
+              CrossThreadUnretained(&context_provider_wrapper_),
+              CrossThreadUnretained(&waitable_event))));
+  waitable_event.Wait();
+  if (context_provider_wrapper_ &&
+      !context_provider_wrapper_->ContextProvider().BindToCurrentSequence()) {
+    context_provider_wrapper_ = nullptr;
+  }
+}
+
+// static
+void SharedGpuContext::ContextProviderWrapperAsync(
+    ContextProviderCallback callback) {
+  SharedGpuContext* this_ptr = GetInstanceForCurrentSequence();
+  bool only_if_gpu_compositing = false;
+
+  if (this_ptr->CreateContextProviderIfNeededNoPost(only_if_gpu_compositing)) {
+    std::move(callback).Run(
+        this_ptr->context_provider_wrapper_
+            ? this_ptr->context_provider_wrapper_->GetWeakPtr()
+            : nullptr);
+    return;
+  }
+
+  scoped_refptr<base::SingleThreadTaskRunner> task_runner =
+      Thread::MainThread()->GetTaskRunner(MainThreadTaskRunnerRestricted());
+
+  auto finish_callback = BindPostTask(
+      base::SequencedTaskRunner::GetCurrentDefault(),
+      CrossThreadBindOnce(
+          [](ContextProviderCallback callback, bool gpu_compositing_disabled,
+             std::unique_ptr<WebGraphicsContext3DProviderWrapper> wrapper) {
+            SharedGpuContext* this_ptr = GetInstanceForCurrentSequence();
+            this_ptr->is_gpu_compositing_disabled_ = gpu_compositing_disabled;
+            this_ptr->context_provider_wrapper_ = std::move(wrapper);
+            if (this_ptr->context_provider_wrapper_ &&
+                !this_ptr->context_provider_wrapper_->ContextProvider()
+                     .BindToCurrentSequence()) {
+              this_ptr->context_provider_wrapper_ = nullptr;
+            }
+            std::move(callback).Run(
+                this_ptr->context_provider_wrapper_
+                    ? this_ptr->context_provider_wrapper_->GetWeakPtr()
+                    : nullptr);
+          },
+          std::move(callback)));
+
+  PostCrossThreadTask(
+      *task_runner, FROM_HERE,
+      CrossThreadBindOnce(&CreateContextProviderOnMainThread,
+                          only_if_gpu_compositing, std::move(finish_callback)));
 }
 
 static void CreateGpuChannelOnMainThread(
@@ -239,7 +307,7 @@ void SharedGpuContext::CreateSharedImageInterfaceProviderIfNeeded() {
 // static
 void SharedGpuContext::SetContextProviderFactoryForTesting(
     ContextProviderFactory factory) {
-  SharedGpuContext* this_ptr = GetInstanceForCurrentThread();
+  SharedGpuContext* this_ptr = GetInstanceForCurrentSequence();
   DCHECK(!this_ptr->context_provider_wrapper_)
       << this_ptr->context_provider_wrapper_.get();
 
@@ -248,17 +316,18 @@ void SharedGpuContext::SetContextProviderFactoryForTesting(
 
 // static
 void SharedGpuContext::Reset() {
-  SharedGpuContext* this_ptr = GetInstanceForCurrentThread();
+  SharedGpuContext* this_ptr = GetInstanceForCurrentSequence();
   this_ptr->is_gpu_compositing_disabled_ = false;
   this_ptr->shared_image_interface_provider_.reset();
   this_ptr->context_provider_wrapper_.reset();
   this_ptr->context_provider_factory_.Reset();
-  g_native_mappable_shared_images_supported_for_canvas_2d_for_testing.reset();
+  g_use_mappable_shared_images_for_canvas_2d_for_testing.reset();
   g_low_latency_usage_supported_for_canvas_2d_for_testing.reset();
+  g_webgl_image_chromium_enabled_for_testing.reset();
 }
 
 bool SharedGpuContext::IsValidWithoutRestoringForTesting() {
-  SharedGpuContext* this_ptr = GetInstanceForCurrentThread();
+  SharedGpuContext* this_ptr = GetInstanceForCurrentSequence();
   if (!this_ptr->context_provider_wrapper_)
     return false;
   auto* gl_context =
@@ -275,7 +344,7 @@ bool SharedGpuContext::IsValidWithoutRestoringForTesting() {
 }
 
 bool SharedGpuContext::AllowSoftwareToAcceleratedCanvasUpgrade() {
-  SharedGpuContext* this_ptr = GetInstanceForCurrentThread();
+  SharedGpuContext* this_ptr = GetInstanceForCurrentSequence();
   bool only_if_gpu_compositing = false;
   this_ptr->CreateContextProviderIfNeeded(only_if_gpu_compositing);
   if (!this_ptr->context_provider_wrapper_)
@@ -292,30 +361,36 @@ bool SharedGpuContext::MaySupportWebGLImageChromium() {
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
-bool SharedGpuContext::NativeMappableSharedImagesSupportedForCanvas2D() {
-  if (g_native_mappable_shared_images_supported_for_canvas_2d_for_testing) {
-    return g_native_mappable_shared_images_supported_for_canvas_2d_for_testing
-        .value();
+bool SharedGpuContext::UseMappableSharedImagesForCanvas2D() {
+  if (g_use_mappable_shared_images_for_canvas_2d_for_testing) {
+    return g_use_mappable_shared_images_for_canvas_2d_for_testing.value();
   }
 
 #if BUILDFLAG(IS_APPLE)
-  // Native mappable SIs are supported if canvas2D SIs are backed by IOSurfaces.
-  return Canvas2DSharedImagesBackedByIOSurface();
+  // Native mappable SharedImage is always available on Apple platforms. If
+  // delegated compositing is enabled, we exploit this fact to use mappable
+  // SharedImages as the backing for 2D canvases. Note that we know that in
+  // this case they will have SCANOUT usage added as well (see the method
+  // below).
+  return IsDelegatedCompositingEnabled();
 #else
   return false;
 #endif
 }
 
-void SharedGpuContext::
-    SetNativeMappableSharedImagesSupportedForCanvas2DForTesting(bool enable) {
-  g_native_mappable_shared_images_supported_for_canvas_2d_for_testing = enable;
+void SharedGpuContext::SetUseMappableSharedImagesForCanvas2DForTesting(
+    bool enable) {
+  g_use_mappable_shared_images_for_canvas_2d_for_testing = enable;
 }
 
-bool SharedGpuContext::OverlaysSupportedForCanvas2D() {
+bool SharedGpuContext::UseOverlaysForCanvas2D() {
 #if BUILDFLAG(IS_APPLE)
-  // If canvas2D SIs will be backed by IOSurfaces, we want them to go into
-  // overlays to exploit delegated compositing.
-  return Canvas2DSharedImagesBackedByIOSurface();
+  // Delegated compositing on Apple platforms is all-or-nothing as there is no
+  // API for partial delegation. Hence, if delegated compositing is enabled, we
+  // want 2D canvases to end up in overlays.
+  // We could consider extending this to other platforms that use delegated
+  // compositing (e.g., Windows).
+  return IsDelegatedCompositingEnabled();
 #else
   return false;
 #endif
@@ -326,9 +401,16 @@ void SharedGpuContext::SetLowLatencyUsageSupportedForCanvas2DForTesting(
   g_low_latency_usage_supported_for_canvas_2d_for_testing = enable;
 }
 
-bool SharedGpuContext::LowLatencyUsageSupportedForCanvas2D() {
+bool SharedGpuContext::LowLatencyUsageSupportedForCanvas2D(
+    RasterMode raster_mode) {
   if (g_low_latency_usage_supported_for_canvas_2d_for_testing) {
     return g_low_latency_usage_supported_for_canvas_2d_for_testing.value();
+  }
+
+  // Concurrent read/write only makes sense if raster writes are happening via
+  // the GPU.
+  if (raster_mode == RasterMode::kCPU) {
+    return false;
   }
 
   // Swapchain-backed SharedImages always support low-latency usages.
@@ -341,13 +423,6 @@ bool SharedGpuContext::LowLatencyUsageSupportedForCanvas2D() {
     return true;
   }
 
-#if BUILDFLAG(IS_APPLE)
-  // IOSurface-backed SharedImages always support low-latency usages.
-  if (Canvas2DSharedImagesBackedByIOSurface()) {
-    return true;
-  }
-#endif
-
 #if BUILDFLAG(IS_ANDROID)
   // Low-latency usage on Android is possible only with SurfaceControl.
   if (!::features::IsAndroidSurfaceControlEnabled()) {
@@ -355,8 +430,34 @@ bool SharedGpuContext::LowLatencyUsageSupportedForCanvas2D() {
   }
 #endif
 
+  // NOTE: crbug.com/41435781 would need to be resolved in order to support
+  // low-latency usage on Mac (currently setting the desynchronized attribute
+  // on a canvas is a no-op on Mac). If/once that bug is resolved, determine
+  // whether this method can then return true on Apple if
+  // IsDelegatedCompositingEnabled() holds.
   return base::FeatureList::IsEnabled(
       features::kLowLatencyCanvas2dImageChromium);
+}
+
+bool SharedGpuContext::WebGLImageChromiumEnabled() {
+  if (g_webgl_image_chromium_enabled_for_testing) {
+    return g_webgl_image_chromium_enabled_for_testing.value();
+  }
+
+#if BUILDFLAG(IS_APPLE)
+  static const bool enable_web_gl_image_chromium =
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
+          blink::switches::kEnableGpuMemoryBufferCompositorResources);
+#else
+  static const bool enable_web_gl_image_chromium =
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
+          blink::switches::kEnableWebGLImageChromium);
+#endif
+  return enable_web_gl_image_chromium;
+}
+
+void SharedGpuContext::SetWebGLImageChromiumEnabledForTesting(bool enable) {
+  g_webgl_image_chromium_enabled_for_testing = enable;
 }
 
 }  // namespace blink

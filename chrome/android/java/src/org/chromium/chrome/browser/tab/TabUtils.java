@@ -32,7 +32,6 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.media.MediaCaptureDevicesDispatcherAndroid;
-import org.chromium.chrome.browser.tab.Tab.MediaState;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiThemeProvider;
 import org.chromium.components.browser_ui.util.AutomotiveUtils;
 import org.chromium.components.browser_ui.util.DimensionCompat;
@@ -311,6 +310,7 @@ public class TabUtils {
             case MediaState.MUTED -> R.drawable.volume_off_24dp;
             case MediaState.RECORDING -> R.drawable.radio_button_checked_24dp;
             case MediaState.SHARING -> R.drawable.capture_24dp;
+            case MediaState.PICTURE_IN_PICTURE -> R.drawable.ic_picture_in_picture_alt_24dp;
             default -> Resources.ID_NULL;
         };
     }

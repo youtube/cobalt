@@ -221,16 +221,13 @@ bool TileDisplayLayerImpl::AppendQuadForTile(
   }
   if (!has_draw_quad) {
     // Checkerboard due to missing raster.
-    SkColor4f color = safe_opaque_background_color();
-    auto* quad =
-        render_pass->CreateAndAppendDrawQuad<viz::SolidColorDrawQuad>();
-    quad->SetNew(shared_quad_state, offset_geometry_rect,
-                 offset_visible_geometry_rect, color, false);
+    AppendCheckerboardQuad(render_pass, shared_quad_state, offset_geometry_rect,
+                           offset_visible_geometry_rect);
 
     // NOTE: TileDisplayLayerImpl does not currently track missing tiles, as
-    // that info is used only to pass to `checkerboarded_needs_raster` on the
-    // client side.  TODO(crbug.com/401566175): Determine if we need to track
-    // `checkerboarded_needs_raster` on the Viz side in the longer term.
+    // that info is used only to pass to `AppendQuadsData::num_missing_tiles` on
+    // the client side.  TODO(crbug.com/401566175): Determine if we need to
+    // track `num_missing_tiles` on the Viz side in the longer term.
     return true;
   }
 

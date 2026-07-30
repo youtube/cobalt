@@ -710,6 +710,7 @@ message BackForwardCacheCanStoreDocumentResult {
     SHARED_WORKER_MESSAGE = 68;
     SHARED_WORKER_WITH_NO_ACTIVE_CLIENT = 69;
     WEB_LOCKS_CONTENTION = 70;
+    FORWARD_CACHE_DISABLED = 71;
   }
 
   optional BackForwardCacheNotRestoredReason
@@ -2593,6 +2594,9 @@ message EventTiming {
     DRAG_LEAVE_EVENT = 35;
     DRAG_OVER_EVENT = 36;
     DROP_EVENT = 37;
+    NAVIGATE_EVENT = 38;
+    POPSTATE_EVENT = 39;
+    HASHCHANGE_EVENT = 40;
   }
   optional EventType type = 9;
 }

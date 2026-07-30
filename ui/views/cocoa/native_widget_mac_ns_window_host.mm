@@ -20,6 +20,7 @@
 #include "components/remote_cocoa/app_shim/native_widget_ns_window_bridge.h"
 #include "components/remote_cocoa/browser/ns_view_ids.h"
 #include "components/remote_cocoa/browser/window.h"
+#include "components/remote_cocoa/common/native_widget_ns_window.mojom.h"
 #include "mojo/public/cpp/bindings/self_owned_associated_receiver.h"
 #include "ui/accelerated_widget_mac/window_resize_helper_mac.h"
 #include "ui/accessibility/accessibility_features.h"
@@ -53,6 +54,7 @@
 #include "ui/views/views_delegate.h"
 #include "ui/views/widget/native_widget_mac.h"
 #include "ui/views/widget/widget.h"
+#include "ui/views/widget/widget_activation_delegate.h"
 #include "ui/views/widget/widget_delegate.h"
 #include "ui/views/window/dialog_delegate.h"
 #include "ui/views/word_lookup_client.h"
@@ -63,6 +65,8 @@ using remote_cocoa::mojom::WindowVisibilityState;
 namespace views {
 
 namespace {
+
+bool g_move_windows_to_original_spaces_upon_restoration = false;
 
 // Dummy implementation of the BridgedNativeWidgetHost interface. This structure
 // exists to work around a bug wherein synchronous mojo calls to an associated
@@ -294,6 +298,12 @@ const char NativeWidgetMacNSWindowHost::kMovedContentNSView[] =
     "kMovedContentNSView";
 
 // static
+void NativeWidgetMacNSWindowHost::SetMoveWindowsToOriginalSpacesUponRestoration(
+    bool move) {
+  g_move_windows_to_original_spaces_upon_restoration = move;
+}
+
+// static
 NativeWidgetMacNSWindowHost* NativeWidgetMacNSWindowHost::GetFromId(
     uint64_t bridged_native_widget_id) {
   auto found = GetIdToWidgetHostImplMap().find(bridged_native_widget_id);
@@ -460,10 +470,10 @@ void NativeWidgetMacNSWindowHost::InitWindow(
   }
 
   if (params.workspace.length()) {
-    std::string restoration_data;
-    if (base::Base64Decode(params.workspace, &restoration_data)) {
-      state_restoration_data_ = std::vector<uint8_t>(restoration_data.begin(),
-                                                     restoration_data.end());
+    if (std::optional<std::vector<uint8_t>> restoration_data =
+            base::Base64Decode(params.workspace);
+        restoration_data.has_value()) {
+      state_restoration_data_ = restoration_data.value();
     } else {
       DLOG(ERROR) << "Failed to decode a window's state restoration data.";
     }
@@ -500,7 +510,14 @@ void NativeWidgetMacNSWindowHost::InitWindow(
     window_params->force_into_collection_cycle =
         widget_type_ == Widget::InitParams::TYPE_WINDOW &&
         params.remove_standard_frame;
-    window_params->state_restoration_data = state_restoration_data_;
+    if (!state_restoration_data_.empty()) {
+      window_params->state_restoration_data =
+          remote_cocoa::mojom::StateRestorationData::New();
+      window_params->state_restoration_data->appkit_restoration_data =
+          state_restoration_data_;
+      window_params->state_restoration_data->restore_space =
+          g_move_windows_to_original_spaces_upon_restoration;
+    }
 
     GetNSWindowMojo()->InitWindow(std::move(window_params));
   }
@@ -852,6 +869,15 @@ void NativeWidgetMacNSWindowHost::ReorderChildViews() {
   GetNSWindowMojo()->SortSubviews(attached_subview_ids);
 }
 
+bool NativeWidgetMacNSWindowHost::IsWindowKey() const {
+  if (WidgetActivationDelegate::Get()) {
+    auto* widget =
+        native_widget_mac_ ? native_widget_mac_->GetWidget() : nullptr;
+    return WidgetActivationDelegate::Get()->IsActive(widget);
+  }
+  return is_window_key_;
+}
+
 void NativeWidgetMacNSWindowHost::SetVisibilityState(
     remote_cocoa::mojom::WindowVisibilityState new_state) {
   // On macOS 14 an application can't generally activate themselves. If we're
@@ -865,7 +891,14 @@ void NativeWidgetMacNSWindowHost::SetVisibilityState(
                  base::SysUTF8ToNSString(application_host_->bundle_id())];
     }
   }
+
   GetNSWindowMojo()->SetVisibilityState(new_state);
+
+  if (WidgetActivationDelegate::Get()) {
+    WidgetActivationDelegate::Get()->MaybeActivate(
+        GetWidget(),
+        new_state == WindowVisibilityState::kShowAndActivateWindow);
+  }
 }
 
 void NativeWidgetMacNSWindowHost::GetAttachedNativeViewHostViewsRecursive(
@@ -1457,6 +1490,11 @@ void NativeWidgetMacNSWindowHost::OnWindowKeyStatusChanged(
     bool is_key,
     bool is_content_first_responder,
     bool full_keyboard_access_enabled) {
+  if (WidgetActivationDelegate::Get()) {
+    // Do not propagate the native activation state.
+    return;
+  }
+
   // We need `setRemoteUIApp` to YES to support some accessibility
   // features on out-of-process remote cocoa windows like those used
   // for PWAs. However this breaks accessibility on in-process windows,

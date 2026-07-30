@@ -3,15 +3,16 @@
 // found in the LICENSE file.
 
 import {$$} from 'chrome://new-tab-page/new_tab_page.js';
-import {FileUploadErrorType, FileUploadStatus, InputType, ToolMode as ComposeboxToolMode} from 'chrome://resources/cr_components/composebox/composebox_query.mojom-webui.js';
+import {ContextUploadErrorType, ContextUploadStatus, InputType, ToolMode as ComposeboxToolMode} from 'chrome://resources/cr_components/composebox/composebox_query.mojom-webui.js';
 import {createAutocompleteResultForTesting, createSearchMatchForTesting} from 'chrome://resources/cr_components/searchbox/searchbox_browser_proxy.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+import type {TabInfo} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {eventToPromise, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {assertStyle} from '../test_support.js';
 
-import {ADD_FILE_CONTEXT_FN, addTab, areMatchesShowing, createComposeboxElement, FAKE_TOKEN_STRING, FAKE_TOKEN_STRING_2, generateZeroId, getInputForFileType, getMockFileChangeEventForType, mockInputState, setupComposeboxTest, uploadFileAndVerify, waitForAddFileCallCount} from './test_support.js';
+import {ADD_FILE_CONTEXT_FN, ADD_TAB_CONTEXT_FN, addTab, areMatchesShowing, createComposeboxElement, FAKE_TOKEN_STRING, FAKE_TOKEN_STRING_2, generateZeroId, getInputForFileType, getMockFileChangeEventForType, getSubmitContainer, mockInputState, setupComposeboxTest, uploadFileAndVerify, waitForAddFileCallCount} from './test_support.js';
 
 suite('NewTabPageComposeboxUploadTest', () => {
   const testProxy = setupComposeboxTest();
@@ -19,19 +20,19 @@ suite('NewTabPageComposeboxUploadTest', () => {
   test('upload image', async () => {
     createComposeboxElement(testProxy);
     // Submit button is disabled without any input.
-    assertStyle(testProxy.element.$.submitContainer, 'cursor', 'not-allowed');
+    assertStyle(getSubmitContainer(testProxy), 'cursor', 'not-allowed');
     await uploadFileAndVerify(
         testProxy, FAKE_TOKEN_STRING,
         new File(['foo'], 'foo.jpg', {type: 'image/jpeg'}));
     testProxy.searchboxCallbackRouterRemote.onContextualInputStatusChanged(
         FAKE_TOKEN_STRING,
-        FileUploadStatus.kUploadSuccessful,
+        ContextUploadStatus.kUploadSuccessful,
         null,
     );
     await testProxy.element.updateComplete;
     await microtasksFinished();
 
-    assertStyle(testProxy.element.$.submitContainer, 'cursor', 'pointer');
+    assertStyle(getSubmitContainer(testProxy), 'cursor', 'pointer');
   });
 
   test(
@@ -58,7 +59,7 @@ suite('NewTabPageComposeboxUploadTest', () => {
     await uploadFileAndVerify(
         testProxy, id, new File(['foo'], 'foo.pdf', {type: 'application/pdf'}));
     testProxy.searchboxCallbackRouterRemote.onContextualInputStatusChanged(
-        id, FileUploadStatus.kProcessingSuggestSignalsReady, null);
+        id, ContextUploadStatus.kProcessingSuggestSignalsReady, null);
     await microtasksFinished();
 
     // Autocomplete should be stopped (with matches cleared) and then
@@ -71,7 +72,7 @@ suite('NewTabPageComposeboxUploadTest', () => {
     // The suggest request should be triggered before the file has finished
     // uploading.
     testProxy.searchboxCallbackRouterRemote.onContextualInputStatusChanged(
-        id, FileUploadStatus.kUploadSuccessful, null);
+        id, ContextUploadStatus.kUploadSuccessful, null);
 
     // Delete the uploaded file.
     const deletedId = testProxy.element.$.carousel.files[0]!.uuid;
@@ -106,7 +107,7 @@ suite('NewTabPageComposeboxUploadTest', () => {
     await uploadFileAndVerify(
         testProxy, id, new File(['foo'], 'foo.jpg', {type: 'image/jpeg'}));
     testProxy.searchboxCallbackRouterRemote.onContextualInputStatusChanged(
-        id, FileUploadStatus.kProcessingSuggestSignalsReady, null);
+        id, ContextUploadStatus.kProcessingSuggestSignalsReady, null);
     await microtasksFinished();
 
     // Autocomplete should not be queried again since the uploaded file is an
@@ -128,7 +129,7 @@ suite('NewTabPageComposeboxUploadTest', () => {
     await uploadFileAndVerify(
         testProxy, id, new File(['foo'], 'foo.jpg', {type: 'image/jpeg'}));
     testProxy.searchboxCallbackRouterRemote.onContextualInputStatusChanged(
-        id, FileUploadStatus.kProcessingSuggestSignalsReady, null);
+        id, ContextUploadStatus.kProcessingSuggestSignalsReady, null);
     await microtasksFinished();
 
     // Autocomplete should be stopped (with matches cleared) and then
@@ -167,7 +168,7 @@ suite('NewTabPageComposeboxUploadTest', () => {
 
           testProxy.searchboxCallbackRouterRemote
               .onContextualInputStatusChanged(
-                  id, FileUploadStatus.kUploadSuccessful, null);
+                  id, ContextUploadStatus.kUploadSuccessful, null);
           await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
 
           announcementPromise =
@@ -242,15 +243,15 @@ suite('NewTabPageComposeboxUploadTest', () => {
   });
 
   [[
-    FileUploadStatus.kValidationFailed,
-    FileUploadErrorType.kImageProcessingError,
+    ContextUploadStatus.kValidationFailed,
+    ContextUploadErrorType.kImageProcessingError,
   ],
    [
-     FileUploadStatus.kUploadFailed,
+     ContextUploadStatus.kUploadFailed,
      null,
    ],
    [
-     FileUploadStatus.kUploadExpired,
+     ContextUploadStatus.kUploadExpired,
      null,
    ],
   ].forEach(([fileUploadStatus, fileUploadErrorType, ..._]) => {
@@ -264,8 +265,8 @@ suite('NewTabPageComposeboxUploadTest', () => {
 
           testProxy.searchboxCallbackRouterRemote
               .onContextualInputStatusChanged(
-                  id, fileUploadStatus as FileUploadStatus,
-                  fileUploadErrorType as FileUploadErrorType | null);
+                  id, fileUploadStatus as ContextUploadStatus,
+                  fileUploadErrorType as ContextUploadErrorType | null);
           await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
 
           // Assert no files in the carousel.
@@ -860,7 +861,7 @@ suite('NewTabPageComposeboxUploadTest', () => {
             testProxy.element.$.errorScrim.errorMessage);
       });
 
-  test('notify browser when image is added in create image mode', async () => {
+  test('correctly sets create image mode', async () => {
     loadTimeData.overrideValues({
       composeboxShowZps: true,
       composeboxShowTypedSuggest: false,
@@ -881,38 +882,6 @@ suite('NewTabPageComposeboxUploadTest', () => {
     assertEquals(
         ComposeboxToolMode.kImageGen,
         testProxy.searchboxHandler.getArgs('setActiveToolMode')[0]);
-
-    // Upload an image file. `uploadButtonDisabled` should be false.
-    const id = generateZeroId();
-    await uploadFileAndVerify(
-        testProxy, id, new File(['foo'], 'foo.jpg', {type: 'image/jpeg'}));
-    testProxy.searchboxCallbackRouterRemote.onContextualInputStatusChanged(
-        id, FileUploadStatus.kProcessingSuggestSignalsReady, null);
-    await microtasksFinished();
-
-    assertEquals(
-        testProxy.searchboxHandler.getCallCount('setActiveToolMode'), 2);
-    assertEquals(
-        ComposeboxToolMode.kImageGen,
-        testProxy.searchboxHandler.getArgs('setActiveToolMode')[0]);
-
-    // Deleting the image should call setCreateImageMode again but with
-    // imagePresent false.
-    const deletedId = testProxy.element.$.carousel.files[0]!.uuid;
-    testProxy.element.$.carousel.dispatchEvent(new CustomEvent('delete-file', {
-      detail: {
-        uuid: deletedId,
-      },
-      bubbles: true,
-      composed: true,
-    }));
-
-    await microtasksFinished();
-    assertEquals(
-        testProxy.searchboxHandler.getCallCount('setActiveToolMode'), 3);
-    assertEquals(
-        ComposeboxToolMode.kImageGen,
-        testProxy.searchboxHandler.getArgs('setActiveToolMode')[0]);
   });
 
   test('composebox does not open match when only file present', async () => {
@@ -924,12 +893,12 @@ suite('NewTabPageComposeboxUploadTest', () => {
         new File(['foo'], 'foo.jpg', {type: 'image/jpeg'}));
     testProxy.searchboxCallbackRouterRemote.onContextualInputStatusChanged(
         FAKE_TOKEN_STRING,
-        FileUploadStatus.kUploadSuccessful,
+        ContextUploadStatus.kUploadSuccessful,
         /*error_type=*/ null,
     );
     await microtasksFinished();
 
-    testProxy.element.$.submitContainer.click();
+    getSubmitContainer(testProxy).click();
     await microtasksFinished();
 
     // Assert call occurs.
@@ -967,7 +936,7 @@ suite('NewTabPageComposeboxUploadTest', () => {
         testProxy, id, new File(['foo'], 'foo.jpg', {type: 'image/jpeg'}));
 
     testProxy.searchboxCallbackRouterRemote.onContextualInputStatusChanged(
-        id, FileUploadStatus.kProcessingSuggestSignalsReady, null);
+        id, ContextUploadStatus.kProcessingSuggestSignalsReady, null);
 
     // Matches should not show when image is present.
     assertFalse(await areMatchesShowing(
@@ -986,7 +955,7 @@ suite('NewTabPageComposeboxUploadTest', () => {
     createComposeboxElement(testProxy);
     // Set the promise to reject to simulate a failure.
     testProxy.searchboxHandler.setResultMapperFor(ADD_FILE_CONTEXT_FN, () => {
-      return Promise.reject(FileUploadErrorType.kBrowserProcessingError);
+      return Promise.reject(ContextUploadErrorType.kBrowserProcessingError);
     });
 
     // Assert no files.
@@ -1027,7 +996,7 @@ suite('NewTabPageComposeboxUploadTest', () => {
     const bad_token = FAKE_TOKEN_STRING_2;
     testProxy.searchboxCallbackRouterRemote.onContextualInputStatusChanged(
         bad_token,
-        FileUploadStatus.kUploadSuccessful,
+        ContextUploadStatus.kUploadSuccessful,
         null,
     );
     await testProxy.element.updateComplete;
@@ -1052,7 +1021,7 @@ suite('NewTabPageComposeboxUploadTest', () => {
     const bad_token = FAKE_TOKEN_STRING_2;
     testProxy.searchboxCallbackRouterRemote.onContextualInputStatusChanged(
         bad_token,
-        FileUploadStatus.kUploadSuccessful,
+        ContextUploadStatus.kUploadSuccessful,
         null,
     );
     await testProxy.element.updateComplete;
@@ -1061,4 +1030,213 @@ suite('NewTabPageComposeboxUploadTest', () => {
         testProxy.element.getNumOfFilesForTesting() === 1,
         'Ghost file should not be added');
   });
+
+  test(
+      'regular auto chip de-duplication logic resets when clearing' +
+          ' all (entering new thread, mode, etc.)',
+      async () => {
+        createComposeboxElement(testProxy);
+
+        assertEquals(
+            testProxy.element.getNumOfFilesForTesting(), 0,
+            'Should be 0 starting test');
+        const tab = {
+          tabId: 1,
+          title: 'Tab 1',
+          url: 'https://example.com/1',
+          showInCurrentTabChip: true,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: BigInt(1)},
+        } as any as TabInfo;
+
+        testProxy.searchboxHandler.resetResolver(ADD_TAB_CONTEXT_FN);
+        // Initiate regular de-duplication logic by properly mocking
+        // `addTabContext` return value.
+        testProxy.searchboxHandler.setPromiseResolveFor(
+            ADD_TAB_CONTEXT_FN, FAKE_TOKEN_STRING);
+
+        testProxy.searchboxCallbackRouterRemote.updateAutoSuggestedTabContext(
+            tab);
+
+        await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+        await testProxy.element.updateComplete;
+        await microtasksFinished();
+
+        assertEquals(
+            testProxy.element.getNumOfFilesForTesting(), 1,
+            'Attached files should be 1 after adding first tab.');
+
+        testProxy.element.clearAllInputs(
+            /*querySubmitted*/ false,
+            /*shouldBlockAutoSuggestedTabs=*/ false);
+
+        await testProxy.element.updateComplete;
+        await microtasksFinished();
+
+        assertEquals(
+            testProxy.element.getNumOfFilesForTesting(), 0,
+            'Should be 0 after clearing all.');
+
+        testProxy.searchboxHandler.resetResolver(ADD_TAB_CONTEXT_FN);
+        testProxy.searchboxHandler.setPromiseResolveFor(
+            ADD_TAB_CONTEXT_FN, FAKE_TOKEN_STRING);
+
+        testProxy.searchboxCallbackRouterRemote.updateAutoSuggestedTabContext(
+            tab);
+        await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+        await microtasksFinished();
+
+        assertEquals(
+            testProxy.element.getNumOfFilesForTesting(), 1,
+            'Attached files should be 1 after adding a second auto ' +
+                'chip, and having cleared the first one.');
+      });
+
+  test(
+      'auto chip de-duplication logic does not rely on callback states',
+      async () => {
+        createComposeboxElement(testProxy);
+
+        assertEquals(
+            testProxy.element.getNumOfFilesForTesting(), 0,
+            'Attached files should be 0 at start.');
+
+        const tab = {
+          tabId: 1,
+          title: 'Tab 1',
+          url: 'https://example.com/1',
+          showInCurrentTabChip: true,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: BigInt(1)},
+        } as any as TabInfo;
+
+        // Do not mock `addTabContext` return value so callback does not
+        // update current held auto chip context properly.
+        // Relying purely on callback auto chip context states is incorrect
+        // and will result in depending on this bad mock return value.
+        testProxy.searchboxHandler.resetResolver(ADD_TAB_CONTEXT_FN);
+        testProxy.searchboxHandler.setPromiseResolveFor(ADD_TAB_CONTEXT_FN, '');
+
+        testProxy.searchboxCallbackRouterRemote.updateAutoSuggestedTabContext(
+            tab);
+        await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+        await testProxy.element.updateComplete;
+        await microtasksFinished();
+
+        assertEquals(
+            testProxy.element.getNumOfFilesForTesting(), 0,
+            'Attached files should be 0 after failed callback' +
+                'does not return for an auto chip.');
+
+        testProxy.searchboxHandler.resetResolver(ADD_TAB_CONTEXT_FN);
+        testProxy.searchboxHandler.setPromiseResolveFor(
+            ADD_TAB_CONTEXT_FN, FAKE_TOKEN_STRING);
+
+        // Should not duplicate auto chip, even with the same tab
+        // being called (same tab id, url) since pending auto chip context
+        // is updated synchronously from the last
+        // `updateAutoSuggestedTabContext` call, and does not rely on the
+        // callback result.
+
+        testProxy.searchboxCallbackRouterRemote.updateAutoSuggestedTabContext(
+            tab);
+
+        await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+        await testProxy.element.updateComplete;
+        await microtasksFinished();
+
+        assertEquals(
+            testProxy.element.getNumOfFilesForTesting(), 0,
+            'Attached files should still be 0 since the first' +
+                'callback corrupted, but the same auto chip' +
+                'context is added again.');
+
+        const tab2 = {
+          tabId: 2,
+          title: 'Tab 2',
+          url: 'https://example2.com',
+          showInCurrentTabChip: true,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: BigInt(4)},
+        } as any as TabInfo;
+
+        testProxy.searchboxHandler.resetResolver(ADD_TAB_CONTEXT_FN);
+        // Proper mock for tab2.
+        testProxy.searchboxHandler.setPromiseResolveFor(
+            ADD_TAB_CONTEXT_FN, FAKE_TOKEN_STRING_2);
+
+        testProxy.searchboxCallbackRouterRemote.updateAutoSuggestedTabContext(
+            tab2);
+
+        await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+        await testProxy.element.updateComplete;
+        await microtasksFinished();
+
+        // New auto chip added since is different from tab 1.
+        assertEquals(
+            testProxy.element.getNumOfFilesForTesting(), 1,
+            'Attached files should be 1 after adding a second auto ' +
+                'chip, and having the first one be corrupted.');
+      });
+
+  test(
+      'pending auto chip de-duplication logic resets when clearing' +
+          ' all (entering new thread, mode, etc.)',
+      async () => {
+        createComposeboxElement(testProxy);
+
+        assertEquals(
+            testProxy.element.getNumOfFilesForTesting(), 0,
+            'Should be 0 starting test');
+        const tab = {
+          tabId: 1,
+          title: 'Tab 1',
+          url: 'https://example.com/1',
+          showInCurrentTabChip: true,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: BigInt(1)},
+        } as any as TabInfo;
+
+        testProxy.searchboxHandler.resetResolver(ADD_TAB_CONTEXT_FN);
+        // Do not mock `addTabContext` return value so callback does not
+        // update current held auto chip context properly. This simulates
+        // relying on pending auto chip context state.
+        testProxy.searchboxHandler.setPromiseResolveFor(ADD_TAB_CONTEXT_FN, '');
+
+        testProxy.searchboxCallbackRouterRemote.updateAutoSuggestedTabContext(
+            tab);
+        await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+        await testProxy.element.updateComplete;
+        await microtasksFinished();
+
+        assertEquals(
+            testProxy.element.getNumOfFilesForTesting(), 0,
+            'First tab should not be added since callback fails');
+
+        testProxy.element.clearAllInputs(
+            /*querySubmitted*/ false,
+            /*shouldBlockAutoSuggestedTabs=*/ false);
+
+        await testProxy.element.updateComplete;
+        await microtasksFinished();
+
+        assertEquals(
+            testProxy.element.getNumOfFilesForTesting(), 0,
+            'Should be 0 after clearing all.');
+
+        testProxy.searchboxHandler.resetResolver(ADD_TAB_CONTEXT_FN);
+        testProxy.searchboxHandler.setPromiseResolveFor(
+            ADD_TAB_CONTEXT_FN, FAKE_TOKEN_STRING);
+
+        testProxy.searchboxCallbackRouterRemote.updateAutoSuggestedTabContext(
+            tab);
+        await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+
+        await testProxy.element.updateComplete;
+        await microtasksFinished();
+
+        assertEquals(
+            testProxy.element.getNumOfFilesForTesting(), 1,
+            'Same tab should be added back after clearing all.');
+      });
 });

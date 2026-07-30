@@ -213,7 +213,11 @@ enum class ResponseSegmentation {
   kAutoOpenedForPdfAttachedAudio = 78,
   kAutoOpenedForPdfDetachedText = 79,
   kAutoOpenedForPdfDetachedAudio = 80,
-  kMaxValue = kAutoOpenedForPdfDetachedAudio,
+  kCaptureRegionHotkeyAttachedText = 81,
+  kCaptureRegionHotkeyAttachedAudio = 82,
+  kCaptureRegionHotkeyDetachedText = 83,
+  kCaptureRegionHotkeyDetachedAudio = 84,
+  kMaxValue = kCaptureRegionHotkeyDetachedAudio,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicResponseSegmentation)
 
@@ -394,6 +398,10 @@ class GlicMetrics : public GlicInstanceMetricsBackwardsCompatibility {
   void SetControllersWithInstance(GlicInstance* glic_instance,
                                   GlicSharingManager* sharing_manager);
   void ClearControllers();
+
+  // Records user preferences for the profile. Called when the GlicKeyedService
+  // for each profile is created.
+  void RecordGlicProfilePreferences();
 
   void SetDelegateForTesting(std::unique_ptr<Delegate> delegate);
 

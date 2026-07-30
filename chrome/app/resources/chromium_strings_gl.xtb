@@ -29,6 +29,7 @@
 <translation id="126567311906253476">Cando accedas aos servizos de Google, como Gmail ou YouTube, con <ph name="USER_EMAIL" />, poderás iniciar sesión automaticamente en Chromium coa mesma conta</translation>
 <translation id="1290883685122687410">Produciuse un erro durante a configuración: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">Configura o teu novo perfil de Chromium</translation>
+<translation id="132092532143527429">Probar con Gemini en Chromium</translation>
 <translation id="1324107359134968521">Chromium precisa acceso ao Bluetooth para explorar 
  dispositivos Bluetooth. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">Detectar idioma</translation>
@@ -241,6 +242,7 @@
 <translation id="3509308970982693815">Pecha todas as ventás de Chromium e téntao de novo.</translation>
 <translation id="3522404737534491619">Para compartir a ventá, vai á configuración do sistema e activa a función de gravación de pantalla para Chromium</translation>
 <translation id="3530103706039034513">A sesión está iniciada como <ph name="EXISTING_USER" />.  Se queres navegar de forma independente, inicia sesión en Chromium co teu propio perfil como <ph name="USER_EMAIL_ADDRESS" />.</translation>
+<translation id="3531741627422851418">Código QR para descargar o navegador Chromium en dispositivos móbiles</translation>
 <translation id="3561853857681580870">Para compartir a pantalla, vai á configuración do sistema e activa a función de gravación de pantalla para Chromium.</translation>
 <translation id="3588112919289558122">Coa protección mellorada, desactívase a optimización de JavaScript para os sitios que Chromium non recoñece</translation>
 <translation id="3597003331831379823">Produciuse un erro ao executar a configuración con privilexios avanzados. <ph name="METAINSTALLER_ERROR" /></translation>
@@ -376,7 +378,6 @@
 <translation id="5174969993834422967">Adoitas bloquear as notificacións. Para permitir que este sitio che envíe notificacións, fai clic na icona de notificación que está no canto dereito da barra de localización.</translation>
 <translation id="5174983315706567306">Non queda espazo suficiente no disco.</translation>
 <translation id="5187123684706427865">Para poder usar a conta de Chromium, é necesario volver autenticarse</translation>
-<translation id="5219681158518957165">Usa a configuración do navegador recomendada</translation>
 <translation id="5224391634244552924">Non hai contrasinais gardados. Chromium pode comprobar os teus contrasinais cando os gardes.</translation>
 <translation id="5231355151045086930">Pechar sesión en Chromium</translation>
 <translation id="5234764350956374838">Rexeitar</translation>
@@ -610,6 +611,7 @@ Chromium non pode recuperar a túa configuración.</translation>
 <translation id="7622753900276619808">Xa tes máis funcións dispoñibles en Chromium</translation>
 <translation id="7624307931717240213">Usamos a información para mellorar este servizo. Consulta a Política de privacidade e as Condicións de servizo.</translation>
 <translation id="7649070708921625228">Axuda</translation>
+<translation id="7650134251917003571">Obter a aplicación Chromium</translation>
 <translation id="7656340475565475526">Permitir que Chromium navegue por ti</translation>
 <translation id="7658239707568436148">Cancelar</translation>
 <translation id="7686590090926151193">Chromium non é o teu navegador predeterminado</translation>

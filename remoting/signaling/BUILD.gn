@@ -42,7 +42,6 @@ static_library("signaling") {
     "message_channel_strategy.h",
     "message_tracker.cc",
     "message_tracker.h",
-    "messaging_client.h",
     "registration_manager.h",
     "session_config.cc",
     "session_config.h",
@@ -52,7 +51,6 @@ static_library("signaling") {
     "signaling_address.h",
     "signaling_id_util.cc",
     "signaling_id_util.h",
-    "signaling_message.h",
     "signaling_tracker.h",
     "xmpp_constants.cc",
     "xmpp_constants.h",
@@ -89,6 +87,8 @@ static_library("test_support") {
   testonly = true
 
   sources = [
+    "fake_ftl_signal_strategy.cc",
+    "fake_ftl_signal_strategy.h",
     "fake_signal_strategy.cc",
     "fake_signal_strategy.h",
     "mock_signal_strategy.cc",

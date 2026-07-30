@@ -104,8 +104,12 @@ class OnDeviceModelComponentTest : public testing::Test {
   }
 
   void DoStartup() {
+    base::HistogramTester startup_histograms;
     broker_.GetOrCreateBrokerState();  // Force instantiation.
     task_environment_.FastForwardBy(base::Seconds(1));
+    startup_histograms.ExpectUniqueSample(
+        "OptimizationGuide.OnDeviceModel.OnDeviceModelComponentInstantiated",
+        true, 1);
   }
 
   void SimulateShutdown() { broker_.SimulateShutdown(); }
@@ -548,6 +552,8 @@ TEST_F(OnDeviceModelComponentTest, SetReady) {
   const OnDeviceModelComponentState* state = manager().GetState();
   ASSERT_TRUE(state);
 
+  histograms_.ExpectTotalCount("OptimizationGuide.OnDeviceModel.InstalledModel",
+                               1);
   EXPECT_FALSE(state->GetInstallDirectory().empty());
   EXPECT_EQ(state->GetComponentVersion(), base::Version("0.0.1"));
 
@@ -752,7 +758,6 @@ TEST_F(OnDeviceModelComponentTest,
   DoStartup();
   EnsurePerformanceClassAvailable();
   ASSERT_TRUE(WaitUntilInstallerRegistered());
-  EXPECT_TRUE(broker_.component_state().requested_background_update());
   histograms_.ExpectUniqueSample(
       "OptimizationGuide.ModelExecution.OnDeviceModelInstallCriteria."
       "InitialInstall.IsBackground",
@@ -768,7 +773,6 @@ TEST_F(OnDeviceModelComponentTest, BackgroundDownloadBlockedOnExperimentFlag) {
 
   EnsurePerformanceClassAvailable();
   ASSERT_FALSE(WaitForUnexpectedInstallerRegistered());
-  EXPECT_FALSE(broker_.component_state().requested_background_update());
 }
 
 TEST_F(OnDeviceModelComponentTest,
@@ -804,7 +808,6 @@ TEST_F(OnDeviceModelComponentTest, FeatureUseUpgradesToOnDemand) {
   EnsurePerformanceClassAvailable();
   ASSERT_TRUE(WaitUntilInstallerRegistered());
 
-  EXPECT_TRUE(broker_.component_state().requested_background_update());
   EXPECT_FALSE(broker_.component_state().requested_foreground_update());
 
   broker_.GetOrCreateBrokerState().usage_tracker().OnDeviceEligibleFeatureUsed(

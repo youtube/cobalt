@@ -6,7 +6,7 @@ import {ComposeboxElement, ComposeboxProxyImpl} from 'chrome://new-tab-page/lazy
 import {$$} from 'chrome://new-tab-page/new_tab_page.js';
 import type {ComposeboxFile} from 'chrome://resources/cr_components/composebox/common.js';
 import {PageCallbackRouter, PageHandlerRemote} from 'chrome://resources/cr_components/composebox/composebox.mojom-webui.js';
-import {FileUploadStatus, ToolMode as ComposeboxToolMode} from 'chrome://resources/cr_components/composebox/composebox_query.mojom-webui.js';
+import {ContextUploadStatus, ToolMode as ComposeboxToolMode} from 'chrome://resources/cr_components/composebox/composebox_query.mojom-webui.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {PageRemote as SearchboxPageRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
@@ -40,12 +40,13 @@ export function createComposeboxFile(
         objectUrl: null,
         dataUrl: null,
         uuid: `${index}`,
-        status: FileUploadStatus.kUploadSuccessful,
+        status: ContextUploadStatus.kUploadSuccessful,
         url: null,
         file: null,
         tabId: null,
         isDeletable: true,
         iconName: null,
+        supportsUnimodal: true,
       },
       override);
 }
@@ -116,6 +117,10 @@ export function setupComposeboxTest(): ComposeboxTestElement {
       'searchboxComposePlaceholder': 'Placeholder',
     });
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
+
+    testProxy.element = new ComposeboxElement();
+    document.body.appendChild(testProxy.element);
+
     const handler = installMock(
         PageHandlerRemote,
         mock => ComposeboxProxyImpl.setInstance(new ComposeboxProxyImpl(
@@ -287,4 +292,12 @@ export async function addTab(testProxy: ComposeboxTestElement): Promise<string> 
   assertEquals(files[0]!.type, 'tab');
   assertEquals(files[0]!.name, sampleTabTitle);
   return FAKE_TOKEN_STRING;
+}
+
+export function getSubmitContainer(testProxy: ComposeboxTestElement):
+    HTMLElement {
+  const container = testProxy.element.shadowRoot.querySelector<HTMLElement>(
+      '#submitContainer');
+  assertTrue(!!container);
+  return container;
 }

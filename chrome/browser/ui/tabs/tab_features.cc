@@ -20,10 +20,12 @@
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_helper.h"
 #include "chrome/browser/enterprise/data_protection/data_protection_navigation_controller.h"
-#include "chrome/browser/enterprise/reporting/reporting_features.h"
 #include "chrome/browser/enterprise/reporting/saas_usage/saas_usage_navigation_observer.h"
 #include "chrome/browser/image_fetcher/image_fetcher_service_factory.h"
+#include "chrome/browser/indigo/indigo_page_action_controller.h"
 #include "chrome/browser/loader/from_gws_navigation_and_keep_alive_request_observer.h"
+#include "chrome/browser/multistep_filter/chrome_filter_navigation_observer.h"
+#include "chrome/browser/multistep_filter/ui/filter_ui_controller.h"
 #include "chrome/browser/net/http_auth_cache_status.h"
 #include "chrome/browser/net/qwac_web_contents_observer.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
@@ -54,7 +56,6 @@
 #include "chrome/browser/ui/performance_controls/tab_resource_usage_tab_helper.h"
 #include "chrome/browser/ui/read_anything/read_anything_controller.h"
 #include "chrome/browser/ui/read_anything/read_anything_side_panel_controller.h"
-#include "chrome/browser/indigo/indigo_page_action_controller.h"
 #include "chrome/browser/ui/side_panel/side_panel_registry.h"
 #include "chrome/browser/ui/tab_ui_helper.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert_controller.h"
@@ -93,6 +94,9 @@
 #include "chrome/browser/ui/web_applications/pwa_install_page_action.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "components/contextual_tasks/public/features.h"
+#include "components/enterprise/browser/reporting/reporting_features.h"
+
+#include "components/multistep_filter/core/features.h"
 #include "components/skills/features.h"
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS)
@@ -102,9 +106,17 @@
 #include "chrome/browser/wallet/chrome_walletable_pass_client.h"
 #include "chrome/common/record_replay/record_replay_features.h"
 #endif
+#include "chrome/browser/glic/browser_ui/glic_tab_indicator_helper.h"
+#include "chrome/browser/glic/glic_selection_observer.h"
+#include "chrome/browser/glic/public/features.h"
+#include "chrome/browser/glic/public/glic_enabling.h"
+#include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/selection/selection_overlay_controller.h"
+#include "chrome/browser/glic/service/glic_instance_helper.h"
 #include "chrome/browser/skills/skills_ui_tab_controller.h"
 #include "chrome/browser/ui/contextual_search/tab_contextualization_controller.h"
 #include "chrome/browser/ui/tabs/features.h"
+#include "chrome/browser/ui/views/side_panel/glic/glic_side_panel_coordinator_impl.h"
 #include "chrome/browser/web_applications/web_app_tab_helper.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/common/chrome_features.h"
@@ -121,12 +133,6 @@
 #include "net/base/features.h"
 #include "ui/accessibility/accessibility_features.h"
 #include "ui/base/unowned_user_data/user_data_factory.h"
-#include "chrome/browser/glic/browser_ui/glic_tab_indicator_helper.h"
-#include "chrome/browser/glic/public/glic_enabling.h"
-#include "chrome/browser/glic/public/glic_keyed_service.h"
-#include "chrome/browser/glic/selection/selection_overlay_controller.h"
-#include "chrome/browser/glic/service/glic_instance_helper.h"
-#include "chrome/browser/ui/views/side_panel/glic/glic_side_panel_coordinator_impl.h"
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/skills/skills_update_observer.h"
@@ -217,12 +223,10 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
         std::make_unique<PwaInstallPageActionController>(
             tab, *page_action_controller_);
 
-    if (IsPageActionMigrated(PageActionIconType::kPriceInsights)) {
-      commerce_price_insights_page_action_view_controller_ =
-          GetUserDataFactory()
-              .CreateInstance<commerce::PriceInsightsPageActionViewController>(
-                  tab, tab, *page_action_controller_);
-    }
+    commerce_price_insights_page_action_view_controller_ =
+        GetUserDataFactory()
+            .CreateInstance<commerce::PriceInsightsPageActionViewController>(
+                tab, tab, *page_action_controller_);
 
     if (IsPageActionMigrated(PageActionIconType::kManagePasswords)) {
       manage_passwords_page_action_controller_ =
@@ -359,6 +363,11 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
       glic_selection_overlay_controller_ =
           GetUserDataFactory().CreateInstance<glic::SelectionOverlayController>(
               tab, &tab, profile->GetPrefs());
+
+      if (base::FeatureList::IsEnabled(features::kGlicSelectionPrompt)) {
+        glic_selection_observer_ =
+            std::make_unique<glic::GlicSelectionObserver>(tab.GetContents());
+      }
     }
     if (glic::GlicEnabling::IsMultiInstanceEnabled() &&
         glic::GlicKeyedService::Get(profile)) {
@@ -400,12 +409,10 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
   // This block instantiates the page action controllers that depends on the
   // `commerce_ui_tab_helper_` and not need to be created before.
   if (commerce_ui_tab_helper_) {
-    if (IsPageActionMigrated(PageActionIconType::kDiscounts)) {
-      commerce_discounts_page_action_view_controller_ =
-          GetUserDataFactory()
-              .CreateInstance<commerce::DiscountsPageActionViewController>(
-                  tab, tab, *page_action_controller_, *commerce_ui_tab_helper_);
-    }
+    commerce_discounts_page_action_view_controller_ =
+        GetUserDataFactory()
+            .CreateInstance<commerce::DiscountsPageActionViewController>(
+                tab, tab, *page_action_controller_, *commerce_ui_tab_helper_);
   }
 
   if (base::FeatureList::IsEnabled(
@@ -436,7 +443,7 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
     // ownership of this controller is migrated to ReadAnythingController.
     read_anything_side_panel_controller_ =
         std::make_unique<ReadAnythingSidePanelController>(
-            &tab, side_panel_registry_.get(), tab.GetContents());
+            &tab, side_panel_registry_.get());
   }
 
   // Create the HttpAuthCacheStatus to start observing resource load
@@ -549,6 +556,19 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
   }
 #endif
 
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
+  if (base::FeatureList::IsEnabled(multistep_filter::kMultistepFilter)) {
+    filter_ui_controller_ =
+        GetUserDataFactory()
+            .CreateInstance<multistep_filter::FilterUiController>(tab, tab);
+    filter_navigation_observer_ =
+        GetUserDataFactory()
+            .CreateInstance<multistep_filter::ChromeFilterNavigationObserver>(
+                tab, tab);
+  }
+#endif
+
 #if !BUILDFLAG(IS_ANDROID)
   if (base::FeatureList::IsEnabled(features::kSkillsEnabled)) {
     skills_update_observer_ =
@@ -590,15 +610,6 @@ void TabFeatures::WillDiscardContents(tabs::TabInterface* tab,
 
   Profile* profile = tab->GetBrowserWindowInterface()->GetProfile();
 
-  if (!features::IsImmersiveReadAnythingEnabled()) {
-    // This method is transiently used to reset features that do not handle tab
-    // discarding themselves.
-    read_anything_side_panel_controller_->ResetForTabDiscard();
-    read_anything_side_panel_controller_.reset();
-    read_anything_side_panel_controller_ =
-        std::make_unique<ReadAnythingSidePanelController>(
-            tab, side_panel_registry_.get(), new_contents);
-  }
   // Deregister side-panel entries that are web-contents scoped rather than tab
   // scoped.
   side_panel_registry_->Deregister(
@@ -640,6 +651,11 @@ void TabFeatures::WillDiscardContents(tabs::TabInterface* tab,
     new_tab_page_preload_pipeline_manager_.reset();
     new_tab_page_preload_pipeline_manager_ =
         std::make_unique<NewTabPagePreloadPipelineManager>(new_contents);
+  }
+
+  if (glic_selection_observer_) {
+    glic_selection_observer_ =
+        std::make_unique<glic::GlicSelectionObserver>(new_contents);
   }
 }
 

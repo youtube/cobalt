@@ -27,6 +27,7 @@ mojom("mojom_platform") {
   sources = [
     "ad_tagging/ad_evidence.mojom",
     "aggregation_service/aggregatable_report.mojom",
+    "ai/ai_classifier.mojom",
     "ai/ai_common.mojom",
     "ai/ai_language_model.mojom",
     "ai/ai_manager.mojom",
@@ -105,6 +106,7 @@ mojom("mojom_platform") {
     "filesystem/file_system.mojom",
     "font_access/font_access.mojom",
     "forms/form_control_type.mojom",
+    "frame/policy_container.mojom",
     "geolocation/geolocation_service.mojom",
     "hid/hid.mojom",
     "hyphenation/hyphenation.mojom",
@@ -202,6 +204,7 @@ mojom("mojom_platform") {
     "renderer_preference_watcher.mojom",
     "renderer_preferences.mojom",
     "reporting/reporting.mojom",
+    "rtc_logging/rtc_logging.mojom",
     "safe_url_pattern.mojom",
     "scheduler/web_scheduler_tracked_feature.mojom",
     "script_source_location.mojom",
@@ -1274,7 +1277,6 @@ mojom("mojom_core") {
     "frame/intrinsic_sizing_info.mojom",
     "frame/lifecycle.mojom",
     "frame/media_player_action.mojom",
-    "frame/policy_container.mojom",
     "frame/remote_frame.mojom",
     "frame/reporting_observer.mojom",
     "frame/sudden_termination_disabler_type.mojom",
@@ -1982,10 +1984,6 @@ mojom_component("authenticator_mojo_bindings") {
         {
           mojom = "blink.mojom.PublicKeyCredentialUserEntity"
           cpp = "::device::PublicKeyCredentialUserEntity"
-        },
-        {
-          mojom = "blink.mojom.CableAuthentication"
-          cpp = "::device::CableDiscoveryData"
         },
         {
           mojom = "blink.mojom.AttestationConveyancePreference"

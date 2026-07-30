@@ -6,13 +6,12 @@
 #define CHROME_BROWSER_UI_VIEWS_TABS_VERTICAL_VERTICAL_TAB_STRIP_VIEW_H_
 
 #include "base/memory/raw_ptr.h"
-#include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
+#include "components/tabs/public/tab_interface.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/layout/delegating_layout_manager.h"
 #include "ui/views/view.h"
 
 class TabCollectionNode;
-class TabStripModel;
 class VerticalPinnedTabContainerView;
 class VerticalUnpinnedTabContainerView;
 
@@ -27,8 +26,7 @@ class ViewTracker;
 // regions and associates them to their scroll views. It also is responsible for
 // scrolling to the active tab view when the active tab changes.
 class VerticalTabStripView final : public views::View,
-                                   public views::LayoutDelegate,
-                                   public TabStripModelObserver {
+                                   public views::LayoutDelegate {
   METADATA_HEADER(VerticalTabStripView, views::View)
 
  public:
@@ -47,9 +45,9 @@ class VerticalTabStripView final : public views::View,
 
   void SetCollapsedState(bool is_collapsed);
 
-  bool IsPositionInWindowCaption(const gfx::Point& point);
+  void SetIsAnimatingSize(bool is_animating);
 
-  void InitializeTabStrip(TabStripModel& tab_strip_model);
+  bool IsPositionInWindowCaption(const gfx::Point& point);
 
   // LayoutDelegate:
   views::ProposedLayout CalculateProposedLayout(
@@ -60,12 +58,7 @@ class VerticalTabStripView final : public views::View,
   void OnMouseEntered(const ui::MouseEvent& event) override;
   void OnMouseExited(const ui::MouseEvent& event) override;
 
-  // TabStripModelObserver:
-  void OnTabStripModelChanged(
-      TabStripModel* tab_strip_model,
-      const TabStripModelChange& change,
-      const TabStripSelectionChange& selection) override;
-
+  void OnActiveTabChanged(const tabs::TabInterface* active_tab);
   void RecordMousePressedInTab();
 
  private:

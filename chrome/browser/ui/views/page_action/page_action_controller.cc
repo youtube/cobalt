@@ -5,10 +5,12 @@
 #include "chrome/browser/ui/views/page_action/page_action_controller.h"
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_forward.h"
+#include "base/timer/timer.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
 #include "chrome/browser/ui/views/page_action/chip_selector.h"
 #include "chrome/browser/ui/views/page_action/page_action_metrics_recorder.h"
@@ -199,6 +201,13 @@ void PageActionControllerImpl::DoShowAnchoredMessage(
     actions::ActionId action_id) {
   FindPageActionModel(action_id).SetShouldShowAnchoredMessage(PassKey(),
                                                               /*show=*/true);
+  active_anchored_message_ = action_id;
+  anchored_message_timeout_.Start(
+      FROM_HERE, base::Seconds(12),
+      base::BindRepeating(
+          static_cast<void (PageActionControllerImpl::*)(actions::ActionId)>(
+              &PageActionControllerImpl::ShowSuggestionChip),
+          base::Unretained(this), action_id));
 }
 
 void PageActionControllerImpl::HideAnchoredMessage(
@@ -210,6 +219,12 @@ void PageActionControllerImpl::DoHideAnchoredMessage(
     actions::ActionId action_id) {
   FindPageActionModel(action_id).SetShouldShowAnchoredMessage(PassKey(),
                                                               /*show=*/false);
+  if (active_anchored_message_ == action_id) {
+    active_anchored_message_ = std::nullopt;
+    if (anchored_message_timeout_.IsRunning()) {
+      anchored_message_timeout_.Stop();
+    }
+  }
 }
 
 ScopedPageActionActivity PageActionControllerImpl::AddActivity(
@@ -239,6 +254,9 @@ void PageActionControllerImpl::ActionItemChanged(
 
 void PageActionControllerImpl::OnTabActivated(tabs::TabInterface* tab) {
   SetModelsTabActive(/*is_active=*/true);
+  if (anchored_message_timeout_.IsRunning()) {
+    anchored_message_timeout_.Reset();
+  }
 }
 
 void PageActionControllerImpl::OnTabWillDeactivate(tabs::TabInterface* tab) {
@@ -313,6 +331,18 @@ void PageActionControllerImpl::SetAnchoredMessageText(
     const std::u16string& anchored_message_text) {
   FindPageActionModel(action_id).SetAnchoredMessageText(PassKey(),
                                                         anchored_message_text);
+}
+
+void PageActionControllerImpl::SetAnchoredMessageIcon(
+    actions::ActionId action_id,
+    const ui::ImageModel& icon) {
+  FindPageActionModel(action_id).SetAnchoredMessageIcon(PassKey(), icon);
+}
+
+void PageActionControllerImpl::ClearAnchoredMessageIcon(
+    actions::ActionId action_id) {
+  FindPageActionModel(action_id).SetAnchoredMessageIcon(PassKey(),
+                                                        std::nullopt);
 }
 
 void PageActionControllerImpl::ShouldShowAnchoredMessageCloseIcon(

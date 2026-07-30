@@ -78,6 +78,10 @@ class VIEWS_EXPORT NativeWidgetMacNSWindowHost
   // widget; use a __bridge cast to convert to and from NSView*.
   static const char kMovedContentNSView[];
 
+  // Sets state as to whether windows, upon being restored, should be moved to
+  // the space that originally contained them.
+  static void SetMoveWindowsToOriginalSpacesUponRestoration(bool move);
+
   // Unique integer id handles are used to bridge between the
   // NativeWidgetMacNSWindowHost in one process and the NativeWidgetNSWindowHost
   // potentially in another.
@@ -242,7 +246,7 @@ class VIEWS_EXPORT NativeWidgetMacNSWindowHost
 
   bool IsVisible() const { return is_visible_; }
   bool IsMiniaturized() const { return is_miniaturized_; }
-  bool IsWindowKey() const { return is_window_key_; }
+  bool IsWindowKey() const;
   bool IsMouseCaptureActive() const { return is_mouse_capture_active_; }
   bool IsZoomed() const { return is_zoomed_; }
   bool IsVisibleOnAllWorkspaces() const {

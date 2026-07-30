@@ -126,7 +126,6 @@ void MaybeRecordWebSigninToChromeSigninTimes(
     case signin_metrics::AccessPoint::kUserManager:
     case signin_metrics::AccessPoint::kFullscreenSigninPromo:
     case signin_metrics::AccessPoint::kRecentTabs:
-    case signin_metrics::AccessPoint::kUnknown:
     case signin_metrics::AccessPoint::kAutofillDropdown:
     case signin_metrics::AccessPoint::kResigninInfobar:
     case signin_metrics::AccessPoint::kMachineLogon:
@@ -190,6 +189,8 @@ void MaybeRecordWebSigninToChromeSigninTimes(
     case signin_metrics::AccessPoint::kIosChromeWebView:
     case signin_metrics::AccessPoint::kAshUserSessionManager:
     case signin_metrics::AccessPoint::kAshChromeSessionManager:
+    case signin_metrics::AccessPoint::kAvatarPillExpandPromo:
+    case signin_metrics::AccessPoint::kSearchAIModeBubble:
       return;
   }
 
@@ -419,8 +420,7 @@ void SigninMetricsService::HandleSigninErrors(
     AccountInfo account_info = identity_manager_->FindExtendedAccountInfo(
         identity_manager_->GetPrimaryAccountInfo(
             signin::ConsentLevel::kSignin));
-    if (account_info.access_point.has_value() &&
-        (account_info.access_point != signin_metrics::AccessPoint::kUnknown)) {
+    if (account_info.access_point.has_value()) {
       // Only record `Started` from WEB_SIGNIN, since there is no way to
       // know that a WebSignin resolution has started until it was
       // completed. Other access points are client access points which can

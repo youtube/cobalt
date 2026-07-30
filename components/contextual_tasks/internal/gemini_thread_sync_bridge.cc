@@ -65,6 +65,8 @@ GeminiThreadSyncBridge::ApplyIncrementalSyncChanges(
     syncer::EntityChangeList entity_changes) {
   std::unique_ptr<syncer::DataTypeStore::WriteBatch> batch =
       data_type_store_->CreateWriteBatch();
+  std::vector<sync_pb::GeminiThreadSpecifics> added_or_updated;
+  std::vector<base::Uuid> removed;
   for (const std::unique_ptr<syncer::EntityChange>& change : entity_changes) {
     const sync_pb::EntitySpecifics& entity_specifics = change->data().specifics;
 
@@ -76,11 +78,14 @@ GeminiThreadSyncBridge::ApplyIncrementalSyncChanges(
             entity_specifics.gemini_thread();
         batch->WriteData(change->storage_key(),
                          entity_specifics.gemini_thread().SerializeAsString());
+        added_or_updated.emplace_back(entity_specifics.gemini_thread());
         break;
       }
       case syncer::EntityChange::ACTION_DELETE:
         gemini_thread_specifics_.erase(change->storage_key());
         batch->DeleteData(change->storage_key());
+        removed.emplace_back(
+            base::Uuid::ParseCaseInsensitive(change->storage_key()));
         break;
     }
   }
@@ -90,6 +95,10 @@ GeminiThreadSyncBridge::ApplyIncrementalSyncChanges(
       std::move(batch),
       base::BindOnce(&GeminiThreadSyncBridge::OnDataTypeStoreCommit,
                      weak_ptr_factory_.GetWeakPtr()));
+  for (auto& observer : observers_) {
+    observer.OnGeminiThreadAddedOrUpdatedRemotely(added_or_updated);
+    observer.OnGeminiThreadRemovedRemotely(removed);
+  }
   return std::nullopt;
 }
 
@@ -219,7 +228,8 @@ std::vector<Thread> GeminiThreadSyncBridge::GetThreads() const {
   std::vector<Thread> threads;
   for (const auto& [conversation_id, specifics] : gemini_thread_specifics_) {
     threads.emplace_back(ThreadType::kGemini, conversation_id,
-                         specifics.title());
+                         specifics.title(),
+                         specifics.last_turn_time_unix_epoch_millis());
   }
   return threads;
 }

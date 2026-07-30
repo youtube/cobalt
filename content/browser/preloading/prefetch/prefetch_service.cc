@@ -487,8 +487,8 @@ base::WeakPtr<PrefetchContainer> PrefetchService::CreatePrefetchContainer(
 }
 
 bool PrefetchService::IsPrefetchDuplicate(
-    GURL& url,
-    std::optional<net::HttpNoVarySearchData> no_vary_search_hint) {
+    const GURL& url,
+    const std::optional<net::HttpNoVarySearchData>& no_vary_search_hint) {
   TRACE_EVENT("loading", "PrefetchService::IsPrefetchDuplicate");
   for (const auto& [key, prefetch_container] : owned_prefetches()) {
     if (IsPrefetchStale(prefetch_container->GetWeakPtr())) {
@@ -1433,17 +1433,6 @@ bool PrefetchService::StartSinglePrefetch(
       &PrefetchService::OnPrefetchTimeout, weak_method_factory_.GetWeakPtr(),
       prefetch_container.GetWeakPtr()));
 
-  if (!prefetch_container.IsDecoy()) {
-    // The status is updated to be successful or failed when it finishes.
-    prefetch_container.SetPrefetchStatus(
-        PrefetchStatus::kPrefetchNotFinishedInTime);
-  }
-
-  prefetch_container.MakeInitialResourceRequest();
-
-  prefetch_container.NotifyPrefetchRequestWillBeSent(
-      /*redirect_head=*/nullptr);
-
   SendPrefetchRequest(prefetch_container);
 
   PrefetchDocumentManager* prefetch_document_manager = nullptr;
@@ -1836,8 +1825,7 @@ void PrefetchService::OnDeterminedHead(
 
 void PrefetchService::OnPrefetchCompletedOrFailed(
     const PrefetchContainer& prefetch_container,
-    const network::URLLoaderCompletionStatus& completion_status,
-    const std::optional<int>& response_code) {
+    const network::URLLoaderCompletionStatus& completion_status) {
   TRACE_EVENT("loading", "PrefetchService::OnPrefetchCompletedOrFailed",
               "prefetch_url", prefetch_container.GetURL().spec(),
               "completion_status.error_code", completion_status.error_code);

@@ -19,9 +19,6 @@ class IdentityManager;
 class OptimizationGuideService;
 class PrefService;
 class ProfileIOS;
-namespace web {
-class WebState;
-}
 
 // A browser-context keyed service for BWG.
 class BwgService : public KeyedService,
@@ -38,9 +35,6 @@ class BwgService : public KeyedService,
   // Returns whether the current profile is eligible for Gemini.
   bool IsProfileEligibleForGemini();
 
-  // Whether BWG is available for a given web state.
-  bool IsBwgAvailableForWebState(web::WebState* web_state);
-
   // signin::IdentityManager::Observer:
   void OnPrimaryAccountChanged(
       const signin::PrimaryAccountChangeEvent& event) override;
@@ -56,16 +50,16 @@ class BwgService : public KeyedService,
   raw_ptr<ProfileIOS> profile_;
 
   // AuthenticationService used to check the user's account status.
-  raw_ptr<AuthenticationService> auth_service_ = nullptr;
+  raw_ptr<AuthenticationService> auth_service_;
 
   // Identity manager used to check account capabilities.
-  raw_ptr<signin::IdentityManager> identity_manager_ = nullptr;
+  raw_ptr<signin::IdentityManager> identity_manager_;
 
   // The PrefService associated with the Profile.
-  raw_ptr<PrefService, DanglingUntriaged> pref_service_ = nullptr;
+  raw_ptr<PrefService> pref_service_;
 
   // The optimization guide service for model execution and page metadata.
-  raw_ptr<OptimizationGuideService> optimization_guide_ = nullptr;
+  raw_ptr<OptimizationGuideService> optimization_guide_;
 
   // Whether the user is ineligible by the Gemini Enterprise policy (not Chrome
   // Enterprise).

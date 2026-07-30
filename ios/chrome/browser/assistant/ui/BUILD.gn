@@ -9,8 +9,8 @@ source_set("ui") {
     "assistant_container_delegate.h",
     "assistant_container_detent.h",
     "assistant_container_detent.mm",
-    "assistant_container_detent_utils.h",
-    "assistant_container_detent_utils.mm",
+    "assistant_container_layout_utils.h",
+    "assistant_container_layout_utils.mm",
     "assistant_container_view.h",
     "assistant_container_view.mm",
     "assistant_container_view_controller.h",
@@ -18,9 +18,26 @@ source_set("ui") {
   ]
   deps = [
     "//base",
+    "//ios/chrome/browser/shared/ui/chrome_overlay_window",
     "//ios/chrome/browser/shared/ui/symbols",
     "//ios/chrome/common/ui/colors",
     "//ios/chrome/common/ui/util",
     "//ui/base",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "assistant_container_layout_utils_unittest.mm",
+    "assistant_container_view_controller_unittest.mm",
+  ]
+  deps = [
+    ":ui",
+    "//base",
+    "//base/test:test_support",
+    "//ios/chrome/test/app:test_support",
+    "//testing/gtest",
+    "//third_party/ocmock",
   ]
 }

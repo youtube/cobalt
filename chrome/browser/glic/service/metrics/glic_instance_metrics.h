@@ -185,8 +185,10 @@ class GlicInstanceMetrics : public GlicInstanceMetricsBackwardsCompatibility {
   // Called when the floaty is hidden.
   void OnFloatyClosed();
 
+  enum class CloseReason { kExplicitlyClosed, kTabSwitched };
+
   // Called when the side panel is closed.
-  void OnSidePanelClosed(tabs::TabInterface* tab);
+  void OnSidePanelClosed(tabs::TabInterface* tab, CloseReason reason);
 
   // Called when an embedder is unbound from this instance.
   void OnUnbindEmbedder(EmbedderKey key);
@@ -283,8 +285,13 @@ class GlicInstanceMetrics : public GlicInstanceMetricsBackwardsCompatibility {
 
   GlicMetricsSessionManager& session_manager() { return session_manager_; }
 
+  std::optional<GlicEntrypoint> initial_entrypoint_for_testing() const {
+    return initial_entrypoint_;
+  }
+
  private:
   friend class GlicMetricsSessionManager;
+  friend class GlicInstanceMetricsTest;
 
   // Stores info scoped to the current turn. These members are cleared in
   // OnResponseStopped.
@@ -346,6 +353,7 @@ class GlicInstanceMetrics : public GlicInstanceMetricsBackwardsCompatibility {
   // The last invocation source that was used to show the panel.
   mojom::InvocationSource last_invocation_source_ =
       mojom::InvocationSource::kUnsupported;
+  std::optional<GlicEntrypoint> initial_entrypoint_ = std::nullopt;
   // Timestamp of last show start.
   base::TimeTicks invocation_start_time_;
   base::TimeTicks web_ui_load_start_time_;

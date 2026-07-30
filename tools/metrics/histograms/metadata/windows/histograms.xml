@@ -30,6 +30,12 @@ chromium-metrics-reviews@google.com.
       summary=", from the default browser bubble dialog"/>
   <variant name=".DefaultBrowserInfoBar"
       summary=", from the default browser infobar"/>
+  <variant name=".DefaultBrowserModalDialogWithoutSettingsImage"
+      summary=", from the default browser modal dialog, without the settings
+               image showing"/>
+  <variant name=".DefaultBrowserModalDialogWithSettingsImage"
+      summary=", from the default browser modal dialog, with the settings
+               image showing"/>
   <variant name=".FirstRunExperience"
       summary=", from the first run experience"/>
   <variant name=".PinToTaskbarInfoBar"
@@ -52,7 +58,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Windows.AutoDeElevateResult" enum="Hresult"
-    expires_after="2026-05-07">
+    expires_after="2026-08-30">
   <owner>wfh@chromium.org</owner>
   <owner>ssmole@microsoft.com</owner>
   <summary>
@@ -108,7 +114,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Windows.Enclave.{Type}.Available" enum="BooleanAvailable"
-    expires_after="2026-06-28">
+    expires_after="2026-08-30">
   <owner>ajgo@chromium.org</owner>
   <owner>wfh@chromium.org</owner>
   <summary>

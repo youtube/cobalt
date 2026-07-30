@@ -68,6 +68,13 @@ BASE_FEATURE(kWebViewLatchedCookiePolicy, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kWebViewMixedContentAutoupgrades,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, the provisional cookie store is properly closed before the
+// Network Service opens the database, fixing race conditions that can cause
+// cookie loss and CHECK failures when cookies are set before WebView is fully
+// initialized.
+BASE_FEATURE(kWebViewNonBlockingCookieStoreHandoff,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // A Feature used for WebView variations tests. Not used in production. Please
 // do not clean up this stale feature: we intentionally keep this feature flag
 // around for testing purposes.
@@ -305,5 +312,10 @@ BASE_FEATURE(kWebViewUseNonembeddedLowEntropySource,
 // When enabled, the default user agent string is fetched more quickly without
 // waiting for chromium startup to complete.
 BASE_FEATURE(kWebViewFasterGetDefaultUserAgent,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, navigation headers will be saved and restored as part
+// of saved state for WebView.
+BASE_FEATURE(kWebViewSaveStateIncludeHeaders,
              base::FEATURE_DISABLED_BY_DEFAULT);
 }  // namespace android_webview::features

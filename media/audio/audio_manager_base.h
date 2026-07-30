@@ -49,6 +49,8 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
       const AudioParameters& params,
       const std::string& device_id) override;
 
+  void LogAudioManagerStartup() override;
+
   // Listeners will be notified on the GetTaskRunner() task runner.
   void AddOutputDeviceChangeListener(AudioDeviceListener* listener) override;
   void RemoveOutputDeviceChangeListener(AudioDeviceListener* listener) override;
@@ -155,6 +157,9 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
   std::string GetDefaultOutputDeviceID() override;
   std::string GetCommunicationsInputDeviceID() override;
   std::string GetCommunicationsOutputDeviceID() override;
+
+  std::string GetDeviceNameFromCache(const std::string& device_id,
+                                     bool is_input) override;
 
   virtual std::unique_ptr<AudioDebugRecordingManager>
   CreateAudioDebugRecordingManager();

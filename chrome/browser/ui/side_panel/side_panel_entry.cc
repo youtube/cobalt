@@ -9,7 +9,7 @@
 #include "base/time/time.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry_observer.h"
 #include "chrome/browser/ui/side_panel/side_panel_enums.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_util.h"
+#include "chrome/browser/ui/side_panel/side_panel_metrics.h"
 
 DEFINE_UI_CLASS_PROPERTY_KEY(bool, kShouldShowTitleInSidePanelHeaderKey, true)
 
@@ -54,7 +54,7 @@ SidePanelEntry::SidePanelEntry(
 
 SidePanelEntry::~SidePanelEntry() = default;
 
-std::unique_ptr<views::View> SidePanelEntry::GetContent() {
+SidePanelNativeView SidePanelEntry::GetContent() {
   CHECK(scope_);
   if (content_view_) {
     return std::move(content_view_);
@@ -63,18 +63,22 @@ std::unique_ptr<views::View> SidePanelEntry::GetContent() {
   return create_content_callback_.Run(*scope_);
 }
 
-void SidePanelEntry::CacheView(std::unique_ptr<views::View> view) {
+void SidePanelEntry::CacheView(SidePanelNativeView view) {
   content_view_ = std::move(view);
 }
 
 void SidePanelEntry::ClearCachedView() {
+#if !BUILDFLAG(IS_ANDROID)
   content_view_.reset(nullptr);
+#else
+  content_view_.Reset();
+#endif
 }
 
 void SidePanelEntry::OnEntryShown() {
   entry_shown_timestamp_ = base::TimeTicks::Now();
-  SidePanelUtil::RecordEntryShownMetrics(type(), key_.id(),
-                                         entry_show_triggered_timestamp_);
+  SidePanelMetrics::RecordEntryShownMetrics(type(), key_.id(),
+                                            entry_show_triggered_timestamp_);
   // After the initial load time is recorded, we need to reset the triggered
   // timestamp so we don't keep recording this entry after its selected from the
   // combobox.
@@ -91,8 +95,8 @@ void SidePanelEntry::OnEntryHideCancelled() {
 }
 
 void SidePanelEntry::OnEntryHidden() {
-  SidePanelUtil::RecordEntryHiddenMetrics(type(), key_.id(),
-                                          entry_shown_timestamp_);
+  SidePanelMetrics::RecordEntryHiddenMetrics(type(), key_.id(),
+                                             entry_shown_timestamp_);
   observers_.Notify(&SidePanelEntryObserver::OnEntryHidden, this);
 }
 

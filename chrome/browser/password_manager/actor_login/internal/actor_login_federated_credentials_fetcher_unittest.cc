@@ -20,6 +20,10 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/mojom/webid/federated_auth_request.mojom-shared.h"
+#include "third_party/skia/include/core/SkBitmap.h"
+#include "ui/gfx/geometry/size.h"
+#include "ui/gfx/image/image.h"
+#include "ui/gfx/image/image_unittest_util.h"
 #include "url/gurl.h"
 
 namespace actor_login {
@@ -41,6 +45,13 @@ class MockIdentityCredentialSource
               SelectAccount,
               (const url::Origin&, const std::string&),
               (override));
+  MOCK_METHOD(void,
+              SetEmbedderLoginRequest,
+              (const url::Origin&,
+               const std::string&,
+               base::OnceCallback<void(content::webid::FederatedLoginResult)>),
+              (override));
+  MOCK_METHOD(bool, HasPendingRequest, (), (override));
 };
 
 scoped_refptr<content::IdentityRequestAccount> CreateTestIdentityRequestAccount(
@@ -49,6 +60,8 @@ scoped_refptr<content::IdentityRequestAccount> CreateTestIdentityRequestAccount(
   content::IdentityProviderMetadata idp_metadata;
   idp_metadata.config_url = GURL(idp_config_url);
   idp_metadata.idp_login_url = GURL("https://idp.com/login");
+  idp_metadata.brand_decoded_icon =
+      gfx::Image::CreateFrom1xBitmap(gfx::test::CreateBitmap(56, 78));
 
   content::ClientMetadata client_metadata{GURL(), GURL(), GURL(), gfx::Image()};
 
@@ -66,6 +79,8 @@ scoped_refptr<content::IdentityRequestAccount> CreateTestIdentityRequestAccount(
       std::vector<std::string>(), std::vector<std::string>());
 
   account->identity_provider = idp_data;
+  account->decoded_picture =
+      gfx::Image::CreateFrom1xBitmap(gfx::test::CreateBitmap(12, 34));
   return account;
 }
 
@@ -113,6 +128,10 @@ TEST_F(ActorLoginFederatedCredentialsFetcherTest, GetCredentialsSuccess) {
   ASSERT_TRUE(credentials[0].federation_detail.has_value());
   EXPECT_EQ(credentials[0].federation_detail->idp_origin,
             url::Origin::Create(GURL("https://idp.com")));
+  EXPECT_EQ(credentials[0].federation_detail->account_picture.Size(),
+            gfx::Size(12, 34));
+  EXPECT_EQ(credentials[0].federation_detail->brand_icon.Size(),
+            gfx::Size(56, 78));
   EXPECT_TRUE(credentials[0].immediatelyAvailableToLogin);
   EXPECT_EQ(status, ActorLoginCredentialsFetcher::Status::kSuccess);
 }

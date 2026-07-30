@@ -122,6 +122,21 @@ BASE_DECLARE_FEATURE(kIOSDownloadSanitizeFilename);
 // Feature flag to enable the timeout in the context menu run loop.
 BASE_DECLARE_FEATURE(kEnableContextMenuTimeout);
 
+// TODO(crbug.com/487947859): Clean up the kill switch once confirmed this is
+// not causing regressions.
+// When enabled, NetErrorFromError searches the entire NSError chain for the
+// first translatable error code. This ensures accurate error mapping on iOS
+// 26.4+, where specific network failures are often nested within generic
+// container errors. When disabled, it only attempts to translate the final
+// underlying error in the chain, which was the pre-existing behavior.
+BASE_DECLARE_FEATURE(kNetErrorFromErrorChainKillSwitch);
+
+// Feature flag to enable Cobalt on iOS.
+BASE_DECLARE_FEATURE(kIOSCobalt);
+
+// Returns whether Cobalt is enabled on iOS.
+bool IsCobaltEnabled();
+
 }  // namespace web::features
 
 #endif  // IOS_WEB_COMMON_FEATURES_H_

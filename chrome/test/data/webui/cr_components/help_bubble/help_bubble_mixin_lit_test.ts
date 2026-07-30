@@ -4,7 +4,6 @@
 
 import 'chrome://resources/cr_components/help_bubble/help_bubble.js';
 
-import type {HelpBubbleElement} from 'chrome://resources/cr_components/help_bubble/help_bubble.js';
 import type {HelpBubbleClientRemote, HelpBubbleHandlerInterface, HelpBubbleParams} from 'chrome://resources/cr_components/help_bubble/help_bubble.mojom-webui.js';
 import {HelpBubbleArrowPosition, HelpBubbleClientCallbackRouter, HelpBubbleClosedReason} from 'chrome://resources/cr_components/help_bubble/help_bubble.mojom-webui.js';
 import type {HelpBubbleController} from 'chrome://resources/cr_components/help_bubble/help_bubble_controller.js';
@@ -14,7 +13,7 @@ import type {HelpBubbleProxy} from 'chrome://resources/cr_components/help_bubble
 import {HelpBubbleProxyImpl} from 'chrome://resources/cr_components/help_bubble/help_bubble_proxy.js';
 import {assert} from 'chrome://resources/js/assert.js';
 import {CrLitElement, html} from 'chrome://resources/lit/v3_0/lit.rollup.js';
-import type {TrackedElementHandlerInterface, TrackedElementHandlerPendingReceiver} from 'chrome://resources/mojo/ui/webui/resources/js/tracked_element/tracked_element.mojom-webui.js';
+import type {TrackedElementHandlerInterface, TrackedElementHandlerPendingReceiver, TrackedElementManagerRemote} from 'chrome://resources/mojo/ui/webui/resources/js/tracked_element/tracked_element.mojom-webui.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertThrows, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 import {isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
@@ -36,7 +35,6 @@ interface HelpBubbleMixinTestElement {
   $: {
     bulletList: HTMLElement,
     container: HTMLElement,
-    helpBubble: HelpBubbleElement,
     p1: HTMLElement,
     title: HTMLElement,
   };
@@ -115,10 +113,16 @@ class TestTrackedElementHandler extends TestBrowserProxy implements
   visibility: Map<string, boolean> = new Map();
   constructor() {
     super([
+      'setManager',
       'trackedElementVisibilityChanged',
       'trackedElementActivated',
       'trackedElementCustomEvent',
+      'trackedElementCanHighlightChanged',
     ]);
+  }
+
+  setManager(_: TrackedElementManagerRemote) {
+    this.methodCalled('setManager');
   }
 
   trackedElementVisibilityChanged(nativeIdentifier: string, visible: boolean) {
@@ -133,6 +137,12 @@ class TestTrackedElementHandler extends TestBrowserProxy implements
 
   trackedElementCustomEvent(nativeIdentifier: string, eventName: string) {
     this.methodCalled('trackedElementCustomEvent', nativeIdentifier, eventName);
+  }
+
+  trackedElementCanHighlightChanged(
+      nativeIdentifier: string, canHighlight: boolean) {
+    this.methodCalled(
+        'trackedElementCanHighlightChanged', nativeIdentifier, canHighlight);
   }
 }
 

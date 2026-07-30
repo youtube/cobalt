@@ -45,7 +45,7 @@ std::unique_ptr<views::Widget> CreateWidget(content::WebContents& parent,
   // TODO(b:292184832): Create with own buttons
 
   views::Widget::InitParams params(
-      views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET,
+      views::Widget::InitParams::CLIENT_OWNS_WIDGET,
       views::Widget::InitParams::TYPE_WINDOW);
   params.shadow_type = views::Widget::InitParams::ShadowType::kDrop;
   const gfx::Rect& rect = parent.GetViewBounds();
@@ -79,10 +79,9 @@ PreviewTab::PreviewTab(PreviewManager* preview_manager,
       url_(url) {
   CHECK(base::FeatureList::IsEnabled(blink::features::kLinkPreview));
   web_contents_->SetDelegate(this);
-  scoped_ignore_web_inputs_ = web_contents_->IgnoreInputEvents(
-      base::BindRepeating(&PreviewTab::AuditWebInputEvent,
-                          base::Unretained(this)),
-      /*should_ignore_a11y_input=*/true);
+  scoped_ignore_web_inputs_ =
+      web_contents_->IgnoreInputEvents(base::BindRepeating(
+          &PreviewTab::AuditWebInputEvent, base::Unretained(this)));
 
   // WebView setup.
   view_->SetWebContents(web_contents_.get());

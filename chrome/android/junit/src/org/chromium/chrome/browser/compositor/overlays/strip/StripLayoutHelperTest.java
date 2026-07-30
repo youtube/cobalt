@@ -117,9 +117,9 @@ import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.browser.multiwindow.MultiWindowTestUtils;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.share.ShareDelegate;
+import org.chromium.chrome.browser.tab.MediaState;
 import org.chromium.chrome.browser.tab.MockTab;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.browser.tab.Tab.MediaState;
 import org.chromium.chrome.browser.tab.TabCreationState;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
@@ -5369,37 +5369,6 @@ public class StripLayoutHelperTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.GLIC)
-    public void testGlicButtonMenu() {
-        // Initialize.
-        mToolbarContainerView = new View(mActivity);
-        initializeTest(/* tabIndex= */ 0);
-
-        // Mock Glic button.
-        when(mGlicBtn.isVisible()).thenReturn(true);
-        when(mGlicBtn.click(anyFloat(), anyFloat(), anyInt())).thenReturn(true);
-        when(mGlicBtn.getType()).thenReturn(ButtonType.GLIC);
-
-        // Long press on Glic button.
-        mStripLayoutHelper.onLongPress(150f, 0f);
-
-        // Verify the Glic button menu is showing.
-        assertTrue(
-                "Glic button menu should be showing",
-                mStripLayoutHelper.isGlicButtonMenuShowingForTesting());
-
-        // Click "Unpin".
-        mStripLayoutHelper.clickGlicButtonMenuItemForTesting(0);
-
-        // Verify the Glic button menu is dismissed.
-        assertFalse(
-                "Glic button menu should be dismissed after clicking an item.",
-                mStripLayoutHelper.isGlicButtonMenuShowingForTesting());
-
-        // TODO(crbug.com/480741391): Test actual unpinning functionality
-    }
-
-    @Test
     public void testUpdateTabGroupCollapsed_Collapse() {
         // Initialize with 4 tabs. Group first three tabs.
         initializeTest(false, false, 3, 4);
@@ -6229,7 +6198,6 @@ public class StripLayoutHelperTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.ANDROID_TAB_HIGHLIGHTING)
     public void testMultiSelect_CtrlClick_SelectsAndActivatesTab() {
         initializeTest(false, false, 0, 5);
         // Update layout to set view draw properties
@@ -6260,7 +6228,6 @@ public class StripLayoutHelperTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.ANDROID_TAB_HIGHLIGHTING)
     public void testMultiSelect_CtrlClick_TogglesSelection() {
         initializeTest(false, false, 0, 5);
         // Update layout to set view draw properties
@@ -6298,7 +6265,6 @@ public class StripLayoutHelperTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.ANDROID_TAB_HIGHLIGHTING)
     public void testMultiSelect_ShiftClick_SelectsRange() {
         initializeTest(false, false, 1, 5); // Start with Tab 1 active (this is the anchor).
         // Update layout to set view draw properties
@@ -6334,7 +6300,6 @@ public class StripLayoutHelperTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.ANDROID_TAB_HIGHLIGHTING)
     public void testMultiSelect_ShiftClick_IsDestructive() {
         initializeTest(false, false, 2, 5);
         // Update layout to set view draw properties
@@ -6382,7 +6347,6 @@ public class StripLayoutHelperTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.ANDROID_TAB_HIGHLIGHTING)
     public void testMultiSelect_ShiftCtrlClick_IsAdditive() {
         initializeTest(false, false, 0, 5);
         // Update layout to set view draw properties
@@ -6424,7 +6388,6 @@ public class StripLayoutHelperTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.ANDROID_TAB_HIGHLIGHTING)
     public void testMultiSelect_StandardClick_ClearsSelection() {
         initializeTest(false, false, 0, 5);
         // Update layout to set view draw properties
@@ -6468,7 +6431,6 @@ public class StripLayoutHelperTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.ANDROID_TAB_HIGHLIGHTING)
     public void testMultiSelect_ShiftClick_ThroughCollapsedGroup_ExpandsGroup() {
         initializeTest(false, false, 0, 5);
         groupTabs(1, 4, TAB_GROUP_ID_1);
@@ -6492,7 +6454,6 @@ public class StripLayoutHelperTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.ANDROID_TAB_HIGHLIGHTING)
     public void testMultiSelect_CtrlClick_OnActiveTab_SelectsLeftmost() {
         initializeTest(false, false, 0, 5);
         // Update layout to set view draw properties
@@ -6532,7 +6493,6 @@ public class StripLayoutHelperTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.ANDROID_TAB_HIGHLIGHTING)
     public void testMultiSelect_CtrlClick_ResetsAnchorTab() {
         initializeTest(false, false, 1, 5);
         mStripLayoutHelper.onSizeChanged(
@@ -6572,7 +6532,6 @@ public class StripLayoutHelperTest {
     }
 
     @Test
-    @EnableFeatures({ChromeFeatureList.ANDROID_TAB_HIGHLIGHTING})
     public void testTabContextMenu_MultipleTabsSelected() {
         // Setup
         initializeTest(false, false, 0, 5);
@@ -6615,7 +6574,6 @@ public class StripLayoutHelperTest {
     }
 
     @Test
-    @EnableFeatures({ChromeFeatureList.ANDROID_TAB_HIGHLIGHTING})
     public void testTabContextMenu_MultipleTabsSelected_WithGroup() {
         // Setup
         initializeTest(false, false, 0, 5);

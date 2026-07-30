@@ -289,6 +289,12 @@ using ::ash::MagnifierType;
 // clang-format off
 const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
 // Policies for all platforms - Start
+  { key::kAutoplayAllowed,
+    prefs::kAutoplayAllowed,
+    base::Value::Type::BOOLEAN },
+  { key::kAutoplayAllowlist,
+    prefs::kAutoplayAllowlist,
+    base::Value::Type::LIST },
   { key::kClipboardAllowedForUrls,
     prefs::kManagedClipboardAllowedForUrls,
     base::Value::Type::LIST },
@@ -536,9 +542,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     base::Value::Type::LIST },
   { key::kAutoOpenAllowedForURLs,
     prefs::kDownloadAllowedURLsForOpenByPolicy,
-    base::Value::Type::LIST },
-  { key::kAutoplayAllowlist,
-    prefs::kAutoplayAllowlist,
     base::Value::Type::LIST },
   { key::kScreenCaptureWithoutGestureAllowedForOrigins,
     prefs::kScreenCaptureWithoutGestureAllowedForOrigins,
@@ -1472,10 +1475,10 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     ash::prefs::kSchedulerConfiguration,
     base::Value::Type::STRING },
   { key::kExternalPrintServersAllowlist,
-    prefs::kExternalPrintServersAllowlist,
+    ash::prefs::kExternalPrintServersAllowlist,
     base::Value::Type::LIST },
   { key::kDeviceExternalPrintServersAllowlist,
-    prefs::kDeviceExternalPrintServersAllowlist,
+    ash::prefs::kDeviceExternalPrintServersAllowlist,
     base::Value::Type::LIST },
   { key::kAllowedLanguages,
     prefs::kAllowedLanguages,
@@ -1490,7 +1493,7 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     prefs::kArcAppInstallEventLoggingEnabled,
     base::Value::Type::BOOLEAN },
   { key::kNetworkFileSharesAllowed,
-    prefs::kNetworkFileSharesAllowed,
+    ash::prefs::kNetworkFileSharesAllowed,
     base::Value::Type::BOOLEAN },
   { key::kPowerSmartDimEnabled,
     ash::prefs::kPowerSmartDimEnabled,
@@ -1523,7 +1526,7 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     prefs::kNTLMShareAuthenticationEnabled,
     base::Value::Type::BOOLEAN },
   { key::kPrintingSendUsernameAndFilenameEnabled,
-    prefs::kPrintingSendUsernameAndFilenameEnabled,
+    ash::prefs::kPrintingSendUsernameAndFilenameEnabled,
     base::Value::Type::BOOLEAN },
   { key::kUserPluginVmAllowed,
     plugin_vm::prefs::kPluginVmAllowed,
@@ -1607,7 +1610,7 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     metrics::prefs::kMetricsReportingEnabled,
     base::Value::Type::BOOLEAN },
   { key::kSystemTimezoneAutomaticDetection,
-    prefs::kSystemTimezoneAutomaticDetectionPolicy,
+    ash::prefs::kSystemTimezoneAutomaticDetectionPolicy,
     base::Value::Type::INTEGER },
   { key::kDeviceWiFiFastTransitionEnabled,
     ash::prefs::kDeviceWiFiFastTransitionEnabled,
@@ -1652,7 +1655,7 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     ash::prefs::kLoginDisplayPasswordButtonEnabled,
     base::Value::Type::BOOLEAN },
   { key::kDeletePrintJobHistoryAllowed,
-    prefs::kDeletePrintJobHistoryAllowed,
+    ash::prefs::kDeletePrintJobHistoryAllowed,
     base::Value::Type::BOOLEAN },
   { key::kSuggestedContentEnabled,
     ash::prefs::kSuggestedContentEnabled,
@@ -1823,7 +1826,7 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     ash::prefs::kUserGeolocationAccessLevel,
     base::Value::Type::INTEGER },
   { key::kLocalUserFilesAllowed,
-    prefs::kLocalUserFilesAllowed,
+    ash::prefs::kLocalUserFilesAllowed,
     base::Value::Type::BOOLEAN },
   { key::kGenAIWallpaperSettings,
     ash::prefs::kGenAIWallpaperSettings,
@@ -1832,7 +1835,7 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     ash::prefs::kGenAIVcBackgroundSettings,
     base::Value::Type::INTEGER },
   { key::kLocalUserFilesMigrationDestination,
-    prefs::kLocalUserFilesMigrationDestination,
+    ash::prefs::kLocalUserFilesMigrationDestination,
     base::Value::Type::STRING },
   { key::kFocusModeSoundsEnabled,
     ash::prefs::kFocusModeSoundsEnabled,
@@ -1977,9 +1980,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) \
     || BUILDFLAG(IS_CHROMEOS)
-  { key::kAutoplayAllowed,
-    prefs::kAutoplayAllowed,
-    base::Value::Type::BOOLEAN },
   { key::kAutomatedPasswordChangeSettings,
     optimization_guide::prefs::kAutomatedPasswordChangeEnterprisePolicyAllowed,
     base::Value::Type::INTEGER },
@@ -2136,13 +2136,13 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     prefs::kManagedDefaultDeviceAttributesSetting,
     base::Value::Type::INTEGER },
   { key::kKioskApplicationLogCollectionEnabled,
-    prefs::kKioskApplicationLogCollectionEnabled,
+    ash::prefs::kKioskApplicationLogCollectionEnabled,
     base::Value::Type::BOOLEAN},
   { key::kKioskBrowserPermissionsAllowedForOrigins,
-    prefs::kKioskBrowserPermissionsAllowedForOrigins,
+    ash::prefs::kKioskBrowserPermissionsAllowedForOrigins,
     base::Value::Type::LIST },
   { key::kKioskWebAppOfflineEnabled,
-    prefs::kKioskWebAppOfflineEnabled,
+    ash::prefs::kKioskWebAppOfflineEnabled,
     base::Value::Type::BOOLEAN},
   { key::kDevicePolicyRefreshRate,
     prefs::kDevicePolicyRefreshRate,
@@ -2172,19 +2172,19 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     prefs::kRestrictedManagedGuestSessionExtensionCleanupExemptList,
     base::Value::Type::LIST },
   { key::kNewWindowsInKioskAllowed,
-    prefs::kNewWindowsInKioskAllowed,
+    ash::prefs::kNewWindowsInKioskAllowed,
     base::Value::Type::BOOLEAN },
   { key::kKioskTroubleshootingToolsEnabled,
-    prefs::kKioskTroubleshootingToolsEnabled,
+    ash::prefs::kKioskTroubleshootingToolsEnabled,
     base::Value::Type::BOOLEAN },
   { key::kRemoteAccessHostAllowEnterpriseRemoteSupportConnections,
     prefs::kRemoteAccessHostAllowEnterpriseRemoteSupportConnections,
     base::Value::Type::BOOLEAN },
   { key::kKioskActiveWiFiCredentialsScopeChangeEnabled,
-    prefs::kKioskActiveWiFiCredentialsScopeChangeEnabled,
+    ash::prefs::kKioskActiveWiFiCredentialsScopeChangeEnabled,
     base::Value::Type::BOOLEAN },
   { key::kKioskChromeAppsForceAllowed,
-    prefs::kKioskChromeAppsForceAllowed,
+    ash::prefs::kKioskChromeAppsForceAllowed,
     base::Value::Type::BOOLEAN },
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
@@ -2205,6 +2205,12 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     extensions::pref_names::kBlockExternalExtensions,
     base::Value::Type::BOOLEAN },
 #endif // !BUILDFLAG(IS_CHROMEOS) && BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+  { key::kExtensionDOMActivityLoggingEnabled,
+    prefs::kExtensionDOMActivityLoggingEnabled,
+    base::Value::Type::BOOLEAN },
+#endif // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   { key::kExtensionExtendedBackgroundLifetimeForPortConnectionsToUrls,
@@ -3132,12 +3138,12 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
   // Handler for another policy with JSON strings, lenient but shows warnings.
   handlers->AddHandler(
       std::make_unique<SimpleJsonStringSchemaValidatingPolicyHandler>(
-          key::kPrinters, prefs::kRecommendedPrinters,
+          key::kPrinters, ash::prefs::kRecommendedPrinters,
           chrome_schema.GetValidationSchema(),
           SimpleSchemaValidatingPolicyHandler::RECOMMENDED_ALLOWED,
           SimpleSchemaValidatingPolicyHandler::MANDATORY_ALLOWED));
   handlers->AddHandler(std::make_unique<SimplePolicyHandler>(
-      key::kUserPrintersAllowed, prefs::kUserPrintersAllowed,
+      key::kUserPrintersAllowed, ash::prefs::kUserPrintersAllowed,
       base::Value::Type::BOOLEAN));
   handlers->AddHandler(std::make_unique<IntRangePolicyHandler>(
       key::kGaiaOfflineSigninTimeLimitDays,
@@ -3182,13 +3188,13 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
   handlers->AddHandler(std::make_unique<ExternalDataPolicyHandler>(
       key::kPrintersBulkConfiguration));
   handlers->AddHandler(std::make_unique<SimplePolicyHandler>(
-      key::kPrintersBulkAccessMode, prefs::kRecommendedPrintersAccessMode,
+      key::kPrintersBulkAccessMode, ash::prefs::kRecommendedPrintersAccessMode,
       base::Value::Type::INTEGER));
   handlers->AddHandler(std::make_unique<SimplePolicyHandler>(
-      key::kPrintersBulkBlocklist, prefs::kRecommendedPrintersBlocklist,
+      key::kPrintersBulkBlocklist, ash::prefs::kRecommendedPrintersBlocklist,
       base::Value::Type::LIST));
   handlers->AddHandler(std::make_unique<SimplePolicyHandler>(
-      key::kPrintersBulkAllowlist, prefs::kRecommendedPrintersAllowlist,
+      key::kPrintersBulkAllowlist, ash::prefs::kRecommendedPrintersAllowlist,
       base::Value::Type::LIST));
   handlers->AddHandler(
       std::make_unique<ExternalDataPolicyHandler>(key::kExternalPrintServers));
@@ -3232,11 +3238,11 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
   handlers->AddHandler(std::make_unique<PrintingDuplexDefaultPolicyHandler>());
   handlers->AddHandler(std::make_unique<PrintingPinDefaultPolicyHandler>());
   handlers->AddHandler(std::make_unique<IntRangePolicyHandler>(
-      key::kPrintingMaxSheetsAllowed, prefs::kPrintingMaxSheetsAllowed, 1,
+      key::kPrintingMaxSheetsAllowed, ash::prefs::kPrintingMaxSheetsAllowed, 1,
       INT_MAX, true));
   handlers->AddHandler(std::make_unique<IntRangePolicyHandler>(
       key::kPrintJobHistoryExpirationPeriod,
-      prefs::kPrintJobHistoryExpirationPeriod, -1, INT_MAX, true));
+      ash::prefs::kPrintJobHistoryExpirationPeriod, -1, INT_MAX, true));
   handlers->AddHandler(std::make_unique<SimpleSchemaValidatingPolicyHandler>(
       key::kNetworkFileSharesPreconfiguredShares,
       prefs::kNetworkFileSharesPreconfiguredShares, chrome_schema,

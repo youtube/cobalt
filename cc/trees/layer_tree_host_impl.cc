@@ -156,6 +156,7 @@
 #include "ui/gfx/geometry/vector2d_conversions.h"
 #include "ui/gfx/geometry/vector2d_f.h"
 #include "ui/gfx/skia_span_util.h"
+#include "ui/latency/latency_info.h"
 
 namespace cc {
 namespace {
@@ -1545,7 +1546,6 @@ DrawResult LayerTreeHostImpl::CalculateRenderPasses(FrameData* frame,
   DrawResult draw_result = DrawResult::kSuccess;
 
   int num_missing_tiles = 0;
-  CHECK(!frame->checkerboarded_needs_raster);
   CHECK(!frame->checkerboarded_needs_record);
 
   frame->has_copy_requests =
@@ -1671,8 +1671,6 @@ DrawResult LayerTreeHostImpl::CalculateRenderPasses(FrameData* frame,
             append_quads_data.approximated_visible_content_area);
 
         num_missing_tiles += append_quads_data.num_missing_tiles;
-        frame->checkerboarded_needs_raster |=
-            append_quads_data.checkerboarded_needs_raster;
         frame->checkerboarded_needs_record |=
             append_quads_data.checkerboarded_needs_record;
 
@@ -1772,26 +1770,36 @@ DrawResult LayerTreeHostImpl::CalculateRenderPasses(FrameData* frame,
   if (root_render_surface && !has_transparent_background) {
     frame->render_passes.back()->has_transparent_background = false;
 
-    // If any tiles are missing, then fill behind the entire root render
-    // surface.  This is a workaround for this edge case, instead of tracking
-    // individual tiles that are missing.
-    Region fill_region = unoccluded_screen_space_region;
-    if (num_missing_tiles > 0) {
-      fill_region = root_render_surface->content_rect();
-    }
+    if (output_frame_data) {
+      // If any tiles are missing, then fill behind the entire root render
+      // surface.  This is a workaround for this edge case, instead of tracking
+      // individual tiles that are missing.
+      Region fill_region = unoccluded_screen_space_region;
+      if (num_missing_tiles > 0) {
+        fill_region = root_render_surface->content_rect();
+      }
 
-    AppendQuadsToFillScreen(frame->render_passes.back().get(),
-                            root_render_surface,
-                            active_tree_->background_color(), fill_region);
+      AppendQuadsToFillScreen(frame->render_passes.back().get(),
+                              root_render_surface,
+                              active_tree_->background_color(), fill_region);
+    }
   }
 
-  RemoveRenderPasses(frame);
+  if (output_frame_data) {
+    RemoveRenderPasses(frame);
+  }
   // If we're making a frame to draw, it better have at least one render pass.
   DCHECK(!frame->render_passes.empty());
 
-  TRACE_EVENT_END2("cc,benchmark", "LayerTreeHostImpl::CalculateRenderPasses",
-                   "draw_result", draw_result, "missing tiles",
-                   num_missing_tiles);
+  if (settings_.TreesInVizInClientProcess()) {
+    // num_missing_tiles is not counted.
+    TRACE_EVENT_END1("cc,benchmark", "LayerTreeHostImpl::CalculateRenderPasses",
+                     "draw_result", draw_result);
+  } else {
+    TRACE_EVENT_END2("cc,benchmark", "LayerTreeHostImpl::CalculateRenderPasses",
+                     "draw_result", draw_result, "missing tiles",
+                     num_missing_tiles);
+  }
 
   // Draw has to be successful to not drop the copy request layer.
   // When we have a copy request for a layer, we need to draw even if there
@@ -1879,7 +1887,7 @@ DrawResult LayerTreeHostImpl::PrepareToDraw(FrameData* frame,
     // This will cause NotifyTileStateChanged() to be called for any tiles that
     // completed, which will add damage for visible tiles to the frame for them
     // so they appear as part of the current frame being drawn.
-    tile_manager_.PrepareToDraw();
+    frame->checkerboarded_needs_raster = !tile_manager_.PrepareToDraw();
   }
 
   frame->render_surface_list = &active_tree_->GetRenderSurfaceList();
@@ -3006,7 +3014,7 @@ std::optional<SubmitInfo> LayerTreeHostImpl::DrawLayers(FrameData* frame) {
 
     // Send updates to Viz even for no damage case when TreesInViz is enabled.
     if (settings_.TreesInVizInClientProcess()) {
-      UpdateDisplayTree(*frame);
+      UpdateDisplayTree(*frame, {});
     }
 
     active_tree()->ResetAllChangeTracking();
@@ -3096,7 +3104,8 @@ std::optional<SubmitInfo> LayerTreeHostImpl::DrawLayers(FrameData* frame) {
   if (settings_.TreesInVizInClientProcess()) {
     send_frame_token_to_embedder_ =
         compositor_frame.metadata.send_frame_token_to_embedder;
-    trees_in_viz_submit_time = UpdateDisplayTree(*frame);
+    trees_in_viz_submit_time = UpdateDisplayTree(
+        *frame, std::move(compositor_frame.metadata.latency_info));
 
     layer_tree_frame_sink_->ExportFrameTiming();
   } else {
@@ -3591,14 +3600,17 @@ void LayerTreeHostImpl::DidDrawAllLayers(const FrameData& frame) {
   }
 }
 
-base::TimeTicks LayerTreeHostImpl::UpdateDisplayTree(FrameData& frame) {
+base::TimeTicks LayerTreeHostImpl::UpdateDisplayTree(
+    FrameData& frame,
+    std::vector<ui::LatencyInfo> latency_info) {
   DCHECK(settings_.TreesInVizInClientProcess());
   DCHECK(layer_context_);
 
   return layer_context_->UpdateDisplayTreeFrom(
       *active_tree(), *resource_provider(),
       layer_tree_frame_sink_->shared_image_interface().get(),
-      viewport_damage_rect_, target_local_surface_id_, !frame.has_no_damage);
+      viewport_damage_rect_, target_local_surface_id_, !frame.has_no_damage,
+      std::move(latency_info));
 }
 
 int LayerTreeHostImpl::RequestedMSAASampleCount() const {

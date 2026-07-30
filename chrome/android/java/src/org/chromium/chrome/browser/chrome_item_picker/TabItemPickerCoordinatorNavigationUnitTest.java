@@ -7,10 +7,13 @@ package org.chromium.chrome.browser.chrome_item_picker;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -22,6 +25,8 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -29,6 +34,7 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
+import org.chromium.base.Callback;
 import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneshotSupplierImpl;
@@ -41,6 +47,8 @@ import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLoadIfNeededCaller;
+import org.chromium.chrome.browser.tab.TabObserver;
+import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorImpl;
 import org.chromium.chrome.browser.tasks.tab_management.TabListEditorCoordinator;
@@ -67,6 +75,9 @@ public class TabItemPickerCoordinatorNavigationUnitTest {
     @Mock private ChromeItemPickerActivity mActivity;
     @Mock private TabListEditorCoordinator mTabListEditorCoordinator;
     @Mock private TabListEditorController mTabListEditorController;
+    @Mock private TabContentManager mTabContentManager;
+    @Captor private ArgumentCaptor<TabObserver> mTabObserverCaptor;
+    @Captor private ArgumentCaptor<Callback<android.graphics.Bitmap>> mCallbackCaptor;
 
     private final Set<TabListEditorItemSelectionId> mInitialSelectedTabIds = new HashSet<>();
 
@@ -119,6 +130,7 @@ public class TabItemPickerCoordinatorNavigationUnitTest {
                         mActivity,
                         ObservableSuppliers.createMonotonic(mTabListEditorController),
                         mTabModelSelector,
+                        mTabContentManager,
                         mCachedTabIds,
                         mInitialSelectedTabIds);
 
@@ -229,6 +241,8 @@ public class TabItemPickerCoordinatorNavigationUnitTest {
         int tabId = 101;
         Tab tab = mockTabActiveState(tabId, false);
         when(tab.getUrl()).thenReturn(JUnitTestGURLs.URL_1);
+        when(tab.loadIfNeeded(anyInt())).thenReturn(true);
+        when(tab.isLoading()).thenReturn(true);
 
         captureAndSpyNavigationProvider();
 
@@ -239,6 +253,59 @@ public class TabItemPickerCoordinatorNavigationUnitTest {
         mNavigationProvider.onSelectionStateChange(selection);
 
         verify(tab).loadIfNeeded(TabLoadIfNeededCaller.FUSEBOX_ATTACHMENT);
+        verify(mTabListEditorController).setThumbnailSpinnerVisibility(tab, true);
+        verify(tab).addObserver(mTabObserverCaptor.capture());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ON_DEMAND_BACKGROUND_TAB_CONTEXT_CAPTURE)
+    public void testTabLoadFinished() {
+        int tabId = 101;
+        Tab tab = mockTabActiveState(tabId, false);
+        when(tab.getUrl()).thenReturn(JUnitTestGURLs.URL_1);
+        when(tab.loadIfNeeded(anyInt())).thenReturn(true);
+        when(tab.isLoading()).thenReturn(true);
+
+        captureAndSpyNavigationProvider();
+
+        TabListEditorItemSelectionId id = TabListEditorItemSelectionId.createTabId(tabId);
+        Set<TabListEditorItemSelectionId> selection = new HashSet<>();
+        selection.add(id);
+
+        mNavigationProvider.onSelectionStateChange(selection);
+
+        verify(tab).addObserver(mTabObserverCaptor.capture());
+        TabObserver observer = mTabObserverCaptor.getValue();
+
+        observer.onPageLoadFinished(tab, JUnitTestGURLs.URL_1);
+
+        verify(tab).removeObserver(observer);
+        verify(mTabContentManager)
+                .cacheTabThumbnailWithCallback(eq(tab), eq(false), mCallbackCaptor.capture());
+        mCallbackCaptor.getValue().onResult(null);
+        verify(mTabListEditorController).setThumbnailSpinnerVisibility(tab, false);
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ON_DEMAND_BACKGROUND_TAB_CONTEXT_CAPTURE)
+    public void testTabLoadFinished_AlreadyLoaded() {
+        int tabId = 101;
+        Tab tab = mockTabActiveState(tabId, false);
+        when(tab.getUrl()).thenReturn(JUnitTestGURLs.URL_1);
+        when(tab.loadIfNeeded(anyInt())).thenReturn(true);
+        when(tab.isLoading()).thenReturn(false);
+
+        captureAndSpyNavigationProvider();
+
+        TabListEditorItemSelectionId id = TabListEditorItemSelectionId.createTabId(tabId);
+        Set<TabListEditorItemSelectionId> selection = new HashSet<>();
+        selection.add(id);
+
+        mNavigationProvider.onSelectionStateChange(selection);
+
+        verify(tab, never()).addObserver(any());
+        verify(mTabContentManager, never())
+                .cacheTabThumbnailWithCallback(any(), anyBoolean(), any());
     }
 
     @Test
@@ -257,6 +324,95 @@ public class TabItemPickerCoordinatorNavigationUnitTest {
         mNavigationProvider.onSelectionStateChange(selection);
 
         verify(tab, never()).loadIfNeeded(anyInt());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ON_DEMAND_BACKGROUND_TAB_CONTEXT_CAPTURE)
+    public void testSelectionChangeLoadsBackgroundTabs_RedundantTrigger() {
+        int tabId = 101;
+        Tab tab = mockTabActiveState(tabId, false);
+        when(tab.getUrl()).thenReturn(JUnitTestGURLs.URL_1);
+        when(tab.loadIfNeeded(anyInt())).thenReturn(true);
+        when(tab.isLoading()).thenReturn(true);
+
+        captureAndSpyNavigationProvider();
+
+        TabListEditorItemSelectionId id = TabListEditorItemSelectionId.createTabId(tabId);
+        Set<TabListEditorItemSelectionId> selection = new HashSet<>();
+        selection.add(id);
+
+        mNavigationProvider.onSelectionStateChange(selection);
+        mNavigationProvider.onSelectionStateChange(selection);
+
+        verify(tab, times(2)).loadIfNeeded(anyInt());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ON_DEMAND_BACKGROUND_TAB_CONTEXT_CAPTURE)
+    public void testSelectionChangeDoesNotAddObserverTwice() {
+        int tabId = 101;
+        Tab tab = mockTabActiveState(tabId, false);
+        when(tab.getUrl()).thenReturn(JUnitTestGURLs.URL_1);
+        when(tab.loadIfNeeded(anyInt())).thenReturn(true);
+        when(tab.isLoading()).thenReturn(true);
+
+        captureAndSpyNavigationProvider();
+
+        TabListEditorItemSelectionId id = TabListEditorItemSelectionId.createTabId(tabId);
+        Set<TabListEditorItemSelectionId> selection = new HashSet<>();
+        selection.add(id);
+
+        mNavigationProvider.onSelectionStateChange(selection);
+        mNavigationProvider.onSelectionStateChange(selection);
+
+        verify(tab, times(1)).addObserver(any());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ON_DEMAND_BACKGROUND_TAB_CONTEXT_CAPTURE)
+    public void testSelectionChangeDoesNotShowSpinnerTwice() {
+        int tabId = 101;
+        Tab tab = mockTabActiveState(tabId, false);
+        when(tab.getUrl()).thenReturn(JUnitTestGURLs.URL_1);
+        when(tab.loadIfNeeded(anyInt())).thenReturn(true);
+        when(tab.isLoading()).thenReturn(true);
+
+        captureAndSpyNavigationProvider();
+
+        TabListEditorItemSelectionId id = TabListEditorItemSelectionId.createTabId(tabId);
+        Set<TabListEditorItemSelectionId> selection = new HashSet<>();
+        selection.add(id);
+
+        mNavigationProvider.onSelectionStateChange(selection);
+        mNavigationProvider.onSelectionStateChange(selection);
+
+        verify(mTabListEditorController, times(1)).setThumbnailSpinnerVisibility(tab, true);
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ON_DEMAND_BACKGROUND_TAB_CONTEXT_CAPTURE)
+    public void testSelectionChange_RedundantTrigger_Loading() {
+        int tabId = 101;
+        Tab tab = mockTabActiveState(tabId, false);
+        when(tab.getUrl()).thenReturn(JUnitTestGURLs.URL_1);
+        when(tab.loadIfNeeded(anyInt())).thenReturn(true);
+        when(tab.isLoading()).thenReturn(true);
+
+        captureAndSpyNavigationProvider();
+
+        TabListEditorItemSelectionId id = TabListEditorItemSelectionId.createTabId(tabId);
+        Set<TabListEditorItemSelectionId> selection = new HashSet<>();
+        selection.add(id);
+
+        mNavigationProvider.onSelectionStateChange(selection);
+        mNavigationProvider.onSelectionStateChange(selection);
+
+        verify(tab, times(2)).loadIfNeeded(anyInt());
+        // cacheTabThumbnailWithCallback is not called yet because the tab is still loading.
+        verify(mTabContentManager, never())
+                .cacheTabThumbnailWithCallback(any(), anyBoolean(), any());
+        // Spinner is shown once.
+        verify(mTabListEditorController, times(1)).setThumbnailSpinnerVisibility(tab, true);
     }
 
     @Test

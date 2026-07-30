@@ -1128,6 +1128,32 @@ TEST_P(PaintLayerTest, SubsequenceCachingSVG) {
   EXPECT_TRUE(foreign_object->SupportsSubsequenceCaching());
 }
 
+TEST_P(PaintLayerTest, ReplacedNormalFlowStackingVideoControlsIsNotStacked) {
+  SetBodyInnerHTML(R"HTML(
+    <video id="videoWithoutControls"></video>
+    <video id="video" controls></video>
+  )HTML");
+  auto* video_without_controls =
+      GetLayoutObjectByElementId("videoWithoutControls");
+  EXPECT_FALSE(video_without_controls->IsStackingContext());
+  EXPECT_FALSE(video_without_controls->IsStacked());
+
+  PaintLayer* video_layer = GetPaintLayerByElementId("video");
+  EXPECT_TRUE(video_layer->GetLayoutObject().IsStackingContext());
+  EXPECT_FALSE(video_layer->GetLayoutObject().IsStacked());
+  EXPECT_TRUE(video_layer->IsReplacedNormalFlowStackingContext());
+
+  GetDocument()
+      .getElementById(AtomicString("video"))
+      ->setAttribute(html_names::kStyleAttr,
+                     AtomicString("position: relative"));
+  UpdateAllLifecyclePhasesForTest();
+
+  video_layer = GetPaintLayerByElementId("video");
+  EXPECT_FALSE(video_layer->IsReplacedNormalFlowStackingContext());
+  EXPECT_TRUE(video_layer->GetLayoutObject().IsStacked());
+}
+
 TEST_P(PaintLayerTest, SubsequenceCachingMuticol) {
   SetBodyInnerHTML(R"HTML(
     <div style='columns: 2'>
@@ -2306,6 +2332,22 @@ TEST_P(PaintLayerTest, HitTestInfiniteHitTestAreaSmallScaleTransform) {
     GetLayoutView().HitTest(location, result);
     EXPECT_EQ(target, result.InnerNode()) << " point=" << point.ToString();
   }
+}
+
+TEST_P(PaintLayerTest, ReplacedNormalFlowStackingForeignObjectIsNotStacked) {
+  SetBodyInnerHTML(R"HTML(
+    <svg width="200" height="200">
+      <foreignObject id="foreignObject" width="100" height="100"></foreignObject>
+    </svg>
+  )HTML");
+
+  PaintLayer* foreign_object = GetPaintLayerByElementId("foreignObject");
+  LayoutBoxModelObject& layout_object = foreign_object->GetLayoutObject();
+
+  EXPECT_TRUE(foreign_object->IsReplacedNormalFlowStackingContext());
+  EXPECT_TRUE(layout_object.IsStackingContext());
+  EXPECT_FALSE(layout_object.IsStacked());
+  EXPECT_TRUE(layout_object.HasLayer());
 }
 
 TEST_P(PaintLayerTest, AddLayerNeedsRepaintAndCullRectUpdate) {

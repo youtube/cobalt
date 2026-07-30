@@ -29,6 +29,7 @@
 <translation id="126567311906253476">При најавување на услуги на Google како Gmail или YouTube со <ph name="USER_EMAIL" />, може да се најавувате на Chromium автоматски со истата сметка</translation>
 <translation id="1290883685122687410">Грешка при поставувањето: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">Поставете нов профил на Chromium</translation>
+<translation id="132092532143527429">Испробајте со Gemini во Chromium</translation>
 <translation id="1324107359134968521">Chromium бара пристап до Bluetooth за да открива 
  уреди со Bluetooth. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">Откриј јазик</translation>
@@ -241,6 +242,7 @@
 <translation id="3509308970982693815">Затворете ги сите прозорци на Chromium и обидете се повторно.</translation>
 <translation id="3522404737534491619">За да го споделите прозорецот, дозволете снимање на екранот за Chromium во System Settings</translation>
 <translation id="3530103706039034513">Корисникот <ph name="EXISTING_USER" /> веќе е најавен.  За да прелистувате одделно, најавете се на Chromium во вашиот сопствен профил како <ph name="USER_EMAIL_ADDRESS" />.</translation>
+<translation id="3531741627422851418">QR-код за преземање на прелистувачот Chromium на мобилни уреди</translation>
 <translation id="3561853857681580870">За да го споделите екранот, дозволете снимање на екранот за Chromium во System Settings.</translation>
 <translation id="3588112919289558122">„Подобрената заштита“ ја исклучува оптимизацијата на JavaScript за сајтовите што не ги препознава Chromium</translation>
 <translation id="3597003331831379823">Поставувањето со зголемени привилегии не можеше да се изврши. <ph name="METAINSTALLER_ERROR" /></translation>
@@ -376,7 +378,6 @@
 <translation id="5174969993834422967">Обично ги блокирате известувањата. За да овозможите сајтов да ве известува, кликнете ја иконата за известувања во десниот агол на лентата за локација.</translation>
 <translation id="5174983315706567306">Нема доволно простор на дискот.</translation>
 <translation id="5187123684706427865">Сметката на Chromium треба да се автентицира повторно</translation>
-<translation id="5219681158518957165">Користете ги препорачаните поставки за прелистувачот</translation>
 <translation id="5224391634244552924">Немате зачувани лозинки. Chromium може да ги проверува вашите лозинки ако ги зачувате.</translation>
 <translation id="5231355151045086930">Одјавете се од Chromium</translation>
 <translation id="5234764350956374838">Отфрли</translation>
@@ -609,6 +610,7 @@ Chromium не може да ги обнови вашите поставки.</tr
 <translation id="7622753900276619808">Отсега имате повеќе достапни функции во Chromium</translation>
 <translation id="7624307931717240213">Ги користиме податоците за да ја подобриме услугава. Погледнете ги „Политиката за приватност“ и „Условите за користење“.</translation>
 <translation id="7649070708921625228">Помош</translation>
+<translation id="7650134251917003571">Преземете ја апликацијата Chromium</translation>
 <translation id="7656340475565475526">Дозволете му на Chromium да прелистува наместо вас</translation>
 <translation id="7658239707568436148">Откажи</translation>
 <translation id="7686590090926151193">Chromium не е вашиот стандарден прелистувач</translation>

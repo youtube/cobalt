@@ -6,6 +6,7 @@
 
 #include <map>
 
+#include "base/no_destructor.h"
 #include "base/unguessable_token.h"
 #include "chrome/browser/ui/webui/ash/print_preview_cros/print_preview_cros_dialog.h"
 #include "components/device_event_log/device_event_log.h"
@@ -18,6 +19,13 @@ namespace ash {
 
 PrintPreviewDialogControllerCros::PrintPreviewDialogControllerCros() = default;
 PrintPreviewDialogControllerCros::~PrintPreviewDialogControllerCros() = default;
+
+// static
+PrintPreviewDialogControllerCros*
+PrintPreviewDialogControllerCros::GetInstance() {
+  static base::NoDestructor<PrintPreviewDialogControllerCros> instance;
+  return instance.get();
+}
 
 void PrintPreviewDialogControllerCros::AddObserver(
     DialogControllerObserver* observer) {
@@ -53,6 +61,19 @@ PrintPreviewDialogControllerCros::CreatePrintPreviewDialog(
   dialog->AddObserver(this);
   return dialog;
   // TODO(jimmyxgong): Add dialog to task manager.
+}
+
+void PrintPreviewDialogControllerCros::ClosePrintPreviewDialog(
+    base::UnguessableToken token) {
+  PrintPreviewCrosDialog* found_dialog = GetPrintPreviewDialogForToken(token);
+  if (!found_dialog) {
+    PRINTER_LOG(ERROR)
+        << "Attempted to close non-existent print preview with token: "
+        << token.ToString();
+    return;
+  }
+
+  found_dialog->Close();
 }
 
 void PrintPreviewDialogControllerCros::RemovePrintPreviewDialog(

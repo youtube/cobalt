@@ -185,6 +185,14 @@ public class TabListEditorCoordinator {
          *     tabId for tabs or syncId for groups.
          */
         void selectTabs(Set<TabListEditorItemSelectionId> itemIds);
+
+        /**
+         * Sets the visibility of the thumbnail spinner for a specific tab.
+         *
+         * @param tab The tab to update.
+         * @param isVisible Whether the spinner should be visible.
+         */
+        void setThumbnailSpinnerVisibility(Tab tab, boolean isVisible);
     }
 
     /** An interface for embedders to provide navigation. */
@@ -303,6 +311,11 @@ public class TabListEditorCoordinator {
                 @Override
                 public void selectTabs(Set<TabListEditorItemSelectionId> itemIds) {
                     mTabListEditorMediator.selectTabs(itemIds);
+                }
+
+                @Override
+                public void setThumbnailSpinnerVisibility(Tab tab, boolean isVisible) {
+                    mTabListEditorMediator.setThumbnailSpinnerVisibility(tab, isVisible);
                 }
             };
 

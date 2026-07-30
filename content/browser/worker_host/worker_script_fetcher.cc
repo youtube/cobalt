@@ -309,7 +309,8 @@ void WorkerScriptFetcher::CreateAndStart(
   Referrer sanitized_referrer = Referrer::SanitizeForRequest(
       initial_request_url,
       Referrer(outside_fetch_client_settings_object->outgoing_referrer,
-               outside_fetch_client_settings_object->referrer_policy));
+               outside_fetch_client_settings_object->policy_container_policies
+                   ->referrer_policy));
 
   resource_request = std::make_unique<network::ResourceRequest>();
   resource_request->url = initial_request_url;
@@ -317,7 +318,8 @@ void WorkerScriptFetcher::CreateAndStart(
   resource_request->request_initiator = request_initiator;
   resource_request->referrer = sanitized_referrer.url,
   resource_request->referrer_policy = Referrer::ReferrerPolicyForUrlRequest(
-      outside_fetch_client_settings_object->referrer_policy);
+      outside_fetch_client_settings_object->policy_container_policies
+          ->referrer_policy);
   resource_request->destination = request_destination;
   resource_request->credentials_mode = credentials_mode;
   // To be used for the first party context check.
@@ -555,10 +557,11 @@ void WorkerScriptFetcher::CreateScriptLoader(
                           std::move(service_worker_context));
 
   // This fetcher will delete itself. See the class level comment.
+  // TODO(crbug.com/379869738) Remove FromUnsafeValue.
   auto* script_fetcher = new WorkerScriptFetcher(
       std::make_unique<WorkerScriptLoaderFactory>(
-          worker_process_id, worker_token, trusted_isolation_info,
-          service_worker_handle, browser_context_getter,
+          ChildProcessId::FromUnsafeValue(worker_process_id), worker_token,
+          trusted_isolation_info, service_worker_handle, browser_context_getter,
           std::move(url_loader_factory)),
       std::move(resource_request),
       base::BindOnce(DidCreateScriptLoader, std::move(callback),

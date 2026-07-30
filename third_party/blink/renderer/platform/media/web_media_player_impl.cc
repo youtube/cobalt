@@ -608,6 +608,11 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
 }
 
 WebMediaPlayerImpl::~WebMediaPlayerImpl() {
+  // Ensure Shutdown() has been called.
+  CHECK(!client_);
+}
+
+void WebMediaPlayerImpl::Shutdown() {
   DVLOG(1) << __func__;
   DCHECK(main_task_runner_->BelongsToCurrentThread());
 
@@ -656,7 +661,12 @@ WebMediaPlayerImpl::~WebMediaPlayerImpl() {
   if (!surface_layer_for_video_enabled_ && video_layer_)
     video_layer_->StopUsingProvider();
 
+  // These hold Unretained(this), so must be destructed here.
+  watch_time_reporter_.reset();
+  video_decode_stats_reporter_.reset();
   simple_watch_timer_.Stop();
+  memory_usage_reporting_timer_.Stop();
+  background_pause_timer_.Stop();
   media_log_->OnWebMediaPlayerDestroyed();
 
   demuxer_manager_->StopAndResetClient();
@@ -684,8 +694,16 @@ WebMediaPlayerImpl::~WebMediaPlayerImpl() {
   // in MediaFoundationRendererClient.
   pipeline_controller_.reset();
 
+  client_ = nullptr;
+  encrypted_client_ = nullptr;
+  frame_ = nullptr;
+  url_index_ = nullptr;
+
+  weak_factory_.InvalidateWeakPtrsAndDoom();
+
   // Handle destruction of things that need to be destructed after the pipeline
   // completes stopping on the media thread.
+  // TODO(crbug.com/482958590): This may not be necessary anymore.
   PostCrossThreadTask(
       *media_task_runner_, FROM_HERE,
       CrossThreadBindOnce(

@@ -2942,11 +2942,13 @@ ScriptPromise<ScrollResult> Element::scrollBy(
     resolver =
         MakeGarbageCollected<ScriptPromiseResolver<ScrollResult>>(script_state);
   }
+  auto scoped_resolver =
+      std::make_unique<ScopedScrollPromiseResolver>(resolver);
 
   if (GetDocument().ScrollingElementNoLayout() == this) {
-    ScrollFrameBy(scroll_to_options, resolver);
+    ScrollFrameBy(scroll_to_options, std::move(scoped_resolver));
   } else {
-    ScrollLayoutBoxBy(scroll_to_options, resolver);
+    ScrollLayoutBoxBy(scroll_to_options, std::move(scoped_resolver));
   }
 
   return resolver ? resolver->Promise() : EmptyPromise();
@@ -2970,17 +2972,17 @@ ScriptPromise<ScrollResult> Element::scrollTo(
     resolver =
         MakeGarbageCollected<ScriptPromiseResolver<ScrollResult>>(script_state);
   }
+  auto scoped_resolver =
+      std::make_unique<ScopedScrollPromiseResolver>(resolver);
 
-  ScrollTo(scroll_to_options, resolver);
+  ScrollTo(scroll_to_options, std::move(scoped_resolver));
   return resolver ? resolver->Promise() : EmptyPromise();
 }
 
-bool Element::ScrollTo(const ScrollToOptions* scroll_to_options,
-                       ScriptPromiseResolver<ScrollResult>* resolver) {
+bool Element::ScrollTo(
+    const ScrollToOptions* scroll_to_options,
+    std::unique_ptr<ScopedScrollPromiseResolver> scoped_resolver) {
   if (!InActiveDocument()) {
-    if (resolver) {
-      resolver->Resolve();
-    }
     return false;
   }
 
@@ -2994,9 +2996,9 @@ bool Element::ScrollTo(const ScrollToOptions* scroll_to_options,
                                             DocumentUpdateReason::kJavaScript);
 
   if (GetDocument().ScrollingElementNoLayout() == this) {
-    return ScrollFrameTo(scroll_to_options, resolver);
+    return ScrollFrameTo(scroll_to_options, std::move(scoped_resolver));
   } else {
-    return ScrollLayoutBoxTo(scroll_to_options, resolver);
+    return ScrollLayoutBoxTo(scroll_to_options, std::move(scoped_resolver));
   }
 }
 
@@ -3017,8 +3019,9 @@ void Element::scrollToForTesting(double x, double y) {
   scrollTo(nullptr, x, y);
 }
 
-bool Element::ScrollLayoutBoxBy(const ScrollToOptions* scroll_to_options,
-                                ScriptPromiseResolver<ScrollResult>* resolver) {
+bool Element::ScrollLayoutBoxBy(
+    const ScrollToOptions* scroll_to_options,
+    std::unique_ptr<ScopedScrollPromiseResolver> scoped_resolver) {
   gfx::Vector2dF displacement;
   if (scroll_to_options->hasLeft()) {
     displacement.set_x(
@@ -3036,9 +3039,6 @@ bool Element::ScrollLayoutBoxBy(const ScrollToOptions* scroll_to_options,
   PaintLayerScrollableArea* scrollable_area =
       box ? box->GetScrollableArea() : nullptr;
   if (!scrollable_area) {
-    if (resolver) {
-      resolver->Resolve();
-    }
     return false;
   }
 
@@ -3057,11 +3057,13 @@ bool Element::ScrollLayoutBoxBy(const ScrollToOptions* scroll_to_options,
 
   return scrollable_area->SetProgrammaticScrollOffset(
       ScrollOffset(new_position - gfx::PointF(scrollable_area->ScrollOrigin())),
-      cc::ScrollSourceType::kRelativeScroll, scroll_behavior, resolver);
+      cc::ScrollSourceType::kRelativeScroll, scroll_behavior,
+      std::move(scoped_resolver));
 }
 
-bool Element::ScrollLayoutBoxTo(const ScrollToOptions* scroll_to_options,
-                                ScriptPromiseResolver<ScrollResult>* resolver) {
+bool Element::ScrollLayoutBoxTo(
+    const ScrollToOptions* scroll_to_options,
+    std::unique_ptr<ScopedScrollPromiseResolver> scoped_resolver) {
   mojom::blink::ScrollBehavior scroll_behavior =
       ScrollableArea::V8EnumToScrollBehavior(
           scroll_to_options->behavior().AsEnum());
@@ -3071,9 +3073,6 @@ bool Element::ScrollLayoutBoxTo(const ScrollToOptions* scroll_to_options,
       box ? box->GetScrollableArea() : nullptr;
 
   if (!scrollable_area) {
-    if (resolver) {
-      resolver->Resolve();
-    }
     return false;
   }
 
@@ -3127,11 +3126,12 @@ bool Element::ScrollLayoutBoxTo(const ScrollToOptions* scroll_to_options,
 
   return scrollable_area->SetProgrammaticScrollOffset(
       new_offset, cc::ScrollSourceType::kAbsoluteScroll, scroll_behavior,
-      resolver);
+      std::move(scoped_resolver));
 }
 
-bool Element::ScrollFrameBy(const ScrollToOptions* scroll_to_options,
-                            ScriptPromiseResolver<ScrollResult>* resolver) {
+bool Element::ScrollFrameBy(
+    const ScrollToOptions* scroll_to_options,
+    std::unique_ptr<ScopedScrollPromiseResolver> scoped_resolver) {
   gfx::Vector2dF displacement;
   if (scroll_to_options->hasLeft()) {
     displacement.set_x(
@@ -3148,9 +3148,6 @@ bool Element::ScrollFrameBy(const ScrollToOptions* scroll_to_options,
   LocalFrame* frame = GetDocument().GetFrame();
   if (!frame || !frame->View() || !frame->View()->LayoutViewport() ||
       !GetDocument().GetPage()) {
-    if (resolver) {
-      resolver->Resolve();
-    }
     return false;
   }
 
@@ -3168,20 +3165,19 @@ bool Element::ScrollFrameBy(const ScrollToOptions* scroll_to_options,
 
   return viewport->SetProgrammaticScrollOffset(
       viewport->ScrollPositionToOffset(new_position),
-      cc::ScrollSourceType::kRelativeScroll, scroll_behavior, resolver);
+      cc::ScrollSourceType::kRelativeScroll, scroll_behavior,
+      std::move(scoped_resolver));
 }
 
-bool Element::ScrollFrameTo(const ScrollToOptions* scroll_to_options,
-                            ScriptPromiseResolver<ScrollResult>* resolver) {
+bool Element::ScrollFrameTo(
+    const ScrollToOptions* scroll_to_options,
+    std::unique_ptr<ScopedScrollPromiseResolver> scoped_resolver) {
   mojom::blink::ScrollBehavior scroll_behavior =
       ScrollableArea::V8EnumToScrollBehavior(
           scroll_to_options->behavior().AsEnum());
   LocalFrame* frame = GetDocument().GetFrame();
   if (!frame || !frame->View() || !frame->View()->LayoutViewport() ||
       !GetDocument().GetPage()) {
-    if (resolver) {
-      resolver->Resolve();
-    }
     return false;
   }
 
@@ -3211,7 +3207,7 @@ bool Element::ScrollFrameTo(const ScrollToOptions* scroll_to_options,
 
   return viewport->SetProgrammaticScrollOffset(
       new_offset, cc::ScrollSourceType::kAbsoluteScroll, scroll_behavior,
-      resolver);
+      std::move(scoped_resolver));
 }
 
 bool Element::HandleScrollByPageCommand(CommandEventType command) {
@@ -3777,7 +3773,8 @@ void Element::AttributeChanged(const AttributeModificationParams& params) {
   const QualifiedName& name = params.name;
   if (name == html_names::kIdAttr) {
     AtomicString lowercase_id;
-    if (GetDocument().InQuirksMode() && !params.new_value.IsLowerASCII()) {
+    if (GetDocument().InQuirksMode() &&
+        !params.new_value.ContainsNoAsciiUpper()) {
       lowercase_id = params.new_value.LowerASCII();
     }
     const AtomicString& new_id = lowercase_id ? lowercase_id : params.new_value;
@@ -4028,7 +4025,7 @@ bool Element::IsExcludedAttribute(
   }
   // HTML elements in an html doc use the lower case name.
   if (attributes_to_exclude == kExcludeLowercaseLazilySynchronizedAttributes ||
-      qname.LocalName().IsLowerASCII()) {
+      qname.LocalName().ContainsNoAsciiUpper()) {
     return false;
   }
   const QualifiedName lower_local_qname(qname.LocalName().LowerASCII());
@@ -5884,6 +5881,7 @@ void Element::RebuildLayoutTree(WhitespaceAttacher& whitespace_attacher) {
       child_attacher = &whitespace_attacher;
     }
     RebuildTransitionLayoutTree(*child_attacher);
+    RebuildOverscrollAreaLayoutTree(*child_attacher);
     RebuildPseudoElementLayoutTree(kPseudoIdAfter, *child_attacher);
     RebuildPseudoElementLayoutTree(kPseudoIdPickerIcon, *child_attacher);
     RebuildPseudoElementLayoutTree(kPseudoIdInterestHint, *child_attacher);
@@ -5978,6 +5976,22 @@ void Element::RebuildTransitionLayoutTree(
       };
   ViewTransitionUtils::ForEachTransitionPseudo(
       *this, rebuild_pseudo_tree, ViewTransitionUtils::Filter::kDirectChildren);
+}
+
+void Element::RebuildOverscrollAreaLayoutTree(
+    WhitespaceAttacher& whitespace_attacher) {
+  OverscrollAreaTracker* overscroll_area_tracker = GetOverscrollAreaTracker();
+  if (!overscroll_area_tracker) {
+    return;
+  }
+
+  for (Element* overscroll_area :
+       overscroll_area_tracker->DOMSortedElements()) {
+    PseudoElement* pseudo_element =
+        overscroll_area->GetPseudoElement(kPseudoIdOverscrollAreaParent);
+    pseudo_element->RebuildLayoutTree(whitespace_attacher);
+    CHECK(pseudo_element->GetLayoutObject());
+  }
 }
 
 void Element::AttachOverscrollPseudoElements(AttachContext& context) {
@@ -6181,7 +6195,7 @@ bool Element::RecalcSelfOrAncestorHasDirAuto() {
   if (IsHTMLElement()) {
     AtomicString dir_attribute_value = FastGetAttribute(html_names::kDirAttr);
     if (HTMLElement::IsValidDirAttribute(dir_attribute_value)) {
-      return EqualIgnoringASCIICase(dir_attribute_value, "auto");
+      return EqualIgnoringAsciiCase(dir_attribute_value, "auto");
     }
   }
   Node* parent = parentNode();
@@ -7349,9 +7363,9 @@ const char* Element::ErrorMessageForAttachShadow(
       return "attachShadow() is disabled by disabledFeatures static field.";
     }
   }
-  if (EqualIgnoringASCIICase(mode, keywords::kOpen)) {
+  if (EqualIgnoringAsciiCase(mode, keywords::kOpen)) {
     mode_out = ShadowRootMode::kOpen;
-  } else if (EqualIgnoringASCIICase(mode, keywords::kClosed)) {
+  } else if (EqualIgnoringAsciiCase(mode, keywords::kClosed)) {
     mode_out = ShadowRootMode::kClosed;
   } else {
     CHECK(for_declarative);
@@ -7420,7 +7434,7 @@ ShadowRoot* Element::attachShadow(const ShadowRootInit* shadow_root_init_dict,
       shadow_root_init_dict->hasCustomElementRegistry();
   auto* registry = scoped_registry
                        ? shadow_root_init_dict->customElementRegistry()
-                       : GetTreeScope().customElementRegistry();
+                       : GetDocument().customElementRegistry();
   // 2-1. If registry is non-null, and registry's "is scoped" is false and
   // registry is not this's node document's custom element registry, then
   // throw a "NotSupportedError" DOMException.
@@ -9173,14 +9187,12 @@ String Element::GetOuterHTMLString() const {
   return CreateMarkup(this);
 }
 
-V8UnionStringLegacyNullToEmptyStringOrTrustedHTML* Element::innerHTML() const {
-  return MakeGarbageCollected<
-      V8UnionStringLegacyNullToEmptyStringOrTrustedHTML>(GetInnerHTMLString());
+String Element::innerHTML() const {
+  return GetInnerHTMLString();
 }
 
-V8UnionStringLegacyNullToEmptyStringOrTrustedHTML* Element::outerHTML() const {
-  return MakeGarbageCollected<
-      V8UnionStringLegacyNullToEmptyStringOrTrustedHTML>(GetOuterHTMLString());
+String Element::outerHTML() const {
+  return GetOuterHTMLString();
 }
 
 namespace {
@@ -9334,7 +9346,7 @@ void Element::setOuterHTML(
 Node* Element::InsertAdjacent(const String& where,
                               Node* new_child,
                               ExceptionState& exception_state) {
-  if (EqualIgnoringASCIICase(where, "beforeBegin")) {
+  if (EqualIgnoringAsciiCase(where, "beforeBegin")) {
     if (ContainerNode* parent = parentNode()) {
       parent->InsertBefore(new_child, this, exception_state);
       if (!exception_state.HadException()) {
@@ -9344,17 +9356,17 @@ Node* Element::InsertAdjacent(const String& where,
     return nullptr;
   }
 
-  if (EqualIgnoringASCIICase(where, "afterBegin")) {
+  if (EqualIgnoringAsciiCase(where, "afterBegin")) {
     InsertBefore(new_child, firstChild(), exception_state);
     return exception_state.HadException() ? nullptr : new_child;
   }
 
-  if (EqualIgnoringASCIICase(where, "beforeEnd")) {
+  if (EqualIgnoringAsciiCase(where, "beforeEnd")) {
     AppendChild(new_child, exception_state);
     return exception_state.HadException() ? nullptr : new_child;
   }
 
-  if (EqualIgnoringASCIICase(where, "afterEnd")) {
+  if (EqualIgnoringAsciiCase(where, "afterEnd")) {
     if (ContainerNode* parent = parentNode()) {
       parent->InsertBefore(new_child, nextSibling(), exception_state);
       if (!exception_state.HadException()) {
@@ -9494,8 +9506,8 @@ bool Element::SkippedContainerStyleRecalc() const {
 static Node* ContextNodeForInsertion(const String& where,
                                      Element* element,
                                      ExceptionState& exception_state) {
-  if (EqualIgnoringASCIICase(where, "beforeBegin") ||
-      EqualIgnoringASCIICase(where, "afterEnd")) {
+  if (EqualIgnoringAsciiCase(where, "beforeBegin") ||
+      EqualIgnoringAsciiCase(where, "afterEnd")) {
     Node* parent = element->parentNode();
     if (!parent || IsA<Document>(parent)) {
       exception_state.ThrowDOMException(
@@ -9505,8 +9517,8 @@ static Node* ContextNodeForInsertion(const String& where,
     }
     return parent;
   }
-  if (EqualIgnoringASCIICase(where, "afterBegin") ||
-      EqualIgnoringASCIICase(where, "beforeEnd")) {
+  if (EqualIgnoringAsciiCase(where, "afterBegin") ||
+      EqualIgnoringAsciiCase(where, "beforeEnd")) {
     return element;
   }
   exception_state.ThrowDOMException(
@@ -9995,6 +10007,16 @@ bool Element::ShouldStoreComputedStyle(const ComputedStyle& style) const {
     // from its `::column`.
     return true;
   }
+
+  if (IsPseudoElement() && style.Display() == EDisplay::kNone) {
+    if (const ComputedStyle* base = style.GetBaseComputedStyle()) {
+      if (base->Display() != EDisplay::kNone) {
+        // Store the computed style  if animating to or from display:none.
+        return true;
+      }
+    }
+  }
+
   if (auto* svg_element = DynamicTo<SVGElement>(this)) {
     if (!svg_element->HasSVGParent()) {
       return false;
@@ -10313,17 +10335,28 @@ PseudoElement* Element::UpdatePseudoElement(
         cache->RemoveSubtree(this, /*remove_root*/ false);
       }
       element->RecalcStyle(change.ForPseudoElement(), style_recalc_context);
+      const ComputedStyle* style = element->GetComputedStyle();
+      if (!style) {
+        generate_pseudo = false;
+      }
       if (element->NeedsReattachLayoutTree() &&
           !PseudoElementLayoutObjectIsNeeded(
               pseudo_id, element->GetComputedStyle(), this)) {
-        generate_pseudo = false;
-        // If the content property is relying on attr(), we add the
+        if (!element->HasAnimations()) {
+          // Pseudo-element still needed even if no layout object required
+          // in cases where there is a running animation. Otherwise the
+          // pseudo popping back into existence would cause animations to
+          // restart. Display:none is explicitly called out in the spec that
+          // it should not cancel the animation. Similarly, the content property
+          // can be animated (discrete animation type).
+          generate_pseudo = false;
+        }
+        // If the content property is relying on attr(), we should add the
         // pseudo-element's ComputedStyle to the originating element's style
         // cache, so that when the attribute value changes we will cause a
         // pseudo-element update via
         // ComputedStyle::Difference::kPseudoElementStyle.
-        if (element->GetComputedStyle() &&
-            element->GetComputedStyle()->HasAttrFunction() &&
+        if (style && style->HasAttrFunction() &&
             !GetComputedStyle()->GetCachedPseudoElementStyle(pseudo_id,
                                                              g_null_atom)) {
           GetComputedStyle()->AddCachedPseudoElementStyle(
@@ -11137,11 +11170,11 @@ SpellcheckAttributeState Element::GetSpellcheckAttributeState() const {
   if (value == g_null_atom) {
     return kSpellcheckAttributeDefault;
   }
-  if (EqualIgnoringASCIICase(value, "true") ||
-      EqualIgnoringASCIICase(value, "")) {
+  if (EqualIgnoringAsciiCase(value, "true") ||
+      EqualIgnoringAsciiCase(value, "")) {
     return kSpellcheckAttributeTrue;
   }
-  if (EqualIgnoringASCIICase(value, "false")) {
+  if (EqualIgnoringAsciiCase(value, "false")) {
     return kSpellcheckAttributeFalse;
   }
 
@@ -11430,13 +11463,13 @@ void Element::DidMoveToNewDocument(Document& old_document) {
     // element should point to the shareable one.
 
     if (const AtomicString& id_attr = GetIdAttribute()) {
-      if (!id_attr.IsLowerASCII()) {
+      if (!id_attr.ContainsNoAsciiUpper()) {
         EnsureUniqueElementData();
         SetIdAttribute(id_attr);
       }
     }
     if (const AtomicString& class_attr = GetClassAttribute()) {
-      if (!class_attr.IsLowerASCII()) {
+      if (!class_attr.ContainsNoAsciiUpper()) {
         EnsureUniqueElementData();
         // Going through setAttribute() to synchronize the attribute is only
         // required when setting the "style" attribute (this sets the "class"
@@ -12009,20 +12042,12 @@ void Element::MapLanguageAttributeToLocale(
     } else if (IsA<HTMLBodyElement>(this)) {
       UseCounter::Count(GetDocument(), WebFeature::kLangAttributeOnBody);
     }
-    String html_language = value.GetString();
-    wtf_size_t first_separator = html_language.find('-');
-    if (first_separator != kNotFound) {
-      html_language = html_language.Left(first_separator);
-    }
-    String ui_language = DefaultLanguage();
-    first_separator = ui_language.find('-');
-    if (first_separator != kNotFound) {
-      ui_language = ui_language.Left(first_separator);
-    }
-    first_separator = ui_language.find('_');
-    if (first_separator != kNotFound) {
-      ui_language = ui_language.Left(first_separator);
-    }
+    StringView html_language(value);
+    html_language = html_language.substr(0, html_language.find('-'));
+    String ui_language_string = DefaultLanguage();
+    StringView ui_language(ui_language_string);
+    ui_language = ui_language.substr(0, ui_language.find('-'))
+                      .substr(0, ui_language.find('_'));
     if (!DeprecatedEqualIgnoringCase(html_language, ui_language)) {
       UseCounter::Count(GetDocument(),
                         WebFeature::kLangAttributeDoesNotMatchToUILocale);
@@ -12840,7 +12865,7 @@ bool Element::checkVisibility(CheckVisibilityOptions* options) const {
 
 AtomicStringTable::WeakResult Element::WeakLowercaseIfNecessary(
     const AtomicString& name) const {
-  if (name.IsLowerASCII()) [[likely]] {
+  if (name.ContainsNoAsciiUpper()) [[likely]] {
     return AtomicStringTable::WeakResult(name);
   }
   if (IsHTMLElement() && IsA<HTMLDocument>(GetDocument())) [[likely]] {

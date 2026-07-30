@@ -25,29 +25,7 @@ import {TestMock} from 'chrome://webui-test/test_mock.js';
 import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {TestContextualTasksBrowserProxy} from './test_contextual_tasks_browser_proxy.js';
-import {assertStyle, installMock, mockInputState} from './test_utils.js';
-
-const ADD_FILE_CONTEXT_FN = 'addFileContext';
-
-type MockContextualTasksAppElement =
-    Omit<ContextualTasksAppElement,|'isZeroState_'|'isShownInTab_'>&{
-      isZeroState_: boolean,
-      isShownInTab_: boolean,
-    };
-
-// Checks if suggestions container is rendered yet.
-function checkIfCanFindSuggestionsContainer(
-    contextualTasksApp: MockContextualTasksAppElement, canFind: boolean) {
-  const suggestions = contextualTasksApp.$.composebox.shadowRoot.querySelector(
-      '#contextualTasksSuggestionsContainer');
-
-  if (canFind) {
-    assertTrue(!!suggestions, 'Suggestions container should be present in DOM');
-  } else {
-    assertEquals(
-        null, suggestions, 'Suggestions container should not be in DOM');
-  }
-}
+import {ADD_FILE_CONTEXT_FN, assertStyle, deleteLastFile, FAKE_TOKEN_STRING, installMock, mockInputState} from './test_utils.js';
 
 async function dispatchDragAndDropEvent(dropZone: Element, files: File[]) {
   if (!dropZone) {
@@ -166,7 +144,7 @@ function disableAnimationsRecursively(element: Element) {
 }
 
 suite('ContextualTasksComposeboxMiscInputsTest', () => {
-  let contextualTasksApp: MockContextualTasksAppElement;
+  let contextualTasksApp: ContextualTasksAppElement;
   let composebox: any;
   let testProxy: TestContextualTasksBrowserProxy;
   let mockComposeboxPageHandler: TestMock<ComposeboxPageHandlerRemote>;
@@ -204,8 +182,7 @@ suite('ContextualTasksComposeboxMiscInputsTest', () => {
         mockComposeboxPageHandler as any, new ComposeboxPageCallbackRouter(),
         mockSearchboxPageHandler as any, searchboxCallbackRouter));
 
-    contextualTasksApp = document.createElement('contextual-tasks-app') as
-        unknown as MockContextualTasksAppElement;
+    contextualTasksApp = document.createElement('contextual-tasks-app');
     await customElements.whenDefined('contextual-tasks-app');
     document.body.appendChild(contextualTasksApp);
 
@@ -217,6 +194,13 @@ suite('ContextualTasksComposeboxMiscInputsTest', () => {
 
     windowProxy = installMock(WindowProxy);
     windowProxy.setResultFor('setTimeout', 0);
+    windowProxy.setResultMapperFor('matchMedia', () => ({
+                                                   addListener() {},
+                                                   addEventListener() {},
+                                                   removeListener() {},
+                                                   removeEventListener() {},
+                                                 }));
+
     window.webkitSpeechRecognition =
         MockSpeechRecognition as unknown as typeof SpeechRecognition;
 
@@ -288,6 +272,7 @@ suite('ContextualTasksComposeboxMiscInputsTest', () => {
       url: null,
       tabId: null,
       iconName: null,
+      supportsUnimodal: true,
     };
     composebox.addFileContextForTesting(mockAddedFile);
     await microtasksFinished();
@@ -665,145 +650,6 @@ suite('ContextualTasksComposeboxMiscInputsTest', () => {
         'Voice search canceled metric count is incorrect');
   });
 
-  test(
-      'suggestions show correctly in side panel zero state based on loading',
-      async () => {
-        contextualTasksApp.isShownInTab_ = false;
-        contextualTasksApp.isZeroState_ = true;
-
-        contextualTasksApp.setEnableNativeZeroStateSuggestionsForTesting(false);
-
-        await contextualTasksApp.updateComplete;
-        await contextualTasksApp.$.composebox.updateComplete;
-        await microtasksFinished();
-
-        assertStyle(contextualTasksApp.$.composebox, 'bottom', '0px');
-
-        checkIfCanFindSuggestionsContainer(
-            contextualTasksApp, /*canFind=*/ false);
-
-        contextualTasksApp.setEnableNativeZeroStateSuggestionsForTesting(true);
-
-        await contextualTasksApp.updateComplete;
-        await contextualTasksApp.$.composebox.updateComplete;
-        await microtasksFinished();
-
-        assertStyle(contextualTasksApp.$.composebox, 'bottom', '30px');
-
-        (contextualTasksApp.$.composebox as any).isLoading_ = true;
-        await contextualTasksApp.updateComplete;
-        await contextualTasksApp.$.composebox.updateComplete;
-        await microtasksFinished();
-        checkIfCanFindSuggestionsContainer(
-            contextualTasksApp, /*canFind=*/ true);
-        const firstMatch: any =
-            contextualTasksApp.$.composebox.$
-                .contextualTasksSuggestionsContainer.shadowRoot.querySelector(
-                    '#match0');
-        assertTrue(
-            !!firstMatch.$.textContainer,
-            'First suggestion match should exist');
-        assertStyle(
-            firstMatch.$.textContainer, 'animation-duration', '2s',
-            'When in loading side panel but in zero-state, suggestions\
-                should be in loading state');
-
-        (contextualTasksApp.$.composebox as any).isLoading_ = false;
-        await contextualTasksApp.updateComplete;
-        await contextualTasksApp.$.composebox.updateComplete;
-        await contextualTasksApp.$.composebox.$
-            .contextualTasksSuggestionsContainer.updateComplete;
-        await firstMatch.updateComplete;
-        await microtasksFinished();
-
-        assertStyle(
-            firstMatch.$.textContainer, 'animation', 'none',
-            'When not in loading side panel zero-state,\
-                suggestions should be normal');
-
-        contextualTasksApp.isZeroState_ = false;
-        await contextualTasksApp.updateComplete;
-        await contextualTasksApp.$.composebox.updateComplete;
-        await microtasksFinished();
-        assertTrue(
-            contextualTasksApp.$.composebox.$
-                .contextualTasksSuggestionsContainer.hidden,
-            'Dropdown should be hidden when NOT in zero state');
-      });
-
-  test(
-      'suggestions show correctly in full tab zero state based on loading',
-      async () => {
-        contextualTasksApp.isShownInTab_ = true;
-        contextualTasksApp.isZeroState_ = true;
-
-        contextualTasksApp.setEnableNativeZeroStateSuggestionsForTesting(false);
-
-        await contextualTasksApp.updateComplete;
-        await contextualTasksApp.$.composebox.updateComplete;
-        await microtasksFinished();
-
-        checkIfCanFindSuggestionsContainer(
-            contextualTasksApp, /*canFind=*/ false);
-
-        contextualTasksApp.setEnableNativeZeroStateSuggestionsForTesting(true);
-
-
-        await contextualTasksApp.updateComplete;
-        await contextualTasksApp.$.composebox.updateComplete;
-        await microtasksFinished();
-        checkIfCanFindSuggestionsContainer(
-            contextualTasksApp, /*canFind=*/ true);
-        assertStyle(contextualTasksApp.$.flexCenterContainer, 'top', '88px');
-
-        (contextualTasksApp.$.composebox as any).isLoading_ = true;
-        await contextualTasksApp.updateComplete;
-        await contextualTasksApp.$.composebox.updateComplete;
-        await contextualTasksApp.$.composebox.$
-            .contextualTasksSuggestionsContainer.updateComplete;
-        const firstMatch: any =
-            contextualTasksApp.$.composebox.$
-                .contextualTasksSuggestionsContainer.shadowRoot.querySelector(
-                    '#match0');
-        assertTrue(
-            !!firstMatch.$.textContainer,
-            'First suggestion match should exist');
-
-        await microtasksFinished();
-
-        assertStyle(
-            firstMatch.$.textContainer, 'animation-duration', '2s',
-            'When in loading full tab zero-state,\
-                suggestions should be in loading state');
-        (contextualTasksApp.$.composebox as any).isLoading_ = false;
-        await contextualTasksApp.updateComplete;
-        await contextualTasksApp.$.composebox.updateComplete;
-        await contextualTasksApp.$.composebox.$
-            .contextualTasksSuggestionsContainer.updateComplete;
-        await firstMatch.updateComplete;
-        await microtasksFinished();
-
-        assertStyle(
-            firstMatch.$.textContainer, 'animation', 'none',
-            'When not in loading full tab but in zero-state,\
-                suggestions should be normal');
-
-        contextualTasksApp.isZeroState_ = false;
-
-        await contextualTasksApp.updateComplete;
-        await contextualTasksApp.$.composebox.updateComplete;
-        await contextualTasksApp.$.composebox.$
-            .contextualTasksSuggestionsContainer.updateComplete;
-        await firstMatch.updateComplete;
-
-        await microtasksFinished();
-        assertTrue(
-            contextualTasksApp.$.composebox.$
-                .contextualTasksSuggestionsContainer.hidden,
-            'Dropdown should be hidden when NOT in zero state',
-        );
-      });
-
   test('tool click event triggers tool mode change', async () => {
     const contextEntrypoint =
         composebox.shadowRoot.querySelector('#contextEntrypoint');
@@ -1077,79 +923,64 @@ suite('ContextualTasksComposeboxMiscInputsTest', () => {
     assertFalse(!!canvasChip, 'Canvas chip should be removed');
   });
 
-  test('deep search: thread change resets input', async () => {
-    composebox.onToolClickForTesting(ComposeboxToolMode.kDeepSearch);
-
+  test('Injected input can be added, then deleted from AIM', async () => {
+    composebox.injectInput('title', 'thumbnail.jpg', FAKE_TOKEN_STRING);
     await composebox.updateComplete;
     await microtasksFinished();
 
-    let deepSearchChip = composebox.shadowRoot.querySelector('#deepSearchChip');
+    // Avoid using $.carousel since may be cached.
+    const carousel = composebox.shadowRoot.querySelector('#carousel');
+    assertTrue(!!carousel, 'Carousel should be in the DOM');
+    const files = carousel.files;
+    assertEquals(1, files.length);
 
-    assertTrue(!!deepSearchChip, 'Deep search chip should be present');
-
-    testProxy.callbackRouterRemote.onZeroStateChange(/*isZeroState=*/ true);
-    await testProxy.callbackRouterRemote.$.flushForTesting();
-
+    composebox.deleteFile(FAKE_TOKEN_STRING);
     await composebox.updateComplete;
     await microtasksFinished();
-
-    deepSearchChip = composebox.shadowRoot.querySelector('#deepSearchChip');
-    assertFalse(!!composebox.input_, 'Input value should be cleared');
-    assertTrue(
-        composebox.fileUploadsComplete, 'File uploads should be complete');
     assertFalse(
-        !!composebox.getResultForTesting(),
-        'Autocomplete result should be cleared');
+        !!composebox.shadowRoot.querySelector('#carousel'),
+        'Carousel should be removed from the DOM');
   });
 
-  test('image gen: thread change resets input', async () => {
-    composebox.onToolClickForTesting(ComposeboxToolMode.kImageGen);
+  test(
+      'Injected input with icon can be added, then deleted from AIM',
+      async () => {
+        composebox.injectInput('title', '', FAKE_TOKEN_STRING, 'quoteFilled');
+        await composebox.updateComplete;
+        await microtasksFinished();
 
-    await composebox.updateComplete;
-    await microtasksFinished();
+        // Avoid using $.carousel since may be cached.
+        const carousel = composebox.shadowRoot.querySelector('#carousel');
+        assertTrue(!!carousel, 'Carousel should be in the DOM');
+        const files = carousel.files;
+        assertEquals(1, files.length);
 
-    let imageGenChip = composebox.shadowRoot.querySelector('#nanoBananaChip');
+        composebox.deleteFile(FAKE_TOKEN_STRING);
+        await composebox.updateComplete;
+        await microtasksFinished();
+        assertFalse(
+            !!composebox.shadowRoot.querySelector('#carousel'),
+            'Carousel should be removed from the DOM');
+      });
 
-    assertTrue(!!imageGenChip, 'Image gen chip should be present');
+  test(
+      'Injected input can be added, then deleted from composebox', async () => {
+        composebox.injectInput('title', 'thumbnail.jpg', FAKE_TOKEN_STRING);
+        await composebox.updateComplete;
+        await microtasksFinished();
 
-    testProxy.callbackRouterRemote.onZeroStateChange(/*isZeroState=*/ true);
-    await testProxy.callbackRouterRemote.$.flushForTesting();
+        // Avoid using $.carousel since may be cached.
+        const carousel = composebox.shadowRoot.querySelector('#carousel');
+        assertTrue(!!carousel, 'Carousel should be in the DOM');
+        const files = carousel.files;
+        assertEquals(1, files.length);
 
+        await deleteLastFile(composebox);
+        await composebox.updateComplete;
+        await microtasksFinished();
 
-    await composebox.updateComplete;
-    await microtasksFinished();
-
-    imageGenChip = composebox.shadowRoot.querySelector('#nanoBananaChip');
-    assertFalse(!!composebox.input_, 'Input value should be cleared');
-    assertTrue(
-        composebox.fileUploadsComplete, 'File uploads should be complete');
-    assertFalse(
-        !!composebox.getResultForTesting(),
-        'Autocomplete result should be cleared');
-  });
-
-  test('canvas: thread change resets input', async () => {
-    composebox.onToolClickForTesting(ComposeboxToolMode.kCanvas);
-
-    await composebox.updateComplete;
-    await microtasksFinished();
-
-    let canvasChip = composebox.shadowRoot.querySelector('#canvasChip');
-
-    assertTrue(!!canvasChip, 'Canvas chip should be present');
-
-    testProxy.callbackRouterRemote.onZeroStateChange(/*isZeroState=*/ true);
-    await testProxy.callbackRouterRemote.$.flushForTesting();
-
-    await composebox.updateComplete;
-    await microtasksFinished();
-
-    canvasChip = composebox.shadowRoot.querySelector('#canvasChip');
-    assertFalse(!!composebox.input_, 'Input value should be cleared');
-    assertTrue(
-        composebox.fileUploadsComplete, 'File uploads should be complete');
-    assertFalse(
-        !!composebox.getResultForTesting(),
-        'Autocomplete result should be cleared');
-  });
+        assertFalse(
+            !!composebox.shadowRoot.querySelector('#carousel'),
+            'Carousel should be removed from the DOM');
+      });
 });

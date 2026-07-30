@@ -6,7 +6,7 @@ import 'chrome://resources/cr_components/composebox/file_carousel.js';
 import 'chrome://new-tab-page/strings.m.js';
 
 import type {ComposeboxFile} from 'chrome://resources/cr_components/composebox/common.js';
-import {FileUploadStatus} from 'chrome://resources/cr_components/composebox/composebox_query.mojom-webui.js';
+import {ContextUploadStatus} from 'chrome://resources/cr_components/composebox/composebox_query.mojom-webui.js';
 import type {ComposeboxFileCarouselElement} from 'chrome://resources/cr_components/composebox/file_carousel.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {eventToPromise, microtasksFinished} from 'chrome://webui-test/test_util.js';
@@ -48,11 +48,12 @@ suite('FileCarouselTest', function() {
       dataUrl: null,
       objectUrl: null,
       type: 'text/plain',
-      status: FileUploadStatus.kUploadStarted,
+      status: ContextUploadStatus.kUploadStarted,
       url: null,
       tabId: null,
       isDeletable: true,
       iconName: null,
+      supportsUnimodal: true,
     };
   }
 
@@ -79,11 +80,12 @@ suite('FileCarouselTest', function() {
         dataUrl: null,
         objectUrl: null,
         type: 'text/plain',
-        status: FileUploadStatus.kUploadStarted,
+        status: ContextUploadStatus.kUploadStarted,
         url: null,
         tabId: null,
         isDeletable: true,
         iconName: null,
+        supportsUnimodal: true,
       },
       {
         uuid: uuid2,
@@ -91,11 +93,12 @@ suite('FileCarouselTest', function() {
         dataUrl: null,
         objectUrl: null,
         type: 'text/plain',
-        status: FileUploadStatus.kUploadStarted,
+        status: ContextUploadStatus.kUploadStarted,
         url: null,
         tabId: null,
         isDeletable: true,
         iconName: null,
+        supportsUnimodal: true,
       },
     ];
     fileCarousel.files = files;

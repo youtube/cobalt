@@ -51,10 +51,6 @@
 namespace gpu {
 namespace {
 
-// Allows CompoundImageBacking to allocate backings during runtime if a
-// compatible backing to serve clients requested usage is not already present.
-BASE_FEATURE(kUseDynamicBackingAllocations, base::FEATURE_DISABLED_BY_DEFAULT);
-
 constexpr AccessStreamSet kMemoryStreamSet = {SharedImageAccessStream::kMemory};
 
 // Unique GUIDs for child backings.
@@ -941,7 +937,7 @@ CompoundImageBacking::CompoundImageBacking(
   gpu_element.create_callback =
       base::BindOnce(&CompoundImageBacking::CreateBackingFromBackingFactory,
                      base::Unretained(this), std::move(gpu_backing_factory),
-                     std::move(debug_label));
+                     std::move(debug_label), GetGpuSharedImageUsage(usage));
   elements_.push_back(std::move(gpu_element));
   max_elements_allocated_ = 2;
 }
@@ -1636,7 +1632,7 @@ SharedImageBacking* CompoundImageBacking::GetOrAllocateBacking(
   // If no backing is found, we will try to create a new one. This feature is
   // disabled by default currently until SharedImageCopyManager is fully ready
   // to support all the existing gpu-gpu copy usages.
-  if (base::FeatureList::IsEnabled(kUseDynamicBackingAllocations) &&
+  if (base::FeatureList::IsEnabled(features::kUseDynamicBackingAllocations) &&
       shared_image_factory_) {
     SharedImageUsageSet usage = GetUsageFromAccessStream(stream);
     auto* gpu_backing_factory = shared_image_factory_->GetFactoryByUsage(
@@ -1647,7 +1643,7 @@ SharedImageBacking* CompoundImageBacking::GetOrAllocateBacking(
       ElementHolder element;
       element.access_streams.Put(stream);
       CreateBackingFromBackingFactory(gpu_backing_factory->GetWeakPtr(),
-                                      debug_label(), element.backing);
+                                      debug_label(), usage, element.backing);
       if (element.backing) {
         UMA_HISTOGRAM_ENUMERATION(
             "GPU.CompoundImageBacking.DynamicAllocation.BackingType",
@@ -1685,6 +1681,7 @@ SharedImageBacking* CompoundImageBacking::GetGpuBacking() {
 void CompoundImageBacking::CreateBackingFromBackingFactory(
     base::WeakPtr<SharedImageBackingFactory> factory,
     std::string debug_label,
+    SharedImageUsageSet usage,
     std::unique_ptr<SharedImageBacking>& backing) {
   if (!factory) {
     DLOG(ERROR) << "Can't allocate backing after image has been destroyed";
@@ -1693,9 +1690,8 @@ void CompoundImageBacking::CreateBackingFromBackingFactory(
 
   backing = factory->CreateSharedImage(
       mailbox(), format(), kNullSurfaceHandle, size(), color_space(),
-      surface_origin(), alpha_type(),
-      GetGpuSharedImageUsage(SharedImageUsageSet(usage())),
-      std::move(debug_label), /*is_thread_safe=*/false);
+      surface_origin(), alpha_type(), usage, std::move(debug_label),
+      /*is_thread_safe=*/false);
   if (!backing) {
     DLOG(ERROR) << "Failed to allocate GPU backing";
     return;
