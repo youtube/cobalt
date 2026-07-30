@@ -26,6 +26,7 @@
 #include "media/base/starboard/starboard_rendering_mode.h"
 #include "media/base/video_renderer_sink.h"
 #include "media/mojo/clients/mojo_renderer_wrapper.h"
+#include "media/mojo/common/starboard/mojo_renderer_bypass_bridge.h"
 #include "media/mojo/mojom/renderer_extensions.mojom.h"
 #include "media/starboard/starboard_callbacks.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -68,7 +69,8 @@ class MEDIA_EXPORT StarboardRendererClient
       ,
       RequestOverlayInfoCB request_overlay_info_cb
 #endif  // BUILDFLAG(IS_ANDROID)
-  );
+      ,
+      bool bypass_mojo_for_media = false);
 
   StarboardRendererClient(const StarboardRendererClient&) = delete;
   StarboardRendererClient& operator=(const StarboardRendererClient&) = delete;
@@ -121,6 +123,14 @@ class MEDIA_EXPORT StarboardRendererClient
   void InitializeMojoRenderer(MediaResource* media_resource,
                               RendererClient* client,
                               PipelineStatusCallback init_cb);
+  void OnTimeUpdateFromBridge(base::TimeDelta time,
+                              base::TimeDelta max_time,
+                              base::TimeTicks capture_time);
+  void OnStatisticsUpdateFromBridge(const PipelineStatistics& stats);
+  void OnExtensionBypassInitialized(MediaResource* media_resource,
+                                    RendererClient* client,
+                                    PipelineStatusCallback init_cb,
+                                    bool success);
   void InitAndConstructMojoRenderer(mojom::CommandBufferIdPtr command_buffer_id,
                                     base::OnceClosure complete_cb);
   bool AreMojoPipesConnected() const {
@@ -152,6 +162,9 @@ class MEDIA_EXPORT StarboardRendererClient
 #if BUILDFLAG(IS_ANDROID)
   RequestOverlayInfoCB request_overlay_info_cb_;
 #endif  // BUILDFLAG(IS_ANDROID)
+  bool bypass_mojo_for_media_ = false;
+  scoped_refptr<MojoRendererBypassBridge> bypass_bridge_;
+  uint32_t bypass_id_ = 0;
 
   mojo::Remote<RendererExtension> renderer_extension_;
 

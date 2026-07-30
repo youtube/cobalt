@@ -18,6 +18,7 @@ package dev.cobalt.coat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.MockitoAnnotations.initMocks;
@@ -77,13 +78,13 @@ public class ShellManagerTest {
   }
 
   @Test
-  public void testDestroyClosesActiveShellAndClearsContext() {
+  public void testDestroyDetachesActiveShellWithoutClosingAndClearsContext() {
     Shell mockShell = mock(Shell.class);
     ReflectionHelpers.setField(mShellManager, "mActiveShell", mockShell);
 
     mShellManager.destroy();
 
-    verify(mockShell).close();
+    verify(mockShell, never()).close();
     verify(mMockShellManagerNatives).destroy(mShellManager);
     assertNull(ReflectionHelpers.getField(mShellManager, "mActiveShell"));
     assertNull(ReflectionHelpers.getField(mShellManager, "mContext"));
@@ -99,7 +100,7 @@ public class ShellManagerTest {
     mShellManager.destroy();
     mShellManager.destroy();
 
-    verify(mockShell, times(1)).close();
+    verify(mockShell, never()).close();
     verify(mMockShellManagerNatives, times(1)).destroy(mShellManager);
   }
 }

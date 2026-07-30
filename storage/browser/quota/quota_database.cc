@@ -1000,6 +1000,7 @@ void QuotaDatabase::Commit() {
 #if BUILDFLAG(IS_STARBOARD)
 void QuotaDatabase::DisableDatabase() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  timer_.Stop();
   is_disabled_ = true;
   db_.reset();
   meta_table_.reset();

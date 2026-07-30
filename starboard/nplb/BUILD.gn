@@ -387,7 +387,10 @@ test("nplb") {
     ]
 
     if (use_evergreen) {
-      sources += [ "nplb_evergreen_compat_tests/crashpad_config_test.cc" ]
+      sources += [
+        "nplb_evergreen_compat_tests/crashpad_config_test.cc",
+        "nplb_evergreen_compat_tests/native_stability_test.cc",
+      ]
     }
 
     data_deps += [
