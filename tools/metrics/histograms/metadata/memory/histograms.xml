@@ -74,6 +74,7 @@ chromium-metrics-reviews@google.com.
       summary="cc::SoftwareImageDecodeCache"/>
   <variant name="cc__StagingBufferPool" summary="cc::StagingBufferPool"/>
   <variant name="ClientDiscardableSharedMemoryManager"/>
+  <variant name="CobaltMemoryAttributionManager"/>
   <variant name="CommandBuffer"/>
   <variant name="ContextProviderCommandBuffer"/>
   <variant name="DawnCache"/>

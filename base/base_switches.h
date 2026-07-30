@@ -193,6 +193,10 @@ inline constexpr char kPackageName[] = "package-name";
 inline constexpr char kPackageVersionName[] = "package-version-name";
 #endif
 
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(IS_COBALT)
+extern const char kUseCustomAndroidFontsXml[];
+#endif
+
 #if BUILDFLAG(IS_CHROMEOS)
 // Override the default scheduling boosting value for urgent tasks.
 // This can be adjusted if a specific chromeos device shows better perf/power

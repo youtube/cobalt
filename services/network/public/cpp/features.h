@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include "build/buildflag.h"
 #include "base/component_export.h"
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
@@ -417,6 +418,7 @@ BASE_DECLARE_FEATURE(kDurableMessages);
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE_PARAM(int, kDurableMessagesGlobalBufferSize);
 
+<<<<<<< HEAD
 // If enabled, the forbidden header checks for requests can be bypassed. This is
 // the network service side of the feature. The renderer side uses this same
 // feature via the cors::IsBypassRequestForbiddenHeadersCheckEnabled() function.
@@ -433,6 +435,25 @@ BASE_DECLARE_FEATURE_PARAM(int, kDurableMessagesGlobalBufferSize);
 // initiated from content scripts or user scripts.
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE(kBypassRequestForbiddenHeadersCheck);
+=======
+#if BUILDFLAG(IS_COBALT)
+COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
+BASE_DECLARE_FEATURE(kCobaltDynamicMojoPipeSizing);
+
+COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(int, kCobaltDynamicMojoPipeSizingSubresourceSize);
+
+COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(int, kCobaltDynamicMojoPipeSizingMediaSize);
+
+// When enabled, the response body Mojo data pipe is shrunk to the response's
+// Content-Length whenever that is smaller than the capacity that would
+// otherwise be used. The capacity is never increased. Responses whose body
+// length is not known upfront keep the default capacity.
+COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
+BASE_DECLARE_FEATURE(kCobaltContentLengthAwareMojoPipeSizing);
+#endif  // BUILDFLAG(IS_COBALT)
+>>>>>>> parent of 39e5f020cc0 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 }  // namespace network::features
 

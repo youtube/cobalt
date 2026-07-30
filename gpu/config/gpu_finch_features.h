@@ -23,6 +23,20 @@ struct GpuFeatureInfo;
 
 namespace features {
 
+#if BUILDFLAG(IS_COBALT)
+GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kCobaltInProcessDirectRaster);
+GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kCobaltDecodedImagesMetrics);
+GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
+                                       kCobaltDecodedImagesMetricsInterval);
+
+#if BUILDFLAG(IS_ANDROID)
+GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kCobaltRemoveUiPlaneDuringFullscreenVideo);
+GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
+                                             kCobaltRemoveUiPlaneDestroyBuffersDelay);
+#endif  // BUILDFLAG(IS_ANDROID)
+
+#endif  // BUILDFLAG(IS_COBALT)
+
 // All features in alphabetical order. The features should be documented
 // alongside the definition of their values in the .cc file.
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kAggressiveShaderCacheLimits);

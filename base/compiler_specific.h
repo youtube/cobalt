@@ -5,6 +5,12 @@
 #ifndef BASE_COMPILER_SPECIFIC_H_
 #define BASE_COMPILER_SPECIFIC_H_
 
+// Note that we don't use buildflags to check this before any #includes.
+#if !defined(SB_IS_DEFAULT_TC) && defined(STARBOARD) || \
+    defined(ENABLE_BUILDFLAG_IS_NATIVE_TOOLCHAIN)
+#error Starboard and native toolchain builds should only include copied_base.
+#endif
+
 #include "build/build_config.h"
 
 #if defined(COMPILER_MSVC) && !defined(__clang__)

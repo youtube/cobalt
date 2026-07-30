@@ -22,6 +22,10 @@
 #include "components/update_client/update_client_errors.h"
 #include "third_party/puffin/src/include/puffin/puffpatch.h"
 
+#if defined(IN_MEMORY_UPDATES)
+#include "base/logging.h"
+#endif
+
 namespace update_client {
 
 base::OnceClosure PuffOperation(
@@ -31,16 +35,35 @@ base::OnceClosure PuffOperation(
     base::RepeatingCallback<void(ComponentState)> state_tracker,
     const std::string& old_hash,
     const std::string& output_hash,
+#if BUILDFLAG(IS_STARBOARD)
+    const OperationResult& patch_operation_result,
+    base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
+#else
     const base::FilePath& patch_file,
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
+#endif
         callback) {
+#if defined(IN_MEMORY_UPDATES)
+  LOG(ERROR) << "Puffin delta patching Operation not supported with Cobalt "
+                "IN_MEMORY_UPDATES";
+  std::move(callback).Run(base::unexpected<CategorizedError>(
+      {.category = ErrorCategory::kUnpack,
+       .code = static_cast<int>(UnpackerError::kDeltaOperationFailure)}));
+#else
+#if BUILDFLAG(IS_STARBOARD)
+  const base::FilePath& patch_file = patch_operation_result.response;
+#endif  // BUILDFLAG(IS_STARBOARD)
   base::MakeRefCounted<DeltaPatchOperation>(
       crx_cache, event_adder, state_tracker, old_hash,
       base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE |
           base::File::FLAG_WIN_EXCLUSIVE_WRITE,
       output_hash, puffin::P_OK, patch_file, protocol_request::kEventPuff,
+#if BUILDFLAG(IS_STARBOARD)
+      patch_operation_result,
+#endif  // BUILDFLAG(IS_STARBOARD)
       std::move(callback))
       ->Operation(base::BindOnce(&Patcher::PatchPuffPatch, patcher));
+#endif  // defined(IN_MEMORY_UPDATES)
   return base::DoNothing();
 }
 
