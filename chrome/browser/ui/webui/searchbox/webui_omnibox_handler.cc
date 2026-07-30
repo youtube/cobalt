@@ -23,7 +23,7 @@
 #include "chrome/browser/ui/omnibox/omnibox_pedal_implementations.h"
 #include "chrome/browser/ui/omnibox/omnibox_view.h"
 #include "chrome/browser/ui/search/omnibox_utils.h"
-#include "chrome/browser/ui/tabs/tab_renderer_data.h"
+#include "chrome/browser/ui/tab_ui_helper.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/location_bar/selected_keyword_view.h"
 #include "chrome/browser/ui/webui/cr_components/searchbox/contextual_searchbox_handler.h"
@@ -32,6 +32,8 @@
 #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_ui.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/grit/new_tab_page_resources.h"
+#include "components/contextual_search/contextual_search_service.h"
+#include "components/contextual_search/pref_names.h"
 #include "components/lens/lens_features.h"
 #include "components/navigation_metrics/navigation_metrics.h"
 #include "components/omnibox/browser/aim_eligibility_service.h"
@@ -142,6 +144,10 @@ WebuiOmniboxHandler::WebuiOmniboxHandler(
       omnibox::kShowAiModeOmniboxButton,
       base::BindRepeating(&WebuiOmniboxHandler::OnShowAiModeButtonPrefChanged,
                           base::Unretained(this)));
+  pref_change_registrar_.Add(
+      contextual_search::kSearchContentSharingSettings,
+      base::BindRepeating(&WebuiOmniboxHandler::OnContentSharingPolicyChanged,
+                          base::Unretained(this)));
 }
 
 WebuiOmniboxHandler::~WebuiOmniboxHandler() = default;
@@ -159,9 +165,12 @@ void WebuiOmniboxHandler::OnStart(AutocompleteController* controller,
 
   const AutocompleteProviderClient* client =
       autocomplete_controller()->autocomplete_provider_client();
+  // Check if there are zero suggest (either on NTP or on web) or the
+  // input text is empty (necessary because `IsZeroSuggest()` is false on
+  // clobber).
   page_->UpdateLensSearchEligibility(
       ContextualSearchProvider::LensEntrypointEligible(input, client) &&
-      input.IsZeroSuggest());
+      (input.IsZeroSuggest() || input.text().empty()));
 }
 
 void WebuiOmniboxHandler::OnResultChanged(AutocompleteController* controller,
@@ -278,18 +287,12 @@ void WebuiOmniboxHandler::AddTabContext(int32_t tab_id,
                                         AddTabContextCallback callback) {
   auto* browser_window_interface =
       webui::GetBrowserWindowInterface(web_contents_.get());
-  auto* tab_strip_model = browser_window_interface->GetTabStripModel();
   const tabs::TabHandle handle = tabs::TabHandle(tab_id);
   tabs::TabInterface* const tab = handle.Get();
   if (!tab) {
     std::move(callback).Run(std::nullopt);
     return;
   }
-
-  auto tab_strip_id = tab_strip_model->GetIndexOfTab(tab);
-
-  TabRendererData tab_renderer_data =
-      TabRendererData::FromTabInModel(tab_strip_model, tab_strip_id);
 
   SearchboxContextData* searchbox_context_data =
       browser_window_interface->GetFeatures().searchbox_context_data();
@@ -304,8 +307,8 @@ void WebuiOmniboxHandler::AddTabContext(int32_t tab_id,
 
   auto tab_attachment = searchbox::mojom::TabAttachment::New();
   tab_attachment->tab_id = tab_id;
-  tab_attachment->title = base::UTF16ToUTF8(tab_renderer_data.title);
-  tab_attachment->url = tab_renderer_data.last_committed_url;
+  tab_attachment->title = base::UTF16ToUTF8(TabUIHelper::From(tab)->GetTitle());
+  tab_attachment->url = tab->GetContents()->GetLastCommittedURL();
   context->file_infos.push_back(
       searchbox::mojom::SearchContextAttachment::NewTabAttachment(
           std::move(tab_attachment)));
@@ -329,6 +332,7 @@ void WebuiOmniboxHandler::SetPage(
   ContextualSearchboxHandler::SetPage(std::move(pending_page));
   OnAimEligibilityChanged();
   OnShowAiModeButtonPrefChanged();
+  OnContentSharingPolicyChanged();
 }
 
 void WebuiOmniboxHandler::OnShowAiModeButtonPrefChanged() {
@@ -338,6 +342,17 @@ void WebuiOmniboxHandler::OnShowAiModeButtonPrefChanged() {
   bool show =
       profile_->GetPrefs()->GetBoolean(omnibox::kShowAiModeOmniboxButton);
   page_->OnShowAiModePrefChanged(show);
+}
+
+void WebuiOmniboxHandler::OnContentSharingPolicyChanged() {
+  // Ignore the call until the page remote is bound and ready to receive calls.
+  if (!IsRemoteBound()) {
+    return;
+  }
+
+  page_->UpdateContentSharingPolicy(
+      contextual_search::ContextualSearchService::IsContextSharingEnabled(
+          profile_->GetPrefs()));
 }
 
 std::optional<searchbox::mojom::AutocompleteMatchPtr>

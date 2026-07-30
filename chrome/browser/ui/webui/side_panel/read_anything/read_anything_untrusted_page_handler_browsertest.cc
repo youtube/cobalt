@@ -10,22 +10,27 @@
 #include <string>
 #include <vector>
 
+#include "base/run_loop.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/run_until.h"
-#include "base/test/scoped_mock_time_message_loop_task_runner.h"
 #include "base/test/values_test_util.h"
 #include "base/values.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/translate/chrome_translate_client.h"
+#include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/read_anything/read_anything_immersive_web_view.h"
 #include "chrome/browser/ui/read_anything/read_anything_prefs.h"
 #include "chrome/browser/ui/read_anything/read_anything_side_panel_controller.h"
 #include "chrome/browser/ui/read_anything/read_anything_side_panel_controller_utils.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
+#include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_enums.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_registry.h"
 #include "chrome/common/extensions/extension_constants.h"
+#include "chrome/common/read_anything/read_anything.mojom-shared.h"
 #include "chrome/common/read_anything/read_anything.mojom.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -119,6 +124,8 @@ class MockPage : public read_anything::mojom::UntrustedPage {
       void,
       OnGetPresentationState,
       (read_anything::mojom::ReadAnythingPresentationState presentation_state));
+  MOCK_METHOD(void, OnPinStatusReceived, (bool pin_state), (override));
+
 #if BUILDFLAG(IS_CHROMEOS)
   MOCK_METHOD(void, OnDeviceLocked, ());
 #else
@@ -342,6 +349,28 @@ class ReadAnythingUntrustedPageHandlerTest
           ->tab()
           ->GetContents();
     }
+  }
+
+  views::View* GetImmersiveOverlay(Browser* browser_ptr = nullptr) {
+    if (!browser_ptr) {
+      browser_ptr = browser();
+    }
+    BrowserView* browser_view =
+        BrowserView::GetBrowserViewForBrowser(browser_ptr);
+    return browser_view->GetWidget()->GetContentsView()->GetViewByID(
+        VIEW_ID_READ_ANYTHING_OVERLAY);
+  }
+
+  content::WebContents* GetImmersiveWebContents(
+      Browser* browser_ptr = nullptr) {
+    views::View* overlay_view = GetImmersiveOverlay(browser_ptr);
+    if (!overlay_view || !overlay_view->GetVisible() ||
+        overlay_view->children().empty()) {
+      return nullptr;
+    }
+    views::WebView* web_view =
+        static_cast<views::WebView*>(overlay_view->children()[0]);
+    return web_view->GetWebContents();
   }
 
   ChromeTranslateClient* GetChromeTranslateClient() {
@@ -648,6 +677,67 @@ IN_PROC_BROWSER_TEST_P(ReadAnythingUntrustedPageHandlerTest, OnFontChange) {
   const std::string font2 = browser()->profile()->GetPrefs()->GetString(
       prefs::kAccessibilityReadAnythingFontName);
   ASSERT_EQ(font2, kFont2);
+}
+
+IN_PROC_BROWSER_TEST_P(ReadAnythingUntrustedPageHandlerTest,
+                       TogglePinStateChangesStateWhenImmersive) {
+  handler_ = CreateHandler();
+  const bool pin_state = handler_->immersive_read_anything_pin_state();
+  handler_->TogglePinState();
+  if (IsImmersiveEnabled()) {
+    EXPECT_NE(pin_state, handler_->immersive_read_anything_pin_state());
+  } else {
+    EXPECT_EQ(pin_state, handler_->immersive_read_anything_pin_state());
+  }
+}
+
+IN_PROC_BROWSER_TEST_P(ReadAnythingUntrustedPageHandlerTest,
+                       TogglePinStatePropagatesChangetoToolbar) {
+  handler_ = CreateHandler();
+  handler_->TogglePinState();
+  if (IsImmersiveEnabled()) {
+    EXPECT_TRUE(PinnedToolbarActionsModel::Get(GetProfile())
+                    ->Contains(kActionSidePanelShowReadAnything));
+  }
+}
+
+IN_PROC_BROWSER_TEST_P(ReadAnythingUntrustedPageHandlerTest,
+                       UpdatesStateWhenToolbarModifiesPinStatus) {
+  handler_ = CreateHandler();
+  const bool pin_state = handler_->immersive_read_anything_pin_state();
+  EXPECT_FALSE(pin_state);
+  auto* pinned_toolbar = PinnedToolbarActionsModel::Get(GetProfile());
+  pinned_toolbar->UpdatePinnedState(kActionSidePanelShowReadAnything, true);
+  if (IsImmersiveEnabled()) {
+    EXPECT_TRUE(handler_->immersive_read_anything_pin_state());
+    EXPECT_CALL(page_, OnPinStatusReceived(true)).Times(1);
+  }
+}
+
+IN_PROC_BROWSER_TEST_P(ReadAnythingUntrustedPageHandlerTest,
+                       TestPinStatusIsCorrectAtStartup) {
+  auto* pinned_toolbar = PinnedToolbarActionsModel::Get(GetProfile());
+  pinned_toolbar->UpdatePinnedState(kActionSidePanelShowReadAnything, true);
+  handler_ = CreateHandler();
+  if (IsImmersiveEnabled()) {
+    EXPECT_TRUE(handler_->immersive_read_anything_pin_state());
+  }
+}
+
+IN_PROC_BROWSER_TEST_P(ReadAnythingUntrustedPageHandlerTest,
+                       TestDontUpdateRendererIfPinStatusDoesntChange) {
+  handler_ = CreateHandler();
+  auto* pinned_toolbar = PinnedToolbarActionsModel::Get(GetProfile());
+  pinned_toolbar->UpdatePinnedState(kActionSidePanelShowReadAnything, false);
+  if (IsImmersiveEnabled()) {
+    EXPECT_CALL(page_, OnPinStatusReceived(_)).Times(0);
+  }
+}
+
+IN_PROC_BROWSER_TEST_P(ReadAnythingUntrustedPageHandlerTest, SendPinState) {
+  handler_ = CreateHandler();
+  EXPECT_CALL(page_, OnPinStatusReceived(false)).Times(1);
+  handler_->SendPinStateRequest();
 }
 
 IN_PROC_BROWSER_TEST_P(ReadAnythingUntrustedPageHandlerTest, OnFontSizeChange) {
@@ -1572,6 +1662,58 @@ IN_PROC_BROWSER_TEST_P(ReadAnythingUntrustedPageHandlerTest,
   EXPECT_CALL(page_, OnReadingModeHidden(true)).Times(1);
 }
 
+// TODO(crbug.com/474702670): high failure rates on Mac bots.
+// Activate_OnCloseReadingMode_ListensForPageAck/All.1
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_Activate_OnCloseReadingMode_ListensForPageAck \
+  DISABLED_Activate_OnCloseReadingMode_ListensForPageAck
+#else
+#define MAYBE_Activate_OnCloseReadingMode_ListensForPageAck \
+  Activate_OnCloseReadingMode_ListensForPageAck
+#endif
+IN_PROC_BROWSER_TEST_P(ReadAnythingUntrustedPageHandlerTest,
+                       MAYBE_Activate_OnCloseReadingMode_ListensForPageAck) {
+  if (IsImmersiveEnabled()) {
+    handler_ = CreateHandler();
+    auto* controller =
+        ReadAnythingController::From(browser()->GetActiveTabInterface());
+
+    // Open reading mode and getting the starting web contents.
+    controller->ShowImmersiveUI(ReadAnythingOpenTrigger::kAppMenu);
+    BrowserView* browser_view =
+        BrowserView::GetBrowserViewForBrowser(browser());
+    views::View* overlay_view =
+        browser_view->GetWidget()->GetContentsView()->GetViewByID(
+            VIEW_ID_READ_ANYTHING_OVERLAY);
+    ASSERT_TRUE(overlay_view);
+    ReadAnythingImmersiveWebView* web_view =
+        static_cast<ReadAnythingImmersiveWebView*>(overlay_view->children()[0]);
+    web_view->ShowUI();
+    auto* original_contents = GetImmersiveWebContents();
+    ASSERT_NE(original_contents, nullptr);
+
+    // Close reading mode without acknowledging it.
+    controller->CloseImmersiveUI();
+    EXPECT_TRUE(base::test::RunUntil(
+        [&]() { return handler_->ack_timed_out_for_testing(); }));
+
+    // After showing RM again, the web contents should be new
+    controller->ShowImmersiveUI(ReadAnythingOpenTrigger::kAppMenu);
+    auto* new_contents = GetImmersiveWebContents();
+    ASSERT_NE(new_contents, original_contents);
+
+    // Close reading mode again and now acknowledge it.
+    controller->CloseImmersiveUI();
+    handler_->AckReadingModeHidden();
+    EXPECT_TRUE(base::test::RunUntil(
+        [&]() { return !handler_->ack_timed_out_for_testing(); }));
+
+    // After showing RM again, the web contents should be the same.
+    controller->ShowImmersiveUI(ReadAnythingOpenTrigger::kAppMenu);
+    ASSERT_EQ(GetImmersiveWebContents(), new_contents);
+  }
+}
+
 IN_PROC_BROWSER_TEST_P(ReadAnythingUntrustedPageHandlerTest,
                        Activate_OnDeactivateTab_NotifiesPage) {
   handler_ = CreateHandler();
@@ -1766,12 +1908,12 @@ class ReadAnythingUntrustedPageHandlerDistillerTest
  public:
   ReadAnythingUntrustedPageHandlerDistillerTest()
       : ReadAnythingUntrustedPageHandlerTest(
-            {features::kReadAnythingWithReadability}) {}
+            {features::kReadAnythingWithReadability,
+             features::kReadAnythingReadAloudTSTextSegmentation}) {}
 };
 
-// TODO(crbug.com/470137716): Disabled due to flakiness.
 IN_PROC_BROWSER_TEST_P(ReadAnythingUntrustedPageHandlerDistillerTest,
-                       DISABLED_DistillationPopulatesContent) {
+                       DistillationPopulatesContent) {
   ASSERT_TRUE(embedded_test_server()->Start());
   handler_ = CreateHandler();
 
@@ -1783,9 +1925,9 @@ IN_PROC_BROWSER_TEST_P(ReadAnythingUntrustedPageHandlerDistillerTest,
   OnActiveAXTreeIDChanged();
 
   EXPECT_TRUE(base::test::RunUntil(
-      [&]() { return handler_->distilled_title_for_testing().has_value(); }));
+      [&]() { return handler_->dom_distiller_title().has_value(); }));
   EXPECT_TRUE(base::test::RunUntil(
-      [&]() { return handler_->distilled_content_for_testing().has_value(); }));
+      [&]() { return handler_->dom_distiller_content().has_value(); }));
 }
 
 }  // namespace

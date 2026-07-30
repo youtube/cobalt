@@ -75,6 +75,7 @@
 <translation id="1272079795634619415">Stop</translation>
 <translation id="1273416271143914096">{count,plural, =1{{count} password}one{{count} password}other{{count} na password}}</translation>
 <translation id="1275718070701477396">Pinili</translation>
+<translation id="1279024913354609713">Huwag Payagan</translation>
 <translation id="1285320974508926690">Huwag isalin kailanman ang site na ito</translation>
 <translation id="1287229685519872919">Data sa Google Workspace</translation>
 <translation id="1291506870746876680">Mare-reset sa naka-off ang mga pahintulot sa <ph name="BEGIN_BOLD" />"<ph name="SITE_NAME" />"<ph name="END_BOLD" /> kapag umalis ka sa site na ito.</translation>
@@ -456,6 +457,7 @@
 <translation id="2669454659051515572">Makikita ng sinumang gumagamit ng device na ito ang mga na-download na file</translation>
 <translation id="2671423594960767771">Ibahagi ang pangkat</translation>
 <translation id="2673508731173059946">Bisitahin ang kinopyang link</translation>
+<translation id="2679659833697380">Sine-save sa iyong device ang impormasyon mo</translation>
 <translation id="2688535388040882469">Mga Banner</translation>
 <translation id="2690858294534178585">Ginagamit ang camera</translation>
 <translation id="2691653761409724435">Hindi available offline</translation>
@@ -657,7 +659,6 @@
 <translation id="3530024057633834563">Wala kang anumang naka-save na password o passkey, pero puwede mong i-delete ang listahan ng mga site at app na pinili mong hinding-hindi magse-save ng impormasyon sa pag-sign in. Hindi made-delete ang anumang account na ginawa mo para sa mga site at app.</translation>
 <translation id="3530206579861815432">Mabilis na maghanap ng mga bukas at kamakailang isinarang tab sa lahat ng iyong naka-sync na device.</translation>
 <translation id="3530767473765895035">Pamahalaan ang mga account sa device na ito…</translation>
-<translation id="353340646084395154">Inalis ang mga preference sa page na bagong tab</translation>
 <translation id="3533436815740441613">Bagong Tab</translation>
 <translation id="3540141921715814660">Idagdag sa Mga Bookmark</translation>
 <translation id="3546122170015471515">Mga Preview ng Maps sa Google.com</translation>
@@ -927,7 +928,6 @@
 <translation id="4601095002996233687">Mga detalyadong pag-scan para sa mga kahina-hinalang pag-download.</translation>
 <translation id="4606247758155004938">Pinapamahalaan ng iyong organisasyon ang browser mo.</translation>
 <translation id="4607887340472970274">Pagsubaybay sa Presyo</translation>
-<translation id="461440297010471931">Paghahanap gamit ang Google</translation>
 <translation id="4619564267100705184">I-verify na ikaw ito</translation>
 <translation id="4621768135601674446">Buksan ang mga opsyon sa Reading mode</translation>
 <translation id="4627107755957573804">Payagan ang mga site at app na i-upgrade ang mga kasalukuyang account para gumamit ng mga passkey</translation>
@@ -953,6 +953,7 @@
 <translation id="4673565891421389203">Nakakatulong ang pag-sign in sa iyong pinapamahalaang account na maihiwalay mo ang pag-browse na nauugnay sa iyong organisasyon (kabilang ang mga tab, history, at mga password) sa iba mo pang pag-browse.
 
        Piliin kung ano ang gagawin sa kasalukuyang data mula sa pag-browse sa device na ito.</translation>
+<translation id="4675298276894277358">Hindi na ipapakita ulit ang site na ito</translation>
 <translation id="4682496302933121474">Isalin ang page?</translation>
 <translation id="4682686630151240767">1. Buksan ang Mga Setting ng iPhone</translation>
 <translation id="4691892551491778176">Kapag ginamit mo ang feature na ito, ipapadala ang content ng page at mga URL sa Google pero hindi ito gagamitin para mapahusay ang mga generative AI model. Puwede mo itong i-off sa mga setting anumang oras.</translation>
@@ -966,6 +967,7 @@
 <translation id="472259426228234149">Presyo $100 - $180</translation>
 <translation id="4735849923335729414">Mag-sign in bilang <ph name="EMAIL" />, pinapamahalaan ng iyong organisasyon.</translation>
 <translation id="473775607612524610">I-update</translation>
+<translation id="4738968082443868320">Google Drive</translation>
 <translation id="474209246745757965">Mamili at magsalin gamit ang iyong camera</translation>
 <translation id="4742407542027196863">Pamahalaan ang mga password...</translation>
 <translation id="4744428388659507035">Para kunin ang iyong mga bookmark sa lahat ng device mo, i-on ang “Mga Bookmark” sa mga setting.</translation>
@@ -1055,6 +1057,7 @@
 <translation id="5021500396464456616">Makipag-ugnayan sa taong nagpadala ng link na ito</translation>
 <translation id="5039804452771397117">Payagan</translation>
 <translation id="5050810143224996149">I-share ang Password</translation>
+<translation id="5052499409147950210">I-edit ang site</translation>
 <translation id="5055015094595227120">Eksaktong lokasyon</translation>
 <translation id="5055551113846164633">Dine-delete nito ang mga address na naka-save sa device na ito. Dine-delete din nito ang mga address na naka-save sa iyong Google Account na <ph name="USER_EMAIL" />.</translation>
 <translation id="5056446788882570708">Nakita ang mga isyu <ph name="TIME" />.</translation>
@@ -1133,6 +1136,7 @@
 <translation id="5295239312320826323">Alisin ang account na <ph name="USER_EMAIL" />?</translation>
 <translation id="5300589172476337783">Ipakita</translation>
 <translation id="5311061401280561833">Pinapayagan ang access sa camera at mikropono</translation>
+<translation id="5313967007315987356">Magdagdag ng site</translation>
 <translation id="5315870524563628285">Walang ii-import</translation>
 <translation id="5316356981864168850"><ph name="INDEX" /> sa <ph name="NUM_SUGGESTIONS" /></translation>
 <translation id="5317780077021120954">I-save</translation>
@@ -1150,7 +1154,6 @@
 <translation id="537853552771686272">Pamahalaan ang mga paksa at site kung saan ka interesado</translation>
 <translation id="5390458669633674385">{count,plural, =1{{count} ang isinara}one{{count} ang isinara}other{{count} ang isinara}}</translation>
 <translation id="5394975111793637642">I-hide ang card na mga review ng produkto para sa iyo</translation>
-<translation id="5407806496954700135">Gusto mo bang i-apply ang iyong mga pag-customize ng page na bagong tab mula sa ibang device?</translation>
 <translation id="5414763847370083940">Makakatanggap ka ng alerto kung bumaba ang presyo sa anumang site.</translation>
 <translation id="5415289094036440596">Hindi puwedeng i-share ang mga passkey</translation>
 <translation id="5416455648658732408">Ilipat sa Grupo ng Tab</translation>
@@ -1202,7 +1205,6 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="5579012242779565775">I-hide ang Listahan ng Babasahin</translation>
 <translation id="5581786858144165447">Ask AI mode</translation>
 <translation id="5585019845078534178">Mga Card</translation>
-<translation id="5589976607021609750">Naka-attach na larawan</translation>
 <translation id="5595485650161345191">Mag-edit ng address</translation>
 <translation id="559567008082979829">Itakdang ma-delete ang iyong mga download pagkalipas ng isang buwan.</translation>
 <translation id="5596627076506792578">Higit pang opsyon</translation>
@@ -1360,7 +1362,6 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="6122191549521593678">Online</translation>
 <translation id="6122831415929794347">I-off ang Ligtas na Pag-browse?</translation>
 <translation id="6123514585040403489">Isasara ang iyong mga tab</translation>
-<translation id="6127379762771434464">Inalis ang item</translation>
 <translation id="6136914049981179737">Segundo</translation>
 <translation id="6138324221869147340">Hindi na available ang ilang feature</translation>
 <translation id="6140600850356225166">Hilinging magbukas ng mga link mula sa iba pang app sa Incognito</translation>
@@ -1569,6 +1570,7 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="6807287147325542056">Mga password sa iba pang app</translation>
 <translation id="681368974849482173">Nagawa ang item</translation>
 <translation id="6825078212112407882">{count,plural, =1{Na-save ang bookmark sa iyong Google Account na {email}}one{Na-save ang {count} bookmark sa iyong Google Account na {email}}other{Na-save ang {count} na bookmark sa iyong Google Account na {email}}}</translation>
+<translation id="6826004672264649705">Kasalukuyang sinusubaybayan ang produktong ito. Buksan para makita ang history ng presyo</translation>
 <translation id="6830728435402077660">Hindi secure</translation>
 <translation id="6831043979455480757">Isalin</translation>
 <translation id="6842136130964845393">Para matiyak na maa-access mo anumang oras ang iyong mga naka-save na password, i-verify na ikaw ito</translation>
@@ -1795,7 +1797,6 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="7696316012653762532">Mga opsyon para isalin ang page</translation>
 <translation id="7700527812567437847">Maghanap sa screen gamit ang Google Lens</translation>
 <translation id="7701040980221191251">Wala</translation>
-<translation id="7708668404222666001">Na-apply ang iyong mga preference sa page na bagong tab</translation>
 <translation id="7708994397325774423">Kunin ang lahat ng password mo</translation>
 <translation id="7711440461521638739">Wala kang inuulit na anumang password</translation>
 <translation id="7712361583414030698">Tinitingnan ang offline na bersyon</translation>
@@ -2127,6 +2128,7 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="8856643812068084733">Mga Archive</translation>
 <translation id="8863067612494559785">Ipinapadala kay/sa <ph name="DEVICE_NAME" />…</translation>
 <translation id="8863431381414769983">Makakuha ng mga direksyon at lokal na impormasyon mula sa Google Maps</translation>
+<translation id="8867879594900082274">Maa-apply lang ang iyong mga pag-edit sa mga naka-pin mong site sa device na ito.</translation>
 <translation id="8871974300055371298">Mga setting ng content 
 </translation>
 <translation id="8877788021141246043">Magtakda ng paalala</translation>

@@ -2242,6 +2242,7 @@ test("content_browsertests") {
     }
     sources += [
       "../browser/accessibility/android_granularity_movement_browsertest.cc",
+      "../browser/accessibility/ime_accessibility_browsertest.cc",
       "../browser/android/nfc_host_browsertest.cc",
       "../browser/android/render_widget_host_connector_browsertest.cc",
       "../browser/android/render_widget_host_connector_browsertest.h",
@@ -2631,9 +2632,6 @@ test("content_unittests") {
     "../browser/code_cache/simple_lru_cache_unittest.cc",
     "../browser/content_index/content_index_database_unittest.cc",
     "../browser/content_index/content_index_service_impl_unittest.cc",
-    "../browser/cookie_insight_list/cookie_insight_list_handler_impl_unittest.cc",
-    "../browser/cookie_insight_list/cookie_insight_list_unittest.cc",
-    "../browser/cookie_insight_list/cookie_readiness_list/cookie_readiness_list_parser_unittest.cc",
     "../browser/cookie_store/cookie_store_manager_unittest.cc",
     "../browser/cpu_performance/cpu_performance_unittest.cc",
     "../browser/devtools/devtools_background_services_context_impl_unittest.cc",
@@ -3280,6 +3278,7 @@ test("content_unittests") {
     "//components/viz/host",
     "//components/viz/service",
     "//components/viz/test:test_support",
+    "//components/webauthn/core/browser:common_utils",
     "//content/app:for_content_tests",
     "//content/browser:for_content_tests",
     "//content/browser/attribution_reporting:attribution_reporting_proto",
@@ -3398,7 +3397,6 @@ test("content_unittests") {
     "//ui/gfx/geometry:geometry_skia",
     "//ui/gfx/geometry/mojom:mojom_traits",
     "//ui/gfx/ipc",
-    "//ui/gfx/ipc/skia",
     "//ui/gl",
     "//ui/gl:gl_headers",
     "//ui/gl:test_support",
@@ -3664,6 +3662,7 @@ test("content_unittests") {
       "../browser/webauth/webauth_request_security_checker_unittest.cc",
     ]
     deps += [
+      "//components/webauthn/core/browser",
       "//components/webauthn/core/browser:client_data",
       "//device/base",
       "//device/fido:mocks",

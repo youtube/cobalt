@@ -835,6 +835,10 @@ public class LocationBarCoordinator
         mLocationBarMediator.setUnfocusedWidth(unfocusedWidth);
     }
 
+    public void setOnSizeChangedRunnable(Runnable onSizeChangedRunnable) {
+        mLocationBarLayout.setOnSizeChangedRunnable(onSizeChangedRunnable);
+    }
+
     /** Returns the {@link StatusCoordinator} for the LocationBar. */
     public StatusCoordinator getStatusCoordinator() {
         return mStatusCoordinator;
@@ -884,7 +888,14 @@ public class LocationBarCoordinator
                         }
                     });
         }
-        TransitionManager.beginDelayedTransition(mLocationBarLayout, changeBounds);
+        // If the refactored animations are enabled, the ChangeBounds transition will instead be
+        // kicked off with the other transitions in ToolbarPhone.
+        if (ChromeFeatureList.sToolbarPhoneAnimationRefactor.isEnabled()) {
+            changeBounds.setResizeClip(/* resizeClip= */ true);
+            mLocationBarEmbedder.beginEmbeddedDelayedTransition(mLocationBarLayout, changeBounds);
+        } else {
+            TransitionManager.beginDelayedTransition(mLocationBarLayout, changeBounds);
+        }
     }
 
     /**
@@ -1086,6 +1097,19 @@ public class LocationBarCoordinator
         mZoomButton.setContentDescription(zoomString);
         mZoomButton.setTooltipText(zoomString);
         mLocationBarMediator.onZoomLevelChanged();
+    }
+
+    /**
+     * Called when the edge-to-edge state changes to update the autocomplete suggestions container.
+     *
+     * @param systemTopInset The top inset from the system in pixels.
+     * @param consumeTopInset Whether the top inset should be consumed.
+     */
+    public void onToEdgeChange(int systemTopInset, boolean consumeTopInset) {
+        if (mAutocompleteCoordinator != null) {
+            mAutocompleteCoordinator.onToEdgeChange(
+                    systemTopInset, consumeTopInset, isToolbarBottomAnchored());
+        }
     }
 
     /**

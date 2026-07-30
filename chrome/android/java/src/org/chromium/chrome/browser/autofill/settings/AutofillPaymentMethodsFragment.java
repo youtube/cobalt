@@ -940,7 +940,8 @@ public class AutofillPaymentMethodsFragment extends ChromeBaseSettingsFragment
                                 frag,
                                 PREF_NON_CARD_PAYMENT_METHODS_MANAGEMENT,
                                 R.string.settings_manage_non_card_payment_methods_title,
-                                R.string.settings_manage_non_card_payment_methods_description);
+                                R.string.settings_manage_non_card_payment_methods_description,
+                                NonCardPaymentMethodsManagementFragment.class.getName());
                     }
                     if (shouldShowOtherFinanceAccounts(profile, hasEwallets, hasPixAccounts)) {
                         indexData.addEntryForKey(
@@ -979,7 +980,8 @@ public class AutofillPaymentMethodsFragment extends ChromeBaseSettingsFragment
                                 frag,
                                 PREF_BUY_NOW_PAY_LATER,
                                 R.string.autofill_bnpl_settings_label,
-                                0);
+                                0,
+                                AutofillBuyNowPayLaterFragment.class.getName());
                     }
                     if (shouldShowAddFirstCardPref(personalDataManager, profile)) {
                         indexData.addEntryForKey(

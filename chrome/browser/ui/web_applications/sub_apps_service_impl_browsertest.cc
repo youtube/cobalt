@@ -21,7 +21,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/browser/ui/web_applications/sub_apps_install_dialog_controller.h"
+#include "chrome/browser/ui/views/web_apps/sub_apps_install_dialog_controller.h"
 #include "chrome/browser/ui/web_applications/test/isolated_web_app_test_utils.h"
 #include "chrome/browser/ui/web_applications/web_app_browsertest_base.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
@@ -51,6 +51,13 @@
 #include "third_party/blink/public/common/features.h"
 #include "url/gurl.h"
 #include "url/origin.h"
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#include "chrome/browser/web_applications/web_app_utils.h"
+#include "components/policy/core/browser/browser_policy_connector.h"
+#include "components/policy/core/common/mock_configuration_policy_provider.h"
+#include "components/policy/policy_constants.h"
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 using blink::mojom::SubAppsService;
 using blink::mojom::SubAppsServiceAddParameters;
@@ -1083,9 +1090,9 @@ IN_PROC_BROWSER_TEST_F(SubAppsServiceImplBrowserTest,
 
   EXPECT_TRUE(provider().registrar_unsafe().AppMatches(
       parent_app_id_, WebAppFilter::InstalledInOperatingSystemForTesting()));
-  EXPECT_EQ(
-      proto::InstallState::INSTALLED_WITH_OS_INTEGRATION,
-      provider().registrar_unsafe().GetInstallState(parent_app_2.app_id()));
+  EXPECT_TRUE(provider().registrar_unsafe().AppMatches(
+      parent_app_2.app_id(),
+      WebAppFilter::InstalledInOperatingSystemForTesting()));
   EXPECT_NE(parent_app_id_, parent_app_2.app_id());
 
   // Call Add for both IWAs.
@@ -1288,5 +1295,64 @@ IN_PROC_BROWSER_TEST_F(SubAppsServiceImplBrowserTest, RemoveFailWrongOrigin) {
       << "Disconnect handler not invoked.";
   EXPECT_FALSE(UninstallNotificationShown());
 }
+
+/******** Tests for policy-disabled scenarios ********/
+
+// Test class for SubApps API when WebAppInstallByUserEnabled policy is
+// disabled.
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+class SubAppsServiceImplPolicyDisabledBrowserTest
+    : public SubAppsServiceImplBrowserTest {
+ public:
+  SubAppsServiceImplPolicyDisabledBrowserTest() = default;
+  SubAppsServiceImplPolicyDisabledBrowserTest(
+      const SubAppsServiceImplPolicyDisabledBrowserTest&) = delete;
+
+  void SetUpInProcessBrowserTestFixture() override {
+    SubAppsServiceImplBrowserTest::SetUpInProcessBrowserTestFixture();
+
+    // Set up the policy provider to disable web app installs
+    policy_provider_.SetDefaultReturns(
+        /*is_initialization_complete_return=*/true,
+        /*is_first_policy_load_complete_return=*/true);
+    policy::BrowserPolicyConnector::SetPolicyProviderForTesting(
+        &policy_provider_);
+
+    // Create policy map with disabled web app user installs
+    policy::PolicyMap policies;
+    policies.Set(policy::key::kWebAppInstallByUserEnabled,
+                 policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_USER,
+                 policy::POLICY_SOURCE_ENTERPRISE_DEFAULT, base::Value(false),
+                 nullptr);
+    policy_provider_.UpdateChromePolicy(policies);
+  }
+
+ private:
+  testing::NiceMock<policy::MockConfigurationPolicyProvider> policy_provider_;
+};
+
+// Verify that the Add API fails when WebAppInstallByUserEnabled policy is
+// disabled.
+IN_PROC_BROWSER_TEST_F(SubAppsServiceImplPolicyDisabledBrowserTest,
+                       AddFailsWhenPolicyDisabled) {
+  // Verify the policy is disabled from startup
+  ASSERT_FALSE(AreWebAppsUserInstallable(
+      Profile::FromBrowserContext(browser()->profile())));
+
+  content::RenderFrameHost* iwa_frame = InstallAndOpenParentIwaApp();
+  BindRemote(iwa_frame);
+
+  EXPECT_EQ(0ul, GetAllSubAppIds(parent_app_id_).size());
+
+  // Attempt to add sub-apps should fail due to policy
+  ExpectCallAdd(
+      {{GetURLFromPath(kSubAppPath), SubAppsServiceResultCode::kFailure},
+       {GetURLFromPath(kSubAppPath2), SubAppsServiceResultCode::kFailure}},
+      {{kSubAppPath, kSubAppPath}, {kSubAppPath2, kSubAppPath2}});
+
+  // Verify no sub-apps were actually installed
+  EXPECT_EQ(0ul, GetAllSubAppIds(parent_app_id_).size());
+}
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 }  // namespace web_app

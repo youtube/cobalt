@@ -136,28 +136,27 @@ class AwContents : public FindHelper::Listener,
   bool IsVisible(JNIEnv* env);
   bool IsDisplayingInterstitialForTesting(JNIEnv* env);
   base::android::ScopedJavaLocalRef<jbyteArray>
-  GetOpaqueState(JNIEnv* env, jint max_size, jboolean include_forward_state);
-  jboolean RestoreFromOpaqueState(
-      JNIEnv* env,
-      const base::android::JavaRef<jbyteArray>& state);
+  GetOpaqueState(JNIEnv* env, jint max_size, bool include_forward_state);
+  bool RestoreFromOpaqueState(JNIEnv* env,
+                              const base::android::JavaRef<jbyteArray>& state);
   void FocusFirstNode(JNIEnv* env);
   void SetBackgroundColor(JNIEnv* env, jint color);
   void ZoomBy(JNIEnv* env, jfloat delta);
   void OnComputeScroll(JNIEnv* env, jlong animation_time_millis);
   bool OnDraw(JNIEnv* env,
               const base::android::JavaRef<jobject>& canvas,
-              jboolean is_hardware_accelerated,
+              bool is_hardware_accelerated,
               jint scroll_x,
               jint scroll_y,
               jint visible_left,
               jint visible_top,
               jint visible_right,
               jint visible_bottom,
-              jboolean force_auxiliary_bitmap_rendering);
+              bool force_auxiliary_bitmap_rendering);
   jfloat GetVelocityInPixelsPerSecond(JNIEnv* env);
   bool NeedToDrawBackgroundColor(JNIEnv* env);
   jlong CapturePicture(JNIEnv* env, int width, int height);
-  void EnableOnNewPicture(JNIEnv* env, jboolean enabled);
+  void EnableOnNewPicture(JNIEnv* env, bool enabled);
   void InsertVisualStateCallback(
       JNIEnv* env,
       jlong request_id,
@@ -169,7 +168,7 @@ class AwContents : public FindHelper::Listener,
       const base::android::JavaRef<jstring>& extra_headers);
 
   void InvokeGeolocationCallback(JNIEnv* env,
-                                 jboolean value,
+                                 bool value,
                                  const base::android::JavaRef<jstring>& origin);
 
   jint GetEffectivePriority(JNIEnv* env);
@@ -188,12 +187,13 @@ class AwContents : public FindHelper::Listener,
   base::android::ScopedJavaLocalRef<jstring> AddWebMessageListener(
       JNIEnv* env,
       const base::android::JavaRef<jobject>& listener,
-      const base::android::JavaRef<jstring>& js_object_name,
-      const base::android::JavaRef<jobjectArray>& allowed_origins);
+      const std::u16string& js_object_name,
+      const std::vector<std::string>& allowed_origin_rules,
+      jint world_id);
 
-  void RemoveWebMessageListener(
-      JNIEnv* env,
-      const base::android::JavaRef<jstring>& js_object_name);
+  void RemoveWebMessageListener(JNIEnv* env,
+                                const std::u16string& js_object_name,
+                                jint world_id);
 
   std::vector<jni_zero::ScopedJavaLocalRef<jobject>> GetWebMessageListenerInfos(
       JNIEnv* env);
@@ -253,7 +253,7 @@ class AwContents : public FindHelper::Listener,
   // Find-in-page API and related methods.
   void FindAllAsync(JNIEnv* env,
                     const base::android::JavaRef<jstring>& search_string);
-  void FindNext(JNIEnv* env, jboolean forward);
+  void FindNext(JNIEnv* env, bool forward);
   void ClearMatches(JNIEnv* env);
   FindHelper* GetFindHelper();
 
@@ -299,7 +299,7 @@ class AwContents : public FindHelper::Listener,
                      bool inside_vsync) override;
   ui::TouchHandleDrawable* CreateDrawable() override;
 
-  void ClearCache(JNIEnv* env, jboolean include_disk_files);
+  void ClearCache(JNIEnv* env, bool include_disk_files);
   // See //android_webview/docs/how-does-on-create-window-work.md for more
   // details.
   void SetPendingWebContentsForPopup(
@@ -316,8 +316,8 @@ class AwContents : public FindHelper::Listener,
   base::android::ScopedJavaLocalRef<jstring> GetScheme(JNIEnv* env);
   void OnInputEvent(JNIEnv* env);
 
-  void SetJsOnlineProperty(JNIEnv* env, jboolean network_up);
-  void TrimMemory(JNIEnv* env, jint level, jboolean visible);
+  void SetJsOnlineProperty(JNIEnv* env, bool network_up);
+  void TrimMemory(JNIEnv* env, jint level, bool visible);
 
   void GrantFileSchemeAccesstoChildProcess(JNIEnv* env);
 

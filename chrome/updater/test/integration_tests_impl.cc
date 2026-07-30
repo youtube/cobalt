@@ -845,7 +845,7 @@ void ExpectAppsUpdateSequence(UpdaterScope scope,
   for (const AppUpdateExpectation& app : apps) {
     if ((app.should_update || app.always_serve_crx) &&
         (app.from_version != app.to_version) &&
-        !base::Contains(downloaded_crxes, app.crx_relative_path)) {
+        !downloaded_crxes.contains(app.crx_relative_path)) {
       // Download requests for apps that install/update
       const base::FilePath crx_path = exe_path.Append(app.crx_relative_path);
       ASSERT_TRUE(base::PathExists(crx_path));
@@ -1335,6 +1335,23 @@ void ExpectPing(UpdaterScope scope,
   test_server->ExpectOnce(request_matchers, ")]}'\n");
 }
 
+void ExpectInstallSource(UpdaterScope scope,
+                         ScopedServer* test_server,
+                         const std::string& install_source) {
+  ASSERT_TRUE(test_server)
+      << "TEST ISSUE - nil `test_server` in ExpectInstallSource";
+  request::MatcherGroup request_matchers = {
+      request::GetPathMatcher(test_server->update_path()),
+      request::GetUpdaterUserAgentMatcher(),
+      request::GetContentMatcher(
+          {base::StringPrintf(R"(.*"eventtype":%d,.*)", 2)}),
+      request::GetContentMatcher(
+          {base::StringPrintf(R"(.*"installsource":"%s",.*)", install_source)}),
+      request::GetScopeMatcher(scope)};
+
+  test_server->ExpectOnce(request_matchers, ")]}'\n");
+}
+
 void ExpectAppCommandPing(UpdaterScope scope,
                           ScopedServer* test_server,
                           const std::string& appid,
@@ -1764,7 +1781,8 @@ void RunOfflineInstall(UpdaterScope scope,
                        bool is_legacy_install,
                        bool is_silent_install,
                        int installer_result,
-                       int installer_error) {
+                       int installer_error,
+                       const std::string& install_source) {
   ADD_FAILURE();
 }
 

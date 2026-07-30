@@ -271,6 +271,7 @@
 <translation id="3885770153807205175">Alat za odabir jezika</translation>
 <translation id="3889417619312448367">Deinstaliranje preglednika Google Chrome</translation>
 <translation id="3892148308691398805">Kopiranje teksta</translation>
+<translation id="3893985792899396936">Savjet za Chrome: pretražujte pomoću Objektiva</translation>
 <translation id="3906096710440765802">Prijavite se u Chrome da biste mogli pristupiti svojim zaporkama, oznakama i drugim podacima na svim svojim uređajima</translation>
 <translation id="3921132130819999051">Dopustite Chromeu da pregledava umjesto vas</translation>
 <translation id="3941890832296813527">Pogreška pri instalaciji: naziv datoteke programa za instalaciju nije važeći ili nije podržan.</translation>
@@ -312,7 +313,6 @@
 <translation id="4329315893554541805">Da biste dobili personalizaciju i druge značajke, uključite Chrome u aktivnost na webu i u aplikacijama te povezane Googleove usluge</translation>
 <translation id="4334241893986177674">Pretražite ovu snimku zaslona</translation>
 <translation id="4334294535648607276">Preuzimanje je dovršeno.</translation>
-<translation id="4337324600316876133">Da biste primali buduća ažuriranja Google Chromea, trebat će vam macOS 12 ili novija verzija. Na ovom se računalu upotrebljava macOS 11.</translation>
 <translation id="4343195214584226067">Proširenje <ph name="EXTENSION_NAME" /> dodano je u Chrome</translation>
 <translation id="4344128547036991536">Kad otvorite Google objektiv, naslov, URL i sadržaj stranice, uključujući PDF-ove, automatski će se poslati Googleu. <ph name="LEARN_MORE" /></translation>
 <translation id="4348548358339558429">Da biste dobili personalizaciju, uključite Chrome u aktivnost na webu i u aplikacijama</translation>
@@ -369,6 +369,7 @@
 <translation id="5003967926796347400">Kliknite Google upravitelj zaporki</translation>
 <translation id="5043786843026425788">Saznajte više o pretraživanju pomoću Google objektiva u Chromeu</translation>
 <translation id="504867494566807945">Otvorite veze u Chromeu iz bilo koje aplikacije. Osim toga, za lakši pristup prikvačen je na programsku traku.</translation>
+<translation id="5105120510934353742">Da biste primali buduća ažuriranja Google Chromea, trebat će vam macOS 13 ili novija verzija. Na ovom se računalu upotrebljava macOS 12.</translation>
 <translation id="5114340746415930644">Unesite šifru kako biste upotrebljavali i spremali podatke iz Chromea na svojem računu, <ph name="USER_EMAIL" /></translation>
 <translation id="5120334927898581447">Prijavite se u Chrome prilikom prijave na druge Googleove usluge</translation>
 <translation id="5126049312684316860">Chrome predučitava još više stranica koje ćete vjerojatno posjetiti kako bi se brže učitale kad ih posjetite.</translation>
@@ -483,6 +484,7 @@
 <translation id="6180522807229584611">Ova kartica upotrebljava dodatne resurse. Da biste poboljšali izvedbu, dopustite Chromeu da ih deaktivira.</translation>
 <translation id="6182736845697986886">Instalacija nije uspjela zbog interne pogreške poslužitelja ažuriranja.</translation>
 <translation id="6183773856988300112">Gemini u Chromeu upotrebljava automatsko pregledavanje za rad na vašim karticama i dovršavanje zadataka koje mu dodijelite. <ph name="LINK_BEGIN" />Saznajte više<ph name="LINK_END" /></translation>
+<translation id="6187085551300363958">Savjet za Chrome: spremite zaporke</translation>
 <translation id="6192058120268468905">Vaš račun u Chromeu</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" /> dodao je proširenje koje može promijeniti Chromeov način rada.
 
@@ -621,6 +623,7 @@
 <translation id="7627609214560473136">Da biste zaštitili svoje podatke, dopustite Chromeu da ukloni dopuštenja s web-lokacija koje niste posjetili u posljednje vrijeme.</translation>
 <translation id="7629695634924605473">Chrome će vas obavijestiti ako vaše zaporke budu ugrožene</translation>
 <translation id="7641148173327520642">Vaš administrator sustava konfigurirao je Google Chrome da otvara <ph name="ALTERNATIVE_BROWSER_NAME" /> za pristup URL-u <ph name="TARGET_URL_HOSTNAME" />.</translation>
+<translation id="7641448682796883218">Savjet za Chrome: poboljšano sigurno pregledavanje</translation>
 <translation id="7649070708921625228">Pomoć</translation>
 <translation id="7651907282515937834">Logotip Chrome Enterprise</translation>
 <translation id="76531479118467370">Chrome je blokirao ovo preuzimanje jer ste isključili sigurno pregledavanje i datoteka se ne može potvrditi</translation>

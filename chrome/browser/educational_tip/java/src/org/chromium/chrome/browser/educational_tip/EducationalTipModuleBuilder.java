@@ -19,6 +19,7 @@ import org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType;
 import org.chromium.chrome.browser.magic_stack.ModuleProvider;
 import org.chromium.chrome.browser.magic_stack.ModuleProviderBuilder;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.setup_list.SetupListModuleUtils;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.segmentation_platform.InputContext;
 import org.chromium.ui.modelutil.PropertyKey;
@@ -65,15 +66,30 @@ public class EducationalTipModuleBuilder implements ModuleProviderBuilder, Modul
     /** Create view for the educational tip module. */
     @Override
     public ViewGroup createView(ViewGroup parentView) {
-        return (ViewGroup)
-                LayoutInflater.from(mActionDelegate.getContext())
-                        .inflate(R.layout.educational_tip_module_layout, parentView, false);
+        ViewGroup moduleView =
+                (ViewGroup)
+                        LayoutInflater.from(mActionDelegate.getContext())
+                                .inflate(R.layout.educational_tip_module_layout, parentView, false);
+
+        if (SetupListModuleUtils.isSetupListModule(mModuleType)) {
+            // Setup List images don't have a background
+            moduleView
+                    .findViewById(R.id.educational_tip_module_content_image)
+                    .setBackgroundResource(0);
+        }
+        return moduleView;
     }
 
     /** Bind the property model for the educational tip module. */
     @Override
     public void bind(PropertyModel model, ViewGroup view, PropertyKey propertyKey) {
         EducationalTipModuleViewBinder.bind(model, view, propertyKey);
+    }
+
+    @Override
+    public boolean hasManualOrdering() {
+        // Manual ordering is only needed for setup list items, when the setup list is active.
+        return SetupListModuleUtils.isSetupListModule(mModuleType);
     }
 
     // ModuleEligibilityChecker implementation:

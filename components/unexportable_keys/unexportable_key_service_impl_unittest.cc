@@ -16,6 +16,7 @@
 #include "base/test/gmock_move_support.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
+#include "components/unexportable_keys/background_task_origin.h"
 #include "components/unexportable_keys/background_task_priority.h"
 #include "components/unexportable_keys/mock_unexportable_key.h"
 #include "components/unexportable_keys/ref_counted_unexportable_signing_key.h"
@@ -48,6 +49,8 @@ constexpr crypto::SignatureVerifier::SignatureAlgorithm
     kAcceptableAlgorithms[] = {crypto::SignatureVerifier::ECDSA_SHA256};
 constexpr BackgroundTaskPriority kTaskPriority =
     BackgroundTaskPriority::kUserVisible;
+constexpr BackgroundTaskOrigin kTaskOrigin =
+    BackgroundTaskOrigin::kDeviceBoundSessionCredentials;
 
 }  // namespace
 
@@ -60,7 +63,8 @@ class UnexportableKeyServiceImplTest : public testing::Test {
 
   void ResetService() {
     task_manager_.emplace();
-    service_.emplace(*task_manager_, crypto::UnexportableKeyProvider::Config());
+    service_.emplace(*task_manager_, kTaskOrigin,
+                     crypto::UnexportableKeyProvider::Config());
   }
 
   void DestroyService() { service_ = std::nullopt; }
@@ -85,8 +89,9 @@ class UnexportableKeyServiceImplTest : public testing::Test {
         ServiceErrorOr<scoped_refptr<RefCountedUnexportableSigningKey>>>
         generate_key_future;
     task_manager_->GenerateSigningKeySlowlyAsync(
-        crypto::UnexportableKeyProvider::Config(), kAcceptableAlgorithms,
-        BackgroundTaskPriority::kBestEffort, generate_key_future.GetCallback());
+        kTaskOrigin, crypto::UnexportableKeyProvider::Config(),
+        kAcceptableAlgorithms, BackgroundTaskPriority::kBestEffort,
+        generate_key_future.GetCallback());
     RunBackgroundTasks();
     auto key = generate_key_future.Get();
     CHECK(key.has_value());
@@ -106,7 +111,8 @@ class UnexportableKeyServiceImplTest : public testing::Test {
       scoped_key_provider_;
   std::optional<UnexportableKeyTaskManager> task_manager_{std::in_place};
   std::optional<UnexportableKeyServiceImpl> service_{
-      std::in_place, *task_manager_, crypto::UnexportableKeyProvider::Config()};
+      std::in_place, *task_manager_, kTaskOrigin,
+      crypto::UnexportableKeyProvider::Config()};
 };
 
 TEST_F(UnexportableKeyServiceImplTest, IsUnexportableKeyProviderSupported) {
@@ -991,57 +997,6 @@ TEST_F(UnexportableKeyServiceImplTest, DeleteAllKeysWithPendingSign) {
   // previously scheduled tasks will be still executed.
   RunBackgroundTasks();
   EXPECT_OK(sign_future.Get());
-}
-
-TEST_F(UnexportableKeyServiceImplTest, CopyKeyFromOtherService) {
-  UnexportableKeyServiceImpl service2(
-      task_manager(), crypto::UnexportableKeyProvider::Config());
-
-  // Generate a key in the first service.
-  base::test::TestFuture<ServiceErrorOr<UnexportableKeyId>> generate_future;
-  service().GenerateSigningKeySlowlyAsync(kAcceptableAlgorithms, kTaskPriority,
-                                          generate_future.GetCallback());
-  RunBackgroundTasks();
-  ASSERT_OK_AND_ASSIGN(UnexportableKeyId key_id1, generate_future.Get());
-
-  // Copy the key to the second service.
-  base::test::TestFuture<ServiceErrorOr<UnexportableKeyId>> copy_future;
-  service2.CopyKeyFromOtherService(service(), key_id1, kTaskPriority,
-                                   copy_future.GetCallback());
-  RunBackgroundTasks();
-  ASSERT_OK_AND_ASSIGN(UnexportableKeyId key_id2, copy_future.Get());
-
-  // The key IDs should be different.
-  EXPECT_NE(key_id1, key_id2);
-
-  // The wrapped keys should be the same.
-  ASSERT_OK_AND_ASSIGN(std::vector<uint8_t> wrapped_key1,
-                       service().GetWrappedKey(key_id1));
-  ASSERT_OK_AND_ASSIGN(std::vector<uint8_t> wrapped_key2,
-                       service2.GetWrappedKey(key_id2));
-  EXPECT_EQ(wrapped_key1, wrapped_key2);
-
-  // The public keys should be the same.
-  ASSERT_OK_AND_ASSIGN(std::vector<uint8_t> spki1,
-                       service().GetSubjectPublicKeyInfo(key_id1));
-  ASSERT_OK_AND_ASSIGN(std::vector<uint8_t> spki2,
-                       service2.GetSubjectPublicKeyInfo(key_id2));
-  EXPECT_EQ(spki1, spki2);
-}
-
-TEST_F(UnexportableKeyServiceImplTest,
-       CopyKeyFromOtherServiceFailsIfKeyNotFound) {
-  UnexportableKeyServiceImpl service2(
-      task_manager(), crypto::UnexportableKeyProvider::Config());
-  UnexportableKeyId nonexistent_key_id;
-
-  base::test::TestFuture<ServiceErrorOr<UnexportableKeyId>> copy_future;
-  service2.CopyKeyFromOtherService(service(), nonexistent_key_id, kTaskPriority,
-                                   copy_future.GetCallback());
-
-  // The operation should fail synchronously.
-  EXPECT_TRUE(copy_future.IsReady());
-  EXPECT_THAT(copy_future.Get(), ErrorIs(ServiceError::kKeyNotFound));
 }
 
 TEST_F(UnexportableKeyServiceImplTest, GetCreationTimeWithStatefulKey) {

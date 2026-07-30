@@ -48,6 +48,9 @@ BASE_DECLARE_FEATURE(kSyncAIThread);
 // Enables syncing of contextual tasks.
 BASE_DECLARE_FEATURE(kSyncContextualTask);
 
+// Enables syncing of skills.
+BASE_DECLARE_FEATURE(kSyncSkill);
+
 #if !BUILDFLAG(IS_CHROMEOS)
 // Flag that controls Uno fast-follow features which are:
 // On Android:
@@ -216,6 +219,10 @@ BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
 // If enabled, the new sync dashboard URL will be opened when the user clicks
 // on the "Review your synced data" (or equivalent) entrypoint in settings.
 BASE_DECLARE_FEATURE(kSyncEnableNewSyncDashboardUrl);
+
+// If enabled, Sync will fetch device statistics for all accounts on the device,
+// and record summary metrics about them.
+BASE_DECLARE_FEATURE(kSyncRecordDeviceStatisticsMetrics);
 
 }  // namespace syncer
 

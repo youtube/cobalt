@@ -12,6 +12,7 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/memory_pressure_listener_registry.h"
+#include "base/notreached.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/interned_args_helper.h"
@@ -21,6 +22,22 @@
 #include "base/tracing_buildflags.h"
 
 namespace base {
+
+namespace {
+
+int GetMemoryLimitForMemoryPressureLevel(MemoryPressureLevel level) {
+  switch (level) {
+    case MEMORY_PRESSURE_LEVEL_NONE:
+      return 100;
+    case MEMORY_PRESSURE_LEVEL_MODERATE:
+      return 50;
+    case MEMORY_PRESSURE_LEVEL_CRITICAL:
+      return 0;
+  }
+  NOTREACHED();
+}
+
+}  // namespace
 
 // MemoryPressureListener ------------------------------------------------------
 
@@ -33,11 +50,6 @@ void MemoryPressureListener::NotifyMemoryPressure(
 // static
 bool MemoryPressureListener::AreNotificationsSuppressed() {
   return MemoryPressureListenerRegistry::AreNotificationsSuppressed();
-}
-
-// static
-void MemoryPressureListener::SetNotificationsSuppressed(bool suppressed) {
-  MemoryPressureListenerRegistry::SetNotificationsSuppressed(suppressed);
 }
 
 // static
@@ -55,13 +67,40 @@ void MemoryPressureListener::SimulatePressureNotificationAsync(
       memory_pressure_level, std::move(on_notification_sent_callback));
 }
 
+int MemoryPressureListener::GetMemoryLimit() const {
+  return GetMemoryLimitForMemoryPressureLevel(memory_pressure_level_);
+}
+
+double MemoryPressureListener::GetMemoryLimitRatio() const {
+  return GetMemoryLimit() / 100.0;
+}
+
+void MemoryPressureListener::SetInitialMemoryPressureLevel(
+    MemoryPressureLevel memory_pressure_level) {
+  memory_pressure_level_ = memory_pressure_level;
+}
+
+void MemoryPressureListener::UpdateMemoryPressureLevel(
+    MemoryPressureLevel memory_pressure_level,
+    bool ignore_repeated_notifications) {
+  if (memory_pressure_level_ == memory_pressure_level &&
+      ignore_repeated_notifications) {
+    return;
+  }
+
+  memory_pressure_level_ = memory_pressure_level;
+  OnMemoryPressure(memory_pressure_level);
+}
+
 // MemoryPressureListenerRegistration --------------------------------------
 
 MemoryPressureListenerRegistration::MemoryPressureListenerRegistration(
     MemoryPressureListenerTag tag,
-    MemoryPressureListener* memory_pressure_listener)
+    MemoryPressureListener* memory_pressure_listener,
+    bool ignore_repeated_notifications)
     : tag_(tag),
       memory_pressure_listener_(memory_pressure_listener),
+      ignore_repeated_notifications_(ignore_repeated_notifications),
       registry_(MemoryPressureListenerRegistry::MaybeGet()) {
   if (!registry_) {
     DLOG(WARNING) << "Registration of a MemoryPressureListener failed. The "
@@ -75,8 +114,11 @@ MemoryPressureListenerRegistration::MemoryPressureListenerRegistration(
 MemoryPressureListenerRegistration::MemoryPressureListenerRegistration(
     const Location& creation_location,
     MemoryPressureListenerTag tag,
-    MemoryPressureListener* memory_pressure_listener)
-    : MemoryPressureListenerRegistration(tag, memory_pressure_listener) {}
+    MemoryPressureListener* memory_pressure_listener,
+    bool ignore_repeated_notifications)
+    : MemoryPressureListenerRegistration(tag,
+                                         memory_pressure_listener,
+                                         ignore_repeated_notifications) {}
 
 MemoryPressureListenerRegistration::~MemoryPressureListenerRegistration() {
   if (!registry_) {
@@ -94,10 +136,20 @@ void MemoryPressureListenerRegistration::
   registry_ = nullptr;
 }
 
-void MemoryPressureListenerRegistration::Notify(
+void MemoryPressureListenerRegistration::SetInitialMemoryPressureLevel(
+    PassKey<MemoryPressureListenerRegistry>,
     MemoryPressureLevel memory_pressure_level) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  memory_pressure_listener_->OnMemoryPressure(memory_pressure_level);
+  memory_pressure_listener_->SetInitialMemoryPressureLevel(
+      memory_pressure_level);
+}
+
+void MemoryPressureListenerRegistration::UpdateMemoryPressureLevel(
+    PassKey<MemoryPressureListenerRegistry>,
+    MemoryPressureLevel memory_pressure_level) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  memory_pressure_listener_->UpdateMemoryPressureLevel(
+      memory_pressure_level, ignore_repeated_notifications_);
 }
 
 // AsyncMemoryPressureListenerRegistration::MainThread -------------------------
@@ -109,19 +161,26 @@ class AsyncMemoryPressureListenerRegistration::MainThread
 
   void Init(WeakPtr<AsyncMemoryPressureListenerRegistration> parent,
             scoped_refptr<SequencedTaskRunner> listener_task_runner,
-            MemoryPressureListenerTag tag) {
+            MemoryPressureListenerTag tag,
+            bool ignore_repeated_notifications) {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     listener_task_runner_ = std::move(listener_task_runner);
     parent_ = std::move(parent);
-    listener_.emplace(tag, this);
+    listener_.emplace(tag, this, ignore_repeated_notifications);
+    // If there is already memory pressure at this time, notify the listener.
+    if (memory_pressure_level() != MEMORY_PRESSURE_LEVEL_NONE) {
+      OnMemoryPressure(memory_pressure_level());
+    }
   }
 
  private:
   void OnMemoryPressure(MemoryPressureLevel memory_pressure_level) override {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     listener_task_runner_->PostTask(
-        FROM_HERE, BindOnce(&AsyncMemoryPressureListenerRegistration::Notify,
-                            parent_, memory_pressure_level));
+        FROM_HERE,
+        BindOnce(
+            &AsyncMemoryPressureListenerRegistration::UpdateMemoryPressureLevel,
+            parent_, memory_pressure_level));
   }
 
   // The task runner on which the listener lives.
@@ -145,7 +204,8 @@ AsyncMemoryPressureListenerRegistration::
     AsyncMemoryPressureListenerRegistration(
         const Location& creation_location,
         MemoryPressureListenerTag tag,
-        MemoryPressureListener* memory_pressure_listener)
+        MemoryPressureListener* memory_pressure_listener,
+        bool ignore_repeated_notifications)
     : memory_pressure_listener_(memory_pressure_listener),
       creation_location_(creation_location) {
   // TODO(crbug.com/40123466): DCHECK instead of silently failing when a
@@ -158,7 +218,8 @@ AsyncMemoryPressureListenerRegistration::
     main_thread_task_runner_->PostTask(
         FROM_HERE, BindOnce(&MainThread::Init, Unretained(main_thread_.get()),
                             weak_ptr_factory_.GetWeakPtr(),
-                            SequencedTaskRunner::GetCurrentDefault(), tag));
+                            SequencedTaskRunner::GetCurrentDefault(), tag,
+                            ignore_repeated_notifications));
   }
 }
 
@@ -174,7 +235,7 @@ AsyncMemoryPressureListenerRegistration::
   }
 }
 
-void AsyncMemoryPressureListenerRegistration::Notify(
+void AsyncMemoryPressureListenerRegistration::UpdateMemoryPressureLevel(
     MemoryPressureLevel memory_pressure_level) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   TRACE_EVENT(
@@ -187,7 +248,10 @@ void AsyncMemoryPressureListenerRegistration::Notify(
         data->set_creation_location_iid(
             trace_event::InternedSourceLocation::Get(&ctx, creation_location_));
       });
-  memory_pressure_listener_->OnMemoryPressure(memory_pressure_level);
+  // `ignore_repeated_notifications` was already passed to the constructor of
+  // the sync registration in MainThread. No need to also pass it here.
+  memory_pressure_listener_->UpdateMemoryPressureLevel(
+      memory_pressure_level, /*ignore_repeated_notifications=*/false);
 }
 
 }  // namespace base

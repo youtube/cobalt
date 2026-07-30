@@ -260,7 +260,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Webapp.AddToHomescreenDialog.Timeout" units="ms"
-    expires_after="2026-05-01">
+    expires_after="2026-07-05">
   <owner>dominickn@chromium.org</owner>
   <owner>peconn@chromium.org</owner>
   <owner>desktop-pwas-team@google.com</owner>
@@ -710,7 +710,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Engagement{Context}.{Container}"
-    enum="SiteEngagementServiceEngagementType" expires_after="2026-05-03">
+    enum="SiteEngagementServiceEngagementType" expires_after="2026-07-05">
   <owner>dmurph@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -1855,6 +1855,13 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="WebApp.LaunchUrlIsInScope" enum="LaunchUrlInScopeResult"
+    expires_after="2027-01-15">
+  <owner>japhet@chromium.org</owner>
+  <owner>pwa-team@google.com</owner>
+  <summary>Whether the given launch url is in the web app's scope.</summary>
+</histogram>
+
 <histogram name="WebApp.ManifestIconDownloader.ChromeUrl.Result"
     enum="ManifestIconDownloaderResult" expires_after="2026-04-05">
   <owner>dibyapal@chromium.org</owner>
@@ -1925,6 +1932,19 @@ chromium-metrics-reviews@google.com.
     field during database migration v2 to v3. Migration occurs once per user
     profile that existed before database version 3 was introduced. It occurs on
     database open, which happens on profile startup.
+  </summary>
+</histogram>
+
+<histogram name="WebApp.Migrations.DisplayModeOverrideToDisplayOverrides"
+    units="count" expires_after="2026-12-19">
+  <owner>dmurph@chromium.org</owner>
+  <owner>pwa-team@google.com</owner>
+  <summary>
+    Records the number of web apps whose display_mode_override field was
+    migrated to the new display_overrides field during database migration v5 to
+    v6. Migration occurs once per user profile that existed before database
+    version 6 was introduced. It occurs on database open, which happens on
+    profile startup.
   </summary>
 </histogram>
 
@@ -2073,7 +2093,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Webapp.NavigationCapturing.FinalDisplay.Result"
-    enum="NavigationCapturingDisplayMode" expires_after="2026-05-02">
+    enum="NavigationCapturingDisplayMode" expires_after="2026-07-05">
   <owner>dibyapal@chromium.org</owner>
   <owner>desktop-pwas-team@google.com</owner>
   <summary>
@@ -2310,7 +2330,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="WebApp.Preinstalled.CalculatorForceMigration.ChromeAppAndWebAppInstalled"
-    enum="BooleanSuccess" expires_after="2026-05-01">
+    enum="BooleanSuccess" expires_after="2026-07-05">
   <owner>alancutter@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -2322,7 +2342,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="WebApp.Preinstalled.CalculatorForceMigration.ChromeAppNoWebAppInstalled"
-    enum="BooleanSuccess" expires_after="2026-05-01">
+    enum="BooleanSuccess" expires_after="2026-07-05">
   <owner>alancutter@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -2334,7 +2354,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="WebApp.Preinstalled.CalculatorForceMigration.MigrationTriggered"
-    enum="BooleanSuccess" expires_after="2026-05-01">
+    enum="BooleanSuccess" expires_after="2026-07-05">
   <owner>alancutter@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -2344,7 +2364,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Preinstalled.CalculatorForceMigration.WebAppInstalled"
-    enum="BooleanSuccess" expires_after="2026-05-01">
+    enum="BooleanSuccess" expires_after="2026-07-05">
   <owner>alancutter@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -2354,7 +2374,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Preinstalled.ChromeAppMigrationNeeded"
-    enum="BooleanSuccess" expires_after="2026-05-01">
+    enum="BooleanSuccess" expires_after="2026-07-05">
   <owner>alancutter@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>

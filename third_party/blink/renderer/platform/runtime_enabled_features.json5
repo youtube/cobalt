@@ -321,18 +321,23 @@
       base_feature: "none",
     },
     // Whether to automatically build an APC content_extraction tree on load.
-    // Only supported for DCHECK-enabled builds.
     {
       name: "AIPageContentBuildOnLoadForTesting",
     },
     // Whether to enforce geometry invariants in AIPageContentAgent.
+    // Only supported for DCHECK-enabled builds.
     {
       name: "AIPageContentCheckGeometry",
       status: "test"
     },
     {
       name: "AIPageContentIncludeSVGSubtree",
-      status: "test"
+      status: "stable"
+    },
+    // Use MapToVisualRectInAncestorSpace for outer bounding boxes, for
+    // math consistent with visual bounding boxes.
+    {
+      name: "AIPageContentOuterBoxMapToAncestorSpace",
     },
     {
       name: "AIPageContentPaidContentAnnotation",
@@ -1200,6 +1205,10 @@
       status:  {"Android": "stable", "default": "test"},
     },
     {
+      name: "ContainerNameOnly",
+      status: "experimental",
+    },
+    {
       name: "ContainerTiming",
       status: "experimental",
     },
@@ -1221,17 +1230,20 @@
       status: "stable",
     },
     {
-      // Experimental support for requesting SecurityInfo
-      // in WebRequest API for controlled frames.
+      // Enable support for requesting SecurityInfo in WebRequest API
+      // for controlled frames. See
+      // https://wicg.github.io/controlled-frame/#dictdef-securityinfo for more
+      // info.
       name: "ControlledFrameWebRequestSecurityInfo",
-      status: "test",
+      status: "stable",
       depends_on: ["ControlledFrame"],
     },
     {
       // Enables setting the `maxAge` option when creating a cookie in the
       // Cookie Store API.
       name: "CookieStoreAPIMaxAge",
-      status: "experimental",
+      public: true,
+      status: "stable",
     },
     {
       name: "CoopRestrictProperties",
@@ -1399,6 +1411,11 @@
       status: "experimental",
     },
     {
+      // Consistent cursor size validation. https://crbug.com/326091489
+      name: "CSSCursorSizeCheckFix",
+      status: "stable",
+    },
+    {
       name: "CSSCustomMedia",
       status: "test",
     },
@@ -1550,13 +1567,6 @@
       status: "stable",
     },
     {
-      // https://chromestatus.com/feature/5261280285949952
-      // TODO(vmpstr): Rename this flag to OversrollGestures when the CSS
-      // implementation is removed.
-      name: "CSSOverscrollGestures",
-      status: "test",
-    },
-    {
       name: "CSSPaintAPIArguments",
       status: "experimental",
     },
@@ -1619,6 +1629,11 @@
     {
       name: "CSSRandomFunction",
       status: "test",
+    },
+    {
+      name: "CSSRandomFunctionTypedOM",
+      status: "test",
+      depends_on: ["CSSRandomFunction"],
     },
     {
       // Non-standard 'auto' keyword for the CSS resize property. Used for
@@ -1734,6 +1749,11 @@
       status: "experimental",
     },
     {
+      // crbug.com/434361099
+      name: "CssTextIndent",
+      status: "test",
+    },
+    {
       // crbug.com/40321528
       name: "CssTextJustify",
       status: "stable",
@@ -1748,13 +1768,6 @@
       // https://issues.chromium.org/41297237: CSS `text-transform: full-width` value
       name: "CSSTextTransformFullWidth",
       status: "experimental",
-    },
-    {
-      // Support for tree-scoped [1] timeline names (e.g. produced by
-      // scroll-timeline).
-      //
-      // [1] https://drafts.csswg.org/css-scoping-1/#shadow-names
-      name: "CSSTreeScopedTimelines",
     },
     {
       name: "CSSTypedArithmetic",
@@ -1773,6 +1786,15 @@
       // https://chromestatus.com/feature/4850737974345728
       name: "CSSViewTransitionAutoName",
       status: "experimental",
+    },
+    {
+      // appearance:base for the <datalist> element when it is invoked as a
+      // picker from an <input type=text>.
+      // https://issues.chromium.org/issues/453705243
+      // https://chromestatus.com/feature/5067156794507264
+      name: "CustomizableCombobox",
+      status: "experimental",
+      depends_on: ["AppearanceBase"],
     },
     {
       // appearance:base-select for <select multiple> and <select size=n>
@@ -2169,7 +2191,7 @@
     {
       // crbug.com/420857717
       name: "EmojiMonochromeRendering",
-      status: "experimental"
+      status: "stable"
     },
     {
       name: "EndpointInclusiveCommitStyles",
@@ -2816,6 +2838,11 @@
       status: "stable",
     },
     {
+      // Killswitch for https://crbug.com/441547032.
+      name: "HandleInvalidMaskImageWithBackdropFilter",
+      status: "stable",
+    },
+    {
       name: "HandleShadowDOMInSubstringUtil",
       status: "stable",
     },
@@ -3010,6 +3037,14 @@
       status: "stable",
     },
     {
+      // When enabled, deletion commands like Ctrl+Backspace (deleteWordBackward)
+      // with selected text will correctly report deleteContentBackward instead of
+      // deleteWordBackward in both beforeinput and input events, conforming to
+      // the W3C Input Events spec.
+      name: "InputEventsDeleteNonCollapsedSelection",
+      status: "stable",
+    },
+    {
       // The HTML parser inserts a </select> end tag before inserting <input>
       // when parsing inside of a <select> tag. We want to allow <input> inside
       // <select>, but it isn't web compatible enough. This flag allows <input>
@@ -3171,10 +3206,6 @@
       status: "experimental",
     },
     {
-      // Speculative fix for renderer hangs in crbug.com/447174988
-      name: "LimitTriggerAttachmentUpdates"
-    },
-    {
       // Improves the logic for removing focus from a currently focused <a>
       // element when its href attribute is removed by considering other ways
       // that an <a> may be focusable. Shipped in M142, should be safe to
@@ -3236,7 +3267,7 @@
       // Enable sourceCharPosition for the invoke-type resolve-promise
       // https://issues.chromium.org/issues/381529126
       name: "LongAnimationFrameSourceCharPosition",
-      status: "experimental",
+      status: "stable",
     },
     {
       // Enable retrieving sourceLine and sourceColumn in LoAF implementation.
@@ -3793,6 +3824,11 @@
       status: "experimental",
     },
     {
+      // https://chromestatus.com/feature/5261280285949952
+      name: "OverscrollGestures",
+      status: "test",
+    },
+    {
       name: "PagePopup",
       // Android does not have support for PagePopup
       status: {"Android": "", "iOS": "", "default": "stable"},
@@ -4054,7 +4090,7 @@
     },
     {
       // When enabled, preserves dropEffect in drag event set during dragover
-      // events.
+      // events. See https://crbug.com/434151262
       name: "PreserveDropEffect",
       status: "test",
     },
@@ -4329,7 +4365,7 @@
     },
     {
       name: "ReportLayoutShiftRectsInCssPixels",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "RequestMainFrameAfterFirstVideoFrame",
@@ -4472,7 +4508,7 @@
       // Spec: https://wicg.github.io/sanitizer-api/
       // Tracking bug: crbug.com/356601280
       name: "SanitizerAPI",
-      status: "experimental",
+      status: "stable",
     },
     {
       // https://wicg.github.io/webcomponents/proposals/Scoped-Custom-Element-Registries
@@ -4532,6 +4568,10 @@
     },
     {
       name: "ScrollbarColor",
+      status: "stable",
+    },
+    {
+      name: "ScrollbarGutterBugFix",
       status: "stable",
     },
     {
@@ -4600,6 +4640,8 @@
       status: "test",
       base_feature: "none",
     },
+    // SecurePaymentConfirmationAvailabilityAPI needs to be kept as a runtime
+    // flag in order to disable the API in WebView.
     {
       name: "SecurePaymentConfirmationAvailabilityAPI",
       status: "stable",
@@ -4608,8 +4650,8 @@
       name: "SecurePaymentConfirmationBrowserBoundKeys",
       status: {
         "Android": "stable",
-        "Mac": "experimental",
-        "Win": "experimental",
+        "Mac": "stable",
+        "Win": "stable",
         "iOS": "",
         "default": "test",
       },
@@ -4737,6 +4779,14 @@
       base_feature: "none",
     },
     {
+      // SlotChange signal is sent after node insertion is complete,
+      // ensuring that slot fallback content is handled correctly.
+      // This was added in M145 and can be removed after M147.
+      // https://issues.chromium.org/issues/40150299
+      name: "SendSlotChangeSignalAfterNodeInserted",
+      status: "stable",
+    },
+    {
       name: "SensorExtraClasses",
       public: true,
       status: "experimental",
@@ -4748,7 +4798,7 @@
       // each script execution. This prevents long tasks and improves responsiveness.
       // https://crbug.com/40894694
       name: "SeparateDeferModuleScriptTasks",
-      status: "test",
+      status: "stable",
     },
     {
       name: "Serial",
@@ -4783,6 +4833,12 @@
     {
       name: "ServiceWorkerStaticRouterTimingInfo",
       status: "stable",
+    },
+    {
+      // When enabled, sets the default drop effect as according to spec for
+      // events like dragOver, dragLeave, etc. See https://crbug.com/434151262
+      name: "SetDefaultDropEffect",
+      status: "test",
     },
     {
       name: "SetHTMLCanRunScripts",
@@ -4858,6 +4914,9 @@
     {
       name: "SignatureBasedInlineIntegrity",
       status: "experimental",
+    },
+    {
+      name: "SingleAxisScrollContainers",
     },
     {
       name: "SkipAd",
@@ -5007,13 +5066,6 @@
       // Gates the `locks()` method on a storage bucket.
       name: "StorageBucketsLocks",
       status: "experimental",
-    },
-    // Enforces that MIME types matched via *+json wildcards have HTTP token
-    // compliant type and subtype (rejects invalid characters) in addition to
-    // requiring a single slash.
-    {
-      name: "StrictJsonMimeTypeTokenValidation",
-      status: "stable",
     },
     {
       name: "StrictMimeTypesForWorkers",
@@ -5210,20 +5262,9 @@
       status: "stable",
     },
     {
-      // crbug.com/442551790
-      name: "TextareaLastLineRemovalFix",
-      status: "stable",
-    },
-    {
       // crbug.com/414858401
       name: "TextareaLineEndingsAsBr",
       status: "stable",
-    },
-    {
-      // crbug.com/414858401
-      name: "TextareaMultipleIfcs",
-      status: "stable",
-      depends_on: ["TextareaLineEndingsAsBr"],
     },
     {
       // crbug.com/461332428
@@ -5447,7 +5488,7 @@
       // Adapt Trusted Types to its new spec, as part of HTML.
       // Tracking bug: 330516530
       name: "TrustedTypesHTML",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "TrustedTypesUseCodeLike",
@@ -5931,11 +5972,23 @@
       implied_by: ["WebGPUExperimentalFeatures"],
     },
     {
+      // Enables GPUBuffer::mapSync for WebGPU.
+      name: "WebGPUMapSyncOnWorkers",
+      status: "experimental",
+      public: true,
+    },
+    {
       // Allows handling of WebGPU related commands from the GPU process to
       // happen on a separate thread. This is a pre-requisite for emulation of
       // serialized asynchronous APIs, i.e. mapSync.
       name: "WebGPUMultithreadDawnWireOnWorkers",
       status: "experimental",
+      implied_by: ["WebGPUMapSyncOnWorkers"],
+    },
+    {
+      name: "WebGPUTransientAttachment",
+      status: "experimental",
+      implied_by: ["WebGPUExperimentalFeatures"],
     },
     {
       name: "WebHID",
@@ -6187,6 +6240,7 @@
       // of synchronously including external entities.
       // https://crbug.com/455813733
       name: "XMLNoExternalEntities",
+      status: "stable",
     },
     {
       // Switches from XML parsing through libxml2 to parsing XML using the

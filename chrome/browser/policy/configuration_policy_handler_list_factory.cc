@@ -40,10 +40,10 @@
 #include "chrome/browser/policy/webusb_allow_devices_for_urls_policy_handler.h"
 #include "chrome/browser/prefetch/pref_names.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_policy_handler.h"
+#include "chrome/browser/profiles/chrome_incognito_mode_policy_handler.h"
 #include "chrome/browser/profiles/force_safe_search_policy_handler.h"
 #include "chrome/browser/profiles/force_youtube_safety_mode_policy_handler.h"
 #include "chrome/browser/profiles/guest_mode_policy_handler.h"
-#include "chrome/browser/profiles/incognito_mode_policy_handler.h"
 #include "chrome/browser/search/ntp_custom_background_enabled_policy_handler.h"
 #include "chrome/browser/sessions/restore_on_startup_policy_handler.h"
 #include "chrome/browser/spellchecker/spellcheck_language_blocklist_policy_handler.h"
@@ -157,6 +157,7 @@
 #include "chrome/browser/policy/local_sync_policy_handler.h"
 #include "chrome/browser/policy/managed_account_policy_handler.h"
 #include "chrome/browser/web_applications/policy/web_app_settings_policy_handler.h"
+#include "chrome/browser/web_applications/policy/web_app_user_install_policy_handler.h"
 #include "components/contextual_search/search_content_sharing_policy_handler.h"
 #include "components/headless/policy/headless_mode_policy_handler.h"
 #include "components/lens/lens_overlay_permission_utils.h"
@@ -235,7 +236,7 @@
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 #if BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION)
-#include "chrome/browser/on_device_translation/pref_names.h"
+#include "components/on_device_translation/pref_names.h"
 #endif  // BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION)
 
 #if BUILDFLAG(ENABLE_PDF)
@@ -271,10 +272,10 @@
 #include "components/safe_browsing/content/common/file_type_policies_prefs.h"
 #endif
 
-#if BUILDFLAG(ENABLE_GLIC)
+#if BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
 #include "chrome/browser/glic/gemini_act_on_web_settings_policy_handler.h"
 #include "chrome/browser/glic/glic_pref_names.h"
-#endif  // BUILDFLAG(ENABLE_GLIC)
+#endif  // BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
 
 namespace policy {
 namespace {
@@ -2234,11 +2235,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kExtensionExtendedBackgroundLifetimeForPortConnectionsToUrls,
     extensions::pref_names::kExtendedBackgroundLifetimeForPortConnectionsToUrls,
     base::Value::Type::LIST },
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
-    { key::kExtensionForceInstallWithNonMalwareViolationsEnabled,
-    extensions::pref_names::kExtensionForceInstallWithNonMalwareViolationsEnabled,
-    base::Value::Type::BOOLEAN },
-#endif // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 #endif // BUILDFLAG(ENABLE_EXTENSIONS)
 
   { key::kScrollToTextFragmentEnabled,
@@ -2458,11 +2454,11 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kAIModeSettings,
     omnibox::kAIModeSettings,
     base::Value::Type::INTEGER },
-#if BUILDFLAG(ENABLE_GLIC)
+#if BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
   { key::kGeminiActOnWebSettings,
     glic::prefs::kGlicActuationOnWeb,
     base::Value::Type::INTEGER },
-#endif  // BUILDFLAG(ENABLE_GLIC)
+#endif  // BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
   { key::kEnableProxyOverrideRulesForAllUsers,
     proxy_config::prefs::kEnableProxyOverrideRulesForAllUsers,
@@ -2574,7 +2570,7 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
   handlers->AddHandler(
       std::make_unique<enterprise_reporting::LegacyTechReportPolicyHandler>());
   handlers->AddHandler(std::make_unique<DefaultSearchPolicyHandler>());
-  handlers->AddHandler(std::make_unique<IncognitoModePolicyHandler>());
+  handlers->AddHandler(std::make_unique<ChromeIncognitoModePolicyHandler>());
   handlers->AddHandler(
       std::make_unique<bookmarks::ManagedBookmarksPolicyHandler>(
           chrome_schema));
@@ -2755,6 +2751,8 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
 
   handlers->AddHandler(
       std::make_unique<web_app::WebAppSettingsPolicyHandler>(chrome_schema));
+  handlers->AddHandler(
+      std::make_unique<web_app::WebAppUserInstallPolicyHandler>());
 
 #if BUILDFLAG(ENABLE_PRINT_PREVIEW)
   handlers->AddHandler(
@@ -3527,7 +3525,7 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
   handlers->AddHandler(std::make_unique<GenAiDefaultSettingsPolicyHandler>(
       std::vector<GenAiDefaultSettingsPolicyHandler::GenAiPolicyDetails>(
           gen_ai_default_policies)));
-#if BUILDFLAG(ENABLE_GLIC)
+#if BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
   handlers->AddHandler(std::make_unique<GeminiActOnWebSettingsPolicyHandler>(
       std::make_unique<GenAiDefaultSettingsPolicyHandler>(
           std::move(gen_ai_default_policies))));
@@ -3537,7 +3535,7 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
   handlers->AddHandler(std::make_unique<URLSchemeListPolicyHandler>(
       key::kGeminiActOnWebBlockedForURLs,
       glic::prefs::kGlicActuationOnWebBlockedForURLs));
-#endif  // BUILDFLAG(ENABLE_GLIC)
+#endif  // BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
 
   handlers->AddHandler(std::make_unique<CloudUserOnlyPolicyChecker>(
       std::make_unique<SimplePolicyHandler>(

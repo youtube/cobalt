@@ -64,6 +64,7 @@
 <translation id="1717996979683942279">Uma ivuliwe, amasayithi angacela ukuphatha amawindi kuzo zonke izibonisi zakho. Uma ivaliwe, amasayithi awakwazi ukuphatha amawindi kuzo zonke izibonisi zakho.</translation>
 <translation id="1738912554587725807">Ikhasi elisha lethebhu yokubukeka kwamaqoqo etimu kweshidi eliphansi</translation>
 <translation id="1743802530341753419">Buza ngaphambi kokuthi uvumele amasayithi ukuthi axhumeke kudivayisi (kunconyiwe)</translation>
+<translation id="1766455884659449403">Thola izaziso zamathiphu eChrome</translation>
 <translation id="1777815584158991902">Thola ishidi eliphansi lokuphakelayo</translation>
 <translation id="1779089405699405702">Isihumushi sokufihlakele sesithombe</translation>
 <translation id="1785415724048343560">Kunconyiwe ukuze ube nokuzizwisa okungcono kakhulu</translation>
@@ -188,11 +189,9 @@ Ukuvikela Okuthuthukile kulawula lawa masethingi eChrome:
 <translation id="2903493209154104877">Amakheli</translation>
 <translation id="2910701580606108292">Buza ngaphambi kokuvumela amasayithi ukudlala okuqukethwe okuvikelwe</translation>
 <translation id="2918484639460781603">Iya kumasethingi</translation>
-<translation id="293060180538644702">Thola izaziso Zamathiphu eChrome</translation>
 <translation id="2932883381142163287">Bika ukuhlukumeza</translation>
 <translation id="2939338015096024043">Lapho ivuliwe, amasayithi angacela ukulandelela ukuma kwekhamera yakho futhi afunde mayelana nendawo yakho ezungezile. Lapho ivaliwe, amasayithi awakwazi ukulandelela ukuma kwekhamera yakho noma afunde mayelana nendawo yakho ezungezile.</translation>
 <translation id="2968755619301702150">Isibukeli sesitifiketi</translation>
-<translation id="2979365474350987274">Amakhukhi avela kwamanye amawebhusayithi alinganiselwe</translation>
 <translation id="2990583317361835189">Ungavumeli amasayithi asebenzise izinzwa zokunyakaza</translation>
 <translation id="3004438526346162184">Amasayithi angasebenzisa lesi sakhi ukuze aphathe amawindi kuzo zonke izibonisi zakho</translation>
 <translation id="3008272652534848354">Setha kabusha izimvume</translation>
@@ -220,7 +219,6 @@ Ukuvikela Okuthuthukile kulawula lawa masethingi eChrome:
 <translation id="3223425961342298674">Indawo ayivunyelwe</translation>
 <translation id="3227137524299004712">Imakrofoni</translation>
 <translation id="3232293466644486101">Sula idatha yopheqululo…</translation>
-<translation id="3241320538788585298">Inethiwekhi yeLoopback</translation>
 <translation id="3242646949159196181">Lapho ivuliwe, amasayithi angadlala umsindo. Lapho ivaliwe, amasayithi awakwazi ukudlala umsindo.</translation>
 <translation id="3273479183583863618">Ukwehla kwentengo kumathebhu</translation>
 <translation id="3277252321222022663">Vumela amasayithi ukuthi afinyelele kuzinzwa (kunconyiwe)</translation>
@@ -403,6 +401,7 @@ Ukuvikela Okuthuthukile kulawula lawa masethingi eChrome:
 <translation id="5246825184569358663">Lesi senzo sizosula yonke idatha yendawo, okuhlanganisa amakhukhi, futhi sisethe kabusha zonke izimvume ze-<ph name="DOMAIN" /> nawo wonke amasayithi angaphansi kwayo</translation>
 <translation id="5264323282659631142">Susa i-'<ph name="CHIP_LABEL" />'</translation>
 <translation id="528192093759286357">Hudula kusukela phezulu uphinde uthinte inkinobho yokubuyela emuva ukuze uphume kusikrini esigcwele.</translation>
+<translation id="5286194356314741248">Iyaskena</translation>
 <translation id="5300589172476337783">Bonisa</translation>
 <translation id="5301954838959518834">OK, ngiyezwa</translation>
 <translation id="5317780077021120954">Londoloza</translation>
@@ -631,7 +630,6 @@ Ukuvikela Okuthuthukile kulawula lawa masethingi eChrome:
 <translation id="7835852323729233924">Ukudlala imidiya</translation>
 <translation id="783819812427904514">Susa ukuthula kuvidiyo</translation>
 <translation id="7846076177841592234">Khansela ukukhetha</translation>
-<translation id="7881140103901777395">IChrome ikhawulela amasayithi amaningi ekusebenziseni amakhukhi ongahlangene ngqo. Kodwa amakhukhi ongahlangene ngqo avunyelwe kule sayithi ngoba incike kuwo ukuze inikeze amasevisi ayisisekelo.\n\nVakashela amasethingi ukuze <ph name="BEGIN_LINK" />uphathe ukufinyelela kumakhukhi ongahlangene ngqo<ph name="END_LINK" />.</translation>
 <translation id="7882806643839505685">Vumela umsindo wesayithi elithile.</translation>
 <translation id="7891547341794213004">Fihla ukuqhubeka naleli khadi lethebhu</translation>
 <translation id="789722939441020330">Ungavumeli amasayithi adawunilode amafayela amaningi ngokuzenzakalelayo</translation>

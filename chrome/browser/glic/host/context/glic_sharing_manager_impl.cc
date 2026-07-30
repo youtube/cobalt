@@ -7,9 +7,9 @@
 #include "chrome/browser/glic/glic_metrics.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/host/context/glic_page_context_fetcher.h"
+#include "chrome/browser/glic/host/context/glic_pinned_tab_manager_impl.h"
 #include "chrome/browser/glic/host/context/glic_sharing_utils.h"
 #include "chrome/browser/glic/host/context/glic_tab_data.h"
-#include "chrome/browser/glic/host/glic.mojom-forward.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_features.mojom.h"
 #include "chrome/browser/page_content_annotations/multi_source_page_context_fetcher.h"
@@ -19,6 +19,10 @@
 #include "content/public/common/url_constants.h"
 #include "glic_pinned_tab_manager.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/glic/host/context/glic_focused_tab_manager.h"
+#endif
 
 namespace glic {
 
@@ -56,6 +60,7 @@ GlicGetContextResult TransformFetcherResult(
 }
 }  // namespace
 
+#if !BUILDFLAG(IS_ANDROID)
 GlicSharingManagerImpl::GlicSharingManagerImpl(
     Profile* profile,
     GlicWindowControllerInterface* window_controller,
@@ -67,11 +72,12 @@ GlicSharingManagerImpl::GlicSharingManagerImpl(
           static_cast<GlicFocusedBrowserManager*>(
               focused_browser_manager_.get()))),
       pinned_tab_manager_(
-          std::make_unique<GlicPinnedTabManager>(profile,
-                                                 window_controller,
-                                                 metrics)),
+          std::make_unique<GlicPinnedTabManagerImpl>(profile,
+                                                     window_controller,
+                                                     metrics)),
       profile_(profile),
       metrics_(metrics) {}
+#endif
 
 GlicSharingManagerImpl::GlicSharingManagerImpl(
     std::unique_ptr<GlicFocusedTabManagerInterface> focused_tab_manager,

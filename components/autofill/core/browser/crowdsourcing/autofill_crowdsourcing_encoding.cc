@@ -14,7 +14,6 @@
 #include <vector>
 
 #include "base/base64.h"
-#include "base/containers/contains.h"
 #include "base/containers/to_vector.h"
 #include "base/feature_list.h"
 #include "base/metrics/histogram_macros.h"
@@ -25,6 +24,7 @@
 #include "components/autofill/core/browser/crowdsourcing/randomized_encoder.h"
 #include "components/autofill/core/browser/crowdsourcing/server_prediction_overrides.h"
 #include "components/autofill/core/browser/data_quality/validation.h"
+#include "components/autofill/core/browser/field_type_utils.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/form_structure_rationalizer.h"
 #include "components/autofill/core/browser/form_structure_sectioning_util.h"
@@ -45,6 +45,9 @@
 
 namespace autofill {
 namespace {
+
+template <typename T>
+concept IsForm = std::same_as<T, FormStructure> || std::same_as<T, FormData>;
 
 std::ostream& operator<<(std::ostream& out,
                          const AutofillQueryResponse& response) {
@@ -195,12 +198,14 @@ FieldType FirstNonCapturedType(const FormStructure& form,
 }
 
 // Returns true if the form has no fields, or too many.
-bool IsMalformed(const FormStructure& form) {
+template <typename T>
+  requires IsForm<T>
+bool IsMalformed(const T& form) {
   // Some badly formatted web sites repeat fields - limit number of fields to
   // 250, which is far larger than any valid form and proto still fits into 10K.
   // Do not send requests for forms with more than this many fields, as they are
   // near certainly not valid/auto-fillable.
-  return form.field_count() == 0 || form.field_count() > 250;
+  return form.fields().empty() || form.fields().size() > 250;
 }
 
 void EncodeRandomizedValue(const RandomizedEncoder& encoder,
@@ -359,8 +364,10 @@ void PopulateRandomizedFieldMetadata(
 }
 
 // Populates the three-bit hashes for a given `form`.
+template <typename T>
+  requires IsForm<T>
 void PopulateThreeBitHashedFormMetadata(
-    const FormStructure& form,
+    const T& form,
     ThreeBitHashedFormMetadata* form_metadata) {
   if (!form.id_attribute().empty()) {
     form_metadata->set_id(StrToHash3Bit(form.id_attribute()));
@@ -381,7 +388,7 @@ void PopulateThreeBitHashedFormMetadata(
 
 // Populates the three-bit hashes for a single field.
 void PopulateThreeBitHashedFieldMetadata(
-    const AutofillField& field,
+    const FormFieldData& field,
     ThreeBitHashedFieldMetadata* field_metadata) {
   if (!field.id_attribute().empty()) {
     field_metadata->set_id(StrToHash3Bit(field.id_attribute()));
@@ -403,9 +410,6 @@ void PopulateThreeBitHashedFieldMetadata(
   }
   if (!field.placeholder().empty()) {
     field_metadata->set_placeholder(StrToHash3Bit(field.placeholder()));
-  }
-  if (!field.initial_value().empty()) {
-    field_metadata->set_initial_value(StrToHash3Bit(field.initial_value()));
   }
   if (!field.autocomplete_attribute().empty()) {
     field_metadata->set_autocomplete(
@@ -522,7 +526,7 @@ void EncodeFormFieldsForUpload(
   }
 }
 
-void EncodeFormForQuery(const FormStructure& form,
+void EncodeFormForQuery(const FormData& form,
                         AutofillPageQueryRequest& query,
                         std::vector<FormSignature>& queried_form_signatures,
                         std::set<FormSignature>& processed_forms) {
@@ -532,21 +536,21 @@ void EncodeFormForQuery(const FormStructure& form,
   // the same `form` have no effect (early return if `processed_forms` contains
   // `form`).
   auto AddFormIf =
-      [&](const std::vector<std::unique_ptr<AutofillField>>& fields,
-          FormSignature form_signature, FormSignature alternative_signature,
-          auto necessary_condition) mutable {
+      [&](const std::vector<FormFieldData>& fields,
+          FormSignature form_signature, auto necessary_condition) mutable {
         if (!processed_forms.insert(form_signature).second) {
           return;
         }
 
         AutofillPageQueryRequest::Form* query_form = query.add_forms();
         query_form->set_signature(form_signature.value());
-        query_form->set_alternative_signature(alternative_signature.value());
+        query_form->set_alternative_signature(
+            CalculateAlternativeFormSignature(form).value());
 
         if (base::FeatureList::IsEnabled(
                 features::kAutofillServerExperimentalSignatures)) {
           query_form->set_structural_signature(
-              form.structural_form_signature().value());
+              CalculateStructuralFormSignature(form).value());
           PopulateThreeBitHashedFormMetadata(
               form, query_form->mutable_three_bit_hashed_form_metadata());
         }
@@ -554,32 +558,32 @@ void EncodeFormForQuery(const FormStructure& form,
         queried_form_signatures.push_back(form_signature);
 
         for (const auto& field : fields) {
-          if (IsCheckable(field->check_status()) ||
+          if (IsCheckable(field.check_status()) ||
               !necessary_condition(field)) {
             continue;
           }
 
           AutofillPageQueryRequest::Form::Field* added_field =
               query_form->add_fields();
-          added_field->set_signature(field->GetFieldSignature().value());
+          added_field->set_signature(
+              CalculateFieldSignatureForField(field).value());
 
           if (base::FeatureList::IsEnabled(
                   features::kAutofillServerExperimentalSignatures)) {
             PopulateThreeBitHashedFieldMetadata(
-                *field, added_field->mutable_three_bit_hashed_field_metadata());
+                field, added_field->mutable_three_bit_hashed_field_metadata());
           }
         }
       };
 
-  AddFormIf(form.fields(), form.form_signature(),
-            form.alternative_form_signature(), [](auto& f) { return true; });
+  AddFormIf(form.fields(), CalculateFormSignature(form),
+            [](auto& f) { return true; });
 
-  for (const auto& field : form.fields()) {
-    if (field->host_form_signature()) {
-      AddFormIf(form.fields(), field->host_form_signature(),
-                form.alternative_form_signature(), [&](const auto& f) {
-                  return f->host_form_signature() ==
-                         field->host_form_signature();
+  for (const FormFieldData& field : form.fields()) {
+    if (field.host_form_signature()) {
+      AddFormIf(form.fields(), field.host_form_signature(),
+                [&](const FormFieldData& f) {
+                  return f.host_form_signature() == field.host_form_signature();
                 });
     }
   }
@@ -807,6 +811,97 @@ void MaybeMergeServerPredictions(
   }
 }
 
+// This function erases crowdsourced address classifications for small forms.
+// This was built to reduce the risk of false positive classifications but is
+// legacy code. We are not sure if this is the best possible implementation
+// today.
+void ClearSmallAddressFormPredictions(
+    AutofillQueryResponse::FormSuggestion& form_suggestion) {
+  // If predictions are overridden for debugging via the command line, skip the
+  // clearing of small address form predictions.
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+  if (base::FeatureList::IsEnabled(
+          features::debug::kAutofillOverridePredictions)) {
+    return;
+  }
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+
+  // Only forms with up to 2 fields are considered small forms.
+  static constexpr int kSmallFormThreshold = 3;
+  if (form_suggestion.field_suggestions().size() >= kSmallFormThreshold) {
+    return;
+  }
+
+  // A small form must contain only address fields (or undetermined field types)
+  // to be a small address form.
+  auto is_address_or_undetermined_type = [](const FieldPrediction& prediction) {
+    FieldType type = ToSafeFieldType(prediction.type(), NO_SERVER_DATA);
+    // For historic reasons, AutofillAI types are treated as "unknown type".
+    // They don't influence the small form handling.
+    if (GroupTypeOfFieldType(type) == FieldTypeGroup::kAutofillAi) {
+      return true;
+    }
+    return type == NO_SERVER_DATA || type == UNKNOWN_TYPE ||
+           IsAddressType(type);
+  };
+  auto has_only_address_or_undetermined_types =
+      [&is_address_or_undetermined_type](
+          const AutofillQueryResponse::FormSuggestion::FieldSuggestion& field) {
+        return field.predictions().empty() ||
+               std::ranges::all_of(field.predictions(),
+                                   is_address_or_undetermined_type);
+      };
+  bool is_small_address_form =
+      std::ranges::all_of(form_suggestion.field_suggestions(),
+                          has_only_address_or_undetermined_types);
+  if (!is_small_address_form) {
+    return;
+  }
+
+  // If the form is a small address form, all address field predictions from
+  // the server are cleared.
+  auto eligible_for_deletion = [](const FieldPrediction& prediction) {
+    FieldPrediction::Source source =
+        ToSafeFieldPredictionSource(prediction.source());
+    switch (source) {
+      case FieldPrediction::SOURCE_AUTOFILL_DEFAULT:
+      case FieldPrediction::SOURCE_FIELD_RANKS:
+        break;  // Continue below to check if this is an address prediction.
+      case FieldPrediction::SOURCE_UNSPECIFIED:
+      case FieldPrediction::SOURCE_PASSWORDS_DEFAULT:
+      case FieldPrediction::SOURCE_ALL_APPROVED_EXPERIMENTS:
+      case FieldPrediction::SOURCE_OVERRIDE:
+      case FieldPrediction::SOURCE_MANUAL_OVERRIDE:
+      case FieldPrediction::SOURCE_AUTOFILL_COMBINED_TYPES:
+      case FieldPrediction::SOURCE_AUTOFILL_AI:
+      case FieldPrediction::SOURCE_AUTOFILL_AI_CROWDSOURCING:
+        return false;
+    }
+    // Only address types should be wiped.
+    FieldType type = ToSafeFieldType(prediction.type(), NO_SERVER_DATA);
+    return IsAddressType(type);
+  };
+
+  for (AutofillQueryResponse::FormSuggestion::FieldSuggestion& field :
+       *form_suggestion.mutable_field_suggestions()) {
+    auto& predictions = *field.mutable_predictions();
+    predictions.erase(std::remove_if(predictions.begin(), predictions.end(),
+                                     eligible_for_deletion),
+                      predictions.end());
+    // In case the last suggestion was removed, backfill a NO_SERVER_DATA
+    // suggestion to simulate the behavior of the server. This may seem
+    // unnecessary but is implemented to stick to the behavior of the server and
+    // ensure that for example UKM reporting happens as expected.
+    if (field.predictions_size() == 0) {
+      FieldPrediction* sentinel = field.add_predictions();
+      sentinel->set_type(NO_SERVER_DATA);
+      sentinel->set_source(
+          AutofillQueryResponse::FormSuggestion::FieldSuggestion::
+              FieldPrediction::SOURCE_UNSPECIFIED);
+    }
+  }
+}
+
 }  // namespace
 
 EncodeUploadRequestOptions::Field::Field() = default;
@@ -822,6 +917,11 @@ EncodeUploadRequestOptions&
 EncodeUploadRequestOptions::EncodeUploadRequestOptions::operator=(
     EncodeUploadRequestOptions&&) = default;
 EncodeUploadRequestOptions::~EncodeUploadRequestOptions() = default;
+
+void ClearSmallAddressFormPredictionsForTesting(
+    AutofillQueryResponse::FormSuggestion& form_suggestion) {
+  ClearSmallAddressFormPredictions(form_suggestion);
+}
 
 std::vector<AutofillUploadContents> EncodeUploadRequest(
     const FormStructure& form,
@@ -936,9 +1036,7 @@ std::vector<AutofillUploadContents> EncodeUploadRequest(
 }
 
 std::pair<AutofillPageQueryRequest, std::vector<FormSignature>>
-EncodeAutofillPageQueryRequest(
-    const std::vector<raw_ptr<const FormStructure, VectorExperimental>>&
-        forms) {
+EncodeAutofillPageQueryRequest(const std::vector<FormData>& forms) {
   AutofillPageQueryRequest query;
   std::vector<FormSignature> queried_form_signatures;
   queried_form_signatures.reserve(forms.size());
@@ -953,16 +1051,16 @@ EncodeAutofillPageQueryRequest(
   // considered for field signatures; (2) for dynamic forms we will hold on to
   // the original form signature.
   std::set<FormSignature> processed_forms;
-  for (const FormStructure* form : forms) {
-    if (base::Contains(processed_forms, form->form_signature())) {
+  for (const FormData& form : forms) {
+    if (processed_forms.contains(CalculateFormSignature(form))) {
       continue;
     }
-    UMA_HISTOGRAM_COUNTS_1000("Autofill.FieldCount", form->field_count());
-    if (IsMalformed(*form)) {
+    UMA_HISTOGRAM_COUNTS_1000("Autofill.FieldCount", form.fields().size());
+    if (IsMalformed(form)) {
       continue;
     }
 
-    EncodeFormForQuery(*form, query, queried_form_signatures, processed_forms);
+    EncodeFormForQuery(form, query, queried_form_signatures, processed_forms);
   }
 
   return std::make_pair(std::move(query), std::move(queried_form_signatures));
@@ -991,18 +1089,29 @@ void ParseServerPredictionsQueryResponse(
   DVLOG(1) << "Autofill query response from API was successfully parsed: "
            << response;
 
-  ProcessServerPredictionsQueryResponse(response, forms,
+  ProcessServerPredictionsQueryResponse(std::move(response), forms,
                                         queried_form_signatures, log_manager);
 }
 
 void ProcessServerPredictionsQueryResponse(
-    const AutofillQueryResponse& response,
+    AutofillQueryResponse response,
     const std::vector<raw_ref<FormStructure>>& forms,
     const std::vector<FormSignature>& queried_form_signatures,
     LogManager* log_manager) {
   AutofillMetrics::LogServerQueryMetric(AutofillMetrics::QUERY_RESPONSE_PARSED);
   LOG_AF(log_manager) << LoggingScope::kParsing
                       << LogMessage::kProcessingServerData;
+
+  // Suppress crowdsourced suggestions for small forms if the form does
+  // not contain non-address fields (meaning it is an address-only
+  // form).
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillMoveSmallFormLogicToClient)) {
+    for (AutofillQueryResponse::FormSuggestion& form_suggestion :
+         *response.mutable_form_suggestions()) {
+      ClearSmallAddressFormPredictions(form_suggestion);
+    }
+  }
 
   bool heuristics_detected_fillable_field = false;
   bool query_response_overrode_heuristics = false;

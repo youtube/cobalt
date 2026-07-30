@@ -7,7 +7,6 @@
 #include <optional>
 #include <utility>
 
-#include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
@@ -413,13 +412,7 @@ void ContextualTasksServiceImpl::AssociateTabWithTask(const base::Uuid& task_id,
   }
 
   std::optional<ContextualTask> current_task = GetContextualTaskForTab(tab_id);
-  if (current_task) {
-    if (current_task->GetTaskId() == task_id) {
-      // The tab is already associated with this exact task.
-      // Return early to prevent unnecessary disassociation (which could delete
-      // the task).
-      return;
-    }
+  if (current_task && current_task->GetTaskId() != task_id) {
     DisassociateTabFromTask(current_task->GetTaskId(), tab_id);
   }
 
@@ -442,10 +435,13 @@ void ContextualTasksServiceImpl::DisassociateTabFromTask(
   if (it != tasks_.end()) {
     it->second.RemoveTabId(tab_id);
 
-    // If the task doesn't have a thread and tabs associated with it,
-    // it can be safely removed here.
-    if (!it->second.GetThread() && it->second.GetTabIds().empty()) {
-      RemoveTaskInternal(task_id, TriggerSource::kLocal);
+    if (base::FeatureList::IsEnabled(
+            kContextualTasksRemoveTasksWithoutThreadsOrTabAssociations)) {
+      // If the task doesn't have a thread and tabs associated with it,
+      // it can be safely removed here.
+      if (!it->second.GetThread() && it->second.GetTabIds().empty()) {
+        RemoveTaskInternal(task_id, TriggerSource::kLocal);
+      }
     }
   }
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
@@ -483,25 +479,6 @@ std::vector<SessionID> ContextualTasksServiceImpl::GetTabsAssociatedWithTask(
     }
   }
   return associated_tabs;
-}
-
-void ContextualTasksServiceImpl::ClearAllTabAssociationsForTask(
-    const base::Uuid& task_id) {
-  auto task_it = tasks_.find(task_id);
-  if (task_it == tasks_.end()) {
-    return;
-  }
-
-  // Get a copy of the tab IDs before clearing them from the task.
-  const std::vector<SessionID> tab_ids_to_remove = task_it->second.GetTabIds();
-
-  // Clear the tab IDs from the task object itself.
-  task_it->second.ClearTabIds();
-
-  // Remove each of the tab IDs from the main lookup map.
-  for (const auto& tab_id : tab_ids_to_remove) {
-    tab_to_task_.erase(tab_id);
-  }
 }
 
 void ContextualTasksServiceImpl::GetContextForTask(

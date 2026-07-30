@@ -44,9 +44,6 @@ public interface AccountPickerDelegate {
      */
     void addAccount();
 
-    /** Called when the current signed-in account is signed-out prior to the sign-in operation. */
-    default void onSignoutBeforeSignin() {}
-
     /** Called when the sign-in finishes successfully. */
     void onSignInComplete(
             CoreAccountInfo accountInfo, AccountPickerDelegate.SigninStateController controller);
@@ -55,11 +52,8 @@ public interface AccountPickerDelegate {
      * Called when the seamless sign-in process cannot proceed, for example, if the target account
      * is removed. Implementers should use this to clean up resources and ensure any associated UI
      * is dismissed.
-     * TODO(crbug.com/464507068): This method name is temporary and linked to a specific
-     * implementation. The interface should be improved to use a generic `onSignInCancel()` from the
-     * delegate.
      */
-    default void onSeamlessSigninAbandoned() {}
+    default void onSignInCancel() {}
 
     default @FlowVariant String getSigninFlowVariant() {
         return FlowVariant.OTHER;

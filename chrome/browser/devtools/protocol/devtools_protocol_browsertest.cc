@@ -7,7 +7,6 @@
 
 #include "base/base64.h"
 #include "base/check_deref.h"
-#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
@@ -97,7 +96,6 @@
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/extensions/scoped_test_mv2_enabler.h"
-#include "chrome/browser/extensions/unpacked_installer.h"
 #include "extensions/browser/api/extensions_api_client.h"
 #include "extensions/browser/app_window/app_window.h"
 #include "extensions/browser/app_window/app_window_registry.h"
@@ -106,6 +104,7 @@
 #include "extensions/browser/extension_system.h"
 #include "extensions/browser/process_manager.h"
 #include "extensions/browser/test_extension_registry_observer.h"
+#include "extensions/browser/unpacked_installer.h"
 #include "extensions/common/manifest_handlers/background_info.h"
 #include "extensions/test/extension_test_message_listener.h"
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
@@ -145,8 +144,8 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
       params.FindStringByDottedPath("visibleSecurityState.safetyTipInfo"));
   const base::Value* security_state_issue_ids =
       params.FindByDottedPath("visibleSecurityState.securityStateIssueIds");
-  EXPECT_TRUE(base::Contains(security_state_issue_ids->GetList(),
-                             base::Value("scheme-is-not-cryptographic")));
+  EXPECT_TRUE(security_state_issue_ids->GetList().contains(
+      "scheme-is-not-cryptographic"));
 }
 
 IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, CreateDeleteContext) {
@@ -1611,7 +1610,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderDataSaverProtocolTest,
   prerender_helper()->AddPrerenderAsync(prerendering_url);
   observer.WaitForTrigger(prerendering_url);
 
-  content::FrameTreeNodeId host_id =
+  content::PrerenderHostId host_id =
       prerender_helper()->GetHostForUrl(prerendering_url);
   EXPECT_TRUE(host_id.is_null());
 

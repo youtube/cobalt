@@ -19,7 +19,6 @@
 #include "ash/public/cpp/login_types.h"
 #include "base/check.h"
 #include "base/command_line.h"
-#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/json/json_string_value_serializer.h"
@@ -46,6 +45,9 @@
 #include "chrome/browser/ash/login/enrollment/auto_enrollment_check_screen.h"
 #include "chrome/browser/ash/login/enrollment/enrollment_screen.h"
 #include "chrome/browser/ash/login/existing_user_controller.h"
+#include "chrome/browser/ash/login/fjord_oobe/fjord_oobe_state_manager.h"
+#include "chrome/browser/ash/login/fjord_oobe/fjord_oobe_util.h"
+#include "chrome/browser/ash/login/fjord_oobe/proto/fjord_oobe_state.pb.h"
 #include "chrome/browser/ash/login/hwid_checker.h"
 #include "chrome/browser/ash/login/login_pref_names.h"
 #include "chrome/browser/ash/login/login_wizard.h"
@@ -182,7 +184,6 @@
 #include "chrome/browser/ui/webui/ash/login/error_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/family_link_notice_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/fingerprint_setup_screen_handler.h"
-#include "chrome/browser/ui/webui/ash/login/fjord_oobe_util.h"
 #include "chrome/browser/ui/webui/ash/login/fjord_station_setup_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/fjord_touch_controller_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/gaia_info_screen_handler.h"
@@ -491,6 +492,9 @@ void WizardController::Init(OobeScreenId first_screen) {
 
   wizard_context_->is_add_person_flow =
       oobe_complete && StartupUtils::IsDeviceOwned();
+
+  MaybeNotifyFjordOobeStateManager(
+      fjord_oobe_state::proto::FjordOobeStateInfo::FJORD_OOBE_STATE_START);
 
   // This is a hacky way to check for local state corruption, because
   // it depends on the fact that the local state is loaded
@@ -1075,7 +1079,7 @@ void WizardController::ShowSignInFatalErrorScreen(
 
 void WizardController::OnSignInFatalErrorScreenExit() {
   OnScreenExit(SignInFatalErrorView::kScreenId, kDefaultExitReason);
-  if (base::Contains(previous_screens_, current_screen_) &&
+  if (previous_screens_.contains(current_screen_) &&
       IsContextNeededForScreen(
           previous_screens_[current_screen_]->screen_id())) {
     // If the last screen user have visited before reaching SignInFatalError
@@ -1395,6 +1399,8 @@ void WizardController::ShowAccountSelectionScreen() {
 
 void WizardController::ShowAppLaunchSplashScreen() {
   SetCurrentScreen(GetScreen(AppLaunchSplashScreenView::kScreenId));
+  MaybeNotifyFjordOobeStateManager(
+      fjord_oobe_state::proto::FjordOobeStateInfo::FJORD_OOBE_STATE_COMPLETE);
 }
 
 void WizardController::ShowFjordTouchControllerScreen() {
@@ -2895,7 +2901,7 @@ void WizardController::OnResetScreenExit() {
 
 void WizardController::OnDeviceModificationCanceled() {
   BaseScreen* previous_screen = nullptr;
-  if (base::Contains(previous_screens_, current_screen_)) {
+  if (previous_screens_.contains(current_screen_)) {
     previous_screen = previous_screens_[current_screen_];
   }
 
@@ -2973,6 +2979,9 @@ void WizardController::OnFjordStationSetupScreenExit() {
 bool WizardController::ExitFjordTouchControllerScreen() {
   if (current_screen()->screen_id() ==
       FjordTouchControllerScreenView::kScreenId) {
+    MaybeNotifyFjordOobeStateManager(
+        fjord_oobe_state::proto::FjordOobeStateInfo::
+            FJORD_OOBE_STATE_ENROLLMENT_DONE);
     OnScreenExit(FjordTouchControllerScreenView::kScreenId, kDefaultExitReason);
     ShowFjordStationSetupScreen();
     return true;
@@ -3189,7 +3198,7 @@ void WizardController::SetCurrentScreen(BaseScreen* new_current) {
 
   // Check if we didn't come here via the previous screen logic.
   if (current_screen_ && new_current &&
-      (!base::Contains(previous_screens_, current_screen_) ||
+      (!previous_screens_.contains(current_screen_) ||
        previous_screens_[current_screen_] != new_current)) {
     previous_screens_[new_current] = current_screen_;
   }
@@ -3718,7 +3727,7 @@ void WizardController::ShowEnrollmentScreenIfEligible() {
 
 bool WizardController::MaybeSetToPreviousScreen() {
   DCHECK(current_screen_);
-  if (!base::Contains(previous_screens_, current_screen_)) {
+  if (!previous_screens_.contains(current_screen_)) {
     return false;
   }
   auto* old_current_screen = current_screen_.get();
@@ -3794,6 +3803,20 @@ void WizardController::MaybeEnablePreConsentMetrics() {
         ProfileManager::GetActiveUserProfile(), true);
     metrics::CrOSPreConsentMetricsManager::Get()->Enable();
   }
+}
+
+void WizardController::MaybeNotifyFjordOobeStateManager(
+    fjord_oobe_state::proto::FjordOobeStateInfo::FjordOobeState state) {
+  if (!fjord_util::ShouldShowFjordOobe()) {
+    return;
+  }
+  FjordOobeStateManager* state_manager = FjordOobeStateManager::Get();
+  if (!state_manager) {
+    LOG(ERROR) << "FjordOobeStateManager does not exist";
+    return;
+  }
+
+  state_manager->OnFjordOobeStateChanged(state);
 }
 
 }  // namespace ash

@@ -204,6 +204,9 @@ void MigrateUserToEnhancedSecurityBundleIfNeeded(
     return;
   }
 
+  // If we have attempted to migrate the user previously, don't try again. This
+  // is a one-time migration. That's why this check needs to happen before
+  // attempting the checks below.
   if (prefs->GetBoolean(
           ::prefs::kBundledSettingsCheckedMigrateUserToEnhancedBundle)) {
     return;
@@ -669,13 +672,14 @@ void SafeBrowsingServiceImpl::UpdateMinAllowedTimeForReferrerChains(
 
 base::Time SafeBrowsingServiceImpl::GetMinAllowedTimestampForReferrerChains(
     Profile* profile) {
-  if (!min_allowed_time_for_referrer_chains_.contains(profile) ||
-      min_allowed_time_for_referrer_chains_[profile] == std::nullopt) {
+  auto it = min_allowed_time_for_referrer_chains_.find(profile);
+  if (it == min_allowed_time_for_referrer_chains_.end() ||
+      it->second == std::nullopt) {
     // If this method gets called when the map value indicates no referrer
     // chains are allowed, return the max time.
     return base::Time::Max();
   }
-  return min_allowed_time_for_referrer_chains_[profile].value();
+  return *it->second;
 }
 
 void SafeBrowsingServiceImpl::RefreshState() {

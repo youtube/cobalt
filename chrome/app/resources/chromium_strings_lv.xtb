@@ -82,6 +82,7 @@
 <translation id="193439633299369377">Chromium OS ir jārestartē, lai lietotu atjauninājumu.</translation>
 <translation id="1951406923938785464">Pārlūkā Chromium šī lejupielāde tika bloķēta, jo šī tipa faili parasti netiek lejupielādēti un var būt bīstami.</translation>
 <translation id="1953553007165777902">Notiek lejupielāde... Atlikušais laiks: <ph name="MINUTE" /> minūte(-es).</translation>
+<translation id="1965068424387304464">Chromium padoms: paroļu saglabāšana</translation>
 <translation id="1966382378801805537">Chromium nevar noteikt vai iestatīt noklusējuma pārlūku.</translation>
 <translation id="1990262977744080398">Uzzināt, kāpēc pārlūkā Chromium daži faili tiek bloķēti (saite tiks atvērta jaunā cilnē)</translation>
 <translation id="1999715455684970349">Nodrošina Chromium programmatūras pastāvīgu atjaunināšanu. Ja šis pakalpojums tiks atspējots vai pārtraukts, jūsu Chromium programmatūra netiks pastāvīgi atjaunināta, kas nozīmē, ka nebūs iespējams labot drošības ievainojamības, ja tādas radīsies, turklāt var nedarboties funkcijas. Šis pakalpojums pats tiek atinstalēts, ja neviena Chromium programmatūra to neizmanto.</translation>
@@ -90,7 +91,6 @@
 <translation id="2020032459870799438">Lai pārbaudītu, vai jūsu pārējās paroles ir aizsargātas pret datu pārkāpumiem un citām drošības problēmām, <ph name="BEGIN_LINK" />pierakstieties pārlūkā Chromium<ph name="END_LINK" />.</translation>
 <translation id="2039417478970545937">Iestatījumi.</translation>
 <translation id="2049376729098081731">Izvēlieties, vai iekļaut Chromium vēsturi, lai iegūtu personalizētākas iespējas Google pakalpojumos.</translation>
-<translation id="2054039611381840095">Lai saņemtu turpmākus Chromium atjauninājumus, nepieciešama operētājsistēma macOS 12 vai jaunāka versija. Šajā datorā tiek izmantota operētājsistēma macOS 11.</translation>
 <translation id="2064856577282482477">Jaunas cilnes lapā noklikšķiniet uz pogas Pielāgot Chromium, lai piešķirtu pārlūkam Chromium jaunu izskatu.</translation>
 <translation id="2086476982681781442">Pārlūkā Chromium šī lejupielāde tika bloķēta, jo fails ir maldinošs un var veikt neparedzētas izmaiņas jūsu ierīcē.</translation>
 <translation id="208726765006323911">Kad nākamreiz iOS ierīcē atvērsiet pārlūku Chromium, tiks parādīts aicinājums izmēģināt funkciju <ph name="FEATURE_NAME" />.</translation>
@@ -252,6 +252,7 @@
 <translation id="3802055581630249637">Pārlūkā Chromium tiek iepriekš ielādētas lapas, ko jūs, iespējams, apmeklēsiet. Tādējādi var tās ielādēt ātrāk tad, kad tās tiešām apmeklējat.</translation>
 <translation id="3810973564298564668">Pārvaldīt</translation>
 <translation id="3823384748599722168">Lai izmantotu savas saglabātās paroles, izmantojiet saiti kvadrātkodā, lejupielādējiet pārlūku Chromium operētājsistēmai iOS un pierakstieties savā Google kontā.</translation>
+<translation id="3837584850181228767">Chromium padoms: funkcija “Droša pārlūkošana ar papildu aizsardzību”</translation>
 <translation id="3846683726093018685">**Apkopošana:** vienā teikumā, kas nepārsniedz 30 vārdus, aprakstiet ekrānuzņēmumā redzamā satura galveno tēmu un nolūku.
 
           **Jautājumu ieteikšana:** ģenerējiet sarakstu ar aizzīmēm ar 3–5 jautājumiem, kas liek aizdomāties un kurus lietotājs varētu uzdot, lai labāk izprastu ekrānuzņēmumu. Šajos jautājumos ir jābūt vismaz vienam jautājumam, kas ir saistīts ar vizuālu objektu, tā dizainu vai izvietojumu.</translation>
@@ -712,6 +713,7 @@ Dažas funkcijas var nebūt pieejamas. Norādiet citu profila direktoriju vai iz
 <translation id="9148058034647219655">Iziet</translation>
 <translation id="9155105544013854680">Turpiniet darbu no vietas, kur to pārtraucāt: pārlūkā Chromium var tikt atjaunotas jūsu cilnes ikreiz, kad to restartējat. Lai to ieslēgtu, pārejiet uz lapu</translation>
 <translation id="9158494823179993217">Sistēmas administrators ir konfigurējis Chromium, lai vietne <ph name="TARGET_URL_HOSTNAME" /> tiktu atvērta papildu pārlūkā.</translation>
+<translation id="9183331186620388872">Chromium padoms: meklējiet, izmantojot Lens</translation>
 <translation id="9185526690718004400">Atkārtoti palaist, lai atjauninātu &amp;Chromium</translation>
 <translation id="9190841055450128916">Chromium (mDNS ienākošie savienojumi)</translation>
 <translation id="9206863043651638213">Iegūstiet vairāk, pierakstoties pārlūkā Chromium</translation>

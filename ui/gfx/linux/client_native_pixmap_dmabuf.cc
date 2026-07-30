@@ -23,6 +23,7 @@
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "build/chromecast_buildflags.h"
+#include "components/viz/common/resources/shared_image_format_utils.h"
 #include "ui/gfx/linux/dmabuf_uapi.h"
 #include "ui/gfx/switches.h"
 
@@ -103,49 +104,52 @@ ClientNativePixmapDmaBuf::MapPlane(const NativePixmapPlane& plane) {
 
 // static
 bool ClientNativePixmapDmaBuf::IsConfigurationSupported(
-    gfx::BufferFormat format,
+    viz::SharedImageFormat format,
     gfx::BufferUsage usage) {
   switch (usage) {
     case gfx::BufferUsage::GPU_READ:
-      return format == gfx::BufferFormat::BGR_565 ||
-             format == gfx::BufferFormat::RGBA_8888 ||
-             format == gfx::BufferFormat::RGBX_8888 ||
-             format == gfx::BufferFormat::BGRA_8888 ||
-             format == gfx::BufferFormat::BGRX_8888 ||
-             format == gfx::BufferFormat::YVU_420;
+      return format == viz::SinglePlaneFormat::kBGR_565 ||
+             format == viz::SinglePlaneFormat::kRGBA_8888 ||
+             format == viz::SinglePlaneFormat::kRGBX_8888 ||
+             format == viz::SinglePlaneFormat::kBGRA_8888 ||
+             format == viz::SinglePlaneFormat::kBGRX_8888 ||
+             format == viz::MultiPlaneFormat::kYV12;
     case gfx::BufferUsage::SCANOUT:
-      return format == gfx::BufferFormat::BGRX_8888 ||
-             format == gfx::BufferFormat::RGBX_8888 ||
-             format == gfx::BufferFormat::RGBA_8888 ||
-             format == gfx::BufferFormat::BGRA_8888 ||
-             format == gfx::BufferFormat::RGBA_1010102 ||
-             format == gfx::BufferFormat::BGRA_1010102;
+      return format == viz::SinglePlaneFormat::kBGRX_8888 ||
+             format == viz::SinglePlaneFormat::kRGBX_8888 ||
+             format == viz::SinglePlaneFormat::kRGBA_8888 ||
+             format == viz::SinglePlaneFormat::kBGRA_8888 ||
+             format == viz::SinglePlaneFormat::kRGBA_1010102 ||
+             format == viz::SinglePlaneFormat::kBGRA_1010102;
     case gfx::BufferUsage::SCANOUT_FRONT_RENDERING:
     case gfx::BufferUsage::SCANOUT_CPU_READ_WRITE:
       // TODO(crbug.com/954233): RG_88 is enabled only with
       // --enable-native-gpu-memory-buffers . Otherwise it breaks some telemetry
       // tests. Fix that issue and enable it again.
-      if (format == gfx::BufferFormat::RG_88 && !AllowCpuMappableBuffers())
+      if (format == viz::SinglePlaneFormat::kRG_88 &&
+          !AllowCpuMappableBuffers()) {
         return false;
+      }
 
-      if (format == gfx::BufferFormat::YUV_420_BIPLANAR)
+      if (format == viz::MultiPlaneFormat::kNV12) {
         return true;
+      }
 
       return
 #if defined(ARCH_CPU_X86_FAMILY)
           // The minigbm backends and Mesa drivers commonly used on x86 systems
           // support the following formats.
-          format == gfx::BufferFormat::R_8 ||
-          format == gfx::BufferFormat::RG_88 ||
-          format == gfx::BufferFormat::YUV_420_BIPLANAR ||
-          format == gfx::BufferFormat::RGBA_1010102 ||
-          format == gfx::BufferFormat::BGRA_1010102 ||
+          format == viz::SinglePlaneFormat::kR_8 ||
+          format == viz::SinglePlaneFormat::kRG_88 ||
+          format == viz::MultiPlaneFormat::kNV12 ||
+          format == viz::SinglePlaneFormat::kRGBA_1010102 ||
+          format == viz::SinglePlaneFormat::kBGRA_1010102 ||
 #endif
 
-          format == gfx::BufferFormat::BGRX_8888 ||
-          format == gfx::BufferFormat::BGRA_8888 ||
-          format == gfx::BufferFormat::RGBX_8888 ||
-          format == gfx::BufferFormat::RGBA_8888;
+          format == viz::SinglePlaneFormat::kBGRX_8888 ||
+          format == viz::SinglePlaneFormat::kBGRA_8888 ||
+          format == viz::SinglePlaneFormat::kRGBX_8888 ||
+          format == viz::SinglePlaneFormat::kRGBA_8888;
     case gfx::BufferUsage::SCANOUT_VDA_WRITE:  // fallthrough
     case gfx::BufferUsage::PROTECTED_SCANOUT:
     case gfx::BufferUsage::PROTECTED_SCANOUT_VDA_WRITE:
@@ -155,33 +159,34 @@ bool ClientNativePixmapDmaBuf::IsConfigurationSupported(
       if (!AllowCpuMappableBuffers())
         return false;
 
-      if (format == gfx::BufferFormat::YUV_420_BIPLANAR)
+      if (format == viz::MultiPlaneFormat::kNV12) {
         return true;
+      }
 
       return
 #if defined(ARCH_CPU_X86_FAMILY)
           // The minigbm backends and Mesa drivers commonly used on x86 systems
           // support the following formats.
-          format == gfx::BufferFormat::R_8 ||
-          format == gfx::BufferFormat::RG_88 ||
-          format == gfx::BufferFormat::YUV_420_BIPLANAR ||
-          format == gfx::BufferFormat::P010 ||
+          format == viz::SinglePlaneFormat::kR_8 ||
+          format == viz::SinglePlaneFormat::kRG_88 ||
+          format == viz::MultiPlaneFormat::kNV12 ||
+          format == viz::MultiPlaneFormat::kP010 ||
 #endif
-          format == gfx::BufferFormat::BGRA_8888;
+          format == viz::SinglePlaneFormat::kBGRA_8888;
     case gfx::BufferUsage::SCANOUT_CAMERA_READ_WRITE:
       // Each platform only supports one camera buffer type. We list the
-      // supported buffer formats on all platforms here. When allocating a
-      // camera buffer the caller is responsible for making sure a buffer is
-      // successfully allocated. For example, allocating YUV420_BIPLANAR
-      // for SCANOUT_CAMERA_READ_WRITE may only work on Intel boards.
-      return format == gfx::BufferFormat::YUV_420_BIPLANAR;
+      // supported formats on all platforms here. When allocating a camera
+      // buffer the caller is responsible for making sure a buffer is
+      // successfully allocated. For example, allocating NV12 for
+      // SCANOUT_CAMERA_READ_WRITE may only work on Intel boards.
+      return format == viz::MultiPlaneFormat::kNV12;
     case gfx::BufferUsage::CAMERA_AND_CPU_READ_WRITE:
       // R_8 is used as the underlying pixel format for BLOB buffers.
-      return format == gfx::BufferFormat::R_8;
+      return format == viz::SinglePlaneFormat::kR_8;
     case gfx::BufferUsage::SCANOUT_VEA_CPU_READ:
     case gfx::BufferUsage::VEA_READ_CAMERA_AND_CPU_READ_WRITE:
-      return format == gfx::BufferFormat::YVU_420 ||
-             format == gfx::BufferFormat::YUV_420_BIPLANAR;
+      return format == viz::MultiPlaneFormat::kYV12 ||
+             format == viz::MultiPlaneFormat::kNV12;
   }
   NOTREACHED();
 }
@@ -277,4 +282,9 @@ int ClientNativePixmapDmaBuf::GetStride(size_t plane) const {
 NativePixmapHandle ClientNativePixmapDmaBuf::CloneHandleForIPC() const {
   return gfx::CloneHandleForIPC(pixmap_handle_);
 }
+
+uint64_t ClientNativePixmapDmaBuf::GetPlaneSize(size_t plane) const {
+  return pixmap_handle_.planes[plane].size;
+}
+
 }  // namespace gfx

@@ -478,7 +478,6 @@ component("skia") {
   all_dependent_configs = [ ":skia_config" ]
 
   deps += [
-    ":rust_bmp_ffi",
     ":rust_common_ffi",
     ":rust_png_ffi",
     ":skcms",
@@ -491,6 +490,7 @@ component("skia") {
   ]
   public_deps = [
     ":buildflags",
+    ":rust_bmp_ffi",
     ":skia_core_and_effects",
     ":skia_core_public_headers",
   ]
@@ -573,8 +573,6 @@ component("skia") {
       deps += [ ":skia_ganesh_metal" ]
     }
     deps += [ "//gpu/config:workaround_list" ]
-  } else {
-    sources += skia_no_slug_srcs
   }
 
   if (skia_support_pdf) {
@@ -707,7 +705,10 @@ rust_static_library("rust_bmp_ffi") {
 }
 
 source_set("rust_bmp_ffi_cpp") {
-  visibility = [ ":*" ]
+  visibility = [
+    ":*",
+    "//third_party/blink/renderer/platform/image-decoders:*",
+  ]
   public = skia_codec_rust_bmp_public
   sources = skia_codec_rust_bmp
   public_deps = [

@@ -52,9 +52,7 @@ class Host : public GlicSharingManagerProvider {
     virtual void Resize(const gfx::Size& size,
                         base::TimeDelta duration,
                         base::OnceClosure callback) = 0;
-    // Sets the areas of the view from which it should be draggable.
-    virtual void SetDraggableAreas(
-        const std::vector<gfx::Rect>& draggable_areas) = 0;
+
     // Allows the user to manually resize the widget by dragging. If the widget
     // hasn't been created yet, apply this setting when it is created. No effect
     // if the widget doesn't exist or the feature flag is disabled.
@@ -64,12 +62,13 @@ class Host : public GlicSharingManagerProvider {
     virtual void Attach() = 0;
     virtual void Detach() = 0;
     virtual void ClosePanel() = 0;
+    virtual void OnReload() = 0;
     // Sets the minimum widget size that the widget will allow the user to
-    // resize
-    // to.
+    // resize to.
     virtual void SetMinimumWidgetSize(const gfx::Size& size) = 0;
     virtual void CaptureScreenshot(
         glic::mojom::WebClientHandler::CaptureScreenshotCallback callback) = 0;
+
     // Returns true if the glic widget is visible.
     virtual bool IsShowing() const = 0;
 
@@ -98,6 +97,9 @@ class Host : public GlicSharingManagerProvider {
     virtual void PerformActions(
         const std::vector<uint8_t>& actions_proto,
         mojom::WebClientHandler::PerformActionsCallback callback) = 0;
+    virtual void CancelActions(
+        actor::TaskId task_id,
+        mojom::WebClientHandler::CancelActionsCallback callback) = 0;
     virtual void StopActorTask(actor::TaskId task_id,
                                mojom::ActorTaskStopReason stop_reason) = 0;
     virtual void PauseActorTask(actor::TaskId task_id,
@@ -383,6 +385,8 @@ class Host : public GlicSharingManagerProvider {
   // frame.
   bool IsWebContentPresentAndMatches(content::RenderFrameHost* rfh);
 
+  void NotifyActorTaskListRowClicked(int32_t task_id);
+
  private:
   friend class HostManager;
 
@@ -465,12 +469,11 @@ class EmptyEmbedderDelegate : public Host::EmbedderDelegate {
   void Resize(const gfx::Size& size,
               base::TimeDelta duration,
               base::OnceClosure callback) override;
-  void SetDraggableAreas(
-      const std::vector<gfx::Rect>& draggable_areas) override {}
   void EnableDragResize(bool enabled) override {}
   void Attach() override {}
   void Detach() override {}
   void ClosePanel() override {}
+  void OnReload() override {}
   void SetMinimumWidgetSize(const gfx::Size& size) override {}
   void CaptureScreenshot(
       glic::mojom::WebClientHandler::CaptureScreenshotCallback callback)

@@ -12,8 +12,10 @@ import org.chromium.mojo.system.Core;
 import org.chromium.mojo.system.MessagePipeHandle;
 import org.chromium.mojo.system.Watcher;
 
+import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.Executor;
 
 /** Implementation of {@link Router}. */
@@ -86,7 +88,7 @@ public class RouterImpl implements Router {
      * The {@link MessageReceiverWithResponder} that will consume the messages received from the
      * pipe.
      */
-    private @Nullable MessageReceiverWithResponder mIncomingMessageReceiver;
+    private final Map<Integer, Stub> mStubs = new HashMap();
 
     /** The next id to use for a request id which needs a response. It is auto-incremented. */
     private long mNextRequestId = 1;
@@ -94,18 +96,17 @@ public class RouterImpl implements Router {
     /** The map from request ids to {@link MessageReceiver} of request currently in flight. */
     private final Map<Long, MessageReceiver> mResponders = new HashMap<Long, MessageReceiver>();
 
+    /** A list of messages that cannot be dispatched yet. */
+    private final Queue<Message> mEnqueuedMessages = new ArrayDeque<Message>();
+
     /**
-     * An Executor that will run on the thread associated with the MessagePipe to which
-     * this Router is bound. This may be {@code Null} if the MessagePipeHandle passed
-     * in to the constructor is not valid.
+     * An Executor that will run on the thread associated with the MessagePipe to which this Router
+     * is bound. This may be {@code Null} if the MessagePipeHandle passed in to the constructor is
+     * not valid.
      */
     private final @Nullable Executor mExecutor;
 
-    /**
-     * Constructor that will use the default {@link Watcher}.
-     *
-     * @param messagePipeHandle The {@link MessagePipeHandle} to route message for.
-     */
+    /** Constructor that will use the default {@link Watcher}. */
     public RouterImpl(MessagePipeHandle messagePipeHandle) {
         this(messagePipeHandle, BindingsHelper.getWatcherForHandleNonNull(messagePipeHandle));
     }
@@ -136,12 +137,16 @@ public class RouterImpl implements Router {
         mConnector.start();
     }
 
-    /**
-     * @see Router#setIncomingMessageReceiver(MessageReceiverWithResponder)
-     */
     @Override
-    public void setIncomingMessageReceiver(MessageReceiverWithResponder incomingMessageReceiver) {
-        this.mIncomingMessageReceiver = incomingMessageReceiver;
+    public void setPrimaryStub(Stub primaryStub) {
+        if (primaryStub.getInterfaceId() != PRIMARY_INTERFACE_ID) {
+            throw new IllegalArgumentException("primary stub must have an interface id of 0");
+        }
+        addStub(primaryStub);
+    }
+
+    private void addStub(Stub stub) {
+        this.mStubs.put(stub.getInterfaceId(), stub);
     }
 
     /**
@@ -207,10 +212,43 @@ public class RouterImpl implements Router {
 
     /** Receive a message from the connector. Returns |true| if the message has been handled. */
     private boolean handleIncomingMessage(Message message) {
+        mEnqueuedMessages.add(message);
+        return dispatchMessages();
+    }
+
+    // TODO(crbug.com/469861566): the boolean here is quite overloaded. A falsey value can
+    // mean:
+    //   1. malformed message (we should close the pipe)
+    //   2. unknown method (we should close the pipe)
+    //   3. unregistered iface.
+    //   (1 & 2) are irrecoverable errors that indicate channel corruption and should
+    //   probably be handled through exceptions (i.e.: any channel closing error should be
+    //   an exception to be handled at an upper layer).
+    //   True/False should indicate the state of the dispatch state of the messages. A
+    //   true value indicates that the messages have all been successfully dispatched and
+    //   the dispatcher is ready for more messages. A false value means that some messages
+    //   may have been blocked and we should not be sending more messages.
+    //
+    //   The current "drop message for unregistered stubs" is also not consistent with other
+    //   language bindings.
+    private boolean dispatchMessages() {
+        if (mEnqueuedMessages.size() != 1) {
+            throw new UnsupportedOperationException(
+                    "Multiple messages in queue not yet supported. Queue must have one and only one"
+                        + " message in it at dispatch.");
+        }
+        Message message = mEnqueuedMessages.element();
+        mEnqueuedMessages.remove();
+        return dispatchMessage(message);
+    }
+
+    private boolean dispatchMessage(Message message) {
         MessageHeader header = message.asServiceMessage().getHeader();
+
+        var stub = mStubs.get(header.getInterfaceId());
         if (header.hasFlag(MessageHeader.MESSAGE_EXPECTS_RESPONSE_FLAG)) {
-            if (mIncomingMessageReceiver != null) {
-                return mIncomingMessageReceiver.acceptWithResponder(message, new ResponderThunk());
+            if (stub != null) {
+                return stub.acceptWithResponder(message, new ResponderThunk());
             }
             // If we receive a request expecting a response when the client is not
             // listening, then we have no choice but to tear down the pipe.
@@ -225,8 +263,8 @@ public class RouterImpl implements Router {
             mResponders.remove(requestId);
             return responder.accept(message);
         } else {
-            if (mIncomingMessageReceiver != null) {
-                return mIncomingMessageReceiver.accept(message);
+            if (stub != null) {
+                return stub.accept(message);
             }
             // OK to drop the message.
         }
@@ -234,8 +272,9 @@ public class RouterImpl implements Router {
     }
 
     private void handleConnectorClose() {
-        if (mIncomingMessageReceiver != null) {
-            mIncomingMessageReceiver.close();
+        var primaryStub = mStubs.get(PRIMARY_INTERFACE_ID);
+        if (primaryStub != null) {
+            primaryStub.close();
         }
     }
 

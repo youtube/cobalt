@@ -35,6 +35,7 @@
 #include "content/public/browser/site_instance.h"
 #include "content/public/browser/web_contents.h"
 #include "net/http/http_connection_info.h"
+#include "net/http/http_response_headers.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/metrics/public/cpp/ukm_recorder.h"
 #include "third_party/blink/public/common/loader/loading_behavior_flag.h"
@@ -60,6 +61,8 @@ const char kHistogramGWSNavigationStartToFirstLoaderCallback[] =
     HISTOGRAM_PREFIX "NavigationTiming.NavigationStartToFirstLoaderCallback";
 const char kHistogramGWSNavigationStartToOnComplete[] =
     HISTOGRAM_PREFIX "NavigationTiming.NavigationStartToOnComplete";
+const char kHistogramGWSNavigationStartToFirstFetchStart[] =
+    HISTOGRAM_PREFIX "NavigationTiming.NavigationStartToFirstFetchStart";
 const char kHistogramGWSFirstFetchStartToFirstRequestStart[] =
     HISTOGRAM_PREFIX "NavigationTiming.FirstFetchStartToFirstRequestStart";
 const char kHistogramGWSCreateStreamDelay[] =
@@ -138,6 +141,11 @@ const char kHistogramGWSAdvertisedAltSvcState[] =
 const char kHistogramGWSHttpNetworkSessionQuicEnabled[] =
     HISTOGRAM_PREFIX "HttpNetworkSessionQuicEnabled";
 
+// Suffix for navigation.activationType variants.
+const char kTraverseNavigation[] = ".TraverseNavigation";
+const char kRestoreNavigation[] = ".Restored";
+const char kNonRestoreNavigation[] = ".NotRestored";
+
 // Prerender related histograms.
 const char kHistogramPrerenderHostReused[] =
     HISTOGRAM_PREFIX "Prerender.HostReused";
@@ -154,6 +162,12 @@ const char kHistogramGWSWarmUpType[] = HISTOGRAM_PREFIX "WarmUpType";
 
 const char kHistogramPrerenderSuffix[] = ".Prerender";
 const char kHistogramNonPrerenderSuffix[] = ".NonPrerender";
+
+const char kHistogramGWSHttpStatusCode[] = HISTOGRAM_PREFIX "HttpStatusCode";
+
+const char kHistogramGWSHttpStatusCodePrewarm[] = ".Prewarm";
+const char kHistogramGWSHttpStatusCodeNonPrewarm[] = ".NonPrewarm";
+
 // ServiceWorker related histograms.
 const char kHistogramServiceWorkerParseStartSearch[] =
     "PageLoad.Clients.ServiceWorker2.ParseTiming.NavigationToParseStart.search";
@@ -279,6 +293,34 @@ std::string GetProtocolSuffix(
       {".", net::HttpConnectionInfoCoarseToString(http_connection_info)});
 }
 
+void ReportMetricForTraverseNavigation(bool is_restore_navigation,
+                                       std::string_view histogram_base_name,
+                                       base::TimeDelta latency) {
+  auto traverse_histogram_name =
+      base::StrCat({histogram_base_name, internal::kTraverseNavigation});
+  PAGE_LOAD_HISTOGRAM(traverse_histogram_name, latency);
+  auto restore_histogram_name =
+      base::StrCat({traverse_histogram_name,
+                    is_restore_navigation ? internal::kRestoreNavigation
+                                          : internal::kNonRestoreNavigation});
+  PAGE_LOAD_HISTOGRAM(restore_histogram_name, latency);
+}
+
+void RecordHttpStatusCode(int http_status_code, const GURL& url) {
+  std::string suffix;
+  if (page_load_metrics::IsGoogleSearchPrewarmUrl(url)) {
+    suffix = internal::kHistogramGWSHttpStatusCodePrewarm;
+  } else if (page_load_metrics::IsGoogleSearchResultUrl(url)) {
+    suffix = internal::kHistogramGWSHttpStatusCodeNonPrewarm;
+  }
+  if (suffix.empty()) {
+    return;
+  }
+  base::UmaHistogramSparse(
+      base::StrCat({internal::kHistogramGWSHttpStatusCode, suffix}),
+      http_status_code);
+}
+
 }  // namespace
 
 GWSPageLoadMetricsObserver::GWSPageLoadMetricsObserver() {
@@ -316,6 +358,21 @@ GWSPageLoadMetricsObserver::OnStart(
     source_type_ = GetBackgroundedState(source_type_);
   }
 
+  is_traverse_navigation_ = navigation_handle->IsHistory();
+  is_restore_navigation_ =
+      navigation_handle->GetRestoreType() == content::RestoreType::kRestored;
+
+  return CONTINUE_OBSERVING;
+}
+
+page_load_metrics::PageLoadMetricsObserver::ObservePolicy
+GWSPageLoadMetricsObserver::OnRedirect(
+    content::NavigationHandle* navigation_handle) {
+  if (auto* response_headers = navigation_handle->GetResponseHeaders()) {
+    RecordHttpStatusCode(response_headers->response_code(),
+                         navigation_handle->GetURL());
+  }
+
   return CONTINUE_OBSERVING;
 }
 
@@ -338,6 +395,10 @@ GWSPageLoadMetricsObserver::OnCommit(
     page_load_metrics::PrerenderPrewarmNavigationData::GetOrCreate(
         GetDelegate().GetWebContents()->GetPrimaryMainFrame()->GetProcess(),
         prewarm_data->prewarm_committed());
+  }
+  if (auto* response_headers = navigation_handle->GetResponseHeaders()) {
+    RecordHttpStatusCode(response_headers->response_code(),
+                         navigation_handle->GetURL());
   }
   if (!is_gws_url) {
     return STOP_OBSERVING;
@@ -705,9 +766,16 @@ void GWSPageLoadMetricsObserver::LogMetricsOnComplete() {
     }
 
     // We record pre navigation time here as well.
-    PAGE_LOAD_HISTOGRAM(
-        internal::kHistogramGWSAFTEndWithPreNavigationLatency,
-        base_time + prenavigation_time.value_or(base::TimeDelta()));
+    const auto aft_end_with_prenavigation_latency =
+        base_time + prenavigation_time.value_or(base::TimeDelta());
+    PAGE_LOAD_HISTOGRAM(internal::kHistogramGWSAFTEndWithPreNavigationLatency,
+                        aft_end_with_prenavigation_latency);
+    if (is_traverse_navigation_) {
+      ReportMetricForTraverseNavigation(
+          is_restore_navigation_,
+          internal::kHistogramGWSAFTEndWithPreNavigationLatency,
+          aft_end_with_prenavigation_latency);
+    }
   }
 
   if (!WasStartedInForegroundOptionalEventInForeground(
@@ -719,6 +787,11 @@ void GWSPageLoadMetricsObserver::LogMetricsOnComplete() {
   RecordNavigationTimingHistograms();
   PAGE_LOAD_HISTOGRAM(internal::kHistogramGWSLargestContentfulPaint,
                       all_frames_largest_contentful_paint.Time().value());
+  if (is_traverse_navigation_) {
+    ReportMetricForTraverseNavigation(
+        is_restore_navigation_, internal::kHistogramGWSLargestContentfulPaint,
+        all_frames_largest_contentful_paint.Time().value());
+  }
 }
 
 void GWSPageLoadMetricsObserver::RecordNavigationTimingHistograms() {
@@ -765,6 +838,8 @@ void GWSPageLoadMetricsObserver::RecordNavigationTimingHistograms() {
     PAGE_LOAD_SHORT_HISTOGRAM(
         internal::kHistogramGWSFirstFetchStartToFirstRequestStart,
         timing.first_request_start_time - *timing.first_fetch_start_time);
+    PAGE_LOAD_HISTOGRAM(internal::kHistogramGWSNavigationStartToFirstFetchStart,
+                        *timing.first_fetch_start_time - navigation_start_time);
   }
 
   auto protocol = GetProtocolSuffix(http_connection_info_);

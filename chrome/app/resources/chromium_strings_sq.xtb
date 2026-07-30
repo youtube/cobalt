@@ -84,6 +84,7 @@ Disa funksione mund të mos ofrohen dhe ndryshimet në preferenca nuk do të ruh
 <translation id="193439633299369377">ChromiumOS ka nevojë të riniset për të zbatuar përditësimin.</translation>
 <translation id="1951406923938785464">Chromium e bllokoi këtë shkarkim sepse lloji i skedarit nuk është shkarkuar zakonisht dhe mund të jetë i rrezikshëm</translation>
 <translation id="1953553007165777902">Po shkarkohet... Kanë mbetur edhe <ph name="MINUTE" /> minuta</translation>
+<translation id="1965068424387304464">Këshillë për Chromium: Ruaj fjalëkalimet</translation>
 <translation id="1966382378801805537">Chromium nuk mund të përcaktojë ose caktojë shfletuesin e parazgjedhur</translation>
 <translation id="1990262977744080398">Mëso se pse Chromium i bllokon disa skedarë, hapet në një skedë të re</translation>
 <translation id="1999715455684970349">E mban të përditësuar softuerin e Chromium. Nëse ky shërbim çaktivizohet ose ndalohet, softueri yt i Chromium nuk do të mbahet i përditësuar, që do të thotë se dobësitë e sigurisë që mund të lindin nuk mund të rregullohen dhe veçoritë mund të mos funksionojnë. Ky shërbim çinstalohet vetë kur nuk ka një softuer të Chromium që e përdor atë.</translation>
@@ -92,7 +93,6 @@ Disa funksione mund të mos ofrohen dhe ndryshimet në preferenca nuk do të ruh
 <translation id="2020032459870799438">Për të kontrolluar nëse fjalëkalimet e tjera janë të sigurta nga nxjerrjet e paautorizuara të të dhënave dhe probleme të tjera të sigurisë, <ph name="BEGIN_LINK" />identifikohu në Chromium<ph name="END_LINK" />.</translation>
 <translation id="2039417478970545937">Cilësimet.</translation>
 <translation id="2049376729098081731">Zgjidh nëse do ta përfshish historikun e Chromium për përvoja më të personalizuara në shërbimet e Google</translation>
-<translation id="2054039611381840095">Për të marrë përditësimet e ardhshme të Chromium, do të të duhet macOS 12 ose një version i mëvonshëm. Ky kompjuter përdor macOS 11.</translation>
 <translation id="2064856577282482477">Kliko te butoni "Personalizo Chromium" në faqen e skedës së re për t'i dhënë Chromium një pamje të re</translation>
 <translation id="2086476982681781442">Chromium e bllokoi këtë shkarkim sepse skedari është mashtrues dhe mund të bëjë ndryshime të papritura në pajisjen tënde</translation>
 <translation id="208726765006323911">Do të shikosh një kërkesë për të provuar <ph name="FEATURE_NAME" /> herën tjetër kur të hapësh Chromium për iOS.</translation>
@@ -254,6 +254,7 @@ Disa funksione mund të mos ofrohen dhe ndryshimet në preferenca nuk do të ruh
 <translation id="3802055581630249637">Chromium ngarkon paraprakisht faqet që mund t'i vizitosh që ato të ngarkohen më shpejt kur t'i vizitosh</translation>
 <translation id="3810973564298564668">Menaxho</translation>
 <translation id="3823384748599722168">Për të përdorur fjalëkalimet e ruajtura, ndiq kodin QR, shkarko Chromium për iOS dhe identifikohu në "Llogarinë tënde të Google"</translation>
+<translation id="3837584850181228767">Këshillë për Chromium: "Shfletimi i sigurt i përmirësuar"</translation>
 <translation id="3846683726093018685">**Përmblidh:** Në një fjali të vetme deri në 30 fjalë, përshkruaj subjektin kryesor dhe qëllimin e përmbajtjes në pamjen e ekranit.
 
           **Sugjero pyetje:** Gjenero një listë me pika prej 3 deri në 5 pyetje që nxisin të menduarit dhe që mund të bëhen nga një përdorues për të kuptuar më mirë pamjen e ekranit. Këto pyetje duhet të përfshijnë të paktën një pyetje që ka të bëjë në mënyrë specifike me një objekt vizual, dizajnin ose vendosjen e tij.</translation>
@@ -569,6 +570,7 @@ Chromium nuk është në gjendje të rikuperojë cilësimet e tua.</translation>
 <translation id="7347827960336370838">Vetëm dikush me frazën tënde të kalimit mund të lexojë të dhënat e tua të enkriptuara. Fraza e kalimit nuk dërgohet apo ruhet nga Google. Nëse e harron frazën tënde të kalimit apo dëshiron ta ndryshosh këtë cilësim, do të të duhet të <ph name="BEGIN_LINK" />fshish të dhënat e Chromium në llogarinë tënde<ph name="END_LINK" />.</translation>
 <translation id="7349591376906416160">Administratori i sistemit ka konfiguruar Chromium që të hapë <ph name="ALTERNATIVE_BROWSER_NAME" /> për t'u qasur te <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="7352651011704765696">Diçka shkoi keq</translation>
+<translation id="7368826207863345663">Për të marrë përditësimet e ardhshme të Chromium, do të të duhet macOS 13 ose një version i mëvonshëm. Ky kompjuter përdor macOS 12.</translation>
 <translation id="7376384068949534168">Nuk ke vizituar së fundi. Chromium ka hequr lejen "<ph name="PERMISSION_1" />", "<ph name="PERMISSION_2" />".</translation>
 <translation id="7384121030444253939">Kjo shtesë nuk mbështetet më. Chromium rekomandon që ta heqësh më mirë atë.</translation>
 <translation id="7413153308467572558">Vazhdo aty ku e ke lënë: Chromium i restauron skedat e tua sa herë që e rinis. Për ta çaktivizuar këtë, shko te</translation>
@@ -716,6 +718,7 @@ Chromium nuk është në gjendje të rikuperojë cilësimet e tua.</translation>
 <translation id="9148058034647219655">Dil</translation>
 <translation id="9155105544013854680">Vazhdo aty ku e ke lënë: Chromium mund t'i restaurojë skedat e tua sa herë që e rinis. Për ta aktivizuar këtë, shko te</translation>
 <translation id="9158494823179993217">Administratori i sistemit ka konfiguruar Chromium që të hapë një shfletues alternativ për të pasur qasje te <ph name="TARGET_URL_HOSTNAME" />.</translation>
+<translation id="9183331186620388872">Këshillë për Chromium: Kërko me "Lenten"</translation>
 <translation id="9185526690718004400">Nise përsëri për të përditësuar &amp;Chromium</translation>
 <translation id="9190841055450128916">Chromium (mDNS-In)</translation>
 <translation id="9206863043651638213">Merr më shumë kur je i identifikuar në Chromium</translation>

@@ -29,10 +29,11 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/read_anything/read_anything_controller.h"
 #include "chrome/browser/ui/read_anything/read_anything_prefs.h"
+#include "chrome/browser/ui/read_anything/read_anything_side_panel_controller.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
+#include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
 #include "chrome/common/chrome_isolated_world_ids.h"
 #include "chrome/common/extensions/extension_constants.h"
-#include "chrome/common/read_anything/read_anything.mojom-forward.h"
 #include "chrome/common/read_anything/read_anything.mojom.h"
 #include "chrome/common/read_anything/read_anything_util.h"
 #include "components/dom_distiller/content/browser/distiller_javascript_utils.h"
@@ -284,6 +285,23 @@ void ReadAnythingWebContentsObserver::WebContentsDestroyed() {
   page_handler_->WebContentsDestroyed();
 }
 
+void ReadAnythingUntrustedPageHandler::MaybeUpdateImmersivePinStatus() {
+  if (!features::IsImmersiveReadAnythingEnabled()) {
+    return;
+  }
+  CHECK(pinned_toolbar_);
+  const bool is_pinned_in_toolbar =
+      pinned_toolbar_->Contains(kActionSidePanelShowReadAnything);
+  if (is_pinned_in_toolbar != immersive_read_anything_pin_state_) {
+    immersive_read_anything_pin_state_ = is_pinned_in_toolbar;
+    page_->OnPinStatusReceived(immersive_read_anything_pin_state_);
+  }
+}
+
+void ReadAnythingUntrustedPageHandler::OnActionsChanged() {
+  MaybeUpdateImmersivePinStatus();
+}
+
 ReadAnythingUntrustedPageHandler::ReadAnythingUntrustedPageHandler(
     mojo::PendingRemote<UntrustedPage> page,
     mojo::PendingReceiver<UntrustedPageHandler> receiver,
@@ -323,6 +341,10 @@ ReadAnythingUntrustedPageHandler::ReadAnythingUntrustedPageHandler(
     CHECK(read_anything_controller_);
     read_anything_controller_->AddObserver(this);
     tab_ = read_anything_controller_->tab();
+    pinned_toolbar_ =
+        PinnedToolbarActionsModel::Get(Profile::FromWebUI(web_ui));
+    pinned_toolbar_actions_observation_.Observe(pinned_toolbar_);
+    MaybeUpdateImmersivePinStatus();
   } else {
     side_panel_controller_ =
         ReadAnythingSidePanelControllerGlue::FromWebContents(
@@ -810,7 +832,7 @@ void ReadAnythingUntrustedPageHandler::OnLanguagePrefChange(
   ScopedListPrefUpdate update(
       prefs, prefs::kAccessibilityReadAnythingLanguagesEnabled);
   if (enabled) {
-    if (!base::Contains(update.Get(), lang)) {
+    if (!update.Get().contains(lang)) {
       update->Append(lang);
     }
   } else {
@@ -921,10 +943,31 @@ void ReadAnythingUntrustedPageHandler::CloseUI() {
   read_anything_controller_->CloseImmersiveUI();
 }
 
+void ReadAnythingUntrustedPageHandler::TogglePinState() {
+  if (!features::IsImmersiveReadAnythingEnabled()) {
+    return;
+  }
+  CHECK(pinned_toolbar_);
+  immersive_read_anything_pin_state_ = !immersive_read_anything_pin_state_;
+  pinned_toolbar_->UpdatePinnedState(kActionSidePanelShowReadAnything,
+                                     immersive_read_anything_pin_state_);
+}
+
+void ReadAnythingUntrustedPageHandler::SendPinStateRequest() {
+  page_->OnPinStatusReceived(immersive_read_anything_pin_state_);
+}
+
 void ReadAnythingUntrustedPageHandler::TogglePresentation() {
   if (features::IsImmersiveReadAnythingEnabled()) {
     CHECK(read_anything_controller_);
     read_anything_controller_->TogglePresentation();
+  }
+}
+
+void ReadAnythingUntrustedPageHandler::AckReadingModeHidden() {
+  if (features::IsImmersiveReadAnythingEnabled()) {
+    ack_timed_out_for_testing_ = false;
+    reading_mode_hidden_ack_timer_.Stop();
   }
 }
 
@@ -1014,11 +1057,39 @@ void ReadAnythingUntrustedPageHandler::Activate(
   active_ = active;
   if (active_) {
     last_open_trigger_ = open_trigger;
+    tab_will_detach_ = false;
   }
   if (features::IsReadAnythingReadAloudEnabled() && !active &&
       !tab_will_detach_) {
     page_->OnReadingModeHidden(tab_->IsActivated());
+
+    // When Reading mode is hidden (with immersive flag enabled), we need to
+    // verify that the renderer is still responsive. Waiting until the mojo
+    // disconnects is slow and would cause a crash. If the renderer is
+    // unresponsive, then notify the controller that it should recreate the
+    // WebUI wrapper, otherwise it's never torn down once it's created, and
+    // we'll be stuck in an unresponsive state. We do this when Reading mode is
+    // hidden because if the user notices a crash they will likely try to close
+    // and reopen RM. Detecting a crash programmatically is often slower than
+    // the user noticing, so this handles that case.
+    if (features::IsImmersiveReadAnythingEnabled()) {
+      reading_mode_hidden_ack_timer_.Start(
+          FROM_HERE, kReadingModeHiddenAckTimeout,
+          base::BindOnce(
+              &ReadAnythingUntrustedPageHandler::OnReadingModeHiddenAckTimeout,
+              base::Unretained(this)));
+    }
   }
+}
+
+void ReadAnythingUntrustedPageHandler::OnReadingModeHiddenAckTimeout() {
+  if (!features::IsImmersiveReadAnythingEnabled()) {
+    return;
+  }
+
+  ack_timed_out_for_testing_ = true;
+  CHECK(read_anything_controller_);
+  read_anything_controller_->RecreateWebUIWrapper();
 }
 
 void ReadAnythingUntrustedPageHandler::OnReadingModePresenterChanged() {
@@ -1180,13 +1251,13 @@ void ReadAnythingUntrustedPageHandler::ProcessDistilledArticle(
     const dom_distiller::DistilledArticleProto* article_proto) {
   CHECK(features::IsReadAnythingWithReadabilityEnabled() && !is_pdf_);
   if (article_proto && article_proto->pages_size() > 0) {
-    distilled_title_for_testing_ = article_proto->title();
+    dom_distiller_title_ = article_proto->title();
 
     std::string full_html;
     for (const auto& page : article_proto->pages()) {
       full_html.append(page.html());
     }
-    distilled_content_for_testing_ = full_html;
+    dom_distiller_content_ = full_html;
   }
 }
 

@@ -536,7 +536,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, TitleAndLoadState) {
   content::TestNavigationObserver navigation_watcher(
       contents, 1, content::MessageLoopRunner::QuitMode::DEFERRED);
 
-  TabStrip* tab_strip = browser_view()->tabstrip();
+  TabStrip* tab_strip = browser_view()->horizontal_tab_strip_for_testing();
   // Navigate without blocking.
   const GURL test_url = chrome_test_utils::GetTestUrl(
       base::FilePath(base::FilePath::kCurrentDirectory),
@@ -949,8 +949,16 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, SplitViewFullscreenLayout) {
       {1}, split_tabs::SplitTabVisualData(),
       split_tabs::SplitTabCreatedSource::kToolbarButton);
 
-  ASSERT_TRUE(browser()->tab_strip_model()->selection_model().IsSelected(0));
-  ASSERT_TRUE(browser()->tab_strip_model()->selection_model().IsSelected(1));
+  ASSERT_TRUE(browser()
+                  ->tab_strip_model()
+                  ->selection_model()
+                  .GetListSelectionModel()
+                  .IsSelected(0));
+  ASSERT_TRUE(browser()
+                  ->tab_strip_model()
+                  ->selection_model()
+                  .GetListSelectionModel()
+                  .IsSelected(1));
 
   TopContainerView* top_container = browser_view()->top_container();
   views::View* overlay_view = browser_view()->overlay_view();
@@ -981,8 +989,16 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, SplitViewTabRevealFullscreen) {
       {1}, split_tabs::SplitTabVisualData(),
       split_tabs::SplitTabCreatedSource::kToolbarButton);
 
-  ASSERT_TRUE(browser()->tab_strip_model()->selection_model().IsSelected(0));
-  ASSERT_TRUE(browser()->tab_strip_model()->selection_model().IsSelected(1));
+  ASSERT_TRUE(browser()
+                  ->tab_strip_model()
+                  ->selection_model()
+                  .GetListSelectionModel()
+                  .IsSelected(0));
+  ASSERT_TRUE(browser()
+                  ->tab_strip_model()
+                  ->selection_model()
+                  .GetListSelectionModel()
+                  .IsSelected(1));
 
   ui_test_utils::ToggleFullscreenModeAndWait(browser());
   ASSERT_FALSE(browser()->window()->IsToolbarShowing());

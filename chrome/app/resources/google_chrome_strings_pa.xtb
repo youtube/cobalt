@@ -275,6 +275,7 @@
 <translation id="3885770153807205175">ਭਾਸ਼ਾ ਚੋਣਕਾਰ</translation>
 <translation id="3889417619312448367">Google Chrome ਨੂੰ ਅਣਸਥਾਪਤ ਕਰੋ</translation>
 <translation id="3892148308691398805">ਲਿਖਤ ਕਾਪੀ ਕਰੋ</translation>
+<translation id="3893985792899396936">Chrome ਦਾ ਨੁਕਤਾ: Lens ਰਾਹੀਂ ਖੋਜੋ</translation>
 <translation id="3906096710440765802">ਆਪਣੇ ਸਾਰੇ ਡੀਵਾਈਸਾਂ 'ਤੇ ਆਪਣੇ ਪਾਸਵਰਡ, ਬੁੱਕਮਾਰਕ ਅਤੇ ਹੋਰ ਜਾਣਕਾਰੀ ਪ੍ਰਾਪਤ ਕਰਨ ਲਈ Chrome ਵਿੱਚ ਸਾਈਨ-ਇਨ ਕਰੋ</translation>
 <translation id="3921132130819999051">Chrome ਨੂੰ ਤੁਹਾਡੇ ਲਈ ਬ੍ਰਾਊਜ਼ ਕਰਨ ਦਿਓ</translation>
 <translation id="3941890832296813527">ਸਥਾਪਤ ਕਰਨ ਵਿੱਚ ਗੜਬੜ: ਸਥਾਪਨਾਕਾਰ ਫ਼ਾਈਲ ਨਾਮ ਅਵੈਧ ਜਾਂ ਅਸਮਰਥਿਤ ਹੈ।</translation>
@@ -316,7 +317,6 @@
 <translation id="4329315893554541805">ਵਿਅਕਤੀਗਤਕਰਨ ਅਤੇ ਹੋਰ ਵਿਸ਼ੇਸ਼ਤਾਵਾਂ ਲਈ, 'ਵੈੱਬ ਅਤੇ ਐਪ ਸਰਗਰਮੀ' ਅਤੇ ਲਿੰਕ ਕੀਤੀਆਂ Google ਸੇਵਾਵਾਂ ਵਿੱਚ Chrome ਸ਼ਾਮਲ ਕਰੋ</translation>
 <translation id="4334241893986177674">ਇਸ ਸਕ੍ਰੀਨਸ਼ਾਟ ਨੂੰ ਖੋਜੋ</translation>
 <translation id="4334294535648607276">ਡਾਉਨਲੋਡ ਪੂਰਾ ਹੋਇਆ</translation>
-<translation id="4337324600316876133">Google Chrome ਸੰਬੰਧੀ ਭਵਿੱਖੀ ਅੱਪਡੇਟ ਪ੍ਰਾਪਤ ਕਰਨ ਲਈ, ਤੁਹਾਨੂੰ macOS 12 ਜਾਂ ਇਸ ਤੋਂ ਬਾਅਦ ਵਾਲੇ ਵਰਜਨ ਦੀ ਲੋੜ ਪਵੇਗੀ। ਇਸ ਕੰਪਿਊਟਰ 'ਤੇ macOS 11 ਵਰਜਨ ਵਰਤਿਆ ਜਾ ਰਿਹਾ ਹੈ।</translation>
 <translation id="4343195214584226067"><ph name="EXTENSION_NAME" /> ਨੂੰ Chrome ਵਿੱਚ ਸ਼ਾਮਲ ਕਰ ਦਿੱਤਾ ਗਿਆ ਹੈ</translation>
 <translation id="4344128547036991536">ਜਦੋਂ ਤੁਸੀਂ Google Lens ਖੋਲ੍ਹਦੇ ਹੋ, ਤਾਂ ਪੰਨਾ ਸਿਰਲੇਖ, URL ਅਤੇ ਸਮੱਗਰੀ, Google ਨੂੰ ਸਵੈਚਲਿਤ ਤੌਰ 'ਤੇ ਭੇਜੀ ਜਾਵੇਗੀ, ਇਸ ਵਿੱਚ PDF ਵੀ ਸ਼ਾਮਲ ਹੈ। <ph name="LEARN_MORE" /></translation>
 <translation id="4348548358339558429">ਵਿਅਕਤੀਗਤਕਰਨ ਲਈ, 'ਵੈੱਬ ਅਤੇ ਐਪ ਸਰਗਰਮੀ' ਵਿੱਚ Chrome ਸ਼ਾਮਲ ਕਰੋ</translation>
@@ -373,6 +373,7 @@
 <translation id="5003967926796347400">“Google Password Manager” 'ਤੇ ਕਲਿੱਕ ਕਰੋ</translation>
 <translation id="5043786843026425788">Chrome ਵਿੱਚ Google Lens ਨਾਲ ਖੋਜਣ ਬਾਰੇ ਹੋਰ ਜਾਣੋ</translation>
 <translation id="504867494566807945">ਕਿਸੇ ਵੀ ਐਪ ਤੋਂ Chrome ਵਿੱਚ ਲਿੰਕ ਖੋਲ੍ਹੋ। ਨਾਲ ਹੀ, ਆਸਾਨ ਪਹੁੰਚ ਲਈ, ਇਹ ਤੁਹਾਡੇ ਟਾਸਕਬਾਰ ਨਾਲ ਪਿੰਨ ਹੋ ਜਾਂਦਾ ਹੈ।</translation>
+<translation id="5105120510934353742">Google Chrome ਸੰਬੰਧੀ ਭਵਿੱਖੀ ਅੱਪਡੇਟ ਪ੍ਰਾਪਤ ਕਰਨ ਲਈ, ਤੁਹਾਨੂੰ macOS 13 ਜਾਂ ਇਸ ਤੋਂ ਬਾਅਦ ਵਾਲੇ ਵਰਜਨ ਦੀ ਲੋੜ ਪਵੇਗੀ। ਇਸ ਕੰਪਿਊਟਰ 'ਤੇ macOS 12 ਵਰਜਨ ਵਰਤਿਆ ਜਾ ਰਿਹਾ ਹੈ।</translation>
 <translation id="5114340746415930644">ਆਪਣੇ ਖਾਤੇ, <ph name="USER_EMAIL" /> ਵਿੱਚ Chrome ਡਾਟੇ ਨੂੰ ਵਰਤਣ ਅਤੇ ਰੱਖਿਅਤ ਕਰਨ ਲਈ ਆਪਣਾ ਪਾਸਫਰੇਜ਼ ਦਾਖਲ ਕਰੋ</translation>
 <translation id="5120334927898581447">ਹੋਰ Google ਸੇਵਾਵਾਂ ਵਿੱਚ ਸਾਈਨ-ਇਨ ਕਰਨ 'ਤੇ, Chrome ਵਿੱਚ ਸਾਈਨ-ਇਨ ਕਰੋ</translation>
 <translation id="5126049312684316860">Chrome ਉਨ੍ਹਾਂ ਪੰਨਿਆਂ ਤੋਂ ਵੀ ਜ਼ਿਆਦਾ ਪੰਨਿਆਂ ਨੂੰ ਪ੍ਰੀਲੋਡ ਕਰ ਦਿੰਦਾ ਹੈ ਜਿਨ੍ਹਾਂ 'ਤੇ ਤੁਹਾਡੇ ਜਾਣ ਦੀ ਸੰਭਾਵਨਾ ਹੁੰਦੀ ਹੈ, ਤਾਂ ਜੋ ਤੁਹਾਡੇ ਜਾਣ 'ਤੇ ਉਹ ਹੋਰ ਤੇਜ਼ੀ ਨਾਲ ਲੋਡ ਹੋ ਸਕਣ</translation>
@@ -491,6 +492,7 @@ Google Chrome ਤੁਹਾਡੀਆਂ ਸੈਟਿੰਗਾਂ ਮੁੜ-ਹਾ
 <translation id="6180522807229584611">ਇਹ ਟੈਬ ਵਾਧੂ ਸਰੋਤਾਂ ਦੀ ਵਰਤੋਂ ਕਰ ਰਹੀ ਹੈ। ਕਾਰਗੁਜ਼ਾਰੀ ਨੂੰ ਬਿਹਤਰ ਬਣਾਉਣ ਲਈ Chrome ਨੂੰ ਇਸ ਟੈਬ ਨੂੰ ਅਕਿਰਿਆਸ਼ੀਲ ਕਰਨ ਦਿਓ।</translation>
 <translation id="6182736845697986886">ਅੱਪਡੇਟ ਸਰਵਰ ਦੀ ਅੰਦਰੂਨੀ ਗੜਬੜ ਕਾਰਨ ਸਥਾਪਤ ਕਰਨਾ ਅਸਫਲ ਰਿਹਾ।</translation>
 <translation id="6183773856988300112">Chrome ਵਿੱਚ Gemini ਤੁਹਾਡੀਆਂ ਟੈਬਾਂ ਵਿੱਚ ਕੰਮ ਕਰਨ ਅਤੇ ਤੁਹਾਡੇ ਵੱਲੋਂ ਦਿੱਤੇ ਗਏ ਕਾਰਜਾਂ ਨੂੰ ਪੂਰਾ ਕਰਨ ਲਈ ਸਵੈਚਲਿਤ ਬ੍ਰਾਊਜ਼ ਦੀ ਵਰਤੋਂ ਕਰਦਾ ਹੈ। <ph name="LINK_BEGIN" />ਹੋਰ ਜਾਣੋ<ph name="LINK_END" /></translation>
+<translation id="6187085551300363958">Chrome ਨੁਕਤਾ: ਪਾਸਵਰਡ ਰੱਖਿਅਤ ਕਰੋ</translation>
 <translation id="6192058120268468905">Chrome ਵਿੱਚ ਤੁਹਾਡਾ ਖਾਤਾ</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" /> ਨੇ ਇੱਕ ਅਜਿਹੀ ਐਕਸਟੈਂਸ਼ਨ ਸ਼ਾਮਲ ਕੀਤੀ ਹੈ ਜੋ Chrome ਦੇ ਕੰਮ ਕਰਨ ਦੇ ਤਰੀਕੇ ਨੂੰ ਬਦਲ ਸਕਦੀ ਹੈ।
 
@@ -629,6 +631,7 @@ Google Chrome ਤੁਹਾਡੀਆਂ ਸੈਟਿੰਗਾਂ ਮੁੜ-ਹਾ
 <translation id="7627609214560473136">ਆਪਣੇ ਡਾਟੇ ਨੂੰ ਸੁਰੱਖਿਅਤ ਕਰਨ ਲਈ, Chrome ਨੂੰ ਉਨ੍ਹਾਂ ਸਾਈਟਾਂ ਤੋਂ ਇਜਾਜ਼ਤਾਂ ਹਟਾਉਣ ਦਿਓ ਜਿਨ੍ਹਾਂ 'ਤੇ ਤੁਸੀਂ ਹਾਲ ਹੀ ਵਿੱਚ ਨਹੀਂ ਗਏ ਹੋ।</translation>
 <translation id="7629695634924605473">Chrome ਤੁਹਾਨੂੰ ਇਹ ਗੱਲ ਦੱਸਦਾ ਹੈ ਕਿ ਤੁਹਾਡੇ ਪਾਸਵਰਡਾਂ ਨਾਲ ਪਹਿਲਾਂ ਕਦੇ ਛੇੜਛਾੜ ਹੋਈ ਹੈ ਜਾਂ ਨਹੀਂ</translation>
 <translation id="7641148173327520642">ਤੁਹਾਡੇ ਸਿਸਟਮ ਪ੍ਰਸ਼ਾਸਕ ਨੇ <ph name="TARGET_URL_HOSTNAME" /> ਤੱਕ ਪਹੁੰਚ ਕਰਨ ਵਾਸਤੇ <ph name="ALTERNATIVE_BROWSER_NAME" /> ਖੋਲ੍ਹਣ ਲਈ Google Chrome ਦਾ ਸੰਰੂਪਣ ਕੀਤਾ ਹੈ।</translation>
+<translation id="7641448682796883218">Chrome ਨੁਕਤਾ: ਵਿਸਤ੍ਰਿਤ ਸੁਰੱਖਿਅਤ ਬ੍ਰਾਊਜ਼ਿੰਗ</translation>
 <translation id="7649070708921625228">ਸਹਾਇਤਾ</translation>
 <translation id="7651907282515937834">Chrome Enterprise ਲੋਗੋ</translation>
 <translation id="76531479118467370">Chrome ਨੇ ਇਸ ਡਾਊਨਲੋਡ ਨੂੰ ਬਲਾਕ ਕਰ ਦਿੱਤਾ ਹੈ ਕਿਉਂਕਿ ਤੁਸੀਂ ਸੁਰੱਖਿਅਤ ਬ੍ਰਾਊਜ਼ਿੰਗ ਨੂੰ ਬੰਦ ਕਰ ਦਿੱਤਾ ਹੈ ਅਤੇ ਫ਼ਾਈਲ ਦੀ ਪੁਸ਼ਟੀ ਨਹੀਂ ਕੀਤੀ ਜਾ ਸਕਦੀ</translation>

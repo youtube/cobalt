@@ -64,6 +64,7 @@
 <translation id="1717996979683942279">如果開啟，網站可以要求管理所有螢幕上的視窗；如果關閉，網站就無法管理所有螢幕上的視窗。</translation>
 <translation id="1738912554587725807">新分頁外觀主題系列底部功能表</translation>
 <translation id="1743802530341753419">允許網站連線至裝置前，必須先詢問你 (建議)</translation>
+<translation id="1766455884659449403">接收 Chrome 提示通知</translation>
 <translation id="1777815584158991902">「探索」動態消息底部功能表</translation>
 <translation id="1779089405699405702">影像解碼器</translation>
 <translation id="1785415724048343560">建議勾選以獲得最佳體驗</translation>
@@ -188,11 +189,9 @@
 <translation id="2903493209154104877">地址</translation>
 <translation id="2910701580606108292">允許網站播放受保護的內容前，必須先詢問你</translation>
 <translation id="2918484639460781603">前往設定</translation>
-<translation id="293060180538644702">接收 Chrome 提示通知</translation>
 <translation id="2932883381142163287">檢舉濫用情形</translation>
 <translation id="2939338015096024043">如果啟用，網站就可以要求追蹤攝影機位置，並瞭解周遭環境動靜。如果停用，網站將無法追蹤攝影機位置，也無法瞭解周遭環境動靜。</translation>
 <translation id="2968755619301702150">憑證檢視器</translation>
-<translation id="2979365474350987274">限制使用第三方 Cookie</translation>
 <translation id="2990583317361835189">禁止網站使用動作感應器</translation>
 <translation id="3004438526346162184">網站可透過這項功能管理所有螢幕上的視窗</translation>
 <translation id="3008272652534848354">重設權限</translation>
@@ -220,7 +219,6 @@
 <translation id="3223425961342298674">不允許存取位置資訊</translation>
 <translation id="3227137524299004712">麥克風</translation>
 <translation id="3232293466644486101">刪除瀏覽資料…</translation>
-<translation id="3241320538788585298">回送網路</translation>
 <translation id="3242646949159196181">如果啟用，網站就可以播放音效。如果停用，網站將無法播放音效。</translation>
 <translation id="3273479183583863618">分頁中的降價資訊</translation>
 <translation id="3277252321222022663">允許網站存取感應器 (建議)</translation>
@@ -403,6 +401,7 @@
 <translation id="5246825184569358663">這項操作會刪除 Cookie 等所有本機資料，並重設 <ph name="DOMAIN" /> 和該網域中每個網站的所有權限</translation>
 <translation id="5264323282659631142">移除「<ph name="CHIP_LABEL" />」</translation>
 <translation id="528192093759286357">從頂端拖曳並輕觸返回按鈕即可結束全螢幕模式。</translation>
+<translation id="5286194356314741248">掃描中</translation>
 <translation id="5300589172476337783">顯示</translation>
 <translation id="5301954838959518834">好，我知道了</translation>
 <translation id="5317780077021120954">儲存</translation>
@@ -631,7 +630,6 @@
 <translation id="7835852323729233924">正在播放媒體</translation>
 <translation id="783819812427904514">將影片取消靜音</translation>
 <translation id="7846076177841592234">全部取消選取</translation>
-<translation id="7881140103901777395">Chrome 會限制大多數網站使用第三方 Cookie，但允許這個網站使用第三方 Cookie，因為這個網站需要使用 Cookie 才能提供基本服務。\n\n前往設定頁面<ph name="BEGIN_LINK" />管理第三方 Cookie 存取權<ph name="END_LINK" />。</translation>
 <translation id="7882806643839505685">允許特定網站播放音訊。</translation>
 <translation id="7891547341794213004">隱藏「繼續使用這個分頁」資訊卡</translation>
 <translation id="789722939441020330">禁止網站自動下載多個檔案</translation>

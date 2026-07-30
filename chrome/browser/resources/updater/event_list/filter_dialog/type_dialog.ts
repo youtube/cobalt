@@ -49,16 +49,18 @@ export class TypeDialogElement extends CrLitElement {
           label: loadTimeData.getString('updateOutcome'),
         },
         {
+          filterCategory: FilterCategory.SCOPE,
+          label: loadTimeData.getString('scope'),
+        },
+        {
           filterCategory: FilterCategory.DATE,
           label: loadTimeData.getString('date'),
         },
       ];
 
-  override updated(changedProperties: PropertyValues<this>) {
-    super.updated(changedProperties);
-    const focusTarget =
-        this.shadowRoot.querySelector<HTMLElement>('.filter-menu-item');
-    focusTarget?.focus();
+  override firstUpdated(changedProperties: PropertyValues<this>) {
+    super.firstUpdated(changedProperties);
+    this.shadowRoot.querySelector<HTMLElement>('.filter-menu-item')?.focus();
   }
 
   protected onClick(e: MouseEvent) {

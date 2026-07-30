@@ -47,6 +47,7 @@
 #import "ios/chrome/browser/content_suggestions/coordinator/content_suggestions_delegate.h"
 #import "ios/chrome/browser/content_suggestions/coordinator/content_suggestions_mediator.h"
 #import "ios/chrome/browser/content_suggestions/ui/content_suggestions_collection_utils.h"
+#import "ios/chrome/browser/content_suggestions/ui/content_suggestions_view_controller.h"
 #import "ios/chrome/browser/context_menu/ui_bundled/link_preview/link_preview_coordinator.h"
 #import "ios/chrome/browser/discover_feed/model/discover_feed_observer_bridge.h"
 #import "ios/chrome/browser/discover_feed/model/discover_feed_service.h"
@@ -97,13 +98,13 @@
 #import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
 #import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_util.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/tab_grid_state.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/model/profile/features.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
-#import "ios/chrome/browser/shared/public/commands/application_commands.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
@@ -111,6 +112,7 @@
 #import "ios/chrome/browser/shared/public/commands/omnibox_commands.h"
 #import "ios/chrome/browser/shared/public/commands/open_lens_input_selection_command.h"
 #import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
+#import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/chrome/browser/shared/public/commands/show_signin_command.h"
 #import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
@@ -131,8 +133,6 @@
 #import "ios/chrome/browser/signin/model/system_identity_manager.h"
 #import "ios/chrome/browser/supervised_user/model/family_link_user_capabilities_observer_bridge.h"
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
-#import "ios/chrome/browser/tab_switcher/tab_grid/base_grid/coordinator/tab_grid_observing.h"
-#import "ios/chrome/browser/tab_switcher/tab_grid/base_grid/coordinator/tab_grid_scene_agent.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/public/fakebox_focuser.h"
 #import "ios/chrome/browser/toolbar/tab_group/coordinator/tab_group_indicator_coordinator.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
@@ -168,7 +168,7 @@
                                      OverscrollActionsControllerDelegate,
                                      ProfileStateObserver,
                                      SceneStateObserver,
-                                     TabGridObserving,
+                                     TabGridStateObserver,
                                      FamilyLinkUserCapabilitiesObserving,
                                      NewTabPageShortcutsHandler> {
   // Observes changes in the IdentityManager.
@@ -331,7 +331,7 @@
   [sceneState addObserver:self];
 
   if (IsNTPBackgroundCustomizationEnabled()) {
-    [[TabGridSceneAgent agentFromScene:sceneState] addObserver:self];
+    [sceneState.tabGridState addObserver:self];
   }
 
   // Configures incognito NTP if user is in incognito mode.
@@ -398,7 +398,7 @@
   [sceneState removeObserver:self];
 
   if (IsNTPBackgroundCustomizationEnabled()) {
-    [[TabGridSceneAgent agentFromScene:sceneState] removeObserver:self];
+    [sceneState.tabGridState removeObserver:self];
   }
 
   if (self.isOffTheRecord) {
@@ -1023,6 +1023,12 @@
 #pragma mark - ContentSuggestionsDelegate
 
 - (void)contentSuggestionsWasUpdated {
+  // Force a layout to make sure the frame height is successfully updated,
+  // before updating height above the feed.
+  UIView* contentSuggestionsView =
+      self.NTPViewController.contentSuggestionsViewController.view;
+  [contentSuggestionsView setNeedsLayout];
+  [contentSuggestionsView layoutIfNeeded];
   [self.NTPViewController updateHeightAboveFeed];
 }
 
@@ -1308,9 +1314,9 @@
 #pragma mark - OverscrollActionsControllerDelegate
 
 - (void)overscrollActionNewTab:(OverscrollActionsController*)controller {
-  id<ApplicationCommands> applicationCommandsHandler = HandlerForProtocol(
-      self.browser->GetCommandDispatcher(), ApplicationCommands);
-  [applicationCommandsHandler openURLInNewTab:[OpenNewTabCommand command]];
+  id<SceneCommands> sceneHandler =
+      HandlerForProtocol(self.browser->GetCommandDispatcher(), SceneCommands);
+  [sceneHandler openURLInNewTab:[OpenNewTabCommand command]];
   [self.NTPMetricsRecorder
       recordOverscrollActionForType:OverscrollActionType::kOpenedNewTab];
 }
@@ -1815,8 +1821,7 @@
 
 - (void)openMIA {
   [self.NTPMetricsRecorder recordMIATapped];
-  if (contextual_search::ContextualSearchService::IsContextSharingEnabled(
-          self.prefService) &&
+  if (!IsComposeboxAIMDisabled() &&
       MaybeShowComposebox(self.browser, ComposeboxEntrypoint::kNTPAIMButton)) {
     return;
   }
@@ -1827,9 +1832,9 @@
   command.extraHeaders =
       web_navigation_util::VariationHeadersForURL(URL, /*is_incognito=*/false);
 
-  id<ApplicationCommands> applicationHandler = HandlerForProtocol(
-      self.browser->GetCommandDispatcher(), ApplicationCommands);
-  [applicationHandler openURLInNewTab:command];
+  id<SceneCommands> sceneHandler =
+      HandlerForProtocol(self.browser->GetCommandDispatcher(), SceneCommands);
+  [sceneHandler openURLInNewTab:command];
 }
 
 - (void)preloadVoiceSearch {
@@ -1847,9 +1852,9 @@
   [layoutGuideCenter referenceView:voiceSearchSourceView
                          underName:kVoiceSearchButtonGuide];
 
-  id<ApplicationCommands> applicationHandler = HandlerForProtocol(
-      self.browser->GetCommandDispatcher(), ApplicationCommands);
-  [applicationHandler startVoiceSearch];
+  id<SceneCommands> sceneHandler =
+      HandlerForProtocol(self.browser->GetCommandDispatcher(), SceneCommands);
+  [sceneHandler startVoiceSearch];
 }
 
 - (void)openIncognitoSearch {
@@ -1858,12 +1863,12 @@
 
   OpenNewTabCommand* command = [OpenNewTabCommand commandWithIncognito:YES];
   command.shouldFocusOmnibox = YES;
-  id<ApplicationCommands> applicationHandler = HandlerForProtocol(
-      self.browser->GetCommandDispatcher(), ApplicationCommands);
-  [applicationHandler openURLInNewTab:command];
+  id<SceneCommands> sceneHandler =
+      HandlerForProtocol(self.browser->GetCommandDispatcher(), SceneCommands);
+  [sceneHandler openURLInNewTab:command];
 }
 
-#pragma mark - TabGridObserving
+#pragma mark - TabGridStateObserver
 
 - (void)willEnterTabGrid {
   [self clearPresentedState];

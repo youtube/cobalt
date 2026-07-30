@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.ntp_customization.theme;
 
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType.CHROME_COLOR;
+import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType.COLOR_FROM_HEX;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType.DEFAULT;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType.IMAGE_FROM_DISK;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType.THEME_COLLECTION;
@@ -151,6 +152,13 @@ public class NtpThemeMediator {
                 continue;
             }
 
+            if (i == COLOR_FROM_HEX && sectionType == CHROME_COLOR) {
+                // Prevents overriding the visibility from visible to invisible if the user chooses
+                // a customized color theme. This is because both types share the same bottom sheet
+                // list item.
+                continue;
+            }
+
             if (i == sectionType) {
                 mThemePropertyModel.set(IS_SECTION_TRAILING_ICON_VISIBLE, new Pair<>(i, true));
             } else {
@@ -172,7 +180,6 @@ public class NtpThemeMediator {
             // When a new image is selected, store it and reset any existing crop settings from a
             // previous image.
             ShareImageFileUtils.getBitmapFromUriAsync(mContext, uri, mOnImageSelectedCallback);
-            updateTrailingIconVisibilityForSectionType(IMAGE_FROM_DISK);
             mNtpThemeCollectionManager.selectLocalBackgroundImage();
         }
 

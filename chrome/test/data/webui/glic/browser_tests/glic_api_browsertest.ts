@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import {CaptureRegionErrorReason, HostCapability, MetricUserInputReactionType, PanelStateKind, ResponseStopCause, ScrollToErrorReason, WebClientMode} from '/glic/glic_api/glic_api.js';
-import type {CaptureRegionResult, FocusedTabData, GetPinCandidatesOptions, GlicBrowserHost, OpenPanelInfo, PageMetadata, PanelOpeningData, ScrollToError, TabData, UserProfileInfo, ZeroStateSuggestionsV2} from '/glic/glic_api/glic_api.js';
+import type {CancelActionsResult, CaptureRegionResult, FocusedTabData, GetPinCandidatesOptions, GlicBrowserHost, OpenPanelInfo, PageMetadata, PanelOpeningData, ScrollToError, TabData, UserProfileInfo, ZeroStateSuggestionsV2} from '/glic/glic_api/glic_api.js';
 
 import {ApiTestError, ApiTestFixtureBase, assertDefined, assertEquals, assertFalse, assertNotEquals, assertRejects, assertTrue, assertUndefined, checkDefined, mapObservable, observeSequence, readStream, runUntil, sleep, testMain, waitFor, WebClient} from './browser_test_base.js';
 import type {SequencedSubscriber} from './browser_test_base.js';
@@ -40,6 +40,13 @@ class ApiTests extends ApiTestFixtureBase {
   async testHibernateAllAggressiveOnMemoryPressure() {}
 
   async testHibernateOnMemoryUsage() {}
+
+  async testCancelActions() {
+    assertDefined(this.host.cancelActions);
+    const taskId: number = this.testParams;
+    const result: CancelActionsResult = await this.host.cancelActions(taskId);
+    await this.advanceToNextStep(result);
+  }
 
   async testDoNothing() {}
 
@@ -1107,20 +1114,6 @@ class ApiTests extends ApiTestFixtureBase {
     assertDefined(this.host.setSyntheticExperimentState);
     this.host.setSyntheticExperimentState('TestTrial', 'Group1');
     this.host.setSyntheticExperimentState('TestTrial', 'Group2');
-  }
-
-  async testSetWindowDraggableAreas() {
-    const draggableAreas = [{x: 10, y: 20, width: 30, height: 40}];
-    assertDefined(this.host.setWindowDraggableAreas);
-    await this.host.setWindowDraggableAreas(
-        draggableAreas,
-    );
-    await this.advanceToNextStep(draggableAreas);
-  }
-
-  async testSetWindowDraggableAreasDefault() {
-    assertDefined(this.host.setWindowDraggableAreas);
-    await this.host.setWindowDraggableAreas([]);
   }
 
   async testSetMinimumWidgetSize() {
@@ -2516,6 +2509,11 @@ class ApiTests extends ApiTestFixtureBase {
     }
   }
 
+  async testPanelWillOpenHasPromptSuggestion() {
+    const openData = await observeSequence(this.client.panelOpenData).next();
+    assertEquals('Prompt Suggestion', openData.promptSuggestion);
+  }
+
   async testGetTabById() {
     assertDefined(this.host.getTabById);
 
@@ -2805,6 +2803,9 @@ class DaisyChainApiTests extends ApiTestFixtureBase {
 
   // Helper to handle the daisy chain actions.
   async handleDaisyChainStep(action: string) {
+    await this.client.waitForInitialize();
+    await this.client.waitForFirstOpen();
+
     if (action === 'createTab') {
       await this.clickLinkInGlicUi();
     } else if (action === 'inputSubmitted') {
@@ -2819,6 +2820,10 @@ class DaisyChainApiTests extends ApiTestFixtureBase {
   }
 
   async testDaisyChainRecursiveAndInput() {
+    await this.handleDaisyChainStep(this.testParams);
+  }
+
+  async testNewTabMetrics() {
     await this.handleDaisyChainStep(this.testParams);
   }
 }

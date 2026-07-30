@@ -22,7 +22,6 @@
 #include "build/buildflag.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/extension_service_test_base.h"
-#include "chrome/browser/extensions/unpacked_installer.h"
 #include "chrome/browser/search/background/ntp_custom_background_service_factory.h"
 #include "chrome/browser/themes/custom_theme_supplier.h"
 #include "chrome/browser/themes/test/theme_service_changed_waiter.h"
@@ -48,6 +47,7 @@
 #include "extensions/browser/extension_util.h"
 #include "extensions/browser/test_extension_registry_observer.h"
 #include "extensions/browser/uninstall_reason.h"
+#include "extensions/browser/unpacked_installer.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_id.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -977,6 +977,27 @@ TEST_F(ThemeServiceTest, UseDeviceTheme_ExplicitlyTrue) {
   EXPECT_TRUE(theme_service()->UsingDeviceTheme());
 }
 #endif  // IS_CHROMEOS
+
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
+// Verify that UseDefaultTheme() clears the system theme follow preference.
+TEST_F(ThemeServiceTest, UseDefaultTheme_ClearsSystemThemeFollow) {
+  // Set the preference to true first
+  theme_service()->UseDeviceTheme(true);
+  EXPECT_FALSE(profile()
+                   ->GetPrefs()
+                   ->FindPreference(prefs::kBrowserFollowsSystemThemeColors)
+                   ->IsDefaultValue());
+
+  // Call UseDefaultTheme()
+  theme_service()->UseDefaultTheme();
+
+  // Verify the preference was cleared (not set to false, but actually cleared)
+  EXPECT_TRUE(profile()
+                  ->GetPrefs()
+                  ->FindPreference(prefs::kBrowserFollowsSystemThemeColors)
+                  ->IsDefaultValue());
+}
+#endif
 
 TEST_F(ThemeServiceTest, SetUseDeviceTheme) {
   theme_service()->UseDeviceTheme(false);

@@ -7,7 +7,6 @@
 #include <optional>
 #include <vector>
 
-#include "base/containers/contains.h"
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
 #include "base/notreached.h"
@@ -96,11 +95,8 @@ void MaybeDeleteTabsAndAddToSavedTabGroup(
   // Ungroup any tabs that are in open but not saved groups.
   // Keep a vector of tab pointers in case the indices change after the
   // ungrouping operation.
-  std::vector<tabs::TabInterface*> tab_ptrs_to_close;
-
-  for (int index : tab_indices_to_close) {
-    tab_ptrs_to_close.push_back(tab_strip_model->GetTabAtIndex(index));
-  }
+  std::vector<tabs::TabInterface*> tab_ptrs_to_close =
+      tab_strip_model->GetTabsAtIndices(tab_indices_to_close);
 
   tab_strip_model->RemoveFromGroup(tab_indices_to_close);
 
@@ -426,8 +422,8 @@ bool ExistingTabGroupSubMenuModel::ShouldShowGroup(
       return true;
     }
   } else {
-    for (int index : model->selection_model().selected_indices()) {
-      if (group != model->GetTabGroupForTab(index)) {
+    for (tabs::TabInterface* t : model->selection_model().selected_tabs()) {
+      if (group != t->GetGroup()) {
         return true;
       }
     }
@@ -435,6 +431,7 @@ bool ExistingTabGroupSubMenuModel::ShouldShowGroup(
   return false;
 }
 
+// TODO(crbug.com/435178910) Remove this usage of ListSelectionModel.
 std::vector<int> ExistingTabGroupSubMenuModel::GetSelectedIndices() {
   if (!model()->IsTabSelected(GetContextIndex())) {
     // If the context index is not selected, set it as the selected index.
@@ -442,7 +439,7 @@ std::vector<int> ExistingTabGroupSubMenuModel::GetSelectedIndices() {
   } else {
     // Use the currently selected indices.
     const ui::ListSelectionModel::SelectedIndices selection_indices =
-        model()->selection_model().selected_indices();
+        model()->selection_model().GetListSelectionModel().selected_indices();
     return std::vector<int>(selection_indices.begin(), selection_indices.end());
   }
 }

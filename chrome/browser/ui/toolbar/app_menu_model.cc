@@ -404,7 +404,8 @@ std::u16string GetOpenPWALabel(const Browser* browser) {
   return l10n_util::GetStringFUTF16(
       IDS_OPEN_IN_APP_WINDOW,
       ui::EscapeMenuLabelAmpersands(gfx::TruncateString(
-          short_name, GetLayoutConstant(APP_MENU_MAXIMUM_CHARACTER_LENGTH),
+          short_name,
+          GetLayoutConstant(LayoutConstant::kAppMenuMaximumCharacterLength),
           gfx::CHARACTER_BREAK)));
 }
 
@@ -479,7 +480,7 @@ ProfileSubMenuModel::ProfileSubMenuModel(
       app_menu_model_delegate_(delegate),
       next_other_profile_menu_id_(AppMenuModel::kMinOtherProfileCommandId) {
   const int avatar_icon_size =
-      GetLayoutConstant(APP_MENU_PROFILE_ROW_AVATAR_ICON_SIZE);
+      GetLayoutConstant(LayoutConstant::kAppMenuProfileRowAvatarIconSize);
   avatar_image_model_ = ui::ImageModel::FromVectorIcon(
       kAccountCircleChromeRefreshIcon, ui::kColorMenuIcon, avatar_icon_size);
   if (profile->IsIncognitoProfile()) {
@@ -541,7 +542,7 @@ ProfileSubMenuModel::ProfileSubMenuModel(
           menu_id,
           ui::EscapeMenuLabelAmpersands(gfx::TruncateString(
               display_name,
-              GetLayoutConstant(APP_MENU_MAXIMUM_CHARACTER_LENGTH),
+              GetLayoutConstant(LayoutConstant::kAppMenuMaximumCharacterLength),
               gfx::CHARACTER_BREAK)),
           ui::ImageModel::FromImage(profiles::GetSizedAvatarIcon(
               profile_entry->GetAvatarIcon(
@@ -677,8 +678,10 @@ bool ProfileSubMenuModel::BuildSyncSection() {
           icon = &vector_icons::kErrorOutlineIcon;
           break;
         case syncer::SyncService::UserActionableError::kBookmarksLimitExceeded:
-          // TODO(crbug.com/452968646): Adjust this with providing the concrete
-          // help center article link.
+          // TODO(crbug.com/452968646): For kBookmarksLimitExceeded, lead to
+          // sync settings instead of a help article. The "Learn more" string is
+          // generic, and the sync settings page would show the user the
+          // specific error.
           break;
       }
       AddItemWithStringIdAndVectorIcon(this, command_id, button_string_id,

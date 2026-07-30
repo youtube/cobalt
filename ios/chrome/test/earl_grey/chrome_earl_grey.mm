@@ -186,10 +186,6 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration) {
   return [ChromeEarlGreyAppInterface isCurrentLayoutBottomOmnibox];
 }
 
-- (BOOL)isEnhancedSafeBrowsingInfobarEnabled {
-  return [ChromeEarlGreyAppInterface isEnhancedSafeBrowsingInfobarEnabled];
-}
-
 - (BOOL)isAskGeminiChipEnabled {
   return [ChromeEarlGreyAppInterface isAskGeminiChipEnabled];
 }
@@ -1428,10 +1424,6 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration) {
   return [ChromeEarlGreyAppInterface areMultipleWindowsSupported];
 }
 
-- (BOOL)isNewOverflowMenuEnabled {
-  return [ChromeEarlGreyAppInterface isNewOverflowMenuEnabled];
-}
-
 // Returns whether the UseLensToSearchForImage feature is enabled;
 - (BOOL)isUseLensToSearchForImageEnabled {
   return [ChromeEarlGreyAppInterface isUseLensToSearchForImageEnabled];
@@ -1521,6 +1513,11 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration) {
 
 - (void)setAppGroupCommandToSearchText:(NSString*)text {
   return [ChromeEarlGreyAppInterface setAppGroupCommandToSearchText:text];
+}
+
+- (void)setAppGroupCommandToIncognitoSearchText:(NSString*)text {
+  return
+      [ChromeEarlGreyAppInterface setAppGroupCommandToIncognitoSearchText:text];
 }
 
 #pragma mark - Pref Utilities (EG2)

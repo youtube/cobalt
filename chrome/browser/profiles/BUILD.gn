@@ -318,6 +318,7 @@ source_set("profiles_extra_parts_impl") {
     "//chrome/browser/segmentation_platform",
     "//chrome/browser/send_tab_to_self",
     "//chrome/browser/serial",
+    "//chrome/browser/sharing",
     "//chrome/browser/signin",
     "//chrome/browser/storage_access_api",
     "//chrome/browser/subscription_eligibility",
@@ -389,6 +390,7 @@ source_set("profiles_extra_parts_impl") {
       "//chrome/browser/devtools",
       "//chrome/browser/feedback",
       "//chrome/browser/hid",
+      "//chrome/browser/legion",
       "//chrome/browser/media/router/discovery/access_code:access_code_sink_service",
       "//chrome/browser/screen_ai:screen_ai_service_router_factory",
       "//chrome/browser/search",
@@ -469,7 +471,7 @@ source_set("profiles_extra_parts_impl") {
 
   if (enable_glic || enable_glic_android) {
     deps += [ "//chrome/browser/glic" ]
-    if (enable_glic) {
+    if (!is_android) {
       deps += [ "//chrome/browser/ui/tabs:glic" ]
     }
   }

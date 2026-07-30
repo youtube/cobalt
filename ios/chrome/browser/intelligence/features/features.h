@@ -280,10 +280,9 @@ bool IsWebPageReportedImagesSheetEnabled();
 BASE_DECLARE_FEATURE(kGeminiImageRemixTool);
 bool IsGeminiImageRemixToolEnabled();
 
-// Feature flag for enabling passing an image from the long-press context menu
-// to Gemini.
-BASE_DECLARE_FEATURE(kImageContextMenuGeminiEntryPoint);
-bool IsImageContextMenuGeminiEntryPointEnabled();
+// Returns true if the Gemini FRE should show the image remix row.
+bool IsGeminiImageRemixToolShowFRERowEnabled();
+extern const char kGeminiImageRemixToolShowFRERow[];
 
 // Feature flag for enabling the Gemini eligibility ablation experiment.
 BASE_DECLARE_FEATURE(kGeminiEligibilityAblation);
@@ -309,8 +308,8 @@ bool IsGeminiDynamicSettingsEnabled();
 BASE_DECLARE_FEATURE(kActuationTools);
 bool IsActuationEnabled();
 
-// Returns true if the specified action is disabled via the "DisabledActions"
+// Returns true if the specified tool is disabled via the "DisabledTools"
 // feature parameter of the `kActuationTools` feature.
-bool IsActionDisabled(optimization_guide::proto::Action::ActionCase action);
+bool IsToolDisabled(optimization_guide::proto::Action::ActionCase tool);
 
 #endif  // IOS_CHROME_BROWSER_INTELLIGENCE_FEATURES_FEATURES_H_

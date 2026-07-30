@@ -9,7 +9,10 @@
 
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/layout_constants.h"
+#include "chrome/browser/ui/tabs/tab_style.h"
+#include "chrome/browser/ui/views/tabs/glow_hover_controller.h"
 #include "chrome/browser/ui/views/tabs/vertical/tab_collection_node.h"
+#include "chrome/browser/ui/views/tabs/vertical/vertical_tab_view.h"
 #include "components/tabs/public/tab_collection.h"
 #include "components/tabs/public/tab_interface.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -22,7 +25,10 @@
 #include "ui/views/widget/widget.h"
 
 VerticalSplitTabView::VerticalSplitTabView(TabCollectionNode* collection_node)
-    : collection_node_(collection_node) {
+    : collection_node_(collection_node),
+      hover_controller_(gfx::Animation::ShouldRenderRichAnimation()
+                            ? std::make_unique<GlowHoverController>(this)
+                            : nullptr) {
   SetLayoutManager(std::make_unique<views::DelegatingLayoutManager>(this));
   node_destroyed_subscription_ =
       collection_node_->RegisterWillDestroyCallback(base::BindOnce(
@@ -30,6 +36,9 @@ VerticalSplitTabView::VerticalSplitTabView(TabCollectionNode* collection_node)
   data_changed_subscription_ =
       collection_node_->RegisterDataChangedCallback(base::BindRepeating(
           &VerticalSplitTabView::OnDataChanged, base::Unretained(this)));
+
+  // Ensures this view gets mouse events as well its children.
+  SetNotifyEnterExitOnChild(true);
 
   OnDataChanged();
 }
@@ -45,10 +54,59 @@ void VerticalSplitTabView::AddedToWidget() {
   paint_as_active_subscription_ =
       GetWidget()->RegisterPaintAsActiveChangedCallback(base::BindRepeating(
           &VerticalSplitTabView::UpdateBorder, base::Unretained(this)));
+  UpdateHovered(IsMouseHovered());
 }
 
 void VerticalSplitTabView::RemovedFromWidget() {
   paint_as_active_subscription_ = {};
+}
+
+void VerticalSplitTabView::OnMouseMoved(const ui::MouseEvent& event) {
+  // Linux enter/leave events are sometimes flaky, so we don't want to "miss"
+  // an enter event and fail to hover the tab.
+  UpdateHovered(true);
+}
+
+void VerticalSplitTabView::OnMouseEntered(const ui::MouseEvent& event) {
+  UpdateHovered(true);
+}
+
+void VerticalSplitTabView::OnMouseExited(const ui::MouseEvent& event) {
+  UpdateHovered(false);
+}
+
+void VerticalSplitTabView::UpdateHovered(bool hovered) {
+  if (hovered_ == hovered) {
+    return;
+  }
+
+  hovered_ = hovered;
+
+  float radial_highlight_opacity = 1.0f;
+  for (views::View* child : children()) {
+    if (auto* tab_view = views::AsViewClass<VerticalTabView>(child)) {
+      tab_view->UpdateHovered(hovered_);
+      radial_highlight_opacity = tab_view->radial_highlight_opacity();
+    }
+  }
+
+  if (hover_controller_) {
+    if (hovered_) {
+      hover_controller_->SetSubtleOpacityScale(radial_highlight_opacity);
+      hover_controller_->Show(TabStyle::ShowHoverStyle::kSubtle);
+    } else {
+      hover_controller_->Hide(TabStyle::HideHoverStyle::kGradual);
+    }
+  }
+
+  SchedulePaint();
+}
+
+double VerticalSplitTabView::GetHoverAnimationValue() const {
+  if (!hover_controller_) {
+    return hovered_ ? 1.0 : 0.0;
+  }
+  return hover_controller_->GetAnimationValue();
 }
 
 views::ProposedLayout VerticalSplitTabView::CalculateProposedLayout(
@@ -57,7 +115,9 @@ views::ProposedLayout VerticalSplitTabView::CalculateProposedLayout(
   int width = 0;
   int height = 0;
 
-  const auto children = collection_node_->GetDirectChildren();
+  const std::vector<views::View*> children =
+      collection_node_ ? collection_node_->GetDirectChildren()
+                       : std::vector<views::View*>();
   if (children.size() != 2) {
     layouts.host_size = gfx::Size(0, 0);
     return layouts;
@@ -68,8 +128,9 @@ views::ProposedLayout VerticalSplitTabView::CalculateProposedLayout(
   // will share it, otherwise they will be stacked vertically.
   if (!size_bounds.width().is_bounded() ||
       size_bounds.width().value() >=
-          static_cast<int>(GetLayoutConstant(VERTICAL_TAB_MIN_WIDTH) *
-                           children.size())) {
+          static_cast<int>(
+              GetLayoutConstant(LayoutConstant::kVerticalTabMinWidth) *
+              children.size())) {
     int x = 0;
     for (auto* child : children) {
       gfx::Rect bounds = gfx::Rect(child->GetPreferredSize());
@@ -116,8 +177,8 @@ void VerticalSplitTabView::UpdateBorder() {
     const bool is_frame_active =
         GetWidget() ? GetWidget()->ShouldPaintAsActive() : true;
     SetBorder(views::CreateRoundedRectBorder(
-        GetLayoutConstant(VERTICAL_TAB_PINNED_BORDER_THICKNESS),
-        GetLayoutConstant(VERTICAL_TAB_CORNER_RADIUS),
+        GetLayoutConstant(LayoutConstant::kVerticalTabPinnedBorderThickness),
+        GetLayoutConstant(LayoutConstant::kVerticalTabCornerRadius),
         is_frame_active ? kColorTabDividerFrameActive
                         : kColorTabDividerFrameInactive));
   } else {

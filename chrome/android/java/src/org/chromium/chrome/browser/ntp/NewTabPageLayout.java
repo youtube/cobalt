@@ -36,6 +36,7 @@ import org.chromium.chrome.R;
 import org.chromium.chrome.browser.composeplate.ComposeplateCoordinator;
 import org.chromium.chrome.browser.composeplate.ComposeplateMetricsUtils;
 import org.chromium.chrome.browser.composeplate.ComposeplateUtils;
+import org.chromium.chrome.browser.device_lock.DeviceLockActivityLauncherImpl;
 import org.chromium.chrome.browser.feed.FeedSurfaceScrollDelegate;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.incognito.IncognitoUtils;
@@ -61,12 +62,14 @@ import org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesLayout;
 import org.chromium.chrome.browser.suggestions.tile.TileGroup;
 import org.chromium.chrome.browser.suggestions.tile.TileGroup.Delegate;
 import org.chromium.chrome.browser.tab_ui.InvalidationAwareThumbnailProvider;
+import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.native_page.TouchEnabledDelegate;
 import org.chromium.chrome.browser.ui.signin.signin_promo.NtpSigninPromoCoordinator;
 import org.chromium.chrome.browser.url_constants.UrlConstantResolver;
 import org.chromium.chrome.browser.url_constants.UrlConstantResolverFactory;
 import org.chromium.chrome.browser.util.BrowserUiUtils;
 import org.chromium.chrome.browser.util.BrowserUiUtils.ModuleTypeOnStartAndNtp;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.widget.RoundedCornerOutlineProvider;
 import org.chromium.components.browser_ui.widget.displaystyle.DisplayStyleObserver;
 import org.chromium.components.browser_ui.widget.displaystyle.HorizontalDisplayStyle;
@@ -76,8 +79,10 @@ import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.components.signin.SigninFeatureMap;
 import org.chromium.components.signin.SigninFeatures;
 import org.chromium.content_public.browser.LoadUrlParams;
+import org.chromium.ui.base.ActivityResultTracker;
 import org.chromium.ui.base.MimeTypeUtils;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.text.EmptyTextWatcher;
 import org.chromium.ui.util.ColorUtils;
 import org.chromium.url.GURL;
@@ -96,6 +101,7 @@ public class NewTabPageLayout extends LinearLayout
 
     private int mSearchBoxTwoSideMargin;
     private final Context mContext;
+    private final int mPaddingForShadowPx;
 
     private LogoCoordinator mLogoCoordinator;
     private LogoView mLogoView;
@@ -106,8 +112,13 @@ public class NewTabPageLayout extends LinearLayout
     private @Nullable OnSearchBoxScrollListener mSearchBoxScrollListener;
 
     private NewTabPageManager mManager;
+    private WindowAndroid mWindowAndroid;
     private Activity mActivity;
     private Profile mProfile;
+    private ActivityResultTracker mActivityResultTracker;
+    private BottomSheetController mBottomSheetController;
+    private Supplier<ModalDialogManager> mModalDialogManagerSupplier;
+    private SnackbarManager mSnackbarManager;
     private UiConfig mUiConfig;
     private @Nullable DisplayStyleObserver mDisplayStyleObserver;
     private CallbackController mCallbackController = new CallbackController();
@@ -139,7 +150,6 @@ public class NewTabPageLayout extends LinearLayout
     private boolean mTileCountChanged;
 
     private boolean mSnapshotTileGridChanged;
-    private WindowAndroid mWindowAndroid;
 
     /**
      * Vertical inset to add to the top and bottom of the search box bounds. May be 0 if no inset
@@ -159,6 +169,7 @@ public class NewTabPageLayout extends LinearLayout
     private Callback<Logo> mOnLogoAvailableCallback;
     private boolean mIsComposeplateEnabled;
     private boolean mIsComposeplateV2Enabled;
+    private boolean mIsComposeplatePolicyEnabled;
     private @Nullable Supplier<GURL> mComposeplateUrlSupplier;
     private OnClickListener mVoiceSearchButtonClickListener;
     private OnClickListener mLensButtonClickListener;
@@ -180,6 +191,8 @@ public class NewTabPageLayout extends LinearLayout
     // ENABLE_SEAMLESS_SIGNIN is removed after the experiment.
     private @Nullable NtpSigninPromoCoordinator mSigninPromoCoordinator;
 
+    private @Nullable Boolean mIsWhiteBackgroundOnSearchBoxApplied;
+
     /** Constructor for inflating from XML. */
     public NewTabPageLayout(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -195,6 +208,9 @@ public class NewTabPageLayout extends LinearLayout
         mFakeSearchBoxStartPaddingWithDseLogo =
                 resources.getDimensionPixelSize(
                         R.dimen.fake_search_box_start_padding_with_dse_logo);
+        mPaddingForShadowPx =
+                resources.getDimensionPixelSize(
+                        R.dimen.composeplate_view_button_padding_for_shadow_bottom);
     }
 
     @Override
@@ -230,6 +246,10 @@ public class NewTabPageLayout extends LinearLayout
      * @param lifecycleDispatcher Activity lifecycle dispatcher.
      * @param profile The {@link Profile} associated with the NTP.
      * @param windowAndroid An instance of a {@link WindowAndroid}.
+     * @param activityResultTracker Tracker of activity results.
+     * @param bottomSheetController Used to interact with the bottom sheet.
+     * @param modalDialogManagerSupplier Supplies the {@link ModalDialogManager}.
+     * @param snackbarManager Manages snackbars shown in the app.
      * @param isTablet {@code true} if the NTP surface is in tablet mode.
      * @param tabStripHeightSupplier Supplier of the tab strip height.
      */
@@ -246,6 +266,10 @@ public class NewTabPageLayout extends LinearLayout
             ActivityLifecycleDispatcher lifecycleDispatcher,
             Profile profile,
             WindowAndroid windowAndroid,
+            ActivityResultTracker activityResultTracker,
+            BottomSheetController bottomSheetController,
+            Supplier<ModalDialogManager> modalDialogManagerSupplier,
+            SnackbarManager snackbarManager,
             boolean isTablet,
             Supplier<Integer> tabStripHeightSupplier,
             Supplier<GURL> composeplateUrlSupplier) {
@@ -256,6 +280,10 @@ public class NewTabPageLayout extends LinearLayout
         mProfile = profile;
         mUiConfig = uiConfig;
         mWindowAndroid = windowAndroid;
+        mActivityResultTracker = activityResultTracker;
+        mBottomSheetController = bottomSheetController;
+        mModalDialogManagerSupplier = modalDialogManagerSupplier;
+        mSnackbarManager = snackbarManager;
         mIsTablet = isTablet;
         mTabStripHeightSupplier = tabStripHeightSupplier;
         mIsComposeplateEnabled = ComposeplateUtils.isComposeplateEnabled(mIsTablet, profile);
@@ -263,6 +291,8 @@ public class NewTabPageLayout extends LinearLayout
         mIsComposeplateV2Enabled =
                 mIsComposeplateEnabled
                         && ChromeFeatureList.sAndroidComposeplateV2Enabled.getValue();
+        mIsComposeplatePolicyEnabled =
+                mIsComposeplateV2Enabled && ComposeplateUtils.isEnabledByPolicy(profile);
         if (mIsComposeplateEnabled) {
             mComposeplateUrlSupplier = composeplateUrlSupplier;
         }
@@ -313,9 +343,8 @@ public class NewTabPageLayout extends LinearLayout
 
         // This should be called after both mSearchBoxCoordinator and mComposeplateCoordinator are
         // initialized.
-        if (NtpCustomizationUtils.shouldApplyWhiteBackgroundOnSearchBox()) {
-            onCustomizedBackgroundChanged(/* applyWhiteBackgroundOnSearchBox= */ true);
-        }
+        onCustomizedBackgroundChanged(
+                NtpCustomizationUtils.shouldApplyWhiteBackgroundOnSearchBox());
 
         updateActionButtonVisibility();
         initializeLayoutChangeListener();
@@ -513,7 +542,6 @@ public class NewTabPageLayout extends LinearLayout
             mComposeplateCoordinator =
                     new ComposeplateCoordinator(
                             composeplateView, mProfile, colorStateList, textStyleResId);
-
             assert mVoiceSearchButtonClickListener != null && mLensButtonClickListener != null;
             mComposeplateCoordinator.setVoiceSearchClickListener(mVoiceSearchButtonClickListener);
             mComposeplateCoordinator.setLensClickListener(mLensButtonClickListener);
@@ -523,6 +551,12 @@ public class NewTabPageLayout extends LinearLayout
 
         ViewStub composeplateViewStub = findViewById(R.id.composeplate_view_v2_stub);
         ViewGroup composeplateView = (ViewGroup) composeplateViewStub.inflate();
+        if (ChromeFeatureList.sNewTabPageCustomizationV2.isEnabled()) {
+            // TODO(https://crbug.com/423579377): Moves the layout parameters to
+            //  composeplate_view_layout_v2.xml after the feature NewTabPageCustomizationV2 is
+            //  launched.
+            NewTabPageUtils.applyUpdatedLayoutParamsForComposeplateView(composeplateView);
+        }
         mComposeplateCoordinator =
                 new ComposeplateCoordinator(
                         composeplateView, mProfile, colorStateList, textStyleResId);
@@ -535,7 +569,9 @@ public class NewTabPageLayout extends LinearLayout
     }
 
     private void onComposeplateButtonClicked(View view) {
-        if (OmniboxFeatures.sOmniboxMultimodalInput.isEnabled() && !mIsTablet) {
+        if (OmniboxFeatures.sOmniboxMultimodalInput.isEnabled()
+                && !mIsTablet
+                && mIsComposeplatePolicyEnabled) {
             mManager.focusSearchBox(false, AutocompleteRequestType.AI_MODE, null);
             return;
         }
@@ -642,9 +678,15 @@ public class NewTabPageLayout extends LinearLayout
         ViewStub signinPromoViewContainerStub = findViewById(R.id.signin_promo_view_container_stub);
         mSigninPromoCoordinator =
                 new NtpSigninPromoCoordinator(
-                        mContext,
+                        mWindowAndroid,
+                        mActivity,
                         mProfile,
+                        mActivityResultTracker,
                         SigninAndHistorySyncActivityLauncherImpl.get(),
+                        mBottomSheetController,
+                        mModalDialogManagerSupplier,
+                        mSnackbarManager,
+                        DeviceLockActivityLauncherImpl.get(),
                         signinPromoViewContainerStub);
     }
 
@@ -822,18 +864,13 @@ public class NewTabPageLayout extends LinearLayout
 
     /** Updates the margins for the most visited tiles layout based on what is shown above it. */
     private void updateTilesLayoutMargins() {
-        if (!mIsTablet) {
-            return;
-        }
-
-        MarginLayoutParams marginLayoutParams =
-                (MarginLayoutParams) mMvTilesContainerLayout.getLayoutParams();
-        marginLayoutParams.topMargin =
-                getResources()
-                        .getDimensionPixelSize(
-                                shouldShowLogo()
-                                        ? R.dimen.mvt_container_top_margin
-                                        : R.dimen.tile_layout_no_logo_top_margin);
+        NewTabPageUtils.updateTilesLayoutTopMargin(
+                mMvTilesContainerLayout,
+                shouldShowLogo(),
+                mIsWhiteBackgroundOnSearchBoxApplied == null
+                        ? false
+                        : mIsWhiteBackgroundOnSearchBoxApplied,
+                mIsTablet);
     }
 
     /**
@@ -1394,8 +1431,25 @@ public class NewTabPageLayout extends LinearLayout
      *     search box.
      */
     void onCustomizedBackgroundChanged(boolean applyWhiteBackgroundOnSearchBox) {
-        // applyWhiteBackgroundWithShadow() will be called immediately after mSearchBoxCoordinator
-        // is initialized, it is fine to skip here.
+        // If shouldn't apply a white background and the background hasn't been updated before,
+        // returns now.
+        if (mIsWhiteBackgroundOnSearchBoxApplied == null && !applyWhiteBackgroundOnSearchBox) {
+            return;
+        }
+
+        // If the background has been updated before and it should remain the same, returns now.
+        if (mIsWhiteBackgroundOnSearchBoxApplied != null
+                && mIsWhiteBackgroundOnSearchBoxApplied == applyWhiteBackgroundOnSearchBox) {
+            return;
+        }
+
+        // If the fake search box hasn't been initialized, returns now. It is fine to skip here
+        // because applyWhiteBackgroundWithShadow() will be called immediately after the
+        // mSearchBoxCoordinator is initialized.
+        if (mSearchBoxCoordinator == null) return;
+
+        mIsWhiteBackgroundOnSearchBoxApplied = applyWhiteBackgroundOnSearchBox;
+
         if (mSearchBoxCoordinator != null) {
             mSearchBoxCoordinator.applyWhiteBackgroundWithShadow(applyWhiteBackgroundOnSearchBox);
         }
@@ -1403,6 +1457,18 @@ public class NewTabPageLayout extends LinearLayout
         if (mComposeplateCoordinator != null) {
             mComposeplateCoordinator.applyWhiteBackgroundWithShadow(
                     applyWhiteBackgroundOnSearchBox);
+        }
+
+        if (mLogoCoordinator != null) {
+            int bottomMargin = getLogoBottomMargin();
+            if (applyWhiteBackgroundOnSearchBox) {
+                bottomMargin -= mPaddingForShadowPx;
+            }
+            mLogoCoordinator.setBottomMargin(bottomMargin);
+        }
+
+        if (mMostVisitedTilesCoordinator != null) {
+            updateTilesLayoutMargins();
         }
     }
 

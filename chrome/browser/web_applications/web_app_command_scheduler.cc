@@ -47,6 +47,7 @@
 #include "chrome/browser/web_applications/commands/manifest_update_finalize_command.h"
 #include "chrome/browser/web_applications/commands/navigate_and_trigger_install_dialog_command.h"
 #include "chrome/browser/web_applications/commands/os_integration_synchronize_command.h"
+#include "chrome/browser/web_applications/commands/resolve_web_app_pending_migration_info_command.h"
 #include "chrome/browser/web_applications/commands/run_on_os_login_command.h"
 #include "chrome/browser/web_applications/commands/set_user_display_mode_command.h"
 #include "chrome/browser/web_applications/commands/uninstall_all_user_installed_web_apps_command.h"
@@ -74,6 +75,7 @@
 #include "chrome/browser/web_applications/locks/shared_web_contents_with_app_lock.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_sub_manager.h"
 #include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
+#include "chrome/browser/web_applications/scheduler/apply_pending_manifest_update_result.h"
 #include "chrome/browser/web_applications/web_app_command_manager.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
 #include "chrome/browser/web_applications/web_app_install_params.h"
@@ -82,6 +84,7 @@
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_sync_bridge.h"
 #include "chrome/browser/web_applications/web_app_ui_manager.h"
+#include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/browser/web_applications/web_contents/web_app_data_retriever.h"
 #include "chrome/browser/web_applications/web_contents/web_contents_manager.h"
 #include "chrome/common/chrome_features.h"
@@ -248,7 +251,7 @@ void WebAppCommandScheduler::ScheduleApplyPendingManifestUpdate(
     const webapps::AppId& app_id,
     std::unique_ptr<ScopedKeepAlive> keep_alive,
     std::unique_ptr<ScopedProfileKeepAlive> profile_keep_alive,
-    ApplyPendingManifestUpdateCommand::CompletedCallback callback,
+    ApplyPendingManifestUpdateCompletedCallback callback,
     const base::Location& location) {
   provider_->command_manager().ScheduleCommand(
       std::make_unique<ApplyPendingManifestUpdateCommand>(
@@ -665,6 +668,12 @@ void WebAppCommandScheduler::LaunchAppWithCustomParams(
 void WebAppCommandScheduler::InstallAppLocally(const webapps::AppId& app_id,
                                                base::OnceClosure callback,
                                                const base::Location& location) {
+  // Disallow InstallAppLocally to install sync apps if web app installs are not
+  // allowed via policy.
+  if (!web_app::IsWebAppInstallByUserPolicyEnabled(&profile_.get())) {
+    return;
+  }
+
   provider_->command_manager().ScheduleCommand(
       std::make_unique<InstallAppLocallyCommand>(app_id, std::move(callback)),
       location);
@@ -854,6 +863,15 @@ void WebAppCommandScheduler::MarkAppPendingUpdateAsIgnored(
       base::BindOnce(::web_app::SetWebAppPendingUpdateAsIgnored,
                      base::PassKey<WebAppCommandScheduler>(), app_id),
       std::move(done), location);
+}
+
+void WebAppCommandScheduler::ScheduleResolveWebAppPendingMigrationInfo(
+    base::OnceClosure callback,
+    const base::Location& location) {
+  provider_->command_manager().ScheduleCommand(
+      std::make_unique<ResolveWebAppPendingMigrationInfoCommand>(
+          std::move(callback)),
+      location);
 }
 
 void WebAppCommandScheduler::LaunchApp(apps::AppLaunchParams params,

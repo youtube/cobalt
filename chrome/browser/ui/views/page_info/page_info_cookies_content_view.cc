@@ -32,10 +32,6 @@
 #include "ui/views/view_class_properties.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
-#include "ash/constants/ash_features.h"
-#include "chrome/browser/ash/floating_sso/floating_sso_service.h"
-#include "chrome/browser/ash/floating_sso/floating_sso_service_factory.h"
-#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/views/accessibility/non_accessible_image_view.h"
 #endif
 
@@ -490,23 +486,7 @@ void PageInfoCookiesContentView::AddThirdPartyCookiesContainer() {
 
 #if BUILDFLAG(IS_CHROMEOS)
 void PageInfoCookiesContentView::MaybeAddSyncDisclaimer() {
-  if (!ash::features::IsFloatingSsoAllowed()) {
-    return;
-  }
-  Profile* profile = Profile::FromBrowserContext(
-      presenter_->web_contents()->GetBrowserContext());
-  // Floating SSO is an internal name for the feature which can sync cookies for
-  // ChromeOS enterprise users.
-  ash::floating_sso::FloatingSsoService* floating_sso_service =
-      ash::floating_sso::FloatingSsoServiceFactory::GetForProfile(profile);
-  if (!floating_sso_service) {
-    return;
-  }
-  if (!floating_sso_service->IsFloatingSsoEnabled()) {
-    return;
-  }
-  // Even when cookie sync is enabled, it isn't applied to every site.
-  if (!floating_sso_service->ShouldSyncCookiesForUrl(presenter_->site_url())) {
+  if (!presenter_->ShouldSyncCookiesForCurrentUrl()) {
     return;
   }
 
@@ -534,7 +514,7 @@ void PageInfoCookiesContentView::MaybeAddSyncDisclaimer() {
   // Add the enterprise icon.
   cookies_sync_icon_ = cookies_sync_container_->AddChildView(
       std::make_unique<NonAccessibleImageView>());
-  const int icon_size = GetLayoutConstant(PAGE_INFO_ICON_SIZE);
+  const int icon_size = GetLayoutConstant(LayoutConstant::kPageInfoIconSize);
   cookies_sync_icon_->SetImageSize({icon_size, icon_size});
   cookies_sync_icon_->SetImage(
       PageInfoViewFactory::GetImageModel(vector_icons::kBusinessIcon));

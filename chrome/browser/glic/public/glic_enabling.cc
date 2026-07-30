@@ -36,6 +36,7 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/base/signin_switches.h"
+#include "components/signin/public/identity_manager/account_capabilities.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/variations/service/variations_service.h"
@@ -83,6 +84,14 @@ constexpr char kDefaultEnabledCountries[] = "us,au,ca,nz";
 constexpr char kDefaultEnabledLocales[] = "en-us";
 
 namespace {
+
+signin::Tribool CanUseGeminiInChrome(AccountCapabilities& capabilities) {
+#if BUILDFLAG(IS_ANDROID)
+  return signin::Tribool::kUnknown;
+#else  // TODO: Re-enable after crrev.com/c/7281467
+  return capabilities.can_use_gemini_in_chrome();
+#endif
+}
 
 bool HasGoogleInternalProfile() {
   ProfileManager* profile_manager = g_browser_process->profile_manager();
@@ -248,27 +257,33 @@ GlicEnabling::ProfileEnablement GlicEnabling::EnablementForProfile(
     // fallback to can_use_model_execution_features().
     signin::Tribool capability_value =
         primary_account.capabilities.can_use_model_execution_features();
+#if !BUILDFLAG(IS_ANDROID)  // TODO: Re-enable after crrev.com/c/7281467
     if (base::FeatureList::IsEnabled(
             switches::kGlicEligibilitySeparateAccountCapability) &&
-        (primary_account.capabilities.can_use_gemini_in_chrome() !=
+        (CanUseGeminiInChrome(primary_account.capabilities) !=
          signin::Tribool::kUnknown)) {
-      capability_value =
-          primary_account.capabilities.can_use_gemini_in_chrome();
+      capability_value = CanUseGeminiInChrome(primary_account.capabilities);
     }
+#endif
     result.primary_account_not_capable =
         (capability_value != signin::Tribool::kTrue);
 
     // If the feature is overridden by a field trial, and the user's eligibility
     // is known and different for the two capabilities, add them to a synthetic
     // trial.
-    base::FieldTrial* field_trial = base::FeatureList::GetFieldTrial(
-        switches::kGlicEligibilitySeparateAccountCapability);
+    base::FieldTrial* field_trial =
+#if BUILDFLAG(IS_ANDROID)
+        nullptr;
+#else  // TODO: Re-enable after crrev.com/c/7281467
+        base::FeatureList::GetFieldTrial(
+            switches::kGlicEligibilitySeparateAccountCapability);
+#endif
     if (field_trial &&
-        (primary_account.capabilities.can_use_gemini_in_chrome() !=
+        (CanUseGeminiInChrome(primary_account.capabilities) !=
          signin::Tribool::kUnknown) &&
         (primary_account.capabilities.can_use_model_execution_features() !=
          signin::Tribool::kUnknown) &&
-        (primary_account.capabilities.can_use_gemini_in_chrome() !=
+        (CanUseGeminiInChrome(primary_account.capabilities) !=
          primary_account.capabilities.can_use_model_execution_features())) {
       g_browser_process->GetFeatures()
           ->glic_synthetic_trial_manager()
@@ -276,6 +291,10 @@ GlicEnabling::ProfileEnablement GlicEnabling::EnablementForProfile(
               kGlicEligibilitySeparateAccountCapabilitySyntheticTrialName,
               field_trial->GetGroupNameWithoutActivation());
     }
+
+    result.live_disallowed =
+        primary_account.capabilities.can_use_model_execution_features() !=
+        signin::Tribool::kTrue;
   }
 
   if (profile->GetPrefs()->GetInteger(::prefs::kGeminiSettings) !=
@@ -303,8 +322,7 @@ GlicEnabling::ProfileEnablement GlicEnabling::EnablementForProfile(
     }
   }
 
-  if (!HasConsentedForProfile(profile) &&
-      !base::FeatureList::IsEnabled(features::kGlicTrustFirstOnboarding)) {
+  if (!HasConsentedForProfile(profile)) {
     result.not_consented = true;
   }
 
@@ -337,15 +355,6 @@ bool GlicGlobalEnabling::IsEnabledByFlags() {
                                   chromeos::features::kFeatureManagementGlic));
 #endif  // BUILDFLAG(IS_CHROMEOS)
   return is_enabled;
-}
-
-// static
-bool GlicEnabling::IsInRolloutLocation() {
-  // TODO(crbug.com/454702721): Getting the location on ChromeOS is done
-  // differently.
-  auto* variations_service = g_browser_process->variations_service();
-  return variations_service->GetStoredPermanentCountry() == "us" &&
-         g_browser_process->GetApplicationLocale() == "en-US";
 }
 
 bool GlicEnabling::IsEnabledByFlags() {
@@ -423,7 +432,12 @@ mojom::ProfileReadyState GlicEnabling::GetProfileReadyState(Profile* profile) {
   if (enablement.DisallowedByAdmin()) {
     return mojom::ProfileReadyState::kDisabledByAdmin;
   }
-  if (!enablement.IsEnabledAndConsented()) {
+  if (!enablement.IsEnabled()) {
+    return mojom::ProfileReadyState::kIneligible;
+  }
+
+  if (enablement.not_consented &&
+      !base::FeatureList::IsEnabled(features::kGlicTrustFirstOnboarding)) {
     return mojom::ProfileReadyState::kIneligible;
   }
 

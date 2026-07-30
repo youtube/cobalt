@@ -1876,6 +1876,19 @@ void FragmentPaintPropertyTreeBuilder::UpdateEffect() {
       if (EffectCanUseCurrentClipAsOutputClip())
         state.output_clip = context_.current.clip;
       state.opacity = style.Opacity();
+      // If the mask image is not valid, it must be treated as a transparent
+      // black image layer. See
+      // https://drafts.fxtf.org/css-masking-1/#the-mask-image.
+      // MaskBoundingBox() returns nullopt for all invalid mask image layers.
+      if (style.HasMask() && !style.BackdropFilter().IsEmpty() &&
+          RuntimeEnabledFeatures::
+              HandleInvalidMaskImageWithBackdropFilterEnabled()) {
+        // TODO(crbug.com/473987435): Consider waiting for all mask-image layers
+        // to load before rendering, instead of rendering after the first one.
+        if (style.MaskLayers().AllImagesAreInvalid()) {
+          state.opacity = 0.f;
+        }
+      }
       if (object_.IsBlendingAllowed()) {
         state.blend_mode = ToSkBlendMode(style.GetBlendMode());
       }
@@ -2562,6 +2575,10 @@ static bool NeedsOverflowClip(const LayoutObject& object) {
   if (!object.IsBox())
     return false;
 
+  if (object.IsOverscrollContainer()) {
+    return true;
+  }
+
   if (!To<LayoutBox>(object).ShouldClipOverflowAlongEitherAxis())
     return false;
 
@@ -3095,11 +3112,29 @@ void FragmentPaintPropertyTreeBuilder::UpdateScrollNode() {
   PaintLayerScrollableArea* scrollable_area = box.GetScrollableArea();
   ScrollPaintPropertyNode::State state;
 
+  // clip_rect covers inline-start gutter via https://crrev.com/c/2680371.
   PhysicalRect clip_rect =
       box.OverflowClipRectForScrollNode(context_.current.paint_offset);
   state.container_rect = ToPixelSnappedRect(clip_rect);
-  state.contents_size =
-      scrollable_area->PixelSnappedContentsSize(clip_rect.offset);
+
+  if (RuntimeEnabledFeatures::ScrollbarGutterBugFixEnabled()) {
+    state.contents_rect = {
+        // Calculate the content offset relative to the container's border box,
+        // accounting for scroll origin shifts (e.g. vertical-rl, gutters).
+        box.ScrollableOverflowRect().PixelSnappedOffset() +
+            box.ScrollOrigin().OffsetFromOrigin(),
+        // PixelSnappedContentsSize does not cover inline-start gutter.
+        scrollable_area->PixelSnappedContentsSize(clip_rect.offset)};
+
+    // Expand to cover the gutter to let negative inline margin content paint
+    // over the inline-start gutter.
+    state.contents_rect.Union(state.container_rect);
+  } else {
+    state.contents_rect = {
+        gfx::Point(),
+        scrollable_area->PixelSnappedContentsSize(clip_rect.offset)};
+  }
+
   state.overflow_clip_node = properties_->OverflowClip();
   state.user_scrollable_horizontal =
       scrollable_area->UserInputScrollable(kHorizontalScrollbar);
@@ -3600,6 +3635,9 @@ static bool IsLayoutShiftRoot(const LayoutObject& object,
     return false;
   if (IsA<LayoutView>(object))
     return true;
+  if (object.IsOverscrollContainer()) {
+    return true;
+  }
   for (const TransformPaintPropertyNode* transform :
        properties->AllCSSTransformPropertiesOutsideToInside()) {
     if (transform && IsLayoutShiftRootTransform(*transform))

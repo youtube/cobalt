@@ -5,8 +5,10 @@
 #include "chrome/browser/enterprise/platform_auth/platform_auth_proxying_url_loader_factory.h"
 
 #include <memory>
+#include <string>
 #include <string_view>
 
+#include "base/containers/flat_set.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_forward.h"
@@ -16,8 +18,17 @@
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
+#include "base/values.h"
+#include "chrome/browser/browser_process.h"
+#include "chrome/browser/enterprise/platform_auth/extensible_enterprise_sso_prefs_handler.h"
+#include "chrome/browser/enterprise/platform_auth/extensible_enterprise_sso_provider_mac.h"
 #include "chrome/browser/enterprise/platform_auth/platform_auth_provider_manager.h"
+#include "chrome/common/pref_names.h"
+#include "chrome/test/base/testing_browser_process.h"
 #include "components/download/public/common/download_url_parameters.h"
+#include "components/policy/policy_constants.h"
+#include "components/prefs/pref_registry_simple.h"
+#include "components/prefs/testing_pref_service.h"
 #include "content/public/test/browser_task_environment.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -53,8 +64,16 @@ class PlatformAuthProxyingURLLoaderFactoryTest : public testing::Test {
       base::OnceCallback<void()> dtor_callback,
       base::OnceCallback<void(const network::ResourceRequest&)>
           request_intercepted_callback) {
+    base::flat_set<std::string> configured_hosts_cache;
+    const auto& configured_hosts =
+        TestingBrowserProcess::GetGlobal()->GetTestingLocalState()->GetList(
+            prefs::kExtensibleEnterpriseSSOConfiguredHosts);
+    for (const auto& host : configured_hosts) {
+      configured_hosts_cache.insert(host.GetString());
+    }
     auto* res = new ProxyingURLLoaderFactory(std::move(receiver),
-                                             std::move(target_factory));
+                                             std::move(target_factory),
+                                             std::move(configured_hosts_cache));
     res->SetDestructionCallbackForTesting(std::move(dtor_callback));
     res->SetRequestInterceptedCallbackForTesting(
         std::move(request_intercepted_callback));
@@ -182,6 +201,10 @@ TEST_F(PlatformAuthProxyingURLLoaderFactoryTest,
 TEST_F(PlatformAuthProxyingURLLoaderFactoryTest,
        MaybeProxyRequest_ProxiesAppropriateRequests) {
   PlatformAuthProviderManager::GetInstance().SetEnabled(true, {});
+  base::Value::List hosts;
+  hosts.Append("foobar.example.com");
+  TestingBrowserProcess::GetGlobal()->GetTestingLocalState()->SetList(
+      prefs::kExtensibleEnterpriseSSOConfiguredHosts, std::move(hosts));
 
   network::TestURLLoaderFactory terminal_factory;
   scoped_refptr<network::SharedURLLoaderFactory> terminal_shared_factory =
@@ -266,6 +289,32 @@ TEST_F(PlatformAuthProxyingURLLoaderFactoryTest,
       FactoryHasInterceptors(resulting_factory, terminal_shared_factory));
 }
 
+TEST_F(PlatformAuthProxyingURLLoaderFactoryTest,
+       MaybeProxyRequest_OktaIdpBlocked) {
+  PlatformAuthProviderManager::GetInstance().SetEnabled(true, {});
+
+  base::Value::List enabled_idps;
+  TestingBrowserProcess::GetGlobal()->GetTestingLocalState()->SetList(
+      prefs::kExtensibleEnterpriseSSOEnabledIdps, std::move(enabled_idps));
+
+  network::TestURLLoaderFactory terminal_factory;
+  scoped_refptr<network::SharedURLLoaderFactory> terminal_shared_factory =
+      terminal_factory.GetSafeWeakWrapper();
+
+  network::URLLoaderFactoryBuilder factory_builder;
+
+  ProxyingURLLoaderFactory::MaybeProxyRequest(
+      url::Origin::Create(GURL("https://foobar.example.com/")),
+      ChromeContentBrowserClient::URLLoaderFactoryType::kDocumentSubResource,
+      factory_builder);
+
+  scoped_refptr<network::SharedURLLoaderFactory> resulting_factory =
+      std::move(factory_builder).Finish(terminal_shared_factory);
+
+  EXPECT_FALSE(
+      FactoryHasInterceptors(resulting_factory, terminal_shared_factory));
+}
+
 struct InterceptTestParams {
   const std::string_view url;
   bool should_intercept;
@@ -288,6 +337,13 @@ TEST_P(PlatformAuthProxyingURLLoaderFactoryInterceptTest,
   const InterceptTestParams& params = GetParam();
   base::test::TestFuture<void> request_intercepted_future;
   const GURL url = GURL(params.url);
+
+  if (params.should_intercept) {
+    base::Value::List hosts;
+    hosts.Append(url.host());
+    TestingBrowserProcess::GetGlobal()->GetTestingLocalState()->SetList(
+        prefs::kExtensibleEnterpriseSSOConfiguredHosts, std::move(hosts));
+  }
 
   base::OnceCallback<void(const network::ResourceRequest& request)>
       request_itercepted_callback = base::BindOnce(

@@ -273,6 +273,9 @@
       <message name="IDS_IOS_CREDENTIAL_BOTTOM_SHEET_TITLE" desc="Title of the credential bottom sheet. [iOS only]">
           Password Manager
       </message>
+      <message name="IDS_IOS_CREDENTIAL_EXCHANGE_EXPORTER_DISPLAY_NAME" desc="Display name of Password Manager used in credential export feature. [iOS only]">
+        Password Manager
+      </message>
       <message name="IDS_IOS_CREDENTIAL_EXCHANGE_IMPORT_DISCLAIMER" desc="The bottom text displayed on Credential Exchange import screen to declare that the data will be saved to the user's password manager. [iOS only]">
         Your data will be saved to Password Manager for <ph name="USER_EMAIL">$1<ex>elisa.g.beckett@gmail.com</ex></ph>
       </message>
@@ -459,7 +462,7 @@ Things to consider:
         Get more done with a simple, secure, and faster-than-ever Chromium.
       </message>
       <message name="IDS_IOS_GEMINI_IMAGE_CONTEXT_MENU_ENTRY_POINT" desc="The entry point for Gemini when the user long-presses an image. Invites the user to create an image using Gemini in Chromium.">
-        Create image with Gemini in Chromium
+        Edit image with Gemini in Chromium
       </message>
       <message name="IDS_IOS_GOOGLE_SERVICES_SETTINGS_ALLOW_SIGNIN_DETAIL" desc="Feature detail text in the Google services Settings for the user to enable/disable Chrome express sign-in from the web [iOS only]">
         Shows prompts to sign in to Chromium.

@@ -20,32 +20,32 @@ export function getHtml(this: EventListItemElement) {
     @expanded-changed="${this.onExpandedChanged}">
   <div class="event-header">
     <div class="event-summary">
+      <div class="event-date">
+        ${this.formattedDate ?? ''}
+      </div>
       <span class="event-app${!this.appId ? ' internal-event' : ''}">
         ${this.appLabel ?? ''}
       </span>
+      <div class="event-scope-column">
+        ${this.scope ? html`
+          <cr-icon icon="${this.scopeIcon}" title="${this.scopeLabel}">
+          </cr-icon>
+        ` : ''}
+      </div>
       <div class="event-type-column">
         <span class="event-type">
           ${localizeEventType(this.event.eventType)}
         </span>
       </div>
-      <span class="event-description">
-        ${this.shouldShowOmahaRequestChip() ? html`
-          <span class="event-type omaha-request">
-            $i18n{omahaRequest}
-          </span>
+      <div class="event-description-icon-column">
+        ${this.eventSummaryIcon ? html`
+          <cr-icon icon="${this.eventSummaryIcon}">
+          </cr-icon>
         ` : ''}
+      </div>
+      <span class="event-description">
         ${this.eventSummary ?? ''}
       </span>
-    </div>
-    <div class="event-timestamp">
-      ${this.formattedDate ? html`
-        <span class="event-date">
-          ${this.formattedDate}
-        </span>
-      ` : ''}
-      ${this.formattedDuration ? html`
-        <span class="event-duration">${this.formattedDuration}</span>
-      ` : ''}
     </div>
   </div>
 </cr-expand-button>
@@ -71,7 +71,7 @@ export function getHtml(this: EventListItemElement) {
       <code>${this.commandLine}</code>
     </div>
   ` : ''}
-  ${this.error ? html`
+  ${this.errors.length > 0 ? html`
     <div class="event-error-details">
       ${this.errors.map(item => html`
         <div>
@@ -84,6 +84,9 @@ export function getHtml(this: EventListItemElement) {
     <div>
       ${loadTimeData.getStringF('updaterVersion', this.updaterVersion)}
     </div>
+  ` : ''}
+  ${this.formattedDuration ? html`
+    <span class="event-duration">${this.formattedDuration}</span>
   ` : ''}
   <raw-event-details .events="${[this.event]}">
   </raw-event-details>

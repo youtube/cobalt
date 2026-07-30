@@ -44,7 +44,6 @@
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/common/content_navigation_policy.h"
 #include "content/common/features.h"
-#include "content/common/frame.mojom-forward.h"
 #include "content/common/frame.mojom-shared.h"
 #include "content/common/frame.mojom-test-utils.h"
 #include "content/common/frame_messages.mojom.h"
@@ -9155,7 +9154,7 @@ IN_PROC_BROWSER_TEST_F(RenderFrameHostImplPrerenderBrowserTest,
   FrameTreeNode* expected_ftn = rfh_a->frame_tree_node();
 
   // Load a page in the prerender.
-  FrameTreeNodeId host_id = prerender_helper().AddPrerender(prerender_url);
+  PrerenderHostId host_id = prerender_helper().AddPrerender(prerender_url);
   RenderFrameHostImpl* prerender_frame_host = static_cast<RenderFrameHostImpl*>(
       prerender_helper().GetPrerenderedMainFrameHost(host_id));
 
@@ -9176,7 +9175,7 @@ IN_PROC_BROWSER_TEST_F(RenderFrameHostImplPrerenderBrowserTest,
   EXPECT_TRUE(NavigateToURL(shell(), url_a));
 
   // Load a page in the prerender.
-  FrameTreeNodeId host_id = prerender_helper().AddPrerender(prerender_url);
+  PrerenderHostId host_id = prerender_helper().AddPrerender(prerender_url);
   RenderFrameHostImpl* prerender_frame_host = static_cast<RenderFrameHostImpl*>(
       prerender_helper().GetPrerenderedMainFrameHost(host_id));
   EXPECT_TRUE(prerender_frame_host);

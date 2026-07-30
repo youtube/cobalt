@@ -1066,7 +1066,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Ads.InterestGroup.Auction.NumOwnersWithoutInterestGroups"
-    units="owners" expires_after="2026-05-03">
+    units="owners" expires_after="2026-07-05">
   <owner>dmcardle@chromium.org</owner>
   <owner>privacy-sandbox-dev@chromium.org</owner>
   <summary>
@@ -3346,7 +3346,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crashpad.IntermediateDump.Reader.InvalidKeySize"
-    enum="CrashpadIntermediateDumpKey" expires_after="2026-02-20">
+    enum="CrashpadIntermediateDumpKey" expires_after="2027-02-20">
   <owner>justincohen@chromium.org</owner>
   <owner>crashpad-dev@chromium.org</owner>
   <summary>
@@ -3355,10 +3355,32 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crashpad.IntermediateDump.Reader.MissingKey"
-    enum="CrashpadIntermediateDumpKey" expires_after="2026-02-20">
+    enum="CrashpadIntermediateDumpKey" expires_after="2027-02-20">
   <owner>justincohen@chromium.org</owner>
   <owner>crashpad-dev@chromium.org</owner>
   <summary>Records key id when id is missing in an intermediate dump.</summary>
+</histogram>
+
+<histogram name="DeviceNotifications.StatusIconMenu.Overflow.ConnectionCount"
+    units="connections" expires_after="2026-05-03">
+  <owner>robpitkin@google.com</owner>
+  <owner>deviceapi-team@google.com</owner>
+  <summary>
+    The number of connections when the number of menu items for the device
+    status icon exceeds the command ID limit. This is recorded when the status
+    icon is refreshed and the number of items overflows.
+  </summary>
+</histogram>
+
+<histogram name="DeviceNotifications.StatusIconMenu.Overflow.ProfileCount"
+    units="profiles" expires_after="2026-05-03">
+  <owner>robpitkin@google.com</owner>
+  <owner>deviceapi-team@google.com</owner>
+  <summary>
+    The number of profiles when the number of menu items for the device status
+    icon exceeds the command ID limit. This is recorded when the status icon is
+    refreshed and the number of items overflows.
+  </summary>
 </histogram>
 
 <histogram name="DirectSockets.TCPNetworkFailures" enum="NetErrorCodes"
@@ -3479,7 +3501,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DocumentScan.ScanRequested" enum="DocumentScanSaneBackend"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>bmgordon@chromium.org</owner>
   <owner>project-bolton@google.com</owner>
   <summary>
@@ -3489,7 +3511,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DocumentScan.ScanSucceeded" enum="DocumentScanSaneBackend"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>bmgordon@chromium.org</owner>
   <owner>project-bolton@google.com</owner>
   <summary>
@@ -4268,7 +4290,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Feedback.TrustSafetySentiment.CallTriggerOccurred"
-    enum="TrustSafetySentimentFeatureArea" expires_after="2026-05-03">
+    enum="TrustSafetySentimentFeatureArea" expires_after="2026-07-05">
   <owner>skrakowi@google.com</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -4348,7 +4370,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="FetchKeepAlive.Requests2.Network"
-    enum="FetchKeepAliveRequestNetworkMetricType" expires_after="2026-05-03">
+    enum="FetchKeepAliveRequestNetworkMetricType" expires_after="2026-07-05">
   <owner>mych@chromium.org</owner>
   <owner>chrome-bfcache@google.com</owner>
   <summary>
@@ -4389,7 +4411,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="FetchKeepAlive.Requests2.{RequestState}.{Process}"
-    enum="FetchKeepAliveRequestMetricType" expires_after="2026-05-03">
+    enum="FetchKeepAliveRequestMetricType" expires_after="2026-07-05">
   <owner>mych@chromium.org</owner>
   <owner>chrome-bfcache@google.com</owner>
   <summary>
@@ -4667,7 +4689,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="FirstRun.Stage" enum="FirstRunStageResult"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>tinazwang@chromium.org</owner>
   <owner>bling-get-started@google.com</owner>
   <summary>
@@ -4828,7 +4850,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Hardware.Display.Count.OnChange" units="units"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>sashamcintosh@chromium.org</owner>
   <owner>chromeos-gfx@chromium.org</owner>
   <summary>
@@ -4838,7 +4860,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Hardware.Display.Count.OnStartup" units="units"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>sashamcintosh@chromium.org</owner>
   <owner>chromeos-gfx@chromium.org</owner>
   <summary>
@@ -4848,7 +4870,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Hardware.Display.SupportsHDR" enum="BooleanSupported"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>cassew@google.com</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -4860,7 +4882,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Hardware.TotalDiskSpace" units="GB" expires_after="2026-05-03">
+<histogram name="Hardware.TotalDiskSpace" units="GB" expires_after="2026-07-05">
   <owner>zmo@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -5785,7 +5807,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OSCrypt.AppBoundEncryption.SupportLevel"
-    enum="AppBoundEncryptionSupportLevel" expires_after="2026-05-03">
+    enum="AppBoundEncryptionSupportLevel" expires_after="2026-07-05">
   <owner>wfh@chromium.org</owner>
   <owner>nparker@chromium.org</owner>
   <summary>
@@ -5807,7 +5829,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OSCrypt.AppBoundProvider.Decrypt.ResultLastError"
-    enum="WinGetLastError" expires_after="2026-05-03">
+    enum="WinGetLastError" expires_after="2026-07-05">
   <owner>wfh@chromium.org</owner>
   <owner>nparker@chromium.org</owner>
   <summary>
@@ -5846,7 +5868,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OSCrypt.AppBoundProvider.KeyRetrieval.Status"
-    enum="OSCryptAppBoundKeyRetrievalStatus" expires_after="2026-05-03">
+    enum="OSCryptAppBoundKeyRetrievalStatus" expires_after="2026-07-05">
   <owner>wfh@chromium.org</owner>
   <owner>nparker@chromium.org</owner>
   <summary>
@@ -5927,7 +5949,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OSCrypt.EncryptorKeyCount{EncryptorKeyType}" units="key count"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>wfh@chromium.org</owner>
   <owner>chrome-platform-security-core@google.com</owner>
   <summary>
@@ -6054,7 +6076,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OSCrypt.Win.Decrypt.Result" enum="BooleanSuccess"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>wfh@chromium.org</owner>
   <owner>nparker@chromium.org</owner>
   <summary>
@@ -6924,7 +6946,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ReadingList.{ReadStatus}.Count.{RecordedAt}.{StorageState}"
-    units="count" expires_after="2026-05-03">
+    units="count" expires_after="2026-07-05">
   <owner>mastiz@chromium.org</owner>
   <owner>mmrashad@google.com</owner>
   <owner>treib@chromium.org</owner>
@@ -7397,7 +7419,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="Shutdown.BrowserExit.Time2" units="ms"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>etienneb@chromium.org</owner>
   <owner>gab@chromium.org</owner>
   <summary>
@@ -7408,7 +7430,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="Shutdown.EndSession.Time2" units="ms"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>etienneb@chromium.org</owner>
   <owner>gab@chromium.org</owner>
   <summary>
@@ -7442,7 +7464,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="Shutdown.ShutdownType2" enum="ShutdownType"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>etienneb@chromium.org</owner>
   <owner>gab@chromium.org</owner>
   <summary>
@@ -7502,7 +7524,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="Shutdown.WindowClose.Time2" units="ms"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>etienneb@chromium.org</owner>
   <owner>gab@chromium.org</owner>
   <summary>
@@ -8057,7 +8079,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="Style.RebuildLayoutTreeTime" units="microseconds"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>futhark@chromium.org</owner>
   <summary>
     Microseconds spent in RebuildLayoutTree called from Document::UpdateStyle.
@@ -8065,7 +8087,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="Style.RecalcTime" units="microseconds"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>futhark@chromium.org</owner>
   <summary>
     Microseconds spent in RecalcStyle called from Document::UpdateStyle.
@@ -8093,14 +8115,14 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SubresourceWebBundles.LoadResult"
-    enum="SubresourceWebBundleLoadResult" expires_after="2026-05-03">
+    enum="SubresourceWebBundleLoadResult" expires_after="2026-07-05">
   <owner>hayato@chromium.org</owner>
   <owner>webpackage-dev@chromium.org</owner>
   <summary>The result of loading subresource web bundles.</summary>
 </histogram>
 
 <histogram name="SubresourceWebBundles.MaxMemoryUsagePerProcess" units="bytes"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>hayato@chromium.org</owner>
   <owner>webpackage-dev@chromium.org</owner>
   <summary>
@@ -8794,7 +8816,7 @@ should be kept until we use this API.  -->
 </histogram>
 
 <histogram name="UsageStats.Events" enum="UsageStatsEvents"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>pnoland@chromium.org</owner>
   <owner>fgorski@chromium.org</owner>
   <summary>

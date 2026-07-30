@@ -2203,6 +2203,40 @@ suite('NewTabPageAppTest', () => {
               assertEquals(!!chips, isActionChipsVisible);
             }));
 
+    test('Show background when non-GM3 theme', async () => {
+      // Arrange.
+      const theme = createTheme({isGm3: false});
+      callbackRouterRemote.setTheme(theme);
+      await callbackRouterRemote.$.flushForTesting();
+
+      // Assert.
+      const chips = $$(app, 'ntp-action-chips')!;
+      assertTrue(chips.showBackground);
+    });
+
+    test('Show background when background image', async () => {
+      // Arrange.
+      const theme = createTheme({isGm3: true});
+      theme.backgroundImage = createBackgroundImage('https://img.png');
+      callbackRouterRemote.setTheme(theme);
+      await callbackRouterRemote.$.flushForTesting();
+
+      // Assert.
+      const chips = $$(app, 'ntp-action-chips')!;
+      assertTrue(chips.showBackground);
+    });
+
+    test('Do not show background when GM2 w/ no background image', async () => {
+      // Arrange.
+      const theme = createTheme({isGm3: true});
+      callbackRouterRemote.setTheme(theme);
+      await callbackRouterRemote.$.flushForTesting();
+
+      // Assert.
+      const chips = $$(app, 'ntp-action-chips')!;
+      assertFalse(chips.showBackground);
+    });
+
     test(
         'Nano Banana chip click opens composebox create image mode',
         async () => {
@@ -2303,5 +2337,32 @@ suite('NewTabPageAppTest', () => {
           assertTrue(!!composebox.$.input);
           assertEquals(suggestion, composebox.$.input.value);
         });
+  });
+
+  suite('ThreadsRail', () => {
+    [true, false].forEach(
+        (enableThreadsRail) => suite(
+            `Threads rail visibility when enableThreadsRail is ${
+                enableThreadsRail}`,
+            () => {
+              suiteSetup(() => {
+                loadTimeData.overrideValues({
+                  enableThreadsRail,
+                });
+              });
+
+              test('Threads rail visibility', async () => {
+                const searchbox = $$(app, '#searchbox');
+                assertTrue(!!searchbox);
+                searchbox.dispatchEvent(new CustomEvent('open-composebox', {
+                  detail: {searchboxText: '', contextFiles: []},
+                }));
+                await microtasksFinished();
+
+                const threadsRail =
+                    app.shadowRoot.querySelector('cr-threads-rail');
+                assertEquals(!!threadsRail, enableThreadsRail);
+              });
+            }));
   });
 });

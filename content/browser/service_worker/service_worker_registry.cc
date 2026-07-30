@@ -8,7 +8,6 @@
 #include <utility>
 
 #include "base/check_is_test.h"
-#include "base/containers/contains.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -39,6 +38,7 @@
 #include "third_party/blink/public/common/service_worker/service_worker_status_code.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_registration_options.mojom.h"
+#include "third_party/perfetto/include/perfetto/tracing/track_event_args.h"
 #include "url/origin.h"
 
 namespace content {
@@ -320,10 +320,10 @@ void ServiceWorkerRegistry::FindRegistrationForClientUrl(
   // trace event id.
   int64_t trace_event_id =
       base::Time::Now().ToDeltaSinceWindowsEpoch().InMicroseconds();
-  TRACE_EVENT_WITH_FLOW1(
+  TRACE_EVENT(
       "ServiceWorker", "ServiceWorkerRegistry::FindRegistrationForClientUrl",
-      TRACE_ID_WITH_SCOPE("ServiceWorkerRegistry", trace_event_id),
-      TRACE_EVENT_FLAG_FLOW_OUT, "URL", client_url.spec());
+      perfetto::Flow::ProcessScoped(trace_event_id, "ServiceWorkerRegistry"),
+      "URL", client_url.spec());
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   bool is_mojo_called = false;
@@ -680,7 +680,7 @@ void ServiceWorkerRegistry::DeleteRegistration(
                      std::move(callback)),
       registration->id(), registration->key());
 
-  DCHECK(!base::Contains(uninstalling_registrations_, registration->id()));
+  DCHECK(!uninstalling_registrations_.contains(registration->id()));
   uninstalling_registrations_[registration->id()] = registration;
   registration->SetStatus(ServiceWorkerRegistration::Status::kUninstalling);
 }
@@ -1204,7 +1204,7 @@ ServiceWorkerRegistry::GetOrCreateRegistration(
   registration->SetStored();
   registration->set_resources_total_size_bytes(data.resources_total_size_bytes);
   registration->set_last_update_check(data.last_update_check);
-  DCHECK(!base::Contains(uninstalling_registrations_, data.registration_id));
+  DCHECK(!uninstalling_registrations_.contains(data.registration_id));
 
   scoped_refptr<ServiceWorkerVersion> version =
       context_->GetLiveVersion(data.version_id);
@@ -1269,7 +1269,7 @@ ServiceWorkerRegistry::FindFromLiveRegistrationsForId(int64_t registration_id) {
     // The registration is considered as findable when it's stored or in
     // installing state.
     if (registration->IsStored() ||
-        base::Contains(installing_registrations_, registration_id)) {
+        installing_registrations_.contains(registration_id)) {
       return registration;
     }
     // Otherwise, the registration should not be findable even if it's still
@@ -1299,10 +1299,10 @@ void ServiceWorkerRegistry::DidFindRegistrationForClientUrl(
     storage::mojom::ServiceWorkerDatabaseStatus database_status,
     storage::mojom::ServiceWorkerFindRegistrationResultPtr result,
     const std::optional<std::vector<GURL>>& scopes) {
-  TRACE_EVENT_WITH_FLOW0(
-      "ServiceWorker", "ServiceWorkerRegistry::DidFindRegistrationForClientUrl",
-      TRACE_ID_WITH_SCOPE("ServiceWorkerRegistry", trace_event_id),
-      TRACE_EVENT_FLAG_FLOW_IN);
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerRegistry::DidFindRegistrationForClientUrl",
+              perfetto::TerminatingFlow::ProcessScoped(
+                  trace_event_id, "ServiceWorkerRegistry"));
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   // Discard RegistrationScopes from storage_shared_buffer.
   storage_shared_buffer().TakeRegistrationScopes();
@@ -2094,7 +2094,7 @@ void ServiceWorkerRegistry::StartRemoteCall(
 }
 
 void ServiceWorkerRegistry::FinishRemoteCall(const InflightCall* call) {
-  DCHECK(base::Contains(inflight_calls_, call));
+  DCHECK(inflight_calls_.contains(call));
   inflight_calls_.erase(call);
 }
 

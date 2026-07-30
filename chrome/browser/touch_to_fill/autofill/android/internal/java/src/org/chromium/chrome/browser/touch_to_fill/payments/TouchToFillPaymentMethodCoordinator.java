@@ -27,6 +27,7 @@ import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaym
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.TERMS_LABEL;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.TEXT_BUTTON;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.TOS_FOOTER;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.TOS_HEADER;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.WALLET_SETTINGS_BUTTON;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.SHEET_ITEMS;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ScreenId.HOME_SCREEN;
@@ -45,6 +46,7 @@ import org.chromium.components.autofill.ImageSize;
 import org.chromium.components.autofill.LoyaltyCard;
 import org.chromium.components.autofill.payments.BnplIssuerContext;
 import org.chromium.components.autofill.payments.BnplIssuerTosDetail;
+import org.chromium.components.autofill.payments.TouchToFillDisplayOptions;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -100,9 +102,10 @@ public class TouchToFillPaymentMethodCoordinator implements TouchToFillPaymentMe
 
     @Override
     public void showPaymentMethods(
-            List<AutofillSuggestion> suggestions, boolean shouldShowScanCreditCard) {
+            List<AutofillSuggestion> suggestions,
+            TouchToFillDisplayOptions touchToFillDisplayOptions) {
         assert mCardImageFunction != null : "Attempting to call showCreditCards before initialize.";
-        mMediator.showPaymentMethods(suggestions, shouldShowScanCreditCard, mCardImageFunction);
+        mMediator.showPaymentMethods(suggestions, touchToFillDisplayOptions, mCardImageFunction);
     }
 
     @Override
@@ -111,12 +114,17 @@ public class TouchToFillPaymentMethodCoordinator implements TouchToFillPaymentMe
     }
 
     @Override
-    public void showLoyaltyCards(
+    public void showAffiliatedLoyaltyCards(
             List<LoyaltyCard> affiliatedLoyaltyCards,
             List<LoyaltyCard> allLoyaltyCards,
             boolean firstTimeUsage) {
-        mMediator.showLoyaltyCards(
+        mMediator.showAffiliatedLoyaltyCards(
                 affiliatedLoyaltyCards, allLoyaltyCards, mValuableImageFunction, firstTimeUsage);
+    }
+
+    @Override
+    public void showAllLoyaltyCards(List<LoyaltyCard> allLoyaltyCards) {
+        mMediator.showAllLoyaltyCards(allLoyaltyCards, mValuableImageFunction);
     }
 
     @Override
@@ -244,6 +252,10 @@ public class TouchToFillPaymentMethodCoordinator implements TouchToFillPaymentMe
                 TEXT_BUTTON,
                 TouchToFillPaymentMethodViewBinder::createTextButtonView,
                 TouchToFillPaymentMethodViewBinder::bindButtonView);
+        adapter.registerType(
+                TOS_HEADER,
+                TouchToFillPaymentMethodViewBinder::createBnplTosHeaderView,
+                TouchToFillPaymentMethodViewBinder::bindBnplTosHeaderView);
         view.setSheetItemListAdapter(adapter);
     }
 

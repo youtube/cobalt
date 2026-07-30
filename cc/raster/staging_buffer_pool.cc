@@ -86,7 +86,8 @@ void StagingBuffer::DestroyGLResources(gpu::raster::RasterInterface* ri,
     query_id = 0;
   }
   if (client_shared_image) {
-    sii->DestroySharedImage(sync_token, std::move(client_shared_image));
+    client_shared_image->UpdateDestructionSyncToken(sync_token);
+    client_shared_image.reset();
   }
 }
 
@@ -170,7 +171,7 @@ bool StagingBufferPool::OnMemoryDump(
 
 void StagingBufferPool::AddStagingBuffer(const StagingBuffer* staging_buffer,
                                          viz::SharedImageFormat format) {
-  DCHECK(!base::Contains(buffers_, staging_buffer));
+  DCHECK(!buffers_.contains(staging_buffer));
   buffers_.insert(staging_buffer);
   int buffer_usage_in_bytes = format.EstimatedSizeInBytes(staging_buffer->size);
   staging_buffer_usage_in_bytes_ += buffer_usage_in_bytes;
@@ -178,7 +179,7 @@ void StagingBufferPool::AddStagingBuffer(const StagingBuffer* staging_buffer,
 
 void StagingBufferPool::RemoveStagingBuffer(
     const StagingBuffer* staging_buffer) {
-  DCHECK(base::Contains(buffers_, staging_buffer));
+  DCHECK(buffers_.contains(staging_buffer));
   buffers_.erase(staging_buffer);
   int buffer_usage_in_bytes =
       staging_buffer->format.EstimatedSizeInBytes(staging_buffer->size);

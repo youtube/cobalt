@@ -64,13 +64,15 @@ cr-composebox {
   --color-composebox-type-ahead-chip: var(--color-omnibox-composebox-foreground-disabled);
   --color-composebox-upload-button: var(--omnibox-results-chip-background);
   --color-composebox-upload-button-disabled: var(--color-omnibox-composebox-foreground-disabled);
+  --color-composebox-voice-search-font: var(--color-omnibox-text);
   --cr-composebox-background-color: var(--color-omnibox-results-background);
   --cr-composebox-input-placeholder-color: var(--color-omnibox-text-dimmed);
   --cr-composebox-outline-hcm: none;
   --cr-composebox-submit-button-margin-inline-start: auto;
   --cr-composebox-suggestion-activity-bottom: 0;
   --cr-composebox-suggestion-activity-margin-top: 0;
-
+  --cr-composebox-submit-container-top: auto;
+  --cr-composebox-voice-icon-top: auto;
   position: relative;
 }
 
@@ -93,8 +95,24 @@ cr-composebox[searchbox-layout-mode="TallBottomContext"]::part(voice-icon) {
   bottom: 6px;
 }
 
+cr-composebox[show-submit_][submit-enabled_][searchbox-layout-mode="TallBottomContext"]:not([show-dropdown_])::part(submit) {
+    bottom: 6px;
+}
+
 cr-composebox[searchbox-layout-mode="TallTopContext"] {
   --cr-composebox-submit-button-margin-inline-start: 0;
+}
+
+cr-composebox[show-submit_][submit-enabled_][searchbox-layout-mode='TallBottomContext']::part(voice-icon) {
+  inset-inline-end: calc(var(--cr-composebox-submit-container-size) + 6px);
+}
+
+cr-composebox[show-submit_][submit-enabled_][searchbox-layout-mode="TallTopContext"]::part(voice-icon) {
+  margin-inline-end: -8px;
+}
+
+cr-composebox[searchbox-layout-mode="TallBottomContext"][show-dropdown_]::part(voice-icon) {
+  bottom: 9px;
 }
 
 :host-context([dir='rtl']) cr-composebox[searchbox-layout-mode="Compact"]::part(context-menu-entrypoint-icon) {

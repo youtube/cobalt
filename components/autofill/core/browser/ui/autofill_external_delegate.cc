@@ -801,7 +801,8 @@ void AutofillExternalDelegate::DidAcceptSuggestion(
       }
       break;
     case SuggestionType::kFillAutofillAi:
-      if (EntityDataManager* edm = manager_->client().GetEntityDataManager()) {
+      if (const EntityDataManager* edm =
+              manager_->client().GetEntityDataManager()) {
         const Suggestion::AutofillAiPayload& payload =
             suggestion.GetPayload<Suggestion::AutofillAiPayload>();
         if (base::optional_ref<const EntityInstance> entity =
@@ -819,7 +820,8 @@ void AutofillExternalDelegate::DidAcceptSuggestion(
                   RationalizeAndDetermineAttributeTypes(
                       form_structure->fields(), autofill_field->section(),
                       entity->type()),
-                  manager_->client().GetAppLocale())) {
+                  manager_->client().GetAppLocale(),
+                  CHECK_DEREF(manager_->client().GetPrefs()))) {
             MaybeAuthenticateBeforeFilling(
                 l10n_util::GetStringUTF16(IDS_AUTOFILL_AI_FILLING_REAUTH),
                 base::BindOnce(
@@ -829,7 +831,7 @@ void AutofillExternalDelegate::DidAcceptSuggestion(
                        const EntityInstance::EntityId entity_id,
                        AutofillTriggerSource trigger_source) {
                       if (manager) {
-                        if (EntityDataManager* edm =
+                        if (const EntityDataManager* edm =
                                 manager->client().GetEntityDataManager()) {
                           if (base::optional_ref<const EntityInstance> entity =
                                   edm->GetEntityInstance(entity_id)) {
@@ -910,6 +912,11 @@ void AutofillExternalDelegate::DidAcceptSuggestion(
       }
       break;
     }
+    case SuggestionType::kAllLoyaltyCardsEntry: {
+      manager_->touch_to_fill_delegate()->ShowTouchToFillForAllLoyaltyCards(
+          query_form_, query_field_);
+      break;
+    }
     case SuggestionType::kOneTimePasswordEntry: {
       const FormStructure* form_structure =
           manager_->FindCachedFormById(query_form_.global_id());
@@ -940,7 +947,6 @@ void AutofillExternalDelegate::DidAcceptSuggestion(
     case SuggestionType::kTroubleSigningInEntry:
     case SuggestionType::kFreeformFooter:
     case SuggestionType::kAccountStoragePasswordEntry:
-    case SuggestionType::kAllLoyaltyCardsEntry:
     case SuggestionType::kAllSavedPasswordsEntry:
     case SuggestionType::kGeneratePasswordEntry:
     case SuggestionType::kDevtoolsTestAddresses:
@@ -1429,7 +1435,7 @@ void AutofillExternalDelegate::DidAcceptPaymentsSuggestion(
 }
 
 void AutofillExternalDelegate::MaybeAuthenticateBeforeFilling(
-    const std::u16string reauth_message,
+    const std::u16string& reauth_message,
     base::OnceClosure callback) {
   if (authenticator_) {
     authenticator_->Cancel();

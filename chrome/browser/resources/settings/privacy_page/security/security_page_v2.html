@@ -109,6 +109,10 @@
     column-gap: 10px;
   }
 
+  #bundlesRadioGroup controlled-radio-button::part(disc) {
+    --cr-hover-background-color: transparent;
+  }
+
   #bundlesRadioGroup controlled-radio-button::part(labelWrapper) {
     align-items: center;
     display: flex;
@@ -131,13 +135,14 @@
     align-items: flex-start;
     display: flex;
     justify-content: space-around;
-    padding: 20px;
+    padding: 0 56px 20px;
   }
 
   #safeBrowsingRadioGroup controlled-radio-button {
     align-items: flex-start;
     display: flex;
     flex-direction: row;
+    padding-top: var(--cr-section-vertical-padding);
   }
 
   #safeBrowsingRadioGroup controlled-radio-button::part(labelWrapper) {
@@ -146,9 +151,10 @@
     flex-direction: column;
     font-size: 106%;
     justify-content: space-between;
+    opacity: 1;
   }
 
-  #safeBrowsingRadioGroup .settings-columned-section {
+  #safeBrowsingRadioGroup .settings-columned-section, #learnMoreLabelContainer {
     font-size: 90%;
     font-weight: 80;
     padding-inline-start: 0;
@@ -157,6 +163,7 @@
   #safeBrowsingRadioGroup .settings-radio-button-subtitle {
     font-size: 90%;
     font-weight: 80;
+    padding-bottom: 12px;
   }
 </style>
 <settings-subpage page-title="$i18n{securityPageTitle}"
@@ -397,16 +404,16 @@
     <settings-toggle-button id="passwordsLeakToggle"
         pref="{{prefs.generated.password_leak_detection}}"
         label="$i18n{securityPasswordsLeakDetectionTitle}"
-        sub-label="$i18n{securityPasswordsLeakDetectionDesc}" class="box">
+        sub-label="$i18n{securityPasswordsLeakDetectionDesc}">
     </settings-toggle-button>
     <template is="dom-if" if="[[enableSecurityKeysSubpage_]]">
-      <cr-link-row id="securityKeysSubpageTrigger" class="box"
+      <cr-link-row id="securityKeysSubpageTrigger"
           label="$i18n{securityKeysTitle}" sub-label="$i18n{securityKeysDesc}"
           on-click="onSecurityKeysClick_"
           role-description="$i18n{subpageArrowRoleDescription}">
       </cr-link-row>
     </template>
-    <cr-link-row id="manageCertificatesLinkRow" class="box"
+    <cr-link-row id="manageCertificatesLinkRow"
         role-description="$i18n{subpageArrowRoleDescription}"
         label="$i18n{manageCertificates}"
         sub-label="$i18n{manageCertificatesDescription}"

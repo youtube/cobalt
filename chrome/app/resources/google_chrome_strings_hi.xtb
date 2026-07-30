@@ -270,6 +270,7 @@
 <translation id="3885770153807205175">भाषा चुनने की सुविधा</translation>
 <translation id="3889417619312448367">Google Chrome को विस्थापित करें</translation>
 <translation id="3892148308691398805">टेक्स्ट कॉपी करें</translation>
+<translation id="3893985792899396936">Chrome की सलाह: Lens की मदद से खोजें</translation>
 <translation id="3906096710440765802">अपने सभी डिवाइसों पर पासवर्ड, बुकमार्क वगैरह का ऐक्सेस पाने के लिए, Chrome में साइन इन करें</translation>
 <translation id="3921132130819999051">Chrome को आपके लिए ब्राउज़ करने की अनुमति दें</translation>
 <translation id="3941890832296813527">इंस्टॉल करने में गड़बड़ी हुई: इंस्टॉलर की फ़ाइल का नाम अमान्य है या इस नाम का इस्तेमाल नहीं किया जा सकता.</translation>
@@ -311,7 +312,6 @@
 <translation id="4329315893554541805">मनमुताबिक अनुभव और अन्य सुविधाएं पाने के लिए, Chrome को 'वेब और ऐप्लिकेशन गतिविधि' सेटिंग और लिंक की गई Google की सेवाओं में शामिल करें</translation>
 <translation id="4334241893986177674">इस स्क्रीनशॉट को खोजें</translation>
 <translation id="4334294535648607276">डाउनलोड पूर्ण.</translation>
-<translation id="4337324600316876133">आने वाले समय में Google Chrome के अपडेट पाने के लिए, आपके कंप्यूटर में macOS 12 या इसके बाद का वर्शन इंस्टॉल होना चाहिए. फ़िलहाल, इस कंप्यूटर में macOS 11 का इस्तेमाल किया जा रहा है.</translation>
 <translation id="4343195214584226067"><ph name="EXTENSION_NAME" /> को Chrome में जोड़ दिया गया है</translation>
 <translation id="4344128547036991536">Google Lens खोलने पर, Google को पेज का टाइटल, यूआरएल, और कॉन्टेंट अपने-आप भेज दिया जाएगा. इसमें PDF भी शामिल हैं. <ph name="LEARN_MORE" /></translation>
 <translation id="4348548358339558429">मनमुताबिक अनुभव पाने के लिए, 'वेब और ऐप्लिकेशन गतिविधि' सेटिंग में Chrome को शामिल करें</translation>
@@ -486,6 +486,7 @@ Google Chrome आपकी सेटिंग बहाल नहीं कर �
 <translation id="6180522807229584611">यह टैब अतिरिक्त संसाधनों का इस्तेमाल कर रहा है. परफ़ॉर्मेंस को बेहतर बनाने के लिए, Chrome को इसे बंद करने की अनुमति दें.</translation>
 <translation id="6182736845697986886">अपडेट सर्वर में कोई गड़बड़ी होने की वजह से इंस्टॉल नहीं हो सका.</translation>
 <translation id="6183773856988300112">Chrome में Gemini आपके टैब में काम करने और आपके बताए काम पूरे करने के लिए, अपने-आप ब्राउज़ करने की सुविधा का इस्तेमाल करता है. <ph name="LINK_BEGIN" />ज़्यादा जानें<ph name="LINK_END" /></translation>
+<translation id="6187085551300363958">Chrome की सलाह: पासवर्ड सेव करें</translation>
 <translation id="6192058120268468905">Chrome में आपका खाता</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" /> ने एक ऐसा एक्सटेंशन जोड़ा है जो Chrome के काम करने के तरीके को बदल सकता है.
 
@@ -624,6 +625,7 @@ Google Chrome आपकी सेटिंग बहाल नहीं कर �
 <translation id="7627609214560473136">अपने डेटा को सुरक्षित रखने के लिए, Chrome को उन साइटों को दी गई अनुमतियां हटाने दें जिन्हें आपने हाल ही में इस्तेमाल नहीं किया है.</translation>
 <translation id="7629695634924605473">Chrome यह बताता है कि कहीं आपके पासवर्ड का गलत इस्तेमाल तो नहीं किया गया है</translation>
 <translation id="7641148173327520642">आपके सिस्टम एडमिन ने <ph name="ALTERNATIVE_BROWSER_NAME" /> खाेलने के लिए, Google Chrome को कॉन्फ़िगर किया है ताकि <ph name="TARGET_URL_HOSTNAME" /> को ऐक्सेस किया जा सके.</translation>
+<translation id="7641448682796883218">Chrome की सलाह: बेहतर सुरक्षित ब्राउज़िंग की सुविधा इस्तेमाल करें</translation>
 <translation id="7649070708921625228">सहायता</translation>
 <translation id="7651907282515937834">Chrome Enterprise लोगो</translation>
 <translation id="76531479118467370">Chrome ने इस डाउनलोड को ब्लॉक कर दिया है, क्योंकि आपने सुरक्षित ब्राउज़िंग की सुविधा बंद कर दी है और इस फ़ाइल की पुष्टि नहीं की जा सकती</translation>

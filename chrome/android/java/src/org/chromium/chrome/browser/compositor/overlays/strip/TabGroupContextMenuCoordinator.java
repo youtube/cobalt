@@ -17,10 +17,12 @@ import android.content.res.Resources;
 import android.database.DataSetObserver;
 import android.text.Editable;
 import android.text.TextUtils;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.View.MeasureSpec;
 import android.view.ViewGroup;
 import android.view.ViewStub;
+import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.ListAdapter;
 import android.widget.ListView;
@@ -454,28 +456,19 @@ public class TabGroupContextMenuCoordinator extends TabStripReorderingHelper<Tok
         assert mContentView != null : "Menu view should not be null";
 
         ListView listView = mContentView.findViewById(R.id.tab_group_action_menu_list);
-        listView.setScrollContainer(false);
 
         ListAdapter listAdapter = listView.getAdapter();
         if (listAdapter == null) {
             return;
         }
 
-        int totalHeight = 0;
-        for (int i = 0; i < listAdapter.getCount(); i++) {
-            View listItem = listAdapter.getView(i, null, listView);
-            listItem.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
-            totalHeight += listItem.getMeasuredHeight();
-        }
-
-        ViewGroup.LayoutParams params = listView.getLayoutParams();
-        params.height = totalHeight + listView.getPaddingTop() + listView.getPaddingBottom();
-        listView.setLayoutParams(params);
+        setScrollabilityAndSize(listView, listAdapter);
 
         listAdapter.registerDataSetObserver(
                 new DataSetObserver() {
                     @Override
                     public void onChanged() {
+                        setScrollabilityAndSize(listView, listAdapter);
                         boolean shouldShowTitleEditor =
                                 (listAdapter.getItemViewType(0) != SUBMENU_HEADER);
                         if (mGroupTitleEditText != null) {
@@ -489,6 +482,21 @@ public class TabGroupContextMenuCoordinator extends TabStripReorderingHelper<Tok
                         }
                     }
                 });
+    }
+
+    private void setScrollabilityAndSize(ListView listView, ListAdapter listAdapter) {
+        boolean isInSubmenu = (listAdapter.getItemViewType(0) == SUBMENU_HEADER);
+        listView.setScrollContainer(isInSubmenu);
+
+        int totalHeight = 0;
+        for (int i = 0; i < listAdapter.getCount(); i++) {
+            View listItem = listAdapter.getView(i, null, listView);
+            listItem.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
+            totalHeight += listItem.getMeasuredHeight();
+        }
+        ViewGroup.LayoutParams params = listView.getLayoutParams();
+        params.height = totalHeight + listView.getPaddingTop() + listView.getPaddingBottom();
+        listView.setLayoutParams(params);
     }
 
     private int getMenuItemIndex(ModelList itemList, int menuItemId) {
@@ -634,6 +642,21 @@ public class TabGroupContextMenuCoordinator extends TabStripReorderingHelper<Tok
                         }
                         mIsPresetTitleUsed = false;
                     }
+                });
+
+        // Listen for enter pressed to update the group title.
+        mGroupTitleEditText.setOnEditorActionListener(
+                (v, actionId, event) -> {
+                    if (actionId == EditorInfo.IME_ACTION_DONE
+                            || (event != null
+                                    && event.getAction() == KeyEvent.ACTION_DOWN
+                                    && event.getKeyCode() == KeyEvent.KEYCODE_ENTER)) {
+                        updateTabGroupTitle();
+                        mWindowAndroid.getKeyboardDelegate().hideKeyboard(mGroupTitleEditText);
+                        dismiss();
+                        return true; // Consumed.
+                    }
+                    return false;
                 });
 
         setExistingOrDefaultTitle(

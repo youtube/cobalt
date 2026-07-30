@@ -32,11 +32,16 @@
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/public/mojom/network_service.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "third_party/blink/public/mojom/loader/resource_load_info.mojom-shared.h"
 
 #if BUILDFLAG(ENABLE_REPORTING)
 #include "services/network/public/mojom/reporting_service.mojom.h"
 #endif  // BUILDFLAG(ENABLE_REPORTING)
+
+#if BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
+#include "services/network/public/mojom/device_bound_sessions.mojom.h"
+#endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
 
 namespace net {
 class HttpRequestHeaders;
@@ -75,6 +80,9 @@ class NetworkHandler : public DevToolsDomainHandler,
 #if BUILDFLAG(ENABLE_REPORTING)
                        public network::mojom::ReportingApiObserver,
 #endif  // BUILDFLAG(ENABLE_REPORTING)
+#if BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
+                       public network::mojom::DeviceBoundSessionEventObserver,
+#endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
                        public Network::Backend {
  public:
   NetworkHandler(const std::string& host_id,
@@ -133,6 +141,19 @@ class NetworkHandler : public DevToolsDomainHandler,
 #endif  // BUILDFLAG(ENABLE_REPORTING)
 
   Response EnableReportingApi(bool enable) override;
+
+#if BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
+  void AddDeviceBoundSessionDisplays(
+      const std::vector<::net::device_bound_sessions::SessionDisplay>&
+          session_displays) override;
+  void OnDeviceBoundSessionEventReceived(
+      const ::net::device_bound_sessions::SessionEvent& event) override;
+#endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
+
+  Response EnableDeviceBoundSessions(bool enable) override;
+
+  Response FetchSchemefulSite(const std::string& origin,
+                              std::string* schemeful_site) override;
 
   void ConfigureDurableMessages(
       std::optional<int> max_total_size,
@@ -427,6 +448,10 @@ class NetworkHandler : public DevToolsDomainHandler,
 #if BUILDFLAG(ENABLE_REPORTING)
   mojo::Receiver<network::mojom::ReportingApiObserver> reporting_receiver_;
 #endif  // BUILDFLAG(ENABLE_REPORTING)
+#if BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
+  mojo::Receiver<network::mojom::DeviceBoundSessionEventObserver>
+      device_bound_session_receiver_;
+#endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
   std::vector<std::pair<std::string, std::string>> extra_headers_;
   std::unique_ptr<DevToolsURLLoaderInterceptor> url_loader_interceptor_;
   bool bypass_service_worker_;
@@ -438,7 +463,7 @@ class NetworkHandler : public DevToolsDomainHandler,
            base::UniquePtrComparator>
       loaders_;
   std::optional<std::set<net::SourceStreamType>> accepted_stream_types_;
-  std::unordered_map<String, std::pair<String, bool>> received_body_data_;
+  absl::flat_hash_map<String, std::pair<String, bool>> received_body_data_;
   bool did_modifications_ = false;
   base::OnceClosure cleanup_after_modifications_callback_;
   const raw_ref<DevToolsSession> root_session_;

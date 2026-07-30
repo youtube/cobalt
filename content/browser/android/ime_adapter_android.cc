@@ -129,12 +129,12 @@ static void JNI_ImeAdapterImpl_AppendSuggestionSpan(
     jlong ime_text_spans_ptr,
     jint start,
     jint end,
-    jboolean is_misspelling,
-    jboolean remove_on_finish_composing,
+    bool is_misspelling,
+    bool remove_on_finish_composing,
     jint underline_color,
     jint suggestion_highlight_color,
     const JavaRef<jobjectArray>& suggestions,
-    jboolean should_hide_suggestion_menu) {
+    bool should_hide_suggestion_menu) {
   DCHECK_GE(start, 0);
   DCHECK_GE(end, 0);
 
@@ -254,9 +254,9 @@ void ImeAdapterAndroid::UpdateFrameInfo(
   if (obj.is_null())
     return;
 
-  const jboolean has_insertion_marker =
+  const bool has_insertion_marker =
       selection_start.type() != gfx::SelectionBound::EMPTY;
-  const jboolean is_insertion_marker_visible = selection_start.visible();
+  const bool is_insertion_marker_visible = selection_start.visible();
   const jfloat insertion_marker_horizontal =
       has_insertion_marker ? selection_start.edge_start().x() : 0.0f;
   const jfloat insertion_marker_top =
@@ -280,7 +280,7 @@ void ImeAdapterAndroid::OnRenderFrameMetadataChangedAfterActivation(
   if (obj.is_null())
     return;
 
-  const jboolean surface_height_reduced =
+  const bool surface_height_reduced =
       new_viewport_size.width() == old_viewport_size_.width() &&
       new_viewport_size.height() < old_viewport_size_.height();
   old_viewport_size_ = new_viewport_size;
@@ -310,7 +310,8 @@ void ImeAdapterAndroid::SetComposingText(JNIEnv* env,
                                          const JavaRef<jobject>& obj,
                                          const JavaRef<jobject>& text,
                                          const JavaRef<jstring>& text_str,
-                                         int relative_cursor_pos) {
+                                         int relative_cursor_pos,
+                                         bool is_text_suggestion_selected) {
   RenderWidgetHostImpl* rwhi = GetFocusedWidget();
   if (!rwhi)
     return;
@@ -336,7 +337,10 @@ void ImeAdapterAndroid::SetComposingText(JNIEnv* env,
     relative_cursor_pos = text16.length() + relative_cursor_pos - 1;
 
   rwhi->ImeSetComposition(text16, ime_text_spans, gfx::Range::InvalidRange(),
-                          relative_cursor_pos, relative_cursor_pos);
+                          relative_cursor_pos, relative_cursor_pos,
+                          is_text_suggestion_selected
+                              ? blink::mojom::ImeState::kTextSuggestionSelected
+                              : blink::mojom::ImeState::kNone);
 }
 
 void ImeAdapterAndroid::CommitText(JNIEnv* env,

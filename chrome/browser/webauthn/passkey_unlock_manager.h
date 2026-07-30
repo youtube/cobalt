@@ -17,7 +17,6 @@
 #include "components/webauthn/core/browser/passkey_model_change.h"
 
 class Browser;
-class Profile;
 
 namespace syncer {
 class SyncService;
@@ -49,10 +48,8 @@ class PasskeyUnlockManager : public KeyedService,
 
   class Observer : public base::CheckedObserver {
    public:
-    // Notifies the observer that state has changed.
-    // TODO(crbug.com/461806010): Rename this method. The more suitable name for
-    // this method would be something like `OnPasskeyErrorUiStateChanged()`.
-    virtual void OnPasskeyUnlockManagerStateChanged() = 0;
+    // Notifies the observer that the passkey error UI state has changed.
+    virtual void OnPasskeyErrorUiStateChanged() = 0;
 
     // Notifies the observer that the passkey unlock manager is shutting down.
     virtual void OnPasskeyUnlockManagerShuttingDown() = 0;
@@ -61,7 +58,9 @@ class PasskeyUnlockManager : public KeyedService,
     virtual void OnPasskeyUnlockManagerIsReady() = 0;
   };
 
-  explicit PasskeyUnlockManager(Profile* profile);
+  PasskeyUnlockManager(EnclaveManagerInterface* enclave_manager,
+                       PasskeyModel* passkey_model,
+                       syncer::SyncService* sync_service);
   ~PasskeyUnlockManager() override;
   PasskeyUnlockManager(const PasskeyUnlockManager&) = delete;
   PasskeyUnlockManager(const PasskeyUnlockManager&&) = delete;
@@ -92,16 +91,13 @@ class PasskeyUnlockManager : public KeyedService,
   static void RecordErrorUIEventType(ErrorUIEventType event_type);
 
  private:
-  // Returns the PasskeyModel associated with the profile passed to the
-  // constructor.
+  // Returns the PasskeyModel provided at construction.
   PasskeyModel* passkey_model();
 
-  // Returns the EnclaveManager associated with the profile passed to the
-  // constructor.
+  // Returns the EnclaveManager provided at construction.
   EnclaveManagerInterface* enclave_manager();
 
-  // Returns the SyncService associated with the profile passed to the
-  // constructor.
+  // Returns the SyncService provided at construction.
   syncer::SyncService* sync_service();
 
   // Updates the cached value of `has_passkeys_`.

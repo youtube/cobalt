@@ -43,7 +43,7 @@
 #include "chrome/browser/ash/growth/campaigns_manager_session.h"
 #include "chrome/browser/ash/input_device_settings/peripherals_app_delegate_impl.h"
 #include "chrome/browser/ash/login/signin/signin_error_notifier_factory.h"
-#include "chrome/browser/ash/magic_boost/magic_boost_state_ash.h"
+#include "chrome/browser/ash/magic_boost/magic_boost_state.h"
 #include "chrome/browser/ash/mahi/mahi_manager_impl.h"
 #include "chrome/browser/ash/mahi/media_app/mahi_media_app_content_manager_impl.h"
 #include "chrome/browser/ash/mahi/media_app/mahi_media_app_events_proxy_impl.h"
@@ -447,7 +447,7 @@ void ChromeBrowserMainExtraPartsAsh::PreProfileInit() {
   // Needs to be initialized before `read_write_cards_manager_`. This is because
   // `QuickAnswersState` needs `MagicBoostState` to be initialized before it is
   // constructed.
-  magic_boost_state_ash_ = std::make_unique<ash::MagicBoostStateAsh>();
+  magic_boost_state_ = std::make_unique<ash::MagicBoostState>();
 
   read_write_cards_manager_ =
       std::make_unique<chromeos::ReadWriteCardsManagerImpl>(
@@ -654,7 +654,7 @@ void ChromeBrowserMainExtraPartsAsh::PostMainMessageLoopRun() {
   read_write_cards_manager_.reset();
 
   // Must be destructed after `read_write_cards_manager_`.
-  magic_boost_state_ash_.reset();
+  magic_boost_state_.reset();
 
   mahi_media_app_content_manager_.reset();
   mahi_media_app_events_proxy_.reset();

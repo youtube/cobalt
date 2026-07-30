@@ -275,6 +275,7 @@ Kai kurios funkcijos gali būti nepasiekiamos ir nuostatų pakeitimai nebus išs
 <translation id="3885770153807205175">Kalbos rinkiklis</translation>
 <translation id="3889417619312448367">Išdiegti „Google Chrome“</translation>
 <translation id="3892148308691398805">Kopijuoti tekstą</translation>
+<translation id="3893985792899396936">„Chrome“ patarimas: ieškokite naudodami „Lens“</translation>
 <translation id="3906096710440765802">Prisijunkite prie „Chrome“, kad galėtumėte pasiekti slaptažodžius, žymes ir kitas funkcijas visuose įrenginiuose</translation>
 <translation id="3921132130819999051">Leiskite „Chrome“ naršyti už jus</translation>
 <translation id="3941890832296813527">Diegimo klaida: diegimo programos failo pavadinimas netinkamas arba nepalaikomas.</translation>
@@ -316,7 +317,6 @@ Kai kurios funkcijos gali būti nepasiekiamos ir nuostatų pakeitimai nebus išs
 <translation id="4329315893554541805">Jei norite naudoti suasmeninimo ir kitas funkcijas, įtraukite „Chrome“ į Žiniatinklio ir programų veiklą bei susietas „Google“ paslaugas</translation>
 <translation id="4334241893986177674">Ieškoti šioje ekrano kopijoje</translation>
 <translation id="4334294535648607276">Atsisiuntimas baigtas.</translation>
-<translation id="4337324600316876133">Jei norite gauti būsimus „Google Chrome“ naujinius, jums reikės 12 ar naujesnės „macOS“ versijos. Šiame kompiuteryje naudojama 11 versijos „macOS“.</translation>
 <translation id="4343195214584226067">Plėtinys „<ph name="EXTENSION_NAME" />“ pridėtas prie „Chrome“</translation>
 <translation id="4344128547036991536">Kai atidarysite „Google Lens“, puslapio pavadinimas, URL ir turinys, įskaitant PDF failus, bus automatiškai siunčiami „Google“. <ph name="LEARN_MORE" /></translation>
 <translation id="4348548358339558429">Jei norite naudoti suasmeninimo funkciją, įtraukite „Chrome“ į Žiniatinklio ir programų veiklą</translation>
@@ -373,6 +373,7 @@ Kai kurios funkcijos gali būti nepasiekiamos ir nuostatų pakeitimai nebus išs
 <translation id="5003967926796347400">Spustelėkite „Google“ slaptažodžių tvarkyklė“.</translation>
 <translation id="5043786843026425788">Sužinokite daugiau apie paiešką naudojant „Google Lens“ naršyklėje „Chrome“</translation>
 <translation id="504867494566807945">Atidarykite nuorodas naršyklėje „Chrome“ iš bet kurios programos. Be to, kad būtų lengviau pasiekti, ji prisegama prie užduočių juostos.</translation>
+<translation id="5105120510934353742">Jei norite gauti būsimus „Google Chrome“ naujinius, jums reikės 13 ar naujesnės „macOS“ versijos. Šiame kompiuteryje naudojama 12 versijos „macOS“.</translation>
 <translation id="5114340746415930644">Įveskite slaptafrazę, kad galėtumėte naudoti ir išsaugoti „Chrome“ duomenis paskyroje <ph name="USER_EMAIL" /></translation>
 <translation id="5120334927898581447">Prisijungimas prie „Chrome“ prisijungiant prie kitų „Google“ paslaugų</translation>
 <translation id="5126049312684316860">„Chrome“ iš anksto įkelia dar daugiau puslapių, kuriuose galite apsilankyti, kad jie būtų sparčiau įkeliami juose lankantis</translation>
@@ -491,6 +492,7 @@ Kai kurios funkcijos gali būti nepasiekiamos. Nurodykite kitą profilio katalog
 <translation id="6180522807229584611">Šiam skirtukui naudojami papildomi šaltiniai. Kad padidintumėte našumą, leiskite „Chrome“ jį padaryti neaktyvų.</translation>
 <translation id="6182736845697986886">Įdiegti nepavyko dėl vidinės atnaujinimo serverio klaidos.</translation>
 <translation id="6183773856988300112">„Gemini“ naršyklėje „Chrome“ naudoja automatinį naršymą, kad veiktų jūsų skirtukuose ir atliktų jūsų pateiktas užduotis. <ph name="LINK_BEGIN" />Sužinokite daugiau<ph name="LINK_END" /></translation>
+<translation id="6187085551300363958">„Chrome“ patarimas: išsaugokite slaptažodžius</translation>
 <translation id="6192058120268468905">Jūsų paskyra naršyklėje „Chrome“</translation>
 <translation id="6220551899604141979">„<ph name="PARTNER_NAME" />“ pridėjo plėtinį, kuris gali pakeisti, kaip veikia „Chrome“.
 
@@ -629,6 +631,7 @@ Kai kurios funkcijos gali būti nepasiekiamos. Nurodykite kitą profilio katalog
 <translation id="7627609214560473136">Kad apsaugotumėte duomenis, leiskite „Chrome“ pašalinti svetainių, kuriose pastaruoju metu nesilankėte, leidimus.</translation>
 <translation id="7629695634924605473">„Chrome“ praneš, jei slaptažodžiai bus pažeisti</translation>
 <translation id="7641148173327520642">Sistemos administratorius sukonfigūravo „Google Chrome“ atidaryti alternatyvią naršyklę <ph name="ALTERNATIVE_BROWSER_NAME" />, norint pasiekti <ph name="TARGET_URL_HOSTNAME" />.</translation>
+<translation id="7641448682796883218">„Chrome“ patarimas: Sustiprintas saugus naršymas</translation>
 <translation id="7649070708921625228">Pagalba</translation>
 <translation id="7651907282515937834">„Chrome Enterprise“ logotipas</translation>
 <translation id="76531479118467370">„Chrome“ užblokavo šį atsisiuntimą, nes išjungėte Saugaus naršymo funkciją ir failo nepavyko patvirtinti</translation>

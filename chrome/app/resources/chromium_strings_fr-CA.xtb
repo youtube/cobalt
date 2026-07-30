@@ -84,6 +84,7 @@ Certaines fonctionnalités ne seront peut-être pas disponibles et les modificat
 <translation id="193439633299369377">Chromium OS doit être redémarré pour appliquer la mise à jour.</translation>
 <translation id="1951406923938785464">Chromium a bloqué ce téléchargement, car le type de fichier n'est pas souvent téléchargé et pourrait être dangereux</translation>
 <translation id="1953553007165777902">Téléchargement en cours… <ph name="MINUTE" /> minute(s) restante(s)</translation>
+<translation id="1965068424387304464">Astuce Chromium : Enregistrer les mots de passe</translation>
 <translation id="1966382378801805537">Chromium ne parvient pas à déterminer quel est le navigateur par défaut ou à le définir</translation>
 <translation id="1990262977744080398">Découvrir pourquoi Chromium bloque certains fichiers, s'ouvre dans un nouvel onglet</translation>
 <translation id="1999715455684970349">Maintient votre logiciel Chromium à jour. Si ce service est désactivé ou arrêté, votre logiciel Chromium ne sera pas mis à jour, ce qui signifie que les vulnérabilités de sécurité qui pourraient survenir ne pourront pas être corrigées et que les fonctionnalités risquent de ne pas fonctionner. Ce service se désinstalle si aucun logiciel Chromium ne l'utilise.</translation>
@@ -92,7 +93,6 @@ Certaines fonctionnalités ne seront peut-être pas disponibles et les modificat
 <translation id="2020032459870799438">Pour vérifier si vos autres mots de passe sont en sécurité contre les violations de données et d'autres risques de sécurité, <ph name="BEGIN_LINK" />connectez-vous à Chromium<ph name="END_LINK" />.</translation>
 <translation id="2039417478970545937">Paramètres.</translation>
 <translation id="2049376729098081731">Choisissez si vous souhaitez inclure l'historique de Chromium pour rendre vos expériences des services Google plus personnalisées</translation>
-<translation id="2054039611381840095">Vous devez disposer de macOS 12 ou d'une version ultérieure pour recevoir les futures mises à jour de Chromium. Cet ordinateur fonctionne sous macOS 11.</translation>
 <translation id="2064856577282482477">Cliquez sur le bouton Personnaliser Chromium sur la page Nouvel onglet pour donner un nouveau style à Chromium</translation>
 <translation id="2086476982681781442">Chromium a bloqué ce téléchargement, car le fichier est trompeur et pourrait apporter des modifications inattendues à votre appareil</translation>
 <translation id="208726765006323911">Une invite vous proposera d'essayer <ph name="FEATURE_NAME" /> la prochaine fois que vous ouvrirez Chromium pour iOS.</translation>
@@ -254,6 +254,7 @@ Les signets, l'historique et les mots de passe enregistrés ne seront pas touch�
 <translation id="3802055581630249637">Chromium précharge les pages que vous êtes susceptible de visiter, afin qu'elles se chargent plus rapidement lorsque vous le faites.</translation>
 <translation id="3810973564298564668">Gérer</translation>
 <translation id="3823384748599722168">Pour utiliser vos mots de passe enregistrés, balayez le code QR, téléchargez Chromium pour iOS et connectez-vous à votre compte Google</translation>
+<translation id="3837584850181228767">Astuce Chromium : Navigation sécurisée améliorée</translation>
 <translation id="3846683726093018685">**Résumer :** en une seule phrase de moins de 30 mots, décris le sujet principal et l'objectif du contenu de la capture d'écran.
 
           **Suggérer des questions :** génère une liste à puces de trois à cinq questions stimulantes qu'un utilisateur pourrait poser pour mieux comprendre la capture d'écran. Ces questions doivent inclure au moins une question portant précisément sur un objet visuel, sa conception ou son emplacement.</translation>
@@ -716,6 +717,7 @@ Chromium est incapable de récupérer vos paramètres.</translation>
 <translation id="9148058034647219655">Quitter</translation>
 <translation id="9155105544013854680">Reprenez là où vous en étiez : Chromium peut restaurer vos onglets à chaque redémarrage. Pour activer cette option, accédez à</translation>
 <translation id="9158494823179993217">Votre administrateur système a configuré Chromium pour ouvrir un autre navigateur afin d'accéder à <ph name="TARGET_URL_HOSTNAME" />.</translation>
+<translation id="9183331186620388872">Conseil Chromium : Recherchez du contenu avec Lentille</translation>
 <translation id="9185526690718004400">Relancer &amp;Chromium pour le mettre à jour</translation>
 <translation id="9190841055450128916">Chromium (mDNS-In)</translation>
 <translation id="9206863043651638213">Accédez à plus d'options lorsque vous êtes connecté à Chromium</translation>

@@ -36,7 +36,6 @@
 
 #include "base/auto_reset.h"
 #include "base/containers/adapters.h"
-#include "base/containers/contains.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/i18n/time_formatting.h"
 #include "base/metrics/histogram_functions.h"
@@ -113,6 +112,7 @@
 #include "third_party/blink/renderer/core/css/css_style_sheet.h"
 #include "third_party/blink/renderer/core/css/cssom/caret_position.h"
 #include "third_party/blink/renderer/core/css/cssom/computed_style_property_map.h"
+#include "third_party/blink/renderer/core/css/document_style_environment_variables.h"
 #include "third_party/blink/renderer/core/css/element_rule_collector.h"
 #include "third_party/blink/renderer/core/css/font_face_set_document.h"
 #include "third_party/blink/renderer/core/css/invalidation/style_invalidator.h"
@@ -1415,7 +1415,8 @@ std::pair<CustomElementRegistry*, AtomicString> FlattenCreateElementOptions(
     const V8UnionElementCreationOptionsOrString* string_or_options,
     ExceptionState& exception_state) {
   DCHECK(string_or_options);
-  CustomElementRegistry* registry = nullptr;
+  CustomElementRegistry* registry =
+      CustomElementRegistry::DefaultRegistry(*document);
   AtomicString is = AtomicString();
 
   switch (string_or_options->GetContentType()) {
@@ -1424,14 +1425,28 @@ std::pair<CustomElementRegistry*, AtomicString> FlattenCreateElementOptions(
         kElementCreationOptions: {
       const ElementCreationOptions* options =
           string_or_options->GetAsElementCreationOptions();
-      // 3-1. If options["customElementRegistry"] exists, then set registry to
-      // it.
+      // 3-1. If options["is"] exists, then set "is" to it.
+      if (options->hasIs()) {
+        is = AtomicString(options->is());
+      }
+      // 3-2. If options["customElementRegistry"] exists:
       if (RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled() &&
           options->hasCustomElementRegistry()) {
+        // 3-2-1. If is is non-null, then throw a "notSupportedError"
+        // DOMException.
+        if (!is.IsNull()) {
+          exception_state.ThrowDOMException(
+              DOMExceptionCode::kNotSupportedError,
+              "The custom element registry and \"is\" option can't be set at "
+              "the same time.");
+          return std::pair(registry, is);
+        }
+        // 3-2-2. Set registry to options["customElementRegistry"]
         registry = options->customElementRegistry();
       }
-      // 3-2. If registry's "is scoped" is false and registry is not document's
-      // custom element registry, then throw a "NotSupportedError" DOMException.
+      // 3-3. If registry is non-null, and registry's "is scoped" is false and
+      // registry is not document's custom element registry, then throw a
+      // "NotSupportedError" DOMException.
       if (registry && registry->IsGlobalRegistry() &&
           registry != document->customElementRegistry()) {
         exception_state.ThrowDOMException(
@@ -1439,29 +1454,11 @@ std::pair<CustomElementRegistry*, AtomicString> FlattenCreateElementOptions(
             "The registry provided is a global registry from another document");
         return std::pair(registry, is);
       }
-      // 3-3. If options["is"] exists, then set is to it.
-      if (options->hasIs())
-        is = AtomicString(options->is());
-      // 3-3. If registry is non-null and is is non-null, then throw a
-      // "notSupportedError" DOMException.
-      if (registry && !is.IsNull()) {
-        exception_state.ThrowDOMException(
-            DOMExceptionCode::kNotSupportedError,
-            "The custom element registry and is option can't be set at the "
-            "same time.");
-        return std::pair(registry, is);
-      }
-      // 4. If registry is null then set registry to the result of looking up a
-      // custom element registry given document.
-      if (!registry) {
-        registry = document->customElementRegistry();
-      }
       break;
     }
     case V8UnionElementCreationOptionsOrString::ContentType::kString:
       UseCounter::Count(document,
                         WebFeature::kDocumentCreateElement2ndArgStringHandling);
-      is = AtomicString(string_or_options->GetAsString());
       break;
   }
   // 5. Return registry and is.
@@ -1505,7 +1502,6 @@ Element* Document::CreateElementForBinding(
   // 5. Let element be the result of creating an element given ...
   Element* element = CreateElement(
       q_name, CreateElementFlags::ByCreateElement(), is, registry);
-
   return element;
 }
 
@@ -1594,13 +1590,10 @@ Element* Document::CreateElement(const QualifiedName& q_name,
   CustomElementDefinition* definition = nullptr;
   // 2. If registry is "default", set registry to the result of looking
   // up a custom element registry given document.
-  // Note that this step is currently only applicable to scenario when
-  // scoped registry is disabled as a valid registry should be assigned for
-  // default cases while flattening options. We could overload
-  // Document::CreateElement without registry argument and assign
-  // default value in implementation if the use case is ever needed.
+  // Note that we need to assign default registry when scoped registry is
+  // disabled
   if (!RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled()) {
-    registry = customElementRegistry();
+    registry = CustomElementRegistry::DefaultRegistry(*this);
   }
   if (flags.IsCustomElements() &&
       q_name.NamespaceURI() == html_names::xhtmlNamespaceURI) {
@@ -1618,7 +1611,7 @@ Element* Document::CreateElement(const QualifiedName& q_name,
   }
 
   return CustomElement::CreateUncustomizedOrUndefinedElement(
-      *this, q_name, flags, is, registry, /*wait_for_registry=*/false);
+      *this, q_name, flags, is, registry, /*wait_for_registry*/ !registry);
 }
 
 DocumentFragment* Document::createDocumentFragment() {
@@ -2822,8 +2815,7 @@ void Document::UpdateStyle() {
   // SetNeedsStyleRecalc should only happen on Element and Text nodes.
   DCHECK(!NeedsStyleRecalc());
 
-  bool should_record_stats;
-  TRACE_EVENT_CATEGORY_GROUP_ENABLED("blink,blink_style", &should_record_stats);
+  bool should_record_stats = TRACE_EVENT_CATEGORY_ENABLED("blink,blink_style");
 
   style_engine.SetStatsEnabled(should_record_stats);
   style_engine.UpdateStyleAndLayoutTree();
@@ -5535,8 +5527,8 @@ bool Document::CanAcceptChild(const Node* new_child,
   if (num_elements > 1 || num_doctypes > 1) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kHierarchyRequestError,
-        String::Format("Only one %s on document allowed.",
-                       num_elements > 1 ? "element" : "doctype"));
+        UNSAFE_TODO(String::Format("Only one %s on document allowed.",
+                                   num_elements > 1 ? "element" : "doctype")));
     return false;
   }
 
@@ -6631,8 +6623,8 @@ void Document::EnqueueVisualViewportResizeEvent() {
   scripted_animation_controller_->EnqueuePerFrameEvent(event);
 }
 
-void Document::DispatchEventsForPrinting() {
-  scripted_animation_controller_->DispatchEventsAndCallbacksForPrinting();
+void Document::DispatchMediaQueryListEvents() {
+  scripted_animation_controller_->DispatchMediaQueryListEventsAndCallbacks();
 }
 
 Document::EventFactorySet& Document::EventFactories() {
@@ -7159,8 +7151,7 @@ ScriptPromise<IDLBoolean> Document::hasPrivateToken(
              network::mojom::blink::HasTrustTokensResultPtr result) {
             // If there was a Mojo connection error, the promise was already
             // resolved and deleted.
-            if (!base::Contains(
-                    document->data_->pending_trust_token_query_resolvers_,
+            if (!document->data_->pending_trust_token_query_resolvers_.Contains(
                     resolver)) {
               return;
             }
@@ -7270,8 +7261,7 @@ ScriptPromise<IDLBoolean> Document::hasRedemptionRecord(
              network::mojom::blink::HasRedemptionRecordResultPtr result) {
             // If there was a Mojo connection error, the promise was already
             // resolved and deleted.
-            if (!base::Contains(
-                    document->data_->pending_trust_token_query_resolvers_,
+            if (!document->data_->pending_trust_token_query_resolvers_.Contains(
                     resolver)) {
               return;
             }
@@ -8351,6 +8341,23 @@ void Document::SetTextScaleMetaTagPresent(bool present) {
     UseCounter::CountWebDXFeature(this, WebDXFeature::kDRAFT_MetaTextScale);
   }
   GetStyleEngine().InitialStyleChanged();
+  GetStyleEngine()
+      .EnsureEnvironmentVariables()
+      .UpdatePreferredTextScaleFromDocument();
+
+  if (LocalFrame* frame = GetFrame()) {
+    if (Settings* settings = GetSettings()) {
+      // If we are in a WebView and the meta tag is being flipped, we need to
+      // change the system font scale.
+      // No matter if the page just added or just removed meta,
+      // SetTextZoomFactor will do the right thing if we give it the original
+      // font scale factor here.
+      if (settings->GetScaleAllFontsIfNoMetaTextScaleTag() &&
+          !settings->GetTextAutosizingEnabled()) {
+        frame->SetTextZoomFactor(settings->GetAccessibilityFontScaleFactor());
+      }
+    }
+  }
 }
 
 void Document::TextScaleMetaChanged() {

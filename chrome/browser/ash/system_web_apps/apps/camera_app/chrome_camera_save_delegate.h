@@ -11,6 +11,7 @@
 #include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "chrome/browser/ash/policy/skyvault/drive_upload_observer.h"
 #include "chrome/browser/ash/policy/skyvault/odfs_skyvault_uploader.h"
 #include "chrome/browser/ash/policy/skyvault/policy_utils.h"
 #include "chromeos/ash/experiences/camera/camera_save_handler.h"
@@ -43,6 +44,11 @@ class ChromeCameraSaveDelegate : public CameraSaveHandler::Delegate {
                      const gfx::Image& thumbnail,
                      base::RepeatingCallback<void(int64_t)> progress_callback,
                      base::OnceCallback<void(bool)> done_callback) override;
+  void CancelUploads() override;
+  void OpenFileInImageEditor(const base::FilePath& file_path) override;
+  void DeleteFileOnOneDrive(const base::FilePath& file_path,
+                            base::OnceCallback<void(bool)> callback) override;
+  void OpenCameraApp() override;
 
   bool is_onedrive() const {
     return destination_ ==
@@ -61,11 +67,16 @@ class ChromeCameraSaveDelegate : public CameraSaveHandler::Delegate {
       storage::FileSystemURL,
       std::optional<ash::cloud_upload::OdfsSkyvaultUploader::UploadError>,
       base::FilePath);
+  void OnGoogleDriveUploadDone(const std::string& file_name,
+                               base::OnceCallback<void(bool)> callback,
+                               bool success);
 
   const raw_ptr<content::BrowserContext> context_;
   const policy::local_user_files::FileSaveDestination destination_;
   std::map<std::string, base::WeakPtr<ash::cloud_upload::OdfsSkyvaultUploader>>
       onedrive_uploaders_;
+  std::map<std::string, base::WeakPtr<ash::cloud_upload::DriveUploadObserver>>
+      google_drive_uploaders_;
   base::WeakPtrFactory<ChromeCameraSaveDelegate> weak_ptr_factory_{this};
 };
 

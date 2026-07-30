@@ -64,6 +64,7 @@
 <translation id="1717996979683942279">Khi bạn bật chế độ này, các trang web có thể yêu cầu quản lý các cửa sổ trên tất cả màn hình của bạn. Khi bạn tắt chế độ này, các trang web không thể quản lý các cửa sổ trên tất cả màn hình của bạn.</translation>
 <translation id="1738912554587725807">Bảng bộ sưu tập giao diện trang thẻ mới ở dưới cùng</translation>
 <translation id="1743802530341753419">Hỏi trước khi cho phép trang web kết nối với một thiết bị (khuyên dùng)</translation>
+<translation id="1766455884659449403">Nhận thông báo về mẹo dùng Chrome</translation>
 <translation id="1777815584158991902">Bảng nguồn cấp dữ liệu Khám phá ở dưới cùng</translation>
 <translation id="1779089405699405702">Bộ giải mã hình ảnh</translation>
 <translation id="1785415724048343560">Nên chọn để có trải nghiệm tốt nhất</translation>
@@ -187,11 +188,9 @@ Chương trình Bảo vệ nâng cao kiểm soát các chế độ cài đặt s
 <translation id="2903493209154104877">Địa chỉ</translation>
 <translation id="2910701580606108292">Hỏi trước khi cho phép trang web phát nội dung được bảo vệ</translation>
 <translation id="2918484639460781603">Chuyển đến phần cài đặt</translation>
-<translation id="293060180538644702">Nhận thông báo về Mẹo dùng Chrome</translation>
 <translation id="2932883381142163287">Báo cáo lạm dụng</translation>
 <translation id="2939338015096024043">Khi bạn bật tuỳ chọn này, các trang web có thể yêu cầu theo dõi vị trí camera và tìm hiểu về môi trường xung quanh bạn. Khi bạn tắt tuỳ chọn này, các trang web không thể theo dõi vị trí camera hoặc tìm hiểu về môi trường xung quanh bạn.</translation>
 <translation id="2968755619301702150">Trình xem chứng chỉ</translation>
-<translation id="2979365474350987274">Cookie của bên thứ ba bị hạn chế</translation>
 <translation id="2990583317361835189">Không cho phép các trang web sử dụng cảm biến chuyển động</translation>
 <translation id="3004438526346162184">Các trang web có thể dùng tính năng này để quản lý các cửa sổ trên tất cả màn hình của bạn</translation>
 <translation id="3008272652534848354">Đặt lại quyền</translation>
@@ -219,7 +218,6 @@ Chương trình Bảo vệ nâng cao kiểm soát các chế độ cài đặt s
 <translation id="3223425961342298674">Không cho phép truy cập thông tin vị trí</translation>
 <translation id="3227137524299004712">Micrô</translation>
 <translation id="3232293466644486101">Xoá dữ liệu duyệt web…</translation>
-<translation id="3241320538788585298">Mạng vòng lặp</translation>
 <translation id="3242646949159196181">Khi bạn bật tuỳ chọn này, các trang web có thể phát âm thanh. Khi bạn tắt tuỳ chọn này, các trang web không thể phát âm thanh.</translation>
 <translation id="3273479183583863618">Thông báo giảm giá trên thẻ</translation>
 <translation id="3277252321222022663">Cho phép các trang web sử dụng cảm biến của thiết bị (nên dùng)</translation>
@@ -402,6 +400,7 @@ Chương trình Bảo vệ nâng cao kiểm soát các chế độ cài đặt s
 <translation id="5246825184569358663">Thao tác này sẽ xoá toàn bộ dữ liệu cục bộ, kể cả cookie, và đặt lại mọi quyền cho <ph name="DOMAIN" /> cũng như mọi trang web thuộc miền này</translation>
 <translation id="5264323282659631142">Xóa "<ph name="CHIP_LABEL" />"</translation>
 <translation id="528192093759286357">Kéo từ trên xuống và chạm vào nút quay lại để thoát khỏi chế độ toàn màn hình.</translation>
+<translation id="5286194356314741248">Đang quét</translation>
 <translation id="5300589172476337783">Hiển thị</translation>
 <translation id="5301954838959518834">Ok</translation>
 <translation id="5317780077021120954">Lưu</translation>
@@ -630,7 +629,6 @@ Chương trình Bảo vệ nâng cao kiểm soát các chế độ cài đặt s
 <translation id="7835852323729233924">Phát nội dung nghe nhìn</translation>
 <translation id="783819812427904514">Bật tiếng video</translation>
 <translation id="7846076177841592234">Hủy chọn</translation>
-<translation id="7881140103901777395">Chrome hạn chế hầu hết các trang web sử dụng cookie của bên thứ ba. Tuy nhiên, trang web này được phép sử dụng cookie của bên thứ ba để cung cấp các dịch vụ cơ bản dựa trên loại cookie này.\n\nHãy vào phần cài đặt để <ph name="BEGIN_LINK" />quản lý quyền truy cập vào cookie của bên thứ ba<ph name="END_LINK" />.</translation>
 <translation id="7882806643839505685">Cho phép phát âm thanh trên một trang web cụ thể.</translation>
 <translation id="7891547341794213004">Ẩn thẻ tiếp tục duyệt xem thẻ này</translation>
 <translation id="789722939441020330">Không cho phép các trang web tự động tải nhiều tệp xuống</translation>

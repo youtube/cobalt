@@ -274,6 +274,7 @@ Sommige functies zijn wellicht niet beschikbaar en wijzigingen in voorkeuren wor
 <translation id="3885770153807205175">Taalkiezer</translation>
 <translation id="3889417619312448367">Google Chrome verwijderen</translation>
 <translation id="3892148308691398805">Tekst kopiëren</translation>
+<translation id="3893985792899396936">Chrome-tip: Zoeken met Lens</translation>
 <translation id="3906096710440765802">Log in bij Chrome om onder andere je wachtwoorden en bookmarks op al je apparaten te gebruiken</translation>
 <translation id="3921132130819999051">Laat Chrome voor je browsen</translation>
 <translation id="3941890832296813527">Installatiefout: De bestandsnaam van het installatieprogramma is ongeldig of wordt niet ondersteund.</translation>
@@ -315,7 +316,6 @@ Sommige functies zijn wellicht niet beschikbaar en wijzigingen in voorkeuren wor
 <translation id="4329315893554541805">Als je personalisatie en andere functies wilt krijgen, neem je Chrome op in Web- en app-activiteit en gekoppelde Google-services</translation>
 <translation id="4334241893986177674">Zoeken in dit screenshot</translation>
 <translation id="4334294535648607276">Downloaden voltooid.</translation>
-<translation id="4337324600316876133">Als je toekomstige Google Chrome-updates wilt krijgen, heb je macOS 12 of hoger nodig. Deze computer gebruikt macOS 11.</translation>
 <translation id="4343195214584226067"><ph name="EXTENSION_NAME" /> is toegevoegd aan Chrome</translation>
 <translation id="4344128547036991536">Als je Google Lens opent, worden de paginatitel, URL en content, waaronder pdf's, automatisch naar Google gestuurd. <ph name="LEARN_MORE" /></translation>
 <translation id="4348548358339558429">Neem Chrome op in Web- en app-activiteit om personalisatie te krijgen</translation>
@@ -372,6 +372,7 @@ Sommige functies zijn wellicht niet beschikbaar en wijzigingen in voorkeuren wor
 <translation id="5003967926796347400">Klik op Google Wachtwoordmanager</translation>
 <translation id="5043786843026425788">Meer informatie over zoeken met Google Lens in Chrome</translation>
 <translation id="504867494566807945">Open links in Chrome vanuit elke app. Voor snelle toegang wordt Chrome vastgezet op je taakbalk.</translation>
+<translation id="5105120510934353742">Als je toekomstige Google Chrome-updates wilt krijgen, heb je macOS 13 of hoger nodig. Deze computer gebruikt macOS 12.</translation>
 <translation id="5114340746415930644">Voer je wachtwoordzin in om Chrome-gegevens in je account <ph name="USER_EMAIL" /> te gebruiken en op te slaan</translation>
 <translation id="5120334927898581447">Inloggen bij Chrome als je inlogt bij andere Google-services</translation>
 <translation id="5126049312684316860">Chrome laadt vooraf nog meer pagina's die je waarschijnlijk gaat bezoeken, zodat de pagina's sneller laden als je ze bezoekt.</translation>
@@ -488,6 +489,7 @@ Dit heeft geen gevolgen voor bookmarks, geschiedenis en opgeslagen wachtwoorden.
 <translation id="6180522807229584611">Dit tabblad gebruikt extra resources. Sta toe dat Chrome het inactief maakt om de prestaties te verbeteren.</translation>
 <translation id="6182736845697986886">De installatie is mislukt vanwege een interne fout met de updateserver.</translation>
 <translation id="6183773856988300112">Gemini in Chrome gebruikt automatisch browsen om in je tabbladen te werken en taken uit te voeren die je Gemini geeft. <ph name="LINK_BEGIN" />Meer informatie<ph name="LINK_END" /></translation>
+<translation id="6187085551300363958">Chrome-tip: Wachtwoorden opslaan</translation>
 <translation id="6192058120268468905">Je account in Chrome</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" /> heeft een extensie toegevoegd die de manier kan wijzigen waarop Chrome werkt.
 
@@ -626,6 +628,7 @@ Dit heeft geen gevolgen voor bookmarks, geschiedenis en opgeslagen wachtwoorden.
 <translation id="7627609214560473136">Ter bescherming van je gegevens kun je Chrome de rechten laten verwijderen voor sites die je niet recent hebt bezocht.</translation>
 <translation id="7629695634924605473">Chrome laat het je weten als je wachtwoorden mogelijk niet veilig meer zijn</translation>
 <translation id="7641148173327520642">Je systeembeheerder heeft Google Chrome geconfigureerd om <ph name="ALTERNATIVE_BROWSER_NAME" /> te openen voor toegang tot <ph name="TARGET_URL_HOSTNAME" />.</translation>
+<translation id="7641448682796883218">Chrome-tip: Uitgebreide versie van Safe Browsing</translation>
 <translation id="7649070708921625228">Hulp</translation>
 <translation id="7651907282515937834">Chrome Enterprise-logo</translation>
 <translation id="76531479118467370">Chrome heeft deze download geblokkeerd, omdat je Safe Browsing hebt uitgezet en het bestand niet kan worden geverifieerd</translation>

@@ -12,7 +12,7 @@
 #include "components/optimization_guide/core/model_execution/on_device_capability.h"
 #include "components/optimization_guide/core/model_execution/remote_model_executor.h"
 #include "components/prefs/pref_change_registrar.h"
-#include "components/safe_browsing/content/browser/client_side_detection_host.h"
+#include "components/safe_browsing/core/browser/intelligent_scan_delegate.h"
 
 class PrefService;
 
@@ -22,10 +22,11 @@ class ModelBrokerClient;
 
 namespace safe_browsing {
 
-// Android implementation of IntelligentScanDelegate. This class is responsible
-// for managing intelligent scan inquiries and executing the model.
+// Client Side Detection Android implementation of IntelligentScanDelegate. This
+// class is responsible for managing intelligent scan inquiries and executing
+// the model.
 class ClientSideDetectionIntelligentScanDelegateAndroid
-    : public ClientSideDetectionHost::IntelligentScanDelegate {
+    : public IntelligentScanDelegate {
  public:
   ClientSideDetectionIntelligentScanDelegateAndroid(
       PrefService& pref,
@@ -41,7 +42,8 @@ class ClientSideDetectionIntelligentScanDelegateAndroid
 
   // IntelligentScanDelegate implementation.
   bool ShouldRequestIntelligentScan(ClientPhishingRequest* verdict) override;
-  bool IsIntelligentScanAvailable(bool log_failed_eligibility_reason) override;
+  ModelType GetIntelligentScanModelType(
+      bool log_failed_eligibility_reason) override;
   std::optional<base::UnguessableToken> StartIntelligentScan(
       std::string rendered_texts,
       IntelligentScanDoneCallback callback) override;

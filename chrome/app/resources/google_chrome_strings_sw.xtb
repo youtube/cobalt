@@ -275,6 +275,7 @@ Baadhi ya vipengele huenda visipatikane na mabadiliko katika mapendeleo hayatahi
 <translation id="3885770153807205175">Kiteua lugha</translation>
 <translation id="3889417619312448367">Ondoa Google Chrome</translation>
 <translation id="3892148308691398805">Nakili maandishi</translation>
+<translation id="3893985792899396936">Kidokezo cha Chrome: Tafuta Ukitumia Lenzi</translation>
 <translation id="3906096710440765802">Ingia katika Chrome ili upate alamisho, manenosiri yako na zaidi kwenye vifaa vyako vyote</translation>
 <translation id="3921132130819999051">Ruhusu Chrome ivinjari kwa niaba yako</translation>
 <translation id="3941890832296813527">Hitilafu ya kusakinisha: Jina la faili ya kisakinishaji si sahihi au haliwezi kutumika.</translation>
@@ -316,7 +317,6 @@ Baadhi ya vipengele huenda visipatikane na mabadiliko katika mapendeleo hayatahi
 <translation id="4329315893554541805">Ili upate mapendeleo na vipengele vingine, jumuisha Chrome kwenye Historia ya Shughuli kwenye Wavuti na Programu pamoja na huduma za Google zilizounganishwa</translation>
 <translation id="4334241893986177674">Tafuta picha hii ya skrini</translation>
 <translation id="4334294535648607276">Upakuaji umekamilika.</translation>
-<translation id="4337324600316876133">Utahitaji toleo la macOS 12 au matoleo mapya zaidi ili upate masasisho ya Google Chrome ya siku zijazo. Kompyuta hii inatumia toleo la macOS 11.</translation>
 <translation id="4343195214584226067"><ph name="EXTENSION_NAME" /> imeongezwa kwenye Chrome</translation>
 <translation id="4344128547036991536">Unapofungua Lenzi ya Google, jina la ukurasa, URL na maudhui, ikijumuisha PDF, yatatumwa kiotomatiki kwenda Google. <ph name="LEARN_MORE" /></translation>
 <translation id="4348548358339558429">Ili upate mapendeleo, jumuisha Chrome kwenye Historia ya Shughuli kwenye Wavuti na Programu</translation>
@@ -373,6 +373,7 @@ Baadhi ya vipengele huenda visipatikane na mabadiliko katika mapendeleo hayatahi
 <translation id="5003967926796347400">Bofya “Kidhibiti cha Manenosiri cha Google”</translation>
 <translation id="5043786843026425788">Pata maelezo zaidi kuhusu kutafuta ukitumia Lenzi ya Google kwenye Chrome</translation>
 <translation id="504867494566807945">Fungua viungo kwenye Chrome ukitumia programu yoyote. Pia, itabandikwa katika upauzana wako ili ufikie kwa urahisi.</translation>
+<translation id="5105120510934353742">Utahitaji toleo la macOS 13 au matoleo mapya zaidi ili upate masasisho ya Google Chrome ya siku zijazo. Kompyuta hii inatumia toleo la macOS 12.</translation>
 <translation id="5114340746415930644">Weka kauli yako ya siri ili utumie na uhifadhi data ya Chrome katika akaunti yako, <ph name="USER_EMAIL" /></translation>
 <translation id="5120334927898581447">Ingia katika akaunti kwenye Chrome unapoingia kwenye akaunti za huduma nyingine za Google</translation>
 <translation id="5126049312684316860">Chrome hupakia mapema kurasa nyingi zaidi ambazo unaweza kutembelea, ili zipakie kwa haraka zaidi unapozitembelea</translation>
@@ -491,6 +492,7 @@ Google Chrome haiwezi kufufua mipangilio yako.</translation>
 <translation id="6180522807229584611">Kichupo hiki kinatumia nyenzo za ziada. Ruhusu Chrome ikifanye kisitumike ili kuboresha utendaji wako.</translation>
 <translation id="6182736845697986886">Imeshindwa kusakinisha kwa sababu ya hitilafu ya ndani ya seva ya usasishaji.</translation>
 <translation id="6183773856988300112">Gemini kwenye Chrome hutumia kipengele cha kuvinjari kiotomatiki kufanya kazi katika vichupo vyako na kukamilisha majukumu unayoipa. <ph name="LINK_BEGIN" />Pata maelezo zaidi<ph name="LINK_END" /></translation>
+<translation id="6187085551300363958">Kidokezo cha Chrome: Hifadhi Manenosiri</translation>
 <translation id="6192058120268468905">Akaunti yako katika Chrome</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" /> ameweka kiendelezi kinachoweza kubadilisha jinsi Chrome inavyofanya kazi.
 
@@ -629,6 +631,7 @@ Google Chrome haiwezi kufufua mipangilio yako.</translation>
 <translation id="7627609214560473136">Ili kulinda data yako, ruhusu Chrome iondoe ruhusa kwenye tovuti ambazo hujatembelea hivi karibuni.</translation>
 <translation id="7629695634924605473">Chrome hukuruhusu ujue iwapo manenosiri yako yameathiriwa</translation>
 <translation id="7641148173327520642">Msimamizi wa mfumo unaotumia ameweka mipangilio ya Google Chrome ifungue <ph name="ALTERNATIVE_BROWSER_NAME" /> ili kufikia <ph name="TARGET_URL_HOSTNAME" />.</translation>
+<translation id="7641448682796883218">Kidokezo cha Chrome: Kipengele cha Kuvinjari Salama Kilichoboreshwa</translation>
 <translation id="7649070708921625228">Usaidizi</translation>
 <translation id="7651907282515937834">Nembo ya Chrome Enterprise</translation>
 <translation id="76531479118467370">Chrome imezuia upakuaji huu kwa sababu umezima kipengele cha Kuvinjari Salama na faili haiwezi kuthibitishwa</translation>

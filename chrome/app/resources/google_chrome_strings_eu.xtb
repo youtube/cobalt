@@ -274,6 +274,7 @@ Eginbide batzuk agian dira erabilgarri egongo eta hobespenei egindako aldaketak 
 <translation id="3885770153807205175">Hizkuntza-hautatzailea</translation>
 <translation id="3889417619312448367">Desinstalatu Google Chrome</translation>
 <translation id="3892148308691398805">Kopiatu testua</translation>
+<translation id="3893985792899396936">Chrome-ri buruzko aholkua: bilatu Lens bidez</translation>
 <translation id="3906096710440765802">Pasahitzak, laster-markak eta abar gailu guztietan eskura izateko, hasi saioa Chrome-n</translation>
 <translation id="3921132130819999051">Eman zure izenean arakatzeko baimena Chrome-ri</translation>
 <translation id="3941890832296813527">Instalazio-errorea: instalatzailearen fitxategi-izenak ez du balio edo ez da onartzen.</translation>
@@ -315,7 +316,6 @@ Eginbide batzuk agian dira erabilgarri egongo eta hobespenei egindako aldaketak 
 <translation id="4329315893554541805">Pertsonalizazioa eta beste eginbide batzuk eskuratzeko, sartu Chrome sareko eta aplikazioetako jardueretan eta lotutako Google-ren zerbitzuetan</translation>
 <translation id="4334241893986177674">Bilatu pantaila-argazki honetan</translation>
 <translation id="4334294535648607276">Deskargatu da.</translation>
-<translation id="4337324600316876133">Etorkizunean Google Chrome-ren eguneratzeak eskuratzeko, macOS 12 edo berriago bat beharko duzu. Ordenagailu hau macOS 11 erabiltzen ari da.</translation>
 <translation id="4343195214584226067">Gehitu da <ph name="EXTENSION_NAME" /> Chrome-n</translation>
 <translation id="4344128547036991536">Google Lens irekitzen duzunean, orriaren izena, URLa eta edukia (PDFak barne) Google-ri bidaliko zaizkio automatikoki. <ph name="LEARN_MORE" /></translation>
 <translation id="4348548358339558429">Pertsonalizazioa eskuratzeko, sartu Chrome sareko eta aplikazioetako jardueretan</translation>
@@ -490,6 +490,7 @@ Google Chrome-k ezin ditu berreskuratu zure ezarpenak.</translation>
 <translation id="6180522807229584611">Fitxa honek baliabide gehiago erabiltzen ditu. Errendimendua hobetzeko, eman fitxa inaktibo ezartzeko baimena Chrome-ri.</translation>
 <translation id="6182736845697986886">Instalazioak huts egin du, eguneratze-zerbitzariak barneko errore bat izan duelako.</translation>
 <translation id="6183773856988300112">Chrome-ko Gemini-k arakatze automatikoa erabiltzen du fitxetan lan egiteko eta ematen dizkiozun zereginak osatzeko. <ph name="LINK_BEGIN" />Lortu informazio gehiago<ph name="LINK_END" /></translation>
+<translation id="6187085551300363958">Chrome-rako aholkua: gorde pasahitzak</translation>
 <translation id="6192058120268468905">Zure kontua Chrome-n</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" /> bazkideak Chrome-ren funtzionamenduari agian eragingo dion luzapen bat gehitu du.
 
@@ -517,7 +518,7 @@ Google Chrome-k ezin ditu berreskuratu zure ezarpenak.</translation>
 <translation id="6426623519983252346"><ph name="FEATURE_NAME" /> probatzeko eskatuko zaizu iOS-erako Chrome irekitzen duzun hurrengo aldian.</translation>
 <translation id="6434035853014503219">Eskerrik asko Chrome arakatzaile lehenetsi gisa aukeratzeagatik!</translation>
 <translation id="6438015621983209660">Hedatu Arakatze seguru hobetua telefonoan Chrome-rekin</translation>
-<translation id="6442774133615368941">Erosi, itzuli eta identifikatu ikusten duzuna kamerarekin iOS-erako Chrome aplikazioan</translation>
+<translation id="6442774133615368941">arakatu produktuak, itzuli testua eta identifikatu ikusten duzuna kamerarekin iOS-erako Chrome aplikazioan</translation>
 <translation id="6473905796280459355">Joan "Chrome-ri buruz" orrira</translation>
 <translation id="6481963882741794338">Lotu Chrome eta Google-ren beste zerbitzuak pertsonalizaziorako eta bestelako helburuetarako</translation>
 <translation id="648319183876919572">Arakatze seguru hobetuak are gehiago babesten zaitu webgune eta deskarga arriskutsuen aurka</translation>
@@ -628,6 +629,7 @@ Google Chrome-k ezin ditu berreskuratu zure ezarpenak.</translation>
 <translation id="7627609214560473136">Datuak babesteko, eman azkenaldian bisitatu ez dituzun webguneei baimenak kentzeko baimena Chrome-ri.</translation>
 <translation id="7629695634924605473">Chrome-k abisatu egingo dizu pasahitzak inoiz arriskuan badaude</translation>
 <translation id="7641148173327520642">Sistemaren administratzailearen konfigurazioaren arabera, Google Chrome-k <ph name="ALTERNATIVE_BROWSER_NAME" /> arakatzailea ireki behar du <ph name="TARGET_URL_HOSTNAME" /> helbidera joateko.</translation>
+<translation id="7641448682796883218">Chrome-rako aholkua: arakatze seguru hobetua</translation>
 <translation id="7649070708921625228">Laguntza</translation>
 <translation id="7651907282515937834">Chrome Enterprise logotipoa</translation>
 <translation id="76531479118467370">Chrome-k deskarga hau blokeatu du, Arakatze segurua desaktibatu duzulako eta fitxategia egiaztatu ezin delako</translation>

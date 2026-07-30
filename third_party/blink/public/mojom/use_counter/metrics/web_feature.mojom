@@ -5036,7 +5036,7 @@ enum WebFeature {
   kLcpCandidateRemovedWhilePaintTimePending = 5720,
   kGetBBoxForElementWithZeroWidthOrHeight = 5721,
   kGetBBoxForNestedSVGElementWithZeroWidthOrHeight = 5722,
-  kXMLExternalResourceLoadEntitiesOnly = 5723,
+  kOBSOLETE_kXMLExternalResourceLoadEntitiesOnly = 5723,
   kV8Origin_IsSameOrigin_Method = 5724,
   kV8Origin_IsSameSite_Method = 5725,
   kV8Origin_From_Method = 5726,
@@ -5086,6 +5086,7 @@ enum WebFeature {
   kDigitalCredentialsProtocolUnknown = 5770,
   kSetCookieWithEmptyName = 5771,
   kSetCookieWithEmptyNameAndAmbiguousValue = 5772,
+  kStorageAccessAPI_requestStorageAccessFor_Method_AsyncSuccess = 5773,
 
   // Add new features immediately above this line. Don't change assigned
   // numbers of any item, and don't reuse removed slots. Also don't add extra

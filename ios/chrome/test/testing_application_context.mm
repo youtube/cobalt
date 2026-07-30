@@ -10,10 +10,13 @@
 #import "base/notreached.h"
 #import "base/time/default_clock.h"
 #import "base/time/default_tick_clock.h"
+#import "components/activity_reporter/activity_reporter.h"
 #import "components/application_locale_storage/application_locale_storage.h"
 #import "components/metrics_services_manager/metrics_services_manager.h"
 #import "components/network_time/network_time_tracker.h"
 #import "components/os_crypt/async/browser/test_utils.h"
+#import "components/supervised_user/core/browser/device_parental_controls.h"
+#import "components/supervised_user/core/browser/device_parental_controls_noop_impl.h"
 #import "components/variations/service/variations_service.h"
 #import "ios/chrome/browser/download/model/auto_deletion/auto_deletion_service.h"
 #import "ios/chrome/browser/optimization_guide/model/optimization_guide_global_state.h"
@@ -266,6 +269,15 @@ gcm::GCMDriver* TestingApplicationContext::GetGCMDriver() {
   return nullptr;
 }
 
+activity_reporter::ActivityReporter*
+TestingApplicationContext::GetActivityReporter() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!activity_reporter_) {
+    activity_reporter_ = activity_reporter::CreateActivityReporter();
+  }
+  return activity_reporter_.get();
+}
+
 component_updater::ComponentUpdateService*
 TestingApplicationContext::GetComponentUpdateService() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -388,4 +400,13 @@ TestingApplicationContext::GetOptimizationGuideGlobalState() {
         std::make_unique<optimization_guide::OptimizationGuideGlobalState>();
   }
   return optimization_guide_global_state_.get();
+}
+
+supervised_user::DeviceParentalControls&
+TestingApplicationContext::GetDeviceParentalControls() {
+  if (!device_parental_controls_) {
+    device_parental_controls_ =
+        std::make_unique<supervised_user::DeviceParentalControlsNoOpImpl>();
+  }
+  return *device_parental_controls_;
 }

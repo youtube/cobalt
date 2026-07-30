@@ -8,7 +8,6 @@
 #include <utility>
 #include <vector>
 
-#include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -39,7 +38,6 @@
 #include "content/public/common/url_constants.h"
 #include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom.h"
 #include "third_party/blink/public/common/features.h"
-#include "third_party/blink/public/mojom/mediastream/media_stream.mojom-shared.h"
 #include "third_party/blink/public/mojom/mediastream/media_stream.mojom.h"
 
 #if defined(TOOLKIT_VIEWS)
@@ -63,7 +61,7 @@
 #include "chrome/browser/glic/host/guest_util.h"
 #endif
 
-BASE_FEATURE(kDisplayMediaRejectLongDomains, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kDisplayMediaRejectLongDomains, base::FEATURE_ENABLED_BY_DEFAULT);
 
 namespace {
 using ::blink::mojom::MediaStreamRequestResult;

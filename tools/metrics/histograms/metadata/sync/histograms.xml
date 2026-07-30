@@ -89,6 +89,7 @@ chromium-metrics-reviews@google.com.
       summary="SHARED_TAB_GROUP_ACCOUNT_DATA"/>
   <variant name=".SHARED_TAB_GROUP_DATA" summary="SHARED_TAB_GROUP_DATA"/>
   <variant name=".SHARING_MESSAGE" summary="SHARING_MESSAGE"/>
+  <variant name=".SKILL" summary="SKILL"/>
   <variant name=".THEME" summary="THEME"/>
   <variant name=".USER_CONSENT" summary="USER_CONSENT"/>
   <variant name=".USER_EVENT" summary="USER_EVENT"/>
@@ -163,7 +164,7 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <histogram name="Sync.AccountManagedStatusAsynchronousOutcome"
-    enum="AccountManagedStatusFinderOutcome" expires_after="2026-05-03">
+    enum="AccountManagedStatusFinderOutcome" expires_after="2026-07-05">
   <owner>treib@chromium.org</owner>
   <owner>src/components/sync/OWNERS</owner>
   <summary>
@@ -175,7 +176,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.AccountManagedStatusDuration" units="ms"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>treib@chromium.org</owner>
   <owner>src/components/sync/OWNERS</owner>
   <summary>
@@ -187,7 +188,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.AccountManagedStatusSynchronousOutcome"
-    enum="AccountManagedStatusFinderOutcome" expires_after="2026-05-03">
+    enum="AccountManagedStatusFinderOutcome" expires_after="2026-07-05">
   <owner>treib@chromium.org</owner>
   <owner>src/components/sync/OWNERS</owner>
   <summary>
@@ -483,7 +484,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.BookmarksModelMetadataCorruptionReason"
-    enum="SyncBookmarkModelMetadataCorruptionReason" expires_after="2026-05-03">
+    enum="SyncBookmarkModelMetadataCorruptionReason" expires_after="2026-07-05">
   <owner>rushans@google.com</owner>
   <owner>mastiz@chromium.org</owner>
   <summary>
@@ -666,7 +667,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.ConfigureTime_{ConfigurationType}.{Result}" units="ms"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>treib@chromium.org</owner>
   <owner>src/components/sync/OWNERS</owner>
   <summary>
@@ -770,7 +771,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.CustomSync3" enum="SyncDataTypes"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>treib@chromium.org</owner>
   <owner>mastiz@chromium.org</owner>
   <summary>
@@ -1132,6 +1133,90 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
+<histogram
+    name="Sync.DeviceStatistics.Outcome.NonPrimaryAccount.NumberOfAdditionalClients"
+    units="clients" expires_after="2026-06-30">
+  <owner>treib@chromium.org</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    Device statistics: Records the number of additional syncing clients (i.e.
+    not counting this client) of a non-primary account. Recorded at most once
+    per day for every non-primary account.
+  </summary>
+</histogram>
+
+<histogram
+    name="Sync.DeviceStatistics.Outcome.NonPrimaryAccount.PlatformOfAdditionalClient"
+    enum="SyncDeviceStatisticsPlatform" expires_after="2026-06-30">
+  <owner>treib@chromium.org</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    Device statistics: Records the platform of each additional syncing client
+    (i.e. not counting this client) of each non-primary account. Multiple
+    clients with the same platform are recorded individually. Recorded at most
+    once per day (but with one sample per other client).
+  </summary>
+</histogram>
+
+<histogram name="Sync.DeviceStatistics.Outcome.Overall"
+    enum="SyncDeviceStatisticsOutcome" expires_after="2026-06-30">
+  <owner>treib@chromium.org</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    Device statistics: Records the overall outcome, i.e. whether primary and/or
+    non-primary accounts have other syncing devices. Recorded at most once per
+    day.
+  </summary>
+</histogram>
+
+<histogram
+    name="Sync.DeviceStatistics.Outcome.PrimaryAccount.NumberOfAdditionalClients"
+    units="clients" expires_after="2026-06-30">
+  <owner>treib@chromium.org</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    Device statistics: Records the number of additional syncing clients (i.e.
+    not counting this client) of the primary account. Recorded at most once per
+    day.
+  </summary>
+</histogram>
+
+<histogram
+    name="Sync.DeviceStatistics.Outcome.PrimaryAccount.PlatformOfAdditionalClient"
+    enum="SyncDeviceStatisticsPlatform" expires_after="2026-06-30">
+  <owner>treib@chromium.org</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    Device statistics: Records the platform of each additional syncing client
+    (i.e. not counting this client) of the primary account. Multiple clients
+    with the same platform are recorded individually. Recorded at most once per
+    day (but with one sample per other client).
+  </summary>
+</histogram>
+
+<histogram name="Sync.DeviceStatistics.RequestsCompletedSuccess"
+    enum="SyncDeviceStatisticsSuccess" expires_after="2026-06-30">
+  <owner>treib@chromium.org</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    Device statistics: Whenever all GetUpdates requests that were started (see
+    `Sync.DeviceStatistics.RequestsStartedCount`) have completed, records the
+    success of the entire operation.
+  </summary>
+</histogram>
+
+<histogram name="Sync.DeviceStatistics.RequestsStartedCount" units="requests"
+    expires_after="2026-06-30">
+  <owner>treib@chromium.org</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    Device statistics: Whenever GetUpdates requests are started for the purpose
+    of device statistics metrics, records the number of requests (= the number
+    of accounts in the profile). This happens on Sync startup, at most once per
+    day.
+  </summary>
+</histogram>
+
 <histogram name="Sync.DownloadUpdatesResult" enum="SyncerErrorValues"
     expires_after="2026-06-21">
   <owner>rushans@google.com</owner>
@@ -1227,29 +1312,6 @@ chromium-metrics-reviews@google.com.
   <token key="SyncDataType" variants="SyncDataType"/>
 </histogram>
 
-<histogram name="Sync.FCMInstanceIdTokenRetrievalStatus"
-    enum="InstanceIDResult" expires_after="2026-02-01">
-  <owner>rushans@google.com</owner>
-  <owner>treib@chromium.org</owner>
-  <summary>
-    Records status of each attempt to retrieve the instance id token. Replaces
-    FCMInvalidations.InitialTokenRetrievalStatus for Sync standalone
-    invalidations.
-  </summary>
-</histogram>
-
-<histogram name="Sync.FcmRegistrationTokenFetchTime" units="ms"
-    expires_after="2026-02-01">
-  <owner>rushans@google.com</owner>
-  <owner>treib@chromium.org</owner>
-  <summary>
-    Records time required to obtain an FCM registration token for Sync
-    invalidations. Recorded on successful token fetch excluding token validation
-    requests (Sync.FCMInstanceIdTokenRetrievalStatus can be used to compare with
-    token fetch failure count).
-  </summary>
-</histogram>
-
 <histogram name="Sync.FeatureStatusForSyncToSigninMigration"
     enum="SyncFeatureStatusForSyncToSigninMigration" expires_after="2026-06-21">
   <owner>treib@chromium.org</owner>
@@ -1323,7 +1385,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.InitialState2" enum="SyncInitialState"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>treib@chromium.org</owner>
   <owner>mastiz@chromium.org</owner>
   <summary>
@@ -1524,7 +1586,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.NudgedUpdateLatency{SyncDataType}" units="ms"
-    expires_after="2026-05-10">
+    expires_after="2027-02-09">
   <owner>rushans@google.com</owner>
   <owner>treib@chromium.org</owner>
   <summary>
@@ -1539,7 +1601,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.NudgedUpdateResult{SyncDataType}"
-    enum="NudgedUpdateResult" expires_after="2026-02-09">
+    enum="NudgedUpdateResult" expires_after="2027-02-09">
   <owner>rushans@google.com</owner>
   <owner>treib@chromium.org</owner>
   <summary>
@@ -1565,7 +1627,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.PassphraseType" enum="SyncPassphraseType"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>treib@chromium.org</owner>
   <owner>mastiz@chromium.org</owner>
   <summary>The active sync passphrase type at sync startup.</summary>
@@ -1621,7 +1683,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.PassphraseTypeUponNotMyBirthdayOrEncryptionObsolete"
-    enum="SyncPassphraseType" expires_after="2026-05-03">
+    enum="SyncPassphraseType" expires_after="2026-07-05">
   <owner>mastiz@chromium.org</owner>
   <owner>mmoskvitin@google.com</owner>
   <summary>
@@ -2147,7 +2209,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.SyncEverything2" enum="Boolean"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>treib@chromium.org</owner>
   <owner>mastiz@chromium.org</owner>
   <summary>
@@ -2378,7 +2440,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.TrustedVaultErrorShownOnFirstTimeSync2" enum="Boolean"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>mmoskvitin@google.com</owner>
   <owner>mastiz@chromium.org</owner>
   <summary>
@@ -2394,7 +2456,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Sync.TrustedVaultErrorShownOnStartup{TrustedVaultTimeSinceMigrationSuffix}"
-    enum="Boolean" expires_after="2026-05-03">
+    enum="Boolean" expires_after="2026-07-05">
   <owner>mmoskvitin@google.com</owner>
   <owner>mastiz@chromium.org</owner>
   <summary>
@@ -2512,7 +2574,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Sync.TrustedVaultRecoverabilityDegradedOnStartup{TrustedVaultTimeSinceMigrationSuffix}"
-    enum="Boolean" expires_after="2026-05-03">
+    enum="Boolean" expires_after="2026-07-05">
   <owner>mmoskvitin@google.com</owner>
   <owner>mastiz@chromium.org</owner>
   <summary>
@@ -2636,7 +2698,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Theme.ThemePrefMigration.AlreadyMigrated" enum="Boolean"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>ankushkush@google.com</owner>
   <owner>src/components/sync/OWNERS</owner>
   <summary>

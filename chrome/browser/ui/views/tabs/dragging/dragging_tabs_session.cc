@@ -182,7 +182,7 @@ gfx::Rect DraggingTabsSession::GetDraggedViewTabStripBounds(
 
   return gfx::Rect(tab_strip_point.x(), tab_strip_point.y(),
                    TabStyle::Get()->GetStandardWidth(/*is_split=*/false),
-                   GetLayoutConstant(TAB_HEIGHT));
+                   GetLayoutConstant(LayoutConstant::kTabHeight));
 }
 
 bool DraggingTabsSession::AreTabsConsecutive() const {
@@ -216,7 +216,9 @@ DraggingTabsSession::CalculateGroupForDraggedTabs(int to_index) {
           base::PassKey<DraggingTabsSession>(), to_index);
 
   const ui::ListSelectionModel::SelectedIndices selected =
-      attached_model->selection_model().selected_indices();
+      attached_model->selection_model()
+          .GetListSelectionModel()
+          .selected_indices();
 
   // Pinned tabs cannot be grouped, so we only change the group membership of
   // unpinned tabs.

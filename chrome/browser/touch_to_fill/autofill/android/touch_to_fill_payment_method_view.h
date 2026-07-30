@@ -30,16 +30,19 @@ class TouchToFillPaymentMethodView {
   virtual bool ShowPaymentMethods(
       TouchToFillPaymentMethodViewController* controller,
       base::span<const Suggestion> suggestions,
-      bool should_show_scan_credit_card) = 0;
+      bool should_show_scan_credit_card,
+      bool should_show_gpay_logo) = 0;
   virtual bool ShowIbans(TouchToFillPaymentMethodViewController* controller,
                          base::span<const Iban> ibans_to_suggest) = 0;
-  virtual bool ShowLoyaltyCards(
+  virtual bool ShowAffiliatedLoyaltyCards(
       TouchToFillPaymentMethodViewController* controller,
       base::span<const LoyaltyCard> affiliated_loyalty_cards,
       base::span<const LoyaltyCard> all_loyalty_cards,
       bool first_time_usage) = 0;
+  virtual bool ShowAllLoyaltyCards(
+      TouchToFillPaymentMethodViewController* controller,
+      base::span<const LoyaltyCard> all_loyalty_cards) = 0;
   virtual bool OnPurchaseAmountExtracted(
-      const TouchToFillPaymentMethodViewController& controller,
       base::span<const payments::BnplIssuerContext> bnpl_issuer_contexts,
       std::optional<int64_t> extracted_amount,
       bool is_amount_supported_by_any_issuer,
@@ -47,7 +50,6 @@ class TouchToFillPaymentMethodView {
   virtual bool ShowProgressScreen(
       TouchToFillPaymentMethodViewController* controller) = 0;
   virtual bool ShowBnplIssuers(
-      const TouchToFillPaymentMethodViewController& controller,
       base::span<const payments::BnplIssuerContext> bnpl_issuer_contexts,
       const std::string& app_locale) = 0;
   virtual bool ShowErrorScreen(

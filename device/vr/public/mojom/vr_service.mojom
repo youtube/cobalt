@@ -11,7 +11,6 @@ import "mojo/public/mojom/base/big_buffer.mojom";
 import "mojo/public/mojom/base/time.mojom";
 import "gpu/ipc/common/exported_shared_image.mojom";
 import "gpu/ipc/common/shared_image_metadata.mojom";
-import "gpu/ipc/common/mailbox_holder.mojom";
 import "gpu/ipc/common/sync_token.mojom";
 import "ui/display/mojom/display.mojom";
 import "ui/gfx/geometry/mojom/geometry.mojom";
@@ -775,11 +774,10 @@ union XRLayerSpecificData {
 };
 
 enum XRLayerLayout {
-  kDefault = 0,
-  kMono = 1,
-  kStereo = 2,
-  kStereoLeftRight = 3,
-  kStereoTopBottom = 4,
+  kMono = 0,
+  kStereo = 1,
+  kStereoLeftRight = 2,
+  kStereoTopBottom = 3,
 };
 
 // Read-only data is only used to create a layer,
@@ -1150,7 +1148,7 @@ interface XRPresentationProvider {
   SubmitFrameMissing(int16 frame_id, gpu.mojom.SyncToken sync_token);
 
   // XRPresentationTransportMethod SUBMIT_AS_MAILBOX_HOLDER
-  SubmitFrame(int16 frame_id, gpu.mojom.MailboxHolder mailbox_holder,
+  SubmitFrame(int16 frame_id,
               mojo_base.mojom.TimeDelta time_waited);
 
   // XRPresentationTransportMethod SUBMIT_AS_TEXTURE_HANDLE

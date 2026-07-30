@@ -19,7 +19,7 @@ import {ContentController, ContentType} from '../content/content_controller.js';
 import type {ContentListener, ContentState} from '../content/content_controller.js';
 import {LineFocusController, type LineFocusListener} from '../content/line_focus_controller.js';
 import {NodeStore} from '../content/node_store.js';
-import {LineFocusType, type SettingsPrefs} from '../content/read_anything_types.js';
+import {DEFAULT_SETTINGS, LineFocusType, type SettingsPrefs} from '../content/read_anything_types.js';
 import {SelectionController} from '../content/selection_controller.js';
 import type {LanguageToastElement} from '../read_aloud/language_toast.js';
 import {SpeechController} from '../read_aloud/speech_controller.js';
@@ -29,7 +29,7 @@ import {VoiceLanguageController} from '../read_aloud/voice_language_controller.j
 import type {VoiceLanguageListener} from '../read_aloud/voice_language_controller.js';
 import {VoiceNotificationManager} from '../read_aloud/voice_notification_manager.js';
 import {getWordCount, minOverflowLengthToScroll} from '../shared/common.js';
-import {isForwardArrow, isVerticalArrow} from '../shared/keyboard_util.js';
+import {isForwardArrow, isLineFocusShortcut, isVerticalArrow} from '../shared/keyboard_util.js';
 import {ReadAnythingLogger, TimeFrom} from '../shared/read_anything_logger.js';
 
 import {getCss} from './app.css.js';
@@ -134,15 +134,7 @@ export class AppElement extends AppElementBase implements SpeechListener,
       SelectionController.getInstance();
   private lineFocusController_: LineFocusController =
       LineFocusController.getInstance();
-  protected accessor settingsPrefs_: SettingsPrefs = {
-    letterSpacing: 0,
-    lineSpacing: 0,
-    theme: 0,
-    speechRate: 0,
-    font: '',
-    highlightGranularity: 0,
-    lineFocus: 0,
-  };
+  protected accessor settingsPrefs_: SettingsPrefs = DEFAULT_SETTINGS;
 
   protected accessor isSpeechActive_: boolean = false;
   protected accessor isAudioCurrentlyPlaying_: boolean = false;
@@ -196,6 +188,9 @@ export class AppElement extends AppElementBase implements SpeechListener,
       this.$.containerParent.addEventListener('mousemove', mouseEvent => {
         this.lineFocusController_.onMouseMove(mouseEvent.clientY);
       });
+      this.$.toolbar.addEventListener('mousemove', mouseEvent => {
+        this.lineFocusController_.onMouseMoveInToolbar(mouseEvent.clientY);
+      });
       this.lineFocusController_.addListener(this);
     }
     this.contentController_.addListener(this);
@@ -218,6 +213,8 @@ export class AppElement extends AppElementBase implements SpeechListener,
       font: chrome.readingMode.fontName,
       highlightGranularity: chrome.readingMode.highlightGranularity,
       lineFocus: chrome.readingMode.lineFocus,
+      linksEnabled: chrome.readingMode.linksEnabled,
+      imagesEnabled: chrome.readingMode.imagesEnabled,
     };
 
     document.onselectionchange = () => {
@@ -247,7 +244,7 @@ export class AppElement extends AppElementBase implements SpeechListener,
     document.onkeydown = this.onKeyDown_.bind(this);
 
     /////////////////////////////////////////////////////////////////////
-    // Called by ReadAnythingUntrustedPageHandler via callback router. //
+    // Called by ReadAnythingAppController via callback router. //
     /////////////////////////////////////////////////////////////////////
     chrome.readingMode.updateContent = () => {
       this.updateContent();
@@ -317,6 +314,10 @@ export class AppElement extends AppElementBase implements SpeechListener,
           // which content to display based on the presentation state.
           this.presentationState_ = presentationState;
         };
+
+    chrome.readingMode.onPinStateReceived = (pinState: boolean) => {
+      this.$.immersiveHeader.isReadAnythingPinned = pinState;
+    };
   }
 
   private onWindowResize_() {
@@ -529,7 +530,6 @@ export class AppElement extends AppElementBase implements SpeechListener,
       this.voiceLanguageController_.restoreFromPrefs();
     }
     this.settingsPrefs_ = {
-      ...this.settingsPrefs_,
       letterSpacing: chrome.readingMode.letterSpacing,
       lineSpacing: chrome.readingMode.lineSpacing,
       theme: chrome.readingMode.colorTheme,
@@ -537,6 +537,8 @@ export class AppElement extends AppElementBase implements SpeechListener,
       font: chrome.readingMode.fontName,
       highlightGranularity: chrome.readingMode.highlightGranularity,
       lineFocus: chrome.readingMode.lineFocus,
+      linksEnabled: chrome.readingMode.linksEnabled,
+      imagesEnabled: chrome.readingMode.imagesEnabled,
     };
     this.styleUpdater_.setAllTextStyles();
     if (chrome.readingMode.isLineFocusEnabled) {
@@ -592,6 +594,12 @@ export class AppElement extends AppElementBase implements SpeechListener,
     this.styleUpdater_.setHighlight();
   }
 
+  protected onAllMenusClose_() {
+    if (chrome.readingMode.isLineFocusEnabled) {
+      this.lineFocusController_.onAllMenusClose();
+    }
+  }
+
   protected onLineFocusChange_(event: CustomEvent<{data: number}>) {
     this.setLineFocus_(event.detail.data);
   }
@@ -640,6 +648,12 @@ export class AppElement extends AppElementBase implements SpeechListener,
       e.stopPropagation();
       e.preventDefault();
       this.lineFocusController_.snapToNextLine(isForwardArrow(e.key));
+    } else if (
+        chrome.readingMode.isLineFocusEnabled && isLineFocusShortcut(e.key)) {
+      this.lineFocusController_.toggle(
+          this.$.container, this.$.containerParent.offsetHeight);
+      this.styleUpdater_.setLineFocusStyle(
+          this.lineFocusController_.getCurrentLineFocusType());
     }
   }
 }

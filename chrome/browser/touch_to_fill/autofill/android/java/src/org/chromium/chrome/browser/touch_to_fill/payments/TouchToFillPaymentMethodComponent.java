@@ -15,6 +15,7 @@ import org.chromium.components.autofill.AutofillSuggestion;
 import org.chromium.components.autofill.LoyaltyCard;
 import org.chromium.components.autofill.payments.BnplIssuerContext;
 import org.chromium.components.autofill.payments.BnplIssuerTosDetail;
+import org.chromium.components.autofill.payments.TouchToFillDisplayOptions;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 
 import java.util.List;
@@ -118,28 +119,39 @@ interface TouchToFillPaymentMethodComponent {
      * @param suggestions A list of {@link AutofillSuggestion}, each generated from a corresponding
      *     credit card. It includes a boolean that denotes if the card is acceptable for the given
      *     merchant. If not acceptable, the card suggestion is grayed out.
-     * @param shouldShowScanCreditCard A boolean that conveys whether 'ScanCreditCard' should be
-     *     shown.
+     * @param touchToFillDisplayOptions An object that determines what to show on the UI. For
+     *     instance, whether we should show the 'Scan Credit Card' option and the 'GPay' logo on the
+     *     UI.
      */
-    void showPaymentMethods(List<AutofillSuggestion> suggestions, boolean shouldShowScanCreditCard);
+    void showPaymentMethods(
+            List<AutofillSuggestion> suggestions,
+            TouchToFillDisplayOptions touchToFillDisplayOptions);
 
     /** Displays a new IBAN bottom sheet. */
     void showIbans(List<PersonalDataManager.Iban> ibans);
 
     /**
-     * Displays a new loyalty card bottom sheet.
+     * Displays a bottom sheet for affiliated loyalty cards.
      *
-     * @param affiliatedLoyaltyCards The list of loyalty cards directly linked to the current
-     *     domain, that are displayed on the first screen in the bottom sheet.
+     * @param affiliatedLoyaltyCards The list of affiliated loyalty cards directly linked to the
+     *     current domain, that are displayed on the first screen in the bottom sheet.
      * @param allLoyaltyCards The list of all the user's loyalty cards that are displayed on the
      *     second screen in the bottom sheet.
      * @param firstTimeUsage A boolean indicating whether the first time usage message should be
      *     shown to the user.
      */
-    void showLoyaltyCards(
+    void showAffiliatedLoyaltyCards(
             List<LoyaltyCard> affiliatedLoyaltyCards,
             List<LoyaltyCard> allLoyaltyCards,
             boolean firstTimeUsage);
+
+    /**
+     * Displays a bottom sheet for all loyalty cards.
+     *
+     * @param allLoyaltyCards The list of all the user's loyalty cards that are displayed on the
+     *     first screen in the bottom sheet.
+     */
+    void showAllLoyaltyCards(List<LoyaltyCard> allLoyaltyCards);
 
     /**
      * Updates BNPL suggestions or BNPL screen on the bottom sheet based on the results of amount

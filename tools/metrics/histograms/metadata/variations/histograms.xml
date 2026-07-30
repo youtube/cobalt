@@ -349,7 +349,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Variations.LoadSeedSignature" enum="VariationSeedSignature"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>asvitkine@chromium.org</owner>
   <owner>rkaplow@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
@@ -661,9 +661,7 @@ chromium-metrics-reviews@google.com.
     recorded at the latter of these two events. In the case when a user's clock
     is set incorrectly, or when a user changes their clock backwards in between
     Chrome runs, the difference between the seed freshness and the app seed
-    freshness will be calculated and cached as long as both of them are greater
-    than 0. Nothing is emitted to this histogram if either seed freshness or app
-    seed freshness is zero or negative.
+    freshness will be calculated and cached.
   </summary>
 </histogram>
 
@@ -743,6 +741,17 @@ chromium-metrics-reviews@google.com.
     This metric is not accurate between M123 and M141, inclusively. In these
     milestones, the buckets for applying regular or safe seeds may be emitted to
     even though the seed is later dropped due to misconfiguration.
+  </summary>
+</histogram>
+
+<histogram name="Variations.StickyAfterQuery.Activation"
+    enum="VariationsLogInvalidValue" expires_after="2026-11-01">
+  <owner>asvitkine@chromium.org</owner>
+  <owner>src/base/metrics/OWNERS</owner>
+  <summary>
+    The hash of the study name of a sticky activation study when it is activated
+    for the first time (i.e. not sticky from a previous session). Logged for
+    verification purposes to verify that studies stay sticky.
   </summary>
 </histogram>
 

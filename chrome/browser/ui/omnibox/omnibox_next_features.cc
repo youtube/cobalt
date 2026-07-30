@@ -16,10 +16,12 @@
 #include "components/contextual_search/contextual_search_metrics_recorder.h"
 #include "components/contextual_search/contextual_search_service.h"
 #include "components/omnibox/browser/aim_eligibility_service.h"
+#include "components/omnibox/browser/omnibox_field_trial.h"
 #include "ui/base/l10n/l10n_util.h"
 
 namespace {
 constexpr base::FeatureState DISABLED = base::FEATURE_DISABLED_BY_DEFAULT;
+constexpr base::FeatureState ENABLED = base::FEATURE_ENABLED_BY_DEFAULT;
 }  // namespace
 
 namespace omnibox {
@@ -48,6 +50,11 @@ const base::FeatureParam<AddContextButtonVariant>
 // g.com/aimode, e.g. instead of opening the AI Mode popup
 // (`omnibox::internal::kWebUIOmniboxAimPopup`).
 BASE_FEATURE(kAiModeEntryPointAlwaysNavigates, DISABLED);
+// If enabled, disables caret color animation for the WebUI Omnibox AIM popup.
+BASE_FEATURE(kWebUIOmniboxDisableCaretColorAnimation, ENABLED);
+// If enabled, there will no longer be animation when opening the WebUI Omnibox
+// AIM popup.
+BASE_FEATURE(kWebUIOmniboxAimPopupDisableAnimation, DISABLED);
 // If enabled, removes the cutout for the location bar and fills the entire
 // popup content with the WebUI WebView.
 BASE_FEATURE(kWebUIOmniboxFullPopup, DISABLED);
@@ -164,6 +171,24 @@ omnibox::NTPComposeboxConfig GetNTPComposeboxConfig() {
   return default_config;
 }
 
+bool ShouldShowAimContextMenuOption(Profile* profile) {
+  const auto* aim_eligibility_service =
+      AimEligibilityServiceFactory::GetForProfile(profile);
+  const bool is_aim_entrypoint_enabled =
+      OmniboxFieldTrial::IsAimOmniboxEntrypointEnabled(aim_eligibility_service);
+
+  if (is_aim_entrypoint_enabled) {
+    return true;
+  }
+
+  const bool is_aim_context_entrypoint_enabled =
+      omnibox::IsAimPopupEnabled(profile) &&
+      (omnibox::kWebUIOmniboxAimPopupAddContextButtonVariantParam.Get() !=
+       omnibox::AddContextButtonVariant::kNone);
+
+  return is_aim_context_entrypoint_enabled;
+}
+
 bool IsAimPopupFeatureEnabled() {
   return base::FeatureList::IsEnabled(internal::kWebUIOmniboxAimPopup);
 }
@@ -196,14 +221,13 @@ bool IsCreateImagesEnabled(Profile* profile) {
     return false;
   }
 
-  if (kShowToolsAndModels.Get() && kShowCreateImageTool.Get()) {
+  if (kShowToolsAndModels.Get()) {
     return true;
   }
 
   AimEligibilityService* aim_eligibility_service =
       AimEligibilityServiceFactory::GetForProfile(profile);
-  return kShowToolsAndModels.Get() && kShowCreateImageTool.Get() &&
-         aim_eligibility_service &&
+  return kShowToolsAndModels.Get() && aim_eligibility_service &&
          aim_eligibility_service->IsCreateImagesEligible();
 }
 
@@ -288,10 +312,6 @@ const base::FeatureParam<bool> kShowContextMenuTabPreviews(
     &internal::kWebUIOmniboxAimPopup,
     "ShowContextMenuTabPreviews",
     true);
-const base::FeatureParam<bool> kShowCreateImageTool(
-    &internal::kWebUIOmniboxAimPopup,
-    "ShowCreateImageTool",
-    true);
 const base::FeatureParam<bool> kShowLensSearchChip(
     &internal::kWebUIOmniboxAimPopup,
     "ShowLensSearchChip",
@@ -303,7 +323,7 @@ const base::FeatureParam<bool> kAddTabUploadDelayOnRecentTabChipClick(
 const base::FeatureParam<bool> kShowRecentTabChip(
     &internal::kWebUIOmniboxAimPopup,
     "ShowRecentTabChip",
-    false);
+    true);
 const base::FeatureParam<bool> kShowSmartCompose(
     &internal::kWebUIOmniboxAimPopup,
     "ShowSmartCompose",
@@ -315,6 +335,13 @@ const base::FeatureParam<bool> kShowToolsAndModels(
     &internal::kWebUIOmniboxAimPopup,
     "ShowToolsAndModels",
     true);
+const base::FeatureParam<bool> kShowCanvas(&internal::kWebUIOmniboxAimPopup,
+                                           "ShowCanvas",
+                                           false);
+const base::FeatureParam<bool> kShowModelPicker(
+    &internal::kWebUIOmniboxAimPopup,
+    "ShowModelPicker",
+    false);
 const base::FeatureParam<bool> kShowVoiceSearchInSteadyComposebox(
     &internal::kWebUIOmniboxAimPopup,
     "ShowVoiceSearchInSteadyComposebox",
@@ -327,9 +354,10 @@ const base::FeatureParam<bool> kAutoSubmitVoiceSearchQuery(
     &internal::kWebUIOmniboxAimPopup,
     "AutoSubmitVoiceSearchQuery",
     false);
-const base::FeatureParam<bool> kEnableContextDragAndDrop(&internal::kWebUIOmniboxAimPopup,
-                                                  "EnableContextDragAndDrop",
-                                                  false);
+const base::FeatureParam<bool> kEnableContextDragAndDrop(
+    &internal::kWebUIOmniboxAimPopup,
+    "EnableContextDragAndDrop",
+    true);
 const base::FeatureParam<bool>
     kUseSeparateRequestIdsForMultiContextViewportImages(
         &internal::kWebUIOmniboxAimPopup,

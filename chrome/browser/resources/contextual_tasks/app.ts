@@ -5,7 +5,6 @@
 import './composebox.js';
 import './error_page.js';
 import './top_toolbar.js';
-import './zero_state_overlay.js';
 
 import type {ChromeEvent} from '/tools/typescript/definitions/chrome_event.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
@@ -21,7 +20,6 @@ import type {Tab} from './contextual_tasks.mojom-webui.js';
 import type {BrowserProxy} from './contextual_tasks_browser_proxy.js';
 import {BrowserProxyImpl} from './contextual_tasks_browser_proxy.js';
 import {PostMessageHandler} from './post_message_handler.js';
-import type {ZeroStateOverlayElement} from './zero_state_overlay.js';
 
 type ChromeEventFunctionType<T> =
     T extends ChromeEvent<infer ListenerType>? ListenerType : never;
@@ -34,7 +32,8 @@ export interface ContextualTasksAppElement {
   $: {
     threadFrame: chrome.webviewTag.WebView,
     composebox: ContextualTasksComposeboxElement,
-    zeroStateOverlay: ZeroStateOverlayElement,
+    composeboxHeaderWrapper: HTMLElement,
+    composeboxHeader: HTMLElement,
   };
 }
 
@@ -118,10 +117,7 @@ export class ContextualTasksAppElement extends CrLitElement {
         type: Boolean,
         reflect: true,
       },
-      showComposebox_: {
-        type: Boolean,
-        reflect: true,
-      },
+      isInBasicMode_: {type: Boolean, reflect: true},
       // Means no queries have been submitted in current AIM thread.
       isZeroState_: {
         type: Boolean,
@@ -141,7 +137,7 @@ export class ContextualTasksAppElement extends CrLitElement {
   private pendingUrl_: string = '';
   protected accessor threadTitle_: string = '';
   protected accessor contextTabs_: Tab[] = [];
-  protected accessor showComposebox_: boolean = true;
+  protected accessor isInBasicMode_: boolean = false;
   protected accessor isErrorPageVisible_: boolean = false;
   protected accessor isZeroState_: boolean = false;
 
@@ -173,12 +169,15 @@ export class ContextualTasksAppElement extends CrLitElement {
     const {url} = await this.browserProxy_.handler.getThreadUrl();
     this.$.threadFrame.src = url.url;
     this.$.composebox.startExpandAnimation();
-    this.$.zeroStateOverlay.startOverlayAnimation();
     this.$.composebox.clearInputAndFocus();
   }
 
   override async connectedCallback() {
     super.connectedCallback();
+
+    // Record the WebUI URL in case one of the events below fires and changes
+    // it.
+    const webUiUrlOnLoad = new URL(window.location.href);
 
     const callbackRouter = this.browserProxy_.callbackRouter;
     this.listenerIds_ = [
@@ -203,11 +202,13 @@ export class ContextualTasksAppElement extends CrLitElement {
         this.oauthToken_ = oauthToken;
         this.maybeLoadPendingUrl_();
       }),
+      // TODO(crbug.com/474359572): Rename this to be more descriptive of what
+      // it actually does.
       callbackRouter.hideInput.addListener(() => {
-        this.showComposebox_ = false;
+        this.isInBasicMode_ = true;
       }),
       callbackRouter.restoreInput.addListener(() => {
-        this.showComposebox_ = true;
+        this.isInBasicMode_ = false;
       }),
       callbackRouter.setTaskDetails.addListener(updateTaskDetailsInUrl),
       callbackRouter.onZeroStateChange.addListener((isZeroState: boolean) => {
@@ -217,6 +218,12 @@ export class ContextualTasksAppElement extends CrLitElement {
           (isOverlayShowing: boolean) => {
             this.isLensOverlayShowing_ = isOverlayShowing;
           }),
+      callbackRouter.showErrorPage.addListener(() => {
+        this.isErrorPageVisible_ = true;
+      }),
+      callbackRouter.hideErrorPage.addListener(() => {
+        this.isErrorPageVisible_ = false;
+      }),
     ];
 
     this.updateSidePanelState();
@@ -229,8 +236,7 @@ export class ContextualTasksAppElement extends CrLitElement {
 
     // Check if the URL that loaded this page has a task attached to it. If it
     // does, we'll use the tasks URL to load the embedded page.
-    const params = new URLSearchParams(window.location.search);
-    const taskUuid = params.get('task');
+    const taskUuid = webUiUrlOnLoad.searchParams.get('task');
     let threadUrl = '';
     if (taskUuid) {
       const {url} =
@@ -246,8 +252,19 @@ export class ContextualTasksAppElement extends CrLitElement {
       this.$.composebox.clearInputAndFocus();
     }
 
-    // Check if the initial render should be zero state.
     const threadUrlAsUrl = new URL(threadUrl);
+
+    // If the "open_history" param has any value, open the history panel.
+    if (webUiUrlOnLoad.searchParams.has('open_history')) {
+      threadUrlAsUrl.searchParams.set('atvm', '1');
+
+      // Remove the param so subsequent loads don't show history again.
+      const url = new URL(window.location.href);
+      url.searchParams.delete('open_history');
+      window.history.replaceState({}, '', url.href);
+    }
+
+    // Check if the initial render should be zero state.
     const {isZeroState} = await this.browserProxy_.handler.isZeroState(
         {url: threadUrlAsUrl.href} as Url);
     this.isZeroState_ = isZeroState;
@@ -256,7 +273,8 @@ export class ContextualTasksAppElement extends CrLitElement {
     // webview) until oauth tokens are received from the WebUI controller. This
     // prevents situations where the user is technically signed out of the
     // embedded frame and unable to save or access existing data.
-    this.pendingUrl_ = this.maybeUpdateThreadUrlForRestore(threadUrl);
+    this.pendingUrl_ =
+        this.maybeUpdateThreadUrlForRestore(threadUrlAsUrl, webUiUrlOnLoad);
     this.maybeLoadPendingUrl_();
   }
 
@@ -286,14 +304,14 @@ export class ContextualTasksAppElement extends CrLitElement {
   // Conditionally update the provided thread URL so it restores an existing
   // thread. If the thread URL already contains the params for loading a
   // specific thread, this will return the same URL that was provided.
-  private maybeUpdateThreadUrlForRestore(threadUrl: string): string {
+  private maybeUpdateThreadUrlForRestore(threadUrl: URL, webUiUrl: URL):
+      string {
     // Check if the provided URL is default by checking for thread ID, turn ID,
     // and title. If those params are not present, but are present on the WebUI
     // URL, apply them to the thread URL.
     // TODO(470107169): The ContextualTasksService should provide this URL
     //                  based on task ID alone.
-    const updatedThreadUrl = new URL(threadUrl);
-    const webUiUrl = new URL(window.location.href);
+    const updatedThreadUrl = new URL(threadUrl.href);
     const threadUrlHasParams = embeddedUrlHasThreadParams(updatedThreadUrl);
     const webUiUrlHasParams = webUiUrlHasThreadParams(webUiUrl);
     if (!threadUrlHasParams && webUiUrlHasParams) {

@@ -7,7 +7,6 @@
 #import <optional>
 
 #import "base/check.h"
-#import "base/containers/contains.h"
 #import "base/ios/block_types.h"
 #import "base/memory/raw_ptr.h"
 #import "base/metrics/histogram_functions.h"
@@ -104,8 +103,8 @@ BOOL PromoteShopCardToFrontOfStack() {
 }
 
 BOOL PromoteTabResumptionShopCardToFrontOfStack() {
-  return (base::Contains(commerce::kShopCardVariation.Get(),
-                         commerce::kShopCardArm3) ||
+  return (commerce::kShopCardVariation.Get().contains(
+              commerce::kShopCardArm3) ||
           commerce::kShopCardVariation.Get() == commerce::kShopCardArm4 ||
           commerce::kShopCardVariation.Get() == commerce::kShopCardArm5 ||
           commerce::kShopCardVariation.Get() == commerce::kShopCardArm6) &&
@@ -195,11 +194,7 @@ using segmentation_platform::home_modules::SavePasswordsEphemeralModule;
     _ephemeralCardToShow = ContentSuggestionsModuleType::kInvalid;
     _templateURLService = templateURLService;
     _bookmarkModel = bookmarkModel;
-
-    if (IsTipsMagicStackEnabled()) {
-      CHECK(tipsManager);
-      _tipsManager = tipsManager;
-    }
+    _tipsManager = tipsManager;
 
     for (id mediator in moduleMediators) {
       if ([mediator isKindOfClass:[MostVisitedTilesMediator class]]) {
@@ -486,7 +481,7 @@ using segmentation_platform::home_modules::SavePasswordsEphemeralModule;
                  .empty()));
   }
 
-  if (IsTipsMagicStackEnabled() && _tipsManager) {
+  if (_tipsManager) {
     // Profile signals
     inputContext->metadata_args.emplace(
         segmentation_platform::kLensNotUsedRecently,
@@ -622,14 +617,12 @@ using segmentation_platform::home_modules::SavePasswordsEphemeralModule;
       }
     } else if (segmentation_platform::home_modules::HomeModulesCardRegistry::
                    IsEphemeralTipsModuleLabel(label) &&
-               IsTipsMagicStackEnabled() && areTipsCardsEnabled) {
+               areTipsCardsEnabled) {
       TipIdentifier tipIdentifier = TipIdentifierForOutputLabel(label);
 
       if (tipIdentifier != TipIdentifier::kUnknown) {
         BOOL shouldShowTipsWithProductImage =
             tipIdentifier == TipIdentifier::kLensShop &&
-            TipsLensShopExperimentTypeEnabled() ==
-                TipsLensShopExperimentType::kWithProductImage &&
             _tipsMediator.state.productImageData.length > 0;
 
         _ephemeralCardToShow =
@@ -930,7 +923,7 @@ using segmentation_platform::home_modules::SavePasswordsEphemeralModule;
         break;
       case ContentSuggestionsModuleType::kTips:
       case ContentSuggestionsModuleType::kTipsWithProductImage: {
-        if (IsTipsMagicStackEnabled() && _tipsMediator && _tipsMediator.state) {
+        if (_tipsMediator && _tipsMediator.state) {
           [magicStackOrder addObject:_tipsMediator.state];
         }
         break;

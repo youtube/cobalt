@@ -111,6 +111,14 @@ void AddCreditCardOptimizationTypes(
     const PaymentsDataManager& payments_data_manager,
     base::flat_set<optimization_guide::proto::OptimizationType>&
         optimization_types) {
+  // This optimization type should already be registered by
+  // `OnPaymentsDataLoaded()`, but we register it again here to be sure.
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillActorRewriteCreditCardTriggerField)) {
+    optimization_types.insert(
+        optimization_guide::proto::AUTOFILL_ACTOR_IFRAME_ORIGIN_ALLOWLIST);
+  }
+
   for (const CreditCard* card : payments_data_manager.GetServerCreditCards()) {
     auto vcn_merchant_opt_out_optimization_type =
         GetVcnMerchantOptOutOptimizationTypeForCard(*card);
@@ -260,8 +268,6 @@ AutofillOptimizationGuideDecider::~AutofillOptimizationGuideDecider() = default;
 
 void AutofillOptimizationGuideDecider::OnPaymentsDataLoaded(
     const PaymentsDataManager& payments_data_manager) {
-
-
   // This flat set represents all of the optimization types that we need to
   // register after loading payments data.
   base::flat_set<optimization_guide::proto::OptimizationType>
@@ -269,6 +275,12 @@ void AutofillOptimizationGuideDecider::OnPaymentsDataLoaded(
 
   AddOptimizationTypesForBnplIssuers(payments_data_manager.GetBnplIssuers(),
                                      optimization_types);
+
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillActorRewriteCreditCardTriggerField)) {
+    optimization_types.insert(
+        optimization_guide::proto::AUTOFILL_ACTOR_IFRAME_ORIGIN_ALLOWLIST);
+  }
 
   // If we do not have any optimization types to register, do not do anything.
   if (!optimization_types.empty()) {

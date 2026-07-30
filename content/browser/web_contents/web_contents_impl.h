@@ -972,6 +972,8 @@ class CONTENT_EXPORT WebContentsImpl
       RenderViewHostImpl* render_view_host) override;
   void DidReceiveInputEvent(RenderWidgetHostImpl* render_widget_host,
                             const blink::WebInputEvent& event) override;
+  void SimulateUserInteraction(RenderWidgetHostImpl* render_widget_host,
+                               const blink::WebInputEvent& event) override;
   bool ShouldIgnoreWebInputEvents(const blink::WebInputEvent& event) override;
   bool ShouldIgnoreInputEvents() override;
   void OnIgnoredUIEvent() override;
@@ -1188,6 +1190,7 @@ class CONTENT_EXPORT WebContentsImpl
   bool OnRenderFrameProxyVisibilityChanged(
       RenderFrameProxyHost* render_frame_proxy_host,
       blink::mojom::FrameVisibility visibility) override;
+  PrerenderHostId GetPrerenderHostId() override;
   void SendScreenRects() override;
   void SendActiveState(bool active) override;
   TextInputManager* GetTextInputManager() override;
@@ -2200,6 +2203,12 @@ class CONTENT_EXPORT WebContentsImpl
   // the given |node|.
   void RecursivelyConstructAXTree(ui::AXNode* node,
                                   std::vector<ui::AXNodeData>& nodes);
+
+  // Performs some checks before sending user interaction notification to
+  // observers for a given `WebInputEvent`.
+  void HandleUserInteractionForInputEvent(
+      RenderWidgetHostImpl* render_widget_host,
+      const blink::WebInputEvent& event);
 
 #if BUILDFLAG(IS_ANDROID)
   // Apply the cached primary subframe importance to the primary frame tree.

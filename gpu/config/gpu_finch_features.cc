@@ -63,7 +63,7 @@ BASE_FEATURE(kAndroidSurfaceControl, base::FEATURE_ENABLED_BY_DEFAULT);
 // Hardware Overlays for WebView.
 BASE_FEATURE(kWebViewSurfaceControl, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kWebViewSurfaceControlForTV, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kWebViewSurfaceControlForTV, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // This is used as default state because it's different for webview and chrome.
 // WebView hardcodes this as enabled in AwMainDelegate.
@@ -94,7 +94,7 @@ const base::FeatureParam<std::string>
     kRelaxLimitAImageReaderMaxSizeToOneManufacturerBlocklist{
         &kRelaxLimitAImageReaderMaxSizeToOne,
         "RelaxLimitAImageReaderMaxSizeToOneManufacturerBlocklist",
-        "*Broadcom*|*Google*"};
+        "*Broadcom*"};
 const base::FeatureParam<std::string>
     kRelaxLimitAImageReaderMaxSizeToOneDeviceBlocklist{
         &kRelaxLimitAImageReaderMaxSizeToOne,
@@ -418,10 +418,6 @@ BASE_FEATURE(kDeferredOverlaysRelease,
 BASE_FEATURE(kD3DBackingUploadWithUpdateSubresource,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
-
-// This feature allows viz to handle overlays' swap failures instead of loosing a context and
-// restarting a gpu service.
-BASE_FEATURE(kHandleOverlaysSwapFailure, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // This feature allows enabling specific entries in
 // software_rendering_list.json, via experimentation. The entries must have

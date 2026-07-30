@@ -19,7 +19,6 @@
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
 #include "base/containers/adapters.h"
-#include "base/containers/contains.h"
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
 #include "base/debug/crash_logging.h"
@@ -144,6 +143,7 @@
 #include "gpu/ipc/client/client_shared_image_interface.h"
 #include "services/metrics/public/cpp/ukm_recorder.h"
 #include "third_party/perfetto/include/perfetto/tracing/track.h"
+#include "third_party/perfetto/include/perfetto/tracing/track_event_args.h"
 #include "third_party/perfetto/protos/perfetto/trace/track_event/chrome_latency_info.pbzero.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkSurface.h"
@@ -564,7 +564,9 @@ LayerTreeHostImpl::LayerTreeHostImpl(
         std::make_unique<CompositorFrameReportingController>(
             /*should_report_histograms=*/!settings
                 .single_thread_proxy_scheduler,
-            /*should_report_ukm=*/!settings.single_thread_proxy_scheduler, id,
+            /*should_report_ukm=*/!settings.single_thread_proxy_scheduler &&
+                base::FeatureList::IsEnabled(features::kReportUkm),
+            id,
             /*is_trees_in_viz_client=*/
             settings_.TreesInVizInClientProcess());
   }
@@ -603,14 +605,6 @@ LayerTreeHostImpl::LayerTreeHostImpl(
   browser_controls_offset_manager_ = BrowserControlsOffsetManager::Create(
       this, settings.top_controls_show_threshold,
       settings.top_controls_hide_threshold);
-
-  if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kDisableLayerTreeHostMemoryPressure)) {
-    memory_pressure_listener_registration_ =
-        std::make_unique<base::AsyncMemoryPressureListenerRegistration>(
-            FROM_HERE, base::MemoryPressureListenerTag::kLayerTreeHostImpl,
-            this);
-  }
 
   SetDebugState(settings.initial_debug_state);
   compositor_frame_reporting_controller_->SetFrameSorter(&frame_sorter_);
@@ -2017,23 +2011,6 @@ DrawResult LayerTreeHostImpl::PrepareToDraw(FrameData* frame,
   if (input_delegate_)
     input_delegate_->WillDraw();
 
-  // No need to record metrics each time we draw, 1% is enough.
-  constexpr double kSamplingFrequency = .01;
-  if (!downsample_metrics_ ||
-      metrics_subsampler_.ShouldSample(kSamplingFrequency)) {
-    // These metrics are only for the renderer process.
-    if (RunningOnRendererProcess()) {
-      UMA_HISTOGRAM_CUSTOM_COUNTS(
-          "Compositing.Renderer.NumActiveLayers",
-          base::saturated_cast<int>(active_tree_->NumLayers()), 1, 1000, 20);
-
-      UMA_HISTOGRAM_CUSTOM_COUNTS(
-          "Compositing.Renderer.NumActivePictureLayers",
-          base::saturated_cast<int>(active_tree_->picture_layers().size()), 1,
-          1000, 20);
-    }
-  }
-
   // Tick worklet animations here, just before draw, to give animation worklets
   // as much time as possible to produce their output for this frame. Note that
   // an animation worklet is asked to produce its output at the beginning of the
@@ -2908,8 +2885,7 @@ viz::CompositorFrameMetadata LayerTreeHostImpl::MakeCompositorFrameMetadata() {
   }
 
 #if BUILDFLAG(IS_ANDROID)
-  if (browser_controls_offset_manager_->BottomControlsHeight() > 0 &&
-      features::IsBcivBottomControlsEnabled()) {
+  if (browser_controls_offset_manager_->BottomControlsHeight() > 0) {
     const viz::OffsetTag& bottom_controls_offset_tag =
         browser_controls_offset_manager_->BottomControlsOffsetTag();
     if (bottom_controls_offset_tag) {
@@ -2951,12 +2927,10 @@ viz::CompositorFrameMetadata LayerTreeHostImpl::MakeCompositorFrameMetadata() {
         std::make_unique<gfx::DelegatedInkMetadata>(
             *delegated_ink_metadata_ptr);
     delegated_ink_metadata->set_frame_time(CurrentBeginFrameArgs().frame_time);
-    TRACE_EVENT_WITH_FLOW1(
-        "delegated_ink_trails",
-        "Delegated Ink Metadata set on compositor frame metadata",
-        TRACE_ID_GLOBAL(delegated_ink_metadata->trace_id()),
-        TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT, "metadata",
-        delegated_ink_metadata->ToString());
+    TRACE_EVENT("delegated_ink_trails",
+                "Delegated Ink Metadata set on compositor frame metadata",
+                perfetto::Flow::Global(delegated_ink_metadata->trace_id()),
+                "metadata", delegated_ink_metadata->ToString());
     metadata.delegated_ink_metadata = std::move(delegated_ink_metadata);
   }
 
@@ -3082,17 +3056,6 @@ RenderFrameMetadata LayerTreeHostImpl::MakeRenderFrameMetadata(
         allocate_new_local_surface_id |=
             last_draw_render_frame_metadata_->top_controls_shown_ratio !=
                 metadata.top_controls_shown_ratio ||
-            last_draw_render_frame_metadata_->bottom_controls_shown_ratio !=
-                metadata.bottom_controls_shown_ratio;
-      } else if (!features::IsBcivBottomControlsEnabled()) {
-        // When AndroidBrowserControlsInViz is enabled, don't always use
-        // bottom_controls_shown_ratio to determine if surface sync is needed,
-        // because it changes even when there are no bottom controls.
-        bool bottom_controls_exist =
-            metadata.bottom_controls_height != 0 ||
-            last_draw_render_frame_metadata_->bottom_controls_height != 0;
-        allocate_new_local_surface_id |=
-            bottom_controls_exist &&
             last_draw_render_frame_metadata_->bottom_controls_shown_ratio !=
                 metadata.bottom_controls_shown_ratio;
       }
@@ -3440,6 +3403,7 @@ viz::CompositorFrame LayerTreeHostImpl::GenerateCompositorFrame(
 
   viz::CompositorFrameMetadata metadata = MakeCompositorFrameMetadata();
   bool has_view_transition_with_animate = false;
+  bool delay_layer_tree_view_deletion = false;
 
   // Don't compute transition directives in TreesInViz mode because
   // the requests will be sent over to viz to compute them.
@@ -3457,8 +3421,8 @@ viz::CompositorFrame LayerTreeHostImpl::GenerateCompositorFrame(
         continue;
       }
 
-      DCHECK(!base::Contains(view_transition_element_map,
-                             view_transition_element_resource_id))
+      DCHECK(!view_transition_element_map.contains(
+          view_transition_element_resource_id))
           << "Cannot map " << view_transition_element_resource_id.ToString()
           << " to render pass "
           << render_surface->render_pass_id().GetUnsafeValue()
@@ -3488,14 +3452,14 @@ viz::CompositorFrame LayerTreeHostImpl::GenerateCompositorFrame(
         metadata.transition_directives.push_back(request->ConstructDirective(
             view_transition_element_map, display_color_spaces,
             request->delay_layer_tree_view_deletion()));
-        if (request->maybe_cross_frame_sink() &&
-            features::ShouldAckCOREarlyForViewTransition() &&
+        if (features::ShouldAckCOREarlyForViewTransition() &&
             request->delay_layer_tree_view_deletion()) {
           OnCompositorFrameTransitionDirectiveProcessed(request->sequence_id());
           if (request->type() ==
               ViewTransitionRequest::Type::kAnimateRenderer) {
             has_view_transition_with_animate = true;
           }
+          delay_layer_tree_view_deletion = true;
         }
       }
     }
@@ -3510,13 +3474,13 @@ viz::CompositorFrame LayerTreeHostImpl::GenerateCompositorFrame(
     }
     if (features::ShouldAckCOREarlyForViewTransition()) {
       for (auto& request : active_tree_->view_transition_requests()) {
-        if (request->maybe_cross_frame_sink() &&
-            request->delay_layer_tree_view_deletion()) {
+        if (request->delay_layer_tree_view_deletion()) {
           OnCompositorFrameTransitionDirectiveProcessed(request->sequence_id());
           if (request->type() ==
               ViewTransitionRequest::Type::kAnimateRenderer) {
             has_view_transition_with_animate = true;
           }
+          delay_layer_tree_view_deletion = true;
         }
       }
     }
@@ -3529,13 +3493,9 @@ viz::CompositorFrame LayerTreeHostImpl::GenerateCompositorFrame(
   // wait for animations from old RenderFrame, in case there are issues with old
   // RenderFrame being stuck, and we send CopyOutputRequest Ack early for
   // fast-path ViewTransition navigations.
-  bool delay_layer_tree_view_deletion = false;
-  for (auto& request : active_tree_->view_transition_requests()) {
-    if (request->delay_layer_tree_view_deletion()) {
-      delay_layer_tree_view_deletion = true;
-      break;
-    }
-  }
+  //
+  // Use the cached values because `TakeViewTransitionRequests()` clears the
+  // requests from the tree.
   if (features::ShouldAckCOREarlyForViewTransition() &&
       delay_layer_tree_view_deletion && has_view_transition_with_animate) {
     frame_deadline = 240;
@@ -4445,48 +4405,6 @@ void LayerTreeHostImpl::ActivateStateForImages() {
 
   image_animation_controller_.DidActivate();
   tile_manager_.DidActivateSyncTree();
-}
-
-void LayerTreeHostImpl::OnMemoryPressure(base::MemoryPressureLevel level) {
-  if (level == base::MEMORY_PRESSURE_LEVEL_NONE) {
-    return;
-  }
-
-  if (settings_.trees_in_viz_in_viz_process) {
-    return;
-  }
-
-  // Only work for low-end devices for now.
-  if (!base::SysInfo::IsLowEndDevice())
-    return;
-
-  if (!ImageDecodeCacheUtils::ShouldEvictCaches(level))
-    return;
-
-    // TODO(crbug.com/42050253): Unlocking decoded-image-tracker images causes
-    // flickering in visible trees if Out-Of-Process rasterization is enabled.
-#if BUILDFLAG(IS_FUCHSIA)
-  if (use_gpu_rasterization() && visible())
-    return;
-#endif  // BUILDFLAG(IS_FUCHSIA)
-
-  ReleaseTileResources();
-  active_tree_->OnPurgeMemory();
-  if (pending_tree_)
-    pending_tree_->OnPurgeMemory();
-  if (recycle_tree_)
-    recycle_tree_->OnPurgeMemory();
-
-  EvictAllUIResources();
-  if (resource_pool_)
-    resource_pool_->OnMemoryPressure(level);
-
-  tile_manager_.decoded_image_tracker().UnlockAllImages();
-
-  // There is no need to notify the |image_decode_cache| about the memory
-  // pressure as it (the gpu one as the software one doesn't keep outstanding
-  // images pinned) listens to memory pressure events and purges memory base on
-  // the ImageDecodeCacheUtils::ShouldEvictCaches' return value.
 }
 
 void LayerTreeHostImpl::SetVisible(bool visible) {

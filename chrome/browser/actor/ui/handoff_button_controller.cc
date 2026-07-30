@@ -21,7 +21,7 @@
 #include "components/vector_icons/vector_icons.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "third_party/skia/include/core/SkRRect.h"
-#include "third_party/skia/include/effects/SkGradientShader.h"
+#include "third_party/skia/include/effects/SkGradient.h"
 #include "third_party/skia/include/effects/SkImageFilters.h"
 #include "ui/base/cursor/cursor.h"
 #include "ui/base/cursor/mojom/cursor_type.mojom-shared.h"
@@ -315,6 +315,8 @@ void HandoffButtonController::CreateAndShowButton(
   button_view_ = button_view.get();
   button_view_->SetAccessibleDescription(a11y_text);
   button_view_->SetEnabledTextColors(::ui::kColorLabelForeground);
+  button_view_->SetTextColor(views::Button::STATE_DISABLED,
+                             ::ui::kColorLabelForeground);
   button_view_->SetImageModel(views::Button::STATE_NORMAL, icon);
   button_view_->SetProperty(views::kElementIdentifierKey,
                             kHandoffButtonElementId);

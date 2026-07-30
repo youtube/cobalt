@@ -287,7 +287,7 @@ WebRtcVideoFrameAdapter::SharedResources::ConstructVideoFrameFromTexture(
         // For shared memory GMBs on Windows we needed to explicitly request a
         // copy from the shared image GPU texture to the GMB.
         CHECK(dst_frame->HasMappableSharedImage());
-        CHECK(!dst_frame->HasNativeGpuMemoryBuffer());
+        CHECK(!dst_frame->HasNativeMappableSharedImage());
 
         auto* sii = raster_context_provider->SharedImageInterface();
 
@@ -337,8 +337,7 @@ WebRtcVideoFrameAdapter::SharedResources::ConstructVideoFrameFromGpu(
   CHECK(source_frame);
   // NV12 is the only supported format.
   DCHECK_EQ(source_frame->format(), media::PIXEL_FORMAT_NV12);
-  DCHECK_EQ(source_frame->storage_type(),
-            media::VideoFrame::STORAGE_MAPPABLE_SHARED_IMAGE);
+  DCHECK(source_frame->HasMappableSharedImage());
 
   // This is necessary because mapping may require waiting on IO thread,
   // but webrtc API is synchronous.
@@ -443,7 +442,7 @@ void WebRtcVideoFrameAdapter::SharedResources::ScaleAndMapFrameAsync(
           },
           std::move(callback), dst_frame);
 
-      if (!dst_frame->HasNativeGpuMemoryBuffer()) {
+      if (!dst_frame->HasNativeMappableSharedImage()) {
         // On windows we need to explicitly request copy of the
         // texture data to the shared memory GMB.
         // ri->WaitSyncTokenCHROMIUM(completion_sync_token.GetData());
@@ -795,7 +794,7 @@ void WebRtcVideoFrameAdapter::PrepareMappedBufferAsync(
   // Accelerated scaling is disabled or
   // not a GPU memory based frame. No need to prepare anything.
   if (!base::FeatureList::IsEnabled(kWebrtcAcceleratedScaling) ||
-      (!frame_->HasNativeGpuMemoryBuffer() && !frame_->HasSharedImage())) {
+      (!frame_->HasNativeMappableSharedImage() && !frame_->HasSharedImage())) {
     handler->OnFramePrepared(frame_identifier);
     return;
   }
