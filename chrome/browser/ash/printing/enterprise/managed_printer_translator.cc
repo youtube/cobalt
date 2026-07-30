@@ -9,6 +9,7 @@
 #include <optional>
 #include <string>
 
+#include "base/logging.h"
 #include "base/strings/stringprintf.h"
 #include "base/values.h"
 #include "chrome/browser/ash/printing/enterprise/managed_printer_configuration.pb.h"

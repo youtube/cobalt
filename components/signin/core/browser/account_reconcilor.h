@@ -280,6 +280,10 @@ class AccountReconcilor
                            TableRowTestMultilogin);
   FRIEND_TEST_ALL_PREFIXES(AccountReconcilorTest, ReconcileAfterShutdown);
   FRIEND_TEST_ALL_PREFIXES(AccountReconcilorTest, UnlockAfterShutdown);
+  FRIEND_TEST_ALL_PREFIXES(AccountReconcilorMirrorTest,
+                           StartReconcileCookieJarFresh);
+  FRIEND_TEST_ALL_PREFIXES(AccountReconcilorMirrorTest,
+                           StartReconcileCookieJarStale);
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
   FRIEND_TEST_ALL_PREFIXES(AccountReconcilorTest,
                            OnAccountsInCookieUpdatedLogoutInProgress);
@@ -441,6 +445,7 @@ class AccountReconcilor
   static const char kTriggerMultiloginHistogramName[];
   static const char kTriggerNoopHistogramName[];
   static const char kTriggerThrottledHistogramName[];
+  static const char kCookieJarIsFreshHistogramName[];
 
   std::unique_ptr<signin::AccountReconcilorDelegate> delegate_;
   AccountReconcilorThrottler throttler_;

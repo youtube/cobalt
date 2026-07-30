@@ -1620,7 +1620,7 @@ bool AreSameRangesAlgorithm(Node* node,
   DCHECK(node);
   const EphemeralRange range =
       CreateVisibleSelection(
-          SelectionInDOMTree::Builder().SelectAllChildren(*node).Build())
+          SelectionInDomTree::Builder().SelectAllChildren(*node).Build())
           .ToNormalizedEphemeralRange();
   return ToPositionInDomTree(start_position) == range.StartPosition() &&
          ToPositionInDomTree(end_position) == range.EndPosition();

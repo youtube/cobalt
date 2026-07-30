@@ -4,8 +4,10 @@
 
 #include "components/omnibox/browser/omnibox_client.h"
 
-#include <memory>
+#include <optional>
+#include <string>
 
+#include "base/functional/callback.h"
 #include "base/strings/string_util.h"
 #include "third_party/metrics_proto/omnibox_event.pb.h"
 #include "ui/gfx/image/image.h"
@@ -58,6 +60,10 @@ bool OmniboxClient::ShowConfirmationDialogIfDefaultSearchExtensionControlled(
 }
 
 TemplateURLService* OmniboxClient::GetTemplateURLService() {
+  return nullptr;
+}
+
+AiModeButtonService* OmniboxClient::GetAiModeButtonService() {
   return nullptr;
 }
 
@@ -143,6 +149,13 @@ gfx::Image OmniboxClient::GetFaviconForDefaultSearchProvider(
 gfx::Image OmniboxClient::GetFaviconForKeywordSearchProvider(
     const TemplateURL* template_url,
     FaviconFetchedCallback on_favicon_fetched) {
+  return gfx::Image();
+}
+
+gfx::Image OmniboxClient::GetFaviconForIconUrl(
+    const GURL& icon_url,
+    FaviconFetchedCallback on_favicon_fetched,
+    bool notify_on_empty) {
   return gfx::Image();
 }
 

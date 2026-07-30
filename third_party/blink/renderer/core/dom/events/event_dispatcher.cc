@@ -489,7 +489,7 @@ inline void EventDispatcher::DispatchEventPostProcess(
   // and event's relatedTarget to null.
   event_->SetTarget(event_->GetEventPath().GetWindowEventContext().Target());
   if (!event_->RawTarget()) {
-    event_->SetRelatedTargetIfExists(nullptr);
+    event_->SetRelatedTarget(nullptr);
   }
 }
 

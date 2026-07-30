@@ -48,11 +48,7 @@ WebXrSharedBuffer* ArImageTransport::TransferCameraImageFrame(
   bool was_resized =
       ResizeSharedBuffer(webxr, frame_size, camera_image_shared_buffer);
   if (was_resized) {
-    // Ensure that the following GPU command buffer actions are sequenced after
-    // the shared buffer operations. The shared image interface uses a separate
-    // command buffer stream.
     DCHECK(camera_image_shared_buffer->sync_token.HasData());
-    WaitSyncToken(camera_image_shared_buffer->sync_token);
     DVLOG(3) << __func__
              << ": "
                 "camera_image_shared_buffer->sync_"

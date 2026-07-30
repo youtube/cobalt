@@ -79,7 +79,7 @@ u16string BnplTosControllerImpl::GetCancelButtonLabel() const {
 u16string BnplTosControllerImpl::GetTitle() const {
   if (model_.issuer.payment_instrument() &&
       model_.issuer.payment_instrument()->action_required().contains(
-          autofill::PaymentInstrument::ActionRequired::kAcceptTos)) {
+          PaymentInstrument::ActionRequired::kAcceptTos)) {
     return GetStringFUTF16(IDS_AUTOFILL_BNPL_TOS_LINKED_TITLE,
                            model_.issuer.GetDisplayName());
   }

@@ -71,7 +71,7 @@ base::DictValue GetAccountInfoValue(const AccountInfo& info) {
   std::string avatar_badge_alt_text = "";
   if (info.IsManaged() == signin::Tribool::kTrue) {
     avatar_badge = kEnterprizeBadgeSource;
-  } else if (IsSupervisedUser(info.capabilities)) {
+  } else if (IsSupervisedUser(info.GetAccountCapabilities())) {
     avatar_badge = kSupervisedBadgeSource;
     avatar_badge_alt_text =
         l10n_util::GetStringUTF8(IDS_MANAGED_BY_PARENT_A11Y);

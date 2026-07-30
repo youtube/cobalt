@@ -67,7 +67,9 @@ RealTimeUrlLookupService::RealTimeUrlLookupService(
         min_allowed_timestamp_for_referrer_chains_getter,
     ReferrerChainProvider* referrer_chain_provider,
     WebUIDelegate* delegate,
-    IntelligentScanDelegate* intelligent_scan_delegate)
+    IntelligentScanDelegate* intelligent_scan_delegate,
+    base::RepeatingCallback<network::mojom::NetworkContext*()>
+        network_context_getter)
     : RealTimeUrlLookupServiceBase(url_loader_factory,
                                    cache_manager,
                                    get_user_population_callback,
@@ -75,7 +77,8 @@ RealTimeUrlLookupService::RealTimeUrlLookupService(
                                    std::move(token_fetcher),
                                    pref_service,
                                    delegate,
-                                   intelligent_scan_delegate),
+                                   intelligent_scan_delegate,
+                                   std::move(network_context_getter)),
       pref_service_(pref_service),
       client_token_config_callback_(client_token_config_callback),
       is_off_the_record_(is_off_the_record),

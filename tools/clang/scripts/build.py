@@ -188,12 +188,16 @@ def CheckoutGitRepo(name, git_url, commit, dir):
   print('CheckoutGitRepo failed.')
   sys.exit(1)
 
-# Git commits include timing metadata in their hash.
+# Git commits include timing and author metadata in their hash.
 # To ensure we get a consistent hash when applying local changes,
-# set the dates to a specific value via environment variable
-MODIFICATION_DATES = {
+# set everything to fixed values via environment variable
+GIT_METADATA_OVERRIDES = {
+    'GIT_AUTHOR_NAME': 'Dummy Author',
+    'GIT_AUTHOR_EMAIL': 'none@none.com',
     'GIT_AUTHOR_DATE': '2099-01-01 10:10:10',
-    'GIT_COMMITTER_DATE': '2099-01-01 10:10:10'
+    'GIT_COMMITTER_NAME': 'Dummy Committer',
+    'GIT_COMMITTER_EMAIL': 'none@none.com',
+    'GIT_COMMITTER_DATE': '2099-01-01 10:10:10',
 }
 
 
@@ -222,7 +226,7 @@ def GitCherryPick(git_repository,
     return
 
   env = os.environ.copy()
-  env.update(MODIFICATION_DATES)
+  env.update(GIT_METADATA_OVERRIDES)
   RunCommand([
       'git', '-C', git_repository, 'cherry-pick', '--keep-redundant-commits',
       commit
@@ -236,7 +240,7 @@ def GitRevert(git_repository, commit):
     print('Commit not an ancestor; skipping.')
     return
   env = os.environ.copy()
-  env.update(MODIFICATION_DATES)
+  env.update(GIT_METADATA_OVERRIDES)
   RunCommand(['git', '-C', git_repository, 'revert', '--no-edit', commit],
              env=env)
 
@@ -972,6 +976,8 @@ def main():
   if sys.platform == 'darwin':
     isysroot = subprocess.check_output(['xcrun', '--show-sdk-path'],
                                        universal_newlines=True).rstrip()
+    # TODO(crbug.com/522267458): Remove this when class stub is implemented for lld.
+    base_cmake_args.append('-DHOST_LINK_VERSION=1249')
   base_cmake_args += ['-DLLVM_ENABLE_UNWIND_TABLES=OFF']
 
   compiler_wrapper_cmake_args = []

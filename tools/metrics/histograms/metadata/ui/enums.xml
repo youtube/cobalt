@@ -78,6 +78,7 @@ chromium-metrics-reviews@google.com.
   <int value="29" label="Search web for... in new tab"/>
   <int value="31" label="Open link in split view"/>
   <int value="32" label="Create image with Gemini in Chrome"/>
+  <int value="33" label="Remove from dictionary"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/renderer_context_menu/render_view_context_menu.cc:ContextMenuOptionDesktop) -->
@@ -367,6 +368,7 @@ chromium-metrics-reviews@google.com.
   <int value="164" label="IDC_CONTENT_CONTEXT_LISTEN_TO_THIS_PAGE"/>
   <int value="165" label="IDC_CONTENT_CONTEXT_DICTATION"/>
   <int value="166" label="IDC_CONTENT_CONTEXT_ADD_LINK_TO_READING_LIST"/>
+  <int value="167" label="IDC_SPELLCHECK_REMOVE_FROM_DICTIONARY"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/renderer_context_menu/render_view_context_menu.cc:RenderViewContextMenuItem) -->
@@ -392,6 +394,10 @@ chromium-metrics-reviews@google.com.
   <int value="6" label="Others">
     The snackbar was cleared by other events, such as activity being stopped or
     manually cleared by the manager.
+  </int>
+  <int value="7" label="Replaced by high priority">
+    The snackbar was instantly preempted and dismissed by a high priority
+    security warning.
   </int>
 </enum>
 
@@ -438,10 +444,10 @@ chromium-metrics-reviews@google.com.
   <int value="35" label="UMA_CONDITIONAL_TAB_STRIP_DISMISS_UNDO"/>
   <int value="37" label="UMA_READING_LIST_BOOKMARK_ADDED"/>
   <int value="38" label="UMA_PRIVACY_SANDBOX_PAGE_OPEN"/>
-  <int value="39" label="UMA_WEB_FEED_FOLLOW_SUCCESS"/>
-  <int value="40" label="UMA_WEB_FEED_FOLLOW_FAILURE"/>
-  <int value="41" label="UMA_WEB_FEED_UNFOLLOW_SUCCESS"/>
-  <int value="42" label="UMA_WEB_FEED_UNFOLLOW_FAILURE"/>
+  <int value="39" label="(Obsolete) UMA_WEB_FEED_FOLLOW_SUCCESS"/>
+  <int value="40" label="(Obsolete) UMA_WEB_FEED_FOLLOW_FAILURE"/>
+  <int value="41" label="(Obsolete) UMA_WEB_FEED_UNFOLLOW_SUCCESS"/>
+  <int value="42" label="(Obsolete) UMA_WEB_FEED_UNFOLLOW_FAILURE"/>
   <int value="43" label="UMA_LANGUAGE_SPLIT_RESTART"/>
   <int value="44" label="UMA_AUTOFILL_VIRTUAL_CARD_FILLED"/>
   <int value="45" label="UMA_WINDOW_ERROR"/>
@@ -744,6 +750,7 @@ chromium-metrics-reviews@google.com.
   <int value="-1475777739" label="chrome://physical-web-diagnostics/"/>
   <int value="-1471376798" label="chrome-untrusted://print/"/>
   <int value="-1440785181" label="chrome://profile-signin-confirmation/"/>
+  <int value="-1437371895" label="chrome://contextual-cueing-internals/"/>
   <int value="-1423026122" label="chrome://md-user-manager/"/>
   <int value="-1401057585" label="chrome://account-manager-error/"/>
   <int value="-1398642514" label="chrome://gesture/"/>
@@ -1062,7 +1069,6 @@ chromium-metrics-reviews@google.com.
   <int value="1846714330" label="chrome://sanitize/"/>
   <int value="1878438412" label="chrome://tabs-from-other-devices.top-chrome/"/>
   <int value="1887784693" label="chrome://policy/"/>
-  <int value="1906728906" label="chrome://privacy-sandbox-internals/"/>
   <int value="1914132589" label="chrome-untrusted://boca-app/"/>
   <int value="1918190389" label="chrome-untrusted://projector-annotator/"/>
   <int value="1926101309" label="chrome://cryptohome/"/>

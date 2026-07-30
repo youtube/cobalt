@@ -4,7 +4,7 @@
     "debuggable_apks": false,
     "enable_android_secondary_abi": true,
     "ffmpeg_branding": "Chrome",
-    "is_component_build": true,
+    "is_component_build": false,
     "is_debug": true,
     "proprietary_codecs": true,
     "symbol_level": 1,

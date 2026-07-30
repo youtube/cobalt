@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_UI_BROWSER_ACTIONS_H_
 
 #include <memory>
+#include <string>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"

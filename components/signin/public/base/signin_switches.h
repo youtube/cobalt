@@ -58,6 +58,9 @@ bool IsAvatarSyncPromoFeatureEnabled();
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 base::TimeDelta GetAvatarSyncPromoFeatureMinimumCookeAgeParam();
 
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kAvoidAutoTriggerListAccountsOnStale);
+
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 // A HaTS survey flag for the survey to gather user feedback before any changes
 // to the FRE as part of Chrome Desktop FRE Refresh project.
@@ -327,6 +330,13 @@ BASE_DECLARE_FEATURE(
     kEnableOAuthMultiloginStandardCookiesBindingForSecondaryPartitions);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kEnableOAuthMultiloginYoutubeCookiesBinding);
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(bool, kOAuthMultiloginYoutubeCookieBindingEnforced);
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
+
 // Enables a separate account-scoped storage for preferences.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kEnablePreferencesAccountStorage);
@@ -377,22 +387,6 @@ BASE_DECLARE_FEATURE(kEnforceManagementDisclaimer);
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 extern const base::FeatureParam<base::TimeDelta>
     kPolicyDisclaimerRegistrationRetryDelay;
-#endif
-
-#if BUILDFLAG(IS_IOS)
-// Feature flag controlling whether the MustFetchAppleAgeRangeInChrome account
-// capability should be used to determine whether the client must fetch Apple's
-// age range.
-COMPONENT_EXPORT(SIGNIN_SWITCHES)
-BASE_DECLARE_FEATURE(kEnforceMustFetchAppleAgeRangeInChromeCapability);
-#endif
-
-#if BUILDFLAG(IS_IOS)
-// Feature flag controlling whether the MustSkipAppleAgeRangeInChrome account
-// capability should be used to determine whether the client must skip Apple's
-// age range check.
-COMPONENT_EXPORT(SIGNIN_SWITCHES)
-BASE_DECLARE_FEATURE(kEnforceMustSkipAppleAgeRangeInChromeCapability);
 #endif
 
 // Feature flag to fetch AccountInfo (UserInfo & Capabilities) on restart.
@@ -711,6 +705,13 @@ BASE_DECLARE_FEATURE(kSyncEnableBookmarksInTransportMode);
 // flag is enabled by default on Windows/Mac/Linux.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kBookmarksMigrateUiChanges);
+
+#if BUILDFLAG(IS_CHROMEOS)
+// If enabled, undoes the effect of kChromeOsUseConsentLevelSigninForNewUsers
+// by reverting the consent level to kSync.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kUndoChromeOsUseConsentLevelSignin);
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 // If enabled, buttons for sign-in promos / intercepts will use consistent
 // primary - tonal button class pattern.

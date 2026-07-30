@@ -39,10 +39,12 @@ export function getHtml(this: OverflowMenuElement) {
 </if>
         $i18n{myActivity}
       </button>
-      <button class="dropdown-item" @click="${this.onFeedbackClick_}">
-        <cr-icon icon="contextual_tasks:feedback"></cr-icon>
-        $i18n{feedback}
-      </button>
+      ${this.isUserFeedbackAllowed ? html`
+        <button class="dropdown-item" @click="${this.onFeedbackClick_}">
+          <cr-icon icon="contextual_tasks:feedback"></cr-icon>
+          $i18n{feedback}
+        </button>
+      ` : ''}
     </cr-action-menu>
 <!--_html_template_end_-->`;
 }

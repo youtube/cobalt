@@ -18,7 +18,7 @@ class Window;
 namespace ash {
 class DragDropTrackerDelegate;
 
-using CancelDragDropCallback = base::RepeatingCallback<void(void)>;
+using CancelDragDropCallback = base::RepeatingClosure;
 
 // Provides functions for handling drag events inside and outside the root
 // window where drag is started. This internally sets up a capture window for

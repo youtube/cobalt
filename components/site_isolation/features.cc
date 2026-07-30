@@ -81,6 +81,13 @@ BASE_FEATURE(kSiteIsolationEnableMemoryThresholdAndroid,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
+// Controls the rollout of the IsolateOriginsShortlist policy, which allows
+// isolating a shortlist of critical origins on resource-constrained devices
+// (like low-end Android phones) instead of the full IsolateOrigins list.
+BASE_FEATURE(kIsolateOriginsShortlist,
+             "IsolateOriginsShortlistPolicyUpdate",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // In order to have broader support for JavaScript optimizer exceptions, we'll
 // apply origin isolation on navigation for URLs that match rules in the
 // JAVASCRIPT_OPTIMIZER content setting that don't match the default setting.

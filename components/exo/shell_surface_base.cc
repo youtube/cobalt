@@ -305,7 +305,7 @@ class CustomClientView : public views::ClientView {
 class CustomWindowTargeter : public aura::WindowTargeter {
  public:
   explicit CustomWindowTargeter(ShellSurfaceBase* shell_surface)
-      : shell_surface_(shell_surface), widget_(shell_surface->GetWidget()) {}
+      : shell_surface_(shell_surface) {}
 
   CustomWindowTargeter(const CustomWindowTargeter&) = delete;
   CustomWindowTargeter& operator=(const CustomWindowTargeter&) = delete;
@@ -315,6 +315,11 @@ class CustomWindowTargeter : public aura::WindowTargeter {
   // Overridden from aura::WindowTargeter:
   bool EventLocationInsideBounds(aura::Window* window,
                                  const ui::LocatedEvent& event) const override {
+    views::Widget* widget = shell_surface_->GetWidget();
+    if (!widget) {
+      return false;
+    }
+
     gfx::Point local_point =
         ConvertEventLocationToWindowCoordinates(window, event);
 
@@ -323,16 +328,18 @@ class CustomWindowTargeter : public aura::WindowTargeter {
       return false;
     }
 
-    if (IsInResizeHandle(window, event, local_point))
+    if (IsInResizeHandle(window, event, local_point)) {
       return true;
+    }
 
     Surface* surface = GetShellRootSurface(window);
-    if (!surface)
+    if (!surface) {
       return false;
+    }
 
     int component =
-        widget_->non_client_view()
-            ? widget_->non_client_view()->NonClientHitTest(local_point)
+        widget->non_client_view()
+            ? widget->non_client_view()->NonClientHitTest(local_point)
             : HTNOWHERE;
     if (component != HTNOWHERE && component != HTCLIENT &&
         component != HTBORDER) {
@@ -351,13 +358,19 @@ class CustomWindowTargeter : public aura::WindowTargeter {
   bool IsInResizeHandle(aura::Window* window,
                         const ui::LocatedEvent& event,
                         const gfx::Point& local_point) const {
-    if (window != widget_->GetNativeWindow() ||
-        !widget_->widget_delegate()->CanResize()) {
+    views::Widget* widget = shell_surface_->GetWidget();
+    if (!widget) {
       return false;
     }
 
-    if (!shell_surface_->server_side_resize())
+    if (window != widget->GetNativeWindow() ||
+        !widget->widget_delegate()->CanResize()) {
       return false;
+    }
+
+    if (!shell_surface_->server_side_resize()) {
+      return false;
+    }
 
     ui::EventTarget* parent =
         static_cast<ui::EventTarget*>(window)->GetParentTarget();
@@ -386,7 +399,6 @@ class CustomWindowTargeter : public aura::WindowTargeter {
   }
 
   raw_ptr<ShellSurfaceBase> shell_surface_;
-  const raw_ptr<views::Widget, DanglingUntriaged> widget_;
 };
 
 void CloseAllShellSurfaceTransientChildren(aura::Window* window) {

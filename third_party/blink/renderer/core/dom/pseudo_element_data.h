@@ -9,7 +9,7 @@
 #include "build/build_config.h"
 #include "third_party/blink/renderer/core/dom/column_pseudo_element.h"
 #include "third_party/blink/renderer/core/dom/element.h"
-#include "third_party/blink/renderer/core/dom/element_rare_data_field.h"
+#include "third_party/blink/renderer/core/dom/node_rare_data_field.h"
 #include "third_party/blink/renderer/core/dom/transition_pseudo_element_data.h"
 #include "third_party/blink/renderer/core/style/computed_style_constants.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
@@ -17,7 +17,7 @@
 namespace blink {
 
 class PseudoElementData final : public GarbageCollected<PseudoElementData>,
-                                public ElementRareDataField {
+                                public NodeRareDataField {
  public:
   PseudoElementData() = default;
   PseudoElementData(const PseudoElementData&) = delete;
@@ -89,7 +89,7 @@ class PseudoElementData final : public GarbageCollected<PseudoElementData>,
     visitor->Trace(skeleton_);
     visitor->Trace(transition_data_);
     visitor->Trace(column_pseudo_elements_);
-    ElementRareDataField::Trace(visitor);
+    NodeRareDataField::Trace(visitor);
   }
 
  private:

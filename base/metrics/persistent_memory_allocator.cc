@@ -53,7 +53,7 @@ constexpr uint32_t kGlobalCookie = 0x408305DC;
 
 // The current version of the metadata. If updates are made that change the
 // metadata, the version number can be queried to operate in a backward-
-// compatible manner until the memory segment is completely re-initalized.
+// compatible manner until the memory segment is completely re-initialized.
 // Note: If you update the metadata in a non-backwards compatible way, reset
 // `kCompatibleVersions`. Otherwise, add the previous version.
 constexpr uint32_t kGlobalVersion = 3;

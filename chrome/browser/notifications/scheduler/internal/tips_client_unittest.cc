@@ -9,7 +9,8 @@
 #include "chrome/browser/notifications/scheduler/public/notification_scheduler_client.h"
 #include "chrome/browser/notifications/scheduler/public/notification_scheduler_constant.h"
 #include "chrome/browser/notifications/scheduler/public/tips_agent.h"
-#include "chrome/browser/notifications/scheduler/public/tips_prefs.h"
+#include "chrome/browser/tips/core/tips_prefs.h"
+#include "chrome/browser/tips/core/tips_types.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/testing_pref_service.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -22,7 +23,7 @@ class MockTipsAgent : public TipsAgent {
  public:
   MOCK_METHOD(void,
               ShowTipsPromo,
-              (TipsNotificationsFeatureType feature_type),
+              (tips::TipsNotificationsFeatureType feature_type),
               (override));
 };
 
@@ -33,14 +34,15 @@ class TipsClientTest : public testing::Test {
   TipsClientTest() {
 #if BUILDFLAG(IS_ANDROID)
     pref_service_.registry()->RegisterBooleanPref(
-        notifications::tips::prefs::kAndroidTipNotificationShownESB, false);
+        tips::prefs::kAndroidTipNotificationShownESB, false);
 #endif  // BUILDFLAG(IS_ANDROID)
   }
 
  public:
   void SetUp() override {
-    auto mock_tips_agent = std::make_unique<MockTipsAgent>();
-    mock_tips_agent_ = mock_tips_agent.get();
+    std::unique_ptr<TipsAgent> mock_tips_agent =
+        std::make_unique<MockTipsAgent>();
+    mock_tips_agent_ = static_cast<MockTipsAgent*>(mock_tips_agent.get());
     tips_client_ = std::make_unique<TipsClient>(std::move(mock_tips_agent),
                                                 &pref_service_);
   }
@@ -62,8 +64,9 @@ TEST_F(TipsClientTest, OnUserActionDismiss) {
   base::HistogramTester histograms;
   UserActionData action_data(SchedulerClientType::kTips,
                              UserActionType::kDismiss, "guid1");
-  action_data.custom_data[kTipsNotificationsFeatureType] = base::NumberToString(
-      static_cast<int>(TipsNotificationsFeatureType::kEnhancedSafeBrowsing));
+  action_data.custom_data[kTipsNotificationsFeatureType] =
+      base::NumberToString(static_cast<int>(
+          tips::TipsNotificationsFeatureType::kEnhancedSafeBrowsing));
   EXPECT_CALL(*mock_tips_agent(), ShowTipsPromo(testing::_)).Times(0);
   tips_client()->OnUserAction(action_data);
   histograms.ExpectBucketCount("Notifications.Scheduler.Tips.FeatureTypeAction",
@@ -78,11 +81,12 @@ TEST_F(TipsClientTest, OnUserActionShowFeatureTip) {
   base::HistogramTester histograms;
   UserActionData action_data(SchedulerClientType::kTips, UserActionType::kClick,
                              "guid1");
-  action_data.custom_data[kTipsNotificationsFeatureType] = base::NumberToString(
-      static_cast<int>(TipsNotificationsFeatureType::kEnhancedSafeBrowsing));
+  action_data.custom_data[kTipsNotificationsFeatureType] =
+      base::NumberToString(static_cast<int>(
+          tips::TipsNotificationsFeatureType::kEnhancedSafeBrowsing));
   EXPECT_CALL(
       *mock_tips_agent(),
-      ShowTipsPromo(TipsNotificationsFeatureType::kEnhancedSafeBrowsing));
+      ShowTipsPromo(tips::TipsNotificationsFeatureType::kEnhancedSafeBrowsing));
   tips_client()->OnUserAction(action_data);
   histograms.ExpectBucketCount("Notifications.Scheduler.Tips.FeatureTypeAction",
                                UserActionType::kClick, 1);
@@ -97,19 +101,19 @@ TEST_F(TipsClientTest, BeforeShowNotification) {
   auto notification_data = std::make_unique<NotificationData>();
   notification_data->custom_data[kTipsNotificationsFeatureType] =
       base::NumberToString(static_cast<int>(
-          TipsNotificationsFeatureType::kEnhancedSafeBrowsing));
-  EXPECT_FALSE(pref_service()->GetBoolean(
-      notifications::tips::prefs::kAndroidTipNotificationShownESB));
+          tips::TipsNotificationsFeatureType::kEnhancedSafeBrowsing));
+  EXPECT_FALSE(
+      pref_service()->GetBoolean(tips::prefs::kAndroidTipNotificationShownESB));
   tips_client()->BeforeShowNotification(
       std::move(notification_data),
       base::BindOnce([](std::unique_ptr<NotificationData> notification_data) {
         EXPECT_TRUE(notification_data);
       }));
-  EXPECT_TRUE(pref_service()->GetBoolean(
-      notifications::tips::prefs::kAndroidTipNotificationShownESB));
+  EXPECT_TRUE(
+      pref_service()->GetBoolean(tips::prefs::kAndroidTipNotificationShownESB));
   histograms.ExpectBucketCount(
       "Notifications.Scheduler.Tips.FeatureTypeShown",
-      TipsNotificationsFeatureType::kEnhancedSafeBrowsing, 1);
+      tips::TipsNotificationsFeatureType::kEnhancedSafeBrowsing, 1);
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 

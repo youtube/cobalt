@@ -78,11 +78,7 @@ public class NtpThemeSyncHistoryRecyclerViewAdaptor
                             /* isFromClick= */ true);
                 };
 
-        holder.bind(
-                ntpBackgroundData.getPlatformType(),
-                ntpBackgroundData.getImageDrawable(),
-                clickListener,
-                mSelectedPosition);
+        holder.bind(ntpBackgroundData, clickListener, mSelectedPosition);
     }
 
     @Override
@@ -159,36 +155,51 @@ public class NtpThemeSyncHistoryRecyclerViewAdaptor
         }
 
         /**
-         * Binds the platform type, a drawable, a click listener and the current selected position
-         * to the view.
+         * Binds the background data, a click listener and the current selected position to the
+         * view.
+         *
+         * @param backgroundData The background data to bind.
+         * @param onClickListener The click listener for the item view.
+         * @param selectedPosition The currently selected position in the adapter.
          */
         void bind(
-                @PlatformType int platformType,
-                @Nullable Drawable drawable,
+                NtpBackgroundDataBase backgroundData,
                 View.OnClickListener onClickListener,
                 int selectedPosition) {
             bindImpl(
-                    platformType,
-                    drawable,
-                    onClickListener,
-                    selectedPosition,
-                    getBindingAdapterPosition());
+                    backgroundData, onClickListener, selectedPosition, getBindingAdapterPosition());
         }
 
+        /**
+         * Binds the background data, a click listener, the current selected position, and the
+         * adapter position to the view.
+         *
+         * @param backgroundData The background data to bind.
+         * @param onClickListener The click listener for the item view.
+         * @param selectedPosition The currently selected position in the adapter.
+         * @param bindingAdaptorPosition The position of this ViewHolder in the adapter.
+         */
         @VisibleForTesting
         void bindImpl(
-                @PlatformType int platformType,
-                @Nullable Drawable image,
+                NtpBackgroundDataBase backgroundData,
                 View.OnClickListener onClickListener,
                 int selectedPosition,
                 int bindingAdaptorPosition) {
+            ImageView backgroundView = itemView.findViewById(R.id.background_view);
+            Drawable image = backgroundData.getImageDrawable();
             if (image != null) {
-                ImageView backgroundView = itemView.findViewById(R.id.background_view);
+                backgroundView.setImageBitmap(null);
                 backgroundView.setForeground(image);
+            } else {
+                backgroundView.setForeground(null);
+                backgroundData.getBitmapOrLoadImage(
+                        (result) -> backgroundView.setImageBitmap(result));
             }
+
             itemView.setOnClickListener(onClickListener);
 
             ImageView badgeView = itemView.findViewById(R.id.platform_badge);
+            @PlatformType int platformType = backgroundData.getPlatformType();
             if (platformType != PlatformType.ANDROID_LOCAL) {
                 boolean isMobile =
                         platformType == PlatformType.ANDROID_REMOTE

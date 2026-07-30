@@ -9,6 +9,7 @@
 #include "media/base/media_export.h"
 #include "media/formats/hls/types.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 namespace media::hls {
 
@@ -51,6 +52,10 @@ class MEDIA_EXPORT Playlist : public base::RefCounted<Playlist> {
   // Returns the resolved URI of this playlist.
   const GURL& Uri() const { return uri_; }
 
+  // Returns the security origin from where this playlist was actually served,
+  // as opposed to the request origin used for resolving subresources.
+  const url::Origin& SecurityOrigin() const { return security_origin_; }
+
   // Returns the HLS version number defined by the playlist.
   types::DecimalInteger GetVersion() const { return version_; }
 
@@ -61,12 +66,16 @@ class MEDIA_EXPORT Playlist : public base::RefCounted<Playlist> {
   bool AreSegmentsIndependent() const { return independent_segments_; }
 
  protected:
-  Playlist(GURL uri, types::DecimalInteger version, bool independent_segments);
+  Playlist(url::Origin origin,
+           GURL uri,
+           types::DecimalInteger version,
+           bool independent_segments);
 
   friend base::RefCounted<Playlist>;
   virtual ~Playlist();
 
  private:
+  url::Origin security_origin_;
   GURL uri_;
   types::DecimalInteger version_;
   bool independent_segments_;

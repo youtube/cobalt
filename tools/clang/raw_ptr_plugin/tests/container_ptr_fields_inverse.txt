@@ -1,4 +1,0 @@
-container_ptr_fields_inverse.cpp:13:30: error: [chromium-containers] Use raw_ptr<T> instead of T* in the container template argument.
-  MyArbitraryContainer<int*> arbitrary_member;
-  ~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~
-1 error generated.

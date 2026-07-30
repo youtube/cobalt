@@ -397,6 +397,7 @@ Si aquesta pàgina no funciona de la manera prevista, prova de permetre l'optimi
 <translation id="5234764350956374838">Ignora</translation>
 <translation id="5239627039202700673">Utilitza Chrome cada vegada que facis clic en enllaços en missatges, documents i altres aplicacions</translation>
 <translation id="5251420635869119124">Els convidats poden utilitzar Chrome sense deixar-hi rastre.</translation>
+<translation id="5271833978500241046">Utilitza-les juntament amb altres funcions de Gemini a Chrome</translation>
 <translation id="5286907366254680517">Detectat</translation>
 <translation id="5320351714793324716">Si permets les galetes, Chrome pot utilitzar-les en la precàrrega</translation>
 <translation id="5321325624576443340">Google Lens no està disponible. Torna-ho a provar més tard.</translation>
@@ -433,15 +434,6 @@ Si aquesta pàgina no funciona de la manera prevista, prova de permetre l'optimi
 <translation id="569897634095159764">No es pot connectar a Internet. El servidor intermediari necessita autenticació.</translation>
 <translation id="5709557627224531708">Defineix Chrome com a navegador predeterminat</translation>
 <translation id="5719246646468301581">Condicions del servei addicionals de Google Chrome i ChromeOS</translation>
-<translation id="5719324992913248873">Amb aquesta acció:
-          <ph name="LINE_BREAKS" />
-           • Es restabliran algunes opcions de configuració i dreceres de Chrome.
-           <ph name="LINE_BREAK" />
-           • Es desactivaran les extensions.
-           <ph name="LINE_BREAK" />
-           • Se suprimiran les galetes i altres dades temporals dels llocs web.
-            <ph name="LINE_BREAKS" />
-           Les adreces d'interès, l'historial i les contrasenyes desades no es veuran afectats.</translation>
 <translation id="5736850870166430177">Si un lloc web prova de robar-te la contrasenya o si baixes un fitxer maliciós, és possible que Chrome també n'enviï els URL, inclosos fragments de contingut de les pàgines, a Navegació segura</translation>
 <translation id="5756509061973259733">Ja existeix un perfil de Chrome amb aquest compte en aquest dispositiu</translation>
 <translation id="5759947850379142561">Selecciona el text o la imatge que vulguis cercar amb Google Lens o prem Esc per sortir de Google Lens</translation>
@@ -639,6 +631,7 @@ Si aquesta pàgina no funciona de la manera prevista, prova de permetre l'optimi
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7627609214560473136">Per protegir les teves dades, permet que Chrome suprimeixi els permisos dels llocs web que no has visitat recentment.</translation>
 <translation id="7629695634924605473">Chrome et permet saber si les contrasenyes s'han posat en perill</translation>
+<translation id="7629898584100520089">Les innovacions d'IA, com ara les habilitats, es desen al teu Compte de Google i es gestionen de manera independent de la sincronització de Chrome</translation>
 <translation id="7641148173327520642">L'administrador del sistema ha configurat Google Chrome perquè obri <ph name="ALTERNATIVE_BROWSER_NAME" /> per accedir a <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="7649070708921625228">Ajuda</translation>
 <translation id="7651907282515937834">Logotip de Chrome Enterprise</translation>

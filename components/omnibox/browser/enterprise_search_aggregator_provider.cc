@@ -46,7 +46,6 @@
 #include "components/search_engines/template_url_service.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/url_formatter/url_formatter.h"
-#include "services/data_decoder/public/cpp/data_decoder.h"
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "third_party/re2/src/re2/re2.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -839,34 +838,14 @@ void EnterpriseSearchAggregatorProvider::RequestCompleted(
   DCHECK_GE(requests_.size(), static_cast<size_t>(request_index));
 
   if (response_code == 200) {
-    // Parse `response_body` in utility process if feature param is true.
     std::string json_data = SearchSuggestionParser::ExtractJsonData(
         source, std::move(response_body));
-    if (omnibox_feature_configs::SearchAggregatorProvider::Get()
-            .parse_response_in_utility_process) {
-      data_decoder::DataDecoder::ParseJsonIsolated(
-          json_data,
-          base::BindOnce(
-              &EnterpriseSearchAggregatorProvider::OnJsonParsedIsolated,
-              base::Unretained(this), request_index));
-    } else {
-      std::optional<base::DictValue> value = base::JSONReader::ReadDict(
-          json_data, base::JSON_ALLOW_TRAILING_COMMAS);
-      HandleParsedJson(request_index, value);
-    }
+    std::optional<base::DictValue> value =
+        base::JSONReader::ReadDict(json_data, base::JSON_ALLOW_TRAILING_COMMAS);
+    HandleParsedJson(request_index, value);
   } else {
     HandleParsedJson(request_index, std::nullopt);
   }
-}
-
-void EnterpriseSearchAggregatorProvider::OnJsonParsedIsolated(
-    int request_index,
-    base::expected<base::Value, std::string> result) {
-  std::optional<base::DictValue> value = std::nullopt;
-  if (result.has_value() && result.value().is_dict()) {
-    value = std::move(result.value().GetDict());
-  }
-  HandleParsedJson(request_index, value);
 }
 
 void EnterpriseSearchAggregatorProvider::HandleParsedJson(

@@ -20,16 +20,11 @@ namespace blink {
 //   <link id="link1" rel="expect" href="#target-id1" blocking="render"/>
 //   <link id="link2" rel="expect" href="#target-id1" blocking="render"/>
 //   <link id="link3" rel="expect" href="#target-id2" blocking="render"/>
-//   <link id="link4" rel="expect" href="#target-id3"
-//   blocking="full-framerate"/>
 // will be stored as the map:
 // {
 //  render: {
 //    "target-id1":{link1, link2},
 //    "target-id2":{link3}
-//  },
-//  full-framerate: {
-//    "target-id3":{link4}
 //  }
 // }.
 class CORE_EXPORT RenderBlockingElementLinkMap

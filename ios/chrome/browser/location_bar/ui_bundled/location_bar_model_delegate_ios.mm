@@ -13,7 +13,6 @@
 #import "components/prefs/pref_service.h"
 #import "components/security_state/ios/security_state_utils.h"
 #import "ios/chrome/browser/autocomplete/model/autocomplete_scheme_classifier_impl.h"
-#import "ios/chrome/browser/reading_list/model/offline_page_tab_helper.h"
 #import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
@@ -118,15 +117,6 @@ LocationBarModelDelegateIOS::GetCertificate() const {
 const gfx::VectorIcon* LocationBarModelDelegateIOS::GetVectorIconOverride()
     const {
   return nullptr;
-}
-
-bool LocationBarModelDelegateIOS::IsOfflinePage() const {
-  web::WebState* web_state = GetActiveWebState();
-  if (!web_state) {
-    return false;
-  }
-  OfflinePageTabHelper* helper = OfflinePageTabHelper::FromWebState(web_state);
-  return helper && helper->presenting_offline_page();
 }
 
 bool LocationBarModelDelegateIOS::IsNewTabPage() const {

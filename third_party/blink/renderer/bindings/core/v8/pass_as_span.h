@@ -39,15 +39,6 @@ class CORE_EXPORT ByteSpanWithInlineStorage {
 
   void Assign(base::span<const uint8_t> span) { span_ = span; }
 
-  // TODO(361372981): This variant of `Assign` will be removed when
-  // https://crrev.com/c/7853420 lands in V8 and rolls in Chromium.
-  template <typename Dummy = void>
-    requires(!std::same_as<std::span<const uint8_t>,  // nocheck
-                           v8::MemorySpan<const uint8_t>>)
-  void Assign(v8::MemorySpan<const uint8_t> span) {
-    span_ = span;
-  }
-
   void MaybeSetArrayBuffer(v8::Local<v8::ArrayBuffer> array_buffer) {
     if constexpr (kPerformDetachCheck) {
       orig_buffer_for_detach_check_ = array_buffer;
@@ -70,7 +61,7 @@ class CORE_EXPORT ByteSpanWithInlineStorage {
     return span_;
   }
 
-  v8::MemorySpan<uint8_t> GetInlineStorage() { return inline_storage_; }
+  base::span<uint8_t> GetInlineStorage() { return inline_storage_; }
 
  private:
   base::span<const uint8_t> span_;
@@ -81,10 +72,11 @@ class CORE_EXPORT ByteSpanWithInlineStorage {
 };
 
 template <typename T>
-v8::MemorySpan<const uint8_t> GetArrayData(v8::Local<T> array) {
-  // v8 should ensure the Data() size and ByteLength() of the array are equal.
-  return v8::MemorySpan<const uint8_t>(
-      static_cast<const uint8_t*>(array->Data()), array->ByteLength());
+base::span<const uint8_t> GetArrayData(v8::Local<T> array) {
+  // SAFETY: V8 should ensure that using `array->Data()` and
+  // `array->ByteLength()` below is safe.
+  return UNSAFE_BUFFERS(base::span<const uint8_t>(
+      static_cast<const uint8_t*>(array->Data()), array->ByteLength()));
 }
 
 template <typename T, bool kPerformDetachCheck>
@@ -110,9 +102,7 @@ class SpanWithInlineStorage {
     bytes_.MaybeSetArrayBuffer(array_buffer);
   }
   void Assign(base::span<const uint8_t> span) { bytes_.Assign(span); }
-  v8::MemorySpan<uint8_t> GetInlineStorage() {
-    return bytes_.GetInlineStorage();
-  }
+  base::span<uint8_t> GetInlineStorage() { return bytes_.GetInlineStorage(); }
 
  private:
   ByteSpanWithInlineStorage<kPerformDetachCheck> bytes_;
@@ -146,9 +136,7 @@ class SpanOrVector {
     }
     span_.Assign(byte_span);
   }
-  v8::MemorySpan<uint8_t> GetInlineStorage() {
-    return span_.GetInlineStorage();
-  }
+  base::span<uint8_t> GetInlineStorage() { return span_.GetInlineStorage(); }
 
  private:
   SpanWithInlineStorage<T, kPerformDetachCheck> span_;

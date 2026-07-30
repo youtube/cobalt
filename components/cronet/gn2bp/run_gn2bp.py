@@ -19,7 +19,6 @@ from enum import Enum
 
 import contextlib
 import hashlib
-import multiprocessing.dummy
 import json
 import os
 import pathlib
@@ -41,6 +40,7 @@ sys.path.insert(0, REPOSITORY_ROOT)
 import build.android.gyp.util.build_utils as build_utils  # pylint: disable=wrong-import-position
 import components.cronet.tools.utils as cronet_utils  # pylint: disable=wrong-import-position
 import components.cronet.tools.breakages_constants as breakages_constants  # pylint: disable=wrong-import-position
+import components.cronet.gn2bp.common as gn2bp_common  # pylint: disable=wrong-import-position
 
 _BORINGSSL_PATH = os.path.join(REPOSITORY_ROOT, 'third_party', 'boringssl')
 _BORINGSSL_SCRIPT = os.path.join('src', 'util', 'generate_build_files.py')
@@ -60,7 +60,7 @@ _GN2BP_SCRIPT_PATH = os.path.join(REPOSITORY_ROOT,
                                   'components/cronet/gn2bp/gen_android_bp.py')
 _JAVA_HOME = os.path.join(REPOSITORY_ROOT, 'third_party', 'jdk', 'current')
 _JAVA_PATH = os.path.join(_JAVA_HOME, 'bin', 'java')
-_OUT_DIR = os.path.join(REPOSITORY_ROOT, 'out')
+
 _BREAKAGES_FILE_URL = "https://chromium.googlesource.com/chromium/src/+/refs/heads/main/components/cronet/android/breakages.json?format=TEXT"
 # The changeID of all commits submitted between NOW and last _MONTHS_OF_CHANGELIST
 # months will be collected and checked against the breakages.json
@@ -397,7 +397,7 @@ def _fill_desc_file_for_arch(arch, desc_file, delete_temporary_files):
     # This is why the temporary directory has to be generated
     # beneath the repository root until gn2bp is tweaked to
     # deal with this small differences.
-    with _OptionalExit(tempfile.TemporaryDirectory(dir=_OUT_DIR),
+    with _OptionalExit(tempfile.TemporaryDirectory(dir=gn2bp_common.OUT_DIR),
                        do_exit=delete_temporary_files) as gn_out_dir:
         cronet_utils.gn(gn_out_dir,
                         ' '.join(cronet_utils.get_gn_args_for_aosp(arch)))
@@ -689,20 +689,11 @@ def main():
             tempfile.NamedTemporaryFile(mode="w+",
                                         encoding='utf-8',
                                         delete=delete_temporary_files)
-            for arch in cronet_utils.ARCHS
+            for arch in gn2bp_common.ARCHS
         }
-        with multiprocessing.dummy.Pool(len(
-                arch_to_desc_file.items())) as pool:
-            results = [
-                pool.apply_async(_fill_desc_file_for_arch,
-                                 (arch, desc_file, delete_temporary_files))
-                for (arch, desc_file) in arch_to_desc_file.items()
-            ]
-            for result in results:
-                # We don't care about result, since there isn't one. This is only
-                # needed to re-raises failures raised by _fill_desc_file_for_arch,
-                # if any.
-                result.get()
+        args_list = [(arch, desc_file, delete_temporary_files)
+                     for arch, desc_file in arch_to_desc_file.items()]
+        gn2bp_common.run_concurrently(_fill_desc_file_for_arch, args_list)
 
         _run_license_generation()
         _run_gn2bp(desc_files=arch_to_desc_file.values(),

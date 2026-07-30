@@ -10,12 +10,12 @@
 #include <utility>
 #include <vector>
 
+#include "ash/constants/ash_pref_names.h"
 #include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ash/file_system_provider/icon_set.h"
 #include "chrome/browser/ash/file_system_provider/provided_file_system_info.h"
 #include "chrome/common/extensions/api/file_system_provider_capabilities/file_system_provider_capabilities_handler.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
@@ -85,7 +85,7 @@ void RememberFakeFileSystem(TestingProfile* profile,
   base::DictValue file_systems;
   file_systems.Set(kFileSystemId, std::move(file_system));
   extensions.Set(kProviderId.ToString(), std::move(file_systems));
-  pref_service->SetDict(prefs::kFileSystemProviderMounted,
+  pref_service->SetDict(ash::prefs::kFileSystemProviderMounted,
                         std::move(extensions));
 }
 
@@ -172,7 +172,7 @@ TEST_F(FileSystemProviderRegistryTest, RememberFileSystem) {
   ASSERT_TRUE(pref_service);
 
   const base::DictValue& extensions =
-      pref_service->GetDict(prefs::kFileSystemProviderMounted);
+      pref_service->GetDict(ash::prefs::kFileSystemProviderMounted);
 
   const base::DictValue* file_systems =
       extensions.FindDict(kProviderId.ToString());
@@ -253,7 +253,7 @@ TEST_F(FileSystemProviderRegistryTest, ForgetFileSystem) {
   ASSERT_TRUE(pref_service);
 
   const base::DictValue& extensions =
-      pref_service->GetDict(prefs::kFileSystemProviderMounted);
+      pref_service->GetDict(ash::prefs::kFileSystemProviderMounted);
 
   const base::DictValue* file_systems =
       extensions.FindDict(kProviderId.GetExtensionId());
@@ -284,7 +284,7 @@ TEST_F(FileSystemProviderRegistryTest, UpdateWatcherTag) {
   ASSERT_TRUE(pref_service);
 
   const base::DictValue& extensions =
-      pref_service->GetDict(prefs::kFileSystemProviderMounted);
+      pref_service->GetDict(ash::prefs::kFileSystemProviderMounted);
 
   const base::DictValue* file_systems =
       extensions.FindDict(kProviderId.ToString());

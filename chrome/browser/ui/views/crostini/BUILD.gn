@@ -50,7 +50,6 @@ static_library("browser_test_support") {
     "//chrome/browser/ash/crostini:browser_test_support",
     "//chrome/browser/ash/crostini:test_support",
     "//chrome/browser/ui",
-    "//chrome/common:chrome_features",
     "//chrome/test:test_support",
     "//components/component_updater:component_updater_paths",
     "//components/component_updater/ash:test_support",

@@ -247,23 +247,158 @@ public class SnackbarCollectionUnitTest {
                 makeActionSnackbar().setHighPriority(true).setAction("highPriority", null);
         collection.add(highPriorityBar);
 
-        // Regular action snackbar that will timeout
+        // Regular action snackbar added later.
         Snackbar actionBar = makeActionSnackbar().setAction("action", null);
         collection.add(actionBar);
 
-        assertEquals(actionBar, collection.getCurrent());
+        // High priority snackbar should remain at the front and NOT be covered.
+        assertEquals(highPriorityBar, collection.getCurrent());
 
-        // Timeout on actionBar should NOT discard highPriorityBar
+        // Timeout on highPriorityBar should NOT discard actionBar
         collection.removeCurrentDueToTimeout();
         verify(mMockController, times(1)).onDismissNoAction(null);
         assertFalse(collection.isEmpty());
         assertEquals(
-                "High priority snackbar should still be in the collection",
-                highPriorityBar,
+                "Regular action snackbar should now be current",
+                actionBar,
                 collection.getCurrent());
 
         collection.removeCurrentDueToTimeout();
         verify(mMockController, times(2)).onDismissNoAction(null);
+        assertTrue(collection.isEmpty());
+    }
+
+    @Test
+    @Feature({"Browser", "Snackbar"})
+    public void testMultipleHighPrioritySnackbarsShownSequentially() {
+        SnackbarCollection collection = new SnackbarCollection();
+
+        SnackbarController controller1 = mock(SnackbarController.class);
+        Snackbar hp1 =
+                Snackbar.make(
+                                ACTION_TITLE,
+                                controller1,
+                                Snackbar.TYPE_ACTION,
+                                Snackbar.UMA_TEST_SNACKBAR)
+                        .setHighPriority(true);
+        collection.add(hp1);
+
+        SnackbarController controller2 = mock(SnackbarController.class);
+        Snackbar hp2 =
+                Snackbar.make(
+                                ACTION_TITLE,
+                                controller2,
+                                Snackbar.TYPE_ACTION,
+                                Snackbar.UMA_TEST_SNACKBAR)
+                        .setHighPriority(true);
+        collection.add(hp2);
+
+        // hp2 should instantly interrupt and replace hp1.
+        assertEquals(hp2, collection.getCurrent());
+        // Verify hp1 was dismissed with the correct reason.
+        verify(controller1, times(1)).onDismissNoAction(null);
+
+        // Remove hp2
+        collection.removeMatchingSnackbars(controller2);
+        assertTrue(collection.isEmpty());
+    }
+
+    @Test
+    @Feature({"Browser", "Snackbar", "Security"})
+    public void testQueueExhaustion_HighPriorityPreemptsSpam() {
+        SnackbarCollection collection = new SnackbarCollection();
+        SnackbarController spamController = mock(SnackbarController.class);
+
+        // 1. Attacker spams the queue with standard notifications (like "Copied to clipboard")
+        for (int i = 0; i < 20; ++i) {
+            Snackbar spam =
+                    Snackbar.make(
+                            "Spam " + i,
+                            spamController,
+                            Snackbar.TYPE_NOTIFICATION,
+                            Snackbar.UMA_TEST_SNACKBAR);
+            collection.add(spam);
+        }
+
+        // At this point, the queue is full of spam.
+        // 2. A legitimate High Priority warning (Fullscreen) is triggered.
+        SnackbarController hpController = mock(SnackbarController.class);
+        Snackbar hpSnackbar =
+                Snackbar.make(
+                                "Fullscreen Warning",
+                                hpController,
+                                Snackbar.TYPE_ACTION,
+                                Snackbar.UMA_TEST_SNACKBAR)
+                        .setHighPriority(true);
+        collection.add(hpSnackbar);
+
+        // The HP Snackbar must instantly become the current visible Snackbar,
+        // bypassing the spam messages waiting in the queue.
+        assertEquals(hpSnackbar, collection.getCurrent());
+    }
+
+    @Test
+    @Feature({"Browser", "Snackbar", "Security"})
+    public void testQueueExhaustion_EvictsOldestUnseen() {
+        SnackbarCollection collection = new SnackbarCollection();
+        SnackbarController[] controllers = new SnackbarController[15];
+
+        // 1. Attacker spams the queue with 15 standard notifications.
+        for (int i = 0; i < 15; ++i) {
+            controllers[i] = mock(SnackbarController.class);
+            Snackbar spam =
+                    Snackbar.make(
+                            "Spam " + i,
+                            controllers[i],
+                            Snackbar.TYPE_NOTIFICATION,
+                            Snackbar.UMA_TEST_SNACKBAR);
+            collection.add(spam);
+        }
+
+        // 2. The currently showing snackbar (index 0) must be skipped during eviction.
+        // It should still be the current snackbar.
+        Snackbar current = collection.getCurrent();
+        org.junit.Assert.assertNotNull(current);
+        assertEquals(controllers[0], current.getController());
+
+        // 3. The queue is capped at MAX_SNACKBARS (10).
+        // Since 15 were added, exactly 5 must be evicted.
+        // The evicted ones must be the OLDEST UNSEEN (indices 1, 2, 3, 4, 5).
+        for (int i = 1; i <= 5; ++i) {
+            verify(controllers[i], times(1)).onDismissNoAction(null);
+        }
+
+        // The remaining items (indices 6 through 14) should NOT have been evicted yet.
+        for (int i = 6; i < 15; ++i) {
+            verify(controllers[i], org.mockito.Mockito.never()).onDismissNoAction(null);
+        }
+    }
+
+    @Test
+    @Feature({"Browser", "Snackbar", "Security"})
+    public void testOscillationAttack_StateDeduplication() {
+        SnackbarCollection collection = new SnackbarCollection();
+        SnackbarController controller = mock(SnackbarController.class);
+        Object actionData = new Object();
+
+        // 1. Attacker rapidly requests Fullscreen 5 times in a row.
+        for (int i = 0; i < 5; ++i) {
+            Snackbar hpSnackbar =
+                    Snackbar.make(
+                                    "Fullscreen",
+                                    controller,
+                                    Snackbar.TYPE_ACTION,
+                                    Snackbar.UMA_TEST_SNACKBAR)
+                            .setAction("Undo", actionData)
+                            .setHighPriority(true);
+
+            collection.add(hpSnackbar);
+        }
+
+        // The queue must only contain ONE instance of the HP warning.
+        Snackbar current = collection.getCurrent();
+        org.junit.Assert.assertNotNull(current);
+        collection.removeMatchingSnackbars(current.getController(), current.getActionData());
         assertTrue(collection.isEmpty());
     }
 

@@ -4,7 +4,6 @@
 
 package org.chromium.chrome.browser.ui.signin.history_sync;
 
-import static org.chromium.build.NullUtil.assumeNonNull;
 
 import androidx.annotation.VisibleForTesting;
 
@@ -31,7 +30,7 @@ public class HistorySyncHelper {
     private static final int MAX_SUCCESSIVE_DECLINES = 2;
     private static final long MIN_DAYS_SINCE_LAST_DECLINE = 14;
     @Nullable private static HistorySyncHelper sInstance;
-    private final SyncService mSyncService;
+    private final @Nullable SyncService mSyncService;
     private final PrefService mPrefService;
 
     public static HistorySyncHelper getForProfile(Profile profile) {
@@ -49,12 +48,15 @@ public class HistorySyncHelper {
 
     @VisibleForTesting
     HistorySyncHelper(Profile profile) {
-        mSyncService = assumeNonNull(SyncServiceFactory.getForProfile(profile));
+        mSyncService = SyncServiceFactory.getForProfile(profile);
         mPrefService = UserPrefs.get(profile);
     }
 
     /** Whether the user has already opted in to sync their history and tabs. */
     public boolean didAlreadyOptIn() {
+        if (mSyncService == null) {
+            return false;
+        }
         return mSyncService
                 .getSelectedTypes()
                 .containsAll(Set.of(UserSelectableType.HISTORY, UserSelectableType.TABS));
@@ -68,12 +70,18 @@ public class HistorySyncHelper {
      * of them is enabled.
      */
     public boolean isHistorySyncEnabled() {
+        if (mSyncService == null) {
+            return false;
+        }
         return mSyncService.getSelectedTypes().contains(UserSelectableType.HISTORY)
                 || mSyncService.getSelectedTypes().contains(UserSelectableType.TABS);
     }
 
     /** Whether history sync is disabled by enterprise policy. */
     public boolean isHistorySyncDisabledByPolicy() {
+        if (mSyncService == null) {
+            return false;
+        }
         return mSyncService.isSyncDisabledByEnterprisePolicy()
                 || mSyncService.isTypeManagedByPolicy(UserSelectableType.HISTORY)
                 || mSyncService.isTypeManagedByPolicy(UserSelectableType.TABS);
@@ -81,12 +89,18 @@ public class HistorySyncHelper {
 
     /** Whether history sync is disabled by the user's custodian. */
     public boolean isHistorySyncDisabledByCustodian() {
+        if (mSyncService == null) {
+            return false;
+        }
         return mSyncService.isTypeManagedByCustodian(UserSelectableType.HISTORY)
                 || mSyncService.isTypeManagedByCustodian(UserSelectableType.TABS);
     }
 
     /** Whether the history sync prompt should be displayed. */
     public boolean shouldDisplayHistorySync() {
+        if (mSyncService == null) {
+            return false;
+        }
         return !didAlreadyOptIn()
                 && !isHistorySyncDisabledByCustodian()
                 && !isHistorySyncDisabledByPolicy();
@@ -131,6 +145,9 @@ public class HistorySyncHelper {
 
     /** Enables or clears history and tabs sync */
     public void setHistoryAndTabsSync(boolean turnTypesOn) {
+        if (mSyncService == null) {
+            return;
+        }
         mSyncService.setSelectedType(UserSelectableType.HISTORY, turnTypesOn);
         mSyncService.setSelectedType(UserSelectableType.TABS, turnTypesOn);
     }

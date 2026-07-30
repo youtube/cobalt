@@ -27,6 +27,7 @@
 #include "components/autofill/core/browser/foundations/test_autofill_client.h"
 #include "components/autofill/core/browser/foundations/test_autofill_driver.h"
 #include "components/autofill/core/browser/metrics/form_events/credit_card_form_event_logger.h"
+#include "components/autofill/core/browser/metrics/form_events/credit_card_form_event_logger_test_api.h"
 #include "components/autofill/core/browser/metrics/payments/better_auth_metrics.h"
 #include "components/autofill/core/browser/metrics/payments/card_unmask_authentication_metrics.h"
 #include "components/autofill/core/browser/metrics/payments/card_unmask_flow_metrics.h"
@@ -207,6 +208,23 @@ TEST_F(CreditCardAccessManagerTest, CallsObserverOnDestruction) {
   });
   credit_card_access_manager().AddObserver(&observer);
   autofill_manager().Reset();
+}
+
+// Tests that UpdateCreditCardFormEventLogger() correctly logs the number of
+// local and server cards.
+TEST_F(CreditCardAccessManagerTest, UpdateCreditCardFormEventLogger) {
+  CreateLocalCard(kTestGUID, kTestNumber);
+  personal_data().test_payments_data_manager().AddServerCreditCard(
+      test::GetMaskedServerCardEnrolledIntoVirtualCardNumber());
+
+  credit_card_access_manager().UpdateCreditCardFormEventLogger();
+
+  EXPECT_EQ(1u, autofill_metrics::test_api(
+                    autofill_manager().GetCreditCardFormEventLogger())
+                    .local_record_type_count());
+  EXPECT_EQ(1u, autofill_metrics::test_api(
+                    autofill_manager().GetCreditCardFormEventLogger())
+                    .server_record_type_count());
 }
 
 // Ensures that FetchCreditCard() returns the full PAN upon a successful

@@ -43,6 +43,9 @@ namespace {
 // expressed as number of Unicode characters (codepoints).
 const size_t kMaxPageTitleLength = 128;
 
+// Suggest query parameter for setting the SuggestInventory for the request.
+constexpr char kSuggestInventoryParam[] = "azi";
+
 // TODO(crbug.com/842922363): Combine with the similar function in
 // zero_suggest_provider.cc.
 std::u16string TruncateUTF16(const std::u16string& input, size_t max_length) {
@@ -317,6 +320,20 @@ GURL AddSmartComposePreviousQueryToEndpointUrl(
   return modified_url;
 }
 
+GURL AddSuggestInventoryParamToEndpointUrl(
+    const TemplateURLRef::SearchTermsArgs& search_terms_args,
+    const GURL& url_to_modify) {
+  GURL modified_url = GURL(url_to_modify);
+  if (search_terms_args.suggest_inventory !=
+      omnibox::SuggestInventory::SUGGEST_INVENTORY_DEFAULT) {
+    modified_url = net::AppendOrReplaceQueryParameter(
+        modified_url, kSuggestInventoryParam,
+        base::NumberToString(
+            static_cast<int>(search_terms_args.suggest_inventory)));
+  }
+  return modified_url;
+}
+
 GURL ReplaceLensSuggestPathPlaceholderInEndpointUrl(
     const TemplateURLRef::SearchTermsArgs& search_terms_args,
     const GURL& url_to_modify) {
@@ -413,9 +430,8 @@ GURL RemoteSuggestionsService::EndpointUrl(
     case metrics::OmniboxEventProto::SRP_OMNIBOX_COMPOSEBOX:
     case metrics::OmniboxEventProto::OTHER_OMNIBOX_COMPOSEBOX:
       if (search_terms_args.lens_overlay_suggest_inputs.has_value() &&
-          !search_terms_args.input_state.image_gen_upload_active &&
-          search_terms_args.input_state.active_tool !=
-              omnibox::ToolMode::TOOL_MODE_CANVAS) {
+          search_terms_args.input_state.active_tool ==
+              omnibox::ToolMode::TOOL_MODE_UNSPECIFIED) {
         url = net::AppendOrReplaceQueryParameter(url, "client",
                                                  "chrome-contextual");
       }
@@ -440,6 +456,7 @@ GURL RemoteSuggestionsService::EndpointUrl(
   url = AddAimInputStateParamsToEndpointUrl(search_terms_args, url);
   url = AddSmartComposePreviousQueryToEndpointUrl(search_terms_args, url);
   url = ReplaceLensSuggestPathPlaceholderInEndpointUrl(search_terms_args, url);
+  url = AddSuggestInventoryParamToEndpointUrl(search_terms_args, url);
 
   return url;
 }

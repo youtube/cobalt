@@ -105,6 +105,8 @@ void AddMaterialUiColorMixer(ColorProvider* provider,
   mixer[kColorListItemFolderIconBackground] = {kColorSysTonalContainer};
   mixer[kColorListItemFolderIconForeground] = {kColorSysOnTonalContainer};
   mixer[kColorListItemUrlFaviconBackground] = {kColorSysNeutralContainer};
+  mixer[kColorLiveCaptionDialogBackground] = {kColorSysSurface};
+  mixer[kColorLiveCaptionDialogForeground] = {kColorSysOnSurface};
   mixer[kColorLoadingGradientBorder] = {kColorSysTonalContainer};
   mixer[kColorLoadingGradientEnd] = {kColorSysGradientTertiary};
   mixer[kColorLoadingGradientMiddle] = {kColorSysGradientPrimary};

@@ -1,0 +1,159 @@
+// Copyright 2021 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package google.internal.federatedcompute.v1;
+
+import "google/protobuf/duration.proto";
+
+option java_package = "com.google.internal.federatedcompute.v1";
+option java_multiple_files = true;
+option java_outer_classname = "FederatedComputeApi";
+
+// Information that tells the client where to send the request for the next
+// protocol phase (the immediately following phase only, not any additional
+// subsequent phases). For example, this may point to the frontend to which
+// a StartTaskAssignmentRequest should be sent, but it should not then be used
+// for uploading aggregation results. A ForwardingInfo will always be returned
+// to the client unless the client was not selected to continue with the
+// protocol.
+message ForwardingInfo {
+  // A URI prefix for the next service to send the request for the next protocol
+  // phase to.
+  //
+  // The URI prefix must always start with "https://".
+  //
+  // The URI prefix may end with a trailing '/', but is not required to. During
+  // the construction of the next protocol request, a slash will always be
+  // inserted by the client between this prefix and the request's URI suffix.
+  //
+  // For example, if some protocol response's ForwardingInfo contains the prefix
+  // "https://foo.bar.com" or "https://foo.bar.com/", and if the subsequent
+  // protocol request's URI suffix is "/baz", then the subsequent request's full
+  // URI would be "https://foo.bar.com/baz".
+  //
+  // If a relative path is passed, the client should resolve it using the
+  // previous protocol phase's resolved protocol and hostname.
+  string target_uri_prefix = 1;
+  // Request headers that should be included with the next request for the next
+  // protocol phase. Note that these headers should only be applied to protocol
+  // requests (incl. requests to the long running `Operations` service), but not
+  // to any `Resource` fetch requests.
+  map<string, string> extra_request_headers = 2;
+}
+
+// The attestation measurement providing evidence of integrity for a client.
+message AttestationMeasurement {
+  string value = 1;
+}
+
+message ClientVersion {
+  // Version code identifying the client release.
+  string version_code = 1;
+}
+
+message Resource {
+  // A resource can either be downloaded via a URI, or has its data inlined in
+  // in this message itself.
+  oneof resource {
+    // The URI the resource can be downloaded from. Note that
+    // `ForwardingInfo.target_uri_prefix` field generally don't apply to these
+    // URIs.
+    string uri = 1;
+
+    // The inlined data for the resource. This will eventually replace `data`.
+    InlineResource inline_resource = 3;
+  }
+
+  message InlineResource {
+    // The inlined data for the resource.
+    bytes data = 1 [ctype = CORD];
+
+    // The compression used for the inlined data, or unset if the data is
+    // uncompressed.
+    optional ResourceCompressionFormat compression_format = 2;
+  }
+
+  // Stable identifier for this resource, used by the client cache
+  // implementation. If this field is not set, the client should not attempt to
+  // cache the resource referenced by `uri`. Not set for inline_resources.
+  string client_cache_id = 4;
+
+  // The maximum duration for how long the resource should be cached by the
+  // client. Not set if `client_cache_id` is not set.
+  google.protobuf.Duration max_age = 5;
+
+  reserved 2;
+}
+
+// The client's capabilities for processing Resource messages, such as the
+// compressed file formats supported.
+message ResourceCapabilities {
+  // Compression formats supported for resources downloaded via `Resource.uri`.
+  // All clients are assumed to support uncompressed payloads.
+  repeated ResourceCompressionFormat supported_compression_formats = 1;
+  // Whether or not the client supports "Confidential Aggregation". This can be
+  // used by the server to perform task filtering.
+  bool supports_confidential_aggregation = 2;
+  // Whether or not the client supports the AttestationTransparencyVerifier
+  // for confidential aggregation.
+  bool supports_attestation_transparency_verifier = 3;
+  // Whether or not the client supports "Willow Secure Aggregation". This can be
+  // used by the server to perform task filtering.
+  bool supports_willow_secure_aggregation = 4;
+}
+
+// Different file formats that may be used to compress resources.
+enum ResourceCompressionFormat {
+  RESOURCE_COMPRESSION_FORMAT_UNSPECIFIED = 0;
+  // Gzip-compressed data. If data is compressed in this way, then the
+  // "Content-Type" HTTP response header will have a "+gzip" suffix.
+  RESOURCE_COMPRESSION_FORMAT_GZIP = 1;
+}
+
+// Currently empty message which is sent when client (device) is rejected for
+// participation and is not assigned a task.
+message RejectionInfo {}
+
+// A suggestion to the client when to retry the connection to the service next
+// time
+message RetryWindow {
+  // The suggested minimal duration after which the client should
+  // retry. If the client retries earlier, it is likely it will be rejected
+  // again.
+  google.protobuf.Duration delay_min = 1;
+
+  // Required. The suggested maximal duration after which the client should
+  // retry, provided scheduling conditions allow. The client is supposed to make
+  // a best effort to callback in the min..max window, and should avoid
+  // calling before min. If the client calls after max, the likelihood to be
+  // rejected again is higher.
+  google.protobuf.Duration delay_max = 2;
+}
+
+// Information about where to upload data (e.g. aggregation results, client
+// stats).
+message ByteStreamResource {
+  // Information to construct the URI to use for uploading the data.
+  ForwardingInfo data_upload_forwarding_info = 1;
+  // Resource name to which the data should be uploaded.
+  // Clients should use this field as well as the
+  // `ForwardingInfo.target_uri_prefix` to create the upload URL:
+  // {target_uri_prefix}/upload/v1/media/{resource_name} (where
+  // `{resource_name}` should be encoded as a multipath segment, as described
+  // in
+  // https://github.com/googleapis/googleapis/blob/master/google/api/http.proto).
+  string resource_name = 2;
+}

@@ -150,7 +150,7 @@ TEST_F(UnmaskCardRequestTest, ContextTokenAndPanNotReturned) {
 }
 
 // Params of the VirtualCardUnmaskCardRequestTest:
-// -- autofill::CardUnmaskChallengeOptionType challenge_option_type
+// -- CardUnmaskChallengeOptionType challenge_option_type
 // -- bool autofill_enable_3ds_for_vcn_yellow_path
 // TODO(crbug.com/40901660): Extend this texting fixture to test the OTP cases
 // as well.

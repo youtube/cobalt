@@ -263,6 +263,8 @@ struct AutocompleteMatch {
 
   // Document subtype, for AutocompleteMatchType::DOCUMENT.
   // Update kDocumentTypeStrings when updating DocumentType.
+  // GENERATED_JAVA_ENUM_PACKAGE: org.chromium.components.omnibox
+  // GENERATED_JAVA_CLASS_NAME_OVERRIDE: DocumentType
   enum class DocumentType {
     NONE = 0,
     DRIVE_DOCS,

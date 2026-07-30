@@ -626,6 +626,13 @@ int BitmapImage::RepetitionCount() {
 }
 
 void BitmapImage::ResetAnimation() {
+  // If no PaintImage has been created yet, there is no bitmap animation
+  // timeline to rewind and no existing painted frame to invalidate.
+  if (RuntimeEnabledFeatures::SvgImageAnimationResetEnabled() &&
+      cached_frames_.empty()) {
+    return;
+  }
+
   cached_frames_.clear();
   reset_animation_sequence_id_++;
 }

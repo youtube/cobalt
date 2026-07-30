@@ -2570,8 +2570,9 @@ ax::mojom::blink::Role AXNodeObject::NativeRoleIgnoringAria() const {
   if (IsA<HTMLTextAreaElement>(*GetNode()))
     return ax::mojom::blink::Role::kTextField;
 
-  if (HeadingLevel())
+  if (GetNode()->GetElementType() == ElementType::kHTMLHeadingElement) {
     return ax::mojom::blink::Role::kHeading;
+  }
 
   if (IsA<HTMLDivElement>(*GetNode()))
     return RoleFromLayoutObjectOrNode();
@@ -4851,10 +4852,6 @@ String AXNodeObject::GetValueForControl(AXObjectSet& visited) const {
     return masked_text.ToString();
   }
 
-  if (IsRangeValueSupported()) {
-    return AriaAttribute(html_names::kAriaValuetextAttr).GetString();
-  }
-
   // Handle other HTML input elements that aren't text controls, like date and
   // time controls, by returning their value converted to text, with the
   // exception of checkboxes and radio buttons (which would return "on"), and
@@ -5413,8 +5410,9 @@ String AXNodeObject::TextAlternative(
     // <img> can be used to indicate that the image is presentational and should
     // be ignored by ATs.
     name_from = ax::mojom::blink::NameFrom::kAttributeExplicitlyEmpty;
+  } else {
+    name_from = ax::mojom::blink::NameFrom::kNone;
   }
-
   return String();
 }
 
@@ -7657,7 +7655,6 @@ String AXNodeObject::GetSavedTextAlternativeFromNameSource(
     ax::mojom::NameFrom& name_from,
     AXRelatedObjectVector* related_objects,
     NameSources* name_sources) {
-  name_from = ax::mojom::blink::NameFrom::kNone;
   if (!name_sources || !found_text_alternative) {
     return String();
   }

@@ -20,12 +20,14 @@
 #include "chrome/browser/devtools/devtools_infobar_delegate.h"
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/global_features.h"
+#include "chrome/browser/infobars/infobar_features.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/collected_cookies_infobar_delegate.h"
 #include "chrome/browser/ui/omnibox/alternate_nav_infobar_delegate.h"
 #include "chrome/browser/ui/ui_features.h"
+#include "chrome/browser/ui/views/site_data/page_specific_site_data_dialog_controller.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/infobars/content/content_infobar_manager.h"
@@ -195,11 +197,12 @@ void InfoBarInternalsHandler::GetInfoBars(GetInfoBarsCallback callback) {
 }
 
 bool InfoBarInternalsHandler::TriggerInfoBarInternal(InfoBarType type) {
+  BrowserWindowInterface* const bwi =
+      GetLastActiveBrowserWindowInterfaceWithAnyProfile();
+
   // Please keep the entries in alphabetized order base on the type.
   switch (type) {
     case InfoBarType::kAlternateNav: {
-      BrowserWindowInterface* const bwi =
-          GetLastActiveBrowserWindowInterfaceWithAnyProfile();
       if (!bwi || !bwi->GetActiveTabInterface()) {
         return false;
       }
@@ -215,28 +218,29 @@ bool InfoBarInternalsHandler::TriggerInfoBarInternal(InfoBarType type) {
       return true;
     }
     case InfoBarType::kCollectedCookies: {
-      BrowserWindowInterface* const bwi =
-          GetLastActiveBrowserWindowInterfaceWithAnyProfile();
       if (!bwi || !bwi->GetActiveTabInterface()) {
         return false;
       }
 
       content::WebContents* web_contents =
           bwi->GetActiveTabInterface()->GetContents();
-      infobars::ContentInfoBarManager* infobar_manager =
-          infobars::ContentInfoBarManager::FromWebContents(web_contents);
-      if (!infobar_manager) {
-        return false;
+      if (infobars::IsInfoBarMigrated(
+              infobars::InfoBarDelegate::COLLECTED_COOKIES_INFOBAR_DELEGATE)) {
+        PageSpecificSiteDataDialogController::ShowCollectedCookiesInfoBar(
+            web_contents);
+      } else {
+        infobars::ContentInfoBarManager* infobar_manager =
+            infobars::ContentInfoBarManager::FromWebContents(web_contents);
+        if (!infobar_manager) {
+          return false;
+        }
+        CollectedCookiesInfoBarDelegate::Create(infobar_manager);
       }
-
-      CollectedCookiesInfoBarDelegate::Create(infobar_manager);
       return true;
     }
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
     case InfoBarType::kDefaultBrowser: {
-      BrowserWindowInterface* const bwi =
-          GetLastActiveBrowserWindowInterfaceWithAnyProfile();
-      Profile* profile = bwi->GetProfile();
+      Profile* profile = bwi ? bwi->GetProfile() : nullptr;
 
       if (!profile) {
         return false;
@@ -247,9 +251,7 @@ bool InfoBarInternalsHandler::TriggerInfoBarInternal(InfoBarType type) {
       return true;
     }
     case InfoBarType::kSessionRestore: {
-      BrowserWindowInterface* const bwi =
-          GetLastActiveBrowserWindowInterfaceWithAnyProfile();
-      Profile* profile = bwi->GetProfile();
+      Profile* profile = bwi ? bwi->GetProfile() : nullptr;
 
       if (!profile) {
         return false;
@@ -262,8 +264,6 @@ bool InfoBarInternalsHandler::TriggerInfoBarInternal(InfoBarType type) {
     }
 #endif
     case InfoBarType::kDevTools: {
-      BrowserWindowInterface* const bwi =
-          GetLastActiveBrowserWindowInterfaceWithAnyProfile();
       if (!bwi || !bwi->GetActiveTabInterface()) {
         return false;
       }
@@ -282,9 +282,7 @@ bool InfoBarInternalsHandler::TriggerInfoBarInternal(InfoBarType type) {
     }
     case InfoBarType::kExtensionDevTools: {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-      BrowserWindowInterface* const bwi =
-          GetLastActiveBrowserWindowInterfaceWithAnyProfile();
-      Profile* profile = bwi->GetProfile();
+      Profile* profile = bwi ? bwi->GetProfile() : nullptr;
       if (!profile) {
         return false;
       }
@@ -313,9 +311,7 @@ bool InfoBarInternalsHandler::TriggerInfoBarInternal(InfoBarType type) {
     }
     case InfoBarType::kIncognitoConnectability: {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-      BrowserWindowInterface* const bwi =
-          GetLastActiveBrowserWindowInterfaceWithAnyProfile();
-      Profile* profile = bwi->GetProfile();
+      Profile* profile = bwi ? bwi->GetProfile() : nullptr;
       if (!profile || !bwi->GetActiveTabInterface()) {
         return false;
       }
@@ -389,8 +385,6 @@ bool InfoBarInternalsHandler::TriggerInfoBarInternal(InfoBarType type) {
 #endif
 #if BUILDFLAG(ENABLE_PLUGINS)
     case InfoBarType::kReloadPlugin: {
-      BrowserWindowInterface* const bwi =
-          GetLastActiveBrowserWindowInterfaceWithAnyProfile();
       if (!bwi || !bwi->GetActiveTabInterface()) {
         return false;
       }
@@ -408,9 +402,7 @@ bool InfoBarInternalsHandler::TriggerInfoBarInternal(InfoBarType type) {
 #if BUILDFLAG(IS_MAC)
     case InfoBarType::kKeystone: {
 #if BUILDFLAG(ENABLE_UPDATER)
-      BrowserWindowInterface* const bwi =
-          GetLastActiveBrowserWindowInterfaceWithAnyProfile();
-      Profile* profile = bwi->GetProfile();
+      Profile* profile = bwi ? bwi->GetProfile() : nullptr;
 
       if (!profile) {
         return false;
@@ -444,9 +436,7 @@ bool InfoBarInternalsHandler::TriggerInfoBarInternal(InfoBarType type) {
 #endif
 #if BUILDFLAG(ENABLE_EXTENSIONS)
     case InfoBarType::kThemeInstalled: {
-      BrowserWindowInterface* const bwi =
-          GetLastActiveBrowserWindowInterfaceWithAnyProfile();
-      Profile* profile = bwi->GetProfile();
+      Profile* profile = bwi ? bwi->GetProfile() : nullptr;
       if (!profile) {
         return false;
       }

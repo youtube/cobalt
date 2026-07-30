@@ -27,6 +27,7 @@
 #include "services/network/public/cpp/web_sandbox_flags.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
 #include "services/network/public/mojom/integrity_algorithm.mojom.h"
+#include "services/network/public/mojom/origin_or_wildcard_header_value.mojom.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 #include "url/url_canon.h"
@@ -1402,7 +1403,7 @@ std::vector<mojom::ContentSecurityPolicyPtr> ParseContentSecurityPolicies(
   return out;
 }
 
-mojom::AllowCSPFromHeaderValuePtr ParseAllowCSPFromHeader(
+mojom::OriginOrWildcardHeaderValuePtr ParseAllowCSPFromHeader(
     const net::HttpResponseHeaders& headers) {
   std::optional<std::string> allow_csp_from =
       headers.GetNormalizedHeader("Allow-CSP-From");
@@ -1414,14 +1415,14 @@ mojom::AllowCSPFromHeaderValuePtr ParseAllowCSPFromHeader(
       base::TrimWhitespaceASCII(*allow_csp_from, base::TRIM_ALL);
 
   if (trimmed == "*")
-    return mojom::AllowCSPFromHeaderValue::NewAllowStar(true);
+    return mojom::OriginOrWildcardHeaderValue::NewAllowStar(true);
 
   GURL parsed_url = GURL(trimmed);
   if (!parsed_url.is_valid()) {
-    return mojom::AllowCSPFromHeaderValue::NewErrorMessage(
+    return mojom::OriginOrWildcardHeaderValue::NewErrorMessage(
         "The 'Allow-CSP-From' header contains neither '*' nor a valid origin.");
   }
-  return mojom::AllowCSPFromHeaderValue::NewOrigin(
+  return mojom::OriginOrWildcardHeaderValue::NewOrigin(
       url::Origin::Create(parsed_url));
 }
 
@@ -1744,7 +1745,7 @@ std::string ToString(CSPDirectiveName name) {
 
 bool AllowCspFromAllowOrigin(
     const url::Origin& request_origin,
-    const network::mojom::AllowCSPFromHeaderValue* allow_csp_from) {
+    const network::mojom::OriginOrWildcardHeaderValue* allow_csp_from) {
   if (!allow_csp_from) {
     return false;
   }
@@ -1764,7 +1765,7 @@ bool AllowCspFromAllowOrigin(
 bool AllowsBlanketEnforcementOfRequiredCSP(
     const url::Origin& request_origin,
     const GURL& response_url,
-    const network::mojom::AllowCSPFromHeaderValue* allow_csp_from,
+    const network::mojom::OriginOrWildcardHeaderValue* allow_csp_from,
     network::mojom::ContentSecurityPolicyPtr& required_csp) {
   if (response_url.SchemeIs(url::kAboutScheme) ||
       response_url.SchemeIs(url::kDataScheme) || response_url.SchemeIsFile() ||

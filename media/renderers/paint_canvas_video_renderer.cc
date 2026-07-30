@@ -34,6 +34,7 @@
 #include "cc/paint/paint_canvas.h"
 #include "cc/paint/paint_flags.h"
 #include "cc/paint/paint_image_builder.h"
+#include "cc/paint/texture_backing.h"
 #include "components/viz/common/gpu/raster_context_provider.h"
 #include "components/viz/common/resources/shared_image_format.h"
 #include "gpu/GLES2/gl2extchromium.h"
@@ -743,10 +744,55 @@ class VideoTextureBacking : public cc::TextureBacking {
     sync_token_ = shared_image_->creation_sync_token();
   }
 
+  VideoTextureBacking(VideoTextureBacking&& other)
+      : sk_image_info_(std::move(other.sk_image_info_)),
+        shared_image_(std::move(other.shared_image_)),
+        sync_token_(other.sync_token_),
+        acquired_(true) {
+    if (other.ri_access_) {
+      sync_token_ =
+          gpu::RasterScopedAccess::EndAccess(std::move(other.ri_access_));
+    }
+    other.raster_context_provider_ = nullptr;
+    other.sync_token_.Clear();
+  }
+
+  void Bind(scoped_refptr<cc::TextureBackingContext> context) override {
+    CHECK(!acquired_ || !raster_context_provider_);
+    // If this has not been passed across threads then binding is unnecessary.
+    if (!acquired_) {
+      return;
+    }
+
+    scoped_refptr<viz::RasterContextProvider> raster_context_provider;
+    if (context) {
+      auto* wrapper =
+          static_cast<viz::RasterContextProviderWrapper*>(context.get());
+      raster_context_provider = wrapper->provider();
+    }
+    if (raster_context_provider == raster_context_provider_) {
+      return;
+    }
+    raster_context_provider_ = std::move(raster_context_provider);
+    if (raster_context_provider_) {
+      BeginAccess();
+    }
+  }
+
+  void Unbind() override {
+    if (acquired_) {
+      clear_access();
+      raster_context_provider_ = nullptr;
+    }
+  }
+
   ~VideoTextureBacking() override {
-    gpu::SyncToken sync_token =
-        gpu::RasterScopedAccess::EndAccess(std::move(ri_access_));
-    shared_image_->UpdateDestructionSyncToken(sync_token);
+    CHECK(!acquired_ || !ri_access_);
+    if (ri_access_) {
+      gpu::SyncToken sync_token =
+          gpu::RasterScopedAccess::EndAccess(std::move(ri_access_));
+      shared_image_->UpdateDestructionSyncToken(sync_token);
+    }
   }
 
   const SkImageInfo& GetSkImageInfo() override { return sk_image_info_; }
@@ -759,15 +805,18 @@ class VideoTextureBacking : public cc::TextureBacking {
     return raster_context_provider_;
   }
 
-  void BeginAccess(gpu::raster::RasterInterface* ri) {
+  void BeginAccess() {
+    CHECK(raster_context_provider_);
     CHECK(!ri_access_);
+    auto* ri = raster_context_provider_->RasterInterface();
     ri_access_ =
         shared_image_->BeginRasterAccess(ri, sync_token_, /*readonly=*/true);
   }
 
   void clear_access() {
-    CHECK(ri_access_);
-    sync_token_ = gpu::RasterScopedAccess::EndAccess(std::move(ri_access_));
+    if (ri_access_) {
+      sync_token_ = gpu::RasterScopedAccess::EndAccess(std::move(ri_access_));
+    }
   }
 
   sk_sp<SkImage> GetSkImageViaReadback() override {
@@ -787,6 +836,7 @@ class VideoTextureBacking : public cc::TextureBacking {
                   size_t dst_row_bytes,
                   int src_x,
                   int src_y) override {
+    CHECK(raster_context_provider_);
     gpu::raster::RasterInterface* ri =
         raster_context_provider_->RasterInterface();
     return ri->ReadbackImagePixels(shared_image_->mailbox(), dst_info,
@@ -809,6 +859,7 @@ class VideoTextureBacking : public cc::TextureBacking {
 
   std::unique_ptr<gpu::RasterScopedAccess> ri_access_;
   gpu::SyncToken sync_token_;
+  bool acquired_ = false;
 };
 
 PaintCanvasVideoRenderer::PaintCanvasVideoRenderer()
@@ -832,10 +883,6 @@ void PaintCanvasVideoRenderer::Paint(
       DLOG(ERROR)
           << "Can't render textured frames w/o viz::RasterContextProvider";
       return;  // Unable to get/create a shared main thread context.
-    }
-    if (params.force_pixel_readback) {
-      video_frame = media::ReadbackTextureBackedFrameToMemorySync(
-          *video_frame, raster_context_provider->RasterInterface());
     }
   }
 
@@ -877,6 +924,17 @@ void PaintCanvasVideoRenderer::Paint(
     image = cc::PaintImageBuilder::WithCopy(image)
                 .set_reinterpret_as_srgb(true)
                 .TakePaintImage();
+  }
+
+  if (params.acquire_texture_backing && cache_->texture_backing) {
+    cc::PaintImage::ContentId content_id =
+        image.GetContentIdForFrame(cc::PaintImage::kDefaultFrameIndex);
+    image = cc::PaintImageBuilder::WithCopy(image)
+                .set_texture_backing(sk_make_sp<VideoTextureBacking>(
+                                         std::move(*cache_->texture_backing)),
+                                     content_id)
+                .TakePaintImage();
+    ResetCache();
   }
   DCHECK(image);
 
@@ -1646,7 +1704,7 @@ bool PaintCanvasVideoRenderer::UpdateLastImage(
 
     paint_image_builder.set_texture_backing(cache_->texture_backing,
                                             cc::PaintImage::GetNextContentId());
-    cache_->texture_backing->BeginAccess(ri);
+    cache_->texture_backing->BeginAccess();
   } else {
     cache_.emplace(
         video_frame->unique_id(),

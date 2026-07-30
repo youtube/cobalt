@@ -262,9 +262,8 @@ void WorkerScriptFetcher::CreateAndStart(
     const base::UnguessableToken& devtools_worker_token,
     bool require_cross_site_request_for_cookies,
     net::StorageAccessApiStatus storage_access_api_status,
-    const std::optional<base::UnguessableToken>& worker_network_restrictions_id,
-    const std::optional<base::UnguessableToken>&
-        creator_network_restrictions_id,
+    const base::UnguessableToken& worker_network_restrictions_id,
+    const base::UnguessableToken& creator_network_restrictions_id,
     std::optional<PolicyContainerPolicies> creator_policies,
     CompletionCallback callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
@@ -434,9 +433,8 @@ void WorkerScriptFetcher::CreateScriptLoader(
     DevToolsAgentHostImpl* devtools_agent_host,
     const base::UnguessableToken& devtools_worker_token,
     bool require_cross_site_request_for_cookies,
-    const std::optional<base::UnguessableToken>& worker_network_restrictions_id,
-    const std::optional<base::UnguessableToken>&
-        creator_network_restrictions_id,
+    const base::UnguessableToken& worker_network_restrictions_id,
+    const base::UnguessableToken& creator_network_restrictions_id,
     std::optional<PolicyContainerPolicies> creator_policies,
     WorkerScriptFetcher::CompletionCallback callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
@@ -565,12 +563,12 @@ void WorkerScriptFetcher::CreateScriptLoader(
           nullptr /* navigation_ui_data */, frame_tree_node_id,
           /*navigation_id=*/std::nullopt);
 
-  if (worker_network_restrictions_id && creator_policies) {
+  if (!worker_network_restrictions_id.is_empty() && creator_policies) {
     if (auto throttle = NetworkRestrictionsWorkerThrottle::Create(
             static_cast<StoragePartitionImpl*>(
                 factory_process->GetStoragePartition())
                 ->GetWeakPtr(),
-            *worker_network_restrictions_id, creator_policies->Clone(),
+            worker_network_restrictions_id, creator_policies->Clone(),
             ancestor_render_frame_host.GetWeakPtr(),
             /*is_service_worker=*/false)) {
       throttles.push_back(std::move(throttle));

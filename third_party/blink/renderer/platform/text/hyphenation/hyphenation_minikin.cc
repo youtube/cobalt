@@ -76,7 +76,7 @@ bool HyphenationMinikin::OpenDictionary(base::File file) {
     return false;
   }
 
-  hyphenator_ = base::WrapUnique(Hyphenator::loadBinary(file_.data()));
+  hyphenator_ = base::WrapUnique(Hyphenator::loadBinary(file_.bytes().data()));
 
   return true;
 }

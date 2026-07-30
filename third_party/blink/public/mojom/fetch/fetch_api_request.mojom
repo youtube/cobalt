@@ -58,6 +58,7 @@ enum RequestContextType {
   SUBRESOURCE,
   SUBRESOURCE_WEBBUNDLE,
   STYLE,
+  TEXT,
   TRACK,
   VIDEO,
   WORKER,

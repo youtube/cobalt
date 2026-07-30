@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "base/observer_list_types.h"
+#include "base/unguessable_token.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/desktop_capture_pip_utils.h"
 #include "content/public/browser/desktop_media_id.h"
@@ -55,6 +56,11 @@ class CONTENT_EXPORT PipScreenCaptureCoordinator {
   virtual void RemoveExclusionObserver(
       desktop_capture::PipScreenCaptureExclusionObserver* observer) = 0;
   virtual bool IsExcludedFromScreenCapture() const = 0;
+
+  virtual base::UnguessableToken RegisterMediaPickerAsCapture(
+      const GlobalRenderFrameHostId& render_frame_host_id) = 0;
+  virtual void UnregisterMediaPickerAsCapture(
+      const base::UnguessableToken& session_id) = 0;
 
  protected:
   PipScreenCaptureCoordinator() = default;

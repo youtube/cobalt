@@ -28,6 +28,7 @@
 #include "services/device/public/cpp/test/scoped_pressure_manager_overrider.h"
 #include "services/device/public/mojom/pressure_manager.mojom.h"
 #include "services/device/public/mojom/pressure_update.mojom.h"
+#include "services/network/public/cpp/constants.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -151,7 +152,7 @@ class PressureServiceForDedicatedWorkerTest
         rfh->GetIsolationInfoForSubresources(), rfh->BuildClientSecurityState(),
         rfh->policy_container_host()->policies(),
         /*creator_coep_reporter=*/nullptr,
-        /*network_restrictions_id=*/std::nullopt,
+        network::GetTestNetworkRestrictionsId(),
         mojo::PendingReceiver<blink::mojom::DedicatedWorkerHost>(),
         net::StorageAccessApiStatus::kNone);
     mojo::Receiver<blink::mojom::BrowserInterfaceBroker>& bib =

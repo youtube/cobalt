@@ -60,7 +60,7 @@ class FieldClassificationModelHandler
   FieldClassificationModelHandler(
       optimization_guide::OptimizationGuideModelProvider* model_provider,
       optimization_guide::proto::OptimizationTarget optimization_target,
-      autofill::MlLogRouter* log_router = nullptr);
+      MlLogRouter* log_router = nullptr);
   ~FieldClassificationModelHandler() override;
 
   // This function asynchronously queries predictions for the `form_structure`
@@ -179,7 +179,7 @@ class FieldClassificationModelHandler
 
   ModelChangeCallbackList model_change_callback_list_;
 
-  raw_ptr<autofill::MlLogRouter> log_router_ = nullptr;
+  raw_ptr<MlLogRouter> log_router_ = nullptr;
 
   base::WeakPtrFactory<FieldClassificationModelHandler> weak_ptr_factory_{this};
 };

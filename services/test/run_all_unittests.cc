@@ -59,6 +59,10 @@ class ServiceTestSuite : public base::TestSuite {
         path.Append(FILE_PATH_LITERAL("services_test_strings.pak"));
     ui::ResourceBundle::GetSharedInstance().AddDataPackFromPath(
         services_test_strings, ui::kScaleFactorNone);
+    base::FilePath usb_ids_resources =
+        path.Append(FILE_PATH_LITERAL("usb_ids_resources.pak"));
+    ui::ResourceBundle::GetSharedInstance().AddDataPackFromPath(
+        usb_ids_resources, ui::kScaleFactorNone);
 #endif  // !BUILDFLAG(IS_IOS)
 
     // base::TestSuite and ViewsInit both try to load icu. That's ok for tests.

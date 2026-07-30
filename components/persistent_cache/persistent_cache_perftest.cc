@@ -35,13 +35,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/perf/perf_result_reporter.h"
 
-#if BUILDFLAG(IS_MAC)
-#include "base/mac/mac_util.h"
-#endif
-
 namespace persistent_cache {
-
-
 
 // A test harness parameterized on the options for creating a PersistentCache.
 class PersistentCachePerftest
@@ -146,11 +140,7 @@ class PersistentCachePerftest
 
   // Returns true if this platform has expensive database commits.
   static bool HasExpensiveCommits() {
-#if BUILDFLAG(IS_MAC)
-    // Commits are slow on macOS 12. Speculation: perhaps it does not benefit
-    // from F_BARRIERFSYNC.
-    return base::mac::MacOSMajorVersion() < 13;
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
     return true;
 #else
     // Android and other POSIX systems appear to benefit from batch atomic

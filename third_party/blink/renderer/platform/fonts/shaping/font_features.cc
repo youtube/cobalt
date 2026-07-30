@@ -11,12 +11,6 @@
 
 namespace blink {
 
-namespace {
-
-constexpr FontFeatureRange kChws{{{'c', 'h', 'w', 's'}, 1}};
-
-}  // namespace
-
 //
 // Ensure `FontFeatureTag` is compatible with `hb_tag_t`.
 //
@@ -34,10 +28,6 @@ static_assert(offsetof(FontFeatureRange, value) ==
 static_assert(offsetof(FontFeatureRange, start) ==
               offsetof(hb_feature_t, start));
 static_assert(offsetof(FontFeatureRange, end) == offsetof(hb_feature_t, end));
-
-bool FontFeatureRange::IsInitial(base::span<const FontFeatureRange> features) {
-  return features.size() == 1 && features[0] == kChws;
-}
 
 template <wtf_size_t InlineCapacity>
 void FontFeatureRange::FromFontDescription(

@@ -93,6 +93,7 @@ if (current_toolchain == host_toolchain && !is_win) {
     # Files depended upon.
     sources = [
       "create_seed_file_pair.py",
+      "file_pair.proto",
       "testdata/new_eventlog_provider.dll",
       "testdata/old_eventlog_provider.dll",
     ]
@@ -128,6 +129,7 @@ if (current_toolchain == host_toolchain && !is_win) {
     # Files depended upon.
     sources = [
       "create_seed_file_pair.py",
+      "file_pair.proto",
       "testdata/new.ztf",
       "testdata/old.ztf",
     ]

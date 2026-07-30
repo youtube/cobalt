@@ -16,7 +16,7 @@ namespace blink {
 
 class ElementAnimationTriggerData
     : public GarbageCollected<ElementAnimationTriggerData>,
-      public ElementRareDataField {
+      public NodeRareDataField {
  public:
   void SetNamedTriggers(NamedAnimationTriggerMap& named_triggers);
   NamedAnimationTriggerMap& NamedTriggers();

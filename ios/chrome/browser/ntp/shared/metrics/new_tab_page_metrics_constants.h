@@ -22,10 +22,12 @@ extern const char kNTPAIMPlusButtonTappedAction[];
 
 extern const char kActionOnNTPHistogram[];
 extern const char kActionOnStartHistogram[];
+extern const char kActionOnHomeHistogram[];
 extern const char kNTPTimeSpentHistogram[];
 extern const char kStartTimeSpentHistogram[];
 extern const char kNTPImpressionHistogram[];
 extern const char kStartImpressionHistogram[];
+extern const char kHomeImpressionHistogram[];
 extern const char kNTPImpressionCustomizationStateHistogram[];
 extern const char kNTPOverscrollActionHistogram[];
 extern const char kMagicStackSafetyCheckEnabledHistogram[];

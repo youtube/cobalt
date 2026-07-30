@@ -137,7 +137,7 @@ TEST_P(AudioOutputTest, MAYBE_Play200HzTone) {
   SineWaveAudioSource source(1, 200.0, stream_params_.sample_rate());
 
   // Play for 100ms.
-  const int samples_to_play = stream_params_.sample_rate() / 10;
+  const size_t samples_to_play = stream_params_.sample_rate() / 10;
 
   EXPECT_TRUE(stream_->Open());
   stream_->SetVolume(1.0);

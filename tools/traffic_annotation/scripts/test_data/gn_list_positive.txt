@@ -2,7 +2,7 @@
 //:blink_tests
 //:blink_web_tests
 //:blink_web_tests_exparchive
-//:chromium_builder_asan
+//:blackbox_fuzzing_targets
 //:chromium_builder_perf
 //:gn_all
 //:run_web_tests

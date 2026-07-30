@@ -134,12 +134,6 @@ void Host::NotifyActorTaskListRowClicked(int32_t task_id) {
   }
 }
 
-void Host::NotifyIsInvoking(bool is_invoking) {
-  if (auto* client = GetPrimaryWebClient()) {
-    client->NotifyIsInvoking(is_invoking);
-  }
-}
-
 void Host::NotifyContextualSkillsChanged(
     std::vector<mojom::SkillPreviewPtr> contextual_skill_previews) {
   if (auto* client = GetPrimaryWebClient()) {
@@ -336,8 +330,8 @@ GlicKeyedService& Host::glic_service() {
   return *GlicKeyedService::Get(profile_);
 }
 
-GlicSharingManager& Host::sharing_manager() {
-  return sharing_manager_provider_->sharing_manager();
+GlicSharingManagerInternal& Host::GetSharingManagerInternal() {
+  return sharing_manager_provider_->GetSharingManagerInternal();
 }
 
 GlicPinCandidateProvider& Host::pin_candidate_provider() {

@@ -5463,4 +5463,359 @@ TEST_F(CompositorTimelineTriggerBehaviorTest,
       /*start_time=*/std::nullopt);
 }
 
+TEST_F(CompositorTimelineTriggerBehaviorTest,
+       PerformPlayForwardsOnFinishedPositive) {
+  Initialize("play-forwards", "none");
+
+  // Finish the animation. Blink should create a cc::Animation to replacement
+  // cc Animation waiting to be triggered.
+  blink_animation_->finish(ASSERT_NO_EXCEPTION);
+  EXPECT_EQ(blink_animation_->CalculateAnimationPlayState(),
+            V8AnimationPlayState::Enum::kFinished);
+  DoBeginFrame();
+
+  cc::KeyframeModel* impl_keyframe_model = GetImplKeyframeModel();
+  cc::KeyframeModel* main_keyframe_model = GetMainKeyframeModel();
+
+  TestKeyframeModel(
+      impl_keyframe_model, gfx::KeyframeModel::PAUSED,
+      /* hold_time=*/
+      base::TimeDelta(base::Milliseconds(kAnimationDurationMilliSeconds)),
+      /* start_time=*/std::nullopt);
+
+  // Simulate trigger activation.
+  base::TimeTicks trigger_time =
+      Compositor().LastFrameTime() + base::Milliseconds(32);
+  std::unique_ptr<cc::AnimationEvents> animation_events =
+      PerformImplActivate(trigger_time);
+
+  EXPECT_EQ(animation_events->events().size(), 1);
+  cc::AnimationTriggerEvent& event =
+      std::get<cc::AnimationTriggerEvent>(animation_events->events()[0]);
+  EXPECT_EQ(event.type, cc::AnimationTriggerEvent::Type::kActivate);
+  EXPECT_EQ(event.time, trigger_time);
+
+  // For play-forwards, if finished at end, it should NOT restart. It should
+  // stay PAUSED.
+  TestKeyframeModel(
+      impl_keyframe_model, gfx::KeyframeModel::PAUSED,
+      /* hold_time=*/
+      base::TimeDelta(base::Milliseconds(kAnimationDurationMilliSeconds)),
+      /* start_time=*/std::nullopt);
+
+  cc::AnimationTrigger* main_trigger = GetMainCcTrigger();
+
+  TestKeyframeModel(
+      main_keyframe_model, gfx::KeyframeModel::PAUSED,
+      /*hold_time=*/
+      base::TimeDelta(base::Milliseconds(kAnimationDurationMilliSeconds)),
+      /*start_time=*/std::nullopt);
+
+  // Simulate main thread sync.
+  main_trigger->DispatchAnimationTriggerEvent(event);
+
+  TestKeyframeModel(
+      main_keyframe_model, gfx::KeyframeModel::PAUSED,
+      /*hold_time=*/
+      base::TimeDelta(base::Milliseconds(kAnimationDurationMilliSeconds)),
+      /*start_time=*/std::nullopt);
+}
+
+TEST_F(CompositorTimelineTriggerBehaviorTest,
+       PerformPlayForwardsOnFinishedNegative) {
+  Initialize("play-forwards", "none");
+
+  // Set playback rate to negative and finish.
+  blink_animation_->updatePlaybackRate(-1, ASSERT_NO_EXCEPTION);
+  blink_animation_->finish(ASSERT_NO_EXCEPTION);
+  EXPECT_EQ(blink_animation_->CalculateAnimationPlayState(),
+            V8AnimationPlayState::Enum::kFinished);
+  DoBeginFrame();
+
+  cc::KeyframeModel* impl_keyframe_model = GetImplKeyframeModel();
+
+  TestKeyframeModel(impl_keyframe_model, gfx::KeyframeModel::PAUSED,
+                    /* hold_time=*/base::TimeDelta(),
+                    /* start_time=*/std::nullopt);
+  EXPECT_EQ(impl_keyframe_model->playback_rate(), -1);
+
+  // Simulate trigger activation.
+  base::TimeTicks trigger_time =
+      Compositor().LastFrameTime() + base::Milliseconds(32);
+  std::unique_ptr<cc::AnimationEvents> animation_events =
+      PerformImplActivate(trigger_time);
+
+  EXPECT_EQ(animation_events->events().size(), 1);
+  cc::AnimationTriggerEvent& event =
+      std::get<cc::AnimationTriggerEvent>(animation_events->events()[0]);
+  EXPECT_EQ(event.type, cc::AnimationTriggerEvent::Type::kActivate);
+  EXPECT_EQ(event.time, trigger_time);
+
+  // For play-forwards, if finished at start, it should reverse playback rate to
+  // 1 and RUN.
+  TestKeyframeModel(impl_keyframe_model, gfx::KeyframeModel::RUNNING,
+                    /* hold_time=*/std::nullopt,
+                    /* start_time=*/trigger_time);
+  EXPECT_EQ(impl_keyframe_model->playback_rate(), 1);
+
+  cc::KeyframeModel* main_keyframe_model = GetMainKeyframeModel();
+
+  TestKeyframeModel(main_keyframe_model, gfx::KeyframeModel::PAUSED,
+                    /*hold_time=*/base::TimeDelta(),
+                    /*start_time=*/std::nullopt);
+  EXPECT_EQ(main_keyframe_model->playback_rate(), -1);
+
+  // Simulate main thread sync.
+  cc::AnimationTrigger* main_trigger = GetMainCcTrigger();
+  main_trigger->DispatchAnimationTriggerEvent(event);
+
+  TestKeyframeModel(main_keyframe_model, gfx::KeyframeModel::RUNNING,
+                    /*hold_time=*/std::nullopt,
+                    /*start_time=*/trigger_time);
+  EXPECT_EQ(main_keyframe_model->playback_rate(), 1);
+}
+
+TEST_F(CompositorTimelineTriggerBehaviorTest,
+       PerformPlayBackwardsOnFinishedPositive) {
+  Initialize("play-backwards", "none");
+
+  // Finish the animation (finished at end, rate = 1).
+  blink_animation_->finish(ASSERT_NO_EXCEPTION);
+  EXPECT_EQ(blink_animation_->CalculateAnimationPlayState(),
+            V8AnimationPlayState::Enum::kFinished);
+  DoBeginFrame();
+
+  cc::KeyframeModel* impl_keyframe_model = GetImplKeyframeModel();
+
+  TestKeyframeModel(
+      impl_keyframe_model, gfx::KeyframeModel::PAUSED,
+      /* hold_time=*/
+      base::TimeDelta(base::Milliseconds(kAnimationDurationMilliSeconds)),
+      /* start_time=*/std::nullopt);
+  EXPECT_EQ(impl_keyframe_model->playback_rate(), 1);
+
+  // Simulate trigger activation.
+  base::TimeTicks trigger_time =
+      Compositor().LastFrameTime() + base::Milliseconds(32);
+  std::unique_ptr<cc::AnimationEvents> animation_events =
+      PerformImplActivate(trigger_time);
+
+  EXPECT_EQ(animation_events->events().size(), 1);
+  cc::AnimationTriggerEvent& event =
+      std::get<cc::AnimationTriggerEvent>(animation_events->events()[0]);
+  EXPECT_EQ(event.type, cc::AnimationTriggerEvent::Type::kActivate);
+  EXPECT_EQ(event.time, trigger_time);
+
+  // For play-backwards, if finished at end, it should reverse playback rate to
+  // -1 and RUN.
+  TestKeyframeModel(impl_keyframe_model, gfx::KeyframeModel::RUNNING,
+                    /* hold_time=*/std::nullopt,
+                    /* start_time=*/trigger_time +
+                        base::Milliseconds(kAnimationDurationMilliSeconds));
+  EXPECT_EQ(impl_keyframe_model->playback_rate(), -1);
+
+  cc::KeyframeModel* main_keyframe_model = GetMainKeyframeModel();
+  TestKeyframeModel(
+      main_keyframe_model, gfx::KeyframeModel::PAUSED,
+      /*hold_time=*/
+      base::TimeDelta(base::Milliseconds(kAnimationDurationMilliSeconds)),
+      /*start_time=*/std::nullopt);
+  EXPECT_EQ(main_keyframe_model->playback_rate(), 1);
+
+  // Simulate main thread sync.
+  cc::AnimationTrigger* main_trigger = GetMainCcTrigger();
+  main_trigger->DispatchAnimationTriggerEvent(event);
+
+  TestKeyframeModel(main_keyframe_model, gfx::KeyframeModel::RUNNING,
+                    /*hold_time=*/std::nullopt,
+                    /*start_time=*/trigger_time +
+                        base::Milliseconds(kAnimationDurationMilliSeconds));
+  EXPECT_EQ(main_keyframe_model->playback_rate(), -1);
+}
+
+TEST_F(CompositorTimelineTriggerBehaviorTest,
+       PerformPlayBackwardsOnFinishedNegative) {
+  Initialize("play-backwards", "none");
+
+  // Set playback rate to negative and finish. (Finished at start).
+  blink_animation_->updatePlaybackRate(-1, ASSERT_NO_EXCEPTION);
+  blink_animation_->finish(ASSERT_NO_EXCEPTION);
+  EXPECT_EQ(blink_animation_->CalculateAnimationPlayState(),
+            V8AnimationPlayState::Enum::kFinished);
+  DoBeginFrame();
+
+  cc::KeyframeModel* impl_keyframe_model = GetImplKeyframeModel();
+  cc::KeyframeModel* main_keyframe_model = GetMainKeyframeModel();
+
+  TestKeyframeModel(impl_keyframe_model, gfx::KeyframeModel::PAUSED,
+                    /* hold_time=*/base::TimeDelta(),
+                    /* start_time=*/std::nullopt);
+  EXPECT_EQ(impl_keyframe_model->playback_rate(), -1);
+
+  // Simulate trigger activation.
+  base::TimeTicks trigger_time =
+      Compositor().LastFrameTime() + base::Milliseconds(32);
+  std::unique_ptr<cc::AnimationEvents> animation_events =
+      PerformImplActivate(trigger_time);
+
+  EXPECT_EQ(animation_events->events().size(), 1);
+  cc::AnimationTriggerEvent& event =
+      std::get<cc::AnimationTriggerEvent>(animation_events->events()[0]);
+  EXPECT_EQ(event.type, cc::AnimationTriggerEvent::Type::kActivate);
+  EXPECT_EQ(event.time, trigger_time);
+
+  // For play-backwards, if finished at start, it should NOT restart. It should
+  // stay PAUSED.
+  TestKeyframeModel(impl_keyframe_model, gfx::KeyframeModel::PAUSED,
+                    /* hold_time=*/base::TimeDelta(),
+                    /* start_time=*/std::nullopt);
+  EXPECT_EQ(impl_keyframe_model->playback_rate(), -1);
+
+  cc::AnimationTrigger* main_trigger = GetMainCcTrigger();
+
+  TestKeyframeModel(main_keyframe_model, gfx::KeyframeModel::PAUSED,
+                    /*hold_time=*/base::TimeDelta(),
+                    /*start_time=*/std::nullopt);
+  EXPECT_EQ(main_keyframe_model->playback_rate(), -1);
+
+  // Simulate main thread sync.
+  main_trigger->DispatchAnimationTriggerEvent(event);
+
+  TestKeyframeModel(main_keyframe_model, gfx::KeyframeModel::PAUSED,
+                    /*hold_time=*/base::TimeDelta(),
+                    /*start_time=*/std::nullopt);
+  EXPECT_EQ(main_keyframe_model->playback_rate(), -1);
+}
+
+TEST_F(CompositorTimelineTriggerBehaviorTest,
+       PerformPlayBackwardsOnRunningPositive) {
+  Initialize("play-backwards", "none");
+
+  // Play the animation.
+  blink_animation_->play(ASSERT_NO_EXCEPTION);
+
+  DoBeginFrame();
+  cc::KeyframeModel* impl_keyframe_model = GetImplKeyframeModel();
+  // Record start time picked up in the last impl frame.
+  base::TimeTicks play_start_time = Compositor().LastFrameTime();
+
+  DoBeginFrame();
+
+  // Main and impl should have the same start time.
+  TestKeyframeModel(impl_keyframe_model, gfx::KeyframeModel::RUNNING,
+                    /* hold_time=*/std::nullopt,
+                    /* start_time=*/play_start_time);
+  EXPECT_EQ(impl_keyframe_model->playback_rate(), 1);
+
+  cc::KeyframeModel* main_keyframe_model = GetMainKeyframeModel();
+  TestKeyframeModel(main_keyframe_model, gfx::KeyframeModel::RUNNING,
+                    /* hold_time=*/std::nullopt,
+                    /* start_time=*/play_start_time);
+  EXPECT_EQ(main_keyframe_model->playback_rate(), 1);
+
+  // Simulate trigger activation.
+  base::TimeTicks trigger_time = play_start_time + base::Milliseconds(32);
+  base::TimeDelta current_time_to_match =
+      impl_keyframe_model->CalculateCurrentTime(
+          trigger_time, impl_keyframe_model->playback_rate());
+  std::unique_ptr<cc::AnimationEvents> animation_events =
+      PerformImplActivate(trigger_time);
+
+  EXPECT_EQ(animation_events->events().size(), 1);
+  cc::AnimationTriggerEvent& event =
+      std::get<cc::AnimationTriggerEvent>(animation_events->events()[0]);
+  EXPECT_EQ(event.type, cc::AnimationTriggerEvent::Type::kActivate);
+  EXPECT_EQ(event.time, trigger_time);
+
+  // The impl keyframe model should now be reversed with its start time ahead of
+  // |trigger_time| by the current time at the time of activation.
+  TestKeyframeModel(impl_keyframe_model, gfx::KeyframeModel::RUNNING,
+                    /* hold_time=*/std::nullopt,
+                    /* start_time=*/trigger_time + current_time_to_match);
+  EXPECT_EQ(impl_keyframe_model->playback_rate(), -1);
+  EXPECT_EQ(impl_keyframe_model->CalculateCurrentTime(
+                trigger_time, impl_keyframe_model->playback_rate()),
+            current_time_to_match);
+
+  // Simulate main thread sync.
+  cc::AnimationTrigger* main_trigger = GetMainCcTrigger();
+  main_trigger->DispatchAnimationTriggerEvent(event);
+
+  // The main thread keyframe model should also be reversed after the sync.
+  TestKeyframeModel(main_keyframe_model, gfx::KeyframeModel::RUNNING,
+                    /* hold_time=*/std::nullopt,
+                    /* start_time=*/trigger_time + current_time_to_match);
+  EXPECT_EQ(main_keyframe_model->playback_rate(), -1);
+  EXPECT_EQ(main_keyframe_model->CalculateCurrentTime(
+                trigger_time, main_keyframe_model->playback_rate()),
+            current_time_to_match);
+}
+
+TEST_F(CompositorTimelineTriggerBehaviorTest,
+       PerformPlayForwardsOnRunningNegative) {
+  Initialize("play-forwards", "none");
+
+  // Reverse the animation to get it playing backwards.
+  // TODO(crbug.com/521374290): We should be able to just call reverse here.
+  blink_animation_->updatePlaybackRate(-1);
+  blink_animation_->play(ASSERT_NO_EXCEPTION);
+  DoBeginFrame();
+
+  cc::KeyframeModel* impl_keyframe_model = GetImplKeyframeModel();
+  cc::KeyframeModel* main_keyframe_model = GetMainKeyframeModel();
+
+  base::TimeTicks frame_time_at_start = Compositor().LastFrameTime();
+  // Negative playback rate pushes the start time ahead.
+  base::TimeTicks play_start_time =
+      frame_time_at_start + base::Milliseconds(kAnimationDurationMilliSeconds);
+
+  // Test the keyframe models after Frame 4 (before trigger).
+  TestKeyframeModel(impl_keyframe_model, gfx::KeyframeModel::RUNNING,
+                    /* hold_time=*/std::nullopt,
+                    /* start_time=*/play_start_time);
+  EXPECT_EQ(impl_keyframe_model->playback_rate(), -1);
+
+  DoBeginFrame();
+  TestKeyframeModel(main_keyframe_model, gfx::KeyframeModel::RUNNING,
+                    /* hold_time=*/std::nullopt,
+                    /* start_time=*/play_start_time);
+  EXPECT_EQ(main_keyframe_model->playback_rate(), -1);
+
+  // Simlute a trigger activation 48ms after the animation started.
+  base::TimeTicks trigger_time = frame_time_at_start + base::Milliseconds(48);
+  base::TimeDelta current_time_to_match =
+      impl_keyframe_model->CalculateCurrentTime(
+          trigger_time, impl_keyframe_model->playback_rate());
+
+  std::unique_ptr<cc::AnimationEvents> animation_events =
+      PerformImplActivate(trigger_time);
+  EXPECT_EQ(animation_events->events().size(), 1);
+  cc::AnimationTriggerEvent& event =
+      std::get<cc::AnimationTriggerEvent>(animation_events->events()[0]);
+  EXPECT_EQ(event.type, cc::AnimationTriggerEvent::Type::kActivate);
+  EXPECT_EQ(event.time, trigger_time);
+
+  // On Impl thread, it should now be running forwards.
+  TestKeyframeModel(impl_keyframe_model, gfx::KeyframeModel::RUNNING,
+                    /* hold_time=*/std::nullopt,
+                    /* start_time=*/trigger_time - current_time_to_match);
+  EXPECT_EQ(impl_keyframe_model->playback_rate(), 1);
+  EXPECT_EQ(impl_keyframe_model->CalculateCurrentTime(
+                trigger_time, impl_keyframe_model->playback_rate()),
+            current_time_to_match);
+
+  // Simulate main thread sync.
+  cc::AnimationTrigger* main_trigger = GetMainCcTrigger();
+  main_trigger->DispatchAnimationTriggerEvent(event);
+
+  // On Main thread, it should also be running forwards with same start time.
+  TestKeyframeModel(main_keyframe_model, gfx::KeyframeModel::RUNNING,
+                    /* hold_time=*/std::nullopt,
+                    /* start_time=*/trigger_time - current_time_to_match);
+  EXPECT_EQ(main_keyframe_model->playback_rate(), 1);
+  EXPECT_EQ(main_keyframe_model->CalculateCurrentTime(
+                trigger_time, main_keyframe_model->playback_rate()),
+            current_time_to_match);
+}
+
 }  // namespace blink

@@ -7,8 +7,6 @@
 
 #import <Foundation/Foundation.h>
 
-#import "ios/chrome/browser/reading_list/ui_bundled/reading_list_ui_distillation_status.h"
-
 class GURL;
 @class FaviconAttributes;
 @class ReadingListListItemCustomActionFactory;
@@ -22,10 +20,6 @@ class GURL;
 @property(nonatomic, assign) GURL entryURL;
 // The URL of the page presenting the favicon to display.
 @property(nonatomic, assign) GURL faviconPageURL;
-// Status of the offline version.
-@property(nonatomic, assign) ReadingListUIDistillationStatus distillationState;
-// The string that displays the distillation date.
-@property(nonatomic, copy) NSString* distillationDateText;
 // Whether the cloud slash icon should be shown.
 @property(nonatomic, assign) BOOL showCloudSlashIcon;
 // The custom action factory.

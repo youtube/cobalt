@@ -16,6 +16,7 @@
 #include "media/formats/hls/types.h"
 #include "media/formats/hls/variable_dictionary.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 namespace media::hls {
 
@@ -24,6 +25,7 @@ class VariantStream;
 class MEDIA_EXPORT MultivariantPlaylist final : public Playlist {
  public:
   MultivariantPlaylist(base::PassKey<MultivariantPlaylist>,
+                       url::Origin security_origin,
                        GURL uri,
                        types::DecimalInteger version,
                        bool independent_segments,
@@ -48,8 +50,11 @@ class MEDIA_EXPORT MultivariantPlaylist final : public Playlist {
   // in this playlist (or `Playlist::kDefaultVersion` if none), which may be
   // determined via `Playlist::IdentifyPlaylist`. If the playlist source is
   // invalid, returns an error.
-  static ParseStatus::Or<scoped_refptr<MultivariantPlaylist>>
-  Parse(std::string_view source, GURL uri, types::DecimalInteger version);
+  static ParseStatus::Or<scoped_refptr<MultivariantPlaylist>> Parse(
+      std::string_view source,
+      GURL uri,
+      url::Origin security_origin,
+      types::DecimalInteger version);
 
  private:
   ~MultivariantPlaylist() override;

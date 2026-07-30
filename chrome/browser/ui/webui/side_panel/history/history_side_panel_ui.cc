@@ -124,10 +124,18 @@ void HistorySidePanelUI::BindInterface(
 }
 
 void HistorySidePanelUI::BindInterface(
-    mojo::PendingReceiver<history_embeddings::mojom::PageHandler>
-        pending_page_handler) {
+    mojo::PendingReceiver<history_embeddings::mojom::PageHandlerFactory>
+        pending_page_handler_factory) {
+  history_embeddings_handler_factory_receiver_.reset();
+  history_embeddings_handler_factory_receiver_.Bind(
+      std::move(pending_page_handler_factory));
+}
+
+void HistorySidePanelUI::CreatePageHandler(
+    mojo::PendingRemote<history_embeddings::mojom::Page> page,
+    mojo::PendingReceiver<history_embeddings::mojom::PageHandler> receiver) {
   history_embeddings_handler_ = std::make_unique<HistoryEmbeddingsHandler>(
-      std::move(pending_page_handler),
+      std::move(receiver), std::move(page),
       Profile::FromWebUI(web_ui())->GetWeakPtr(), web_ui(),
       /*for_side_panel=*/true);
 }

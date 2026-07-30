@@ -179,6 +179,7 @@ static_library("login") {
     "//chrome/browser/sync",
     "//chrome/browser/ui/ash/input_method",
     "//chrome/browser/ui/aura/accessibility",
+    "//chrome/browser/ui/webui/help",
     "//chrome/common",
     "//chrome/common:chrome_features",
     "//chrome/common:constants",
@@ -283,6 +284,7 @@ static_library("login") {
     "//chrome/browser/ash/policy/handlers",
     "//chrome/browser/ash/system",
     "//chrome/browser/sync",
+    "//chrome/browser/ui/webui/help",
   ]
 }
 
@@ -388,7 +390,7 @@ source_set("browser_tests") {
     "oobe_interactive_ui_test.cc",
     "oobe_localization_browsertest.cc",
     "oobe_metrics_browsertest.cc",
-    "oobe_pre_consent_metrics_browsertest.cc",
+    "oobe_pre_choice_metrics_browsertest.cc",
     "password_change_browsertest.cc",
     "payments_autofill_authentication_browsertest.cc",
     "post_login_deferred_task_browsertest.cc",

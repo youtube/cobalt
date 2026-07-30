@@ -13,10 +13,10 @@ namespace blink {
 class SelectionAdjusterTest : public EditingTestBase {};
 
 // ------------ Shadow boundary adjustment tests --------------
-TEST_F(SelectionAdjusterTest, AdjustShadowToCollpasedInDOMTree) {
-  const SelectionInDOMTree& selection = SetSelectionTextToBody(
+TEST_F(SelectionAdjusterTest, AdjustShadowToCollpasedInDomTree) {
+  const SelectionInDomTree& selection = SetSelectionTextToBody(
       "<span><template data-mode=\"open\">a|bc</template></span>^");
-  const SelectionInDOMTree& result =
+  const SelectionInDomTree& result =
       SelectionAdjuster::AdjustSelectionToAvoidCrossingShadowBoundaries(
           selection);
   EXPECT_EQ("<span></span>|", GetSelectionTextFromBody(result));
@@ -42,7 +42,7 @@ TEST_F(SelectionAdjusterTest, AdjustShadowToCollpasedInFlatTree) {
 // Extracted the related part from delete-non-editable-range-crash.html here,
 // because the final result in that test was not WAI.
 TEST_F(SelectionAdjusterTest, DeleteNonEditableRange) {
-  const SelectionInDOMTree& selection = SetSelectionTextToBody(R"HTML(
+  const SelectionInDomTree& selection = SetSelectionTextToBody(R"HTML(
       <div contenteditable>
         <blockquote>
           <span>^foo<br></span>
@@ -54,7 +54,7 @@ TEST_F(SelectionAdjusterTest, DeleteNonEditableRange) {
         </span>
       </div>)HTML");
 
-  const SelectionInDOMTree& result =
+  const SelectionInDomTree& result =
       SelectionAdjuster::AdjustSelectionToAvoidCrossingEditingBoundaries(
           selection);
 
@@ -75,13 +75,13 @@ TEST_F(SelectionAdjusterTest, DeleteNonEditableRange) {
 // Extracted the related part from format-block-contenteditable-false.html here,
 // because the final result in that test was not WAI.
 TEST_F(SelectionAdjusterTest, FormatBlockContentEditableFalse) {
-  const SelectionInDOMTree& selection = SetSelectionTextToBody(R"HTML(
+  const SelectionInDomTree& selection = SetSelectionTextToBody(R"HTML(
       <div contenteditable>
         <h1><i>^foo</i><br><i>baz</i></h1>
         <div contenteditable="false">|bar</div>
       </div>)HTML");
 
-  const SelectionInDOMTree& result =
+  const SelectionInDomTree& result =
       SelectionAdjuster::AdjustSelectionToAvoidCrossingEditingBoundaries(
           selection);
 
@@ -95,7 +95,7 @@ TEST_F(SelectionAdjusterTest, FormatBlockContentEditableFalse) {
 
 TEST_F(SelectionAdjusterTest, NestedContentEditableElements) {
   // Select from bar to foo.
-  const SelectionInDOMTree& selection = SetSelectionTextToBody(R"HTML(
+  const SelectionInDomTree& selection = SetSelectionTextToBody(R"HTML(
       <div contenteditable>
         <div contenteditable="false">
           <div contenteditable>
@@ -106,7 +106,7 @@ TEST_F(SelectionAdjusterTest, NestedContentEditableElements) {
         bar^
       </div>)HTML");
 
-  const SelectionInDOMTree& result =
+  const SelectionInDomTree& result =
       SelectionAdjuster::AdjustSelectionToAvoidCrossingEditingBoundaries(
           selection);
 
@@ -133,12 +133,12 @@ TEST_F(SelectionAdjusterTest, ShadowRootAsRootBoundaryElement) {
   Element* bar = shadow_root->QuerySelector(AtomicString("#bar"));
 
   // DOM tree selection.
-  const SelectionInDOMTree& selection =
-      SelectionInDOMTree::Builder()
+  const SelectionInDomTree& selection =
+      SelectionInDomTree::Builder()
           .Collapse(Position::FirstPositionInNode(*foo))
           .Extend(Position::LastPositionInNode(*bar))
           .Build();
-  const SelectionInDOMTree& result =
+  const SelectionInDomTree& result =
       SelectionAdjuster::AdjustSelectionToAvoidCrossingEditingBoundaries(
           selection);
 
@@ -173,12 +173,12 @@ TEST_F(SelectionAdjusterTest, ShadowRootAsRootBoundaryElementEditable) {
   const Element* bar = shadow_root->QuerySelector(AtomicString("#bar"));
 
   // Select from foo to bar in DOM tree.
-  const SelectionInDOMTree& selection =
-      SelectionInDOMTree::Builder()
+  const SelectionInDomTree& selection =
+      SelectionInDomTree::Builder()
           .Collapse(Position::FirstPositionInNode(*foo))
           .Extend(Position::LastPositionInNode(*bar))
           .Build();
-  const SelectionInDOMTree& result =
+  const SelectionInDomTree& result =
       SelectionAdjuster::AdjustSelectionToAvoidCrossingEditingBoundaries(
           selection);
 
@@ -200,12 +200,12 @@ TEST_F(SelectionAdjusterTest, ShadowRootAsRootBoundaryElementEditable) {
   EXPECT_EQ(PositionInFlatTree::BeforeNode(*bar), result_in_flat_tree.Focus());
 
   // Select from bar to foo in DOM tree.
-  const SelectionInDOMTree& selection2 =
-      SelectionInDOMTree::Builder()
+  const SelectionInDomTree& selection2 =
+      SelectionInDomTree::Builder()
           .Collapse(Position::LastPositionInNode(*bar))
           .Extend(Position::FirstPositionInNode(*foo))
           .Build();
-  const SelectionInDOMTree& result2 =
+  const SelectionInDomTree& result2 =
       SelectionAdjuster::AdjustSelectionToAvoidCrossingEditingBoundaries(
           selection2);
 
@@ -525,11 +525,11 @@ TEST_F(SelectionAdjusterTest, AdjustSelectionTypeWithShadow) {
   Element* host = GetDocument().getElementById(AtomicString("host"));
   const Position& base = Position(host->firstChild(), 0);
   const Position& extent = Position(host, 0);
-  const SelectionInDOMTree& selection =
-      SelectionInDOMTree::Builder().Collapse(base).Extend(extent).Build();
+  const SelectionInDomTree& selection =
+      SelectionInDomTree::Builder().Collapse(base).Extend(extent).Build();
 
   // Should not crash
-  const SelectionInDOMTree& adjusted =
+  const SelectionInDomTree& adjusted =
       SelectionAdjuster::AdjustSelectionType(selection);
 
   EXPECT_EQ(base, adjusted.Anchor());
@@ -541,13 +541,13 @@ TEST_F(SelectionAdjusterTest, AdjustShadowWithRootAndHost) {
   ShadowRoot* shadow_root = SetShadowContent("", "host");
 
   Element* host = GetDocument().getElementById(AtomicString("host"));
-  const SelectionInDOMTree& selection = SelectionInDOMTree::Builder()
+  const SelectionInDomTree& selection = SelectionInDomTree::Builder()
                                             .Collapse(Position(shadow_root, 0))
                                             .Extend(Position(host, 0))
                                             .Build();
 
   // Should not crash
-  const SelectionInDOMTree& result =
+  const SelectionInDomTree& result =
       SelectionAdjuster::AdjustSelectionToAvoidCrossingShadowBoundaries(
           selection);
 
@@ -567,17 +567,17 @@ TEST_F(SelectionAdjusterTest, AdjustSelectionWithNextNonEditableNode) {
 
   Element* one = GetDocument().getElementById(AtomicString("one"));
   Element* two = GetDocument().getElementById(AtomicString("two"));
-  const SelectionInDOMTree& selection = SelectionInDOMTree::Builder()
+  const SelectionInDomTree& selection = SelectionInDomTree::Builder()
                                             .Collapse(Position(one, 0))
                                             .Extend(Position(two, 0))
                                             .Build();
-  const SelectionInDOMTree& editing_selection =
+  const SelectionInDomTree& editing_selection =
       SelectionAdjuster::AdjustSelectionToAvoidCrossingEditingBoundaries(
           selection);
   EXPECT_EQ(editing_selection.Anchor(), selection.Anchor());
   EXPECT_EQ(editing_selection.Focus(), Position::BeforeNode(*two));
 
-  const SelectionInDOMTree& adjusted_selection =
+  const SelectionInDomTree& adjusted_selection =
       SelectionAdjuster::AdjustSelectionType(editing_selection);
   EXPECT_EQ(adjusted_selection.Anchor(),
             Position::FirstPositionInNode(*one->firstChild()));
@@ -603,14 +603,14 @@ TEST_F(SelectionAdjusterTest, AdjustSelectionTypeWithSlottedEditableContent) {
   // Use the full text length of "Slotted2" as the extent offset.
   const Position& extent = Position(
       slotted2->firstChild(), slotted2->firstChild()->textContent().length());
-  const SelectionInDOMTree& selection =
-      SelectionInDOMTree::Builder().Collapse(base).Extend(extent).Build();
+  const SelectionInDomTree& selection =
+      SelectionInDomTree::Builder().Collapse(base).Extend(extent).Build();
 
-  const SelectionInDOMTree& editing_selection =
+  const SelectionInDomTree& editing_selection =
       SelectionAdjuster::AdjustSelectionToAvoidCrossingEditingBoundaries(
           selection);
 
-  const SelectionInDOMTree& adjusted =
+  const SelectionInDomTree& adjusted =
       SelectionAdjuster::AdjustSelectionType(editing_selection);
   EXPECT_FALSE(adjusted.IsNone());
 }

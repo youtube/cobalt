@@ -54,6 +54,8 @@ class COMPONENTS_PREFS_EXPORT ScopedUserPrefUpdateBase {
   const std::string path_;
   // Cache of value from user pref store (set between Get() and Notify() calls).
   raw_ptr<base::Value> value_ = nullptr;
+  // Fallback value used when `GetMutableUserPref` returns null.
+  std::optional<base::Value> fallback_value_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 };

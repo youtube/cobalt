@@ -5,9 +5,12 @@
 #include "google_apis/classroom/classroom_api_list_course_work_request.h"
 
 #include <memory>
+#include <string>
 
 #include "base/command_line.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/strings/strcat.h"
+#include "base/strings/string_util.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "base/types/expected.h"
@@ -38,6 +41,31 @@ using ::testing::Eq;
 using ::testing::Field;
 using ::testing::Invoke;
 using ::testing::Return;
+
+constexpr char kCourseId[] = "course-1";
+constexpr char kRelativeUrlTemplate[] =
+    "/v1/courses/course-1/courseWork"
+    "?fields=courseWork(id%2Ctitle%2Cstate%2CalternateLink"
+    "%2CcreationTime%2CupdateTime%2CdueDate(year%2Cmonth%2Cday)"
+    "%2CdueTime(hours%2Cminutes%2Cseconds%2Cnanos)$1)"
+    "%2CnextPageToken";
+constexpr char kWorkType[] = "%2CworkType";
+constexpr char kMaterials[] =
+    "%2Cmaterials(youtubeVideo(title)%2Clink(title)%2Cform(title)%"
+    "2CguidedLearning(title)%2Cnotebook(title)%2CdriveFile("
+    "driveFile(title)))";
+
+std::string BuildExpectedRelativeUrl(
+    const std::string& additional_fields_string) {
+  return base::ReplaceStringPlaceholders(kRelativeUrlTemplate,
+                                         {additional_fields_string}, nullptr);
+}
+
+struct ClassroomApiListCourseWorkRequestTestCase {
+  std::string test_name;
+  std::vector<ListCourseWorkRequest::AdditionalRequestField> additional_fields;
+  std::string additional_fields_string;
+};
 
 class TestRequestHandler {
  public:
@@ -72,7 +100,8 @@ class TestRequestHandler {
 
 }  // namespace
 
-class ClassroomApiListCourseWorkRequestTest : public testing::Test {
+class ClassroomApiListCourseWorkRequestTest
+    : public testing::TestWithParam<ClassroomApiListCourseWorkRequestTestCase> {
  public:
   ClassroomApiListCourseWorkRequestTest()
       : test_shared_loader_factory_(
@@ -111,26 +140,47 @@ class ClassroomApiListCourseWorkRequestTest : public testing::Test {
   testing::StrictMock<TestRequestHandler> request_handler_;
 };
 
-TEST_F(ClassroomApiListCourseWorkRequestTest, ListCourseWorkRequest) {
-  EXPECT_CALL(
-      request_handler(),
-      HandleRequest(AllOf(
-          Field(&HttpRequest::method, Eq(HttpMethod::METHOD_GET)),
-          Field(&HttpRequest::relative_url,
-                Eq("/v1/courses/course-1/courseWork"
-                   "?fields=courseWork(id%2Ctitle%2Cstate%2CalternateLink"
-                   "%2CcreationTime%2CupdateTime%2CdueDate(year%2Cmonth%2Cday)"
-                   "%2CdueTime(hours%2Cminutes%2Cseconds%2Cnanos)%2CworkType"
-                   "%2Cmaterials(youtubeVideo(title)%2Clink(title)"
-                   "%2Cform(title)%2CguidedLearning(title)%2Cnotebook(title)"
-                   "%2CdriveFile(driveFile(title))))%2CnextPageToken")))))
+TEST_P(ClassroomApiListCourseWorkRequestTest, ListCourseWorkRequest) {
+  EXPECT_CALL(request_handler(),
+              HandleRequest(
+                  AllOf(Field(&HttpRequest::method, Eq(HttpMethod::METHOD_GET)),
+                        Field(&HttpRequest::relative_url,
+                              Eq(BuildExpectedRelativeUrl(
+                                  GetParam().additional_fields_string))))))
       .WillOnce(Return(ByMove(TestRequestHandler::CreateSuccessfulResponse())));
 
   base::test::TestFuture<
       base::expected<std::unique_ptr<CourseWork>, ApiErrorCode>>
       future;
   auto request = std::make_unique<ListCourseWorkRequest>(
-      request_sender(), /*course_id=*/"course-1", /*page_token=*/"",
+      request_sender(), std::string(kCourseId), /*page_token=*/"",
+      GetParam().additional_fields, future.GetCallback());
+  request_sender()->StartRequestWithAuthRetry(std::move(request));
+  ASSERT_TRUE(future.Wait());
+
+  ASSERT_TRUE(future.Get().has_value());
+  ASSERT_TRUE(future.Get().value());
+  EXPECT_EQ(future.Get().value()->items().size(), 1u);
+}
+
+TEST_P(ClassroomApiListCourseWorkRequestTest,
+       ListCourseWorkRequestWithAdditionalQueryParameters) {
+  EXPECT_CALL(
+      request_handler(),
+      HandleRequest(
+          AllOf(Field(&HttpRequest::method, Eq(HttpMethod::METHOD_GET)),
+                Field(&HttpRequest::relative_url,
+                      Eq(base::StrCat({BuildExpectedRelativeUrl(
+                                           GetParam().additional_fields_string),
+                                       "&pageToken=qwerty"}))))))
+      .WillOnce(Return(ByMove(TestRequestHandler::CreateSuccessfulResponse())));
+
+  base::test::TestFuture<
+      base::expected<std::unique_ptr<CourseWork>, ApiErrorCode>>
+      future;
+  auto request = std::make_unique<ListCourseWorkRequest>(
+      request_sender(), std::string(kCourseId),
+      /*page_token=*/"qwerty", GetParam().additional_fields,
       future.GetCallback());
   request_sender()->StartRequestWithAuthRetry(std::move(request));
   ASSERT_TRUE(future.Wait());
@@ -140,64 +190,56 @@ TEST_F(ClassroomApiListCourseWorkRequestTest, ListCourseWorkRequest) {
   EXPECT_EQ(future.Get().value()->items().size(), 1u);
 }
 
-TEST_F(ClassroomApiListCourseWorkRequestTest,
-       ListCourseWorkRequestWithAdditionalQueryParameters) {
-  EXPECT_CALL(
-      request_handler(),
-      HandleRequest(AllOf(
-          Field(&HttpRequest::method, Eq(HttpMethod::METHOD_GET)),
-          Field(&HttpRequest::relative_url,
-                Eq("/v1/courses/course-1/courseWork"
-                   "?fields=courseWork(id%2Ctitle%2Cstate%2CalternateLink"
-                   "%2CcreationTime%2CupdateTime%2CdueDate(year%2Cmonth%2Cday)"
-                   "%2CdueTime(hours%2Cminutes%2Cseconds%2Cnanos)%2CworkType"
-                   "%2Cmaterials(youtubeVideo(title)%2Clink(title)"
-                   "%2Cform(title)%2CguidedLearning(title)%2Cnotebook(title)"
-                   "%2CdriveFile(driveFile(title))))%2CnextPageToken"
-                   "&pageToken=qwerty")))))
-      .WillOnce(Return(ByMove(TestRequestHandler::CreateSuccessfulResponse())));
-
-  base::test::TestFuture<
-      base::expected<std::unique_ptr<CourseWork>, ApiErrorCode>>
-      future;
-  auto request = std::make_unique<ListCourseWorkRequest>(
-      request_sender(), /*course_id=*/"course-1",
-      /*page_token=*/"qwerty", future.GetCallback());
-  request_sender()->StartRequestWithAuthRetry(std::move(request));
-  ASSERT_TRUE(future.Wait());
-
-  ASSERT_TRUE(future.Get().has_value());
-  ASSERT_TRUE(future.Get().value());
-  EXPECT_EQ(future.Get().value()->items().size(), 1u);
-}
-
-TEST_F(ClassroomApiListCourseWorkRequestTest,
+TEST_P(ClassroomApiListCourseWorkRequestTest,
        ListCourseWorkRequestHandlesError) {
-  EXPECT_CALL(
-      request_handler(),
-      HandleRequest(AllOf(
-          Field(&HttpRequest::method, Eq(HttpMethod::METHOD_GET)),
-          Field(&HttpRequest::relative_url,
-                Eq("/v1/courses/course-1/courseWork"
-                   "?fields=courseWork(id%2Ctitle%2Cstate%2CalternateLink"
-                   "%2CcreationTime%2CupdateTime%2CdueDate(year%2Cmonth%2Cday)"
-                   "%2CdueTime(hours%2Cminutes%2Cseconds%2Cnanos)%2CworkType"
-                   "%2Cmaterials(youtubeVideo(title)%2Clink(title)"
-                   "%2Cform(title)%2CguidedLearning(title)%2Cnotebook(title)"
-                   "%2CdriveFile(driveFile(title))))%2CnextPageToken")))))
+  EXPECT_CALL(request_handler(),
+              HandleRequest(
+                  AllOf(Field(&HttpRequest::method, Eq(HttpMethod::METHOD_GET)),
+                        Field(&HttpRequest::relative_url,
+                              Eq(BuildExpectedRelativeUrl(
+                                  GetParam().additional_fields_string))))))
       .WillOnce(Return(ByMove(TestRequestHandler::CreateFailedResponse())));
 
   base::test::TestFuture<
       base::expected<std::unique_ptr<CourseWork>, ApiErrorCode>>
       future;
   auto request = std::make_unique<ListCourseWorkRequest>(
-      request_sender(), /*course_id=*/"course-1",
-      /*page_token=*/"", future.GetCallback());
+      request_sender(), std::string(kCourseId),
+      /*page_token=*/"", GetParam().additional_fields, future.GetCallback());
   request_sender()->StartRequestWithAuthRetry(std::move(request));
   ASSERT_TRUE(future.Wait());
 
   ASSERT_FALSE(future.Get().has_value());
   EXPECT_EQ(future.Get().error(), HTTP_INTERNAL_SERVER_ERROR);
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    ClassroomApiListCourseWorkRequestTest,
+    testing::Values(
+        ClassroomApiListCourseWorkRequestTestCase{
+            .test_name = "NoAdditionalFields",
+            .additional_fields = {},
+            .additional_fields_string = ""},
+        ClassroomApiListCourseWorkRequestTestCase{
+            .test_name = "WorkType",
+            .additional_fields =
+                {ListCourseWorkRequest::AdditionalRequestField::kWorkType},
+            .additional_fields_string = kWorkType},
+        ClassroomApiListCourseWorkRequestTestCase{
+            .test_name = "Materials",
+            .additional_fields =
+                {ListCourseWorkRequest::AdditionalRequestField::kMaterials},
+            .additional_fields_string = kMaterials},
+        ClassroomApiListCourseWorkRequestTestCase{
+            .test_name = "WorkTypeAndMaterials",
+            .additional_fields =
+                {ListCourseWorkRequest::AdditionalRequestField::kWorkType,
+                 ListCourseWorkRequest::AdditionalRequestField::kMaterials},
+            .additional_fields_string = base::StrCat({kWorkType, kMaterials})}),
+    [](const testing::TestParamInfo<
+        ClassroomApiListCourseWorkRequestTest::ParamType>& info) {
+      return info.param.test_name;
+    });
 
 }  // namespace google_apis::classroom

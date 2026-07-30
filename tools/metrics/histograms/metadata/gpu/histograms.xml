@@ -786,7 +786,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.DirectComposition.DCompCommitDuration"
-    units="microseconds" expires_after="2026-10-04">
+    units="microseconds" expires_after="2026-12-06">
   <owner>vasilyt@chromium.org</owner>
   <owner>tangm@microsoft.com</owner>
   <summary>
@@ -1087,7 +1087,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.FallbackEventCause" enum="GPUFallbackEventCauseType"
-    expires_after="2026-10-04">
+    expires_after="2026-12-06">
   <owner>blundell@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@google.com</owner>
   <summary>
@@ -1146,7 +1146,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.GLImplementation" enum="GLImplementation"
-    expires_after="2026-10-04">
+    expires_after="2026-12-06">
   <owner>magchen@chromium.org</owner>
   <owner>zmo@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
@@ -1727,7 +1727,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.ProcessLifetime2" units="seconds"
-    expires_after="2026-10-04">
+    expires_after="2026-12-06">
   <owner>kylechar@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>GPU process lifetime as measured by GPU process host.</summary>
@@ -2396,7 +2396,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Viz.BeginFrameSource.Accuracy.AverageDelta2"
-    units="microseconds" expires_after="2026-10-04">
+    units="microseconds" expires_after="2026-12-06">
   <owner>magchen@chromium.org</owner>
   <owner>ccameron@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
@@ -2744,7 +2744,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Viz.FrameSinkVideoCapturer.CaptureDuration" units="ms"
-    expires_after="2023-07-15">
+    expires_after="2027-06-30">
   <owner>jophba@chromium.org</owner>
   <owner>media-capture-dev@chromium.org</owner>
   <summary>
@@ -2753,11 +2753,14 @@ chromium-metrics-reviews@google.com.
 
     Format-agnostic version of
     `Viz.FrameSinkVideoCapturer.[NV12/I420].CaptureDuration` histograms.
+
+    Warning: this histogram was expired from 2023-07-15 to 2026-06-10; data may
+    be missing.
   </summary>
 </histogram>
 
 <histogram name="Viz.FrameSinkVideoCapturer.CaptureSucceeded"
-    enum="BooleanSuccess" expires_after="2023-07-15">
+    enum="BooleanSuccess" expires_after="2027-06-30">
   <owner>jophba@chromium.org</owner>
   <owner>media-capture-dev@chromium.org</owner>
   <summary>
@@ -2765,21 +2768,27 @@ chromium-metrics-reviews@google.com.
 
     Format-agnostic version of
     `Viz.FrameSinkVideoCapturer.[NV12/I420].CaptureSucceeded` histograms.
+
+    Warning: this histogram was expired from 2023-07-15 to 2026-06-10; data may
+    be missing.
   </summary>
 </histogram>
 
 <histogram name="Viz.FrameSinkVideoCapturer.FrameResurrected" enum="Boolean"
-    expires_after="2023-07-15">
+    expires_after="2027-06-30">
   <owner>jophba@chromium.org</owner>
   <owner>media-capture-dev@chromium.org</owner>
   <summary>
     True if the capturer has used a resurrected video frame, thus avoiding
     having to reserve it from a frame pool, false otherwise.
+
+    Warning: this histogram was expired from 2023-07-15 to 2026-06-10; data may
+    be missing.
   </summary>
 </histogram>
 
 <histogram name="Viz.FrameSinkVideoCapturer.I420.CaptureDuration" units="ms"
-    expires_after="2024-09-29">
+    expires_after="2027-06-30">
   <owner>jophba@chromium.org</owner>
   <owner>media-capture-dev@chromium.org</owner>
   <summary>
@@ -2789,11 +2798,14 @@ chromium-metrics-reviews@google.com.
 
     Warning: this histogram was expired from 2021-03-07 to 2022-03-10; data may
     be missing.
+
+    Warning: this histogram was expired from 2024-09-29 to 2026-06-10; data may
+    be missing.
   </summary>
 </histogram>
 
 <histogram name="Viz.FrameSinkVideoCapturer.I420.CaptureSucceeded"
-    enum="BooleanSuccess" expires_after="2025-05-26">
+    enum="BooleanSuccess" expires_after="2027-06-30">
   <owner>jophba@chromium.org</owner>
   <owner>media-capture-dev@chromium.org</owner>
   <summary>
@@ -2801,11 +2813,14 @@ chromium-metrics-reviews@google.com.
 
     Warning: this histogram was expired from 2020-12-31 to 2022-03-10; data may
     be missing.
+
+    Warning: this histogram was expired from 2025-05-26 to 2026-06-10; data may
+    be missing.
   </summary>
 </histogram>
 
 <histogram name="Viz.FrameSinkVideoCapturer.I420.TotalDuration" units="ms"
-    expires_after="2024-09-29">
+    expires_after="2027-06-30">
   <owner>jophba@chromium.org</owner>
   <owner>media-capture-dev@chromium.org</owner>
   <summary>
@@ -2813,11 +2828,14 @@ chromium-metrics-reviews@google.com.
     I420 frame needs to be produced to the moment when it was ready to deliver
     it. This encompasses the `Viz.FrameSinkVideoCapturer.I420.CaptureDuration`
     time, but also includes time taken to render video capture overlays.
+
+    Warning: this histogram was expired from 2024-09-29 to 2026-06-10; data may
+    be missing.
   </summary>
 </histogram>
 
 <histogram name="Viz.FrameSinkVideoCapturer.NV12.CaptureDuration" units="ms"
-    expires_after="2023-07-15">
+    expires_after="2027-06-30">
   <owner>jophba@chromium.org</owner>
   <owner>media-capture-dev@chromium.org</owner>
   <summary>
@@ -2828,20 +2846,26 @@ chromium-metrics-reviews@google.com.
     `Viz.FrameSinkVideoCapturer.[RGBA/I420].CaptureDuration` histograms behave.
     After the change, this histogram also started including the time taken to
     set the color space on a video frame.
+
+    Warning: this histogram was expired from 2023-07-15 to 2026-06-10; data may
+    be missing.
   </summary>
 </histogram>
 
 <histogram name="Viz.FrameSinkVideoCapturer.NV12.CaptureSucceeded"
-    enum="BooleanSuccess" expires_after="2023-07-15">
+    enum="BooleanSuccess" expires_after="2027-06-30">
   <owner>jophba@chromium.org</owner>
   <owner>media-capture-dev@chromium.org</owner>
   <summary>
     Whether an NV12 capture initiated by FrameSinkVideoCapturerImpl succeeded.
+
+    Warning: this histogram was expired from 2023-07-15 to 2026-06-10; data may
+    be missing.
   </summary>
 </histogram>
 
 <histogram name="Viz.FrameSinkVideoCapturer.NV12.TotalDuration" units="ms"
-    expires_after="2023-07-15">
+    expires_after="2027-06-30">
   <owner>jophba@chromium.org</owner>
   <owner>media-capture-dev@chromium.org</owner>
   <summary>
@@ -2849,6 +2873,9 @@ chromium-metrics-reviews@google.com.
     NV12 frame needs to be produced to the moment when it was ready to deliver
     it. This encompasses the `Viz.FrameSinkVideoCapturer.NV12.CaptureDuration`
     time.
+
+    Warning: this histogram was expired from 2023-07-15 to 2026-06-10; data may
+    be missing.
   </summary>
 </histogram>
 

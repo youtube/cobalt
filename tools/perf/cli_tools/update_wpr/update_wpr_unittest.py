@@ -10,8 +10,6 @@ import re
 import unittest
 from unittest import mock
 
-import six
-
 from cli_tools.update_wpr import update_wpr
 from core import cli_helpers
 from core.services import request
@@ -19,9 +17,6 @@ from core.services import request
 
 WPR_UPDATER = 'cli_tools.update_wpr.update_wpr.'
 
-BUILTIN_MODULE = '__builtin__' if six.PY2 else 'builtins'
-
-# This is \\<story\\> in Python 2 and <story> in Python 3.
 ESCAPED_STORY = re.escape('<story>')
 
 def mock_exists(path):
@@ -37,7 +32,7 @@ class UpdateWprTest(unittest.TestCase):
     self._check_call = mock.patch('subprocess.check_call').start()
     self._info = mock.patch('core.cli_helpers.Info').start()
     self._comment = mock.patch('core.cli_helpers.Comment').start()
-    self._open = mock.patch(BUILTIN_MODULE + '.open').start()
+    self._open = mock.patch('builtins.open').start()
     datetime = mock.patch('datetime.datetime').start()
     datetime.now.return_value.strftime.return_value = '<tstamp>'
 

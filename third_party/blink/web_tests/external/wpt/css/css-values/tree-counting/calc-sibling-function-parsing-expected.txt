@@ -1,0 +1,7 @@
+This is a testharness.js-based test.
+[FAIL] e.style['rotate'] = "calc(sibling-index() * 2rad * pi)" should set the property value
+  assert_equals: serialization should be canonical expected "calc(360deg * sibling-index())" but got "calc(3.14159 * 114.592deg * sibling-index())"
+[FAIL] e.style['rotate'] = "calc(sibling-count() * 1rad * pi)" should set the property value
+  assert_equals: serialization should be canonical expected "calc(180deg * sibling-count())" but got "calc(3.14159 * 57.2958deg * sibling-count())"
+Harness: the test ran to completion.
+

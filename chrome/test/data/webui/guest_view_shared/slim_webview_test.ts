@@ -481,4 +481,66 @@ suite('Requests', function() {
 
     await failurePromise;
   });
+
+  test('UserAgentOverride', async function() {
+    const webviewUrl =
+        getTestUrl('/webui/guest_view_shared/eval_post_message.html');
+    const webview = document.createElement('webview');
+
+    // 1. Test initial getUserAgent().
+    assertEquals(navigator.userAgent, webview.getUserAgent());
+
+    // 2. Set override before guest creation (creation-time parameter passing).
+    const customUa = 'CustomTestUserAgent';
+    webview.setUserAgentOverride(customUa);
+    assertEquals(customUa, webview.getUserAgent());
+
+    document.body.appendChild(webview);
+    await navigateAndWaitForContentLoad(webview, webviewUrl);
+
+    // 3. Verify navigator.userAgent inside the guest context.
+    const guestUa = await evalOnWebview(webview, () => {
+      return navigator.userAgent;
+    });
+    assertEquals(customUa, guestUa);
+
+    // 4. Verify HTTP User-Agent header captured by the test server.
+    const capturedHeaders = await evalOnWebview(webview, async () => {
+      const response = await fetch('/capture-headers');
+      return await response.json();
+    });
+
+    const mainFrameHeaders =
+        capturedHeaders['/webui/guest_view_shared/eval_post_message.html'];
+    assertTrue(!!mainFrameHeaders);
+    assertEquals(customUa, mainFrameHeaders['User-Agent']);
+
+    const fetchHeaders = capturedHeaders['/capture-headers'];
+    assertTrue(!!fetchHeaders);
+    assertEquals(customUa, fetchHeaders['User-Agent']);
+
+    // 5. Test dynamic override update after guest is active.
+    const customUa2 = 'AnotherCustomTestUserAgent';
+    webview.setUserAgentOverride(customUa2);
+    assertEquals(customUa2, webview.getUserAgent());
+
+    const capturedHeaders2 = await evalOnWebview(webview, async () => {
+      const response = await fetch('/capture-headers');
+      return await response.json();
+    });
+    const fetchHeaders2 = capturedHeaders2['/capture-headers'];
+    assertTrue(!!fetchHeaders2);
+    assertEquals(customUa2, fetchHeaders2['User-Agent']);
+
+    // 6. Test that the user agent is reset after removing the override.
+    webview.setUserAgentOverride('');
+    assertEquals(navigator.userAgent, webview.getUserAgent());
+    const capturedHeaders3 = await evalOnWebview(webview, async () => {
+      const response = await fetch('/capture-headers');
+      return await response.json();
+    });
+    const fetchHeaders3 = capturedHeaders3['/capture-headers'];
+    assertTrue(!!fetchHeaders3);
+    assertEquals(navigator.userAgent, fetchHeaders3['User-Agent']);
+  });
 });

@@ -46,7 +46,7 @@ const struct {
     {"com.google.android.apps.maps", "lneaknkopdijkpnocmklfnjbeapigfbh"},
     // Calculator
     {"com.google.android.calculator", "joodangkbfjnajiiifokapkpmhfnpleo"},
-    // Google Calender
+    // Google Calendar
     {"com.google.android.calendar", "ejjicmeblgpmajnghnpcppodonldlgfn"},
     {"com.google.android.calendar", "fpgfohogebplgnamlafljlcidjedbdeb"},
     // Google Docs

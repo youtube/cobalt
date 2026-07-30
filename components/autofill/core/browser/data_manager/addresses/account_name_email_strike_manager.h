@@ -31,9 +31,8 @@ class AccountNameEmailStrikeManager : AutofillManager::Observer {
   // AutofillManager::Observer:
   // Sets `was_name_email_suggestion_shown_` if any of the showed suggesions
   // contained kAccountNameEmail profile.
-  void OnSuggestionsShown(
-      autofill::AutofillManager& manager,
-      base::span<const autofill::Suggestion> suggestions) override;
+  void OnSuggestionsShown(AutofillManager& manager,
+                          base::span<const Suggestion> suggestions) override;
   // Checks if the kAccountNameEmail profile was filled.
   void OnFillOrPreviewForm(
       AutofillManager& manager,

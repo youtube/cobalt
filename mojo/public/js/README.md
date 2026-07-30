@@ -218,6 +218,30 @@ See
 [this document](https://www.chromium.org/developers/design-documents/mojo/associated-interfaces)
 for more details.
 
+## Unions
+
+To determine which member is currently set, a helper function
+`which<UnionName>` and a companion enum `<UnionName>FieldTags` are generated.
+
+```typescript
+import {whichMyUnion, MyUnionFieldTags} from './my_union.mojom-webui.js';
+import type {MyUnion} from './my_union.mojom-webui.js';
+
+function handleUnion(u: MyUnion) {
+  switch (whichMyUnion(u)) {
+    case MyUnionFieldTags.AN_INT:
+      // u.anInt is defined.
+      // Note: You may need to use the non-null assertion operator (!)
+      // as the field is optional in the interface.
+      console.log(u.anInt!);
+      break;
+    case MyUnionFieldTags.A_STRING:
+      console.log(u.aString!);
+      break;
+  }
+}
+```
+
 ## Automatic and Manual Dependency Loading
 
 By default, generated `.mojom.js` files automatically load Mojom dependencies.

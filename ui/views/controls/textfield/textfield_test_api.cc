@@ -17,6 +17,10 @@ void TextfieldTestApi::UpdateContextMenu() {
   textfield_->UpdateContextMenu();
 }
 
+void TextfieldTestApi::SetInitiatingDrag(bool initiating_drag) {
+  textfield_->initiating_drag_ = initiating_drag;
+}
+
 gfx::RenderText* TextfieldTestApi::GetRenderText() const {
   return textfield_->GetRenderText();
 }

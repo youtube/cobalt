@@ -147,6 +147,9 @@ public class TabProperties {
     public static final WritableObjectPropertyKey<TabListFaviconProvider.TabFaviconFetcher>
             FAVICON_FETCHER = new WritableObjectPropertyKey<>();
 
+    /** Indicator that the tab is currently loading resources. */
+    public static final WritableBooleanPropertyKey IS_LOADING = new WritableBooleanPropertyKey();
+
     public static final WritableObjectPropertyKey<ThumbnailFetcher> THUMBNAIL_FETCHER =
             new WritableObjectPropertyKey<>(true);
 
@@ -269,7 +272,8 @@ public class TabProperties {
                         IS_COLLAPSED,
                         TAB_GROUP_ID,
                         TAB_GROUP_HEADER_ID,
-                        MEDIA_INDICATOR
+                        MEDIA_INDICATOR,
+                        IS_LOADING
                     },
                     COMMON_KEYS_TAB_AND_GROUP_GRID);
 
@@ -311,6 +315,7 @@ public class TabProperties {
                 FAVICON_FETCHER,
                 IS_COLLAPSED,
                 IS_INCOGNITO,
+                IS_LOADING,
                 IS_PINNED,
                 IS_SELECTED,
                 TAB_ACTION_BUTTON_DATA,

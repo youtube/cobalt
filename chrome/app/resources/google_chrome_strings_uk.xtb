@@ -398,6 +398,7 @@ Google Chrome потрібен доступ до Bluetooth. <ph name="IDS_SERIAL
 <translation id="5234764350956374838">Закрити</translation>
 <translation id="5239627039202700673">Тепер ви можете відкривати в Chrome посилання з повідомлень, документів і інших додатків</translation>
 <translation id="5251420635869119124">Гості можуть анонімно користуватися Chrome.</translation>
+<translation id="5271833978500241046">Використовуйте їх разом з іншими функціями Gemini у Chrome</translation>
 <translation id="5286907366254680517">Визначено</translation>
 <translation id="5320351714793324716">Якщо ви дозволите файли cookie, Chrome може використовувати їх під час попереднього завантаження</translation>
 <translation id="5321325624576443340">Google Об’єктив недоступний. Повторіть спробу пізніше.</translation>
@@ -434,15 +435,6 @@ Google Chrome потрібен доступ до Bluetooth. <ph name="IDS_SERIAL
 <translation id="569897634095159764">Не вдалося підключитися до Інтернету. Потрібна автентифікація на проксі-сервері.</translation>
 <translation id="5709557627224531708">Зробіть Chrome веб-переглядачем за умовчанням</translation>
 <translation id="5719246646468301581">Додаткові умови використання Google Chrome і ChromeOS</translation>
-<translation id="5719324992913248873">Якщо виконати цю дію:
-        <ph name="LINE_BREAKS" />
-          • деякі налаштування і ярлики Chrome буде скинуто;
-          <ph name="LINE_BREAK" />
-          • розширення буде вимкнено;
-          <ph name="LINE_BREAK" />
-          • файли cookie й інші тимчасові дані сайтів буде видалено.
-          <ph name="LINE_BREAKS" />
-          Це не вплине на закладки, історію і збережені паролі.</translation>
 <translation id="5736850870166430177">Якщо сайт намагається викрасти ваш пароль або ви завантажуєте шкідливий файл, Chrome також може надсилати в Безпечний перегляд URL-адреси, зокрема уривки контенту сторінки</translation>
 <translation id="5756509061973259733">Профіль Chrome із цим обліковим записом уже існує на цьому пристрої</translation>
 <translation id="5759947850379142561">Виберіть будь-який текст чи зображення, за яким потрібно виконати пошук через Google Об’єктив, або натисніть клавішу Escape, щоб вийти</translation>
@@ -640,6 +632,7 @@ Google Chrome потрібен доступ до Bluetooth. <ph name="IDS_SERIAL
 <translation id="7606334485649076285">ОС Google Chrome Flex</translation>
 <translation id="7627609214560473136">Щоб захистити ваші дані, дозвольте Chrome скасовувати дозволи для сайтів, які ви останнім часом не відвідували.</translation>
 <translation id="7629695634924605473">Якщо ваші паролі колись викрадуть, Chrome повідомить вас про це</translation>
+<translation id="7629898584100520089">Функції і інші інновації на основі ШІ зберігаються у вашому обліковому записі Google і налаштовуються окремо від синхронізації Chrome</translation>
 <translation id="7641148173327520642">Ваш системний адміністратор налаштував Google Chrome відкривати сторінку <ph name="TARGET_URL_HOSTNAME" /> в <ph name="ALTERNATIVE_BROWSER_NAME" />.</translation>
 <translation id="7649070708921625228">Довідка</translation>
 <translation id="7651907282515937834">Логотип Chrome Enterprise</translation>

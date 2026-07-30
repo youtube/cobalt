@@ -50,10 +50,6 @@
 /// Data source for providing information to the pickers.
 @protocol ComposeboxPickerPresenterDataSource
 
-// Returns the associated IDs for all currently attached tabs.
-- (std::set<web::WebStateID>)allAttachedWebStateIDsForPresenter:
-    (ComposeboxPickerPresenter*)presenter;
-
 // Returns the associated IDs for currently attached tabs from the current web
 // state context.
 - (std::set<web::WebStateID>)attachedWebStateIDsInCurrentContextForPresenter:

@@ -24,9 +24,6 @@ static_library("arc") {
     "//chrome/browser/ash/arc",
     "//chrome/browser/ash/arc:arc_util",
     "//chrome/browser/ash/arc/fileapi",
-    "//chrome/browser/ash/arc/intent_helper",
-    "//chrome/browser/ash/arc/notification",
-    "//chrome/browser/ash/arc/print_spooler",
     "//chrome/browser/ash/browser_delegate",
     "//chrome/browser/ash/file_manager",
     "//chrome/browser/ash/fileapi",
@@ -55,11 +52,6 @@ static_library("arc") {
     "//ui/gfx",
     "//url",
   ]
-
-  allow_circular_includes_from = [
-    "//chrome/browser/ash/arc/notification",
-    "//chrome/browser/ash/arc/print_spooler",
-  ]
 }
 
 source_set("unit_tests") {
@@ -72,6 +64,7 @@ source_set("unit_tests") {
     "//ash:test_support",
     "//base",
     "//chrome/browser/ui",
+    "//chrome/browser/ui/views:layout_provider",
     "//chrome/test:test_support_unit",
     "//chromeos/ash/experiences/arc",
     "//chromeos/ash/experiences/arc/vm_data_migration",

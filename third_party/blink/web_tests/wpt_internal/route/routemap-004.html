@@ -7,20 +7,20 @@
   {
     "routes": [
       {
-        "name": "r1",
+        "name": "--r1",
         "pattern": [ "/*/route/*.html" ]
       },
       {
-        "name": "r2",
-        "pattern": { "pathname": "/*/match-later-r2" }
+        "name": "--r2",
+        "pattern": { "pathname": "/*/match-later---r2" }
       },
       {
-        "name": "r3",
-        "pattern": { "pathname": "/*/match-later-r3" }
+        "name": "--r3",
+        "pattern": { "pathname": "/*/match-later---r3" }
       },
       {
-        "name": "r4",
-        "pattern": { "pathname": "/*/match-later-r4*" }
+        "name": "--r4",
+        "pattern": { "pathname": "/*/match-later---r4*" }
       }
     ]
   }
@@ -31,50 +31,50 @@
     height: 7px;
   }
 
-  @navigation (at: r1) {
+  @navigation (at: --r1) {
     #target {
       width: 100px;
     }
   }
 
-  @navigation (from: r1) {
+  @navigation (from: --r1) {
     #target {
       padding-top: 20px;
     }
   }
 
-  @navigation (to: r2) {
+  @navigation (to: --r2) {
     #target {
       padding-bottom: 30px;
     }
   }
 
-  @navigation (at: r2) {
+  @navigation (at: --r2) {
     #target {
       height: 90px;
     }
   }
 
-  @navigation (from: r2) {
+  @navigation (from: --r2) {
     #target {
       margin-left: 70px;
     }
   }
 
-  @navigation (to: r4) {
+  @navigation (to: --r4) {
     #target {
       margin-right: 80px;
     }
   }
 
   /* These should never match in the test. */
-  @navigation (to: r1) {
+  @navigation (to: --r1) {
     #target {
       padding-left: 666px;
     }
   }
 
-  @navigation (from: r4) {
+  @navigation (from: --r4) {
     #target {
       padding-right: 666px;
     }
@@ -120,53 +120,53 @@
 
     entrychange = Promise.withResolvers();
     finished = Promise.withResolvers();
-    navigation.navigate("match-later-r2");
+    navigation.navigate("match-later---r2");
     await entrychange.promise;
-    // "at:r2", "from:r1", and "to:r2" should match.
-    assert_equals(getComputedStyle(target).width, "7px", "to r2");
-    assert_equals(getComputedStyle(target).height, "90px", "to r2");
-    assert_equals(getComputedStyle(target).paddingTop, "20px", "to r2");
-    assert_equals(getComputedStyle(target).paddingBottom, "30px", "to r2");
-    assert_equals(getComputedStyle(target).marginLeft, "0px", "to r2");
-    assert_equals(getComputedStyle(target).marginRight, "0px", "to r2");
-    assert_invariants("to r2");
+    // "at:--r2", "from:--r1", and "to:--r2" should match.
+    assert_equals(getComputedStyle(target).width, "7px", "to --r2");
+    assert_equals(getComputedStyle(target).height, "90px", "to --r2");
+    assert_equals(getComputedStyle(target).paddingTop, "20px", "to --r2");
+    assert_equals(getComputedStyle(target).paddingBottom, "30px", "to --r2");
+    assert_equals(getComputedStyle(target).marginLeft, "0px", "to --r2");
+    assert_equals(getComputedStyle(target).marginRight, "0px", "to --r2");
+    assert_invariants("to --r2");
     await finished.promise;
     // Nothing should match when there's no active navigation.
-    assert_no_matches("at r2");
-    assert_invariants("at r2");
+    assert_no_matches("at --r2");
+    assert_invariants("at --r2");
 
     entrychange = Promise.withResolvers();
     finished = Promise.withResolvers();
-    navigation.navigate("match-later-r3");
+    navigation.navigate("match-later---r3");
     await entrychange.promise;
-    // "from:r2" should match.
-    assert_equals(getComputedStyle(target).width, "7px", "to r3");
-    assert_equals(getComputedStyle(target).height, "7px", "to r3");
-    assert_equals(getComputedStyle(target).paddingTop, "0px", "to r3");
-    assert_equals(getComputedStyle(target).paddingBottom, "0px", "to r3");
-    assert_equals(getComputedStyle(target).marginLeft, "70px", "to r3");
-    assert_equals(getComputedStyle(target).marginRight, "0px", "to r3");
-    assert_invariants("to r3");
+    // "from:--r2" should match.
+    assert_equals(getComputedStyle(target).width, "7px", "to --r3");
+    assert_equals(getComputedStyle(target).height, "7px", "to --r3");
+    assert_equals(getComputedStyle(target).paddingTop, "0px", "to --r3");
+    assert_equals(getComputedStyle(target).paddingBottom, "0px", "to --r3");
+    assert_equals(getComputedStyle(target).marginLeft, "70px", "to --r3");
+    assert_equals(getComputedStyle(target).marginRight, "0px", "to --r3");
+    assert_invariants("to --r3");
     await finished.promise;
     // Nothing should match when there's no active navigation.
-    assert_no_matches("at r3");
-    assert_invariants("at r3");
+    assert_no_matches("at --r3");
+    assert_invariants("at --r3");
 
     entrychange = Promise.withResolvers();
     finished = Promise.withResolvers();
-    navigation.navigate("match-later-r4");
+    navigation.navigate("match-later---r4");
     await entrychange.promise;
-    // "to:r4" should match.
-    assert_equals(getComputedStyle(target).width, "7px", "to r4");
-    assert_equals(getComputedStyle(target).height, "7px", "to r4");
-    assert_equals(getComputedStyle(target).paddingTop, "0px", "to r4");
-    assert_equals(getComputedStyle(target).paddingBottom, "0px", "to r4");
-    assert_equals(getComputedStyle(target).marginLeft, "0px", "to r4");
-    assert_equals(getComputedStyle(target).marginRight, "80px", "to r4");
+    // "to:--r4" should match.
+    assert_equals(getComputedStyle(target).width, "7px", "to --r4");
+    assert_equals(getComputedStyle(target).height, "7px", "to --r4");
+    assert_equals(getComputedStyle(target).paddingTop, "0px", "to --r4");
+    assert_equals(getComputedStyle(target).paddingBottom, "0px", "to --r4");
+    assert_equals(getComputedStyle(target).marginLeft, "0px", "to --r4");
+    assert_equals(getComputedStyle(target).marginRight, "80px", "to --r4");
     assert_invariants();
     await finished.promise;
     // Nothing should match when there's no active navigation.
-    assert_no_matches("at r4");
-    assert_invariants("at r4");
+    assert_no_matches("at --r4");
+    assert_invariants("at --r4");
   }, "Between routes");
 </script>

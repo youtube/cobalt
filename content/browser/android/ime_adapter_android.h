@@ -89,6 +89,7 @@ class CONTENT_EXPORT ImeAdapterAndroid : public RenderWidgetHostConnector {
   void HandleStylusWritingGestureAction(JNIEnv*,
                                         const int32_t,
                                         const base::android::JavaRef<jobject>&);
+  void CancelPreviewGesture();
 
   void OnStylusWritingGestureActionCompleted(
       int,

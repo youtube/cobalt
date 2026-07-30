@@ -11,6 +11,8 @@
 #include <memory>
 
 #include "base/compiler_specific.h"
+#include "base/containers/span.h"
+#include "base/containers/to_vector.h"
 #include "base/feature_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -59,23 +61,21 @@ class WaylandGamepadVibratorImpl : public GamepadObserver {
   void OnVibrate(wl_array* duration_millis,
                  wl_array* amplitudes,
                  int32_t repeat) {
-    std::vector<int64_t> extracted_durations;
-    int64_t* p;
-    const uint8_t* duration_millis_end = UNSAFE_TODO(
-        static_cast<uint8_t*>(duration_millis->data) + duration_millis->size);
-    for (p = static_cast<int64_t*>(duration_millis->data);
-         (const uint8_t*)p < duration_millis_end; UNSAFE_TODO(p++)) {
-      extracted_durations.emplace_back(*p);
-    }
+    // SAFETY: wl_array data is guaranteed to be valid for its size in bytes.
+    // We interpret it as a span of int64_t.
+    auto duration_span =
+        UNSAFE_BUFFERS(base::span(static_cast<int64_t*>(duration_millis->data),
+                                  duration_millis->size / sizeof(int64_t)));
+    std::vector<int64_t> extracted_durations = base::ToVector(duration_span);
 
-    const uint8_t* amplitudes_start = static_cast<uint8_t*>(amplitudes->data);
-    size_t amplitude_size = amplitudes->size / sizeof(uint8_t);
-    const uint8_t* amplitudes_end =
-        UNSAFE_TODO(amplitudes_start + amplitude_size);
-    std::vector<uint8_t> extracted_amplitudes(amplitudes_start, amplitudes_end);
+    // SAFETY: wl_array data is guaranteed to be valid for its size in bytes.
+    auto amplitudes_span = UNSAFE_BUFFERS(
+        base::span(static_cast<uint8_t*>(amplitudes->data), amplitudes->size));
+    std::vector<uint8_t> extracted_amplitudes = base::ToVector(amplitudes_span);
 
-    if (gamepad_)
+    if (gamepad_) {
       gamepad_->Vibrate(extracted_durations, extracted_amplitudes, repeat);
+    }
   }
 
   void OnCancelVibration() {
@@ -212,7 +212,12 @@ class WaylandGamepadDelegate : public GamepadDelegate {
       uint64_t* wl_key_bits_ptr =
           static_cast<uint64_t*>(wl_array_add(&wl_key_bits, key_bits_len));
       if (wl_key_bits_ptr) {
-        UNSAFE_TODO(memcpy(wl_key_bits_ptr, key_bits.data(), key_bits_len));
+        // SAFETY: wl_array_add allocated key_bits_len bytes, which is
+        // key_bits.size() * sizeof(uint64_t) bytes. wl_key_bits_ptr is
+        // uint64_t*, so the span size is key_bits.size().
+        auto dest_span =
+            UNSAFE_BUFFERS(base::span(wl_key_bits_ptr, key_bits.size()));
+        dest_span.copy_from(key_bits);
         zcr_gamepad_v2_send_supported_key_bits(gamepad_resource_, &wl_key_bits);
       }
       wl_array_release(&wl_key_bits);

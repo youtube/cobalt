@@ -9,7 +9,9 @@ assert(enable_dice_support)
 
 mojom("mojo_bindings") {
   sources = [
+    "default_browser.mojom",
     "feature_showcase.mojom",
+    "google_lens.mojom",
     "password_manager.mojom",
   ]
   webui_module_path = "/"
@@ -17,10 +19,14 @@ mojom("mojo_bindings") {
 
 source_set("feature_showcase") {
   sources = [
+    "default_browser_handler.cc",
+    "default_browser_handler.h",
     "feature_showcase_handler.cc",
     "feature_showcase_handler.h",
     "feature_showcase_ui.cc",
     "feature_showcase_ui.h",
+    "google_lens_handler.cc",
+    "google_lens_handler.h",
     "password_manager_handler.cc",
     "password_manager_handler.h",
   ]
@@ -34,16 +40,30 @@ source_set("feature_showcase") {
   deps = [
     "//base",
     "//chrome/app/theme:chrome_unscaled_resources",
+    "//chrome/browser:browser_process",
+    "//chrome/browser:shell_integration",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/regional_capabilities",
     "//chrome/browser/resources/feature_showcase:resources",
     "//chrome/browser/resources/intro:resources",
     "//chrome/browser/ui/actions:actions_headers",
+    "//chrome/browser/ui/lens",
     "//chrome/browser/ui/toolbar/pinned_toolbar",
+    "//chrome/browser/ui/webui/intro",
     "//chrome/common:constants",
+    "//components/lens",
+    "//components/lens:enterprise_policy",
+    "//components/prefs",
     "//components/regional_capabilities",
     "//components/signin/public/base:signin_switches",
     "//content/public/browser",
     "//ui/webui",
   ]
+
+  if (is_win) {
+    deps += [
+      "//chrome/browser/win",
+      "//chrome/installer/util:with_no_strings",
+    ]
+  }
 }

@@ -199,6 +199,12 @@ class SQLDatabaseTest : public Test, public WithParamInterface<bool> {
   std::unique_ptr<Database> db_;
 };
 
+TEST_P(SQLDatabaseTest, CloseReportsElapsedTimeHistogram) {
+  base::HistogramTester tester;
+  db_->Close();
+  tester.ExpectTotalCount("Sql.Database.DatabaseCloseTime.Test", 1);
+}
+
 TEST_P(SQLDatabaseTest, Execute_ValidStatement) {
   ASSERT_TRUE(db_->Execute("CREATE TABLE data(contents TEXT)"));
   EXPECT_EQ(SQLITE_OK, db_->GetErrorCode());

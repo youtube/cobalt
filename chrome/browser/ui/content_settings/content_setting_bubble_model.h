@@ -94,8 +94,15 @@ class ContentSettingBubbleModel {
     bool has_link;
     bool has_blocked_badge;
     int32_t item_id;
+    // The original GURL of the item. Only populated and valid if the list item
+    // represents a URL (e.g. popups or redirects) where secure, dynamic elision
+    // in the UI is required.
+    GURL url;
   };
   typedef std::vector<ListItem> ListItems;
+
+  static std::u16string FormatTitleWithBullet(const std::u16string& title);
+  static std::u16string FormatUrlWithBullet(const GURL& url);
 
   class Owner {
    public:

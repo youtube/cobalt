@@ -605,17 +605,19 @@ void LensQueryFlowRouter::SendInteractionToContextualTasks(
     if (!overlay_tab_context_file_token_.has_value()) {
       force_tabs.push_back(tab_interface()->GetHandle().raw_value());
     }
-    query_contextualizer_->Contextualize(
-        /*task_id=*/std::nullopt, pending_search_url_request_->query_text,
-        /*tabs_to_recontextualize=*/{},
-        /*tabs_to_force_contextualize=*/force_tabs,
-        /*on_ineligible_callback=*/
+    contextual_tasks::QueryContextualizer::ContextualizeParams params;
+    params.task_id = std::nullopt;
+    params.query_text = pending_search_url_request_->query_text;
+    params.tabs_for_contextual_searchbox_first_turn = force_tabs;
+    params.on_ineligible_callback =
         base::BindRepeating(&LensQueryFlowRouter::ShowContextualTasksErrorPage,
-                            weak_factory_.GetWeakPtr()),
-        /*on_processed_callback=*/base::DoNothing(),
+                            weak_factory_.GetWeakPtr());
+    params.on_processed_callback = base::DoNothing();
+    params.complete_callback =
         base::BindOnce(&LensQueryFlowRouter::OnContextualizedComplete,
-                       weak_factory_.GetWeakPtr()),
-        /*enable_smart_tab_selection=*/false);
+                       weak_factory_.GetWeakPtr());
+    params.enable_smart_tab_selection = false;
+    query_contextualizer_->Contextualize(std::move(params));
     return;
   }
 
@@ -733,17 +735,18 @@ void LensQueryFlowRouter::UploadContextualInputData(
         pending_search_url_request_->search_url_type == SearchUrlType::kAim;
 
     if (is_contextual_text_query && query_contextualizer_) {
-      query_contextualizer_->Contextualize(
-          /*task_id=*/std::nullopt, pending_search_url_request_->query_text,
-          /*tabs_to_recontextualize=*/{}, /*tabs_to_force_contextualize=*/{},
-          /*on_ineligible_callback=*/
-          base::BindRepeating(
-              &LensQueryFlowRouter::ShowContextualTasksErrorPage,
-              weak_factory_.GetWeakPtr()),
-          /*on_processed_callback=*/base::DoNothing(),
+      contextual_tasks::QueryContextualizer::ContextualizeParams params;
+      params.task_id = std::nullopt;
+      params.query_text = pending_search_url_request_->query_text;
+      params.on_ineligible_callback = base::BindRepeating(
+          &LensQueryFlowRouter::ShowContextualTasksErrorPage,
+          weak_factory_.GetWeakPtr());
+      params.on_processed_callback = base::DoNothing();
+      params.complete_callback =
           base::BindOnce(&LensQueryFlowRouter::OnContextualizedComplete,
-                         weak_factory_.GetWeakPtr()),
-          /*enable_smart_tab_selection=*/true);
+                         weak_factory_.GetWeakPtr());
+      params.enable_smart_tab_selection = true;
+      query_contextualizer_->Contextualize(std::move(params));
       return;
     }
 

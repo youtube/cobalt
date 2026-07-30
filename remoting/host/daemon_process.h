@@ -16,7 +16,9 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/process/process.h"
 #include "base/time/time.h"
+#include "mojo/core/embedder/scoped_ipc_support.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
+#include "mojo/public/cpp/bindings/associated_remote.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/bindings/scoped_interface_endpoint_handle.h"
 #include "mojo/public/cpp/system/message_pipe.h"
@@ -26,7 +28,9 @@
 #include "remoting/host/host_status_observer.h"
 #include "remoting/host/mojom/chromoting_host_services.mojom.h"
 #include "remoting/host/mojom/desktop_session.mojom.h"
+#include "remoting/host/mojom/remoting_host.mojom.h"
 #include "remoting/host/worker_process_ipc_delegate.h"
+#include "remoting/host/worker_process_launcher.h"
 
 namespace base {
 class Location;
@@ -102,7 +106,7 @@ class DaemonProcess : public ConfigWatcher::Delegate,
   // on success, false otherwise.
   virtual bool OnDesktopSessionAgentAttached(
       int terminal_id,
-      mojo::ScopedMessagePipeHandle desktop_pipe) = 0;
+      mojo::ScopedMessagePipeHandle desktop_pipe);
 
   // Requests the network process to crash.
   void CrashNetworkProcess(const base::Location& location);
@@ -155,21 +159,21 @@ class DaemonProcess : public ConfigWatcher::Delegate,
       int terminal_id,
       const mojom::DesktopSessionOptions& options) = 0;
 
-  // Requests the network process to crash.
-  virtual void DoCrashNetworkProcess(const base::Location& location) = 0;
-
   // Launches the network process and establishes an IPC channel with it.
   virtual void LaunchNetworkProcess() = 0;
 
-  // Sends |serialized_config| to the network process. The config includes
-  // details such as the host owner email and robot account refresh token which
-  // are required to start the host and get online.
-  virtual void SendHostConfigToNetworkProcess(
-      const std::string& serialized_config) = 0;
+  // Platform-specific initialization after the IPC channel is connected.
+  virtual bool OnInitAfterChannelConnected(int32_t peer_pid);
 
-  // Notifies the network process that the daemon has disconnected the desktop
-  // session from the associated desktop environment.
-  virtual void SendTerminalDisconnected(int terminal_id) = 0;
+  // Virtual for testing.
+  virtual void SendHostConfigToNetworkProcess(
+      const std::string& serialized_config);
+
+  // Virtual for testing.
+  virtual void SendTerminalDisconnected(int terminal_id);
+
+  // Requests the network process to crash. Virtual for testing.
+  virtual void DoCrashNetworkProcess(const base::Location& location);
 
   scoped_refptr<AutoThreadTaskRunner> caller_task_runner() {
     return caller_task_runner_;
@@ -191,7 +195,26 @@ class DaemonProcess : public ConfigWatcher::Delegate,
     return host_services_receivers_;
   }
 
+  bool IsNetworkProcessReady() const {
+    return remoting_host_control_.is_bound() &&
+           desktop_session_connection_events_.is_bound();
+  }
+
+  void SetNetworkLauncherDelegate(
+      std::unique_ptr<WorkerProcessLauncher::Delegate> delegate);
+
+  mojom::RemotingHostControl* remoting_host_control() {
+    return remoting_host_control_.get();
+  }
+
+  mojom::DesktopSessionConnectionEvents* desktop_session_connection_events() {
+    return desktop_session_connection_events_.get();
+  }
+
  private:
+  // Binds associated interfaces to the network process launcher.
+  void BindAssociatedInterfaces();
+
   // Deletes all desktop sessions.
   void DeleteAllDesktopSessions();
 
@@ -200,6 +223,17 @@ class DaemonProcess : public ConfigWatcher::Delegate,
 
   // Handles IPC and background I/O tasks.
   scoped_refptr<AutoThreadTaskRunner> io_task_runner_;
+
+  // Mojo keeps the task runner passed to it alive forever, so an
+  // AutoThreadTaskRunner should not be passed to it. Otherwise, the process may
+  // never shut down cleanly.
+  mojo::core::ScopedIPCSupport ipc_support_;
+
+  std::unique_ptr<WorkerProcessLauncher> network_launcher_;
+
+  mojo::AssociatedRemote<mojom::DesktopSessionConnectionEvents>
+      desktop_session_connection_events_;
+  mojo::AssociatedRemote<mojom::RemotingHostControl> remoting_host_control_;
 
   std::unique_ptr<ConfigWatcher> config_watcher_;
 

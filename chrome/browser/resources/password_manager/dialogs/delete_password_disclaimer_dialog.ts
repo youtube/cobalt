@@ -9,6 +9,7 @@ import '../shared_style.css.js';
 import type {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import type {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
+import {htmlEscape} from 'chrome://resources/js/util.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import type {PasswordManagerProxy} from '../password_manager_proxy.js';
@@ -85,10 +86,11 @@ export class DeletePasswordDisclaimerDialogElement extends
       return window.trustedTypes!.emptyHTML;
     }
 
+    const escapedOrigin = htmlEscape(this.origin ?? '');
     return this.i18nAdvanced('deletePasswordConfirmationDescription', {
       substitutions: [
-        this.origin,
-        `<a href='${this.actionUrl}' target='_blank'>${this.origin}</a>`,
+        escapedOrigin,
+        `<a href='${this.actionUrl}' target='_blank'>${escapedOrigin}</a>`,
       ],
     });
   }

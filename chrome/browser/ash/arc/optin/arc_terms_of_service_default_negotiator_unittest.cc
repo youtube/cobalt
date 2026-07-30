@@ -74,24 +74,24 @@ using OwnershipStatus = ash::DeviceSettingsService::OwnershipStatus;
 class TestUserMetricsServiceClient
     : public ::metrics::TestMetricsServiceClient {
  public:
-  std::optional<bool> GetCurrentUserMetricsConsent() const override {
-    if (should_use_user_consent_) {
-      return current_user_metrics_consent_;
+  std::optional<bool> GetCurrentUserMetricsChoice() const override {
+    if (should_use_user_choice_) {
+      return current_user_choice_;
     }
     return std::nullopt;
   }
 
-  void UpdateCurrentUserMetricsConsent(bool metrics_consent) override {
-    current_user_metrics_consent_ = metrics_consent;
+  void UpdateCurrentUserMetricsChoice(bool user_choice) override {
+    current_user_choice_ = user_choice;
   }
 
-  void SetShouldUseUserConsent(bool should_use_user_consent) {
-    should_use_user_consent_ = should_use_user_consent;
+  void SetShouldUseUserChoice(bool should_use_user_choice) {
+    should_use_user_choice_ = should_use_user_choice;
   }
 
  private:
-  bool should_use_user_consent_ = false;
-  bool current_user_metrics_consent_ = false;
+  bool should_use_user_choice_ = false;
+  bool current_user_choice_ = false;
 };
 
 class MockErrorDelegate : public ArcSupportHost::ErrorDelegate {
@@ -217,7 +217,7 @@ class ArcTermsOfServiceDefaultNegotiatorTest
   }
 
   bool GetUserMetricsState() {
-    return *metrics_service_client()->GetCurrentUserMetricsConsent();
+    return *metrics_service_client()->GetCurrentUserMetricsChoice();
   }
 
   // BrowserWithTestWindowTest:
@@ -616,7 +616,7 @@ TEST_P(ArcTermsOfServiceDefaultNegotiatorForNonOwnerTest,
   negotiator()->StartNegotiation(UpdateStatusCallback(&status));
 
   // Setup metrics service to use user metrics.
-  metrics_service_client()->SetShouldUseUserConsent(true);
+  metrics_service_client()->SetShouldUseUserChoice(true);
 
   // TERMS page should be shown.
   EXPECT_EQ(status, Status::PENDING);

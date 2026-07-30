@@ -67,8 +67,7 @@ ScreenCapturePermissionCheckerMac::MaybeCreate(
   }
 
   if (base::FeatureList::IsEnabled(
-          kDesktopCapturePermissionCheckerKillSwitch) &&
-      base::mac::MacOSMajorVersion() >= 13) {
+          kDesktopCapturePermissionCheckerKillSwitch)) {
     return std::make_unique<ScreenCapturePermissionCheckerMac>(
         callback, base::BindRepeating(&ui::IsScreenCaptureAllowed));
   }

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/ash/attestation/enrollment_certificate_uploader_impl.h"
+
 #include <stdint.h>
 
 #include <string>
@@ -9,12 +11,10 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
-#include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
-#include "base/test/bind.h"
+#include "base/test/test_future.h"
 #include "base/time/time.h"
 #include "chrome/browser/ash/attestation/attestation_key_payload.pb.h"
-#include "chrome/browser/ash/attestation/enrollment_certificate_uploader_impl.h"
 #include "chrome/browser/ash/settings/scoped_cros_settings_test_helper.h"
 #include "chromeos/ash/components/attestation/fake_certificate.h"
 #include "chromeos/ash/components/attestation/mock_attestation_flow.h"
@@ -86,12 +86,9 @@ class EnrollmentCertificateUploaderTest : public ::testing::Test {
 
  protected:
   void Run(CertStatus expected_status) {
-    uploader_.ObtainAndUploadCertificate(
-        base::BindLambdaForTesting([expected_status](CertStatus status) {
-          EXPECT_EQ(status, expected_status);
-        }));
-
-    base::RunLoop().RunUntilIdle();
+    base::test::TestFuture<CertStatus> upload_future;
+    uploader_.ObtainAndUploadCertificate(upload_future.GetCallback());
+    EXPECT_EQ(expected_status, upload_future.Get());
   }
 
   content::BrowserTaskEnvironment task_environment_;

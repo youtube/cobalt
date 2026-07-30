@@ -9,9 +9,12 @@
 #include <string>
 #include <vector>
 
+#include "base/feature_list.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "components/payments/core/native_error_strings.h"
+#include "components/webauthn/core/browser/webauthn_security_utils.h"
+#include "third_party/blink/public/common/features_generated.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -102,12 +105,16 @@ std::string SecurePaymentConfirmationRequestValidationErrorToString(
       return errors::kLogoLabelRequired;
     case SecurePaymentConfirmationRequestValidationError::kInternalError:
       return errors::kInternalError;
+    case SecurePaymentConfirmationRequestValidationError::
+        kWebAuthnExtensionsNotSupported:
+      return errors::kWebAuthnExtensionsNotSupported;
   }
 }
 
 SecurePaymentConfirmationRequestValidationError
 IsValidSecurePaymentConfirmationRequest(
-    const mojom::SecurePaymentConfirmationRequestPtr& request) {
+    const mojom::SecurePaymentConfirmationRequestPtr& request,
+    const url::Origin& initiator_origin) {
   CHECK(request);
 
   if (request->credential_ids.empty()) {
@@ -199,6 +206,23 @@ IsValidSecurePaymentConfirmationRequest(
       if (logo->label.empty()) {
         return SecurePaymentConfirmationRequestValidationError::
             kLogoLabelRequired;
+      }
+    }
+  }
+
+  if (request->extensions &&
+      base::FeatureList::IsEnabled(
+          blink::features::
+              kSecurePaymentConfirmationExtensionsDisallowForThirdParties)) {
+    bool is_third_party = !webauthn::OriginIsAllowedToClaimRelyingPartyId(
+        request->rp_id, initiator_origin);
+
+    if (is_third_party) {
+      auto empty_extensions =
+          blink::mojom::AuthenticationExtensionsClientInputs::New();
+      if (!request->extensions.Equals(empty_extensions)) {
+        return SecurePaymentConfirmationRequestValidationError::
+            kWebAuthnExtensionsNotSupported;
       }
     }
   }

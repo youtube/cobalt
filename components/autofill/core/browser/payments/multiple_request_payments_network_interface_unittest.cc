@@ -13,6 +13,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace autofill::payments {
+namespace {
 
 class MultipleRequestPaymentsNetworkInterfaceTest
     : public PaymentsNetworkInterfaceTestBase,
@@ -313,7 +314,7 @@ class MultipleRequestGetVirtualCardEnrollmentDetailsTest
 
   void OnDidGetVirtualCardEnrollmentDetails(
       PaymentsRpcResult result,
-      const payments::GetDetailsForEnrollmentResponseDetails&
+      const GetDetailsForEnrollmentResponseDetails&
           get_details_for_enrollment_response_fields) {
     result_ = result;
     get_details_for_enrollment_response_fields_ =
@@ -413,4 +414,5 @@ TEST_P(MultipleRequestGetVirtualCardEnrollmentDetailsTest,
   EXPECT_EQ(result, result_);
 }
 
+}  // namespace
 }  // namespace autofill::payments

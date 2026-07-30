@@ -17,6 +17,7 @@ import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.browserservices.intents.WebappConstants;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.TabLaunchType;
+import org.chromium.chrome.browser.tips.TipsNotificationsFeatureType;
 
 /** Used by tips notifications to schedule and display tips through the Android UI. */
 @NullMarked

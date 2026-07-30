@@ -29,7 +29,6 @@ bool StructTraits<blink::mojom::FrameVisualPropertiesDataView,
     return false;
   }
   out->auto_resize_enabled = data.auto_resize_enabled();
-  out->capture_sequence_number = data.capture_sequence_number();
   out->zoom_level = data.zoom_level();
   out->css_zoom_factor = data.css_zoom_factor();
   out->page_scale_factor = data.page_scale_factor();

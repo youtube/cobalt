@@ -72,7 +72,6 @@ class UnittestingSystemAppDelegate : public SystemWebAppDelegate {
   bool IsAppEnabled() const override;
   bool IsUrlInSystemAppScope(const GURL& url) const override;
   bool UseSystemThemeColor() const override;
-  bool ShouldAnimateThemeChanges() const override;
   void SetShouldForceReinstall(bool);
   void SetAppIdsToUninstallAndReplace(const std::vector<webapps::AppId>&);
   void SetMinimumWindowSize(const gfx::Size&);
@@ -97,7 +96,6 @@ class UnittestingSystemAppDelegate : public SystemWebAppDelegate {
   void SetIsAppEnabled(bool);
   void SetUrlInSystemAppScope(const GURL& url);
   void SetUseSystemThemeColor(bool);
-  void SetShouldAnimateThemeChanges(bool);
 
  private:
   web_app::WebAppInstallInfoFactory info_factory_;
@@ -122,7 +120,6 @@ class UnittestingSystemAppDelegate : public SystemWebAppDelegate {
   bool is_app_enabled = true;
   GURL url_in_system_app_scope_;
   bool use_system_theme_color_ = true;
-  bool should_animate_theme_changes_ = false;
   base::RepeatingCallback<gfx::Rect(BrowserDelegate*)> get_default_bounds_ =
       base::NullCallback();
   LaunchAndNavigateSystemWebAppCallback launch_and_navigate_system_web_apps_ =

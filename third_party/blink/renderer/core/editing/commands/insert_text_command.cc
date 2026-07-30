@@ -87,11 +87,10 @@ void InsertTextCommand::SetEndingSelectionWithoutValidation(
   // We could have inserted a part of composed character sequence,
   // so we are basically treating ending selection as a range to avoid
   // validation. <http://bugs.webkit.org/show_bug.cgi?id=15781>
-  SetEndingSelection(SelectionForUndoStep::From(
-      SelectionInDOMTree::Builder()
-          .Collapse(start_position)
-          .Extend(end_position)
-          .Build()));
+  SetEndingSelection(SelectionForUndoStep::From(SelectionInDomTree::Builder()
+                                                    .Collapse(start_position)
+                                                    .Extend(end_position)
+                                                    .Build()));
   if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
     SetEndingDomSelection(
         SelectionForUndoStep::From(SelectionInDomTree::Builder()
@@ -148,7 +147,7 @@ bool InsertTextCommand::PerformTrivialReplace(const String& text) {
   SetEndingSelectionWithoutValidation(relocatable_start->GetPosition(),
                                       end_position);
   SetEndingSelection(SelectionForUndoStep::From(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .Collapse(RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()
                         ? EndingSelection().End()
                         : EndingVisibleSelection().End())
@@ -349,7 +348,7 @@ void InsertTextCommand::DoApply(EditingState* editing_state) {
     selection_end = selection.End();
   }
 
-  SelectionInDOMTree::Builder builder;
+  SelectionInDomTree::Builder builder;
   if (RuntimeEnabledFeatures::CaretWithTextAffinityUpstreamEnabled() &&
       text_ == " " && !IsRichlyEditablePosition(start_position)) {
     builder.SetAffinity(TextAffinity::kUpstreamIfPossible);

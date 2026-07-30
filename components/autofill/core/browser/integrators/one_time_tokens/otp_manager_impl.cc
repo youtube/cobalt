@@ -99,7 +99,7 @@ void OtpManagerImpl::OnFieldTypesDetermined(
     return;
   }
 
-  const autofill::FormStructure* form = manager.FindCachedFormById(form_id);
+  const FormStructure* form = manager.FindCachedFormById(form_id);
   if (!form) {
     return;
   }

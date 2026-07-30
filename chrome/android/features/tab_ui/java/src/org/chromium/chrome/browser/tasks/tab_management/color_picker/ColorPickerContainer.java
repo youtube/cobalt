@@ -6,7 +6,7 @@ package org.chromium.chrome.browser.tasks.tab_management.color_picker;
 
 import android.content.Context;
 import android.util.AttributeSet;
-import android.widget.FrameLayout;
+import android.view.View;
 import android.widget.LinearLayout;
 
 import org.chromium.build.annotations.NullMarked;
@@ -27,7 +27,7 @@ public abstract class ColorPickerContainer extends LinearLayout {
      *
      * @param colorViews The color views to be arranged.
      */
-    public abstract void setColorViews(List<FrameLayout> colorViews);
+    public abstract void setColorViews(List<View> colorViews);
 
     /** Returns the {@link ColorPickerLayoutType} to be used. */
     public abstract @ColorPickerLayoutType int getColorPickerLayoutType();

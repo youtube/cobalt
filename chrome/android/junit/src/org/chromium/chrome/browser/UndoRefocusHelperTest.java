@@ -76,7 +76,7 @@ public class UndoRefocusHelperTest {
         when(mTabModelSelector.getCurrentModel()).thenReturn(mTabModel);
         when(mTabModelSelector.getModel(false)).thenReturn(mTabModel);
         when(mTabModelSelector.getModels()).thenReturn(List.of(mTabModel));
-        when(mLayoutManagerImpl.isLayoutVisible(LayoutType.TAB_SWITCHER)).thenReturn(true);
+        when(mLayoutManagerImpl.isLayoutVisible(LayoutType.HUB)).thenReturn(true);
         mLayoutManagerObservableSupplier.set(mLayoutManagerImpl);
 
         mTab0 = getMockedTab(0);
@@ -92,8 +92,8 @@ public class UndoRefocusHelperTest {
         RobolectricUtil.runAllBackgroundAndUi();
         verify(mLayoutManagerImpl).addObserver(mLayoutStateObserverCaptor.capture());
 
-        when(mLayoutManagerImpl.isLayoutVisible(LayoutType.TAB_SWITCHER)).thenReturn(false);
-        mLayoutStateObserverCaptor.getValue().onFinishedHiding(LayoutType.TAB_SWITCHER);
+        when(mLayoutManagerImpl.isLayoutVisible(LayoutType.HUB)).thenReturn(false);
+        mLayoutStateObserverCaptor.getValue().onFinishedHiding(LayoutType.HUB);
     }
 
     private void initializeTabModel(int selectedIndex) {
@@ -260,7 +260,7 @@ public class UndoRefocusHelperTest {
         initializeTabModel(3);
         TabModelObserver tabModelObserver = mTabModelObserverCaptor.getValue();
         Tab tab = getMockedTab(3);
-        mLayoutStateObserverCaptor.getValue().onFinishedShowing(LayoutType.TAB_SWITCHER);
+        mLayoutStateObserverCaptor.getValue().onFinishedShowing(LayoutType.HUB);
 
         // Act: Close tab and undo closed tab.
         tabModelObserver.willCloseTab(tab, true);
@@ -280,9 +280,9 @@ public class UndoRefocusHelperTest {
 
         // Act: Close 2 tabs and undo, one with tab switcher open.
         LayoutStateObserver layoutStateObserver = mLayoutStateObserverCaptor.getValue();
-        layoutStateObserver.onFinishedShowing(LayoutType.TAB_SWITCHER);
+        layoutStateObserver.onFinishedShowing(LayoutType.HUB);
         tabModelObserver.willCloseTab(tab, true);
-        layoutStateObserver.onFinishedHiding(LayoutType.TAB_SWITCHER);
+        layoutStateObserver.onFinishedHiding(LayoutType.HUB);
         tabModelObserver.willCloseTab(secondTab, true);
 
         tabModelObserver.tabClosureUndone(secondTab);

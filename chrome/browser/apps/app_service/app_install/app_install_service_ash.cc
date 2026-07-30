@@ -19,7 +19,6 @@
 #include "chrome/browser/apps/app_service/app_install/app_install_discovery_metrics.h"
 #include "chrome/browser/apps/app_service/app_install/app_install_types.h"
 #include "chrome/browser/apps/app_service/launch_utils.h"
-#include "chrome/browser/ash/borealis/borealis_game_install_flow.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/webui/ash/app_install/app_install.mojom.h"
 // TODO(crbug.com/40283709): Remove circular dependency.

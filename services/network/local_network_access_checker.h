@@ -146,19 +146,6 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) LocalNetworkAccessChecker {
   // Whether the request URL's scheme is `http:`.
   bool is_request_url_scheme_http_ = false;
 
-  // If the request URL's host is a private IP literal, then this stores the
-  // IP. Nullopt otherwise.
-  //
-  // For example:
-  //
-  // - request url = `http://192.168.1.1`   -> `192.168.1.1`
-  // - request url = `http://[fe80::]:1234` -> `fe80::`
-  // - request url = `https://10.0.0.1`     -> `10.0.0.1`
-  // - request url = `http://localhost`     -> nullptr
-  //
-  // Used to compute metrics for https://crbug.com/1381471.
-  std::optional<net::IPAddress> request_url_private_ip_;
-
   // The IP address space derived from the `transport_info` argument passed to
   // the last call to `Check()`.
   //

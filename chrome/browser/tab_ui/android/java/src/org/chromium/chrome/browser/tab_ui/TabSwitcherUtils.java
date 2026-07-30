@@ -33,7 +33,7 @@ public class TabSwitcherUtils {
      */
     public static void navigateToTabSwitcher(
             LayoutManager layoutManager, boolean animate, @Nullable Runnable onNavigationFinished) {
-        if (layoutManager.isLayoutVisible(LayoutType.TAB_SWITCHER)) {
+        if (layoutManager.isLayoutVisible(LayoutType.HUB)) {
             if (onNavigationFinished != null) {
                 onNavigationFinished.run();
             }
@@ -44,7 +44,7 @@ public class TabSwitcherUtils {
                 new LayoutStateObserver() {
                     @Override
                     public void onFinishedShowing(int layoutType) {
-                        if (layoutType == LayoutType.TAB_SWITCHER) {
+                        if (layoutType == LayoutType.HUB) {
                             layoutManager.removeObserver(this);
                             if (onNavigationFinished != null) {
                                 onNavigationFinished.run();
@@ -53,7 +53,7 @@ public class TabSwitcherUtils {
                     }
                 });
 
-        layoutManager.showLayout(LayoutType.TAB_SWITCHER, animate);
+        layoutManager.showLayout(LayoutType.HUB, animate);
     }
 
     /**
@@ -107,7 +107,7 @@ public class TabSwitcherUtils {
         tabModel.setIndex(tabIndex, TabSelectionType.FROM_USER);
 
         // If the tab-switcher is displayed, hide it to show the tab.
-        if (layoutManager != null && layoutManager.isLayoutVisible(LayoutType.TAB_SWITCHER)) {
+        if (layoutManager != null && layoutManager.isLayoutVisible(LayoutType.HUB)) {
             layoutManager.showLayout(LayoutType.BROWSING, /* animate= */ false);
         }
     }

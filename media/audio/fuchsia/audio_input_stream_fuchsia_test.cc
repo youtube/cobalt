@@ -19,6 +19,8 @@
 
 namespace media {
 
+using Error = AudioInputStream::AudioInputCallback::Error;
+
 namespace {
 
 constexpr size_t kFramesPerPacket = 480;
@@ -47,7 +49,7 @@ class TestCaptureCallback final : public AudioInputStream::AudioInputCallback {
     packets_.push_back(std::move(bus));
   }
 
-  void OnError() override {
+  void OnError(Error error_code) override {
     EXPECT_FALSE(have_error_);
     have_error_ = true;
   }

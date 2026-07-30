@@ -6,6 +6,7 @@ found in the LICENSE file.
 -->
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
@@ -17,14 +18,31 @@ found in the LICENSE file.
     android:layout_marginBottom="@dimen/vertical_tab_item_margin_bottom"
     android:background="@drawable/vertical_tab_item_background">
 
-    <!-- Tab Favicon (Website Icon) -->
-    <ImageView
-        android:id="@+id/tab_favicon"
+    <!-- Tab Favicon & Loading Indicator Container -->
+    <FrameLayout
         android:layout_width="@dimen/vertical_tab_item_icon_size"
         android:layout_height="@dimen/vertical_tab_item_icon_size"
-        android:layout_marginEnd="@dimen/vertical_tab_item_favicon_margin_end"
-        android:scaleType="fitCenter"
-        android:importantForAccessibility="no" />
+        android:layout_marginEnd="@dimen/vertical_tab_item_favicon_margin_end">
+
+        <!-- Tab Favicon (Website Icon) -->
+        <ImageView
+            android:id="@+id/tab_favicon"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="fitCenter"
+            android:importantForAccessibility="no" />
+
+        <!-- Loading Indicator -->
+        <com.google.android.material.progressindicator.CircularProgressIndicator
+            android:id="@+id/tab_loading_spinner"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:indeterminate="true"
+            android:visibility="gone"
+            app:indicatorSize="@dimen/vertical_tab_item_icon_size"
+            app:trackThickness="@dimen/vertical_tab_item_loading_spinner_thickness" />
+    </FrameLayout>
 
     <!-- Tab Title (Page Title text) -->
     <TextView

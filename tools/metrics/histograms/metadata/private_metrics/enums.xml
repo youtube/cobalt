@@ -26,6 +26,75 @@ chromium-metrics-reviews@google.com.
 
 <enums>
 
+<!-- LINT.IfChange(PrivateInsightsFcpEvent) -->
+
+<enum name="PrivateInsightsFcpEvent">
+  <int value="0" label="EligibilityEvalCheckin"/>
+  <int value="1" label="EligibilityEvalPlanUriReceived"/>
+  <int value="2" label="EligibilityEvalPlanReceived"/>
+  <int value="3" label="EligibilityEvalNotConfigured"/>
+  <int value="4" label="EligibilityEvalRejected"/>
+  <int value="5" label="Checkin"/>
+  <int value="6" label="CheckinFinished"/>
+  <int value="7" label="Rejected"/>
+  <int value="8" label="TensorFlowError"/>
+  <int value="9" label="IoError"/>
+  <int value="10" label="ExampleSelectorError"/>
+  <int value="11" label="Interruption"/>
+  <int value="12" label="TaskNotStarted"/>
+  <int value="13" label="NonfatalInitializationError"/>
+  <int value="14" label="FatalInitializationError"/>
+  <int value="15" label="EligibilityEvalCheckinIoError"/>
+  <int value="16" label="EligibilityEvalCheckinClientInterrupted"/>
+  <int value="17" label="EligibilityEvalCheckinServerAborted"/>
+  <int value="18" label="EligibilityEvalCheckinErrorInvalidPayload"/>
+  <int value="19" label="EligibilityEvalComputationStarted"/>
+  <int value="20" label="EligibilityEvalComputationInvalidArgument"/>
+  <int value="21" label="EligibilityEvalComputationIOError"/>
+  <int value="22" label="EligibilityEvalComputationExampleIteratorError"/>
+  <int value="23" label="EligibilityEvalComputationTensorflowError"/>
+  <int value="24" label="EligibilityEvalComputationInterrupted"/>
+  <int value="25" label="EligibilityEvalComputationErrorNonfatal"/>
+  <int value="26" label="EligibilityEvalComputationCompleted"/>
+  <int value="27" label="MultipleTaskAssignmentsStarted"/>
+  <int value="28" label="MultipleTaskAssignmentsIOError"/>
+  <int value="29" label="MultipleTaskAssignmentsPayloadIOError"/>
+  <int value="30" label="MultipleTaskAssignmentsInvalidPayload"/>
+  <int value="31" label="MultipleTaskAssignmentsClientInterrupted"/>
+  <int value="32" label="MultipleTaskAssignmentsServerAborted"/>
+  <int value="33" label="MultipleTaskAssignmentsTurnedAway"/>
+  <int value="34" label="MultipleTaskAssignmentsPlanUriReceived"/>
+  <int value="35" label="MultipleTaskAssignmentsPlanUriPartialReceived"/>
+  <int value="36" label="MultipleTaskAssignmentsPartialCompleted"/>
+  <int value="37" label="MultipleTaskAssignmentsCompleted"/>
+  <int value="38" label="CheckinIoError"/>
+  <int value="39" label="CheckinClientInterrupted"/>
+  <int value="40" label="CheckinServerAborted"/>
+  <int value="41" label="CheckinInvalidPayload"/>
+  <int value="42" label="CheckinPlanUriReceived"/>
+  <int value="43" label="CheckinFinishedV2"/>
+  <int value="44" label="ComputationStarted"/>
+  <int value="45" label="ComputationInvalidArgument"/>
+  <int value="46" label="ComputationIOError"/>
+  <int value="47" label="ComputationExampleIteratorError"/>
+  <int value="48" label="ComputationTensorflowError"/>
+  <int value="49" label="ComputationInterrupted"/>
+  <int value="50" label="ComputationCompleted"/>
+  <int value="51" label="ComputationInsufficientData"/>
+  <int value="52" label="ResultUploadStarted"/>
+  <int value="53" label="ResultUploadIOError"/>
+  <int value="54" label="ResultUploadClientInterrupted"/>
+  <int value="55" label="ResultUploadServerAborted"/>
+  <int value="56" label="ResultUploadCompleted"/>
+  <int value="57" label="FailureUploadStarted"/>
+  <int value="58" label="FailureUploadIOError"/>
+  <int value="59" label="FailureUploadClientInterrupted"/>
+  <int value="60" label="FailureUploadServerAborted"/>
+  <int value="61" label="FailureUploadCompleted"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/metrics/private_metrics/private_insights/fcp_event_publisher.h:PrivateInsightsFcpEvent) -->
+
 <!-- LINT.IfChange(PrivateInsightsTriggerUploadOutcome) -->
 
 <enum name="PrivateInsightsTriggerUploadOutcome">

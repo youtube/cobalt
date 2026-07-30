@@ -26,6 +26,7 @@
 #include "components/policy/core/common/cloud/cloud_policy_manager.h"
 #include "components/policy/core/common/cloud/cloud_policy_service.h"
 #include "components/policy/core/common/cloud/machine_level_user_cloud_policy_manager.h"
+#include "components/policy/core/common/cloud/user_cloud_policy_store.h"
 #include "components/policy/core/common/features.h"
 #include "components/policy/core/common/policy_namespace.h"
 #include "components/policy/proto/device_management_backend.pb.h"
@@ -273,13 +274,13 @@ ExtensionInstallPolicyServiceImpl::ExtensionInstallPolicyServiceImpl(
       base::BindRepeating(
           &ExtensionInstallPolicyServiceImpl::OnPolicyChecksEnabledChanged,
           base::Unretained(this)));
-  OnPolicyChecksEnabledChanged();
   local_state_change_registrar_.Init(g_browser_process->local_state());
   local_state_change_registrar_.Add(
       extensions::pref_names::kExtensionInstallCloudPolicyChecksEnabled,
       base::BindRepeating(
           &ExtensionInstallPolicyServiceImpl::OnPolicyChecksEnabledChanged,
           base::Unretained(this)));
+  OnPolicyChecksEnabledChanged();
 
   for (const auto& info : GetPolicyManagerInfos()) {
     // If there is not store available, then that manager does not support
@@ -667,6 +668,13 @@ void ExtensionInstallPolicyServiceImpl::OnPolicyChecksEnabledChanged() {
         }
       } else {
         core->client()->RemovePolicyTypeToFetch({info.policy_type, this});
+#if !BUILDFLAG(IS_CHROMEOS)
+        if (info.manager->IsFirstPolicyLoadComplete(POLICY_DOMAIN_CHROME)) {
+          if (auto* store = core->store()) {
+            static_cast<DesktopCloudPolicyStore*>(store)->Clear();
+          }
+        }
+#endif  // !BUILDFLAG(IS_CHROMEOS)
       }
     }
   }

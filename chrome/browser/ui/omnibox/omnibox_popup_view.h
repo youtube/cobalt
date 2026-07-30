@@ -78,7 +78,7 @@ class OmniboxPopupView {
   virtual void SaveStateToTab(content::WebContents* contents) {}
 
   // Pushes the current text to the WebUI.
-  virtual void PushTextToWebUI() {}
+  virtual void PushTextToWebUI(bool is_double_click) {}
 
   // Called when the active tab changes.
   virtual void OnTabChanged(content::WebContents* contents) {}

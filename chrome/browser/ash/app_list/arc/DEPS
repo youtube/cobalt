@@ -30,7 +30,6 @@ include_rules = [
   "+chrome/browser/web_applications/test",
   "+chrome/common/chrome_features.h",
   "+chrome/common/chrome_paths.h",
-  "+chrome/common/pref_names.h",
   "+chrome/grit",
   "+chrome/test/base",
 ]

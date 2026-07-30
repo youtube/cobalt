@@ -13,8 +13,10 @@
 #include <set>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
+#include "base/containers/flat_map.h"
 #include "base/functional/callback.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
@@ -497,8 +499,7 @@ class NET_EXPORT TransportSecurityState {
   // These 3 members are for the component-updated "static" PKP data:
   // The values in host_pins_ maps are references to PinSet objects in the
   // pinsets_ vector.
-  std::optional<
-      std::map<std::string, std::pair<const PinSet*, bool>, std::less<>>>
+  std::optional<base::flat_map<std::string, std::pair<const PinSet*, bool>>>
       host_pins_;
   base::Time key_pins_list_last_update_time_;
   std::vector<PinSet> pinsets_;

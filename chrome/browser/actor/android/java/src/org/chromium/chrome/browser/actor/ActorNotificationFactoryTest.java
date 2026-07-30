@@ -82,7 +82,10 @@ public class ActorNotificationFactoryTest {
     public void testBuildNotification_Running() {
         NotificationWrapper wrapper =
                 ActorNotificationFactory.buildNotification(
-                        mTask, ActorTaskState.ACTING, /* isSilent= */ false);
+                        mTask,
+                        ActorTaskState.ACTING,
+                        /* isSilent= */ false,
+                        /* isWarning= */ false);
 
         assertNotNull("Notification wrapper should not be null", wrapper);
         Notification notification = wrapper.getNotification();
@@ -113,7 +116,10 @@ public class ActorNotificationFactoryTest {
     public void testBuildNotification_Paused() {
         NotificationWrapper wrapper =
                 ActorNotificationFactory.buildNotification(
-                        mTask, ActorTaskState.PAUSED_BY_USER, /* isSilent= */ false);
+                        mTask,
+                        ActorTaskState.PAUSED_BY_USER,
+                        /* isSilent= */ false,
+                        /* isWarning= */ false);
 
         assertNotNull("Notification wrapper should not be null", wrapper);
         Notification notification = wrapper.getNotification();
@@ -144,7 +150,10 @@ public class ActorNotificationFactoryTest {
     public void testBuildNotification_WaitingOnUser() {
         NotificationWrapper wrapper =
                 ActorNotificationFactory.buildNotification(
-                        mTask, ActorTaskState.WAITING_ON_USER, /* isSilent= */ false);
+                        mTask,
+                        ActorTaskState.WAITING_ON_USER,
+                        /* isSilent= */ false,
+                        /* isWarning= */ false);
 
         assertNotNull("Notification wrapper should not be null", wrapper);
         Notification notification = wrapper.getNotification();
@@ -179,7 +188,10 @@ public class ActorNotificationFactoryTest {
 
         NotificationWrapper wrapper =
                 ActorNotificationFactory.buildNotification(
-                        mTask, ActorTaskState.WAITING_ON_USER, /* isSilent= */ false);
+                        mTask,
+                        ActorTaskState.WAITING_ON_USER,
+                        /* isSilent= */ false,
+                        /* isWarning= */ false);
 
         verify(mServiceController, atLeastOnce()).createTrustedBringTabToFrontIntent(mTask);
         Notification notification = wrapper.getNotification();
@@ -199,7 +211,10 @@ public class ActorNotificationFactoryTest {
     public void testBuildNotification_Complete() {
         NotificationWrapper wrapper =
                 ActorNotificationFactory.buildNotification(
-                        mTask, ActorTaskState.FINISHED, /* isSilent= */ false);
+                        mTask,
+                        ActorTaskState.FINISHED,
+                        /* isSilent= */ false,
+                        /* isWarning= */ false);
 
         assertNotNull("Notification wrapper should not be null", wrapper);
         Notification notification = wrapper.getNotification();
@@ -233,7 +248,10 @@ public class ActorNotificationFactoryTest {
     public void testBuildNotification_Reflecting() {
         NotificationWrapper wrapper =
                 ActorNotificationFactory.buildNotification(
-                        mTask, ActorTaskState.REFLECTING, /* isSilent= */ false);
+                        mTask,
+                        ActorTaskState.REFLECTING,
+                        /* isSilent= */ false,
+                        /* isWarning= */ false);
 
         assertNotNull("Notification wrapper should not be null", wrapper);
         Notification notification = wrapper.getNotification();
@@ -250,7 +268,10 @@ public class ActorNotificationFactoryTest {
     public void testBuildNotification_PausedByActor() {
         NotificationWrapper wrapper =
                 ActorNotificationFactory.buildNotification(
-                        mTask, ActorTaskState.PAUSED_BY_ACTOR, /* isSilent= */ false);
+                        mTask,
+                        ActorTaskState.PAUSED_BY_ACTOR,
+                        /* isSilent= */ false,
+                        /* isWarning= */ false);
 
         assertNotNull("Notification wrapper should not be null", wrapper);
         Notification notification = wrapper.getNotification();
@@ -268,7 +289,10 @@ public class ActorNotificationFactoryTest {
         // Use an unhandled state to trigger the fallback
         NotificationWrapper wrapper =
                 ActorNotificationFactory.buildNotification(
-                        mTask, ActorTaskState.FAILED, /* isSilent= */ false);
+                        mTask,
+                        ActorTaskState.FAILED,
+                        /* isSilent= */ false,
+                        /* isWarning= */ false);
 
         assertNotNull("Notification wrapper should not be null", wrapper);
         Notification notification = wrapper.getNotification();
@@ -301,10 +325,96 @@ public class ActorNotificationFactoryTest {
 
         NotificationWrapper wrapper =
                 ActorNotificationFactory.buildNotification(
-                        mTask, ActorTaskState.ACTING, /* isSilent= */ true);
+                        mTask, ActorTaskState.ACTING, /* isSilent= */ true, /* isWarning= */ false);
 
         assertNotNull("Notification wrapper should not be null", wrapper);
         assertTrue("Notification should be silent", wrapper.isSilent());
+    }
+
+    @Test
+    public void testBuildNotification_Warning_LongRunning() {
+        // PAUSED_BY_ACTOR indicates the task hit the running budget.
+        NotificationWrapper wrapper =
+                ActorNotificationFactory.buildNotification(
+                        mTask,
+                        ActorTaskState.PAUSED_BY_ACTOR,
+                        /* isSilent= */ false,
+                        /* isWarning= */ true);
+
+        assertNotNull("Notification wrapper should not be null", wrapper);
+        Notification notification = wrapper.getNotification();
+        ShadowNotification shadowNotification = shadowOf(notification);
+
+        assertEquals(
+                "Content text should match long running warning template",
+                mContext.getString(
+                        R.string.actor_notification_body_will_stop_task_long_running, TASK_TITLE),
+                shadowNotification.getContentText());
+    }
+
+    @Test
+    public void testBuildNotification_Warning_NoResponse() {
+        // Other idle states use the 'no response' string.
+        NotificationWrapper wrapper =
+                ActorNotificationFactory.buildNotification(
+                        mTask,
+                        ActorTaskState.PAUSED_BY_USER,
+                        /* isSilent= */ false,
+                        /* isWarning= */ true);
+
+        assertNotNull("Notification wrapper should not be null", wrapper);
+        Notification notification = wrapper.getNotification();
+        ShadowNotification shadowNotification = shadowOf(notification);
+
+        assertEquals(
+                "Content text should match no response warning template",
+                mContext.getString(
+                        R.string.actor_notification_body_will_stop_task_no_response, TASK_TITLE),
+                shadowNotification.getContentText());
+    }
+
+    @Test
+    public void testShouldUpdateNotification() {
+        // State change same category, no warning change -> False
+        assertFalse(
+                ActorNotificationFactory.shouldUpdateNotification(
+                        ActorTaskState.ACTING,
+                        /* wasWarning= */ false,
+                        ActorTaskState.REFLECTING,
+                        /* isWarning= */ false));
+
+        // State change different category -> True
+        assertTrue(
+                ActorNotificationFactory.shouldUpdateNotification(
+                        ActorTaskState.ACTING,
+                        /* wasWarning= */ false,
+                        ActorTaskState.PAUSED_BY_USER,
+                        /* isWarning= */ false));
+
+        // Warning mode change -> True
+        assertTrue(
+                ActorNotificationFactory.shouldUpdateNotification(
+                        ActorTaskState.ACTING,
+                        /* wasWarning= */ false,
+                        ActorTaskState.ACTING,
+                        /* isWarning= */ true));
+
+        // Warning mode reset -> True
+        assertTrue(
+                ActorNotificationFactory.shouldUpdateNotification(
+                        ActorTaskState.ACTING,
+                        /* wasWarning= */ true,
+                        ActorTaskState.ACTING,
+                        /* isWarning= */ false));
+
+        // Stay in warning mode while state changes (Idle -> Idle) -> False (Single category)
+        assertFalse(
+                "Transitions within warning mode should NOT trigger update with single category",
+                ActorNotificationFactory.shouldUpdateNotification(
+                        ActorTaskState.PAUSED_BY_ACTOR,
+                        /* wasWarning= */ true,
+                        ActorTaskState.WAITING_ON_USER,
+                        /* isWarning= */ true));
     }
 
     private void assertSmallIcon(Notification notification) {

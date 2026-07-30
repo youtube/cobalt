@@ -30,7 +30,6 @@
 #include "chrome/browser/profiles/profile_avatar_icon_util.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/profiles/profile_window.h"
-#include "chrome/browser/regional_capabilities/regional_capabilities_service_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/signin/signin_promo.h"
 #include "chrome/browser/signin/signin_util.h"
@@ -56,7 +55,6 @@
 #include "chrome/grit/branded_strings.h"
 #include "components/keep_alive_registry/keep_alive_types.h"
 #include "components/prefs/pref_service.h"
-#include "components/regional_capabilities/regional_capabilities_service.h"
 #include "components/signin/public/base/signin_metrics.h"
 #include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
@@ -162,37 +160,6 @@ void ClearLockedProfilesFirstBrowserKeepAlive() {
       profile_manager->ClearFirstBrowserWindowKeepAlive(profile);
     }
   }
-}
-
-bool ShouldBuildToolbarWithDontSignInButton(
-    Profile* profile,
-    ProfilePicker::EntryPoint entry_point) {
-  if (entry_point != ProfilePicker::EntryPoint::kFirstRun) {
-    return false;
-  }
-  const bool is_in_search_engine_screen_region =
-      CHECK_DEREF(regional_capabilities::RegionalCapabilitiesServiceFactory::
-                      GetForProfile(profile))
-          .IsInSearchEngineChoiceScreenRegion();
-  return switches::IsFirstRunDesktopRefreshEnabled(
-             is_in_search_engine_screen_region) &&
-         switches::kFirstRunDesktopSignInPromoVariation.Get() ==
-             switches::FirstRunDesktopSignInPromoVariation::
-                 kDontSignInOnGaiaPage;
-}
-
-bool ShouldBuildToolbarWithEffectsControlButton(
-    Profile* profile,
-    ProfilePicker::EntryPoint entry_point) {
-  if (entry_point != ProfilePicker::EntryPoint::kFirstRun) {
-    return false;
-  }
-  const bool is_in_search_engine_screen_region =
-      CHECK_DEREF(regional_capabilities::RegionalCapabilitiesServiceFactory::
-                      GetForProfile(profile))
-          .IsInSearchEngineChoiceScreenRegion();
-  return switches::IsFirstRunDesktopRevampEnabled(
-      is_in_search_engine_screen_region);
 }
 
 }  // namespace
@@ -671,26 +638,7 @@ void ProfilePickerView::Init(Profile* picker_profile) {
   // determine certain aspects of it. E.g. see `GetAccessibleWindowTitle()`.
   flow_controller_ = CreateFlowController(picker_profile, GetClearClosure());
 
-  ProfilePickerToolbar::Builder toolbar_builder(base::BindRepeating(
-      &ProfilePickerView::NavigateBack, base::Unretained(this)));
-  if (ShouldBuildToolbarWithDontSignInButton(picker_profile,
-                                             params_.entry_point())) {
-    toolbar_builder.WithDontSignInButton(base::BindRepeating(
-        &ProfileManagementFlowController::CancelSigninFlow,
-        // Unretained safe because the `flow_controller_` is owned by `this`
-        // and `this` outlives the `toolbar_` (parent view).
-        base::Unretained(flow_controller_.get())));
-  }
-  if (ShouldBuildToolbarWithEffectsControlButton(picker_profile,
-                                                 params_.entry_point())) {
-    toolbar_builder.WithEffectsControlButton(base::BindRepeating(
-        &ProfileManagementFlowController::ToggleMediaEffects,
-        // Unretained safe because the `flow_controller_` is owned by `this`
-        // and `this` outlives the `toolbar_` (parent view).
-        base::Unretained(flow_controller_.get())));
-  }
-
-  toolbar_ = AddChildView(toolbar_builder.Build());
+  toolbar_ = AddChildView(flow_controller_->CreateToolbarBuilder().Build());
 
   // The widget is owned by the native widget.
   new ProfilePickerWidget(this);
@@ -860,7 +808,7 @@ bool ProfilePickerView::AcceleratorPressed(const ui::Accelerator& accelerator) {
       GetWidget()->Minimize();
       break;
     case IDC_BACK: {
-      NavigateBack();
+      flow_controller_->OnNavigateBackRequested();
       break;
     }
     // Always reload bypassing cache.
@@ -921,10 +869,6 @@ void ProfilePickerView::ShowScreenFinished(
   if (navigation_finished_closure) {
     std::move(navigation_finished_closure).Run();
   }
-}
-
-void ProfilePickerView::NavigateBack() {
-  flow_controller_->OnNavigateBackRequested();
 }
 
 void ProfilePickerView::ConfigureAccelerators() {

@@ -14,7 +14,6 @@
 namespace blink {
 
 class CustomLayoutChild;
-class LayoutBox;
 class LayoutInputNode;
 class LayoutResult;
 class ScriptState;

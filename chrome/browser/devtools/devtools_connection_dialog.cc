@@ -38,8 +38,8 @@ DevToolsConnectionDialog::DevToolsConnectionDialog(
     return;
   }
 
-  if (browser->window()) {
-    browser->window()->Activate();
+  if (browser->GetWindow()) {
+    browser->GetWindow()->Activate();
   }
 
   views::Widget* widget = chrome::ShowBrowserModal(

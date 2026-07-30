@@ -8,7 +8,7 @@ import {DESTINATION_MANAGER_SESSION_INITIALIZED, DESTINATION_MANAGER_STATE_CHANG
 import {DESTINATION_SELECT_SHOW_LOADING_UI_CHANGED, DestinationSelectController} from 'chrome://os-print/js/destination_select_controller.js';
 import {createCustomEvent} from 'chrome://os-print/js/utils/event_utils.js';
 import {EventTracker} from 'chrome://resources/js/event_tracker.js';
-import {assertFalse, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {MockController} from 'chrome://webui-test/chromeos/mock_controller.m.js';
 import {eventToPromise} from 'chrome://webui-test/test_util.js';
 

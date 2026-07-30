@@ -306,6 +306,10 @@ DWORD WINAPI DumpProcessForHungInputThread(void* param);
 // true.
 // Returns `true` on success.
 bool StartHandlerForClient(int fd, bool write_minidump_to_database);
+
+bool GetHandlerTrampoline(std::string* handler_trampoline,
+                          std::string* handler_library);
+bool BuildEnvironmentWithApk(bool use_64_bit, std::vector<std::string>* result);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 // The platform-specific portion of InitializeCrashpad(). On Windows, if

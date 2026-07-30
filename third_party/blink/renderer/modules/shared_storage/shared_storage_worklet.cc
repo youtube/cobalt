@@ -8,6 +8,7 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/time/time.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy.h"
 #include "third_party/blink/public/common/features.h"
@@ -409,7 +410,8 @@ ScriptPromise<V8SharedStorageResponse> SharedStorageWorklet::selectURL(
   if (serialized_data->message) {
     base::UmaHistogramMemoryKB(
         "Storage.SharedStorage.SelectURL.DataSerialization.SizeKB",
-        serialized_data->message->DataLengthInBytes() / 1024);
+        base::saturated_cast<int>(
+            serialized_data->message->DataLengthInBytes() / 1024));
   }
 
   auto* resolver =
@@ -712,7 +714,8 @@ ScriptPromise<IDLAny> SharedStorageWorklet::run(
   if (serialized_data->message) {
     base::UmaHistogramMemoryKB(
         "Storage.SharedStorage.Run.DataSerialization.SizeKB",
-        serialized_data->message->DataLengthInBytes() / 1024);
+        base::saturated_cast<int>(
+            serialized_data->message->DataLengthInBytes() / 1024));
   }
 
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLAny>>(

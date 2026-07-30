@@ -254,12 +254,15 @@ V4LocalDatabaseManager::PendingCheck::PendingCheck(
     Client* client,
     ClientCallbackType client_callback_type,
     const StoresToCheck& stores_to_check,
-    const std::vector<GURL>& urls)
+    const std::vector<GURL>& urls,
+    std::optional<bool> needs_full_hash_check_after_local_match)
     : client(client),
       client_callback_type(client_callback_type),
       most_severe_threat_type(SBThreatType::SB_THREAT_TYPE_SAFE),
       stores_to_check(stores_to_check),
-      urls(urls) {
+      urls(urls),
+      needs_full_hash_check_after_local_match(
+          needs_full_hash_check_after_local_match) {
   for (const auto& url : urls) {
     SBProtocolManagerUtil::UrlToFullHashes(url, &full_hashes);
   }
@@ -271,11 +274,14 @@ V4LocalDatabaseManager::PendingCheck::PendingCheck(
     Client* client,
     ClientCallbackType client_callback_type,
     const StoresToCheck& stores_to_check,
-    const std::set<FullHashStr>& full_hashes_set)
+    const std::set<FullHashStr>& full_hashes_set,
+    std::optional<bool> needs_full_hash_check_after_local_match)
     : client(client),
       client_callback_type(client_callback_type),
       most_severe_threat_type(SBThreatType::SB_THREAT_TYPE_SAFE),
-      stores_to_check(stores_to_check) {
+      stores_to_check(stores_to_check),
+      needs_full_hash_check_after_local_match(
+          needs_full_hash_check_after_local_match) {
   full_hashes.assign(full_hashes_set.begin(), full_hashes_set.end());
   DCHECK(full_hashes.size());
   full_hash_threat_types.assign(full_hashes.size(),
@@ -405,7 +411,8 @@ bool V4LocalDatabaseManager::CheckBrowseUrl(
   std::unique_ptr<PendingCheck> check = std::make_unique<PendingCheck>(
       client, ClientCallbackType::CHECK_BROWSE_URL,
       CreateStoresToCheckFromSBThreatTypeSet(threat_types),
-      std::vector<GURL>(1, url));
+      std::vector<GURL>(1, url),
+      /*needs_full_hash_check_after_local_match=*/true);
 
   HandleCheck(std::move(check));
   RecordTimeSinceLastUpdateHistograms(
@@ -426,7 +433,8 @@ bool V4LocalDatabaseManager::CheckDownloadUrl(
 
   std::unique_ptr<PendingCheck> check = std::make_unique<PendingCheck>(
       client, ClientCallbackType::CHECK_DOWNLOAD_URLS,
-      StoresToCheck({GetUrlMalBinId()}), url_chain);
+      StoresToCheck({GetUrlMalBinId()}), url_chain,
+      /*needs_full_hash_check_after_local_match=*/true);
 
   HandleCheck(std::move(check));
   return false;
@@ -445,7 +453,9 @@ bool V4LocalDatabaseManager::CheckExtensionIDs(
 
   std::unique_ptr<PendingCheck> check = std::make_unique<PendingCheck>(
       client, ClientCallbackType::CHECK_EXTENSION_IDS,
-      StoresToCheck({GetChromeExtMalwareId()}), extension_ids);
+      StoresToCheck({GetChromeExtMalwareId()}), extension_ids,
+      /*needs_full_hash_check_after_local_match=*/
+      !base::FeatureList::IsEnabled(kExtensionBlocklistSkipNetworkQuery));
 
   HandleCheck(std::move(check));
   return false;
@@ -492,7 +502,8 @@ void V4LocalDatabaseManager::CheckUrlForHighConfidenceAllowlist(
 
   std::unique_ptr<PendingCheck> check = std::make_unique<PendingCheck>(
       nullptr, ClientCallbackType::CHECK_OTHER, stores_to_check,
-      std::vector<GURL>(1, url));
+      std::vector<GURL>(1, url),
+      /*needs_full_hash_check_after_local_match=*/std::nullopt);
 
   HandleAllowlistCheck(
       std::move(check), /*allow_async_full_hash_check=*/false,
@@ -512,7 +523,8 @@ bool V4LocalDatabaseManager::CheckUrlForSubresourceFilter(const GURL& url,
 
   std::unique_ptr<PendingCheck> check = std::make_unique<PendingCheck>(
       client, ClientCallbackType::CHECK_URL_FOR_SUBRESOURCE_FILTER,
-      stores_to_check, std::vector<GURL>(1, url));
+      stores_to_check, std::vector<GURL>(1, url),
+      /*needs_full_hash_check_after_local_match=*/true);
 
   HandleCheck(std::move(check));
   return false;
@@ -540,7 +552,8 @@ AsyncMatch V4LocalDatabaseManager::CheckCsdAllowlistUrl(const GURL& url,
 
   std::unique_ptr<PendingCheck> check = std::make_unique<PendingCheck>(
       client, ClientCallbackType::CHECK_CSD_ALLOWLIST, stores_to_check,
-      std::vector<GURL>(1, url));
+      std::vector<GURL>(1, url),
+      /*needs_full_hash_check_after_local_match=*/true);
 
   HandleAllowlistCheck(std::move(check),
                        /*allow_async_full_hash_check=*/true,
@@ -919,13 +932,7 @@ void V4LocalDatabaseManager::HandleCheckContinuation(
 
   check->full_hash_to_store_and_hash_prefixes = lookup_result.results;
   GetArtificialPrefixMatches(check);
-  if (check->full_hash_to_store_and_hash_prefixes.empty() &&
-      check->artificial_full_hash_to_store_and_hash_prefixes.empty()) {
-    RespondToClient(std::move(check));
-  } else {
-    check->get_full_hash_queue_start_time = base::TimeTicks::Now();
-    ScheduleFullHashCheck(std::move(check));
-  }
+  RespondOrScheduleFullHashCheck(std::move(check));
 }
 
 void V4LocalDatabaseManager::PopulateArtificialDatabase() {
@@ -989,7 +996,8 @@ void V4LocalDatabaseManager::HandleUrl(
 
   std::unique_ptr<PendingCheck> check = std::make_unique<PendingCheck>(
       nullptr, ClientCallbackType::CHECK_OTHER, stores_to_check,
-      std::vector<GURL>(1, url));
+      std::vector<GURL>(1, url),
+      /*needs_full_hash_check_after_local_match=*/std::nullopt);
 
   GetPrefixMatches(check.get(),
                    base::BindOnce(&HandleUrlCallback, std::move(callback)));
@@ -1106,13 +1114,7 @@ void V4LocalDatabaseManager::ProcessQueuedChecksContinuation(
 
   check->full_hash_to_store_and_hash_prefixes = lookup_result.results;
   GetArtificialPrefixMatches(check);
-  if (check->full_hash_to_store_and_hash_prefixes.empty() &&
-      check->artificial_full_hash_to_store_and_hash_prefixes.empty()) {
-    RespondToClient(std::move(check));
-  } else {
-    check->get_full_hash_queue_start_time = base::TimeTicks::Now();
-    ScheduleFullHashCheck(std::move(check));
-  }
+  RespondOrScheduleFullHashCheck(std::move(check));
 }
 
 void V4LocalDatabaseManager::RespondSafeToQueuedAndPendingChecks() {
@@ -1156,6 +1158,19 @@ void V4LocalDatabaseManager::RespondToClient(
   RespondToClientWithoutPendingCheckCleanup(check.get());
 }
 
+void V4LocalDatabaseManager::RespondOrScheduleFullHashCheck(
+    std::unique_ptr<PendingCheck> check) {
+  CHECK(check->needs_full_hash_check_after_local_match.has_value());
+  if ((check->full_hash_to_store_and_hash_prefixes.empty() &&
+       check->artificial_full_hash_to_store_and_hash_prefixes.empty()) ||
+      !check->needs_full_hash_check_after_local_match.value()) {
+    RespondToClient(std::move(check));
+  } else {
+    check->get_full_hash_queue_start_time = base::TimeTicks::Now();
+    ScheduleFullHashCheck(std::move(check));
+  }
+}
+
 void V4LocalDatabaseManager::RespondToClientWithoutPendingCheckCleanup(
     PendingCheck* check) {
   CHECK(check);
@@ -1191,13 +1206,22 @@ void V4LocalDatabaseManager::RespondToClientWithoutPendingCheckCleanup(
     }
 
     case ClientCallbackType::CHECK_EXTENSION_IDS: {
-      DCHECK_EQ(check->full_hash_threat_types.size(),
-                check->full_hashes.size());
       std::set<FullHashStr> unsafe_extension_ids;
-      for (size_t i = 0; i < check->full_hash_threat_types.size(); i++) {
-        if (check->full_hash_threat_types[i] ==
-            SBThreatType::SB_THREAT_TYPE_EXTENSION) {
-          unsafe_extension_ids.insert(check->full_hashes[i]);
+      CHECK(check->needs_full_hash_check_after_local_match.has_value());
+      if (!check->needs_full_hash_check_after_local_match.value()) {
+        // Populate unsafe_extension_ids directly from local database match
+        // keys.
+        for (const auto& entry : check->full_hash_to_store_and_hash_prefixes) {
+          unsafe_extension_ids.insert(entry.first);
+        }
+      } else {
+        DCHECK_EQ(check->full_hash_threat_types.size(),
+                  check->full_hashes.size());
+        for (size_t i = 0; i < check->full_hash_threat_types.size(); i++) {
+          if (check->full_hash_threat_types[i] ==
+              SBThreatType::SB_THREAT_TYPE_EXTENSION) {
+            unsafe_extension_ids.insert(check->full_hashes[i]);
+          }
         }
       }
       client->OnCheckExtensionsResult(unsafe_extension_ids);

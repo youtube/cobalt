@@ -7,9 +7,11 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/signin_resources.h"
+#include "chrome/grit/signin_resources_map.h"
 #include "components/signin/public/base/signin_switches.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
+#include "ui/webui/webui_util.h"
 
 bool SigninQRCodeBarUIConfig::IsWebUIEnabled(
     content::BrowserContext* browser_context) {
@@ -22,7 +24,8 @@ SigninQRCodeBarUI::SigninQRCodeBarUI(content::WebUI* web_ui)
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
       profile, chrome::kChromeUISigninQRCodeBarHost);
 
-  source->SetDefaultResource(
+  webui::SetupWebUIDataSource(
+      source, kSigninResources,
       IDR_SIGNIN_SIGNIN_QRCODE_BAR_SIGNIN_QRCODE_BAR_HTML);
 }
 

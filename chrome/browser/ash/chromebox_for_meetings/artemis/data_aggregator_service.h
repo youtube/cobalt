@@ -94,13 +94,11 @@ class DataAggregatorService : public CfmObserver,
 
   // Manage singleton instance.
   static void Initialize();
-  static void InitializeForTesting(
-      DataAggregatorService* data_aggregator_service);
   static void Shutdown();
   static DataAggregatorService* Get();
   static bool IsInitialized();
 
- protected:
+ private:
   // CfmObserver:
   bool ServiceRequestReceived(const std::string& interface_name) override;
 
@@ -119,15 +117,9 @@ class DataAggregatorService : public CfmObserver,
                    AddWatchDogCallback callback) override;
 
   // Disconnect handler for |mojom::DataAggregator|
-  virtual void OnMojoDisconnect();
+  void OnMojoDisconnect();
 
-  // Will be overridden by test object for more controlled test environment
-  virtual void InitializeLocalSources();
-
-  // Maps DataSource names to their remotes, for access convenience
-  std::map<std::string, mojo::Remote<mojom::DataSource>> data_source_map_;
-
- private:
+  void InitializeLocalSources();
   void InitializeCommandSources(enum features::TelemetryVerbosity verbosity);
   void AddLocalCommandSource(const std::string& command,
                              const base::TimeDelta& poll_freq);
@@ -158,6 +150,9 @@ class DataAggregatorService : public CfmObserver,
   void EnqueueNextPendingTransportPayload();
   void InitiateEnqueueRequest();
   void HandleEnqueueResponse(chromeos::cfm::mojom::LoggerStatusPtr status);
+
+  // Maps DataSource names to their remotes, for access convenience
+  std::map<std::string, mojo::Remote<mojom::DataSource>> data_source_map_;
 
   chromeos::cfm::ServiceAdaptor service_adaptor_;
   mojo::ReceiverSet<mojom::DataAggregator> receivers_;

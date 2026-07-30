@@ -77,6 +77,27 @@ chromium-metrics-reviews@google.com.
   <int value="8" label="The Startup pages button was clicked"/>
 </enum>
 
+<!-- LINT.IfChange(SessionEncryptedBackendUninitialized) -->
+
+<enum name="SessionEncryptedBackendUninitialized">
+  <int value="0" label="Save"/>
+  <int value="1" label="MoveCurrentSessionToLastSession"/>
+  <int value="2" label="DeleteLastSession"/>
+  <int value="3" label="GetLastSessionCommands"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/sessions/core/command_storage_manager.cc:SessionEncryptedBackendUninitialized) -->
+
+<!-- LINT.IfChange(SessionReadComparisonResult) -->
+
+<enum name="SessionReadComparisonResult">
+  <int value="0" label="Match"/>
+  <int value="1" label="Error Mismatch"/>
+  <int value="2" label="Commands Mismatch"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/sessions/core/command_storage_manager.cc:SessionReadComparisonResult) -->
+
 <enum name="SessionRestoreFinishReason">
   <int value="0"
       label="SessionRestore.ForegroundTabFirstPaint4 successfully recorded."/>

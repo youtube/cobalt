@@ -1263,7 +1263,7 @@ TEST_P(PasswordProtectionServiceBaseTest,
           .SetAccountId(CoreAccountId::FromGaiaId(GaiaId("gaia")))
           .SetHostedDomain("example.com")
           .Build();
-  AccountCapabilitiesTestMutator(&account_info.capabilities)
+  AccountCapabilitiesTestMutator(&account_info)
       .set_is_subject_to_enterprise_features(true);
   EXPECT_CALL(*password_protection_service_, GetAccountInfoForUsername(_))
       .WillRepeatedly(Return(account_info));

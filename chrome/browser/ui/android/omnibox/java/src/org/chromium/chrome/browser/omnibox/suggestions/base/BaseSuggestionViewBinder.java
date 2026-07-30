@@ -96,6 +96,8 @@ public final class BaseSuggestionViewBinder<T extends View>
         if (BaseSuggestionViewProperties.ACTION_CHIP_LEAD_IN_SPACING == propertyKey) {
             view.setActionChipLeadInSpacing(
                     model.get(BaseSuggestionViewProperties.ACTION_CHIP_LEAD_IN_SPACING));
+        } else if (SuggestionCommonProperties.APPLY_SIDE_SPACING == propertyKey) {
+            updateMargin(model, view);
         } else if (BaseSuggestionViewProperties.ICON == propertyKey) {
             updateSuggestionIcon(model, view);
         } else if (SuggestionCommonProperties.LAYOUT_DIRECTION == propertyKey) {
@@ -380,8 +382,10 @@ public final class BaseSuggestionViewBinder<T extends View>
                     new MarginLayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
         }
 
+        int sideSpacing =
+                model.get(SuggestionCommonProperties.APPLY_SIDE_SPACING) ? sSideSpacing : 0;
         if (layoutParams instanceof MarginLayoutParams) {
-            ((MarginLayoutParams) layoutParams).setMargins(sSideSpacing, 0, sSideSpacing, 0);
+            ((MarginLayoutParams) layoutParams).setMargins(sideSpacing, 0, sideSpacing, 0);
         }
         view.setLayoutParams(layoutParams);
     }

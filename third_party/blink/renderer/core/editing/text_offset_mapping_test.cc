@@ -489,7 +489,7 @@ TEST_F(TextOffsetMappingTest, RangeWithSelect1) {
       "pseudo=\"-internal-select-inner-element\"></div>"
       "<slot pseudo=\"-internal-select-button-slot\"></slot>"
       "<div popover=\"auto\" pseudo=\"picker(select)\">"
-      "<slot id=\"select-popover-options\"></slot>"
+      "<slot id=\"select-options\"></slot>"
       "</div>"
       "<div popover=\"manual\" pseudo=\"-internal-select-autofill-preview\">"
       "<div pseudo=\"-internal-select-autofill-preview-text\"></div>"
@@ -501,7 +501,7 @@ TEST_F(TextOffsetMappingTest, RangeWithSelect1) {
       "pseudo=\"-internal-select-inner-element\">^|</div>"
       "<slot pseudo=\"-internal-select-button-slot\"></slot>"
       "<div popover=\"auto\" pseudo=\"picker(select)\">"
-      "<slot id=\"select-popover-options\"></slot>"
+      "<slot id=\"select-options\"></slot>"
       "</div>"
       "<div popover=\"manual\" pseudo=\"-internal-select-autofill-preview\">"
       "<div pseudo=\"-internal-select-autofill-preview-text\"></div>"
@@ -521,7 +521,7 @@ TEST_F(TextOffsetMappingTest, RangeWithSelect2) {
       "pseudo=\"-internal-select-inner-element\"></div>"
       "<slot pseudo=\"-internal-select-button-slot\"></slot>"
       "<div popover=\"auto\" pseudo=\"picker(select)\">"
-      "<slot id=\"select-popover-options\">bar</slot>"
+      "<slot id=\"select-options\">bar</slot>"
       "</div>"
       "<div popover=\"manual\" pseudo=\"-internal-select-autofill-preview\">"
       "<div pseudo=\"-internal-select-autofill-preview-text\"></div>"
@@ -533,7 +533,7 @@ TEST_F(TextOffsetMappingTest, RangeWithSelect2) {
       "pseudo=\"-internal-select-inner-element\">^|</div>"
       "<slot pseudo=\"-internal-select-button-slot\"></slot>"
       "<div popover=\"auto\" pseudo=\"picker(select)\">"
-      "<slot id=\"select-popover-options\">bar</slot>"
+      "<slot id=\"select-options\">bar</slot>"
       "</div>"
       "<div popover=\"manual\" pseudo=\"-internal-select-autofill-preview\">"
       "<div pseudo=\"-internal-select-autofill-preview-text\"></div>"
@@ -546,7 +546,7 @@ TEST_F(TextOffsetMappingTest, RangeWithSelect2) {
 }
 
 // http://crbug.com//832350
-TEST_F(TextOffsetMappingTest, RangeWithShadowDOM) {
+TEST_F(TextOffsetMappingTest, RangeWithShadowDom) {
   EXPECT_EQ("<div><slot>^abc|</slot></div>",
             GetRange("<div>"
                      "<template data-mode='open'><slot></slot></template>"

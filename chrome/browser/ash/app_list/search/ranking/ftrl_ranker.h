@@ -8,7 +8,6 @@
 #include "chrome/browser/ash/app_list/search/ranking/ranker.h"
 #include "chrome/browser/ash/app_list/search/types.h"
 #include "chrome/browser/ash/app_list/search/util/ftrl_optimizer.h"
-#include "chrome/browser/ash/app_list/search/util/mrfu_cache.h"
 
 namespace app_list {
 
@@ -16,14 +15,7 @@ namespace app_list {
 // This learns weightings for the 'experts' below.
 class FtrlRanker : public Ranker {
  public:
-  enum class RankingKind {
-    kResults,
-    kCategories,
-  };
-
-  FtrlRanker(RankingKind kind,
-             FtrlOptimizer::Params params,
-             FtrlOptimizer::Proto proto);
+  FtrlRanker(FtrlOptimizer::Params params, FtrlOptimizer::Proto proto);
   ~FtrlRanker() override;
 
   FtrlRanker(const FtrlRanker&) = delete;
@@ -36,13 +28,8 @@ class FtrlRanker : public Ranker {
              const CategoriesList& categories) override;
   void Train(const LaunchData& launch) override;
   void UpdateResultRanks(ResultsMap& results, ProviderType provider) override;
-  void UpdateCategoryRanks(const ResultsMap& results,
-                           CategoriesList& categories,
-                           ProviderType provider) override;
 
  private:
-  RankingKind kind_;
-
   // The Follow the Regularized Leader instance that chooses amongst the expert
   // |rankers_|.
   std::unique_ptr<FtrlOptimizer> ftrl_;
@@ -71,23 +58,6 @@ class ResultScoringShim : public Ranker {
 
  private:
   ScoringMember member_;
-};
-
-// Ranks a category based on the normalized relevance of its best result.
-class BestResultCategoryRanker : public Ranker {
- public:
-  BestResultCategoryRanker();
-  ~BestResultCategoryRanker() override;
-
-  // Ranker:
-  void Start(const std::u16string& query,
-             const CategoriesList& categories) override;
-  std::vector<double> GetCategoryRanks(const ResultsMap& results,
-                                       const CategoriesList& categories,
-                                       ProviderType provider) override;
-
- private:
-  base::flat_map<Category, double> current_category_scores_;
 };
 
 }  // namespace app_list

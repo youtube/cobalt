@@ -11,7 +11,8 @@ assert(is_win || is_mac || is_linux || is_chromeos || is_android)
 # since it depends on aura::WindowOcclusionTracker which is not
 # supported on Linux.
 use_web_contents_occlusion_helper = is_win || is_chromeos || is_mac
-use_stub_occlusion_helper = is_android || is_linux
+use_widget_occlusion_helper = is_linux
+use_stub_occlusion_helper = is_android
 
 source_set("picture_in_picture") {
   sources = [
@@ -74,6 +75,10 @@ source_set("picture_in_picture") {
     sources +=
         [ "auto_picture_in_picture_window_occlusion_helper_web_contents.h" ]
   }
+  if (use_widget_occlusion_helper) {
+    sources += [ "auto_picture_in_picture_window_occlusion_helper_widget.h" ]
+    public_deps += [ "//chrome/browser/ui/browser_window" ]
+  }
 }
 
 source_set("impl") {
@@ -98,6 +103,7 @@ source_set("impl") {
     "//chrome/browser/permissions",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/safe_browsing",
+    "//chrome/browser/ui:recently_audible_helper",
     "//chrome/browser/ui/navigator",
     "//components/content_settings/browser",
     "//components/content_settings/core/browser",
@@ -119,6 +125,7 @@ source_set("impl") {
     sources += [
       "auto_picture_in_picture_permission_controller_bridge.cc",
       "auto_picture_in_picture_tab_model_observer_helper.cc",
+      "document_picture_in_picture_bridge_android.cc",
       "picture_in_picture_bounds_cache_bridge.cc",
     ]
     deps += [
@@ -148,6 +155,7 @@ source_set("impl") {
       "//chrome/browser/ui:browser_tab_strip",
       "//chrome/browser/ui/color:color_headers",
       "//chrome/browser/ui/hats",
+      "//chrome/browser/ui/views/picture_in_picture",
       "//components/strings:components_strings",
       "//components/unified_consent",
       "//components/url_formatter",
@@ -160,6 +168,9 @@ source_set("impl") {
   if (use_web_contents_occlusion_helper) {
     sources +=
         [ "auto_picture_in_picture_window_occlusion_helper_web_contents.cc" ]
+  }
+  if (use_widget_occlusion_helper) {
+    sources += [ "auto_picture_in_picture_window_occlusion_helper_widget.cc" ]
   }
   if (use_stub_occlusion_helper) {
     sources += [ "auto_picture_in_picture_window_occlusion_helper_stub.cc" ]
@@ -234,6 +245,7 @@ if (!is_android) {
       "auto_picture_in_picture_tab_strip_observer_helper_browsertest.cc",
       "document_picture_in_picture_pixel_browsertest.cc",
       "document_picture_in_picture_window_controller_browsertest.cc",
+      "document_pip_standalone_browsertest.cc",
       "hats/auto_picture_in_picture_hats_service_browsertest.cc",
       "picture_in_picture_metric_integration_browsertest.cc",
       "video_picture_in_picture_window_controller_browsertest.cc",
@@ -251,9 +263,11 @@ if (!is_android) {
       "//chrome/browser/preloading:test_support",
       "//chrome/browser/profiles:profile",
       "//chrome/browser/ui",
+      "//chrome/browser/ui:recently_audible_helper",
       "//chrome/browser/ui:ui_features",
       "//chrome/browser/ui/hats:test_support",
       "//chrome/browser/ui/views/page_info",
+      "//chrome/browser/ui/views/picture_in_picture",
       "//chrome/browser/ui/web_applications",
       "//chrome/browser/web_applications",
       "//chrome/test:test_support",
@@ -299,12 +313,8 @@ if (!is_android) {
 
     defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
-    if (use_stub_occlusion_helper) {
-      sources = []
-    } else {
-      sources =
-          [ "auto_picture_in_picture_window_occlusion_interactive_uitest.cc" ]
-    }
+    sources =
+        [ "auto_picture_in_picture_window_occlusion_interactive_uitest.cc" ]
 
     deps = [
       ":picture_in_picture",

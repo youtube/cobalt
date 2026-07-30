@@ -16,9 +16,10 @@
 #include "chrome/browser/actor/tools/tool_callbacks.h"
 #include "chrome/browser/actor/tools/tool_delegate.h"
 #include "chrome/browser/affiliations/affiliation_service_factory.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
-#include "chrome/browser/password_manager/actor_login/actor_login_service.h"
+#include "chrome/browser/password_manager/actor_login/chrome_actor_login_delegate_client.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/actor.mojom-shared.h"
 #include "chrome/common/actor/action_result.h"
@@ -29,9 +30,11 @@
 #include "components/affiliations/core/browser/affiliation_service.h"
 #include "components/affiliations/core/browser/affiliation_utils.h"
 #include "components/favicon/core/favicon_service.h"
+#include "components/password_manager/core/browser/actor_login/actor_login_service.h"
 #include "components/password_manager/core/browser/actor_login/actor_login_types.h"
 #include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/password_manager_util.h"
+#include "components/variations/service/variations_service.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
 #include "google_apis/gaia/gaia_urls.h"
@@ -45,6 +48,8 @@
 #endif
 
 namespace actor {
+
+using actor_login::ChromeActorLoginDelegateClient;
 
 namespace {
 
@@ -134,7 +139,8 @@ AttemptLoginTool::AttemptLoginTool(
       password_button_(password_button),
       sign_in_with_google_button_(sign_in_with_google_button),
       requires_opening_web_contents_(requires_opening_web_contents),
-      attempt_login_tool_start_time_(base::TimeTicks::Now()) {}
+      attempt_login_tool_start_time_(base::TimeTicks::Now()),
+      quality_logger_(g_browser_process->variations_service()) {}
 
 AttemptLoginTool::~AttemptLoginTool() {
   // Uploading the quality log on the destruction of the tool.
@@ -211,7 +217,9 @@ void AttemptLoginTool::Invoke(ToolCallback callback) {
         webui::mojom::UserGrantedPermissionDuration::kAlwaysAllow;
 
     GetActorLoginService().AttemptLogin(
-        tab, user_selected_credential_and_pemission->credential,
+        ChromeActorLoginDelegateClient::GetOrCreateForWebContents(
+            tab->GetContents()),
+        user_selected_credential_and_pemission->credential,
         should_store_permission, quality_logger_.AsWeakPtr(),
         attempt_login_tool_start_time_,
         base::BindOnce(&AttemptLoginTool::OnAttemptLogin,
@@ -239,7 +247,9 @@ void AttemptLoginTool::Invoke(ToolCallback callback) {
   }
 
   GetActorLoginService().GetCredentials(
-      tab, sign_in_with_google_button_.has_value(), quality_logger_.AsWeakPtr(),
+      ChromeActorLoginDelegateClient::GetOrCreateForWebContents(
+          tab->GetContents()),
+      sign_in_with_google_button_.has_value(), quality_logger_.AsWeakPtr(),
       base::BindOnce(&AttemptLoginTool::OnGetCredentials,
                      weak_ptr_factory_.GetWeakPtr()));
 }
@@ -477,8 +487,10 @@ void AttemptLoginTool::OnCredentialCachingDone(
       webui::mojom::UserGrantedPermissionDuration::kAlwaysAllow;
 
   GetActorLoginService().AttemptLogin(
-      tab, selected_credential, should_store_permission,
-      quality_logger_.AsWeakPtr(), attempt_login_tool_start_time_,
+      ChromeActorLoginDelegateClient::GetOrCreateForWebContents(
+          tab->GetContents()),
+      selected_credential, should_store_permission, quality_logger_.AsWeakPtr(),
+      attempt_login_tool_start_time_,
       base::BindOnce(&AttemptLoginTool::OnAttemptLogin,
                      weak_ptr_factory_.GetWeakPtr(), selected_credential,
                      should_store_permission),
@@ -623,7 +635,9 @@ void AttemptLoginTool::MaybeRetryCredentialNeedingFocus() {
   tool_delegate().UninterruptFromTool();
 
   GetActorLoginService().AttemptLogin(
-      tab, credential_awaiting_task_focus_->first,
+      ChromeActorLoginDelegateClient::GetOrCreateForWebContents(
+          tab->GetContents()),
+      credential_awaiting_task_focus_->first,
       credential_awaiting_task_focus_->second, quality_logger_.AsWeakPtr(),
       attempt_login_tool_start_time_,
       base::BindOnce(&AttemptLoginTool::OnAttemptLogin,

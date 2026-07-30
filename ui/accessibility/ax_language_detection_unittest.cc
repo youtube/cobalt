@@ -58,9 +58,6 @@ class AXLanguageDetectionTestFixture : public testing::Test {
       const AXLanguageDetectionTestFixture&) = delete;
 
  protected:
-  bool IsStaticLanguageDetectionEnabled() {
-    return AXLanguageDetectionManager::IsStaticLanguageDetectionEnabled();
-  }
 
   bool IsDynamicLanguageDetectionEnabled() {
     return AXLanguageDetectionManager::IsDynamicLanguageDetectionEnabled();
@@ -110,27 +107,8 @@ class AXLanguageDetectionTestFixture : public testing::Test {
   }
 };
 
-class AXLanguageDetectionTestStaticContent
-    : public AXLanguageDetectionTestFixture {
- public:
-  AXLanguageDetectionTestStaticContent() = default;
-  ~AXLanguageDetectionTestStaticContent() override = default;
-
-  AXLanguageDetectionTestStaticContent(
-      const AXLanguageDetectionTestStaticContent&) = delete;
-  AXLanguageDetectionTestStaticContent& operator=(
-      const AXLanguageDetectionTestStaticContent&) = delete;
-
-  void SetUp() override {
-    AXLanguageDetectionTestFixture::SetUp();
-
-    base::CommandLine::ForCurrentProcess()->AppendSwitch(
-        ::switches::kEnableExperimentalAccessibilityLanguageDetection);
-  }
-};
-
 class AXLanguageDetectionTestDynamicContent
-    : public AXLanguageDetectionTestStaticContent {
+    : public AXLanguageDetectionTestFixture {
  public:
   AXLanguageDetectionTestDynamicContent() = default;
   ~AXLanguageDetectionTestDynamicContent() override = default;
@@ -141,26 +119,12 @@ class AXLanguageDetectionTestDynamicContent
       const AXLanguageDetectionTestDynamicContent&) = delete;
 
   void SetUp() override {
-    AXLanguageDetectionTestStaticContent::SetUp();
+    AXLanguageDetectionTestFixture::SetUp();
 
     base::CommandLine::ForCurrentProcess()->AppendSwitch(
         ::switches::kEnableExperimentalAccessibilityLanguageDetectionDynamic);
   }
 };
-
-TEST_F(AXLanguageDetectionTestFixture, StaticContentFeatureFlag) {
-  // TODO(crbug.com/41417304): Remove this test once this feature is stable
-  EXPECT_FALSE(
-      ::switches::IsExperimentalAccessibilityLanguageDetectionEnabled());
-  EXPECT_FALSE(IsStaticLanguageDetectionEnabled());
-
-  base::CommandLine::ForCurrentProcess()->AppendSwitch(
-      ::switches::kEnableExperimentalAccessibilityLanguageDetection);
-
-  EXPECT_TRUE(
-      ::switches::IsExperimentalAccessibilityLanguageDetectionEnabled());
-  EXPECT_TRUE(IsStaticLanguageDetectionEnabled());
-}
 
 TEST_F(AXLanguageDetectionTestFixture, DynamicContentFeatureFlag) {
   // TODO(crbug.com/41417304): Remove this test once this feature is stable
@@ -176,107 +140,7 @@ TEST_F(AXLanguageDetectionTestFixture, DynamicContentFeatureFlag) {
   EXPECT_TRUE(IsDynamicLanguageDetectionEnabled());
 }
 
-TEST(AXLanguageDetectionTest, LangAttrInheritanceFeatureFlagOff) {
-  // Test lang attribute inheritance when feature flag is off.
-  //
-  // Lang attribute inheritance is handled by GetLanguage.
-  //
-  // Tree:
-  //        1
-  //      2   3
-  //    4
-  //  5
-  //
-  //  1 - English lang attribute
-  //  2 - French lang attribute
-  //
-  //  Expected:
-  //    3 - inherit English from 1
-  //    4 - inherit French from 2
-  //    5 - inherit Frnech from 4/2
-  AXTreeUpdate initial_state;
-  initial_state.root_id = 1;
-  initial_state.nodes.resize(5);
-
-  {
-    AXNodeData& node1 = initial_state.nodes[0];
-    node1.id = 1;
-    node1.role = ax::mojom::Role::kGenericContainer;
-    node1.child_ids.resize(2);
-    node1.child_ids[0] = 2;
-    node1.child_ids[1] = 3;
-    node1.AddStringAttribute(ax::mojom::StringAttribute::kLanguage, "en");
-  }
-
-  {
-    AXNodeData& node2 = initial_state.nodes[1];
-    node2.id = 2;
-    node2.role = ax::mojom::Role::kGenericContainer;
-    node2.child_ids.resize(1);
-    node2.child_ids[0] = 4;
-    node2.AddStringAttribute(ax::mojom::StringAttribute::kLanguage, "fr");
-  }
-
-  {
-    AXNodeData& node3 = initial_state.nodes[2];
-    node3.id = 3;
-    node3.role = ax::mojom::Role::kStaticText;
-  }
-
-  {
-    AXNodeData& node4 = initial_state.nodes[3];
-    node4.id = 4;
-    node4.role = ax::mojom::Role::kStaticText;
-    node4.child_ids.resize(1);
-    node4.child_ids[0] = 5;
-  }
-
-  {
-    AXNodeData& node5 = initial_state.nodes[4];
-    node5.id = 5;
-    node5.role = ax::mojom::Role::kInlineTextBox;
-  }
-
-  AXTree tree(initial_state);
-  ASSERT_NE(tree.language_detection_manager, nullptr);
-  tree.language_detection_manager->DetectLanguages();
-  tree.language_detection_manager->LabelLanguages();
-
-  {
-    AXNode* node1 = tree.GetFromId(1);
-    EXPECT_EQ(node1->GetLanguageInfo(), nullptr);
-    EXPECT_EQ(node1->GetLanguage(), "en");
-  }
-
-  {
-    AXNode* node2 = tree.GetFromId(2);
-    EXPECT_EQ(node2->GetLanguageInfo(), nullptr);
-    EXPECT_EQ(node2->GetLanguage(), "fr");
-  }
-
-  {
-    AXNode* node3 = tree.GetFromId(3);
-    EXPECT_EQ(node3->GetLanguageInfo(), nullptr);
-    EXPECT_EQ(node3->GetLanguage(), "en");
-  }
-
-  {
-    AXNode* node4 = tree.GetFromId(4);
-    EXPECT_EQ(node4->GetLanguageInfo(), nullptr);
-    EXPECT_EQ(node4->GetLanguage(), "fr");
-  }
-
-  {
-    AXNode* node5 = tree.GetFromId(5);
-    EXPECT_EQ(node5->GetLanguageInfo(), nullptr);
-    EXPECT_EQ(node5->GetLanguage(), "fr");
-  }
-}
-
-TEST(AXLanguageDetectionTest, LangAttrInheritanceFeatureFlagOn) {
-  base::CommandLine::ForCurrentProcess()->AppendSwitch(
-      ::switches::kEnableExperimentalAccessibilityLanguageDetection);
-
+TEST(AXLanguageDetectionTest, LangAttrInheritance) {
   // Test lang attribute inheritance in the absence of any detected language.
   //
   // Lang attribute inheritance is handled by the Label step.
@@ -340,8 +204,6 @@ TEST(AXLanguageDetectionTest, LangAttrInheritanceFeatureFlagOn) {
 
   AXTree tree(initial_state);
   ASSERT_NE(tree.language_detection_manager, nullptr);
-  tree.language_detection_manager->DetectLanguages();
-  tree.language_detection_manager->LabelLanguages();
 
   {
     AXNode* node1 = tree.GetFromId(1);
@@ -378,489 +240,9 @@ TEST(AXLanguageDetectionTest, LangAttrInheritanceFeatureFlagOn) {
   }
 }
 
-// Tests that AXNode::GetLanguage() terminates when there is no lang attribute.
-TEST_F(AXLanguageDetectionTestStaticContent, GetLanguageBoringTree) {
-  // This test checks the behaviour of Detect, Label, and GetLanguage on a
-  // 'boring' tree.
-  //
-  // The tree built here contains no lang attributes, nor does it contain any
-  // text to perform detection on.
-  //
-  // Tree:
-  //      1
-  //    2   3
-  //  4
-  AXTreeUpdate initial_state;
-  initial_state.root_id = 1;
-  initial_state.nodes.resize(4);
-  initial_state.nodes[0].id = 1;
-  initial_state.nodes[0].child_ids.resize(2);
-  initial_state.nodes[0].child_ids[0] = 2;
-  initial_state.nodes[0].child_ids[1] = 3;
-  initial_state.nodes[1].id = 2;
-  initial_state.nodes[1].child_ids.resize(1);
-  initial_state.nodes[1].child_ids[0] = 4;
-  initial_state.nodes[2].id = 3;
-  initial_state.nodes[3].id = 4;
-
-  AXTree tree(initial_state);
-  ASSERT_NE(tree.language_detection_manager, nullptr);
-  tree.language_detection_manager->DetectLanguages();
-  tree.language_detection_manager->LabelLanguages();
-
-  // Check that tree parenting conforms to expected shape.
-  AXNode* node1 = tree.GetFromId(1);
-  EXPECT_EQ(node1->parent(), nullptr);
-
-  AXNode* node2 = tree.GetFromId(2);
-  ASSERT_EQ(node2->parent(), node1);
-  EXPECT_EQ(node2->parent()->parent(), nullptr);
-
-  AXNode* node3 = tree.GetFromId(3);
-  ASSERT_EQ(node3->parent(), node1);
-  EXPECT_EQ(node3->parent()->parent(), nullptr);
-
-  AXNode* node4 = tree.GetFromId(4);
-  ASSERT_EQ(node4->parent(), node2);
-  ASSERT_EQ(node4->parent()->parent(), node1);
-  EXPECT_EQ(node4->parent()->parent()->parent(), nullptr);
-
-  EXPECT_EQ(node1->GetLanguage(), "");
-  EXPECT_EQ(node2->GetLanguage(), "");
-  EXPECT_EQ(node3->GetLanguage(), "");
-  EXPECT_EQ(node4->GetLanguage(), "");
-}
-
-TEST_F(AXLanguageDetectionTestStaticContent, Basic) {
-  // Tree:
-  //        1
-  //      2   3
-  //    4
-  //  5
-  //
-  //  1 - German lang attribute,  no text
-  //  2 - French lang attribute,  no text
-  //  3 - no attribute,           French text
-  //  4 - no attribute,           English text
-  //  5 - no attribute,           no text
-  //
-  //  Expected:
-  //    3 - French detected
-  //    4 - English detected
-  //    5 - inherit English from 4
-  AXTreeUpdate initial_state;
-  initial_state.root_id = 1;
-  initial_state.nodes.resize(5);
-
-  {
-    AXNodeData& node1 = initial_state.nodes[0];
-    node1.id = 1;
-    node1.role = ax::mojom::Role::kGenericContainer;
-    node1.child_ids.resize(2);
-    node1.child_ids[0] = 2;
-    node1.child_ids[1] = 3;
-    node1.AddStringAttribute(ax::mojom::StringAttribute::kLanguage, "de");
-  }
-
-  {
-    AXNodeData& node2 = initial_state.nodes[1];
-    node2.id = 2;
-    node2.role = ax::mojom::Role::kGenericContainer;
-    node2.child_ids.resize(1);
-    node2.child_ids[0] = 4;
-    node2.AddStringAttribute(ax::mojom::StringAttribute::kLanguage, "fr");
-  }
-
-  {
-    AXNodeData& node3 = initial_state.nodes[2];
-    node3.id = 3;
-    node3.role = ax::mojom::Role::kStaticText;
-    node3.AddStringAttribute(ax::mojom::StringAttribute::kName, kTextFrench);
-  }
-
-  {
-    AXNodeData& node4 = initial_state.nodes[3];
-    node4.id = 4;
-    node4.child_ids.resize(1);
-    node4.child_ids[0] = 5;
-    node4.role = ax::mojom::Role::kStaticText;
-    node4.AddStringAttribute(ax::mojom::StringAttribute::kName, kTextEnglish);
-  }
-
-  {
-    AXNodeData& node5 = initial_state.nodes[4];
-    node5.id = 5;
-    node5.role = ax::mojom::Role::kInlineTextBox;
-    node5.AddStringAttribute(ax::mojom::StringAttribute::kName, kTextEnglish);
-  }
-
-  AXTree tree(initial_state);
-  ASSERT_NE(tree.language_detection_manager, nullptr);
-  tree.language_detection_manager->DetectLanguages();
-  tree.language_detection_manager->LabelLanguages();
-
-  {
-    AXNode* node1 = tree.GetFromId(1);
-    // node1 is not a text node, so no lang info should be attached.
-    EXPECT_EQ(node1->GetLanguageInfo(), nullptr);
-    EXPECT_EQ(node1->GetLanguage(), "de");
-  }
-
-  {
-    AXNode* node2 = tree.GetFromId(2);
-    // node2 is not a text node, so no lang info should be attached.
-    EXPECT_EQ(node2->GetLanguageInfo(), nullptr);
-    EXPECT_EQ(node2->GetLanguage(), "fr");
-  }
-
-  {
-    AXNode* node3 = tree.GetFromId(3);
-    EXPECT_TRUE(node3->IsText());
-    EXPECT_NE(node3->GetLanguageInfo(), nullptr);
-    EXPECT_EQ(node3->GetLanguage(), "fr");
-  }
-
-  {
-    AXNode* node4 = tree.GetFromId(4);
-    EXPECT_TRUE(node4->IsText());
-    EXPECT_NE(node4->GetLanguageInfo(), nullptr);
-    EXPECT_EQ(node4->GetLanguage(), "en");
-  }
-
-  {
-    AXNode* node5 = tree.GetFromId(5);
-    EXPECT_TRUE(node5->IsText());
-    // Inherited languages are not stored in lang info.
-    EXPECT_EQ(node5->GetLanguageInfo(), nullptr);
-    EXPECT_EQ(node5->GetLanguage(), "en");
-  }
-}
-
-TEST_F(AXLanguageDetectionTestStaticContent, MetricCollection) {
-  // Tree:
-  //        1
-  //    2 3 4 5 6
-  //
-  //  1 - German lang attribute,  no text
-  //  2 - no attribute,           German text
-  //  3 - no attribute,           French text
-  //  4 - no attribute,           English text
-  //  5 - no attribute,           Spanish text
-  //  6 - no attribute,           text too short to get detection results.
-  //
-  //  Expected:
-  //    2 - German detected
-  //    3 - French detected
-  //    4 - English detected
-  //    5 - Spanish detected
-  //    6 - too short for results
-  //
-  //    only 3 of these languages can be labelled due to heuristics.
-  AXTreeUpdate initial_state;
-  initial_state.root_id = 1;
-  initial_state.nodes.resize(6);
-
-  {
-    AXNodeData& node1 = initial_state.nodes[0];
-    node1.id = 1;
-    node1.role = ax::mojom::Role::kGenericContainer;
-    node1.child_ids.resize(5);
-    node1.child_ids[0] = 2;
-    node1.child_ids[1] = 3;
-    node1.child_ids[2] = 4;
-    node1.child_ids[3] = 5;
-    node1.child_ids[4] = 6;
-    node1.AddStringAttribute(ax::mojom::StringAttribute::kLanguage, "de");
-  }
-
-  {
-    AXNodeData& node2 = initial_state.nodes[1];
-    node2.id = 2;
-    node2.role = ax::mojom::Role::kStaticText;
-    node2.AddStringAttribute(ax::mojom::StringAttribute::kName, kTextGerman);
-  }
-
-  {
-    AXNodeData& node3 = initial_state.nodes[2];
-    node3.id = 3;
-    node3.role = ax::mojom::Role::kStaticText;
-    node3.AddStringAttribute(ax::mojom::StringAttribute::kName, kTextFrench);
-  }
-
-  {
-    AXNodeData& node4 = initial_state.nodes[3];
-    node4.id = 4;
-    node4.role = ax::mojom::Role::kStaticText;
-    node4.AddStringAttribute(ax::mojom::StringAttribute::kName, kTextEnglish);
-  }
-
-  {
-    AXNodeData& node5 = initial_state.nodes[4];
-    node5.id = 5;
-    node5.role = ax::mojom::Role::kStaticText;
-    node5.AddStringAttribute(ax::mojom::StringAttribute::kName, kTextSpanish);
-  }
-
-  {
-    AXNodeData& node6 = initial_state.nodes[5];
-    node6.id = 6;
-    node6.role = ax::mojom::Role::kStaticText;
-    node6.AddStringAttribute(ax::mojom::StringAttribute::kName,
-                             "too short for detection.");
-  }
-
-  AXTree tree(initial_state);
-  ASSERT_NE(tree.language_detection_manager, nullptr);
-
-  // Specifically disable clearing of metrics.
-  disable_metric_clearing(tree);
-  // Our histogram for testing.
-  base::HistogramTester histograms;
-
-  tree.language_detection_manager->DetectLanguages();
-  tree.language_detection_manager->LabelLanguages();
-
-  // All 4 of our languages should have been detected for one node each, scoring
-  // a maximum 3 points.
-  EXPECT_EQ(3, get_score(tree, "de"));
-  EXPECT_EQ(3, get_score(tree, "en"));
-  EXPECT_EQ(3, get_score(tree, "fr"));
-  EXPECT_EQ(3, get_score(tree, "es"));
-
-  // 5 nodes (2, 3, 4, 5, 6) should have had detection attempted.
-  EXPECT_EQ(5, count_detection_attempted(tree));
-  histograms.ExpectUniqueSample(
-      "Accessibility.LanguageDetection.CountDetectionAttempted", 5, 1);
-
-  // 4 nodes (2, 3, 4, 5) should have had detection results.
-  EXPECT_EQ(4, count_detection_results(tree));
-  // 5 nodes attempted, 4 got results = 4*100/5 = 80%
-  histograms.ExpectUniqueSample(
-      "Accessibility.LanguageDetection.PercentageLanguageDetected", 80, 1);
-
-  // 3 nodes (any of 2, 3, 4, 5) should have been labelled.
-  EXPECT_EQ(3, count_labelled(tree));
-  histograms.ExpectUniqueSample("Accessibility.LanguageDetection.CountLabelled",
-                                3, 1);
-
-  // 3 nodes (any of 2, 3, 4, 5) should have been given top label.
-  EXPECT_EQ(3, count_labelled_with_top_result(tree));
-  // 3 nodes labelled, all of them given top result = 100%.
-  histograms.ExpectUniqueSample(
-      "Accessibility.LanguageDetection.PercentageLabelledWithTop", 100, 1);
-
-  // 3 nodes (3, 4, 5) should have been labelled to disagree with node1 author
-  // provided language.
-  EXPECT_EQ(3, count_overridden(tree));
-  // 3 nodes labelled, all 3 disagree with node1 = 100%.
-  histograms.ExpectUniqueSample(
-      "Accessibility.LanguageDetection.PercentageOverridden", 100, 1);
-
-  // There should be 4 unique languages (de, en, fr, es).
-  {
-    const auto& top_lang = unique_top_lang_detected(tree);
-    const absl::flat_hash_set<std::string> expected_top_lang = {"de", "en",
-                                                                "es", "fr"};
-    EXPECT_EQ(top_lang, expected_top_lang);
-  }
-  histograms.ExpectUniqueSample("Accessibility.LanguageDetection.LangsPerPage",
-                                4, 1);
-}
-
-TEST_F(AXLanguageDetectionTestStaticContent, DetectOnly) {
-  // This tests a Detect step without any matching Label step.
-  //
-  // Tree:
-  //        1
-  //      2   3
-  //    4
-  //  5
-  //
-  //  1 - German lang attribute, no text
-  //  2 - French lang attribute,  no text
-  //  3 - no attribute,           French text
-  //  4 - no attribute,           English text
-  //  5 - no attribute,           no text
-  //
-  //  Expected:
-  //    3 - French detected, never labelled, so still inherits German from 1
-  //    4 - English detected, never labelled, so still inherits French from 2
-  //    5 - English inherited from 4, still inherits French from 4
-  AXTreeUpdate initial_state;
-  initial_state.root_id = 1;
-  initial_state.nodes.resize(5);
-
-  {
-    AXNodeData& node1 = initial_state.nodes[0];
-    node1.id = 1;
-    node1.role = ax::mojom::Role::kGenericContainer;
-    node1.child_ids.resize(2);
-    node1.child_ids[0] = 2;
-    node1.child_ids[1] = 3;
-    node1.AddStringAttribute(ax::mojom::StringAttribute::kLanguage, "de");
-  }
-
-  {
-    AXNodeData& node2 = initial_state.nodes[1];
-    node2.id = 2;
-    node2.role = ax::mojom::Role::kGenericContainer;
-    node2.child_ids.resize(1);
-    node2.child_ids[0] = 4;
-    node2.AddStringAttribute(ax::mojom::StringAttribute::kLanguage, "fr");
-  }
-
-  {
-    AXNodeData& node3 = initial_state.nodes[2];
-    node3.id = 3;
-    node3.role = ax::mojom::Role::kStaticText;
-    node3.AddStringAttribute(ax::mojom::StringAttribute::kName, kTextFrench);
-  }
-
-  {
-    AXNodeData& node4 = initial_state.nodes[3];
-    node4.id = 4;
-    node4.child_ids.resize(1);
-    node4.child_ids[0] = 5;
-    node4.role = ax::mojom::Role::kStaticText;
-    node4.AddStringAttribute(ax::mojom::StringAttribute::kName, kTextEnglish);
-  }
-
-  {
-    AXNodeData& node5 = initial_state.nodes[4];
-    node5.id = 5;
-    node5.role = ax::mojom::Role::kInlineTextBox;
-    node5.AddStringAttribute(ax::mojom::StringAttribute::kName, kTextEnglish);
-  }
-
-  AXTree tree(initial_state);
-  ASSERT_NE(tree.language_detection_manager, nullptr);
-  tree.language_detection_manager->DetectLanguages();
-  // Purposefully not calling Label so we can test Detect in isolation.
-
-  {
-    AXNode* node1 = tree.GetFromId(1);
-    // node1 is not a text node, so no lang info should be attached.
-    EXPECT_EQ(node1->GetLanguageInfo(), nullptr);
-    EXPECT_EQ(node1->GetLanguage(), "de");
-  }
-
-  {
-    AXNode* node2 = tree.GetFromId(2);
-    // node2 is not a text node, so no lang info should be attached.
-    EXPECT_EQ(node2->GetLanguageInfo(), nullptr);
-    EXPECT_EQ(node2->GetLanguage(), "fr");
-  }
-
-  {
-    AXNode* node3 = tree.GetFromId(3);
-    EXPECT_TRUE(node3->IsText());
-    ASSERT_NE(node3->GetLanguageInfo(), nullptr);
-    ASSERT_GT(node3->GetLanguageInfo()->detected_languages.size(), 0u);
-    ASSERT_EQ(node3->GetLanguageInfo()->detected_languages[0], "fr");
-    EXPECT_TRUE(node3->GetLanguageInfo()->language.empty());
-    EXPECT_EQ(node3->GetLanguage(), "de");
-  }
-
-  {
-    AXNode* node4 = tree.GetFromId(4);
-    EXPECT_TRUE(node4->IsText());
-    ASSERT_NE(node4->GetLanguageInfo(), nullptr);
-    ASSERT_GT(node4->GetLanguageInfo()->detected_languages.size(), 0u);
-    ASSERT_EQ(node4->GetLanguageInfo()->detected_languages[0], "en");
-    EXPECT_TRUE(node4->GetLanguageInfo()->language.empty());
-    EXPECT_EQ(node4->GetLanguage(), "fr");
-  }
-
-  {
-    AXNode* node5 = tree.GetFromId(5);
-    EXPECT_TRUE(node5->IsText());
-    // Inherited languages are not stored in lang info.
-    ASSERT_EQ(node5->GetLanguageInfo(), nullptr);
-    EXPECT_EQ(node5->GetLanguage(), "fr");
-  }
-}
-
-TEST_F(AXLanguageDetectionTestStaticContent, kLanguageUntouched) {
-  // This test is to ensure that the kLanguage string attribute is not updated
-  // during language detection and labelling, even when it disagrees with the
-  // detected language.
-
-  // Built tree:
-  //        1
-  //      2   3
-  //
-  //  1 - German lang attribute,  no text
-  //  2 - English lang attribute, French text
-  //  3 - French lang attribute,  English text
-  AXTreeUpdate initial_state;
-  initial_state.root_id = 1;
-  initial_state.nodes.resize(3);
-
-  {
-    AXNodeData& node1 = initial_state.nodes[0];
-    node1.id = 1;
-    node1.role = ax::mojom::Role::kGenericContainer;
-    node1.child_ids.resize(2);
-    node1.child_ids[0] = 2;
-    node1.child_ids[1] = 3;
-    node1.AddStringAttribute(ax::mojom::StringAttribute::kLanguage, "de");
-  }
-
-  {
-    AXNodeData& node2 = initial_state.nodes[1];
-    node2.id = 2;
-    node2.role = ax::mojom::Role::kStaticText;
-    node2.AddStringAttribute(ax::mojom::StringAttribute::kLanguage, "en");
-    node2.AddStringAttribute(ax::mojom::StringAttribute::kName, kTextFrench);
-  }
-
-  {
-    AXNodeData& node3 = initial_state.nodes[2];
-    node3.id = 3;
-    node3.role = ax::mojom::Role::kStaticText;
-    node3.AddStringAttribute(ax::mojom::StringAttribute::kLanguage, "fr");
-    node3.AddStringAttribute(ax::mojom::StringAttribute::kName, kTextEnglish);
-  }
-
-  AXTree tree(initial_state);
-  ASSERT_NE(tree.language_detection_manager, nullptr);
-  tree.language_detection_manager->DetectLanguages();
-  tree.language_detection_manager->LabelLanguages();
-
-  {
-    AXNode* node1 = tree.GetFromId(1);
-    ASSERT_EQ(node1->GetLanguageInfo(), nullptr);
-    EXPECT_EQ(node1->GetLanguage(), "de");
-  }
-
-  {
-    // French should be detected, original English attr should be untouched.
-    AXNode* node2 = tree.GetFromId(2);
-    ASSERT_NE(node2->GetLanguageInfo(), nullptr);
-    EXPECT_EQ(node2->GetLanguageInfo()->language, "fr");
-    EXPECT_EQ(node2->GetStringAttribute(ax::mojom::StringAttribute::kLanguage),
-              "en");
-    EXPECT_EQ(node2->GetLanguage(), "fr");
-  }
-
-  {
-    // English should be detected, original French attr should be untouched.
-    AXNode* node3 = tree.GetFromId(3);
-    ASSERT_NE(node3->GetLanguageInfo(), nullptr);
-    EXPECT_EQ(node3->GetLanguageInfo()->language, "en");
-    EXPECT_EQ(node3->GetStringAttribute(ax::mojom::StringAttribute::kLanguage),
-              "fr");
-    EXPECT_EQ(node3->GetLanguage(), "en");
-  }
-}
-
 // Test RegisterLanguageDetectionObserver correctly respects the command line
 // flags.
 TEST_F(AXLanguageDetectionTestFixture, ObserverRegistrationObeysFlag) {
-  // Enable only the flag controlling static language detection.
-  base::CommandLine::ForCurrentProcess()->AppendSwitch(
-      ::switches::kEnableExperimentalAccessibilityLanguageDetection);
-
   // Construct empty tree and check initialisation.
   AXTree tree;
   ASSERT_NE(tree.language_detection_manager, nullptr);
@@ -918,12 +300,13 @@ TEST_F(AXLanguageDetectionTestDynamicContent, Basic) {
     node2.AddStringAttribute(ax::mojom::StringAttribute::kName, kTextEnglish);
   }
 
-  AXTree tree(initial_state);
+  AXTree tree;
   ASSERT_NE(tree.language_detection_manager, nullptr);
+  // Manually register observer.
+  AXLanguageDetectionObserver observer(&tree);
+  ASSERT_TRUE(tree.HasObserver(&observer));
 
-  // Manually run initial language detection and labelling.
-  tree.language_detection_manager->DetectLanguages();
-  tree.language_detection_manager->LabelLanguages();
+  ASSERT_TRUE(tree.Unserialize(initial_state));
 
   // Quickly verify "before" state
   {
@@ -939,12 +322,6 @@ TEST_F(AXLanguageDetectionTestDynamicContent, Basic) {
     // Should still inherit language from parent.
     ASSERT_EQ(node2->GetLanguage(), "en");
   }
-
-  // Manually register observer.
-  AXLanguageDetectionObserver observer(&tree);
-
-  // Observer constructor is responsible for attaching itself to tree.
-  ASSERT_TRUE(tree.HasObserver(&observer));
 
   // Dynamic update
   //
@@ -1037,12 +414,14 @@ TEST_F(AXLanguageDetectionTestDynamicContent, MetricCollection) {
     node3.AddStringAttribute(ax::mojom::StringAttribute::kName, kTextGerman);
   }
 
-  AXTree tree(initial_state);
+  AXTree tree;
   ASSERT_NE(tree.language_detection_manager, nullptr);
+  // Manually register observer.
+  AXLanguageDetectionObserver observer(&tree);
+  ASSERT_TRUE(tree.HasObserver(&observer));
 
-  // Manually run initial language detection and labelling.
-  tree.language_detection_manager->DetectLanguages();
-  tree.language_detection_manager->LabelLanguages();
+  // Populate initial state.
+  ASSERT_TRUE(tree.Unserialize(initial_state));
 
   // Quickly verify "before" metrics were cleared.
   EXPECT_EQ(0, count_detection_attempted(tree));
@@ -1051,12 +430,6 @@ TEST_F(AXLanguageDetectionTestDynamicContent, MetricCollection) {
   disable_metric_clearing(tree);
   // Our histogram for testing.
   base::HistogramTester histograms;
-
-  // Manually register observer.
-  AXLanguageDetectionObserver observer(&tree);
-
-  // Observer constructor is responsible for attaching itself to tree.
-  ASSERT_TRUE(tree.HasObserver(&observer));
 
   // Dynamic update
   //
@@ -1179,12 +552,14 @@ TEST_F(AXLanguageDetectionTestDynamicContent, MultipleUpdates) {
     node2.AddStringAttribute(ax::mojom::StringAttribute::kName, kTextEnglish);
   }
 
-  AXTree tree(initial_state);
+  AXTree tree;
   ASSERT_NE(tree.language_detection_manager, nullptr);
+  // Register dynamic content observer.
+  AXLanguageDetectionObserver observer(&tree);
+  ASSERT_TRUE(tree.HasObserver(&observer));
 
-  // Run initial language detection and labelling.
-  tree.language_detection_manager->DetectLanguages();
-  tree.language_detection_manager->LabelLanguages();
+  // Populate initial state.
+  ASSERT_TRUE(tree.Unserialize(initial_state));
 
   // Quickly verify "before" state
   {
@@ -1196,11 +571,6 @@ TEST_F(AXLanguageDetectionTestDynamicContent, MultipleUpdates) {
     ASSERT_NE(node2, nullptr);
     ASSERT_EQ(node2->GetLanguage(), "en");
   }
-
-  // Register dynamic content observer.
-  tree.language_detection_manager->RegisterLanguageDetectionObserver();
-  ASSERT_NE(getObserver(tree), nullptr);
-  ASSERT_TRUE(tree.HasObserver(getObserver(tree)));
 
   // First update
   {
@@ -1395,17 +765,13 @@ TEST_F(AXLanguageDetectionTestDynamicContent, NewRoot) {
     node1.role = ax::mojom::Role::kGenericContainer;
   }
 
-  AXTree tree(initial_state);
+  AXTree tree;
   ASSERT_NE(tree.language_detection_manager, nullptr);
-
-  // Run initial language detection and labelling.
-  tree.language_detection_manager->DetectLanguages();
-  tree.language_detection_manager->LabelLanguages();
-
   // Register dynamic content observer.
-  tree.language_detection_manager->RegisterLanguageDetectionObserver();
-  ASSERT_NE(getObserver(tree), nullptr);
-  ASSERT_TRUE(tree.HasObserver(getObserver(tree)));
+  AXLanguageDetectionObserver observer(&tree);
+  ASSERT_TRUE(tree.HasObserver(&observer));
+
+  ASSERT_TRUE(tree.Unserialize(initial_state));
 
   // New Tree:
   //       2
@@ -1450,17 +816,13 @@ TEST_F(AXLanguageDetectionTestDynamicContent, ChainOfNewNodes) {
     node1.role = ax::mojom::Role::kGenericContainer;
   }
 
-  AXTree tree(initial_state);
+  AXTree tree;
   ASSERT_NE(tree.language_detection_manager, nullptr);
-
-  // Run initial language detection and labelling.
-  tree.language_detection_manager->DetectLanguages();
-  tree.language_detection_manager->LabelLanguages();
-
   // Register dynamic content observer.
-  tree.language_detection_manager->RegisterLanguageDetectionObserver();
-  ASSERT_NE(getObserver(tree), nullptr);
-  ASSERT_TRUE(tree.HasObserver(getObserver(tree)));
+  AXLanguageDetectionObserver observer(&tree);
+  ASSERT_TRUE(tree.HasObserver(&observer));
+
+  ASSERT_TRUE(tree.Unserialize(initial_state));
 
   // New Tree:
   //       1
@@ -1587,8 +949,6 @@ TEST(AXLanguageDetectionTest, AXLanguageInfoStatsBasic) {
 }
 
 TEST(AXLanguageDetectionTest, ShortLanguageDetectorLabeledTest) {
-  base::CommandLine::ForCurrentProcess()->AppendSwitch(
-      ::switches::kEnableExperimentalAccessibilityLanguageDetection);
   AXTreeUpdate initial_state;
   initial_state.root_id = 1;
   initial_state.nodes.resize(2);
@@ -1624,8 +984,6 @@ TEST(AXLanguageDetectionTest, ShortLanguageDetectorLabeledTest) {
 }
 
 TEST(AXLanguageDetectionTest, ShortLanguageDetectorCharacterTest) {
-  base::CommandLine::ForCurrentProcess()->AppendSwitch(
-      ::switches::kEnableExperimentalAccessibilityLanguageDetection);
   AXTreeUpdate initial_state;
   initial_state.root_id = 1;
   initial_state.nodes.resize(2);
@@ -1653,8 +1011,6 @@ TEST(AXLanguageDetectionTest, ShortLanguageDetectorCharacterTest) {
 }
 
 TEST(AXLanguageDetectionTest, ShortLanguageDetectorMultipleLanguagesTest) {
-  base::CommandLine::ForCurrentProcess()->AppendSwitch(
-      ::switches::kEnableExperimentalAccessibilityLanguageDetection);
   AXTreeUpdate initial_state;
   initial_state.root_id = 1;
   initial_state.nodes.resize(2);
@@ -1692,8 +1048,6 @@ TEST(AXLanguageDetectionTest, ShortLanguageDetectorMultipleLanguagesTest) {
 // Assert that GetLanguageAnnotationForStringAttribute works for attributes
 // other than kName.
 TEST(AXLanguageDetectionTest, DetectLanguagesForRoleTest) {
-  base::CommandLine::ForCurrentProcess()->AppendSwitch(
-      ::switches::kEnableExperimentalAccessibilityLanguageDetection);
   AXTreeUpdate initial_state;
   initial_state.root_id = 1;
   initial_state.nodes.resize(1);

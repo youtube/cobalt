@@ -36,7 +36,6 @@ static_library("multi_user") {
     "//chrome/browser/profiles:profile_manager",
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/dialogs:browser_dialogs",
-    "//chrome/common",
     "//chromeos/ash/components/browser_context_helper",
     "//components/account_id",
     "//components/prefs",

@@ -27,6 +27,7 @@ import org.chromium.android_webview.common.AwFeatures;
 import org.chromium.android_webview.test.AwActivityTestRule.PopupInfo;
 import org.chromium.android_webview.test.util.CommonResources;
 import org.chromium.base.ThreadUtils;
+import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.content_public.browser.NavigationEntry;
 import org.chromium.content_public.browser.NavigationHistory;
 import org.chromium.content_public.browser.test.util.HistoryUtils;
@@ -265,6 +266,7 @@ public class NavigationHistoryTest extends AwParameterizedTest {
 
     @Test
     @SmallTest
+    @CommandLineFlags.Add({"enable-features=WebViewDownloadFavicons"})
     public void testFavicon() throws Throwable {
         // fake onReceivedIcon overridden so that the favicon is
         // sent when page is loaded

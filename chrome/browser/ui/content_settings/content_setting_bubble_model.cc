@@ -30,6 +30,7 @@
 #include "chrome/browser/content_settings/page_specific_content_settings_delegate.h"
 #include "chrome/browser/custom_handlers/protocol_handler_registry_factory.h"
 #include "chrome/browser/download/download_request_limiter.h"
+#include "chrome/browser/infobars/infobar_features.h"
 #include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
 #include "chrome/browser/media/webrtc/permission_bubble_media_access_handler.h"
 #include "chrome/browser/permissions/permission_actions_history_factory.h"
@@ -41,6 +42,7 @@
 #include "chrome/browser/ui/content_settings/content_setting_bubble_model_delegate.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/url_identity.h"
+#include "chrome/browser/ui/views/site_data/page_specific_site_data_dialog_controller.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/theme_resources.h"
@@ -173,20 +175,11 @@ bool GetSettingManagedByUser(const GURL& url,
 
 ContentSettingBubbleModel::ListItem CreateUrlListItem(int32_t id,
                                                       const GURL& url) {
-  // Empty URLs should get a placeholder.
-  // TODO(csharrison): See if we can DCHECK that the URL will be valid here.
-  std::u16string title =
-      url.spec().empty()
-          ? l10n_util::GetStringUTF16(IDS_TAB_LOADING_TITLE)
-          : url_formatter::FormatUrl(
-                url, url_formatter::kFormatUrlOmitUsernamePassword,
-                base::UnescapeRule::NONE, nullptr, nullptr, nullptr);
-  // Format the title to include the unicode single dot bullet code-point
-  // \u2022 and two spaces.
-  title = l10n_util::GetStringFUTF16(IDS_LIST_BULLET, title);
-  return ContentSettingBubbleModel::ListItem(nullptr, title, std::u16string(),
-                                             true /* has_link */,
-                                             false /* has_blocked_badge */, id);
+  ContentSettingBubbleModel::ListItem item(
+      nullptr, ContentSettingBubbleModel::FormatUrlWithBullet(url),
+      std::u16string(), true /* has_link */, false /* has_blocked_badge */, id);
+  item.url = url;
+  return item;
 }
 
 struct ContentSettingsTypeIdEntry {
@@ -257,6 +250,23 @@ base::AutoReset<std::optional<bool>>
 ContentSettingBubbleModel::CreateScopedDisplayURLOverrideForTesting() {
   return base::AutoReset<std::optional<bool>>(
       &g_display_url_override_for_testing, true);
+}
+
+// static
+std::u16string ContentSettingBubbleModel::FormatTitleWithBullet(
+    const std::u16string& title) {
+  return l10n_util::GetStringFUTF16(IDS_LIST_BULLET, title);
+}
+
+// static
+std::u16string ContentSettingBubbleModel::FormatUrlWithBullet(const GURL& url) {
+  std::u16string title =
+      url.spec().empty()
+          ? l10n_util::GetStringUTF16(IDS_TAB_LOADING_TITLE)
+          : url_formatter::FormatUrl(
+                url, url_formatter::kFormatUrlOmitUsernamePassword,
+                base::UnescapeRule::NONE, nullptr, nullptr, nullptr);
+  return FormatTitleWithBullet(title);
 }
 
 // ContentSettingSimpleBubbleModel ---------------------------------------------
@@ -910,8 +920,14 @@ void ContentSettingCookiesBubbleModel::CommitChanges() {
   // On some plattforms e.g. MacOS X it is possible to close a tab while the
   // cookies settings bubble is open. This resets the web contents to NULL.
   if (settings_changed()) {
-    CollectedCookiesInfoBarDelegate::Create(
-        infobars::ContentInfoBarManager::FromWebContents(web_contents()));
+    if (infobars::IsInfoBarMigrated(
+            infobars::InfoBarDelegate::COLLECTED_COOKIES_INFOBAR_DELEGATE)) {
+      PageSpecificSiteDataDialogController::ShowCollectedCookiesInfoBar(
+          web_contents());
+    } else {
+      CollectedCookiesInfoBarDelegate::Create(
+          infobars::ContentInfoBarManager::FromWebContents(web_contents()));
+    }
   }
   ContentSettingSingleRadioGroup::CommitChanges();
 }

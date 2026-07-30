@@ -104,13 +104,13 @@ void VideoPainter::PaintReplaced(const PaintInfo& paint_info,
     ImagePainter(layout_video_)
         .PaintIntoRect(context, replaced_rect, visual_rect);
   } else {
-    bool force_pixel_readback =
+    bool acquire_texture_backing =
         layout_video_.MediaElement()->IsInCanvasSubtree();
     cc::PaintFlags video_flags = context.FillFlags();
     video_flags.setColor(SK_ColorBLACK);
     layout_video_.VideoElement()->PaintCurrentFrame(
         context.Canvas(), snapped_replaced_rect, video_flags,
-        force_pixel_readback);
+        acquire_texture_backing);
   }
 }
 

@@ -6,6 +6,7 @@
 <translation id="1005230401424685968">TTTT</translation>
 <translation id="1013952917065545813">Anda dapat kembali ke sini untuk membuka kembali tab yang baru saja Anda tutup</translation>
 <translation id="1016495303386450659">Item diperbarui</translation>
+<translation id="1018804590490383958">Pindai dan isi otomatis</translation>
 <translation id="1019990162050689579">Aktivitas Aplikasi Gemini</translation>
 <translation id="102916930470544692">Kunci sandi</translation>
 <translation id="1030376737535466765">Buka Pengelola Sandi</translation>
@@ -873,6 +874,7 @@
 <translation id="4021447724486050609">Update Browser Anda</translation>
 <translation id="4021931095789478915">Tambahkan ${url} ke daftar bacaan</translation>
 <translation id="4028871427853484857">Simpan di akun…</translation>
+<translation id="4036529942385659684">Tampilkan halaman awal setelah tidak ada aktivitas selama beberapa saat</translation>
 <translation id="4038354071007134711">Tidak ada aplikasi di perangkat ini yang dapat membuka file.</translation>
 <translation id="4042870976416480368">Cari di Halaman</translation>
 <translation id="4045441967987592849">Buka kembali</translation>
@@ -910,7 +912,6 @@
 <translation id="417138788035229076">Kelola grup</translation>
 <translation id="4172051516777682613">Selalu tampilkan</translation>
 <translation id="417273154673973994">{count,plural, =1{1 grup tab ditutup dan disimpan}other{{count} grup tab ditutup dan disimpan}}</translation>
-<translation id="417612446554534067">Kirim ke Perangkat Anda</translation>
 <translation id="4180726336228139707">Hanya di perangkat ini</translation>
 <translation id="4181841719683918333">Bahasa</translation>
 <translation id="4183350924949589798">Keamanan yang lebih baik?</translation>
@@ -1134,6 +1135,7 @@
 <translation id="4896467949657706481">Tab ditutup; Anda telah logout</translation>
 <translation id="4911042367886397055">Selamat datang kembali, <ph name="USER_NAME" />!</translation>
 <translation id="4913626501929406101">Anda dapat membagikan salinan sandi Anda dengan aman kepada seseorang dalam grup keluarga Anda. <ph name="BEGIN_LINK" />Pelajari lebih lanjut<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">Lensa</translation>
 <translation id="4917025507570489430">Anda dapat menggunakan data penjelajahan yang ada saat Anda login sebagai <ph name="USER_EMAIL" />. Organisasi Anda mungkin dapat melihat data ini.</translation>
 <translation id="4918086044614829423">Terima</translation>
 <translation id="4930714375720679147">Aktifkan</translation>
@@ -1549,6 +1551,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="6301767200000930965">Aa</translation>
 <translation id="630308129961693966">Pilih posisi kolom URL Anda</translation>
 <translation id="6307241780749477694">Verifikasi diri Anda untuk mendapatkan semua sandi di perangkat ini</translation>
+<translation id="6307792728709337290">Simpan kartu di Akun Google Anda guna mengisi otomatis kartu tersebut untuk pembelian ini dan pembelian mendatang yang dilakukan di Chrome.</translation>
 <translation id="6316141353357700666">Pilih sandi yang ingin Anda gunakan dari daftar yang muncul.</translation>
 <translation id="6321526113093607004">Tambahkan ke Bookmark</translation>
 <translation id="6327249202318869726">Gemini dinonaktifkan untuk akun Anda. Hubungi admin untuk mengetahui informasi selengkapnya.</translation>
@@ -2143,6 +2146,7 @@ Untuk melanjutkan dari komputer, beralihlah ke <ph name="OTHER_EMAIL" />. Anda a
 <translation id="8263809106706527890">Mungkin ada perubahan pada setelan browser default Anda. Anda dapat memeriksanya di setelan.</translation>
 <translation id="8264966119170358612">Beberapa sandi tersimpan Anda terekspos dalam pelanggaran data non-Google. <ph name="BEGIN_LINK" />Pelajari lebih lanjut<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">Anda telah logout dari akun, <ph name="USER_NAME" />, sebagai bagian dari proses reset iPad. Untuk login kembali, ketuk "Lanjutkan" di bawah.</translation>
+<translation id="8270320981823560179">Drive</translation>
 <translation id="8273982424131314219">Anda akan mengisi info ke <ph name="URL" /></translation>
 <translation id="8275068909952022340">Lainnya…</translation>
 <translation id="8281781826761538115">Default - <ph name="DEFAULT_LOCALE" /></translation>

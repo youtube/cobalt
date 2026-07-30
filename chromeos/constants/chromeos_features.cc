@@ -46,9 +46,6 @@ BASE_FEATURE(kCrosIsolatedWebAppSetShape, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kDataControlsFileAccessDefaultDeny,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enables data migration.
-BASE_FEATURE(kDataMigration, base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Enables Essential Search in Omnibox for both launcher and browser.
 BASE_FEATURE(kEssentialSearch, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -299,10 +296,6 @@ bool IsCrosIsolatedWebAppSetShapeEnabled() {
 
 bool IsDataControlsFileAccessDefaultDenyEnabled() {
   return base::FeatureList::IsEnabled(kDataControlsFileAccessDefaultDeny);
-}
-
-bool IsDataMigrationEnabled() {
-  return base::FeatureList::IsEnabled(kDataMigration);
 }
 
 bool IsEssentialSearchEnabled() {

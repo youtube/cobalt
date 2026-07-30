@@ -5075,7 +5075,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerSkipEmptyFetchHandlerBrowserTest,
 // source.
 class ServiceWorkerStaticRouterRaceNetworkAndFetchHandlerSourceBrowserTest
     : public ServiceWorkerBrowserTest,
-      public testing::WithParamInterface<std::tuple<bool, bool>> {
+      public testing::WithParamInterface<bool> {
  public:
   static constexpr char kSwScriptUrl[] =
       "/service_worker/static_router_race_match_all.js";
@@ -5083,12 +5083,6 @@ class ServiceWorkerStaticRouterRaceNetworkAndFetchHandlerSourceBrowserTest
   ServiceWorkerStaticRouterRaceNetworkAndFetchHandlerSourceBrowserTest()
       : https_server_(std::make_unique<net::EmbeddedTestServer>(
             net::EmbeddedTestServer::TYPE_HTTPS)) {
-    if (IsRaceNetworkRequestPerformanceImprovementEnabled()) {
-      feature_list_.InitWithFeatures(
-          {{features::
-                kServiceWorkerStaticRouterRaceNetworkRequestPerformanceImprovement}},
-          {});
-    }
     RaceNetworkRequestWriteBufferManager::SetDataPipeCapacityBytesForTesting(
         1024);
   }
@@ -5153,11 +5147,7 @@ class ServiceWorkerStaticRouterRaceNetworkAndFetchHandlerSourceBrowserTest
                                                    script_url);
   }
 
-  bool IsRaceNetworkRequestPerformanceImprovementEnabled() {
-    return std::get<0>(GetParam());
-  }
-
-  bool IsProcessHtmlDataImmediatelyEnabled() { return std::get<1>(GetParam()); }
+  bool IsProcessHtmlDataImmediatelyEnabled() { return GetParam(); }
 
  private:
   void RegisterRequestHandlerForSlowResponsePage(
@@ -5263,7 +5253,6 @@ class ServiceWorkerStaticRouterRaceNetworkAndFetchHandlerSourceBrowserTest
 
   std::map<std::string, std::vector<net::test_server::HttpRequest>>
       request_log_;
-  base::test::ScopedFeatureList feature_list_;
   std::unique_ptr<net::EmbeddedTestServer> https_server_;
   std::unique_ptr<ukm::TestAutoSetUkmRecorder> test_ukm_recorder_;
 };
@@ -5271,7 +5260,7 @@ class ServiceWorkerStaticRouterRaceNetworkAndFetchHandlerSourceBrowserTest
 INSTANTIATE_TEST_SUITE_P(
     All,
     ServiceWorkerStaticRouterRaceNetworkAndFetchHandlerSourceBrowserTest,
-    testing::Combine(testing::Bool(), testing::Bool()));
+    testing::Bool());
 
 IN_PROC_BROWSER_TEST_P(
     ServiceWorkerStaticRouterRaceNetworkAndFetchHandlerSourceBrowserTest,
@@ -6288,7 +6277,7 @@ class ServiceWorkerAutoPreloadBrowserTest
 
 INSTANTIATE_TEST_SUITE_P(All,
                          ServiceWorkerAutoPreloadBrowserTest,
-                         testing::Combine(testing::Bool(), testing::Bool()));
+                         testing::Bool());
 
 IN_PROC_BROWSER_TEST_P(ServiceWorkerAutoPreloadBrowserTest,
                        NetworkRequestRepliedFirstButFetchHandlerResultIsUsed) {
@@ -6554,7 +6543,7 @@ class ServiceWorkerAutoPreloadWithBlockedHostsBrowserTest
 
 INSTANTIATE_TEST_SUITE_P(All,
                          ServiceWorkerAutoPreloadWithBlockedHostsBrowserTest,
-                         testing::Combine(testing::Bool(), testing::Bool()));
+                         testing::Bool());
 
 IN_PROC_BROWSER_TEST_P(ServiceWorkerAutoPreloadWithBlockedHostsBrowserTest,
                        BlockedHosts) {
@@ -6602,7 +6591,7 @@ class ServiceWorkerAutoPreloadWithEnableOnlyWhenSWNotRunningBrowserTest
 INSTANTIATE_TEST_SUITE_P(
     All,
     ServiceWorkerAutoPreloadWithEnableOnlyWhenSWNotRunningBrowserTest,
-    testing::Combine(testing::Bool(), testing::Bool()));
+    testing::Bool());
 
 IN_PROC_BROWSER_TEST_P(
     ServiceWorkerAutoPreloadWithEnableOnlyWhenSWNotRunningBrowserTest,
@@ -6673,7 +6662,7 @@ class ServiceWorkerAutoPreloadOptOutBrowserTest
 
 INSTANTIATE_TEST_SUITE_P(ALL,
                          ServiceWorkerAutoPreloadOptOutBrowserTest,
-                         testing::Combine(testing::Bool(), testing::Bool()));
+                         testing::Bool());
 
 IN_PROC_BROWSER_TEST_P(ServiceWorkerAutoPreloadOptOutBrowserTest,
                        MainResourceFetchHandlerShouldNotRace) {

@@ -514,35 +514,8 @@ const FormData& FormForest::GetBrowserForm(FormGlobalId renderer_form) const {
   return *mutable_this.GetRoot(renderer_form).form;
 }
 
-FormForest::SecurityOptions::SecurityOptions(
-    const url::Origin* main_origin,
-    const url::Origin* triggered_origin,
-    const absl::flat_hash_map<FieldGlobalId, FieldType>* field_type_map)
-    : main_origin_(main_origin),
-      triggered_origin_(triggered_origin),
-      field_type_map_(field_type_map) {
-  CHECK(main_origin);
-  CHECK(triggered_origin);
-}
-
-FieldType FormForest::SecurityOptions::GetFieldType(
-    const FieldGlobalId& field) const {
-  if (!field_type_map_) {
-    return UNKNOWN_TYPE;
-  }
-  auto it = field_type_map_->find(field);
-  return it != field_type_map_->end() ? it->second : UNKNOWN_TYPE;
-}
-
-FormForest::RendererForms::RendererForms() = default;
-FormForest::RendererForms::RendererForms(RendererForms&&) = default;
-FormForest::RendererForms& FormForest::RendererForms::operator=(
-    RendererForms&&) = default;
-FormForest::RendererForms::~RendererForms() = default;
-
-FormForest::RendererForms FormForest::GetRendererFormsOfBrowserFields(
-    base::span<const FormFieldData> browser_fields,
-    const SecurityOptions& security_options) const {
+std::vector<FormData> FormForest::GetRendererFormsOfBrowserFields(
+    base::span<const FormFieldData> browser_fields) const {
   SCOPED_UMA_HISTOGRAM_TIMER_MICROS(
       "Autofill.FormForest.GetRendererFormsOfBrowserForm.Duration");
 
@@ -552,78 +525,29 @@ FormForest::RendererForms FormForest::GetRendererFormsOfBrowserFields(
   // Reinstates the `browser_fields` in copies of their renderer forms. See the
   // function's documentation in the header for details on the security policy
   // `IsSafeToFill`.
-  RendererForms result;
-  result.safe_fields.reserve(browser_fields.size());
+  std::vector<FormData> renderer_forms;
   for (const FormFieldData& browser_field : browser_fields) {
     FormGlobalId form_id = browser_field.renderer_form_id();
 
     // Finds or creates the renderer form from which `browser_field` originated.
     // The form with `form_id` may have been removed from the tree, for example,
     // between a fill and a refill.
-    auto renderer_form = std::ranges::find(result.renderer_forms.rbegin(),
-                                           result.renderer_forms.rend(),
-                                           form_id, &FormData::global_id);
-    if (renderer_form == result.renderer_forms.rend()) {
+    auto renderer_form =
+        std::ranges::find(renderer_forms.rbegin(), renderer_forms.rend(),
+                          form_id, &FormData::global_id);
+    if (renderer_form == renderer_forms.rend()) {
       const FormData* original_form = mutable_this.GetFormData(form_id);
       if (!original_form) {  // The form with |form_id| may have been removed.
         continue;
       }
-      result.renderer_forms.push_back(*original_form);
-      renderer_form = result.renderer_forms.rbegin();
+      renderer_forms.push_back(*original_form);
+      renderer_form = renderer_forms.rbegin();
       renderer_form->set_fields({});  // In case `original_form` is a root form.
     }
-    DCHECK(renderer_form != result.renderer_forms.rend());
-
-    auto IsSafeToFill = [&mutable_this, &renderer_form,
-                         &security_options](const FormFieldData& field) {
-      // Non-sensitive values may be filled into fields that belong to the
-      // main frame's origin. This is independent of the origin of the
-      // field that triggered the autofill.
-      auto IsSensitiveFieldType = [](FieldType field_type) {
-        switch (field_type) {
-          case CREDIT_CARD_TYPE:
-          case CREDIT_CARD_NAME_FULL:
-          case CREDIT_CARD_NAME_FIRST:
-          case CREDIT_CARD_NAME_LAST:
-          case CREDIT_CARD_EXP_MONTH:
-          case CREDIT_CARD_EXP_2_DIGIT_YEAR:
-          case CREDIT_CARD_EXP_4_DIGIT_YEAR:
-          case CREDIT_CARD_EXP_DATE_2_DIGIT_YEAR:
-          case CREDIT_CARD_EXP_DATE_4_DIGIT_YEAR:
-            return false;
-          default:
-            return true;
-        }
-      };
-      // Fields whose document enables the policy-controlled feature "autofill"
-      // may be safe to fill.
-      auto IsPolicyControlledFeatureAutofillEnabled =
-          [&mutable_this](LocalFrameToken frame_token) {
-            FrameData* frame = mutable_this.GetFrameData(frame_token);
-            return frame && frame->driver &&
-                   frame->driver->IsPolicyControlledFeatureAutofillEnabled();
-          };
-      return security_options.all_origins_are_trusted() ||
-             field.origin() == security_options.triggered_origin() ||
-             (field.origin() == security_options.main_origin() &&
-              !IsSensitiveFieldType(
-                  security_options.GetFieldType(field.global_id())) &&
-              IsPolicyControlledFeatureAutofillEnabled(
-                  renderer_form->host_frame())) ||
-             (security_options.triggered_origin() ==
-                  security_options.main_origin() &&
-              IsPolicyControlledFeatureAutofillEnabled(
-                  renderer_form->host_frame()));
-    };
-
+    DCHECK(renderer_form != renderer_forms.rend());
     renderer_form->mutable_fields(/*pass_key=*/{}).push_back(browser_field);
-    if (!IsSafeToFill(renderer_form->fields().back())) {
-      renderer_form->mutable_fields(/*pass_key=*/{}).back().set_value({});
-    } else {
-      result.safe_fields.insert(browser_field.global_id());
-    }
   }
-  return result;
+  return renderer_forms;
 }
 
 }  // namespace autofill::internal

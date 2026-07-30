@@ -46,12 +46,12 @@
 #include "third_party/blink/renderer/core/dom/container_node.h"
 #include "third_party/blink/renderer/core/dom/dom_high_res_time_stamp.h"
 #include "third_party/blink/renderer/core/dom/element_data.h"
-#include "third_party/blink/renderer/core/dom/element_rare_data_field.h"
 #include "third_party/blink/renderer/core/dom/events/simulated_click_options.h"
 #include "third_party/blink/renderer/core/dom/focusgroup_flags.h"
 #include "third_party/blink/renderer/core/dom/named_animation_trigger_map.h"
 #include "third_party/blink/renderer/core/dom/names_map.h"
 #include "third_party/blink/renderer/core/dom/node.h"
+#include "third_party/blink/renderer/core/dom/node_rare_data_field.h"
 #include "third_party/blink/renderer/core/dom/whitespace_attacher.h"
 #include "third_party/blink/renderer/core/html/parser/fragment_parser.h"
 #include "third_party/blink/renderer/core/html_names.h"
@@ -433,6 +433,8 @@ class CORE_EXPORT Element : public ContainerNode {
   Element* getElementByIdIncludingDisconnected(const Element& treescope_element,
                                                const AtomicString& id) const;
 
+  FrozenArray<Element>* ariaActionsElements();
+  void setAriaActionsElements(GCedHeapVector<Member<Element>>* given_elements);
   FrozenArray<Element>* ariaControlsElements();
   void setAriaControlsElements(GCedHeapVector<Member<Element>>* given_elements);
   FrozenArray<Element>* ariaDescribedByElements();
@@ -536,7 +538,7 @@ class CORE_EXPORT Element : public ContainerNode {
 
   // NoncedElement implementation: this is only used by HTMLElement, SVGElement
   // and MathMLElement but putting the implementation here allows us to use
-  // ElementRareData to hold the data.
+  // NodeRareData to hold the data.
   const AtomicString& nonce() const;
   void setNonce(const AtomicString&);
 
@@ -1112,8 +1114,8 @@ class CORE_EXPORT Element : public ContainerNode {
 
   // Returns the Element’s ComputedStyle. If the ComputedStyle is not already
   // stored on the Element, computes the ComputedStyle and stores it on the
-  // Element’s ElementRareData.  Used for getComputedStyle when Element is
-  // display none.
+  // Element’s NodeRareData.  Used for getComputedStyle when Element is display
+  // none.
   const ComputedStyle* EnsureComputedStyle(
       PseudoId = kPseudoIdNone,
       const AtomicString& pseudo_argument = g_null_atom);
@@ -1452,7 +1454,9 @@ class CORE_EXPORT Element : public ContainerNode {
                                        ExceptionState& = ASSERT_NO_EXCEPTION);
   void SetOuterHTMLWithoutTrustedTypes(const String&,
                                        ExceptionState& = ASSERT_NO_EXCEPTION);
-  void SetOuterHTMLInternal(const String&, ExceptionState&);
+  void SetOuterHTMLInternal(const String&,
+                            const FragmentParserOptions&,
+                            ExceptionState&);
   String innerHTML() const;
   String outerHTML() const;
   void setInnerHTML(const V8UnionStringLegacyNullToEmptyStringOrTrustedHTML*,
@@ -2633,6 +2637,7 @@ class CORE_EXPORT Element : public ContainerNode {
 
   void InsertAdjacentHTMLInternal(const String& where,
                                   const String& input,
+                                  const FragmentParserOptions& options,
                                   ExceptionState& exception_state);
 
   void RemoveAttrNodeList();
@@ -2718,10 +2723,10 @@ class CORE_EXPORT Element : public ContainerNode {
   // filter, except for the values of class="".
   TinyBloomFilter attribute_or_class_bloom_ = 0;
 
-  // Do not add new members to Element without a good reason; prefer to
-  // add to ElementRareData unless it is performance-critical. Element
-  // is 80 bytes on typical 64-bit platforms, and growing it can cause
-  // both memory and performance regressions if you are not careful.
+  // Do not add new members to Element without a good reason; prefer to add to
+  // NodeRareData unless it is performance-critical. Element is 80 bytes on
+  // typical 64-bit platforms, and growing it can cause both memory and
+  // performance regressions if you are not careful.
 };
 
 template <>

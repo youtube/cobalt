@@ -256,7 +256,7 @@ void GranularityStrategyTest::SetupTextSpan(String str1,
     p2 = Position(text3, sel_end - str1.length() - str2.length());
 
   Selection().SetSelection(
-      SelectionInDOMTree::Builder().SetBaseAndExtent(p1, p2).Build(),
+      SelectionInDomTree::Builder().SetBaseAndExtent(p1, p2).Build(),
       SetSelectionOptions());
 }
 
@@ -484,7 +484,7 @@ TEST_F(GranularityStrategyTest, Character) {
   // "Foo B^a|>r Baz," (^ means base, | means extent, , < means start, and >
   // means end).
   Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(text, 5), Position(text, 6))
           .Build(),
       SetSelectionOptions());
@@ -506,7 +506,7 @@ TEST_F(GranularityStrategyTest, DirectionRotate) {
   // "Foo B^a|>r Baz," (^ means base, | means extent, , < means start, and >
   // means end).
   Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(text, 5), Position(text, 6))
           .Build(),
       SetSelectionOptions());
@@ -530,7 +530,7 @@ TEST_F(GranularityStrategyTest, DirectionExpandTranslateZ) {
   // "abcdef ghij kl mno^p|>qr stuvwi inm  mnii," (^ means base, | means extent,
   // < means start, and > means end).
   Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(text, 18), Position(text, 19))
           .Build(),
       SetSelectionOptions());
@@ -543,7 +543,7 @@ TEST_F(GranularityStrategyTest, DirectionExpandTransform) {
   // "abcdef ghij kl mno^p|>qr stuvwi inm  mnii," (^ means base, | means extent,
   // < means start, and > means end).
   Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(text, 18), Position(text, 19))
           .Build(),
       SetSelectionOptions());
@@ -568,7 +568,7 @@ TEST_F(GranularityStrategyTest, DirectionExpandFontSizes) {
 TEST_F(GranularityStrategyTest, DirectionShrinkTranslateZ) {
   Text* text = SetupTranslateZ("abcdef ghij kl mnopqr iiinmni, abc");
   Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(text, 18), Position(text, 21))
           .Build(),
       SetSelectionOptions());
@@ -579,7 +579,7 @@ TEST_F(GranularityStrategyTest, DirectionShrinkTranslateZ) {
 TEST_F(GranularityStrategyTest, DirectionShrinkTransform) {
   Text* text = SetupTransform("abcdef ghij kl mnopqr iiinmni, abc");
   Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(text, 18), Position(text, 21))
           .Build(),
       SetSelectionOptions());
@@ -602,7 +602,7 @@ TEST_F(GranularityStrategyTest, DirectionShrinkFontSizes) {
 TEST_F(GranularityStrategyTest, DirectionSwitchSideTranslateZ) {
   Text* text = SetupTranslateZ("abcd efgh ijkl mnopqr iiinmni, abc");
   Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(text, 18), Position(text, 21))
           .Build(),
       SetSelectionOptions());
@@ -613,7 +613,7 @@ TEST_F(GranularityStrategyTest, DirectionSwitchSideTranslateZ) {
 TEST_F(GranularityStrategyTest, DirectionSwitchSideTransform) {
   Text* text = SetupTransform("abcd efgh ijkl mnopqr iiinmni, abc");
   Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(text, 18), Position(text, 21))
           .Build(),
       SetSelectionOptions());
@@ -649,7 +649,7 @@ TEST_F(GranularityStrategyTest, DirectionSwitchSideWordGranularityThenShrink) {
   // "abcd efgh ijkl mno^pqr|> iiin, abc" (^ means base, | means extent, < means
   // start, and > means end).
   Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(text, 18), Position(text, 21))
           .Build(),
       SetSelectionOptions());
@@ -688,7 +688,7 @@ TEST_F(GranularityStrategyTest, DirectionSwitchStartOnBoundary) {
   // "ab cd efghijkl ^mnopqr |>stuvwi inm," (^ means base and | means extent,
   // > means end).
   Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(text, 15), Position(text, 22))
           .Build(),
       SetSelectionOptions());
@@ -710,8 +710,8 @@ TEST_F(GranularityStrategyTest, UpdateExtentWithNullPositionForCharacter) {
   shadow_root.SetInnerHTMLWithoutTrustedTypes("<input type=range>");
   Element* const sample = GetDocument().getElementById(AtomicString("sample"));
   GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
-  const SelectionInDOMTree& selection_in_dom_tree =
-      SelectionInDOMTree::Builder()
+  const SelectionInDomTree& selection_in_dom_tree =
+      SelectionInDomTree::Builder()
           .Collapse(Position(sample->firstChild(), 2))
           .Build();
   Selection().SetSelection(selection_in_dom_tree,
@@ -734,7 +734,7 @@ TEST_F(GranularityStrategyTest, UpdateExtentWithNullPositionForCharacter) {
   // Point to RANGE inside shadow root to get null position from
   // |visiblePositionForContentsPoint()|.
   Selection().MoveRangeSelectionExtent(gfx::Point(0, 0));
-  EXPECT_EQ(selection_in_dom_tree, Selection().GetSelectionInDOMTree());
+  EXPECT_EQ(selection_in_dom_tree, Selection().GetSelectionInDomTree());
 }
 
 // For http://crbug.com/704529
@@ -748,8 +748,8 @@ TEST_F(GranularityStrategyTest, UpdateExtentWithNullPositionForDirectional) {
   shadow_root.SetInnerHTMLWithoutTrustedTypes("<input type=range>");
   Element* const sample = GetDocument().getElementById(AtomicString("sample"));
   GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
-  const SelectionInDOMTree& selection_in_dom_tree =
-      SelectionInDOMTree::Builder()
+  const SelectionInDomTree& selection_in_dom_tree =
+      SelectionInDomTree::Builder()
           .Collapse(Position(sample->firstChild(), 2))
           .Build();
   Selection().SetSelection(selection_in_dom_tree,
@@ -773,12 +773,12 @@ TEST_F(GranularityStrategyTest, UpdateExtentWithNullPositionForDirectional) {
   // |visiblePositionForContentsPoint()|.
   Selection().MoveRangeSelectionExtent(gfx::Point(0, 0));
 
-  EXPECT_EQ(selection_in_dom_tree, Selection().GetSelectionInDOMTree());
+  EXPECT_EQ(selection_in_dom_tree, Selection().GetSelectionInDomTree());
 }
 
 // For http://crbug.com/974728
 TEST_F(GranularityStrategyTest, UpdateExtentWithNullNextWordBound) {
-  const SelectionInDOMTree selection = SetSelectionTextToBody(
+  const SelectionInDomTree selection = SetSelectionTextToBody(
       "<style>body { margin: 0; padding: 0; font: 10px monospace; }</style>"
       "<div contenteditable id=target></div>|def^");
   Selection().SetSelection(selection, SetSelectionOptions());
@@ -792,7 +792,7 @@ TEST_F(GranularityStrategyTest, UpdateExtentWithNullNextWordBound) {
       << "We extend selection inside content editable.";
   Selection().MoveRangeSelectionExtent(gfx::Point(0, 0));
 
-  EXPECT_EQ(selection, Selection().GetSelectionInDOMTree());
+  EXPECT_EQ(selection, Selection().GetSelectionInDomTree());
 }
 
 }  // namespace blink

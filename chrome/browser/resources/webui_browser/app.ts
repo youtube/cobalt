@@ -156,6 +156,15 @@ export class WebuiBrowserAppElement extends CrLitElement {
     browserProxyFactory.getInstance().handler.openAppMenu();
   }
 
+  protected onBookmarksClick_() {
+    if (this.showingSidePanel_ && this.$.sidePanel.isShowingBookmarks()) {
+      this.closeSidePanel_();
+    } else {
+      this.showingSidePanel_ = true;
+      this.$.sidePanel.showBookmarks();
+    }
+  }
+
   protected onAvatarClick_(_: Event) {
     browserProxyFactory.getInstance().handler.openProfileMenu();
   }

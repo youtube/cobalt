@@ -10,7 +10,7 @@ import type {TroubleshootingInfo} from 'chrome://diagnostics/diagnostics_types.j
 import type {NetworkTroubleshootingElement} from 'chrome://diagnostics/network_troubleshooting.js';
 import {assert} from 'chrome://resources/js/assert.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import {assertFalse} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertFalse} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 import {isVisible} from 'chrome://webui-test/test_util.js';
 

@@ -4,55 +4,104 @@
 
 #include "chromeos/ash/components/nearby/presence/conversions/proto_conversions.h"
 
+#include "base/no_destructor.h"
 #include "base/test/gtest_util.h"
 #include "chromeos/ash/services/nearby/public/mojom/nearby_presence.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
 
-const int64_t kLocalCredentialId = 10;
-const std::string kDeviceName = "Test's Chromebook";
-const std::string kMacAddress = "1A:2B:3C:4D:5E:6F";
-const std::string kDeviceId = "DeviceId";
-const std::string kDusi = "11";
-const std::string kSignatureVersion = "3149642683";
-const std::string AdvertisementSigningKeyCertificateAlias =
+constexpr int64_t kLocalCredentialId = 10;
+constexpr char kDeviceName[] = "Test's Chromebook";
+constexpr char kMacAddress[] = "1A:2B:3C:4D:5E:6F";
+constexpr char kDeviceId[] = "DeviceId";
+constexpr char kDusi[] = "11";
+constexpr char kSignatureVersion[] = "3149642683";
+constexpr char AdvertisementSigningKeyCertificateAlias[] =
     "NearbySharingYWJjZGVmZ2hpamtsbW5vcA";
-const std::string ConnectionSigningKeyCertificateAlias =
+constexpr char ConnectionSigningKeyCertificateAlias[] =
     "NearbySharingCJfjKGVmZ2hpJCtsbC5vDb";
-const std::vector<uint8_t> kSecretId = {0x11, 0x11, 0x11, 0x11, 0x11, 0x11};
-const std::vector<uint8_t> kKeySeed = {0x22, 0x22, 0x22, 0x22, 0x22, 0x22};
-const std::vector<uint8_t> kEncryptedMetadataBytesV0 = {0x33, 0x33, 0x33,
-                                                        0x33, 0x33, 0x33};
-const std::vector<uint8_t> kMetadataEncryptionTag = {0x44, 0x44, 0x44,
-                                                     0x44, 0x44, 0x44};
-const std::vector<uint8_t> kAdvertisementMetadataEncrpytionKeyV0 = {
-    0x44, 0x45, 0x46, 0x47, 0x44, 0x44, 0x44,
-    0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44};
-const std::vector<uint8_t> kIdentityTokenV1 = {
-    0x44, 0x45, 0x46, 0x47, 0x44, 0x44, 0x44, 0x44,
-    0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44};
-const std::vector<uint8_t> kPrivateKey = {0x44, 0x44, 0x46, 0x74, 0x44, 0x44};
-const std::vector<uint8_t> kConnectionSignatureVerificationKey = {
-    0x55, 0x55, 0x55, 0x55, 0x55, 0x55};
-const std::vector<uint8_t> kAdvertisementSignatureVerificationKey = {
-    0x66, 0x66, 0x66, 0x66, 0x66, 0x66};
-const std::vector<uint8_t> kVersion = {0x77, 0x77, 0x77, 0x77, 0x77, 0x77};
-const std::map<uint32_t, bool> kConsumedSalts = {{0xb412, true},
-                                                 {0x34b2, false},
-                                                 {0x5171, false}};
-const std::vector<uint8_t> kEncryptedMetadataBytesV1 = {0x88, 0x88, 0x88,
-                                                        0x88, 0x88, 0x88};
-const std::vector<uint8_t> kIdentityTokenShortSaltAdvHmacKeyV1 = {
-    0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA};
-const std::vector<uint8_t> kIdentityTokenExtendedSaltAdvHmacKeyV1 = {
-    0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC};
-const std::vector<uint8_t> kIdentityTokenSignedAdvHmacKeyV1 = {
-    0xDD, 0xDD, 0xDD, 0xDD, 0xDD, 0xDD};
-
 constexpr int64_t kStartTimeMillis = 255486129307;
 constexpr int64_t kEndTimeMillis = 64301728896;
 constexpr int64_t kSharedCredentialId = 37;
+
+const std::vector<uint8_t>& GetSecretId() {
+  static const base::NoDestructor<std::vector<uint8_t>> val(
+      {0x11, 0x11, 0x11, 0x11, 0x11, 0x11});
+  return *val;
+}
+const std::vector<uint8_t>& GetKeySeed() {
+  static const base::NoDestructor<std::vector<uint8_t>> val(
+      {0x22, 0x22, 0x22, 0x22, 0x22, 0x22});
+  return *val;
+}
+const std::vector<uint8_t>& GetEncryptedMetadataBytesV0() {
+  static const base::NoDestructor<std::vector<uint8_t>> val(
+      {0x33, 0x33, 0x33, 0x33, 0x33, 0x33});
+  return *val;
+}
+const std::vector<uint8_t>& GetMetadataEncryptionTag() {
+  static const base::NoDestructor<std::vector<uint8_t>> val(
+      {0x44, 0x44, 0x44, 0x44, 0x44, 0x44});
+  return *val;
+}
+const std::vector<uint8_t>& GetAdvertisementMetadataEncrpytionKeyV0() {
+  static const base::NoDestructor<std::vector<uint8_t>> val(
+      {0x44, 0x45, 0x46, 0x47, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44,
+       0x44, 0x44});
+  return *val;
+}
+const std::vector<uint8_t>& GetIdentityTokenV1() {
+  static const base::NoDestructor<std::vector<uint8_t>> val(
+      {0x44, 0x45, 0x46, 0x47, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44,
+       0x44, 0x44, 0x44, 0x44});
+  return *val;
+}
+const std::vector<uint8_t>& GetPrivateKey() {
+  static const base::NoDestructor<std::vector<uint8_t>> val(
+      {0x44, 0x44, 0x46, 0x74, 0x44, 0x44});
+  return *val;
+}
+const std::vector<uint8_t>& GetConnectionSignatureVerificationKey() {
+  static const base::NoDestructor<std::vector<uint8_t>> val(
+      {0x55, 0x55, 0x55, 0x55, 0x55, 0x55});
+  return *val;
+}
+const std::vector<uint8_t>& GetAdvertisementSignatureVerificationKey() {
+  static const base::NoDestructor<std::vector<uint8_t>> val(
+      {0x66, 0x66, 0x66, 0x66, 0x66, 0x66});
+  return *val;
+}
+const std::vector<uint8_t>& GetVersion() {
+  static const base::NoDestructor<std::vector<uint8_t>> val(
+      {0x77, 0x77, 0x77, 0x77, 0x77, 0x77});
+  return *val;
+}
+const std::map<uint32_t, bool>& GetConsumedSalts() {
+  static const base::NoDestructor<std::map<uint32_t, bool>> val(
+      {{0xb412, true}, {0x34b2, false}, {0x5171, false}});
+  return *val;
+}
+const std::vector<uint8_t>& GetEncryptedMetadataBytesV1() {
+  static const base::NoDestructor<std::vector<uint8_t>> val(
+      {0x88, 0x88, 0x88, 0x88, 0x88, 0x88});
+  return *val;
+}
+const std::vector<uint8_t>& GetIdentityTokenShortSaltAdvHmacKeyV1() {
+  static const base::NoDestructor<std::vector<uint8_t>> val(
+      {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA});
+  return *val;
+}
+const std::vector<uint8_t>& GetIdentityTokenExtendedSaltAdvHmacKeyV1() {
+  static const base::NoDestructor<std::vector<uint8_t>> val(
+      {0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC});
+  return *val;
+}
+const std::vector<uint8_t>& GetIdentityTokenSignedAdvHmacKeyV1() {
+  static const base::NoDestructor<std::vector<uint8_t>> val(
+      {0xDD, 0xDD, 0xDD, 0xDD, 0xDD, 0xDD});
+  return *val;
+}
 
 void SetProtoMap(::google::protobuf::Map<uint32_t, bool>* proto_map,
                  const std::map<uint32_t, bool>& map) {
@@ -130,115 +179,124 @@ TEST_F(ProtoConversionsTest, IdentityTypeFromMojom) {
 
 TEST_F(ProtoConversionsTest, SharedCredentialFromMojom) {
   mojom::SharedCredentialPtr mojo_cred = mojom::SharedCredential::New(
-      kKeySeed, kStartTimeMillis, kEndTimeMillis, kEncryptedMetadataBytesV0,
-      kMetadataEncryptionTag, kConnectionSignatureVerificationKey,
-      kAdvertisementSignatureVerificationKey,
-      mojom::IdentityType::kIdentityTypePrivateGroup, kVersion,
-      mojom::CredentialType::kCredentialTypeDevice, kEncryptedMetadataBytesV1,
-      kIdentityTokenShortSaltAdvHmacKeyV1, kSharedCredentialId, kDusi,
-      kSignatureVersion, kIdentityTokenExtendedSaltAdvHmacKeyV1,
-      kIdentityTokenSignedAdvHmacKeyV1);
+      GetKeySeed(), kStartTimeMillis, kEndTimeMillis,
+      GetEncryptedMetadataBytesV0(), GetMetadataEncryptionTag(),
+      GetConnectionSignatureVerificationKey(),
+      GetAdvertisementSignatureVerificationKey(),
+      mojom::IdentityType::kIdentityTypePrivateGroup, GetVersion(),
+      mojom::CredentialType::kCredentialTypeDevice,
+      GetEncryptedMetadataBytesV1(), GetIdentityTokenShortSaltAdvHmacKeyV1(),
+      kSharedCredentialId, kDusi, kSignatureVersion,
+      GetIdentityTokenExtendedSaltAdvHmacKeyV1(),
+      GetIdentityTokenSignedAdvHmacKeyV1());
   ::nearby::internal::SharedCredential proto_cred =
       SharedCredentialFromMojom(mojo_cred.get());
-  EXPECT_EQ(std::string(kKeySeed.begin(), kKeySeed.end()),
+  EXPECT_EQ(std::string(GetKeySeed().begin(), GetKeySeed().end()),
             proto_cred.key_seed());
   EXPECT_EQ(kStartTimeMillis, proto_cred.start_time_millis());
   EXPECT_EQ(kEndTimeMillis, proto_cred.end_time_millis());
-  EXPECT_EQ(std::string(kEncryptedMetadataBytesV0.begin(),
-                        kEncryptedMetadataBytesV0.end()),
+  EXPECT_EQ(std::string(GetEncryptedMetadataBytesV0().begin(),
+                        GetEncryptedMetadataBytesV0().end()),
             proto_cred.encrypted_metadata_bytes_v0());
-  EXPECT_EQ(
-      std::string(kMetadataEncryptionTag.begin(), kMetadataEncryptionTag.end()),
-      proto_cred.metadata_encryption_key_tag_v0());
-  EXPECT_EQ(std::string(kConnectionSignatureVerificationKey.begin(),
-                        kConnectionSignatureVerificationKey.end()),
+  EXPECT_EQ(std::string(GetMetadataEncryptionTag().begin(),
+                        GetMetadataEncryptionTag().end()),
+            proto_cred.metadata_encryption_key_tag_v0());
+  EXPECT_EQ(std::string(GetConnectionSignatureVerificationKey().begin(),
+                        GetConnectionSignatureVerificationKey().end()),
             proto_cred.connection_signature_verification_key());
-  EXPECT_EQ(std::string(kAdvertisementSignatureVerificationKey.begin(),
-                        kAdvertisementSignatureVerificationKey.end()),
+  EXPECT_EQ(std::string(GetAdvertisementSignatureVerificationKey().begin(),
+                        GetAdvertisementSignatureVerificationKey().end()),
             proto_cred.advertisement_signature_verification_key());
   EXPECT_EQ(::nearby::internal::IdentityType::IDENTITY_TYPE_PRIVATE_GROUP,
             proto_cred.identity_type());
-  EXPECT_EQ(std::string(kVersion.begin(), kVersion.end()),
+  EXPECT_EQ(std::string(GetVersion().begin(), GetVersion().end()),
             proto_cred.version());
   EXPECT_EQ(::nearby::internal::CredentialType::CREDENTIAL_TYPE_DEVICE,
             proto_cred.credential_type());
-  EXPECT_EQ(std::string(kEncryptedMetadataBytesV1.begin(),
-                        kEncryptedMetadataBytesV1.end()),
+  EXPECT_EQ(std::string(GetEncryptedMetadataBytesV1().begin(),
+                        GetEncryptedMetadataBytesV1().end()),
             proto_cred.encrypted_metadata_bytes_v1());
-  EXPECT_EQ(std::string(kIdentityTokenShortSaltAdvHmacKeyV1.begin(),
-                        kIdentityTokenShortSaltAdvHmacKeyV1.end()),
+  EXPECT_EQ(std::string(GetIdentityTokenShortSaltAdvHmacKeyV1().begin(),
+                        GetIdentityTokenShortSaltAdvHmacKeyV1().end()),
             proto_cred.identity_token_short_salt_adv_hmac_key_v1());
   EXPECT_EQ(kSharedCredentialId, proto_cred.id());
   EXPECT_EQ(kDusi, proto_cred.dusi());
   EXPECT_EQ(kSignatureVersion, proto_cred.signature_version());
-  EXPECT_EQ(std::string(kIdentityTokenExtendedSaltAdvHmacKeyV1.begin(),
-                        kIdentityTokenExtendedSaltAdvHmacKeyV1.end()),
+  EXPECT_EQ(std::string(GetIdentityTokenExtendedSaltAdvHmacKeyV1().begin(),
+                        GetIdentityTokenExtendedSaltAdvHmacKeyV1().end()),
             proto_cred.identity_token_extended_salt_adv_hmac_key_v1());
-  EXPECT_EQ(std::string(kIdentityTokenSignedAdvHmacKeyV1.begin(),
-                        kIdentityTokenSignedAdvHmacKeyV1.end()),
+  EXPECT_EQ(std::string(GetIdentityTokenSignedAdvHmacKeyV1().begin(),
+                        GetIdentityTokenSignedAdvHmacKeyV1().end()),
             proto_cred.identity_token_signed_adv_hmac_key_v1());
 }
 
 TEST_F(ProtoConversionsTest, SharedCredentialToMojom) {
   ::nearby::internal::SharedCredential proto_cred;
-  proto_cred.set_secret_id(std::string(kSecretId.begin(), kSecretId.end()));
-  proto_cred.set_key_seed(std::string(kKeySeed.begin(), kKeySeed.end()));
+  proto_cred.set_secret_id(
+      std::string(GetSecretId().begin(), GetSecretId().end()));
+  proto_cred.set_key_seed(
+      std::string(GetKeySeed().begin(), GetKeySeed().end()));
   proto_cred.set_start_time_millis(kStartTimeMillis);
   proto_cred.set_end_time_millis(kEndTimeMillis);
-  proto_cred.set_encrypted_metadata_bytes_v0(std::string(
-      kEncryptedMetadataBytesV0.begin(), kEncryptedMetadataBytesV0.end()));
+  proto_cred.set_encrypted_metadata_bytes_v0(
+      std::string(GetEncryptedMetadataBytesV0().begin(),
+                  GetEncryptedMetadataBytesV0().end()));
   proto_cred.set_metadata_encryption_key_tag_v0(std::string(
-      kMetadataEncryptionTag.begin(), kMetadataEncryptionTag.end()));
+      GetMetadataEncryptionTag().begin(), GetMetadataEncryptionTag().end()));
   proto_cred.set_connection_signature_verification_key(
-      std::string(kConnectionSignatureVerificationKey.begin(),
-                  kConnectionSignatureVerificationKey.end()));
+      std::string(GetConnectionSignatureVerificationKey().begin(),
+                  GetConnectionSignatureVerificationKey().end()));
   proto_cred.set_advertisement_signature_verification_key(
-      std::string(kAdvertisementSignatureVerificationKey.begin(),
-                  kAdvertisementSignatureVerificationKey.end()));
+      std::string(GetAdvertisementSignatureVerificationKey().begin(),
+                  GetAdvertisementSignatureVerificationKey().end()));
   proto_cred.set_identity_type(
       ::nearby::internal::IdentityType::IDENTITY_TYPE_PRIVATE_GROUP);
-  proto_cred.set_version(std::string(kVersion.begin(), kVersion.end()));
+  proto_cred.set_version(std::string(GetVersion().begin(), GetVersion().end()));
   proto_cred.set_credential_type(
       ::nearby::internal::CredentialType::CREDENTIAL_TYPE_GAIA);
-  proto_cred.set_encrypted_metadata_bytes_v1(std::string(
-      kEncryptedMetadataBytesV1.begin(), kEncryptedMetadataBytesV1.end()));
+  proto_cred.set_encrypted_metadata_bytes_v1(
+      std::string(GetEncryptedMetadataBytesV1().begin(),
+                  GetEncryptedMetadataBytesV1().end()));
   proto_cred.set_identity_token_short_salt_adv_hmac_key_v1(
-      std::string(kIdentityTokenShortSaltAdvHmacKeyV1.begin(),
-                  kIdentityTokenShortSaltAdvHmacKeyV1.end()));
+      std::string(GetIdentityTokenShortSaltAdvHmacKeyV1().begin(),
+                  GetIdentityTokenShortSaltAdvHmacKeyV1().end()));
   proto_cred.set_id(kSharedCredentialId);
   proto_cred.set_dusi(kDusi);
   proto_cred.set_signature_version(kSignatureVersion);
   proto_cred.set_identity_token_extended_salt_adv_hmac_key_v1(
-      std::string(kIdentityTokenExtendedSaltAdvHmacKeyV1.begin(),
-                  kIdentityTokenExtendedSaltAdvHmacKeyV1.end()));
+      std::string(GetIdentityTokenExtendedSaltAdvHmacKeyV1().begin(),
+                  GetIdentityTokenExtendedSaltAdvHmacKeyV1().end()));
   proto_cred.set_identity_token_signed_adv_hmac_key_v1(
-      std::string(kIdentityTokenSignedAdvHmacKeyV1.begin(),
-                  kIdentityTokenSignedAdvHmacKeyV1.end()));
+      std::string(GetIdentityTokenSignedAdvHmacKeyV1().begin(),
+                  GetIdentityTokenSignedAdvHmacKeyV1().end()));
 
   mojom::SharedCredentialPtr mojo_cred = SharedCredentialToMojom(proto_cred);
-  EXPECT_EQ(kKeySeed, mojo_cred->key_seed);
+  EXPECT_EQ(GetKeySeed(), mojo_cred->key_seed);
   EXPECT_EQ(kStartTimeMillis, mojo_cred->start_time_millis);
   EXPECT_EQ(kEndTimeMillis, mojo_cred->end_time_millis);
-  EXPECT_EQ(kEncryptedMetadataBytesV0, mojo_cred->encrypted_metadata_bytes_v0);
-  EXPECT_EQ(kMetadataEncryptionTag, mojo_cred->metadata_encryption_key_tag_v0);
-  EXPECT_EQ(kConnectionSignatureVerificationKey,
+  EXPECT_EQ(GetEncryptedMetadataBytesV0(),
+            mojo_cred->encrypted_metadata_bytes_v0);
+  EXPECT_EQ(GetMetadataEncryptionTag(),
+            mojo_cred->metadata_encryption_key_tag_v0);
+  EXPECT_EQ(GetConnectionSignatureVerificationKey(),
             mojo_cred->connection_signature_verification_key);
-  EXPECT_EQ(kAdvertisementSignatureVerificationKey,
+  EXPECT_EQ(GetAdvertisementSignatureVerificationKey(),
             mojo_cred->advertisement_signature_verification_key);
   EXPECT_EQ(mojom::IdentityType::kIdentityTypePrivateGroup,
             mojo_cred->identity_type);
-  EXPECT_EQ(kVersion, mojo_cred->version);
+  EXPECT_EQ(GetVersion(), mojo_cred->version);
   EXPECT_EQ(mojom::CredentialType::kCredentialTypeGaia,
             mojo_cred->credential_type);
-  EXPECT_EQ(kEncryptedMetadataBytesV1, mojo_cred->encrypted_metadata_bytes_v1);
-  EXPECT_EQ(kIdentityTokenShortSaltAdvHmacKeyV1,
+  EXPECT_EQ(GetEncryptedMetadataBytesV1(),
+            mojo_cred->encrypted_metadata_bytes_v1);
+  EXPECT_EQ(GetIdentityTokenShortSaltAdvHmacKeyV1(),
             mojo_cred->identity_token_short_salt_adv_hmac_key_v1);
   EXPECT_EQ(kSharedCredentialId, mojo_cred->id);
   EXPECT_EQ(kDusi, mojo_cred->dusi);
   EXPECT_EQ(kSignatureVersion, mojo_cred->signature_version);
-  EXPECT_EQ(kIdentityTokenExtendedSaltAdvHmacKeyV1,
+  EXPECT_EQ(GetIdentityTokenExtendedSaltAdvHmacKeyV1(),
             mojo_cred->identity_token_extended_salt_adv_hmac_key_v1);
-  EXPECT_EQ(kIdentityTokenSignedAdvHmacKeyV1,
+  EXPECT_EQ(GetIdentityTokenSignedAdvHmacKeyV1(),
             mojo_cred->identity_token_signed_adv_hmac_key_v1);
 }
 
@@ -247,202 +305,208 @@ TEST_F(ProtoConversionsTest,
   ash::nearby::proto::SharedCredential remote_shared_credential;
   remote_shared_credential.set_id(kSharedCredentialId);
   remote_shared_credential.set_key_seed(
-      std::string(kKeySeed.begin(), kKeySeed.end()));
+      std::string(GetKeySeed().begin(), GetKeySeed().end()));
   remote_shared_credential.set_start_time_millis(kStartTimeMillis);
   remote_shared_credential.set_end_time_millis(kEndTimeMillis);
-  remote_shared_credential.set_encrypted_metadata_bytes_v0(std::string(
-      kEncryptedMetadataBytesV0.begin(), kEncryptedMetadataBytesV0.end()));
+  remote_shared_credential.set_encrypted_metadata_bytes_v0(
+      std::string(GetEncryptedMetadataBytesV0().begin(),
+                  GetEncryptedMetadataBytesV0().end()));
   remote_shared_credential.set_metadata_encryption_key_tag_v0(std::string(
-      kMetadataEncryptionTag.begin(), kMetadataEncryptionTag.end()));
+      GetMetadataEncryptionTag().begin(), GetMetadataEncryptionTag().end()));
   remote_shared_credential.set_connection_signature_verification_key(
-      std::string(kConnectionSignatureVerificationKey.begin(),
-                  kConnectionSignatureVerificationKey.end()));
+      std::string(GetConnectionSignatureVerificationKey().begin(),
+                  GetConnectionSignatureVerificationKey().end()));
   remote_shared_credential.set_advertisement_signature_verification_key(
-      std::string(kAdvertisementSignatureVerificationKey.begin(),
-                  kAdvertisementSignatureVerificationKey.end()));
+      std::string(GetAdvertisementSignatureVerificationKey().begin(),
+                  GetAdvertisementSignatureVerificationKey().end()));
   remote_shared_credential.set_identity_type(
       ash::nearby::proto::IdentityType::IDENTITY_TYPE_PRIVATE_GROUP);
   remote_shared_credential.set_version(
-      std::string(kVersion.begin(), kVersion.end()));
+      std::string(GetVersion().begin(), GetVersion().end()));
   remote_shared_credential.set_credential_type(
       ash::nearby::proto::CredentialType::CREDENTIAL_TYPE_GAIA);
-  remote_shared_credential.set_encrypted_metadata_bytes_v1(std::string(
-      kEncryptedMetadataBytesV1.begin(), kEncryptedMetadataBytesV1.end()));
+  remote_shared_credential.set_encrypted_metadata_bytes_v1(
+      std::string(GetEncryptedMetadataBytesV1().begin(),
+                  GetEncryptedMetadataBytesV1().end()));
   remote_shared_credential.set_identity_token_short_salt_adv_hmac_key_v1(
-      std::string(kIdentityTokenShortSaltAdvHmacKeyV1.begin(),
-                  kIdentityTokenShortSaltAdvHmacKeyV1.end()));
+      std::string(GetIdentityTokenShortSaltAdvHmacKeyV1().begin(),
+                  GetIdentityTokenShortSaltAdvHmacKeyV1().end()));
   remote_shared_credential.set_dusi(kDusi);
   remote_shared_credential.set_signature_version(kSignatureVersion);
   remote_shared_credential.set_identity_token_extended_salt_adv_hmac_key_v1(
-      std::string(kIdentityTokenExtendedSaltAdvHmacKeyV1.begin(),
-                  kIdentityTokenExtendedSaltAdvHmacKeyV1.end()));
+      std::string(GetIdentityTokenExtendedSaltAdvHmacKeyV1().begin(),
+                  GetIdentityTokenExtendedSaltAdvHmacKeyV1().end()));
   remote_shared_credential.set_identity_token_signed_adv_hmac_key_v1(
-      std::string(kIdentityTokenSignedAdvHmacKeyV1.begin(),
-                  kIdentityTokenSignedAdvHmacKeyV1.end()));
+      std::string(GetIdentityTokenSignedAdvHmacKeyV1().begin(),
+                  GetIdentityTokenSignedAdvHmacKeyV1().end()));
 
   ::nearby::internal::SharedCredential proto_cred =
       RemoteSharedCredentialToThirdPartySharedCredential(
           remote_shared_credential);
   EXPECT_EQ(kSharedCredentialId, proto_cred.id());
-  EXPECT_EQ(std::string(kKeySeed.begin(), kKeySeed.end()),
+  EXPECT_EQ(std::string(GetKeySeed().begin(), GetKeySeed().end()),
             proto_cred.key_seed());
   EXPECT_EQ(kStartTimeMillis, proto_cred.start_time_millis());
   EXPECT_EQ(kEndTimeMillis, proto_cred.end_time_millis());
-  EXPECT_EQ(std::string(kEncryptedMetadataBytesV0.begin(),
-                        kEncryptedMetadataBytesV0.end()),
+  EXPECT_EQ(std::string(GetEncryptedMetadataBytesV0().begin(),
+                        GetEncryptedMetadataBytesV0().end()),
             proto_cred.encrypted_metadata_bytes_v0());
-  EXPECT_EQ(
-      std::string(kMetadataEncryptionTag.begin(), kMetadataEncryptionTag.end()),
-      proto_cred.metadata_encryption_key_tag_v0());
-  EXPECT_EQ(std::string(kConnectionSignatureVerificationKey.begin(),
-                        kConnectionSignatureVerificationKey.end()),
+  EXPECT_EQ(std::string(GetMetadataEncryptionTag().begin(),
+                        GetMetadataEncryptionTag().end()),
+            proto_cred.metadata_encryption_key_tag_v0());
+  EXPECT_EQ(std::string(GetConnectionSignatureVerificationKey().begin(),
+                        GetConnectionSignatureVerificationKey().end()),
             proto_cred.connection_signature_verification_key());
-  EXPECT_EQ(std::string(kAdvertisementSignatureVerificationKey.begin(),
-                        kAdvertisementSignatureVerificationKey.end()),
+  EXPECT_EQ(std::string(GetAdvertisementSignatureVerificationKey().begin(),
+                        GetAdvertisementSignatureVerificationKey().end()),
             proto_cred.advertisement_signature_verification_key());
   EXPECT_EQ(::nearby::internal::IdentityType::IDENTITY_TYPE_PRIVATE_GROUP,
             proto_cred.identity_type());
-  EXPECT_EQ(std::string(kVersion.begin(), kVersion.end()),
+  EXPECT_EQ(std::string(GetVersion().begin(), GetVersion().end()),
             proto_cred.version());
   EXPECT_EQ(::nearby::internal::CredentialType::CREDENTIAL_TYPE_GAIA,
             proto_cred.credential_type());
-  EXPECT_EQ(std::string(kEncryptedMetadataBytesV1.begin(),
-                        kEncryptedMetadataBytesV1.end()),
+  EXPECT_EQ(std::string(GetEncryptedMetadataBytesV1().begin(),
+                        GetEncryptedMetadataBytesV1().end()),
             proto_cred.encrypted_metadata_bytes_v1());
-  EXPECT_EQ(std::string(kIdentityTokenShortSaltAdvHmacKeyV1.begin(),
-                        kIdentityTokenShortSaltAdvHmacKeyV1.end()),
+  EXPECT_EQ(std::string(GetIdentityTokenShortSaltAdvHmacKeyV1().begin(),
+                        GetIdentityTokenShortSaltAdvHmacKeyV1().end()),
             proto_cred.identity_token_short_salt_adv_hmac_key_v1());
   EXPECT_EQ(kDusi, proto_cred.dusi());
   EXPECT_EQ(kSignatureVersion, proto_cred.signature_version());
-  EXPECT_EQ(std::string(kIdentityTokenExtendedSaltAdvHmacKeyV1.begin(),
-                        kIdentityTokenExtendedSaltAdvHmacKeyV1.end()),
+  EXPECT_EQ(std::string(GetIdentityTokenExtendedSaltAdvHmacKeyV1().begin(),
+                        GetIdentityTokenExtendedSaltAdvHmacKeyV1().end()),
             proto_cred.identity_token_extended_salt_adv_hmac_key_v1());
-  EXPECT_EQ(std::string(kIdentityTokenSignedAdvHmacKeyV1.begin(),
-                        kIdentityTokenSignedAdvHmacKeyV1.end()),
+  EXPECT_EQ(std::string(GetIdentityTokenSignedAdvHmacKeyV1().begin(),
+                        GetIdentityTokenSignedAdvHmacKeyV1().end()),
             proto_cred.identity_token_signed_adv_hmac_key_v1());
 }
 
 TEST_F(ProtoConversionsTest, PrivateKeyToMojomTest) {
   ::nearby::internal::LocalCredential::PrivateKey private_key;
   private_key.set_certificate_alias(
-      std::string(AdvertisementSigningKeyCertificateAlias.begin(),
-                  AdvertisementSigningKeyCertificateAlias.end()));
-  private_key.set_key(std::string(kPrivateKey.begin(), kPrivateKey.end()));
+      std::string(AdvertisementSigningKeyCertificateAlias));
+  private_key.set_key(
+      std::string(GetPrivateKey().begin(), GetPrivateKey().end()));
 
   mojom::PrivateKeyPtr mojo_private_key = PrivateKeyToMojom(private_key);
 
   EXPECT_EQ(AdvertisementSigningKeyCertificateAlias,
             mojo_private_key->certificate_alias);
-  EXPECT_EQ(kPrivateKey, mojo_private_key->key);
+  EXPECT_EQ(GetPrivateKey(), mojo_private_key->key);
 }
 
 TEST_F(ProtoConversionsTest, PrivateKeyFromMojomTest) {
   mojom::PrivateKeyPtr mojo_private_key = mojom::PrivateKey::New(
-      AdvertisementSigningKeyCertificateAlias, kPrivateKey);
+      AdvertisementSigningKeyCertificateAlias, GetPrivateKey());
 
   ::nearby::internal::LocalCredential::PrivateKey proto_private_key =
       PrivateKeyFromMojom(mojo_private_key.get());
 
-  EXPECT_EQ(std::string(AdvertisementSigningKeyCertificateAlias.begin(),
-                        AdvertisementSigningKeyCertificateAlias.end()),
+  EXPECT_EQ(std::string(AdvertisementSigningKeyCertificateAlias),
             proto_private_key.certificate_alias());
-  EXPECT_EQ(std::string(kPrivateKey.begin(), kPrivateKey.end()),
+  EXPECT_EQ(std::string(GetPrivateKey().begin(), GetPrivateKey().end()),
             proto_private_key.key());
 }
 
 TEST_F(ProtoConversionsTest, LocalCredentialToMojomTest) {
   ::nearby::internal::LocalCredential local_credential;
   local_credential.set_secret_id(
-      std::string(kSecretId.begin(), kSecretId.end()));
-  local_credential.set_key_seed(std::string(kKeySeed.begin(), kKeySeed.end()));
+      std::string(GetSecretId().begin(), GetSecretId().end()));
+  local_credential.set_key_seed(
+      std::string(GetKeySeed().begin(), GetKeySeed().end()));
   local_credential.set_start_time_millis(kStartTimeMillis);
   local_credential.set_end_time_millis(kEndTimeMillis);
   local_credential.set_metadata_encryption_key_v0(
-      std::string(kAdvertisementMetadataEncrpytionKeyV0.begin(),
-                  kAdvertisementMetadataEncrpytionKeyV0.end()));
+      std::string(GetAdvertisementMetadataEncrpytionKeyV0().begin(),
+                  GetAdvertisementMetadataEncrpytionKeyV0().end()));
   local_credential.set_allocated_advertisement_signing_key(
       CreatePrivateKeyProto(AdvertisementSigningKeyCertificateAlias,
-                            kPrivateKey));
-  local_credential.set_allocated_connection_signing_key(
-      CreatePrivateKeyProto(ConnectionSigningKeyCertificateAlias, kPrivateKey));
+                            GetPrivateKey()));
+  local_credential.set_allocated_connection_signing_key(CreatePrivateKeyProto(
+      ConnectionSigningKeyCertificateAlias, GetPrivateKey()));
   local_credential.set_identity_type(
       ::nearby::internal::IdentityType::IDENTITY_TYPE_PRIVATE_GROUP);
-  SetProtoMap(local_credential.mutable_consumed_salts(), kConsumedSalts);
+  SetProtoMap(local_credential.mutable_consumed_salts(), GetConsumedSalts());
   local_credential.set_identity_token_v1(
-      std::string(kIdentityTokenV1.begin(), kIdentityTokenV1.end()));
+      std::string(GetIdentityTokenV1().begin(), GetIdentityTokenV1().end()));
   local_credential.set_id(kLocalCredentialId);
   local_credential.set_signature_version(kSignatureVersion);
 
   mojom::LocalCredentialPtr mojo_local_credential =
       LocalCredentialToMojom(local_credential);
 
-  EXPECT_EQ(kSecretId, mojo_local_credential->secret_id);
-  EXPECT_EQ(kKeySeed, mojo_local_credential->key_seed);
+  EXPECT_EQ(GetSecretId(), mojo_local_credential->secret_id);
+  EXPECT_EQ(GetKeySeed(), mojo_local_credential->key_seed);
   EXPECT_EQ(kStartTimeMillis, mojo_local_credential->start_time_millis);
   EXPECT_EQ(kEndTimeMillis, mojo_local_credential->end_time_millis);
-  EXPECT_EQ(kAdvertisementMetadataEncrpytionKeyV0,
+  EXPECT_EQ(GetAdvertisementMetadataEncrpytionKeyV0(),
             mojo_local_credential->metadata_encryption_key_v0);
   EXPECT_EQ(mojom::IdentityType::kIdentityTypePrivateGroup,
             mojo_local_credential->identity_type);
-  EXPECT_EQ(kConsumedSalts.size(),
+  EXPECT_EQ(GetConsumedSalts().size(),
             mojo_local_credential->consumed_salts.size());
-  EXPECT_EQ(kIdentityTokenV1, mojo_local_credential->identity_token_v1);
+  EXPECT_EQ(GetIdentityTokenV1(), mojo_local_credential->identity_token_v1);
   EXPECT_EQ(kLocalCredentialId, mojo_local_credential->id);
   EXPECT_EQ(kSignatureVersion, mojo_local_credential->signature_version);
   // advertisement_signing_key
   EXPECT_EQ(
       AdvertisementSigningKeyCertificateAlias,
       mojo_local_credential->advertisement_signing_key->certificate_alias);
-  EXPECT_EQ(kPrivateKey, mojo_local_credential->advertisement_signing_key->key);
+  EXPECT_EQ(GetPrivateKey(),
+            mojo_local_credential->advertisement_signing_key->key);
   // connection_singing_key
   EXPECT_EQ(ConnectionSigningKeyCertificateAlias,
             mojo_local_credential->connection_signing_key->certificate_alias);
-  EXPECT_EQ(kPrivateKey, mojo_local_credential->connection_signing_key->key);
+  EXPECT_EQ(GetPrivateKey(),
+            mojo_local_credential->connection_signing_key->key);
 }
 
 TEST_F(ProtoConversionsTest, LocalCredentialFromMojomTest) {
-  base::flat_map<uint32_t, bool> kConsumedSalts_flat(kConsumedSalts.begin(),
-                                                     kConsumedSalts.end());
+  base::flat_map<uint32_t, bool> kConsumedSalts_flat(GetConsumedSalts().begin(),
+                                                     GetConsumedSalts().end());
   mojom::LocalCredentialPtr mojo_local_credential = mojom::LocalCredential::New(
-      kSecretId, kKeySeed, kStartTimeMillis, kEndTimeMillis,
-      kAdvertisementMetadataEncrpytionKeyV0,
+      GetSecretId(), GetKeySeed(), kStartTimeMillis, kEndTimeMillis,
+      GetAdvertisementMetadataEncrpytionKeyV0(),
       mojom::PrivateKey::New(AdvertisementSigningKeyCertificateAlias,
-                             kPrivateKey),
-      mojom::PrivateKey::New(ConnectionSigningKeyCertificateAlias, kPrivateKey),
+                             GetPrivateKey()),
+      mojom::PrivateKey::New(ConnectionSigningKeyCertificateAlias,
+                             GetPrivateKey()),
       mojom::IdentityType::kIdentityTypePrivateGroup, kConsumedSalts_flat,
-      kIdentityTokenV1, kLocalCredentialId, kSignatureVersion);
+      GetIdentityTokenV1(), kLocalCredentialId, kSignatureVersion);
 
   ::nearby::internal::LocalCredential local_credential_proto =
       LocalCredentialFromMojom(mojo_local_credential.get());
 
-  EXPECT_EQ(std::string(kSecretId.begin(), kSecretId.end()),
+  EXPECT_EQ(std::string(GetSecretId().begin(), GetSecretId().end()),
             local_credential_proto.secret_id());
-  EXPECT_EQ(std::string(kKeySeed.begin(), kKeySeed.end()),
+  EXPECT_EQ(std::string(GetKeySeed().begin(), GetKeySeed().end()),
             local_credential_proto.key_seed());
   EXPECT_EQ(kStartTimeMillis, local_credential_proto.start_time_millis());
   EXPECT_EQ(kEndTimeMillis, local_credential_proto.end_time_millis());
-  EXPECT_EQ(std::string(kAdvertisementMetadataEncrpytionKeyV0.begin(),
-                        kAdvertisementMetadataEncrpytionKeyV0.end()),
+  EXPECT_EQ(std::string(GetAdvertisementMetadataEncrpytionKeyV0().begin(),
+                        GetAdvertisementMetadataEncrpytionKeyV0().end()),
             local_credential_proto.metadata_encryption_key_v0());
   EXPECT_EQ(::nearby::internal::IdentityType::IDENTITY_TYPE_PRIVATE_GROUP,
             local_credential_proto.identity_type());
-  EXPECT_EQ(kConsumedSalts.size(),
+  EXPECT_EQ(GetConsumedSalts().size(),
             local_credential_proto.consumed_salts().size());
-  EXPECT_EQ(std::string(kIdentityTokenV1.begin(), kIdentityTokenV1.end()),
-            local_credential_proto.identity_token_v1());
+  EXPECT_EQ(
+      std::string(GetIdentityTokenV1().begin(), GetIdentityTokenV1().end()),
+      local_credential_proto.identity_token_v1());
   EXPECT_EQ(kLocalCredentialId, local_credential_proto.id());
   EXPECT_EQ(kSignatureVersion, local_credential_proto.signature_version());
   // advertisement_signing_key
   EXPECT_EQ(
       AdvertisementSigningKeyCertificateAlias,
       local_credential_proto.advertisement_signing_key().certificate_alias());
-  EXPECT_EQ(std::string(kPrivateKey.begin(), kPrivateKey.end()),
+  EXPECT_EQ(std::string(GetPrivateKey().begin(), GetPrivateKey().end()),
             local_credential_proto.advertisement_signing_key().key());
   // connection_signing_key
   EXPECT_EQ(
       ConnectionSigningKeyCertificateAlias,
       local_credential_proto.connection_signing_key().certificate_alias());
-  EXPECT_EQ(std::string(kPrivateKey.begin(), kPrivateKey.end()),
+  EXPECT_EQ(std::string(GetPrivateKey().begin(), GetPrivateKey().end()),
             local_credential_proto.connection_signing_key().key());
 }
 

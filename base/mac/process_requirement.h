@@ -155,7 +155,6 @@ class BASE_EXPORT ProcessRequirement {
                       unsigned int ops,
                       void* useraddr,
                       size_t usersize) = 0;
-    virtual bool SupportsValidationCategory() const = 0;
   };
 
   // Use `csops_provider` function in place of using the default provider which

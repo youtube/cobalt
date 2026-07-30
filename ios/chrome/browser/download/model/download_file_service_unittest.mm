@@ -14,6 +14,7 @@
 #import "base/test/bind.h"
 #import "base/test/scoped_feature_list.h"
 #import "ios/chrome/browser/download/model/download_directory_util.h"
+#import "ios/chrome/browser/download/model/download_filter_util.h"
 #import "ios/chrome/browser/download/model/download_record.h"
 #import "ios/chrome/browser/download/model/download_record_service.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -59,6 +60,16 @@ class MockDownloadRecordService : public DownloadRecordService {
   MOCK_METHOD(void,
               RemoveDownloadByIdAsync,
               (const std::string& download_id, CompletionCallback callback),
+              (override));
+  MOCK_METHOD(void,
+              GetDownloadsPageAsync,
+              (const DownloadRecordQuery& query,
+               DownloadRecordsPageCallback callback),
+              (override));
+  MOCK_METHOD(void,
+              GetDownloadsCountAsync,
+              (std::optional<DownloadFilterType> filter,
+               DownloadRecordsCountCallback callback),
               (override));
   MOCK_METHOD(web::DownloadTask*,
               GetDownloadTaskById,

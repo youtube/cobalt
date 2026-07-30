@@ -97,7 +97,7 @@ class VisibleSelectionTemplate<Strategy>::Creator {
   }
 };
 
-VisibleSelection CreateVisibleSelection(const SelectionInDOMTree& selection) {
+VisibleSelection CreateVisibleSelection(const SelectionInDomTree& selection) {
   return VisibleSelection::Creator::CreateWithGranularity(
       selection, TextGranularity::kCharacter);
 }
@@ -108,7 +108,7 @@ VisibleSelectionInFlatTree CreateVisibleSelection(
       selection, TextGranularity::kCharacter);
 }
 
-SelectionInDOMTree ExpandWithGranularity(const SelectionInDOMTree& selection,
+SelectionInDomTree ExpandWithGranularity(const SelectionInDomTree& selection,
                                          TextGranularity granularity,
                                          const WordInclusion& inclusion) {
   return VisibleSelection::Creator::ComputeVisibleSelection(
@@ -228,7 +228,7 @@ static EphemeralRangeTemplate<Strategy> NormalizeRangeAlgorithm(
   return NormalizeRange(selection.ComputeRange());
 }
 
-EphemeralRange NormalizeRange(const SelectionInDOMTree& selection) {
+EphemeralRange NormalizeRange(const SelectionInDomTree& selection) {
   return NormalizeRangeAlgorithm(selection);
 }
 

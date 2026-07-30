@@ -95,6 +95,7 @@ DocumentFragment* ParseHTMLFragment(const String& html,
 
 DocumentFragment* CreateContextualFragment(const String& html,
                                            Element*,
+                                           const FragmentParserOptions& options,
                                            ExceptionState&);
 
 }  // namespace blink

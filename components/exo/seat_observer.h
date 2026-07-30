@@ -5,6 +5,8 @@
 #ifndef COMPONENTS_EXO_SEAT_OBSERVER_H_
 #define COMPONENTS_EXO_SEAT_OBSERVER_H_
 
+#include "base/observer_list_types.h"
+
 namespace aura {
 class Window;
 }
@@ -15,7 +17,7 @@ class Pointer;
 class Surface;
 
 // Observers can listen to various events on the Seats.
-class SeatObserver {
+class SeatObserver : public base::CheckedObserver {
  public:
   virtual void OnSurfaceCreated(Surface* surface) {}
 
@@ -36,7 +38,7 @@ class SeatObserver {
   virtual void OnKeyboardModifierUpdated() {}
 
  protected:
-  virtual ~SeatObserver() = default;
+  ~SeatObserver() override = default;
 };
 
 }  // namespace exo

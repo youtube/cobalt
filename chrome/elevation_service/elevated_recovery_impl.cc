@@ -284,7 +284,7 @@ void ScheduleDirectoryForDeletion(const base::FilePath& dir_name) {
 }
 
 // Returns the ChromeRecovery directory under Google\Chrome. For machine
-// installs, this directory is under %ProgramFiles%, which is writeable only by
+// installs, this directory is under %ProgramFiles%, which is writable only by
 // adminstrators. We use this secure directory to validate and unpack the CRX to
 // prevent tampering.
 HRESULT GetChromeRecoveryDirectory(base::FilePath* dir) {

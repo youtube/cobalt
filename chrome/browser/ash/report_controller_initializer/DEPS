@@ -19,7 +19,6 @@ include_rules = [
   "+chrome/browser/ash/settings",
   "+chrome/browser/first_run",
   "+chrome/browser/net",
-  "+chrome/common",
 ]
 
 specific_include_rules = {

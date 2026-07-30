@@ -157,7 +157,7 @@ class PaymentsNetworkInterfaceTest : public PaymentsNetworkInterfaceTestBase,
   void TearDown() override { payments_network_interface_.reset(); }
 
   void OnDidGetUnmaskDetails(PaymentsRpcResult result,
-                             payments::UnmaskDetails& unmask_details) {
+                             UnmaskDetails& unmask_details) {
     result_ = result;
     unmask_details_ = unmask_details;
   }
@@ -203,7 +203,7 @@ class PaymentsNetworkInterfaceTest : public PaymentsNetworkInterfaceTestBase,
 
   void OnDidGetVirtualCardEnrollmentDetails(
       PaymentsRpcResult result,
-      const payments::GetDetailsForEnrollmentResponseDetails&
+      const GetDetailsForEnrollmentResponseDetails&
           get_details_for_enrollment_response_fields) {
     result_ = result;
     get_details_for_enrollment_response_fields_ =

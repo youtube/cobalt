@@ -507,7 +507,8 @@
     "contexts": ["privileged_extension"],
     // "desktop_android" is not supported.
     "platforms": ["chromeos", "linux", "mac", "win"],
-    "channel": "dev"
+    "channel": "dev",
+    "requires_delegated_availability_check": true
   }, {
     "dependencies": ["manifest:mime_types_handler"],
     "contexts": ["privileged_extension"],

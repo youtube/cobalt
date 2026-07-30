@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_UI_VIEWS_OMNIBOX_OMNIBOX_POPUP_FULL_PRESENTER_H_
 
 #include "base/scoped_observation.h"
+#include "base/timer/timer.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_presenter_base.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_observer.h"
@@ -36,18 +37,27 @@ class OmniboxPopupFullPresenter : public OmniboxPopupPresenterBase,
   std::optional<base::TimeDelta> ShouldDeferUntilVisualStateReady()
       const override;
   bool ShouldDetachWebContentsOnHide() const override;
-  bool ShouldUseWebContentHeight() const override;
 
  protected:
   // OmniboxPopupPresenterBase:
+  std::unique_ptr<RoundedOmniboxResultsFrame> CreateResultsFrame(
+      std::unique_ptr<views::View> contents,
+      LocationBar* location_bar,
+      bool forward_mouse_events) override;
+  void SynchronizePopupBounds() override;
   void WidgetDestroyed() override;
 
  private:
   // views::WidgetObserver:
   void OnWidgetActivationChanged(views::Widget* widget, bool active) override;
 
+  void StopForwardingEvents();
+
   base::ScopedObservation<views::Widget, views::WidgetObserver>
       widget_observation_{this};
+
+  // Timer to stop forwarding events after a short delay.
+  base::OneShotTimer forward_events_timer_;
 
   // Whether the "first shown" metrics have been logged at least once.
   bool logged_first_shown_metric_ = false;

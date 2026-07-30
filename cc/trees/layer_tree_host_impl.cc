@@ -3064,17 +3064,18 @@ viz::CompositorFrame LayerTreeHostImpl::GenerateCompositorFrame(
   }
 
   if (frame->damage_reasons.Has(DamageReason::kAnimatedImage)) {
-    CHECK(!settings_.trees_in_viz_in_viz_process);
-    CHECK(image_animation_controller_);
-    std::optional<ImageAnimationController::ConsistentFrameDuration>
-        animating_image_duration =
-            image_animation_controller_->GetConsistentContentFrameDuration();
-    if (animating_image_duration) {
-      metadata.frame_interval_inputs.content_interval_info.push_back(
-          {viz::ContentFrameIntervalType::kAnimatingImage,
-           animating_image_duration->frame_duration,
-           animating_image_duration->num_images - 1u});
-      frame->damage_reasons.Remove(DamageReason::kAnimatedImage);
+    if (!settings_.trees_in_viz_in_viz_process) {
+      CHECK(image_animation_controller_);
+      std::optional<ImageAnimationController::ConsistentFrameDuration>
+          animating_image_duration =
+              image_animation_controller_->GetConsistentContentFrameDuration();
+      if (animating_image_duration) {
+        metadata.frame_interval_inputs.content_interval_info.push_back(
+            {viz::ContentFrameIntervalType::kAnimatingImage,
+             animating_image_duration->frame_duration,
+             animating_image_duration->num_images - 1u});
+        frame->damage_reasons.Remove(DamageReason::kAnimatedImage);
+      }
     }
   }
 
@@ -5099,12 +5100,10 @@ bool LayerTreeHostImpl::AnimateLayers(base::TimeTicks monotonic_time,
   const ScrollTree& scroll_tree =
       is_active_tree ? active_tree_->property_trees()->scroll_tree()
                      : pending_tree_->property_trees()->scroll_tree();
-  const bool animated = mutator_host_->TickAnimations(
+  const AnimationTickResult tick_result = mutator_host_->TickAnimations(
       monotonic_time, scroll_tree, is_active_tree, mutator_events_.get());
 
-  if (animated) {
-    // TODO(crbug.com/40667010): If only scroll animations present, schedule a
-    // frame only if scroll changes.
+  if (tick_result.needs_next_frame) {
     SetNeedsOneBeginImplFrame();
     frame_trackers_.StartSequence(
         FrameSequenceTrackerType::kCompositorAnimation);
@@ -5131,7 +5130,7 @@ bool LayerTreeHostImpl::AnimateLayers(base::TimeTicks monotonic_time,
         FrameSequenceTrackerType::kCompositorNativeAnimation);
   }
 
-  if (animated && mutator_host_->HasViewTransition()) {
+  if (tick_result.needs_next_frame && mutator_host_->HasViewTransition()) {
     frame_trackers_.StartSequence(
         FrameSequenceTrackerType::kSETCompositorAnimation);
   } else {
@@ -5139,7 +5138,7 @@ bool LayerTreeHostImpl::AnimateLayers(base::TimeTicks monotonic_time,
         FrameSequenceTrackerType::kSETCompositorAnimation);
   }
 
-  return animated;
+  return tick_result.animated;
 }
 
 void LayerTreeHostImpl::UpdateAnimationState(bool start_ready_animations) {
@@ -6238,7 +6237,8 @@ void LayerTreeHostImpl::SetUnboundedFrameSink(
 }
 
 void LayerTreeHostImpl::DismissUnboundedFrameSink() {
-  DCHECK(task_runner_provider_->IsImplThread());
+  DCHECK(task_runner_provider_->IsImplThread() ||
+         !task_runner_provider_->HasImplThread());
   if (unbounded_frame_sink_handler_) {
     unbounded_frame_sink_handler_->DismissFrameSink();
   }

@@ -38,6 +38,7 @@
 #include "components/dom_distiller/core/url_utils.h"
 #include "components/omnibox/browser/actions/omnibox_action.h"
 #include "components/omnibox/browser/actions/tab_switch_action.h"
+#include "components/omnibox/browser/ai_mode_button_config.h"
 #include "components/omnibox/browser/autocomplete_controller.h"
 #include "components/omnibox/browser/autocomplete_enums.h"
 #include "components/omnibox/browser/autocomplete_match.h"
@@ -157,17 +158,16 @@ class MockQueryContextualizer : public contextual_tasks::QueryContextualizer {
       : QueryContextualizer(service, delegate) {}
   ~MockQueryContextualizer() override = default;
 
-  void Contextualize(const TaskIdType& task_id,
-                     const std::string& query_text,
-                     const TabIdList& tabs_to_recontextualize,
-                     const TabIdList& tabs_to_force_contextualize,
-                     IneligibleCallback on_ineligible_callback,
-                     ProcessedCallback on_processed_callback,
-                     ContCallback callback,
-                     bool enable_smart_tab_selection) override {
-    MockContextualize(task_id, query_text, tabs_to_recontextualize,
-                      tabs_to_force_contextualize);
-    std::move(callback).Run(nullptr);
+  void Contextualize(contextual_tasks::QueryContextualizer::ContextualizeParams
+                         params) override {
+    std::vector<contextual_tasks::QueryContextualizer::TabId> force_tabs =
+        params.auto_suggested_chip_tabs;
+    if (force_tabs.empty()) {
+      force_tabs = params.tabs_for_contextual_searchbox_first_turn;
+    }
+    MockContextualize(params.task_id, params.query_text,
+                      params.tabs_to_recontextualize, force_tabs);
+    std::move(params.complete_callback).Run(nullptr);
   }
 
   MOCK_METHOD(void,
@@ -421,6 +421,38 @@ TEST_F(OmniboxEditModelTest, DisplayText) {
   EXPECT_FALSE(model()->ShouldShowCurrentPageIcon());
 }
 
+TEST_F(OmniboxEditModelTest, UnelideDoesNothingWhenUserActionInProgress) {
+  // Preamble to set the omnibox to a state similar to if the user navigated to
+  // https://www.example.com and the omnibox is showing the elided URL.
+  location_bar_model()->set_url(GURL("https://www.example.com/"));
+  location_bar_model()->set_url_for_display(u"example.com");
+  EXPECT_TRUE(model()->ResetDisplayTexts());
+  model()->Revert();
+  EXPECT_EQ(model()->GetPermanentDisplayText(), u"example.com");
+  EXPECT_EQ(view()->GetText(), u"example.com");
+
+  // Set `has_temporary_text_` to true to simulate user match selection.
+  model()->has_temporary_text_ = true;
+  EXPECT_FALSE(model()->user_input_in_progress_);
+
+  // Verify `Unelide()` does nothing.
+  EXPECT_FALSE(model()->Unelide());
+  EXPECT_EQ(view()->GetText(), u"example.com");
+
+  // Set `user_input_in_progress_` to true to simulate user input.
+  model()->has_temporary_text_ = false;
+  model()->user_input_in_progress_ = true;
+
+  // Verify `Unelide()` does nothing.
+  EXPECT_FALSE(model()->Unelide());
+  EXPECT_EQ(view()->GetText(), u"example.com");
+
+  // Clear both states and verify `Unelide()` unelides.
+  model()->user_input_in_progress_ = false;
+  EXPECT_TRUE(model()->Unelide());
+  EXPECT_EQ(view()->GetText(), u"https://www.example.com/");
+}
+
 TEST_F(OmniboxEditModelTest, UnelideDoesNothingWhenFullURLAlreadyShown) {
   location_bar_model()->set_url(GURL("https://www.example.com/"));
   location_bar_model()->set_url_for_display(u"https://www.example.com/");
@@ -431,7 +463,7 @@ TEST_F(OmniboxEditModelTest, UnelideDoesNothingWhenFullURLAlreadyShown) {
   EXPECT_EQ(u"https://www.example.com/", model()->GetPermanentDisplayText());
   EXPECT_TRUE(model()->CurrentTextIsURL());
 
-  // Verify Unelide does nothing.
+  // Verify `Unelide()` does nothing.
   EXPECT_FALSE(model()->Unelide());
   EXPECT_EQ(u"https://www.example.com/", view()->GetText());
   EXPECT_FALSE(model()->user_input_in_progress());
@@ -1557,7 +1589,7 @@ TEST_F(OmniboxEditModelTest, OmniboxEscapeHistogram) {
                               std::u16string(), std::u16string(),
                               KeywordState::kNone, std::u16string(), {});
 
-  EXPECT_TRUE(model()->HasTemporaryText());
+  EXPECT_TRUE(model()->has_temporary_text_);
   EXPECT_TRUE(controller()->IsPopupOpen());
   EXPECT_EQ(view()->GetText(), u"fake_temporary_text");
   EXPECT_TRUE(model()->user_input_in_progress());
@@ -1568,7 +1600,7 @@ TEST_F(OmniboxEditModelTest, OmniboxEscapeHistogram) {
     base::HistogramTester histogram_tester;
     EXPECT_TRUE(model()->OnEscapeKeyPressed());
     histogram_tester.ExpectUniqueSample("Omnibox.Escape", 1, 1);
-    EXPECT_FALSE(model()->HasTemporaryText());
+    EXPECT_FALSE(model()->has_temporary_text_);
     EXPECT_TRUE(controller()->IsPopupOpen());
     EXPECT_EQ(view()->GetText(), u"");
     EXPECT_TRUE(model()->user_input_in_progress());
@@ -1582,7 +1614,7 @@ TEST_F(OmniboxEditModelTest, OmniboxEscapeHistogram) {
     histogram_tester.ExpectUniqueSample("Omnibox.Escape", 2, 1);
     controller()->popup_state_manager()->SetPopupState(
         OmniboxPopupState::kNone);
-    EXPECT_FALSE(model()->HasTemporaryText());
+    EXPECT_FALSE(model()->has_temporary_text_);
     EXPECT_FALSE(controller()->IsPopupOpen());
     EXPECT_EQ(view()->GetText(), u"");
     EXPECT_TRUE(model()->user_input_in_progress());
@@ -1594,7 +1626,7 @@ TEST_F(OmniboxEditModelTest, OmniboxEscapeHistogram) {
     base::HistogramTester histogram_tester;
     EXPECT_TRUE(model()->OnEscapeKeyPressed());
     histogram_tester.ExpectUniqueSample("Omnibox.Escape", 3, 1);
-    EXPECT_FALSE(model()->HasTemporaryText());
+    EXPECT_FALSE(model()->has_temporary_text_);
     EXPECT_FALSE(controller()->IsPopupOpen());
     EXPECT_EQ(view()->GetText(), u"");
     EXPECT_FALSE(model()->user_input_in_progress());
@@ -1608,7 +1640,7 @@ TEST_F(OmniboxEditModelTest, OmniboxEscapeHistogram) {
     histogram_tester.ExpectUniqueSample("Omnibox.Escape", 5, 1);
     model()->OnKillFocus();  // `TestOmniboxEditModel` stubs the client which
                              // handles blurring the omnibox.
-    EXPECT_FALSE(model()->HasTemporaryText());
+    EXPECT_FALSE(model()->has_temporary_text_);
     EXPECT_FALSE(controller()->IsPopupOpen());
     EXPECT_EQ(view()->GetText(), u"");
     EXPECT_FALSE(model()->user_input_in_progress());
@@ -2168,6 +2200,27 @@ TEST_F(OmniboxEditModelPopupTest, OpenFeaturedSearchMatch) {
   EXPECT_TRUE(model()->is_keyword_selected());
   EXPECT_EQ(u"@bookmarks", model()->keyword());
   EXPECT_FALSE(model()->is_keyword_hint());
+}
+
+TEST_F(OmniboxEditModelTest, NavigateToThirdPartyAiMode) {
+  // 1. Setup testing config.
+  ai_mode_button_config::AiModeButtonConfig test_config;
+  test_config.id = SearchEngineType::SEARCH_ENGINE_YAHOO;
+  test_config.navigation_url = "https://url.com/search?p={searchTerms}";
+  test_config.navigation_url_empty = "https://url-empty.com";
+  client()->GetAiModeButtonService()->current_config_ = test_config;
+
+  // Test with query.
+  EXPECT_CALL(*client(), OpenUrl(GURL("https://url.com/search?p=query"),
+                                 WindowOpenDisposition::CURRENT_TAB))
+      .Times(1);
+  model()->NavigateToThirdPartyAiMode(u"query");
+
+  // Test without query.
+  EXPECT_CALL(*client(), OpenUrl(GURL("https://url-empty.com"),
+                                 WindowOpenDisposition::CURRENT_TAB))
+      .Times(1);
+  model()->NavigateToThirdPartyAiMode(u"");
 }
 
 class OmniboxEditModelContextualSearchTest

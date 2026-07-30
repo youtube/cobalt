@@ -25,6 +25,7 @@ namespace {
 void PerformPlay(Animation& animation,
                  std::optional<base::TimeDelta> event_time,
                  ExceptionState& exception_state) {
+  // TODO(crbug.com/451238244): These should use AutoRewind::kDisabled.
   animation.PlayInternal(Animation::AutoRewind::kEnabled, exception_state);
 
   bool notify = event_time && animation.PendingInternal();
@@ -37,7 +38,8 @@ void PerformPlay(Animation& animation,
              V8AnimationPlayState::Enum::kRunning);
 
   if (notify) {
-    animation.NotifyAnimationStartedAsync(event_time.value());
+    animation.NotifyAnimationStartedAsync(event_time.value(),
+                                          Animation::AutoRewind::kEnabled);
   }
 }
 
@@ -56,22 +58,54 @@ void PerformPause(Animation& animation,
 
 void PerformPlayForwards(Animation& animation,
                          V8AnimationPlayState::Enum play_state,
+                         std::optional<base::TimeDelta> event_time,
                          ExceptionState& exception_state) {
-  double playback_rate = std::abs(animation.EffectivePlaybackRate());
+  if (animation.EffectivePlaybackRate() > 0) {
+    animation.PlayInternal(Animation::AutoRewind::kDisabled, exception_state);
+  } else {
+    animation.ReverseInternal(Animation::AutoRewind::kDisabled,
+                              exception_state);
+  }
+  DCHECK_GT(animation.EffectivePlaybackRate(), 0);
 
-  animation.updatePlaybackRate(playback_rate, exception_state);
+  bool notify = event_time && animation.PendingInternal();
 
-  animation.PlayInternal(Animation::AutoRewind::kEnabled, exception_state);
+  V8AnimationPlayState::Enum new_play_state =
+      animation.CalculateAnimationPlayState();
+  DCHECK(animation.PendingInternal() ||
+         new_play_state == V8AnimationPlayState::Enum::kRunning ||
+         new_play_state == V8AnimationPlayState::Enum::kFinished);
+
+  if (notify) {
+    animation.NotifyAnimationStartedAsync(event_time.value(),
+                                          Animation::AutoRewind::kDisabled);
+  }
 }
 
 void PerformPlayBackwards(Animation& animation,
                           V8AnimationPlayState::Enum play_state,
+                          std::optional<base::TimeDelta> event_time,
                           ExceptionState& exception_state) {
-  double playback_rate = -std::abs(animation.EffectivePlaybackRate());
+  if (animation.EffectivePlaybackRate() < 0) {
+    animation.PlayInternal(Animation::AutoRewind::kDisabled, exception_state);
+  } else {
+    animation.ReverseInternal(Animation::AutoRewind::kDisabled,
+                              exception_state);
+  }
+  DCHECK_LT(animation.EffectivePlaybackRate(), 0);
 
-  animation.updatePlaybackRate(playback_rate, exception_state);
+  bool notify = event_time && animation.PendingInternal();
 
-  animation.PlayInternal(Animation::AutoRewind::kEnabled, exception_state);
+  V8AnimationPlayState::Enum new_play_state =
+      animation.CalculateAnimationPlayState();
+  DCHECK(animation.PendingInternal() ||
+         new_play_state == V8AnimationPlayState::Enum::kRunning ||
+         new_play_state == V8AnimationPlayState::Enum::kFinished);
+
+  if (notify) {
+    animation.NotifyAnimationStartedAsync(event_time.value(),
+                                          Animation::AutoRewind::kDisabled);
+  }
 }
 
 void PerformPlayOnce(Animation& animation,
@@ -119,10 +153,12 @@ void AnimationTrigger::PerformBehavior(
       PerformPause(animation, play_state, async_event_time, exception_state);
       break;
     case Behavior::kPlayForwards:
-      PerformPlayForwards(animation, play_state, exception_state);
+      PerformPlayForwards(animation, play_state, async_event_time,
+                          exception_state);
       break;
     case Behavior::kPlayBackwards:
-      PerformPlayBackwards(animation, play_state, exception_state);
+      PerformPlayBackwards(animation, play_state, async_event_time,
+                           exception_state);
       break;
     case Behavior::kPlayOnce:
       PerformPlayOnce(animation, play_state, async_event_time, exception_state);
@@ -186,9 +222,9 @@ bool AnimationTrigger::CanCompositeBehavior(Behavior behavior) {
     case Behavior::kNone:
     case Behavior::kReplay:
     case Behavior::kPlayOnce:
-      return true;
     case Behavior::kPlayForwards:
     case Behavior::kPlayBackwards:
+      return true;
     case Behavior::kReset:
       return false;
   }

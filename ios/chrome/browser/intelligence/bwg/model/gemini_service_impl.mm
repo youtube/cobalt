@@ -107,7 +107,7 @@ GeminiServiceImpl::GeminiIneligibilityForProfile() {
   RecordGeminiIneligibilityReasons(ineligibility_reasons);
   RecordGeminiEligibility(is_eligible);
   if (is_eligible) {
-    LogFREState();
+    LogFirstRunState();
     return std::nullopt;
   }
 
@@ -187,12 +187,12 @@ void GeminiServiceImpl::ClearConsentPref() {
   pref_service_->ClearPref(prefs::kIOSGeminiLiveIntroPlayed);
 }
 
-void GeminiServiceImpl::LogFREState() {
-  gemini::FREState state = gemini::CurrentFREState(pref_service_);
-  if (!last_logged_fre_state_.has_value() ||
-      last_logged_fre_state_.value() != state) {
-    RecordGeminiFREState(state);
-    last_logged_fre_state_ = state;
+void GeminiServiceImpl::LogFirstRunState() {
+  gemini::FirstRunState state = gemini::CurrentFirstRunState(pref_service_);
+  if (!last_logged_first_run_state_.has_value() ||
+      last_logged_first_run_state_.value() != state) {
+    RecordGeminiFirstRunState(state);
+    last_logged_first_run_state_ = state;
   }
 }
 

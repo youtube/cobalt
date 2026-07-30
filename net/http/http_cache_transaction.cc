@@ -401,7 +401,8 @@ int HttpCache::Transaction::TransitionToReadingState() {
   // offset is behind the current offset else from the network.
   int disk_entry_size = entry_->GetEntry()->GetDataSize(kResponseContentIndex);
   if (read_offset_ == disk_entry_size ||
-      entry_->writers()->network_read_only()) {
+      entry_->writers()->network_read_only() ||
+      entry_->writers()->compressing_for_cache()) {
     next_state_ = STATE_NETWORK_READ_CACHE_WRITE;
   } else {
     DCHECK_LT(read_offset_, disk_entry_size);
@@ -1714,7 +1715,6 @@ int HttpCache::Transaction::DoCacheReadResponseComplete(int result) {
     CHECK_EQ(compressed_disk_offset_, 0u);
     decompressor_ = std::make_unique<CacheBodyDecompressor>();
     if (!decompressor_->Init()) {
-      DVLOG(1) << "Failed to init zstd decompression for cached entry";
       decompressor_.reset();
       net_log_.AddEvent(NetLogEventType::HTTP_CACHE_DECOMPRESS, [&] {
         base::DictValue params;
@@ -4218,7 +4218,6 @@ void HttpCache::Transaction::RecordHistograms() {
       (!did_send_request &&
        (cache_entry_status_ == CacheEntryStatus::ENTRY_USED ||
         cache_entry_status_ == CacheEntryStatus::ENTRY_CANT_CONDITIONALIZE)));
-
 
   if (!did_send_request) {
     if (cache_entry_status_ == CacheEntryStatus::ENTRY_USED) {

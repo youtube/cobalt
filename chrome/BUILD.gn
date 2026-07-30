@@ -216,6 +216,7 @@ if (!is_android && !is_mac) {
         "//components/activity_reporter:buildflags",
         "//components/crash/core/app",
         "//components/crash/core/app:run_as_crashpad_handler",
+        "//components/version_info:channel",
         "//content:sandbox_helper_win",
         "//content/public/common:static_switches",
         "//sandbox",
@@ -1195,10 +1196,6 @@ if (is_win) {
       "Resources",
     ]
 
-    if (is_chrome_branded) {
-      framework_contents += [ "Default Apps" ]
-    }
-
     configs += [ "//build/config/compiler:wexit_time_destructors" ]
     configs -= [ "//build/config/compiler:thinlto_optimize_default" ]
     configs += [ "//build/config/compiler:thinlto_optimize_max" ]
@@ -1314,6 +1311,9 @@ if (is_win) {
       "$root_out_dir/libvk_swiftshader.dylib",
       _framework_binary_path,
     ]
+    if (shared_libvulkan_on_mac) {
+      _chrome_symbols_sources += [ "$root_out_dir/libvulkan.dylib" ]
+    }
     if (build_with_internal_optimization_guide) {
       _chrome_symbols_sources +=
           [ "$root_out_dir/liboptimization_guide_internal.dylib" ]
@@ -1359,6 +1359,9 @@ if (is_win) {
         "//third_party/swiftshader/src/Vulkan:swiftshader_libvulkan",
         dump_syms,
       ]
+      if (shared_libvulkan_on_mac) {
+        deps += [ "//third_party/vulkan-loader/src:libvulkan" ]
+      }
       if (build_with_internal_optimization_guide) {
         deps += [ "//components/optimization_guide/internal:optimization_guide_internal" ]
       }
@@ -1387,6 +1390,9 @@ if (is_win) {
         "$root_out_dir/chrome_crashpad_handler.dSYM",
         "$root_out_dir/libvk_swiftshader.dylib.dSYM",
       ]
+      if (shared_libvulkan_on_mac) {
+        _dsyms += [ "$root_out_dir/libvulkan.dylib.dSYM" ]
+      }
       if (build_with_internal_optimization_guide) {
         _dsyms += [ "$root_out_dir/liboptimization_guide_internal.dylib.dSYM" ]
       }
@@ -1403,6 +1409,9 @@ if (is_win) {
         "//components/crash/core/app:chrome_crashpad_handler",
         "//third_party/swiftshader/src/Vulkan:swiftshader_libvulkan",
       ]
+      if (shared_libvulkan_on_mac) {
+        deps += [ "//third_party/vulkan-loader/src:libvulkan" ]
+      }
       if (build_with_internal_optimization_guide) {
         deps += [ "//components/optimization_guide/internal:optimization_guide_internal" ]
       }

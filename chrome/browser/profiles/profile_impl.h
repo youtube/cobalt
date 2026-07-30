@@ -30,6 +30,10 @@
 #include "content/public/browser/host_zoom_map.h"
 #include "extensions/buildflags/buildflags.h"
 
+#if BUILDFLAG(IS_WIN)
+#include "chrome/browser/profiles/profile_load_tracker_win.h"
+#endif  // BUILDFLAG(IS_WIN)
+
 class PrefService;
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -167,6 +171,10 @@ class ProfileImpl : public Profile {
   void SetCreationTimeForTesting(base::Time creation_time) override;
   void RecordPrimaryMainFrameNavigation() override {}
 
+#if BUILDFLAG(IS_WIN)
+  void AckCrashForTracking() override;
+#endif
+
  protected:
   // Profile implementation.
   bool IsSignedIn() override;
@@ -251,6 +259,12 @@ class ProfileImpl : public Profile {
   //     - |user_cloud_policy_manager_|;
   //     - |user_cloud_policy_manager_ash_|;
   // - configuration_policy_provider() depends on |schema_registry_service_|
+
+#if BUILDFLAG(IS_WIN)
+  // Ideally guards all persistent state management done by the profile. Must be
+  // initialized before prefs.
+  std::unique_ptr<ProfileLoadTracker> profile_load_tracker_;
+#endif  // BUILDFLAG(IS_WIN)
 
   std::unique_ptr<policy::SchemaRegistryService> schema_registry_service_;
 

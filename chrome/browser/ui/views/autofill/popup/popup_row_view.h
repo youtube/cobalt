@@ -197,17 +197,9 @@ class PopupRowView : public views::View, public views::ViewObserver {
   // checked in the controller (crbug.com/40063230).
   bool mouse_observed_outside_item_bounds_ = false;
 
-  // Whether the `mouse_observed_outside_item_bounds_` will be ignored or not.
-  // Today this happens when:
-  // 1. The AutofillSuggestionTriggerSource is `kManualFallbackAddress`. This is
-  // because in this situation even though the popup could appear behind the
-  // cursor, the user intention about opening it is explicit.
-  //
-  // 2. The suggestions are of autocomplete type and were regenerated due to a
-  // suggestion being removed. We want to ignore the check in this case because
-  // the cursor can be above the popup after a row is deleted. This however does
-  // not mean that the popup just showed up to the user so there is no need to
-  // move the cursor out and in.
+  // Whether `mouse_observed_outside_item_bounds_` should be ignored for this
+  // row. The policy is derived from the controller-level popup trigger and the
+  // row's suggestion type.
   const bool should_ignore_mouse_observed_outside_item_bounds_check_;
 
   // Whether the row's child suggestions (see `Suggestion::children`) are

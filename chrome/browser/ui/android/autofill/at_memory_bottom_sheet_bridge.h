@@ -39,6 +39,7 @@ class AtMemoryBottomSheetBridge {
 
   // -- JNI calls bridged to AtMemoryBottomSheetDelegate --
   void OnDismissed(JNIEnv* env);
+  void OnQuerySubmitted(JNIEnv* env, const std::u16string& query);
 
  private:
   void ResetDelegate();

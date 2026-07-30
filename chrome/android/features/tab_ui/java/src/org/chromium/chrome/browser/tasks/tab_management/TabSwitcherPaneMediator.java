@@ -17,7 +17,6 @@ import android.view.ViewGroup;
 
 import org.chromium.base.Callback;
 import org.chromium.base.ValueChangedCallback;
-import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.LazyOneshotSupplier;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
@@ -366,11 +365,7 @@ public class TabSwitcherPaneMediator
         assumeNonNull(tabModel);
         Tab tab = tabModel.getTabById(tabId);
 
-        // TODO(crbug.com/375309394): Figure out why the tab is null here and prevent it.
-        boolean hasTab = tab != null;
-        RecordHistogram.recordBooleanHistogram(
-                "Tabs.GridTabSwitcher.ScrollToTabById.HasTab", hasTab);
-        if (!hasTab) return;
+        if (tab == null) return;
 
         int index = tabModel.representativeIndexOf(tab);
         scrollToTab(mTabIndexLookup.getNthTabIndexInModel(index));

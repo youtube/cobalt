@@ -273,7 +273,7 @@ IN_PROC_BROWSER_TEST_F(ProjectorClientTest, MinimizeProjectorApp) {
 
   client()->MinimizeProjectorApp();
   // Verify that Projector App is minimized.
-  EXPECT_TRUE(app_browser->window()->IsMinimized());
+  EXPECT_TRUE(app_browser->GetWindow()->IsMinimized());
 }
 
 IN_PROC_BROWSER_TEST_F(ProjectorClientTest, CloseProjectorApp) {
@@ -357,8 +357,6 @@ IN_PROC_BROWSER_TEST_F(ProjectorClientTest,
               Optional(StrEq(kReauthEmail)));
   EXPECT_EQ(0,
             fake_account_manager_ui_ptr->show_account_addition_dialog_calls());
-  EXPECT_EQ(0,
-            fake_account_manager_ui_ptr->show_manage_accounts_settings_calls());
   histogram_tester.ExpectUniqueSample(
       account_manager::kAccountAdditionSourceHistogramName,
       account_manager::AccountAdditionSource::kChromeOSProjectorAppReauth,

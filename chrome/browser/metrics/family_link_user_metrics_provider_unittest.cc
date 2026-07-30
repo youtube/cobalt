@@ -76,7 +76,7 @@ class FamilyLinkUserMetricsProviderTest : public testing::Test {
     AccountInfo account = signin::MakePrimaryAccountAvailable(
         IdentityManagerFactory::GetForProfile(profile), test_email,
         signin::ConsentLevel::kSignin);
-    AccountCapabilitiesTestMutator mutator(&account.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account);
     // Tests assume that this account is in Family Link.
     mutator.set_can_fetch_family_member_info(true);
     mutator.set_is_subject_to_parental_controls(

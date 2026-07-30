@@ -54,7 +54,6 @@ class LowDiskMetricsServiceTest
 
   void SendLowDiskSpaceEvent(uint64_t disk_free_bytes) {
     FakeUserDataAuthClient::Get()->NotifyLowDiskSpace(disk_free_bytes);
-    task_environment_.RunUntilIdle();
   }
 
  private:

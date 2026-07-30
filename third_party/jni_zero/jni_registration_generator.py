@@ -33,11 +33,14 @@ _THIS_DIR = os.path.dirname(__file__)
 
 def _ParseHelper(package_prefix, package_prefix_filter, enable_legacy_natives,
                  path):
-  return parse.parse_java_file(path,
-                               package_prefix=package_prefix,
-                               package_prefix_filter=package_prefix_filter,
-                               enable_legacy_natives=enable_legacy_natives,
-                               allow_private_called_by_natives=True)
+  try:
+    return parse.parse_java_file(path,
+                                 package_prefix=package_prefix,
+                                 package_prefix_filter=package_prefix_filter,
+                                 enable_legacy_natives=enable_legacy_natives,
+                                 allow_private_called_by_natives=True)
+  except Exception as e:
+    return e
 
 
 def _LoadJniObjs(paths, namespace, package_prefix, package_prefix_filter, *,
@@ -58,12 +61,20 @@ def _LoadJniObjs(paths, namespace, package_prefix, package_prefix_filter, *,
     func = functools.partial(_ParseHelper, package_prefix,
                              package_prefix_filter, enable_legacy_natives)
     with multiprocessing.Pool() as pool:
-      for pf in pool.imap_unordered(func, paths):
-        ret[pf.filename] = [
-            jni_generator.JniObject(pf,
-                                    from_javap=False,
-                                    default_namespace=namespace)
-        ]
+      errors = []
+      for res in pool.imap_unordered(func, paths):
+        if isinstance(res, Exception):
+          errors.append(res)
+        else:
+          ret[res.filename] = [
+              jni_generator.JniObject(res,
+                                      from_javap=False,
+                                      default_namespace=namespace)
+          ]
+      if errors:
+        for e in errors:
+          sys.stderr.write(f"\n--- JNI Parsing Error ---\n{e}\n")
+        sys.exit(1)
 
   return ret
 
@@ -323,7 +334,7 @@ def _CreateHeader(jni_mode, jni_objs, boundary_proxy_natives, gen_jni_class,
 
   preamble, epilogue = header_common.header_preamble(
       jni_generator.GetScriptName(),
-      gen_jni_class,
+      java_class=gen_jni_class,
       system_includes=['iterator'],  # For std::size().
       user_includes=user_includes,
       header_guard=header_guard)
@@ -379,8 +390,12 @@ extern const int64_t kJniZeroHash{module_name}Priority = {priority_hash}LL;
             register_natives.non_proxy_register_function(sb, jni_obj)
 
     with sb.section('Main Register Function.'):
-      register_natives.main_register_function(sb, jni_objs, args.namespace,
-                                              gen_jni_class)
+      register_natives.main_register_function(
+          sb,
+          jni_objs,
+          args.namespace,
+          gen_jni_class,
+          register_natives_name=args.register_natives_name)
   sb(epilogue)
   return sb.to_string()
 

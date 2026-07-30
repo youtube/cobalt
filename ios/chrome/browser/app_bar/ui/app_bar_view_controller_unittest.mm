@@ -386,8 +386,90 @@ TEST_F(AppBarViewControllerTest, TestAssistantButtonStateAccountWithAvatar) {
   UIButtonConfiguration* config = button.configuration;
   EXPECT_NSEQ(config.title, l10n_util::GetNSString(IDS_IOS_APP_BAR_ACCOUNT));
   ASSERT_NE(config.image, nil);
-  EXPECT_EQ(config.image.size.width, 10);
-  EXPECT_EQ(config.image.size.height, 10);
+  EXPECT_EQ(config.image.size.width, 23);
+  EXPECT_EQ(config.image.size.height, 23);
+}
+
+// Tests that the tab grid button has the correct accessibility label and
+// selected traits based on tab grid visibility and tab group state.
+TEST_F(AppBarViewControllerTest, TestTabGridButtonAccessibilityAndTraits) {
+  UIButton* button = tabGridButton();
+  ASSERT_NE(button, nil);
+
+  // 1. By default, tab grid is not visible, and we are not in a tab group.
+  [view_controller_ setTabGridVisible:NO];
+  [view_controller_ setInTabGroup:NO];
+  EXPECT_NSEQ(button.accessibilityLabel,
+              l10n_util::GetNSString(IDS_IOS_APP_BAR_ALL_TABS));
+  EXPECT_TRUE(button.accessibilityTraits & UIAccessibilityTraitButton);
+  EXPECT_FALSE(button.accessibilityTraits & UIAccessibilityTraitSelected);
+
+  // 2. Set tab grid visible.
+  [view_controller_ setTabGridVisible:YES];
+  EXPECT_NSEQ(button.accessibilityLabel,
+              l10n_util::GetNSString(IDS_IOS_APP_BAR_ALL_TABS));
+  EXPECT_TRUE(button.accessibilityTraits & UIAccessibilityTraitButton);
+  EXPECT_TRUE(button.accessibilityTraits & UIAccessibilityTraitSelected);
+
+  // 3. Set tab grid not visible, and enter tab group.
+  [view_controller_ setTabGridVisible:NO];
+  [view_controller_ setInTabGroup:YES];
+  EXPECT_NSEQ(button.accessibilityLabel,
+              l10n_util::GetNSString(IDS_IOS_TOOLBAR_SHOW_TAB_GROUP));
+  EXPECT_TRUE(button.accessibilityTraits & UIAccessibilityTraitButton);
+  EXPECT_FALSE(button.accessibilityTraits & UIAccessibilityTraitSelected);
+
+  // 4. Set tab grid visible while in a tab group.
+  [view_controller_ setTabGridVisible:YES];
+  EXPECT_NSEQ(button.accessibilityLabel,
+              l10n_util::GetNSString(IDS_IOS_TOOLBAR_SHOW_TAB_GROUP));
+  EXPECT_TRUE(button.accessibilityTraits & UIAccessibilityTraitButton);
+  EXPECT_TRUE(button.accessibilityTraits & UIAccessibilityTraitSelected);
+}
+
+// Tests that the tab grid button has the correct accessibility value.
+TEST_F(AppBarViewControllerTest, TestTabGridButtonAccessibilityValue) {
+  UIButton* button = tabGridButton();
+  ASSERT_NE(button, nil);
+
+  [view_controller_ updateTabCount:3];
+  EXPECT_NSEQ(button.accessibilityValue, @"3");
+
+  [view_controller_ updateTabCount:0];
+  EXPECT_NSEQ(button.accessibilityValue, @"0");
+}
+
+// Tests that assistant button in kLens state sets correct image and title.
+TEST_F(AppBarViewControllerTest, TestAssistantButtonStateLens) {
+  UIButton* button = assistantButton();
+  ASSERT_NE(button, nil);
+
+  // Test full title when width is default (or 0).
+  [view_controller_ setAssistantButtonState:AppBarAssistantButtonState::kLens
+                                highlighted:NO
+                                    enabled:YES
+                                     avatar:nil
+                                   signedIn:NO];
+  [button setNeedsUpdateConfiguration];
+  [button layoutIfNeeded];
+
+  UIButtonConfiguration* config = button.configuration;
+  EXPECT_NSEQ(config.title, l10n_util::GetNSString(IDS_IOS_LENS_PRODUCT_NAME));
+  EXPECT_NE(config.image, nil);
+
+  // Set the view width to a very small size to force truncation.
+  view_controller_.view.frame = CGRectMake(0, 0, 100, 50);
+  [view_controller_ setAssistantButtonState:AppBarAssistantButtonState::kLens
+                                highlighted:NO
+                                    enabled:YES
+                                     avatar:nil
+                                   signedIn:NO];
+  [button setNeedsUpdateConfiguration];
+  [button layoutIfNeeded];
+
+  config = button.configuration;
+  EXPECT_NSEQ(config.title,
+              l10n_util::GetNSString(IDS_IOS_LENS_PRODUCT_NAME_TRUNCATED));
 }
 
 using AppBarViewControllerTestManual = PlatformTest;

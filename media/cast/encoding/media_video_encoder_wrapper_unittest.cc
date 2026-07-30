@@ -667,4 +667,112 @@ TEST_F(MediaVideoEncoderWrapperTest, DropsFrameOnSizeChangeDuringEstimation) {
   EXPECT_EQ(encoded_frame_b->is_key_frame, true);
 }
 
+TEST_F(MediaVideoEncoderWrapperTest, SoftwareEncoderUtilization) {
+  ExpectEncoderInitialized();
+  const FrameInfo frame_info = CreateFrameInfo(FrameType::kKey);
+
+  EXPECT_CALL(*mock_encoder_, Encode(FrameInfosAreEqual(frame_info), _, _))
+      .WillOnce(
+          [&, frame_info](scoped_refptr<VideoFrame> frame,
+                          const media::VideoEncoder::EncodeOptions& options,
+                          media::VideoEncoder::EncoderStatusCB done) {
+            // Advance clock by 15ms during the mock encoding to simulate CPU
+            // work.
+            AdvanceClock(base::Milliseconds(15));
+            std::move(done).Run(EncoderStatus::Codes::kOk);
+            if (output_cb_) {
+              VideoEncoderOutput output;
+              output.key_frame = true;
+              output.timestamp = frame_info.reference_time - base::TimeTicks();
+              output.data = base::HeapArray<uint8_t>::WithSize(100);
+              output_cb_.Run(std::move(output), std::nullopt);
+            }
+          });
+
+  const auto encoded_frame = EncodeVideoFrame(frame_info);
+  EXPECT_NE(encoded_frame, nullptr);
+  // Software utilization should be processing_time (15ms) /
+  // target_frame_duration (33.333ms for 30fps) = 15000 / 33333 = 0.4500045...
+  EXPECT_DOUBLE_EQ(encoded_frame->encoder_utilization, 15000.0 / 33333.0);
+}
+
+TEST_F(MediaVideoEncoderWrapperTest, HardwareEncoderUtilization) {
+  // Create a hardware-configured wrapper.
+  FrameSenderConfig hw_config = GetDefaultVideoSenderConfig();
+  hw_config.use_hardware_encoder = true;
+
+  auto status_change_cb =
+      std::make_unique<NiceMock<base::MockCallback<StatusChangeCallback>>>();
+  EXPECT_CALL(*status_change_cb, Run(STATUS_INITIALIZED))
+      .Times(testing::AtLeast(1));
+
+  auto hw_wrapper = std::make_unique<MediaVideoEncoderWrapper>(
+      cast_environment(), hw_config,
+      std::make_unique<NiceMock<MockVideoEncoderMetricsProvider>>(),
+      status_change_cb->Get(), mock_gpu_factories_.get());
+
+  auto mock_encoder = std::make_unique<NiceMock<MockVideoEncoder>>();
+  auto* mock_encoder_ptr = mock_encoder.get();
+  hw_wrapper->SetEncoderForTesting(std::move(mock_encoder));
+
+  // Initialize
+  media::VideoEncoder::Options options;
+  options.bitrate = Bitrate::ConstantBitrate(
+      base::checked_cast<uint32_t>(hw_config.start_bitrate));
+  options.frame_size = kSize;
+
+  media::VideoEncoder::OutputCB output_cb;
+  EXPECT_CALL(*mock_encoder_ptr,
+              Initialize(kProfile, OptionsAreEqual(options), _, _, _))
+      .WillOnce([&](VideoCodecProfile profile,
+                    const media::VideoEncoder::Options& options,
+                    media::VideoEncoder::EncoderInfoCB info,
+                    media::VideoEncoder::OutputCB output,
+                    media::VideoEncoder::EncoderStatusCB done) {
+        std::move(info).Run(VideoEncoderInfo());
+        std::move(done).Run(EncoderStatus::Codes::kOk);
+        output_cb = output;
+      });
+  EXPECT_CALL(*mock_encoder_ptr, DisablePostedCallbacks());
+
+  // Simulate hardware initialization.
+  hw_wrapper->OnEncoderStatus(0, EncoderStatus::Codes::kOk);
+
+  const FrameInfo frame_info = CreateFrameInfo(FrameType::kKey);
+
+  EXPECT_CALL(*mock_encoder_ptr, Encode(FrameInfosAreEqual(frame_info), _, _))
+      .WillOnce(
+          [&, frame_info](scoped_refptr<VideoFrame> frame,
+                          const media::VideoEncoder::EncodeOptions& options,
+                          media::VideoEncoder::EncoderStatusCB done) {
+            std::move(done).Run(EncoderStatus::Codes::kOk);
+            if (output_cb) {
+              VideoEncoderOutput output;
+              output.key_frame = true;
+              output.timestamp = frame_info.reference_time - base::TimeTicks();
+              output.data = base::HeapArray<uint8_t>::WithSize(100);
+              output_cb.Run(std::move(output), std::nullopt);
+            }
+          });
+
+  auto video_frame = CreateVideoFrame(frame_info);
+  std::unique_ptr<SenderEncodedFrame> encoded_frame;
+  base::RunLoop run_loop;
+
+  EXPECT_TRUE(hw_wrapper->EncodeVideoFrame(
+      video_frame, frame_info.reference_time,
+      base::BindLambdaForTesting(
+          [&](std::unique_ptr<SenderEncodedFrame> frame) {
+            encoded_frame = std::move(frame);
+            run_loop.Quit();
+          })));
+
+  run_loop.Run();
+
+  EXPECT_NE(encoded_frame, nullptr);
+  // Hardware utilization should be backlog_size (1 in flight frame) /
+  // kBacklogRedlineThreshold (4) = 0.25
+  EXPECT_DOUBLE_EQ(encoded_frame->encoder_utilization, 0.25);
+}
+
 }  // namespace media::cast

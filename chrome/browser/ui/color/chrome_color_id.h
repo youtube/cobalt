@@ -124,7 +124,6 @@
   E_CPONLY(kColorContextualTasksBannerPromoBackground) \
   E_CPONLY(kColorContextualTasksBannerPromoText) \
   E_CPONLY(kColorContextualTasksBannerPromoIconBackground) \
-  E_CPONLY(kColorContextualTasksBannerPromoIconForeground) \
   /* Desktop media picker view. */ \
   E_CPONLY(kColorDesktopMediaPickerDescriptionLabel) \
   /* Desktop media tab list colors. */ \
@@ -165,6 +164,8 @@
   E_CPONLY(kColorExtensionsMenuContainerBackground) \
   E_CPONLY(kColorExtensionsMenuText) \
   E_CPONLY(kColorExtensionsMenuSecondaryText) \
+  /* Extension manager WebUI colors. */ \
+  E_CPONLY(kColorExtensionManagerHighlightText) \
   /* Feature first run dialog colors. */ \
   E_CPONLY(kColorFeatureFirstRunInfoContainerBackground) \
   E_CPONLY(kColorFeatureFirstRunIconColor) \

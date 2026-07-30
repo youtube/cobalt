@@ -69,7 +69,7 @@ NSData* SynthesizedSessionRestore(
       kSessionHistoryEntries : entries,
       kSessionHistoryVersion : @1,
     },
-    kIsAppInitiated : @NO,
+    kIsAppInitiated : @YES,
   };
 
   static constexpr uint8_t version[] = {0, 0, 0, 2};

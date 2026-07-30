@@ -785,6 +785,19 @@ void StyleCascade::ApplyWideOverlapping(CascadeResolver& resolver) {
       maybe_skip(GetCSSPropertyBoxDecorationBreak(), *priority);
     }
   }
+
+  if (RuntimeEnabledFeatures::CSSLineClampEnabled() &&
+      !RuntimeEnabledFeatures::CSSLineClampAsShorthandEnabled()) {
+    const CSSProperty& line_clamp = GetCSSPropertyLineClamp();
+    if (resolver.filter_.Accepts(line_clamp)) {
+      if (const CascadePriority* priority =
+              map_.Find(line_clamp.GetCSSPropertyName())) {
+        LookupAndApply(line_clamp, resolver);
+        maybe_skip(GetCSSPropertyAlternativeWebkitLineClampLonghand(),
+                   *priority);
+      }
+    }
+  }
 }
 
 // Go through all properties that were found during the "collect" phase

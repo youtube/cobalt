@@ -61,14 +61,14 @@ class MockPreconnectManager : public PreconnectManager {
            const net::NetworkAnonymizationKey& network_anonymization_key,
            net::NetworkTrafficAnnotationTag traffic_annotation,
            const content::StoragePartitionConfig*,
-           base::optional_ref<base::UnguessableToken> network_restrictions_id));
+           const base::UnguessableToken& network_restrictions_id));
   MOCK_METHOD5(
       StartPreresolveHosts,
       void(const std::vector<GURL>& urls,
            const net::NetworkAnonymizationKey& network_anonymization_key,
            net::NetworkTrafficAnnotationTag traffic_annotation,
            const content::StoragePartitionConfig*,
-           base::optional_ref<base::UnguessableToken> network_restrictions_id));
+           const base::UnguessableToken& network_restrictions_id));
   MOCK_METHOD8(
       StartPreconnectUrl,
       void(const GURL& url,
@@ -76,7 +76,7 @@ class MockPreconnectManager : public PreconnectManager {
            net::NetworkAnonymizationKey network_anonymization_key,
            net::NetworkTrafficAnnotationTag traffic_annotation,
            const content::StoragePartitionConfig*,
-           base::optional_ref<base::UnguessableToken> network_restrictions_id,
+           const base::UnguessableToken& network_restrictions_id,
            std::optional<net::ConnectionKeepAliveConfig> keepalive_config,
            mojo::PendingRemote<network::mojom::ConnectionChangeObserverClient>
                observer_client));

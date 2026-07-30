@@ -1,0 +1,32 @@
+Name: Ink
+URL: https://github.com/google/ink.git
+Version: 1.1.0-alpha03
+Revision: 4413fe7bd41f09f37d7c8fe87df59b6e0f54300a
+Update Mechanism: Manual
+License: Apache-2.0
+License File: LICENSE
+Shipped: yes
+Security Critical: yes
+
+Description:
+
+The C++ library used in the PDF Viewer for annotating PDFs. There is another
+copy in //third_party/ink, but the version here is kept in sync with the
+androidx.ink.* Java libraries.
+
+Local Modifications:
+
+None
+
+Update Instructions:
+
+1) Update the version in build.gradle.template
+2) Wait for the packager to run
+3) Wait for the auto-roller to post a CL with the change
+4) Add to the auto-roller's CL an update to this checkout:
+  * Use roll_dep.py (depot_tools) to update the DEPS entry & gitlink.
+  * Ask gemini to use find_required_jni.py to update the sources list.
+  * Note: It does not take into account methods that R8 determines as
+    unreachable. Trimming it based on R8 would be more correct, but may
+    also lead to more frequent updates.
+  * Update the Revision in this file.

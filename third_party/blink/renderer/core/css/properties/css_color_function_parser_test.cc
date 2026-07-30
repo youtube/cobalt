@@ -218,7 +218,7 @@ TEST(ColorFunctionParserTest, RelativeColorWithColorMixWithCurrentColorBase) {
 
 namespace {
 
-void TestColorParsing(const char* input, const char* expected) {
+const CSSValue* ParseColor(const char* input) {
   static const CSSParserContext* context =
       MakeGarbageCollected<CSSParserContext>(
           kHTMLStandardMode, SecureContextMode::kInsecureContext);
@@ -227,8 +227,12 @@ void TestColorParsing(const char* input, const char* expected) {
   ColorFunctionParser parser;
   CSSParserLocalContext local_context =
       CSSParserLocalContext::CreateWithoutPropertyForTest();
-  const CSSValue* result = parser.ConsumeFunctionalSyntaxColor(
+  return parser.ConsumeFunctionalSyntaxColor(
       stream, *context, local_context, css_parsing_utils::ColorParserContext());
+}
+
+void TestColorParsing(const char* input, const char* expected) {
+  const CSSValue* result = ParseColor(input);
   EXPECT_EQ(result->CssText(), expected);
 }
 
@@ -311,6 +315,19 @@ TEST(ColorFunctionParserTest, CalcPreservationInLabColorSpaces) {
   TestColorParsing("lab(calc(50) 25 -25 / calc(0.5))",
                    "lab(calc(50) 25 -25 / calc(0.5))");
   TestColorParsing("lab(50 calc(25) -25)", "lab(50 calc(25) -25)");
+}
+
+// Tests that only legacy syntax RGB values have their alpha quantized.
+TEST(ColorFunctionParserTest, RGBLegacyAlphaQuantization) {
+  // Expect alpha to be quantized.
+  const CSSValue* legacy_rgb = ParseColor("rgba(1, 2, 3, 0.5)");
+  ASSERT_TRUE(IsA<cssvalue::CSSColor>(legacy_rgb));
+  EXPECT_EQ(To<cssvalue::CSSColor>(*legacy_rgb).Value().Alpha(), 128.0f / 255);
+
+  // Expect alpha to NOT be quantized.
+  const CSSValue* modern_rgb = ParseColor("rgb(1 2 3 / 0.5)");
+  ASSERT_TRUE(IsA<cssvalue::CSSColor>(modern_rgb));
+  EXPECT_EQ(To<cssvalue::CSSColor>(*modern_rgb).Value().Alpha(), 0.5f);
 }
 
 TEST(ColorFunctionParserTest, RelativeColorWithRandomInContrastColor) {

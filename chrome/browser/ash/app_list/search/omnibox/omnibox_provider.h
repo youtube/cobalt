@@ -10,6 +10,7 @@
 #include <optional>
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "base/time/time.h"
 #include "chrome/browser/ash/app_list/search/search_provider.h"
 #include "chromeos/ash/components/string_matching/tokenized_string.h"
@@ -20,6 +21,7 @@ class AppListControllerDelegate;
 class AutocompleteController;
 class AutocompleteResult;
 class Profile;
+class TemplateURLService;
 
 namespace app_list {
 
@@ -27,10 +29,14 @@ namespace app_list {
 class OmniboxProvider : public SearchProvider,
                         public AutocompleteController::Observer {
  public:
-  // `provider_types` is a bitmap containing AutocompleteProvider::Type values
-  explicit OmniboxProvider(Profile* profile,
-                           AppListControllerDelegate* list_controller,
-                           int provider_types);
+  // `provider_types` is a bitmap containing AutocompleteProvider::Type values.
+  // `template_url_service` is forwarded to each OmniboxResult so search-engine
+  // descriptions can be formatted without re-fetching the service from Profile.
+  // Must not be nullptr and must outlive this object.
+  OmniboxProvider(Profile* profile,
+                  AppListControllerDelegate* list_controller,
+                  TemplateURLService* template_url_service,
+                  int provider_types);
 
   OmniboxProvider(const OmniboxProvider&) = delete;
   OmniboxProvider& operator=(const OmniboxProvider&) = delete;
@@ -58,6 +64,7 @@ class OmniboxProvider : public SearchProvider,
 
   raw_ptr<Profile> profile_;
   raw_ptr<AppListControllerDelegate> list_controller_;
+  const raw_ref<TemplateURLService> template_url_service_;
 
   std::u16string last_query_;
   std::optional<ash::string_matching::TokenizedString> last_tokenized_query_;

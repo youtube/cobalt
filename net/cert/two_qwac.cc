@@ -11,12 +11,9 @@
 #include "base/json/json_reader.h"
 #include "base/strings/string_split.h"
 #include "base/types/expected.h"
-#include "crypto/evp.h"
-#include "crypto/signature_verifier.h"
+#include "crypto/sign.h"
 #include "net/cert/asn1_util.h"
 #include "net/cert/x509_util.h"
-#include "third_party/boringssl/src/include/openssl/ec.h"
-#include "third_party/boringssl/src/include/openssl/ec_key.h"
 
 namespace net {
 
@@ -420,28 +417,6 @@ base::expected<TwoQwacCertBinding, std::string> TwoQwacCertBinding::Parse(
   return TwoQwacCertBinding(*header, std::string(header_b64), *signature);
 }
 
-namespace {
-
-// Given a SPKI, returns whether the public key is an ECDSA key on the curve
-// P-256.
-bool IsKeyP256(base::span<const uint8_t> spki) {
-  bssl::UniquePtr<EVP_PKEY> public_key = crypto::evp::PublicKeyFromBytes(spki);
-  if (!public_key) {
-    return false;
-  }
-  EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(public_key.get());
-  if (!ec_key) {
-    return false;
-  }
-  const EC_GROUP* group = EC_KEY_get0_group(ec_key);
-  if (!group) {
-    return false;
-  }
-  return EC_GROUP_get_curve_name(group) == NID_X9_62_prime256v1;
-}
-
-}  // namespace
-
 bool TwoQwacCertBinding::VerifySignature() {
   // ETSI TS 119 411-5 clause 6.2.2 step 5 states:
   //
@@ -477,46 +452,48 @@ bool TwoQwacCertBinding::VerifySignature() {
   // 7515; it does not implement any of the other building blocks used by the
   // validation process for Basic Signatures defined in clause 5.3 of ETSI EN
   // 319 102-1.
-
-  // Extract public key from certificate and initialize verifier. ETSI TS 119
-  // 411-5 Annex B requires checking that the "alg" parameter does not conflict
-  // with the type of public key in the signing certificate. The call to
-  // VerifyInit checks that the signature algorithm is compatible with the
-  // signing key (from the signing certificate).
   std::string_view spki;
   if (!asn1::ExtractSPKIFromDERCert(x509_util::CryptoBufferAsStringPiece(
                                         header_.two_qwac_cert->cert_buffer()),
                                     &spki)) {
     return false;
   }
-  crypto::SignatureVerifier::SignatureAlgorithm sig_alg;
-  switch (header_.sig_alg) {
-    case JwsSigAlg::kEcdsaP256Sha256:
-      // SignatureAlgorithm::ECDSA_SHA256 doesn't require that the EC curve be
-      // P-256, but the JWS signature algorithm does require that it be P-256.
-      // Before converting JwsSigAlg::kEcdsaP256Sha256 to ECDSA_SHA256, check
-      // that the key is P-256.
-      if (!IsKeyP256(base::as_byte_span(spki))) {
-        return false;
-      }
-      sig_alg = crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256;
-      break;
-    case JwsSigAlg::kRsaPkcs1Sha256:
-      sig_alg = crypto::SignatureVerifier::SignatureAlgorithm::RSA_PKCS1_SHA256;
-      break;
-    case JwsSigAlg::kRsaPssSha256:
-      sig_alg = crypto::SignatureVerifier::SignatureAlgorithm::RSA_PSS_SHA256;
-      break;
+
+  std::optional<crypto::keypair::PublicKey> pubkey =
+      crypto::keypair::PublicKey::FromSubjectPublicKeyInfo(
+          base::as_byte_span(spki));
+
+  if (!pubkey.has_value()) {
+    return false;
   }
-  // The crypto::SignatureVerifier checks that the public key in |spki| is
+
+  // The switch below checks that the public key parsed from |spki| is
   // compatible with the signature algorithm in |sig_alg| that came from the JWS
   // header. This handles the requirement in the 2-QWAC spec (ETSI TS 119 411-5
   // Annex B) that the "alg" JWS header field not conflict with the type of the
   // public key in the "x5c" JWS header field.
-  crypto::SignatureVerifier verifier;
-  if (!verifier.VerifyInit(sig_alg, signature_, base::as_byte_span(spki))) {
-    return false;
+  crypto::sign::SignatureKind sig_kind;
+  switch (header_.sig_alg) {
+    case JwsSigAlg::kEcdsaP256Sha256:
+      if (!pubkey->IsEcP256()) {
+        return false;
+      }
+      sig_kind = crypto::sign::ECDSA_SHA256;
+      break;
+    case JwsSigAlg::kRsaPkcs1Sha256:
+      if (!pubkey->IsRsa()) {
+        return false;
+      }
+      sig_kind = crypto::sign::RSA_PKCS1_SHA256;
+      break;
+    case JwsSigAlg::kRsaPssSha256:
+      if (!pubkey->IsRsa()) {
+        return false;
+      }
+      sig_kind = crypto::sign::RSA_PSS_SHA256;
+      break;
   }
+  crypto::sign::Verifier verifier(sig_kind, *pubkey, signature_);
 
   // RFC 7515 section 5.2 steps 1-7 are performed by TwoQwacCertBinding::Parse.
 
@@ -527,9 +504,9 @@ bool TwoQwacCertBinding::VerifySignature() {
   //
   // The first component of the input - BASE64URL(UTF8(JWS Protected Header)) -
   // is the unparsed JWS header:
-  verifier.VerifyUpdate(base::as_byte_span(header_string_));
+  verifier.Update(base::as_byte_span(header_string_));
   static constexpr uint8_t separator[] = {'.'};
-  verifier.VerifyUpdate(separator);
+  verifier.Update(separator);
   // The JWS Payload is empty, so there are 0 bytes to contribute to the
   // BASE64URL(JWS Payload) component of the JWS Signing Input.
 
@@ -538,7 +515,7 @@ bool TwoQwacCertBinding::VerifySignature() {
 
   // Step 10: In the JWS Compact Serialization case, the result can simply
   // indicate whether or not the JWS was successfully validated.
-  return verifier.VerifyFinal();
+  return verifier.Finish();
 }
 
 bool TwoQwacCertBinding::BindsTlsCert(base::span<const uint8_t> tls_cert_der) {

@@ -23,6 +23,7 @@
 #import "ios/chrome/browser/infobars/model/infobar_manager_impl.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/web/public/test/fakes/fake_web_client.h"
 #import "ios/web/public/test/scoped_testing_web_client.h"
@@ -201,12 +202,8 @@ TEST_F(ManualFillCardMediatorTest,
 
   // Create a REAL WebState via Profile.
   TestProfileIOS::Builder builder;
-  builder.AddTestingFactory(
-      SyncServiceFactory::GetInstance(),
-      base::BindRepeating(
-          [](ProfileIOS* profile) -> std::unique_ptr<KeyedService> {
-            return std::make_unique<syncer::TestSyncService>();
-          }));
+  builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
+                            base::BindRepeating(&CreateTestSyncService));
   std::unique_ptr<TestProfileIOS> profile = std::move(builder).Build();
   web::WebState::CreateParams params(profile.get());
   auto web_state = web::WebState::Create(params);
@@ -250,12 +247,8 @@ TEST_F(ManualFillCardMediatorTest,
 
   // Create a REAL WebState.
   TestProfileIOS::Builder builder;
-  builder.AddTestingFactory(
-      SyncServiceFactory::GetInstance(),
-      base::BindRepeating(
-          [](ProfileIOS* profile) -> std::unique_ptr<KeyedService> {
-            return std::make_unique<syncer::TestSyncService>();
-          }));
+  builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
+                            base::BindRepeating(&CreateTestSyncService));
   std::unique_ptr<TestProfileIOS> profile = std::move(builder).Build();
   web::WebState::CreateParams params(profile.get());
   auto web_state = web::WebState::Create(params);

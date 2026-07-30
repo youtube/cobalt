@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/webui/password_manager/promo_cards/move_passwords_promo.h"
 
+#include "base/strings/escape.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/sync/sync_service_factory.h"
@@ -129,7 +130,8 @@ std::u16string MovePasswordsPromo::GetDescription() const {
                    GetLocalPasswordsCount(delegate_.get()))
              : l10n_util::GetStringFUTF16(
                    IDS_PASSWORD_MANAGER_UI_MOVE_PASSWORDS_PROMO_CARD_DESCRIPTION,
-                   GetPrimaryAccountEmailFromProfile(profile_));
+                   base::EscapeForHTML(
+                       GetPrimaryAccountEmailFromProfile(profile_)));
 }
 
 std::u16string MovePasswordsPromo::GetActionButtonText() const {

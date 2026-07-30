@@ -56,6 +56,8 @@ if (use_fuzzing_engine_with_lpm) {
     sources = [ "password_generator_proto_fuzzer.cc" ]
     deps = [
       ":generation",
+      "//components/autofill/core/browser/proto",
+      "//components/autofill/core/browser/proto:proto_fuzzable",
       "//third_party/libprotobuf-mutator",
     ]
 

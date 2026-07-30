@@ -22,8 +22,8 @@ import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.profiles.Profile;
-import org.chromium.chrome.browser.tab.SendTabToSelfTabCardLabelData;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab.state.SendTabToSelfTabCardLabelData;
 import org.chromium.components.messages.MessageBannerProperties;
 import org.chromium.components.messages.MessageDispatcher;
 import org.chromium.components.messages.MessageDispatcherProvider;
@@ -233,7 +233,7 @@ public class SendTabToSelfAndroidBridge {
         if (activity instanceof ChromeTabbedActivity) {
             ChromeTabbedActivity tabbedActivity = (ChromeTabbedActivity) activity;
             if (tabbedActivity.getLayoutManager() != null) {
-                tabbedActivity.getLayoutManager().showLayout(LayoutType.TAB_SWITCHER, true);
+                tabbedActivity.getLayoutManager().showLayout(LayoutType.HUB, true);
             }
         }
         return PrimaryActionClickBehavior.DISMISS_IMMEDIATELY;

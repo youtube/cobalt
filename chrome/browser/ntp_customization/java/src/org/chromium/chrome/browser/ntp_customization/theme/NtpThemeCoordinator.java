@@ -25,6 +25,7 @@ import org.chromium.base.ObserverList;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.ntp_customization.BottomSheetDelegate;
 import org.chromium.chrome.browser.ntp_customization.BottomSheetViewBinder;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
@@ -38,6 +39,8 @@ import org.chromium.chrome.browser.ntp_customization.theme.theme_collections.Ntp
 import org.chromium.chrome.browser.ntp_customization.theme.theme_collections.NtpThemeCollectionsCoordinator;
 import org.chromium.chrome.browser.ntp_customization.theme.upload_image.BackgroundImageInfo;
 import org.chromium.chrome.browser.ntp_customization.theme.upload_image.UploadImagePreviewCoordinator;
+import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataBase.PlatformType;
+import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataUploadImage;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -55,6 +58,7 @@ public class NtpThemeCoordinator {
     private final Runnable mDismissBottomSheetRunnable;
     private final NtpThemeCollectionManager mNtpThemeCollectionManager;
     private final CallbackController mCallbackController = new CallbackController();
+    private final boolean mIsNtpThemeSyncEnabled;
     private NtpThemeMediator mMediator;
     private NtpThemeBottomSheetView mNtpThemeBottomSheetView;
     private @Nullable UploadImagePreviewCoordinator mUploadPreviewCoordinator;
@@ -80,6 +84,7 @@ public class NtpThemeCoordinator {
                                         null,
                                         false);
 
+        mIsNtpThemeSyncEnabled = ChromeFeatureList.sNewTabPageCustomizationThemeSync.isEnabled();
         delegate.registerBottomSheetLayout(THEME, mNtpThemeBottomSheetView);
 
         // The bottomSheetPropertyModel is responsible for managing the back press handler of the
@@ -137,7 +142,7 @@ public class NtpThemeCoordinator {
      * This is the callback method that gets invoked by the Mediator to initialize the {@code
      * UploadImagePreviewCoordinator}.
      */
-    public void onImageSelectedForPreview(@Nullable Bitmap bitmap) {
+    public void onImageSelectedForPreview(@Nullable Bitmap bitmap, String fileIdHash) {
         if (bitmap == null) return;
 
         // Tablets bypass the preview dialog and apply the selection directly.
@@ -147,14 +152,23 @@ public class NtpThemeCoordinator {
             // until the ntp customization bottom sheets are fully dismissed.
             BackgroundImageInfo info =
                     NtpCustomizationUtils.getDefaultBackgroundImageInfo(mContext, bitmap);
-            NtpCustomizationConfigManager.getInstance().onUploadedImageSelected(bitmap, info);
+            NtpBackgroundDataUploadImage uploadImageData =
+                    new NtpBackgroundDataUploadImage(
+                            PlatformType.ANDROID_LOCAL,
+                            NtpCustomizationUtils.createBackgroundImageFile().getAbsolutePath(),
+                            info,
+                            bitmap,
+                            /* primaryColor= */ null,
+                            mIsNtpThemeSyncEnabled ? fileIdHash : null);
+            NtpCustomizationConfigManager.getInstance()
+                    .onBackgroundDataChanged(mContext, uploadImageData);
             onPreviewClosed(/* isImageSelected= */ true);
             return;
         }
 
         mUploadPreviewCoordinator =
                 new UploadImagePreviewCoordinator(
-                        (Activity) mContext, mProfile, bitmap, this::onPreviewClosed);
+                        (Activity) mContext, mProfile, bitmap, fileIdHash, this::onPreviewClosed);
     }
 
     /**

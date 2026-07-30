@@ -76,7 +76,9 @@ TSAN_TEST(FontObjectThreadedTest, FontSelector) {
   });
 }
 
-TSAN_TEST(FontObjectThreadedTest, TextIntercepts) {
+// This test is disabled because it is failing on Linux TSAN:
+// https://issues.chromium.org/issues/524628213
+TSAN_TEST(FontObjectThreadedTest, DISABLED_TextIntercepts) {
   callbacks_per_thread_ = 10;
   RunOnThreads([]() {
     Font* font = CreateTestFont(AtomicString("Ahem"),

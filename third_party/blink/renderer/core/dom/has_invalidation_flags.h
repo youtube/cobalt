@@ -190,7 +190,7 @@ enum SiblingsAffectedByHasFlags : unsigned {
   kNoSiblingsAffectedByHasFlags = 0,
 };
 
-// The actual storage of the flags lives in ElementRareDataVector.
+// The actual storage of the flags lives in NodeRareData.
 
 }  // namespace blink
 

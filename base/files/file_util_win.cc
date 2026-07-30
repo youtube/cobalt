@@ -509,9 +509,9 @@ FilePath RemoveWindowsExtendedPathPrefix(std::wstring_view prefixed_path) {
 // This function verifies that no code is attempting to set an ACL on a file
 // that is outside of 'safe' paths. A 'safe' path is defined as one that is
 // within the user data dir, or the temporary directory. This is explicitly to
-// prevent code from trying to pass a writeable handle to a file outside of
+// prevent code from trying to pass a writable handle to a file outside of
 // these directories to an untrusted process. E.g. if some future code created a
-// writeable handle to a file in c:\users\user\sensitive.dat, this DCHECK would
+// writable handle to a file in c:\users\user\sensitive.dat, this DCHECK would
 // hit. Setting an ACL on a file outside of these chrome-controlled directories
 // might cause the browser or operating system to fail in unexpected ways.
 bool IsPathSafeToSetAclOn(const FilePath& path) {
@@ -779,24 +779,12 @@ FilePath GetHomeDir() {
   return FilePath(FILE_PATH_LITERAL("C:\\"));
 }
 
-File CreateAndOpenTemporaryFileInDir(const FilePath& dir,
-                                     FilePath* temp_file,
-                                     uint32_t additional_flags) {
+File CreateAndOpenTemporaryFileInDirWithFlags(const FilePath& dir,
+                                              FilePath* temp_file,
+                                              uint32_t flags) {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
 
-  // Open the file with exclusive r/w/d access, and allow the caller to decide
-  // to mark it for deletion upon close after the fact.
-  uint32_t flags = File::FLAG_CREATE | File::FLAG_READ | File::FLAG_WRITE |
-                   File::FLAG_WIN_EXCLUSIVE_READ |
-                   File::FLAG_WIN_EXCLUSIVE_WRITE |
-                   File::FLAG_CAN_DELETE_ON_CLOSE | additional_flags;
-
-  // Use GUID instead of ::GetTempFileName() to generate unique file names.
-  // "Due to the algorithm used to generate file names, GetTempFileName can
-  // perform poorly when creating a large number of files with the same prefix.
-  // In such cases, it is recommended that you construct unique file names based
-  // on GUIDs."
-  // https://msdn.microsoft.com/library/windows/desktop/aa364991.aspx
+  flags |= File::FLAG_CREATE;
 
   FilePath temp_name;
   File file;
@@ -829,6 +817,16 @@ File CreateAndOpenTemporaryFileInDir(const FilePath& dir,
   }
 
   return file;
+}
+
+File CreateAndOpenTemporaryFileInDir(const FilePath& dir,
+                                     FilePath* temp_file,
+                                     uint32_t additional_flags) {
+  constexpr uint32_t default_flags =
+      File::FLAG_READ | File::FLAG_WRITE | File::FLAG_WIN_EXCLUSIVE_READ |
+      File::FLAG_WIN_EXCLUSIVE_WRITE | File::FLAG_CAN_DELETE_ON_CLOSE;
+  return CreateAndOpenTemporaryFileInDirWithFlags(
+      dir, temp_file, default_flags | additional_flags);
 }
 
 bool CreateTemporaryFileInDir(const FilePath& dir, FilePath* temp_file) {
@@ -1383,7 +1381,7 @@ bool PreventExecuteMappingInternal(const FilePath& path, bool skip_path_check) {
 
   if (!is_path_safe) {
     // To mitigate the effect of past OS bugs where attackers are able to use
-    // writeable handles to create malicious executable images which can be
+    // writable handles to create malicious executable images which can be
     // later mapped into unsandboxed processes, file handles that permit writing
     // that are passed to untrusted processes, e.g. renderers, should be marked
     // with a deny execute ACE. This prevents re-opening the file for execute
@@ -1396,14 +1394,14 @@ bool PreventExecuteMappingInternal(const FilePath& path, bool skip_path_check) {
     // called by base::File.
     //
     // However, simply using this universally on all files that are opened
-    // writeable is also undesirable: things can and will randomly break if they
+    // writable is also undesirable: things can and will randomly break if they
     // are marked no-exec (e.g. marking an exe that the user downloads as
     // no-exec will prevent the user from running it). There are also
     // performance implications of doing this for all files unnecessarily.
     //
     // Code that passes writable files to the renderer is also expected to
     // reference files in places like the user data dir (e.g. for the filesystem
-    // API) or temp files. Any attempt to pass a writeable handle to a path
+    // API) or temp files. Any attempt to pass a writable handle to a path
     // outside these areas is likely its own security issue as an untrusted
     // renderer process should never have write access to e.g. system files or
     // downloads.

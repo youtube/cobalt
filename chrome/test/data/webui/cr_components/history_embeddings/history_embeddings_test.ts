@@ -8,9 +8,8 @@ import 'chrome://resources/cr_components/history_embeddings/history_embeddings.j
 import {HistoryResultType} from '//resources/cr_components/history/constants.js';
 import {CrFeedbackOption} from '//resources/cr_elements/cr_feedback_buttons/cr_feedback_buttons.js';
 import {getFaviconForPageURL} from '//resources/js/icon.js';
-import {HistoryEmbeddingsBrowserProxyImpl} from 'chrome://resources/cr_components/history_embeddings/browser_proxy.js';
 import type {HistoryEmbeddingsElement, HistoryEmbeddingsMoreActionsClickEvent, HistoryEmbeddingsResultClickEvent, HistoryEmbeddingsResultContextMenuEvent} from 'chrome://resources/cr_components/history_embeddings/history_embeddings.js';
-import {AnswerStatus, PageHandlerRemote, UserFeedback} from 'chrome://resources/cr_components/history_embeddings/history_embeddings.mojom-webui.js';
+import {AnswerStatus, browserProxyFactory, PageHandlerRemote, UserFeedback} from 'chrome://resources/cr_components/history_embeddings/history_embeddings.mojom-webui.js';
 import type {SearchQuery, SearchResult, SearchResultItem} from 'chrome://resources/cr_components/history_embeddings/history_embeddings.mojom-webui.js';
 import type {CrA11yAnnouncerMessagesSentEvent} from 'chrome://resources/cr_elements/cr_a11y_announcer/cr_a11y_announcer.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
@@ -78,8 +77,8 @@ import {eventToPromise, isVisible, microtasksFinished} from 'chrome://webui-test
         });
       };
 
-      HistoryEmbeddingsBrowserProxyImpl.setInstance(
-          new HistoryEmbeddingsBrowserProxyImpl(handler));
+      const {instance} = browserProxyFactory.createForTest(handler);
+      browserProxyFactory.setInstance(instance);
 
       element = document.createElement('cr-history-embeddings');
       document.body.appendChild(element);

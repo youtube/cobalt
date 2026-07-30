@@ -51,14 +51,13 @@ class PaymentsFormDataImporterTestApi {
     payments_fdi_->credit_card_save_manager_ = std::move(ccsm);
   }
 
-  payments::PaymentsFormDataImporter::CreditCardImportType
-  credit_card_import_type() const {
+  PaymentsFormDataImporter::CreditCardImportType credit_card_import_type()
+      const {
     return payments_fdi_->credit_card_import_type_;
   }
 
   void set_credit_card_import_type(
-      payments::PaymentsFormDataImporter::CreditCardImportType
-          credit_card_import_type) {
+      PaymentsFormDataImporter::CreditCardImportType credit_card_import_type) {
     payments_fdi_->credit_card_import_type_ = credit_card_import_type;
   }
 

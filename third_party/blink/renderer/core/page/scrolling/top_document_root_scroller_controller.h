@@ -12,7 +12,6 @@
 
 namespace blink {
 
-class LocalFrameView;
 class Node;
 class Page;
 class RootFrameViewport;

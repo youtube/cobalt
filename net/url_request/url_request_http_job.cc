@@ -124,6 +124,8 @@ namespace net {
 
 namespace {
 
+const size_t kMaxNestedSourceStreamDepth = 10;
+
 bool ShouldForceIgnoreSiteForCookies(const URLRequest& request) {
   NetworkDelegate* network_delegate = request.network_delegate();
   return network_delegate &&
@@ -1531,6 +1533,10 @@ std::unique_ptr<SourceStream> URLRequestHttpJob::SetUpSourceStream() {
   std::vector<SourceStreamType> types =
       FilterSourceStream::GetContentEncodingTypes(
           request_->accepted_stream_types(), *headers);
+
+  if (types.size() > kMaxNestedSourceStreamDepth) {
+    return nullptr;
+  }
 
   if (request()->client_side_content_decoding_enabled() &&
       !headers->HasHeader("use-as-dictionary")) {

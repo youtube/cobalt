@@ -556,7 +556,7 @@ public class MultiInstanceManagerApi31UnitTest {
         MultiWindowUtils.setMaxInstancesForTesting(2);
 
         // Simulate deletion of instance0, so id=0 becomes available.
-        MultiInstanceManagerApi31.removeInstanceInfo(0, CloseWindowAppSource.OTHER);
+        MultiWindowUtils.removeInstanceInfo(0, CloseWindowAppSource.OTHER);
 
         // Trying to allocate a new instance with preferNew should fail.
         when(mActivityTask59.getSystemService(Context.ACTIVITY_SERVICE))
@@ -978,6 +978,10 @@ public class MultiInstanceManagerApi31UnitTest {
         assertEquals(1, allocInstanceIndex(PASSED_ID_INVALID, mActivityTask57));
         assertEquals(2, allocInstanceIndex(PASSED_ID_INVALID, mActivityTask58));
 
+        // Setup AppTask's for all three activities.
+        List<AppTask> appTasks =
+                setupActivityManagerAppTasks(mCurrentActivity, mActivityTask57, mActivityTask58);
+
         // Verify that there are 3 active instances initially.
         assertEquals(3, mMultiInstanceManager.getInstanceInfo(PersistedInstanceType.ACTIVE).size());
 
@@ -1012,6 +1016,42 @@ public class MultiInstanceManagerApi31UnitTest {
                         /* preferNew= */ false,
                         /* isIncognitoIntent= */ false);
         assertEquals(3, allocatedIdInfo.instanceId);
+    }
+
+    @Test
+    public void testCloseAllWindows_activityNotAliveInLiveTask() {
+        MultiWindowUtils.setMaxInstancesForTesting(5);
+
+        // Setup 3 instances.
+        assertEquals(0, allocInstanceIndex(PASSED_ID_INVALID, mCurrentActivity));
+        mMultiInstanceManager.initialize(
+                /* instanceId= */ 0, /* taskId= */ TASK_ID_56, SupportedProfileType.MIXED);
+        assertEquals(1, allocInstanceIndex(PASSED_ID_INVALID, mActivityTask57));
+        assertEquals(2, allocInstanceIndex(PASSED_ID_INVALID, mActivityTask58));
+
+        // Setup AppTask's for all three activities.
+        List<AppTask> appTasks =
+                setupActivityManagerAppTasks(mCurrentActivity, mActivityTask57, mActivityTask58);
+
+        // Verify that there are 3 active instances initially.
+        assertEquals(3, mMultiInstanceManager.getInstanceInfo(PersistedInstanceType.ACTIVE).size());
+
+        // Simulate destruction of activities prior to closing windows, so that AppTask fallback is
+        // used. mCurrentActivity cannot be destroyed before calling closeWindows since
+        // mMultiInstanceManager is attached to it, but we destroy the other two activities.
+        destroyActivity(mActivityTask57);
+        destroyActivity(mActivityTask58);
+
+        // Simulate closure of all windows from the window manager.
+        mMultiInstanceManager.closeWindows(List.of(0, 1, 2), CloseWindowAppSource.WINDOW_MANAGER);
+        destroyActivity(mCurrentActivity);
+
+        // Verify that the current activity is finished last (via activity reference) while the
+        // others are finished via AppTask.
+        InOrder inOrderVerifier = inOrder(mCurrentActivity, appTasks.get(1), appTasks.get(2));
+        inOrderVerifier.verify(appTasks.get(1)).finishAndRemoveTask();
+        inOrderVerifier.verify(appTasks.get(2)).finishAndRemoveTask();
+        inOrderVerifier.verify(mCurrentActivity).finishAndRemoveTask();
     }
 
     @Test
@@ -1485,7 +1525,7 @@ public class MultiInstanceManagerApi31UnitTest {
                                 CloseWindowAppSource.OTHER)
                         .build();
 
-        MultiInstanceManagerApi31.removeInstanceInfo(index, CloseWindowAppSource.OTHER);
+        MultiWindowUtils.removeInstanceInfo(index, CloseWindowAppSource.OTHER);
         histogramWatcher.assertExpected();
         assertNull(
                 "Persistent store should be updated.",

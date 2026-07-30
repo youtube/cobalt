@@ -108,7 +108,7 @@ void BatterySaverButton::OnClicked() {
   } else {
     CloseFeaturePromo(/*engaged=*/true);
     bubble_ = BatterySaverBubbleView::CreateBubble(
-        browser_view_->browser(), this, views::BubbleBorder::TOP_RIGHT, this);
+        views::BubbleAnchor(this), views::BubbleBorder::TOP_RIGHT, this);
   }
 }
 

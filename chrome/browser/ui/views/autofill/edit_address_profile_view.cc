@@ -146,7 +146,7 @@ void EditAddressProfileView::ShowForWebContents(
   DCHECK(web_contents);
   auto address_editor_controller = std::make_unique<AddressEditorController>(
       controller_->GetProfileToEdit(),
-      autofill::PersonalDataManagerFactory::GetForBrowserContext(
+      PersonalDataManagerFactory::GetForBrowserContext(
           web_contents->GetBrowserContext()),
       controller_->GetIsValidatable());
 

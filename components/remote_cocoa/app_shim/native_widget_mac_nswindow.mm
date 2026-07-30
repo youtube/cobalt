@@ -707,35 +707,32 @@ struct NSEdgeAndCornerThicknesses {
 }
 
 - (void)miniaturize:(id)sender {
-  static const BOOL isMacOS13OrHigher = base::mac::MacOSMajorVersion() >= 13;
-  // On macOS 13, the miniaturize operation appears to no longer be "atomic"
-  // because of non-blocking roundtrip IPC with the Dock. We want to note here
-  // that miniaturization is in progress. The process completes when we
-  // reach -_regularMinimizeToDock:.
-  _miniaturizationInProgress = isMacOS13OrHigher;
+  // The miniaturize operation appears to not be "atomic" because of
+  // non-blocking roundtrip IPC with the Dock. We want to note here that
+  // miniaturization is in progress. The process completes when we reach
+  // -_regularMinimizeToDock:.
+  _miniaturizationInProgress = YES;
 
   [super miniaturize:sender];
 }
 
 - (void)_regularMinimizeToDock {
-  // On macOS 13, a call to -miniaturize: kicks of an async round-trip IPC with
-  // the Dock that ends up in this method. Unfortunately, it appears that if we
-  // immediately follow a call to -miniaturize: with -makeKeyAndOrderFront:,
-  // the AppKit doesn't cancel the in-flight round-trip IPC. As a result,
+  // A call to -miniaturize: kicks of an async round-trip IPC with the Dock that
+  // ends up in this method. Unfortunately, it appears that if we immediately
+  // follow a call to -miniaturize: with -makeKeyAndOrderFront:, the AppKit
+  // doesn't cancel the in-flight round-trip IPC. As a result,
   // _regularMinimizeToDock gets called sometime after -makeKeyAndOrderFront:
-  // and miniaturizes the window anyway. This is  a potential problem in
-  // session restore where we might restart with a single browser window
-  // sitting Dock. In that case, Session Restore creates the window,
-  // miniaturizes to the dock, and then brings it back out. With this new macOS
-  // 13 behavior (which seems like a bug), the browser window may not be
-  // restored from the Dock.
+  // and miniaturizes the window anyway. This is  a potential problem in session
+  // restore where we might restart with a single browser window sitting Dock.
+  // In that case, Session Restore creates the window, miniaturizes to the dock,
+  // and then brings it back out. With this behavior (which seems like a bug),
+  // the browser window may not be restored from the Dock.
   //
   // To get around this problem, if we arrive here and
-  // _miniaturizationInProgress is NO, the miniaturization process was
-  // cancelled by a call to -makeKeyAndOrderFront:. In that case, we don't want
-  // to proceed with miniaturization.
-  static const BOOL isMacOS13OrHigher = base::mac::MacOSMajorVersion() >= 13;
-  if (isMacOS13OrHigher && !_miniaturizationInProgress) {
+  // _miniaturizationInProgress is NO, the miniaturization process was cancelled
+  // by a call to -makeKeyAndOrderFront:. In that case, we don't want to proceed
+  // with miniaturization.
+  if (!_miniaturizationInProgress) {
     return;
   }
 
@@ -1046,12 +1043,6 @@ struct NSEdgeAndCornerThicknesses {
 // TODO(http://crbug.com/1454606): Remove this workaround once FB13529873 is
 // fixed in AppKit.
 - (void)maybeRemoveTreeFromOrderingGroups {
-  // This workaround only needed for macOS 13 and greater.
-  if (@available(macOS 13.0, *)) {
-  } else {
-    return;
-  }
-
   if (!base::FeatureList::IsEnabled(
           remote_cocoa::features::kImmersiveFullscreenSpaceSwitchMitigation)) {
     return;

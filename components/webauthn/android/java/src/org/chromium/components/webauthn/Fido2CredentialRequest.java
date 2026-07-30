@@ -254,6 +254,9 @@ public class Fido2CredentialRequest implements WebauthnBrowserBridge.Provider {
         RenderFrameHost frameHost = mAuthenticationContextProvider.getRenderFrameHost();
         assert frameHost != null;
         assert mAuthenticationContextProvider.getRequestCallback() != null;
+        mAuthenticationContextProvider
+                .getRequestCallback()
+                .addCompletionCallback(this::cleanupRequest);
         assert (paymentOptions != null) == options.isPaymentCredentialCreation;
         @Nullable Origin remoteDesktopOrigin = null;
         if (options.remoteDesktopClientOverride != null
@@ -540,6 +543,10 @@ public class Fido2CredentialRequest implements WebauthnBrowserBridge.Provider {
         log(TAG, "handleGetCredentialRequest");
         RenderFrameHost frameHost = mAuthenticationContextProvider.getRenderFrameHost();
         assert frameHost != null;
+        assert mAuthenticationContextProvider.getRequestCallback() != null;
+        mAuthenticationContextProvider
+                .getRequestCallback()
+                .addCompletionCallback(this::cleanupRequest);
 
         if (options.publicKey == null) {
             handlePasswordOnlyImmediateRequest(options, origin);
@@ -891,8 +898,6 @@ public class Fido2CredentialRequest implements WebauthnBrowserBridge.Provider {
                 mBarrier.onFido2ApiCancelled();
                 break;
             case CancellableUiState.WAITING_FOR_SELECTION:
-                assumeNonNull(getBridge());
-                getBridge().cleanupRequest(mAuthenticationContextProvider.getRenderFrameHost());
                 mCancellableUiState = CancellableUiState.NONE;
                 mBarrier.onFido2ApiCancelled();
                 break;
@@ -1323,8 +1328,6 @@ public class Fido2CredentialRequest implements WebauthnBrowserBridge.Provider {
 
         if (reason == NonCredentialReturnReason.ERROR) {
             logError(TAG, "Bottom sheet not displayed due to an error.");
-            assumeNonNull(getBridge());
-            getBridge().cleanupRequest(mAuthenticationContextProvider.getRenderFrameHost());
             returnErrorAndResetCallback(
                     AuthenticatorStatus.UNKNOWN_ERROR,
                     /* response= */ null,
@@ -1593,8 +1596,6 @@ public class Fido2CredentialRequest implements WebauthnBrowserBridge.Provider {
 
                 if (mCancellableUiState == CancellableUiState.CANCEL_PENDING) {
                     mCancellableUiState = CancellableUiState.NONE;
-                    assumeNonNull(getBridge());
-                    getBridge().cleanupRequest(frameHost);
                     mBarrier.onFido2ApiCancelled();
                 } else {
                     // The user can try again by selecting another conditional UI credential.
@@ -1603,8 +1604,6 @@ public class Fido2CredentialRequest implements WebauthnBrowserBridge.Provider {
                 return;
             }
             mCancellableUiState = CancellableUiState.NONE;
-            assumeNonNull(getBridge());
-            getBridge().cleanupRequest(frameHost);
         }
 
         WebauthnRequestCallback requestCallback =
@@ -1895,6 +1894,13 @@ public class Fido2CredentialRequest implements WebauthnBrowserBridge.Provider {
             mBrowserBridge = new WebauthnBrowserBridge();
         }
         return mBrowserBridge;
+    }
+
+    private void cleanupRequest() {
+        WebauthnBrowserBridge bridge = getBridge();
+        if (bridge != null && bridge.isInitialized()) {
+            bridge.cleanupRequest(mAuthenticationContextProvider.getRenderFrameHost());
+        }
     }
 
     protected void destroyBridge() {

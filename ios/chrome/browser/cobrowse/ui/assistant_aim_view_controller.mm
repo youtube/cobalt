@@ -9,6 +9,7 @@
 #import "ios/chrome/browser/cobrowse/ui/assistant_aim_history_item.h"
 #import "ios/chrome/browser/cobrowse/ui/assistant_aim_history_view_controller.h"
 #import "ios/chrome/browser/cobrowse/ui/assistant_aim_mutator.h"
+#import "ios/chrome/browser/cobrowse/ui/assistant_aim_zero_state_view_controller.h"
 #import "ios/chrome/browser/composebox/ui/composebox_input_plate_view_controller.h"
 #import "ios/chrome/browser/shared/public/features/system_flags.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
@@ -47,17 +48,24 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
   NSLayoutConstraint* _inputPlateBottomMargin;
   CGRect _keyboardFrameInWindow;
   AssistantAIMHistoryViewController* _historyViewController;
+  AssistantAIMZeroStateViewController* _zeroStateViewController;
+  AssistantAIMState _state;
+  AssistantAIMState _previousState;
+  NSString* _greetingMessage;
 }
 
 @synthesize delegate = _delegate;
 
 - (void)setMutator:(id<AssistantAIMMutator>)mutator {
   _mutator = mutator;
-  _headerView.actionHandler = mutator;
 }
 
 - (void)viewDidLoad {
   [super viewDidLoad];
+
+  _state = AssistantAIMState::kThread;
+  _previousState = AssistantAIMState::kThread;
+
   if (experimental_flags::GetCobrowseGwsURL()) {
     [self setUpBarricadeTape];
   }
@@ -121,6 +129,10 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
     effectPercentage =
         (percentage - kThresholdForClosedState) /
         (kThresholdForCompleteVisibility - kThresholdForClosedState);
+  }
+
+  if (percentage <= kThresholdForCompleteVisibility) {
+    [self hideHistoryAnimated];
   }
 
   // This ensures the header end up centered in the collapsed state.
@@ -248,6 +260,44 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
   [self setUpWebStateView];
 }
 
+- (void)displayThread {
+  [self setAssistantAIMState:AssistantAIMState::kThread];
+}
+
+- (void)setAssistantAIMState:(AssistantAIMState)state {
+  if (_state == state) {
+    return;
+  }
+
+  _previousState = _state;
+  _state = state;
+  switch (state) {
+    case AssistantAIMState::kZeroState:
+      [self setUpZeroStateViewControllerIfNeeded];
+      _zeroStateViewController.view.hidden = NO;
+      _webStateView.hidden = YES;
+      _historyViewController.view.hidden = YES;
+      [_headerView setMode:AssistantAIMState::kZeroState];
+      self.view.backgroundColor = [UIColor clearColor];
+      break;
+    case AssistantAIMState::kThread:
+      _zeroStateViewController.view.hidden = YES;
+      _webStateView.hidden = NO;
+      _historyViewController.view.hidden = YES;
+      [_headerView setMode:AssistantAIMState::kThread];
+      self.view.backgroundColor = [UIColor clearColor];
+      break;
+    case AssistantAIMState::kHistory:
+      _zeroStateViewController.view.hidden = YES;
+      _webStateView.hidden = YES;
+      _historyViewController.view.hidden = NO;
+      [_headerView setMode:AssistantAIMState::kHistory];
+      self.view.backgroundColor =
+          [UIColor colorNamed:kSecondaryBackgroundColor];
+      break;
+  }
+}
+
 - (void)displayHistoryWithItems:
     (const std::vector<AssistantAIMHistoryItem>&)items {
   if (!_historyViewController) {
@@ -255,11 +305,6 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
     _historyViewController.delegate = self;
 
     [self addChildViewController:_historyViewController];
-
-    _webStateView.hidden = YES;
-    _inputViewController.view.hidden = YES;
-    [_headerView setMode:AssistantAIMHeaderViewMode::kHistory];
-    self.view.backgroundColor = [UIColor colorNamed:kSecondaryBackgroundColor];
 
     [self.view addSubview:_historyViewController.view];
     _historyViewController.view.translatesAutoresizingMaskIntoConstraints = NO;
@@ -281,6 +326,58 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
   [_historyViewController updateHistoryItems:items];
 }
 
+- (void)setHeaderTitle:(NSString*)title {
+  [_headerView setTitle:title];
+}
+
+- (void)setGreetingMessage:(NSString*)message {
+  if ([_greetingMessage isEqualToString:message]) {
+    return;
+  }
+  _greetingMessage = [message copy];
+  if (_zeroStateViewController) {
+    _zeroStateViewController.greetingMessage = _greetingMessage;
+  }
+}
+
+- (void)setUpZeroStateViewControllerIfNeeded {
+  if (!_zeroStateViewController) {
+    _zeroStateViewController =
+        [[AssistantAIMZeroStateViewController alloc] init];
+    [self addChildViewController:_zeroStateViewController];
+    [_zeroStateViewController didMoveToParentViewController:self];
+
+    if (_inputViewController.view) {
+      [self.view insertSubview:_zeroStateViewController.view
+                  belowSubview:_inputViewController.view];
+    } else {
+      [self.view addSubview:_zeroStateViewController.view];
+    }
+
+    _zeroStateViewController.view.translatesAutoresizingMaskIntoConstraints =
+        NO;
+    NSLayoutYAxisAnchor* bottomAnchor =
+        _inputViewController.view ? _inputViewController.view.topAnchor
+                                  : self.view.bottomAnchor;
+
+    AddSameConstraintsToSides(_zeroStateViewController.view, self.view,
+                              LayoutSides::kLeading | LayoutSides::kTrailing);
+
+    [NSLayoutConstraint activateConstraints:@[
+      [_zeroStateViewController.view.topAnchor
+          constraintEqualToAnchor:_headerView.bottomAnchor
+                         constant:kTitleVerticalMargin],
+      [_zeroStateViewController.view.bottomAnchor
+          constraintEqualToAnchor:bottomAnchor]
+    ]];
+
+    _zeroStateViewController.view.hidden =
+        (_state != AssistantAIMState::kZeroState);
+  }
+
+  _zeroStateViewController.greetingMessage = _greetingMessage;
+}
+
 #pragma mark - AssistantAIMHistoryViewControllerDelegate
 
 - (void)assistantAIMHistoryViewControllerDidTapDismiss:
@@ -292,6 +389,7 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
             (AssistantAIMHistoryViewController*)viewController
                       didSelectTaskWithId:(NSString*)taskId {
   [self.mutator didSelectHistoryTaskWithId:taskId];
+  [self setAssistantAIMState:AssistantAIMState::kThread];
   [self hideHistory];
 }
 
@@ -317,6 +415,31 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
   return fabs(translation.y) <= 3 * fabs(translation.x);
 }
 
+// Performs the animation logic to hide the history view.
+- (void)animateHistoryHide {
+  [_headerView setMode:AssistantAIMState::kThread];
+  _historyViewController.view.alpha = 0;
+  self.view.backgroundColor = [UIColor clearColor];
+  [self.view layoutIfNeeded];
+}
+
+// Hides the history view with animation.
+- (void)hideHistoryAnimated {
+  if (!_historyViewController) {
+    return;
+  }
+
+  __weak __typeof(self) weakSelf = self;
+  [UIView animateWithDuration:0.3
+      animations:^{
+        [weakSelf animateHistoryHide];
+      }
+      completion:^(BOOL) {
+        [weakSelf hideHistory];
+      }];
+}
+
+// Hides the history view.
 - (void)hideHistory {
   if (!_historyViewController) {
     return;
@@ -325,11 +448,6 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
   [_historyViewController.view removeFromSuperview];
   [_historyViewController removeFromParentViewController];
   _historyViewController = nil;
-
-  _webStateView.hidden = NO;
-  _inputViewController.view.hidden = NO;
-  [_headerView setMode:AssistantAIMHeaderViewMode::kChat];
-  self.view.backgroundColor = [UIColor clearColor];
 }
 
 // Creates a fade effect behind the input plate.
@@ -444,10 +562,7 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
 // Sets up the header view.
 - (void)setUpHeader {
   _headerView = [[AssistantAIMHeaderView alloc] init];
-  _headerView.actionHandler = _mutator;
   _headerView.translatesAutoresizingMaskIntoConstraints = NO;
-  // TODO(crbug.com/492442806): Update title.
-  [_headerView setTitle:@"Commuter Bike"];
   _headerView.delegate = self;
   [self.view addSubview:_headerView];
 
@@ -472,11 +587,35 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
 
 - (void)assistantAIMHeaderViewDidTapBack:(AssistantAIMHeaderView*)headerView {
   [self hideHistory];
+  [self setAssistantAIMState:_previousState];
 }
 
 - (void)assistantAIMHeaderViewDidRequestSRPLogs:
     (AssistantAIMHeaderView*)headerView {
   [self.delegate assistantAIMViewControllerDidRequestSRPLogs:self];
+}
+
+- (void)assistantAIMHeaderViewDidRequestLoadedURL:
+    (AssistantAIMHeaderView*)headerView {
+  [self.delegate assistantAIMViewControllerDidRequestLoadedURL:self];
+}
+
+- (void)assistantAIMHeaderViewDidTapStartNewThread:
+    (AssistantAIMHeaderView*)headerView {
+  [UIView performWithoutAnimation:^{
+    [self setAssistantAIMState:AssistantAIMState::kZeroState];
+    [self.view layoutIfNeeded];
+  }];
+  [self.mutator didTapStartNewThread];
+}
+
+- (void)assistantAIMHeaderViewDidTapHistory:
+    (AssistantAIMHeaderView*)headerView {
+  [UIView performWithoutAnimation:^{
+    [self setAssistantAIMState:AssistantAIMState::kHistory];
+    [self.view layoutIfNeeded];
+  }];
+  [self.mutator didTapHistory];
 }
 
 #pragma mark - Private

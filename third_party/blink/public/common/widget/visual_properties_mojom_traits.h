@@ -83,9 +83,6 @@ struct BLINK_COMMON_EXPORT StructTraits<blink::mojom::VisualPropertiesDataView,
     return r.window_show_state;
   }
 
-  static uint32_t capture_sequence_number(const blink::VisualProperties& r) {
-    return r.capture_sequence_number;
-  }
 
   static double zoom_level(const blink::VisualProperties& r) {
     return r.zoom_level;

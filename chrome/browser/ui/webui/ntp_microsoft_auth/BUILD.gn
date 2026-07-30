@@ -44,6 +44,7 @@ source_set("ntp_microsoft_auth") {
     "//chrome/browser/profiles:profile",
     "//chrome/browser/resources/new_tab_page/untrusted:resources",
     "//chrome/browser/search",
+    "//chrome/browser/ui/webui/new_tab_page",
     "//chrome/common",
     "//components/search",
     "//components/url_matcher",

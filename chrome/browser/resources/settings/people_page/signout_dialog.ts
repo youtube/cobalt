@@ -18,6 +18,7 @@ import '../settings_shared.css.js';
 import type {CrDialogElement} from '//resources/cr_elements/cr_dialog/cr_dialog.js';
 import {WebUiListenerMixin} from '//resources/cr_elements/web_ui_listener_mixin.js';
 import {sanitizeInnerHtml} from '//resources/js/parse_html_subset.js';
+import {htmlEscape} from '//resources/js/util.js';
 import {microTask, PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import {ProfileInfoBrowserProxyImpl} from '/shared/settings/people_page/profile_info_browser_proxy.js';
 import type {SyncStatus} from '/shared/settings/people_page/sync_browser_proxy.js';
@@ -132,7 +133,8 @@ export class SettingsSignoutDialogElement extends
   private getDisconnectExplanationHtml_(domain: string): TrustedHTML {
     if (domain) {
       return sanitizeInnerHtml(loadTimeData.getStringF(
-          'syncDisconnectManagedProfileExplanation', `<span>${domain}</span>`));
+          'syncDisconnectManagedProfileExplanation',
+          `<span>${htmlEscape(domain)}</span>`));
     }
     return sanitizeInnerHtml(
         loadTimeData.getString('syncDisconnectExplanation'));

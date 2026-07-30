@@ -404,6 +404,7 @@ Huenda baadhi ya vipengele visipatikane. Tafadhali bainisha saraka tofauti ya wa
 <translation id="5234764350956374838">Ondoa</translation>
 <translation id="5239627039202700673">Tumia Chrome wakati wowote unapobofya viungo kwenye ujumbe, hati na programu zingine.</translation>
 <translation id="5251420635869119124">Walioalikwa wanaweza kutumia Chrome bila kuacha chochote nyuma.</translation>
+<translation id="5271833978500241046">Tumia ujuzi pamoja na vipengele vingine vya Gemini kwenye Chrome</translation>
 <translation id="5286907366254680517">Imetambua</translation>
 <translation id="5320351714793324716">Ukiruhusu vidakuzi, Chrome inaweza kuvitumia inapopakia mapema</translation>
 <translation id="5321325624576443340">Lenzi ya Google haipatikani. Jaribu tena baadaye.</translation>
@@ -442,15 +443,6 @@ Google Chrome haiwezi kufufua mipangilio yako.</translation>
 <translation id="569897634095159764">Imeshindwa kuunganisha kwenye Intaneti. Seva mbadala inahitaji uthibitishaji.</translation>
 <translation id="5709557627224531708">Weka Chrome iwe kivinjari chako chaguomsingi</translation>
 <translation id="5719246646468301581">Sheria na masharti ya ziada ya Google Chrome na ChromeOS</translation>
-<translation id="5719324992913248873">Kitendo hiki:
-        <ph name="LINE_BREAKS" />
-          • Kitabadilisha baadhi ya mipangilio na njia za mkato za Chrome
-          <ph name="LINE_BREAK" />
-          • Kitazima viendelezi
-          <ph name="LINE_BREAK" />
-          • Kitafuta vidakuzi na data nyingine ya tovuti ya muda
-          <ph name="LINE_BREAKS" />
-          Alamisho, historia na manenosiri uliyoyahifadhi hayataathiriwa.</translation>
 <translation id="5736850870166430177">Ikiwa tovuti inajaribu kuiba nenosiri lako au unapopakua faili hatari, Chrome inaweza pia kutuma URL, ikiwa ni pamoja na sehemu za maudhui ya ukurasa, kwenye kipengele cha Kuvinjari Salama</translation>
 <translation id="5756509061973259733">Tayari kuna wasifu kwenye Chrome unaotumia akaunti hii katika kifaa hiki</translation>
 <translation id="5759947850379142561">Chagua maandishi au picha yoyote ya kutafuta ukitumia Lenzi ya Google au ubonyeze escape ili uondoke kwenye Lenzi ya Google</translation>
@@ -648,6 +640,7 @@ Google Chrome haiwezi kufufua mipangilio yako.</translation>
 <translation id="7606334485649076285">Programu ya Google ChromeOS Flex</translation>
 <translation id="7627609214560473136">Ili kulinda data yako, ruhusu Chrome iondoe ruhusa kwenye tovuti ambazo hujatembelea hivi karibuni.</translation>
 <translation id="7629695634924605473">Chrome hukuruhusu ujue iwapo manenosiri yako yameathiriwa</translation>
+<translation id="7629898584100520089">Uvumbuzi wa AI kama vile ujuzi huhifadhiwa kwenye Akaunti yako ya Google na kudhibitiwa kivyake tofauti na usawazishaji wa Chrome</translation>
 <translation id="7641148173327520642">Msimamizi wa mfumo unaotumia ameweka mipangilio ya Google Chrome ifungue <ph name="ALTERNATIVE_BROWSER_NAME" /> ili kufikia <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="7649070708921625228">Usaidizi</translation>
 <translation id="7651907282515937834">Nembo ya Chrome Enterprise</translation>

@@ -1,0 +1,809 @@
+actions {
+  update_display_tree {
+    new {
+      id: 1
+      m_page_scale_factor: 1.0
+      m_device_scale_factor: 1.0
+      m_painted_device_scale_factor: 1.0
+
+      # Define some layers
+      m_layers {
+        values {
+          value {
+            new {
+              id: 1
+              m_id: 1
+              m_type: 0 # kLayer
+              m_transform_tree_index: 0
+              m_clip_tree_index: 0
+              m_effect_tree_index: 0
+              m_scroll_tree_index: 0
+              m_general_properties {
+                new {
+                  id: 1
+                  m_bounds {
+                    new {
+                      id: 1
+                      m_width: 100
+                      m_height: 100
+                    }
+                  }
+                  m_is_drawable: true
+                }
+              }
+            }
+          }
+        }
+        values {
+          value {
+            new {
+              id: 2
+              m_id: 2
+              m_type: 1 # kMirror
+              m_transform_tree_index: 0
+              m_clip_tree_index: 0
+              m_effect_tree_index: 0
+              m_scroll_tree_index: 0
+              m_general_properties {
+                new {
+                  id: 2
+                  m_bounds {
+                    new {
+                      id: 2
+                      m_width: 100
+                      m_height: 100
+                    }
+                  }
+                  m_is_drawable: true
+                  m_layer_extra {
+                    new {
+                      id: 1
+                      m_mirror_layer_extra {
+                        new {
+                          id: 1
+                          m_mirrored_layer_id: 1
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        values {
+          value {
+            new {
+              id: 3
+              m_id: 3
+              m_type: 2 # kNinePatch
+              m_transform_tree_index: 0
+              m_clip_tree_index: 0
+              m_effect_tree_index: 0
+              m_scroll_tree_index: 0
+              m_general_properties {
+                new {
+                  id: 3
+                  m_bounds {
+                    new {
+                      id: 3
+                      m_width: 100
+                      m_height: 100
+                    }
+                  }
+                  m_is_drawable: true
+                  m_layer_extra {
+                    new {
+                      id: 2
+                      m_nine_patch_layer_extra {
+                        new {
+                          id: 1
+                          m_ui_resource_id: {
+                            new {
+                              id: 1
+                              m_value: 1
+                            }
+                          }
+                          m_image_bounds {
+                            new {
+                              id: 4
+                              m_width: 100
+                              m_height: 100
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        values {
+          value {
+            new {
+              id: 4
+              m_id: 4
+              m_type: 3 # kNinePatchThumbScrollbar
+              m_transform_tree_index: 0
+              m_clip_tree_index: 0
+              m_effect_tree_index: 0
+              m_scroll_tree_index: 0
+              m_general_properties {
+                new {
+                  id: 4
+                  m_bounds {
+                    new {
+                      id: 5
+                      m_width: 100
+                      m_height: 100
+                    }
+                  }
+                  m_is_drawable: true
+                  m_layer_extra {
+                    new {
+                      id: 3
+                      m_nine_patch_thumb_scrollbar_layer_extra {
+                        new {
+                          id: 1
+                          m_scrollbar_base_extra {
+                            new {
+                              id: 1
+                              m_scroll_element_id {
+                                new {
+                                  id: 1
+                                  m_id: 1
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        values {
+          value {
+            new {
+              id: 5
+              m_id: 5
+              m_type: 4 # kPaintedScrollbar
+              m_transform_tree_index: 0
+              m_clip_tree_index: 0
+              m_effect_tree_index: 0
+              m_scroll_tree_index: 0
+              m_general_properties {
+                new {
+                  id: 5
+                  m_bounds {
+                    new {
+                      id: 6
+                      m_width: 100
+                      m_height: 100
+                    }
+                  }
+                  m_is_drawable: true
+                  m_layer_extra {
+                    new {
+                      id: 4
+                      m_painted_scrollbar_layer_extra {
+                        new {
+                          id: 1
+                          m_scrollbar_base_extra {
+                            new {
+                              id: 2
+                              m_scroll_element_id {
+                                new {
+                                  id: 2
+                                  m_id: 2
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        values {
+          value {
+            new {
+              id: 6
+              m_id: 6
+              m_type: 5 # kTileDisplay
+              m_transform_tree_index: 0
+              m_clip_tree_index: 0
+              m_effect_tree_index: 0
+              m_scroll_tree_index: 0
+              m_general_properties {
+                new {
+                  id: 6
+                  m_bounds {
+                    new {
+                      id: 7
+                      m_width: 100
+                      m_height: 100
+                    }
+                  }
+                  m_is_drawable: true
+                  m_layer_extra {
+                    new {
+                      id: 5
+                      m_tile_display_layer_extra {
+                        new {
+                          id: 1
+                          m_recorded_bounds {
+                            new {
+                              id: 1
+                              m_x: 0
+                              m_y: 0
+                              m_width: 100
+                              m_height: 100
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        values {
+          value {
+            new {
+              id: 7
+              m_id: 7
+              m_type: 6 # kSolidColorScrollbar
+              m_transform_tree_index: 0
+              m_clip_tree_index: 0
+              m_effect_tree_index: 0
+              m_scroll_tree_index: 0
+              m_general_properties {
+                new {
+                  id: 7
+                  m_bounds {
+                    new {
+                      id: 8
+                      m_width: 100
+                      m_height: 100
+                    }
+                  }
+                  m_is_drawable: true
+                  m_layer_extra {
+                    new {
+                      id: 6
+                      m_solid_color_scrollbar_layer_extra {
+                        new {
+                          id: 1
+                          m_scrollbar_base_extra {
+                            new {
+                              id: 3
+                              m_scroll_element_id {
+                                new {
+                                  id: 3
+                                  m_id: 3
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        values {
+          value {
+            new {
+              id: 8
+              m_id: 8
+              m_type: 7 # kSurface
+              m_transform_tree_index: 0
+              m_clip_tree_index: 0
+              m_effect_tree_index: 0
+              m_scroll_tree_index: 0
+              m_general_properties {
+                new {
+                  id: 8
+                  m_bounds {
+                    new {
+                      id: 9
+                      m_width: 100
+                      m_height: 100
+                    }
+                  }
+                  m_is_drawable: true
+                  m_layer_extra {
+                    new {
+                      id: 7
+                      m_surface_layer_extra {
+                        new {
+                          id: 1
+                          m_surface_range {
+                            new {
+                              id: 1
+                              m_end {
+                                new {
+                                  id: 1
+                                  m_frame_sink_id {
+                                    new {
+                                      id: 1
+                                      m_client_id: 1
+                                      m_sink_id: 1
+                                    }
+                                  }
+                                  m_local_surface_id {
+                                    new {
+                                      id: 1
+                                      m_parent_sequence_number: 1
+                                      m_child_sequence_number: 1
+                                      m_embed_token {
+                                        new {
+                                          id: 1
+                                          m_high: 1
+                                          m_low: 1
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        values {
+          value {
+            new {
+              id: 9
+              m_id: 9
+              m_type: 8 # kSolidColor
+              m_transform_tree_index: 0
+              m_clip_tree_index: 0
+              m_effect_tree_index: 0
+              m_scroll_tree_index: 0
+              m_general_properties {
+                new {
+                  id: 9
+                  m_bounds {
+                    new {
+                      id: 10
+                      m_width: 100
+                      m_height: 100
+                    }
+                  }
+                  m_is_drawable: true
+                }
+              }
+            }
+          }
+        }
+        values {
+          value {
+            new {
+              id: 10
+              m_id: 10
+              m_type: 9 # kTexture
+              m_transform_tree_index: 0
+              m_clip_tree_index: 0
+              m_effect_tree_index: 0
+              m_scroll_tree_index: 0
+              m_general_properties {
+                new {
+                  id: 10
+                  m_bounds {
+                    new {
+                      id: 11
+                      m_width: 100
+                      m_height: 100
+                    }
+                  }
+                  m_is_drawable: true
+                  m_layer_extra {
+                    new {
+                      id: 8
+                      m_texture_layer_extra {
+                        new {
+                          id: 1
+                          m_blend_background_color: true
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        values {
+          value {
+            new {
+              id: 11
+              m_id: 11
+              m_type: 10 # kUIResource
+              m_transform_tree_index: 0
+              m_clip_tree_index: 0
+              m_effect_tree_index: 0
+              m_scroll_tree_index: 0
+              m_general_properties {
+                new {
+                  id: 11
+                  m_bounds {
+                    new {
+                      id: 12
+                      m_width: 100
+                      m_height: 100
+                    }
+                  }
+                  m_is_drawable: true
+                  m_layer_extra {
+                    new {
+                      id: 9
+                      m_ui_resource_layer_extra {
+                        new {
+                          id: 1
+                          m_ui_resource_id {
+                            new {
+                              id: 2
+                              m_value: 2
+                            }
+                          }
+                          m_image_bounds {
+                            new {
+                              id: 13
+                              m_width: 100
+                              m_height: 100
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        values {
+          value {
+            new {
+              id: 12
+              m_id: 12
+              m_type: 11 # kViewTransitionContent
+              m_transform_tree_index: 0
+              m_clip_tree_index: 0
+              m_effect_tree_index: 0
+              m_scroll_tree_index: 0
+              m_general_properties {
+                new {
+                  id: 12
+                  m_bounds {
+                    new {
+                      id: 14
+                      m_width: 100
+                      m_height: 100
+                    }
+                  }
+                  m_is_drawable: true
+                  m_layer_extra {
+                    new {
+                      id: 10
+                      m_view_transition_content_layer_extra {
+                        new {
+                          id: 1
+                          m_resource_id {
+                            new {
+                              id: 1
+                              m_transition_token {
+                                new {
+                                  id: 2
+                                  m_value {
+                                    new {
+                                      id: 20
+                                      m_high: 2
+                                      m_low: 2
+                                    }
+                                  }
+                                }
+                              }
+                              m_local_id: 1
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      # Layer order
+      m_layer_order {
+        values {
+          value: 1
+        }
+        values {
+          value: 2
+        }
+        values {
+          value: 3
+        }
+        values {
+          value: 4
+        }
+        values {
+          value: 5
+        }
+        values {
+          value: 6
+        }
+        values {
+          value: 7
+        }
+        values {
+          value: 8
+        }
+        values {
+          value: 9
+        }
+        values {
+          value: 10
+        }
+        values {
+          value: 11
+        }
+        values {
+          value: 12
+        }
+      }
+
+      # Resize property trees
+      m_num_transform_nodes: 2
+      m_num_clip_nodes: 2
+      m_num_effect_nodes: 2
+      m_num_scroll_nodes: 2
+
+      # Add property tree nodes
+      m_transform_nodes {
+        values {
+          value {
+            new {
+              id: 1
+              m_id: 1
+              m_parent_id: 0
+              m_parent_frame_id: 0
+            }
+          }
+        }
+      }
+      m_clip_nodes {
+        values {
+          value {
+            new {
+              id: 1
+              m_id: 1
+              m_parent_id: 0
+              m_transform_id: 0
+            }
+          }
+        }
+      }
+      m_effect_nodes {
+        values {
+          value {
+            new {
+              id: 1
+              m_id: 1
+              m_parent_id: 0
+              m_transform_id: 0
+              m_clip_id: 0
+              m_target_id: 0
+              m_closest_ancestor_with_cached_render_surface_id: -1
+              m_closest_ancestor_with_copy_request_id: -1
+              m_closest_ancestor_being_captured_id: -1
+              m_closest_ancestor_with_shared_element_id: -1
+              m_view_transition_target_id: -1
+            }
+          }
+        }
+      }
+      m_scroll_nodes {
+        values {
+          value {
+            new {
+              id: 1
+              m_id: 1
+              m_parent_id: 0
+              m_transform_id: 0
+            }
+          }
+        }
+      }
+
+      # Miscellaneous tree updates
+      m_transform_tree_update {
+        new {
+          id: 1
+          m_page_scale_factor: 1.0
+          m_device_scale_factor: 1.0
+          m_device_transform_scale_factor: 1.0
+          m_sticky_position_data {
+            values {
+              value {
+                new {
+                  id: 1
+                  m_x_scroll_ancestor: 0
+                  m_y_scroll_ancestor: 0
+                  m_nearest_node_shifting_sticky_box: -1
+                  m_nearest_node_shifting_containing_block: -1
+                }
+              }
+            }
+          }
+          m_anchor_position_scroll_data {
+            values {
+              value {
+                new {
+                  id: 1
+                  m_accumulated_scroll_origin {
+                    new {
+                      id: 1
+                      m_x: 0
+                      m_y: 0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      m_scroll_tree_update {
+        new {
+          id: 1
+        }
+      }
+
+      # View transition requests
+      m_view_transition_requests {
+        values {
+          value {
+            new {
+              id: 1
+              m_transition_token {
+                new {
+                  id: 3
+                  m_value {
+                    new {
+                      id: 30
+                      m_high: 3
+                      m_low: 3
+                    }
+                  }
+                }
+              }
+              m_type: 0 # kSave
+            }
+          }
+        }
+      }
+    }
+  }
+}
+actions {
+  update_display_tiling {
+    new {
+      id: 1
+      m_scale_key: 1.0
+      m_raster_scale {
+        new {
+          id: 1
+          m_x: 1.0
+          m_y: 1.0
+        }
+      }
+      m_raster_translation {
+        new {
+          id: 1
+          m_x: 0.0
+          m_y: 0.0
+        }
+      }
+      m_tile_size {
+        new {
+          id: 1
+          m_width: 10
+          m_height: 10
+        }
+      }
+      m_tiling_rect {
+        new {
+          id: 1
+          m_x: 0
+          m_y: 0
+          m_width: 100
+          m_height: 100
+        }
+      }
+      m_tiles {
+        values {
+          value {
+            new {
+              id: 1
+              m_column_index: 0
+              m_row_index: 0
+              m_contents {
+                new {
+                  id: 1
+                  m_solid_color {
+                    new {
+                      id: 1
+                      m_r: 1.0
+                      m_g: 0.0
+                      m_b: 0.0
+                      m_a: 1.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        values {
+          value {
+            new {
+              id: 2
+              m_column_index: 1
+              m_row_index: 0
+              m_contents {
+                new {
+                  id: 2
+                  m_resource {
+                    new {
+                      id: 1
+                      m_resource {
+                        new {
+                          id: 1
+                          m_id {
+                            new {
+                              id: 1
+                              m_value: 1
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -7,6 +7,7 @@
 
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
+#include "third_party/blink/renderer/platform/loader/fetch/raw_resource.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 
 namespace blink {
@@ -14,7 +15,7 @@ namespace blink {
 class Document;
 
 // Represents a skeleton being rendered
-class Skeleton : public GarbageCollected<Skeleton> {
+class Skeleton : public GarbageCollected<Skeleton>, public RawResourceClient {
  public:
   class Observer : public GarbageCollectedMixin {
    public:
@@ -26,6 +27,9 @@ class Skeleton : public GarbageCollected<Skeleton> {
 
   explicit Skeleton(Observer& observer) : observer_(&observer) {}
 
+  // Do a HEAD request to get the skeleton url for 'url'
+  void FetchSkeletonURL(KURL url, Document& owner_document);
+
   // Render the skeleton for a given url
   void Render(KURL url, Document& owner_document);
 
@@ -34,11 +38,16 @@ class Skeleton : public GarbageCollected<Skeleton> {
     return *skeleton_document_;
   }
 
-  void Trace(Visitor* visitor) const;
+  // RawResourceClient
+  void ResponseReceived(Resource*, const ResourceResponse&) final;
+  String DebugName() const final { return "Skeleton"; }
+
+  void Trace(Visitor* visitor) const final;
 
  private:
   void GenerateSkeleton(KURL url);
 
+  KURL skeleton_url_;
   Member<Observer> observer_;
   Member<Document> skeleton_document_;
 };

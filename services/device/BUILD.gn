@@ -366,6 +366,7 @@ source_set("tests") {
       "//services/device/usb",
       "//services/device/usb:test_support",
       "//services/device/usb/mojo",
+      "//third_party/fuzztest",
     ]
 
     if (!is_android) {

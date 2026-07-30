@@ -248,6 +248,9 @@ constexpr char kFakeIconURL[] = "http://www.example.com/image";
 - (void)setAllowsMultipleSelection:(BOOL)allowsMultipleSelection {
 }
 
+- (void)setAccountButtonHidden:(BOOL)hidden {
+}
+
 @end
 
 // Test fixture for testing DriveFilePickerMediator class.

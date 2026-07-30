@@ -9,6 +9,7 @@ import("//components/safe_browsing/buildflags.gni")
 import("//components/signin/features.gni")
 import("//extensions/buildflags/buildflags.gni")
 import("//tools/metrics/generate_allowlist_from_histograms_file.gni")
+import("//ui/webui/webui_features.gni")
 
 generate_allowlist_from_histograms_file("webui_url_hashes") {
   namespace = "webui_metrics"
@@ -115,6 +116,7 @@ source_set("configs") {
     deps += [
       "//chrome/browser/actor/ui",
       "//chrome/browser/actor/ui:actor_overlay_web_view",
+      "//chrome/browser/contextual_cueing/internals",
       "//chrome/browser/glic/selection",
       "//chrome/browser/ui/webui/access_code_cast",
       "//chrome/browser/ui/webui/app_service_internals",
@@ -127,9 +129,12 @@ source_set("configs") {
       "//chrome/browser/ui/webui/inspect",
       "//chrome/browser/ui/webui/multistep_filter_internals",
       "//chrome/browser/ui/webui/new_tab_footer",
+      "//chrome/browser/ui/webui/new_tab_page_third_party",
+      "//chrome/browser/ui/webui/new_tab_page_third_party:impl",
+      "//chrome/browser/ui/webui/omnibox_popup",
       "//chrome/browser/ui/webui/personal_context",
-      "//chrome/browser/ui/webui/privacy_sandbox:mojo_bindings",
       "//chrome/browser/ui/webui/profile_internals",
+      "//chrome/browser/ui/webui/tab_search",
       "//chrome/browser/ui/webui/web_app_internals",
       "//chrome/browser/ui/webui/webui_js_error",
       "//chrome/browser/ui/webui/webui_toolbar",
@@ -248,6 +253,10 @@ source_set("configs") {
     deps += [ "//chrome/browser/ui/webui/certificate_viewer" ]
   }
 
+  if (chrome_root_store_cert_management_ui) {
+    deps += [ "//chrome/browser/ui/webui/certificate_manager" ]
+  }
+
   if (!is_android) {
     deps += [
       "//chrome/browser/ui/webui/bookmarks",
@@ -283,8 +292,6 @@ source_set("webui") {
   sources = [
     "constrained_web_dialog_ui.cc",
     "constrained_web_dialog_ui.h",
-    "current_channel_logo.cc",
-    "current_channel_logo.h",
     "devtools/greendev_floaty_ui.cc",
     "devtools/greendev_floaty_ui.h",
   ]
@@ -324,6 +331,178 @@ source_set("webui_util") {
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/tabs:tabs_public",
   ]
+}
+
+# favicon_source.cc uses IDR_DEFAULT_FAVICON_*_{32,64} resources that
+# //ui/resources only defines under "not is_android or is_desktop_android or
+# enable_webui_ntp"; gate the target to where it was compiled inside :ui.
+if (enable_extensions_core || enable_webui_ntp ||
+    enable_webui_contextual_tasks_composebox) {
+  source_set("favicon_source") {
+    sources = [ "favicon_source.cc" ]
+    public = [ "favicon_source.h" ]
+    public_deps = [
+      "//base",
+      "//components/favicon/core",
+      "//content/public/browser",
+    ]
+    deps = [
+      "//chrome/browser/favicon",
+      "//chrome/browser/history",
+      "//chrome/browser/profiles:profile",
+      "//chrome/browser/search",
+      "//chrome/browser/search_engines",
+      "//chrome/common",
+      "//components/favicon_base",
+      "//components/google/core/common",
+      "//components/history/core/browser",
+      "//components/search_engines",
+      "//skia",
+      "//ui/base",
+      "//ui/gfx/codec",
+      "//ui/native_theme",
+      "//ui/resources",
+      "//url",
+    ]
+
+    # webui_util_desktop.h is included only under #if !BUILDFLAG(IS_ANDROID);
+    # the util target itself is desktop-only.
+    if (is_win || is_mac || is_linux || is_chromeos) {
+      deps += [ "//chrome/browser/ui/webui/util" ]
+    }
+
+    # InstantService (//chrome/browser/search) constructs FaviconSource, so it
+    # includes favicon_source.h while FaviconSource calls
+    # InstantService::ShouldServiceRequest() — a genuine bidirectional pair.
+    allow_circular_includes_from = [ "//chrome/browser/search" ]
+  }
+}
+
+# favicon_source_unittest.cc hard-depends on //extensions, which is unavailable
+# on non-desktop Android; it ran only under !is_android in chrome/test.
+if (!is_android) {
+  source_set("favicon_source_unit_tests") {
+    testonly = true
+    sources = [ "favicon_source_unittest.cc" ]
+    deps = [
+      ":favicon_source",
+      "//base",
+      "//base/test:test_support",
+      "//chrome/browser/favicon",
+      "//chrome/browser/search_engines",
+      "//chrome/common",
+      "//chrome/test:test_support",
+      "//components/favicon/core/test:test_support",
+      "//components/favicon_base",
+      "//components/search_engines",
+      "//content/public/browser",
+      "//content/test:test_support",
+      "//extensions/browser",
+      "//extensions/common",
+      "//testing/gmock",
+      "//testing/gtest",
+      "//ui/native_theme",
+      "//ui/native_theme:test_support",
+      "//ui/resources",
+    ]
+  }
+}
+
+source_set("current_channel_logo") {
+  sources = [ "current_channel_logo.cc" ]
+  public = [ "current_channel_logo.h" ]
+  deps = [
+    "//base",
+    "//build:branding_buildflags",
+    "//chrome/app/theme:theme_resources",
+    "//chrome/common:channel_info",
+  ]
+}
+
+if (!is_android || enable_webui_ntp) {
+  source_set("theme_source") {
+    sources = [ "theme_source.cc" ]
+    public = [ "theme_source.h" ]
+    public_deps = [
+      "//base",
+      "//content/public/browser",
+    ]
+    deps = [
+      ":current_channel_logo",
+      "//chrome/app/theme:theme_resources",
+      "//chrome/browser:resources_util",
+      "//chrome/browser/profiles:profile",
+      "//chrome/browser/ui/color:color_headers",
+      "//chrome/browser/ui/color:mixers",
+      "//chrome/common",
+      "//chrome/common:channel_info",
+      "//components/version_info",
+      "//net",
+      "//services/network/public/mojom",
+      "//ui/base",
+      "//ui/color",
+      "//ui/gfx",
+      "//url",
+    ]
+
+    # //chrome/browser/themes and the ntp_resource_cache are desktop-only; their
+    # headers are only used under #if !BUILDFLAG(IS_ANDROID) in theme_source.cc.
+    if (!is_android) {
+      deps += [
+        "//chrome/browser/themes",
+        "//chrome/browser/ui/webui/ntp:ntp_resource_cache",
+      ]
+    }
+
+    if (is_chromeos) {
+      deps += [
+        "//ui/chromeos/styles:cros_styles_resources",
+        "//ui/chromeos/styles:cros_tokens_color_mappings",
+      ]
+    }
+
+    # ThemeSource uses InstantService::ShouldServiceRequest() and InstantService
+    # (//chrome/browser/search) constructs ThemeSource — a genuine
+    # bidirectional pair. //chrome/browser/search owns the real dep edge and the
+    # corresponding allow_circular_includes_from, since search transitively
+    # reaches theme_source via the NTP targets.
+  }
+}
+
+if (!is_android) {
+  source_set("theme_handler") {
+    sources = [ "theme_handler.cc" ]
+    public = [ "theme_handler.h" ]
+    public_deps = [
+      "//base",
+      "//chrome/browser/themes",
+      "//content/public/browser",
+      "//ui/native_theme",
+    ]
+    deps = [
+      ":theme_source",
+      "//chrome/app/theme:theme_resources",
+      "//chrome/browser/profiles:profile",
+      "//chrome/browser/ui/webui/util",
+    ]
+  }
+
+  source_set("theme_source_unit_tests") {
+    testonly = true
+    sources = [ "theme_source_unittest.cc" ]
+    deps = [
+      ":theme_source",
+      "//base",
+      "//base/test:test_support",
+      "//chrome/app/theme:theme_resources",
+      "//chrome/browser/profiles:profile",
+      "//chrome/browser/ui/webui/util",
+      "//chrome/common",
+      "//chrome/test:test_support",
+      "//content/test:test_support",
+      "//testing/gtest",
+    ]
+  }
 }
 
 source_set("plural_string_handler") {

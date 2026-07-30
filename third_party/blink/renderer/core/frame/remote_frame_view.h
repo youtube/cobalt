@@ -73,7 +73,7 @@ class CORE_EXPORT RemoteFrameView final
   std::optional<NaturalSizingInfo> GetNaturalDimensions() const override;
 
   void SetNaturalDimensions(const NaturalSizingInfo& size_info);
-  void ClearNaturalDimensions();
+  void ClearNaturalDimensions() override;
 
   bool CanThrottleRendering() const override;
   void VisibilityForThrottlingChanged() override;

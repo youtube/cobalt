@@ -140,7 +140,7 @@ class DataTransferDlpControllerTest
   ~DataTransferDlpControllerTest() override = default;
 
   void SetUp() override {
-    // Initialize `testing_profile_` and dependant class members here as it
+    // Initialize `testing_profile_` and dependent class members here as it
     // depends on Lacros being properly initialized.
     testing_profile_ = TestingProfile::Builder().Build();
     test_reporting_ =

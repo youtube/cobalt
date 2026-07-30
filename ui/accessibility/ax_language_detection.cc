@@ -230,11 +230,6 @@ AXLanguageDetectionManager::GetShortTextLanguageIdentifier() {
   return *short_text_language_identifier_;
 }
 
-bool AXLanguageDetectionManager::IsStaticLanguageDetectionEnabled() {
-  // Static language detection can be enabled by the Static specific flag (user
-  // controlled switch).
-  return ::switches::IsExperimentalAccessibilityLanguageDetectionEnabled();
-}
 
 bool AXLanguageDetectionManager::IsDynamicLanguageDetectionEnabled() {
   // Dynamic language detection can be enabled by the Dynamic specific flag
@@ -255,37 +250,6 @@ void AXLanguageDetectionManager::RegisterLanguageDetectionObserver() {
       std::make_unique<AXLanguageDetectionObserver>(tree_);
 }
 
-// Detect languages for each node.
-void AXLanguageDetectionManager::DetectLanguages() {
-  TRACE_EVENT0("accessibility", "AXLanguageInfo::DetectLanguages");
-
-  if (!IsStaticLanguageDetectionEnabled()) {
-    return;
-  }
-
-  DetectLanguagesForSubtree(tree_->root());
-}
-
-// Detect languages for a subtree rooted at the given subtree_root.
-// Will not check feature flag.
-void AXLanguageDetectionManager::DetectLanguagesForSubtree(
-    AXNode* subtree_root) {
-  // Only perform detection for kStaticText nodes.
-  //
-  // Do not visit the children of kStaticText nodes as they don't have
-  // interesting children for language detection.
-  //
-  // Since kInlineTextBox(es) contain text from their parent, any detection on
-  // them is redundant. Instead they can inherit the detected language.
-  if (subtree_root->GetRole() == ax::mojom::Role::kStaticText) {
-    DetectLanguagesForNode(subtree_root);
-  } else {
-    // Otherwise, recurse into children for detection.
-    for (AXNode* child : subtree_root->children()) {
-      DetectLanguagesForSubtree(child);
-    }
-  }
-}
 
 // Detect languages for a single node.
 // Will not descend into children.
@@ -340,37 +304,6 @@ void AXLanguageDetectionManager::DetectLanguagesForNode(AXNode* node) {
   }
 }
 
-// Label languages for each node. This relies on DetectLanguages having already
-// been run.
-void AXLanguageDetectionManager::LabelLanguages() {
-  TRACE_EVENT0("accessibility", "AXLanguageInfo::LabelLanguages");
-
-  if (!IsStaticLanguageDetectionEnabled()) {
-    return;
-  }
-
-  LabelLanguagesForSubtree(tree_->root());
-
-  // TODO(chrishall): consider refactoring to have a more clearly named entry
-  // point for static language detection.
-  //
-  // LabelLanguages is only called for the initial run of language detection for
-  // static content, this call to ReportMetrics therefore covers only the work
-  // we performed in response to a page load complete event.
-  lang_info_stats_.ReportMetrics();
-}
-
-// Label languages for each node in the subtree rooted at the given
-// subtree_root. Will not check feature flag.
-void AXLanguageDetectionManager::LabelLanguagesForSubtree(
-    AXNode* subtree_root) {
-  LabelLanguagesForNode(subtree_root);
-
-  // Recurse into children to continue labelling.
-  for (AXNode* child : subtree_root->children()) {
-    LabelLanguagesForSubtree(child);
-  }
-}
 
 // Label languages for a single node.
 // Will not descend into children.

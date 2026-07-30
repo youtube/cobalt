@@ -93,14 +93,9 @@ Encryptor::Key Encryptor::Key::Clone() const {
 Encryptor::Encryptor() = default;
 Encryptor::Encryptor(mojo::DefaultConstruct::Tag) : Encryptor() {}
 
-Encryptor::Encryptor(
-    KeyRing keys,
-    const std::string& provider_for_encryption,
-    const std::string& provider_for_os_crypt_sync_compatible_encryption)
+Encryptor::Encryptor(KeyRing keys, const std::string& provider_for_encryption)
     : keys_(std::move(keys)),
-      provider_for_encryption_(provider_for_encryption),
-      provider_for_os_crypt_sync_compatible_encryption_(
-          provider_for_os_crypt_sync_compatible_encryption) {}
+      provider_for_encryption_(provider_for_encryption) {}
 
 Encryptor::~Encryptor() = default;
 
@@ -308,29 +303,7 @@ bool Encryptor::DecryptString16(const std::string& ciphertext,
   return true;
 }
 
-scoped_refptr<Encryptor> Encryptor::Clone(Option option) const {
-  KeyRing keyring;
-  for (const auto& [provider, key] : keys_) {
-    if (key.has_value()) {
-      keyring.emplace(provider, key->Clone());
-    } else {
-      keyring.emplace(provider, std::nullopt);
-    }
-  }
 
-  switch (option) {
-    case Option::kNone:
-      return base::WrapRefCounted(
-          new Encryptor(std::move(keyring), provider_for_encryption_,
-                        provider_for_os_crypt_sync_compatible_encryption_));
-    case Option::kEncryptSyncCompat:
-      return base::WrapRefCounted(new Encryptor(
-          std::move(keyring), provider_for_os_crypt_sync_compatible_encryption_,
-          provider_for_os_crypt_sync_compatible_encryption_));
-  }
-
-  NOTREACHED() << "Unsupported Option.";
-}
 
 bool Encryptor::IsEncryptionAvailable() const {
   return DefaultEncryptionProviderAvailable();

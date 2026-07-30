@@ -11,6 +11,8 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.recyclerview.widget.SimpleItemAnimator;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -59,6 +61,7 @@ public class NtpThemeSyncHistoryCoordinator {
         mPropertyModel = new PropertyModel(NtpThemeSyncHistoryProperties.ALL_KEYS);
         PropertyModelChangeProcessor.create(
                 mPropertyModel, historyContainerView, NtpThemeSyncHistoryContainerViewBinder::bind);
+        setupRecyclerView(historyContainerView);
 
         mNtpBackgroundDataManager = new NtpBackgroundDataManager(mContext);
         mPropertyModel.set(NtpThemeSyncHistoryProperties.IS_VISIBLE, true);
@@ -76,7 +79,23 @@ public class NtpThemeSyncHistoryCoordinator {
         mDataShowingList = new ArrayList<>();
     }
 
-    /** Prepare data before showing the NTP theme history. */
+    /** Setup the recycler view. */
+    private void setupRecyclerView(ViewGroup parentView) {
+        RecyclerView recyclerView =
+                parentView.findViewById(R.id.ntp_theme_sync_history_recycler_view);
+        RecyclerView.ItemAnimator animator = recyclerView.getItemAnimator();
+
+        if (animator instanceof SimpleItemAnimator) {
+            // Stops the flashing effect on item updates.
+            ((SimpleItemAnimator) animator).setSupportsChangeAnimations(false);
+        }
+    }
+
+    /**
+     * Prepare data before showing the NTP theme history.
+     *
+     * @return The initially selected index in the showing list.
+     */
     int prepareData() {
         mDataShowingList.clear();
 

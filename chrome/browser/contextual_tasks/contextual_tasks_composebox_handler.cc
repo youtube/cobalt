@@ -430,15 +430,21 @@ void ContextualTasksComposeboxHandler::CreateAndSendQueryMessage(
       },
       base::Unretained(this), query, task_id, overlay_token, is_voice_search);
 
-  recontextualizer_->Contextualize(
-      task_id, query, tabs_to_recontextualize, tabs_to_force_contextualize,
-      base::BindRepeating(
-          &ContextualTasksComposeboxHandler::OnPageContextIneligible,
-          base::Unretained(this)),
+  contextual_tasks::QueryContextualizer::ContextualizeParams params;
+  params.task_id = task_id;
+  params.query_text = query;
+  params.tabs_to_recontextualize = tabs_to_recontextualize;
+  params.auto_suggested_chip_tabs = tabs_to_force_contextualize;
+  params.on_ineligible_callback = base::BindRepeating(
+      &ContextualTasksComposeboxHandler::OnPageContextIneligible,
+      base::Unretained(this));
+  params.on_processed_callback =
       base::BindRepeating(&ContextualTasksComposeboxHandler::
                               OnTabProcessedForQueryContextualization,
-                          base::Unretained(this)),
-      std::move(callback), IsSmartTabSharingActive());
+                          base::Unretained(this));
+  params.complete_callback = std::move(callback);
+  params.enable_smart_tab_selection = IsSmartTabSharingActive();
+  recontextualizer_->Contextualize(std::move(params));
 }
 
 contextual_tasks::ContextualTasksService*

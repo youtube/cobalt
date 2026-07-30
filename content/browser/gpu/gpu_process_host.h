@@ -39,8 +39,9 @@
 
 #if BUILDFLAG(IS_WIN)
 #include "services/viz/privileged/mojom/gl/info_collection_gpu_service.mojom.h"
+#include "services/webnn/public/cpp/context_properties.h"
 #include "services/webnn/public/mojom/ep_package_info.mojom.h"
-#include "services/webnn/public/mojom/webnn_compiler_service.mojom.h"
+#include "services/webnn/public/mojom/webnn_context_provider.mojom.h"
 #endif
 
 namespace base {
@@ -49,6 +50,10 @@ class Thread;
 
 namespace content {
 class BrowserChildProcessHostImpl;
+
+#if BUILDFLAG(IS_WIN)
+class WebNNCompilerProcessHost;
+#endif
 
 #if BUILDFLAG(IS_MAC)
 class BrowserChildProcessBackgroundedBridge;
@@ -207,9 +212,6 @@ class GpuProcessHost final : public BrowserChildProcessHostDelegate,
       base::flat_map<std::string, webnn::mojom::EpPackageInfoPtr>
           ep_package_info,
       RequestWebNNCompilerContextCallback callback) override;
-
-  void OnWebNNCompilerDisconnected(uint32_t reason,
-                                   const std::string& description);
 #endif
 
   bool LaunchGpuProcess();
@@ -288,9 +290,8 @@ class GpuProcessHost final : public BrowserChildProcessHostDelegate,
   std::unique_ptr<viz::GpuHostImpl> gpu_host_;
 
 #if BUILDFLAG(IS_WIN)
-  // Remote to the WebNN Compiler utility process. Browser keeps this to create
-  // per-context CompilerContexts on demand via RequestWebNNCompilerContext.
-  mojo::Remote<webnn::mojom::WebNNCompilerService> webnn_compiler_remote_;
+  // Manages the WebNN Compiler utility process lifecycle.
+  std::unique_ptr<WebNNCompilerProcessHost> webnn_compiler_process_host_;
 #endif
 
   base::WeakPtrFactory<GpuProcessHost> weak_ptr_factory_{this};

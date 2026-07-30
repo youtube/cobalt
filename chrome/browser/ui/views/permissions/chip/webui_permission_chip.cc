@@ -225,13 +225,11 @@ void WebUIPermissionChip::SetAccessibilityName(const std::u16string& name) {
 }
 
 void WebUIPermissionChip::AnnounceText(const std::u16string& text) {
-  // TODO(crbug.com/495419742): Implement this by adding a Mojo IPC to let WebUI
-  // use cr-a11y-announcer.
+  location_bar_->AnnounceAlert(text);
 }
 
 void WebUIPermissionChip::AnnounceAlert(const std::u16string& text) {
-  // TODO(crbug.com/495419742): Implement this by adding a Mojo IPC to let WebUI
-  // use cr-a11y-announcer.
+  location_bar_->AnnounceAlert(text);
 }
 
 bool WebUIPermissionChip::IsMouseHovered() const {
@@ -273,6 +271,7 @@ void WebUIPermissionChip::OnExpandAnimationEnded() {
   }
   is_animating_ = false;
   is_fully_collapsed_ = false;
+  AnnounceAlert(message_);
   observers_.Notify(&Observer::OnExpandAnimationEnded);
 }
 

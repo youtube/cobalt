@@ -19,6 +19,5 @@ include_rules = [
   "+chrome/browser/ash/profiles",
   "+chrome/browser/net",
   "+chrome/browser/profiles",
-  "+chrome/common/pref_names.h",
   "+chrome/test/base",
 ]

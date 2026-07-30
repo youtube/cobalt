@@ -448,20 +448,21 @@ class InputControllerTestHelper {
       : controller_(controller) {}
 
   bool IsUsingProcessingThread() {
-    return !!controller_->processing_fifo_.get();
+    return controller_->audio_processor_handler_ &&
+           !!controller_->audio_processor_handler_->processing_fifo_.get();
   }
 
   // Adds a callback that will be run immediately after processing is done, in
   // the same sequence as the processing callback.
   // Should be called before starting the processing thread.
   void AttachOnProcessedCallback(base::RepeatingClosure on_processed_callback) {
-    controller_->processing_fifo_->AttachOnProcessedCallbackForTesting(
-        std::move(on_processed_callback));
+    controller_->audio_processor_handler_->processing_fifo_
+        ->AttachOnProcessedCallbackForTesting(std::move(on_processed_callback));
   }
 
   int FifoSize() {
     CHECK(IsUsingProcessingThread());
-    return controller_->processing_fifo_->fifo_size();
+    return controller_->audio_processor_handler_->processing_fifo_->fifo_size();
   }
 
   // Simulates the AudioProcessorHandler receiving an error.
@@ -728,7 +729,7 @@ TEST_F(InputControllerTestWithReferenceSignalProvider, FifoSize) {
   controller_->Record();
 
   EXPECT_TRUE(helper_->IsUsingProcessingThread());
-  EXPECT_EQ(helper_->FifoSize(), InputController::kProcessingFifoSize);
+  EXPECT_EQ(helper_->FifoSize(), AudioProcessorHandler::kProcessingFifoSize);
 
   // InputController should offload processing to its own thread.
   EXPECT_TRUE(helper_->IsUsingProcessingThread());

@@ -65,7 +65,7 @@ std::unique_ptr<FormFieldParser> AlternativeFullNameField::Parse(
 void AlternativeFullNameField::AddClassifications(
     FieldCandidatesMap& field_candidates) const {
   AddClassification(alternative_full_name_, ALTERNATIVE_FULL_NAME,
-                    kBaseNameParserScore, field_candidates);
+                    HeuristicParser::kName, field_candidates);
 }
 
 // A form field that can parse a family alternative name field and then given
@@ -127,9 +127,9 @@ std::unique_ptr<FormFieldParser> AlternativeFamilyAndGivenNameField::Parse(
 void AlternativeFamilyAndGivenNameField::AddClassifications(
     FieldCandidatesMap& field_candidates) const {
   AddClassification(alternative_family_name_, ALTERNATIVE_FAMILY_NAME,
-                    kBaseNameParserScore, field_candidates);
+                    HeuristicParser::kName, field_candidates);
   AddClassification(alternative_given_name_, ALTERNATIVE_GIVEN_NAME,
-                    kBaseNameParserScore, field_candidates);
+                    HeuristicParser::kName, field_candidates);
 }
 }  // namespace
 

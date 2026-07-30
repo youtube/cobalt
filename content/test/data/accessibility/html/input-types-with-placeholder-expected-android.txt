@@ -5,7 +5,7 @@ android.webkit.WebView focusable focused
 ++++++android.widget.EditText clickable editable_text focusable interesting hint='Email: email@example.com' input_type=209
 ++++android.view.View
 ++++++android.widget.TextView interesting name='Number: '
-++++++android.widget.EditText role_description='spin button' clickable editable_text focusable range interesting name='Number:' hint='3' input_type=2
+++++++android.widget.EditText role_description='spin button' clickable editable_text focusable range interesting hint='Number: 3' input_type=2
 ++++android.view.View
 ++++++android.widget.TextView interesting name='Password: '
 ++++++android.widget.EditText clickable editable_text focusable password interesting hint='Password: pwd' input_type=225

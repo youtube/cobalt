@@ -38,34 +38,28 @@ using ::testing::Values;
 class FakeEventListener final : public NativeEventListener {
  public:
   void Invoke(ExecutionContext*, Event* event) override {
+    event_received_ = true;
     KeyboardEvent* keyboard_event = DynamicTo<KeyboardEvent>(event);
-    if (!event) {
+    if (!keyboard_event) {
       return;
     }
     codes_.push_back(keyboard_event->code());
     keys_.push_back(keyboard_event->key());
   }
 
+  bool event_received() const { return event_received_; }
   const std::vector<String>& codes() const { return codes_; }
   const std::vector<String>& keys() const { return keys_; }
 
  private:
+  bool event_received_ = false;
   std::vector<String> codes_;
   std::vector<String> keys_;
 };
 
 }  // namespace
 
-class WebFormControlElementTest : public PageTestBase {
- public:
-  WebFormControlElementTest() {
-    feature_list_.InitAndEnableFeature(
-        blink::features::kAutofillSendUnidentifiedKeyAfterFill);
-  }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-};
+class WebFormControlElementTest : public PageTestBase {};
 
 // Tests that resetting a form clears the `user_has_edited_the_field_` state.
 TEST_F(WebFormControlElementTest, ResetDocumentClearsEditedState) {
@@ -248,12 +242,13 @@ TEST_P(WebFormControlElementSetAutofillValueTest, SetAutofillValue) {
   EXPECT_EQ(TestElement().Value(), "test value");
   EXPECT_EQ(element.GetAutofillState(), WebAutofillState::kNotFilled);
 
-  // We expect to see one "fake" key press event with an unidentified key.
+  // We expect to see one generic keydown event (not a KeyboardEvent).
   element.SetAutofillValue("new value", WebAutofillState::kAutofilled);
   EXPECT_EQ(element.Value(), "new value");
   EXPECT_EQ(element.GetAutofillState(), WebAutofillState::kAutofilled);
-  EXPECT_THAT(keypress_handler->codes(), ElementsAre(""));
-  EXPECT_THAT(keypress_handler->keys(), ElementsAre("Unidentified"));
+  EXPECT_TRUE(keypress_handler->event_received());
+  EXPECT_TRUE(keypress_handler->codes().empty());
+  EXPECT_TRUE(keypress_handler->keys().empty());
 }
 
 INSTANTIATE_TEST_SUITE_P(

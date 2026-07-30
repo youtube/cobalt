@@ -57,7 +57,7 @@ AccountInfo GetFakeAccountInfo(
   }
   bool managed = hosted_domain.has_value() && !hosted_domain->empty() &&
                  hosted_domain != signin::constants::kNoHostedDomainFound;
-  AccountCapabilitiesTestMutator(&account_info.capabilities)
+  AccountCapabilitiesTestMutator(&account_info)
       .set_is_subject_to_enterprise_features(managed);
   return account_info;
 }

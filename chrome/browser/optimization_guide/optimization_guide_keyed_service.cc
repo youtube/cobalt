@@ -69,7 +69,6 @@
 #include "components/optimization_guide/core/model_quality/model_quality_logs_uploader_service.h"
 #include "components/optimization_guide/core/model_quality/model_quality_util.h"
 #include "components/optimization_guide/core/optimization_guide_common.mojom-shared.h"
-#include "components/optimization_guide/core/optimization_guide_constants.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/optimization_guide/core/optimization_guide_logger.h"
 #include "components/optimization_guide/core/optimization_guide_prefs.h"
@@ -99,9 +98,9 @@
 #include "chrome/browser/optimization_guide/optimization_guide_tab_url_provider.h"
 #endif
 
-#include "chrome/browser/optimization_guide/private_ai_model_execution_fetcher.h"
 #include "chrome/browser/private_ai/private_ai_service.h"
 #include "chrome/browser/private_ai/private_ai_service_factory.h"
+#include "components/optimization_guide/core/model_execution/private_ai_model_execution_fetcher.h"
 #include "components/private_ai/client.h"    // nogncheck
 #include "components/private_ai/features.h"  // nogncheck
 

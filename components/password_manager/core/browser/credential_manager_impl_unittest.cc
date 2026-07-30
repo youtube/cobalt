@@ -205,8 +205,8 @@ class MockPasswordManagerClient : public StubPasswordManagerClient {
 
  private:
   std::unique_ptr<TestingPrefServiceSimple> prefs_;
-  raw_ptr<PasswordStoreInterface, DanglingUntriaged> profile_store_;
-  raw_ptr<PasswordStoreInterface, DanglingUntriaged> account_store_;
+  raw_ptr<PasswordStoreInterface> profile_store_;
+  raw_ptr<PasswordStoreInterface> account_store_;
   NiceMock<MockPasswordManager> password_manager_;
   GURL last_committed_url_{kTestWebOrigin};
   bool auto_sign_in_enabled_ = true;

@@ -116,6 +116,9 @@ void CertProvisioningUserInvalidator::Register(
       invalidation::ProfileInvalidationProviderFactory::GetForProfile(profile_);
   CHECK(invalidation_provider);
 
+  // Ensure there's no existing handler with the same `listener_type`.
+  Unregister();
+
   invalidation_handler_ =
       std::make_unique<internal::CertProvisioningInvalidationHandler>(
           invalidation_provider->GetInvalidationListener(
@@ -156,6 +159,10 @@ void CertProvisioningDeviceInvalidator::Register(
   listener_type_ = listener_type;
   CHECK(!listener_type_.empty());
   on_invalidation_event_callback_ = std::move(on_invalidation_event_callback);
+
+  // Ensure there's no existing handler with the same `listener_type`.
+  Unregister();
+
   invalidation_handler_ =
       std::make_unique<internal::CertProvisioningInvalidationHandler>(
           invalidation_listener_, listener_type_,

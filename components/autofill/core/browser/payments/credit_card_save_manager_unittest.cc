@@ -643,7 +643,7 @@ TEST_F(CreditCardSaveManagerTest, InvalidCreditCardNumberIsNotSaved) {
 
   // Edit the data, and submit.
   std::string card("4408041234567890");
-  ASSERT_FALSE(autofill::IsValidCreditCardNumber(ASCIIToUTF16(card)));
+  ASSERT_FALSE(IsValidCreditCardNumber(ASCIIToUTF16(card)));
   test_api(form).field(1).set_value(ASCIIToUTF16(card));
   test_api(form).field(2).set_value(ASCIIToUTF16(test::NextMonth()));
   test_api(form).field(3).set_value(ASCIIToUTF16(test::NextYear()));

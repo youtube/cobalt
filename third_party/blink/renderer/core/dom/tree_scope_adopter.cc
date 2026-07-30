@@ -30,9 +30,9 @@
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/renderer/core/dom/attr.h"
 #include "third_party/blink/renderer/core/dom/document.h"
-#include "third_party/blink/renderer/core/dom/element_rare_data_vector.h"
 #include "third_party/blink/renderer/core/dom/node.h"
 #include "third_party/blink/renderer/core/dom/node_lists_node_data.h"
+#include "third_party/blink/renderer/core/dom/node_rare_data.h"
 #include "third_party/blink/renderer/core/dom/node_traversal.h"
 #include "third_party/blink/renderer/core/dom/shadow_root.h"
 #include "third_party/blink/renderer/core/html/custom/custom_element.h"
@@ -96,7 +96,7 @@ void TreeScopeAdopter::MoveTreeToNewScope(Node& root) const {
     if (will_move_to_new_document) {
       MoveNodeToNewDocument(node, old_document,
                             is_document_unmodified_and_uninteracted);
-    } else if (ElementRareDataVector* rare_data = node.RareData()) {
+    } else if (NodeRareData* rare_data = node.RareData()) {
       if (rare_data->NodeLists())
         rare_data->NodeLists()->AdoptTreeScope();
     }
@@ -133,7 +133,7 @@ void TreeScopeAdopter::MoveTreeToNewScope(Node& root) const {
         // already changed the tree scope, the implicit fallback now returns the
         // new scope's registry. Explicitly save the old scope's registry to
         // preserve the element's original registry association.
-        ElementRareDataVector* rare_data = element->RareData();
+        NodeRareData* rare_data = element->RareData();
         if (!rare_data || !rare_data->HasCustomElementRegistrySet()) {
           auto* new_registry = NewScope().customElementRegistry();
           if (pre_move_registry != new_registry) {
@@ -294,7 +294,7 @@ inline void TreeScopeAdopter::MoveNodeToNewDocument(
 
   if (!is_document_unmodified_and_uninteracted) {
     // fast adoption can skip all the checks below
-    if (ElementRareDataVector* rare_data = node.RareData()) {
+    if (NodeRareData* rare_data = node.RareData()) {
       if (rare_data->NodeLists()) {
         rare_data->NodeLists()->AdoptDocument(old_document, new_document);
       }

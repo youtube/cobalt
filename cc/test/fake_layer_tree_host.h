@@ -64,7 +64,7 @@ class FakeLayerTreeHost : private TaskRunnerProviderHolder,
       InitParams params);
   ~FakeLayerTreeHost() override;
 
-  void SetNeedsCommit() override;
+  void SetNeedsCommit(bool urgent) override;
   void SetNeedsUpdateLayers() override {}
   void ClearPendingLayerCommitStates();
 

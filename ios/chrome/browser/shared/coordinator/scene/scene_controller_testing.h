@@ -8,8 +8,10 @@
 class Browser;
 struct UrlLoadParams;
 @class SceneCoordinator;
-@class UserFeedbackData;
 @class WrangledBrowser;
+
+// If `params` is for a Dino game URL, update transition type to allow opening.
+[[nodiscard]] UrlLoadParams UpdateParamsForDinoGame(UrlLoadParams params);
 
 // Methods exposed for testing. This is terrible and should be rewritten.
 @interface SceneController ()

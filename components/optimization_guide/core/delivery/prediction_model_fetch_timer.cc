@@ -24,7 +24,7 @@ base::TimeDelta RandomFetchDelay() {
 
 PredictionModelFetchTimer::PredictionModelFetchTimer(
     PrefService* local_state,
-    base::RepeatingCallback<void(void)> fetch_callback)
+    base::RepeatingClosure fetch_callback)
     : clock_(base::DefaultClock::GetInstance()),
       local_state_(local_state),
       fetch_callback_(fetch_callback) {}

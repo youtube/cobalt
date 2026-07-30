@@ -555,6 +555,7 @@ void IsolatedWebAppDevInstallManager::ReportInstallationResult(
     LOG(ERROR) << "Isolated Web App command line installation failed: "
                << result.error();
   }
+  last_installation_result_ = result;
   on_report_installation_result_.Run(std::move(result));
 }
 

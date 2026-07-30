@@ -49,6 +49,7 @@
 #include "content/public/test/test_navigation_observer.h"
 #include "content/public/test/test_utils.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
 #include "url/gurl.h"
@@ -154,12 +155,16 @@ void EnsureTabsInBrowser(BrowserWindowInterface* browser, int num_tabs) {
   EXPECT_EQ(num_tabs, tab_strip_model->count());
 }
 
-// Creates a browser with `num_tabs` tabs.
-BrowserWindowInterface* CreateBrowserWithTabs(int num_tabs) {
+BrowserWindowInterface* CreateBrowserWithTabsImpl(int num_tabs,
+                                                  bool incognito) {
   BrowserWindowInterface* const current_browser =
       GetLastActiveBrowserWindowInterfaceWithAnyProfile();
   ui_test_utils::BrowserCreatedObserver browser_created_observer;
-  chrome::NewWindow(current_browser);
+  if (incognito) {
+    chrome::NewIncognitoWindow(current_browser->GetProfile());
+  } else {
+    chrome::NewWindow(current_browser);
+  }
   ui_test_utils::WaitForBrowserSetLastActive(browser_created_observer.Wait());
   BrowserWindowInterface* const new_browser =
       GetLastActiveBrowserWindowInterfaceWithAnyProfile();
@@ -167,6 +172,16 @@ BrowserWindowInterface* CreateBrowserWithTabs(int num_tabs) {
 
   EnsureTabsInBrowser(new_browser, num_tabs);
   return new_browser;
+}
+
+// Creates a browser with `num_tabs` tabs.
+BrowserWindowInterface* CreateBrowserWithTabs(int num_tabs) {
+  return CreateBrowserWithTabsImpl(num_tabs, /*incognito=*/false);
+}
+
+// Creates an incognito browser with `num_tabs` tabs.
+BrowserWindowInterface* CreateIncognitoBrowserWithTabs(int num_tabs) {
+  return CreateBrowserWithTabsImpl(num_tabs, /*incognito=*/true);
 }
 
 bool IsTabDiscarded(content::WebContents* web_contents) {
@@ -650,7 +665,7 @@ IN_PROC_BROWSER_TEST_P(PageDiscardingHelperBrowserTest,
                        DiscardTabsWithMinimizedWindow) {
   // Minimize browser.
   EnsureTabsInBrowser(browser(), 2);
-  browser()->window()->Minimize();
+  browser()->GetWindow()->Minimize();
 
   // Request to discard pages a few times.
   auto* helper =
@@ -672,7 +687,7 @@ IN_PROC_BROWSER_TEST_P(PageDiscardingHelperBrowserTest,
                        DiscardTabsWithOccludedWindow) {
   // This browser will be occluded.
   EnsureTabsInBrowser(browser(), 2);
-  browser()->window()->SetBounds(gfx::Rect(10, 10, 10, 10));
+  browser()->GetWindow()->SetBounds(gfx::Rect(10, 10, 10, 10));
   // Create another browser which occludes the previous browser.
   BrowserWindowInterface* const other_browser = CreateBrowserWithTabs(1);
   EXPECT_NE(other_browser, browser());
@@ -692,6 +707,57 @@ IN_PROC_BROWSER_TEST_P(PageDiscardingHelperBrowserTest,
 
   // This non-active tab is discarded.
   EXPECT_TRUE(IsTabDiscarded(GetWebContentsAt(1)));
+}
+
+IN_PROC_BROWSER_TEST_P(PageDiscardingHelperBrowserTest,
+                       DiscardTabsWithAllowedBrowserContextIds) {
+  EnsureTabsInBrowser(browser(), 2);
+
+  BrowserWindowInterface* incognito_browser = CreateIncognitoBrowserWithTabs(2);
+
+  auto* helper =
+      PageDiscardingHelper::GetFromGraph(PerformanceManager::GetGraph());
+  ASSERT_TRUE(helper);
+
+  // Call DiscardAPage three times, even though we only expect the first to
+  // actually find a valid tab to discard.
+  for (int i = 0; i < 3; i++) {
+    absl::flat_hash_set<base::UnguessableToken> allowed_tokens;
+    allowed_tokens.insert(incognito_browser->GetProfile()->UniqueToken());
+    helper->DiscardAPage(DiscardReason::URGENT,
+                         /*ignore_recent_visibility=*/true,
+                         std::move(allowed_tokens));
+  }
+
+  // The active tabs should not be discarded, as DiscardReason::URGENT doesn't
+  // discard these.
+  EXPECT_FALSE(IsTabDiscarded(GetWebContentsAt(0)));
+  EXPECT_FALSE(IsTabDiscarded(
+      incognito_browser->GetTabStripModel()->GetWebContentsAt(0)));
+
+  // The non-active regular tab should not be discarded because its context
+  // wasn't in the allowed token set.
+  EXPECT_FALSE(IsTabDiscarded(GetWebContentsAt(1)));
+
+  // The non-active incognito tab should be discarded.
+  EXPECT_TRUE(IsTabDiscarded(
+      incognito_browser->GetTabStripModel()->GetWebContentsAt(1)));
+
+  // If we call DiscardAPage again but do not limit the browser contexts, then
+  // the non-active regular tab should get discarded now (but not the
+  // active-tabs still).
+  for (int i = 0; i < 3; i++) {
+    helper->DiscardAPage(DiscardReason::URGENT,
+                         /*ignore_recent_visibility=*/true,
+                         /*allowed_browser_context_ids=*/std::nullopt);
+  }
+  EXPECT_FALSE(IsTabDiscarded(GetWebContentsAt(0)));
+  EXPECT_FALSE(IsTabDiscarded(
+      incognito_browser->GetTabStripModel()->GetWebContentsAt(0)));
+
+  EXPECT_TRUE(IsTabDiscarded(GetWebContentsAt(1)));
+  EXPECT_TRUE(IsTabDiscarded(
+      incognito_browser->GetTabStripModel()->GetWebContentsAt(1)));
 }
 
 INSTANTIATE_TEST_SUITE_P(

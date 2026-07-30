@@ -26,6 +26,7 @@ android_library("java") {
     "java/src/org/chromium/chrome/browser/tab_ui/TabContentManagerThumbnailProvider.java",
     "java/src/org/chromium/chrome/browser/tab_ui/TabGridIphDialogCoordinator.java",
     "java/src/org/chromium/chrome/browser/tab_ui/TabListFaviconProvider.java",
+    "java/src/org/chromium/chrome/browser/tab_ui/TabListMode.java",
     "java/src/org/chromium/chrome/browser/tab_ui/TabModelDotInfo.java",
     "java/src/org/chromium/chrome/browser/tab_ui/TabScreenshotSyncHelper.java",
     "java/src/org/chromium/chrome/browser/tab_ui/TabSwitcher.java",

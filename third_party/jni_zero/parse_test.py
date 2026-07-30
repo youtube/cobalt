@@ -292,6 +292,76 @@ public class Map<K, V> {
     parsed_file = parse.parse_javap_data('Map.class', contents)
     self._assert_golden(expected, parsed_file)
 
+  def testParseJavapWithNestedClassConstructor(self):
+    contents = """
+public class android.os.Debug$MemoryInfo {
+  public android.os.Debug$MemoryInfo();
+}
+"""
+    expected = """\
+public class Debug.MemoryInfo {
+  public void <init>();
+}
+"""
+    parsed_file = parse.parse_javap_data('Debug$MemoryInfo.class', contents)
+    self._assert_golden(expected, parsed_file)
+
+  def testParseWithPackagePrefix(self):
+    contents = """
+package org.jni_zero;
+public class MyClass {
+  @CalledByNative
+  public static void foo(OtherClass o) {}
+}
+"""
+    parsed_file = parse.parse_java_file_data(
+        'MyClass.java',
+        contents,
+        package_prefix='prefix',
+        package_prefix_filter=None,
+        enable_legacy_natives=False,
+        allow_private_called_by_natives=False)
+    cbn = parsed_file.classes_with_jni[0].called_by_natives[0]
+    param_type = cbn.signature.param_list[0].java_type
+    self.assertEqual(param_type.java_class.full_name_with_slashes,
+                     'prefix/org/jni_zero/OtherClass')
+
+  def testParseInnerClassFromImport(self):
+    contents = """
+package org.jni_zero;
+import pkg.Outer;
+public class MyClass {
+  @CalledByNative
+  public static void foo(Outer.Inner o) {}
+}
+"""
+    expected = """\
+public class MyClass {
+  public static void foo(@Nullable pkg.Outer.Inner o);
+}
+"""
+    parsed_file = _parse_java_file_data('MyClass.java', contents)
+    self._assert_golden(expected, parsed_file)
+
+  def testParseCurrentClassAndNestedReferences(self):
+    contents = """
+package org.jni_zero;
+public class MyClass {
+  @CalledByNative
+  public static void foo(MyClass o) {}
+  @CalledByNative
+  public static void bar(MyClass.Inner o) {}
+}
+"""
+    expected = """\
+public class MyClass {
+  public static void bar(@Nullable MyClass.Inner o);
+  public static void foo(@Nullable MyClass o);
+}
+"""
+    parsed_file = _parse_java_file_data('MyClass.java', contents)
+    self._assert_golden(expected, parsed_file)
+
 
 if __name__ == '__main__':
   unittest.main()

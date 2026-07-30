@@ -179,7 +179,7 @@ public class ActivityRecreationControllerUnitTest {
     @Test
     public void testSaveUiState_tabSwitcherVisible() {
         Bundle bundle = new Bundle();
-        doReturn(true).when(mLayoutManager).isLayoutVisible(LayoutType.TAB_SWITCHER);
+        doReturn(true).when(mLayoutManager).isLayoutVisible(LayoutType.HUB);
         mActivityRecreationController.prepareUiState();
         mActivityRecreationController.saveUiState(bundle);
         ActivityRecreationUiState uiState = bundle.getParcelable(ACTIVITY_RECREATION_UI_STATE);
@@ -193,7 +193,7 @@ public class ActivityRecreationControllerUnitTest {
         doReturn(false).when(mToolbarManager).isUrlBarFocused();
         doReturn(false).when(mWebContents).isFocusedElementEditable();
         doReturn(false).when(mKeyboardVisibilityDelegate).isKeyboardShowing(any());
-        doReturn(false).when(mLayoutManager).isLayoutVisible(LayoutType.TAB_SWITCHER);
+        doReturn(false).when(mLayoutManager).isLayoutVisible(LayoutType.HUB);
         mActivityRecreationController.prepareUiState();
         mActivityRecreationController.saveUiState(bundle);
         ActivityRecreationUiState uiState = bundle.getParcelable(ACTIVITY_RECREATION_UI_STATE);
@@ -276,7 +276,7 @@ public class ActivityRecreationControllerUnitTest {
                 /* isPointerLock= */ false,
                 /* isKeyboardLock= */ false);
         mActivityRecreationController.restoreUiState(mSavedInstanceState);
-        verify(mLayoutManager).showLayout(LayoutType.TAB_SWITCHER, false);
+        verify(mLayoutManager).showLayout(LayoutType.HUB, false);
     }
 
     @Test
@@ -385,7 +385,7 @@ public class ActivityRecreationControllerUnitTest {
         persistableBundle.putBoolean(IS_TAB_SWITCHER_SHOWN, true);
 
         mActivityRecreationController.restorePersistentState(persistableBundle);
-        verify(mLayoutManager).showLayout(LayoutType.TAB_SWITCHER, false);
+        verify(mLayoutManager).showLayout(LayoutType.HUB, false);
     }
 
     @Test

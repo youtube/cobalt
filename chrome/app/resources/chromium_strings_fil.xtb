@@ -118,19 +118,11 @@ Maaaring hindi available ang ilang tampok at hindi mase-save ang mga pagbabago s
 <translation id="2236949375853147973">Aking Aktibidad</translation>
 <translation id="2238130810669087193">Para makuha ang iyong mga address at higit pa sa lahat ng device mo, mag-sign in sa Chromium. Mase-save ang address na ito sa iyong Google Account pagkatapos mong mag-sign in.</translation>
 <translation id="2241627712206172106">Kung nagpapahiram ka ng computer, ang mga kaibigan at kapamilya ay maaaring mag-browse nang hiwalay at i-set up ang Chromium sa paraang gusto nila.</translation>
+<translation id="22571759390241347">Mga Skill sa Chromium</translation>
 <translation id="2283803047247799269">Maghanap sa tab na ito gamit ang Paghahanap ng Larawan</translation>
 <translation id="2287771843518581140">{NUM_TABS,plural, =1{Inirerekomenda ng Chromium na i-pause ang tab na nagpapabagal sa iyong browser}one{Inirerekomenda ng Chromium na i-pause ang mga tab na nagpapabagal sa iyong browser}other{Inirerekomenda ng Chromium na i-pause ang mga tab na nagpapabagal sa iyong browser}}</translation>
 <translation id="2307973900865360088">Panatilihin sa Dock</translation>
 <translation id="2313870531055795960">Sinusuri ang mga URL sa pamamagitan ng listahan ng mga hindi ligtas na site na naka-store sa Chromium. Kung susubukan ng site na nakawin ang iyong password, o kapag nag-download ka ng mapaminsalang file, posible ring magpadala ang Chromium sa Ligtas na Pag-browse ng mga URL, kabilang ang ilang content ng page.</translation>
-<translation id="2332076562712130931">Kapag ginawa ang aksyong ito:
-        <ph name="LINE_BREAKS" />
-          • Mare-reset ang ilang setting ng Chromium at shortcut ng Chromium
-          <ph name="LINE_BREAK" />
-          • Madi-disable ang mga extension
-          <ph name="LINE_BREAK" />
-          • Made-delete ang cookies at iba pang pansamantalang data ng site
-          <ph name="LINE_BREAKS" />
-          Hindi maaapektuhan ang mga bookmark, history, at naka-save na password.</translation>
 <translation id="2343156876103232566">Para magpadala ng numero sa iyong Android phone mula rito, mag-sign in sa Chromium sa parehong device.</translation>
 <translation id="2356070529366658676">Magtanong</translation>
 <translation id="2359808026110333948">Magpatuloy</translation>
@@ -192,6 +184,7 @@ Maaaring hindi available ang ilang tampok at hindi mase-save ang mga pagbabago s
 <translation id="3003694935412297923">Lahat ng gawain</translation>
 <translation id="3012615494352020668">{count,plural, =1{Kailangang i-verify ng Chromium na ikaw ito bago ma-save ang ilang data sa iyong Google Account at magamit ito sa lahat ng device mo. Kung magsa-sign out ka ngayon, made-delete ang data na ito (1 item).}one{Kailangang i-verify ng Chromium na ikaw ito bago ma-save ang ilang data sa iyong Google Account at magamit ito sa lahat ng device mo. Kung magsa-sign out ka ngayon, made-delete ang data na ito ({count} item).}other{Kailangang i-verify ng Chromium na ikaw ito bago ma-save ang ilang data sa iyong Google Account at magamit ito sa lahat ng device mo. Kung magsa-sign out ka ngayon, made-delete ang data na ito ({count} na item).}}</translation>
 <translation id="3013473503895162900">Buksan ang <ph name="URL" /> sa bagong tab sa Chromium.</translation>
+<translation id="302551344979399011">Sine-save sa iyong Google Account ang mga inobasyon sa AI tulad ng mga skill at hiwalay na pinapamahalaan ang mga ito sa pag-sync ng Chromium</translation>
 <translation id="3032787606318309379">Idinaragdag sa Chromium...</translation>
 <translation id="3038232873781883849">Naghihintay sa pag-install...</translation>
 <translation id="3045032126857188731">Isinaling wika: <ph name="LANGUAGE" /></translation>
@@ -383,6 +376,7 @@ Maaaring hindi available ang ilang tampok at hindi mase-save ang mga pagbabago s
 <translation id="5289287148052354622">Kunin ang Chromium app</translation>
 <translation id="5294316920224716406">Kapag nagba-browse sa Incognito mode, bibigyan ka ng babala ng Chromium bago nito i-load ang isang site na gumagamit ng hindi secure na koneksyon</translation>
 <translation id="5313228254328109263">Chromium Updater Internal Service</translation>
+<translation id="5324450571874973775">Gamitin ang mga ito kasama ng iba pang feature ng Gemini sa Chromium</translation>
 <translation id="5346389065299425353">Palalimin ang iyong paghahanap sa pamamagitan ng pagdaragdag ng maraming tab, file, at tool</translation>
 <translation id="5348677704241861105">Makakuha ng mabilisang pangkalahatang-ideya ng dokumentong ito at magtanong gamit ang Gemini sa Chromium</translation>
 <translation id="5352264705793813212">Nakakita ang Chromium ng ilang rekomendasyon sa kaligtasan para sa pagsusuri mo</translation>
@@ -674,6 +668,7 @@ Hindi mabawi ng Chromium ang iyong mga setting.</translation>
 <translation id="8318772038038596122">Isinasara ng iyong organisasyon ang Chromium kapag hindi ito ginagamit sa loob ng <ph name="TIMEOUT_DURATION" />.</translation>
 <translation id="8321888067342493336">I-save bilang larawan</translation>
 <translation id="8340674089072921962">Chromium ang dating ginagamit ng <ph name="USER_EMAIL_ADDRESS" /></translation>
+<translation id="8351551329754447960">I-enable ang Mga Skill sa Chromium</translation>
 <translation id="8359544530202147897">I-update ang Chromium para patuloy na magamit ang data sa Chromium sa iyong Google Account, <ph name="ACCOUNT_EMAIL" /></translation>
 <translation id="8360718212975266891">Para makatanggap ng mga update sa Chromium sa hinaharap, kakailanganin mo ng Windows 10 o mas bago. Gumagamit ng Windows 8 ang computer na ito.</translation>
 <translation id="8362914115861174987">Isalin sa</translation>

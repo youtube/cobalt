@@ -13,6 +13,7 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/sequence_checker.h"
 #include "base/task/sequenced_task_runner.h"
 #include "components/policy/core/common/cloud/cloud_policy_constants.h"
@@ -28,6 +29,13 @@ namespace em = enterprise_management;
 namespace policy {
 
 namespace {
+
+enum class DiskWriteStatus {
+  kSuccess = 0,
+  kDirectoryCreateFailed = 1,
+  kFileWriteFailed = 2,
+  kMaxValue = kFileWriteFailed
+};
 
 // Subdirectory in the user's profile for storing user policies.
 const base::FilePath::CharType kPolicyDir[] = FILE_PATH_LITERAL("Policy");
@@ -53,14 +61,22 @@ bool WriteStringToFile(const base::FilePath path, const std::string& data) {
   if (!base::CreateDirectory(path.DirName())) {
     DLOG_POLICY(WARNING, POLICY_FETCHING)
         << "Failed to create directory " << path.DirName().value();
+    base::UmaHistogramEnumeration(
+        "Enterprise.CloudPolicy.LocalCacheWriteStatus",
+        DiskWriteStatus::kDirectoryCreateFailed);
     return false;
   }
 
   if (!base::WriteFile(path, data)) {
     DLOG_POLICY(WARNING, POLICY_FETCHING) << "Failed to write " << path.value();
+    base::UmaHistogramEnumeration(
+        "Enterprise.CloudPolicy.LocalCacheWriteStatus",
+        DiskWriteStatus::kFileWriteFailed);
     return false;
   }
 
+  base::UmaHistogramEnumeration("Enterprise.CloudPolicy.LocalCacheWriteStatus",
+                                DiskWriteStatus::kSuccess);
   return true;
 }
 

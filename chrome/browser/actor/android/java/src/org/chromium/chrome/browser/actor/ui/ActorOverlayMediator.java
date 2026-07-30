@@ -4,8 +4,6 @@
 
 package org.chromium.chrome.browser.actor.ui;
 
-import static org.chromium.build.NullUtil.assertNonNull;
-
 import org.chromium.base.Callback;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NonNullObservableSupplier;
@@ -178,6 +176,9 @@ class ActorOverlayMediator extends EmptyBottomSheetObserver
 
     private void onCurrentTabChanged(@Nullable Tab tab) {
         mDismissSnackbarCallback.run();
+        // TODO(crbug.com/520161144): We had to remove "assert mTabController != null;" to pass the
+        // test in
+        // org.chromium.chrome.browser.actor.ui.ActorOverlayCoordinatorTest#testTabSwitchToDestroyedTab.
         if (mCurrentTab != null) {
             mCurrentTab.removeObserver(mTabObserver);
             if (mTabController != null) {
@@ -189,8 +190,10 @@ class ActorOverlayMediator extends EmptyBottomSheetObserver
 
         if (mCurrentTab != null) {
             mCurrentTab.addObserver(mTabObserver);
-            mTabController = assertNonNull(ActorUiTabController.from(mCurrentTab));
-            mTabController.addObserver(this);
+            mTabController = ActorUiTabController.from(mCurrentTab);
+            if (mTabController != null) {
+                mTabController.addObserver(this);
+            }
         } else {
             mTabController = null;
         }

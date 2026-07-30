@@ -52,6 +52,8 @@ class AudioHelperChromeOsImpl
     : public AudioHelperChromeOs,
       public media::AudioInputStream::AudioInputCallback {
  public:
+  using Error = media::AudioInputStream::AudioInputCallback::Error;
+
   AudioHelperChromeOsImpl();
   AudioHelperChromeOsImpl(const AudioHelperChromeOsImpl&) = delete;
   AudioHelperChromeOsImpl& operator=(const AudioHelperChromeOsImpl&) = delete;
@@ -68,7 +70,7 @@ class AudioHelperChromeOsImpl
               base::TimeTicks capture_time,
               double volume,
               const media::AudioGlitchInfo& glitch_info) override;
-  void OnError() override;
+  void OnError(Error error_code) override;
 
   void StopAudioStream();
   // When a fatal error occurs this stops the stream then invokes the

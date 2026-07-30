@@ -323,6 +323,19 @@ webrtc::PeerConnectionInterface::RTCConfiguration ParseConfiguration(
       break;
   }
 
+  if (RuntimeEnabledFeatures::RtcRtpHeaderEncryptionPolicyEnabled()) {
+    switch (configuration->rtpHeaderEncryptionPolicy().AsEnum()) {
+      case V8RTCRtpHeaderEncryptionPolicy::Enum::kNegotiate:
+        web_configuration.crypto_options.srtp.cryptex_policy =
+            webrtc::CryptoOptions::Srtp::CryptexPolicy::kNegotiate;
+        break;
+      case V8RTCRtpHeaderEncryptionPolicy::Enum::kRequire:
+        web_configuration.crypto_options.srtp.cryptex_policy =
+            webrtc::CryptoOptions::Srtp::CryptexPolicy::kRequire;
+        break;
+    }
+  }
+
   std::vector<webrtc::PeerConnectionInterface::IceServer>& ice_servers =
       web_configuration.servers;
   for (const RTCIceServer* ice_server : configuration->iceServers()) {
@@ -1291,6 +1304,21 @@ RTCConfiguration* RTCPeerConnection::getConfiguration(
       break;
     default:
       NOTREACHED();
+  }
+
+  if (RuntimeEnabledFeatures::RtcRtpHeaderEncryptionPolicyEnabled()) {
+    switch (webrtc_configuration.crypto_options.srtp.cryptex_policy) {
+      case webrtc::CryptoOptions::Srtp::CryptexPolicy::kNegotiate:
+        result->setRtpHeaderEncryptionPolicy(
+            V8RTCRtpHeaderEncryptionPolicy::Enum::kNegotiate);
+        break;
+      case webrtc::CryptoOptions::Srtp::CryptexPolicy::kRequire:
+        result->setRtpHeaderEncryptionPolicy(
+            V8RTCRtpHeaderEncryptionPolicy::Enum::kRequire);
+        break;
+      default:
+        NOTREACHED();
+    }
   }
 
   HeapVector<Member<RTCIceServer>> ice_servers;

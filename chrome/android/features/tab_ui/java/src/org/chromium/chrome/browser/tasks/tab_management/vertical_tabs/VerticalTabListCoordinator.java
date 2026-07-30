@@ -5,22 +5,30 @@
 package org.chromium.chrome.browser.tasks.tab_management.vertical_tabs;
 
 import android.app.Activity;
+import android.graphics.Point;
+import android.graphics.Rect;
+import android.view.GestureDetector;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.annotation.VisibleForTesting;
 import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import org.chromium.base.Callback;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.compositor.overlays.strip.TabStripContextMenuCoordinator;
 import org.chromium.chrome.browser.hub.PaneId;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabFavicon;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tab_ui.TabListFaviconProvider;
+import org.chromium.chrome.browser.tab_ui.TabListMode;
 import org.chromium.chrome.browser.tabmodel.TabCreatorUtil;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
@@ -29,7 +37,6 @@ import org.chromium.chrome.browser.tabmodel.TabModelUtils;
 import org.chromium.chrome.browser.tasks.tab_management.TabActionButtonData;
 import org.chromium.chrome.browser.tasks.tab_management.TabActionListener;
 import org.chromium.chrome.browser.tasks.tab_management.TabComponentId;
-import org.chromium.chrome.browser.tasks.tab_management.TabListCoordinator;
 import org.chromium.chrome.browser.tasks.tab_management.TabListEditorCoordinator;
 import org.chromium.chrome.browser.tasks.tab_management.TabListMediator;
 import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.TabListConfigDelegate;
@@ -39,11 +46,14 @@ import org.chromium.chrome.browser.tasks.tab_management.TabListModel;
 import org.chromium.chrome.browser.tasks.tab_management.TabListRecyclerView;
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties;
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties.UiType;
+import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.tab_ui.R;
 import org.chromium.components.browser_ui.util.motion.MotionEventInfo;
+import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 import org.chromium.ui.modelutil.SimpleRecyclerViewAdapter;
+import org.chromium.ui.widget.RectProvider;
 
 import java.util.function.Supplier;
 
@@ -56,8 +66,14 @@ public class VerticalTabListCoordinator {
     private final TabListModel mModelList;
     private final TabListMediator mMediator;
     private final TabModelSelector mTabModelSelector;
+    private final WindowAndroid mWindowAndroid;
+    private final MultiInstanceManager mMultiInstanceManager;
+    private final SnackbarManager mSnackbarManager;
     private final TabModelSelectorObserver mTabModelSelectorObserver;
     private final Callback<TabModel> mCurrentTabModelObserver;
+    // Create a mutable coordinate holder.
+    private final Point mLastTouchPoint = new Point();
+    private @Nullable TabStripContextMenuCoordinator mTabStripContextMenuCoordinator;
 
     private class VerticalTabListClickHandler implements TabListItemOnClickListenerProvider {
         private final TabActionListener mTabGroupClickedListener =
@@ -115,7 +131,10 @@ public class VerticalTabListCoordinator {
             Activity activity,
             TabModelSelector tabModelSelector,
             Profile profile,
-            VerticalTabsActionDelegate verticalTabsActionDelegate) {
+            VerticalTabsActionDelegate verticalTabsActionDelegate,
+            WindowAndroid windowAndroid,
+            MultiInstanceManager multiInstanceManager,
+            SnackbarManager snackbarManager) {
         mModelList = new TabListModel();
         SimpleRecyclerViewAdapter adapter =
                 new SimpleRecyclerViewAdapter(mModelList) {
@@ -171,12 +190,71 @@ public class VerticalTabListCoordinator {
 
         recyclerView.setLayoutManager(layoutManager);
         recyclerView.setAdapter(adapter);
+        recyclerView.setupCustomItemAnimator();
         recyclerView.setVisibility(View.VISIBLE);
+
+        // Create the gesture detector to catch long-presses on VT empty space.
+        GestureDetector gestureDetector =
+                new GestureDetector(
+                        activity,
+                        new GestureDetector.SimpleOnGestureListener() {
+                            @Override
+                            public boolean onDown(MotionEvent e) {
+                                // Turns on the gesture engine's internal stopwatch to calculate the
+                                // long-press.
+                                return true;
+                            }
+
+                            @Override
+                            public void onLongPress(MotionEvent e) {
+                                // Ignore long-press actions if a secondary button modifier
+                                // (right-click) is active. Right-clicks are already handled by
+                                // setOnContextClickListener; allowing this to proceed causes
+                                // double-rendering on desktop workspaces where trackpad taps are
+                                // emulated via TOOL_TYPE_FINGER (instead of TOOL_TYPE_MOUSE).
+                                if ((e.getButtonState() & MotionEvent.BUTTON_SECONDARY) != 0) {
+                                    return;
+                                }
+
+                                handleEmptySpaceInteraction(
+                                        activity, recyclerView, e.getX(), e.getY());
+                            }
+                        });
+
+        // Item Touch Listeners intercept raw window events before they are sent down to the child
+        // views.
+        recyclerView.addOnItemTouchListener(
+                new RecyclerView.SimpleOnItemTouchListener() {
+                    @Override
+                    public boolean onInterceptTouchEvent(RecyclerView recyclerView, MotionEvent e) {
+                        // Save the coordinates in mLastTouchPoint the moment a finger or mouse
+                        // pointer hits the view surface.
+                        if (e.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                            mLastTouchPoint.set((int) e.getX(), (int) e.getY());
+                        }
+
+                        // Feed all touch events to the detector. ACTION_DOWN schedules a long-press
+                        // timeout (~500ms). Trailing events (ACTION_MOVE, ACTION_UP) are processed
+                        // to either cancel the timeout if the finger drags too far, or reset the
+                        // tracking state engine when lifted.
+                        gestureDetector.onTouchEvent(e);
+
+                        // Return false to keep our tracking passive. If we return true, subsequent
+                        // events (ACTION_UP, ACTION_MOVE, etc.) bypass this intercept method.
+                        return false;
+                    }
+                });
+
+        // Handles right-click.
+        recyclerView.setOnContextClickListener(
+                v ->
+                        handleEmptySpaceInteraction(
+                                activity, recyclerView, mLastTouchPoint.x, mLastTouchPoint.y));
 
         mTabListFaviconProvider =
                 new TabListFaviconProvider(
                         activity,
-                        /* isTabStrip */ false,
+                        TabListMode.VERTICAL,
                         R.dimen.default_favicon_corner_radius,
                         TabFavicon::getBitmap);
 
@@ -187,6 +265,9 @@ public class VerticalTabListCoordinator {
         // 4. Register Right-click / Long-press Context Menu listener for tab interactions.
 
         mTabModelSelector = tabModelSelector;
+        mWindowAndroid = windowAndroid;
+        mMultiInstanceManager = multiInstanceManager;
+        mSnackbarManager = snackbarManager;
 
         TabListConfigDelegate tabListConfigDelegate =
                 new TabListConfigDelegate() {
@@ -219,7 +300,7 @@ public class VerticalTabListCoordinator {
                 new TabListMediator(
                         activity,
                         mModelList,
-                        TabListCoordinator.TabListMode.GRID,
+                        TabListMode.VERTICAL,
                         /* modalDialogManager */ null,
                         tabModelSelector.getCurrentTabModelSupplier(),
                         /* thumbnailProvider */ null,
@@ -268,6 +349,11 @@ public class VerticalTabListCoordinator {
 
         if (mTabListFaviconProvider != null) {
             mTabListFaviconProvider.destroy();
+        }
+
+        if (mTabStripContextMenuCoordinator != null) {
+            mTabStripContextMenuCoordinator.destroy();
+            mTabStripContextMenuCoordinator = null;
         }
     }
 
@@ -326,5 +412,69 @@ public class VerticalTabListCoordinator {
         // TODO(crbug.com/509226293): When the Left Rail becomes collapsible or resizable, the span
         // count must be calculated dynamically based on the measured width of the container.
         return DEFAULT_GRID_SPAN_COUNT;
+    }
+
+    /**
+     * Verifies if an interaction landed on the VT rail empty space, and if so, launches the context
+     * menu.
+     *
+     * @return true if the menu was displayed, false if the coordinates did not land on an empty
+     *     space.
+     */
+    private boolean handleEmptySpaceInteraction(
+            Activity activity, RecyclerView recyclerView, float localX, float localY) {
+        View childView = recyclerView.findChildViewUnder(localX, localY);
+
+        // The coordinates did not land on an empty space.
+        if (childView != null) {
+            return false;
+        }
+
+        showEmptySpaceContextMenu(activity, recyclerView, localX, localY);
+        return true;
+    }
+
+    private void showEmptySpaceContextMenu(
+            Activity activity, RecyclerView recyclerView, float localX, float localY) {
+        // Get the top-left edge pos of the scrollable recycler view.
+        int[] recyclerViewPos = new int[2];
+        recyclerView.getLocationInWindow(recyclerViewPos);
+
+        // Calculate window-relative anchor coordinates.
+        int windowX = recyclerViewPos[0] + (int) localX;
+        int windowY = recyclerViewPos[1] + (int) localY;
+
+        // Build a tight 1x1 bounding box directly underneath the pointer location.
+        Rect anchorRect = new Rect(windowX, windowY, windowX + 1, windowY + 1);
+        RectProvider rectProvider = new RectProvider(anchorRect);
+
+        if (mTabStripContextMenuCoordinator == null) {
+            mTabStripContextMenuCoordinator =
+                    TabStripContextMenuCoordinator.createContextMenuCoordinator(
+                            mTabModelSelector.getCurrentModel(),
+                            mMultiInstanceManager,
+                            mWindowAndroid,
+                            mSnackbarManager,
+                            this::handleNewTabButtonClick);
+        }
+
+        boolean isIncognito = mTabModelSelector.getCurrentModel().isIncognitoBranded();
+        mTabStripContextMenuCoordinator.showMenu(rectProvider, isIncognito, activity);
+    }
+
+    @VisibleForTesting
+    @Nullable TabStripContextMenuCoordinator getTabStripContextMenuCoordinatorForTesting() {
+        return mTabStripContextMenuCoordinator;
+    }
+
+    @VisibleForTesting
+    void setTabStripContextMenuCoordinatorForTesting(
+            TabStripContextMenuCoordinator contextMenuCoordinator) {
+        mTabStripContextMenuCoordinator = contextMenuCoordinator;
+    }
+
+    @VisibleForTesting
+    Point getLastTouchPointForTesting() {
+        return mLastTouchPoint;
     }
 }

@@ -5,7 +5,6 @@
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/test/scoped_feature_list.h"
-#include "build/config/coverage/buildflags.h"
 #include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/webui_url_constants.h"
@@ -14,6 +13,7 @@
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
 #include "components/omnibox/browser/mock_aim_eligibility_service.h"
 #include "content/public/test/browser_test.h"
+#include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 class ContextualTasksBrowserTest : public WebUIMochaBrowserTest {
@@ -63,7 +63,7 @@ class ContextualTasksBrowserTest : public WebUIMochaBrowserTest {
 };
 
 // TODO(crbug.com/487147580): Re-enable the test
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
 #define MAYBE_App DISABLED_App
 #else
 #define MAYBE_App App
@@ -132,6 +132,7 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, OverflowMenu) {
   RunTest("contextual_tasks/overflow_menu_test.js", "mocha.run();");
 }
 
+#if !BUILDFLAG(IS_ANDROID)
 IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, OnboardingTooltip) {
   RunTest("contextual_tasks/onboarding_tooltip_test.js", "mocha.run();");
 }
@@ -140,11 +141,14 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, WebView) {
   RunTest("contextual_tasks/contextual_tasks_webview_browsertest.js",
           "mocha.run();");
 }
+#endif
 
 IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, ClipPath) {
   RunTest("contextual_tasks/utils/clip_path_test.js", "mocha.run();");
 }
 
+#if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
 IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, WindowManager) {
   RunTest("contextual_tasks/window_manager_test.js", "mocha.run();");
 }
+#endif

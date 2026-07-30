@@ -139,7 +139,7 @@ public class AwContentRestrictionManagerBridgeTest {
     public void testRequestContentClassification_invalidUrl() {
         mBridge.requestContentClassification(
                 TEST_NAVIGATION_ID, /* url= */ null, TEST_MIME_TYPE, mMockCallback);
-        Assert.assertFalse("Should block requests with invalid URL", mCallbackResult);
+        Assert.assertTrue("Should allow requests with invalid URL (fail open)", mCallbackResult);
         verifyNoInteractions(mFlaggedApiDelegate);
     }
 
@@ -152,7 +152,8 @@ public class AwContentRestrictionManagerBridgeTest {
         mBridge.requestContentClassification(
                 TEST_NAVIGATION_ID, TEST_URL, TEST_MIME_TYPE, mMockCallback);
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
-        Assert.assertFalse("Should block requests when delegate is missing", mCallbackResult);
+        Assert.assertTrue(
+                "Should allow requests when delegate is missing (fail open)", mCallbackResult);
         verifyNoInteractions(mFlaggedApiDelegate);
     }
 
@@ -192,6 +193,26 @@ public class AwContentRestrictionManagerBridgeTest {
         promise.fulfill(false);
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
         Assert.assertFalse("Should block request when delegate denies", mCallbackResult);
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"AndroidWebView"})
+    @EnableFeatures({AwFeatures.WEBVIEW_CONTENT_RESTRICTION_SUPPORT})
+    public void testRequestContentClassification_exception() {
+        Promise<Boolean> promise = new Promise<>();
+        when(mFlaggedApiDelegate.requestContentRestrictionClassification(
+                        /* uri= */ Mockito.any(),
+                        /* requestBody= */ Mockito.eq(null),
+                        /* mimeType= */ Mockito.eq(TEST_MIME_TYPE),
+                        /* executor= */ Mockito.any()))
+                .thenReturn(promise);
+        mBridge.requestContentClassification(
+                TEST_NAVIGATION_ID, TEST_URL, TEST_MIME_TYPE, mMockCallback);
+        promise.reject(new Exception("Mock Platform Exception"));
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        Assert.assertTrue(
+                "Should allow request (fail open) when classification fails", mCallbackResult);
     }
 
     @Test

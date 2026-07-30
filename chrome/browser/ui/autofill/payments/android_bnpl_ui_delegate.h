@@ -66,8 +66,7 @@ class AndroidBnplUiDelegate : public BnplUiDelegate {
   void ShowSelectBnplIssuerUi(
       std::vector<BnplIssuerContext> bnpl_issuer_context,
       std::string app_locale,
-      base::RepeatingCallback<void(autofill::BnplIssuer)>
-          selected_issuer_callback,
+      base::RepeatingCallback<void(BnplIssuer)> selected_issuer_callback,
       base::OnceClosure cancel_callback,
       bool has_seen_ai_terms) override;
   void UpdateBnplIssuerUi(

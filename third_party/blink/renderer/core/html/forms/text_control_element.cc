@@ -620,7 +620,7 @@ bool TextControlElement::SetSelectionRange(
   }
 #endif  // DCHECK_IS_ON()
   frame->Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .Collapse(direction == kSelectionHasBackwardDirection
                         ? end_position
                         : start_position)
@@ -692,8 +692,8 @@ void TextControlElement::ComputeSelection(
   // [1] http://browserbench.org/Speedometer/
   DocumentLifecycle::DisallowTransitionScope disallow_transition(
       GetDocument().Lifecycle());
-  const SelectionInDOMTree& selection =
-      frame->Selection().GetSelectionInDOMTree();
+  const SelectionInDomTree& selection =
+      frame->Selection().GetSelectionInDomTree();
   if (flags & kStart) {
     computed_selection.start = IndexForPosition(
         InnerEditorElement(), selection.ComputeStartPosition());
@@ -763,9 +763,9 @@ static inline void SetContainerAndOffsetForRange(Node* node,
   }
 }
 
-SelectionInDOMTree TextControlElement::Selection() const {
+SelectionInDomTree TextControlElement::Selection() const {
   if (!GetLayoutObject() || !IsTextControl())
-    return SelectionInDOMTree();
+    return SelectionInDomTree();
 
   int start = cached_selection_start_;
   int end = cached_selection_end_;
@@ -773,10 +773,10 @@ SelectionInDOMTree TextControlElement::Selection() const {
   DCHECK_LE(start, end);
   HTMLElement* inner_text = InnerEditorElement();
   if (!inner_text)
-    return SelectionInDOMTree();
+    return SelectionInDomTree();
 
   if (!inner_text->HasChildren()) {
-    return SelectionInDOMTree::Builder()
+    return SelectionInDomTree::Builder()
         .Collapse(Position(inner_text, 0))
         .Build();
   }
@@ -801,16 +801,16 @@ SelectionInDOMTree TextControlElement::Selection() const {
   }
 
   if (!start_node || !end_node)
-    return SelectionInDOMTree();
+    return SelectionInDomTree();
 
   TextAffinity affinity = TextAffinity::kDownstream;
   if (GetDocument().FocusedElement() == this && GetDocument().GetFrame()) {
-    const SelectionInDOMTree& selection =
-        GetDocument().GetFrame()->Selection().GetSelectionInDOMTree();
+    const SelectionInDomTree& selection =
+        GetDocument().GetFrame()->Selection().GetSelectionInDomTree();
     affinity = selection.Affinity();
   }
 
-  return SelectionInDOMTree::Builder()
+  return SelectionInDomTree::Builder()
       .SetBaseAndExtent(Position(start_node, start), Position(end_node, end))
       .SetAffinity(affinity)
       .Build();
@@ -886,8 +886,8 @@ void TextControlElement::SelectionChanged(bool user_triggered) {
   LocalFrame* frame = GetDocument().GetFrame();
   if (!frame || !user_triggered)
     return;
-  const SelectionInDOMTree& selection =
-      frame->Selection().GetSelectionInDOMTree();
+  const SelectionInDomTree& selection =
+      frame->Selection().GetSelectionInDomTree();
   if (!selection.IsRange())
     return;
   DispatchEvent(*Event::CreateBubble(event_type_names::kSelect));
@@ -956,6 +956,9 @@ Node* TextControlElement::CreatePlaceholderBreakElement() const {
   auto* element = MakeGarbageCollected<HTMLBRElement>(GetDocument());
   element->setAttribute(html_names::kIdAttr,
                         shadow_element_names::kIdPlaceholderBreak);
+  if (RuntimeEnabledFeatures::TextAreaEmptyPlaceholderBreakEnabled()) {
+    element->setAttribute(html_names::kAriaHiddenAttr, keywords::kTrue);
+  }
   return element;
 }
 
@@ -993,6 +996,13 @@ void TextControlElement::AdjustPlaceholderBreakElement() {
       // exists.
       last_child->remove();
     }
+    return;
+  }
+  if (RuntimeEnabledFeatures::TextAreaEmptyPlaceholderBreakEnabled() &&
+      !last_child && IsA<HTMLTextAreaElement>(this)) {
+    // We need a placeholder break for an empty value in order to provide one
+    // line-height and a baseline even if this element is not editable.
+    inner_editor->AppendChild(CreatePlaceholderBreakElement());
     return;
   }
   auto* last_child_text_node = DynamicTo<Text>(last_child);

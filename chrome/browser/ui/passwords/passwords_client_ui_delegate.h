@@ -87,7 +87,7 @@ class PasswordsClientUIDelegate {
   virtual void OnPromptEnableAutoSignin() = 0;
 
   // Called when the password will be saved automatically, but we still wish to
-  // visually inform the user that the save has occured.
+  // visually inform the user that the save has occurred.
   virtual void OnAutomaticPasswordSave(
       std::unique_ptr<password_manager::PasswordFormManagerForUI> form_manager,
       bool is_update_confirmation) = 0;

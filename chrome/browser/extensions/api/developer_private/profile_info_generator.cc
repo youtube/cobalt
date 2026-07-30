@@ -12,7 +12,7 @@
 #include "chrome/common/pref_names.h"
 #include "components/policy/core/common/policy_pref_names.h"
 #include "components/prefs/pref_service.h"
-#include "extensions/browser/manifest_v2_experiment_manager.h"
+#include "extensions/browser/manifest_v2_handler.h"
 #include "extensions/buildflags/buildflags.h"
 
 static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
@@ -39,8 +39,7 @@ developer::ProfileInfo CreateProfileInfo(Profile* profile) {
       ExtensionManagementFactory::GetForBrowserContext(profile)
           ->HasAllowlistedExtension();
   info.is_mv2_deprecation_notice_dismissed =
-      ManifestV2ExperimentManager::Get(profile)
-          ->DidUserAcknowledgeNoticeGlobally();
+      ManifestV2Handler::Get(profile)->DidUserAcknowledgeNoticeGlobally();
 
   return info;
 }

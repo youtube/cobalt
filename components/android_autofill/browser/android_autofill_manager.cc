@@ -17,10 +17,12 @@
 #include "components/autofill/content/browser/content_autofill_driver.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/suggestions/suggestion_util.h"
+#include "components/autofill/core/common/form_field_data.h"
 #include "components/autofill/core/common/mojom/autofill_types.mojom-shared.h"
 #include "components/autofill/core/common/unique_ids.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
 namespace autofill {
 
@@ -154,7 +156,6 @@ void AndroidAutofillManager::OnHidePopupImpl() {
 }
 
 void AndroidAutofillManager::OnFormProcessed(
-    const FormData& form,
     const FormStructure& form_structure) {
   DenseSet<FormType> form_types =
       form_structure.GetFormTypes(GetAcUnrecognizedBehavior(client()));
@@ -251,10 +252,18 @@ void AndroidAutofillManager::FillOrPreviewForm(
            field.value().empty();
   });
 
+  absl::flat_hash_map<FieldGlobalId, FieldType> field_type_map;
+  field_type_map.reserve(fields.size());
+  for (const FormFieldData& field : fields) {
+    // The security policy is slightly weaker on WebView because it has no
+    // visibility on the types filled into the fields.
+    field_type_map.emplace(field.global_id(), UNKNOWN_TYPE);
+  }
+
   driver().ApplyFormAction(mojom::FormActionType::kFill, action_persistence,
                            fields, FillId::Create(),
                            /*supports_refill=*/false, triggered_origin,
-                           /*field_type_map=*/{},
+                           field_type_map,
                            /*section_for_clear_form_on_ios=*/Section());
   // We do not call OnAutofillProfileOrCreditCardFormFilled() because WebView
   // doesn't have AutofillProfile or CreditCard.
@@ -266,13 +275,12 @@ void AndroidAutofillManager::FillOrPreviewForm(
 void AndroidAutofillManager::FillOrPreviewField(
     mojom::ActionPersistence action_persistence,
     mojom::FieldActionType action_type,
-    const FormData& form,
-    const FormFieldData& field,
+    const FormGlobalId& form_id,
+    const FieldGlobalId& field_id,
     const std::u16string& value,
     FillingProduct filling_product,
     std::optional<FieldType> field_type_used) {
-  driver().ApplyFieldAction(action_type, action_persistence, field.global_id(),
-                            value);
+  driver().ApplyFieldAction(action_type, action_persistence, field_id, value);
 }
 
 void AndroidAutofillManager::StartNewLoggingSession() {

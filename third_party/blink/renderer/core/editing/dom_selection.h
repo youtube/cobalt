@@ -130,7 +130,7 @@ class CORE_EXPORT DomSelection final : public ScriptWrappable,
   FrameSelection& Selection() const;
   bool IsAvailable() const;
 
-  void UpdateFrameSelection(const SelectionInDOMTree&,
+  void UpdateFrameSelection(const SelectionInDomTree&,
                             Range*,
                             const SetSelectionOptions&) const;
   // Convenience methods for accessors, does not check owner Frame presence.

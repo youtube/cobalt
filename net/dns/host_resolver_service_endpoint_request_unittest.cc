@@ -1506,7 +1506,7 @@ TEST_F(HostResolverServiceEndpointRequestTest, AllowStaleWhileRefreshing) {
   EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
   requester.WaitForOnUpdated();
   EXPECT_TRUE(requester.request()->GetStaleInfo());
-  EXPECT_TRUE(requester.request()->IsStaleWhileRefresing());
+  EXPECT_TRUE(requester.request()->IsStaleWhileRefreshing());
   EXPECT_THAT(requester.request()->GetEndpointResults(),
               ElementsAre(ExpectServiceEndpoint(ElementsAre(stale_endpoint1),
                                                 ElementsAre(stale_endpoint2))));
@@ -1518,7 +1518,7 @@ TEST_F(HostResolverServiceEndpointRequestTest, AllowStaleWhileRefreshing) {
   EXPECT_THAT(requester.finished_endpoints(),
               ElementsAre(ExpectServiceEndpoint(ElementsAre(fresh_endpoint1),
                                                 ElementsAre(fresh_endpoint2))));
-  EXPECT_FALSE(requester.request()->IsStaleWhileRefresing());
+  EXPECT_FALSE(requester.request()->IsStaleWhileRefreshing());
   EXPECT_FALSE(requester.request()->GetStaleInfo());
 }
 
@@ -1548,7 +1548,7 @@ TEST_F(HostResolverServiceEndpointRequestTest,
   EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
   requester.WaitForOnUpdated();
   EXPECT_TRUE(requester.request()->GetStaleInfo());
-  EXPECT_TRUE(requester.request()->IsStaleWhileRefresing());
+  EXPECT_TRUE(requester.request()->IsStaleWhileRefreshing());
   EXPECT_THAT(requester.request()->GetEndpointResults(),
               ElementsAre(ExpectServiceEndpoint(ElementsAre(stale_endpoint1),
                                                 ElementsAre(stale_endpoint2))));
@@ -1565,7 +1565,7 @@ TEST_F(HostResolverServiceEndpointRequestTest,
   EXPECT_THAT(requester.request()->GetEndpointResults(),
               ElementsAre(ExpectServiceEndpoint(IsEmpty(),
                                                 ElementsAre(fresh_endpoint2))));
-  EXPECT_FALSE(requester.request()->IsStaleWhileRefresing());
+  EXPECT_FALSE(requester.request()->IsStaleWhileRefreshing());
   EXPECT_FALSE(requester.request()->GetStaleInfo());
 
   // Complete A request, which finishes the request synchronously.
@@ -1574,7 +1574,7 @@ TEST_F(HostResolverServiceEndpointRequestTest,
   EXPECT_THAT(requester.finished_endpoints(),
               ElementsAre(ExpectServiceEndpoint(ElementsAre(fresh_endpoint1),
                                                 ElementsAre(fresh_endpoint2))));
-  EXPECT_FALSE(requester.request()->IsStaleWhileRefresing());
+  EXPECT_FALSE(requester.request()->IsStaleWhileRefreshing());
   EXPECT_FALSE(requester.request()->GetStaleInfo());
 }
 
@@ -1600,7 +1600,7 @@ TEST_F(HostResolverServiceEndpointRequestTest,
   int rv = requester.Start();
   EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
   EXPECT_TRUE(requester.request()->GetStaleInfo());
-  EXPECT_TRUE(requester.request()->IsStaleWhileRefresing());
+  EXPECT_TRUE(requester.request()->IsStaleWhileRefreshing());
   EXPECT_THAT(requester.request()->GetEndpointResults(),
               ElementsAre(ExpectServiceEndpoint(ElementsAre(stale_endpoint1),
                                                 ElementsAre(stale_endpoint2))));
@@ -1683,7 +1683,7 @@ TEST_F(HostResolverServiceEndpointRequestTest,
   EXPECT_THAT(requester.finished_endpoints(),
               ElementsAre(ExpectServiceEndpoint(ElementsAre(fresh_endpoint),
                                                 IsEmpty())));
-  ASSERT_FALSE(requester.request()->IsStaleWhileRefresing());
+  ASSERT_FALSE(requester.request()->IsStaleWhileRefreshing());
 }
 
 TEST_F(HostResolverServiceEndpointRequestTest, NoSchemeHttpsNotQueried) {

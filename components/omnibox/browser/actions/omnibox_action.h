@@ -108,6 +108,13 @@ class OmniboxAction : public base::RefCountedThreadSafe<OmniboxAction> {
     // and if it's false then lens is used to contextualize without showing UI.
     virtual void OpenLensOverlay(bool show) = 0;
 
+    // Returns true if the client should open the Cobrowse panel (bypassing
+    // Lens).
+    virtual bool ShouldOpenCoBrowsePanel() const;
+
+    // Opens the CoBrowse side panel.
+    virtual void OpenCoBrowsePanel();
+
     // Passes the contextual search request to Lens to handle fulfillment. Lens
     // uses the destination URL to grab the query and keep any additional
     // params that are attached to the URL.

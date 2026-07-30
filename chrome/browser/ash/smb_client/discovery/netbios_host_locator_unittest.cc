@@ -237,7 +237,7 @@ TEST_F(NetBiosHostLocatorTest, MultipleInterfacesNoResults) {
   task_runner_->FastForwardBy(base::Seconds(kNetBiosDiscoveryTimeoutSeconds));
 }
 
-// One interface that recieves responses from two different ip addresses
+// One interface that receives responses from two different ip addresses
 // returns the correct results.
 TEST_F(NetBiosHostLocatorTest, OneInterfaceWithResults) {
   // Build data for a NetBiosClient
@@ -329,7 +329,7 @@ TEST_F(NetBiosHostLocatorTest, MultipleInterfacesWithDuplicateResults) {
   netbios_client_1[source_ip_1] = hostnames_1;
   netbios_client_1[source_ip_2] = hostnames_2;
 
-  // Build data for the second NetBiosClient which also recieves the response
+  // Build data for the second NetBiosClient which also receives the response
   // from |source_ip_2|.
   const net::IPEndPoint source_ip_4(net::IPAddress(2, 4, 8, 16), 137);
   const Hostnames hostnames_4 = {"hOsTnAmE-5"};
@@ -412,7 +412,7 @@ TEST_F(NetBiosHostLocatorTest, SecondIPUsedForResults) {
   std::map<net::IPEndPoint, Hostnames> netbios_client_1;
   netbios_client_1[source_ip_1] = hostnames_1;
 
-  // Build data for the second NetBiosClient which also recieves the response
+  // Build data for the second NetBiosClient which also receives the response
   // from |source_ip_2|.
   const net::IPEndPoint source_ip_2(net::IPAddress(2, 4, 8, 16), 137);
   const Hostnames hostnames_2 = {duplicate_hostname};

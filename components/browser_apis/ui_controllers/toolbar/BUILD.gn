@@ -4,9 +4,10 @@
 
 import("//mojo/public/tools/bindings/mojom.gni")
 
-# Generate Mojo bindings for toolbar_ui_api_data_model.mojom.
-mojom("mojom_data_model") {
-  sources = [ "toolbar_ui_api_data_model.mojom" ]
+mojom("icon_handle_mojom") {
+  sources = [ "icon_handle.mojom" ]
+
+  public_deps = [ "//skia/public/mojom" ]
 
   cpp_typemaps = [
     {
@@ -22,12 +23,30 @@ mojom("mojom_data_model") {
     },
   ]
 
+  # Generate TypeScript bindings for WebUI.
+  webui_module_path = "/"
+}
+
+mojom("extensions_bar_data_model_mojom") {
+  sources = [ "extensions_bar_data_model.mojom" ]
+
+  public_deps = [ ":icon_handle_mojom" ]
+
+  # Generate TypeScript bindings for WebUI.
+  webui_module_path = "/"
+}
+
+# Generate Mojo bindings for toolbar_ui_api_data_model.mojom.
+mojom("mojom_data_model") {
+  sources = [ "toolbar_ui_api_data_model.mojom" ]
+
   # Dependencies on other mojom targets.
   public_deps = [
+    ":extensions_bar_data_model_mojom",
+    ":icon_handle_mojom",
     "//components/browser_apis/browser_controls:mojom_data_model",
     "//components/content_settings/core/common:content_settings_types",
     "//mojo/public/mojom/base",
-    "//skia/public/mojom",
     "//ui/gfx/range/mojom",
   ]
 

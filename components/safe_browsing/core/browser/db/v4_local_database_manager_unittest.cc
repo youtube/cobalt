@@ -1376,7 +1376,13 @@ TEST_F(V4LocalDatabaseManagerTest, TestSubresourceFilterCallback) {
   }
 }
 
-TEST_F(V4LocalDatabaseManagerTest, TestCheckExtensionIDsNothingBlocklisted) {
+TEST_F(V4LocalDatabaseManagerTest,
+       TestCheckExtensionIDsNothingBlocklisted_WithNetworkCheck) {
+  // Explicitly disable the network bypass feature.
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      kExtensionBlocklistSkipNetworkQuery);
+
   // Setup to receive full-hash misses.
   ScopedFakeGetHashProtocolManagerFactory pin(FullHashInfos({}));
 
@@ -1384,19 +1390,17 @@ TEST_F(V4LocalDatabaseManagerTest, TestCheckExtensionIDsNothingBlocklisted) {
   ResetLocalDatabaseManager();
   WaitForTasksOnTaskRunner();
 
-  // bad_extension_id is in the local DB but the full hash won't match.
-  const FullHashStr bad_extension_id("aaaabbbbccccdddd"),
-      good_extension_id("ddddccccbbbbaaaa");
+  // extension_id_1 is in the local DB but the full hash won't match.
+  const FullHashStr extension_id_1("aaaabbbbccccdddd"),
+      extension_id_2("ddddccccbbbbaaaa");
 
   // Put a match in the db that will cause a protocol-manager request.
   StoreAndHashPrefixes store_and_hash_prefixes;
-  store_and_hash_prefixes.emplace_back(GetChromeExtMalwareId(),
-                                       bad_extension_id);
+  store_and_hash_prefixes.emplace_back(GetChromeExtMalwareId(), extension_id_1);
   ReplaceV4Database(store_and_hash_prefixes, /* stores_available= */ true);
 
   const std::set<FullHashStr> expected_bad_crxs({});
-  const std::set<FullHashStr> extension_ids(
-      {good_extension_id, bad_extension_id});
+  const std::set<FullHashStr> extension_ids({extension_id_2, extension_id_1});
   TestExtensionClient client(expected_bad_crxs);
   EXPECT_FALSE(
       v4_local_database_manager_->CheckExtensionIDs(extension_ids, &client));
@@ -1405,7 +1409,41 @@ TEST_F(V4LocalDatabaseManagerTest, TestCheckExtensionIDsNothingBlocklisted) {
   EXPECT_TRUE(client.on_check_extensions_result_called());
 }
 
-TEST_F(V4LocalDatabaseManagerTest, TestCheckExtensionIDsOneIsBlocklisted) {
+TEST_F(V4LocalDatabaseManagerTest,
+       TestCheckExtensionIDsNothingBlocklisted_WithoutNetworkCheck) {
+  // Explicitly enable the network bypass feature.
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(kExtensionBlocklistSkipNetworkQuery);
+
+  // Reset the database manager.
+  ResetLocalDatabaseManager();
+  WaitForTasksOnTaskRunner();
+
+  // Both extensions are good and not in the local DB.
+  const FullHashStr extension_id_1("aaaabbbbccccdddd"),
+      extension_id_2("ddddccccbbbbaaaa");
+
+  // Replace database with empty store (nothing blocklisted).
+  StoreAndHashPrefixes store_and_hash_prefixes;
+  ReplaceV4Database(store_and_hash_prefixes, /* stores_available= */ true);
+
+  const std::set<FullHashStr> expected_bad_crxs({});
+  const std::set<FullHashStr> extension_ids({extension_id_2, extension_id_1});
+  TestExtensionClient client(expected_bad_crxs);
+  EXPECT_FALSE(
+      v4_local_database_manager_->CheckExtensionIDs(extension_ids, &client));
+  EXPECT_FALSE(client.on_check_extensions_result_called());
+  WaitForTasksOnTaskRunner();
+  EXPECT_TRUE(client.on_check_extensions_result_called());
+}
+
+TEST_F(V4LocalDatabaseManagerTest,
+       TestCheckExtensionIDsOneIsBlocklisted_WithNetworkCheck) {
+  // Explicitly disable the network bypass feature.
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      kExtensionBlocklistSkipNetworkQuery);
+
   // bad_extension_id is in the local DB and the full hash will match.
   const FullHashStr bad_extension_id("aaaabbbbccccdddd"),
       good_extension_id("ddddccccbbbbaaaa");
@@ -1435,11 +1473,48 @@ TEST_F(V4LocalDatabaseManagerTest, TestCheckExtensionIDsOneIsBlocklisted) {
   EXPECT_TRUE(client.on_check_extensions_result_called());
 }
 
+TEST_F(V4LocalDatabaseManagerTest,
+       TestCheckExtensionIDsOneIsBlocklisted_WithoutNetworkCheck) {
+  // Explicitly enable the network bypass feature.
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(kExtensionBlocklistSkipNetworkQuery);
+
+  // bad_extension_id is in the local DB.
+  const FullHashStr bad_extension_id("aaaabbbbccccdddd"),
+      good_extension_id("ddddccccbbbbaaaa");
+
+  // Reset the database manager.
+  ResetLocalDatabaseManager();
+  WaitForTasksOnTaskRunner();
+
+  // Put a match in the db.
+  StoreAndHashPrefixes store_and_hash_prefixes;
+  store_and_hash_prefixes.emplace_back(GetChromeExtMalwareId(),
+                                       bad_extension_id);
+  ReplaceV4Database(store_and_hash_prefixes, /* stores_available= */ true);
+
+  const std::set<FullHashStr> expected_bad_crxs({bad_extension_id});
+  const std::set<FullHashStr> extension_ids(
+      {good_extension_id, bad_extension_id});
+  TestExtensionClient client(expected_bad_crxs);
+  EXPECT_FALSE(
+      v4_local_database_manager_->CheckExtensionIDs(extension_ids, &client));
+  EXPECT_FALSE(client.on_check_extensions_result_called());
+  WaitForTasksOnTaskRunner();
+  EXPECT_TRUE(client.on_check_extensions_result_called());
+}
+
 // This is similar to |TestCheckExtensionIDsOneIsBlocklisted|, but it uses a
 // real |V4GetHashProtocolManager| instead of |FakeGetHashProtocolManager|. This
 // tests that the values passed into the protocol manager are usable.
-TEST_F(V4LocalDatabaseManagerTest,
-       TestCheckExtensionIDsOneIsBlocklisted_RealProtocolManager) {
+TEST_F(
+    V4LocalDatabaseManagerTest,
+    TestCheckExtensionIDsOneIsBlocklisted_RealProtocolManager_WithNetworkCheck) {
+  // Explicitly disable the network bypass feature.
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      kExtensionBlocklistSkipNetworkQuery);
+
   // bad_extension_id is in the local DB and the full hash will match.
   const FullHashStr bad_extension_id("aaaabbbbccccdddd"),
       good_extension_id("ddddccccbbbbaaaa");
@@ -1476,6 +1551,48 @@ TEST_F(V4LocalDatabaseManagerTest,
   test_url_loader_factory->AddResponse(
       test_url_loader_factory->GetPendingRequest(0)->request.url.spec(),
       response);
+
+  WaitForTasksOnTaskRunner();
+  EXPECT_TRUE(client.on_check_extensions_result_called());
+}
+
+TEST_F(
+    V4LocalDatabaseManagerTest,
+    TestCheckExtensionIDsOneIsBlocklisted_RealProtocolManager_WithoutNetworkCheck) {
+  // Explicitly enable the network bypass feature.
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(kExtensionBlocklistSkipNetworkQuery);
+
+  // bad_extension_id is in the local DB.
+  const FullHashStr bad_extension_id("aaaabbbbccccdddd"),
+      good_extension_id("ddddccccbbbbaaaa");
+
+  auto test_url_loader_factory =
+      std::make_unique<network::TestURLLoaderFactory>();
+  ASSERT_EQ(test_url_loader_factory->NumPending(), 0);
+  ScopedGetHashProtocolManagerFactoryWithTestUrlLoader pin(
+      test_url_loader_factory.get());
+
+  // Reset the database manager.
+  ResetLocalDatabaseManager();
+  WaitForTasksOnTaskRunner();
+
+  // Put a match in the db.
+  StoreAndHashPrefixes store_and_hash_prefixes;
+  store_and_hash_prefixes.emplace_back(GetChromeExtMalwareId(),
+                                       bad_extension_id);
+  ReplaceV4Database(store_and_hash_prefixes, /* stores_available= */ true);
+
+  const std::set<FullHashStr> expected_bad_crxs({bad_extension_id});
+  const std::set<FullHashStr> extension_ids(
+      {good_extension_id, bad_extension_id});
+  TestExtensionClient client(expected_bad_crxs);
+  EXPECT_FALSE(
+      v4_local_database_manager_->CheckExtensionIDs(extension_ids, &client));
+  EXPECT_FALSE(client.on_check_extensions_result_called());
+
+  // Verify that NO network request is pending because we bypassed it.
+  ASSERT_EQ(test_url_loader_factory->NumPending(), 0);
 
   WaitForTasksOnTaskRunner();
   EXPECT_TRUE(client.on_check_extensions_result_called());

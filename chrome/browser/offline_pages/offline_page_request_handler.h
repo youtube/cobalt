@@ -182,10 +182,9 @@ class OfflinePageRequestHandler {
 
   void OpenFile(const base::FilePath& file_path,
                 const base::RepeatingCallback<void(int)>& callback);
-  void UpdateDigestOnBackground(
-      scoped_refptr<net::IOBuffer> buffer,
-      size_t len,
-      base::OnceCallback<void(void)> digest_updated_callback);
+  void UpdateDigestOnBackground(scoped_refptr<net::IOBuffer> buffer,
+                                size_t len,
+                                base::OnceClosure digest_updated_callback);
   void FinalizeDigestOnBackground(
       base::OnceCallback<void(const std::string&)> digest_finalized_callback);
 

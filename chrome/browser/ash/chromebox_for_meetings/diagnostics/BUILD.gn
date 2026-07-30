@@ -43,7 +43,6 @@ source_set("unit_tests") {
     "//chromeos/services/chromebox_for_meetings/public/cpp",
     "//chromeos/services/chromebox_for_meetings/public/cpp:test_support",
     "//chromeos/services/chromebox_for_meetings/public/mojom",
-    "//content/test:test_support",
     "//mojo/public/cpp/bindings",
     "//testing/gmock",
   ]

@@ -45,39 +45,33 @@ TEST_F(HTMLCanvasAccessibilityManagerTest, NoAccessibilityService) {
 
   HTMLCanvasAccessibilityManager* manager =
       canvas_element_->GetAccessibilityManagerForTesting();
-  ASSERT_FALSE(manager);
+  EXPECT_EQ(manager, nullptr);
 }
 
 TEST_F(HTMLCanvasAccessibilityManagerTest, IsIgnored) {
-  base::HistogramTester histogram_tester;
   SetUpCanvas("<body><canvas id='c' width=300 height=200></canvas></body>");
-  canvas_element_->OnAxObjectCreated(/*is_ignored=*/true);
-  WaitForAccessibilityManagerUpdate();
+  canvas_element_->OnAxObjectIgnoredStateChanged(/*is_ignored=*/true);
 
-  histogram_tester.ExpectUniqueSample(
-      "Accessibility.Canvas.HeuristicResult",
-      HTMLCanvasAccessibilityManager::HeuristicResult::kIsIgnoredOrAriaHidden,
-      1);
+  HTMLCanvasAccessibilityManager* manager =
+      canvas_element_->GetAccessibilityManagerForTesting();
+  EXPECT_EQ(manager, nullptr);
 }
 
-TEST_F(HTMLCanvasAccessibilityManagerTest, AriaHidden) {
-  base::HistogramTester histogram_tester;
+TEST_F(HTMLCanvasAccessibilityManagerTest, AriaHiddenIsIgnored) {
   SetUpCanvas(
       "<body><canvas id='c' width=300 height=200 "
       "aria-hidden='true'></canvas></body>");
-  canvas_element_->OnAxObjectCreated(/*is_ignored=*/false);
-  WaitForAccessibilityManagerUpdate();
+  canvas_element_->OnAxObjectIgnoredStateChanged(/*is_ignored=*/true);
 
-  histogram_tester.ExpectUniqueSample(
-      "Accessibility.Canvas.HeuristicResult",
-      HTMLCanvasAccessibilityManager::HeuristicResult::kIsIgnoredOrAriaHidden,
-      1);
+  HTMLCanvasAccessibilityManager* manager =
+      canvas_element_->GetAccessibilityManagerForTesting();
+  EXPECT_FALSE(manager);
 }
 
 TEST_F(HTMLCanvasAccessibilityManagerTest, TooSmall) {
   base::HistogramTester histogram_tester;
   SetUpCanvas("<body><canvas id='c' width=5 height=5></canvas></body>");
-  canvas_element_->OnAxObjectCreated(/*is_ignored=*/false);
+  canvas_element_->OnAxObjectIgnoredStateChanged(/*is_ignored=*/false);
   WaitForAccessibilityManagerUpdate();
 
   histogram_tester.ExpectUniqueSample(
@@ -90,7 +84,7 @@ TEST_F(HTMLCanvasAccessibilityManagerTest, HasLayoutSubtree) {
   SetUpCanvas(
       "<body><canvas id='c' width=300 height=200 layoutsubtree></"
       "canvas></body>");
-  canvas_element_->OnAxObjectCreated(/*is_ignored=*/false);
+  canvas_element_->OnAxObjectIgnoredStateChanged(/*is_ignored=*/false);
   WaitForAccessibilityManagerUpdate();
 
   histogram_tester.ExpectUniqueSample(
@@ -103,7 +97,7 @@ TEST_F(HTMLCanvasAccessibilityManagerTest, HasNonElementFallbackContent) {
   SetUpCanvas(
       "<body><canvas id='c' width=300 height=200>Comment</"
       "canvas></body>");
-  canvas_element_->OnAxObjectCreated(/*is_ignored=*/false);
+  canvas_element_->OnAxObjectIgnoredStateChanged(/*is_ignored=*/false);
   WaitForAccessibilityManagerUpdate();
 
   histogram_tester.ExpectUniqueSample(
@@ -116,7 +110,7 @@ TEST_F(HTMLCanvasAccessibilityManagerTest, HasFallbackContent) {
   SetUpCanvas(
       "<body><canvas id='c' width=300 height=200><button>Click</button></"
       "canvas></body>");
-  canvas_element_->OnAxObjectCreated(/*is_ignored=*/false);
+  canvas_element_->OnAxObjectIgnoredStateChanged(/*is_ignored=*/false);
   WaitForAccessibilityManagerUpdate();
 
   histogram_tester.ExpectUniqueSample(
@@ -128,7 +122,7 @@ TEST_F(HTMLCanvasAccessibilityManagerTest, HasAriaRole) {
   base::HistogramTester histogram_tester;
   SetUpCanvas(
       "<body><canvas id='c' width=300 height=200 role='img'></canvas></body>");
-  canvas_element_->OnAxObjectCreated(/*is_ignored=*/false);
+  canvas_element_->OnAxObjectIgnoredStateChanged(/*is_ignored=*/false);
   WaitForAccessibilityManagerUpdate();
 
   histogram_tester.ExpectUniqueSample(
@@ -141,7 +135,7 @@ TEST_F(HTMLCanvasAccessibilityManagerTest, HasAriaLabel) {
   SetUpCanvas(
       "<body><canvas id='c' width=300 height=200 "
       "aria-label='chart'></canvas></body>");
-  canvas_element_->OnAxObjectCreated(/*is_ignored=*/false);
+  canvas_element_->OnAxObjectIgnoredStateChanged(/*is_ignored=*/false);
   WaitForAccessibilityManagerUpdate();
 
   histogram_tester.ExpectUniqueSample(
@@ -152,7 +146,7 @@ TEST_F(HTMLCanvasAccessibilityManagerTest, HasAriaLabel) {
 TEST_F(HTMLCanvasAccessibilityManagerTest, NeedsA11ySupport) {
   base::HistogramTester histogram_tester;
   SetUpCanvas("<body><canvas id='c' width=300 height=200></canvas></body>");
-  canvas_element_->OnAxObjectCreated(/*is_ignored=*/false);
+  canvas_element_->OnAxObjectIgnoredStateChanged(/*is_ignored=*/false);
   WaitForAccessibilityManagerUpdate();
 
   histogram_tester.ExpectUniqueSample(
@@ -163,7 +157,7 @@ TEST_F(HTMLCanvasAccessibilityManagerTest, NeedsA11ySupport) {
 TEST_F(HTMLCanvasAccessibilityManagerTest, DynamicAriaAttributeAdded) {
   base::HistogramTester histogram_tester;
   SetUpCanvas("<body><canvas id='c' width=300 height=200></canvas></body>");
-  canvas_element_->OnAxObjectCreated(/*is_ignored=*/false);
+  canvas_element_->OnAxObjectIgnoredStateChanged(/*is_ignored=*/false);
   WaitForAccessibilityManagerUpdate();
 
   EXPECT_EQ(canvas_element_->GetAccessibilityManagerForTesting()
@@ -179,6 +173,62 @@ TEST_F(HTMLCanvasAccessibilityManagerTest, DynamicAriaAttributeAdded) {
       canvas_element_->GetAccessibilityManagerForTesting()
           ->GetHeuristicResultForTesting(),
       HTMLCanvasAccessibilityManager::HeuristicResult::kHasAriaAttributes);
+}
+
+TEST_F(HTMLCanvasAccessibilityManagerTest, IgnoredStateChanged) {
+  base::HistogramTester histogram_tester;
+  SetUpCanvas("<body><canvas id='c' width=300 height=200></canvas></body>");
+  canvas_element_->OnAxObjectIgnoredStateChanged(/*is_ignored=*/false);
+  WaitForAccessibilityManagerUpdate();
+
+  EXPECT_EQ(canvas_element_->GetAccessibilityManagerForTesting()
+                ->GetHeuristicResultForTesting(),
+            HTMLCanvasAccessibilityManager::HeuristicResult::kNeedsA11ySupport);
+
+  // Simulate AXObject notifying the canvas that its ignored state changed.
+  canvas_element_->OnAxObjectIgnoredStateChanged(/*is_ignored=*/true);
+  WaitForAccessibilityManagerUpdate();
+
+  EXPECT_EQ(canvas_element_->GetAccessibilityManagerForTesting()
+                ->GetHeuristicResultForTesting(),
+            HTMLCanvasAccessibilityManager::HeuristicResult::kIsIgnored);
+}
+
+TEST_F(HTMLCanvasAccessibilityManagerTest, DynamicFallbackContentAdded) {
+  base::HistogramTester histogram_tester;
+  SetUpCanvas("<body><canvas id='c' width=300 height=200></canvas></body>");
+  canvas_element_->OnAxObjectIgnoredStateChanged(/*is_ignored=*/false);
+  WaitForAccessibilityManagerUpdate();
+
+  EXPECT_EQ(canvas_element_->GetAccessibilityManagerForTesting()
+                ->GetHeuristicResultForTesting(),
+            HTMLCanvasAccessibilityManager::HeuristicResult::kNeedsA11ySupport);
+
+  // Dynamically add fallback element content.
+  auto* button = GetDocument().CreateRawElement(html_names::kButtonTag);
+  canvas_element_->AppendChild(button);
+  UpdateAllLifecyclePhasesForTest();
+  WaitForAccessibilityManagerUpdate();
+
+  EXPECT_EQ(
+      canvas_element_->GetAccessibilityManagerForTesting()
+          ->GetHeuristicResultForTesting(),
+      HTMLCanvasAccessibilityManager::HeuristicResult::kHasFallbackContent);
+}
+
+TEST_F(HTMLCanvasAccessibilityManagerTest, InitiallyIgnoredBecomesVisible) {
+  SetUpCanvas("<body><canvas id='c' width=300 height=200></canvas></body>");
+  canvas_element_->OnAxObjectIgnoredStateChanged(/*is_ignored=*/true);
+  EXPECT_FALSE(canvas_element_->GetAccessibilityManagerForTesting());
+
+  // Simulate AXObject notifying the canvas that it is no longer ignored.
+  canvas_element_->OnAxObjectIgnoredStateChanged(/*is_ignored=*/false);
+  WaitForAccessibilityManagerUpdate();
+
+  EXPECT_TRUE(canvas_element_->GetAccessibilityManagerForTesting());
+  EXPECT_EQ(canvas_element_->GetAccessibilityManagerForTesting()
+                ->GetHeuristicResultForTesting(),
+            HTMLCanvasAccessibilityManager::HeuristicResult::kNeedsA11ySupport);
 }
 
 }  // namespace blink

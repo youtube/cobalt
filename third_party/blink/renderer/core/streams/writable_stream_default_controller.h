@@ -23,7 +23,6 @@ class ScriptValue;
 class StrategySizeAlgorithm;
 class StreamAlgorithm;
 class StreamStartAlgorithm;
-class WritableStreamDefaultWriter;
 class WritableStream;
 
 class CORE_EXPORT WritableStreamDefaultController final

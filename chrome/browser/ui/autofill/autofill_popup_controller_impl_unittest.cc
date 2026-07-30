@@ -19,8 +19,9 @@
 #include "components/autofill/core/browser/suggestions/suggestion_hiding_reason.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/browser/ui/popup_interaction.h"
-#include "components/autofill/core/browser/ui/suggestion_button_action.h"
 #include "components/autofill/core/common/aliases.h"
+#include "content/public/test/test_renderer_host.h"
+#include "content/public/test/test_utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/accessibility/ax_active_popup.h"
@@ -35,7 +36,6 @@
 #if !BUILDFLAG(IS_CHROMEOS)
 #include "content/public/test/scoped_accessibility_mode_override.h"
 #endif  // !BUILDFLAG(IS_CHROMEOS)
-
 namespace autofill {
 namespace {
 
@@ -51,8 +51,7 @@ using ::testing::MockFunction;
 using ::testing::NiceMock;
 using ::testing::Return;
 
-using SingleEntryRemovalMethod =
-    autofill::AutofillMetrics::SingleEntryRemovalMethod;
+using SingleEntryRemovalMethod = AutofillMetrics::SingleEntryRemovalMethod;
 
 Matcher<const AutofillSuggestionDelegate::SuggestionMetadata&>
 EqualsSuggestionMetadata(
@@ -426,16 +425,6 @@ TEST_F(AutofillPopupControllerImplTest, EventsAreDelegatedToChildrenAndView) {
       client().suggestion_controller(manager()).HandleKeyPressEvent(event));
 }
 
-// Tests that the controller forwards calls to perform a button action (such as
-// clicking a close button on a suggestion) to its delegate.
-TEST_F(AutofillPopupControllerImplTest, ButtonActionsAreSentToDelegate) {
-  ShowSuggestions(manager(), {SuggestionType::kComposeResumeNudge});
-  EXPECT_CALL(manager().external_delegate(),
-              DidPerformButtonActionForSuggestion);
-  client().suggestion_controller(manager()).PerformButtonActionForSuggestion(
-      0, SuggestionButtonAction());
-}
-
 // The second popup is also the second "sub_popup_level". This test asserts that
 // the information regarding the popup level is passed on to the delegate.
 TEST_F(AutofillPopupControllerImplTest, PopupForwardsSuggestionPosition) {
@@ -575,6 +564,30 @@ TEST_F(AutofillPopupControllerImplTest,
       SuggestionHidingReason::kEndEditing);
 
   Mock::VerifyAndClearExpectations(client().popup_view());
+}
+
+// Tests that calling Show() when the popup view has focus but the focused
+// frame is null (e.g. because it was detached) does not cause a crash due to
+// a null pointer dereference.
+TEST_F(AutofillPopupControllerImplTest,
+       ShowWithFocusedViewAndNullFocusedFrame_NoCrash) {
+  ShowSuggestions(manager(), {SuggestionType::kAddressEntry});
+
+  EXPECT_CALL(*client().popup_view(), HasFocus).WillRepeatedly(Return(true));
+
+  content::RenderFrameHost* child_rfh =
+      content::RenderFrameHostTester::For(main_frame())->AppendChild("child");
+  FocusWebContentsOnFrame(child_rfh);
+  content::RenderFrameHostTester::For(child_rfh)->Detach();
+  ASSERT_EQ(web_contents()->GetFocusedFrame(), nullptr);
+
+  // This should not crash.
+  client().suggestion_controller(manager()).Show(
+      AutofillSuggestionController::GenerateSuggestionUiSessionId(),
+      {Suggestion(u"Search Query", SuggestionType::kAddressEntry)},
+      AutofillSuggestionTriggerSource::kFormControlElementClicked,
+      AutoselectFirstSuggestion(false),
+      AutofillSuggestionsIgnoreFocusLoss(false));
 }
 
 TEST_F(AutofillPopupControllerImplTest,
@@ -879,6 +892,28 @@ TEST_F(AutofillPopupControllerImplTest,
                   Field(&Suggestion::type, SuggestionType::kBnplFootnote)));
   EXPECT_THAT(controller.GetSuggestionFilterMatches(),
               ElementsAre(std::nullopt, std::nullopt));
+}
+
+TEST_F(AutofillPopupControllerImplTest,
+       ClearState_HidesAndClearsViewIfTabStateChanges) {
+  ShowSuggestions(manager(), {SuggestionType::kCreditCardEntry});
+
+  AutofillPopupController& controller =
+      client().suggestion_controller(manager());
+  EXPECT_TRUE(
+      test_api(static_cast<AutofillPopupControllerImpl&>(controller)).view());
+
+  // Calling ClearState with matching non-tabbed popup does not clear `view_`.
+  test_api(static_cast<AutofillPopupControllerImpl&>(controller)).ClearState();
+  EXPECT_TRUE(
+      test_api(static_cast<AutofillPopupControllerImpl&>(controller)).view());
+
+  // Calling ClearState with mismatching tabbed popup clears `view_`.
+  test_api(static_cast<AutofillPopupControllerImpl&>(controller))
+      .SetShowTabbedPopup(true);
+  test_api(static_cast<AutofillPopupControllerImpl&>(controller)).ClearState();
+  EXPECT_FALSE(
+      test_api(static_cast<AutofillPopupControllerImpl&>(controller)).view());
 }
 
 TEST_F(AutofillPopupControllerImplTest,

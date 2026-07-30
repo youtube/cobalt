@@ -9,27 +9,21 @@
 #include <string_view>
 
 #include "base/containers/adapters.h"
-#include "base/feature_list.h"
-#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/notreached.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/profiles/profile_window.h"
 #include "chrome/browser/task_manager/common/task_manager_features.h"
 #include "chrome/browser/task_manager/task_manager_interface.h"
-#include "chrome/browser/task_manager/task_manager_observer.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
-#include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/task_manager/task_manager_columns.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/common/pref_names.h"
-#include "chrome/common/url_constants.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/prefs/pref_service.h"
@@ -37,7 +31,6 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
-#include "ui/base/models/table_model_observer.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/mojom/menu_source_type.mojom-forward.h"
 #include "ui/base/ui_base_features.h"
@@ -47,8 +40,9 @@
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"
 #include "ui/views/border.h"
-#include "ui/views/controls/label.h"
+#include "ui/views/controls/menu/menu_runner.h"
 #include "ui/views/controls/scroll_view.h"
+#include "ui/views/controls/tabbed_pane/tabbed_pane.h"
 #include "ui/views/controls/table/table_view.h"
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/layout/fill_layout.h"
@@ -122,6 +116,7 @@ base::span<const TaskManagerView::FilterTab> GetTabDefinitions() {
 TaskManagerView::~TaskManagerView() {
   // Delete child views now, while our table model still exists.
   tabs_ = nullptr;  // Destroyed by `container` below.
+  tab_table_ = nullptr;
   RemoveAllChildViews();
 
   // When the view is destroyed, the lifecycle of the Task Manager is complete.
@@ -380,10 +375,7 @@ void TaskManagerView::SearchBarOnInputChanged(std::u16string_view query) {
 }
 
 TaskManagerView::TaskManagerView(StartAction start_action)
-    : tab_table_(nullptr),
-      tab_table_parent_(nullptr),
-      table_config_(GetTableConfigs()),
-      is_always_on_top_(false) {
+    : table_config_(GetTableConfigs()), is_always_on_top_(false) {
   task_manager::RecordNewOpenEvent(start_action);
   set_use_custom_frame(false);
   SetHasWindowSizeControls(true);
@@ -631,6 +623,7 @@ void TaskManagerView::Init() {
     tab_table->SetRowPadding(views::DISTANCE_TABLE_VERTICAL_TEXT_PADDING);
   }
   tab_table->set_observer(this);
+  tab_table->SetSelectOnFocus(true);
   tab_table->set_context_menu_controller(this);
   set_context_menu_controller(this);
 
@@ -700,14 +693,14 @@ void TaskManagerView::Init() {
   }
 
   // Add Process List (a.k.a Scroll View)
-  tab_table_parent_ = AddChildView(
+  auto* tab_table_parent = AddChildView(
       CreateProcessView(std::move(tab_table), table_config_.table_has_border,
                         table_config_.layout_refresh));
 
   if (table_config_.scroll_view_rounded) {
-    tab_table_parent_->SetPaintToLayer(ui::LAYER_TEXTURED);
+    tab_table_parent->SetPaintToLayer(ui::LAYER_TEXTURED);
 
-    ui::Layer* scroll_view_layer = tab_table_parent_->layer();
+    ui::Layer* scroll_view_layer = tab_table_parent->layer();
     scroll_view_layer->SetRoundedCornerRadius(
         gfx::RoundedCornersF(corner_radius));
     scroll_view_layer->SetIsFastRoundedCorner(true);

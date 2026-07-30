@@ -24,6 +24,7 @@ DispatchContextImplOrt::Create(
     mojo::ScopedDataPipeConsumerHandle write_tensor_consumer,
     mojo::ScopedDataPipeProducerHandle read_tensor_producer,
     scoped_refptr<Environment> env,
+    scoped_refptr<SessionOptions> session_options,
     std::unique_ptr<GpuTaskScheduler> gpu_task_scheduler,
     scoped_refptr<gpu::MemoryTracker> memory_tracker,
     scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner,
@@ -35,8 +36,6 @@ DispatchContextImplOrt::Create(
   auto task_runner = owning_task_runner;
   OrtHardwareDeviceType device_type = WebnnToOrtDeviceType(options->device);
   const EpWorkarounds ep_workarounds = env->GetEpWorkarounds(device_type);
-  scoped_refptr<SessionOptions> session_options =
-      SessionOptions::Create(device_type, env);
   bool dequantize_linear_input_support_int32 = Environment::IsEpDevice(
       session_options->first_selected_device(), {kOpenVINOExecutionProvider});
 

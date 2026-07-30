@@ -9,6 +9,7 @@
 // and database that holds the downloaded updates.
 
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <unordered_set>
@@ -150,12 +151,14 @@ class V4LocalDatabaseManager : public SafeBrowsingDatabaseManager {
     PendingCheck(Client* client,
                  ClientCallbackType client_callback_type,
                  const StoresToCheck& stores_to_check,
-                 const std::vector<GURL>& urls);
+                 const std::vector<GURL>& urls,
+                 std::optional<bool> needs_full_hash_check_after_local_match);
 
     PendingCheck(Client* client,
                  ClientCallbackType client_callback_type,
                  const StoresToCheck& stores_to_check,
-                 const std::set<FullHashStr>& full_hashes);
+                 const std::set<FullHashStr>& full_hashes,
+                 std::optional<bool> needs_full_hash_check_after_local_match);
 
     ~PendingCheck();
 
@@ -230,6 +233,12 @@ class V4LocalDatabaseManager : public SafeBrowsingDatabaseManager {
     // check is destructed, it should never still be in |pending_checks_|, since
     // functions could still be called on those checks afterwards.
     bool is_in_pending_checks = false;
+
+    // Specifies whether a network request to verify the full hash match is
+    // required. If false, Chrome directly responds with the local matches.
+    // std::nullopt indicates that this parameter is not applicable for the
+    // check.
+    const std::optional<bool> needs_full_hash_check_after_local_match;
   };
 
   typedef std::vector<std::unique_ptr<PendingCheck>> QueuedChecks;
@@ -353,6 +362,10 @@ class V4LocalDatabaseManager : public SafeBrowsingDatabaseManager {
   // of |pending_check|. May only be invoked once on a given check. May not be
   // invoked on an Abandon()'ed check.
   void RespondToClient(std::unique_ptr<PendingCheck> pending_check);
+
+  // Decides whether to return the check results immediately to the client or
+  // to schedule a network request to verify the prefix matches.
+  void RespondOrScheduleFullHashCheck(std::unique_ptr<PendingCheck> check);
 
   // Callers should generally use |RespondToClient| instead, which will clean up
   // the |pending_check|. Callers should use this function when they don't own

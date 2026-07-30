@@ -14,10 +14,6 @@
 #include "base/scoped_observation.h"
 #include "base/timer/elapsed_timer.h"
 #include "chrome/browser/ash/file_manager/file_tasks.h"
-#include "chrome/browser/ash/file_system_provider/mount_path_util.h"
-#include "chrome/browser/ash/file_system_provider/provided_file_system_interface.h"
-#include "chrome/browser/ash/file_system_provider/provider_interface.h"
-#include "chrome/browser/platform_util.h"
 #include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/webui/ash/cloud_upload/cloud_open_metrics.h"
@@ -64,11 +60,6 @@ FORWARD_DECLARE_TEST(OneDriveTest, FailToOpenFileFromODFSWhenMS365NotInstalled);
 }  // namespace file_manager::file_tasks
 
 namespace ash::cloud_upload {
-
-struct ODFSFileSystemAndPath {
-  raw_ptr<file_system_provider::ProvidedFileSystemInterface> file_system;
-  base::FilePath file_path_within_odfs;
-};
 
 // The string conversions of ash::cloud_upload::mojom::UserAction.
 inline constexpr char kUserActionCancel[] = "cancel";
@@ -292,17 +283,6 @@ bool UrlIsOnAndroidOneDrive(Profile* profile, const FileSystemURL& url);
 // DocumentsProvider.
 std::optional<std::string> GetEmailFromAndroidOneDriveRootDoc(
     const std::string& root_document_id);
-
-// Converts the |android_onedrive_file_url| for a file in OneDrive to the
-// equivalent ODFS file path which is then parsed to detect the corresponding
-// ODFS ProvidedFileSystemInterface and relative file path. There may or may not
-// exist a file for the returned relative file path. The conversion can be done
-// for files in OneDrive that can be accessed via Android OneDrive or ODFS.
-// These are the users' own files - in the Android OneDrive "Files" directory.
-// Fails if an equivalent ODFS file path can't be constructed.
-std::optional<ODFSFileSystemAndPath> AndroidOneDriveUrlToODFS(
-    Profile* profile,
-    const FileSystemURL& android_onedrive_file_url);
 
 // Launches the 'Connect OneDrive' dialog which is triggered from the Services
 // menu in Files app. This is a simplified version of setup where we just

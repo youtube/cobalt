@@ -28,7 +28,6 @@ include_rules = [
   "+chrome/browser/ui/tabs",
   "+chrome/browser/ui/test",
   "+chrome/browser/ui/zoom",
-  "+chrome/common/pref_names.h",
   "+chrome/test/base",
 ]
 
@@ -36,5 +35,8 @@ specific_include_rules = {
   # Exceptionally allow g_browser_process usage in the ctor of ArcSettingsService.
   "arc_settings_service\\.cc": [
     "+chrome/browser/browser_process.h",
-  ]
+  ],
+  "arc_settings_service_unittest\\.cc": [
+    "+chrome/common/pref_names.h",
+  ],
 }

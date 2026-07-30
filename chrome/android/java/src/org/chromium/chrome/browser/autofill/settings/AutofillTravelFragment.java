@@ -19,6 +19,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.autofill.autofill_ai.EntityDataManager;
 import org.chromium.chrome.browser.autofill.options.AutofillOptionsFragment.AutofillOptionsReferrer;
+import org.chromium.chrome.browser.autofill.personal_context.AutofillPersonalContextFragment;
 import org.chromium.chrome.browser.autofill.settings.AutofillAiDelegate.ToggleConfig;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -42,7 +43,10 @@ public class AutofillTravelFragment extends ChromeBaseSettingsFragment
                     PREF_OPT_IN_TOGGLE,
                     R.string.autofill_travel_opt_in_toggle_label,
                     R.string.autofill_travel_opt_in_toggle_sub_label,
-                    Pref.AUTOFILL_AI_TRAVEL_ENTITIES_ENABLED);
+                    Pref.AUTOFILL_AI_TRAVEL_ENTITIES_ENABLED,
+                    /* isPersonalContextSupported= */ true,
+                    AutofillPersonalContextFragment.ACTION_ENTRY_FROM_TRAVEL);
+
     private static final Set<Integer> TRAVEL_TYPES =
             Set.of(
                     EntityTypeName.FLIGHT_RESERVATION,

@@ -1236,3 +1236,28 @@ TEST_F(ReadAnythingReadAloudAppModelTest, ResetAndLogSingleSampleMetrics) {
   histogram_tester.ExpectBucketCount(nextButtonCountName, /*sample=*/0,
                                      /*expected_count=*/2);
 }
+
+TEST_F(ReadAnythingReadAloudAppModelTest, LogPlaybackContext) {
+  base::HistogramTester histograms;
+  const char* histogram_name =
+      "Accessibility.ReadAnything.ReadAloud.PlaybackContext";
+
+  // Test Side Panel
+  model_->LogPlaybackContext(
+      ReadAloudAppModel::ReadAnythingPlaybackContext::kSidePanel);
+  EXPECT_EQ(model_->current_session_context_for_testing(),
+            ReadAloudAppModel::ReadAnythingPlaybackContext::kSidePanel);
+  histograms.ExpectUniqueSample(
+      histogram_name,
+      ReadAloudAppModel::ReadAnythingPlaybackContext::kSidePanel, 1);
+
+  // Test Immersive
+  model_->LogPlaybackContext(
+      ReadAloudAppModel::ReadAnythingPlaybackContext::kImmersive);
+  EXPECT_EQ(model_->current_session_context_for_testing(),
+            ReadAloudAppModel::ReadAnythingPlaybackContext::kImmersive);
+  histograms.ExpectBucketCount(
+      histogram_name,
+      ReadAloudAppModel::ReadAnythingPlaybackContext::kImmersive, 1);
+  histograms.ExpectTotalCount(histogram_name, 2);
+}

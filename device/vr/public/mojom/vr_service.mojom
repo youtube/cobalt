@@ -845,6 +845,10 @@ struct XRLayerReadOnlyData {
   uint32 texture_width;
   uint32 texture_height;
   bool is_static;
+  // This is used by media layers to match the texture coordinate system used
+  // by some codecs, where (0,0) is the top-left corner of the image.
+  bool flip_y;
+  bool needs_raster_access;
 };
 
 // Mutable layer data. It is used to created a layer,
@@ -1210,7 +1214,9 @@ interface XRPresentationProvider {
   // SubmitFrameClient methods such as OnSubmitFrameTransferred. This is
   // intended to help separate frames while presenting, it may or may not
   // be called for the last animating frame when presentation ends.
-  SubmitFrameMissing(int16 frame_id, gpu.mojom.SyncToken sync_token);
+  SubmitFrameMissing(
+      int16 frame_id,
+      gpu.mojom.SharedImageExportResult camera_export_multi_result);
 
   // XRPresentationTransportMethod SUBMIT_AS_TEST
   SubmitFrame(int16 frame_id,
@@ -1226,11 +1232,14 @@ interface XRPresentationProvider {
   // If layer_updates is empty, the base layer will be used.
   // Only when WebXR Layers feature is enabled, layer_updates can be
   // non-empty. In such a case, the Open XR textures of the specified
-  // layers will be updated.
-  SubmitFrameDrawnIntoTexture(int16 frame_id,
-                              array<XRLayerUpdate> layer_updates,
-                              array<gpu.mojom.SyncToken> camera_sync_tokens,
-                              mojo_base.mojom.TimeDelta time_waited);
+  // layers will be updated. The export result |camera_export_multi_result|
+  // may contain multiple camera SyncTokens (from multiple contexts) for
+  // ARCore, and should always be empty for Cardboard and OpenXR.
+  SubmitFrameDrawnIntoTexture(
+      int16 frame_id,
+      array<XRLayerUpdate> layer_updates,
+      gpu.mojom.SharedImageExportResult camera_export_multi_result,
+      mojo_base.mojom.TimeDelta time_waited);
 };
 
 // After submitting a frame, the XRPresentationProvider will notify the client

@@ -104,6 +104,8 @@ build_webui("build") {
       "dice_web_signin_intercept/dice_web_signin_intercept_app.html.ts",
       "dice_web_signin_intercept/dice_web_signin_intercept_app.ts",
       "dice_web_signin_intercept/dice_web_signin_intercept_browser_proxy.ts",
+      "signin_qrcode_bar/signin_qrcode_bar_app.html.ts",
+      "signin_qrcode_bar/signin_qrcode_bar_app.ts",
     ]
   }
 
@@ -136,6 +138,7 @@ build_webui("build") {
     css_files += [
       "dice_web_signin_intercept/chrome_signin/chrome_signin_app.css",
       "dice_web_signin_intercept/dice_web_signin_intercept_app.css",
+      "signin_qrcode_bar/signin_qrcode_bar_app.css",
     ]
   }
 

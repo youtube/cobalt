@@ -760,7 +760,7 @@ Response PageHandler::AddScriptToEvaluateOnNewDocumentInternal(
     std::optional<bool> include_command_line_api,
     std::string* identifier) {
   blink::mojom::BrowserOriginatingSessionState* state =
-      session()->browser_agent_state();
+      session()->browser_originating_session_state();
 
   // Generate identifier. This currently uses an id that is 1 higher than the
   // largest existent id, but is subject to change in the future. The clients
@@ -787,7 +787,7 @@ Response PageHandler::AddScriptToEvaluateOnNewDocumentInternal(
 Response PageHandler::RemoveScriptToEvaluateOnNewDocument(
     const std::string& identifier) {
   blink::mojom::BrowserOriginatingSessionState* state =
-      session()->browser_agent_state();
+      session()->browser_originating_session_state();
 
   auto it = state->scripts_to_evaluate_on_new_document.find(identifier);
   if (it == state->scripts_to_evaluate_on_new_document.end()) {

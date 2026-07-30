@@ -29,7 +29,7 @@ namespace nearby::chrome {
 //
 // Because the OutputStream interface is synchronous but the DataPipe interface
 // is asynchronous, we block Write() on the calling thread while waiting for the
-// DataPipe to become writeable. We also block Close() on the calling thread
+// DataPipe to become writable. We also block Close() on the calling thread
 // while shutting down the DataPipe. While the calling thread is blocked,
 // |task_runner| handles the actual write and cancel operations.
 //

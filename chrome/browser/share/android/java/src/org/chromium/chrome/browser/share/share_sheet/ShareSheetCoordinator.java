@@ -56,6 +56,7 @@ import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.base.WindowAndroid.ActivityStateObserver;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modelutil.PropertyModel;
+import org.chromium.ui.util.CommonOnLayoutChangeListeners;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -66,10 +67,7 @@ import java.util.function.Supplier;
 // TODO(crbug.com/40106499): Should be package-protected once modularization is complete.
 @NullMarked
 public class ShareSheetCoordinator
-        implements ActivityStateObserver,
-                ChromeOptionShareCallback,
-                ConfigurationChangedObserver,
-                View.OnLayoutChangeListener {
+        implements ActivityStateObserver, ChromeOptionShareCallback, ConfigurationChangedObserver {
     private final BottomSheetController mBottomSheetController;
     private final Supplier<@Nullable Tab> mTabProvider;
     private final ShareSheetPropertyModelBuilder mPropertyModelBuilder;
@@ -102,6 +100,9 @@ public class ShareSheetCoordinator
     private final ActivityResultTracker mActivityResultTracker;
     private final MonotonicObservableSupplier<ModalDialogManager> mModalDialogManagerSupplier;
     private final SnackbarManager mSnackbarManager;
+
+    private final View.OnLayoutChangeListener mLayoutChangeListener =
+            CommonOnLayoutChangeListeners.createWidthChangedListener(this::updateBottomSheetViews);
 
     /**
      * Constructs a new ShareSheetCoordinator.
@@ -154,11 +155,11 @@ public class ShareSheetCoordinator
                         if (bottomSheet == mBottomSheet) {
                             mBottomSheet
                                     .getContentView()
-                                    .addOnLayoutChangeListener(ShareSheetCoordinator.this);
+                                    .addOnLayoutChangeListener(mLayoutChangeListener);
                         } else {
                             mBottomSheet
                                     .getContentView()
-                                    .removeOnLayoutChangeListener(ShareSheetCoordinator.this);
+                                    .removeOnLayoutChangeListener(mLayoutChangeListener);
                         }
                     }
                 };
@@ -524,21 +525,8 @@ public class ShareSheetCoordinator
         mBottomSheetController.requestShowContent(mBottomSheet, /* animate= */ false);
     }
 
-    // View.OnLayoutChangeListener
-    @Override
-    public void onLayoutChange(
-            View v,
-            int left,
-            int top,
-            int right,
-            int bottom,
-            int oldLeft,
-            int oldTop,
-            int oldRight,
-            int oldBottom) {
-        if ((oldRight - oldLeft) == (right - left)) {
-            return;
-        }
+    private void updateBottomSheetViews() {
+        if (mBottomSheet == null) return;
         mBottomSheet.getFirstPartyView().invalidate();
         ViewUtils.requestLayout(
                 mBottomSheet.getFirstPartyView(),

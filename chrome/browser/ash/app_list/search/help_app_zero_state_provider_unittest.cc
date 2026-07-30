@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 
+#include "ash/constants/ash_pref_names.h"
 #include "ash/public/cpp/app_list/app_list_types.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ash/app_list/app_list_notifier_impl.h"
@@ -14,7 +15,6 @@
 #include "chrome/browser/ash/app_list/search/chrome_search_result.h"
 #include "chrome/browser/ash/app_list/search/test/test_search_controller.h"
 #include "chrome/browser/ash/app_list/test/test_app_list_controller.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chromeos/strings/grit/chromeos_strings.h"
 #include "components/prefs/pref_service.h"
@@ -88,7 +88,7 @@ class HelpAppZeroStateProviderTest : public AppListTestBase {
 TEST_F(HelpAppZeroStateProviderTest,
        HasNoResultsForEmptyQueryIfTimesLeftToShowIsZero) {
   profile()->GetPrefs()->SetInteger(
-      prefs::kReleaseNotesSuggestionChipTimesLeftToShow, 0);
+      ash::prefs::kReleaseNotesSuggestionChipTimesLeftToShow, 0);
 
   StartZeroStateSearch();
 
@@ -98,7 +98,7 @@ TEST_F(HelpAppZeroStateProviderTest,
 TEST_F(HelpAppZeroStateProviderTest,
        ReturnsReleaseNotesChipForEmptyQueryIfTimesLeftIsPositive) {
   profile()->GetPrefs()->SetInteger(
-      prefs::kReleaseNotesSuggestionChipTimesLeftToShow, 1);
+      ash::prefs::kReleaseNotesSuggestionChipTimesLeftToShow, 1);
 
   StartZeroStateSearch();
 
@@ -111,7 +111,7 @@ TEST_F(HelpAppZeroStateProviderTest,
 TEST_F(HelpAppZeroStateProviderTest,
        DecrementsTimesLeftToShowReleaseNotesChipUponShowing) {
   profile()->GetPrefs()->SetInteger(
-      prefs::kReleaseNotesSuggestionChipTimesLeftToShow, 3);
+      ash::prefs::kReleaseNotesSuggestionChipTimesLeftToShow, 3);
 
   StartZeroStateSearch();
 
@@ -123,7 +123,7 @@ TEST_F(HelpAppZeroStateProviderTest,
 
   app_list_controller()->ShowAppList(ash::AppListShowSource::kSearchKey);
   EXPECT_EQ(3, profile()->GetPrefs()->GetInteger(
-                   prefs::kReleaseNotesSuggestionChipTimesLeftToShow));
+                   ash::prefs::kReleaseNotesSuggestionChipTimesLeftToShow));
 
   app_list_notifier()->NotifyResultsUpdated(
       ash::SearchResultDisplayType::kContinue,
@@ -136,19 +136,19 @@ TEST_F(HelpAppZeroStateProviderTest,
       ash::AppListNotifier::Location::kContinue, true);
 
   EXPECT_EQ(3, profile()->GetPrefs()->GetInteger(
-                   prefs::kReleaseNotesSuggestionChipTimesLeftToShow));
+                   ash::prefs::kReleaseNotesSuggestionChipTimesLeftToShow));
 
   ASSERT_TRUE(app_list_notifier()->FireImpressionTimerForTesting(
       ash::SearchResultDisplayType::kContinue));
 
   EXPECT_EQ(2, profile()->GetPrefs()->GetInteger(
-                   prefs::kReleaseNotesSuggestionChipTimesLeftToShow));
+                   ash::prefs::kReleaseNotesSuggestionChipTimesLeftToShow));
 }
 
 TEST_F(HelpAppZeroStateProviderTest,
        ClickingReleaseNotesChipStopsItFromShowing) {
   profile()->GetPrefs()->SetInteger(
-      prefs::kReleaseNotesSuggestionChipTimesLeftToShow, 3);
+      ash::prefs::kReleaseNotesSuggestionChipTimesLeftToShow, 3);
 
   StartZeroStateSearch();
 
@@ -156,7 +156,7 @@ TEST_F(HelpAppZeroStateProviderTest,
   result->Open(/*event_flags=*/0);
 
   EXPECT_EQ(0, profile()->GetPrefs()->GetInteger(
-                   prefs::kReleaseNotesSuggestionChipTimesLeftToShow));
+                   ash::prefs::kReleaseNotesSuggestionChipTimesLeftToShow));
 }
 
 }  // namespace app_list::test

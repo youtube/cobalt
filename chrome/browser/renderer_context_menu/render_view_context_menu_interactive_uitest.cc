@@ -747,13 +747,14 @@ class GlicTrustFirstOnboardingContextMenuTest
   GlicTrustFirstOnboardingContextMenuTest() {
     std::vector<base::test::FeatureRef> enabled_features = {
         features::kGlic, features::kGlicShareImage};
+    std::vector<base::test::FeatureRef> disabled_features = {
+        features::kGlicWarming, blink::features::kSvgFallBackToContainerSize};
     if (UseInvokeFlow()) {
       enabled_features.push_back(features::kGlicShareImageViaInvoke);
+    } else {
+      disabled_features.push_back(features::kGlicShareImageViaInvoke);
     }
-    scoped_feature_list_.InitWithFeatures(
-        enabled_features,
-        /*disabled_features=*/{features::kGlicWarming,
-                               blink::features::kSvgFallBackToContainerSize});
+    scoped_feature_list_.InitWithFeatures(enabled_features, disabled_features);
     glic_test_environment().SetFreStatusForNewProfiles(
         glic::prefs::FreStatus::kNotStarted);
   }
@@ -776,11 +777,8 @@ IN_PROC_BROWSER_TEST_P(GlicTrustFirstOnboardingContextMenuTest,
       WaitForElementVisible(kActiveTab, kPathToImg),
       MoveMouseTo(kActiveTab, kPathToImg), ClickMouse(ui_controls::RIGHT),
       SelectMenuItem(RenderViewContextMenu::kGlicShareImageMenuItem),
-      PollForAndInstrumentGlic(),
-      // Wait for 100ms to ensure that the image context is not sent while
-      // the FRE is showing.
-      Wait(base::Milliseconds(100)), CheckAdditionalContextNotPresent(),
-      PollForAndCompleteOnboarding(), WaitForAdditionalContext());
+      PollForAndInstrumentGlic(), WaitForAdditionalContext(),
+      PollForAndCompleteOnboarding());
 }
 
 INSTANTIATE_TEST_SUITE_P(Invoke,

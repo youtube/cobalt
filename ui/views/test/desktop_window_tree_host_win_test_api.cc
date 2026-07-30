@@ -40,6 +40,11 @@ void DesktopWindowTreeHostWinTestApi::SetMockCursorPositionForTesting(
   GetHwndMessageHandler()->mock_cursor_position_ = position;
 }
 
+void DesktopWindowTreeHostWinTestApi::SetRemoteSessionForTesting(
+    bool is_remote) {
+  host_->remote_session_for_testing_ = is_remote;
+}
+
 LRESULT DesktopWindowTreeHostWinTestApi::SimulatePenEventForTesting(
     UINT message,
     UINT32 pointer_id,

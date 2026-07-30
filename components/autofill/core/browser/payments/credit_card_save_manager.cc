@@ -149,7 +149,7 @@ void LogSaveCardPromptOfferMetricIos(
 
   std::string base_histogram_name =
       base::StrCat({"Autofill.SaveCreditCardPromptOffer.IOS", destination,
-                    autofill::ShouldShowSaveCardBottomSheet(
+                    ShouldShowSaveCardBottomSheet(
                         options.card_save_type, options.source_feature,
                         options.num_strikes.value_or(0),
                         options.should_request_name_from_user,
@@ -1776,7 +1776,7 @@ bool CreditCardSaveManager::ShouldRequestCvcInclusiveLegalMessage() const {
       base::UTF16ToUTF8(upload_request_.card.LastFourDigits()));
   // Since this code is only reached when no CVC was found on the form,
   // the save type is kCardSaveOnly.
-  return !autofill::ShouldShowSaveCardBottomSheet(
+  return !ShouldShowSaveCardBottomSheet(
       payments::PaymentsAutofillClient::CardSaveType::kCardSaveOnly,
       payments::PaymentsAutofillClient::SourceFeature::
           kOfferSaveAfterFormSubmit,

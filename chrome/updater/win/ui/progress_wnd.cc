@@ -28,7 +28,9 @@
 #include "base/time/time.h"
 #include "base/version.h"
 #include "base/win/current_module.h"
+#include "base/win/scoped_hdc.h"
 #include "base/win/scoped_localalloc.h"
+#include "base/win/scoped_select_object.h"
 #include "chrome/updater/app/app_install_progress.h"
 #include "chrome/updater/app/app_install_util_win.h"
 #include "chrome/updater/util/util.h"
@@ -229,12 +231,6 @@ LRESULT ProgressWnd::OnSize(UINT /*msg*/,
 }
 
 void ProgressWnd::UpdateWindowRgn() {
-  // In High Contrast Mode, restore the standard rectangular window region
-  // to ensure standard OS high-contrast accessibility borders draw correctly.
-  if (IsHighContrastOn()) {
-    ::SetWindowRgn(hwnd(), nullptr, TRUE);
-    return;
-  }
 
   RECT rect = {};
   ::GetWindowRect(hwnd(), &rect);
@@ -247,17 +243,20 @@ void ProgressWnd::UpdateWindowRgn() {
     return;
   }
 
-  // Scale the 16px corner radius based on the current DPI of the window to
+  // Scale the 11px corner radius based on the current DPI of the window to
   // ensure proportional rounded corners on high-DPI displays.
-  const int scaled_radius =
-      ::MulDiv(16, ::GetDpiForWindow(hwnd()), USER_DEFAULT_SCREEN_DPI);
+  const int scaled_radius = GetScaledCornerRadius();
 
-  HRGN rgn =
-      ::CreateRoundRectRgn(0, 0, width, height, scaled_radius, scaled_radius);
+  HRGN rgn = ::CreateRoundRectRgn(0, 0, width, height, scaled_radius * 2,
+                                  scaled_radius * 2);
   if (rgn) {
     // SetWindowRgn takes ownership of the HRGN object.
     ::SetWindowRgn(hwnd(), rgn, TRUE);
   }
+}
+
+int ProgressWnd::GetScaledCornerRadius() const {
+  return ::MulDiv(11, ::GetDpiForWindow(hwnd()), USER_DEFAULT_SCREEN_DPI);
 }
 
 void ProgressWnd::ApplyDpiScaling(int dpi) {
@@ -273,43 +272,107 @@ LRESULT ProgressWnd::OnEraseBkgnd(UINT, WPARAM wparam, LPARAM) {
   RECT rect = {};
   ::GetClientRect(hwnd(), &rect);
 
-  // High Contrast accessibility fallback.
-  if (IsHighContrastOn()) {
-    ::FillRect(hdc, &rect, ::GetSysColorBrush(COLOR_WINDOW));
+  const int width = rect.right - rect.left;
+  const int height = rect.bottom - rect.top;
+  if (width <= 0 || height <= 0) {
     return 1;
   }
 
-  HBITMAP bg_bmp = GetBackgroundBitmap();
+  // Create an off-screen memory DC and bitmap (the primary buffer).
+  base::win::ScopedCreateDC hdc_mem(::CreateCompatibleDC(hdc));
+  if (!hdc_mem.is_valid()) {
+    return 1;
+  }
+  base::win::ScopedGDIObject<HBITMAP> hbmp_mem(
+      ::CreateCompatibleBitmap(hdc, width, height));
+  if (!hbmp_mem.is_valid()) {
+    return 1;
+  }
+  base::win::ScopedSelectObject select_mem_bmp(hdc_mem.get(), hbmp_mem.get());
+
+  // Paint the background into the off-screen buffer.
+  bool painted = false;
+
+  // Background image is not loaded in High Contrast Mode.
+  HBITMAP bg_bmp = IsHighContrastOn() ? nullptr : GetBackgroundBitmap();
   if (bg_bmp) {
     BITMAP bm = {};
     ::GetObject(bg_bmp, sizeof(bm), &bm);
 
-    HDC hdc_mem = ::CreateCompatibleDC(hdc);
-    const HGDIOBJ old_bm = ::SelectObject(hdc_mem, bg_bmp);
+    base::win::ScopedCreateDC hdc_src(::CreateCompatibleDC(hdc));
+    if (hdc_src.is_valid()) {
+      base::win::ScopedSelectObject select_src_bmp(hdc_src.get(), bg_bmp);
 
-    // Set high-quality HALFTONE scaling mode.
-    const int old_stretch_mode = ::SetStretchBltMode(hdc, HALFTONE);
-    ::SetBrushOrgEx(hdc, 0, 0, nullptr);
+      // Set high-quality HALFTONE scaling mode on the memory DC.
+      const int old_stretch_mode = ::SetStretchBltMode(hdc_mem.get(), HALFTONE);
+      ::SetBrushOrgEx(hdc_mem.get(), 0, 0, nullptr);
 
-    // Paint and stretch the background image over the client area.
-    const int width = rect.right - rect.left;
-    const int height = rect.bottom - rect.top;
-    ::StretchBlt(hdc, 0, 0, width, height, hdc_mem, 0, 0, bm.bmWidth,
-                 bm.bmHeight, SRCCOPY);
+      // Paint and stretch the background image over the off-screen client area.
+      ::StretchBlt(hdc_mem.get(), 0, 0, width, height, hdc_src.get(), 0, 0,
+                   bm.bmWidth, bm.bmHeight, SRCCOPY);
 
-    // Restore DC state.
-    ::SetStretchBltMode(hdc, old_stretch_mode);
-    ::SelectObject(hdc_mem, old_bm);
-    ::DeleteDC(hdc_mem);
-    return 1;
+      // Restore DC state.
+      ::SetStretchBltMode(hdc_mem.get(), old_stretch_mode);
+      painted = true;
+    }
   }
 
-  // Fallback to safe solid background color if loading fails.
-  const COLORREF fallback_color =
-      IsDarkModeOn() ? RGB(0x20, 0x20, 0x20) : RGB(255, 255, 255);
-  base::win::ScopedGDIObject<HBRUSH> fill_brush(
-      ::CreateSolidBrush(fallback_color));
-  ::FillRect(hdc, &rect, fill_brush.get());
+  if (!painted) {
+    // Fallback to safe solid background color if loading fails.
+    const COLORREF fallback_color =
+        IsHighContrastOn() ? ::GetSysColor(COLOR_WINDOW)
+                           : (IsDarkModeOn() ? kBgColorDark : kBgColorLight);
+    base::win::ScopedGDIObject<HBRUSH> fill_brush(
+        ::CreateSolidBrush(fallback_color));
+    ::FillRect(hdc_mem.get(), &rect, fill_brush.get());
+  }
+
+  // Draw a 1px border at 30% opacity (or 100% system theme color in High
+  // Contrast Mode) using RAII objects.
+  const int scaled_radius = GetScaledCornerRadius();
+  const int scaled_border = std::max(
+      1, ::MulDiv(1, ::GetDpiForWindow(hwnd()), USER_DEFAULT_SCREEN_DPI));
+  base::win::ScopedCreateDC hdc_blend(::CreateCompatibleDC(hdc));
+  if (hdc_blend.is_valid()) {
+    base::win::ScopedGDIObject<HBITMAP> hbmp_blend(
+        ::CreateCompatibleBitmap(hdc, width, height));
+    base::win::ScopedGDIObject<HRGN> border_rgn(::CreateRoundRectRgn(
+        0, 0, width, height, scaled_radius * 2, scaled_radius * 2));
+
+    const COLORREF border_color = IsHighContrastOn()
+                                      ? ::GetSysColor(COLOR_WINDOWTEXT)
+                                      : kWindowBorderColor;
+    base::win::ScopedGDIObject<HBRUSH> border_brush(
+        ::CreateSolidBrush(border_color));
+
+    if (hbmp_blend.is_valid() && border_rgn.is_valid() &&
+        border_brush.is_valid()) {
+      base::win::ScopedSelectObject select_blend_bmp(hdc_blend.get(),
+                                                     hbmp_blend.get());
+      // Copy the background from hdc_mem to hdc_blend (NOT from display hdc)
+      if (::BitBlt(hdc_blend.get(), 0, 0, width, height, hdc_mem.get(), 0, 0,
+                   SRCCOPY)) {
+        ::FrameRgn(hdc_blend.get(), border_rgn.get(), border_brush.get(),
+                   scaled_border, scaled_border);
+
+        BLENDFUNCTION bf = {
+            .BlendOp = AC_SRC_OVER,
+            .BlendFlags = 0,
+            .SourceConstantAlpha =
+                static_cast<BYTE>(IsHighContrastOn() ? 255 : 77),
+            .AlphaFormat = 0,
+        };
+
+        // AlphaBlend hdc_blend back onto hdc_mem
+        ::AlphaBlend(hdc_mem.get(), 0, 0, width, height, hdc_blend.get(), 0, 0,
+                     width, height, bf);
+      }
+    }
+  }
+
+  // Blit the completed primary buffer (hdc_mem) to the screen window hdc.
+  ::BitBlt(hdc, 0, 0, width, height, hdc_mem.get(), 0, 0, SRCCOPY);
+
   return 1;
 }
 
@@ -361,7 +424,7 @@ HBRUSH ProgressWnd::OnCtlColorStatic(HDC dc, HWND ctl_hwnd) {
     return ::GetSysColorBrush(COLOR_WINDOW);
   }
   if (IsDarkModeOn()) {
-    ::SetTextColor(dc, RGB(0xFF, 0xFF, 0xFF));
+    ::SetTextColor(dc, kTextColorDark);
   }
   ::SetBkMode(dc, TRANSPARENT);
   return static_cast<HBRUSH>(::GetStockObject(NULL_BRUSH));

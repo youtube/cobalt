@@ -131,7 +131,7 @@ TEST_F(ScopedRasterTimerTest, AcceleratedRasterDuration) {
 
   base::HistogramTester histograms;
 
-  // CanvasResourceProvider destructor performs a timer check
+  // Resource provider destructor performs a timer check
   // on the async GPU timers.
   provider = nullptr;
 

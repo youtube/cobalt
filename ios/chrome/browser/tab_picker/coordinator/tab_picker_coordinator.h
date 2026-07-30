@@ -5,53 +5,22 @@
 #ifndef IOS_CHROME_BROWSER_TAB_PICKER_COORDINATOR_TAB_PICKER_COORDINATOR_H_
 #define IOS_CHROME_BROWSER_TAB_PICKER_COORDINATOR_TAB_PICKER_COORDINATOR_H_
 
-#include <set>
-
 #import "ios/chrome/browser/shared/coordinator/chrome_coordinator/chrome_coordinator.h"
-#import "ios/chrome/browser/tab_picker/coordinator/tab_picker_mediator.h"
-#import "ios/chrome/browser/tab_picker/coordinator/tab_picker_snackbar_presenter.h"
-#import "ios/web/public/web_state.h"
+#import "ios/chrome/browser/shared/public/commands/tab_picker_commands.h"
 
-@protocol TabPickerCommands;
-@protocol TabPickerLogger;
-
-// Responsible for processing the selection of tab picker.
-@protocol TabPickerSelectionDelegate
-
-// Returns the associated IDs for all currently attached tabs.
-- (std::set<web::WebStateID>)allAttachedWebStateIDs;
-
-// Returns the associated IDs for currently attached tabs from the current web
-// state context. Tabs attached from different web states (not visible in the
-// tab picker) will be excluded.
-- (std::set<web::WebStateID>)attachedWebStateIDsInCurrentContext;
-
-// Returns the max number of tab attachments.
-- (NSUInteger)maxTabAttachmentCount;
-
-// Attaches the selected tabs. `cachedWebStateIDs` contains the IDs of the
-// tabs that have their content cached.
-- (void)attachSelectedTabsWithWebStateIDs:
-            (std::set<web::WebStateID>)selectedWebStateIDs
-                        cachedWebStateIDs:
-                            (std::set<web::WebStateID>)cachedWebStateIDs;
-
-@end
+@class TabPickerParams;
 
 // The tab picker coordinator.
-@interface TabPickerCoordinator : ChromeCoordinator <TabsAttachmentDelegate>
+@interface TabPickerCoordinator : ChromeCoordinator
 
 // Returns `YES` if the coordinator is started.
 @property(nonatomic, readonly) BOOL started;
 
-// Delegate for tab selection actions.
-@property(nonatomic, weak) id<TabPickerSelectionDelegate> delegate;
+// Configuration params for the tab picker.
+@property(nonatomic, strong) TabPickerParams* params;
 
-// Delegate for logging events
-@property(nonatomic, weak) id<TabPickerLogger> logger;
-
-// Presenter for snackbars
-@property(nonatomic, weak) id<TabPickerSnackbarPresenter> snackbarPresenter;
+// Called when the user confirms a new selection of tabs.
+@property(nonatomic, copy) TabPickerCompletionBlock tabPickerCompletionBlock;
 
 // Handler for tab picker commands.
 @property(nonatomic, weak) id<TabPickerCommands> tabPickerHandler;

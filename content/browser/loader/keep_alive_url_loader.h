@@ -100,9 +100,9 @@ class CONTENT_EXPORT KeepAliveURLLoader
       public blink::mojom::FetchLaterLoader {
  public:
   // A callback type to delete this loader immediately on triggered.
-  using OnDeleteCallback = base::OnceCallback<void(void)>;
+  using OnDeleteCallback = base::OnceClosure;
   using CheckRetryEligibilityCallback = base::RepeatingCallback<bool(void)>;
-  using OnRetryScheduledCallback = base::RepeatingCallback<void(void)>;
+  using OnRetryScheduledCallback = base::RepeatingClosure;
 
   // A callback type to return URLLoaderThrottles to be used by this loader.
   using URLLoaderThrottlesGetter = base::RepeatingCallback<

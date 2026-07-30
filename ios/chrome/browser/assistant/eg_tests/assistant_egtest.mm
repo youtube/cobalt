@@ -47,6 +47,8 @@ void OpenAssistantFromOmnibox() {
           IDS_IOS_APP_BAR_ASK_GEMINI);
   [[EarlGrey selectElementWithMatcher:askGeminiMatcher]
       performAction:grey_tap()];
+  [ChromeEarlGrey waitForUIElementToDisappearWithMatcher:
+                      grey_kindOfClassName(@"_UIContextMenuContainerView")];
 }
 
 }  // namespace

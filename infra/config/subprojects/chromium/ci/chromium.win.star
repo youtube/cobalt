@@ -408,7 +408,6 @@ ci.builder(
             "x86-64",
             "win10",
             "isolate_profile_data",
-            "retry_only_failed_tests",
         ],
         per_test_modifications = {
             "blink_web_tests": targets.mixin(
@@ -426,9 +425,6 @@ ci.builder(
                 ),
             ),
             "browser_tests": targets.mixin(
-                # Only retry the individual failed tests instead of rerunning
-                # entire shards.
-                # crbug.com/1473501
                 swarming = targets.swarming(
                     # This is for slow test execution that often becomes a
                     # critical path of swarming jobs. crbug.com/868114
@@ -541,7 +537,6 @@ ci.thin_tester(
         ],
         mixins = [
             "isolate_profile_data",
-            "retry_only_failed_tests",
             "win11-any",
             "x86-64",
         ],
@@ -608,7 +603,6 @@ ci.thin_tester(
             "x86-64",
             "win11-any",
             "isolate_profile_data",
-            "retry_only_failed_tests",
         ],
         per_test_modifications = {
             "blink_web_tests": targets.mixin(
@@ -768,7 +762,6 @@ ci.thin_tester(
         ],
         mixins = [
             "win-arm64",
-            "retry_only_failed_tests",
         ],
         per_test_modifications = {
             "browser_tests_no_field_trial": targets.remove(

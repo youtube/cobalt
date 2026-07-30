@@ -110,6 +110,7 @@ static_library("printing") {
   deps = [
     "//ash/constants",
     "//ash/public/cpp",
+    "//ash/strings",
     "//ash/webui/settings/public/constants:mojom",
     "//chrome/app:generated_resources",
     "//chrome/app/vector_icons",
@@ -225,6 +226,7 @@ source_set("unit_tests") {
     "//ash/constants",
     "//ash/public/cpp",
     "//ash/public/cpp:test_support",
+    "//ash/strings",
     "//base/test:test_support",
     "//chrome/browser:test_support",
     "//chrome/browser/apps/app_service",

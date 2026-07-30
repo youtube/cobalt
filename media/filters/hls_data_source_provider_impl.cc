@@ -31,7 +31,6 @@ constexpr size_t kDefaultReadSize = 1024 * 16;
 void OnMultiBufferReadComplete(
     std::unique_ptr<HlsDataSourceStream> stream,
     HlsDataSourceProviderImpl::ReadCb callback,
-    base::OnceCallback<void(HlsDataSourceStream&)> update_metadata,
     size_t requested_read_size,
     perfetto::NamedTrack trace_track,
     int read_size) {
@@ -50,7 +49,6 @@ void OnMultiBufferReadComplete(
     default: {
       CHECK_GE(read_size, 0);
       stream->UnlockStreamPostWrite(read_size, 0 == read_size);
-      std::move(update_metadata).Run(*stream);
       std::move(callback).Run(std::move(stream));
     }
   }
@@ -59,7 +57,7 @@ void OnMultiBufferReadComplete(
 }  // namespace
 
 HlsDataSourceProviderImpl::HlsDataSourceProviderImpl(
-    std::unique_ptr<DataSource::Factory> factory)
+    std::unique_ptr<CrossOriginDataSource::Factory> factory)
     : data_source_factory_(std::move(factory)) {}
 
 HlsDataSourceProviderImpl::~HlsDataSourceProviderImpl() {
@@ -85,25 +83,6 @@ void HlsDataSourceProviderImpl::ReadFromCombinedUrlQueue(SegmentQueue segments,
           base::BindOnce(&HlsDataSourceProviderImpl::OnStreamReleased,
                          weak_factory_.GetWeakPtr(), stream_id)));
   ReadFromExistingStream(std::move(stream), std::move(callback));
-}
-
-void HlsDataSourceProviderImpl::UpdateStreamMetadata(
-    HlsDataSourceStream::StreamId stream_id,
-    HlsDataSourceStream& stream) {
-  uint64_t usage = 0;
-  for (const auto& it : data_source_map_) {
-    usage += it.second->GetMemoryUsage();
-    would_taint_origin_ |= it.second->WouldTaintOrigin();
-    if (it.first == stream.stream_id()) {
-      if (it.second->DidRedirect()) {
-        stream.set_did_redirect();
-      }
-    }
-  }
-  stream.set_total_memory_usage(usage);
-  if (would_taint_origin_) {
-    stream.set_would_taint_origin();
-  }
 }
 
 void HlsDataSourceProviderImpl::ReadFromExistingStream(
@@ -155,22 +134,17 @@ void HlsDataSourceProviderImpl::ReadFromExistingStream(
   }
 
   base::span<uint8_t> buffer_data = stream->LockStreamForWriting(read_size);
-  auto stream_id = stream->stream_id();
-
   it->second->Read(
       base::checked_cast<int64_t>(pos), buffer_data,
-      base::BindOnce(
-          &OnMultiBufferReadComplete, std::move(stream), std::move(callback),
-          base::BindOnce(&HlsDataSourceProviderImpl::UpdateStreamMetadata,
-                         weak_factory_.GetWeakPtr(), stream_id),
-          read_size, GetTracingTrack(this)));
+      base::BindOnce(&OnMultiBufferReadComplete, std::move(stream),
+                     std::move(callback), read_size, GetTracingTrack(this)));
 }
 
 void HlsDataSourceProviderImpl::OnDataSourceCreated(
     DataSource::RangeMode range_mode,
     std::unique_ptr<HlsDataSourceStream> stream,
     ReadCb callback,
-    std::unique_ptr<DataSource> data_source) {
+    std::unique_ptr<CrossOriginDataSource> data_source) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(data_source);
   auto stream_id = stream->stream_id();
@@ -196,17 +170,10 @@ void HlsDataSourceProviderImpl::OnDataSourceCreated(
   }
 
   auto pair = data_source_map_.try_emplace(stream_id, std::move(data_source));
-  // Cross origin data sources have an asynchronous initialize method which
-  // must be called after they're put into `data_source_map_`. Other types of
-  // data source (including the test framework ones) come from the factory ready
-  // to go, and don't have an async init process.
-  if (auto* cross_origin = pair.first->second->GetAsCrossOriginDataSource()) {
-    cross_origin->Initialize(base::BindPostTaskToCurrentDefault(base::BindOnce(
-        &HlsDataSourceProviderImpl::DataSourceInitialized,
-        weak_factory_.GetWeakPtr(), std::move(stream), std::move(callback))));
-  } else {
-    DataSourceInitialized(std::move(stream), std::move(callback), true);
-  }
+  pair.first->second->Initialize(
+      base::BindPostTaskToCurrentDefault(base::BindOnce(
+          &HlsDataSourceProviderImpl::DataSourceInitialized,
+          weak_factory_.GetWeakPtr(), std::move(stream), std::move(callback))));
 }
 
 void HlsDataSourceProviderImpl::DataSourceInitialized(
@@ -227,6 +194,13 @@ void HlsDataSourceProviderImpl::DataSourceInitialized(
     would_taint_origin_ |= it->second->WouldTaintOrigin();
     if (would_taint_origin_) {
       stream->set_would_taint_origin();
+    }
+    if (it->second->DidRedirect()) {
+      stream->set_did_redirect();
+    }
+    const auto& response_uri = it->second->GetUrlAfterRedirects();
+    if (!response_uri.is_empty() && !response_uri.SchemeIs("data")) {
+      stream->TrackOrigin(url::Origin::Create(response_uri));
     }
   }
 

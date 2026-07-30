@@ -51,6 +51,7 @@ class SlimWebViewGuest : public GuestView<SlimWebViewGuest> {
   }
 
   void Navigate(const GURL& url);
+  void SetUserAgentOverride(const std::string& user_agent_override);
 
   // Returns true if an origin allowlist was provided at creation time.
   bool HasAllowedOrigins() const;
@@ -129,6 +130,7 @@ class SlimWebViewGuest : public GuestView<SlimWebViewGuest> {
   SlimWebViewPermissionHelper permission_helper_{this};
 
   std::optional<OriginCheckParams> allowed_origins_params_;
+  bool is_overriding_user_agent_ = false;
 
   base::WeakPtrFactory<SlimWebViewGuest> weak_ptr_factory_{this};
 };

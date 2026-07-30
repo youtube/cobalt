@@ -39,6 +39,7 @@ enum class AutofillManagerEvent {
   kDidAutofillForm,
   kJavaScriptChangedAutofilledValue,
   kFormSubmitted,
+  kFormWithEmailVerificationTokenSubmitted,
   kLoadedServerPredictions,
   kMaxValue = kLoadedServerPredictions
 };
@@ -249,6 +250,15 @@ class TestAutofillManagerWaiter : public AutofillManager::Observer {
                              const FormData& form) override;
   void OnAfterFormSubmitted(AutofillManager& manager,
                             const FormData& form) override;
+
+  void OnBeforeFormWithEmailVerificationTokenSubmitted(
+      AutofillManager& manager,
+      const FormData& form,
+      const FieldGlobalId& field_id) override;
+  void OnAfterFormWithEmailVerificationTokenSubmitted(
+      AutofillManager& manager,
+      const FormData& form,
+      const FieldGlobalId& field_id) override;
 
   void OnBeforeLoadedServerPredictions(AutofillManager& manager) override;
   void OnAfterLoadedServerPredictions(AutofillManager& manager) override;

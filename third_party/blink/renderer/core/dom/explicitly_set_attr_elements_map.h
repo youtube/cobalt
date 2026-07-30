@@ -6,7 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_DOM_EXPLICITLY_SET_ATTR_ELEMENTS_MAP_H_
 
 #include "third_party/blink/renderer/core/dom/element.h"
-#include "third_party/blink/renderer/core/dom/element_rare_data_field.h"
+#include "third_party/blink/renderer/core/dom/node_rare_data_field.h"
 #include "third_party/blink/renderer/core/dom/qualified_name.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/visitor.h"
@@ -26,13 +26,13 @@ namespace blink {
 // calling site.
 class ExplicitlySetAttrElementsMap
     : public GarbageCollected<ExplicitlySetAttrElementsMap>,
-      public ElementRareDataField {
+      public NodeRareDataField {
  public:
   HeapHashMap<QualifiedName, Member<GCedHeapLinkedHashSet<WeakMember<Element>>>>
       map;
 
   void Trace(Visitor* visitor) const override {
-    ElementRareDataField::Trace(visitor);
+    NodeRareDataField::Trace(visitor);
     visitor->Trace(map);
   }
 };

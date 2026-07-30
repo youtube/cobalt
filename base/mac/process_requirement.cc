@@ -87,12 +87,6 @@ struct CSOpsSystemCallProviderImpl
             size_t usersize) override {
     return ::csops(pid, ops, useraddr, usersize);
   }
-
-  bool SupportsValidationCategory() const override {
-    // macOS versions prior to macOS 13 do not support
-    // CS_OPS_VALIDATION_CATEGORY.
-    return MacOSMajorVersion() >= 13;
-  }
 };
 
 ProcessRequirement::CSOpsSystemCallProvider* DefaultCSOpsProvider() {
@@ -288,28 +282,16 @@ ProcessRequirement::Builder::HasSameCertificateType() && {
 
   has_same_certificate_type_called_ = true;
 
-  if (CSOpsProvider()->SupportsValidationCategory()) {
-    auto validation_category = ValidationCategoryOfCurrentProcess();
-    if (validation_category.has_value()) {
-      validation_category_ = *validation_category;
-    } else if (validation_category.error() == EINVAL) {
-      // EINVAL on versions of macOS that support CS_OPS_VALIDATION_CATEGORY
-      // indicates that the process is unsigned or the process has an invalid
-      // code signature.
-      validation_category_ = ValidationCategory::None;
-    } else {
-      failed_ = true;
-    }
+  auto validation_category = ValidationCategoryOfCurrentProcess();
+  if (validation_category.has_value()) {
+    validation_category_ = *validation_category;
+  } else if (validation_category.error() == EINVAL) {
+    // EINVAL on versions of macOS that support CS_OPS_VALIDATION_CATEGORY
+    // indicates that the process is unsigned or the process has an invalid
+    // code signature.
+    validation_category_ = ValidationCategory::None;
   } else {
-    // Older macOS versions do not support CS_OPS_VALIDATION_CATEGORY. Derive
-    // the validation category via Security.framework instead.
-    static auto validation_category =
-        FallbackValidationCategoryOfCurrentProcess();
-    if (validation_category.has_value()) {
-      validation_category_ = *validation_category;
-    } else {
-      failed_ = true;
-    }
+    failed_ = true;
   }
 
   return std::move(*this);

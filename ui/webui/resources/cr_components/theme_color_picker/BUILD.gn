@@ -31,7 +31,6 @@ build_webui("build") {
   ]
 
   ts_files = [
-    "browser_proxy.ts",
     "check_mark_wrapper.html.ts",
     "check_mark_wrapper.ts",
     "color_utils.ts",

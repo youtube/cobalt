@@ -7,6 +7,8 @@
 #include "content/browser/preloading/prefetch/prefetch_features.h"
 #include "content/browser/preloading/prefetch/prefetch_service.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
+#include "content/browser/renderer_host/navigation_request.h"
+#include "third_party/blink/public/common/tokens/tokens.h"
 
 namespace content {
 
@@ -56,7 +58,15 @@ void CancelUnrelatedPrefetchURLLoaderThrottle::WillStartRequest(
     return;
   }
 
-  prefetch_service->CancelUnrelatedPrefetchForNavigation();
+  NavigationRequest* navigation_request = frame_tree_node->navigation_request();
+  if (!navigation_request) {
+    return;
+  }
+  const std::optional<blink::DocumentToken>& initiator_document_token =
+      navigation_request->GetInitiatorDocumentToken();
+
+  prefetch_service->CancelUnrelatedPrefetchForNavigation(
+      initiator_document_token);
 }
 
 }  // namespace content

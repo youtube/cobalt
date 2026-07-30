@@ -59,6 +59,7 @@ class MediaStorageUtilTest : public testing::Test {
   }
 
   void TearDown() override {
+    monitor_ = nullptr;  // Destroyed by Destroy() below.
     TestStorageMonitor::Destroy();
   }
 
@@ -66,7 +67,7 @@ class MediaStorageUtilTest : public testing::Test {
 
  private:
   content::BrowserTaskEnvironment task_environment_;
-  raw_ptr<TestStorageMonitor, DanglingUntriaged> monitor_;
+  raw_ptr<TestStorageMonitor> monitor_;
   base::ScopedTempDir scoped_temp_dir_;
 };
 

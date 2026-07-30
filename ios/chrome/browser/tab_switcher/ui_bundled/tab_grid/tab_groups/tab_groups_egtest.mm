@@ -14,6 +14,7 @@
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/grid_constants.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/inactive_tabs/inactive_tabs_constants.h"
+#import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/tab_group_app_interface.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/tab_groups_constants.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/tab_groups_eg_utils.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/test/query_title_server_util.h"
@@ -59,6 +60,7 @@ using chrome_test_util::TabGridEditSelectAllButton;
 using chrome_test_util::TabGridGroupCellAtIndex;
 using chrome_test_util::TabGridGroupCellWithName;
 using chrome_test_util::TabGridNewTabButton;
+using chrome_test_util::TabGridNormalModePageControl;
 using chrome_test_util::TabGridOverflowMenuButton;
 using chrome_test_util::TabGridSearchBar;
 using chrome_test_util::TabGridSearchTabsButton;
@@ -1328,7 +1330,8 @@ void TapTabGroupTitle() {
 }
 
 // Tests drag and drop the last tab from a group to another window.
-- (void)testDragAndDropLastTabToOtherWindow {
+// TODO(crbug.com/524679738): Re-enable this test.
+- (void)DISABLED_testDragAndDropLastTabToOtherWindow {
   if (![ChromeEarlGrey areMultipleWindowsSupported]) {
     EARL_GREY_TEST_SKIPPED(@"Multiple windows can't be opened.");
   }
@@ -2006,6 +2009,28 @@ void TapTabGroupTitle() {
 
   // Check the purple color is selected.
   CheckPurpleButtonIsSelected();
+}
+
+// Tests that calling `showTabGroupCreationWithoutTabs` twice does not crash the
+// app (reentrancy check) and only presents a single creation view.
+- (void)testDoubleEmptyTabGroupCreationDoesNotCrash {
+  [ChromeEarlGreyUI openTabGrid];
+
+  // Trigger the creation flow twice sequentially.
+  [TabGroupAppInterface triggerDoubleEmptyTabGroupCreation];
+
+  [ChromeEarlGrey waitForUIElementToAppearWithMatcher:TabGroupCreationView()];
+
+  // Cancel the creation.
+  [[EarlGrey selectElementWithMatcher:CreateTabGroupCancelButton()]
+      performAction:grey_tap()];
+
+  // Verify that the creation view is dismissed and that the tab grid is
+  // visible.
+  [ChromeEarlGrey
+      waitForUIElementToDisappearWithMatcher:TabGroupCreationView()];
+  [[EarlGrey selectElementWithMatcher:TabGridNormalModePageControl()]
+      assertWithMatcher:grey_sufficientlyVisible()];
 }
 
 @end

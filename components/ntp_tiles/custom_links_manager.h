@@ -58,6 +58,9 @@ class CustomLinksManager {
   // Returns the current links.
   virtual const std::vector<Link>& GetLinks() const = 0;
 
+  // Returns the maximum number of links allowed.
+  virtual size_t GetMaxLinks() const = 0;
+
   // Adds a link to position |pos|. This link will not be deleted when history
   // is cleared. Returns false and does nothing if custom links is not
   // initialized, |url| is invalid, we're at the maximum number of links, or

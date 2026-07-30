@@ -20,7 +20,6 @@
 #include "chrome/browser/ui/views/device_signals_consent/consent_dialog_coordinator.h"
 #include "components/device_signals/core/browser/pref_names.h"
 #include "components/device_signals/core/browser/user_permission_service.h"
-#include "components/device_signals/core/common/signals_features.h"
 #include "components/enterprise/connectors/core/connectors_prefs.h"
 #include "components/prefs/pref_service.h"
 #include "components/user_prefs/user_prefs.h"
@@ -149,9 +148,6 @@ const char* DeviceTrustNavigationThrottle::GetNameForLogging() {
 
 content::NavigationThrottle::ThrottleCheckResult
 DeviceTrustNavigationThrottle::MayTriggerConsentDialog() {
-  if (!enterprise_signals::features::IsConsentDialogEnabled()) {
-    return PROCEED;
-  }
   const GURL& url = navigation_handle()->GetURL();
   if (!user_permission_service_ ||
       !user_permission_service_->ShouldCollectConsent() || !VerifyURL(url) ||

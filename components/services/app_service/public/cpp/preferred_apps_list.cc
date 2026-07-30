@@ -15,12 +15,16 @@
 
 namespace apps {
 
-PreferredAppsList::PreferredAppsList() = default;
+PreferredAppsList::PreferredAppsList(Delegate* delegate)
+    : delegate_(delegate) {}
 PreferredAppsList::~PreferredAppsList() = default;
 
 void PreferredAppsList::Init() {
   preferred_apps_ = PreferredApps();
   initialized_ = true;
+  for (auto& obs : observers_) {
+    obs.OnPreferredAppsListInitialized();
+  }
 }
 
 void PreferredAppsList::Init(PreferredApps preferred_apps) {
@@ -36,6 +40,9 @@ void PreferredAppsList::Init(PreferredApps preferred_apps) {
     iter++;
   }
   initialized_ = true;
+  for (auto& obs : observers_) {
+    obs.OnPreferredAppsListInitialized();
+  }
 }
 
 ReplacedAppPreferences PreferredAppsList::AddPreferredApp(
@@ -56,10 +63,19 @@ ReplacedAppPreferences PreferredAppsList::AddPreferredApp(
     // Only replace overlapped intent filters for other apps.
     if ((*iter)->app_id != app_id &&
         apps_util::FiltersHaveOverlap((*iter)->intent_filter, intent_filter)) {
-      // Add the to be removed preferred app into a map, key by app_id.
-      replaced_app_preferences[(*iter)->app_id].push_back(
-          std::move((*iter)->intent_filter));
-      iter = preferred_apps_.erase(iter);
+      bool has_conflict = true;
+      if (delegate_) {
+        has_conflict = delegate_->QueryConflict(
+            (*iter)->app_id, (*iter)->intent_filter, app_id, intent_filter);
+      }
+      if (has_conflict) {
+        // Add the to be removed preferred app into a map, key by app_id.
+        replaced_app_preferences[(*iter)->app_id].push_back(
+            std::move((*iter)->intent_filter));
+        iter = preferred_apps_.erase(iter);
+      } else {
+        iter++;
+      }
     } else {
       iter++;
     }
@@ -188,6 +204,7 @@ std::optional<std::string> PreferredAppsList::FindPreferredAppForIntent(
     const IntentPtr& intent) const {
   std::optional<std::string> best_match_app_id = std::nullopt;
   int best_match_level = static_cast<int>(IntentFilterMatchLevel::kNone);
+  size_t best_match_length = 0;
   DCHECK(intent);
   for (auto& preferred_app : preferred_apps_) {
     if (intent->MatchFilter(preferred_app->intent_filter)) {
@@ -195,7 +212,20 @@ std::optional<std::string> PreferredAppsList::FindPreferredAppForIntent(
       if (match_level < best_match_level) {
         continue;
       }
+      size_t match_length = 0;
+      if (intent->url.has_value()) {
+        match_length = apps_util::IntentFilterUrlMatchLength(
+            preferred_app->intent_filter, *intent->url);
+      }
+      // If the match level is identical to the current best match level, break
+      // the tie by using the URL prefix match length (longer URL scope wins).
+      if (longest_prefix_match_enabled_ && match_level == best_match_level) {
+        if (match_length < best_match_length) {
+          continue;
+        }
+      }
       best_match_level = match_level;
+      best_match_length = match_length;
       best_match_app_id = preferred_app->app_id;
     }
   }
@@ -203,14 +233,27 @@ std::optional<std::string> PreferredAppsList::FindPreferredAppForIntent(
 }
 
 base::flat_set<std::string> PreferredAppsList::FindPreferredAppsForFilters(
+    std::optional<std::string> app_id,
     const IntentFilters& intent_filters) const {
   base::flat_set<std::string> app_ids;
 
   for (auto& intent_filter : intent_filters) {
     for (auto& entry : preferred_apps_) {
-      if (apps_util::FiltersHaveOverlap(intent_filter, entry->intent_filter)) {
-        app_ids.insert(entry->app_id);
-        break;
+      // Check if another app has a preferred filter that structurally overlaps
+      // with this filter. If so, query the conflict callback to determine if
+      // they actually conflict (cannot co-exist).
+      if ((!app_id.has_value() || entry->app_id != *app_id) &&
+          apps_util::FiltersHaveOverlap(intent_filter, entry->intent_filter)) {
+        bool has_conflict = true;
+        if (app_id.has_value() && delegate_) {
+          has_conflict = delegate_->QueryConflict(
+              entry->app_id, entry->intent_filter, *app_id, intent_filter);
+        }
+        // If there is a conflict, we add the conflicting app to the set of apps
+        // to disable before enabling the new app.
+        if (has_conflict) {
+          app_ids.insert(entry->app_id);
+        }
       }
     }
   }

@@ -417,7 +417,8 @@ export class Page {
         continue;
       }
       const box = document.createElement('status-box');
-      box.initialize(scope, boxStatus);
+      box.scope = scope;
+      box.status = boxStatus;
       container.appendChild(box);
       // Show the status section.
       section.hidden = false;

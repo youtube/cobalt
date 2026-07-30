@@ -382,7 +382,7 @@ Browser* StartupBrowserCreatorImpl::OpenTabsInBrowser(
                   // to terminate after the browser window is closed.
                   app_controller_mac::AllowApplicationToTerminate();
 #endif
-                  browser->window()->Close();
+                  browser->GetWindow()->Close();
                 }
               },
               browser->AsWeakPtr(), std::move(profile_keepalive)));
@@ -440,7 +440,7 @@ Browser* StartupBrowserCreatorImpl::OpenTabsInBrowser(
     }
   }
 
-  browser->window()->Show();
+  browser->GetWindow()->Show();
 
   return browser;
 }

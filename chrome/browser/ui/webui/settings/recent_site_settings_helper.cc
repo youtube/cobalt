@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/webui/settings/recent_site_settings_helper.h"
 
+#include <algorithm>
 #include <vector>
 
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
@@ -41,9 +42,7 @@ constexpr int GetPriorityForType(ContentSettingsType type) {
 base::Time GetMostRecentTimestamp(const RecentSitePermissions& x) {
   auto most_recent = base::Time();
   for (const auto& setting : x.settings) {
-    if (setting.timestamp > most_recent) {
-      most_recent = setting.timestamp;
-    }
+    most_recent = std::max(most_recent, setting.timestamp);
   }
   return most_recent;
 }

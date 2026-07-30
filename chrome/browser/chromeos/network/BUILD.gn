@@ -18,7 +18,6 @@ static_library("network") {
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/dialogs:browser_dialogs",
     "//chrome/browser/ui/navigator",
-    "//chrome/common:constants",
     "//chromeos/ash/components/network",
     "//components/device_event_log",
     "//components/policy/core/common:common_constants",
@@ -39,7 +38,6 @@ source_set("browser_tests") {
 
   deps = [
     ":network",
-    "//chrome/browser/ash/net",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/ui",
     "//chrome/browser/ui/browser_window",

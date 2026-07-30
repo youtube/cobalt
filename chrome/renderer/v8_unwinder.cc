@@ -318,9 +318,7 @@ V8Unwinder::MemoryRanges::MemoryRanges(size_t size)
 V8Unwinder::MemoryRanges::MemoryRanges::~MemoryRanges() = default;
 
 void V8Unwinder::MemoryRanges::ShrinkSize(size_t size) {
-  if (size < size_) {
-    size_ = size;
-  }
+  size_ = std::min(size_, size);
 }
 
 bool V8Unwinder::ModuleCompare::operator()(

@@ -184,6 +184,8 @@ def GetLatestFullPathPerfetto(binary_name, platform):
   path_list = cloud_storage.ListFiles(PERFETTO_BINARY_BUCKET,
                                       path_wildcard,
                                       sort_by='time')
+  # Filter out the "latest" tag to only include actual versions.
+  path_list = [p for p in path_list if not p.startswith('/latest/')]
   if not path_list:
     raise RuntimeError('No pre-built binary found for platform %s.' % platform)
   return PERFETTO_BINARY_BUCKET + path_list[-1]

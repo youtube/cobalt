@@ -18,7 +18,8 @@ class XRQuadLayer : public XRShapedLayer {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  XRQuadLayer(const XRQuadLayerInit* init,
+  XRQuadLayer(XRSession* session,
+              const XRQuadLayerInit* init,
               V8XRLayerLayout::Enum final_layout,
               XRGraphicsBinding* binding,
               XRLayerDrawingContext* drawing_context);

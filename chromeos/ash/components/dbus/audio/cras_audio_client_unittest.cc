@@ -37,92 +37,16 @@ namespace {
 // Audio nodes for GetNodes unit test.
 const uint64_t kInternalSpeakerId = 10001;
 const uint64_t kInternalMicId = 20001;
-const uint64_t kNbsMicId = 30001;
 
 const uint32_t kInputMaxSupportedChannels = 1;
 const uint32_t kOutputMaxSupportedChannels = 2;
 
 const uint32_t kInputAudioEffect = cras::EFFECT_TYPE_NOISE_CANCELLATION;
-const uint32_t kNbsMicAudioEffect = cras::EFFECT_TYPE_HFP_MIC_SR;
 const uint32_t kOutputAudioEffect = 0;
 
 const int32_t kInputNumberOfVolumeSteps = 0;
 const int32_t kOutputNumberOfVolumeSteps = 25;
 
-const AudioNode kInternalSpeaker(false,
-                                 kInternalSpeakerId,
-                                 false /* has_v2_stable_device_id */,
-                                 kInternalSpeakerId /* stable_device_id_v1 */,
-                                 0 /* stable_device_id_v2 */,
-                                 "Fake Speaker",
-                                 "INTERNAL_SPEAKER",
-                                 "Speaker",
-                                 false,
-                                 0,
-                                 kOutputMaxSupportedChannels,
-                                 kOutputAudioEffect,
-                                 kOutputNumberOfVolumeSteps);
-
-const AudioNode kInternalMic(true,
-                             kInternalMicId,
-                             false /* has_v2_stable_device_id */,
-                             kInternalMicId /* stable_device_id_v1*/,
-                             0 /* stable_device_id_v2 */,
-                             "Fake Mic",
-                             "INTERNAL_MIC",
-                             "Internal Mic",
-                             false,
-                             0,
-                             kInputMaxSupportedChannels,
-                             kInputAudioEffect,
-                             kInputNumberOfVolumeSteps);
-
-const AudioNode kInternalSpeakerV2(
-    false,
-    kInternalSpeakerId,
-    true /* has_v2_stable_device_id */,
-    kInternalSpeakerId /* stable_device_id_v1 */,
-    // stable_device_id_v2: XOR to make sure the
-    // ID is different from |stable_device_id_v1|.
-    kInternalSpeakerId ^ 0xFF,
-    "Fake Speaker",
-    "INTERNAL_SPEAKER",
-    "Speaker",
-    false,
-    0,
-    kOutputMaxSupportedChannels,
-    kOutputAudioEffect,
-    kOutputNumberOfVolumeSteps);
-
-const AudioNode kInternalMicV2(true,
-                               kInternalMicId,
-                               true /* has_v2_stable_device_id */,
-                               kInternalMicId /* stable_device_id_v1 */,
-                               // XOR to make sure the ID is different from
-                               // |stable_device_id_v1|.
-                               kInternalMicId ^ 0xFF /* stable_device_id_v2 */,
-                               "Fake Mic",
-                               "INTERNAL_MIC",
-                               "Internal Mic",
-                               false,
-                               0,
-                               kInputMaxSupportedChannels,
-                               kInputAudioEffect,
-                               kInputNumberOfVolumeSteps);
-
-const AudioNode kNbsMic(true,
-                        kNbsMicId,
-                        false /* has_v2_stable_device_id */,
-                        kNbsMicId /* stable_device_id_v1*/,
-                        0 /* stable_device_id_v2 */,
-                        "Fake Nbs Mic",
-                        "BLUETOOTH_NB_MIC",
-                        "Bluetooth Nb Mic",
-                        false,
-                        0,
-                        kInputMaxSupportedChannels,
-                        kNbsMicAudioEffect,
-                        kInputNumberOfVolumeSteps);
 
 // A mock CrasAudioClient Observer.
 class MockObserver : public CrasAudioClient::Observer {
@@ -1579,7 +1503,18 @@ TEST_F(CrasAudioClientTest, InputNodeGainChanged) {
 
 TEST_F(CrasAudioClientTest, GetNodes) {
   // Create the expected value.
-  AudioNodeList expected_node_list{kInternalSpeaker, kInternalMic};
+  const AudioNode internal_speaker(
+      false, kInternalSpeakerId, false /* has_v2_stable_device_id */,
+      kInternalSpeakerId /* stable_device_id_v1 */, 0 /* stable_device_id_v2 */,
+      "Fake Speaker", "INTERNAL_SPEAKER", "Speaker", false, 0,
+      kOutputMaxSupportedChannels, kOutputAudioEffect,
+      kOutputNumberOfVolumeSteps);
+  const AudioNode internal_mic(
+      true, kInternalMicId, false /* has_v2_stable_device_id */,
+      kInternalMicId /* stable_device_id_v1*/, 0 /* stable_device_id_v2 */,
+      "Fake Mic", "INTERNAL_MIC", "Internal Mic", false, 0,
+      kInputMaxSupportedChannels, kInputAudioEffect, kInputNumberOfVolumeSteps);
+  AudioNodeList expected_node_list{internal_speaker, internal_mic};
 
   // Create response.
   std::unique_ptr<dbus::Response> response(dbus::Response::CreateEmpty());
@@ -1600,7 +1535,23 @@ TEST_F(CrasAudioClientTest, GetNodes) {
 
 TEST_F(CrasAudioClientTest, GetNodesV2) {
   // Create the expected value.
-  AudioNodeList expected_node_list{kInternalSpeakerV2, kInternalMicV2};
+  const AudioNode internal_speaker_v2(
+      false, kInternalSpeakerId, true /* has_v2_stable_device_id */,
+      kInternalSpeakerId /* stable_device_id_v1 */,
+      // stable_device_id_v2: XOR to make sure the
+      // ID is different from |stable_device_id_v1|.
+      kInternalSpeakerId ^ 0xFF, "Fake Speaker", "INTERNAL_SPEAKER", "Speaker",
+      false, 0, kOutputMaxSupportedChannels, kOutputAudioEffect,
+      kOutputNumberOfVolumeSteps);
+  const AudioNode internal_mic_v2(
+      true, kInternalMicId, true /* has_v2_stable_device_id */,
+      kInternalMicId /* stable_device_id_v1 */,
+      // XOR to make sure the ID is different from
+      // |stable_device_id_v1|.
+      kInternalMicId ^ 0xFF /* stable_device_id_v2 */, "Fake Mic",
+      "INTERNAL_MIC", "Internal Mic", false, 0, kInputMaxSupportedChannels,
+      kInputAudioEffect, kInputNumberOfVolumeSteps);
+  AudioNodeList expected_node_list{internal_speaker_v2, internal_mic_v2};
 
   // Create response.
   std::unique_ptr<dbus::Response> response(dbus::Response::CreateEmpty());

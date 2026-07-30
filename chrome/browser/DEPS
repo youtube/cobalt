@@ -6,8 +6,8 @@ include_rules = [
   "+cc/paint",
   "+cc/test",
 
-  # Restricting uses of Chrome*Activity in favor of direct dependency aquisition. Code that lives
-  # under java/src/.../chrome/browser has a seperate exception under that same directory.
+  # Restricting uses of Chrome*Activity in favor of direct dependency acquisition. Code that lives
+  # under java/src/.../chrome/browser has a separate exception under that same directory.
   # Exceptions can be found under "specific_include_rules" below.
   "-chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java",
   "-chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java",
@@ -72,6 +72,7 @@ include_rules = [
   "+components/bookmarks/managed",
   "+components/bookmarks/test",
   "+components/breadcrumbs/core",
+  "+components/browser_apis/bookmarks",
   "+components/browser_apis/browser_controls",
   "+components/browser_apis/tab_drag",
   "+components/browser_apis/tab_strip",
@@ -642,7 +643,7 @@ specific_include_rules = {
   "shared_storage_browsertest.cc": [
     "+components/services/storage/shared_storage/shared_storage_manager.h",
   ],
-  "fake_server_helper_android\.cc": [
+  "fake_server_helper_android\\.cc": [
     "+components/saved_tab_groups",
   ],
   r"android/omnibox/composebox_query_controller_bridge\.cc": [

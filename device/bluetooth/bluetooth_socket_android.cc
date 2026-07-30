@@ -112,6 +112,7 @@ void BluetoothSocketAndroid::DoConnect(base::OnceClosure success_callback,
 }
 
 void BluetoothSocketAndroid::Disconnect(base::OnceClosure success_callback) {
+  CHECK(ui_task_runner_->RunsTasksInCurrentSequence());
   socket_thread_->task_runner()->PostTaskAndReply(
       FROM_HERE,
       base::BindOnce(&BluetoothSocketAndroid::DoDisconnect,
@@ -128,6 +129,7 @@ void BluetoothSocketAndroid::DoDisconnect() {
 
 void BluetoothSocketAndroid::PostDisconnect(
     base::OnceClosure success_callback) {
+  CHECK(ui_task_runner_->RunsTasksInCurrentSequence());
   // Stop and destroy `receiving_thread_` on UI thread, not on Socket Thread.
   receiving_thread_->Stop();
   receiving_thread_.reset();
@@ -138,6 +140,7 @@ void BluetoothSocketAndroid::Receive(
     int buffer_size,
     ReceiveCompletionCallback success_callback,
     ReceiveErrorCompletionCallback error_callback) {
+  CHECK(ui_task_runner_->RunsTasksInCurrentSequence());
   if (!receiving_thread_) {
     std::move(error_callback).Run(ErrorReason::kDisconnected, "Not connected");
     return;
@@ -196,6 +199,7 @@ void BluetoothSocketAndroid::Send(scoped_refptr<net::IOBuffer> buffer,
                                   int buffer_size,
                                   SendCompletionCallback success_callback,
                                   ErrorCompletionCallback error_callback) {
+  CHECK(ui_task_runner_->RunsTasksInCurrentSequence());
   socket_thread_->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(&BluetoothSocketAndroid::DoSend, this, std::move(buffer),

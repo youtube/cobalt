@@ -6,8 +6,6 @@
 import copy
 import unittest
 
-import six
-
 import results_merger
 
 GOOD_JSON_TEST_RESULT_0 = {
@@ -169,7 +167,7 @@ class MergingTest(unittest.TestCase):  # pragma: no cover
     }}))
 
   def test_merge_tries_unmergable(self):
-    with six.assertRaisesRegex(self, results_merger.MergeException, 'a:b'):
+    with self.assertRaisesRegex(results_merger.MergeException, 'a:b'):
       results_merger.merge_tries({'a': {'b': 'A'}}, {'a': {'b': 'C'}})
 
   def test_merge_metadata(self):

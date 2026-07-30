@@ -43,7 +43,8 @@ signin::Tribool GetPrivacySandboxRestrictedByAccountCapability(
       identity_manager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
   const AccountInfo account_info =
       identity_manager->FindExtendedAccountInfo(core_account_info);
-  return account_info.capabilities.can_run_chrome_privacy_sandbox_trials();
+  return account_info.GetAccountCapabilities()
+      .can_run_chrome_privacy_sandbox_trials();
 }
 
 }  // namespace
@@ -109,8 +110,8 @@ bool PrivacySandboxSettingsDelegate::IsPrivacySandboxCurrentlyUnrestricted()
   const AccountInfo account_info =
       identity_manager->FindExtendedPrimaryAccountInfo(
           signin::ConsentLevel::kSignin);
-  auto capability =
-      account_info.capabilities.can_run_chrome_privacy_sandbox_trials();
+  auto capability = account_info.GetAccountCapabilities()
+                        .can_run_chrome_privacy_sandbox_trials();
   return capability == signin::Tribool::kTrue;
 }
 
@@ -157,7 +158,7 @@ bool PrivacySandboxSettingsDelegate::PrivacySandboxRestrictedNoticeRequired()
       identity_manager->FindExtendedPrimaryAccountInfo(
           signin::ConsentLevel::kSignin);
   auto capability =
-      account_info.capabilities
+      account_info.GetAccountCapabilities()
           .is_subject_to_chrome_privacy_sandbox_restricted_measurement_notice();
   return capability == signin::Tribool::kTrue;
 }
@@ -175,7 +176,7 @@ bool PrivacySandboxSettingsDelegate::IsSubjectToEnterpriseFeatures() const {
       identity_manager->FindExtendedPrimaryAccountInfo(
           signin::ConsentLevel::kSignin);
   auto capability =
-      account_info.capabilities.is_subject_to_enterprise_features();
+      account_info.GetAccountCapabilities().is_subject_to_enterprise_features();
   return capability == signin::Tribool::kTrue;
 }
 

@@ -818,6 +818,19 @@ TEST_F(BitmapImageTestWithMockDecoder, ResetAnimation) {
             image.reset_animation_sequence_id());
 }
 
+TEST_F(BitmapImageTestWithMockDecoder, ResetAnimationForStaticImage) {
+  repetition_count_ = kAnimationNone;
+  frame_count_ = 1u;
+  last_frame_complete_ = true;
+  image_->SetData(SharedBuffer::Create(base::span_from_cstring("data")), true);
+
+  PaintImage image = image_->PaintImageForCurrentFrame();
+  image_->ResetAnimation();
+  PaintImage image2 = image_->PaintImageForCurrentFrame();
+  EXPECT_GT(image2.reset_animation_sequence_id(),
+            image.reset_animation_sequence_id());
+}
+
 TEST_F(BitmapImageTestWithMockDecoder, PaintImageForStaticBitmapImage) {
   repetition_count_ = kAnimationLoopInfinite;
   frame_count_ = 5;

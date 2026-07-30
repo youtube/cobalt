@@ -53,8 +53,7 @@ class COMPONENT_EXPORT(UI_BASE_IME_WIN)
   bool IsKeyboardAttachedToDevice(HWND hwnd);
 
   std::unique_ptr<OnScreenKeyboardDetector> keyboard_detector_;
-  base::ObserverList<VirtualKeyboardControllerObserver, false>::Unchecked
-      observers_;
+  base::ObserverList<VirtualKeyboardControllerObserver, false> observers_;
   HWND hwnd_;
 
   // The location of TabTip.exe.

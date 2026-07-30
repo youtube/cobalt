@@ -31,10 +31,6 @@
 #include "ui/gfx/overlay_plane_data.h"
 #include "ui/gl/ca_renderer_layer_params.h"
 
-#if BUILDFLAG(IS_MAC)
-#include "base/power_monitor/power_monitor.h"
-#endif
-
 #if BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS)
 #include "gpu/ipc/common/ios/be_layer_hierarchy_transport.h"
 #endif
@@ -140,10 +136,6 @@ ImageTransportSurfaceOverlayMacEGL::ImageTransportSurfaceOverlayMacEGL(
   bool no_post_task_for_callback = false;
 #if BUILDFLAG(IS_MAC)
   no_post_task_for_callback = AllowCallbackWithoutPostTask();
-
-  if (ui::DisplayLinkMac::SupportsDisplayLinkMacInBrowser()) {
-    base::PowerMonitor::GetInstance()->AddPowerSuspendObserver(this);
-  }
 #endif
 
   ca_layer_tree_coordinator_ = std::make_unique<ui::CALayerTreeCoordinator>(
@@ -188,12 +180,6 @@ ImageTransportSurfaceOverlayMacEGL::ImageTransportSurfaceOverlayMacEGL(
 
 ImageTransportSurfaceOverlayMacEGL::~ImageTransportSurfaceOverlayMacEGL() {
   ca_layer_tree_coordinator_.reset();
-
-#if BUILDFLAG(IS_MAC)
-  if (ui::DisplayLinkMac::SupportsDisplayLinkMacInBrowser()) {
-    base::PowerMonitor::GetInstance()->RemovePowerSuspendObserver(this);
-  }
-#endif
 
 #if BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS)
   // Capture and retain the BELayerHierarchy in a local __block var before
@@ -339,17 +325,6 @@ void ImageTransportSurfaceOverlayMacEGL::SetVSyncDisplayID(int64_t display_id,
   display_id_ = display_id;
 }
 
-void ImageTransportSurfaceOverlayMacEGL::RefreshRateChangedOnSameDisplay() {
-  if (!ui::DisplayLinkMac::SupportsDisplayLinkMacInBrowser()) {
-    return;
-  }
-
-  if (display_link_mac_ && !display_link_mac_->NotifyEventAndCheckValidity()) {
-    // Recreate a new DisplayLink
-    SetVSyncDisplayID(display_id_, /*force_update=*/true);
-  }
-}
-
 base::TimeTicks ImageTransportSurfaceOverlayMacEGL::GetDisplaytime(
     base::TimeTicks latch_time) {
   // From the CVDisplayLink params dump:
@@ -419,13 +394,6 @@ void ImageTransportSurfaceOverlayMacEGL::OnVSyncPresentation(
 
   if (vsync_callback_mac_keep_alive_counter_ == 0) {
     vsync_callback_mac_ = nullptr;
-  }
-}
-
-void ImageTransportSurfaceOverlayMacEGL::OnResume() {
-  if (display_link_mac_ && !display_link_mac_->NotifyEventAndCheckValidity()) {
-    // Recreate a new DisplayLink.
-    SetVSyncDisplayID(display_id_, /*force_update=*/true);
   }
 }
 #endif

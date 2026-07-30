@@ -106,8 +106,9 @@ class ClientImplIntegrationTest : public testing::Test {
 
 TEST_F(ClientImplIntegrationTest, FullStackSuccess) {
   base::test::TestFuture<base::expected<std::string, StatusCode>> future;
-  client_->SendTextRequest(proto::FeatureName::FEATURE_NAME_UNSPECIFIED,
-                           "hello", future.GetCallback(), /*options=*/{});
+  client_->SendTextRequest(
+      proto::FeatureName::FEATURE_NAME_CHROME_ZERO_STATE_SUGGESTION, "hello",
+      future.GetCallback(), /*options=*/{});
 
   // 1. Attestation starts. FakeTokenManager gets a request.
   token_manager_.RunPendingCallbacks();
@@ -121,7 +122,7 @@ TEST_F(ClientImplIntegrationTest, FullStackSuccess) {
   ASSERT_EQ(channel->written_requests().size(), 2u);
   EXPECT_TRUE(channel->written_requests()[0].has_anonymous_token_request());
   EXPECT_EQ(channel->written_requests()[0].feature_name(),
-            proto::FeatureName::FEATURE_NAME_UNSPECIFIED);
+            proto::FeatureName::FEATURE_NAME_CHROME_ZERO_STATE_SUGGESTION);
   EXPECT_TRUE(channel->written_requests()[1].has_generate_content_request());
 
   // 4. Respond to text request.
@@ -142,8 +143,9 @@ TEST_F(ClientImplIntegrationTest, FullStackSuccess) {
 
 TEST_F(ClientImplIntegrationTest, AttestationFailure) {
   base::test::TestFuture<base::expected<std::string, StatusCode>> future;
-  client_->SendTextRequest(proto::FeatureName::FEATURE_NAME_UNSPECIFIED,
-                           "hello", future.GetCallback(), /*options=*/{});
+  client_->SendTextRequest(
+      proto::FeatureName::FEATURE_NAME_CHROME_ZERO_STATE_SUGGESTION, "hello",
+      future.GetCallback(), /*options=*/{});
 
   // 1. Attestation starts.
   // Simulate token fetch failure.
@@ -152,14 +154,14 @@ TEST_F(ClientImplIntegrationTest, AttestationFailure) {
   // 2. Client should receive an error.
   auto result = future.Get();
   ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error(), StatusCode::kClientAttestationFailed);
+  EXPECT_EQ(result.error(), StatusCode::kClientAttestationTokenFetchFailed);
 }
 
 TEST_F(ClientImplIntegrationTest, Timeout) {
   base::test::TestFuture<base::expected<std::string, StatusCode>> future;
-  client_->SendTextRequest(proto::FeatureName::FEATURE_NAME_UNSPECIFIED,
-                           "hello", future.GetCallback(),
-                           {.timeout = base::Seconds(5)});
+  client_->SendTextRequest(
+      proto::FeatureName::FEATURE_NAME_CHROME_ZERO_STATE_SUGGESTION, "hello",
+      future.GetCallback(), {.timeout = base::Seconds(5)});
 
   // Provide the token.
   token_manager_.RunPendingCallbacks();
@@ -170,7 +172,7 @@ TEST_F(ClientImplIntegrationTest, Timeout) {
   ASSERT_EQ(channel->written_requests().size(), 2u);
   EXPECT_TRUE(channel->written_requests()[0].has_anonymous_token_request());
   EXPECT_EQ(channel->written_requests()[0].feature_name(),
-            proto::FeatureName::FEATURE_NAME_UNSPECIFIED);
+            proto::FeatureName::FEATURE_NAME_CHROME_ZERO_STATE_SUGGESTION);
   EXPECT_TRUE(channel->written_requests()[1].has_generate_content_request());
 
   // Wait for timeout.
@@ -186,10 +188,12 @@ TEST_F(ClientImplIntegrationTest, ConcurrentRequestsDuringAttestation) {
   base::test::TestFuture<base::expected<std::string, StatusCode>> future1;
   base::test::TestFuture<base::expected<std::string, StatusCode>> future2;
 
-  client_->SendTextRequest(proto::FeatureName::FEATURE_NAME_UNSPECIFIED,
-                           "request1", future1.GetCallback(), /*options=*/{});
-  client_->SendTextRequest(proto::FeatureName::FEATURE_NAME_UNSPECIFIED,
-                           "request2", future2.GetCallback(), /*options=*/{});
+  client_->SendTextRequest(
+      proto::FeatureName::FEATURE_NAME_CHROME_ZERO_STATE_SUGGESTION, "request1",
+      future1.GetCallback(), /*options=*/{});
+  client_->SendTextRequest(
+      proto::FeatureName::FEATURE_NAME_CHROME_ZERO_STATE_SUGGESTION, "request2",
+      future2.GetCallback(), /*options=*/{});
 
   // 1. Attestation starts (only one token fetch should be triggered).
   token_manager_.RunPendingCallbacks();
@@ -201,7 +205,7 @@ TEST_F(ClientImplIntegrationTest, ConcurrentRequestsDuringAttestation) {
   ASSERT_EQ(channel->written_requests().size(), 3u);
   EXPECT_TRUE(channel->written_requests()[0].has_anonymous_token_request());
   EXPECT_EQ(channel->written_requests()[0].feature_name(),
-            proto::FeatureName::FEATURE_NAME_UNSPECIFIED);
+            proto::FeatureName::FEATURE_NAME_CHROME_ZERO_STATE_SUGGESTION);
 
   // Handle request 1
   EXPECT_EQ(channel->written_requests()[1]
@@ -244,8 +248,9 @@ TEST_F(ClientImplIntegrationTest, ConcurrentRequestsDuringAttestation) {
 
 TEST_F(ClientImplIntegrationTest, DisconnectDuringAttestation) {
   base::test::TestFuture<base::expected<std::string, StatusCode>> future;
-  client_->SendTextRequest(proto::FeatureName::FEATURE_NAME_UNSPECIFIED,
-                           "hello", future.GetCallback(), /*options=*/{});
+  client_->SendTextRequest(
+      proto::FeatureName::FEATURE_NAME_CHROME_ZERO_STATE_SUGGESTION, "hello",
+      future.GetCallback(), /*options=*/{});
 
   // 1. Attestation starts.
   token_manager_.RunPendingCallbacks();
@@ -266,8 +271,9 @@ TEST_F(ClientImplIntegrationTest, DisconnectDuringAttestation) {
 
 TEST_F(ClientImplIntegrationTest, ClientDestroyedDuringAttestation) {
   base::test::TestFuture<base::expected<std::string, StatusCode>> future;
-  client_->SendTextRequest(proto::FeatureName::FEATURE_NAME_UNSPECIFIED,
-                           "hello", future.GetCallback(), /*options=*/{});
+  client_->SendTextRequest(
+      proto::FeatureName::FEATURE_NAME_CHROME_ZERO_STATE_SUGGESTION, "hello",
+      future.GetCallback(), /*options=*/{});
 
   // 1. Attestation starts.
   token_manager_.RunPendingCallbacks();
@@ -285,9 +291,9 @@ TEST_F(ClientImplIntegrationTest, ClientDestroyedDuringAttestation) {
 
 TEST_F(ClientImplIntegrationTest, AttestationTimedOut) {
   base::test::TestFuture<base::expected<std::string, StatusCode>> future;
-  client_->SendTextRequest(proto::FeatureName::FEATURE_NAME_UNSPECIFIED,
-                           "hello", future.GetCallback(),
-                           {.timeout = base::Seconds(5)});
+  client_->SendTextRequest(
+      proto::FeatureName::FEATURE_NAME_CHROME_ZERO_STATE_SUGGESTION, "hello",
+      future.GetCallback(), {.timeout = base::Seconds(5)});
 
   // 1. Attestation starts.
   token_manager_.RunPendingCallbacks();
@@ -310,8 +316,9 @@ TEST_F(ClientImplIntegrationTest, ProxySuccess) {
   factory_ptr_->EnableProxy(GURL("https://proxy.example.com"));
 
   base::test::TestFuture<base::expected<std::string, StatusCode>> future;
-  client_->SendTextRequest(proto::FeatureName::FEATURE_NAME_UNSPECIFIED,
-                           "hello", future.GetCallback(), /*options=*/{});
+  client_->SendTextRequest(
+      proto::FeatureName::FEATURE_NAME_CHROME_ZERO_STATE_SUGGESTION, "hello",
+      future.GetCallback(), /*options=*/{});
 
   // 2. Respond to token requests.
   token_manager_.RunPendingProxyCallbacks();
@@ -325,7 +332,7 @@ TEST_F(ClientImplIntegrationTest, ProxySuccess) {
   ASSERT_EQ(channel->written_requests().size(), 2u);
   EXPECT_TRUE(channel->written_requests()[0].has_anonymous_token_request());
   EXPECT_EQ(channel->written_requests()[0].feature_name(),
-            proto::FeatureName::FEATURE_NAME_UNSPECIFIED);
+            proto::FeatureName::FEATURE_NAME_CHROME_ZERO_STATE_SUGGESTION);
   EXPECT_TRUE(channel->written_requests()[1].has_generate_content_request());
 
   // 4. Respond to text request.
@@ -351,8 +358,9 @@ TEST_F(ClientImplIntegrationTest, ProxyConfigFailure) {
   factory_ptr_->EnableProxy(GURL("https://proxy.example.com"));
 
   base::test::TestFuture<base::expected<std::string, StatusCode>> future;
-  client_->SendTextRequest(proto::FeatureName::FEATURE_NAME_UNSPECIFIED,
-                           "hello", future.GetCallback(), /*options=*/{});
+  client_->SendTextRequest(
+      proto::FeatureName::FEATURE_NAME_CHROME_ZERO_STATE_SUGGESTION, "hello",
+      future.GetCallback(), /*options=*/{});
 
   // 2. Respond to proxy token request with invalid token.
   token_manager_.RespondToGetAuthTokenForProxy(phosphor::BlindSignedAuthToken{

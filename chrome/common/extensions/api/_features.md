@@ -191,7 +191,7 @@ The `command_line_switch` property specifies a command line switch that must be
 present for the feature to be available.
 
 Accepted values are a single string for the command line switch (without the
-preceeding '--').
+preceding '--').
 
 ### feature\_flag
 

@@ -6,11 +6,13 @@
 #define CC_TREES_PROXY_MAIN_H_
 
 #include <memory>
+#include <string_view>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
+#include "base/timer/elapsed_timer.h"
 #include "base/types/optional_ref.h"
 #include "cc/cc_export.h"
 #include "cc/input/browser_controls_offset_tag_modifications.h"
@@ -59,6 +61,9 @@ class CC_EXPORT ProxyMain : public Proxy {
   void RequestNewLayerTreeFrameSink();
   void DidInitializeLayerTreeFrameSink(bool success);
   void DidCompletePageScaleAnimation();
+  void RecordBeginMainFrameMetrics(const BeginMainFrameReasons& reasons,
+                                   const base::ElapsedTimer& timer,
+                                   std::string_view suffix) const;
   void BeginMainFrame(
       std::unique_ptr<BeginMainFrameAndCommitState> begin_main_frame_state);
   void DidChangeBeginFrameSourcePaused(bool paused);
@@ -95,6 +100,9 @@ class CC_EXPORT ProxyMain : public Proxy {
   CommitPipelineStage final_pipeline_stage() const {
     return final_pipeline_stage_;
   }
+  bool has_sent_urgent_commit_request() const {
+    return has_sent_urgent_commit_request_;
+  }
 
  private:
   // Proxy implementation.
@@ -105,7 +113,7 @@ class CC_EXPORT ProxyMain : public Proxy {
   void SetShouldWarmUp() override;
   void SetNeedsAnimate(BeginMainFrameReason, bool urgent) override;
   void SetNeedsUpdateLayers() override;
-  void SetNeedsCommit() override;
+  void SetNeedsCommit(bool urgent) override;
   void SetNeedsRedraw(const gfx::Rect& damage_rect) override;
   void SetTargetLocalSurfaceId(
       const viz::LocalSurfaceId& target_local_surface_id) override;
@@ -119,7 +127,6 @@ class CC_EXPORT ProxyMain : public Proxy {
                              PaintHoldingReason reason) override;
   void StopDeferringCommits() override;
   bool IsDeferringCommits() const override;
-  void SetShouldThrottleFrameRate(bool flag) override;
   void SetRequestHighFramerate(bool flag) override;
   bool CommitRequested() const override;
   void Start() override;
@@ -180,6 +187,8 @@ class CC_EXPORT ProxyMain : public Proxy {
     begin_main_frame_reason_.set(static_cast<int>(reason));
   }
 
+  bool IsEmbeddedFrame() const;
+
   raw_ptr<LayerTreeHost> layer_tree_host_;
 
   raw_ptr<TaskRunnerProvider> task_runner_provider_;
@@ -232,7 +241,7 @@ class CC_EXPORT ProxyMain : public Proxy {
   bool begin_frame_source_paused_ = false;
   int main_frames_in_flight_ = 0;
   bool needs_begin_main_frame_ = false;
-  std::bitset<BeginMainFrameReasonSize> begin_main_frame_reason_;
+  BeginMainFrameReasons begin_main_frame_reason_;
   viz::BeginFrameArgs last_begin_main_frame_args_;
   bool begin_impl_frame_idle_ = false;
   bool request_begin_main_frame_not_expected_ = false;

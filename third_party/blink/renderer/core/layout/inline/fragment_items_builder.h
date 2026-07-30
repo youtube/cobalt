@@ -49,6 +49,9 @@ class CORE_EXPORT FragmentItemsBuilder {
     }
     return text_content_;
   }
+  wtf_size_t TextContentLengthMax() const {
+    return std::max(TextContent(false).length(), TextContent(true).length());
+  }
 
   // Adding a line is a three-pass operation, because |InlineLayoutAlgorithm|
   // creates and positions children within a line box, but its parent algorithm

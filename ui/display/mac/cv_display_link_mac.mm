@@ -90,6 +90,7 @@ bool ComputeVSyncParameters(const CVTimeStamp& cv_time,
 
 }  // namespace
 
+// static
 // Called by the system on the CVDisplayLink thread, and posts a call to the
 // thread indicated in CVDisplayLinkMac::RegisterCallback().
 CVReturn CVDisplayLinkMac::CVDisplayLinkCallback(CVDisplayLinkRef display_link,
@@ -238,7 +239,11 @@ bool CVDisplayLinkMac::EnsureDisplayLinkRunning() {
   if (!display_link_is_running_) {
     DCHECK(!CVDisplayLinkIsRunning(display_link_.get()));
     CVReturn ret = CVDisplayLinkStart(display_link_.get());
-    if (ret != kCVReturnSuccess) {
+    // https://developer.apple.com/documentation/corevideo/cvdisplaylinkstart(_:)
+    // If the specified display link is already running, CVDisplayLinkStart
+    // returns an error.
+    if (ret != kCVReturnSuccess &&
+        !CVDisplayLinkIsRunning(display_link_.get())) {
       LOG(ERROR) << "CVDisplayLinkStart failed. CVReturn: " << ret;
       return false;
     }
@@ -252,17 +257,25 @@ bool CVDisplayLinkMac::EnsureDisplayLinkRunning() {
 // Called on the system CVDisplayLink thread.
 void CVDisplayLinkMac::StopDisplayLinkIfNeeded() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  // Active VSync callbacks are still registered; keep the display link running.
   if (!callbacks_.empty()) {
     return;
   }
 
+  // Stop has already been requested; nothing to do.
   if (!display_link_is_running_) {
     DCHECK(!CVDisplayLinkIsRunning(display_link_.get()));
     return;
   }
 
   CVReturn ret = CVDisplayLinkStop(display_link_.get());
-  if (ret != kCVReturnSuccess) {
+  // https://developer.apple.com/documentation/corevideo/cvdisplaylinkstop(_:)
+  // If the specified display link is already stopped, CVDisplayLinkStop returns
+  // an error.
+  // If `CVDisplayLinkStop` fails and callbacks are still fired,
+  // `RunCallbacks()` will safely do nothing because `callbacks_` is now empty.
+  // `CVDisplayLinkStop` will be attempted again in `~CVDisplayLinkMac()`
+  if (ret != kCVReturnSuccess && CVDisplayLinkIsRunning(display_link_.get())) {
     LOG(ERROR) << "CVDisplayLinkStop failed. CVReturn: " << ret;
   }
 
@@ -277,10 +290,15 @@ base::TimeDelta CVDisplayLinkMac::GetRefreshInterval() const {
   if (!(cv_time.flags & kCVTimeIsIndefinite)) {
     double refresh_interval = (static_cast<double>(cv_time.timeValue) /
                                static_cast<double>(cv_time.timeScale));
-    return (base::Seconds(1) * refresh_interval);
-  } else {
-    return display::GetNSScreenRefreshInterval(display_id_);
+    base::TimeDelta interval = base::Seconds(1) * refresh_interval;
+
+    // A non-zero safeguard for the refresh interval.
+    if (interval.is_positive()) {
+      return interval;
+    }
   }
+
+  return display::GetNSScreenRefreshInterval(display_id_);
 }
 
 void CVDisplayLinkMac::GetRefreshIntervalRange(
@@ -346,9 +364,10 @@ CVDisplayLinkMac::~CVDisplayLinkMac() {
   // Stop the display link (if needed). After this call, it is safe to assume
   // that CVDisplayLinkMac::CVDisplayLinkCallback will not be called with
   // `this`.
-  if (display_link_is_running_) {
+  if (display_link_is_running_ || CVDisplayLinkIsRunning(display_link_.get())) {
     CVReturn ret = CVDisplayLinkStop(display_link_.get());
-    if (ret != kCVReturnSuccess) {
+    if (ret != kCVReturnSuccess &&
+        CVDisplayLinkIsRunning(display_link_.get())) {
       LOG(ERROR) << "CVDisplayLinkStop failed. CVReturn: " << ret;
     }
   }

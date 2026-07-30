@@ -12,6 +12,7 @@
 
 #include "base/base_paths.h"
 #include "base/command_line.h"
+#include "base/feature_list.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
@@ -43,7 +44,9 @@
 #include "chrome/browser/prefs/pref_service_syncable_util.h"
 #include "chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.h"
 #include "chrome/browser/profiles/profile_key.h"
+#include "chrome/browser/profiles/profile_load_tracker_win.h"
 #include "chrome/browser/profiles/profile_manager.h"
+#include "chrome/browser/profiles/profile_observer.h"
 #include "chrome/browser/profiles/storage_partition_descriptor.h"
 #include "chrome/browser/reading_list/reading_list_model_factory.h"
 #include "chrome/browser/search_engines/template_url_fetcher_factory.h"
@@ -250,7 +253,12 @@ TestingProfile::TestingProfile(
     const std::string& profile_name,
     std::optional<bool> override_policy_connector_is_managed,
     const OTRProfileID* otr_profile_id,
-    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory)
+    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory
+#if BUILDFLAG(IS_WIN)
+    ,
+    bool profile_load_tracker_enabled
+#endif
+    )
     : Profile(otr_profile_id),
       prefs_(std::move(prefs)),
       original_profile_(parent),
@@ -265,7 +273,12 @@ TestingProfile::TestingProfile(
       override_policy_connector_is_managed_(
           override_policy_connector_is_managed),
       policy_service_(std::move(policy_service)),
-      url_loader_factory_(url_loader_factory) {
+      url_loader_factory_(url_loader_factory)
+#if BUILDFLAG(IS_WIN)
+      ,
+      profile_load_tracker_enabled_(profile_load_tracker_enabled)
+#endif
+{
   set_allows_browser_windows_for_testing(allows_browser_windows);
 #if BUILDFLAG(IS_CHROMEOS)
   user_cloud_policy_manager_ = std::move(policy_manager);
@@ -341,6 +354,13 @@ void TestingProfile::Init(bool is_supervised_profile, CreateMode create_mode) {
          content::BrowserThread::CurrentlyOn(content::BrowserThread::UI));
 
   InitializeProfileType();
+
+#if BUILDFLAG(IS_WIN)
+  if (profile_load_tracker_enabled_ &&
+      base::FeatureList::IsEnabled(features::kProfileLoadTracker)) {
+    profile_load_tracker_ = std::make_unique<ProfileLoadTracker>(*this);
+  }
+#endif
 
   if (delegate_) {
     delegate_->OnProfileCreationStarted(this, create_mode);
@@ -948,6 +968,14 @@ void TestingProfile::SetCreationTimeForTesting(base::Time creation_time) {
   start_time_ = creation_time;
 }
 
+#if BUILDFLAG(IS_WIN)
+void TestingProfile::AckCrashForTracking() {
+  if (profile_load_tracker_) {
+    profile_load_tracker_->AckCrashForTracking();
+  }
+}
+#endif
+
 bool TestingProfile::IsSignedIn() {
   signin::IdentityManager* identity_manager =
       IdentityManagerFactory::GetForProfile(this);
@@ -1040,6 +1068,13 @@ TestingProfile::Builder& TestingProfile::Builder::SetPath(
   path_ = path;
   return *this;
 }
+
+#if BUILDFLAG(IS_WIN)
+TestingProfile::Builder& TestingProfile::Builder::EnableProfileLoadTracker() {
+  profile_load_tracker_enabled_ = true;
+  return *this;
+}
+#endif
 
 TestingProfile::Builder& TestingProfile::Builder::SetDelegate(
     Delegate* delegate) {
@@ -1189,7 +1224,12 @@ std::unique_ptr<TestingProfile> TestingProfile::Builder::Build() {
       std::move(policy_manager),
 #endif  // BUILDFLAG(IS_CHROMEOS)
       std::move(policy_service_), std::move(testing_factories_), profile_name_,
-      override_policy_connector_is_managed_, nullptr, url_loader_factory_);
+      override_policy_connector_is_managed_, nullptr, url_loader_factory_
+#if BUILDFLAG(IS_WIN)
+      ,
+      profile_load_tracker_enabled_
+#endif
+  );
 }
 
 TestingProfile* TestingProfile::Builder::BuildOffTheRecord(
@@ -1217,7 +1257,12 @@ TestingProfile* TestingProfile::Builder::BuildOffTheRecord(
       std::move(user_cloud_policy_manager_), std::move(policy_service_),
       std::move(testing_factories_), profile_name_,
       override_policy_connector_is_managed_, &otr_profile_id,
-      url_loader_factory_);
+      url_loader_factory_
+#if BUILDFLAG(IS_WIN)
+      ,
+      profile_load_tracker_enabled_
+#endif
+  );
 }
 
 TestingProfile* TestingProfile::Builder::BuildIncognito(

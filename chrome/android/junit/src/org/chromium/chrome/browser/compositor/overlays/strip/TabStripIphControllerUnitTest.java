@@ -88,6 +88,7 @@ public class TabStripIphControllerUnitTest {
                         mContext,
                         mStripLayoutGroupTitleDelegate,
                         mKeyboardFocusHandler,
+                        /* accessibilityFocusHandler= */ null,
                         /* incognito= */ false,
                         TAB_GROUP_ID);
         mTab =
@@ -96,6 +97,7 @@ public class TabStripIphControllerUnitTest {
                         TAB_ID,
                         mClickHandler,
                         mKeyboardFocusHandler,
+                        /* accessibilityFocusHandler= */ null,
                         mLoadTrackerCallback,
                         mUpdateHost,
                         /* incognito= */ false,

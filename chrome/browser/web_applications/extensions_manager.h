@@ -6,9 +6,11 @@
 #define CHROME_BROWSER_WEB_APPLICATIONS_EXTENSIONS_MANAGER_H_
 
 #include <memory>
+#include <string>
 #include <unordered_set>
 
 #include "base/functional/callback_forward.h"
+#include "chrome/browser/web_applications/mojom/user_display_mode.mojom-forward.h"
 
 class Profile;
 class KeyedServiceBaseFactory;
@@ -23,6 +25,8 @@ class ExtensionService;
 }  // namespace extensions
 
 namespace web_app {
+
+struct ShortcutInfo;
 
 class ExtensionInstallGate {
  public:
@@ -61,6 +65,25 @@ class ExtensionsManager {
   // ExtensionService to delay Extension installs.
   virtual std::unique_ptr<ExtensionInstallGate>
   RegisterGarbageCollectionInstallGate() = 0;
+
+  virtual bool IsExtensionBlockedByPolicy(const std::string& extension_id) = 0;
+  virtual bool IsExtensionInstalled(const std::string& extension_id) = 0;
+  virtual bool IsExtensionForceInstalled(const std::string& extension_id,
+                                         std::u16string* reason) = 0;
+  virtual bool IsExtensionDefaultInstalled(const std::string& extension_id) = 0;
+  virtual bool IsExternalExtensionUninstalled(
+      const std::string& extension_id) = 0;
+  virtual bool DidPreinstalledAppsPerformNewInstallation() = 0;
+  virtual bool IsPreinstalledExtensionAppId(const std::string& app_id) = 0;
+
+  virtual void CopyAppSortingLayout(const std::string& from_extension_id,
+                                    const std::string& to_web_app_id) = 0;
+  virtual mojom::UserDisplayMode GetExtensionUserDisplayMode(
+      const std::string& extension_id) = 0;
+  virtual std::unique_ptr<ShortcutInfo> GetExtensionShortcutInfo(
+      const std::string& extension_id) = 0;
+  virtual void WaitForExtensionShortcutsDeleted(const std::string& extension_id,
+                                                base::OnceClosure callback) = 0;
 };
 
 }  // namespace web_app

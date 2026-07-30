@@ -16,5 +16,5 @@
 test(function() {
 	setTimeout('div.appendChild(document.createElement("div"));', 0);
 	assert_true(true, "Should not crash");
-}, "Check that we clear pseudoElement from ElementRareData when FirstLetterPseudoElement doesn't have a LayoutObject");
+}, "Check that we clear pseudoElement from NodeRareData when FirstLetterPseudoElement doesn't have a LayoutObject");
 </script>

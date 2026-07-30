@@ -349,7 +349,7 @@ class CORE_EXPORT LocalFrame final
 
   // Returns the transient user activation state of the |LocalFrame|, provided
   // it is non-null.  Otherwise returns |false|.
-  static bool HasTransientUserActivation(LocalFrame*);
+  static bool HasTransientUserActivation(const LocalFrame*);
 
   // Consumes the transient user activation state of the |LocalFrame|, provided
   // the frame pointer is non-null and the state hasn't been consumed since
@@ -973,14 +973,12 @@ class CORE_EXPORT LocalFrame final
   // TODO(crbug.com/351354996): Remove this after the refactor is completed.
   void NotifyFrameVisibilityChanged(mojom::blink::FrameVisibility visibility);
 
+  void AddVisibilityObserver(FrameVisibilityObserver* observer);
+  void RemoveVisibilityObserver(FrameVisibilityObserver* observer);
+
   void OnFrameVisibilityChangedForMediaPlayback(bool is_hidden);
   std::optional<bool> IsHiddenForMediaPlayback() const {
     return is_hidden_for_media_playback_;
-  }
-
-  HeapHashSet<WeakMember<FrameVisibilityObserver>>&
-  GetFrameVisibilityObserverSet() {
-    return frame_visibility_observers_;
   }
 
   bool IsCaretBrowsingOverridden() { return is_caret_browsing_overridden_; }

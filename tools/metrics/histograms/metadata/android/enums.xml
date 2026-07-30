@@ -511,11 +511,6 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="UNKNOWN_ERROR"/>
 </enum>
 
-<enum name="AndroidWebViewTextSelectionMenuOrdering">
-  <int value="0" label="Default"/>
-  <int value="1" label="Samsung"/>
-</enum>
-
 <enum name="AndroidXWebkitApiCall">
 <!-- LINT.IfChange(AndroidXWebkitApiCall) -->
 
@@ -747,6 +742,12 @@ chromium-metrics-reviews@google.com.
   <int value="194" label="WebViewCompat.navigate"/>
   <int value="195" label="WebSettingsCompat.setDownloadFaviconsEnabled"/>
   <int value="196" label="WebSettingsCompat.getDownloadFaviconsEnabled"/>
+  <int value="197" label="Profile.getHttpCache"/>
+  <int value="198" label="HttpCache.getDefaultQuotaBytes"/>
+  <int value="199" label="HttpCache.isUsingDefaultQuota"/>
+  <int value="200" label="HttpCache.useDefaultQuota"/>
+  <int value="201" label="HttpCache.getQuotaBytes"/>
+  <int value="202" label="HttpCache.setQuotaBytes"/>
 <!-- LINT.ThenChange(/android_webview/support_library/java/src/org/chromium/support_lib_glue/SupportLibWebViewChromiumFactory.java:ApiCall) -->
 
 </enum>
@@ -1201,6 +1202,16 @@ chromium-metrics-reviews@google.com.
   <int value="11" label="NeitherNav Regressed"/>
 </enum>
 
+<!-- LINT.IfChange(HttpCacheQuotaChangeHistory) -->
+
+<enum name="HttpCacheQuotaChangeHistory">
+  <int value="0" label="FirstTime"/>
+  <int value="1" label="RepeatedCallWithoutChange"/>
+  <int value="2" label="RepeatedCallWithChange"/>
+</enum>
+
+<!-- LINT.ThenChange(/android_webview/browser/aw_http_cache_manager.cc:HttpCacheQuotaChangeHistory) -->
+
 <!-- LINT.IfChange(HubPaneId) -->
 
 <enum name="HubPaneId">
@@ -1276,6 +1287,18 @@ chromium-metrics-reviews@google.com.
   <int value="9" label="SpeculativeTransferStateReplaced"/>
 </enum>
 
+<enum name="IntentReferrer">
+  <int value="0" label="Ignored"/>
+  <int value="1" label="AllowedThroughSession"/>
+  <int value="2" label="AllowedInsecure"/>
+</enum>
+
+<enum name="IntentTransitionType">
+  <int value="0" label="Ignored"/>
+  <int value="1" label="AllowedTyped"/>
+  <int value="2" label="AllowedInsecure"/>
+</enum>
+
 <!-- LINT.IfChange(LauncherShortcutUpdateFailure) -->
 
 <enum name="LauncherShortcutUpdateFailure">
@@ -1297,12 +1320,6 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/multiwindow/MultiWindowUtils.java:LaunchInInstanceEarlyFailureReason) -->
-
-<enum name="LightTheme">
-  <int value="0" label="undefined"/>
-  <int value="1" label="no"/>
-  <int value="2" label="yes"/>
-</enum>
 
 <enum name="LockRetryResult">
   <int value="0" label="Succeeded the first time"/>
@@ -1516,12 +1533,6 @@ chromium-metrics-reviews@google.com.
       label="Browser window creation from native feature (eg. extensions)"/>
   <int value="11" label="Upgrade to Android S multi-instance support"/>
   <int value="12" label="Crash recovery"/>
-</enum>
-
-<enum name="NightMode">
-  <int value="0" label="undefined"/>
-  <int value="1" label="on"/>
-  <int value="2" label="off"/>
 </enum>
 
 <enum name="NTPImpressionType">
@@ -2732,33 +2743,6 @@ chromium-metrics-reviews@google.com.
   <int value="7" label="Invalidate + frame submitted + params changed"/>
 </enum>
 
-<enum name="WebViewForceDarkBehavior">
-  <int value="0" label="Force dark only"/>
-  <int value="1" label="Media query only"/>
-  <int value="2" label="Prefer media query over force dark"/>
-</enum>
-
-<enum name="WebViewForceDarkMode">
-  <int value="0" label="OS undefined, WebView off"/>
-  <int value="1" label="OS undefined, WebView auto"/>
-  <int value="2" label="OS undefined, WebView on"/>
-  <int value="3" label="OS no, WebView off"/>
-  <int value="4" label="OS no, WebView auto"/>
-  <int value="5" label="OS no, WebView on"/>
-  <int value="6" label="OS yes, WebView off"/>
-  <int value="7" label="OS yes, WebView auto"/>
-  <int value="8" label="OS yes, WebView on"/>
-</enum>
-
-<enum name="WebViewInDarkModeVsNightMode">
-  <int value="0" label="WebView dark, night mode undefined"/>
-  <int value="1" label="WebView dark, night mode on"/>
-  <int value="2" label="WebView dark, night mode off"/>
-  <int value="3" label="WebView light, night mode undefined"/>
-  <int value="4" label="WebView light, night mode on"/>
-  <int value="5" label="WebView light, night mode off"/>
-</enum>
-
 <enum name="WebViewLayoutAlgorithm">
   <int value="0" label="NORMAL"/>
   <int value="1" label="SINGLE_COLUMN"/>
@@ -2779,42 +2763,6 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Browser-initiated cross-origin"/>
   <int value="4" label="Renderer-initiated same-origin"/>
   <int value="5" label="Renderer-initiated cross-origin"/>
-</enum>
-
-<enum name="WebViewNightModeVsLightTheme">
-  <int value="0" label="Night mode undefined, light theme undefined"/>
-  <int value="1" label="Night mode undefined, light theme no"/>
-  <int value="2" label="Night mode undefined, light theme yes"/>
-  <int value="3" label="Night mode on, light theme undefined"/>
-  <int value="4" label="Night mode on, light theme no"/>
-  <int value="5" label="Night mode on, light theme yes"/>
-  <int value="6" label="Night mode off, light theme undefined"/>
-  <int value="7" label="Night mode off, light theme no"/>
-  <int value="8" label="Night mode off, light theme yes"/>
-</enum>
-
-<enum name="WebViewPrimaryTextLuminanceVsLightTheme">
-  <int value="0" label="Text undefined, light theme undefined"/>
-  <int value="1" label="Text undefined, light theme no"/>
-  <int value="2" label="Text undefined, light theme yes"/>
-  <int value="3" label="Text light, light theme undefined"/>
-  <int value="4" label="Text light, light theme no"/>
-  <int value="5" label="Text light, light theme yes"/>
-  <int value="6" label="Text dark, light theme undefined"/>
-  <int value="7" label="Text dark, light theme no"/>
-  <int value="8" label="Text dark, light theme yes"/>
-</enum>
-
-<enum name="WebViewPrimaryTextLuminanceVsNightMode">
-  <int value="0" label="Text undefined, night mode undefined"/>
-  <int value="1" label="Text undefined, night mode on"/>
-  <int value="2" label="Text undefined, night mode off"/>
-  <int value="3" label="Text light, night mode undefined"/>
-  <int value="4" label="Text light, night mode on"/>
-  <int value="5" label="Text light, night mode off"/>
-  <int value="6" label="Text dark, night mode undefined"/>
-  <int value="7" label="Text dark, night mode on"/>
-  <int value="8" label="Text dark, night mode off"/>
 </enum>
 
 <!-- LINT.IfChange(WebViewRendererKeepAliveEvent) -->
@@ -2963,6 +2911,10 @@ chromium-metrics-reviews@google.com.
   <int value="108" label="getProfileStore"/>
   <int value="109" label="webViewInstanceGetSettings"/>
   <int value="110" label="webViewInstanceGetAwContents"/>
+  <int value="111" label="profileStoreGetProfile"/>
+  <int value="112" label="profileStoreGetOrCreateProfile"/>
+  <int value="113" label="profileStoreGetAllProfileNames"/>
+  <int value="114" label="profileStoreDeleteProfile"/>
 </enum>
 
 <!-- LINT.ThenChange(//base/tracing/protos/chrome_track_event.proto:WebViewStartup) -->

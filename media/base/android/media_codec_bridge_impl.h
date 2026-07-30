@@ -111,7 +111,8 @@ class MEDIA_EXPORT MediaCodecBridgeImpl : public MediaCodecBridge {
   // MediaCodecBridge implementation.
   void Stop() override;
   MediaCodecResult Flush() override;
-  MediaCodecResult GetOutputSize(gfx::Size* size) override;
+  MediaCodecResult GetOutputSizeAndCropRect(gfx::Size& size,
+                                            gfx::Rect& crop_rect) override;
   MediaCodecResult GetOutputSamplingRate(int* sampling_rate) override;
   MediaCodecResult GetOutputChannelCount(int* channel_count) override;
   MediaCodecResult GetOutputColorSpace(

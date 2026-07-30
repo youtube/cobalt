@@ -53,6 +53,9 @@ import org.chromium.chrome.browser.ntp_customization.R;
 import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThemeColorInfo;
 import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThemeColorUtils;
 import org.chromium.chrome.browser.ntp_customization.theme.upload_image.BackgroundImageInfo;
+import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataBase.PlatformType;
+import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataColor;
+import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataUploadImage;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.url.GURL;
@@ -318,7 +321,15 @@ public class NtpThemeCollectionsCoordinatorUnitTest {
         Bitmap bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
         BackgroundImageInfo backgroundImageInfo =
                 new BackgroundImageInfo(new Matrix(), new Matrix(), null, null);
-        mNtpCustomizationConfigManager.onUploadedImageSelected(bitmap, backgroundImageInfo);
+        NtpBackgroundDataUploadImage uploadImageData =
+                new NtpBackgroundDataUploadImage(
+                        PlatformType.ANDROID_LOCAL,
+                        /* lastUploadImageFilePath= */ "",
+                        backgroundImageInfo,
+                        bitmap,
+                        /* primaryColor= */ null,
+                        "fileIdHash");
+        mNtpCustomizationConfigManager.onBackgroundDataChanged(mContext, uploadImageData);
 
         mCoordinator.onBackgroundTypeChanged();
 
@@ -344,7 +355,12 @@ public class NtpThemeCollectionsCoordinatorUnitTest {
         NtpThemeColorInfo colorInfo =
                 NtpThemeColorUtils.createNtpThemeColorInfo(
                         mContext, NtpThemeColorInfo.NtpThemeColorId.NTP_COLORS_BLUE);
-        mNtpCustomizationConfigManager.onBackgroundColorChanged(mContext, colorInfo);
+        NtpBackgroundDataColor backgroundData =
+                new NtpBackgroundDataColor(
+                        PlatformType.ANDROID_LOCAL,
+                        /* isChromeColorDailyRefreshEnabled= */ false,
+                        colorInfo);
+        mNtpCustomizationConfigManager.onBackgroundDataChanged(mContext, backgroundData);
 
         mCoordinator.onBackgroundTypeChanged();
 

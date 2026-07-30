@@ -58,8 +58,6 @@ IN_PROC_BROWSER_TEST_F(SigninUiUtilChromeOSTest,
               Optional(StrEq(kReauthEmail)));
   EXPECT_EQ(0,
             fake_account_manager_ui_ptr->show_account_addition_dialog_calls());
-  EXPECT_EQ(0,
-            fake_account_manager_ui_ptr->show_manage_accounts_settings_calls());
   histogram_tester.ExpectUniqueSample(
       account_manager::kAccountAdditionSourceHistogramName,
       account_manager::AccountAdditionSource::kContentAreaReauth,

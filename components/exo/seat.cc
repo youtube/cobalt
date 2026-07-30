@@ -5,6 +5,7 @@
 #include "components/exo/seat.h"
 
 #include <linux/input-event-codes.h>
+
 #include <memory>
 #include <variant>
 
@@ -20,6 +21,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "components/exo/data_exchange_delegate.h"
+#include "components/exo/data_exchange_utils.h"
 #include "components/exo/data_source.h"
 #include "components/exo/drag_drop_operation.h"
 #include "components/exo/mime_utils.h"
@@ -33,6 +35,7 @@
 #include "ui/aura/client/focus_client.h"
 #include "ui/aura/env.h"
 #include "ui/base/clipboard/clipboard_monitor.h"
+#include "ui/base/clipboard/custom_data_helper.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
 #include "ui/base/data_transfer_policy/data_transfer_endpoint.h"
 #include "ui/display/screen.h"
@@ -131,6 +134,10 @@ Seat::Seat() : Seat(nullptr) {}
 
 Seat::~Seat() {
   Shutdown();
+}
+
+base::WeakPtr<Seat> Seat::GetWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 void Seat::Shutdown() {
@@ -334,8 +341,10 @@ void Seat::OnWebCustomDataRead(
     base::OnceClosure callback,
     const std::string& mime_type,
     const std::vector<uint8_t>& data) {
-  writer->WritePickledData(base::Pickle::WithData(data),
-                           ui::ClipboardFormatType::DataTransferCustomType());
+  if (std::optional<base::Pickle> pickle = FilterCustomData(data)) {
+    writer->WritePickledData(*pickle,
+                             ui::ClipboardFormatType::DataTransferCustomType());
+  }
   std::move(callback).Run();
 }
 

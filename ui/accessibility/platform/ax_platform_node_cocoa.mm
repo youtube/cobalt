@@ -1679,13 +1679,14 @@ const ui::CocoaActionList& GetCocoaActionListForTesting() {
   // children-counting logic, which results in the position announcement
   // being dropped for the last item in the list. WebKit/Safari only exposes
   // these attributes when explicit aria-posinset/aria-setsize are set.
-  if (ui::IsItemLike(role) &&
-      _node->HasIntAttribute(ax::mojom::IntAttribute::kPosInSet)) {
-    [axAttributes addObject:NSAccessibilityARIAPosInSetAttribute];
-  }
-  if (ui::IsSetLike(role) &&
-      _node->HasIntAttribute(ax::mojom::IntAttribute::kSetSize)) {
-    [axAttributes addObject:NSAccessibilityARIASetSizeAttribute];
+  if (ui::IsItemLike(role)) {
+    if (_node->HasIntAttribute(ax::mojom::IntAttribute::kSetSize)) {
+      [axAttributes addObject:NSAccessibilityARIASetSizeAttribute];
+    }
+
+    if (_node->HasIntAttribute(ax::mojom::IntAttribute::kPosInSet)) {
+      [axAttributes addObject:NSAccessibilityARIAPosInSetAttribute];
+    }
   }
 
   if ([[self accessibilityRole] isEqualToString:NSAccessibilityWebAreaRole]) {

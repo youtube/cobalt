@@ -200,6 +200,15 @@ const base::FeatureParam<base::TimeDelta>
         &kGetAIPageContentMainFrameTimeoutEnabled, "timeout",
         base::Seconds(30)};
 
+// Controls whether to enforce a timeout for GetImageBytes. If enabled, defaults
+// to 10 seconds.
+BASE_FEATURE(kGetAIPageContentGetImageBytesTimeoutEnabled,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+const base::FeatureParam<base::TimeDelta>
+    kGetAIPageContentGetImageBytesTimeoutParam{
+        &kGetAIPageContentGetImageBytesTimeoutEnabled, "timeout",
+        base::Seconds(10)};
+
 // The default value here is a bit of a guess.
 // TODO(crbug.com/40163041): This should be tuned once metrics are available.
 base::TimeDelta PageTextExtractionOutstandingRequestsGracePeriod() {
@@ -639,6 +648,13 @@ std::optional<base::TimeDelta> GetMainFrameGetAIPageContentTimeout() {
     return std::nullopt;
   }
   return kGetAIPageContentMainFrameTimeoutParam.Get();
+}
+std::optional<base::TimeDelta> GetAIPageContentGetImageBytesTimeout() {
+  if (!base::FeatureList::IsEnabled(
+          kGetAIPageContentGetImageBytesTimeoutEnabled)) {
+    return std::nullopt;
+  }
+  return kGetAIPageContentGetImageBytesTimeoutParam.Get();
 }
 
 }  // namespace optimization_guide::features

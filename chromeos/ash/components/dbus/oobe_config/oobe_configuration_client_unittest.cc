@@ -277,7 +277,7 @@ TEST_F(OobeConfigurationClientTest, DeleteFlexOobeConfigNoResponse) {
 
 struct DeleteFlexOobeConfigErrorTestCase {
   // DBus error name, also called error code.
-  std::string error_name;
+  const char* error_name;
   DeleteFlexOobeConfigDBusResult expected_dbus_result;
 };
 
@@ -285,7 +285,7 @@ class DeleteFlexOobeConfigErrorTest
     : public OobeConfigurationClientTest,
       public testing::WithParamInterface<DeleteFlexOobeConfigErrorTestCase> {};
 
-std::vector<DeleteFlexOobeConfigErrorTestCase> test_cases = {
+const DeleteFlexOobeConfigErrorTestCase kTestCases[] = {
     {DBUS_ERROR_ACCESS_DENIED,
      DeleteFlexOobeConfigDBusResult::kErrorAccessDenied},
     {DBUS_ERROR_NOT_SUPPORTED,
@@ -320,5 +320,5 @@ TEST_P(DeleteFlexOobeConfigErrorTest, DeleteFlexOobeConfigDBusError) {
 
 INSTANTIATE_TEST_SUITE_P(DeleteFlexOobeConfigDBusErrors,
                          DeleteFlexOobeConfigErrorTest,
-                         testing::ValuesIn(test_cases));
+                         testing::ValuesIn(kTestCases));
 }  // namespace ash

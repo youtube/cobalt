@@ -182,12 +182,21 @@ void ZwpTextInputV3Impl::OnClientDestroyed(ZwpTextInputV3Client* context) {
   }
 }
 
-void ZwpTextInputV3Impl::Enable() {
+void ZwpTextInputV3Impl::Enable(ui::TextInputType type,
+                                uint32_t flags,
+                                bool should_do_learning) {
   // Pending state is reset on enable.
   pending_ime_data_.Reset();
   pending_input_events_.Reset();
   applied_input_events_.Reset();
+  committed_ime_data_.Reset();
+
   zwp_text_input_v3_enable(obj_.get());
+  auto content_type = std::make_unique<ContentType>(
+      GetContentType(type, flags, should_do_learning));
+  zwp_text_input_v3_set_content_type(obj_.get(), content_type->content_hint,
+                                     content_type->content_purpose);
+  committed_ime_data_.content_type = std::move(content_type);
   Commit();
 }
 
@@ -203,6 +212,18 @@ void ZwpTextInputV3Impl::Disable() {
 bool ZwpTextInputV3Impl::DoneSerialEqualsCommitCount() {
   return committed_ime_data_.commit_count ==
          applied_input_events_.last_done_serial;
+}
+
+ZwpTextInputV3Impl::ContentType ZwpTextInputV3Impl::GetContentType(
+    ui::TextInputType type,
+    uint32_t flags,
+    bool should_do_learning) {
+  uint32_t content_hint = InputFlagsToContentHint(flags);
+  if (!should_do_learning) {
+    content_hint |= ZWP_TEXT_INPUT_V3_CONTENT_HINT_SENSITIVE_DATA;
+  }
+  uint32_t content_purpose = InputTypeToContentPurpose(type);
+  return ContentType(content_hint, content_purpose);
 }
 
 void ZwpTextInputV3Impl::SetCursorRect(const gfx::Rect& rect) {
@@ -290,16 +311,8 @@ bool ZwpTextInputV3Impl::SendSurroundingText() {
 void ZwpTextInputV3Impl::SetContentType(ui::TextInputType type,
                                         uint32_t flags,
                                         bool should_do_learning) {
-  uint32_t content_hint = InputFlagsToContentHint(flags);
-  if (!should_do_learning) {
-    content_hint |= ZWP_TEXT_INPUT_V3_CONTENT_HINT_SENSITIVE_DATA;
-  }
-  uint32_t content_purpose = InputTypeToContentPurpose(type);
-  if (!should_do_learning) {
-    content_hint |= ZWP_TEXT_INPUT_V3_CONTENT_HINT_SENSITIVE_DATA;
-  }
-  auto content_type =
-      std::make_unique<ContentType>(content_hint, content_purpose);
+  auto content_type = std::make_unique<ContentType>(
+      GetContentType(type, flags, should_do_learning));
   if (committed_ime_data_.content_type &&
       *committed_ime_data_.content_type == *content_type) {
     return;

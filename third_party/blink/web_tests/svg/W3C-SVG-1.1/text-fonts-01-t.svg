@@ -35,38 +35,39 @@
 <!--= log messages, and therefore is no longer in the preceding preamble.=-->
 <!--======================================================================-->
 <svg version="1.1" baseProfile="tiny" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" id="svg-root" width="100%" height="100%" viewBox="0 0 480 360">
+    <meta name="fuzzy" content="maxDifference=0-255;totalPixels=0-420" />
     <SVGTestCase xmlns="http://www.w3.org/2000/02/svg/testsuite/description/">
 		<OperatorScript version="$Revision: 1.5 $" testname="text-fonts-01-t.svg">
 			<Paragraph>
 				Purpose of test is to determine if the font family is being
-				correctly selected. The top two lines of text test serif fonts; 
-				the top line in maroon tests the generic font family 'serif' 
-				and the second line in black tests a selection of commonly 
-				available named serif fonts. The next two lines of text test 
-				sans-serif fonts; 
-				the top line in maroon tests the generic font family 'sans-serif' 
-				and the second line in black tests a selection of commonly 
-				available named sans serif fonts. The following two lines 
-				of text test monospaced fonts; 
-				the top line in maroon tests the generic font family 'monospaced' 
-				and the second line in black tests a selection of commonly 
-				available named monospaced fonts. The lowercase 'i' and uppercase'W' 
+				correctly selected. The top two lines of text test serif fonts;
+				the top line in maroon tests the generic font family 'serif'
+				and the second line in black tests a selection of commonly
+				available named serif fonts. The next two lines of text test
+				sans-serif fonts;
+				the top line in maroon tests the generic font family 'sans-serif'
+				and the second line in black tests a selection of commonly
+				available named sans serif fonts. The following two lines
+				of text test monospaced fonts;
+				the top line in maroon tests the generic font family 'monospaced'
+				and the second line in black tests a selection of commonly
+				available named monospaced fonts. The lowercase 'i' and uppercase'W'
 				should be the same width,for monospaced fonts.
 			</Paragraph>
 			<Paragraph>
-				The seventh line of text, in green, tests for 
-				three non-existent fonts (nonsense names). There is no fallback 
+				The seventh line of text, in green, tests for
+				three non-existent fonts (nonsense names). There is no fallback
 				generic font specified. The text must be displayed anyway.
 			</Paragraph>
 			<Paragraph>
 				The first six lines contain two Japanese characters (&#x753B;&#x50CF;)
-				at the end of the line. Both of these characters must be displayed, 
-				although it is compliant to display them with the 'missing glyph' 
+				at the end of the line. Both of these characters must be displayed,
+				although it is compliant to display them with the 'missing glyph'
 				if no suitable font containing Japanese characters can be found.
 				Most but not all fonts have a visible missing glyph character.
 				If the selected font has a visible missing glyph character, it should appear
 				wherever the corresponding glyph is not available.
-			<!-- can also be used for copy and paste tests; correct characters 
+			<!-- can also be used for copy and paste tests; correct characters
 			to be pasted even if displayed with missing glyph -->
 			</Paragraph>
         </OperatorScript>

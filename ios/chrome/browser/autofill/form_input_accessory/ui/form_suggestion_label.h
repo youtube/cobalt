@@ -9,11 +9,13 @@
 
 #import <UIKit/UIKit.h>
 
+#import "ios/chrome/browser/autofill/form_input_accessory/public/autofill_suggestion_context_menu_handler.h"
+
 @class FormSuggestion;
 @class FormSuggestionLabel;
 
 // Delegate for actions happening in FormSuggestionLabel.
-@protocol FormSuggestionLabelDelegate
+@protocol FormSuggestionLabelDelegate <AutofillSuggestionContextMenuHandler>
 
 // User tapped on the suggestion.
 - (void)didTapFormSuggestionLabel:(FormSuggestionLabel*)formSuggestionLabel;

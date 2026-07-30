@@ -1987,36 +1987,6 @@ body.files-ng #list-container li .detail-checkmark {
   padding: 0 32px 20px;
 }
 
-.install-linux-package-details-frame {
-  border: 1px solid var(--cros-sys-separator);
-  display: block;
-  height: 150px;
-  overflow: scroll;
-  padding: 8px 10px;
-  user-select: text;
-}
-
-.files-ng .install-linux-package-details-frame {
-  margin-top: 16px;
-}
-
-.cr-dialog-container.files-ng .install-linux-package-details-label {
-  margin-bottom: 10px;
-}
-
-.cr-dialog-container.files-ng .install-linux-package-detail-label {
-  color: var(--cros-sys-on_surface);
-  display: inline;
-  margin-inline-end: 5px;
-}
-
-.cr-dialog-container.files-ng .install-linux-package-detail-value {
-  color: var(--cros-sys-secondary);
-  display: inline;
-  margin-bottom: 5px;
-  white-space: pre-wrap;
-}
-
 list.autocomplete-suggestions {
   background-color: var(--cros-bg-color-elevation-2);
   border-radius: 3px;

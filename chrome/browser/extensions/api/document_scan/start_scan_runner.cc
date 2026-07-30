@@ -4,12 +4,12 @@
 
 #include "chrome/browser/extensions/api/document_scan/start_scan_runner.h"
 
+#include "ash/constants/ash_pref_names.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/ash/scanning/lorgnette_scanner_manager.h"
 #include "chrome/browser/ash/scanning/lorgnette_scanner_manager_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/extensions/extensions_dialogs.h"
-#include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "extensions/browser/image_loader.h"
 #include "extensions/common/extension.h"
@@ -33,7 +33,7 @@ bool CanSkipConfirmation(content::BrowserContext* browser_context,
   const base::ListValue& list =
       Profile::FromBrowserContext(browser_context)
           ->GetPrefs()
-          ->GetList(prefs::kDocumentScanAPITrustedExtensions);
+          ->GetList(ash::prefs::kDocumentScanAPITrustedExtensions);
   return list.contains(extension_id);
 
   // TODO(b/312740272): Add a way for the user to make their consent permanent.

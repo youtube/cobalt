@@ -138,9 +138,9 @@ class AutofillEventHandlerBrowserTest : public InProcessBrowserTest {
     profile.SetRawInfo(ADDRESS_HOME_COUNTRY, u"US");
 
     TestAutofillManager* manager = autofill_manager_injector_[rfh];
-    manager->FillOrPreviewForm(mojom::ActionPersistence::kFill, form,
-                               triggered_field.global_id(), &profile,
-                               AutofillTriggerSource::kPopup,
+    manager->FillOrPreviewForm(mojom::ActionPersistence::kFill,
+                               form.global_id(), triggered_field.global_id(),
+                               &profile, AutofillTriggerSource::kPopup,
                                /*blocked_fields=*/{});
   }
 
@@ -800,9 +800,9 @@ class AutofillEventMultiFrameBrowserTest : public InProcessBrowserTest {
     test::SetCreditCardInfo(&card, kNameFull, kNumber, kExpMonth, kExpYear, "",
                             base::ASCIIToUTF16(std::string_view(kCvc)));
     TestAutofillManager* manager = autofill_manager_injector_[rfh];
-    manager->FillOrPreviewForm(mojom::ActionPersistence::kFill, form,
-                               triggered_field.global_id(), &card,
-                               AutofillTriggerSource::kPopup,
+    manager->FillOrPreviewForm(mojom::ActionPersistence::kFill,
+                               form.global_id(), triggered_field.global_id(),
+                               &card, AutofillTriggerSource::kPopup,
                                /*blocked_fields=*/{});
   }
 
@@ -953,6 +953,86 @@ IN_PROC_BROWSER_TEST_F(AutofillEventMultiFrameBrowserTest,
       << "CC Number iframe should not contain name field from main frame";
   EXPECT_FALSE(EventHasValue(kCvc, "frame-number"))
       << "CC Number iframe should not contain CVC field from other iframe";
+}
+
+// Verifies that the refill callback does not leak across V8 worlds.
+// 1. Accessing event.refill in an isolated world caches it for that world.
+// 2. Accessing event.refill in the main world caches it for the main world.
+// 3. The main world should get its own callback, not the isolated world's one.
+IN_PROC_BROWSER_TEST_F(AutofillEventHandlerBrowserTest,
+                       AutofillEventIsolatedWorldRefillLeak) {
+  GURL url =
+      embedded_test_server()->GetURL("/autofill/autofill_address_enabled.html");
+  ASSERT_TRUE(chrome_test_utils::NavigateToURL(web_contents(), url));
+
+  TestAutofillManager* manager = main_autofill_manager();
+  ASSERT_TRUE(manager->WaitForFormsSeen(/*min_num_awaited_calls=*/1));
+
+  const std::vector<const FormStructure*> form_structures =
+      test_api(*manager).form_structures();
+  ASSERT_FALSE(form_structures.empty());
+  const FormData& form = form_structures.front()->ToFormData();
+  const FormFieldData& trigger_field = form.fields()[0];
+
+  const int32_t kIsolatedWorldId = 1;
+
+  // Set up listeners in both worlds.
+  // Isolated world listener: stores refill callback.
+  ASSERT_TRUE(content::ExecJs(web_contents(),
+                              R"(
+        window.isolatedRefill = null;
+        document.addEventListener('autofill', (e) => {
+          window.isolatedRefill = e.refill;
+        });
+      )",
+                              content::EXECUTE_SCRIPT_DEFAULT_OPTIONS,
+                              kIsolatedWorldId));
+
+  // Main world listener: stores refill callback and checks its constructor.
+  ASSERT_TRUE(content::ExecJs(web_contents(),
+                              R"(
+        window.mainRefill = null;
+        window.mainRefillConstructorIsFunction = false;
+        document.addEventListener('autofill', (e) => {
+          window.mainRefill = e.refill;
+          window.mainRefillConstructorIsFunction =
+              (e.refill.constructor === Function);
+        });
+      )"));
+
+  // Trigger autofill.
+  FillAddress(main_frame(), form, trigger_field);
+
+  // Wait for autofill to complete.
+  ASSERT_TRUE(manager->WaitForAutofillFill(/*num_expected_fills=*/1));
+
+  // Verify both worlds got their callbacks.
+  EXPECT_TRUE(content::EvalJs(web_contents(), "window.isolatedRefill !== null",
+                              content::EXECUTE_SCRIPT_DEFAULT_OPTIONS,
+                              kIsolatedWorldId)
+                  .ExtractBool());
+
+  EXPECT_TRUE(content::EvalJs(web_contents(), "window.mainRefill !== null")
+                  .ExtractBool());
+
+  // Verify no leak: main world's callback constructor is the main world's
+  // Function.
+  EXPECT_TRUE(
+      content::EvalJs(web_contents(), "window.mainRefillConstructorIsFunction")
+          .ExtractBool())
+      << "Main world refill callback constructor is not main world's Function "
+         "(leak suspected).";
+
+  // Verify they are different objects/wrappers by setting a property in
+  // isolated world and ensuring main world cannot see it.
+  ASSERT_TRUE(content::ExecJs(
+      web_contents(), "window.isolatedRefill.foo = 'bar';",
+      content::EXECUTE_SCRIPT_DEFAULT_OPTIONS, kIsolatedWorldId));
+
+  EXPECT_FALSE(
+      content::EvalJs(web_contents(), "window.mainRefill.foo === 'bar'")
+          .ExtractBool())
+      << "Main world saw property set by isolated world (leak!).";
 }
 
 }  // namespace autofill

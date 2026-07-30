@@ -53,12 +53,12 @@ import org.chromium.chrome.browser.ephemeraltab.EphemeralTabCoordinator;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.firstrun.FirstRunStatus;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
-import org.chromium.chrome.browser.gsa.GSAUtils;
 import org.chromium.chrome.browser.lens.LensController;
 import org.chromium.chrome.browser.lens.LensEntryPoint;
 import org.chromium.chrome.browser.lens.LensIdentityUtils;
 import org.chromium.chrome.browser.lens.LensIntentParams;
 import org.chromium.chrome.browser.lens.LensMetrics;
+import org.chromium.chrome.browser.lens.LensSupportStatusHelper;
 import org.chromium.chrome.browser.locale.LocaleManager;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
@@ -66,7 +66,6 @@ import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.chrome.browser.share.ChromeShareExtras;
-import org.chromium.chrome.browser.share.LensUtils;
 import org.chromium.chrome.browser.share.ShareDelegate;
 import org.chromium.chrome.browser.share.ShareDelegate.ShareOrigin;
 import org.chromium.chrome.browser.share.ShareHelper;
@@ -678,8 +677,20 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
             if (mItemDelegate.supportsSearchByImage()) {
                 if (checkSupportsGoogleSearchByImage(isSrcDownloadableScheme)) {
                     // Determine which image search menu item would be shown.
+                    @Nullable
+                    @LensMetrics.LensSupportStatus
+                    Integer supportStatus =
+                            LensSupportStatusHelper.getLensSupportStatus(
+                                    getProfile(), mItemDelegate.isIncognito());
+                    if (supportStatus != null) {
+                        LensMetrics.recordLensSupportStatus(
+                                LENS_SUPPORT_STATUS_HISTOGRAM_NAME, supportStatus);
+                    }
+
                     boolean shouldShowSearchImageWithLens =
-                            shouldShowSearchWithLensAndRecordMetrics(mItemDelegate.isIncognito());
+                            supportStatus != null
+                                    && supportStatus
+                                            == LensMetrics.LensSupportStatus.LENS_SEARCH_SUPPORTED;
                     if (shouldShowSearchImageWithLens) {
                         imageGroup.add(createListItem(Item.SEARCH_WITH_GOOGLE_LENS, true));
                         maybeRecordUkmLensShown();
@@ -1466,54 +1477,6 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
             String histogramName = "ContextMenu.SelectedOptionAndroid.LinkWithInterestFor";
             ContextMenuUma.recordWithManualName(histogramName, actionId);
         }
-    }
-
-    /**
-     * Whether the lens menu items should be shown based on a set of application compatibility
-     * checks.
-     *
-     * @param isIncognito Whether the user is incognito.
-     * @return A boolean. True if "Search image with Google Lens" should be enabled, otherwise
-     *     False.
-     */
-    private boolean shouldShowSearchWithLensAndRecordMetrics(boolean isIncognito) {
-        // If Google Lens feature is not supported, show search by image menu item.
-        if (!LensUtils.isGoogleLensFeatureEnabled(isIncognito)) {
-            return false;
-        }
-
-        final TemplateUrlService templateUrlServiceInstance = getTemplateUrlService();
-        String versionName = LensUtils.getLensActivityVersionNameIfAvailable(mContext);
-        if (!templateUrlServiceInstance.isDefaultSearchEngineGoogle()) {
-            LensMetrics.recordLensSupportStatus(
-                    LENS_SUPPORT_STATUS_HISTOGRAM_NAME,
-                    LensMetrics.LensSupportStatus.NON_GOOGLE_SEARCH_ENGINE);
-            return false;
-        }
-        if (TextUtils.isEmpty(versionName)) {
-            LensMetrics.recordLensSupportStatus(
-                    LENS_SUPPORT_STATUS_HISTOGRAM_NAME,
-                    LensMetrics.LensSupportStatus.ACTIVITY_NOT_ACCESSIBLE);
-            return false;
-        }
-        if (GSAUtils.isAgsaVersionBelowMinimum(
-                versionName, LensUtils.getMinimumAgsaVersionForLensSupport())) {
-            LensMetrics.recordLensSupportStatus(
-                    LENS_SUPPORT_STATUS_HISTOGRAM_NAME, LensMetrics.LensSupportStatus.OUT_OF_DATE);
-            return false;
-        }
-
-        if (!LensUtils.isValidAgsaPackage()) {
-            LensMetrics.recordLensSupportStatus(
-                    LENS_SUPPORT_STATUS_HISTOGRAM_NAME,
-                    LensMetrics.LensSupportStatus.INVALID_PACKAGE);
-            return false;
-        }
-
-        LensMetrics.recordLensSupportStatus(
-                LENS_SUPPORT_STATUS_HISTOGRAM_NAME,
-                LensMetrics.LensSupportStatus.LENS_SEARCH_SUPPORTED);
-        return true;
     }
 
     private @Nullable Tab getTab() {

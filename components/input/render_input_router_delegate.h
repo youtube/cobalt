@@ -84,10 +84,6 @@ class COMPONENT_EXPORT(INPUT) RenderInputRouterDelegate {
   // Called when an invalid input event source is sent from the renderer.
   virtual void OnInvalidInputEventSource() = 0;
 
-  // Notifies when an input event is ignored, see `IsIgnoringWebInputEvents`
-  // above.
-  virtual void OnInputIgnored(const blink::WebInputEvent& event) = 0;
-
   virtual StylusInterface* GetStylusInterface() = 0;
 
   // Returns whether the RenderInputRouter is hidden or not.

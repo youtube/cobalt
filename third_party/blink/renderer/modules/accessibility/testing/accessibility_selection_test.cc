@@ -431,8 +431,8 @@ void AccessibilitySelectionTest::SetUp() {
 }
 
 std::string AccessibilitySelectionTest::GetCurrentSelectionText() const {
-  const SelectionInDOMTree selection =
-      GetFrame().Selection().GetSelectionInDOMTree();
+  const SelectionInDomTree selection =
+      GetFrame().Selection().GetSelectionInDomTree();
   const auto ax_selection =
       AXSelection::FromSelection(selection, GetAXObjectCache());
   return GetSelectionText(ax_selection);

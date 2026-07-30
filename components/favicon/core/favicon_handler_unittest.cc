@@ -1947,6 +1947,33 @@ TEST_F(FaviconHandlerManifestsEnabledTest,
   EXPECT_THAT(delegate_.downloads(), IsEmpty());
 }
 
+TEST_F(FaviconHandlerManifestsEnabledTest,
+       GetFaviconFromManifestInHistoryInIncognito) {
+  ON_CALL(delegate_, IsOffTheRecord()).WillByDefault(Return(true));
+  favicon_service_.fake()->Store(
+      kPageURL, kManifestURL,
+      CreateRawBitmapResult(kManifestURL, kWebManifestIcon));
+
+  // OnFaviconUpdated should be called with the cached icon initially.
+  EXPECT_CALL(delegate_,
+              OnFaviconUpdated(_, FaviconDriverObserver::TOUCH_LARGEST,
+                               kManifestURL, _, _));
+
+  // Since the fake manifest downloader returns empty results by default, the
+  // handler will fall back to the candidate icon and download it (see below for
+  // more details about why a download is expected).
+  EXPECT_CALL(delegate_,
+              OnFaviconUpdated(_, FaviconDriverObserver::TOUCH_LARGEST,
+                               kIconURL12x12, _, _));
+
+  RunHandlerWithSimpleTouchIconCandidates({kIconURL12x12}, kManifestURL);
+
+  // The handler should have requested the manifest download, although the icon
+  // was cached, because the handler is in incognito mode and cached icons must
+  // be treated as expired to prevent side-channel attacks.
+  EXPECT_THAT(delegate_.downloads(), ElementsAre(kManifestURL, kIconURL12x12));
+}
+
 // Test that a favicon corresponding to a web manifest is reported when:
 // - There is data in the favicon database for the manifest URL.
 // AND

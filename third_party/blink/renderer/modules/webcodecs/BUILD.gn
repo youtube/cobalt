@@ -121,6 +121,8 @@ blink_modules_sources("webcodecs") {
     deps += [ "//media/fuchsia/video" ]
   }
   public_deps = [ "//third_party/blink/renderer/modules/webaudio" ]
+
+  configs += [ "//third_party/blink/renderer:narrowing" ]
 }
 
 source_set("unit_tests") {

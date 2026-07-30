@@ -275,7 +275,6 @@ iwa_access_control {
         entitlement: CONTROLLED_FRAME
         entitlement: DIRECT_SOCKETS
         entitlement: DIRECT_SOCKETS_MULTICAST
-        entitlement: DIRECT_SOCKETS_PRIVATE
         entitlement: SMART_CARD
         entitlement: SUB_APPS
         entitlement: UNRESTRICTED_WEBUSB

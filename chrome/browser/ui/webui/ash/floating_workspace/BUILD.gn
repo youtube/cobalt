@@ -19,7 +19,6 @@ static_library("floating_workspace") {
     "//base",
     "//chrome/browser:browser_public_dependencies",
     "//chrome/browser/ui/webui/ash/system_web_dialog",
-    "//chrome/common",
     "//content/public/common",
     "//ui/web_dialogs",
   ]
@@ -35,6 +34,7 @@ static_library("floating_workspace") {
     "//chrome/browser/ui/webui/ash/internet",
     "//chrome/browser/ui/webui/ash/login",
     "//chromeos/ash/components/browser_context_helper",
+    "//components/user_manager",
     "//content/public/browser",
     "//ui/aura",
     "//ui/base:types",

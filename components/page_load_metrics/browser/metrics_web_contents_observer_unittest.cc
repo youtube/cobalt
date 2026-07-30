@@ -1123,6 +1123,25 @@ TEST_P(MetricsWebContentsObserverTest, CustomUserTiming) {
   CheckNoErrorEvents();
 }
 
+TEST_P(MetricsWebContentsObserverTest, CustomUserTimingNoTracker) {
+  NavigateToUntrackedUrl();
+  content::RenderFrameHost* rfh = web_contents()->GetPrimaryMainFrame();
+  mojom::CustomUserTimingMark custom_timing;
+  custom_timing.mark_name = "fake_custom_mark";
+  custom_timing.start_time = base::Milliseconds(1000);
+
+  // When there is no tracker, updates should be dropped immediately rather than
+  // buffered.
+  SimulateCustomUserTimingUpdate(custom_timing, rfh);
+  EXPECT_EQ(0, CountUpdatedCustomUserTimingReported());
+
+  // Navigate to a tracked URL and verify that the dropped timing is NOT
+  // flushed.
+  content::NavigationSimulator::NavigateAndCommitFromBrowser(
+      web_contents(), GURL(kDefaultTestUrl));
+  EXPECT_EQ(0, CountUpdatedCustomUserTimingReported());
+}
+
 class MetricsWebContentsObserverBackForwardCacheTest
     : public MetricsWebContentsObserverTest,
       public content::WebContentsDelegate {

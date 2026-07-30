@@ -167,17 +167,19 @@ class TouchToFillBridge implements TouchToFillComponent.Delegate {
 
     @NativeMethods
     interface Natives {
-        void onCredentialSelected(long nativeTouchToFillViewImpl, Credential credential);
+        void onCredentialSelected(
+                long nativeTouchToFillPasswordManagerViewImpl, Credential credential);
 
         void onWebAuthnCredentialSelected(
-                long nativeTouchToFillViewImpl, WebauthnCredential credential);
+                long nativeTouchToFillPasswordManagerViewImpl, WebauthnCredential credential);
 
-        void onManagePasswordsSelected(long nativeTouchToFillViewImpl, boolean passkeysShown);
+        void onManagePasswordsSelected(
+                long nativeTouchToFillPasswordManagerViewImpl, boolean passkeysShown);
 
-        void onHybridSignInSelected(long nativeTouchToFillViewImpl);
+        void onHybridSignInSelected(long nativeTouchToFillPasswordManagerViewImpl);
 
-        void onShowCredManSelected(long nativeTouchToFillViewImpl);
+        void onShowCredManSelected(long nativeTouchToFillPasswordManagerViewImpl);
 
-        void onDismiss(long nativeTouchToFillViewImpl);
+        void onDismiss(long nativeTouchToFillPasswordManagerViewImpl);
     }
 }

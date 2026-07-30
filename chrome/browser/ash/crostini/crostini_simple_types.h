@@ -13,8 +13,8 @@
 #include "chromeos/ash/components/dbus/vm_concierge/concierge_service.pb.h"
 
 // This file contains simple C++ types. Simple isn't a precise term, but as a
-// guideline enums and PoD structs are simple while structs/classes with methods
-// other than trivial or defaulted constructors or destructors are not.
+// guideline enums and PoD structs are simple while structs/classes with
+// methods other than trivial or defaulted constructors or destructors are not.
 // Importantly, #include'ing this file will not depend on eventually executing
 // "#include <dbus/dbus.h>",
 
@@ -140,23 +140,10 @@ enum class RestartSource {
   kInstaller,
 };
 
-enum class InstallLinuxPackageProgressStatus {
-  SUCCEEDED,
-  FAILED,
-  DOWNLOADING,
-  INSTALLING,
-};
-
 enum class VmState {
   STARTING,
   STARTED,
   STOPPING,
-};
-
-enum class UninstallPackageProgressStatus {
-  SUCCEEDED,
-  FAILED,
-  UNINSTALLING,  // In progress
 };
 
 enum class DiskImageProgressStatus {
@@ -228,28 +215,6 @@ struct Icon {
 
   // Icon format (e.g. PNG, SVG)
   vm_tools::cicerone::DesktopIcon::Format format;
-};
-
-struct LinuxPackageInfo {
-  LinuxPackageInfo();
-  LinuxPackageInfo(LinuxPackageInfo&&);
-  LinuxPackageInfo(const LinuxPackageInfo&);
-  LinuxPackageInfo& operator=(LinuxPackageInfo&&);
-  LinuxPackageInfo& operator=(const LinuxPackageInfo&);
-  ~LinuxPackageInfo();
-
-  bool success;
-
-  // A textual reason for the failure, only set when success is false.
-  std::string failure_reason;
-
-  // The remaining fields are only set when success is true.
-  // package_id is given as "name;version;arch;data".
-  std::string package_id;
-  std::string name;
-  std::string version;
-  std::string summary;
-  std::string description;
 };
 
 // These values are persisted to logs. Entries should not be renumbered and

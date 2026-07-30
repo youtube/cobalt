@@ -3565,6 +3565,44 @@ TEST_F(SimpleURLLoaderFileTest, FileCreateError) {
   EXPECT_FALSE(test_helper->response_body());
 }
 
+#if BUILDFLAG(IS_POSIX)
+// Make sure that downloading to a path that is a symbolic link fails (does not
+// overwrite the target of the symlink).
+TEST_F(SimpleURLLoaderFileTest, DownloadToSymlinkFails) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::ScopedTempDir target_dir;
+  ASSERT_TRUE(target_dir.CreateUniqueTempDir());
+
+  // Create a target file (sensitive file) containing "sensitive data"
+  base::FilePath target_file =
+      target_dir.GetPath().AppendASCII("sensitive_target.txt");
+  std::string sensitive_data = "sensitive data";
+  ASSERT_TRUE(base::WriteFile(target_file, sensitive_data));
+
+  // Create a symlink pointing to the target file
+  std::unique_ptr<SimpleLoaderTestHelper> test_helper =
+      CreateHelperForURL(test_server_.GetURL("/echo"));
+  base::FilePath symlink_path = test_helper->dest_path();
+
+  // Make sure dest_path doesn't exist before we create the symlink
+  base::DeleteFile(symlink_path);
+
+  ASSERT_TRUE(base::CreateSymbolicLink(target_file, symlink_path));
+
+  // Start downloading to the symlink path
+  test_helper->set_expect_path_exists_on_error(true);
+  test_helper->StartSimpleLoaderAndWait(url_loader_factory_.get());
+
+  // Verify that:
+  // - The download failed or was rejected.
+  // - The target file was NOT overwritten/modified.
+  EXPECT_NE(net::OK, test_helper->simple_url_loader()->NetError());
+  std::string actual_data;
+  ASSERT_TRUE(base::ReadFileToString(target_file, &actual_data));
+  EXPECT_EQ(sensitive_data, actual_data);
+}
+#endif  // BUILDFLAG(IS_POSIX)
+
 // Make sure that destroying the loader destroys a partially downloaded file.
 TEST_F(SimpleURLLoaderFileTest, DeleteLoaderDuringRequestDestroysFile) {
   for (bool body_data_read : {false, true}) {

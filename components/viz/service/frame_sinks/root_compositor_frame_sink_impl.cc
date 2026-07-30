@@ -375,10 +375,6 @@ void RootCompositorFrameSinkImpl::SetDisplayColorSpaces(
 void RootCompositorFrameSinkImpl::SetVSyncDisplayID(int64_t display_id) {
   begin_frame_source()->SetVSyncDisplayID(display_id, /*force_update=*/false);
 }
-
-void RootCompositorFrameSinkImpl::RefreshRateChangedOnSameDisplay() {
-  begin_frame_source()->RefreshRateChangedOnSameDisplay();
-}
 #endif
 
 void RootCompositorFrameSinkImpl::SetOutputIsSecure(bool secure) {

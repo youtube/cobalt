@@ -641,6 +641,17 @@ mojom("mojom_content_security_policy") {
   }
 }
 
+mojom("mojom_origin_or_wildcard_header_value") {
+  generate_java = true
+  sources = [ "origin_or_wildcard_header_value.mojom" ]
+  public_deps = [ "//url/mojom:url_mojom_origin" ]
+  if (!is_ios) {
+    export_class_attribute_blink = "BLINK_PLATFORM_EXPORT"
+    export_define_blink = "BLINK_PLATFORM_IMPLEMENTATION=1"
+    export_header_blink = "third_party/blink/public/platform/web_common.h"
+  }
+}
+
 # These .mojom files are put in their own target to avoid a circular dependency,
 # which comes from the fact that the typemap for url_loader.mojom
 # (ResourceRequest) depends on them.
@@ -710,6 +721,7 @@ mojom("url_loader_base") {
     ":mojom_ip_address",
     ":mojom_network_isolation_partition",
     ":mojom_network_param",
+    ":mojom_origin_or_wildcard_header_value",
     ":mojom_permissions_policy",
     ":mojom_proxy_config",
     ":mojom_schemeful_site",

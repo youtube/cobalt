@@ -111,14 +111,9 @@ try_.orchestrator_builder(
             "dcheck_always_on",
         ],
     ),
+    builderless = True,
     compilator = "chromeos-amd64-generic-rel-gtest-compilator",
     contact_team_email = "chromeos-chrome-build@google.com",
-    cq_settings = try_.cq_settings(
-        equivalent_builder = "try/chromeos-amd64-generic-rel-gtest-and-tast",
-        equivalent_builder_percentage = 100,
-        equivalent_builder_whitelist = "google/chromeos-pa@google.com",
-        on_default_cq = True,
-    ),
     main_list_view = "try",
 )
 
@@ -148,12 +143,9 @@ try_.orchestrator_builder(
             "dcheck_always_on",
         ],
     ),
+    builderless = True,
     compilator = "chromeos-amd64-generic-rel-gtest-and-tast-compilator",
     contact_team_email = "chromeos-chrome-build@google.com",
-    cq_settings = try_.cq_settings(
-        omit_from_luci_cv = True,
-        on_default_cq = True,
-    ),
     main_list_view = "try",
 )
 
@@ -163,6 +155,7 @@ try_.compilator_builder(
     name = "chromeos-amd64-generic-rel-gtest-compilator",
     branch_selector = branches.selector.CROS_LTS_BRANCHES,
     description_html = ".",
+    builderless = True,
     cores = "16",
     caches = [
         swarming.cache(
@@ -179,6 +172,7 @@ try_.compilator_builder(
     name = "chromeos-amd64-generic-rel-gtest-and-tast-compilator",
     branch_selector = branches.selector.CROS_LTS_BRANCHES,
     description_html = ".",
+    builderless = True,
     cores = "16",
     caches = [
         swarming.cache(

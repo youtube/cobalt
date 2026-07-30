@@ -77,6 +77,10 @@ class LoopbackServer : public base::ImportantFileWriter::DataSerializer {
 
   void TriggerMigrationForTesting(DataTypeSet data_types);
 
+  // Enables using GarbageCollectionDirective (clear_metadata) instead of
+  // MIGRATION_DONE error to trigger migration/re-sync on the client.
+  void EnableGcDirectiveForMigration();
+
   int GetMigrationVersion(DataType type) const;
 
   static int GetMigrationVersionFromProgressTokenForTesting(
@@ -117,6 +121,11 @@ class LoopbackServer : public base::ImportantFileWriter::DataSerializer {
                                const std::string& invalidator_client_id,
                                sync_pb::GetUpdatesResponse* response,
                                std::vector<DataType>* datatypes_to_migrate);
+
+  void PopulateGcDirectiveMigrationResponse(
+      const sync_pb::GetUpdatesMessage& get_updates,
+      const std::vector<DataType>& datatypes_to_migrate,
+      sync_pb::GetUpdatesResponse* response);
 
   // Processes a Commit call.
   bool HandleCommitRequest(const sync_pb::CommitMessage& message,
@@ -255,6 +264,8 @@ class LoopbackServer : public base::ImportantFileWriter::DataSerializer {
   std::optional<sync_pb::ChipBag> bag_of_chips_;
 
   std::map<DataType, int> migration_versions_;
+
+  bool use_gc_directive_for_migration_ = false;
 
   int max_get_updates_batch_size_ = 1000000;
 

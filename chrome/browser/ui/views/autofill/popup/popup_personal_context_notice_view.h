@@ -5,14 +5,19 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_AUTOFILL_POPUP_POPUP_PERSONAL_CONTEXT_NOTICE_VIEW_H_
 #define CHROME_BROWSER_UI_VIEWS_AUTOFILL_POPUP_POPUP_PERSONAL_CONTEXT_NOTICE_VIEW_H_
 
+#include "base/memory/weak_ptr.h"
 #include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/views/controls/styled_label.h"
 #include "ui/views/view.h"
 
 namespace views {
 class MdTextButton;
+class StyledLabel;
 }
 
 namespace autofill {
+
+class AutofillPopupController;
 
 // The view that displays the "Personal context" notice.
 // This notice is shown at the bottom of the Autofill popup to inform the
@@ -21,19 +26,36 @@ class PopupPersonalContextNoticeView : public views::View {
   METADATA_HEADER(PopupPersonalContextNoticeView, views::View)
 
  public:
-  PopupPersonalContextNoticeView();
+  explicit PopupPersonalContextNoticeView(
+      base::WeakPtr<AutofillPopupController> controller,
+      int line_number);
   PopupPersonalContextNoticeView(const PopupPersonalContextNoticeView&) =
       delete;
   PopupPersonalContextNoticeView& operator=(
       const PopupPersonalContextNoticeView&) = delete;
   ~PopupPersonalContextNoticeView() override;
 
+  views::StyledLabel* description_for_testing() { return description_; }
   views::MdTextButton* got_it_button_for_testing() { return got_it_button_; }
 
  private:
+  // Marks the notice as acknowledged and removes it from the parent view.
   void OnGotItButtonClicked();
 
+  // Opens personal context settings for autofill in Chrome settings.
+  void OnSettingsButtonClicked();
+
+  // The description text inside of the notice element.
+  raw_ptr<views::StyledLabel> description_ = nullptr;
+
+  // The button users click to acknowledge the notice.
   raw_ptr<views::MdTextButton> got_it_button_ = nullptr;
+
+  // The controller for the popup this notice is part of.
+  base::WeakPtr<AutofillPopupController> controller_;
+
+  // The position of this notice in the vertical list of suggestions.
+  int line_number_;
 };
 
 }  // namespace autofill

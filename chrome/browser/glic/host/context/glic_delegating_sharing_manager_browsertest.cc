@@ -115,7 +115,7 @@ IN_PROC_BROWSER_TEST_F(GlicDelegatingSharingManagerBrowserTest,
   ASSERT_OK_AND_ASSIGN(auto* instance, OpenGlicForActiveTab());
 
   // Use the real sharing manager as delegation target.
-  auto& real_manager = instance->host().sharing_manager();
+  auto& real_manager = instance->host().GetSharingManagerInternal();
 
   // Ensure the tab in unpinned (may be pinned by default)
   real_manager.UnpinTabs({handle}, GlicUnpinTrigger::kUnknown);
@@ -168,7 +168,7 @@ IN_PROC_BROWSER_TEST_F(GlicDelegatingSharingManagerBrowserTest,
   ASSERT_OK_AND_ASSIGN(auto* instance, OpenGlicForActiveTab());
 
   // Use the real sharing manager as delegation target.
-  auto& real_manager = instance->host().sharing_manager();
+  auto& real_manager = instance->host().GetSharingManagerInternal();
 
   // Ensure the tab is unpinned initially.
   real_manager.UnpinTabs({handle}, GlicUnpinTrigger::kUnknown);
@@ -253,7 +253,7 @@ IN_PROC_BROWSER_TEST_F(GlicDelegatingSharingManagerBrowserTest,
   ASSERT_TRUE(tab1);
 
   ASSERT_OK_AND_ASSIGN(auto* instance, OpenGlicForActiveTab());
-  auto& real_manager = instance->host().sharing_manager();
+  auto& real_manager = instance->host().GetSharingManagerInternal();
 
   // Ensure clean state.
   real_manager.UnpinAllTabs(GlicUnpinTrigger::kUnknown);
@@ -365,7 +365,8 @@ IN_PROC_BROWSER_TEST_F(GlicDelegatingSharingManagerBrowserTest,
   // Setup manager 1.
   GetTabListInterface()->ActivateTab(handles[0]);
   ASSERT_OK_AND_ASSIGN(auto* instance1, OpenGlicForActiveTab());
-  GlicSharingManager& manager1 = instance1->host().sharing_manager();
+  GlicSharingManagerInternal& manager1 =
+      instance1->host().GetSharingManagerInternal();
 
   // Pin tabs 0, 1, 2.
   manager1.UnpinAllTabs(GlicUnpinTrigger::kUnknown);
@@ -377,7 +378,8 @@ IN_PROC_BROWSER_TEST_F(GlicDelegatingSharingManagerBrowserTest,
   // Setup manager 2.
   GetTabListInterface()->ActivateTab(handles[3]);
   ASSERT_OK_AND_ASSIGN(auto* instance2, OpenGlicForActiveTab());
-  GlicSharingManager& manager2 = instance2->host().sharing_manager();
+  GlicSharingManagerInternal& manager2 =
+      instance2->host().GetSharingManagerInternal();
 
   // Ensure separate instances.
   ASSERT_NE(&manager1, &manager2);
@@ -452,7 +454,8 @@ IN_PROC_BROWSER_TEST_F(GlicDelegatingSharingManagerBrowserTest,
 
   // Setup manager.
   ASSERT_OK_AND_ASSIGN(auto* instance, OpenGlicForActiveTab());
-  GlicSharingManager& manager = instance->host().sharing_manager();
+  GlicSharingManagerInternal& manager =
+      instance->host().GetSharingManagerInternal();
 
   // Pin tabs 0, 1.
   manager.UnpinAllTabs(GlicUnpinTrigger::kUnknown);

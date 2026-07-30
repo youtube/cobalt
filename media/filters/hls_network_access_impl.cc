@@ -8,6 +8,27 @@
 
 namespace media {
 
+namespace {
+
+void MergeEncryptionSecurityMetadata(
+    scoped_refptr<hls::MediaSegment::EncryptionData> enc_data,
+    HlsDataSourceProvider::ReadCb cb,
+    HlsDataSourceProvider::ReadResult result) {
+  if (!result.has_value()) {
+    std::move(cb).Run(std::move(result).error().AddHere());
+    return;
+  }
+
+  auto stream = std::move(result).value();
+  const auto& encryption_metadata = enc_data->GetSecurityMetadata();
+  if (encryption_metadata.has_value()) {
+    stream->MergeSecurityMetadata(*encryption_metadata);
+  }
+  std::move(cb).Run(std::move(stream));
+}
+
+}  // namespace
+
 HlsNetworkAccessImpl::~HlsNetworkAccessImpl() = default;
 
 HlsNetworkAccessImpl::HlsNetworkAccessImpl(
@@ -68,6 +89,7 @@ void HlsNetworkAccessImpl::OnKeyFetch(
   }
 
   enc_data->ImportKey(stream->AsString());
+  enc_data->ImportKeySecurity(stream->SecurityInfo());
   if (enc_data->NeedsKeyFetch()) {
     std::move(cb).Run({HlsDataSourceProvider::ReadStatus::Codes::kError,
                        "Error importing key in encrypted segment fetch"});
@@ -124,6 +146,12 @@ void HlsNetworkAccessImpl::ReadMediaSegment(const hls::MediaSegment& segment,
                 DataSource::CacheMode::kHitCache);
 
   if (auto enc_data = segment.GetEncryptionData()) {
+    // After fetching the media, we need to merge the security metadata into
+    // it's stream so that the populated media content has the full set of
+    // origins from which it is composed.
+    cb = base::BindOnce(&MergeEncryptionSecurityMetadata, enc_data,
+                        std::move(cb));
+
     if (enc_data->NeedsKeyFetch()) {
       ReadKey(
           *enc_data,

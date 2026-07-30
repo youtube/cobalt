@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.ui.edge_to_edge;
 
 import android.app.Activity;
 import android.content.Context;
+import android.os.Build;
 import android.os.Build.VERSION_CODES;
 import android.view.Window;
 
@@ -253,7 +254,7 @@ public class EdgeToEdgeUtils {
                     ineligibleName, IneligibilityReason.FORM_FACTOR, IneligibilityReason.NUM_TYPES);
         }
 
-        if (android.os.Build.VERSION.SDK_INT < VERSION_CODES.R) {
+        if (Build.VERSION.SDK_INT < VERSION_CODES.R) {
             eligible = false;
             RecordHistogram.recordEnumeratedHistogram(
                     ineligibleName, IneligibilityReason.OS_VERSION, IneligibilityReason.NUM_TYPES);
@@ -291,7 +292,7 @@ public class EdgeToEdgeUtils {
             boolean isPageOptedIntoEdgeToEdge, @LayoutType int layoutType, int bottomInset) {
         return isPageOptedIntoEdgeToEdge
                 || isBottomChinAllowed(layoutType, bottomInset)
-                || (layoutType == LayoutType.TAB_SWITCHER);
+                || (layoutType == LayoutType.HUB);
     }
 
     /**

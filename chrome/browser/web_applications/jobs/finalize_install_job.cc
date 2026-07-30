@@ -403,6 +403,10 @@ void FinalizeInstallJob::OnOriginAssociationValidated(
   // honor that over any existing values.
   if (options_.install_state == proto::InstallState::SUGGESTED_FROM_MIGRATION) {
     web_app->SetInstallState(proto::InstallState::SUGGESTED_FROM_MIGRATION);
+    if (web_app->first_install_time().is_null()) {
+      web_app->SetFirstInstallTime(now_time);
+    }
+    web_app->SetLatestInstallTime(now_time);
   }
 
   // Set |user_display_mode| and any user-controllable fields here if this

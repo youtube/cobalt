@@ -304,8 +304,11 @@ void ShutdownPostThreadsStop(RestartMode restart_mode) {
 
       case RestartMode::kRestartThisSession:
         // Copy URLs and other arguments to the new command line.
-        for (const auto& arg : old_cl.GetArgs()) {
-          new_cl.AppendArgNative(arg);
+        if (const auto& old_args = old_cl.GetArgs(); !old_args.empty()) {
+          new_cl.AppendArgNative(FILE_PATH_LITERAL("--"));
+          for (const auto& arg : old_args) {
+            new_cl.AppendArgNative(arg);
+          }
         }
         break;
     }

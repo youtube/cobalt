@@ -32,6 +32,7 @@
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
+#include "base/notimplemented.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/rand_util.h"
 #include "base/task/current_thread.h"
@@ -44,6 +45,7 @@
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_activity_monitor.h"
+#include "net/base/network_interfaces.h"
 #include "net/base/sockaddr_storage.h"
 #include "net/base/trace_constants.h"
 #include "net/log/net_log.h"
@@ -54,7 +56,6 @@
 #include "net/socket/socket_options.h"
 #include "net/socket/socket_tag.h"
 #include "net/socket/udp_net_log_parameters.h"
-#include "net/base/network_interfaces.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -428,6 +429,16 @@ int UDPSocketPosix::Read(IOBuffer* buf,
                          int buf_len,
                          CompletionOnceCallback callback) {
   return RecvFrom(buf, buf_len, nullptr, std::move(callback));
+}
+
+base::expected<DatagramsMetadata, Error> UDPSocketPosix::ReadMultiple(
+    IOBuffer* buffer,
+    size_t buf_len,
+    size_t maximum_packet_size,
+    base::OnceCallback<void(base::expected<DatagramsMetadata, Error>)>
+        callback) {
+  NOTIMPLEMENTED();
+  return base::unexpected(ERR_NOT_IMPLEMENTED);
 }
 
 int UDPSocketPosix::RecvFrom(IOBuffer* buf,

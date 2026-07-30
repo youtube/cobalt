@@ -65,8 +65,6 @@ class UrlBarViewBinder {
                             focusChangeCallback.onResult(focused);
                         }
                     });
-        } else if (UrlBarProperties.SHOW_CURSOR.equals(propertyKey)) {
-            view.setCursorVisible(model.get(UrlBarProperties.SHOW_CURSOR));
         } else if (UrlBarProperties.TEXT_CONTEXT_MENU_DELEGATE.equals(propertyKey)) {
             view.setTextContextMenuDelegate(model.get(UrlBarProperties.TEXT_CONTEXT_MENU_DELEGATE));
         } else if (UrlBarProperties.MANAGE_SEARCH_ENGINES_CALLBACK.equals(propertyKey)) {

@@ -52,12 +52,16 @@
   padding-left: 1px;
 }
 
+.arrow-icon {
+  display: none;
+}
+
 #glowAnimationWrapper {
   --anim-duration: 2s;
   --glif-angle-start: 99deg;
-  --glif-angle-range: 245deg;
+  --glif-angle-range: 318.5deg;
   --mask-angle-start: -150deg;
-  --mask-angle-range: 355deg;
+  --mask-angle-range: 360deg;
 
   --acceleration: cubic-bezier(0.4, 0, 0.2, 1);
 
@@ -227,7 +231,7 @@
   transform-origin: center;
   translate: 0 -50%;
   top: 50%;
-  scale: 1.1 0.6;
+  scale: 1.43 0.78;
   border-radius: 50%;
   aspect-ratio: 1/1;
 }
@@ -320,16 +324,16 @@
     rgba(49, 134, 255, 0.73) 73%,
     rgba(49, 134, 255, 0) 95%
   );
-  --gradient-angle-end: 225deg;
-  --gradient-angle-start: 170deg;
+  --gradient-angle-end: 233.5deg;
+  --gradient-angle-start: 160deg;
   --gradient-burst-duration: 1000ms;
   --gradient-opacity: 0.6;
   --gradient-width: 1px;
   --hover-fade-duration: 400ms;
   --hover-inner-glow-duration: 1000ms;
   --intro-duration: 2000ms;
-  --mask-angle-end: 200deg;
-  --mask-angle-start: -90deg;
+  --mask-angle-end: 267deg;
+  --mask-angle-start: -110deg;
   --standard-accelerate-curve: cubic-bezier(0.3, 0, 1, 1);
   --standard-curve: cubic-bezier(0.2, 0, 0, 1);
   --standard-decelerate-curve: cubic-bezier(0, 0, 0, 1);
@@ -378,8 +382,8 @@
 }
 
 :host([energy-effect-animation-enabled]) .gradient-blur-wrapper:not(.sharp-tip) {
-  filter: blur(3px);
-  inset: -3px;
+  filter: blur(4px);
+  inset: -4px;
 }
 
 :host([energy-effect-animation-enabled]) .sharp-tip.gradient-blur-wrapper {
@@ -393,39 +397,41 @@
   -webkit-mask-image: conic-gradient(
     from var(--mask-angle, 0deg),
     transparent 0%,
-    transparent 50%,
-    black 68%,
-    black 75%,
-    transparent 89%,
+    transparent 44%,
+    black 62%,
+    black 81%,
+    transparent 95%,
     transparent 100%
   );
   mask-image: conic-gradient(
     from var(--mask-angle, 0deg),
     transparent 0%,
-    transparent 50%,
-    black 68%,
-    black 75%,
-    transparent 89%,
+    transparent 44%,
+    black 62%,
+    black 81%,
+    transparent 95%,
     transparent 100%
   );
-  scale: 4 1.5;
+  scale: 5.2 1.95;
 }
 
 :host([energy-effect-animation-enabled]) .sharp-tip .gradient-mask {
   -webkit-mask-image: conic-gradient(
     from var(--mask-angle, 0deg),
     transparent 0%,
-    transparent 62%,
-    black 82%,
-    transparent 89%,
+    transparent 58%,
+    black 78%,
+    black 85%,
+    transparent 93%,
     transparent 100%
   );
   mask-image: conic-gradient(
     from var(--mask-angle, 0deg),
     transparent 0%,
-    transparent 62%,
-    black 82%,
-    transparent 89%,
+    transparent 58%,
+    black 78%,
+    black 85%,
+    transparent 93%,
     transparent 100%
   );
 }
@@ -497,6 +503,77 @@
   100% {
     --gradient-angle: var(--gradient-angle-end);
     --mask-angle: var(--mask-angle-end);
+  }
+}
+
+:host([dynamic]) #composeButton {
+  gap: 0;
+  transition: padding-inline-start 350ms cubic-bezier(0.05, 0.735, 0.1, 1),
+              padding-inline-end 350ms cubic-bezier(0.05, 0.735, 0.1, 1);
+}
+
+:host([dynamic]) .compose-icon {
+  margin-inline-end: 4px;
+  transition: opacity 17ms cubic-bezier(0, 0, 1, 1) 50ms,
+              transform 333ms cubic-bezier(0.05, 1.68, 0.1, 1) 50ms,
+              width 350ms cubic-bezier(0.05, 0.735, 0.1, 1),
+              margin 350ms cubic-bezier(0.05, 0.735, 0.1, 1);
+}
+
+:host([dynamic][has-user-input]) .compose-icon {
+  margin-inline-end: 0;
+  width: 0;
+  opacity: 0;
+  transform: scale(0.5);
+  transition: opacity 17ms cubic-bezier(0, 0, 1, 1),
+              width 333ms cubic-bezier(0.05, 0.7368, 0.1, 1),
+              margin 333ms cubic-bezier(0.05, 0.7368, 0.1, 1);
+}
+
+:host([dynamic]) .arrow-icon {
+  display: inline-block;
+  filter: invert(1);
+  height: 18px;
+  width: 0;
+  opacity: 0;
+  transform: translateX(-10.5px);
+  margin-inline-start: 0;
+  object-fit: cover;
+  object-position: left;
+  transition: opacity 250ms cubic-bezier(0.05, 0, 0.1, 1),
+              transform 350ms cubic-bezier(0.05, 0.735, 0.1, 1),
+              width 350ms cubic-bezier(0.05, 0.735, 0.1, 1),
+              margin 350ms cubic-bezier(0.05, 0.735, 0.1, 1);
+}
+
+:host([dynamic][has-user-input]) #composeButton {
+  padding-inline-start: 12px;
+  padding-inline-end: 8px;
+  transition: padding-inline-start 333ms cubic-bezier(0.05, 0.7368, 0.1, 1),
+              padding-inline-end 333ms cubic-bezier(0.05, 0.7368, 0.1, 1);
+}
+
+:host([dynamic][has-user-input]) .arrow-icon {
+  width: 18px;
+  opacity: 1;
+  transform: translateX(0);
+  margin-inline-start: 4px;
+  animation: emerge 333ms cubic-bezier(0.05, 0.7368, 0.1, 1) forwards;
+  transition: none;
+}
+
+@keyframes emerge {
+  from {
+    width: 0;
+    opacity: 0;
+    transform: translateX(-10.5px);
+    margin-inline-start: 0;
+  }
+  to {
+    width: 18px;
+    opacity: 1;
+    transform: translateX(0);
+    margin-inline-start: 4px;
   }
 }
 

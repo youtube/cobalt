@@ -8,7 +8,7 @@ import type {DeviceRequestObserverRemote, UpdateProgressObserverRemote} from 'ch
 import {UpdateState} from 'chrome://accessory-update/firmware_update.mojom-webui.js';
 import {assert} from 'chrome://resources/js/assert.js';
 import type {FilePath} from 'chrome://resources/mojo/mojo/public/mojom/base/file_path.mojom-webui.js';
-import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 
 suite('FakeUpdateController', () => {
   let controller: FakeUpdateController|null = null;

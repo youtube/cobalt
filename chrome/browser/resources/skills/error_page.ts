@@ -5,7 +5,7 @@
 import '//resources/cr_elements/cr_icon/cr_icon.js';
 import '//resources/cr_elements/cr_button/cr_button.js';
 
-import {assertNotReached} from '//resources/js/assert.js';
+import {assert, assertNotReached} from '//resources/js/assert.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import {OpenWindowProxyImpl} from 'chrome://resources/js/open_window_proxy.js';
@@ -40,12 +40,23 @@ export class ErrorPageElement extends CrLitElement {
     };
   }
   accessor errorType: ErrorType = ErrorType.GLIC_NOT_ENABLED;
-  private proxy_: SkillsPageBrowserProxy = SkillsPageBrowserProxy.getInstance();
+  // In the V2 path, we will not use the V1 BrowserProxy.
+  private proxy_?: SkillsPageBrowserProxy;
+
+  private getProxy_(): SkillsPageBrowserProxy {
+    assert(!loadTimeData.getBoolean('isSkillsWebViewV2Enabled'));
+    if (!this.proxy_) {
+      this.proxy_ = SkillsPageBrowserProxy.getInstance();
+    }
+    return this.proxy_;
+  }
 
   override connectedCallback() {
     super.connectedCallback();
-    if (this.isGlicDisabled_() || this.isSkillsDisabled_()) {
-      this.proxy_.handler.recordSkillsManagementAction(
+
+    if (!loadTimeData.getBoolean('isSkillsWebViewV2Enabled') &&
+        (this.isGlicDisabled_() || this.isSkillsDisabled_())) {
+      this.getProxy_().handler.recordSkillsManagementAction(
           SkillsManagementPage.kErrorPage, SkillsManagementAction.kPageOpened);
     }
   }

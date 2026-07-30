@@ -179,8 +179,8 @@ MATCHER_P3(OnlyPasswordsFallbackAdded,
 
 // Generates a ContextMenuParams for the Autofill context menu options.
 content::ContextMenuParams CreateContextMenuParams(
-    std::optional<autofill::FormRendererId> form_renderer_id = std::nullopt,
-    autofill::FieldRendererId field_render_id = autofill::FieldRendererId(0),
+    std::optional<FormRendererId> form_renderer_id = std::nullopt,
+    FieldRendererId field_render_id = FieldRendererId(0),
     blink::mojom::FormControlType form_control_type =
         blink::mojom::FormControlType::kInputText) {
   content::ContextMenuParams rv;
@@ -708,7 +708,7 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_TRUE(generation_popup_observer.popup_showing());
   histogram_tester.ExpectUniqueSample(
       "PasswordGeneration.Event",
-      autofill::password_generation::PASSWORD_GENERATION_CONTEXT_MENU_PRESSED,
+      password_generation::PASSWORD_GENERATION_CONTEXT_MENU_PRESSED,
       /*expected_bucket_count=*/1);
 
   // Hide the password generation popup to avoid the test crashing.

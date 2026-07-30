@@ -8,7 +8,10 @@
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "components/global_media_controls/public/test/mock_device_service.h"
 #include "components/media_router/common/mojom/media_router.mojom.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/test/mock_media_session.h"
+#include "content/public/test/navigation_simulator.h"
+#include "content/public/test/test_renderer_host.h"
 #include "services/media_session/public/cpp/media_image.h"
 #include "services/media_session/public/mojom/media_session.mojom.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -21,6 +24,7 @@ class PresentationRequestNotificationItemTest
  protected:
   void SetUp() override {
     ChromeRenderViewHostTestHarness::SetUp();
+    NavigateAndCommit(GURL("https://example.com"));
     PresentationRequestNotificationItem::SetMediaSessionForTest(
         &media_session_);
 
@@ -76,6 +80,73 @@ TEST_F(PresentationRequestNotificationItemTest, MediaSessionImagesChanged) {
 
   EXPECT_CALL(*provider_, OnArtworkImageChanged);
   EXPECT_CALL(*provider_, OnFaviconImageChanged);
+  item_->MediaSessionImagesChanged(
+      {{media_session::mojom::MediaSessionImageType::kArtwork, {image}}});
+}
+
+TEST_F(PresentationRequestNotificationItemTest,
+       MediaSessionMetadataChanged_RoutedFrameOriginMatch) {
+  EXPECT_CALL(media_session_, GetRoutedFrame())
+      .WillRepeatedly(testing::Return(main_rfh()));
+
+  media_session::MediaMetadata metadata;
+  metadata.source_title = u"some-other-domain.com";
+  metadata.artist = u"My title";
+
+  EXPECT_CALL(*provider_, OnMetadataChanged)
+      .WillOnce([metadata](const media_session::MediaMetadata& metadata_arg) {
+        EXPECT_EQ(u"example.com", metadata_arg.source_title);
+        EXPECT_EQ(metadata.artist, metadata_arg.artist);
+      });
+  item_->MediaSessionMetadataChanged(metadata);
+}
+
+TEST_F(PresentationRequestNotificationItemTest,
+       MediaSessionMetadataChanged_RoutedFrameOriginMismatch) {
+  content::RenderFrameHost* child_rfh =
+      content::RenderFrameHostTester::For(main_rfh())
+          ->AppendChild("child_frame");
+  child_rfh = content::NavigationSimulator::NavigateAndCommitFromDocument(
+      GURL("https://other.com"), child_rfh);
+
+  EXPECT_CALL(media_session_, GetRoutedFrame())
+      .WillRepeatedly(testing::Return(child_rfh));
+
+  media_session::MediaMetadata metadata;
+  metadata.source_title = u"some-other-domain.com";
+  metadata.artist = u"My title";
+
+  EXPECT_CALL(*provider_, OnMetadataChanged)
+      .WillOnce([this](const media_session::MediaMetadata& metadata_arg) {
+        EXPECT_EQ(u"example.com", metadata_arg.source_title);
+        EXPECT_TRUE(metadata_arg.title.empty());
+        EXPECT_EQ(web_contents()->GetTitle(), metadata_arg.artist);
+      });
+  item_->MediaSessionMetadataChanged(metadata);
+}
+
+TEST_F(PresentationRequestNotificationItemTest,
+       MediaSessionImagesChanged_RoutedFrameOriginMismatch) {
+  content::RenderFrameHost* child_rfh =
+      content::RenderFrameHostTester::For(main_rfh())
+          ->AppendChild("child_frame");
+  child_rfh = content::NavigationSimulator::NavigateAndCommitFromDocument(
+      GURL("https://other.com"), child_rfh);
+
+  EXPECT_CALL(media_session_, GetRoutedFrame())
+      .WillRepeatedly(testing::Return(child_rfh));
+
+  media_session::MediaImage image;
+  image.src = GURL{"https://example.com"};
+  image.sizes = {{100, 100}};
+
+  EXPECT_CALL(*provider_, OnArtworkImageChanged)
+      .WillOnce(
+          [](const gfx::ImageSkia& image) { EXPECT_TRUE(image.isNull()); });
+  EXPECT_CALL(*provider_, OnFaviconImageChanged)
+      .WillOnce(
+          [](const gfx::ImageSkia& image) { EXPECT_TRUE(image.isNull()); });
+
   item_->MediaSessionImagesChanged(
       {{media_session::mojom::MediaSessionImageType::kArtwork, {image}}});
 }

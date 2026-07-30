@@ -233,7 +233,7 @@ def _ResolveActivity(device,
     raise Exception('No Activity Resolver Table in:\n' + '\n'.join(lines))
   line_count = next(i for i, l in enumerate(lines[start_idx + 1:])
                     if l and not l[0].isspace())
-  data = '\n'.join(lines[start_idx:start_idx + line_count])
+  data = '\n'.join(lines[start_idx:start_idx + 1 + line_count])
 
   # Split on each Activity entry.
   entries = re.split(r'^        [0-9a-f]+ ', data, flags=re.MULTILINE)

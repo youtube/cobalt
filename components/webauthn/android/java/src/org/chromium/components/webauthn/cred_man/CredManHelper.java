@@ -116,6 +116,10 @@ public class CredManHelper {
         mClientDataJson = clientDataJson;
         final String requestAsJson =
                 Fido2CredentialRequestJni.get().createOptionsToJson(options.serialize());
+        WebauthnRequestCallback callback = mAuthenticationContextProvider.getRequestCallback();
+        if (callback != null) {
+            callback.addCompletionCallback(this::cleanupRequest);
+        }
 
         OutcomeReceiver<CreateCredentialResponse, CreateCredentialException> receiver =
                 new OutcomeReceiver<>() {
@@ -444,6 +448,10 @@ public class CredManHelper {
         mClientDataJson = clientDataJson;
         RenderFrameHost frameHost = mAuthenticationContextProvider.getRenderFrameHost();
         final WebauthnBrowserBridge localBridge = assumeNonNull(mBridgeProvider.getBridge());
+        WebauthnRequestCallback callback = mAuthenticationContextProvider.getRequestCallback();
+        if (callback != null) {
+            callback.addCompletionCallback(this::cleanupRequest);
+        }
 
         // The Android 14 APIs have to be called via reflection until Chromium
         // builds with the Android 14 SDK by default.
@@ -541,7 +549,9 @@ public class CredManHelper {
                         if (mCancellableUiState == CancellableUiState.CANCEL_PENDING) {
                             notifyBrowserOnCredManClosed(false);
                             mCancellableUiState = CancellableUiState.NONE;
-                            localBridge.cleanupCredManRequest(frameHost);
+                            if (localBridge != null && localBridge.isInitialized()) {
+                                localBridge.cleanupCredManRequest(frameHost);
+                            }
                             return;
                         }
                         Bundle data = getCredentialResponse.getCredential().getData();
@@ -570,6 +580,10 @@ public class CredManHelper {
                                 return;
                             }
 
+                            // Unlike passkeys, password filling is delegated to the Chrome Password
+                            // Manager UI and does not resolve the Mojo request callback.
+                            // Thus, we must clean up the browser bridge request manually.
+                            cleanupRequest();
                             localBridge.onPasswordCredentialReceived(
                                     frameHost,
                                     data.getString(CRED_MAN_PREFIX + "BUNDLE_KEY_ID"),
@@ -720,10 +734,11 @@ public class CredManHelper {
                 mBarrier.onCredManCancelled(error);
                 break;
             case CancellableUiState.WAITING_FOR_SELECTION:
-                assumeNonNull(mBridgeProvider.getBridge());
-                mBridgeProvider
-                        .getBridge()
-                        .cleanupCredManRequest(mAuthenticationContextProvider.getRenderFrameHost());
+                WebauthnBrowserBridge bridge = mBridgeProvider.getBridge();
+                if (bridge != null && bridge.isInitialized()) {
+                    bridge.cleanupCredManRequest(
+                            mAuthenticationContextProvider.getRenderFrameHost());
+                }
                 mCancellableUiState = CancellableUiState.NONE;
                 assumeNonNull(mBarrier);
                 mBarrier.onCredManCancelled(error);
@@ -837,6 +852,13 @@ public class CredManHelper {
         } catch (DeserializationException e) {
             logDeserializationException(e);
             return null;
+        }
+    }
+
+    private void cleanupRequest() {
+        WebauthnBrowserBridge bridge = mBridgeProvider.getBridge();
+        if (bridge != null && bridge.isInitialized()) {
+            bridge.cleanupRequest(mAuthenticationContextProvider.getRenderFrameHost());
         }
     }
 

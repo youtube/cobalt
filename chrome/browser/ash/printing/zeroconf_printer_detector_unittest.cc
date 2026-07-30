@@ -187,7 +187,7 @@ class ZeroconfPrinterDetectorTest : public testing::Test {
         &listers_, std::move(ipp_reject_list));
     // The previously allocated listers_ are swapped into the detector_, and so
     // the unique_ptr values of the listers_ map are no longer valid at this
-    // point.  The ipp[se]_lister_ raw pointers are kept as seperate members to
+    // point.  The ipp[se]_lister_ raw pointers are kept as separate members to
     // keep the lister fakes accessible after ownership is transferred into the
     // detector.
     listers_.clear();

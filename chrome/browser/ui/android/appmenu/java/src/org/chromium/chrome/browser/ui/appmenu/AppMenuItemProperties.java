@@ -31,7 +31,7 @@ public class AppMenuItemProperties {
             new WritableObjectPropertyKey<>("TITLE");
 
     /**
-     * The unused title id of the menu item, to accomodate `HierarchicalMenuKeyProvider`.
+     * The unused title id of the menu item, to accommodate `HierarchicalMenuKeyProvider`.
      * TODO(crbug.com/40738791): Remove this and use only {@link TITLE}.
      */
     public static final WritableIntPropertyKey TITLE_ID = new WritableIntPropertyKey("TITLE_ID");

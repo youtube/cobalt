@@ -337,8 +337,7 @@ void FidoDeviceAuthenticator::MaybeGetEphemeralKeyForMakeCredential(
     CtapMakeCredentialRequest request,
     MakeCredentialOptions options,
     CtapMakeCredentialCallback callback) {
-  if (request.prf_input && options_.supports_hmac_secret_mc &&
-      base::FeatureList::IsEnabled(device::kWebAuthnHmacSecretMcExtension)) {
+  if (request.prf_input && options_.supports_hmac_secret_mc) {
     GetEphemeralKey(base::BindOnce(
         &FidoDeviceAuthenticator::OnHaveEphemeralKeyForMakeCredential,
         weak_factory_.GetWeakPtr(), std::move(request), std::move(options),

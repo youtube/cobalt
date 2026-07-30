@@ -16,7 +16,6 @@ namespace blink {
 
 class CorpusChunk;
 class FindResults;
-class LayoutBlockFlow;
 class Node;
 class OffsetMapping;
 

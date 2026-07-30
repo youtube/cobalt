@@ -17,6 +17,7 @@
 #include "net/http/http_request_headers.h"
 #include "net/storage_access_api/status.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "services/network/public/cpp/constants.h"
 #include "services/network/public/mojom/client_security_state.mojom.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 
@@ -156,7 +157,9 @@ void EnclaveWebSocketClient::Connect() {
       /*auth_handler=*/mojo::NullRemote(),
       /*header_client=*/mojo::NullRemote(),
       /*throttling_profile_id=*/std::nullopt,
-      /*network_restrictions_id=*/std::nullopt);
+      // This is a browser-internal connection to the passkey enclave service.
+      // It does not belong to any webpage, so we bypass connection allowlists.
+      network::GetNoOpNetworkRestrictionsId());
 }
 
 void EnclaveWebSocketClient::InternalWrite(base::span<const uint8_t> data) {

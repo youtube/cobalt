@@ -227,7 +227,7 @@ void VerticalTabGroupView::ToggleCollapsedState(
   InvalidateLayout();
 }
 
-views::Widget* VerticalTabGroupView::ShowGroupEditorBubble(
+std::unique_ptr<views::Widget> VerticalTabGroupView::ShowGroupEditorBubble(
     bool stop_context_menu_propagation) {
   // If the group is in the process of being closed, then ignore updates.
   if (!collection_node_) {

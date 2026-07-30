@@ -185,10 +185,18 @@ void TouchEventAckQueue::ProcessAckedTouchEvents() {
   if (ack_queue_.empty())
     return;
 
+  base::WeakPtr<RenderWidgetHostInputEventRouter> weak_client =
+      client_->GetWeakPtr();
   TouchEmulator* touch_emulator =
       client_->GetTouchEmulator(/*create_if_necessary=*/false);
+  base::WeakPtr<TouchEmulator> weak_touch_emulator =
+      touch_emulator ? touch_emulator->GetWeakPtr() : nullptr;
+
   while (!ack_queue_.empty() && ack_queue_.front().touch_event_ack_status ==
                                     TouchEventAckStatus::TouchEventAcked) {
+    if (!weak_client) {
+      return;
+    }
     // Extract values and bare pointers to avoid holding raw_ptrs on the stack
     // across synchronous view destruction boundaries.
     TouchEventWithLatencyInfo touch_event = ack_queue_.front().touch_event;
@@ -197,12 +205,18 @@ void TouchEventAckQueue::ProcessAckedTouchEvents() {
     RenderWidgetHostViewInput* root_view = ack_queue_.front().root_view;
     ack_queue_.pop_front();
 
-    if ((!touch_emulator ||
-         !touch_emulator->HandleTouchEventAck(touch_event.event, ack_result)) &&
-        (client_->IsViewInMap(root_view) || client_->ViewMapIsEmpty())) {
-      // Forward acked event and result to the root view associated with the
-      // event. The view map is only empty for AndroidWebView.
-      root_view->ProcessAckedTouchEvent(touch_event, ack_result);
+    bool handled_by_emulator = false;
+    if (weak_touch_emulator) {
+      handled_by_emulator = weak_touch_emulator->HandleTouchEventAck(
+          touch_event.event, ack_result);
+    }
+
+    if (!handled_by_emulator && weak_client) {
+      if (client_->IsViewInMap(root_view) || client_->ViewMapIsEmpty()) {
+        // Forward acked event and result to the root view associated with the
+        // event. The view map is only empty for AndroidWebView.
+        root_view->ProcessAckedTouchEvent(touch_event, ack_result);
+      }
     }
   }
 }
@@ -1894,7 +1908,11 @@ RenderWidgetHostInputEventRouter::FindViewFromFrameSinkId(
       iter == owner_map_.end() ? nullptr : iter->second.get();
 
   if (view && ancestor_to_verify && view != ancestor_to_verify &&
-      !RenderWidgetHostViewInput::IsAncestorView(view, ancestor_to_verify)) {
+      view->GetParentViewInput() != ancestor_to_verify) {
+    // We restrict targeting verification strictly to immediate direct children
+    // (parent-child relationship) rather than allowing any-depth descendants
+    // (IsAncestorView), which prevents a compromised renderer from bypassing
+    // intermediate frames to target nested grandchildren.
     return nullptr;
   }
 
@@ -2055,6 +2073,11 @@ void RenderWidgetHostInputEventRouter::DispatchEventToTarget(
 TouchEmulator* RenderWidgetHostInputEventRouter::GetTouchEmulator(
     bool create_if_necessary) {
   return delegate_->GetTouchEmulator(create_if_necessary);
+}
+
+base::WeakPtr<RenderWidgetHostInputEventRouter>
+RenderWidgetHostInputEventRouter::GetWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 void RenderWidgetHostInputEventRouter::ForwardEmulatedGestureEvent(

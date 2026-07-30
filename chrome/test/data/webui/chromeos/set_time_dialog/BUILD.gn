@@ -5,7 +5,7 @@
 import("../../build_webui_tests.gni")
 
 build_webui_tests("build") {
-  cc_test_files = [ "set_time_dialog_browsertest.js" ]
+  cc_test_files = [ "set_time_dialog_browsertest.cc" ]
   files = [
     "set_time_dialog_test.js",
     "test_set_time_browser_proxy.js",

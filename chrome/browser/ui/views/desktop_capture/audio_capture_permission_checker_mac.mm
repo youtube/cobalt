@@ -19,8 +19,7 @@ BASE_FEATURE(kDesktopMediaPickerCheckAudioPermissions,
 }  // namespace
 
 std::unique_ptr<AudioCapturePermissionCheckerMac>
-AudioCapturePermissionCheckerMac::MaybeCreate(
-    base::RepeatingCallback<void(void)> callback) {
+AudioCapturePermissionCheckerMac::MaybeCreate(base::RepeatingClosure callback) {
   if (media::IsMacCatapSystemLoopbackCaptureSupported() &&
       base::FeatureList::IsEnabled(kDesktopMediaPickerCheckAudioPermissions)) {
     return std::make_unique<AudioCapturePermissionCheckerMac>(callback);
@@ -29,7 +28,7 @@ AudioCapturePermissionCheckerMac::MaybeCreate(
 }
 
 AudioCapturePermissionCheckerMac::AudioCapturePermissionCheckerMac(
-    base::RepeatingCallback<void(void)> callback)
+    base::RepeatingClosure callback)
     : callback_(std::move(callback)) {}
 
 AudioCapturePermissionCheckerMac::~AudioCapturePermissionCheckerMac() {

@@ -26,7 +26,6 @@
 
 namespace blink {
 
-class CanvasResource;
 class ExportedCanvasResource;
 
 class CanvasResourceDispatcherClient {
@@ -39,10 +38,6 @@ class PLATFORM_EXPORT CanvasResourceDispatcher
     : public viz::mojom::blink::CompositorFrameSinkClient {
  public:
   static constexpr unsigned kMaxPendingCompositorFrames = 2;
-
-  // We set a limit to the number of placeholder resources that have been posted
-  // to the main thread but not yet received on that thread.
-  static constexpr unsigned kMaxPendingPlaceholderResources = 50;
 
   base::WeakPtr<CanvasResourceDispatcher> GetWeakPtr() {
     return weak_ptr_factory_.GetWeakPtr();
@@ -76,11 +71,9 @@ class PLATFORM_EXPORT CanvasResourceDispatcher
     return animation_state_ ==
            OffscreenCanvasPlaceholder::AnimationState::kSuspended;
   }
-  void DispatchFrame(scoped_refptr<CanvasResource>&&,
+  void DispatchFrame(scoped_refptr<ExportedCanvasResource>&&,
                      const gfx::Rect& damage_rect,
                      bool is_opaque);
-  // virtual for mocking
-  virtual void OnMainThreadReceivedImage();
   void ReplaceBeginFrameAck(const viz::BeginFrameArgs& args) {
     current_begin_frame_ack_ = viz::BeginFrameAck(args, true);
   }
@@ -105,42 +98,6 @@ class PLATFORM_EXPORT CanvasResourceDispatcher
  private:
   friend class OffscreenCanvasPlaceholderTest;
   friend class CanvasResourceDispatcherTest;
-
-  class PlaceholderClient : public OffscreenCanvasPlaceholder::Client {
-   public:
-    PlaceholderClient(DOMNodeId placeholder_canvas_id,
-                      scoped_refptr<base::SingleThreadTaskRunner>
-                          agent_group_scheduler_compositor_task_runner,
-                      scoped_refptr<base::SingleThreadTaskRunner> task_runner,
-                      base::RepeatingClosure animation_state_callback);
-    ~PlaceholderClient() override;
-
-    base::WeakPtr<PlaceholderClient> GetWeakPtr() {
-      return weak_ptr_factory_.GetWeakPtr();
-    }
-
-    void SetAnimationState(
-        OffscreenCanvasPlaceholder::AnimationState animation_state) override;
-
-    OffscreenCanvasPlaceholder::AnimationState GetAnimationState() {
-      return animation_state_;
-    }
-
-    void RegisterWithPlaceholder();
-
-   private:
-    base::RepeatingClosure animation_state_callback_;
-
-    const DOMNodeId placeholder_canvas_id_;
-
-    scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
-    scoped_refptr<base::SingleThreadTaskRunner>
-        agent_group_scheduler_compositor_task_runner_;
-
-    OffscreenCanvasPlaceholder::AnimationState animation_state_ =
-        OffscreenCanvasPlaceholder::AnimationState::kActive;
-    base::WeakPtrFactory<PlaceholderClient> weak_ptr_factory_{this};
-  };
 
   using ExportedResourceMap =
       HashMap<viz::ResourceId, scoped_refptr<ExportedCanvasResource>>;
@@ -170,11 +127,6 @@ class PLATFORM_EXPORT CanvasResourceDispatcher
   // state has actually changed or not.
   void UpdateBeginFrameSource();
 
-  void PostImageToPlaceholderIfNotBlocked(
-      scoped_refptr<ExportedCanvasResource>);
-  // virtual for testing
-  virtual void PostImageToPlaceholder(scoped_refptr<ExportedCanvasResource>&&);
-
   mojo::Remote<viz::mojom::blink::CompositorFrameSink> sink_;
   mojo::Remote<mojom::blink::SurfaceEmbedder> surface_embedder_;
   mojo::Receiver<viz::mojom::blink::CompositorFrameSinkClient> receiver_{this};
@@ -190,11 +142,6 @@ class PLATFORM_EXPORT CanvasResourceDispatcher
 
   viz::FrameTokenGenerator next_frame_token_;
 
-  // The latest_unposted_resource_ always refers to the frame
-  // resource used by the latest_unposted_resource_.
-  scoped_refptr<ExportedCanvasResource> latest_unposted_resource_;
-  unsigned num_pending_placeholder_resources_;
-
   viz::BeginFrameAck current_begin_frame_ack_;
 
   raw_ptr<CanvasResourceDispatcherClient> client_;
@@ -204,8 +151,6 @@ class PLATFORM_EXPORT CanvasResourceDispatcher
       agent_group_scheduler_compositor_task_runner_;
 
   TaskRunnerTimer<CanvasResourceDispatcher> fake_frame_timer_;
-
-  std::unique_ptr<PlaceholderClient> placeholder_client_;
 
   base::WeakPtrFactory<CanvasResourceDispatcher> weak_ptr_factory_{this};
 };

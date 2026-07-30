@@ -967,6 +967,7 @@ TEST(ExtensionURLPatternTest, MatchesSingleOrigin) {
 TEST(ExtensionURLPatternTest, TrailingDotDomain) {
   const GURL normal_domain("http://example.com/");
   const GURL trailing_dot_domain("http://example.com./");
+  const GURL multiple_trailing_dots_domain("http://example.com../");
 
   // Both patterns should match trailing dot and non trailing dot domains. More
   // information about this not obvious behaviour can be found in [1].
@@ -986,11 +987,20 @@ TEST(ExtensionURLPatternTest, TrailingDotDomain) {
   const URLPattern pattern(URLPattern::SCHEME_HTTP, "*://example.com/*");
   EXPECT_TRUE(pattern.MatchesURL(normal_domain));
   EXPECT_TRUE(pattern.MatchesURL(trailing_dot_domain));
+  EXPECT_TRUE(pattern.MatchesURL(multiple_trailing_dots_domain));
 
   const URLPattern trailing_pattern(URLPattern::SCHEME_HTTP,
                                     "*://example.com./*");
   EXPECT_TRUE(trailing_pattern.MatchesURL(normal_domain));
   EXPECT_TRUE(trailing_pattern.MatchesURL(trailing_dot_domain));
+  EXPECT_TRUE(trailing_pattern.MatchesURL(multiple_trailing_dots_domain));
+
+  const URLPattern multiple_trailing_pattern(URLPattern::SCHEME_HTTP,
+                                             "*://example.com../*");
+  EXPECT_TRUE(multiple_trailing_pattern.MatchesURL(normal_domain));
+  EXPECT_TRUE(multiple_trailing_pattern.MatchesURL(trailing_dot_domain));
+  EXPECT_TRUE(
+      multiple_trailing_pattern.MatchesURL(multiple_trailing_dots_domain));
 }
 
 TEST(ExtensionURLPatternTest, MatchesEffectiveTLD) {

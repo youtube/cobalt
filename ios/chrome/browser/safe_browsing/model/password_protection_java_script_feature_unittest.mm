@@ -112,4 +112,43 @@ TEST_F(PasswordProtectionJavaScriptFeatureTest, PasteEventRateLimited) {
   EXPECT_TRUE(observer_->on_paste_called_);
 }
 
+// Tests that KeyDown events are correctly checked for a single Unicode code
+// point.
+TEST_F(PasswordProtectionJavaScriptFeatureTest, KeyDownEventLengthCheck) {
+  // A single ASCII character (1 code point, 1 code unit in UTF-16).
+  base::Value body1(
+      base::DictValue().Set("eventType", "KeyDown").Set("text", "a"));
+  web::ScriptMessage message1(std::make_unique<base::Value>(std::move(body1)),
+                              /*is_user_interacting=*/true,
+                              /*is_main_frame=*/true,
+                              /*request_url=*/std::nullopt, url::Origin());
+  feature_->ScriptMessageReceived(&web_state_, message1);
+  EXPECT_TRUE(observer_->on_key_pressed_called_);
+  observer_->on_key_pressed_called_ = false;
+
+  // A single supplementary Unicode code point (e.g., U+1F600 Grinning Face
+  // emoji). It takes 2 UTF-16 code units (surrogate pair) but is 1 Unicode code
+  // point.
+  base::Value body2(base::DictValue()
+                        .Set("eventType", "KeyDown")
+                        .Set("text", "\xF0\x9F\x98\x80"));
+  web::ScriptMessage message2(std::make_unique<base::Value>(std::move(body2)),
+                              /*is_user_interacting=*/true,
+                              /*is_main_frame=*/true,
+                              /*request_url=*/std::nullopt, url::Origin());
+  feature_->ScriptMessageReceived(&web_state_, message2);
+  EXPECT_TRUE(observer_->on_key_pressed_called_);
+  observer_->on_key_pressed_called_ = false;
+
+  // Multiple characters should be dropped.
+  base::Value body3(
+      base::DictValue().Set("eventType", "KeyDown").Set("text", "ab"));
+  web::ScriptMessage message3(std::make_unique<base::Value>(std::move(body3)),
+                              /*is_user_interacting=*/true,
+                              /*is_main_frame=*/true,
+                              /*request_url=*/std::nullopt, url::Origin());
+  feature_->ScriptMessageReceived(&web_state_, message3);
+  EXPECT_FALSE(observer_->on_key_pressed_called_);
+}
+
 }  // namespace

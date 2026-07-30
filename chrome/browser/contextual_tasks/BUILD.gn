@@ -89,6 +89,10 @@ source_set("impl") {
     "contextual_tasks_context_model_executor.h",
     "contextual_tasks_context_model_handler.cc",
     "contextual_tasks_context_model_handler.h",
+    "contextual_tasks_context_multi_turn_model_executor.cc",
+    "contextual_tasks_context_multi_turn_model_executor.h",
+    "contextual_tasks_context_multi_turn_model_handler.cc",
+    "contextual_tasks_context_multi_turn_model_handler.h",
     "contextual_tasks_context_scoring_utils.cc",
     "contextual_tasks_context_service.cc",
     "contextual_tasks_context_service_factory.cc",
@@ -312,6 +316,7 @@ source_set("ui_impl") {
     "guest_opener_user_data.cc",
     "guest_opener_user_data.h",
   ]
+  deps = []
 
   if (is_android) {
     sources += [
@@ -329,9 +334,10 @@ source_set("ui_impl") {
 
   if (enable_dice_support) {
     sources += [ "search_ai_mode_promo_tab_helper.cc" ]
+    deps += [ "//chrome/browser/ui/views/search_ai_mode" ]
   }
 
-  deps = [
+  deps += [
     ":impl",
     ":ui",
     ":user_data",
@@ -385,6 +391,12 @@ source_set("ui_impl") {
     "//ui/webui:buildflags",
     "//ui/webui/tracked_element",
   ]
+
+  if (enable_webui_contextual_tasks_composebox) {
+    # FaviconSource is only used under #if
+    # ENABLE_WEBUI_CONTEXTUAL_TASKS_COMPOSEBOX.
+    deps += [ "//chrome/browser/ui/webui:favicon_source" ]
+  }
 
   if (is_android) {
     deps += [
@@ -498,12 +510,14 @@ if (!is_android) {
       "contextual_tasks_ui_service_pdf_browsertest.cc",
       "contextual_tasks_url_loader_factory_interceptor_browsertest.cc",
     ]
+    deps = []
 
     if (enable_dice_support) {
       sources += [ "search_ai_mode_promo_tab_helper_browsertest.cc" ]
+      deps += [ "//chrome/browser/ui/views/search_ai_mode" ]
     }
 
-    deps = [
+    deps += [
       ":contextual_tasks",
       ":impl",
       ":test_support",
@@ -556,6 +570,7 @@ source_set("unit_tests") {
     "ai_mode_context_library_converter_unittest.cc",
     "contextual_tasks_auto_suggestion_manager_unittest.cc",
     "contextual_tasks_context_model_handler_unittest.cc",
+    "contextual_tasks_context_multi_turn_model_handler_unittest.cc",
     "contextual_tasks_context_scoring_utils_unittest.cc",
     "contextual_tasks_context_service_factory_unittest.cc",
     "contextual_tasks_context_signal_utils_unittest.cc",
@@ -595,6 +610,7 @@ source_set("unit_tests") {
     "//chrome/browser:global_features",
     "//chrome/browser/autocomplete:aim_eligibility_service",
     "//chrome/browser/contextual_search",
+    "//chrome/browser/optimization_guide",
     "//chrome/browser/optimization_guide:test_support",
     "//chrome/browser/search_engines",
     "//chrome/browser/sync",
@@ -628,7 +644,7 @@ source_set("unit_tests") {
 
   if (!is_android) {
     deps += [
-      "//chrome/browser/ui/actions:actions",
+      "//chrome/browser/ui/actions",
       "//chrome/browser/ui/actions:actions_headers",
       "//chrome/browser/ui/contextual_search",
       "//chrome/browser/ui/hats:test_support",
@@ -681,6 +697,7 @@ source_set("interactive_ui_tests") {
     deps += [
       ":test_support",
       "//chrome/browser/ui/signin",
+      "//chrome/browser/ui/views/search_ai_mode",
     ]
   }
 
@@ -718,8 +735,8 @@ if (is_android) {
     resources_package = "org.chromium.chrome.browser.contextual_tasks"
 
     sources = [
+      "android/java/src/org/chromium/chrome/browser/contextual_tasks/ContextualTaskBottomSheetComponentProvider.java",
       "android/java/src/org/chromium/chrome/browser/contextual_tasks/ContextualTaskBottomSheetContent.java",
-      "android/java/src/org/chromium/chrome/browser/contextual_tasks/ContextualTaskBottomSheetContentProvider.java",
       "android/java/src/org/chromium/chrome/browser/contextual_tasks/ContextualTasksBridge.java",
       "android/java/src/org/chromium/chrome/browser/contextual_tasks/ContextualTasksFuseboxManagerImpl.java",
     ]
@@ -754,7 +771,7 @@ if (is_android) {
 
   generate_jni("jni_headers") {
     sources = [
-      "android/java/src/org/chromium/chrome/browser/contextual_tasks/ContextualTaskBottomSheetContentProvider.java",
+      "android/java/src/org/chromium/chrome/browser/contextual_tasks/ContextualTaskBottomSheetComponentProvider.java",
       "android/java/src/org/chromium/chrome/browser/contextual_tasks/ContextualTasksBridge.java",
     ]
   }

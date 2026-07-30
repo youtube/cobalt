@@ -69,7 +69,7 @@ VM:1 Uncaught ReferenceError: j is not defined
 gen
 ƒ* gen(){}
 await 5; return 42;
-VM:1 Uncaught SyntaxError: Illegal return statement
+VM:1 Uncaught SyntaxError: Illegal return statement (at VM:1:10)
 let o = await 1, p
 undefined
 p

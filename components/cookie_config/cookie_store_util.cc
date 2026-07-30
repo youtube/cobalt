@@ -31,10 +31,8 @@ void InitOnUi(
     base::OnceCallback<void(scoped_refptr<os_crypt_async::Encryptor>)> callback,
     os_crypt_async::OSCryptAsync* os_crypt_async,
     scoped_refptr<base::SequencedTaskRunner> task_runner) {
-  os_crypt_async->GetInstance(
-      base::BindOnce(&OnOsCryptReadyOnUi, std::move(callback),
-                     std::move(task_runner)),
-      os_crypt_async::Encryptor::Option::kEncryptSyncCompat);
+  os_crypt_async->GetInstance(base::BindOnce(
+      &OnOsCryptReadyOnUi, std::move(callback), std::move(task_runner)));
 }
 
 // Use the operating system's mechanisms to encrypt cookies before writing

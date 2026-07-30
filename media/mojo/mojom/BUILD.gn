@@ -566,6 +566,30 @@ mojom("media_types") {
         },
       ]
     },
+    {
+      types = [
+        {
+          mojom = "media.mojom.VideoSpatialFormat"
+          cpp = "::media::VideoSpatialFormat"
+        },
+        {
+          mojom = "media.mojom.VideoStereoMode"
+          cpp = "::media::VideoStereoMode"
+        },
+        {
+          mojom = "media.mojom.VideoProjectionType"
+          cpp = "::media::VideoProjectionType"
+        },
+      ]
+      traits_headers = [
+        "//media/base/video_spatial_format.h",
+        "video_spatial_format_mojom_traits.h",
+      ]
+      traits_public_deps = [
+        "//base",
+        "//media",
+      ]
+    },
   ]
 
   # The dependencies for |media.mojom.VideoFrame| traits are different on
@@ -677,6 +701,7 @@ mojom("media_types") {
       traits_private_headers = [ "video_decoder_config_mojom_traits.h" ]
       traits_sources = [ "video_decoder_config_mojom_traits.cc" ]
       traits_public_deps = [
+        ":shared_mojom_traits",
         "//base",
         "//media",
         "//media/base/ipc",
@@ -1090,6 +1115,7 @@ source_set("unit_tests") {
 
   sources = [
     "audio_decoder_config_mojom_traits_unittest.cc",
+    "audio_parameters_mojom_traits_unittest.cc",
     "audio_processing_mojom_traits_unittest.cc",
     "cdm_key_information_mojom_traits_unittest.cc",
     "channel_layout_mojom_traits_unittest.cc",

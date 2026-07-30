@@ -144,6 +144,7 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
      *     TabStripTransitionDelegate}.
      * @param tabStripTransitionHandler The {@link TabStripTransitionHandler} instance to facilitate
      *     tab strip visibility transitions.
+     * @param suppressTabStripAtStart if {@code true}, suppress tab strip when Chrome starts.
      */
     public TabStripTransitionCoordinator(
             ControlContainer controlContainer,
@@ -151,7 +152,8 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
             TabObscuringHandler tabObscuringHandler,
             @Nullable DesktopWindowStateManager desktopWindowStateManager,
             OneshotSupplier<TabStripTransitionDelegate> tabStripTransitionDelegateSupplier,
-            TabStripTransitionHandler tabStripTransitionHandler) {
+            TabStripTransitionHandler tabStripTransitionHandler,
+            boolean suppressTabStripAtStart) {
         mControlContainer = controlContainer;
         mTabStripHeightFromResource = tabStripHeightFromResource;
         mDesktopWindowStateManager = desktopWindowStateManager;
@@ -165,7 +167,8 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
                         mHandler,
                         tabObscuringHandler,
                         tabStripTransitionDelegateSupplier,
-                        tabStripTransitionHandler);
+                        tabStripTransitionHandler,
+                        suppressTabStripAtStart);
         mFadeTransitionHandler =
                 new FadeTransitionHandler(tabStripTransitionDelegateSupplier, mCallbackController);
 

@@ -8,6 +8,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "components/browser_apis/tab_drag/adapters/tab_drag_window_adapter.h"
+#include "ui/gfx/geometry/rect.h"
 
 class BrowserWindowInterface;
 
@@ -19,8 +20,13 @@ class TabDragWindowAdapterImpl : public tabs_api::TabDragWindowAdapter {
   ~TabDragWindowAdapterImpl() override;
 
   // tabs_api::TabDragWindowAdapter:
+  gfx::Rect GetBoundsInScreen() const override;
   gfx::Point ConvertScreenPointToLocal(
       const gfx::Point& screen_point) const override;
+
+  void SetCapture() override;
+  void ReleaseCapture() override;
+  bool HasCapture() const override;
 
   base::WeakPtr<tabs_api::TabDragWindowAdapter> AsWeakPtr() override;
 

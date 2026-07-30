@@ -444,13 +444,13 @@ PaymentsFormDataImporter::TryMatchingExistingServerCard(
       // If `credit_card_import_type_` was local card, then a local card was
       // extracted from the form. If a server card is now also extracted from
       // the form, the duplicate local and server card case is detected.
-      if (credit_card_import_type_ == payments::PaymentsFormDataImporter::
-                                          CreditCardImportType::kLocalCard) {
-        credit_card_import_type_ = payments::PaymentsFormDataImporter::
+      if (credit_card_import_type_ ==
+          PaymentsFormDataImporter::CreditCardImportType::kLocalCard) {
+        credit_card_import_type_ = PaymentsFormDataImporter::
             CreditCardImportType::kDuplicateLocalServerCard;
       } else {
-        credit_card_import_type_ = payments::PaymentsFormDataImporter::
-            CreditCardImportType::kServerCard;
+        credit_card_import_type_ =
+            PaymentsFormDataImporter::CreditCardImportType::kServerCard;
       }
       return server_card_with_cvc;
     } else {

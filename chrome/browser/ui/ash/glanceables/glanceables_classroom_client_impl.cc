@@ -612,6 +612,8 @@ void GlanceablesClassroomClientImpl::FetchCourseWorkPage(
   request_sender->StartRequestWithAuthRetry(
       std::make_unique<ListCourseWorkRequest>(
           request_sender, course_id, page_token,
+          /*additional_request_fields=*/
+          base::span<const ListCourseWorkRequest::AdditionalRequestField>{},
           base::BindOnce(
               &GlanceablesClassroomClientImpl::OnCourseWorkPageFetched,
               weak_factory_.GetWeakPtr(), request_id, course_id,

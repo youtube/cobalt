@@ -2018,8 +2018,7 @@ StyleRuleNavigation* CSSParserImpl::ConsumeNavigationRule(
     StyleRule* parent_rule_for_nesting) {
   // Parse the prelude.
   wtf_size_t header_start_offset = stream.LookAheadOffset();
-  NavigationQuery* query =
-      NavigationParser::ParseQuery(stream, *context_->GetDocument());
+  NavigationQuery* query = NavigationParser::ParseQuery(stream);
   if (!query) {
     ConsumeErroneousAtRule(stream, CSSAtRuleID::kCSSAtRuleNavigation);
     return nullptr;

@@ -101,6 +101,9 @@
 // Sets whether the file picker should let the user select multiple files.
 - (void)setAllowsMultipleSelection:(BOOL)allowsMultipleSelection;
 
+// Sets whether the Account button should be hidden.
+- (void)setAccountButtonHidden:(BOOL)hidden;
+
 @end
 
 #endif  // IOS_CHROME_BROWSER_DRIVE_FILE_PICKER_UI_DRIVE_FILE_PICKER_CONSUMER_H_

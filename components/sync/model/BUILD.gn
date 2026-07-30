@@ -50,6 +50,8 @@ static_library("model") {
     "mutable_data_batch.h",
     "processor_entity.cc",
     "processor_entity.h",
+    "processor_entity_metadata.cc",
+    "processor_entity_metadata.h",
     "processor_entity_tracker.cc",
     "processor_entity_tracker.h",
     "proxy_data_type_controller_delegate.cc",

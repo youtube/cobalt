@@ -27,7 +27,6 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
-#include "base/timer/elapsed_timer.h"
 #include "base/version.h"
 #include "components/crx_file/id_util.h"
 #include "content/public/common/url_constants.h"
@@ -38,7 +37,6 @@
 #include "extensions/common/manifest.h"
 #include "extensions/common/manifest_constants.h"
 #include "extensions/common/manifest_handler.h"
-#include "extensions/common/manifest_handlers/app_urls_info.h"
 // TODO(crbug.com/324534603): Remove this.
 #include "extensions/common/manifest_handlers/description_info.h"
 #include "extensions/common/manifest_handlers/permissions_parser.h"
@@ -68,7 +66,6 @@ constexpr int kPEMOutputColumns = 64;
 static_assert(kMaximumSupportedManifestVersion >=
                   kMinimumSupportedManifestVersion,
               "The modern manifest version must be supported.");
-bool g_silence_deprecated_manifest_version_warnings = false;
 
 // KEY MARKERS
 constexpr char kKeyBeginHeaderMarker[] = "-----BEGIN";
@@ -106,8 +103,7 @@ bool IsManifestSupported(int manifest_version,
     // Emit a warning for unpacked extensions on Manifest V2 warning that
     // MV2 is deprecated.
     if (type == Manifest::Type::kExtension && manifest_version == 2 &&
-        Manifest::IsUnpackedLocation(location) &&
-        !g_silence_deprecated_manifest_version_warnings) {
+        Manifest::IsUnpackedLocation(location)) {
       *warning = errors::kManifestV2IsDeprecatedWarning;
     }
     return true;
@@ -232,12 +228,6 @@ const int Extension::kValidHostPermissionSchemes =
 //
 
 // static
-void Extension::set_silence_deprecated_manifest_version_warnings_for_testing(
-    bool silence) {
-  g_silence_deprecated_manifest_version_warnings = silence;
-}
-
-// static
 scoped_refptr<Extension> Extension::Create(const base::FilePath& path,
                                            ManifestLocation location,
                                            const base::DictValue& value,
@@ -254,7 +244,6 @@ scoped_refptr<Extension> Extension::Create(const base::FilePath& path,
                                            int flags,
                                            const ExtensionId& explicit_id,
                                            std::u16string* error) {
-  base::ElapsedTimer timer;
   DCHECK(error);
 
   ExtensionId extension_id;
@@ -276,19 +265,14 @@ scoped_refptr<Extension> Extension::Create(const base::FilePath& path,
   std::vector<InstallWarning> install_warnings;
   manifest->ValidateManifest(&install_warnings);
 
-  scoped_refptr<Extension> extension = new Extension(path, std::move(manifest));
+  scoped_refptr<Extension> extension =
+      new Extension(path, flags, std::move(manifest));
   if (!extension->LoadRequiredFeatures(&install_warnings, error)) {
     return nullptr;
   }
   extension->install_warnings_.swap(install_warnings);
 
-  // Some manifest parsing may require the dynamic URL to be present on the
-  // extension; instantiate it now.
-  extension->guid_ = base::Uuid::GenerateRandomV4();
-  extension->dynamic_url_ = Extension::GetBaseURLFromExtensionId(
-      extension->guid_.AsLowercaseString());
-
-  if (!extension->InitFromValue(flags, error)) {
+  if (!extension->Init(error)) {
     return nullptr;
   }
 
@@ -608,13 +592,11 @@ void Extension::AddWebExtentPattern(const URLPattern& pattern) {
 }
 
 Extension::Extension(const base::FilePath& path,
+                     int creation_flags,
                      std::unique_ptr<extensions::Manifest> manifest)
     : manifest_version_(0),
-      converted_from_user_script_(false),
       manifest_(manifest.release()),
-      finished_parsing_manifest_(false),
-      wants_file_access_(false),
-      creation_flags_(0) {
+      creation_flags_(creation_flags) {
   DCHECK(path.empty() || path.IsAbsolute());
   path_ = crx_file::id_util::MaybeNormalizePath(path);
 }
@@ -622,10 +604,8 @@ Extension::Extension(const base::FilePath& path,
 Extension::~Extension() {
 }
 
-bool Extension::InitFromValue(int flags, std::u16string* error) {
+bool Extension::Init(std::u16string* error) {
   DCHECK(error);
-
-  creation_flags_ = flags;
 
   // Check for |converted_from_user_script| first, since it affects the type
   // returned by GetType(). This is needed to determine if the manifest version
@@ -644,16 +624,14 @@ bool Extension::InitFromValue(int flags, std::u16string* error) {
     public_key_ = *temp;
   }
 
+  // Instantiate dynamic URL now because it is required for parsing manifest
+  // entries 'content_security_policy' and 'web_accessible_resources'.
+  guid_ = base::Uuid::GenerateRandomV4();
+  dynamic_url_ =
+      Extension::GetBaseURLFromExtensionId(guid_.AsLowercaseString());
+
   extension_origin_ = Extension::CreateOriginFromExtensionId(id());
   extension_url_ = Extension::GetBaseURLFromExtensionId(id());
-
-  // Load App settings. ParseAppURLs at least has to be done before
-  // ParsePermissions(), because the valid permissions depend on what type of
-  // package this is.
-  // TODO(crbug.com/324534603): Change is_app() to is_hosted_app().
-  if (is_app() && !ParseAppURLs(*this, error)) {
-    return false;
-  }
 
   permissions_parser_ = std::make_unique<PermissionsParser>();
   if (!permissions_parser_->Parse(this, error)) {

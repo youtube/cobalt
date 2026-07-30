@@ -1040,7 +1040,7 @@ IN_PROC_BROWSER_TEST_F(OriginKeyedProcessByDefaultTest,
   // Verify that we're not explicitly tracking the origin for
   // `default_isolated_url`.
   EXPECT_EQ(static_cast<OriginAgentClusterIsolationState*>(nullptr),
-            policy->LookupOriginIsolationStateForTesting(
+            policy->LookupOriginAgentClusterStateForTesting(
                 isolation_context.browsing_instance_id(),
                 url::Origin::Create(default_isolated_url)));
 
@@ -1055,7 +1055,7 @@ IN_PROC_BROWSER_TEST_F(OriginKeyedProcessByDefaultTest,
   // have the default isolation state as defined for the current
   // BrowsingInstance.
   OriginAgentClusterIsolationState* isolation_state2 =
-      policy->LookupOriginIsolationStateForTesting(
+      policy->LookupOriginAgentClusterStateForTesting(
           isolation_context.browsing_instance_id(),
           url::Origin::Create(default_isolated_url));
   ASSERT_NE(static_cast<OriginAgentClusterIsolationState*>(nullptr),
@@ -1132,7 +1132,7 @@ IN_PROC_BROWSER_TEST_F(
   IsolationContext isolation_context =
       root->current_frame_host()->GetSiteInstance()->GetIsolationContext();
   OriginAgentClusterIsolationState* isolation_state2 =
-      policy->LookupOriginIsolationStateForTesting(
+      policy->LookupOriginAgentClusterStateForTesting(
           isolation_context.browsing_instance_id(),
           url::Origin::Create(explicit_isolated_url));
   ASSERT_NE(static_cast<OriginAgentClusterIsolationState*>(nullptr),
@@ -1186,7 +1186,7 @@ IN_PROC_BROWSER_TEST_F(OriginKeyedProcessByDefaultTest,
   IsolationContext isolation_context =
       root->current_frame_host()->GetSiteInstance()->GetIsolationContext();
   OriginAgentClusterIsolationState* isolation_state2 =
-      policy->LookupOriginIsolationStateForTesting(
+      policy->LookupOriginAgentClusterStateForTesting(
           isolation_context.browsing_instance_id(),
           url::Origin::Create(default_not_isolated_url));
   ASSERT_NE(static_cast<OriginAgentClusterIsolationState*>(nullptr),
@@ -1223,7 +1223,7 @@ void TestDefaultIsolationForFrame(
   // default.
   IsolationContext isolation_context = site_instance->GetIsolationContext();
   EXPECT_EQ(static_cast<OriginAgentClusterIsolationState*>(nullptr),
-            policy->LookupOriginIsolationStateForTesting(
+            policy->LookupOriginAgentClusterStateForTesting(
                 isolation_context.browsing_instance_id(),
                 url::Origin::Create(default_isolated_url)));
 }

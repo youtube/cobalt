@@ -89,4 +89,12 @@ public class IncognitoStateProvider {
             observer.onIncognitoStateChanged(isIncognito);
         }
     }
+
+    public void setIncognitoStateForTesting(boolean isIncognito) {
+        emitIncognitoStateChanged(isIncognito);
+    }
+
+    public int getObserverCountForTesting() {
+        return mIncognitoStateObservers.size();
+    }
 }

@@ -132,6 +132,8 @@ _MFD3D11VC_ALTERNATIVE_MAP_EVENT_NAME2 =\
 # Camera capture textures always have dxgi_shared_handle_state_.
 _MFD3D11VC_PRESENT_EVENT_NAME =\
     'D3DImageBacking::BeginAccessD3D11::DXGISharedHandle'
+_WGC_DELIVER_TEXTURE_EVENT_NAME =\
+    'DesktopCaptureDevice::DeliverTextureToClient'
 
 # Caching events and constants
 _GPU_HOST_STORE_BLOB_EVENT_NAME =\
@@ -396,6 +398,17 @@ class TraceIntegrationTest(gpu_integration_test.GpuIntegrationTest):
                 test_harness_script=basic_test_harness_script,
                 finish_js_condition='domAutomationController._finished',
                 success_eval_func='CheckMediaFoundationD3D11VideoCapture',
+                other_args=p.other_args)
+        ])
+      for p in namespace.WgcDesktopCaptureTextureTests('TraceTest'):
+        yield (p.name, posixpath.join(gpu_data_relative_path, p.url), [
+            _TraceTestArguments(
+                browser_args=p.browser_args,
+                category=cls._DisabledByDefaultTraceCategory(
+                    'video_and_image_capture'),
+                test_harness_script=basic_test_harness_script,
+                finish_js_condition='domAutomationController._finished',
+                success_eval_func='CheckWgcDesktopCaptureTexture',
                 other_args=p.other_args)
         ])
 
@@ -1227,6 +1240,42 @@ FROM
     for event_name, found in found_events.items():
       if not found:
         self.fail(f'No {event_name} events found')
+
+  def _EvaluateSuccess_CheckWgcDesktopCaptureTexture(
+      self, category: str, trace_processor: tp.TraceProcessor,
+      _other_args: dict) -> None:
+    del category  # Unused.
+    os_version = self.browser.platform.GetOSVersionName()
+    assert os_version
+    if os_version.lower() != 'win11':
+      self.skipTest('WgcDesktopCaptureTexture requires Windows 11')
+
+    # WGC texture mode requires Windows 11 24H2+ (build 26100+).
+    os_version_detail = self.browser.platform.GetOSVersionDetailString()
+    try:
+      build_number = int(os_version_detail.split('.')[-1])
+    except (ValueError, IndexError):
+      build_number = 0
+    if build_number < 26100:
+      self.skipTest(
+          f'WgcDesktopCaptureTexture requires Win11 24H2+ (build 26100+), '
+          f'got build {build_number}')
+
+    js_succeeded = self.tab.EvaluateJavaScript(
+        'domAutomationController._succeeded')
+    self.assertTrue(js_succeeded)
+
+    event_query = f"""\
+SELECT
+  COUNT(*) AS cnt
+FROM
+  slices
+WHERE
+  name = '{_WGC_DELIVER_TEXTURE_EVENT_NAME}'
+"""
+    for row in trace_processor.query(event_query):
+      if row.cnt == 0:
+        self.fail(f'No {_WGC_DELIVER_TEXTURE_EVENT_NAME} events found')
 
   @classmethod
   def ExpectationsFiles(cls) -> list[str]:

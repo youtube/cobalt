@@ -19,9 +19,9 @@
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "components/language/core/common/language_util.h"
+#include "components/language_detection/core/chinese_script_classifier.h"
 #include "components/language_detection/core/constants.h"
 #include "components/translate/core/common/translate_metrics.h"
-#include "components/translate/core/language_detection/chinese_script_classifier.h"
 #include "third_party/cld_3/src/src/nnet_language_identifier.h"
 
 namespace {
@@ -123,7 +123,7 @@ std::string FilterDetectedLanguage(const std::string& utf8_text,
   if (detected_language == "zh") {
     // If prediction is "zh" (Chinese), then we need to determine whether the
     // text is zh-Hant (Chinese Traditional) or zh-Hans (Chinese Simplified).
-    translate::ChineseScriptClassifier zh_classifier;
+    language_detection::ChineseScriptClassifier zh_classifier;
 
     // The Classify function returns either "zh-Hant" or "zh-Hans".
     // Convert to the old-style language codes used by the Translate API.

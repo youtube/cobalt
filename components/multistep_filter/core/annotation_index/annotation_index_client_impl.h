@@ -54,10 +54,9 @@ class AnnotationIndexClientImpl : public AnnotationIndexClient {
           void(std::optional<std::vector<FilterSuggestionCandidate>>)> callback,
       int64_t navigation_id) override;
 
-  void GetSupportedTaskTypesForDomain(
-      std::string_view domain,
-      base::OnceCallback<void(std::optional<std::vector<std::string>>)>
-          callback,
+  void GetSupportedTasks(
+      const GURL& url,
+      base::OnceCallback<void(std::vector<std::string>)> callback,
       int64_t navigation_id) override;
 
   void ExtractFilterAnnotation(

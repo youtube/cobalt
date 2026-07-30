@@ -25,6 +25,7 @@ import androidx.annotation.CallSuper;
 import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.app.AppCompatDelegate;
 
+import org.jni_zero.CalledByNative;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.base.AconfigFlaggedApiDelegate;
@@ -142,6 +143,18 @@ public class DocumentPictureInPictureActivity extends AsyncInitializationActivit
         }
 
         mWebContents = webContents;
+
+        // Handshake with native WindowManager. Since Activity startup is async, C++ might have
+        // closed the session while this intent was in-flight. If so, abort to prevent an orphaned
+        // window.
+        boolean isSessionValid =
+                DocumentPictureInPictureActivityJni.get().registerJavaActivity(this, mWebContents);
+        if (!isSessionValid) {
+            Log.e(TAG, "Native PiP session already closed. Aborting startup.");
+            finish();
+            return;
+        }
+
         WebContents parentWebContents =
                 sParentWebContentsForTesting != null
                         ? sParentWebContentsForTesting
@@ -909,10 +922,20 @@ public class DocumentPictureInPictureActivity extends AsyncInitializationActivit
 
     @NativeMethods
     public interface Natives {
+        boolean registerJavaActivity(
+                DocumentPictureInPictureActivity activity, WebContents webContents);
+
         void onActivityStartForTesting( // IN-TEST
                 WebContents parentWebContent, WebContents webContents);
 
         void onBackToTab();
+    }
+
+    @CalledByNative
+    public void closeActivity() {
+        if (!isFinishing()) {
+            finish();
+        }
     }
 
     static class DocumentPictureInPictureNightModeStateProvider implements NightModeStateProvider {

@@ -70,7 +70,8 @@ class PopupSearchBarView : public views::View,
   PopupSearchBarView(const std::u16string& placeholder,
                      Delegate& delegate,
                      bool show_indicator = false,
-                     bool is_loading = false);
+                     bool is_loading = false,
+                     bool show_search_icon_sparkle = false);
   PopupSearchBarView(const PopupSearchBarView&) = delete;
   PopupSearchBarView& operator=(const PopupSearchBarView&) = delete;
   ~PopupSearchBarView() override;

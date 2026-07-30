@@ -47,6 +47,16 @@ interface PasswordTrackedElement extends HTMLInputElement {
 let formMutationObserver: MutationObserver|null = null;
 
 /**
+ * The MutationObserver tracking password type changes.
+ */
+let passwordTypeObserver: MutationObserver|null = null;
+
+/**
+ * Timer handle for the throttled mutation processing.
+ */
+let mutationProcessTimeout: ReturnType<typeof setTimeout>|null = null;
+
+/**
  * Snapshot of the total number of form controls in the document.
  */
 let formControlCount: number = -1;
@@ -558,18 +568,21 @@ function processFormMutationsStandard(
       } else {
         ++formMsgBatchMetadata.dropCount;
       }
-    } else if (
-        // Monitors password fields that changes type during its lifetime.
-        isTrackPasswordFieldsEnabled() && mutation.type === 'attributes' &&
-        mutation.attributeName === 'type') {
-      const target = mutation.target as HTMLInputElement;
-      if (target.tagName === 'INPUT' && target.type === 'password') {
-        (target as PasswordTrackedElement)[HAS_BEEN_PASSWORD_SYMBOL] = true;
-      }
     }
   }
-  const messagesToSend: object[] =
-      [removedFormMessage, addedFormMessage].filter(v => !!v).map(v => v!);
+  let messagesToSend: object[];
+  if (isAutofillOptimizationFormSearchEnabled()) {
+    messagesToSend = [];
+    if (removedFormMessage) {
+      messagesToSend.push(removedFormMessage);
+    }
+    if (addedFormMessage) {
+      messagesToSend.push(addedFormMessage);
+    }
+  } else {
+    messagesToSend =
+        [removedFormMessage, addedFormMessage].filter(v => !!v).map(v => v!);
+  }
   if (messagesToSend.length > 0 &&
       !sendFormMutationMessagesAfterDelay(messagesToSend, delay, true)) {
     // Count the messages that couldn't be scheduled as dropped.
@@ -615,11 +628,8 @@ function getFormControlCount(): number {
  * using cached live HTMLCollections. If any additions are detected, send
  * a single generic form activity message.
  *
- * @param mutations The list of mutation records from the MutationObserver.
- * @param delay The scheduling delay for sending messages.
  */
-function processFormMutationsOptimized(
-    mutations: MutationRecord[], delay: number): void {
+function processFormMutationsOptimized(): void {
   const newFormControlCount = getFormControlCount();
 
   const removedFormIDs: string[] = [];
@@ -717,25 +727,70 @@ function processFormMutationsOptimized(
   formControlCount = newFormControlCount;
 
   // Send the messages
-  const messagesToSend: object[] =
-      [removedFormMessage, addedFormMessage].filter(v => !!v).map(v => v!);
+  const messagesToSend: object[] = [];
+  if (removedFormMessage) {
+    messagesToSend.push(removedFormMessage);
+  }
+  if (addedFormMessage) {
+    messagesToSend.push(addedFormMessage);
+  }
+  // The delay has already been applied in `trackFormMutations`.
   if (messagesToSend.length > 0 &&
-      !sendFormMutationMessagesAfterDelay(messagesToSend, delay, true)) {
+      !sendFormMutationMessagesAfterDelay(messagesToSend, 0, true)) {
     formMsgBatchMetadata.dropCount += messagesToSend.length;
   }
+}
 
-  // Monitor password fields that change type during their lifetime.
-  if (isTrackPasswordFieldsEnabled()) {
-    for (let i = 0; i < mutations.length; i++) {
-      const m = mutations[i];
-      if (m && m.type === 'attributes' && m.attributeName === 'type') {
-        const target = m.target as HTMLInputElement;
-        if (target.tagName === 'INPUT' && target.type === 'password') {
+/**
+ * Initializes the password field type observer.
+ */
+function initializePasswordFieldTypeObserver(): void {
+  passwordTypeObserver = new MutationObserver(function(mutations) {
+    for (const mutation of mutations) {
+      if (mutation.type === 'attributes') {
+        const target = mutation.target as HTMLInputElement;
+        if (target.type === 'password') {
           (target as PasswordTrackedElement)[HAS_BEEN_PASSWORD_SYMBOL] = true;
         }
       }
     }
+  });
+  passwordTypeObserver.observe(document, {
+    attributes: true,
+    attributeFilter: ['type'],
+    subtree: true,
+  });
+}
+
+/**
+ * Clean up the properties used to track form mutations.
+ */
+function cleanUpFormMutationTracking(): void {
+  if (formMutationObserver) {
+    formMutationObserver.disconnect();
+    formMutationObserver = null;
   }
+  if (passwordTypeObserver) {
+    passwordTypeObserver.disconnect();
+    passwordTypeObserver = null;
+  }
+  if (mutationProcessTimeout) {
+    clearTimeout(mutationProcessTimeout);
+    mutationProcessTimeout = null;
+  }
+  formControlCollections = [];
+  lastFocusedElement = null;
+}
+
+/**
+ * Starts observing form mutations.
+ * @param observer The MutationObserver to observe for mutations.
+ */
+function observeFormMutations(observer: MutationObserver|null): void {
+  if (!observer) {
+    return;
+  }
+  observer.observe(document, {childList: true, subtree: true});
 }
 
 /**
@@ -747,42 +802,42 @@ function processFormMutationsOptimized(
  * throttling and allows correctly handling form replacements.
  */
 function trackFormMutations(delay: number): void {
-  if (formMutationObserver) {
-    formMutationObserver.disconnect();
-    formMutationObserver = null;
-  }
+  cleanUpFormMutationTracking();
 
   if (!delay) {
     return;
   }
 
+  // Track password field mutations.
   if (isTrackPasswordFieldsEnabled()) {
     markPasswordFields();
+    initializePasswordFieldTypeObserver();
   }
 
+  // Track form mutations.
   if (isAutofillTrackFormMutationsOptimizationEnabled()) {
     initializeFormControlCollections();
     formControlCount = getFormControlCount();
-  }
 
-  formMutationObserver = new MutationObserver(function(mutations) {
-    if (isAutofillTrackFormMutationsOptimizationEnabled()) {
-      processFormMutationsOptimized(mutations, delay);
-    } else {
-      processFormMutationsStandard(mutations, delay);
-    }
-  });
+    formMutationObserver = new MutationObserver(function() {
+      // Disconnect the observer to reduce the number of microtasks
+      // during the delay period.
+      if (formMutationObserver) {
+        formMutationObserver.disconnect();
+      }
 
-  // There is a small performance cost when adding attributes and
-  // attributesFilter.
-  if (isTrackPasswordFieldsEnabled()) {
-    formMutationObserver.observe(document, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['type'],
+      mutationProcessTimeout = setTimeout(function() {
+        mutationProcessTimeout = null;
+        processFormMutationsOptimized();
+        // Reconnect the observer to start listening for new mutations again.
+        observeFormMutations(formMutationObserver);
+      }, delay);
     });
+    observeFormMutations(formMutationObserver);
   } else {
+    formMutationObserver = new MutationObserver(function(mutations) {
+      processFormMutationsStandard(mutations, delay);
+    });
     formMutationObserver.observe(document, {childList: true, subtree: true});
   }
 }

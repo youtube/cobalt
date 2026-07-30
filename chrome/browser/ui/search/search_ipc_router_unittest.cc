@@ -22,12 +22,11 @@
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/ui/search/search_ipc_router_policy_impl.h"
 #include "chrome/browser/ui/search/search_tab_helper.h"
-#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/search/instant_types.h"
 #include "chrome/common/search/mock_embedded_search_client.h"
 #include "chrome/common/url_constants.h"
-#include "chrome/test/base/browser_with_test_window_test.h"
+#include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "chrome/test/base/search_test_utils.h"
 #include "components/favicon_base/favicon_types.h"
 #include "components/omnibox/common/omnibox_focus_state.h"
@@ -36,6 +35,7 @@
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/mock_render_process_host.h"
+#include "content/public/test/web_contents_tester.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/window_open_disposition.h"
@@ -91,14 +91,19 @@ class MockEmbeddedSearchClientFactory
 
 }  // namespace
 
-class SearchIPCRouterTest : public BrowserWithTestWindowTest {
+class SearchIPCRouterTest : public ChromeRenderViewHostTestHarness {
  public:
   SearchIPCRouterTest() = default;
 
   void SetUp() override {
-    BrowserWithTestWindowTest::SetUp();
-    AddTab(browser(), GURL("chrome://blank"));
+    ChromeRenderViewHostTestHarness::SetUp();
+
+    // Ensure WebContents is navigated to initialize the process.
+    content::WebContentsTester::For(web_contents())
+        ->NavigateAndCommit(GURL("chrome://blank"));
+
     SearchTabHelper::CreateForWebContents(web_contents());
+    GetSearchTabHelper(web_contents())->OnTabActivated();
 
     TemplateURLServiceFactory::GetInstance()->SetTestingFactoryAndUse(
         profile(),
@@ -118,13 +123,13 @@ class SearchIPCRouterTest : public BrowserWithTestWindowTest {
     template_url_service->SetUserSelectedDefaultSearchProvider(template_url);
   }
 
-  content::WebContents* web_contents() {
-    return browser()->tab_strip_model()->GetActiveWebContents();
-  }
-
   SearchTabHelper* GetSearchTabHelper(content::WebContents* web_contents) {
     EXPECT_NE(nullptr, web_contents);
     return SearchTabHelper::FromWebContents(web_contents);
+  }
+
+  void NavigateAndCommitActiveTab(const GURL& url) {
+    content::WebContentsTester::For(web_contents())->NavigateAndCommit(url);
   }
 
   void SetupMockDelegateAndPolicy() {
@@ -217,20 +222,19 @@ TEST_F(SearchIPCRouterTest, IgnoreFocusOmniboxMsg) {
 TEST_F(SearchIPCRouterTest, HandleTabChangedEvents) {
   NavigateAndCommitActiveTab(GURL("chrome-search://foo/bar"));
   content::WebContents* contents = web_contents();
-  EXPECT_EQ(0, browser()->tab_strip_model()->GetIndexOfWebContents(contents));
+  SearchTabHelper* search_tab_helper = GetSearchTabHelper(contents);
+  ASSERT_TRUE(search_tab_helper);
+
+  // Manually activate the tab and verify state.
+  search_tab_helper->OnTabActivated();
   EXPECT_TRUE(IsActiveTab(contents));
 
-  // Add a new tab to deactivate the current tab.
-  AddTab(browser(), GURL(url::kAboutBlankURL));
-  EXPECT_EQ(2, browser()->tab_strip_model()->count());
-  EXPECT_EQ(1, browser()->tab_strip_model()->GetIndexOfWebContents(contents));
-  EXPECT_EQ(0, browser()->tab_strip_model()->active_index());
+  // Manually deactivate the tab and verify state.
+  search_tab_helper->OnTabDeactivated();
   EXPECT_FALSE(IsActiveTab(contents));
 
-  // Activate the first tab.
-  browser()->tab_strip_model()->ActivateTabAt(1);
-  EXPECT_EQ(browser()->tab_strip_model()->active_index(),
-            browser()->tab_strip_model()->GetIndexOfWebContents(contents));
+  // Manually activate the tab again.
+  search_tab_helper->OnTabActivated();
   EXPECT_TRUE(IsActiveTab(contents));
 }
 

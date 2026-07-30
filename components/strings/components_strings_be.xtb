@@ -269,6 +269,7 @@
 <translation id="1407135791313364759">Адкрыць усе</translation>
 <translation id="1408696301184924537">Каб у наступны раз увесці гэты IBAN аўтаматычна, захавайце яго ва Уліковы запіс Google</translation>
 <translation id="1408787208417187241">Тры скабы зверху</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />: <ph name="SUGGESTION_DESCRIPTION" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> з <ph name="NUM_MATCHES_IN_GROUP" /> у групе "<ph name="GROUP_HEADER" />".</translation>
 <translation id="1410365862999780287">Іншыя карыстальнікі гэтай прылады не змогуць убачыць, што вы рабілі. Гісторыя прагляду застанецца прыватнай. Гэта не паўплывае на збор даных вэб-сайтамі, якія вы наведваеце, і сэрвісамі, якія яны выкарыстоўваюць (у тым ліку Google). Спампоўкі, закладкі і элементы са спіса на прагляд будуць захоўвацца.</translation>
 <translation id="1410941016594047814">Канверт Invite</translation>
 <translation id="1413235258620101697">Код CVC карткі будзе зашыфраваны і захаваны ў Google Кашальку для больш хуткай аплаты</translation>
@@ -300,6 +301,7 @@
 <translation id="1445896388055045436">Паказваць даступныя перавагі і бонусы для карткі падчас афармлення заказу. Прымяняюцца ўмовы эмітэнта.</translation>
 <translation id="1447067628680007684">(x86_64)</translation>
 <translation id="1448166547804028941">Ключы "<ph name="DATA_CONTROLS_FIRST_KEY_SET" />" нельга наладзіць у тым жа слоўніку, што і ключы "<ph name="DATA_CONTROLS_SECOND_KEY_SET" />"</translation>
+<translation id="1449251255954293933">Захавайце ідэнтыфікатар Redress number у Google Кашальку</translation>
 <translation id="1455413310270022028">Сцірка</translation>
 <translation id="1457992721081300557">{NUM_REVIEWS,plural, =0{Паказаць водгукі (0)}=1{Паказаць 1 водгук}one{Паказаць усе водгукі (#)}few{Паказаць усе водгукі (#)}many{Паказаць усе водгукі (#)}other{Паказаць усе водгукі (#)}}</translation>
 <translation id="1458059624921545588">Людзі і грамадства</translation>
@@ -660,6 +662,7 @@
 <translation id="2045871135676061132">Канверт Personal</translation>
 <translation id="2046951263634619614">Кнігарні</translation>
 <translation id="2048261947532620704">Ідзе пераклад старонкі</translation>
+<translation id="2055016614992422886">Размова</translation>
 <translation id="2059166748188874810">Муніцыпальная акруга</translation>
 <translation id="2059202684901022309">22 x 34 цалі</translation>
 <translation id="2064568741209980952">Крэдыты і пазыкі</translation>
@@ -1156,6 +1159,7 @@
 <translation id="2782088940970074970">Пракат аўтамабіляў</translation>
 <translation id="278436560439594386">Бытавая тэхніка</translation>
 <translation id="2784474685437057136">B5 Extra</translation>
+<translation id="2784795832957740711">Паролі · Ключы доступу</translation>
 <translation id="2784949926578158345">Падключэнне скінута.</translation>
 <translation id="2786008859124691917">Веласіпеды і аксесуары да іх</translation>
 <translation id="2792012897584536778">Адміністратары гэтай прылады наладзілі сертыфікаты бяспекі, якія могуць дазволіць ім бачыць змесціва вэб-сайтаў, якія вы наведваеце.</translation>
@@ -2305,6 +2309,7 @@
 <translation id="46128681529823442">Рыштунак для футбола</translation>
 <translation id="4612904677925722054">Гэты сайт можа змяшчаць змесціва для дарослых. Адзін з бацькоў або законны прадстаўнік павінен даць дазвол на наведванне гэтага сайта.</translation>
 <translation id="4619564267100705184">Пацвердзіць маю асобу</translation>
+<translation id="4619669610757527494">Захавайце вадзіцельскае пасведчанне ў Google Кашальку</translation>
 <translation id="4622292761762557753">Усё роўна перанесці</translation>
 <translation id="4622647778991854660">Уключыце апавяшчэнні ў Цэнтры апавяшчэнняў. Адкрыйце <ph name="LINK" />.</translation>
 <translation id="4623894491222334521">Дакументы, якія пацвярджаюць асобу</translation>
@@ -2833,6 +2838,7 @@
 <translation id="543656192084990644">Выкарыстанне датчыкаў руху забаронена</translation>
 <translation id="5441409130426352029"><ph name="ATTRIBUTE_VALUE" />, было раней: <ph name="PREVIOUS_VALUE" /></translation>
 <translation id="5443468954631487277">У адваротным парадку, рабочым бокам уверх</translation>
+<translation id="5447103258548475868">Захавайце пашпарт у Google Кашальку</translation>
 <translation id="5447235695608032700">Дазволіць сайту "<ph name="SITE" />" выкарыстоўваць інфармацыю, якую ён пра вас захаваў</translation>
 <translation id="5447973833955560753">Пароль для аднаўлення</translation>
 <translation id="5451331376824595378">Калі Chrome пазначае падзеі бяспекі, то адпаведныя даныя аб гэтых падзеях адпраўляюцца адміністратару. Сярод гэтых даных могуць быць URL-адрасы старонак, якія вы наведваеце ў Chrome, URL-адрасы старонак, з якіх вы скапіравалі даныя, назвы файлаў і метаданыя, IP-адрасы, інфармацыя пра збоі браўзера і ўкладак, а таксама імя карыстальніка, якое вы выкарыстоўваеце для ўваходу ў вэб-версіі праграм, сваю прыладу і ў Chrome.</translation>
@@ -3556,6 +3562,7 @@
 <translation id="6550245281449521513">Блакіроўка мышы не дазволена</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />, новае</translation>
 <translation id="6552566579578780089">Даныя для плацяжоў</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> з <ph name="NUM_MATCHES_IN_GROUP" /> у групе "<ph name="GROUP_HEADER" />".</translation>
 <translation id="6554732001434021288">Апошняе наведванне: <ph name="NUM_DAYS" /> сут таму</translation>
 <translation id="6556866813142980365">Узнавіць</translation>
 <translation id="6557715786897013164">14 x 17 цаляў</translation>
@@ -4233,6 +4240,7 @@
 <translation id="7599089013883397081">Час чакання спампоўвання перавышаны</translation>
 <translation id="7602868996817972616">Спытаць Google пра гэту старонку</translation>
 <translation id="7606123685356405076">Мадэлі Gemini 3</translation>
+<translation id="760632772920590778">Захавайце аўтамабіль у Google Кашальку</translation>
 <translation id="7610193165460212391">Значэнне параметра знаходзіцца па-за межамі дыяпазону (<ph name="VALUE" />).</translation>
 <translation id="761261689936461781">Тоўстыя рысы</translation>
 <translation id="7613889955535752492">Да: <ph name="EXPIRATION_MONTH" />/<ph name="EXPIRATION_YEAR" /></translation>
@@ -4262,6 +4270,7 @@
 <translation id="7647206758853451655">Якасць друку</translation>
 <translation id="7648133459447652947">Каб паказаць курсор, змяніце праграмы, перазагрузіце старонку ці вярніцеся на папярэднюю</translation>
 <translation id="7648527891719919697">Гэты сайт застанецца заблакіраваным, бо вы ўключылі Палепшаную абарону ў <ph name="BEGIN_ANDROID_SETTINGS_LINK" />наладах Android<ph name="END_ANDROID_SETTINGS_LINK" />. <ph name="BEGIN_LEARN_MORE_LINK" />Даведацца больш пра гэта папярэджанне.<ph name="END_LEARN_MORE_LINK" /></translation>
+<translation id="7648900539798595789">Захавайце нумар вядомага падарожніка ў Google Кашальку</translation>
 <translation id="7648992873808071793">Захоўваць файлы на гэтай прыладзе</translation>
 <translation id="7649070708921625228">Даведка</translation>
 <translation id="7650141368285545431">Выкарыстаць ключ доступу з іншай прылады</translation>
@@ -4354,6 +4363,7 @@
 <translation id="7773005668374414287">У тым жа парадку, рабочым бокам уверх</translation>
 <translation id="7779418012194492374">Адклікаць доступ да прылады "<ph name="DEVICE_NAME" />"</translation>
 <translation id="7781829728241885113">Учора</translation>
+<translation id="7782228658217918863">Захавайце пасведчанне асобы ў Google Кашальку</translation>
 <translation id="7782465647372057580">Даныя ўліковага запісу шыфруюцца і застаюцца прыватнымі</translation>
 <translation id="7785471469930192436">Каб выдаліць гісторыю пошуку, выканайце інструкцыі вашай пошукавай сістэмы (калі яны даступныя)</translation>
 <translation id="7785790577395078482">гэты планшэт</translation>

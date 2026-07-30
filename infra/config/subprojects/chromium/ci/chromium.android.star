@@ -797,7 +797,6 @@ ci.builder(
             "has_native_resultdb_integration",
             "walleye",
             "10_fleet",
-            "retry_only_failed_tests",
         ],
     ),
     console_view_entry = consoles.console_view_entry(
@@ -844,7 +843,6 @@ ci.builder(
             "has_native_resultdb_integration",
             "linux-jammy",
             "x86-64",
-            "retry_only_failed_tests",
         ],
         per_test_modifications = {
             "android_browsertests": targets.mixin(
@@ -1018,7 +1016,6 @@ ci.builder(
             "emulator-8-cores",
             "has_native_resultdb_integration",
             "linux-jammy",
-            "retry_only_failed_tests",
             "x86-64",
         ],
     ),
@@ -2343,7 +2340,6 @@ ci.builder(
             "emulator-4-cores",
             "linux-jammy",
             "x86-64",
-            "retry_only_failed_tests",
         ],
         per_test_modifications = {
             "base_unittests_android_death_tests": targets.mixin(
@@ -2547,7 +2543,6 @@ ci.builder(
             "emulator-4-cores",
             "linux-jammy",
             "x86-64",
-            "retry_only_failed_tests",
         ],
         per_test_modifications = {
             "android_browsertests": targets.mixin(
@@ -3187,7 +3182,6 @@ ci.builder(
             "has_native_resultdb_integration",
             "isolate_profile_data",
             "panther_on_14",
-            "retry_only_failed_tests",
         ],
         per_test_modifications = {
             "android_browsertests": targets.mixin(
@@ -3646,7 +3640,6 @@ ci.builder(
             "has_native_resultdb_integration",
             "linux-jammy",
             "x86-64",
-            "retry_only_failed_tests",
         ],
         per_test_modifications = {
             "android_browsertests": targets.mixin(
@@ -4281,7 +4274,6 @@ ci.builder(
             "has_native_resultdb_integration",
             "linux-jammy",
             "x86-64",
-            "retry_only_failed_tests",
         ],
         per_test_modifications = {
             "webview_64_cts_hostside_tests full_mode": targets.mixin(

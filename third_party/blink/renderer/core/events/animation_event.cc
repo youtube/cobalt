@@ -26,6 +26,7 @@
 #include "third_party/blink/renderer/core/events/animation_event.h"
 
 #include "third_party/blink/renderer/bindings/core/v8/v8_animation_event_init.h"
+#include "third_party/blink/renderer/core/animation/animation.h"
 #include "third_party/blink/renderer/core/event_interface_names.h"
 
 namespace blink {
@@ -38,16 +39,19 @@ AnimationEvent::AnimationEvent(const AtomicString& type,
       animation_name_(initializer->animationName()),
       elapsed_time_(
           ANIMATION_TIME_DELTA_FROM_SECONDS(initializer->elapsedTime())),
-      pseudo_element_(initializer->pseudoElement()) {}
+      pseudo_element_(initializer->pseudoElement()),
+      animation_(initializer->animation()) {}
 
 AnimationEvent::AnimationEvent(const AtomicString& type,
                                const String& animation_name,
                                const AnimationTimeDelta& elapsed_time,
-                               const String& pseudo_element)
+                               const String& pseudo_element,
+                               Animation* animation)
     : Event(type, Bubbles::kYes, Cancelable::kYes),
       animation_name_(animation_name),
       elapsed_time_(elapsed_time),
-      pseudo_element_(pseudo_element) {}
+      pseudo_element_(pseudo_element),
+      animation_(animation) {}
 
 AnimationEvent::~AnimationEvent() = default;
 
@@ -63,11 +67,16 @@ const String& AnimationEvent::pseudoElement() const {
   return pseudo_element_;
 }
 
+Animation* AnimationEvent::animation() const {
+  return animation_.Get();
+}
+
 const AtomicString& AnimationEvent::InterfaceName() const {
   return event_interface_names::kAnimationEvent;
 }
 
 void AnimationEvent::Trace(Visitor* visitor) const {
+  visitor->Trace(animation_);
   Event::Trace(visitor);
 }
 

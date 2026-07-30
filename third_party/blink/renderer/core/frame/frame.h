@@ -71,7 +71,6 @@ namespace blink {
 class ChromeClient;
 class DOMWindow;
 class DOMWrapperWorld;
-class Document;
 class FrameClient;
 class FrameOwner;
 class FrameScheduler;

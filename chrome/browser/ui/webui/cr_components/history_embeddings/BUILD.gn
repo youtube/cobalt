@@ -1,0 +1,56 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("history_embeddings") {
+  sources = [ "history_embeddings_handler.cc" ]
+  public = [ "history_embeddings_handler.h" ]
+  public_deps = [ "//chrome/browser:browser_public_dependencies" ]
+  deps = [
+    "//base",
+    "//base:i18n",
+    "//chrome/browser/feedback",
+    "//chrome/browser/history_embeddings",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/hats",
+    "//chrome/browser/ui/navigator",
+    "//chrome/browser/ui/user_education",
+    "//chrome/browser/ui/webui/top_chrome",
+    "//chrome/common",
+    "//components/feature_engagement/public",
+    "//components/history_clusters/core",
+    "//components/history_embeddings/content",
+    "//components/history_embeddings/core",
+    "//components/strings:components_strings_grit",
+    "//components/url_formatter",
+    "//mojo/public/cpp/bindings",
+    "//ui/base",
+    "//ui/webui/resources/cr_components/history_embeddings:mojo_bindings",
+    "//url",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "history_embeddings_handler_unittest.cc" ]
+  deps = [
+    ":history_embeddings",
+    "//base",
+    "//base/test:test_support",
+    "//chrome/browser/history",
+    "//chrome/browser/history_embeddings",
+    "//chrome/browser/optimization_guide:test_support",
+    "//chrome/browser/page_content_annotations",
+    "//chrome/browser/ui:test_support",
+    "//chrome/browser/ui/hats:test_support",
+    "//chrome/browser/user_education",
+    "//chrome/common",
+    "//chrome/test:test_support",
+    "//components/history_embeddings/content",
+    "//components/history_embeddings/core",
+    "//components/passage_embeddings/core:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}

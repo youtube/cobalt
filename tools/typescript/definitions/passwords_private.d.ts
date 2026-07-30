@@ -162,6 +162,7 @@ declare global {
         storedIn: PasswordStoreSet;
         note?: string;
         changePasswordUrl?: string;
+        isAutomaticPasswordChangeSupported?: boolean;
         compromisedInfo?: CompromisedInfo;
         creationTime?: number;
         hidden: boolean;

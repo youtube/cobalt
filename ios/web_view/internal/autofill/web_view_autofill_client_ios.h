@@ -133,7 +133,7 @@ class WebViewAutofillClientIOS : public AutofillClientIOS {
       const AutofillClient::PopupOpenArgs& open_args,
       base::WeakPtr<AutofillSuggestionDelegate> delegate) override;
   void UpdateAutofillDataListValues(
-      base::span<const autofill::SelectOption> datalist) override;
+      base::span<const SelectOption> datalist) override;
   void HideSuggestions(SuggestionHidingReason reason,
                        std::optional<FillingProduct> product) override;
   bool IsAutofillEnabled() const override;

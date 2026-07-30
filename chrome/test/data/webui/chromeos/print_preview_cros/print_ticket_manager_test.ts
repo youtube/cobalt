@@ -18,7 +18,7 @@ import {getDestinationProvider, getPrintPreviewPageHandler} from 'chrome://os-pr
 import type {PrintTicket} from 'chrome://os-print/js/utils/print_preview_cros_app_types.js';
 import {PrinterStatusReason} from 'chrome://os-print/js/utils/print_preview_cros_app_types.js';
 import {assert} from 'chrome://resources/js/assert.js';
-import {assertDeepEquals, assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertDeepEquals, assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {MockController} from 'chrome://webui-test/chromeos/mock_controller.m.js';
 import {MockTimer} from 'chrome://webui-test/mock_timer.js';
 import {eventToPromise} from 'chrome://webui-test/test_util.js';

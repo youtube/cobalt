@@ -73,12 +73,6 @@ struct CSOpsSystemCallProviderForTesting
     }
   }
 
-  bool SupportsValidationCategory() const override {
-    // This test implementation supports returning the validation category on
-    // all macOS versions.
-    return true;
-  }
-
   void SetTeamIdentifier(std::string team_id) {
     ON_CALL(*this, GetTeamIdentifier)
         .WillByDefault([team_id = std::move(team_id)](span<char> out_team_id) {

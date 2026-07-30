@@ -69,6 +69,15 @@ public class NavigationInfoCaptureTrigger {
         captureDelayed(tab, ONHIDE_DELAY_MS);
     }
 
+    /**
+     * Cancels any pending capture Runnables. Should be called when the owning Tab/Activity is being
+     * destroyed to prevent the queued Runnables (which strongly reference {@link Tab} and therefore
+     * the owning Activity) from leaking the Activity until the delay elapses.
+     */
+    public void destroy() {
+        clearPendingRunnables();
+    }
+
     private void clearPendingRunnables() {
         for (Runnable pendingRunnable : mPendingRunnables) {
             mUiThreadHandler.removeCallbacks(pendingRunnable);

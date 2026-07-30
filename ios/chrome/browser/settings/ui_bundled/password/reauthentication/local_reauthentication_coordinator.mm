@@ -240,9 +240,11 @@ enum class ReauthenticationState {
       }
       [[fallthrough]];
     case SceneActivationLevelForegroundInactive:
-      // Present reauth vc if not presented already.
+      // If pushing view controller fails, close the UI.
       if (!_reauthViewController) {
-        [self pushReauthenticationViewControllerWithRequestAuth:NO];
+        if (![self pushReauthenticationViewControllerWithRequestAuth:NO]) {
+          [self closeUI];
+        }
       }
       break;
 

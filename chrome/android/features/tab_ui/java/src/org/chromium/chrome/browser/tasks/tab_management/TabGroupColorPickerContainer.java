@@ -8,8 +8,7 @@ import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.content.Context;
 import android.util.AttributeSet;
-import android.view.Gravity;
-import android.widget.FrameLayout;
+import android.view.View;
 import android.widget.LinearLayout;
 
 import org.chromium.build.annotations.NullMarked;
@@ -24,11 +23,10 @@ import java.util.List;
 /** LinearLayout for the tab group specific color picker component. */
 @NullMarked
 public class TabGroupColorPickerContainer extends ColorPickerContainer {
-    private final LinearLayout.LayoutParams mParams;
     private @Nullable Boolean mIsDoubleRow;
     private boolean mSkipOnMeasure;
     // The following variables become  post-inflation, before the UI is shown.
-    private @Nullable List<FrameLayout> mColorViews;
+    private @Nullable List<View> mColorViews;
     private LinearLayout mFirstRow;
     private LinearLayout mSecondRow;
     private @ColorPickerLayoutType int mLayoutType;
@@ -36,10 +34,6 @@ public class TabGroupColorPickerContainer extends ColorPickerContainer {
     /** Constructs a new tab group color picker. */
     public TabGroupColorPickerContainer(Context context, AttributeSet attrs) {
         super(context, attrs);
-
-        mParams =
-                new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
-        mParams.gravity = Gravity.CENTER;
     }
 
     @Override
@@ -88,7 +82,7 @@ public class TabGroupColorPickerContainer extends ColorPickerContainer {
     }
 
     @Override
-    public void setColorViews(List<FrameLayout> colorViews) {
+    public void setColorViews(List<View> colorViews) {
         mColorViews = colorViews;
     }
 
@@ -127,8 +121,8 @@ public class TabGroupColorPickerContainer extends ColorPickerContainer {
         mFirstRow.removeAllViews();
         mSecondRow.removeAllViews();
 
-        for (FrameLayout view : mColorViews) {
-            mFirstRow.addView(view, mParams);
+        for (View view : mColorViews) {
+            mFirstRow.addView(view);
         }
         mIsDoubleRow = false;
     }
@@ -139,10 +133,11 @@ public class TabGroupColorPickerContainer extends ColorPickerContainer {
         mSecondRow.removeAllViews();
 
         for (int i = 0; i < mColorViews.size(); i++) {
+            View view = mColorViews.get(i);
             if (i < (mColorViews.size() + 1) / 2) {
-                mFirstRow.addView(mColorViews.get(i), mParams);
+                mFirstRow.addView(view);
             } else {
-                mSecondRow.addView(mColorViews.get(i), mParams);
+                mSecondRow.addView(view);
             }
         }
         mIsDoubleRow = true;

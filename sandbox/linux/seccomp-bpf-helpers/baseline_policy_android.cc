@@ -222,19 +222,13 @@ ResultExpr BaselinePolicyAndroid::EvaluateSyscall(int sysno) const {
     return Allow();
   }
   if (sysno == __NR_sched_setaffinity || sysno == __NR_sched_getaffinity) {
-    // Allowed on eligible devices for RestrictBigCoreThreadAffinity and
-    // UsePerformanceHelper.
-    if (base::IsEligibleForBigCoreAffinityChange()) {
-      // Note: we don't restrict the target to ourselves intentionally, as we
-      // want to be able to change another of our thread's affinity. This is
-      // much more limiting than it seems: on Android, each unprivileged proces
-      // has a separate UID, and the kernel only allows tasks without
-      // CAP_SYS_NICE to set the affinity of tasks with the same owner. See
-      // https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/kernel/sched/syscalls.c?h=v6.12.62#n1268.
-      return Allow();
-    } else {
-      return Error(EPERM);
-    }
+    // Note: we don't restrict the target to ourselves intentionally, as we
+    // want to be able to change another of our thread's affinity. This is
+    // much more limiting than it seems: on Android, each unprivileged process
+    // has a separate UID, and the kernel only allows tasks without
+    // CAP_SYS_NICE to set the affinity of tasks with the same owner. See
+    // https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/kernel/sched/syscalls.c?h=v6.12.62#n1268.
+    return Allow();
   }
 
   if (sysno == __NR_ioctl) {

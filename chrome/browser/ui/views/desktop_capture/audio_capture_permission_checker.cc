@@ -19,8 +19,7 @@ void RecordUmaAudioCapturePermissionCheckerInteractions(
 #endif  // BUILDFLAG(IS_MAC)
 
 std::unique_ptr<AudioCapturePermissionChecker>
-AudioCapturePermissionChecker::MaybeCreate(
-    base::RepeatingCallback<void(void)> callback) {
+AudioCapturePermissionChecker::MaybeCreate(base::RepeatingClosure callback) {
 #if BUILDFLAG(IS_MAC)
   return AudioCapturePermissionCheckerMac::MaybeCreate(callback);
 #else

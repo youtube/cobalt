@@ -366,7 +366,7 @@ int TabStripLayoutHelper::GetFirstSlotIndexForTabModelIndex(
   int current_model_index = 0;
 
   // Conceptually we assign a model index to each slot equal to the
-  // number of open tabs preceeding it. Group headers will have the same
+  // number of open tabs preceding it. Group headers will have the same
   // index as the tab before it, and each open tab will have the index
   // of the previous slot plus 1. Closing tabs are not counted, and are
   // skipped altogether.

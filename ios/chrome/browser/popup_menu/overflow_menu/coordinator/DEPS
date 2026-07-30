@@ -39,7 +39,6 @@ include_rules = [
   "+ios/chrome/browser/reader_mode/model/constants.h",
   "+ios/chrome/browser/reader_mode/model/features.h",
   "+ios/chrome/browser/reader_mode/model/reader_mode_tab_helper.h",
-  "+ios/chrome/browser/reading_list/model/offline_url_utils.h",
   "+ios/chrome/browser/reading_list/model/reading_list_browser_agent.h",
   "+ios/chrome/browser/reading_list/model/reading_list_model_factory.h",
   "+ios/chrome/browser/reading_list/ui_bundled",

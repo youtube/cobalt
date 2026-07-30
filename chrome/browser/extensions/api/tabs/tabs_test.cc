@@ -67,6 +67,7 @@
 #include "extensions/browser/api_test_utils.h"
 #include "extensions/browser/event_router.h"
 #include "extensions/browser/extension_function_dispatcher.h"
+#include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/test_event_router_observer.h"
 #include "extensions/common/constants.h"
 #include "extensions/common/error_utils.h"
@@ -1264,7 +1265,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionWindowCreateTest, MAYBE_AcceptState) {
   ASSERT_TRUE(new_controller);
   EXPECT_TRUE(error.empty());
   ui_test_utils::WaitForBrowserSetLastActive(new_controller->GetBrowser());
-  EXPECT_TRUE(new_controller->GetBrowser()->window()->IsFullscreen());
+  EXPECT_TRUE(new_controller->GetBrowser()->GetWindow()->IsFullscreen());
 
   // Let the message loop run so that |fake_fullscreen| finishes transition.
   content::RunAllPendingInMessageLoop();
@@ -2076,6 +2077,251 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, DiscardWithInvalidId) {
 
   // Check error message.
   EXPECT_TRUE(base::MatchPattern(error, ExtensionTabUtil::kTabNotFoundError));
+}
+
+// Tests chrome.tabs.discard for an incognito tab when the extension doesn't
+// have incognito access.
+IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, DiscardIncognitoWithoutPermission) {
+  // Create an extra normal tab so we have more to discard.
+  GetTabListInterface()->OpenTab(GURL(url::kAboutBlankURL), -1);
+
+  // Create an incognito browser with several tabs.
+  BrowserWindowInterface* incognito_browser = CreateIncognitoBrowserWindow();
+  TabListInterface* incognito_tab_list =
+      TabListInterface::From(incognito_browser);
+  incognito_tab_list->OpenTab(GURL(url::kAboutBlankURL), -1);
+  incognito_tab_list->OpenTab(GURL(url::kAboutBlankURL), -1);
+  incognito_tab_list->OpenTab(GURL(url::kAboutBlankURL), -1);
+  content::WebContents* incognito_web_contents =
+      incognito_tab_list->GetTab(1)->GetContents();
+  content::WaitForLoadStop(incognito_web_contents);
+  EXPECT_FALSE(incognito_web_contents->WasDiscarded());
+
+  // Set up the function with an extension that does not have incognito access,
+  // but does have the "tabs" permission.
+  scoped_refptr<const Extension> extension =
+      ExtensionBuilder("Test").AddAPIPermission("tabs").Build();
+  auto discard = base::MakeRefCounted<TabsDiscardFunction>();
+  discard->set_extension(extension.get());
+
+  int tab_id = ExtensionTabUtil::GetTabId(incognito_web_contents);
+
+  // First try discarding the incognito tab based on the tab ID. The tab should
+  // not be discarded and we should get an error.
+  std::string error = utils::RunFunctionAndReturnError(
+      discard.get(), base::StringPrintf("[%u]", tab_id), profile());
+  EXPECT_FALSE(incognito_web_contents->WasDiscarded());
+  EXPECT_TRUE(base::MatchPattern(error, ExtensionTabUtil::kTabNotFoundError));
+
+  // Now run without passing an id. The extension only has access to the normal
+  // tabs, so only the normal tabs should be discardable.
+  int normal_tab_count = GetTabListInterface()->GetTabCount();
+  // Note: To avoid having to deal with any platform differences between default
+  // tabs when creating a browser changing the total count, we just validate we
+  // have more than 0 tabs, so we know the loop below actually does something.
+  EXPECT_GT(normal_tab_count, 0);
+
+  std::vector<base::DictValue> results;
+  for (int i = 0; i < normal_tab_count; ++i) {
+    auto discard_no_id = base::MakeRefCounted<TabsDiscardFunction>();
+    discard_no_id->set_extension(extension.get());
+    std::optional<base::Value> result_value =
+        utils::RunFunctionAndReturnSingleResult(discard_no_id.get(), "[]",
+                                                profile());
+    if (result_value) {
+      results.push_back(utils::ToDict(std::move(*result_value)));
+    }
+  }
+
+  // We should have discarded all normal tabs.
+  EXPECT_EQ(static_cast<size_t>(normal_tab_count), results.size());
+  for (const auto& result : results) {
+    // Check that the returned tab does not have sensitive incognito
+    // information. It must be a normal tab. Since the extension has "tabs"
+    // permission, it should include url and title for the normal tab.
+    EXPECT_FALSE(api_test_utils::GetBoolean(result, "incognito"));
+    EXPECT_TRUE(result.contains("url"));
+    EXPECT_TRUE(result.contains("title"));
+  }
+
+  // The next attempt to discard without an ID should fail.
+  auto discard_fail = base::MakeRefCounted<TabsDiscardFunction>();
+  discard_fail->set_extension(extension.get());
+  std::string fail_error =
+      utils::RunFunctionAndReturnError(discard_fail.get(), "[]", profile());
+  EXPECT_EQ("Cannot find a tab to discard.", fail_error);
+}
+
+IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, DiscardIncognitoSplitMode) {
+  // Create an extra normal tab so we have more to discard.
+  GetTabListInterface()->OpenTab(GURL(url::kAboutBlankURL), -1);
+
+  // Create an incognito browser with several tabs.
+  BrowserWindowInterface* incognito_browser = CreateIncognitoBrowserWindow();
+  TabListInterface* incognito_tab_list =
+      TabListInterface::From(incognito_browser);
+  incognito_tab_list->OpenTab(GURL(url::kAboutBlankURL), -1);
+  incognito_tab_list->OpenTab(GURL(url::kAboutBlankURL), -1);
+  incognito_tab_list->OpenTab(GURL(url::kAboutBlankURL), -1);
+
+  // Set up the extension with incognito: split and tabs permission.
+  scoped_refptr<const Extension> extension =
+      ExtensionBuilder("Test")
+          .SetManifestKey("incognito", "split")
+          .AddAPIPermission("tabs")
+          .Build();
+  // Grant incognito access.
+  ExtensionPrefs::Get(profile())->SetIsIncognitoEnabled(extension->id(), true);
+
+  // 1. Test Regular Profile Context
+  // The regular profile context only sees normal tabs, all of which should be
+  // discardable.
+  int normal_tab_count = GetTabListInterface()->GetTabCount();
+  // Note: To avoid having to deal with any platform differences between default
+  // tabs when creating a browser changing the total count, we just validate we
+  // have more than 0 tabs, so we know the loop below actually does something.
+  EXPECT_GT(normal_tab_count, 0);
+
+  std::vector<base::DictValue> regular_results;
+  for (int i = 0; i < normal_tab_count; ++i) {
+    auto discard = base::MakeRefCounted<TabsDiscardFunction>();
+    discard->set_extension(extension.get());
+    std::optional<base::Value> result_value =
+        utils::RunFunctionAndReturnSingleResult(discard.get(), "[]", profile());
+    if (result_value) {
+      regular_results.push_back(utils::ToDict(std::move(*result_value)));
+    }
+  }
+
+  EXPECT_EQ(static_cast<size_t>(normal_tab_count), regular_results.size());
+  for (const auto& result : regular_results) {
+    // Regular context should only see normal tabs.
+    EXPECT_FALSE(api_test_utils::GetBoolean(result, "incognito"));
+    EXPECT_TRUE(result.contains("url"));
+  }
+
+  // The next attempt from the regular context should fail.
+  auto discard_regular_fail = base::MakeRefCounted<TabsDiscardFunction>();
+  discard_regular_fail->set_extension(extension.get());
+  std::string regular_fail_error = utils::RunFunctionAndReturnError(
+      discard_regular_fail.get(), "[]", profile());
+  EXPECT_EQ("Cannot find a tab to discard.", regular_fail_error);
+
+  // 2. Test Incognito Profile Context
+  // The incognito context only sees incognito tabs. We created several tabs in
+  // the incognito browser, all of which should be discardable.
+  int incognito_tab_count = incognito_tab_list->GetTabCount();
+  // Note: To avoid having to deal with any platform differences between default
+  // tabs when creating a browser changing the total count, we just validate we
+  // have more than 0 tabs, so we know the loop below actually does something.
+  EXPECT_GT(incognito_tab_count, 0);
+
+  // Add a few more regular tabs, as all the previous ones are already
+  // discarded.
+  GetTabListInterface()->OpenTab(GURL(url::kAboutBlankURL), -1);
+  GetTabListInterface()->OpenTab(GURL(url::kAboutBlankURL), -1);
+
+  Profile* incognito_profile = incognito_browser->GetProfile();
+  std::vector<base::DictValue> incognito_results;
+  for (int i = 0; i < incognito_tab_count; ++i) {
+    auto discard_incognito = base::MakeRefCounted<TabsDiscardFunction>();
+    discard_incognito->set_extension(extension.get());
+    std::optional<base::Value> incognito_result_value =
+        utils::RunFunctionAndReturnSingleResult(
+            discard_incognito.get(), "[]", incognito_profile,
+            api_test_utils::FunctionMode::kIncognito);
+    if (incognito_result_value) {
+      incognito_results.push_back(
+          utils::ToDict(std::move(*incognito_result_value)));
+    }
+  }
+
+  EXPECT_EQ(static_cast<size_t>(incognito_tab_count), incognito_results.size());
+  for (const auto& result : incognito_results) {
+    // Incognito split context should only see incognito tabs.
+    EXPECT_TRUE(api_test_utils::GetBoolean(result, "incognito"));
+    EXPECT_TRUE(result.contains("url"));
+  }
+
+  // The next attempt from the incognito context should fail.
+  auto discard_incognito_fail = base::MakeRefCounted<TabsDiscardFunction>();
+  discard_incognito_fail->set_extension(extension.get());
+  std::string incognito_fail_error = utils::RunFunctionAndReturnError(
+      discard_incognito_fail.get(), "[]", incognito_profile,
+      api_test_utils::FunctionMode::kIncognito);
+  EXPECT_EQ("Cannot find a tab to discard.", incognito_fail_error);
+}
+
+IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, DiscardIncognitoSpanningMode) {
+  // Create an extra normal tab so we have more to discard.
+  GetTabListInterface()->OpenTab(GURL(url::kAboutBlankURL), -1);
+
+  // Create an incognito browser with several tabs.
+  BrowserWindowInterface* incognito_browser = CreateIncognitoBrowserWindow();
+  TabListInterface* incognito_tab_list =
+      TabListInterface::From(incognito_browser);
+  incognito_tab_list->OpenTab(GURL(url::kAboutBlankURL), -1);
+  incognito_tab_list->OpenTab(GURL(url::kAboutBlankURL), -1);
+
+  // Set up the extension with incognito: spanning and tabs permission.
+  scoped_refptr<const Extension> extension =
+      ExtensionBuilder("Test")
+          .SetManifestKey("incognito", "spanning")
+          .AddAPIPermission("tabs")
+          .Build();
+  // Grant incognito access.
+  ExtensionPrefs::Get(profile())->SetIsIncognitoEnabled(extension->id(), true);
+
+  // Test Regular Profile Context
+  // In spanning mode, the extension shares a single process for both normal and
+  // incognito contexts. All tabs across both windows are discardable.
+  // We determine the number of tabs dynamically rather than using a hardcoded
+  // value because some platforms (like Android) may create an extra initial
+  // tab in some window creation scenarios.
+  int total_tab_count =
+      GetTabListInterface()->GetTabCount() + incognito_tab_list->GetTabCount();
+  // Note: To avoid having to deal with any platform differences between default
+  // tabs when creating a browser changing the total count, we just validate we
+  // have more than 0 tabs, so we know the loop below actually does something.
+  EXPECT_GT(total_tab_count, 0);
+
+  std::vector<base::DictValue> results;
+  bool saw_incognito = false;
+  bool saw_normal = false;
+  for (int i = 0; i < total_tab_count; ++i) {
+    auto discard = base::MakeRefCounted<TabsDiscardFunction>();
+    discard->set_extension(extension.get());
+    std::optional<base::Value> result_value =
+        utils::RunFunctionAndReturnSingleResult(
+            discard.get(), "[]", profile(),
+            api_test_utils::FunctionMode::kIncognito);
+    if (result_value) {
+      base::DictValue dict = utils::ToDict(std::move(*result_value));
+      if (api_test_utils::GetBoolean(dict, "incognito")) {
+        saw_incognito = true;
+      } else {
+        saw_normal = true;
+      }
+      results.push_back(std::move(dict));
+    }
+  }
+
+  EXPECT_EQ(static_cast<size_t>(total_tab_count), results.size());
+  // A spanning extension should receive info about both normal and incognito
+  // tabs and they should contain URL info since it has tabs permission.
+  EXPECT_TRUE(saw_incognito);
+  EXPECT_TRUE(saw_normal);
+  for (const auto& result : results) {
+    EXPECT_TRUE(result.contains("url"));
+  }
+
+  // The next attempt should fail.
+  auto discard_fail = base::MakeRefCounted<TabsDiscardFunction>();
+  discard_fail->set_extension(extension.get());
+  std::string fail_error = utils::RunFunctionAndReturnError(
+      discard_fail.get(), "[]", profile(),
+      api_test_utils::FunctionMode::kIncognito);
+  EXPECT_EQ("Cannot find a tab to discard.", fail_error);
 }
 
 // TODO(crbug.com/487907630): Flaky on macos

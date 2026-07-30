@@ -19,6 +19,8 @@
 
 namespace media {
 
+using Error = AudioInputStream::AudioInputCallback::Error;
+
 namespace {
 
 using testing::Return;
@@ -61,7 +63,7 @@ class MockCallback : public AudioInputStream::AudioInputCallback {
   MOCK_METHOD4(
       OnData,
       void(const AudioBus*, base::TimeTicks, double, const AudioGlitchInfo&));
-  MOCK_METHOD0(OnError, void());
+  MOCK_METHOD1(OnError, void(Error));
 };
 
 class MockDebugRecorderFactory {
@@ -149,8 +151,8 @@ TEST(AudioInputStreamDataInterceptorTest, Start) {
   Mock::VerifyAndClearExpectations(recorder);
 
   // Errors should be propagated to the renderer
-  EXPECT_CALL(callback, OnError());
-  interceptor->OnError();
+  EXPECT_CALL(callback, OnError(Error::kRuntimeError));
+  interceptor->OnError(Error::kRuntimeError);
 
   Mock::VerifyAndClearExpectations(&callback);
 

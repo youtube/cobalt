@@ -4,12 +4,16 @@
 
 #import "ios/chrome/browser/toolbar/coordinator/toolbar_mediator.h"
 
+#import "base/strings/sys_string_conversions.h"
 #import "base/test/scoped_feature_list.h"
+#import "components/application_locale_storage/application_locale_storage.h"
 #import "components/omnibox/browser/omnibox_pref_names.h"
 #import "components/policy/core/common/policy_pref_names.h"
 #import "components/prefs/pref_registry_simple.h"
 #import "components/prefs/testing_pref_service.h"
 #import "components/signin/public/base/signin_metrics.h"
+#import "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
+#import "components/signin/public/identity_manager/identity_test_utils.h"
 #import "components/sync_preferences/testing_pref_service_syncable.h"
 #import "components/tab_groups/tab_group_id.h"
 #import "components/tab_groups/tab_group_visual_data.h"
@@ -17,9 +21,14 @@
 #import "ios/chrome/browser/banner_promo/model/fake_default_browser_banner_promo_app_agent.h"
 #import "ios/chrome/browser/default_browser/model/promo_source.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/test/test_fullscreen_controller.h"
+#import "ios/chrome/browser/intelligence/bwg/model/gemini_service_factory.h"
+#import "ios/chrome/browser/intelligence/bwg/model/gemini_service_impl.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
+#import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/menu/ui_bundled/browser_action_factory.h"
 #import "ios/chrome/browser/menu/ui_bundled/menu_histograms.h"
+#import "ios/chrome/browser/ntp/model/new_tab_page_tab_helper.h"
+#import "ios/chrome/browser/optimization_guide/model/optimization_guide_service_factory.h"
 #import "ios/chrome/browser/policy/model/policy_util.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
@@ -27,19 +36,26 @@
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_opener.h"
 #import "ios/chrome/browser/shared/public/commands/activity_service_commands.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
-#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/page_side_swipe_commands.h"
 #import "ios/chrome/browser/shared/public/commands/popup_menu_commands.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
+#import "ios/chrome/browser/signin/model/authentication_service_factory.h"
+#import "ios/chrome/browser/signin/model/fake_authentication_service_delegate.h"
+#import "ios/chrome/browser/signin/model/fake_system_identity.h"
+#import "ios/chrome/browser/signin/model/fake_system_identity_manager.h"
+#import "ios/chrome/browser/signin/model/identity_manager_factory.h"
+#import "ios/chrome/browser/signin/model/identity_test_environment_browser_state_adaptor.h"
 #import "ios/chrome/browser/toolbar/ui/toolbar_consumer.h"
 #import "ios/chrome/browser/web/model/web_navigation_browser_agent.h"
 #import "ios/chrome/browser/web/model/web_navigation_util.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
+#import "ios/chrome/test/ios_chrome_scoped_testing_variations_service.h"
 #import "ios/chrome/test/testing_application_context.h"
 #import "ios/web/public/test/fakes/fake_navigation_manager.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
@@ -50,6 +66,10 @@
 #import "third_party/ocmock/gtest_support.h"
 #import "ui/base/l10n/l10n_util.h"
 #import "url/gurl.h"
+
+@interface ToolbarMediator (Test)
+- (void)updateAssistantButton;
+@end
 
 namespace {
 
@@ -65,7 +85,32 @@ class ToolbarMediatorTest : public PlatformTest,
     scoped_feature_list_.InitAndEnableFeature(kChromeNextIa);
     mock_app_agent_ = OCMClassMock([DefaultBrowserBannerPromoAppAgent class]);
     settings_handler_ = OCMProtocolMock(@protocol(SettingsCommands));
-    profile_ = TestProfileIOS::Builder().Build();
+
+    SetLocationEligible(true);
+
+    TestProfileIOS::Builder builder;
+    builder.AddTestingFactory(
+        IdentityManagerFactory::GetInstance(),
+        base::BindRepeating(&IdentityTestEnvironmentBrowserStateAdaptor::
+                                BuildIdentityManagerForTests));
+    builder.AddTestingFactory(
+        AuthenticationServiceFactory::GetInstance(),
+        AuthenticationServiceFactory::GetFactoryWithDelegate(
+            std::make_unique<FakeAuthenticationServiceDelegate>()));
+    builder.AddTestingFactory(GeminiServiceFactory::GetInstance(),
+                              GeminiServiceFactory::GetDefaultFactory());
+    builder.AddTestingFactory(
+        OptimizationGuideServiceFactory::GetInstance(),
+        OptimizationGuideServiceFactory::GetDefaultFactory());
+    profile_ = std::move(builder).Build();
+
+    auth_service_ = AuthenticationServiceFactory::GetForProfile(profile_.get());
+    gemini_service_ptr_ = std::make_unique<GeminiServiceImpl>(
+        profile_.get(), auth_service_,
+        IdentityManagerFactory::GetForProfile(profile_.get()),
+        profile_->GetTestingPrefService(),
+        OptimizationGuideServiceFactory::GetForProfile(profile_.get()));
+
     browser_ = std::make_unique<TestBrowser>(profile_.get());
     WebNavigationBrowserAgent::CreateForBrowser(browser_.get());
     TestFullscreenController::CreateForBrowser(browser_.get());
@@ -99,8 +144,8 @@ class ToolbarMediatorTest : public PlatformTest,
                                          browser_.get())
                          topPosition:GetParam()
         defaultBrowserBannerAppAgent:GetParam() ? mock_app_agent_ : nil
-               authenticationService:nil
-                       geminiService:nil
+               authenticationService:auth_service_
+                       geminiService:gemini_service_ptr_.get()
                   geminiBrowserAgent:nil];
     mediator_.navigationBrowserAgent =
         WebNavigationBrowserAgent::FromBrowser(browser_.get());
@@ -133,6 +178,45 @@ class ToolbarMediatorTest : public PlatformTest,
     return web_state;
   }
 
+  void SignInAndSetCapability(bool capability) {
+    id<SystemIdentity> identity = [FakeSystemIdentity fakeIdentity1];
+    FakeSystemIdentityManager* system_identity_manager =
+        FakeSystemIdentityManager::FromSystemIdentityManager(
+            GetApplicationContext()->GetSystemIdentityManager());
+    system_identity_manager->AddIdentity(identity);
+
+    signin::IdentityManager* identity_manager =
+        IdentityManagerFactory::GetForProfile(profile_.get());
+
+    signin::AccountAvailabilityOptionsBuilder builder;
+    builder.WithGaiaId(identity.gaiaId)
+        .AsPrimary(signin::ConsentLevel::kSignin);
+
+    AccountInfo account_info = signin::MakeAccountAvailable(
+        identity_manager,
+        builder.Build(base::SysNSStringToUTF8(identity.userEmail)));
+
+    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    mutator.set_can_use_model_execution_features(capability);
+    mutator.set_can_use_gemini_in_chrome(capability);
+
+    signin::UpdateAccountInfoForAccount(identity_manager, account_info);
+  }
+
+  void SetLocationEligible(bool eligible) {
+    if (eligible) {
+      scoped_variations_service_.Get()->OverrideStoredPermanentCountry("us");
+      TestingApplicationContext::GetGlobal()
+          ->GetApplicationLocaleStorage()
+          ->Set("en-US");
+    } else {
+      scoped_variations_service_.Get()->OverrideStoredPermanentCountry("fr");
+      TestingApplicationContext::GetGlobal()
+          ->GetApplicationLocaleStorage()
+          ->Set("fr-FR");
+    }
+  }
+
   void TearDown() override {
     [mediator_ disconnect];
     mediator_ = nil;
@@ -142,6 +226,7 @@ class ToolbarMediatorTest : public PlatformTest,
   web::WebTaskEnvironment task_environment_;
   base::test::ScopedFeatureList scoped_feature_list_;
   IOSChromeScopedTestingLocalState scoped_testing_local_state_;
+  IOSChromeScopedTestingVariationsService scoped_variations_service_;
   std::unique_ptr<TestProfileIOS> profile_;
   std::unique_ptr<TestBrowser> browser_;
   ToolbarMediator* mediator_;
@@ -151,6 +236,8 @@ class ToolbarMediatorTest : public PlatformTest,
   id browser_coordinator_handler_;
   id mock_app_agent_;
   id settings_handler_;
+  raw_ptr<AuthenticationService> auth_service_;
+  std::unique_ptr<GeminiService> gemini_service_ptr_;
   raw_ptr<web::FakeNavigationManager> fake_navigation_manager_;
 };
 
@@ -229,6 +316,39 @@ TEST_P(ToolbarMediatorTest, TestWebStateSelectionUpdatesConsumer) {
 
   browser_->GetWebStateList()->InsertWebState(
       CreateWebState(), WebStateList::InsertionParams::AtIndex(0).Activate());
+
+  EXPECT_OCMOCK_VERIFY(consumer_);
+}
+
+// Tests that selecting a NTP web state updates the consumer with NTP visible
+// and isStartSurface status.
+TEST_P(ToolbarMediatorTest, TestWebStateSelectionNTPUpdatesConsumer) {
+  std::unique_ptr<web::FakeWebState> web_state = CreateWebState();
+  web_state->SetVisibleURL(GURL("chrome://newtab"));
+  NewTabPageTabHelper::CreateForWebState(web_state.get());
+  NewTabPageTabHelper::FromWebState(web_state.get())
+      ->SetShowStartSurface(false);
+
+  OCMExpect([consumer_ setNTPVisible:YES isStartSurface:NO]);
+
+  browser_->GetWebStateList()->InsertWebState(
+      std::move(web_state),
+      WebStateList::InsertionParams::AtIndex(0).Activate());
+
+  EXPECT_OCMOCK_VERIFY(consumer_);
+
+  // Test Start Surface NTP
+  std::unique_ptr<web::FakeWebState> start_web_state = CreateWebState();
+  start_web_state->SetVisibleURL(GURL("chrome://newtab"));
+  NewTabPageTabHelper::CreateForWebState(start_web_state.get());
+  NewTabPageTabHelper::FromWebState(start_web_state.get())
+      ->SetShowStartSurface(true);
+
+  OCMExpect([consumer_ setNTPVisible:YES isStartSurface:YES]);
+
+  browser_->GetWebStateList()->InsertWebState(
+      std::move(start_web_state),
+      WebStateList::InsertionParams::AtIndex(1).Activate());
 
   EXPECT_OCMOCK_VERIFY(consumer_);
 }
@@ -499,7 +619,7 @@ TEST_P(ToolbarMediatorTest, TestTabGroupIndicatorVisibilityUpdated) {
 
 // Tests that assistantButtonTapped: calls geminiHandler to start entry flow.
 TEST_P(ToolbarMediatorTest, TestAssistantButtonTapped) {
-  id mock_gemini_handler = OCMProtocolMock(@protocol(BWGCommands));
+  id mock_gemini_handler = OCMProtocolMock(@protocol(GeminiCommands));
   mediator_.geminiHandler = mock_gemini_handler;
 
   OCMExpect([mock_gemini_handler
@@ -560,16 +680,136 @@ TEST_P(ToolbarMediatorTest, TestTabGridMenu_IncognitoDisabled) {
   ASSERT_NE(nil, capturedMenu);
 
   // Verify the menu items.
-  // The menu should have "New Incognito Tab" (disabled) and "Close Current
-  // Tab".
-  ASSERT_EQ(2U, capturedMenu.children.count);
+  // The menu should have "Close Current Tab", "New Tab", and "New Incognito
+  // Tab" (disabled).
+  ASSERT_EQ(3U, capturedMenu.children.count);
 
   UIAction* openNewTabAction = (UIAction*)capturedMenu.children[0];
-  EXPECT_NSEQ(l10n_util::GetNSString(IDS_IOS_TOOLS_MENU_NEW_INCOGNITO_TAB),
+  EXPECT_NSEQ(l10n_util::GetNSString(IDS_IOS_TOOLS_MENU_NEW_TAB),
               openNewTabAction.title);
-  EXPECT_EQ(UIMenuElementAttributesDisabled, openNewTabAction.attributes);
+
+  UIAction* openNewIncognitoTabAction = (UIAction*)capturedMenu.children[1];
+  EXPECT_NSEQ(l10n_util::GetNSString(IDS_IOS_TOOLS_MENU_NEW_INCOGNITO_TAB),
+              openNewIncognitoTabAction.title);
+  EXPECT_EQ(UIMenuElementAttributesDisabled,
+            openNewIncognitoTabAction.attributes);
+
+  UIAction* closeTabAction = (UIAction*)capturedMenu.children[2];
+  EXPECT_NSEQ(l10n_util::GetNSString(IDS_IOS_TOOLS_MENU_CLOSE_TAB),
+              closeTabAction.title);
 
   [local_mediator disconnect];
+}
+
+// Tests that the TabGrid button menu contains "Close Tab", "New Tab", and "New
+// Incognito Tab" actions, and that none are disabled when incognito is allowed.
+TEST_P(ToolbarMediatorTest, TestTabGridMenu_IncognitoEnabled) {
+  // Create a mediator.
+  BrowserActionFactory* action_factory =
+      [[BrowserActionFactory alloc] initWithBrowser:browser_.get()
+                                           scenario:kTestMenuScenario];
+  ToolbarMediator* local_mediator = [[ToolbarMediator alloc]
+                 initWithIncognito:NO
+                      webStateList:browser_->GetWebStateList()
+                     actionFactory:action_factory
+                       prefService:profile_->GetTestingPrefService()
+              fullscreenController:TestFullscreenController::FromBrowser(
+                                       browser_.get())
+                       topPosition:GetParam()
+      defaultBrowserBannerAppAgent:nil
+             authenticationService:nil
+                     geminiService:nil
+                geminiBrowserAgent:nil];
+
+  // We need an active web state for updateConsumerWithWebState to do anything.
+  browser_->GetWebStateList()->InsertWebState(
+      CreateWebState(), WebStateList::InsertionParams::AtIndex(0).Activate());
+
+  id local_consumer = OCMProtocolMock(@protocol(ToolbarConsumer));
+
+  __block UIMenu* capturedMenu = nil;
+  OCMExpect([local_consumer setMenu:[OCMArg checkWithBlock:^BOOL(id obj) {
+                              capturedMenu = obj;
+                              return YES;
+                            }]
+                      forButtonType:ToolbarButtonTypeTabGrid]);
+
+  [local_mediator setConsumer:local_consumer];
+
+  EXPECT_OCMOCK_VERIFY(local_consumer);
+  ASSERT_NE(nil, capturedMenu);
+
+  // Verify the menu items.
+  // The menu should have "Close Current Tab", "New Tab", and "New Incognito
+  // Tab" (enabled).
+  ASSERT_EQ(3U, capturedMenu.children.count);
+
+  UIAction* openNewTabAction = (UIAction*)capturedMenu.children[0];
+  EXPECT_NSEQ(l10n_util::GetNSString(IDS_IOS_TOOLS_MENU_NEW_TAB),
+              openNewTabAction.title);
+  EXPECT_EQ(0U, openNewTabAction.attributes);
+
+  UIAction* openNewIncognitoTabAction = (UIAction*)capturedMenu.children[1];
+  EXPECT_NSEQ(l10n_util::GetNSString(IDS_IOS_TOOLS_MENU_NEW_INCOGNITO_TAB),
+              openNewIncognitoTabAction.title);
+  EXPECT_EQ(0U, openNewIncognitoTabAction.attributes);
+
+  UIAction* closeTabAction = (UIAction*)capturedMenu.children[2];
+  EXPECT_NSEQ(l10n_util::GetNSString(IDS_IOS_TOOLS_MENU_CLOSE_TAB),
+              closeTabAction.title);
+  EXPECT_EQ(UIMenuElementAttributesDestructive, closeTabAction.attributes);
+
+  [local_mediator disconnect];
+}
+
+// Tests that the assistant button is visible when signed in and location
+// is eligible (not EEA / Japan), and PageActionMenu is enabled.
+TEST_P(ToolbarMediatorTest, TestAssistantButtonVisible_PageActionMenuEnabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures({kPageActionMenu}, {});
+
+  SetLocationEligible(true);
+  SignInAndSetCapability(true);
+
+  OCMExpect([consumer_ setAssistantButtonVisible:YES enabled:NO]);
+  [mediator_ updateAssistantButton];
+  EXPECT_OCMOCK_VERIFY(consumer_);
+}
+
+// Tests that the assistant button is NOT visible when the country is in the
+// EEA (e.g., France), even if PageActionMenu is enabled.
+TEST_P(ToolbarMediatorTest, TestAssistantButtonNotVisible_EEACountryGated) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures({kPageActionMenu}, {});
+
+  // France is in EEA.
+  scoped_variations_service_.Get()->OverrideStoredPermanentCountry("fr");
+  TestingApplicationContext::GetGlobal()->GetApplicationLocaleStorage()->Set(
+      "en-US");
+
+  SignInAndSetCapability(true);
+
+  OCMExpect([consumer_ setAssistantButtonVisible:NO enabled:NO]);
+  [mediator_ updateAssistantButton];
+  EXPECT_OCMOCK_VERIFY(consumer_);
+}
+
+// Tests that the assistant button is NOT visible when the country is Japan
+// ("jp"), even if PageActionMenu is enabled.
+TEST_P(ToolbarMediatorTest, TestAssistantButtonNotVisible_JapanCountryGated) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures({kPageActionMenu}, {});
+
+  // Set country to Japan ("jp").
+  scoped_variations_service_.Get()->OverrideStoredPermanentCountry("jp");
+  TestingApplicationContext::GetGlobal()->GetApplicationLocaleStorage()->Set(
+      "en-US");
+
+  SignInAndSetCapability(true);
+
+  OCMExpect([consumer_ setAssistantButtonVisible:NO enabled:NO]);
+  [mediator_ updateAssistantButton];
+  EXPECT_OCMOCK_VERIFY(consumer_);
 }
 
 INSTANTIATE_TEST_SUITE_P(ToolbarMediatorTest,

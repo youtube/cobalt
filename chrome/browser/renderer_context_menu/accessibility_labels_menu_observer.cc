@@ -13,7 +13,6 @@
 #include "chrome/browser/renderer_context_menu/accessibility_labels_bubble_model.h"
 #include "chrome/browser/ui/confirm_bubble.h"
 #include "chrome/common/pref_names.h"
-#include "chrome/grit/generated_resources.h"
 #include "components/prefs/pref_service.h"
 #include "components/renderer_context_menu/render_view_context_menu_proxy.h"
 #include "content/public/browser/browser_thread.h"

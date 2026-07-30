@@ -60,7 +60,7 @@ source_set("profile_prefs_registry_util") {
   ]
 
   deps = [
-    "//chrome/common:constants",
+    "//ash/constants",
     "//components/prefs",
   ]
 }

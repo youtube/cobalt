@@ -398,12 +398,19 @@ net::HttpStatusCode LoopbackServer::HandleCommand(
     if (success) {
       response->set_error_code(sync_pb::SyncEnums::SUCCESS);
     } else if (!datatypes_to_migrate.empty()) {
-      DLOG(WARNING) << "Migration required for " << datatypes_to_migrate.size()
-                    << " datatypes";
-      response->set_error_code(sync_pb::SyncEnums::MIGRATION_DONE);
-      for (DataType type : datatypes_to_migrate) {
-        response->add_migrated_data_type_id(
-            GetSpecificsFieldNumberFromDataType(type));
+      if (use_gc_directive_for_migration_) {
+        PopulateGcDirectiveMigrationResponse(message.get_updates(),
+                                             datatypes_to_migrate,
+                                             response->mutable_get_updates());
+        response->set_error_code(sync_pb::SyncEnums::SUCCESS);
+      } else {
+        DLOG(WARNING) << "Migration required for "
+                      << datatypes_to_migrate.size() << " datatypes";
+        response->set_error_code(sync_pb::SyncEnums::MIGRATION_DONE);
+        for (DataType type : datatypes_to_migrate) {
+          response->add_migrated_data_type_id(
+              GetSpecificsFieldNumberFromDataType(type));
+        }
       }
     } else if (!throttled_datatypes_in_request.empty()) {
       DLOG(WARNING) << "Throttled datatypes: "
@@ -1033,6 +1040,37 @@ void LoopbackServer::TriggerMigrationForTesting(DataTypeSet data_types) {
   }
 
   FlushToDisk();
+}
+
+void LoopbackServer::EnableGcDirectiveForMigration() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  use_gc_directive_for_migration_ = true;
+}
+
+void LoopbackServer::PopulateGcDirectiveMigrationResponse(
+    const sync_pb::GetUpdatesMessage& get_updates,
+    const std::vector<DataType>& datatypes_to_migrate,
+    sync_pb::GetUpdatesResponse* response) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  DataTypeSet to_migrate;
+  for (DataType type : datatypes_to_migrate) {
+    to_migrate.Put(type);
+  }
+  for (const sync_pb::DataTypeProgressMarker& marker :
+       get_updates.from_progress_marker()) {
+    DataType type =
+        syncer::GetDataTypeFromSpecificsFieldNumber(marker.data_type_id());
+    sync_pb::DataTypeProgressMarker* new_marker =
+        response->add_new_progress_marker();
+    new_marker->set_data_type_id(marker.data_type_id());
+
+    if (to_migrate.Has(type)) {
+      new_marker->mutable_gc_directive()->set_clear_metadata(true);
+    } else {
+      new_marker->set_token(marker.token());
+    }
+  }
+  response->set_changes_remaining(1);
 }
 
 }  // namespace syncer

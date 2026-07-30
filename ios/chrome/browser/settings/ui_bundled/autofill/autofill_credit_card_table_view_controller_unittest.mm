@@ -16,6 +16,8 @@
 #import "components/autofill/core/browser/data_manager/personal_data_manager_test_utils.h"
 #import "components/autofill/core/browser/data_model/payments/credit_card.h"
 #import "components/autofill/core/browser/geo/alternative_state_name_map_updater.h"
+#import "components/autofill/core/common/autofill_payments_features.h"
+#import "components/autofill/core/common/autofill_prefs.h"
 #import "components/strings/grit/components_strings.h"
 #import "components/sync/test/test_sync_service.h"
 #import "ios/chrome/browser/autofill/model/personal_data_manager_factory.h"
@@ -31,6 +33,7 @@
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_edit_item_delegate.h"
 #import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_controller_test.h"
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/browser/webdata_services/model/web_data_service_factory.h"
 #import "ios/chrome/common/ui/reauthentication/reauthentication_module.h"
 #import "ios/chrome/grit/ios_strings.h"
@@ -338,6 +341,37 @@ TEST_F(AutofillCreditCardTableViewControllerTest,
                    "AutofillCreditCardDeletedAndHadCvc"));
 }
 
+TEST_F(AutofillCreditCardTableViewControllerTest,
+       TestPayOverTimeButton_HiddenByDefault) {
+  CreateController();
+  CheckController();
+
+  // Pay Over Time is hidden by default. Section count remains 3.
+  EXPECT_EQ(3, NumberOfSections());
+}
+
+TEST_F(AutofillCreditCardTableViewControllerTest, TestPayOverTimeButton_Shown) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      autofill::features::kAutofillEnableBuyNowPayLater);
+  profile_->GetPrefs()->SetBoolean(autofill::prefs::kAutofillHasSeenBnpl, true);
+
+  CreateController();
+  CheckController();
+
+  // Expect 4 sections when Pay Over Time is enabled:
+  // 0: Autofill switch
+  // 1: Mandatory reauth switch
+  // 2: CVC storage switch
+  // 3: Pay Over Time setting entry
+  EXPECT_EQ(4, NumberOfSections());
+  EXPECT_EQ(1, NumberOfItemsInSection(3));
+
+  // Confirm the text of the button.
+  CheckTextCellText(l10n_util::GetNSString(IDS_IOS_SETTINGS_PAY_OVER_TIME), 3,
+                    0);
+}
+
 class AutofillAddCreditCardViewControllerTest
     : public LegacyChromeTableViewControllerTest {
  protected:
@@ -430,12 +464,8 @@ class AutofillCreditCardEditTableViewControllerTest
     TestProfileIOS::Builder builder;
     builder.AddTestingFactory(ios::WebDataServiceFactory::GetInstance(),
                               ios::WebDataServiceFactory::GetDefaultFactory());
-    builder.AddTestingFactory(
-        SyncServiceFactory::GetInstance(),
-        base::BindRepeating(
-            [](ProfileIOS* profile) -> std::unique_ptr<KeyedService> {
-              return std::make_unique<syncer::TestSyncService>();
-            }));
+    builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
+                              base::BindRepeating(&CreateTestSyncService));
     profile_ = std::move(builder).Build();
     browser_ = std::make_unique<TestBrowser>(profile_.get());
   }

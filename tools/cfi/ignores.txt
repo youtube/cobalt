@@ -314,6 +314,13 @@ fun:*InvokeAccessorGetterCallback*
 src:*third_party/pthreadpool/src/src/fastpath.c
 src:*third_party/pthreadpool/src/src/portable-api.c
 
+# Destructor of std::unique_ptr<TfLiteDelegate> calls deleter in dynamically
+# loaded shared library.
+fun:*unique_ptr*TfLiteDelegate*
+
+# LiteRT: Indirect calls to dynamically loaded LiteRT runtime and accelerators.
+src:*third_party/litert/*
+
 ######### Uncategorized
 
 src:*native_client/*

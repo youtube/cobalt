@@ -377,6 +377,11 @@ base::expected<void, std::string> UpdatePropertyTreeNode(
     return base::unexpected(
         "Invalid view_transition_target_id for effect node");
   }
+  if (wire.render_surface_reason != cc::RenderSurfaceReason::kNone &&
+      !wire.element_id) {
+    return base::unexpected(
+        "Effect node with render surface must have a valid element_id");
+  }
   node.transform_id = wire.transform_id;
   node.clip_id = wire.clip_id;
   node.element_id = wire.element_id;
@@ -467,6 +472,116 @@ base::expected<void, std::string> UpdatePropertyTreeNode(
   if (node.element_id) {
     trees.scroll_tree_mutable().SetElementIdForNodeId(node.id, node.element_id);
   }
+  return base::ok();
+}
+
+base::expected<void, std::string> ValidateTreeIndices(
+    cc::LayerTreeImpl& layers) {
+  const cc::PropertyTrees& property_trees = *layers.property_trees();
+  const auto& transform_tree = property_trees.transform_tree();
+  const auto& clip_tree = property_trees.clip_tree();
+  const auto& effect_tree = property_trees.effect_tree();
+  const auto& scroll_tree = property_trees.scroll_tree();
+
+  for (size_t i = cc::kContentsRootPropertyNodeId; i < transform_tree.size();
+       ++i) {
+    const auto& node = transform_tree.Node(i);
+    if (!IsOptionalPropertyTreeIndexValid(transform_tree,
+                                          node.parent_frame_id)) {
+      return base::unexpected("Invalid parent_frame_id in transform tree");
+    }
+    if (node.sticky_position_constraint_id != -1 &&
+        static_cast<size_t>(node.sticky_position_constraint_id) >=
+            transform_tree.sticky_position_data().size()) {
+      return base::unexpected("Invalid sticky_position_constraint_id");
+    }
+    if (node.anchor_position_scroll_data_id != -1 &&
+        static_cast<size_t>(node.anchor_position_scroll_data_id) >=
+            transform_tree.anchor_position_scroll_data().size()) {
+      return base::unexpected("Invalid anchor_position_scroll_data_id");
+    }
+  }
+
+  for (size_t i = cc::kContentsRootPropertyNodeId; i < clip_tree.size(); ++i) {
+    const auto& node = clip_tree.Node(i);
+    if (!IsPropertyTreeIndexValid(transform_tree, node.transform_id)) {
+      return base::unexpected("Invalid transform_id in clip tree");
+    }
+    if (!IsOptionalPropertyTreeIndexValid(effect_tree,
+                                          node.pixel_moving_filter_id)) {
+      return base::unexpected("Invalid pixel_moving_filter_id in clip tree");
+    }
+  }
+
+  for (size_t i = cc::kContentsRootPropertyNodeId; i < effect_tree.size();
+       ++i) {
+    const auto& node = effect_tree.Node(i);
+    if (node.HasRenderSurface() && !node.element_id) {
+      return base::unexpected(
+          "Effect node with render surface must have a valid element_id");
+    }
+    if (!IsPropertyTreeIndexValid(transform_tree, node.transform_id)) {
+      return base::unexpected("Invalid transform_id in effect tree");
+    }
+    if (!IsPropertyTreeIndexValid(clip_tree, node.clip_id)) {
+      return base::unexpected("Invalid clip_id in effect tree");
+    }
+    if (!IsPropertyTreeIndexValid(effect_tree, node.target_id)) {
+      return base::unexpected("Invalid target_id in effect tree");
+    }
+    if (!IsOptionalPropertyTreeIndexValid(
+            effect_tree, node.closest_ancestor_with_cached_render_surface_id)) {
+      return base::unexpected(
+          "Invalid closest_ancestor_with_cached_render_surface_id in effect "
+          "tree");
+    }
+    if (!IsOptionalPropertyTreeIndexValid(
+            effect_tree, node.closest_ancestor_with_copy_request_id)) {
+      return base::unexpected(
+          "Invalid closest_ancestor_with_copy_request_id in effect tree");
+    }
+    if (!IsOptionalPropertyTreeIndexValid(
+            effect_tree, node.closest_ancestor_being_captured_id)) {
+      return base::unexpected(
+          "Invalid closest_ancestor_being_captured_id in effect tree");
+    }
+    if (!IsOptionalPropertyTreeIndexValid(
+            effect_tree, node.closest_ancestor_with_shared_element_id)) {
+      return base::unexpected(
+          "Invalid closest_ancestor_with_shared_element_id in effect tree");
+    }
+    if (!IsOptionalPropertyTreeIndexValid(effect_tree,
+                                          node.view_transition_target_id)) {
+      return base::unexpected(
+          "Invalid view_transition_target_id in effect tree");
+    }
+  }
+
+  for (size_t i = cc::kContentsRootPropertyNodeId; i < scroll_tree.size();
+       ++i) {
+    const auto& node = scroll_tree.Node(i);
+    if (node.transform_id != cc::kInvalidPropertyNodeId &&
+        !IsPropertyTreeIndexValid(transform_tree, node.transform_id)) {
+      return base::unexpected("Invalid transform_id in scroll tree");
+    }
+  }
+
+  for (auto* layer : layers) {
+    if (!IsPropertyTreeIndexValid(transform_tree,
+                                  layer->transform_tree_index())) {
+      return base::unexpected("Invalid transform_tree_index for layer");
+    }
+    if (!IsPropertyTreeIndexValid(clip_tree, layer->clip_tree_index())) {
+      return base::unexpected("Invalid clip_tree_index for layer");
+    }
+    if (!IsPropertyTreeIndexValid(effect_tree, layer->effect_tree_index())) {
+      return base::unexpected("Invalid effect_tree_index for layer");
+    }
+    if (!IsPropertyTreeIndexValid(scroll_tree, layer->scroll_tree_index())) {
+      return base::unexpected("Invalid scroll_tree_index for layer");
+    }
+  }
+
   return base::ok();
 }
 
@@ -623,6 +738,18 @@ base::expected<bool, std::string> UpdateTransformTreeProperties(
   if (update.device_transform_scale_factor <= 0 ||
       !std::isfinite(update.device_transform_scale_factor)) {
     return base::unexpected("Invalid device_transform_scale_factor");
+  }
+  for (int id : update.nodes_affected_by_outer_viewport_bounds_delta) {
+    if (!IsPropertyTreeIndexValid(tree, id)) {
+      return base::unexpected(
+          "Invalid node ID in nodes_affected_by_outer_viewport_bounds_delta");
+    }
+  }
+  for (int id : update.nodes_affected_by_safe_area_bottom) {
+    if (!IsPropertyTreeIndexValid(tree, id)) {
+      return base::unexpected(
+          "Invalid node ID in nodes_affected_by_safe_area_bottom");
+    }
   }
   tree.set_page_scale_factor(update.page_scale_factor);
   tree.set_device_scale_factor(update.device_scale_factor);
@@ -828,6 +955,12 @@ void UpdateTileDisplayLayerExtra(const mojom::TileDisplayLayerExtraPtr& extra,
   layer.SetIsBackdropFilterMask(extra->is_backdrop_filter_mask);
   layer.SetIsDirectlyCompositedImage(extra->is_directly_composited_image);
   layer.SetNearestNeighbor(extra->nearest_neighbor);
+  if (extra->has_animated_image_update_rect) {
+    layer.set_has_animated_image_update_rect();
+  }
+  if (extra->has_non_animated_image_update_rect) {
+    layer.set_has_non_animated_image_update_rect();
+  }
   layer.SetContentColorUsage(extra->content_color_usage);
   layer.SetRecordedBounds(extra->recorded_bounds);
   layer.SetProposedTilingScalesForDeletion(
@@ -1449,6 +1582,10 @@ base::expected<void, std::string> DeserializeAnimationCurve(
                          *wire_keyframe->value, wire_keyframe->start_time,
                          std::move(keyframe_timing_function)));
     curve->AddKeyframe(std::move(keyframe));
+  }
+
+  if (wire.group_id == cc::KeyframeModel::kInvalidGroup) {
+    return base::unexpected("Invalid group_id");
   }
 
   auto model = cc::KeyframeModel::Create(
@@ -2235,6 +2372,9 @@ base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTree(
       layers.set_needs_update_draw_properties();
     }
   }
+
+  // Ensure all property tree and layer indices are valid.
+  RETURN_IF_ERROR(ValidateTreeIndices(layers));
 
   const bool render_surfaces_changed =
       property_trees.effect_tree_mutable().CreateOrReuseRenderSurfaces(

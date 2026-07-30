@@ -87,6 +87,10 @@ class CONTENT_EXPORT MouseWheelPhaseHandler {
     return touchpad_scroll_phase_state_;
   }
 
+  FirstScrollUpdateAckState first_scroll_update_ack_state_for_testing() const {
+    return first_scroll_update_ack_state_;
+  }
+
   // Used in testing for setting the max time to wait for momentum phase began
   // after a scroll phase end.
   void set_max_time_between_phase_ended_and_momentum_phase_began(

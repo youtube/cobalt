@@ -9,13 +9,13 @@
 
 #import "ios/chrome/browser/intelligence/bwg/ui/gemini_consent_configuration.h"
 #import "ios/chrome/browser/intelligence/bwg/ui/gemini_consent_view_controller_delegate.h"
-#import "ios/chrome/browser/intelligence/bwg/ui/gemini_fre_view_controller_protocol.h"
+#import "ios/chrome/browser/intelligence/bwg/ui/gemini_first_run_view_controller_protocol.h"
 
 @protocol GeminiConsentMutator;
 
 // Gemini consent View Controller (VC).
 @interface GeminiConsentViewController
-    : UIViewController <GeminiFREViewControllerProtocol>
+    : UIViewController <GeminiFirstRunViewControllerProtocol>
 
 // Initializer with the layout configuration.
 - (instancetype)initWithConfiguration:(GeminiConsentConfiguration*)configuration

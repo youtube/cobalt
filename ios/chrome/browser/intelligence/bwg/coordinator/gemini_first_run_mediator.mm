@@ -117,8 +117,8 @@ const CGFloat kPromoMaxImpressionCount = 3;
   return ShouldForceBWGPromo() || !promoImpressionsExhausted;
 }
 
-- (GeminiConsentConfiguration*)consentConfigurationForFREType:
-    (GeminiFREType)FREType {
+- (GeminiConsentConfiguration*)consentConfigurationForFirstRunType:
+    (GeminiFirstRunType)firstRunType {
   variations::VariationsService* variationsService =
       GetApplicationContext()->GetVariationsService();
   std::string country =
@@ -132,7 +132,7 @@ const CGFloat kPromoMaxImpressionCount = 3;
   return [GeminiConsentConfiguration
       configurationForManaged:isManagedAccount
                        strict:[self useStrictLegalConsent]
-                         type:FREType
+                         type:firstRunType
                       country:nsCountry];
 }
 

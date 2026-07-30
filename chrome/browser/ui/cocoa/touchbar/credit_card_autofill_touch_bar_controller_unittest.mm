@@ -47,10 +47,10 @@ class CreditCardAutofillTouchBarControllerUnitTest : public CocoaTest {
     autofill_popup_controller_.set_suggestions(std::move(suggestions));
   }
 
-  void SetSuggestions(const std::vector<autofill::SuggestionType>& types) {
+  void SetSuggestions(const std::vector<SuggestionType>& types) {
     std::vector<Suggestion> suggestions;
     suggestions.reserve(types.size());
-    for (autofill::SuggestionType type : types) {
+    for (SuggestionType type : types) {
       suggestions.emplace_back(u"", u"", Suggestion::Icon::kNoIcon, type);
     }
     SetSuggestions(std::move(suggestions));

@@ -212,7 +212,7 @@ const CGFloat kHorizontalSpacingToAlignWithItems = 16.0;
 
 - (UIAction*)textView:(UITextView*)textView
     primaryActionForTextItem:(UITextItem*)textItem
-               defaultAction:(UIAction*)defaultAction API_AVAILABLE(ios(17.0)) {
+               defaultAction:(UIAction*)defaultAction {
   DCHECK(self.textView == textView);
   CrURL* crurl = [[CrURL alloc] initWithNSURL:textItem.link];
   DCHECK(crurl.gurl.is_valid());

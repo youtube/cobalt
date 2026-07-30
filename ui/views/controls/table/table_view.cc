@@ -620,6 +620,19 @@ void TableView::SetSelectOnRemove(bool select_on_remove) {
   OnPropertyChanged(&select_on_remove_, PropertyEffects::kNone);
 }
 
+bool TableView::GetSelectOnFocus() const {
+  return select_on_focus_;
+}
+
+void TableView::SetSelectOnFocus(bool select_on_focus) {
+  if (select_on_focus_ == select_on_focus) {
+    return;
+  }
+
+  select_on_focus_ = select_on_focus;
+  OnPropertyChanged(&select_on_focus_, PropertyEffects::kNone);
+}
+
 bool TableView::GetSortOnPaint() const {
   return sort_on_paint_;
 }
@@ -1282,6 +1295,7 @@ gfx::Point TableView::GetKeyboardContextMenuLocation() {
 }
 
 void TableView::OnFocus() {
+  MaybeSelectFirstRowWhenFocused();
   SchedulePaintForSelection();
   UpdateFocusRings();
   ScheduleUpdateAccessibilityFocusIfNeeded();
@@ -1824,6 +1838,25 @@ void TableView::AdvanceActiveVisibleColumn(AdvanceDirection direction) {
   }
 }
 
+void TableView::MaybeSelectFirstRowWhenFocused() {
+  // If the auto select on focus property is not enabled, do nothing.
+  if (!select_on_focus_) {
+    return;
+  }
+
+  // If there is already a selected value(s), do nothing.
+  if (selection_model_.active().has_value()) {
+    return;
+  }
+
+  // If there are no rows to select, do nothing.
+  if (GetRowCount() == 0) {
+    return;
+  }
+
+  SelectByViewIndex(size_t{0});
+}
+
 std::optional<size_t> TableView::GetActiveVisibleColumnIndex() const {
   return active_visible_column_index_;
 }
@@ -2275,7 +2308,13 @@ void TableView::InstallFocusRing() {
 }
 
 void TableView::UpdateFocusRings() {
-  views::FocusRing::Get(this)->Refresh();
+  views::FocusRing* focus_ring = views::FocusRing::Get(this);
+  focus_ring->Refresh();
+
+  // Schedule a paint to ensure the focus ring is repainted if the output of the
+  // highlight path generator changes.
+  focus_ring->SchedulePaint();
+
   if (header_) {
     header_->UpdateFocusState();
   }
@@ -2677,6 +2716,7 @@ ADD_PROPERTY_METADATA(TableViewObserver*, Observer)
 ADD_READONLY_PROPERTY_METADATA(int, RowHeight)
 ADD_PROPERTY_METADATA(bool, SingleSelection)
 ADD_PROPERTY_METADATA(bool, SelectOnRemove)
+ADD_PROPERTY_METADATA(bool, SelectOnFocus)
 ADD_PROPERTY_METADATA(TableType, TableType)
 ADD_PROPERTY_METADATA(bool, SortOnPaint)
 END_METADATA

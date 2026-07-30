@@ -14,6 +14,7 @@
 #include "base/memory/weak_ptr.h"
 #include "content/public/browser/preconnect_manager.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
+#include "net/socket/next_proto.h"
 #include "services/network/public/mojom/connection_change_observer_client.mojom.h"
 #include "third_party/jni_zero/jni_zero.h"
 #include "url/gurl.h"
@@ -61,6 +62,7 @@ class AwPreconnector : public content::PreconnectManager::Delegate,
   struct PreconnectContext {
     base::TimeTicks start_time;
     GURL url;
+    net::NextProto connection_info = net::NextProto::kProtoUnknown;
   };
 
   content::PreconnectManager& GetPreconnectManager();

@@ -1458,7 +1458,6 @@ IN_PROC_BROWSER_TEST_F(ArcAuthServiceTest, HandleAddAccountRequest) {
   EXPECT_EQ(1, fake_account_manager_ui.show_account_addition_dialog_calls());
   EXPECT_EQ(
       0, fake_account_manager_ui.show_account_reauthentication_dialog_calls());
-  EXPECT_EQ(0, fake_account_manager_ui.show_manage_accounts_settings_calls());
   ASSERT_TRUE(fake_account_manager_ui.last_add_account_options().has_value());
   EXPECT_TRUE(
       fake_account_manager_ui.last_add_account_options()->is_available_in_arc);
@@ -1487,7 +1486,6 @@ IN_PROC_BROWSER_TEST_F(ArcAuthServiceTest, HandleUpdateCredentialsRequest) {
   EXPECT_EQ(
       1, fake_account_manager_ui.show_account_reauthentication_dialog_calls());
   EXPECT_EQ(0, fake_account_manager_ui.show_account_addition_dialog_calls());
-  EXPECT_EQ(0, fake_account_manager_ui.show_manage_accounts_settings_calls());
   ASSERT_TRUE(fake_account_manager_ui.last_reauth_email().has_value());
   EXPECT_EQ(kSecondaryAccountEmail,
             fake_account_manager_ui.last_reauth_email().value());

@@ -59,6 +59,7 @@ class DefaultParamEmbeddedPermissionPromptUiTest
     feature_list_.InitWithFeaturesAndParameters(
         {{blink::features::kGeolocationElement, {}},
          {blink::features::kUserMediaElement, {}},
+         {blink::features::kUserMediaElementLegacy, {}},
          {blink::features::kBypassPepcSecurityForTesting, {}}},
         {});
   }
@@ -94,6 +95,7 @@ class WindowMiddleEmbeddedPermissionPromptUiTest
         {
             {blink::features::kGeolocationElement, {}},
             {blink::features::kUserMediaElement, {}},
+            {blink::features::kUserMediaElementLegacy, {}},
             {blink::features::kBypassPepcSecurityForTesting, {}},
             {permissions::features::kPermissionElementPromptPositioning,
              {{"PermissionElementPromptPositioningParam", "window_middle"}}},
@@ -132,6 +134,7 @@ class NearElementEmbeddedPermissionPromptUiTest
         {
             {blink::features::kGeolocationElement, {}},
             {blink::features::kUserMediaElement, {}},
+            {blink::features::kUserMediaElementLegacy, {}},
             {blink::features::kBypassPepcSecurityForTesting, {}},
             {permissions::features::kPermissionElementPromptPositioning,
              {{"PermissionElementPromptPositioningParam", "near_element"}}},
@@ -170,6 +173,7 @@ class LegacyPromptEmbeddedPermissionPromptUiTest
         {
             {blink::features::kGeolocationElement, {}},
             {blink::features::kUserMediaElement, {}},
+            {blink::features::kUserMediaElementLegacy, {}},
             {blink::features::kBypassPepcSecurityForTesting, {}},
             {permissions::features::kPermissionElementPromptPositioning,
              {{"PermissionElementPromptPositioningParam", "legacy_prompt"}}},

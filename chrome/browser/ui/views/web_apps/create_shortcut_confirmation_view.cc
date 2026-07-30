@@ -14,7 +14,6 @@
 #include "build/build_config.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/web_apps/web_app_install_dialog_delegate.h"
-#include "chrome/browser/ui/views/web_apps/web_app_testing_flags.h"
 #include "chrome/browser/ui/web_applications/web_app_dialogs.h"
 #include "chrome/browser/ui/web_applications/web_app_info_image_source.h"
 #include "chrome/browser/web_applications/icons/icon_masker.h"
@@ -194,7 +193,8 @@ CreateShortcutConfirmationView::CreateShortcutConfirmationView(
 
   std::move(builder).BuildChildren();
 
-  if (web_app::test::g_auto_check_chromeos_open_in_window_for_testing) {
+  if (web_app::GetCreateShortcutDialogCheckStateForTesting() ==  // IN-TEST
+      web_app::CreateShortcutDialogCheckState::kChecked) {
     if (ShowRadioButtons()) {
       open_as_window_radio_->SetChecked(true);
     } else {
@@ -306,8 +306,14 @@ void ShowCreateShortcutDialog(
 
   g_dialog_for_testing = dialog;
 
-  if (test::g_auto_accept_create_shortcut_dialog_for_testing) {
-    g_dialog_for_testing->Accept();
+  InstallDialogTestResponse auto_response =
+      GetPwaInstallationDialogAutoResponseForTesting();  // IN-TEST
+  if (auto_response != InstallDialogTestResponse::kNone) {
+    if (auto_response == InstallDialogTestResponse::kDeny) {
+      g_dialog_for_testing->Cancel();
+    } else {
+      g_dialog_for_testing->Accept();
+    }
   }
 }
 

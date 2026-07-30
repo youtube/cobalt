@@ -234,4 +234,35 @@ IN_PROC_BROWSER_TEST_F(PageLifecycleStateManagerBrowserTest,
                                           "document.visibilitychange"));
 }
 
+IN_PROC_BROWSER_TEST_F(PageLifecycleStateManagerBrowserTest,
+                       MicrotaskRunnableDuringResumeEvent) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL test_url = embedded_test_server()->GetURL("/empty.html");
+  ASSERT_TRUE(NavigateToURL(shell(), test_url));
+  RenderFrameHostImpl* rfh = current_frame_host();
+  // 1. Register a resume listener that schedules a microtask (Promise.then).
+  // If the context is frozen during the event, the microtask will be blocked.
+  ASSERT_TRUE(ExecJs(rfh, R"(
+    window.resumeMicrotaskRan = false;
+    document.addEventListener('resume', () => {
+      Promise.resolve().then(() => {
+        window.resumeMicrotaskRan = true;
+      });
+    });
+  )",
+                     EXECUTE_SCRIPT_NO_RESOLVE_PROMISES));
+
+  // 2. Hide and freeze the page.
+  shell()->web_contents()->WasHidden();
+  EXPECT_EQ(PageVisibilityState::kHidden, rfh->GetVisibilityState());
+  shell()->web_contents()->SetPageFrozen(true);
+
+  // 3. Resume the page.
+  shell()->web_contents()->SetPageFrozen(false);
+
+  // 4. Assert that the microtask was allowed to run.
+  // EvalJs will execute and implicitly run the microtask checkpoint if needed.
+  EXPECT_EQ(true, EvalJs(rfh, "window.resumeMicrotaskRan"));
+}
+
 }  // namespace content

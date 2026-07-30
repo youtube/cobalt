@@ -57,6 +57,9 @@ export interface TextAnnotation {
   // Orientation of the text in the box relative to the PDF page, in number of
   // clockwise rotations from 0 to 3.
   textOrientation: number;
+  // Orientation of the viewport when the annotation was committed, in number of
+  // clockwise rotations from 0 to 3.
+  viewportOrientation: number;
 }
 
 export interface TextAnnotationMessageData extends TextAnnotation {

@@ -2017,6 +2017,13 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     getter urlHash
 [Worker]     getter violatedDirective
 [Worker]     method constructor
+[Worker] interface SemanticEmbedder
+[Worker]     static method availability
+[Worker]     static method create
+[Worker]     attribute @@toStringTag
+[Worker]     method constructor
+[Worker]     method destroy
+[Worker]     method embed
 [Worker] interface Serial : EventTarget
 [Worker]     attribute @@toStringTag
 [Worker]     getter onconnect

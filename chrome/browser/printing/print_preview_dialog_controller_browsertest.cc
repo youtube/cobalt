@@ -417,7 +417,7 @@ IN_PROC_BROWSER_TEST_F(PrintPreviewDialogControllerBrowserTest,
 
   // Navigating away from the current page in the current tab for which a print
   // preview is displayed will cancel the print preview and hence the task
-  // manger shouldn't show a printing task.
+  // manager shouldn't show a printing task.
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("about:blank")));
   EXPECT_EQ(2U, GetTrackedTags().size());
   EXPECT_EQ(2U, task_manager.tasks().size());

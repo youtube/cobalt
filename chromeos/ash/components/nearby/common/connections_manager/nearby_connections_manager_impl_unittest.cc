@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
 #include "chromeos/ash/components/nearby/common/connections_manager/nearby_connections_manager_impl.h"
 
 #include <algorithm>
@@ -10,12 +9,13 @@
 
 #include "base/files/file_util.h"
 #include "base/functional/callback_helpers.h"
+#include "base/no_destructor.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
-#include "base/threading/thread_restrictions.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/threading/thread_restrictions.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chromeos/ash/components/nearby/common/connections_manager/nearby_connection_impl.h"
 #include "chromeos/ash/components/nearby/presence/conversions/nearby_presence_conversions.h"
@@ -43,24 +43,32 @@ const char kRawAuthenticationToken[] = {0x00, 0x05, 0x04, 0x03, 0x02};
 const char kBytePayload[] = {0x08, 0x09, 0x06, 0x04, 0x0f};
 const char kBytePayload2[] = {0x0a, 0x0b, 0x0c, 0x0d, 0x0e};
 const char kDeviceName[] = "Cris Cros's Pixel";
-const std::vector<uint8_t> kDeviceId = {0x01, 0x23, 0x45, 0x67, 0x89, 0xab,
-                                        0xcd, 0xef, 0x01, 0x23, 0x45, 0x67,
-                                        0x89, 0xab, 0xcd, 0xef};
 const int64_t kPayloadId = 689777;
 const int64_t kPayloadId2 = 777689;
 const int64_t kPayloadId3 = 986777;
 const uint64_t kTotalSize = 5201314;
 const uint64_t kBytesTransferred = 721831;
 const uint8_t kPayload[] = {0x0f, 0x0a, 0x0c, 0x0e};
-const std::vector<uint8_t> kBluetoothMacAddress = {0x00, 0x00, 0xe6,
-                                                   0x88, 0x64, 0x13};
-const std::vector<uint8_t> kInvalidBluetoothMacAddress = {0x07, 0x07, 0x07};
-
 // Timeout for initiating a connection to a remote device.
 constexpr base::TimeDelta kInitiateNearbyConnectionTimeout = base::Seconds(60);
-
 constexpr base::TimeDelta kConnectV3ToSuccessfulConnectionLatency =
     base::Milliseconds(123u);
+
+const std::vector<uint8_t>& GetDeviceId() {
+  static const base::NoDestructor<std::vector<uint8_t>> val(
+      {0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67,
+       0x89, 0xab, 0xcd, 0xef});
+  return *val;
+}
+const std::vector<uint8_t>& GetBluetoothMacAddress() {
+  static const base::NoDestructor<std::vector<uint8_t>> val(
+      {0x00, 0x00, 0xe6, 0x88, 0x64, 0x13});
+  return *val;
+}
+const std::vector<uint8_t>& GetInvalidBluetoothMacAddress() {
+  static const base::NoDestructor<std::vector<uint8_t>> val({0x07, 0x07, 0x07});
+  return *val;
+}
 
 void VerifyFileReadWrite(base::File& input_file, base::File& output_file) {
   base::ScopedAllowBlockingForTesting allow_blocking;
@@ -98,9 +106,10 @@ nearby::presence::PresenceDevice CreatePresenceDevice() {
   nearby::internal::DeviceIdentityMetaData metadata;
   metadata.set_device_type(nearby::internal::DeviceType::DEVICE_TYPE_PHONE);
   metadata.set_device_name(kDeviceName);
-  metadata.set_bluetooth_mac_address(
-      std::string(kBluetoothMacAddress.begin(), kBluetoothMacAddress.end()));
-  metadata.set_device_id(std::string(kDeviceId.begin(), kDeviceId.end()));
+  metadata.set_bluetooth_mac_address(std::string(
+      GetBluetoothMacAddress().begin(), GetBluetoothMacAddress().end()));
+  metadata.set_device_id(
+      std::string(GetDeviceId().begin(), GetDeviceId().end()));
 
   nearby::presence::PresenceDevice presence_device(kRemoteEndpointId);
   presence_device.SetDeviceIdentityMetaData(metadata);
@@ -788,11 +797,21 @@ INSTANTIATE_TEST_SUITE_P(
 struct ConnectionBluetoothMacAddressTestData {
   std::optional<std::vector<uint8_t>> bluetooth_mac_address;
   std::optional<std::vector<uint8_t>> expected_bluetooth_mac_address;
-} kConnectionBluetoothMacAddressTestData[] = {
-    {std::make_optional(kBluetoothMacAddress),
-     std::make_optional(kBluetoothMacAddress)},
-    {std::make_optional(kInvalidBluetoothMacAddress), std::nullopt},
-    {std::nullopt, std::nullopt}};
+};
+
+const std::vector<ConnectionBluetoothMacAddressTestData>&
+GetConnectionBluetoothMacAddressTestData() {
+  static const base::NoDestructor<
+      std::vector<ConnectionBluetoothMacAddressTestData>>
+      test_data([] {
+        return std::vector<ConnectionBluetoothMacAddressTestData>{
+            {std::make_optional(GetBluetoothMacAddress()),
+             std::make_optional(GetBluetoothMacAddress())},
+            {std::make_optional(GetInvalidBluetoothMacAddress()), std::nullopt},
+            {std::nullopt, std::nullopt}};
+      }());
+  return *test_data;
+}
 
 class NearbyConnectionsManagerImplTestConnectionBluetoothMacAddress
     : public NearbyConnectionsManagerImplTest,
@@ -835,7 +854,7 @@ TEST_P(NearbyConnectionsManagerImplTestConnectionBluetoothMacAddress,
 INSTANTIATE_TEST_SUITE_P(
     NearbyConnectionsManagerImplTestConnectionBluetoothMacAddress,
     NearbyConnectionsManagerImplTestConnectionBluetoothMacAddress,
-    testing::ValuesIn(kConnectionBluetoothMacAddressTestData));
+    testing::ValuesIn(GetConnectionBluetoothMacAddressTestData()));
 /******************************************************************************/
 // End: NearbyConnectionsManagerImplTestConnectionBluetoothMacAddress
 /******************************************************************************/
@@ -2335,11 +2354,11 @@ TEST_F(NearbyConnectionsManagerImplTest, InjectBluetoothEndpoint_Success) {
             EXPECT_EQ(status, nearby::connections::mojom::Status::kSuccess);
             run_loop.Quit();
           });
-  EXPECT_CALL(
-      nearby_connections_,
-      InjectBluetoothEndpoint(testing::Eq(kServiceId), testing::Eq(kEndpointId),
-                              testing::Eq(endpoint_info),
-                              testing::Eq(kBluetoothMacAddress), testing::_))
+  EXPECT_CALL(nearby_connections_,
+              InjectBluetoothEndpoint(
+                  testing::Eq(kServiceId), testing::Eq(kEndpointId),
+                  testing::Eq(endpoint_info),
+                  testing::Eq(GetBluetoothMacAddress()), testing::_))
       .WillOnce([&](const std::string& service_id,
                     const std::string& endpoint_id,
                     const std::vector<uint8_t> endpoint_info,
@@ -2351,12 +2370,12 @@ TEST_F(NearbyConnectionsManagerImplTest, InjectBluetoothEndpoint_Success) {
         EXPECT_EQ(std::vector<uint8_t>(std::begin(kEndpointInfo),
                                        std::end(kEndpointInfo)),
                   endpoint_info);
-        EXPECT_EQ(kBluetoothMacAddress, bluetooth_mac_address);
+        EXPECT_EQ(GetBluetoothMacAddress(), bluetooth_mac_address);
         std::move(callback).Run(nearby::connections::mojom::Status::kSuccess);
       });
 
   nearby_connections_manager_->InjectBluetoothEndpoint(
-      kServiceId, kEndpointId, endpoint_info, kBluetoothMacAddress,
+      kServiceId, kEndpointId, endpoint_info, GetBluetoothMacAddress(),
       std::move(callback));
   run_loop.Run();
 }
@@ -2381,7 +2400,7 @@ TEST_F(NearbyConnectionsManagerImplTest,
   const std::string short_endpoint_id = "BS";
 
   nearby_connections_manager_->InjectBluetoothEndpoint(
-      kServiceId, short_endpoint_id, endpoint_info, kBluetoothMacAddress,
+      kServiceId, short_endpoint_id, endpoint_info, GetBluetoothMacAddress(),
       std::move(callback));
   run_loop.Run();
 }
@@ -2403,7 +2422,7 @@ TEST_F(NearbyConnectionsManagerImplTest,
           });
 
   nearby_connections_manager_->InjectBluetoothEndpoint(
-      kServiceId, kEndpointId, endpoint_info, kBluetoothMacAddress,
+      kServiceId, kEndpointId, endpoint_info, GetBluetoothMacAddress(),
       std::move(callback));
   run_loop.Run();
 }
@@ -2425,7 +2444,7 @@ TEST_F(NearbyConnectionsManagerImplTest,
           });
 
   nearby_connections_manager_->InjectBluetoothEndpoint(
-      kServiceId, kEndpointId, endpoint_info, kBluetoothMacAddress,
+      kServiceId, kEndpointId, endpoint_info, GetBluetoothMacAddress(),
       std::move(callback));
   run_loop.Run();
 }

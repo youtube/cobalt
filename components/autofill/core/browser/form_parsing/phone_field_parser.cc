@@ -323,7 +323,7 @@ void PhoneFieldParser::AddClassifications(
       parsed_phone_fields_[FIELD_SUFFIX]) {
     if (has_country_code) {
       AddClassification(parsed_phone_fields_[FIELD_COUNTRY_CODE],
-                        PHONE_HOME_COUNTRY_CODE, kBasePhoneParserScore,
+                        PHONE_HOME_COUNTRY_CODE, HeuristicParser::kPhone,
                         field_candidates);
     }
 
@@ -332,7 +332,7 @@ void PhoneFieldParser::AddClassifications(
     // need to distinguish.
     if (parsed_phone_fields_[FIELD_AREA_CODE]) {
       AddClassification(parsed_phone_fields_[FIELD_AREA_CODE],
-                        PHONE_HOME_CITY_CODE, kBasePhoneParserScore,
+                        PHONE_HOME_CITY_CODE, HeuristicParser::kPhone,
                         field_candidates);
     } else if (has_country_code) {
       field_number_type = PHONE_HOME_CITY_AND_NUMBER;
@@ -347,29 +347,29 @@ void PhoneFieldParser::AddClassifications(
       // seemingly never happens in practice according to our metrics.
       field_number_type = PHONE_HOME_NUMBER_PREFIX;
       AddClassification(parsed_phone_fields_[FIELD_SUFFIX],
-                        PHONE_HOME_NUMBER_SUFFIX, kBasePhoneParserScore,
+                        PHONE_HOME_NUMBER_SUFFIX, HeuristicParser::kPhone,
                         field_candidates);
     }
     AddClassification(parsed_phone_fields_[FIELD_PHONE], field_number_type,
-                      kBasePhoneParserScore, field_candidates);
+                      HeuristicParser::kPhone, field_candidates);
   } else {
     const FormFieldData& field = *parsed_phone_fields_[FIELD_PHONE]->field;
     if (field.label().find(u"+") != std::u16string::npos ||
         field.placeholder().find(u"+") != std::u16string::npos ||
         field.aria_description().find(u"+") != std::u16string::npos) {
       AddClassification(parsed_phone_fields_[FIELD_PHONE],
-                        PHONE_HOME_WHOLE_NUMBER, kBasePhoneParserScore,
+                        PHONE_HOME_WHOLE_NUMBER, HeuristicParser::kPhone,
                         field_candidates);
     } else {
       AddClassification(parsed_phone_fields_[FIELD_PHONE],
-                        PHONE_HOME_CITY_AND_NUMBER, kBasePhoneParserScore,
+                        PHONE_HOME_CITY_AND_NUMBER, HeuristicParser::kPhone,
                         field_candidates);
     }
   }
 
   if (parsed_phone_fields_[FIELD_EXTENSION]) {
     AddClassification(parsed_phone_fields_[FIELD_EXTENSION],
-                      PHONE_HOME_EXTENSION, kBasePhoneParserScore,
+                      PHONE_HOME_EXTENSION, HeuristicParser::kPhone,
                       field_candidates);
   }
 }

@@ -58,7 +58,7 @@ class AwProxyingRestrictedCookieManager
   void GetAllForUrl(const GURL& url,
                     const net::SiteForCookies& /*site_for_cookies*/,
                     const url::Origin& top_frame_origin,
-                    net::StorageAccessApiStatus storage_access_api_status,
+                    net::StorageAccessApiStatus /*storage_access_api_status*/,
                     network::mojom::CookieManagerGetOptionsPtr options,
                     bool is_ad_tagged,
                     bool apply_devtools_overrides,
@@ -69,7 +69,7 @@ class AwProxyingRestrictedCookieManager
       const GURL& url,
       const net::SiteForCookies& /*site_for_cookies*/,
       const url::Origin& top_frame_origin,
-      net::StorageAccessApiStatus storage_access_api_status,
+      net::StorageAccessApiStatus /*storage_access_api_status*/,
       bool is_ad_tagged,
       bool apply_devtools_overrides,
       SetCanonicalCookieCallback callback) override;
@@ -77,7 +77,7 @@ class AwProxyingRestrictedCookieManager
       const GURL& url,
       const net::SiteForCookies& /*site_for_cookies*/,
       const url::Origin& top_frame_origin,
-      net::StorageAccessApiStatus storage_access_api_status,
+      net::StorageAccessApiStatus /*storage_access_api_status*/,
       mojo::PendingRemote<network::mojom::CookieChangeListener> listener,
       AddChangeListenerCallback callback) override;
 
@@ -85,27 +85,29 @@ class AwProxyingRestrictedCookieManager
       const GURL& url,
       const net::SiteForCookies& /*site_for_cookies*/,
       const url::Origin& top_frame_origin,
-      net::StorageAccessApiStatus storage_access_api_status,
+      net::StorageAccessApiStatus /*storage_access_api_status*/,
       bool is_ad_tagged,
       bool apply_devtools_overrides,
       const std::string& cookie) override;
 
-  void GetCookiesString(const GURL& url,
-                        const net::SiteForCookies& /*site_for_cookies*/,
-                        const url::Origin& top_frame_origin,
-                        net::StorageAccessApiStatus storage_access_api_status,
-                        bool get_version_shared_memory,
-                        bool is_ad_tagged,
-                        bool apply_devtools_overrides,
-                        bool force_disable_third_party_cookies,
-                        GetCookiesStringCallback callback) override;
+  void GetCookiesString(
+      const GURL& url,
+      const net::SiteForCookies& /*site_for_cookies*/,
+      const url::Origin& top_frame_origin,
+      net::StorageAccessApiStatus /*storage_access_api_status*/,
+      bool get_version_shared_memory,
+      bool is_ad_tagged,
+      bool apply_devtools_overrides,
+      bool force_disable_third_party_cookies,
+      GetCookiesStringCallback callback) override;
 
-  void CookiesEnabledFor(const GURL& url,
-                         const net::SiteForCookies& /*site_for_cookies*/,
-                         const url::Origin& top_frame_origin,
-                         net::StorageAccessApiStatus storage_access_api_status,
-                         bool apply_devtools_overrides,
-                         CookiesEnabledForCallback callback) override;
+  void CookiesEnabledFor(
+      const GURL& url,
+      const net::SiteForCookies& /*site_for_cookies*/,
+      const url::Origin& top_frame_origin,
+      net::StorageAccessApiStatus /*storage_access_api_status*/,
+      bool apply_devtools_overrides,
+      CookiesEnabledForCallback callback) override;
 
   // This one is internal.
   net::NetworkDelegate::PrivacySetting AllowCookies(const GURL& url) const;

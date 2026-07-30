@@ -1463,6 +1463,113 @@ TEST_P(SharedDictionaryManagerTest, LongestMatchDictionaryWin) {
   EXPECT_EQ("Longer match", std::string(dict->data()->data(), dict->size()));
 }
 
+TEST_P(SharedDictionaryManagerTest, MatchDestWinOverLongerMatchWithoutDest) {
+  std::unique_ptr<SharedDictionaryManager> manager =
+      CreateSharedDictionaryManager();
+  net::SharedDictionaryIsolationKey isolation_key(url::Origin::Create(kUrl1),
+                                                  kSite1);
+  scoped_refptr<SharedDictionaryStorage> storage =
+      manager->GetStorage(isolation_key);
+  ASSERT_TRUE(storage);
+
+  // Dictionary 1: Short match pattern, specifies matching destination for
+  // empty.
+  WriteDictionary(storage.get(), GURL("https://origin1.test/dict1"), "test*",
+                  {"Shorter match with dest"}, ", match-dest=(\"\")");
+
+  // Dictionary 2: Long match pattern, does NOT specify a destination.
+  WriteDictionary(storage.get(), GURL("https://origin1.test/dict2"),
+                  "*estfile*", {"Longer match without dest"});
+
+  if (GetManagerType() == TestManagerType::kOnDisk) {
+    FlushCacheTasks();
+  }
+
+  // Request destination is kEmpty ("").
+  auto dict = storage->GetDictionarySync(GURL("https://origin1.test/testfile"),
+                                         mojom::RequestDestination::kEmpty);
+  ASSERT_TRUE(dict);
+  net::TestCompletionCallback read_callback;
+  EXPECT_EQ(net::OK,
+            read_callback.GetResult(dict->ReadAll(read_callback.callback())));
+  EXPECT_EQ("Shorter match with dest",
+            std::string(dict->data()->data(), dict->size()));
+}
+
+TEST_P(SharedDictionaryManagerTest, MatchDestFilteringDocument) {
+  std::unique_ptr<SharedDictionaryManager> manager =
+      CreateSharedDictionaryManager();
+  net::SharedDictionaryIsolationKey isolation_key(url::Origin::Create(kUrl1),
+                                                  kSite1);
+  scoped_refptr<SharedDictionaryStorage> storage =
+      manager->GetStorage(isolation_key);
+  ASSERT_TRUE(storage);
+
+  // Dictionary 1: Short match pattern, specifies matching destination for
+  // empty.
+  WriteDictionary(storage.get(), GURL("https://origin1.test/dict1"), "test*",
+                  {"Shorter match with dest"}, ", match-dest=(\"\")");
+
+  // Dictionary 2: Long match pattern, does NOT specify a destination.
+  WriteDictionary(storage.get(), GURL("https://origin1.test/dict2"),
+                  "*estfile*", {"Longer match without dest"});
+
+  if (GetManagerType() == TestManagerType::kOnDisk) {
+    FlushCacheTasks();
+  }
+
+  // Request destination is kDocument.
+  auto dict = storage->GetDictionarySync(GURL("https://origin1.test/testfile"),
+                                         mojom::RequestDestination::kDocument);
+  ASSERT_TRUE(dict);
+  net::TestCompletionCallback read_callback;
+  EXPECT_EQ(net::OK,
+            read_callback.GetResult(dict->ReadAll(read_callback.callback())));
+  EXPECT_EQ("Longer match without dest",
+            std::string(dict->data()->data(), dict->size()));
+}
+
+TEST_P(SharedDictionaryManagerTest, MatchDestPriorityAndLength) {
+  std::unique_ptr<SharedDictionaryManager> manager =
+      CreateSharedDictionaryManager();
+  net::SharedDictionaryIsolationKey isolation_key(url::Origin::Create(kUrl1),
+                                                  kSite1);
+  scoped_refptr<SharedDictionaryStorage> storage =
+      manager->GetStorage(isolation_key);
+  ASSERT_TRUE(storage);
+
+  // Dictionary 1: Short match pattern, specifies matching destination for
+  // document.
+  WriteDictionary(storage.get(), GURL("https://origin1.test/dict1"), "test*",
+                  {"Shorter match with dest"}, ", match-dest=(\"document\")");
+
+  // Dictionary 2: Longer match pattern, specifies matching destination for
+  // document.
+  WriteDictionary(storage.get(), GURL("https://origin1.test/dict2"), "testfi*",
+                  {"Longer match with dest"}, ", match-dest=(\"document\")");
+
+  // Dictionary 3: Longest match pattern, does NOT specify a destination.
+  WriteDictionary(storage.get(), GURL("https://origin1.test/dict3"),
+                  "*estfile*", {"Longest match without dest"});
+
+  if (GetManagerType() == TestManagerType::kOnDisk) {
+    FlushCacheTasks();
+  }
+
+  // Request destination is kDocument.
+  // Prioritization should select Dictionary 2:
+  // - Matches destination (beats Dictionary 3)
+  // - Longer match pattern than Dictionary 1 (beats Dictionary 1)
+  auto dict = storage->GetDictionarySync(GURL("https://origin1.test/testfile"),
+                                         mojom::RequestDestination::kDocument);
+  ASSERT_TRUE(dict);
+  net::TestCompletionCallback read_callback;
+  EXPECT_EQ(net::OK,
+            read_callback.GetResult(dict->ReadAll(read_callback.callback())));
+  EXPECT_EQ("Longer match with dest",
+            std::string(dict->data()->data(), dict->size()));
+}
+
 TEST_P(SharedDictionaryManagerTest, LastFetchedDictionaryWin) {
   std::unique_ptr<SharedDictionaryManager> manager =
       CreateSharedDictionaryManager();

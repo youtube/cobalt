@@ -411,10 +411,17 @@ void CanvasHibernationHandler::Hibernate(
   TRACE_EVENT0("blink", __PRETTY_FUNCTION__);
   DCHECK(!IsHibernating());
 
-  CanvasResourceProvider* provider = delegate_->GetResourceProvider();
+  Canvas2DResourceProviderSharedImage* provider =
+      delegate_->GetSharedImageProvider();
   if (!provider) {
-    ReportHibernationEvent(
-        HibernationEvent::kHibernationAbortedBecauseNoSurface);
+    if (delegate_->HasResourceProvider()) {
+      ReportHibernationEvent(
+          HibernationEvent::
+              kHibernationAbortedDueToSwitchToUnacceleratedRendering);
+    } else {
+      ReportHibernationEvent(
+          HibernationEvent::kHibernationAbortedBecauseNoSurface);
+    }
     return;
   }
 

@@ -58,8 +58,6 @@ class GlicLauncherConfiguration {
       base::RepeatingClosure callback);
 
  private:
-  friend class GlicFreControllerTest;
-
   void OnEnabledPrefChanged();
   void OnGlobalHotkeyPrefChanged();
 

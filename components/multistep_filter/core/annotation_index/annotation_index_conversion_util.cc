@@ -15,6 +15,8 @@
 #include "components/multistep_filter/core/annotation_index/proto/annotation_index.pb.h"
 #include "components/multistep_filter/core/data_models/filter_annotation.h"
 #include "components/multistep_filter/core/data_models/filter_suggestion_candidate.h"
+#include "components/multistep_filter/core/multistep_filter_util.h"
+#include "url/gurl.h"
 
 namespace multistep_filter {
 
@@ -99,8 +101,11 @@ ExtractTaskAttributesRequest ToExtractTaskAttributesRequest(const GURL& url) {
 }
 
 std::optional<FilterAnnotation> ToFilterAnnotation(
+    const GURL& url,
     const ExtractTaskAttributesResponse& response) {
-  if (response.domain().empty() || response.task_type().empty() ||
+  const std::string domain = GetEtldPlusOne(url);
+  const std::string host(url.host());
+  if (domain.empty() || host.empty() || response.task_type().empty() ||
       response.task_attributes().empty()) {
     return std::nullopt;
   }
@@ -111,7 +116,7 @@ std::optional<FilterAnnotation> ToFilterAnnotation(
   }
 
   return FilterAnnotation(base::Uuid::GenerateRandomV4(), response.task_type(),
-                          response.domain(), base::Time::Now(),
+                          domain, host, base::Time::Now(),
                           std::move(attributes));
 }
 

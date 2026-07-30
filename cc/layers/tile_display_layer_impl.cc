@@ -203,6 +203,24 @@ gfx::ContentColorUsage TileDisplayLayerImpl::GetContentColorUsage() const {
   return content_color_usage_;
 }
 
+DamageReasonSet TileDisplayLayerImpl::GetDamageReasons() const {
+  DamageReasonSet reasons =
+      LayerImpl::GetDamageReasonsFromLayerPropertyChange();
+  if (has_animated_image_update_rect_) {
+    reasons.Put(DamageReason::kAnimatedImage);
+  }
+  if (has_non_animated_image_update_rect_ || !GetDamageRect().IsEmpty()) {
+    reasons.Put(DamageReason::kUntracked);
+  }
+  return reasons;
+}
+
+void TileDisplayLayerImpl::ResetChangeTracking() {
+  TileBasedLayerImpl<TileDisplayLayerTiling>::ResetChangeTracking();
+  has_animated_image_update_rect_ = false;
+  has_non_animated_image_update_rect_ = false;
+}
+
 void TileDisplayLayerImpl::RecordDamage(const gfx::Rect& damage_rect) {
   UnionWithExistingDamage(damage_rect);
 }

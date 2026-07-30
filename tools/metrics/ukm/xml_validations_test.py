@@ -398,6 +398,51 @@ class UkmXmlValidationTest(unittest.TestCase):
         ['boot', 'time', 'something'],
         xml_validations._split_words_in_metric_name('Boot.Time.Something'))
 
+  def test_event_names_insensitive_uniqueness(self):
+    good_ukm_config = self.to_ukm_config("""
+        <ukm-configuration>
+          <event name='Event1'/>
+          <event name='Event2'/>
+        </ukm-configuration>
+        """.strip())
+    validator = xml_validations.UkmXmlValidation(good_ukm_config)
+    success, errors = validator.check_event_names_case_insensitive_uniqueness()
+    self.assertTrue(success)
+    self.assertListEqual([], errors)
+
+    bad_ukm_config = self.to_ukm_config("""
+        <ukm-configuration>
+          <event name='Event1'/>
+          <event name='EVent1'/>
+        </ukm-configuration>
+        """.strip())
+    validator = xml_validations.UkmXmlValidation(bad_ukm_config)
+    success, errors = validator.check_event_names_case_insensitive_uniqueness()
+    self.assertFalse(success)
+    self.assertEqual(len(errors), 1)
+    self.assertIn(
+        "Event name 'EVent1' collides with 'Event1' case-insensitively.",
+        errors[0])
+
+  def test_metric_names_case_insensitive_uniqueness(self):
+    bad_ukm_config = self.to_ukm_config("""
+        <ukm-configuration>
+          <event name='Event1'>
+            <metric name='CPUTimeMs'/>
+          </event>
+          <event name='Event2'>
+            <metric name='CpuTimeMs'/>
+          </event>
+        </ukm-configuration>
+        """.strip())
+    validator = xml_validations.UkmXmlValidation(bad_ukm_config)
+    success, errors = validator.check_metric_names_case_insensitive_uniqueness()
+    self.assertFalse(success)
+    self.assertEqual(len(errors), 1)
+    self.assertIn(
+        "Metric name 'CpuTimeMs' in event 'Event2' collides with 'CPUTimeMs' "
+        'case-insensitively.', errors[0])
+
 
 if __name__ == '__main__':
   unittest.main()

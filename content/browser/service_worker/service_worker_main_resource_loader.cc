@@ -414,13 +414,6 @@ void ServiceWorkerMainResourceLoader::StartRequest(
         NOTREACHED();
       case network::mojom::ServiceWorkerRouterSourceType::
           kRaceNetworkAndFetchEvent:
-        if (base::FeatureList::IsEnabled(
-                features::
-                    kServiceWorkerStaticRouterRaceNetworkRequestPerformanceImprovement)) {
-          active_worker->CountFeature(
-              blink::mojom::WebFeature::
-                  kServiceWorkerStaticRouter_RaceNetworkAndFetchHandlerImprovement);
-        }
         break;
       case network::mojom::ServiceWorkerRouterSourceType::kRaceNetworkAndCache:
         return;
@@ -927,22 +920,32 @@ void ServiceWorkerMainResourceLoader::DidDispatchFetchEvent(
         cache_matcher_->cache_lookup_duration();
 
     // Block invalid responses from the static router.
+    network::CrossOriginEmbedderPolicy cross_origin_embedder_policy;
+    network::mojom::CrossOriginEmbedderPolicyReporter*
+        cross_origin_embedder_policy_reporter = nullptr;
+    network::DocumentIsolationPolicy document_isolation_policy;
+    network::mojom::DocumentIsolationPolicyReporter*
+        document_isolation_policy_reporter = nullptr;
     if (service_worker_client_ && service_worker_client_->container_host()) {
       ServiceWorkerContainerHostForClient* container_host =
           service_worker_client_->container_host();
-      if (!IsValidStaticRouterResponse(
-              resource_request_, response,
-              container_host->policy_container_policies()
-                  .cross_origin_embedder_policy,
-              container_host->cross_origin_embedder_policy_reporter().get(),
-              container_host->policy_container_policies()
-                  .document_isolation_policy,
-              container_host->document_isolation_policy_reporter().get()) &&
-          base::FeatureList::IsEnabled(
-              features::kServiceWorkerStaticRouterOpaqueCheck)) {
-        CommitCompleted(net::ERR_FAILED, "Invalid response from static router");
-        return;
-      }
+      cross_origin_embedder_policy = container_host->policy_container_policies()
+                                         .cross_origin_embedder_policy;
+      cross_origin_embedder_policy_reporter =
+          container_host->cross_origin_embedder_policy_reporter().get();
+      document_isolation_policy =
+          container_host->policy_container_policies().document_isolation_policy;
+      document_isolation_policy_reporter =
+          container_host->document_isolation_policy_reporter().get();
+    }
+    if (!IsValidStaticRouterResponse(
+            resource_request_, response, cross_origin_embedder_policy,
+            cross_origin_embedder_policy_reporter, document_isolation_policy,
+            document_isolation_policy_reporter) &&
+        base::FeatureList::IsEnabled(
+            features::kServiceWorkerStaticRouterOpaqueCheck)) {
+      CommitCompleted(net::ERR_FAILED, "Invalid response from static router");
+      return;
     }
   }
 
@@ -1447,16 +1450,13 @@ bool ServiceWorkerMainResourceLoader::ShouldDelayDeletion() {
   // destruction until following conditions are satisfied:
   // 1) Fetch event is completed.
   // 2) The data pipe for the fetch handler is successfully consumed or aborted
-  //    in `race_network_request_url_loader_client_`. This is considered only
-  //    when `kServiceWorkerStaticRouterRaceRequestFix2` is enabled:
+  //    in `race_network_request_url_loader_client_`.
   if (dispatched_preload_type() == DispatchedPreloadType::kRaceNetworkRequest) {
     CHECK(race_network_request_url_loader_client_.has_value());
     if (!did_dispatch_event_) {
       return true;
     }
-    if (base::FeatureList::IsEnabled(
-            features::kServiceWorkerStaticRouterRaceRequestFix2) &&
-        !race_network_request_url_loader_client_
+    if (!race_network_request_url_loader_client_
              ->clone_response_for_fetch_handler_completed_or_connection_closed()) {
       return true;
     }
@@ -1496,11 +1496,9 @@ void ServiceWorkerMainResourceLoader::DeleteIfNeeded() {
   if (!can_delete) {
     return;
   }
-  if (base::FeatureList::IsEnabled(
-          features::kServiceWorkerStaticRouterRaceRequestFix2) &&
-      ShouldDelayDeletion()) {
-    // Speculative fix to delay the object deletion until the fetch event
-    // completion. crbug.com/340949948 for more details.
+  if (ShouldDelayDeletion()) {
+    // Delay the object deletion until the fetch event completion.
+    // crbug.com/340949948 for more details.
     return;
   }
   delete this;

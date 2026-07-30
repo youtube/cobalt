@@ -21,7 +21,7 @@ SubscriptionEligibilityService::SubscriptionEligibilityService(
 }
 SubscriptionEligibilityService::~SubscriptionEligibilityService() = default;
 
-int32_t SubscriptionEligibilityService::GetAiSubscriptionTier() {
+int32_t SubscriptionEligibilityService::GetAiSubscriptionTier() const {
   return pref_service_->GetInteger(prefs::kAiSubscriptionTier);
 }
 

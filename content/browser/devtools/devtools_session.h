@@ -143,7 +143,8 @@ class DevToolsSession : public protocol::FrontendChannel,
 
   friend class FlattenedDevToolsProtocolTest;
 
-  blink::mojom::BrowserOriginatingSessionState* browser_agent_state() {
+  blink::mojom::BrowserOriginatingSessionState*
+  browser_originating_session_state() {
     return session_state_cookie_->browser_originating_session_state.get();
   }
 
@@ -285,7 +286,6 @@ class DevToolsSession : public protocol::FrontendChannel,
   // any of the waiting for response messages have been handled.
   // |session_state_cookie_| is nullptr before first attach.
   blink::mojom::DevToolsSessionStatePtr session_state_cookie_;
-  std::string script_to_evaluate_on_load_;
 
   base::flat_map<std::string, raw_ptr<DevToolsSession, CtnExperimental>>
       child_sessions_;

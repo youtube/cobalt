@@ -543,18 +543,6 @@ wtf_size_t GridLayoutTrackCollection::GetSetTrackCount(
   return sets_geometry_[set_index + 1].track_count;
 }
 
-Vector<wtf_size_t> GridLayoutTrackCollection::BuildTrackToSetMapping() const {
-  Vector<wtf_size_t> track_to_set(EndLineOfImplicitGrid());
-
-  wtf_size_t track_index = 0;
-  for (wtf_size_t i = 0; i < GetSetCount(); ++i) {
-    for (wtf_size_t j = 0; j < GetSetTrackCount(i); ++j) {
-      track_to_set[track_index++] = i;
-    }
-  }
-  return track_to_set;
-}
-
 LayoutUnit GridLayoutTrackCollection::StartExtraMargin(
     wtf_size_t set_index) const {
   return set_index ? accumulated_gutter_size_delta_ / 2
@@ -630,7 +618,8 @@ GridLayoutTrackCollection::CreateSubgridTrackCollection(
     const BoxStrut& subgrid_margin,
     const BoxStrut& subgrid_border_scrollbar_padding,
     GridTrackSizingDirection subgrid_track_direction,
-    bool is_opposite_direction_in_root_grid) const {
+    bool is_opposite_direction_in_root_grid,
+    bool is_subgrid_auto_placed) const {
   DCHECK_LE(begin_range_index, end_range_index);
   DCHECK_LT(end_range_index, ranges_.size());
 
@@ -706,17 +695,75 @@ GridLayoutTrackCollection::CreateSubgridTrackCollection(
     subgrid_sets_geometry.emplace_back(
         /* offset */ subgrid_border_scrollbar_padding_start);
 
+    auto ExtraMarginsFromParent =
+        [&](LayoutUnit& out_accumulated_start_extra_margin,
+            LayoutUnit& out_accumulated_end_extra_margin) {
+          // When the subgrid is auto-placed in this parent (e.g. inside a
+          // grid-lanes ancestor), its final position isn't known, so we reserve
+          // the largest extra margin it could pick up.
+          if (is_subgrid_auto_placed) {
+            out_accumulated_start_extra_margin =
+                accumulated_start_extra_margin_;
+            out_accumulated_end_extra_margin = accumulated_end_extra_margin_;
+
+            // If the subgrid spans all the tracks of the parent, no internal
+            // gap can ever be adjacent to the subgrid's boundary, so the
+            // parent's edge margin is the upper bound.
+            const wtf_size_t parent_track_count = EndLineOfImplicitGrid();
+            const wtf_size_t subgrid_track_count =
+                subgrid_track_collection->EndLineOfImplicitGrid();
+            if (parent_track_count == subgrid_track_count) {
+              return;
+            }
+
+            DCHECK_LT(subgrid_track_count, parent_track_count);
+
+            // If the difference between the parent and subgrid track counts is
+            // 1, then the subgrid will never be in a position where it spans a
+            // track that starts and ends at a parent gap at the same time.
+            // Ensure that the gap can only impact the max accumulated margin on
+            // one output value.
+            if (parent_track_count - subgrid_track_count == 1) {
+              if (out_accumulated_start_extra_margin >=
+                  out_accumulated_end_extra_margin) {
+                out_accumulated_end_extra_margin =
+                    accumulated_gutter_size_delta_ / 2;
+                return;
+              } else {
+                out_accumulated_start_extra_margin =
+                    accumulated_gutter_size_delta_ / 2;
+                return;
+              }
+            }
+
+            // In all other cases, any combination of start and end tracks are
+            // possible, so take the max of the margin and gap start/end;
+            out_accumulated_start_extra_margin =
+                std::max(out_accumulated_start_extra_margin,
+                         accumulated_gutter_size_delta_ / 2);
+            out_accumulated_end_extra_margin =
+                std::max(out_accumulated_end_extra_margin,
+                         accumulated_gutter_size_delta_ / 2);
+          } else {
+            out_accumulated_start_extra_margin =
+                StartExtraMargin(begin_set_index);
+            out_accumulated_end_extra_margin = EndExtraMargin(end_set_index);
+          }
+        };
+
+    LayoutUnit parent_start_extra_margin, parent_end_extra_margin;
+    ExtraMarginsFromParent(parent_start_extra_margin, parent_end_extra_margin);
+
     // Opposite direction subgrids adjust extra margin from the opposite side.
     subgrid_track_collection->accumulated_start_extra_margin_ =
         subgrid_margin_border_scrollbar_padding_start +
-        (is_opposite_direction_in_root_grid
-             ? EndExtraMargin(end_set_index)
-             : StartExtraMargin(begin_set_index));
+        (is_opposite_direction_in_root_grid ? parent_end_extra_margin
+                                            : parent_start_extra_margin);
 
     subgrid_track_collection->accumulated_end_extra_margin_ =
         subgrid_margin_border_scrollbar_padding_end +
-        (is_opposite_direction_in_root_grid ? StartExtraMargin(begin_set_index)
-                                            : EndExtraMargin(end_set_index));
+        (is_opposite_direction_in_root_grid ? parent_start_extra_margin
+                                            : parent_end_extra_margin);
 
     // Opposite direction subgrids iterate backwards.
     const wtf_size_t first_set_index =

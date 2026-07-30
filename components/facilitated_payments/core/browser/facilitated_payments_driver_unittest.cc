@@ -54,6 +54,7 @@ class MockPixManager : public PixManager {
               (const GURL&,
                const std::optional<GURL>&,
                const url::Origin&,
+               bool,
                std::optional<PixCodeRustValidationResult>,
                std::string,
                ukm::SourceId),

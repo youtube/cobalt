@@ -108,6 +108,7 @@
 #include "media/base/win/mf_initializer.h"
 #include "sandbox/policy/win/sandbox_warmup.h"
 #include "sandbox/win/src/sandbox.h"
+#include "services/webnn/public/cpp/webnn_sandbox_init.h"
 #endif
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
@@ -187,6 +188,7 @@ class ContentSandboxHelper : public gpu::GpuSandboxHelper {
 #endif  // BUILDFLAG(USE_VAAPI)
 #if BUILDFLAG(IS_WIN)
     media::PreSandboxMediaFoundationInitialization();
+    webnn::PreSandboxWebNNInitialization();
 #endif
 
     // On Linux, reading system memory doesn't work through the GPU sandbox.

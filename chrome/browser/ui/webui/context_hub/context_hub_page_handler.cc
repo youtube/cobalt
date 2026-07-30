@@ -4,8 +4,13 @@
 
 #include "chrome/browser/ui/webui/context_hub/context_hub_page_handler.h"
 
+#include "base/functional/bind.h"
+#include "chrome/browser/context_hub/context_hub_service.h"
+#include "chrome/browser/context_hub/context_hub_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "components/personal_context/proto/features/auto_todos.pb.h"
 #include "content/public/browser/web_contents.h"
+#include "url/gurl.h"
 
 ContextHubPageHandler::ContextHubPageHandler(
     mojo::PendingReceiver<browser::context_hub::mojom::PageHandler> receiver,
@@ -16,3 +21,54 @@ ContextHubPageHandler::ContextHubPageHandler(
       web_contents_(web_contents) {}
 
 ContextHubPageHandler::~ContextHubPageHandler() = default;
+
+void ContextHubPageHandler::GenerateAutoTodos(
+    GenerateAutoTodosCallback callback) {
+  context_hub::ContextHubService* service =
+      ContextHubServiceFactory::GetForProfile(profile_);
+  if (!service) {
+    std::move(callback).Run(std::nullopt);
+    return;
+  }
+
+  service->GenerateAutoTodos(
+      base::BindOnce(&ContextHubPageHandler::OnAutoTodosGenerated,
+                     weak_factory_.GetWeakPtr(), std::move(callback)));
+}
+
+void ContextHubPageHandler::OnAutoTodosGenerated(
+    GenerateAutoTodosCallback callback,
+    std::optional<personal_context::proto::AutoTodosResponse> result) {
+  std::optional<std::vector<browser::context_hub::mojom::AutoTodoItemPtr>>
+      mojo_todos;
+  if (result.has_value() && result.value().todos_size() > 0) {
+    mojo_todos.emplace();
+    for (const personal_context::proto::AutoTodoItem& todo :
+         result.value().todos()) {
+      browser::context_hub::mojom::AutoTodoItemPtr mojo_todo =
+          browser::context_hub::mojom::AutoTodoItem::New();
+      mojo_todo->title = todo.title();
+      mojo_todo->description = todo.description();
+      for (const personal_context::proto::SourceReference& ref :
+           todo.source_references()) {
+        if (ref.has_gmail()) {
+          browser::context_hub::mojom::GmailReferencePtr gmail =
+              browser::context_hub::mojom::GmailReference::New();
+          gmail->message_url = GURL(ref.gmail().message_url());
+          mojo_todo->source_references.push_back(
+              browser::context_hub::mojom::SourceReference::NewGmail(
+                  std::move(gmail)));
+        } else if (ref.has_photos()) {
+          browser::context_hub::mojom::PhotosReferencePtr photos =
+              browser::context_hub::mojom::PhotosReference::New();
+          photos->photos_url = GURL(ref.photos().photos_url());
+          mojo_todo->source_references.push_back(
+              browser::context_hub::mojom::SourceReference::NewPhotos(
+                  std::move(photos)));
+        }
+      }
+      mojo_todos->push_back(std::move(mojo_todo));
+    }
+  }
+  std::move(callback).Run(std::move(mojo_todos));
+}

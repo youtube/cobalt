@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<!-- TODO(b:507316824): Fill final strings, and prepare to be translateable. -->
+<!-- TODO(b/507316824,b/514254246): Fill final strings, and prepare to be translateable. -->
 
 <grit-part>
   <!-- Personal Context First Run Strings. -->
@@ -37,13 +37,36 @@
   <message name="IDS_PERSONAL_CONTEXT_NOTICE_SECONDARY_BUTTON" desc="" formatter_data="android_java" translateable="false">
     Ipsum
   </message>
-  <message name="IDS_PERSONAL_CONTEXT_SETTINGS_TITLE" desc="" formatter_data="android_java" translateable="false">
+  <message name="IDS_PERSONAL_CONTEXT_SETTINGS_TITLE" desc="" translateable="false">
     Lorem ipsum dolor sit amet
-  </message>
-  <message name="IDS_PERSONAL_CONTEXT_SETTINGS_DESCRIPTION_ANDROID" desc="" formatter_data="android_java" translateable="false">
-    Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet.
   </message>
   <message name="IDS_PERSONAL_CONTEXT_SETTINGS_DESCRIPTION_DESKTOP" desc="" translateable="false">
     Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet.
+  </message>
+
+  <!-- Autofill Settings Personal Context preferences strings. -->
+  <message name="IDS_PERSONAL_CONTEXT_AUTOFILL_SETTINGS_TITLE_ANDROID" desc="" formatter_data="android_java" translateable="false">
+    Lorem ipsum
+  </message>
+  <message name="IDS_PERSONAL_CONTEXT_AUTOFILL_SETTINGS_SUMMARY_ANDROID" desc="" formatter_data="android_java" translateable="false">
+    Lorem ipsum dolor sit
+  </message>
+  <message name="IDS_PERSONAL_CONTEXT_AUTOFILL_SETTINGS_SWITCH_TITLE_ANDROID" desc="" formatter_data="android_java" translateable="false">
+    Lorem ipsum dolor sit
+  </message>
+  <message name="IDS_PERSONAL_CONTEXT_AUTOFILL_SETTINGS_SWITCH_SUMMARY_ANDROID" desc="" formatter_data="android_java" translateable="false">
+    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+  </message>
+  <message name="IDS_PERSONAL_CONTEXT_AUTOFILL_SETTINGS_MANAGE_CONNECTED_APPS_TITLE_ANDROID" desc="" formatter_data="android_java" translateable="false">
+    Lorem ipsum
+  </message>
+  <message name="IDS_PERSONAL_CONTEXT_AUTOFILL_SETTINGS_MANAGE_CONNECTED_APPS_SUMMARY_ANDROID" desc="" formatter_data="android_java" translateable="false">
+    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+  </message>
+  <message name="IDS_PERSONAL_CONTEXT_AUTOFILL_SETTINGS_MANAGE_SUGGESTIONS_TITLE_ANDROID" desc="" formatter_data="android_java" translateable="false">
+    Lorem ipsum
+  </message>
+  <message name="IDS_PERSONAL_CONTEXT_AUTOFILL_SETTINGS_MANAGE_SUGGESTIONS_SUMMARY_ANDROID" desc="" formatter_data="android_java" translateable="false">
+    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
   </message>
 </grit-part>

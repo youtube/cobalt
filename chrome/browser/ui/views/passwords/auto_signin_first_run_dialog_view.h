@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_UI_VIEWS_PASSWORDS_AUTO_SIGNIN_FIRST_RUN_DIALOG_VIEW_H_
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "chrome/browser/ui/passwords/password_dialog_prompts.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/window/dialog_delegate.h"
@@ -35,10 +36,8 @@ class AutoSigninFirstRunDialogView : public views::DialogDelegateView,
   void InitWindow();
 
   // A weak pointer to the controller.
-  raw_ptr<CredentialManagerDialogController, AcrossTasksDanglingUntriaged>
-      controller_;
-  const raw_ptr<content::WebContents, AcrossTasksDanglingUntriaged>
-      web_contents_;
+  raw_ptr<CredentialManagerDialogController> controller_;
+  const base::WeakPtr<content::WebContents> web_contents_;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_PASSWORDS_AUTO_SIGNIN_FIRST_RUN_DIALOG_VIEW_H_

@@ -118,7 +118,7 @@ class ReportScheduler {
 
   void OnDMTokenUpdated();
 
-  void UploadFullReport(base::OnceClosure on_report_uploaded);
+  void UploadReport(base::OnceClosure on_report_uploaded);
 
  private:
   // Observes CloudReportingEnabled policy.
@@ -187,6 +187,9 @@ class ReportScheduler {
   ReportGenerationConfig active_report_generation_config_ =
       ReportGenerationConfig(ReportTrigger::kTriggerNone);
 
+  // The start time of the active report generation/upload process.
+  base::TimeTicks report_generation_start_time_;
+
   // The set of triggers that have fired while processing a report (a bitfield
   // of ReportTrigger values). They will be handled following completion of the
   // in-process report.
@@ -198,7 +201,7 @@ class ReportScheduler {
   // pref is true.
   bool require_policy_fetch_with_profile_id_;
 
-  ReportType full_report_type_;
+  ReportType status_report_type_;
 
   std::vector<std::unique_ptr<ReportUploader>> report_uploaders_for_test_;
 

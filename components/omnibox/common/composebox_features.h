@@ -17,6 +17,9 @@ namespace omnibox {
 // instead of in the co-browse tool bar and RHS dropdown.
 BASE_DECLARE_FEATURE(kContextManagementInComposebox);
 
+// If enabled, this feature will show tooltips in the composebox context menu.
+BASE_DECLARE_FEATURE(kContextMenuToolTips);
+
 // If enabled, this feature will gate the functionality of removing the existing
 // tab chips from the composebox and instead add favicon coins next to the "+"
 // button.
@@ -24,6 +27,13 @@ BASE_DECLARE_FEATURE(kTabFaviconChipsToCoins);
 
 // Gates context menu and favicon coins for omnibox.
 BASE_DECLARE_FEATURE(kContextManagementInOmnibox);
+
+// If enabled, the impressions of the context menu animation will be capped.
+BASE_DECLARE_FEATURE(kContextMenuAnimationLimiting);
+
+// If enabled, the composebox context menu will stay open on selection for
+// realbox.
+BASE_DECLARE_FEATURE(kKeepMenuOpenOnTabSelectForRealbox);
 
 }  // namespace omnibox
 

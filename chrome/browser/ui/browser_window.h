@@ -39,6 +39,7 @@
 
 class Browser;
 class BrowserView;
+class BrowserWindowInterface;
 class DownloadBubbleUIController;
 class ExclusiveAccessContext;
 class FindBar;
@@ -130,6 +131,18 @@ class BrowserWindow : public ui::BaseWindow {
   // window exists this returns null.
   static BrowserWindow* FindBrowserWindowWithWebContents(
       content::WebContents* web_contents);
+
+  // Returns the BrowserWindow associated with `browser`, or nullptr if one has
+  // not been created yet (e.g. during Browser construction) or `browser` has
+  // no associated NativeWindow.
+  //
+  // Prefer this over `Browser::window()` (which is being removed; see
+  // https://crbug.com/496674143). When you need the concrete subclass, call
+  // `BrowserView::GetBrowserViewForBrowser()` or
+  // `WebUIBrowserWindow::FromBrowser()` directly instead.
+  static BrowserWindow* FromBrowser(BrowserWindowInterface* browser);
+  static const BrowserWindow* FromBrowser(
+      const BrowserWindowInterface* browser);
 
   // Returns true if the browser window is on the current workspace (a.k.a.
   // virtual desktop) or if we can't tell. False otherwise.

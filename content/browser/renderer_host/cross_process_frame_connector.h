@@ -139,7 +139,6 @@ class CONTENT_EXPORT CrossProcessFrameConnector : public FrameConnector {
   const viz::LocalSurfaceId& GetLocalSurfaceId() override;
   const blink::mojom::ViewportIntersectionState& GetIntersectionState()
       override;
-  uint32_t GetCaptureSequenceNumber() override;
   const gfx::Rect& GetRectInParentViewInDip() override;
   const gfx::Size& GetLocalFrameSizeInDip() override;
   const gfx::Size& GetLocalFrameSizeInPixels() override;
@@ -264,8 +263,6 @@ class CONTENT_EXPORT CrossProcessFrameConnector : public FrameConnector {
   viz::LocalSurfaceId local_surface_id_;
 
   bool has_size_ = false;
-
-  uint32_t capture_sequence_number_ = 0u;
 
   // Gets the current RenderFrameHost for the
   // |frame_proxy_in_parent_renderer_|'s (i.e., the child frame's)

@@ -8,6 +8,7 @@
 #include "base/android/jni_android.h"
 #include "chrome/browser/notifications/scheduler/public/notification_scheduler_types.h"
 #include "chrome/browser/notifications/scheduler/public/tips_agent.h"
+#include "chrome/browser/tips/core/tips_types.h"
 
 namespace segmentation_platform {
 struct ClassificationResult;
@@ -44,8 +45,7 @@ class TipsAgentAndroid : public notifications::TipsAgent {
  private:
   friend class TipsAgentAndroidTest;
 
-  void ShowTipsPromo(
-      notifications::TipsNotificationsFeatureType feature_type) override;
+  void ShowTipsPromo(tips::TipsNotificationsFeatureType feature_type) override;
 };
 
 #endif  // CHROME_BROWSER_NOTIFICATIONS_SCHEDULER_TIPS_AGENT_ANDROID_H_

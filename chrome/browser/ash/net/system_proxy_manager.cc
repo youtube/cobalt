@@ -21,7 +21,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/ash/login/login_display_host.h"
 #include "chrome/browser/ui/login/login_handler.h"
-#include "chrome/common/pref_names.h"
 #include "chromeos/ash/components/dbus/system_proxy/system_proxy_client.h"
 #include "chromeos/ash/components/login/login_state/login_state.h"
 #include "chromeos/ash/components/network/network_event_log.h"
@@ -462,7 +461,7 @@ void SystemProxyManager::CloseAuthDialogForTest() {
 
 // static
 void SystemProxyManager::RegisterProfilePrefs(PrefRegistrySimple* registry) {
-  registry->RegisterStringPref(::prefs::kSystemProxyUserTrafficHostAndPort,
+  registry->RegisterStringPref(ash::prefs::kSystemProxyUserTrafficHostAndPort,
                                /*default_value=*/std::string());
 }
 
@@ -614,7 +613,7 @@ void SystemProxyManager::SetUserTrafficProxyPref(
     return;
   }
   primary_profile_->GetPrefs()->SetString(
-      ::prefs::kSystemProxyUserTrafficHostAndPort, user_traffic_address);
+      ash::prefs::kSystemProxyUserTrafficHostAndPort, user_traffic_address);
 }
 
 void SystemProxyManager::OnAuthenticationRequired(

@@ -6,13 +6,23 @@
 #define CHROME_BROWSER_GLIC_E2E_TEST_GLIC_E2E_TEST_H_
 
 #include "base/test/scoped_feature_list.h"
+#include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/autofill/captured_sites_test_utils.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/service/glic_instance_coordinator.h"
 #include "chrome/browser/signin/e2e_tests/live_test.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
 #include "chrome/test/interaction/webcontents_interaction_test_util.h"
+#include "ui/base/interaction/element_identifier.h"
 #include "ui/base/interaction/interactive_test.h"
+#include "ui/base/interaction/state_observer.h"
+
+// WARNING: This file is used by internal tests. Updates to the API here may
+// cause internal bot build/test failures, please use caution. This file
+// re-exports some functionality from elsewhere, just to ensure it isn't updated
+// inadvertently.
+
+class Profile;
 
 namespace content {
 class WebContents;
@@ -64,6 +74,12 @@ class GlicE2ETest : public InteractiveBrowserTestMixin<signin::test::LiveTest> {
   // Sets FRE status as completed.
   void SetFRECompletion();
 
+  // Sets the pref to enable or disable actuation on web for the user.
+  void SetUserEnabledActuationOnWeb(bool enabled);
+
+  // Helper function to clear focus from the omnibox.
+  ui::InteractionSequence::StepBuilder ClearOmniboxFocus();
+
   void ThrottleCurrentTabNetwork();
   void ThrottleWebContentsNetwork(content::WebContents* web_contents);
   void ThrottleGlicNetwork();
@@ -98,6 +114,35 @@ class GlicE2ETest : public InteractiveBrowserTestMixin<signin::test::LiveTest> {
       devtools_clients_;
   std::string test_account_label_;
 };
+
+// Observes Actor task state changes.
+class GlicActorTaskState
+    : public ui::test::StateObserver<actor::ActorTask::State> {
+ public:
+  using State = actor::ActorTask::State;
+
+  explicit GlicActorTaskState(Profile* profile);
+  ~GlicActorTaskState() override;
+
+ private:
+  void StateChanged(actor::ActorTask& task);
+
+  actor::TaskId task_id_;
+  base::CallbackListSubscription actor_task_listener_;
+};
+
+DECLARE_STATE_IDENTIFIER_VALUE(GlicActorTaskState, kGlicActorTaskState);
+
+extern const ui::ElementIdentifier kGlicHandoffButtonElementId;
+
+const base::Feature& GetGlicActionAllowlistFeature();
+const char* GetDisableActorSafetyChecksSwitch();
+const base::Feature& GetGlicLiveModeFeature();
+const base::Feature& GetGlicMultiInstanceFeature();
+ui::ElementIdentifier GetGlicButtonElementId();
+ui::ElementIdentifier GetTabStripElementId();
+ui::ElementIdentifier GetOmniboxElementId();
+ui::ElementIdentifier GetGlicViewElementId();
 
 }  // namespace glic::test
 

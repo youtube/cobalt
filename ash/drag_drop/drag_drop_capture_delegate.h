@@ -22,7 +22,7 @@ class DragDropTracker;
 
 class ASH_EXPORT DragDropCaptureDelegate {
  public:
-  using CancelDragDropCallback = base::RepeatingCallback<void(void)>;
+  using CancelDragDropCallback = base::RepeatingClosure;
 
   DragDropCaptureDelegate();
 

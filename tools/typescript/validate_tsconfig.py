@@ -154,7 +154,6 @@ def validateJavaScriptAllowed(source_dir, out_dir, platform):
         'chrome/browser/resources/chromeos/accessibility',
         'chrome/browser/resources/chromeos/account_manager',
         'chrome/browser/resources/chromeos/drive_internals',
-        'chrome/browser/resources/chromeos/emulator',
         'chrome/browser/resources/chromeos/power',
         'chrome/browser/resources/chromeos/slow',
         'chrome/browser/resources/chromeos/smb_shares/',

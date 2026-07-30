@@ -42,13 +42,33 @@
 #include "third_party/blink/renderer/core/dom/trigger_scoped_name.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
+#include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
+#include "third_party/blink/renderer/platform/heap/persistent.h"
 
 namespace blink {
 
 class AnimationTimeline;
 class Document;
 class PaintArtifactCompositor;
+
+class CORE_EXPORT SVGImageAnimationsToReset final
+    : public GarbageCollected<SVGImageAnimationsToReset> {
+ public:
+  void Trace(Visitor* visitor) const;
+
+  void Clear();
+  void Add(CSSAnimation&);
+  void Resume();
+
+  bool HasAnimationsForTesting() const {
+    return !animations_to_resume_.empty();
+  }
+  bool HasAnimationForTesting(const CSSAnimation&) const;
+
+ private:
+  HeapVector<Member<CSSAnimation>> animations_to_resume_;
+};
 
 class CORE_EXPORT DocumentAnimations final
     : public GarbageCollected<DocumentAnimations> {
@@ -82,6 +102,8 @@ class CORE_EXPORT DocumentAnimations final
   void MarkAnimationsCompositorPending();
 
   HeapVector<Member<Animation>> getAnimations(const TreeScope&);
+  void PrepareAnimationsForSVGImageReset(
+      SVGImageAnimationsToReset& animations_to_reset);
 
   // Detach compositor timelines to prevent further ticking of any animations
   // associated with the timelines.  Detached timelines may be subsequently

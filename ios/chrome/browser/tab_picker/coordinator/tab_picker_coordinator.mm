@@ -4,15 +4,17 @@
 
 #import "ios/chrome/browser/tab_picker/coordinator/tab_picker_coordinator.h"
 
+#import "base/check.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/public/commands/tab_picker_commands.h"
-#import "ios/chrome/browser/tab_picker/coordinator/tab_picker_logger.h"
+#import "ios/chrome/browser/tab_picker/coordinator/tab_picker_mediator.h"
+#import "ios/chrome/browser/tab_picker/public/tab_picker_logger.h"
 #import "ios/chrome/browser/tab_picker/ui/tab_picker_view_controller.h"
 #import "ios/chrome/browser/tab_switcher/tab_grid/base_grid/ui/base_grid_view_controller.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_collection_consumer.h"
 
-@interface TabPickerCoordinator ()
+@interface TabPickerCoordinator () <UIAdaptivePresentationControllerDelegate>
 
 // Returns `YES` if the coordinator is started.
 @property(nonatomic, assign) BOOL started;
@@ -29,14 +31,15 @@
 }
 
 - (void)start {
+  CHECK(self.params);
+  CHECK(self.params.snackbarPresenter);
   _viewController = [[TabPickerViewController alloc] init];
 
   _mediator = [[TabPickerMediator alloc]
-        initWithGridConsumer:_viewController.gridViewController
-           tabPickerConsumer:_viewController
-      tabsAttachmentDelegate:self];
-  _mediator.logger = self.logger;
-  _mediator.snackbarPresenter = self.snackbarPresenter;
+          initWithGridConsumer:_viewController.gridViewController
+             tabPickerConsumer:_viewController
+                        params:self.params
+      tabPickerCompletionBlock:self.tabPickerCompletionBlock];
   _mediator.browser = self.browser;
 
   _viewController.mutator = _mediator;
@@ -52,12 +55,13 @@
   _navigationController = [[UINavigationController alloc]
       initWithRootViewController:_viewController];
   _navigationController.modalPresentationStyle = UIModalPresentationFormSheet;
+  _navigationController.presentationController.delegate = self;
   [self.baseViewController presentViewController:_navigationController
                                         animated:YES
                                       completion:nil];
   self.started = YES;
-  if ([self.logger respondsToSelector:@selector(logTabPickerShown)]) {
-    [self.logger logTabPickerShown];
+  if ([self.params.logger respondsToSelector:@selector(logTabPickerShown)]) {
+    [self.params.logger logTabPickerShown];
   }
 }
 
@@ -65,8 +69,8 @@
   if (!self.started) {
     return;
   }
-  if ([self.logger respondsToSelector:@selector(logTabPickerHidden)]) {
-    [self.logger logTabPickerHidden];
+  if ([self.params.logger respondsToSelector:@selector(logTabPickerHidden)]) {
+    [self.params.logger logTabPickerHidden];
   }
   [_navigationController.presentingViewController
       dismissViewControllerAnimated:YES
@@ -78,21 +82,11 @@
   [super stop];
 }
 
-#pragma mark - TabsAttachmentDelegate
+#pragma mark - UIAdaptivePresentationControllerDelegate
 
-- (void)attachSelectedTabs:(TabPickerMediator*)tabPickerMediator
-       selectedWebStateIDs:(std::set<web::WebStateID>)selectedWebStateIDs
-         cachedWebStateIDs:(std::set<web::WebStateID>)cachedWebStateIDs {
-  [self.delegate attachSelectedTabsWithWebStateIDs:selectedWebStateIDs
-                                 cachedWebStateIDs:cachedWebStateIDs];
-}
-
-- (std::set<web::WebStateID>)preselectedWebStateIDs {
-  return [self.delegate attachedWebStateIDsInCurrentContext];
-}
-
-- (NSUInteger)maxTabAttachmentCount {
-  return [self.delegate maxTabAttachmentCount];
+- (void)presentationControllerDidDismiss:
+    (UIPresentationController*)presentationController {
+  [self.tabPickerHandler hideTabPicker];
 }
 
 @end

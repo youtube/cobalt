@@ -23,6 +23,7 @@
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/signin/model/identity_test_environment_browser_state_adaptor.h"
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/browser/web_selection/model/web_selection_response.h"
 #import "ios/chrome/browser/web_selection/model/web_selection_tab_helper.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
@@ -70,12 +71,8 @@ class ExplainWithGeminiMediatorTest : public PlatformTest {
         IdentityManagerFactory::GetInstance(),
         base::BindRepeating(IdentityTestEnvironmentBrowserStateAdaptor::
                                 BuildIdentityManagerForTests));
-    builder.AddTestingFactory(
-        SyncServiceFactory::GetInstance(),
-        base::BindOnce(
-            [](ProfileIOS* profile) -> std::unique_ptr<KeyedService> {
-              return std::make_unique<syncer::TestSyncService>();
-            }));
+    builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
+                              base::BindRepeating(&CreateTestSyncService));
     builder.AddTestingFactory(
         GeminiServiceFactory::GetInstance(),
         base::BindRepeating(
@@ -146,7 +143,7 @@ TEST_F(ExplainWithGeminiMediatorTest, ButtonTitle_Default) {
   EXPECT_NSEQ([mediator_ buttonTitle], @"Explain with Gemini");
 }
 
-// Tests that triggering the action calls the BWGHandler.
+// Tests that triggering the action calls the geminiHandler.
 TEST_F(ExplainWithGeminiMediatorTest, TriggerAction_StartsFlow) {
   // Wrapped in @autoreleasepool to ensure that the partial mock is deallocated
   // before the test fixture destroys the profile and its services, avoiding
@@ -158,17 +155,17 @@ TEST_F(ExplainWithGeminiMediatorTest, TriggerAction_StartsFlow) {
          {kExplainGeminiEditMenu, {{"PositionForExplainGeminiEditMenu", "1"}}}},
         {});
 
-    id mockBwgHandler = OCMProtocolMock(@protocol(BWGCommands));
+    id mockGeminiHandler = OCMProtocolMock(@protocol(GeminiCommands));
 
     id partialMock = OCMPartialMock(mediator_);
     OCMStub(
         [partialMock canPerformExplainWithGeminiInWebState:web_state_.get()])
         .andReturn(YES);
-    [partialMock setBWGHandler:mockBwgHandler];
+    [partialMock setGeminiHandler:mockGeminiHandler];
 
     NSString* testText = @"Hello World";
 
-    OCMExpect([mockBwgHandler
+    OCMExpect([mockGeminiHandler
         startGeminiFlowWithStartupState:[OCMArg checkWithBlock:^BOOL(id value) {
           GeminiStartupState* startupState = (GeminiStartupState*)value;
           return [startupState.prepopulatedPrompt containsString:testText];
@@ -177,7 +174,7 @@ TEST_F(ExplainWithGeminiMediatorTest, TriggerAction_StartsFlow) {
     [partialMock triggerExplainWithGeminiForText:testText
                                         webState:web_state_.get()];
 
-    EXPECT_OCMOCK_VERIFY(mockBwgHandler);
+    EXPECT_OCMOCK_VERIFY(mockGeminiHandler);
   }
 }
 
@@ -232,7 +229,6 @@ TEST_F(ExplainWithGeminiMediatorTest, TriggerAction_StartsFlow_NoMock) {
     base::test::ScopedFeatureList scoped_feature_list;
     scoped_feature_list.InitWithFeaturesAndParameters(
         {{kPageActionMenu, {}},
-         {kGeminiFloatyAllPages, {}},
          {kExplainGeminiEditMenu, {{"PositionForExplainGeminiEditMenu", "1"}}}},
         {});
 
@@ -251,14 +247,14 @@ TEST_F(ExplainWithGeminiMediatorTest, TriggerAction_StartsFlow_NoMock) {
     id mockSceneHandler = OCMProtocolMock(@protocol(SceneCommands));
     mediator_.sceneHandler = mockSceneHandler;
 
-    id mockBwgHandler = OCMProtocolMock(@protocol(BWGCommands));
-    mediator_.BWGHandler = mockBwgHandler;
+    id mockGeminiHandler = OCMProtocolMock(@protocol(GeminiCommands));
+    mediator_.geminiHandler = mockGeminiHandler;
 
     NSString* testText = @"Hello World";
 
     // Expect that starting the Gemini flow will be called with a prompt
     // containing the test text.
-    OCMExpect([mockBwgHandler
+    OCMExpect([mockGeminiHandler
         startGeminiFlowWithStartupState:[OCMArg checkWithBlock:^BOOL(id value) {
           GeminiStartupState* startupState = (GeminiStartupState*)value;
           return [startupState.prepopulatedPrompt containsString:testText];
@@ -267,7 +263,7 @@ TEST_F(ExplainWithGeminiMediatorTest, TriggerAction_StartsFlow_NoMock) {
     [mediator_ triggerExplainWithGeminiForText:testText
                                       webState:web_state_.get()];
 
-    EXPECT_OCMOCK_VERIFY(mockBwgHandler);
+    EXPECT_OCMOCK_VERIFY(mockGeminiHandler);
   }
 }
 

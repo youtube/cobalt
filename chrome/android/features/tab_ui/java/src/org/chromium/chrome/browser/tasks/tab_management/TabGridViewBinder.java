@@ -439,7 +439,7 @@ public class TabGridViewBinder {
      */
     private static void updateFavicon(ViewLookupCachingFrameLayout rootView, PropertyModel model) {
         ImageView faviconView = rootView.fastFindViewById(R.id.tab_favicon);
-        TabListViewBinderUtils.updateFavicon(model, faviconView);
+        TabListViewBinderUtils.updateFaviconAndVisibility(model, faviconView);
     }
 
     /**

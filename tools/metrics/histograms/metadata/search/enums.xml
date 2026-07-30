@@ -587,16 +587,6 @@ chromium-metrics-reviews@google.com.
   <int value="9" label="Program changed"/>
 </enum>
 
-<!-- LINT.IfChange(SearchPolicyConflictType) -->
-
-<enum name="SearchPolicyConflictType">
-  <int value="0" label="No conflict"/>
-  <int value="1" label="Conflict with featured search engine"/>
-  <int value="2" label="Conflict with non-featured search engine"/>
-</enum>
-
-<!-- LINT.ThenChange(/components/search_engines/template_url_service.h:SearchPolicyConflictType) -->
-
 <!-- LINT.IfChange(SearchPromotionDefaultBrowserType) -->
 
 <enum name="SearchPromotionDefaultBrowserType">

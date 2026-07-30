@@ -4,6 +4,7 @@
 
 #include "android_webview/common/aw_features.h"
 
+#include "base/feature.h"
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
 
@@ -49,6 +50,19 @@ BASE_FEATURE(kWebViewFileSystemAccess, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Force the default WebAuthn state to be APP mode.
 BASE_FEATURE(kWebViewForceWebAuthn, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Gate text-size-adjust on whether the app called
+// setLayoutAlgorithm(TEXT_AUTOSIZING).
+BASE_FEATURE(kWebViewGateTextSizeAdjustOnTextAutosizing,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Install the profiling client with memory_system::Initializer. If this is
+// enabled the profiler MAY be started by
+// HeapProfilerController::StartIfEnabled, which is controlled by the
+// cross-platform features in
+// components/heap_profiling/in_process/heap_profiler_parameters.h. Otherwise
+// the profiler will never be started.
+BASE_FEATURE(kWebViewMemoryProfilingClient, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables lazy profile creation in WebView.
 BASE_FEATURE(kWebViewProfileStoreNotTriggerStartup,
@@ -310,4 +324,57 @@ BASE_FEATURE(kWebViewNavigate, base::FEATURE_ENABLED_BY_DEFAULT);
 // Kill switch for WebSettings setShouldDownloadFavicons method.
 BASE_FEATURE(kWebViewSetDownloadFaviconsEnabled,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Partial kill switch for the HTTP Cache Quota API.
+//
+// When enabled, HTTP Cache quota can be configured by the WebView embedder.
+// When disabled, the setters are no-ops and defaults are restored.
+//
+// Note that getters still function regardless of whether this feature is
+// enabled, though they may not reflect any embedder configured values.
+BASE_FEATURE(kWebViewHttpCacheQuotaApi, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// When enabled, the quota for the Default profile may be configured.
+const base::FeatureParam<bool> kWebViewHttpCacheQuotaApiAllowForDefaultProfile{
+    &kWebViewHttpCacheQuotaApi, "AllowForDefaultProfile", true};
+
+// When enabled, the quota for a profile may be shrunk below the default quota.
+const base::FeatureParam<bool> kWebViewHttpCacheQuotaApiAllowShrinking{
+    &kWebViewHttpCacheQuotaApi, "AllowShrinking", true};
+
+// When enabled, quota changes are propagated to the network service at runtime,
+// without having to wait for an app restart.
+const base::FeatureParam<bool> kWebViewHttpCacheQuotaApiRuntimeUpdate{
+    &kWebViewHttpCacheQuotaApi, "RuntimeUpdate", true};
+
+// The minimum cache quota size that clamps any default or embedder-supplied
+// value. MUST be >= 1, and < 2**31.
+const base::FeatureParam<int> kWebViewHttpCacheQuotaApiMinimum{
+    &kWebViewHttpCacheQuotaApi, "Minimum", 5 * 1024 * 1024};
+
+// The maximum cache quota size that clamps any default or embedder-supplied
+// value. MUST be >= Minimum.
+//
+// 320MiB is chosen as the default because it mirrors the upper limits used in
+// both android_webview's and net's default quota logic, and greater values
+// haven't previously been tested in WebView.
+const base::FeatureParam<int> kWebViewHttpCacheQuotaApiMaximum{
+    &kWebViewHttpCacheQuotaApi, "Maximum", 320 * 1024 * 1024};
+
+// When enabled, the code cache quota is derived from the embedder-supplied HTTP
+// cache quota. When disabled, it is instead derived from the default HTTP cache
+// quota size.
+const base::FeatureParam<bool> kWebViewHttpCacheQuotaApiAffectsCodeCache{
+    &kWebViewHttpCacheQuotaApi, "AffectsCodeCache", true};
+
+// When enabled, using the cache quota API will initialize the cache backend if
+// it has not already been initialized. This may trigger evictions more readily.
+const base::FeatureParam<bool> kWebViewHttpCacheQuotaApiForceBackendInit{
+    &kWebViewHttpCacheQuotaApi, "ForceBackendInit", true};
+
+// When enabled (which is the default state) a navigation will download a
+// Favicon. When disabled (which can be done through Finch or Flag UI) a
+// navigation will not download a Favicon.
+BASE_FEATURE(kWebViewDownloadFavicons, base::FEATURE_ENABLED_BY_DEFAULT);
+
 }  // namespace android_webview::features

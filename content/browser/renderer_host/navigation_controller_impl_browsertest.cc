@@ -24753,4 +24753,126 @@ IN_PROC_BROWSER_TEST_P(
   EXPECT_EQ(0.0, EvalJs(contents(), "window.scrollY").ExtractDouble());
 }
 
+namespace {
+
+// Body of the ReloadReplacesInitialEntryAfterCanceledNavigation* tests.
+// Runs the shared scenario for the given `first_reload_type`: a new tab whose
+// first browser-initiated navigation is canceled before commit, then reloaded.
+// Verifies the reload properly replaces the initial entry and that a
+// subsequent normal reload also works.
+//
+// Skips the test if the kReplaceInitialEntryForReload feature is disabled.
+void RunReloadReplacesInitialEntryAfterCanceledNavigationTest(
+    Shell* opener,
+    net::EmbeddedTestServer* server,
+    ReloadType first_reload_type) {
+  if (!base::FeatureList::IsEnabled(features::kReplaceInitialEntryForReload)) {
+    GTEST_SKIP() << "Test requires kReplaceInitialEntryForReload";
+  }
+
+  // ControllableHttpResponses must be registered before the server starts.
+  net::test_server::ControllableHttpResponse reload_response(server, "/target");
+  net::test_server::ControllableHttpResponse second_reload_response(server,
+                                                                    "/target");
+  ASSERT_TRUE(server->Start());
+
+  // Create a new window directly (not via window.open) to get a tab in the
+  // initial navigation state. Unlike window.open(''), this does NOT
+  // synchronously commit about:blank, so IsInitialNavigation() stays true.
+  Shell* new_shell =
+      Shell::CreateNewWindow(opener->web_contents()->GetBrowserContext(),
+                             GURL(), nullptr, gfx::Size());
+  WebContentsImpl* new_contents =
+      static_cast<WebContentsImpl*>(new_shell->web_contents());
+  NavigationControllerImpl& controller = new_contents->GetController();
+
+  ASSERT_EQ(1, controller.GetEntryCount());
+  ASSERT_TRUE(controller.GetLastCommittedEntry()->IsInitialEntry());
+  ASSERT_TRUE(controller.IsInitialNavigation());
+
+  // Start a browser-initiated navigation to /target using a URL that will
+  // never commit (the server won't respond). This creates a pending_entry_ on
+  // the NavigationController.
+  GURL target_url(server->GetURL("/target"));
+  FrameTreeNode* root = new_contents->GetPrimaryFrameTree().root();
+  TestNavigationManager nav_manager(new_contents, target_url);
+  new_shell->LoadURL(target_url);
+  ASSERT_TRUE(nav_manager.WaitForRequestStart());
+
+  // Cancel the navigation before it commits. The new tab should still be on
+  // the initial NavigationEntry, and the pending entry should be preserved
+  // because the tab is an unmodified blank tab (IsUnmodifiedBlankTab() ==
+  // true).
+  new_contents->Stop();
+  EXPECT_EQ(1, controller.GetEntryCount());
+  EXPECT_TRUE(controller.GetLastCommittedEntry()->IsInitialEntry());
+  EXPECT_TRUE(controller.IsInitialNavigation());
+  ASSERT_TRUE(controller.GetPendingEntry())
+      << "Pending entry should be preserved on an unmodified blank tab";
+  EXPECT_EQ(target_url, controller.GetPendingEntry()->GetURL());
+
+  // Browser-initiated reload. Reload() finds the preserved pending_entry_ and
+  // re-navigates to target_url. CreateNavigationRequestFromEntry sets
+  // should_replace_current_entry=true so the reload properly replaces the
+  // initial entry.
+  FrameNavigateParamsCapturer capturer(root);
+  controller.Reload(first_reload_type, true);
+  ASSERT_TRUE(root->navigation_request())
+      << "Reload should have created a navigation request";
+  ASSERT_TRUE(
+      root->navigation_request()->common_params().should_replace_current_entry)
+      << "Browser-side fix should set should_replace_current_entry";
+
+  // Send a proper response for the reload request.
+  reload_response.WaitForRequest();
+  reload_response.Send(net::HTTP_OK, "text/html",
+                       "<html><body>loaded</body></html>");
+  reload_response.Done();
+  capturer.Wait();
+
+  // The reload should have replaced the initial entry and loaded the page.
+  EXPECT_TRUE(capturer.did_replace_entry());
+  EXPECT_EQ(1, controller.GetEntryCount());
+  EXPECT_EQ(target_url, controller.GetLastCommittedEntry()->GetURL());
+  EXPECT_FALSE(controller.GetLastCommittedEntry()->IsInitialEntry());
+
+  // A subsequent reload should also work without issues.
+  FrameNavigateParamsCapturer second_capturer(root);
+  controller.Reload(ReloadType::NORMAL, true);
+  second_reload_response.WaitForRequest();
+  second_reload_response.Send(net::HTTP_OK, "text/html",
+                              "<html><body>loaded again</body></html>");
+  second_reload_response.Done();
+  second_capturer.Wait();
+  EXPECT_EQ(1, controller.GetEntryCount());
+  EXPECT_EQ(target_url, controller.GetLastCommittedEntry()->GetURL());
+}
+
+}  // namespace
+
+// Tests that reloading a new tab whose first navigation was canceled will
+// replace the initial NavigationEntry (rather than leaving it as about:blank)
+// when the kReplaceInitialEntryForReload feature is enabled.
+//
+// Scenario: a new tab is opened, a browser-initiated navigation starts but is
+// canceled before it commits (e.g. user types a URL then hits stop), then the
+// user hits reload. Without the fix, the reload doesn't set
+// should_replace_current_entry, so the initial entry is not properly replaced.
+IN_PROC_BROWSER_TEST_P(NavigationControllerBrowserTestNoServer,
+                       ReloadReplacesInitialEntryAfterCanceledNavigation) {
+  RunReloadReplacesInitialEntryAfterCanceledNavigationTest(
+      shell(), embedded_test_server(), ReloadType::NORMAL);
+}
+
+// Same as ReloadReplacesInitialEntryAfterCanceledNavigation, but exercises
+// Shift+Reload (ReloadType::BYPASSING_CACHE). Without extending the fix to
+// cover this reload type, shift-reload before the initial entry has been
+// replaced would hit the same stuck-state bug as a normal reload.
+IN_PROC_BROWSER_TEST_P(
+    NavigationControllerBrowserTestNoServer,
+    ReloadReplacesInitialEntryAfterCanceledNavigation_BypassingCache) {
+  RunReloadReplacesInitialEntryAfterCanceledNavigationTest(
+      shell(), embedded_test_server(), ReloadType::BYPASSING_CACHE);
+}
+
 }  // namespace content

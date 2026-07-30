@@ -33,6 +33,7 @@ class SystemMediaSourceWin {
   SystemMediaSourceWin& operator=(const SystemMediaSourceWin&) = delete;
   ~SystemMediaSourceWin();
   friend class base::NoDestructor<SystemMediaSourceWin>;
+  friend class SystemMediaSourceWinTest;
 
   void OnLaunchUriSuccess(uint8_t launched);
   void OnLaunchUriFailure(HRESULT result);

@@ -67,7 +67,8 @@ class TestAutofillKeyboardAccessoryControllerAutofillClient
 
   MOCK_METHOD(void,
               ShowAtMemoryBottomSheet,
-              (base::span<const Suggestion>),
+              (base::span<const Suggestion>,
+               base::WeakPtr<AutofillSuggestionDelegate>),
               (override));
 
  private:

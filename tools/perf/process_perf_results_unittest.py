@@ -17,8 +17,6 @@ import tempfile
 import unittest
 from unittest import mock
 
-import six
-
 from core import path_util
 
 path_util.AddBuildUtilToPath()
@@ -33,8 +31,6 @@ import process_perf_results as ppr_module
 import json_util
 
 UUID_SIZE = 36
-
-BUILTIN_MODULE = '__builtin__' if six.PY2 else 'builtins'
 
 
 class _FakeLogdogStream(object):
@@ -55,22 +51,21 @@ class DataFormatParsingUnitTest(unittest.TestCase):
     ppr_module._data_format_cache = {}
 
   def testGtest(self):
-    with mock.patch(BUILTIN_MODULE + '.open', mock.mock_open(read_data='{}')):
+    with mock.patch('builtins.open', mock.mock_open(read_data='{}')):
       self.assertTrue(ppr_module._is_gtest('test.json'))
       self.assertFalse(ppr_module._is_histogram('test.json'))
     self.assertTrue(ppr_module._is_gtest('test.json'))
     self.assertFalse(ppr_module._is_histogram('test.json'))
 
   def testChartJSON(self):
-    with mock.patch(BUILTIN_MODULE + '.open',
-                    mock.mock_open(read_data='{"charts": 1}')):
+    with mock.patch('builtins.open', mock.mock_open(read_data='{"charts": 1}')):
       self.assertFalse(ppr_module._is_gtest('test.json'))
       self.assertFalse(ppr_module._is_histogram('test.json'))
     self.assertFalse(ppr_module._is_gtest('test.json'))
     self.assertFalse(ppr_module._is_histogram('test.json'))
 
   def testHistogram(self):
-    with mock.patch(BUILTIN_MODULE + '.open', mock.mock_open(read_data='[]')):
+    with mock.patch('builtins.open', mock.mock_open(read_data='[]')):
       self.assertTrue(ppr_module._is_histogram('test.json'))
       self.assertFalse(ppr_module._is_gtest('test.json'))
     self.assertTrue(ppr_module._is_histogram('test.json'))

@@ -75,7 +75,8 @@ using SigninChoiceCallbackVariant =
     std::variant<SigninChoiceCallback,
                  signin::SigninChoiceWithConfirmAndRetryCallback>;
 
-struct EnterpriseProfileCreationDialogParams {
+class EnterpriseProfileCreationDialogParams {
+ public:
   EnterpriseProfileCreationDialogParams(
       AccountInfo account_info,
       bool is_oidc_account,
@@ -91,18 +92,32 @@ struct EnterpriseProfileCreationDialogParams {
   EnterpriseProfileCreationDialogParams& operator=(
       const EnterpriseProfileCreationDialogParams&) = delete;
 
-  AccountInfo account_info;
-  bool is_oidc_account;
-  bool user_already_signed_in;
+  static std::unique_ptr<EnterpriseProfileCreationDialogParams>
+  CreateForDeviceSignalsDisclaimer(
+      AccountInfo account_info,
+      SigninChoiceCallbackVariant process_user_choice_callback,
+      base::OnceClosure done_callback = base::DoNothing());
+
+  const AccountInfo account_info;
+  const bool is_oidc_account = false;
+  const bool user_already_signed_in = false;
   // True if the user was already signed in before
   // starting the sync flow. Used by UIs to decide whether the signin
   // proposition value should be shown, and what state should the user be in if
   // they cancel.
-  bool profile_creation_required_by_policy;
-  bool show_link_data_option;
+  const bool profile_creation_required_by_policy = false;
+  const bool show_link_data_option = false;
+  const bool is_device_signals_disclaimer = false;
   SigninChoiceCallbackVariant process_user_choice_callback;
-  base::OnceClosure done_callback;
-  base::RepeatingClosure retry_callback;
+  base::OnceClosure done_callback = base::DoNothing();
+  base::RepeatingClosure retry_callback = base::DoNothing();
+
+ private:
+  // Used only for creating the params for the device disclaimer screen.
+  EnterpriseProfileCreationDialogParams(
+      AccountInfo account_info,
+      SigninChoiceCallbackVariant process_user_choice_callback,
+      base::OnceClosure done_callback);
 };
 
 // Gets a webview within an auth page that has the specified parent frame name

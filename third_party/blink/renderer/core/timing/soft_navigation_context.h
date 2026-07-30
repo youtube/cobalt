@@ -22,6 +22,7 @@
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/prefinalizer.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
+#include "third_party/perfetto/include/perfetto/tracing/track.h"
 #include "ui/gfx/geometry/rect_f.h"
 
 namespace blink {
@@ -190,6 +191,7 @@ class CORE_EXPORT SoftNavigationContext
   bool WasEmitted() const { return was_emitted_; }
 
   void WriteIntoTrace(perfetto::TracedValue context) const;
+  const perfetto::NamedTrack& GetTracingTrack() const { return track_; }
 
   // Called when `SoftNavigationHeuristics` is shut down on frame detach.
   void Shutdown();
@@ -227,6 +229,7 @@ class CORE_EXPORT SoftNavigationContext
 
   size_t num_modified_dom_nodes_last_animation_frame_ = 0;
   uint64_t painted_area_last_animation_frame_ = 0;
+  const perfetto::NamedTrack track_;
 };
 
 }  // namespace blink

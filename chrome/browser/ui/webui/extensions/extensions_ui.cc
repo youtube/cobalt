@@ -42,7 +42,7 @@
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "extensions/browser/extension_prefs.h"
-#include "extensions/browser/manifest_v2_experiment_manager.h"
+#include "extensions/browser/manifest_v2_handler.h"
 #include "extensions/common/extension_features.h"
 #include "extensions/common/extension_urls.h"
 #include "extensions/grit/extensions_browser_resources.h"
@@ -490,10 +490,9 @@ content::WebUIDataSource* CreateAndAddExtensionsSource(Profile* profile,
   source->AddBoolean("enableGlobalScopedShortcuts", IsGlobalShortcutEnabled());
 
   // MV2 deprecation.
-  auto* mv2_experiment_manager = ManifestV2ExperimentManager::Get(profile);
-  source->AddBoolean(
-      "MV2DeprecationNoticeDismissed",
-      mv2_experiment_manager->DidUserAcknowledgeNoticeGlobally());
+  auto* mv2_handler = ManifestV2Handler::Get(profile);
+  source->AddBoolean("MV2DeprecationNoticeDismissed",
+                     mv2_handler->DidUserAcknowledgeNoticeGlobally());
 
 #if BUILDFLAG(IS_ANDROID)
   source->AddResourcePath("images/product_logo.png",
@@ -508,10 +507,9 @@ content::WebUIDataSource* CreateAndAddExtensionsSource(Profile* profile,
           l10n_util::GetStringUTF16(IDS_SHORT_PRODUCT_OS_NAME)));
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
-  source->AddString("webuiRefresh2026",
-                    base::FeatureList::IsEnabled(features::kWebuiRefresh2026)
-                        ? "webui-refresh-2026"
-                        : "");
+  source->AddString("webuiRefresh2026", features::IsWebuiRefresh2026Enabled()
+                                            ? "webui-refresh-2026"
+                                            : "");
 
   return source;
 }

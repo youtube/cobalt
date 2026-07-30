@@ -62,7 +62,7 @@ class IOSFamilyLinkUserMetricsProviderTest : public PlatformTest {
         IdentityManagerFactory::GetForProfile(profile), email,
         signin::ConsentLevel::kSignin);
 
-    AccountCapabilitiesTestMutator mutator(&account.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account);
     mutator.set_is_subject_to_parental_controls(
         is_subject_to_parental_controls);
     mutator.set_is_opted_in_to_parental_supervision(

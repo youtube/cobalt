@@ -10,44 +10,34 @@
 #include "base/functional/callback.h"
 #include "ios/chrome/browser/level_up/model/task_types.h"
 
-// Struct that stores information about a task in the Level Up feature.
-struct TaskInfo {
-  TaskInfo(TaskType task_type,
-           int title_id,
-           int task_description_id,
-           const std::string& icon_symbol_name,
-           bool is_custom_symbol,
-           LevelUpTaskCategory category,
-           const std::string& trigger_action,
-           base::RepeatingClosure navigation_action);
-  ~TaskInfo();
-
-  TaskInfo(const TaskInfo& other);
-  TaskInfo& operator=(const TaskInfo& other);
+// Interface that provides information about a task in the Level Up feature.
+class TaskInfo {
+ public:
+  virtual ~TaskInfo();
 
   // The unique identifier for the task.
-  TaskType task_type;
+  virtual TaskType GetTaskType() const = 0;
 
-  // Resource ID for the localized title of the task.
-  int title_id;
+  // The localized title of the task.
+  virtual std::string GetTitle() const = 0;
 
-  // Resource ID for the localized description of the task.
-  int task_description_id;
+  // The localized description of the task.
+  virtual std::string GetTaskDescription() const = 0;
 
   // Name of the icon asset associated with the task.
-  std::string icon_symbol_name;
+  virtual std::string GetIconSymbolName() const = 0;
 
   // Whether the icon_symbol_name is a custom asset in the bundle.
-  bool is_custom_symbol;
+  virtual bool IsCustomSymbol() const = 0;
 
-  // The category this task belongs to (e.g., for grouping).
-  LevelUpTaskCategory category;
+  // The category this task belongs to.
+  virtual LevelUpTaskCategory GetCategory() const = 0;
 
   // The user action string that triggers completion of this task.
-  std::string trigger_action;
+  virtual std::string GetTriggerUserAction() const = 0;
 
   // Callback to navigate the user to the task's entry point.
-  base::RepeatingClosure navigation_action;
+  virtual base::RepeatingClosure GetNavigationAction() const = 0;
 };
 
 #endif  // IOS_CHROME_BROWSER_LEVEL_UP_MODEL_TASK_INFO_H_

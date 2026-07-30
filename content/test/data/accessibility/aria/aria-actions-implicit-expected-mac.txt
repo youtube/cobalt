@@ -1,0 +1,26 @@
+AXWebArea
+++AXPopUpButton AXValue='hello world'
+++++AXMenuItem AXValue='hello world'
+++++++AXGroup
+++++++++AXButton AXTitle='hello world'
+++AXList
+++++AXMenuItem AXCustomActionNamesForTesting=['hello world'] AXValue='Item 1 hello world'
+++++++AXStaticText AXValue='Item 1'
+++++++AXButton AXTitle='hello world'
+++++AXMenuItem AXCustomActionNamesForTesting=['search engine'] AXValue='Item 2search engine'
+++++++AXStaticText AXValue='Item 2'
+++++++AXLink AXDescription='search engine'
+++++++++AXStaticText AXValue='search engine'
+++AXMenu
+++++AXMenuItem AXCustomActionNamesForTesting=['hello world'] AXTitle='File1 hello world'
+++++++AXStaticText AXValue='File1'
+++++++AXButton AXTitle='hello world'
+++++AXMenuItem AXCustomActionNamesForTesting=['search engine'] AXTitle='File2search engine'
+++++++AXStaticText AXValue='File2'
+++++++AXLink AXDescription='search engine'
+++++++++AXStaticText AXValue='search engine'
+++AXMenu
+++++AXMenuItem AXCustomActionNamesForTesting=['Save'] AXTitle='Download Save'
+++++++AXStaticText AXValue='Download '
+++++++AXButton AXTitle='Save'
+++++++AXButton

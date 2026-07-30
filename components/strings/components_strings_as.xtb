@@ -269,6 +269,7 @@
 <translation id="1407135791313364759">সকলো খোলক</translation>
 <translation id="1408696301184924537">পৰৱৰ্তী সময়ত এই IBANটো স্বয়ংক্ৰিয়ভাৱে পূৰ কৰিবলৈ, এইটো আপোনাৰ Google একাউণ্টত ছেভ কৰক</translation>
 <translation id="1408787208417187241">ওপৰৰ অংশত তিনিবাৰ ষ্টে'পল কৰক</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />। <ph name="SUGGESTION_TYPE" />। গোট <ph name="GROUP_HEADER" />ত <ph name="NUM_MATCHES_IN_GROUP" /> টাৰ ভিতৰত <ph name="MATCH_POSITION" /> টো।</translation>
 <translation id="1410365862999780287">এই ডিভাইচটো ব্যৱহাৰ কৰা অন্য লোকে আপোনাৰ কার্যকলাপ দেখা নাপাব, গতিকে আপুনি অধিক ব্যক্তিগতভাৱে ব্ৰাউজ কৰিব পাৰে। এইটোৱে Googleকে ধৰি আপুনি চোৱা ৱেবছাইটসমূহে ডেটা কেনেকৈ সংগ্ৰহ কৰে আৰু সেইসমূহে ব্যৱহাৰ কৰা সেৱাসমূহ সলনি নকৰিব। ডাউনল’ড, বুকমাৰ্ক আৰু পঢ়াৰ সূচীৰ বস্তুবোৰ ছেভ কৰা হ’ব।</translation>
 <translation id="1410941016594047814">এনভেল’প আমন্ত্ৰণ</translation>
 <translation id="1413235258620101697">এই কাৰ্ডখনৰ CVC এনক্ৰিপ্ট কৰা হ’ব আৰু ক্ষিপ্ৰভাৱে চেকআউট কৰিবলৈ Google Walletত ছেভ কৰা হ’ব</translation>
@@ -660,6 +661,7 @@
 <translation id="2045871135676061132">এনভেল’প ব্যক্তিগত</translation>
 <translation id="2046951263634619614">কিতাপৰ খুচুৰা বিক্ৰেতা</translation>
 <translation id="2048261947532620704">পৃষ্ঠাখন অনুবাদ কৰি থকা হৈছে</translation>
+<translation id="2055016614992422886">বাৰ্তালাপ</translation>
 <translation id="2059166748188874810">পৌৰসভা</translation>
 <translation id="2059202684901022309">২২ x ৩৪ ইঞ্চি</translation>
 <translation id="2064568741209980952">ক্ৰেডিট আৰু ঋণ</translation>
@@ -3012,6 +3014,7 @@
 <translation id="5718601519531438273">পাছপ’ৰ্ট আৰু চালকৰ অনুজ্ঞাপত্ৰৰ দৰে তথ্য অন্তৰ্ভুক্ত কৰে</translation>
 <translation id="5720705177508910913">বর্তমানৰ ব্যৱহাৰকাৰী</translation>
 <translation id="5720895412771013401">ডেস্কটপ কম্পিউটাৰ</translation>
+<translation id="5721147290164931316">আপোনাৰ ফ’নৰ জৰিয়তে ছাইন ইন কৰিবলৈ স্কেন কৰক</translation>
 <translation id="5721367770070844253">{count,plural, =1{{website_1}}=2{{website_1}, {website_2}}=3{{website_1}, {website_2} আৰু ১ টা}one{{website_1}, {website_2} আৰু {more_count} টা}other{{website_1}, {website_2} আৰু {more_count} টা}}</translation>
 <translation id="572328651809341494">শেহতীয়াকৈ বন্ধ কৰা টেব</translation>
 <translation id="5723873695528696965">আপোনাৰ MIDI ডিভাইচ নিয়ন্ত্ৰণ আৰু ৰিপ্ৰ’গ্ৰাম</translation>
@@ -3552,6 +3555,7 @@
 <translation id="6550245281449521513">মাউছ লক কৰাৰ অনুমতি নাই</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />, নতুন</translation>
 <translation id="6552566579578780089">পৰিশোধ</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />। <ph name="SUGGESTION_TYPE" />। গোট <ph name="GROUP_HEADER" />ত <ph name="NUM_MATCHES_IN_GROUP" /> টাৰ ভিতৰত <ph name="MATCH_POSITION" /> টো।</translation>
 <translation id="6554732001434021288"><ph name="NUM_DAYS" /> দিনৰ পূৰ্বে শেষবাৰ চাইছিল</translation>
 <translation id="6556866813142980365">ৰিডু</translation>
 <translation id="6557715786897013164">১৪ x ১৭ ইঞ্চি</translation>
@@ -4256,6 +4260,7 @@
 <translation id="7646681339175747202">আপুনি এইমাত্ৰ ব্যৱহাৰ কৰা পাছৱৰ্ডটো এটা ডেটা উলংঘনত পোৱা গৈছে। Google Password Managerএ এই পাছৱৰ্ডটো এতিয়াই সলনি কৰাটো চুপাৰিছ কৰে।</translation>
 <translation id="7647206758853451655">প্ৰিণ্টৰ গুণগত মান</translation>
 <translation id="7648133459447652947">আপোনাৰ কাৰ্ছৰডাল দেখুৱাবলৈ, এপ্‌সমূহ সলনি কৰিবলৈ, পৃষ্ঠাটো পুনৰ ল’ড কৰিবলে বা উভতি যাবলৈ</translation>
+<translation id="764847582138410250">আপোনাৰ ফ’নৰ জৰিয়তে ছাইন ইন কৰিবলৈ স্কেন কৰক</translation>
 <translation id="7648527891719919697">আপুনি আপোনাৰ <ph name="BEGIN_ANDROID_SETTINGS_LINK" />Androidৰ ছেটিঙ<ph name="END_ANDROID_SETTINGS_LINK" />ত সুৰক্ষা সম্পৰ্কীয় উন্নত সুবিধা অন কৰি থোৱাৰ বাবে এই ছাইটটো অৱৰোধিত হৈ থাকিব। <ph name="BEGIN_LEARN_MORE_LINK" />এই সকীয়নিৰ বিষয়ে অধিক জানক<ph name="END_LEARN_MORE_LINK" /></translation>
 <translation id="7648992873808071793">এই ডিভাইচত ফাইলসমূহ ষ্ট’ৰ কৰক</translation>
 <translation id="7649070708921625228">সহায়</translation>

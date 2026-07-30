@@ -583,6 +583,7 @@ WebSocket::WebSocket(
       auth_handler_(std::move(auth_handler)),
       header_client_(std::move(header_client)),
       pending_connection_tracker_(std::move(pending_connection_tracker)),
+      url_(url),
       delay_(delay),
       options_(options),
       traffic_annotation_(traffic_annotation),
@@ -707,7 +708,7 @@ int WebSocket::OnBeforeStartTransaction(
     net::NetworkDelegate::OnBeforeStartTransactionCallback callback) {
   if (header_client_) {
     header_client_->OnBeforeSendHeaders(
-        headers,
+        url_, headers,
         base::BindOnce(&WebSocket::OnBeforeSendHeadersComplete,
                        weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
     return net::ERR_IO_PENDING;

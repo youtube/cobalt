@@ -205,7 +205,7 @@ public class AccessibilityActionAndEventTracker {
             // For announcements, track the text announced to the user.
             case AccessibilityEvent.TYPE_ANNOUNCEMENT:
                 {
-                    builder.append(" - [");
+                    builder.append(" [");
                     if (event.getText() != null) {
                         builder.append(event.getText().get(0).toString());
                     }
@@ -217,7 +217,7 @@ public class AccessibilityActionAndEventTracker {
             case AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED:
                 {
                     if (event.getFromIndex() != -1 && event.getToIndex() != -1) {
-                        builder.append(" - [");
+                        builder.append(" [");
                         builder.append(event.getFromIndex());
                         builder.append(", ");
                         builder.append(event.getToIndex());
@@ -229,7 +229,7 @@ public class AccessibilityActionAndEventTracker {
             // For text traversal, track the To and From indices.
             case AccessibilityEvent.TYPE_VIEW_TEXT_TRAVERSED_AT_MOVEMENT_GRANULARITY:
                 {
-                    builder.append(" - [");
+                    builder.append(" [");
                     builder.append(event.getFromIndex());
                     builder.append(", ");
                     builder.append(event.getToIndex());
@@ -245,7 +245,7 @@ public class AccessibilityActionAndEventTracker {
             // For appearance of dialogs, track the content types.
             case AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED:
                 {
-                    builder.append(" - [contentTypes=");
+                    builder.append(" [contentTypes=");
                     builder.append(contentChangeTypeToString(event.getContentChangeTypes()));
                     builder.append("]");
                     if (event.getText() != null) {
@@ -258,39 +258,15 @@ public class AccessibilityActionAndEventTracker {
             // CONTENT_CHANGE_TYPE_STATE_DESCRIPTION flag.
             case AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED:
                 {
-                    builder.append(" - [contentTypes=");
+                    builder.append(" [contentTypes=");
                     builder.append(contentChangeTypeToString(event.getContentChangeTypes()));
                     builder.append("]");
-
-                    String computedLabelForTesting = null;
-                    if (webContentsAccessibilityImpl != null && virtualViewId != View.NO_ID) {
-                        AccessibilityNodeInfoCompat info =
-                                webContentsAccessibilityImpl.createAccessibilityNodeInfo(
-                                        virtualViewId);
-                        if (info != null) {
-                            CharSequence text = info.getText();
-                            if (text != null && text.length() > 0) {
-                                computedLabelForTesting = text.toString();
-                            } else {
-                                CharSequence contentDescription = info.getContentDescription();
-                                if (contentDescription != null && contentDescription.length() > 0) {
-                                    computedLabelForTesting = contentDescription.toString();
-                                }
-                            }
-                            info.recycle();
-                        }
-                    }
-                    if (computedLabelForTesting != null && !computedLabelForTesting.isEmpty()) {
-                        builder.append(" [");
-                        builder.append(computedLabelForTesting);
-                        builder.append("]");
-                    }
                     break;
                 }
 
             case AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED:
                 {
-                    builder.append(" - [");
+                    builder.append(" [");
                     builder.append(event.getFromIndex());
                     builder.append(", ");
                     builder.append(event.getAddedCount());
@@ -308,7 +284,7 @@ public class AccessibilityActionAndEventTracker {
 
             case AccessibilityEvent.TYPE_VIEW_SCROLLED:
                 {
-                    builder.append(" - [scrollDeltaX=").append(event.getScrollDeltaX());
+                    builder.append(" [scrollDeltaX=").append(event.getScrollDeltaX());
                     builder.append(", scrollDeltaY=").append(event.getScrollDeltaY());
                     builder.append("]");
                     break;
@@ -316,19 +292,17 @@ public class AccessibilityActionAndEventTracker {
 
             case AccessibilityEvent.TYPE_WINDOWS_CHANGED:
                 {
-                    builder.append(" - [windowChanges=")
-                            .append(event.getWindowChanges())
-                            .append("]");
+                    builder.append(" [windowChanges=").append(event.getWindowChanges()).append("]");
                     break;
                 }
 
             case AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED:
                 {
                     if (event.getText() != null) {
-                        builder.append(" - [text=").append(event.getText()).append("]");
+                        builder.append(" [text=").append(event.getText()).append("]");
                     }
                     if (event.getParcelableData() != null) {
-                        builder.append(" - [parcelableData=")
+                        builder.append(" [parcelableData=")
                                 .append(event.getParcelableData())
                                 .append("]");
                     }
@@ -354,8 +328,85 @@ public class AccessibilityActionAndEventTracker {
                 break;
         }
 
+        if (eventHasSourceNode(event.getEventType())) {
+            String label =
+                    getSourceNodeLabelForTesting(webContentsAccessibilityImpl, virtualViewId);
+            if (label != null && !label.isEmpty()) {
+                builder.append(" on ");
+                builder.append(label);
+            }
+        }
+
         // Return generated String.
         return builder.toString();
+    }
+
+    private static boolean eventHasSourceNode(int eventType) {
+        switch (eventType) {
+            case AccessibilityEvent.TYPE_VIEW_CLICKED:
+            case AccessibilityEvent.TYPE_VIEW_LONG_CLICKED:
+            case AccessibilityEvent.TYPE_VIEW_SELECTED:
+            case AccessibilityEvent.TYPE_VIEW_FOCUSED:
+            case AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED:
+            case AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED:
+            case AccessibilityEvent.TYPE_VIEW_HOVER_ENTER:
+            case AccessibilityEvent.TYPE_VIEW_HOVER_EXIT:
+            case AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED:
+            case AccessibilityEvent.TYPE_VIEW_SCROLLED:
+            case AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED:
+            case AccessibilityEvent.TYPE_ANNOUNCEMENT:
+            case AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED:
+            case AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUS_CLEARED:
+            case AccessibilityEvent.TYPE_VIEW_TEXT_TRAVERSED_AT_MOVEMENT_GRANULARITY:
+            case AccessibilityEvent.TYPE_VIEW_CONTEXT_CLICKED:
+            case AccessibilityEvent.TYPE_ASSIST_READING_CONTEXT:
+            case AccessibilityEvent.TYPE_VIEW_TARGETED_BY_SCROLL:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static @Nullable String getSourceNodeLabelForTesting(
+            @Nullable WebContentsAccessibilityImpl webContentsAccessibilityImpl,
+            int virtualViewId) {
+        if (webContentsAccessibilityImpl == null || virtualViewId == View.NO_ID) {
+            return null;
+        }
+        AccessibilityNodeInfoCompat info =
+                webContentsAccessibilityImpl.createAccessibilityNodeInfo(virtualViewId);
+        if (info == null) {
+            return null;
+        }
+        StringBuilder sb = new StringBuilder();
+
+        String nodeDescription = toStringOrNull(info.getText());
+        if (nodeDescription == null) nodeDescription = toStringOrNull(info.getContentDescription());
+        if (nodeDescription == null) nodeDescription = toStringOrNull(info.getHintText());
+        if (nodeDescription == null) nodeDescription = toStringOrNull(info.getPaneTitle());
+        if (nodeDescription == null)
+            nodeDescription = toStringOrNull(info.getSupplementalDescription());
+
+        if (nodeDescription != null && !nodeDescription.isEmpty()) {
+            if (sb.length() > 0) {
+                sb.append(" ");
+            }
+            sb.append("[").append(nodeDescription).append("]");
+        }
+
+        CharSequence classNameSeq = info.getClassName();
+        if (classNameSeq != null && classNameSeq.length() > 0) {
+            if (sb.length() > 0) {
+                sb.append(" ");
+            }
+            sb.append("class_name=").append(classNameSeq.toString());
+        }
+
+        return sb.toString();
+    }
+
+    private static @Nullable String toStringOrNull(@Nullable CharSequence cs) {
+        return (cs != null && cs.length() > 0) ? cs.toString() : null;
     }
 
     private static String contentChangeTypeToString(int contentChangeTypes) {

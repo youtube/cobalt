@@ -29,6 +29,9 @@ class TRACING_EXPORT InclusionPolicy {
   // `thread_id`.
   bool ShouldRecordDiskIoEvents(uint32_t thread_id) const;
 
+  // Returns true if call stacks should be recorded for the given `thread_id`.
+  bool ShouldRecordCallStacks(uint32_t thread_id) const;
+
  private:
   const raw_ref<const ActiveProcesses> active_processes_;
 };

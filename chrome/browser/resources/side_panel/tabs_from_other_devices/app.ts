@@ -11,8 +11,8 @@ import 'chrome://resources/cr_elements/icons.html.js';
 import '/strings.m.js';
 
 import {ColorChangeUpdater} from 'chrome://resources/cr_components/color_change_listener/colors_css_updater.js';
-import type {ForeignSession, ForeignSessionPageHandlerRemote, ForeignSessionTab} from 'chrome://resources/cr_components/history/foreign_sessions.mojom-webui.js';
-import {ForeignSessionPageCallbackRouter, ForeignSessionPageHandler} from 'chrome://resources/cr_components/history/foreign_sessions.mojom-webui.js';
+import type {ForeignSession, ForeignSessionTab} from 'chrome://resources/cr_components/history/foreign_sessions.mojom-webui.js';
+import {browserProxyFactory} from 'chrome://resources/cr_components/history/foreign_sessions.mojom-webui.js';
 import type {CrActionMenuElement} from 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
@@ -59,10 +59,7 @@ export class TabsFromOtherDevicesAppElement extends
   protected accessor showScreenshots_: boolean =
       loadTimeData.getBoolean('showScreenshots');
 
-  private foreignSessionHandler: ForeignSessionPageHandlerRemote =
-      ForeignSessionPageHandler.getRemote();
-  private foreignSessionCallbackRouter: ForeignSessionPageCallbackRouter =
-      new ForeignSessionPageCallbackRouter();
+  private browserProxy_ = browserProxyFactory.getInstance();
 
   constructor() {
     super();
@@ -73,15 +70,14 @@ export class TabsFromOtherDevicesAppElement extends
     super.connectedCallback();
     ColorChangeUpdater.forDocument().refreshColorsCss();
 
-    this.foreignSessionCallbackRouter.onForeignSessionsChanged.addListener(
+    this.browserProxy_.callbackRouter.onForeignSessionsChanged.addListener(
         (sessionList: ForeignSession[]) =>
             this.setForeignSessions_(sessionList));
 
-    this.foreignSessionHandler.getForeignSessions().then(
+    this.browserProxy_.handler.getForeignSessions().then(
         (res: {sessions: ForeignSession[]}) => {
           this.setForeignSessions_(res.sessions);
-          this.foreignSessionHandler.setPage(
-              this.foreignSessionCallbackRouter.$.bindNewPipeAndPassRemote());
+          this.browserProxy_.handler.showUi();
         });
   }
 
@@ -135,7 +131,7 @@ export class TabsFromOtherDevicesAppElement extends
       metaKey: e.metaKey,
       shiftKey: e.shiftKey,
     };
-    this.foreignSessionHandler.openForeignSessionTab(
+    this.browserProxy_.handler.openForeignSessionTab(
         sessionTag, tabId, modifiers);
   }
 

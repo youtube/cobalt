@@ -85,13 +85,17 @@ class CfmBrowserServiceTest : public testing::Test {
             mojo::PendingRemote<mojom::CfmServiceAdaptor>
                 pending_adaptor_remote,
             mojom::CfmServiceContext::ProvideAdaptorCallback callback) {
-          ASSERT_EQ(interface_name, service_id);
+          EXPECT_EQ(interface_name, service_id);
           adaptor_remote_.Bind(std::move(pending_adaptor_remote));
           std::move(callback).Run(true);
+          run_loop.Quit();
         }));
 
-    EXPECT_TRUE(GetClient()->FakeEmitSignal(interface_name));
-    run_loop.RunUntilIdle();
+    const bool signal_emitted = GetClient()->FakeEmitSignal(interface_name);
+    EXPECT_TRUE(signal_emitted);
+    if (signal_emitted) {
+      run_loop.Run();
+    }
 
     EXPECT_TRUE(adaptor_remote_.is_connected());
 

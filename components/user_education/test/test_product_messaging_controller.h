@@ -7,21 +7,22 @@
 
 #include <initializer_list>
 
-#include "components/user_education/common/product_messaging_controller.h"
+#include "base/memory/weak_ptr.h"
+#include "components/user_education/product_messaging/product_messaging_controller.h"
 
 namespace user_education::test {
 
 // Simulates a notice that requests to show in the `ProductMessagingController`.
 // Will hold the handle until `Release()` is called.
-class TestNotice {
+class TestProductMessage {
  public:
-  explicit TestNotice(ProductMessagingController& controller,
-                      RequiredNoticeId id,
-                      std::initializer_list<RequiredNoticeId> show_after = {},
-                      std::initializer_list<RequiredNoticeId> blocked_by = {});
-  TestNotice(const TestNotice&) = delete;
-  void operator=(const TestNotice&) = delete;
-  ~TestNotice();
+  explicit TestProductMessage(
+      ProductMessagingController& controller,
+      ProductMessageKey key,
+      std::optional<base::TimeDelta> timeout = std::nullopt);
+  TestProductMessage(const TestProductMessage&) = delete;
+  void operator=(const TestProductMessage&) = delete;
+  ~TestProductMessage();
 
   // Mark that the notice was shown.
   void SetShown();
@@ -29,16 +30,20 @@ class TestNotice {
   // Release the handle (which must be held).
   void Release();
 
-  RequiredNoticeId id() const { return id_; }
+  ProductMessageKey key() const { return key_; }
   bool received_priority() const { return shown_; }
   bool has_priority() const { return static_cast<bool>(handle_); }
 
- private:
-  void OnReadyToShow(RequiredNoticePriorityHandle handle);
+  void SetSupersededCallback(ProductMessageStatusCallback callback);
 
-  const RequiredNoticeId id_;
+ private:
+  void OnReadyToShow(ProductMessagingHandle handle);
+
+  const ProductMessageKey key_;
   bool shown_ = false;
-  RequiredNoticePriorityHandle handle_;
+  ProductMessageStatusCallback pending_status_callback_;
+  ProductMessagingHandle handle_;
+  base::WeakPtrFactory<TestProductMessage> weak_ptr_factory_{this};
 };
 
 }  // namespace user_education::test

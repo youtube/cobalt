@@ -48,6 +48,7 @@ constexpr char kEmailVerification[] = "emailverification";
 constexpr char kDictionary[] = "dictionary";
 constexpr char kSpeculationRules[] = "speculationrules";
 constexpr char kSharedStorageWorklet[] = "sharedstorageworklet";
+constexpr char kText[] = "text";
 
 constexpr auto kRequestDestinationToStringMap =
     base::MakeFixedFlatMap<network::mojom::RequestDestination, const char*>(
@@ -68,6 +69,7 @@ constexpr auto kRequestDestinationToStringMap =
          {network::mojom::RequestDestination::kServiceWorker, kServiceWorker},
          {network::mojom::RequestDestination::kSharedWorker, kSharedWorker},
          {network::mojom::RequestDestination::kStyle, kStyle},
+         {network::mojom::RequestDestination::kText, kText},
          {network::mojom::RequestDestination::kTrack, kTrack},
          {network::mojom::RequestDestination::kVideo, kVideo},
          {network::mojom::RequestDestination::kWebBundle, kWebBundle},
@@ -104,6 +106,7 @@ constexpr auto kRequestDestinationFromStringMap =
          {kServiceWorker, network::mojom::RequestDestination::kServiceWorker},
          {kSharedWorker, network::mojom::RequestDestination::kSharedWorker},
          {kStyle, network::mojom::RequestDestination::kStyle},
+         {kText, network::mojom::RequestDestination::kText},
          {kTrack, network::mojom::RequestDestination::kTrack},
          {kVideo, network::mojom::RequestDestination::kVideo},
          {kWebBundle, network::mojom::RequestDestination::kWebBundle},

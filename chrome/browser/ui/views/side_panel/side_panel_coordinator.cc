@@ -176,7 +176,9 @@ void SidePanelCoordinator::Show(
     if (side_panel->state() == SidePanel::State::kClosing) {
       side_panel->Open(/*animated=*/!suppress_animations);
       side_panel_toolbar_pinning_controller_->UpdateActiveState(
-          entry->key(), entry->should_show_ephemerally_in_toolbar());
+          entry->key(),
+          side_panel_toolbar_pinning_controller_->ShouldShowActiveInToolbar(
+              entry));
       entry->OnEntryHideCancelled();
     }
     return;
@@ -317,7 +319,9 @@ void SidePanelCoordinator::PopulateSidePanel(
   if (toolbar_button_provider &&
       toolbar_button_provider->GetPinnedToolbarActions()) {
     side_panel_toolbar_pinning_controller_->UpdateActiveState(
-        entry->key(), entry->should_show_ephemerally_in_toolbar());
+        entry->key(),
+        side_panel_toolbar_pinning_controller_->ShouldShowActiveInToolbar(
+            entry));
     // Notify active state change only if the entry ids for the side panel are
     // different. This is to ensure extensions container isn't notified if we
     // switch between different extensions side panels or between global to

@@ -10,6 +10,7 @@
 #include "base/uuid.h"
 #include "components/bookmarks/browser/bookmark_node.h"
 #include "components/bookmarks/browser/bookmark_uuids.h"
+#include "components/sync/base/server_defined_unique_tags.h"
 #include "components/sync/protocol/bookmark_specifics.pb.h"
 #include "components/sync/protocol/data_type_state.pb.h"
 #include "components/sync/protocol/entity_data.h"
@@ -73,13 +74,13 @@ TEST(ParentGuidPreprocessingTest, ShouldReturnGuidForPermanentFolders) {
   syncer::UpdateResponseDataList updates;
   updates.emplace_back();
   updates.back().entity.id = kBookmarkBarId;
-  updates.back().entity.server_defined_unique_tag = "bookmark_bar";
+  updates.back().entity.server_defined_unique_tag = syncer::kBookmarkBarTag;
   updates.emplace_back();
   updates.back().entity.id = kMobileBookmarksId;
-  updates.back().entity.server_defined_unique_tag = "synced_bookmarks";
+  updates.back().entity.server_defined_unique_tag = syncer::kSyncedBookmarksTag;
   updates.emplace_back();
   updates.back().entity.id = kOtherBookmarksId;
-  updates.back().entity.server_defined_unique_tag = "other_bookmarks";
+  updates.back().entity.server_defined_unique_tag = syncer::kOtherBookmarksTag;
 
   EXPECT_THAT(GetGuidForSyncIdInUpdatesForTesting(updates, kBookmarkBarId),
               Eq(bookmarks::kBookmarkBarNodeUuid));
@@ -102,7 +103,7 @@ TEST(ParentGuidPreprocessingTest, ShouldPopulateParentGuidInInitialUpdates) {
   syncer::UpdateResponseDataList updates;
   updates.emplace_back();
   updates.back().entity.id = kBookmarkBarId;
-  updates.back().entity.server_defined_unique_tag = "bookmark_bar";
+  updates.back().entity.server_defined_unique_tag = syncer::kBookmarkBarTag;
   updates.emplace_back();
   updates.back().entity.id = kParentFolderId;
   updates.back().entity.legacy_parent_id = kBookmarkBarId;
@@ -138,7 +139,7 @@ TEST(ParentGuidPreprocessingTest,
   syncer::UpdateResponseDataList updates;
   updates.emplace_back();
   updates.back().entity.id = kBookmarkBarId;
-  updates.back().entity.server_defined_unique_tag = "bookmark_bar";
+  updates.back().entity.server_defined_unique_tag = syncer::kBookmarkBarTag;
   updates.emplace_back();
   updates.back().entity.id = kFolderId;
   updates.back().entity.legacy_parent_id = kBookmarkBarId;
@@ -173,22 +174,23 @@ TEST(ParentGuidPreprocessingTest,
   // BookmarkModelView is used here to pass DCHECKs that require that permanent
   // folders are tracked.
   TestBookmarkModelView bookmark_model;
-  tracker->Add(bookmark_model.bookmark_bar_node(), /*sync_id=*/kBookmarkBarId,
-               /*server_version=*/0, /*creation_time=*/base::Time::Now(),
-               /*specifics=*/fake_specifics);
-  tracker->Add(bookmark_model.other_node(), /*sync_id=*/"other_node_id",
-               /*server_version=*/0, /*creation_time=*/base::Time::Now(),
-               /*specifics=*/fake_specifics);
-  tracker->Add(bookmark_model.mobile_node(), /*sync_id=*/"mobile_node_id",
-               /*server_version=*/0, /*creation_time=*/base::Time::Now(),
-               /*specifics=*/fake_specifics);
+  tracker->AddRemote(bookmark_model.bookmark_bar_node(),
+                     /*sync_id=*/kBookmarkBarId,
+                     /*server_version=*/0, /*creation_time=*/base::Time::Now(),
+                     /*specifics=*/fake_specifics);
+  tracker->AddRemote(bookmark_model.other_node(), /*sync_id=*/"other_node_id",
+                     /*server_version=*/0, /*creation_time=*/base::Time::Now(),
+                     /*specifics=*/fake_specifics);
+  tracker->AddRemote(bookmark_model.mobile_node(), /*sync_id=*/"mobile_node_id",
+                     /*server_version=*/0, /*creation_time=*/base::Time::Now(),
+                     /*specifics=*/fake_specifics);
 
   // Add one regular (non-permanent) node.
   bookmarks::BookmarkNode tracked_node(/*id=*/1, base::Uuid::GenerateRandomV4(),
                                        GURL());
-  tracker->Add(&tracked_node, kSyncId,
-               /*server_version=*/0, /*creation_time=*/base::Time::Now(),
-               /*specifics=*/fake_specifics);
+  tracker->AddRemote(&tracked_node, kSyncId,
+                     /*server_version=*/0, /*creation_time=*/base::Time::Now(),
+                     /*specifics=*/fake_specifics);
 
   syncer::UpdateResponseDataList updates;
   updates.emplace_back();
@@ -250,7 +252,7 @@ TEST(ParentGuidPreprocessingTest, ShouldLogHistogramForUpdates) {
   syncer::UpdateResponseDataList updates;
   updates.emplace_back();
   updates.back().entity.id = kBookmarkBarId;
-  updates.back().entity.server_defined_unique_tag = "bookmark_bar";
+  updates.back().entity.server_defined_unique_tag = syncer::kBookmarkBarTag;
   updates.emplace_back();
   updates.back().entity.legacy_parent_id = kBookmarkBarId;
   updates.back().entity.specifics.mutable_bookmark()->set_guid("guid2");
@@ -271,15 +273,16 @@ TEST(ParentGuidPreprocessingTest, ShouldLogHistogramForTracker) {
   sync_pb::EntitySpecifics fake_specifics;
   fake_specifics.mutable_bookmark()->mutable_unique_position();
   TestBookmarkModelView bookmark_model;
-  tracker->Add(bookmark_model.bookmark_bar_node(), /*sync_id=*/"tracker_pb_id",
-               /*server_version=*/0, /*creation_time=*/base::Time::Now(),
-               /*specifics=*/fake_specifics);
-  tracker->Add(bookmark_model.other_node(), /*sync_id=*/"other_node_id",
-               /*server_version=*/0, /*creation_time=*/base::Time::Now(),
-               /*specifics=*/fake_specifics);
-  tracker->Add(bookmark_model.mobile_node(), /*sync_id=*/"mobile_node_id",
-               /*server_version=*/0, /*creation_time=*/base::Time::Now(),
-               /*specifics=*/fake_specifics);
+  tracker->AddRemote(bookmark_model.bookmark_bar_node(),
+                     /*sync_id=*/"tracker_pb_id",
+                     /*server_version=*/0, /*creation_time=*/base::Time::Now(),
+                     /*specifics=*/fake_specifics);
+  tracker->AddRemote(bookmark_model.other_node(), /*sync_id=*/"other_node_id",
+                     /*server_version=*/0, /*creation_time=*/base::Time::Now(),
+                     /*specifics=*/fake_specifics);
+  tracker->AddRemote(bookmark_model.mobile_node(), /*sync_id=*/"mobile_node_id",
+                     /*server_version=*/0, /*creation_time=*/base::Time::Now(),
+                     /*specifics=*/fake_specifics);
 
   syncer::UpdateResponseDataList updates;
   updates.emplace_back();

@@ -209,6 +209,13 @@ class ClientTagBasedDataTypeProcessor : public DataTypeProcessor,
       UpdateResponseDataList updates,
       std::optional<sync_pb::GarbageCollectionDirective> gc_directive);
 
+  // Overrides server metadata (IDs and versions) for all entities that have
+  // updates in `updates`. The version is overridden to `response_version - 1`
+  // so that the subsequent normal sync flow (including version checks and
+  // ID mismatch DCHECKs) passes naturally.
+  void OverrideAllServerMetadataToForceApplyUpdates(
+      const syncer::UpdateResponseDataList& updates);
+
   // Tracks a newly received entity during a full update. Returns the tracked
   // entity if the update is valid, or null otherwise.
   ProcessorEntity* TrackEntityUponFullUpdate(const UpdateResponseData& update);
@@ -251,7 +258,7 @@ class ClientTagBasedDataTypeProcessor : public DataTypeProcessor,
 
   // Adds metadata to all data returned by the bridge.
   // TODO(jkrcal): Mark as const (together with functions it depends on such as
-  // GetEntityForStorageKey, GetEntityForTagHash and maybe more).
+  // GetEntityForStorageKey, GetEntityForClientTagHash and maybe more).
   void MergeDataWithMetadataForDebugging(AllNodesCallback callback,
                                          std::unique_ptr<DataBatch> batch);
 

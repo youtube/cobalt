@@ -96,6 +96,10 @@ class CVDisplayLinkMac : public DisplayLinkMac {
 
   // CVDisplayLink for querying VSync timing info.
   base::apple::ScopedTypeRef<CVDisplayLinkRef> display_link_;
+
+  // Whether CVDisplayLink VSync callbacks have been requested to run. To verify
+  // the actual running status, query the CoreVideo Frameworks API
+  // `CVDisplayLinkIsRunning()`.
   bool display_link_is_running_ = false;
 
   // Each VSyncCallbackMac holds a reference to `this`.

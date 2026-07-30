@@ -455,10 +455,7 @@ void StandaloneTrustedVaultBackend::SetPrimaryAccount(
 void StandaloneTrustedVaultBackend::UpdateAccountsInCookieJarInfo(
     const signin::AccountsInCookieJarInfo& accounts_in_cookie_jar_info) {
   const base::flat_set<GaiaId> gaia_ids_in_cookie_jar =
-      base::STLSetUnion<base::flat_set<GaiaId>>(
-          GetGaiaIDs(accounts_in_cookie_jar_info
-                         .GetPotentiallyInvalidSignedInAccounts()),
-          GetGaiaIDs(accounts_in_cookie_jar_info.GetSignedOutAccounts()));
+      GetGaiaIDs(accounts_in_cookie_jar_info.GetAllAccounts());
 
   // Primary account data shouldn't be removed immediately, but it needs to be
   // removed once account become non-primary if it was ever removed from cookie

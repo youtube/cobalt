@@ -20,6 +20,14 @@ CommandStorageManagerTestHelper::CommandStorageManagerTestHelper(
   CHECK(command_storage_manager);
 }
 
+CommandStorageBackend* CommandStorageManagerTestHelper::GetCleartextBackend() {
+  return command_storage_manager_->backend_.get();
+}
+
+CommandStorageBackend* CommandStorageManagerTestHelper::GetEncryptedBackend() {
+  return command_storage_manager_->encrypted_backend_.get();
+}
+
 void CommandStorageManagerTestHelper::RunTaskOnBackendThread(
     const base::Location& from_here,
     base::OnceClosure task) {
@@ -56,6 +64,10 @@ CommandStorageManagerTestHelper::GetBackendTaskRunner() {
   return command_storage_manager_->backend_task_runner_;
 }
 
+bool CommandStorageManagerTestHelper::ShouldWriteCleartextFiles() {
+  return command_storage_manager_->ShouldWriteCleartextFiles();
+}
+
 bool CommandStorageManagerTestHelper::ShouldWriteEncryptedFiles() {
   return command_storage_manager_->ShouldWriteEncryptedFiles();
 }
@@ -67,6 +79,14 @@ void CommandStorageManagerTestHelper::ForceAppendCommandsToFailForTesting() {
           static_cast<void (CommandStorageBackend::*)()>(
               &CommandStorageBackend::ForceAppendCommandsToFailForTesting),
           command_storage_manager_->backend_));
+  if (command_storage_manager_->encrypted_backend_) {
+    RunTaskOnBackendThread(
+        FROM_HERE,
+        base::BindOnce(
+            static_cast<void (CommandStorageBackend::*)()>(
+                &CommandStorageBackend::ForceAppendCommandsToFailForTesting),
+            command_storage_manager_->encrypted_backend_));
+  }
 }
 
 }  // namespace sessions

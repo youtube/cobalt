@@ -168,6 +168,7 @@
 #include "extensions/browser/unpacked_installer.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_set.h"
+#include "extensions/common/switches.h"
 #include "extensions/test/extension_test_message_listener.h"
 #include "extensions/test/test_extension_dir.h"
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
@@ -180,7 +181,6 @@
 #include "extensions/browser/extension_system.h"
 #include "extensions/common/manifest.h"
 #include "extensions/common/mojom/view_type.mojom.h"
-#include "extensions/common/switches.h"
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 using content::DevToolsAgentHost;
@@ -530,7 +530,7 @@ class DevToolsBeforeUnloadTest : public DevToolsTest {
   }
 
   void RunBeforeUnloadTest(bool is_docked,
-                           base::RepeatingCallback<void(void)> close_method,
+                           base::RepeatingClosure close_method,
                            bool wait_for_browser_close = true) {
     OpenDevToolsWindow(kDebuggerTestPage, is_docked);
     auto runner = base::MakeRefCounted<content::MessageLoopRunner>();
@@ -2017,6 +2017,32 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest,
   RunTest("waitForTestResultsAsMessage",
           base::StrCat({kArbitraryPage, "#chrome-extension://", extension_id,
                         "/simple_test_page.html"}));
+}
+
+IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest, EvalRestrictedOnOtherExtension) {
+  const Extension* other_extension = LoadExtensionForTest(
+      "Other Extension", "" /* devtools_page */, "" /* panel_iframe_src */);
+  LoadExtension("eval_restriction");
+  RunTest("waitForTestResultsAsMessage",
+          other_extension->GetResourceURL("simple_test_page.html").spec());
+}
+
+class DevToolsExtensionEvalAllowedTest : public DevToolsExtensionTest {
+ public:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    DevToolsExtensionTest::SetUpCommandLine(command_line);
+    command_line->AppendSwitch(
+        extensions::switches::kExtensionsOnExtensionURLs);
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(DevToolsExtensionEvalAllowedTest,
+                       EvalAllowedOnOtherExtension) {
+  const Extension* other_extension = LoadExtensionForTest(
+      "Other Extension", "" /* devtools_page */, "" /* panel_iframe_src */);
+  LoadExtension("eval_allowed");
+  RunTest("waitForTestResultsAsMessage",
+          other_extension->GetResourceURL("simple_test_page.html").spec());
 }
 
 IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest, CantInspectRemoteNewTabPage) {
@@ -4525,7 +4551,7 @@ class DevToolsConsoleInsightsTest : public DevToolsTest {
         browser_window_interface()->GetProfile());
     auto account_info = signin::MakePrimaryAccountAvailable(
         identity_manager, "test@example.com", signin::ConsentLevel::kSignin);
-    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account_info);
     mutator.set_can_use_devtools_generative_ai_features(!is_minor);
     signin::UpdateAccountInfoForAccount(identity_manager, account_info);
   }

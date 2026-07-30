@@ -5,7 +5,7 @@
 import 'chrome://history/history.js';
 
 import type {HistoryAppElement, HistorySideBarElement} from 'chrome://history/history.js';
-import {BrowserProxyImpl, CrRouter, HistoryClustersProxyImpl, HistoryEmbeddingsBrowserProxyImpl, HistoryEmbeddingsPageHandlerRemote, MetricsProxyImpl} from 'chrome://history/history.js';
+import {BrowserProxyImpl, CrRouter, HistoryClustersProxyImpl, historyEmbeddingsBrowserProxyFactory, HistoryEmbeddingsPageHandlerRemote, MetricsProxyImpl} from 'chrome://history/history.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {assertEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {keyDownOn} from 'chrome://webui-test/keyboard_mock_interactions.js';
@@ -313,8 +313,9 @@ suite(`routing-test-with-history-embeddings-enabled`, () => {
     MetricsProxyImpl.setInstance(new TestMetricsProxy());
     const handler = TestMock.fromClass(HistoryEmbeddingsPageHandlerRemote);
     handler.setResultFor('search', new Promise(() => {}));
-    HistoryEmbeddingsBrowserProxyImpl.setInstance(
-        new HistoryEmbeddingsBrowserProxyImpl(handler));
+    const {instance} =
+        historyEmbeddingsBrowserProxyFactory.createForTest(handler);
+    historyEmbeddingsBrowserProxyFactory.setInstance(instance);
 
     app = document.createElement('history-app');
     document.body.appendChild(app);

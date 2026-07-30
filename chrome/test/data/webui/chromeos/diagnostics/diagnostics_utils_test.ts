@@ -10,7 +10,7 @@ import {NetworkType} from 'chrome://diagnostics/network_health_provider.mojom-we
 import type {RoutineGroup} from 'chrome://diagnostics/routine_group.js';
 import {RoutineType} from 'chrome://diagnostics/system_routine_controller.mojom-webui.js';
 import {assert} from 'chrome://resources/js/assert.js';
-import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 
 suite('diagnosticsUtilsTestSuite', function() {
   test('ProperlyConvertsKibToGib', () => {

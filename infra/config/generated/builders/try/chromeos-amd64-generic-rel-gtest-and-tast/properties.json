@@ -145,10 +145,6 @@
       "targets_spec_directory": "infra/config/generated/builders/try/chromeos-amd64-generic-rel-gtest-and-tast/targets"
     }
   },
-  "$build/flakiness": {
-    "check_for_flakiness": true,
-    "check_for_flakiness_with_resultdb": true
-  },
   "$build/siso": {
     "configs": [
       "builder",
@@ -171,6 +167,5 @@
     ]
   },
   "builder_group": "tryserver.chromium.chromiumos",
-  "cq": "required",
   "recipe": "chromium/orchestrator"
 }

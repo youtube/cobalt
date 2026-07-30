@@ -97,7 +97,7 @@ void OpenSLESInputStream::Start(AudioInputCallback* callback) {
               ->Enqueue(simple_buffer_queue_, audio_data_[i].data(),
                         buffer_size_bytes_);
     if (SL_RESULT_SUCCESS != err) {
-      HandleError(err);
+      HandleError(err, Error::kStartupFailed);
       started_ = false;
       return;
     }
@@ -108,7 +108,7 @@ void OpenSLESInputStream::Start(AudioInputCallback* callback) {
   // will implicitly start the filling process.
   err = (*recorder_)->SetRecordState(recorder_, SL_RECORDSTATE_RECORDING);
   if (SL_RESULT_SUCCESS != err) {
-    HandleError(err);
+    HandleError(err, Error::kStartupFailed);
     started_ = false;
     return;
   }
@@ -316,7 +316,7 @@ void OpenSLESInputStream::ReadBufferQueue() {
                                audio_data_[active_buffer_index_].data(),
                                buffer_size_bytes_);
   if (SL_RESULT_SUCCESS != err)
-    HandleError(err);
+    HandleError(err, Error::kRuntimeError);
 
   active_buffer_index_ = (active_buffer_index_ + 1) % kMaxNumOfBuffersInQueue;
 }
@@ -329,10 +329,10 @@ void OpenSLESInputStream::SetupAudioBuffer() {
   }
 }
 
-void OpenSLESInputStream::HandleError(SLresult error) {
+void OpenSLESInputStream::HandleError(SLresult error, Error error_code) {
   DLOG(ERROR) << "OpenSLES Input error " << error;
   if (callback_)
-    callback_->OnError();
+    callback_->OnError(error_code);
 }
 
 }  // namespace media

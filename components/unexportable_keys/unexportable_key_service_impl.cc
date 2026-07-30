@@ -5,6 +5,9 @@
 #include "components/unexportable_keys/unexportable_key_service_impl.h"
 
 #include <algorithm>
+#include <array>
+#include <memory>
+#include <utility>
 #include <variant>
 
 #include "base/containers/map_util.h"
@@ -12,11 +15,15 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/notimplemented.h"
 #include "base/notreached.h"
+#include "base/strings/strcat.h"
 #include "base/types/expected.h"
 #include "base/types/expected_macros.h"
 #include "build/build_config.h"
@@ -27,10 +34,26 @@
 #include "components/unexportable_keys/unexportable_key_id.h"
 #include "components/unexportable_keys/unexportable_key_task_manager.h"
 #include "crypto/unexportable_key.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
+#include "third_party/abseil-cpp/absl/container/hash_container_defaults.h"
 
 namespace unexportable_keys {
 
 namespace {
+
+using WrappedKeyAndTag = std::pair<std::vector<uint8_t>, std::string>;
+using WrappedKeyAndTagView =
+    std::pair<base::span<const uint8_t>, std::string_view>;
+
+struct WrappedKeyAndTagViewHash
+    : absl::DefaultHashContainerHash<WrappedKeyAndTagView> {
+  using is_transparent = void;
+};
+
+WrappedKeyAndTag Materialize(WrappedKeyAndTagView view) {
+  auto [wrapped_key, tag] = view;
+  return {base::ToVector(wrapped_key), std::string(tag)};
+}
 
 // Returns the application tag from the config on Mac if the provider supports
 // stateful unexportable keys. Otherwise, returns an empty string.
@@ -60,51 +83,73 @@ std::pair<std::vector<uint8_t>, std::string> GetWrappedKeyAndTag(
   return {key.key().GetWrappedKey(), std::move(tag)};
 }
 
-// Helper function that extracts a key of type `KeyType` from `key_map` by
-// `key_id`, and also extracts its matching entry from `wrapped_key_map`. This
-// helper avoids code duplication between signing and attestation keys, which
-// are stored in separate maps in `UnexportableKeyServiceImpl`.
-template <typename KeyType, typename KeyIdType, typename WrappedKeyMap>
-ServiceErrorOr<scoped_refptr<RefCountedUnexportableKey>> ExtractKeyFromMap(
-    absl::flat_hash_map<KeyIdType, scoped_refptr<KeyType>>& key_map,
-    WrappedKeyMap& wrapped_key_map,
-    KeyIdType key_id) {
-  auto key_handle = key_map.extract(key_id);
-  if (!key_handle) {
-    return base::unexpected(ServiceError::kKeyNotFound);
-  }
-  scoped_refptr<KeyType> key = std::move(key_handle.mapped());
-  auto wrapped_key_and_tag_handle =
-      wrapped_key_map.extract(GetWrappedKeyAndTag(*key));
-  CHECK(wrapped_key_and_tag_handle);
-  auto& mapped_key_id = wrapped_key_and_tag_handle.mapped();
-  CHECK(mapped_key_id.HasKeyId());
-  CHECK_EQ(mapped_key_id.GetKeyId(), key_id);
-  return key;
+// The target capacity for the spare signing key pool. The service will attempt
+// to preemptively generate and pool keys in the background until it reaches
+// this threshold to reduce latency for future key requests.
+constexpr size_t kSpareSigningKeyPoolCapacity = 2;
+
+// The default list of signature algorithms to use for generating spare keys.
+constexpr std::array kSpareKeyAlgorithms = {
+    crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256,
+    crypto::SignatureVerifier::SignatureAlgorithm::RSA_PKCS1_SHA256,
+};
+
+// Delays the initial replenishment of the spare key pool during service
+// creation. Hardware-backed key generation is extremely TPM/CPU intensive.
+// Deferring this by 2 minutes ensures it does not compete for resources
+// during the critical browser startup path.
+constexpr base::TimeDelta kSpareKeyPoolDelay = base::Minutes(2);
+
+std::string GetSparePoolHistogramName(std::string_view suffix) {
+  static constexpr std::string_view kSpareSigningKeyPoolHistogramPrefix =
+      "Crypto.UnexportableKeys.SparePool.Signing.";
+  return base::StrCat({kSpareSigningKeyPoolHistogramPrefix, suffix});
 }
 
-}  // namespace
+void RecordSparePoolRetrievalResultHistogram(
+    SpareKeyPoolRetrievalResult result) {
+  base::UmaHistogramEnumeration(GetSparePoolHistogramName("RetrievalResult"),
+                                result);
+}
 
-// Class holding either an `KeyIdType` or a list of callbacks waiting for the
+// Wraps the original key generation callback with latency metrics tracking.
+// This records the duration from when the request was initiated until it is
+// fulfilled (either from the spare pool or via hardware generation).
+base::OnceCallback<void(ServiceErrorOr<UnexportableSigningKeyId>)>
+WrapCallbackWithSpareSigningKeyLatencyHistogram(
+    base::OnceCallback<void(ServiceErrorOr<UnexportableSigningKeyId>)>
+        callback) {
+  return base::BindOnce(
+      [](base::TimeTicks start,
+         base::OnceCallback<void(ServiceErrorOr<UnexportableSigningKeyId>)> cb,
+         ServiceErrorOr<UnexportableSigningKeyId> result) {
+        base::UmaHistogramMediumTimes(
+            GetSparePoolHistogramName("RequestLatency"),
+            base::TimeTicks::Now() - start);
+        std::move(cb).Run(std::move(result));
+      },
+      base::TimeTicks::Now(), std::move(callback));
+}
+
+// Class holding either a `KeyIdType` or a list of callbacks waiting for the
 // key creation.
 template <typename KeyIdType>
-class MaybePendingUnexportableKeyId {
+class MaybePendingKeyId {
  public:
   using CallbackType = base::OnceCallback<void(ServiceErrorOr<KeyIdType>)>;
   using PendingCallbacks = std::vector<CallbackType>;
   using PendingCallbacksOrKeyId = std::variant<PendingCallbacks, KeyIdType>;
 
   // Constructs an instance holding a list of callbacks.
-  MaybePendingUnexportableKeyId() = default;
-  MaybePendingUnexportableKeyId(MaybePendingUnexportableKeyId&&) = default;
-  MaybePendingUnexportableKeyId& operator=(MaybePendingUnexportableKeyId&&) =
-      default;
+  MaybePendingKeyId() = default;
+  MaybePendingKeyId(MaybePendingKeyId&&) = default;
+  MaybePendingKeyId& operator=(MaybePendingKeyId&&) = default;
 
   // Constructs an instance holding `key_id`.
-  explicit MaybePendingUnexportableKeyId(KeyIdType key_id)
+  explicit MaybePendingKeyId(KeyIdType key_id)
       : pending_callbacks_or_key_id_(key_id) {}
 
-  ~MaybePendingUnexportableKeyId() {
+  ~MaybePendingKeyId() {
     if (!HasKeyId()) {
       RunCallbacksWithFailure(ServiceError::kOperationCancelled);
     }
@@ -157,11 +202,239 @@ class MaybePendingUnexportableKeyId {
   PendingCallbacksOrKeyId pending_callbacks_or_key_id_;
 };
 
+}  // namespace
+
+// Templated repository class that manages maps for a single key type.
+//
+// Responsibilities:
+// - Owns and manages the lifetime of loaded unexportable keys of type
+//   `RefCountedKeyType`.
+// - Maps key IDs to loaded `scoped_refptr` key objects.
+// - Maps wrapped keys and tags to their resolved key IDs.
+// - Deduplicates concurrent asynchronous load requests for the same wrapped
+//   key.
+//
+// Invariants maintained:
+// 1. Bidirectional Consistency: A key ID `id` is present in `key_by_key_id_`
+//    if and only if its corresponding wrapped key/tag maps to `id` (or is
+//    pending resolution) in `key_id_by_wrapped_key_and_tag_`.
+// 2. Load Deduplication: Concurrent calls to `RegisterUnwrapKeyCallback()`
+//    for the same wrapped key return the same queue, only returning `1` for
+//    the first call to indicate that a new background task should be
+//    scheduled.
+// 3. Destruction Safety: If a `MaybePendingKeyId` or the repository is
+//    destroyed, any queued callbacks are immediately cancelled and notified.
+template <typename RefCountedKeyType>
+class UnexportableKeyServiceImpl::KeyRepository {
+ public:
+  using KeyIdType = typename RefCountedKeyType::IdType;
+  using KeyIdMap =
+      absl::flat_hash_map<KeyIdType, scoped_refptr<RefCountedKeyType>>;
+
+  // Retrieve key operations.
+  RefCountedKeyType* GetKey(KeyIdType key_id) const {
+    const auto* key = base::FindOrNull(key_by_key_id_, key_id);
+    return key ? key->get() : nullptr;
+  }
+
+  // Key storage management.
+  void Clear() {
+    key_by_key_id_.clear();
+    key_id_by_wrapped_key_and_tag_.clear();
+    weak_ptr_factory_.InvalidateWeakPtrs();
+  }
+
+  // Extract key and erase from maps.
+  scoped_refptr<RefCountedKeyType> ExtractKey(KeyIdType key_id) {
+    auto key_handle = key_by_key_id_.extract(key_id);
+    if (!key_handle) {
+      return nullptr;
+    }
+    scoped_refptr<RefCountedKeyType> key = std::move(key_handle.mapped());
+    auto wrapped_key_and_tag_handle =
+        key_id_by_wrapped_key_and_tag_.extract(GetWrappedKeyAndTag(*key));
+    CHECK(wrapped_key_and_tag_handle);
+    auto& mapped_key_id = wrapped_key_and_tag_handle.mapped();
+    CHECK(mapped_key_id.HasKeyId());
+    CHECK_EQ(mapped_key_id.GetKeyId(), key_id);
+    return key;
+  }
+
+  // Check if repository contains key.
+  bool Contains(KeyIdType key_id) const {
+    return key_by_key_id_.contains(key_id);
+  }
+
+  // Registers `callback` for the key. If the key is already loaded, runs the
+  // callback immediately. Otherwise, queues the callback and returns the number
+  // of callbacks currently queued for this key (returning 1 if this is the
+  // first callback queued, meaning the caller must schedule a load).
+  //
+  // NOTE: In case the key does not exist in the map yet and we ask the backend
+  // for the matching signing key, the application tag returned by the platform
+  // must match the tag stored in the config. This invariant is CHECKed in
+  // `OnKeyCreatedFromWrappedKey`.
+  size_t RegisterUnwrapKeyCallback(
+      WrappedKeyAndTagView wrapped_key_and_tag_view,
+      base::OnceCallback<void(ServiceErrorOr<KeyIdType>)> callback) {
+    auto& [_, maybe_pending_key_id] =
+        *key_id_by_wrapped_key_and_tag_.lazy_emplace(
+            wrapped_key_and_tag_view, [&](const auto& ctor) {
+              ctor(Materialize(wrapped_key_and_tag_view),
+                   MaybePendingKeyId<KeyIdType>());
+            });
+
+    if (maybe_pending_key_id.HasKeyId()) {
+      std::move(callback).Run(maybe_pending_key_id.GetKeyId());
+      return 0;
+    }
+
+    return maybe_pending_key_id.AddCallback(std::move(callback));
+  }
+
+  void OnKeyCreatedFromWrappedKey(
+      WrappedKeyAndTag wrapped_key_and_tag,
+      ServiceErrorOr<scoped_refptr<RefCountedKeyType>> key_or_error) {
+    auto it = key_id_by_wrapped_key_and_tag_.find(wrapped_key_and_tag);
+    if (it == key_id_by_wrapped_key_and_tag_.end()) {
+      DVLOG(1) << "`wrapped_key` is unknown, did the key get deleted?";
+      return;
+    }
+
+    MaybePendingKeyId<KeyIdType>& maybe_pending_callbacks = it->second;
+    if (maybe_pending_callbacks.HasKeyId()) {
+      // If there is already a key ID for this wrapped key, it means that the
+      // key id has been resolved in the meantime. In this case, there is
+      // nothing to do and we can return immediately.
+      return;
+    }
+
+    ASSIGN_OR_RETURN(scoped_refptr<RefCountedKeyType> key,
+                     std::move(key_or_error), [&](ServiceError error) {
+                       auto node = key_id_by_wrapped_key_and_tag_.extract(it);
+                       node.mapped().RunCallbacksWithFailure(error);
+                     });
+    // `key` must be non-null if `key_or_error` holds a value.
+    CHECK(key);
+    CHECK(wrapped_key_and_tag == GetWrappedKeyAndTag(*key));
+
+    KeyIdType key_id = key->id();
+    // A newly created key ID must be unique.
+    CHECK(key_by_key_id_.try_emplace(key_id, std::move(key)).second);
+    maybe_pending_callbacks.SetKeyIdAndRunCallbacks(key_id);
+  }
+
+  ServiceErrorOr<KeyIdType> OnKeyGenerated(
+      ServiceErrorOr<scoped_refptr<RefCountedKeyType>> key_or_error) {
+    ASSIGN_OR_RETURN(scoped_refptr<RefCountedKeyType> key,
+                     std::move(key_or_error));
+    // `key` must be non-null if `key_or_error` holds a value.
+    CHECK(key);
+    KeyIdType key_id = key->id();
+    if (!key_id_by_wrapped_key_and_tag_
+             .try_emplace(GetWrappedKeyAndTag(*key), key_id)
+             .second) {
+      // Drop a newly generated key in the case of a key collision. This should
+      // be extremely rare.
+      DVLOG(1) << "Collision between an existing and a newly generated key "
+                  "detected.";
+      return base::unexpected(ServiceError::kKeyCollision);
+    }
+    // A newly generated key ID must be unique.
+    CHECK(key_by_key_id_.try_emplace(key_id, std::move(key)).second);
+    return key_id;
+  }
+
+  base::WeakPtr<KeyRepository> GetWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
+ private:
+  using WrappedKeyAndTagMap = absl::flat_hash_map<WrappedKeyAndTag,
+                                                  MaybePendingKeyId<KeyIdType>,
+                                                  WrappedKeyAndTagViewHash,
+                                                  std::ranges::equal_to>;
+
+  WrappedKeyAndTagMap key_id_by_wrapped_key_and_tag_;
+  KeyIdMap key_by_key_id_;
+  base::WeakPtrFactory<KeyRepository> weak_ptr_factory_{this};
+};
+
+// A strict RAII tracking object for an ongoing background request to generate
+// a spare signing key. The service stores these uniquely in a set to track
+// in-flight requests. When the background task finishes, or if the service
+// is destroyed, this object safely manages the callback lifecycle.
+class SpareKeyPoolRequest {
+ public:
+  explicit SpareKeyPoolRequest(UnexportableKeyTaskManager& task_manager)
+      : task_manager_(task_manager) {}
+
+  void Start(
+      BackgroundTaskOrigin task_origin,
+      crypto::UnexportableKeyProvider::Config config,
+      base::span<const crypto::SignatureVerifier::SignatureAlgorithm>
+          algorithms,
+      base::OnceCallback<
+          void(ServiceErrorOr<scoped_refptr<RefCountedUnexportableSigningKey>>)>
+          callback) {
+    CHECK(callback);
+    callback_ = std::move(callback);
+    start_time_ = base::TimeTicks::Now();
+    task_manager_->GenerateSigningKeySlowlyAsync(
+        task_origin, std::move(config), algorithms,
+        BackgroundTaskPriority::kBestEffort,
+        base::BindOnce(&SpareKeyPoolRequest::OnKeyGenerated,
+                       weak_ptr_factory_.GetWeakPtr()));
+  }
+
+ private:
+  void OnKeyGenerated(
+      ServiceErrorOr<scoped_refptr<RefCountedUnexportableSigningKey>> result) {
+    if (result.has_value()) {
+      base::UmaHistogramMediumTimes(
+          GetSparePoolHistogramName("ReplenishmentLatency"),
+          base::TimeTicks::Now() - start_time_);
+    }
+    std::move(callback_).Run(std::move(result));
+  }
+
+  // The task manager responsible for executing the background generation.
+  // We store this explicitly to represent the exact dependency and ownership
+  // graph of the request.
+  const raw_ref<UnexportableKeyTaskManager> task_manager_;
+
+  // The callback to execute when the background task successfully completes
+  // or fails.
+  base::OnceCallback<void(
+      ServiceErrorOr<scoped_refptr<RefCountedUnexportableSigningKey>>)>
+      callback_;
+
+  // The time at which the request was started to calculate replenishment
+  // latency.
+  base::TimeTicks start_time_;
+
+  // Guarantees that `callback_` won't be executed after `this` is destroyed,
+  // naturally preventing use-after-free crashes if the service shuts down.
+  base::WeakPtrFactory<SpareKeyPoolRequest> weak_ptr_factory_{this};
+};
 UnexportableKeyServiceImpl::UnexportableKeyServiceImpl(
     UnexportableKeyTaskManager& task_manager,
     BackgroundTaskOrigin task_origin,
     crypto::UnexportableKeyProvider::Config config)
-    : task_manager_(task_manager), task_origin_(task_origin), config_(config) {}
+    : task_manager_(task_manager),
+      task_origin_(task_origin),
+      config_(config),
+      signing_keys_(std::make_unique<SigningKeyRepository>()),
+      attestation_keys_(std::make_unique<AttestationKeyRepository>()) {
+  if (base::FeatureList::IsEnabled(kEnableUnexportableKeysSpareKeyPool)) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(
+            &UnexportableKeyServiceImpl::ReplenishSpareSigningKeyPoolAsync,
+            weak_ptr_factory_.GetWeakPtr(), kSpareKeyAlgorithms),
+        kSpareKeyPoolDelay);
+  }
+}
 
 UnexportableKeyServiceImpl::~UnexportableKeyServiceImpl() = default;
 
@@ -187,15 +460,16 @@ void UnexportableKeyServiceImpl::GenerateSigningKeySlowlyAsync(
     BackgroundTaskPriority priority,
     base::OnceCallback<void(ServiceErrorOr<UnexportableSigningKeyId>)>
         callback) {
-  // TODO(crbug.com/501056920): Log
-  // Crypto.UnexportableKeys.SparePool.Signing.RequestLatency covering both pool
-  // hits and fallback misses.
+  auto wrapped_callback =
+      WrapCallbackWithSpareSigningKeyLatencyHistogram(std::move(callback));
+
   if (base::FeatureList::IsEnabled(kEnableUnexportableKeysSpareKeyPool)) {
     scoped_refptr<RefCountedUnexportableSigningKey> spare_key =
         PopSpareSigningKey(acceptable_algorithms);
+    ReplenishSpareSigningKeyPoolAsync(acceptable_algorithms);
     if (spare_key) {
-      // TODO(crbug.com/501056920): Return the key. For now stub returns null.
-      NOTIMPLEMENTED();
+      std::move(wrapped_callback)
+          .Run(signing_keys_->OnKeyGenerated(std::move(spare_key)));
       return;
     }
   }
@@ -203,11 +477,12 @@ void UnexportableKeyServiceImpl::GenerateSigningKeySlowlyAsync(
   task_manager_->GenerateSigningKeySlowlyAsync(
       task_origin_, config_, acceptable_algorithms, priority,
       WrapCallbackWithErrorIfCancelled(
-          std::move(callback),
-          // SAFETY: `this` is guaranteed to be alive if the projection callback
-          // is invoked.
-          base::BindOnce(&UnexportableKeyServiceImpl::OnSigningKeyGeneratedImpl,
-                         base::Unretained(this))));
+          std::move(wrapped_callback),
+          // SAFETY: `signing_keys_` is owned by `this` and is guaranteed to be
+          // alive if the projection callback is invoked (which only happens if
+          // the service is still alive).
+          base::BindOnce(&SigningKeyRepository::OnKeyGenerated,
+                         base::Unretained(signing_keys_.get()))));
 }
 
 void UnexportableKeyServiceImpl::FromWrappedSigningKeySlowlyAsync(
@@ -215,37 +490,16 @@ void UnexportableKeyServiceImpl::FromWrappedSigningKeySlowlyAsync(
     BackgroundTaskPriority priority,
     base::OnceCallback<void(ServiceErrorOr<UnexportableSigningKeyId>)>
         callback) {
-  // Construct a key_view from the wrapped key and application tag stored in the
-  // config. Materialize it into the map only if needed.
-  //
-  // NOTE: In case the key does not exist in the map yet and we ask the backend
-  // for the matching signing key, the application tag returned by the platform
-  // must match the tag stored in the config. This invariant is CHECKed in
-  // `OnKeyCreatedFromWrappedKeyAndTag`.
-  const WrappedKeyAndTagView key_view(wrapped_key, GetApplicationTag(config_));
-  auto& [wrapped_key_and_tag, maybe_pending_key_id] =
-      *signing_key_id_by_wrapped_key_and_tag_.lazy_emplace(
-          key_view, [&](const auto& ctor) {
-            ctor(Materialize(key_view), MaybePendingUnexportableSigningKeyId());
-          });
-
-  if (maybe_pending_key_id.HasKeyId()) {
-    std::move(callback).Run(maybe_pending_key_id.GetKeyId());
-    return;
-  }
-
-  // NOTE: We don't wrap the callback in `WrapCallbackWithErrorIfCancelled`
-  // here, but rather run the callbacks explicitly during the destruction of
-  // `MaybePendingUnexportableSigningKeyId`.
-  size_t n_callbacks = maybe_pending_key_id.AddCallback(std::move(callback));
-  if (n_callbacks == 1) {
-    // `callback` is the first one waiting for the wrapped key. Schedule the
-    // task to create a key from the wrapped key.
+  WrappedKeyAndTagView key_view = {wrapped_key, GetApplicationTag(config_)};
+  if (signing_keys_->RegisterUnwrapKeyCallback(key_view, std::move(callback)) ==
+      1) {
+    // NOTE: We don't wrap the callback in `WrapCallbackWithErrorIfCancelled`
+    // here, but rather run the callbacks explicitly during the destruction of
+    // `MaybePendingKeyId`.
     task_manager_->FromWrappedSigningKeySlowlyAsync(
         task_origin_, config_, wrapped_key, priority,
-        base::BindOnce(
-            &UnexportableKeyServiceImpl::OnKeyCreatedFromWrappedKeyAndTag,
-            weak_ptr_factory_.GetWeakPtr(), wrapped_key_and_tag));
+        base::BindOnce(&SigningKeyRepository::OnKeyCreatedFromWrappedKey,
+                       signing_keys_->GetWeakPtr(), Materialize(key_view)));
   }
 }
 
@@ -255,9 +509,15 @@ void UnexportableKeyServiceImpl::GenerateAttestationKeySlowlyAsync(
     BackgroundTaskPriority priority,
     base::OnceCallback<void(ServiceErrorOr<UnexportableAttestationKeyId>)>
         callback) {
-  // TODO(crbug.com/501306852): Implement this.
-  std::move(callback).Run(
-      base::unexpected(ServiceError::kOperationNotSupported));
+  task_manager_->GenerateAttestationKeySlowlyAsync(
+      task_origin_, config_, acceptable_algorithms, priority,
+      WrapCallbackWithErrorIfCancelled(
+          std::move(callback),
+          // SAFETY: `attestation_keys_` is owned by `this` and is guaranteed to
+          // be alive if the projection callback is invoked (which only happens
+          // if the service is still alive).
+          base::BindOnce(&AttestationKeyRepository::OnKeyGenerated,
+                         base::Unretained(attestation_keys_.get()))));
 }
 
 void UnexportableKeyServiceImpl::FromWrappedAttestationKeySlowlyAsync(
@@ -265,9 +525,17 @@ void UnexportableKeyServiceImpl::FromWrappedAttestationKeySlowlyAsync(
     BackgroundTaskPriority priority,
     base::OnceCallback<void(ServiceErrorOr<UnexportableAttestationKeyId>)>
         callback) {
-  // TODO(crbug.com/501306852): Implement this.
-  std::move(callback).Run(
-      base::unexpected(ServiceError::kOperationNotSupported));
+  WrappedKeyAndTagView key_view = {wrapped_key, GetApplicationTag(config_)};
+  if (attestation_keys_->RegisterUnwrapKeyCallback(key_view,
+                                                   std::move(callback)) == 1) {
+    // NOTE: We don't wrap the callback in `WrapCallbackWithErrorIfCancelled`
+    // here, but rather run the callbacks explicitly during the destruction of
+    // `MaybePendingKeyId`.
+    task_manager_->FromWrappedAttestationKeySlowlyAsync(
+        task_origin_, config_, wrapped_key, priority,
+        base::BindOnce(&AttestationKeyRepository::OnKeyCreatedFromWrappedKey,
+                       attestation_keys_->GetWeakPtr(), Materialize(key_view)));
+  }
 }
 
 void UnexportableKeyServiceImpl::GetAllKeysForGarbageCollectionSlowlyAsync(
@@ -290,14 +558,38 @@ void UnexportableKeyServiceImpl::SignSlowlyAsync(
     base::span<const uint8_t> data,
     BackgroundTaskPriority priority,
     base::OnceCallback<void(ServiceErrorOr<std::vector<uint8_t>>)> callback) {
-  const auto* key = base::FindOrNull(signing_key_by_key_id_, key_id);
-  if (!key) {
+  if (auto* key = signing_keys_->GetKey(key_id)) {
+    task_manager_->SignSlowlyAsync(
+        task_origin_, base::WrapRefCounted(key), data, priority,
+        WrapCallbackWithErrorIfCancelled(std::move(callback)));
+    return;
+  }
+
+  std::move(callback).Run(base::unexpected(ServiceError::kKeyNotFound));
+}
+
+void UnexportableKeyServiceImpl::CertifySlowlyAsync(
+    UnexportableAttestationKeyId attestation_key_id,
+    UnexportableSigningKeyId signing_key_id,
+    base::span<const uint8_t> challenge,
+    BackgroundTaskPriority priority,
+    base::OnceCallback<void(ServiceErrorOr<crypto::AttestationStatement>)>
+        callback) {
+  auto* attestation_key = attestation_keys_->GetKey(attestation_key_id);
+  if (!attestation_key) {
     std::move(callback).Run(base::unexpected(ServiceError::kKeyNotFound));
     return;
   }
 
-  task_manager_->SignSlowlyAsync(
-      task_origin_, *key, data, priority,
+  auto* signing_key = signing_keys_->GetKey(signing_key_id);
+  if (!signing_key) {
+    std::move(callback).Run(base::unexpected(ServiceError::kKeyNotFound));
+    return;
+  }
+
+  task_manager_->CertifySlowlyAsync(
+      task_origin_, base::WrapRefCounted(attestation_key),
+      base::WrapRefCounted(signing_key), challenge, priority,
       WrapCallbackWithErrorIfCancelled(std::move(callback)));
 }
 
@@ -329,11 +621,9 @@ void UnexportableKeyServiceImpl::DeleteKeysSlowlyAsync(
 
 void UnexportableKeyServiceImpl::DeleteAllKeysSlowlyAsync(
     base::OnceCallback<void(ServiceErrorOr<size_t>)> callback) {
-  signing_key_by_key_id_.clear();
-  attestation_key_by_key_id_.clear();
+  signing_keys_->Clear();
+  attestation_keys_->Clear();
   all_gc_keys_by_key_id_.clear();
-  signing_key_id_by_wrapped_key_and_tag_.clear();
-  attestation_key_id_by_wrapped_key_and_tag_.clear();
 
   // Invalidate weak pointers to cancel pending key lookup requests.
   weak_ptr_factory_.InvalidateWeakPtrs();
@@ -376,22 +666,14 @@ ServiceErrorOr<base::Time> UnexportableKeyServiceImpl::GetCreationTime(
   return stateful_key->GetCreationTime();
 }
 
-// static
-UnexportableKeyServiceImpl::WrappedKeyAndTag
-UnexportableKeyServiceImpl::Materialize(WrappedKeyAndTagView view) {
-  auto [wrapped_key, tag] = view;
-  return {base::ToVector(wrapped_key), std::string(tag)};
-}
-
 ServiceErrorOr<const crypto::UnexportableKey*>
 UnexportableKeyServiceImpl::GetKey(UnexportableKeyId key_id) const {
-  if (const auto* key = base::FindOrNull(signing_key_by_key_id_,
-                                         UnexportableSigningKeyId(key_id))) {
-    return &(*key)->key();
+  if (auto* key = signing_keys_->GetKey(UnexportableSigningKeyId(key_id))) {
+    return &key->key();
   }
-  if (const auto* key = base::FindOrNull(
-          attestation_key_by_key_id_, UnexportableAttestationKeyId(key_id))) {
-    return &(*key)->key();
+  if (auto* key =
+          attestation_keys_->GetKey(UnexportableAttestationKeyId(key_id))) {
+    return &key->key();
   }
   if (const auto* key = base::FindOrNull(all_gc_keys_by_key_id_, key_id)) {
     return &(*key)->key();
@@ -413,22 +695,21 @@ UnexportableKeyServiceImpl::ExtractKeyFromMaps(UnexportableKeyId key_id) {
   // Check the garbage collection map first. Ensure the `key_id` can't be
   // present in the other maps.
   if (auto gc_key_handle = all_gc_keys_by_key_id_.extract(key_id)) {
-    CHECK(!signing_key_by_key_id_.contains(UnexportableSigningKeyId(key_id)));
-    CHECK(!attestation_key_by_key_id_.contains(
-        UnexportableAttestationKeyId(key_id)));
+    CHECK(!signing_keys_->Contains(UnexportableSigningKeyId(key_id)));
+    CHECK(!attestation_keys_->Contains(UnexportableAttestationKeyId(key_id)));
     return std::move(gc_key_handle.mapped());
   }
 
-  if (auto res = ExtractKeyFromMap(signing_key_by_key_id_,
-                                   signing_key_id_by_wrapped_key_and_tag_,
-                                   UnexportableSigningKeyId(key_id));
-      res.has_value()) {
-    return res;
+  if (auto key = signing_keys_->ExtractKey(UnexportableSigningKeyId(key_id))) {
+    return key;
   }
 
-  return ExtractKeyFromMap(attestation_key_by_key_id_,
-                           attestation_key_id_by_wrapped_key_and_tag_,
-                           UnexportableAttestationKeyId(key_id));
+  if (auto key =
+          attestation_keys_->ExtractKey(UnexportableAttestationKeyId(key_id))) {
+    return key;
+  }
+
+  return base::unexpected(ServiceError::kKeyNotFound);
 }
 
 ServiceErrorOr<std::vector<UnexportableKeyId>>
@@ -447,82 +728,131 @@ UnexportableKeyServiceImpl::OnGetAllKeysForGarbageCollectionSlowlyImpl(
   return key_ids;
 }
 
-ServiceErrorOr<UnexportableSigningKeyId>
-UnexportableKeyServiceImpl::OnSigningKeyGeneratedImpl(
-    ServiceErrorOr<scoped_refptr<RefCountedUnexportableSigningKey>>
-        key_or_error) {
-  ASSIGN_OR_RETURN(scoped_refptr<RefCountedUnexportableSigningKey> key,
-                   std::move(key_or_error));
-  // `key` must be non-null if `key_or_error` holds a value.
-  CHECK(key);
-  UnexportableSigningKeyId key_id(key->id());
-  if (!signing_key_id_by_wrapped_key_and_tag_
-           .try_emplace(GetWrappedKeyAndTag(*key), key_id)
-           .second) {
-    // Drop a newly generated key in the case of a key collision. This should
-    // be extremely rare.
-    DVLOG(1) << "Collision between an existing and a newly generated key "
-                "detected.";
-    return base::unexpected(ServiceError::kKeyCollision);
-  }
-  // A newly generated key ID must be unique.
-  CHECK(signing_key_by_key_id_.try_emplace(key_id, std::move(key)).second);
-  return UnexportableSigningKeyId(key_id);
-}
-
-void UnexportableKeyServiceImpl::OnKeyCreatedFromWrappedKeyAndTag(
-    WrappedKeyAndTag wrapped_key_and_tag,
-    ServiceErrorOr<scoped_refptr<RefCountedUnexportableSigningKey>>
-        key_or_error) {
-  auto it = signing_key_id_by_wrapped_key_and_tag_.find(wrapped_key_and_tag);
-  if (it == signing_key_id_by_wrapped_key_and_tag_.end()) {
-    DVLOG(1) << "`wrapped_key` is unknown, did the key get deleted?";
-    return;
-  }
-
-  MaybePendingUnexportableSigningKeyId& maybe_pending_callbacks = it->second;
-  if (maybe_pending_callbacks.HasKeyId()) {
-    // If there is already a key ID for this wrapped key, it means that the key
-    // id has been resolved in the meantime. In this case, there is nothing to
-    // do and we can return immediately.
-    return;
-  }
-
-  ASSIGN_OR_RETURN(scoped_refptr<RefCountedUnexportableSigningKey> key,
-                   std::move(key_or_error), [&](ServiceError error) {
-                     auto node =
-                         signing_key_id_by_wrapped_key_and_tag_.extract(it);
-                     node.mapped().RunCallbacksWithFailure(error);
-                   });
-  // `key` must be non-null if `key_or_error` holds a value.
-  CHECK(key);
-  CHECK(wrapped_key_and_tag == GetWrappedKeyAndTag(*key));
-
-  UnexportableSigningKeyId key_id(key->id());
-  // A newly created key ID must be unique.
-  CHECK(signing_key_by_key_id_.try_emplace(key_id, std::move(key)).second);
-  maybe_pending_callbacks.SetKeyIdAndRunCallbacks(key_id);
-}
-
 scoped_refptr<RefCountedUnexportableSigningKey>
 UnexportableKeyServiceImpl::PopSpareSigningKey(
     base::span<const crypto::SignatureVerifier::SignatureAlgorithm>
         acceptable_algorithms) {
-  NOTIMPLEMENTED();
-  // TODO(crbug.com/501056920): Implement this to pop a key from
-  // `spare_signing_keys_pool_`.
-  // TODO(crbug.com/501056920): Implement the following:
-  // - Log Crypto.UnexportableKeys.SparePool.Signing.RetrievalResult
-  // - Log Crypto.UnexportableKeys.SparePool.Signing.PoolSize
+  std::unique_ptr<crypto::UnexportableKeyProvider> provider =
+      UnexportableKeyTaskManager::GetUnexportableKeyProvider(config_);
+  if (!provider) {
+    return nullptr;
+  }
+
+  // Query the provider to select the most preferred algorithm it supports from
+  // the given list, before checking the spare pool. This ensures we don't
+  // inadvertently return a spare key for an algorithm that is acceptable but
+  // less preferred by the provider.
+  // If it fails, it means the hardware does not support any of the requested
+  // algorithms (e.g., no TPM support at all).
+  ASSIGN_OR_RETURN(crypto::SignatureVerifier::SignatureAlgorithm algorithm,
+                   provider->SelectAlgorithm(acceptable_algorithms), [] {
+                     RecordSparePoolRetrievalResultHistogram(
+                         SpareKeyPoolRetrievalResult::kAlgorithmNotSupported);
+                     return nullptr;
+                   });
+
+  auto* keys = base::FindOrNull(spare_signing_keys_pool_, algorithm);
+
+  base::UmaHistogramCounts100(GetSparePoolHistogramName("PoolSize"),
+                              keys ? keys->size() : 0);
+
+  if (keys && !keys->empty()) {
+    RecordSparePoolRetrievalResultHistogram(SpareKeyPoolRetrievalResult::kHit);
+    scoped_refptr<RefCountedUnexportableSigningKey> spare_key =
+        std::move(keys->back());
+    keys->pop_back();
+    return spare_key;
+  }
+
+  // Cache Miss path. Determine the exact reason.
+
+  // Calculate total keys currently in the pool across all algorithms.
+  size_t total_pool_size = 0;
+  for (const auto& [alg, key_vector] : spare_signing_keys_pool_) {
+    total_pool_size += key_vector.size();
+  }
+
+  SpareKeyPoolRetrievalResult result;
+  if (total_pool_size > 0) {
+    // If the pool has keys, but none for the requested algorithm, log
+    // kMissNoKeyForAlgorithm.
+    result = SpareKeyPoolRetrievalResult::kMissNoKeyForAlgorithm;
+  } else if (!inflight_spare_key_pool_requests_.has_value()) {
+    // The pool is uninitialized (e.g. during browser startup where generation
+    // is intentionally deferred).
+    result = SpareKeyPoolRetrievalResult::kMissNotInitialized;
+  } else if (inflight_spare_key_pool_requests_->empty()) {
+    // The pool actively failed to replenish (e.g. due to hardware/TPM
+    // failures).
+    result = SpareKeyPoolRetrievalResult::kMissFailedToCreateSpareKey;
+  } else {
+    // A key was requested before the background tasks finished replenishing the
+    // pool.
+    result = SpareKeyPoolRetrievalResult::kMissDidNotReplenishFromLastUse;
+  }
+  RecordSparePoolRetrievalResultHistogram(result);
+
   return nullptr;
 }
 
 void UnexportableKeyServiceImpl::ReplenishSpareSigningKeyPoolAsync(
     base::span<const crypto::SignatureVerifier::SignatureAlgorithm>
         acceptable_algorithms) {
-  NOTIMPLEMENTED();
-  // TODO(crbug.com/501056920): Implement this to start background key
-  // generation using a lambda for the callback instead of a separate method.
+  if (!inflight_spare_key_pool_requests_.has_value()) {
+    inflight_spare_key_pool_requests_.emplace();
+  }
+  size_t current_pool_size = 0;
+  for (const auto& [algorithm, keys] : spare_signing_keys_pool_) {
+    current_pool_size += keys.size();
+  }
+
+  if (current_pool_size + inflight_spare_key_pool_requests_->size() >=
+      kSpareSigningKeyPoolCapacity) {
+    return;
+  }
+
+  // We must calculate the number of tasks to launch upfront instead of using a
+  // `while (current_pool_size + inflight_spare_key_pool_requests_->size() <
+  // capacity)` loop. If the key provider fails synchronously (e.g., due to an
+  // unsupported algorithm), `GenerateSigningKeySlowlyAsync` may invoke its
+  // callback synchronously. This immediately erases the request from
+  // `inflight_spare_key_pool_requests_`. A `while` loop would then evaluate
+  // to true forever, triggering an infinite thread lock.
+  size_t tasks_to_launch =
+      kSpareSigningKeyPoolCapacity -
+      (current_pool_size + inflight_spare_key_pool_requests_->size());
+
+  for (size_t i = 0; i < tasks_to_launch; ++i) {
+    auto request = std::make_unique<SpareKeyPoolRequest>(task_manager_.get());
+    auto [it, inserted] =
+        inflight_spare_key_pool_requests_->insert(std::move(request));
+    CHECK(inserted);
+
+    // Using `base::Unretained(this)` is completely safe because `this` directly
+    // owns the `SpareKeyPoolRequest` objects within the hash set. If `this` is
+    // destroyed, the set is destroyed, which immediately destroys the requests
+    // and naturally drops this callback before it can ever be executed.
+    (**it).Start(
+        task_origin_, config_, acceptable_algorithms,
+        base::BindOnce(&UnexportableKeyServiceImpl::OnSpareSigningKeyGenerated,
+                       base::Unretained(this), it->get()));
+  }
+}
+
+void UnexportableKeyServiceImpl::OnSpareSigningKeyGenerated(
+    SpareKeyPoolRequest* request,
+    ServiceErrorOr<scoped_refptr<RefCountedUnexportableSigningKey>>
+        key_or_error) {
+  CHECK_EQ(inflight_spare_key_pool_requests_->erase(request), 1u);
+
+  base::UmaHistogramEnumeration(
+      GetSparePoolHistogramName("GenerateError"),
+      key_or_error.error_or(kNoServiceErrorForMetrics));
+
+  ASSIGN_OR_RETURN(scoped_refptr<RefCountedUnexportableSigningKey> key,
+                   std::move(key_or_error), [](ServiceError error) {});
+
+  spare_signing_keys_pool_[key->key().Algorithm()].push_back(std::move(key));
 }
 
 }  // namespace unexportable_keys

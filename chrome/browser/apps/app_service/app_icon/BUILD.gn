@@ -64,6 +64,7 @@ source_set("app_icon") {
       "//chrome/browser/ash/app_list/arc",
       "//chrome/browser/image_decoder",
       "//chrome/browser/resources:component_extension_resources",
+      "//chromeos/ash/experiences/arc:arc_app_constants",
       "//chromeos/ash/experiences/arc/mojom",
     ]
     public_deps += [ "//chromeos/ash/experiences/arc/intent_helper" ]

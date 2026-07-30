@@ -7,7 +7,7 @@
 
 #include "third_party/blink/renderer/bindings/core/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/core/dom/element_rare_data_field.h"
+#include "third_party/blink/renderer/core/dom/node_rare_data_field.h"
 #include "third_party/blink/renderer/core/dom/qualified_name.h"
 #include "third_party/blink/renderer/core/html/forms/labels_node_list.h"
 #include "third_party/blink/renderer/core/html/forms/listed_element.h"
@@ -28,7 +28,7 @@ class FrozenArray;
 
 class CORE_EXPORT ElementInternals : public ScriptWrappable,
                                      public ListedElement,
-                                     public ElementRareDataField {
+                                     public NodeRareDataField {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
@@ -95,6 +95,8 @@ class CORE_EXPORT ElementInternals : public ScriptWrappable,
   // resolution. Returns kUnknown if no behaviors are attached.
   ax::mojom::blink::Role BehaviorBasedDefaultRole() const;
 
+  const FrozenArray<Element>* ariaActionsElements() const;
+  void setAriaActionsElements(GCedHeapVector<Member<Element>>* given_elements);
   const FrozenArray<Element>* ariaControlsElements() const;
   void setAriaControlsElements(GCedHeapVector<Member<Element>>* given_elements);
   const FrozenArray<Element>* ariaDescribedByElements() const;

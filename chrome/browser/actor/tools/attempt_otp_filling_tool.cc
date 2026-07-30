@@ -96,8 +96,6 @@ void AttemptOtpFillingTool::Invoke(ToolCallback callback) {
 
 void AttemptOtpFillingTool::OnOtpRetrieved(ToolCallback callback,
                                            std::string otp) {
-  // While this is not wired up to do any filling, let's log if we received
-  // an OTP or not.
   journal().Log(
       JournalURL(), task_id(), "AttemptOtpFillingTool::OnOtpRetrieved",
       JournalDetailsBuilder().Add("otp_received", !otp.empty()).Build());
@@ -113,7 +111,6 @@ void AttemptOtpFillingTool::OnOtpRetrieved(ToolCallback callback,
     return;
   }
 
-  // TODO(b/502907696): Trigger the actual filling, correctly.
   tool_delegate().GetActorOneTimeTokenFillingService().FillOtp(
       GetTargetTab(), trigger_field_ids_, otp,
       base::BindOnce(&AttemptOtpFillingTool::OnOtpFilled,
@@ -127,11 +124,9 @@ void AttemptOtpFillingTool::OnOtpFilled(ToolCallback callback, bool success) {
   if (success) {
     std::move(callback).Run(MakeOkResult());
   } else {
-    // TODO(b/502907696): This is not the correct error code, we should define
-    // our own.
-    std::move(callback).Run(MakeResult(mojom::ActionResultCode::kNotImplemented,
-                                       /*requires_page_stabilization=*/false,
-                                       "Failed to fill OTP."));
+    std::move(callback).Run(MakeResult(
+        mojom::ActionResultCode::kFormFillingUnknownAutofillError,
+        /*requires_page_stabilization=*/false, "Failed to fill OTP."));
   }
 }
 
@@ -154,8 +149,15 @@ std::string AttemptOtpFillingTool::JournalEvent() const {
 std::unique_ptr<ObservationDelayController>
 AttemptOtpFillingTool::GetObservationDelayer(
     ObservationDelayController::PageStabilityConfig page_stability_config) {
-  content::RenderFrameHost* rfh =
-      GetTargetTab().Get()->GetContents()->GetPrimaryMainFrame();
+  tabs::TabInterface* tab = GetTargetTab().Get();
+  if (!tab || !tab->GetContents()) {
+    return nullptr;
+  }
+
+  content::RenderFrameHost* rfh = tab->GetContents()->GetPrimaryMainFrame();
+  if (!rfh) {
+    return nullptr;
+  }
 
   return std::make_unique<ObservationDelayController>(
       *rfh, task_id(), journal(), std::move(page_stability_config));

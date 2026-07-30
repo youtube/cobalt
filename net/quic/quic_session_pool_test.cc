@@ -15149,7 +15149,7 @@ TEST_P(QuicSessionPoolTest, ServerHandshakePaddingNotRequested) {
       net_log_observer.GetEntriesWithType(NetLogEventType::QUIC_SESSION);
   ASSERT_EQ(1u, entries.size());
   EXPECT_FALSE(
-      GetOptionalIntegerValueFromParams(entries[0], "server_padding_to_request")
+      GetOptionalIntegerValueFromParams(entries[0], "requested_server_padding")
           .has_value());
 }
 
@@ -15184,7 +15184,7 @@ TEST_P(QuicSessionPoolTest, ServerHandshakePaddingRequested) {
       net_log_observer.GetEntriesWithType(NetLogEventType::QUIC_SESSION);
   ASSERT_EQ(1u, entries.size());
   EXPECT_EQ(128,
-            GetIntegerValueFromParams(entries[0], "server_padding_to_request"));
+            GetIntegerValueFromParams(entries[0], "requested_server_padding"));
 }
 
 TEST_P(QuicSessionPoolTest, ServerHandshakePaddingZeroPadding) {
@@ -15216,7 +15216,7 @@ TEST_P(QuicSessionPoolTest, ServerHandshakePaddingZeroPadding) {
       net_log_observer.GetEntriesWithType(NetLogEventType::QUIC_SESSION);
   ASSERT_EQ(1u, entries.size());
   EXPECT_EQ(0,
-            GetIntegerValueFromParams(entries[0], "server_padding_to_request"));
+            GetIntegerValueFromParams(entries[0], "requested_server_padding"));
 }
 
 // Test that MTC Trust Anchor IDs are provided via GetSSLConfig() when enabled.

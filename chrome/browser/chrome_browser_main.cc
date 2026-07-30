@@ -92,7 +92,6 @@
 #include "chrome/common/profiler/core_unwinders.h"
 #include "chrome/common/profiler/thread_profiler_configuration.h"
 #include "chrome/grit/branded_strings.h"
-#include "chrome/grit/generated_resources.h"
 #include "chrome/installer/util/google_update_settings.h"
 #include "components/color/color_mixers.h"
 #include "components/device_event_log/device_event_log.h"
@@ -119,6 +118,7 @@
 #include "components/site_isolation/site_isolation_policy.h"
 #include "components/spellcheck/spellcheck_buildflags.h"
 #include "components/startup_metric_utils/browser/startup_metric_utils.h"
+#include "components/startup_metric_utils/common/startup_metric_utils.h"
 #include "components/tracing/common/background_tracing_utils.h"
 #include "components/translate/core/browser/translate_metrics_logger_impl.h"
 #include "components/variations/service/variations_service.h"
@@ -134,7 +134,7 @@
 #include "media/audio/audio_manager.h"
 #include "media/base/localized_strings.h"
 #include "net/base/data_url.h"
-#include "net/base/net_module.h"
+#include "net/base/module/net_module.h"
 #include "pdf/buildflags.h"
 #include "rlz/buildflags/buildflags.h"
 #include "services/network/public/cpp/network_switches.h"
@@ -914,6 +914,16 @@ void ChromeBrowserMainParts::StartMetricsRecording() {
   // due to a full system crash. Update the last live timestamp on a slow
   // schedule to get the bast possible accuracy for the assessment.
   g_browser_process->metrics_service()->StartUpdatingLastLiveTimestamp();
+
+  // This code runs in the browser process only and the only reason to skip the
+  // preread there is to be part of the ParallelPreReadFileMainDllWin synthetic
+  // trial. Enroll the client accordingly.
+  const bool synchronous_preread_was_skipped =
+      !startup_metric_utils::GetCommon().DidRecordPreRead();
+  ChromeMetricsServiceAccessor::RegisterSyntheticFieldTrial(
+      "ParallelPreReadFileMainDllWin",
+      synchronous_preread_was_skipped ? "Enabled" : "Control");
+
 #endif
 
   g_browser_process->GetMetricsServicesManager()->UpdateUploadPermissions();

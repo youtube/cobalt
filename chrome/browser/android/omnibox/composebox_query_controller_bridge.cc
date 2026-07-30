@@ -381,17 +381,18 @@ void ComposeboxQueryControllerBridge::ContextualizeAndCreateSearchUrl(
       base::BindOnce(&RunJavaCallback,
                      base::android::ScopedJavaGlobalRef<jobject>(j_callback)));
 
-  query_contextualizer_->Contextualize(
-      /*task_id=*/std::nullopt, query_text, /*tabs_to_recontextualize=*/{},
-      /*tabs_to_force_contextualize=*/{},
-      /*on_ineligible_callback=*/base::DoNothing(),
-      /*on_processed_callback=*/base::DoNothing(),
-      base::BindOnce(
-          [](base::OnceClosure closure,
-             base::WeakPtr<contextual_search::ContextualSearchSessionHandle>
-                 ignored_handle) { std::move(closure).Run(); },
-          std::move(callback)),
-      /*enable_smart_tab_selection=*/false);
+  contextual_tasks::QueryContextualizer::ContextualizeParams params;
+  params.task_id = std::nullopt;
+  params.query_text = query_text;
+  params.on_ineligible_callback = base::DoNothing();
+  params.on_processed_callback = base::DoNothing();
+  params.complete_callback = base::BindOnce(
+      [](base::OnceClosure closure,
+         base::WeakPtr<contextual_search::ContextualSearchSessionHandle>
+             ignored_handle) { std::move(closure).Run(); },
+      std::move(callback));
+  params.enable_smart_tab_selection = false;
+  query_contextualizer_->Contextualize(std::move(params));
 }
 
 void ComposeboxQueryControllerBridge::GetAimUrl(
@@ -767,12 +768,14 @@ void ComposeboxQueryControllerBridge::SubmitQueryToAimPage(
       },
       weak_ptr_factory_.GetWeakPtr(), query_text, active_tool, active_model);
 
-  query_contextualizer_->Contextualize(
-      /*task_id=*/std::nullopt, query_text, /*tabs_to_recontextualize=*/{},
-      /*tabs_to_force_contextualize=*/{},
-      /*on_ineligible_callback=*/base::DoNothing(),
-      /*on_processed_callback=*/base::DoNothing(), std::move(callback),
-      /*enable_smart_tab_selection=*/false);
+  contextual_tasks::QueryContextualizer::ContextualizeParams params;
+  params.task_id = std::nullopt;
+  params.query_text = query_text;
+  params.on_ineligible_callback = base::DoNothing();
+  params.on_processed_callback = base::DoNothing();
+  params.complete_callback = std::move(callback);
+  params.enable_smart_tab_selection = false;
+  query_contextualizer_->Contextualize(std::move(params));
 }
 
 static bool JNI_ComposeboxQueryControllerBridge_IsFuseboxEligibleForProfile(

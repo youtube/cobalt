@@ -16,6 +16,9 @@ import type {CrLazyRenderLitElement} from 'chrome://resources/cr_elements/cr_laz
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
+// <if expr="not is_android">
+import {HelpBubbleMixinLit} from 'chrome://resources/cr_components/help_bubble/help_bubble_mixin_lit.js';
+// </if>
 
 import type {ContextInfo} from './contextual_tasks.mojom-webui.js';
 import type {BrowserProxy} from './contextual_tasks_browser_proxy.js';
@@ -36,7 +39,14 @@ export interface TopToolbarElement {
   };
 }
 
-export class TopToolbarElement extends CrLitElement {
+// <if expr="is_android">
+const TopToolbarElementBase = CrLitElement;
+// </if>
+// <if expr="not is_android">
+const TopToolbarElementBase = HelpBubbleMixinLit(CrLitElement);
+// </if>
+
+export class TopToolbarElement extends TopToolbarElementBase {
   static get is() {
     return 'top-toolbar';
   }
@@ -135,6 +145,15 @@ export class TopToolbarElement extends CrLitElement {
     if (changedProperties.has('isAiPage')) {
       this.hideOverflowMenuButton_ =
           this.isAiPage && this.hideOverflowMenuOnAiPageEnabled_;
+      // <if expr="not is_android">
+      if (this.isAiPage) {
+        this.registerHelpBubble(
+            'kContextualTasksWebUIOverflowMenuElementId',
+            '#overflowMenuButton');
+      } else {
+        this.unregisterHelpBubble('kContextualTasksWebUIOverflowMenuElementId');
+      }
+      // </if>
     }
   }
 
@@ -166,7 +185,7 @@ export class TopToolbarElement extends CrLitElement {
   }
 
   protected onNewThreadClick_() {
-    this.fire('new-thread-click');
+    this.dispatchEvent(new CustomEvent('new-thread-click'));
   }
 
   protected onThreadHistoryClick_() {

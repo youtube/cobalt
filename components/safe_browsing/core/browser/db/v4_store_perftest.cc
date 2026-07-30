@@ -89,7 +89,8 @@ TEST_F(V4StorePerftest, StressTest) {
       temp_dir.GetPath().AppendASCII("V4StoreTest.store");
 
   auto task_runner = base::MakeRefCounted<base::TestSimpleTaskRunner>();
-  auto store = std::make_unique<V4Store>(task_runner, store_path);
+  auto store =
+      std::make_unique<V4Store>(task_runner, store_path, /*v5_prefix_size=*/0);
   std::sort(prefixes.begin(), prefixes.end());
   store->hash_prefix_map_->Clear();
   store->hash_prefix_map_->Append(kMinHashPrefixLength, base::StrCat(prefixes));
@@ -133,7 +134,8 @@ TEST_F(V4StorePerftest, VerifyChecksumFast) {
       temp_dir.GetPath().AppendASCII("V4StoreTestVerifyChecksum.store");
 
   auto task_runner = base::MakeRefCounted<base::TestSimpleTaskRunner>();
-  auto store = std::make_unique<V4Store>(task_runner, store_path);
+  auto store =
+      std::make_unique<V4Store>(task_runner, store_path, /*v5_prefix_size=*/0);
   store->hash_prefix_map_->Clear();
   store->hash_prefix_map_->Append(kMinHashPrefixLength, base::StrCat(prefixes));
   store->expected_checksum_ = std::string(32, '0');
@@ -194,7 +196,8 @@ TEST_F(V4StorePerftest, MergeUpdateFast) {
   new_map[kMinHashPrefixLength] = new_str;
 
   auto task_runner = base::MakeRefCounted<base::TestSimpleTaskRunner>();
-  auto store = std::make_unique<V4Store>(task_runner, base::FilePath());
+  auto store = std::make_unique<V4Store>(task_runner, base::FilePath(),
+                                         /*v5_prefix_size=*/0);
 
   auto reporter = SetUpMergeUpdateReporter("merge_update_fast");
   base::ElapsedTimer timer;

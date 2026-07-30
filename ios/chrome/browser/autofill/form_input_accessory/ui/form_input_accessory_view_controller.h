@@ -13,6 +13,7 @@
 @protocol FormSuggestionClient;
 @class LayoutGuideCenter;
 @protocol FormInputAccessoryViewControllerDelegate;
+@protocol AutofillSuggestionContextMenuHandler;
 
 // The maximum number of suggestions to show in the keyboard accessory.
 inline constexpr NSUInteger kKeyboardAccessorySuggestionsLimit = 30;
@@ -24,6 +25,10 @@ inline constexpr NSUInteger kKeyboardAccessorySuggestionsLimit = 30;
 
 // Client in charge of handling actions in suggestions.
 @property(nonatomic, weak) id<FormSuggestionClient> formSuggestionClient;
+
+// Handler for suggestions context menu actions.
+@property(nonatomic, weak) id<AutofillSuggestionContextMenuHandler>
+    contextMenuHandler;
 
 // The view controller to show the branding logo.
 @property(nonatomic, strong) BrandingViewController* brandingViewController;

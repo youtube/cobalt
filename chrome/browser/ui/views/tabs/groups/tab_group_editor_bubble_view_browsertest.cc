@@ -4,8 +4,11 @@
 
 #include "chrome/browser/ui/views/tabs/groups/tab_group_editor_bubble_view.h"
 
+#include <memory>
+
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/metrics/user_action_tester.h"
+#include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
@@ -98,7 +101,24 @@ class TabGroupEditorBubbleViewDialogBrowserTest : public DialogBrowserTest {
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_F(TabGroupEditorBubbleViewDialogBrowserTest,
+class TabGroupEditorBubbleViewPixelBrowserTest
+    : public TabGroupEditorBubbleViewDialogBrowserTest {
+ protected:
+  void ShowUi(const std::string& name) override {
+    TabGroupEditorBubbleViewDialogBrowserTest::ShowUi(name);
+    views::Widget* widget = WaitForAndGetEditorBubbleWidget();
+    if (widget) {
+      auto* test_info = testing::UnitTest::GetInstance()->current_test_info();
+      if (test_info && std::string(test_info->name()).find("InvokeUi_") == 0) {
+        widget->widget_delegate()
+            ->AsBubbleDialogDelegate()
+            ->set_close_on_deactivate(false);
+      }
+    }
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(TabGroupEditorBubbleViewPixelBrowserTest,
                        InvokeUi_default) {
   ShowAndVerifyUi();
 }
@@ -420,7 +440,7 @@ IN_PROC_BROWSER_TEST_F(TabGroupEditorBubbleViewDialogBrowserTestWithSavedGroup,
   // Pull the dialog state and call the OnDialogOk method.
   deletion_dialog_controller->SimulateOkButtonForTesting();
 
-  // Make sure that the ungroup action occured.
+  // Make sure that the ungroup action occurred.
   EXPECT_EQ(0u, group_model->ListTabGroups().size());
   EXPECT_FALSE(group_model->ContainsTabGroup(group_list[0]));
   EXPECT_EQ(1, tsm->count());
@@ -576,10 +596,11 @@ IN_PROC_BROWSER_TEST_F(
   // 2. Click to focus the group.
   ui::MouseEvent released_event(ui::EventType::kMouseReleased, gfx::PointF(),
                                 gfx::PointF(), base::TimeTicks(), 0, 0);
+  base::WeakPtr<views::Widget> weak_widget = editor_bubble->GetWeakPtr();
   views::test::ButtonTestApi(focus_button).NotifyClick(released_event);
 
-  // The bubble should close. Wait for it.
-  views::test::WidgetDestroyedWaiter(editor_bubble).Wait();
+  // The bubble should close. Wait for it to be fully destroyed.
+  EXPECT_TRUE(base::test::RunUntil([&]() { return !weak_widget; }));
 
   EXPECT_TRUE(tsm->GetFocusedGroup().has_value());
   EXPECT_EQ(group_id, tsm->GetFocusedGroup().value());
@@ -603,8 +624,9 @@ IN_PROC_BROWSER_TEST_F(
       l10n_util::GetStringUTF16(IDS_TAB_GROUP_HEADER_CXMENU_UNFOCUS_GROUP));
 
   // 4. Click to unfocus the group.
+  base::WeakPtr<views::Widget> weak_widget2 = editor_bubble2->GetWeakPtr();
   views::test::ButtonTestApi(unfocus_button).NotifyClick(released_event);
-  views::test::WidgetDestroyedWaiter(editor_bubble2).Wait();
+  EXPECT_TRUE(base::test::RunUntil([&]() { return !weak_widget2; }));
 
   EXPECT_FALSE(tsm->GetFocusedGroup().has_value());
 }
@@ -617,7 +639,7 @@ IN_PROC_BROWSER_TEST_F(TabGroupEditorBubbleViewDialogBrowserTest,
           .supports_global_screen_coordinates) {
     GTEST_SKIP() << "Only test when global screen coordinates aren't supported";
   }
-  browser()->window()->SetBounds(gfx::Rect(0, 0, 1000, 1000));
+  browser()->GetWindow()->SetBounds(gfx::Rect(0, 0, 1000, 1000));
 
   group_ = browser()->tab_strip_model()->AddToNewGroup({0});
   ASSERT_TRUE(group_.has_value());
@@ -625,11 +647,11 @@ IN_PROC_BROWSER_TEST_F(TabGroupEditorBubbleViewDialogBrowserTest,
   // Try showing the bubble near the top of the window. The arrow should be on
   // the top left.
   gfx::Rect top_anchor_rect(100, 100, 50, 50);
-  views::Widget* top_widget = TabGroupEditorBubbleView::Show(
+  std::unique_ptr<views::Widget> top_widget = TabGroupEditorBubbleView::Show(
       browser(), group_.value(),
       BrowserView::GetBrowserViewForBrowser(browser())->tab_strip_view(),
       top_anchor_rect, false);
-  views::test::WidgetVisibleWaiter(top_widget).Wait();
+  views::test::WidgetVisibleWaiter(top_widget.get()).Wait();
 
   TabGroupEditorBubbleView* top_bubble_view =
       static_cast<TabGroupEditorBubbleView*>(
@@ -641,11 +663,11 @@ IN_PROC_BROWSER_TEST_F(TabGroupEditorBubbleViewDialogBrowserTest,
   // Try showing the bubble near the bottom of the window. The arrow should be
   // on the bottom left.
   gfx::Rect bottom_anchor_rect(100, 900, 50, 50);
-  views::Widget* bottom_widget = TabGroupEditorBubbleView::Show(
+  std::unique_ptr<views::Widget> bottom_widget = TabGroupEditorBubbleView::Show(
       browser(), group_.value(),
       BrowserView::GetBrowserViewForBrowser(browser())->tab_strip_view(),
       bottom_anchor_rect, false);
-  views::test::WidgetVisibleWaiter(bottom_widget).Wait();
+  views::test::WidgetVisibleWaiter(bottom_widget.get()).Wait();
 
   TabGroupEditorBubbleView* bottom_bubble_view =
       static_cast<TabGroupEditorBubbleView*>(

@@ -29,6 +29,13 @@ DlpDownloadObserverFactory::DlpDownloadObserverFactory()
 }
 
 // static
+DlpDownloadObserver* DlpDownloadObserverFactory::GetForProfile(
+    Profile* profile) {
+  return static_cast<DlpDownloadObserver*>(
+      GetInstance()->GetServiceForBrowserContext(profile, /*create=*/true));
+}
+
+// static
 DlpDownloadObserverFactory* DlpDownloadObserverFactory::GetInstance() {
   static base::NoDestructor<DlpDownloadObserverFactory> instance;
   return &*instance;

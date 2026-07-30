@@ -269,6 +269,7 @@
 <translation id="1407135791313364759">සියල්ල විවෘත කරන්න</translation>
 <translation id="1408696301184924537">මීළඟ වන මෙම IBAN එක ස්වයං පිරවීමට, මෙය ඔබේ Google ගිණුම තුළ සුරකින්න</translation>
 <translation id="1408787208417187241">ඉහළට තුන් වරක් ස්ටේපල් කරන්න</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />. <ph name="SUGGESTION_TYPE" />. <ph name="GROUP_HEADER" /> සමූහයේ <ph name="NUM_MATCHES_IN_GROUP" /> න් <ph name="MATCH_POSITION" />.</translation>
 <translation id="1410365862999780287">මෙම උපාංගය භාවිත කරන වෙනත් අය ඔබේ ක්‍රියාකාරකම් නොදකිනු ඇති බැවින්, ඔබට වඩාත් පෞද්ගලිකව බ්‍රවුස් කළ හැක. මෙය ඔබ පිවිසෙන වෙබ් අඩවි සහ Google ඇතුළු ඔවුන් භාවිතා කරන සේවාවන් මගින් දත්ත රැස් කරන ආකාරය වෙනස් නොකරනු ඇත. බාගැනීම්, පිටුසන් සහ කියවීම් ලැයිස්තු අයිතම සුරකිනු ඇත.</translation>
 <translation id="1410941016594047814">ලියුම් කවරය ආරාධනාව</translation>
 <translation id="1413235258620101697">මෙම කාඩ්පතේ CVC සංකේතනය කර වේගවත් පිටවීම සඳහා Google Wallet හි සුරකිනු ඇත</translation>
@@ -300,6 +301,7 @@
 <translation id="1445896388055045436">ගෙවා පිටවීමේ දී ලබා ගත හැකි කාඩ්පත් ප්‍රතිලාභ සහ ත්‍යාග පෙන්වන්න. නිකුත් කරන්නාගේ නියමයන් අදාළ වේ.</translation>
 <translation id="1447067628680007684">(x86_64)</translation>
 <translation id="1448166547804028941">"<ph name="DATA_CONTROLS_FIRST_KEY_SET" />" යතුරු "<ph name="DATA_CONTROLS_SECOND_KEY_SET" />" යතුරු ලෙස එකම ශබ්ද කෝෂයේ සැකසිය නොහැක</translation>
+<translation id="1449251255954293933">පිළියම් අංකය Google Wallet තුළ සුරකින්න</translation>
 <translation id="1455413310270022028">මකනය</translation>
 <translation id="1457992721081300557">{NUM_REVIEWS,plural, =0{සමාලෝචන 0ක් බලන්න}=1{1 සමාලෝචනයක් බලන්න}one{සමාලෝචන #ම බලන්න}other{සමාලෝචන #ම බලන්න}}</translation>
 <translation id="1458059624921545588">පුද්ගලයින් සහ සමාජය</translation>
@@ -660,6 +662,7 @@
 <translation id="2045871135676061132">ලියුම් කවරය පුද්ගලික</translation>
 <translation id="2046951263634619614">පොත් විකුණන්නන්</translation>
 <translation id="2048261947532620704">පිටුව පරිවර්තනය කරමින්</translation>
+<translation id="2055016614992422886">සංවාදය</translation>
 <translation id="2059166748188874810">නගර සභාව</translation>
 <translation id="2059202684901022309">අඟ 22 x 34</translation>
 <translation id="2064568741209980952">හර සහ ණයට දීම</translation>
@@ -1155,6 +1158,7 @@
 <translation id="2782088940970074970">මෝටර් රථ කුලියට ගැනීම</translation>
 <translation id="278436560439594386">ගෘහ උපකරණ</translation>
 <translation id="2784474685437057136">B5 අමතර</translation>
+<translation id="2784795832957740711">මුරපද · මුරයතුරු</translation>
 <translation id="2784949926578158345">සබඳතාව යළි සැකසිනි.</translation>
 <translation id="2786008859124691917">පාපැදි සහ ආයිත්තම්</translation>
 <translation id="2792012897584536778">මෙම උපාංගයේ පරිපාලකයින් ඔවුන්ට ඔබ පැමිණෙන වෙබ් අඩවිවල අන්තර්ගතය බැලීමට ඉඩ සැලසිය හැකි ආරක්‍ෂක සහතික සකසා ඇත.</translation>
@@ -2305,6 +2309,7 @@
 <translation id="46128681529823442">පාපන්දු උපකරණ</translation>
 <translation id="4612904677925722054">මෙම අඩවියේ පරිණත අන්තර්ගතයන් තිබිය හැක. ඔබ මෙම වෙබ් අඩවියට පැමිණීම සුදුසු බව දෙමාපියෙකු හෝ භාරකරුවෙකු පැවසිය යුතු වේ.</translation>
 <translation id="4619564267100705184">ඒ ඔබ බව සත්‍යාපනය කරන්න</translation>
+<translation id="4619669610757527494">රියදුරු බලපත්‍රය Google Wallet තුළ සුරකින්න</translation>
 <translation id="4622292761762557753">කෙසේ හෝ මාරු කරන්න</translation>
 <translation id="4622647778991854660">දැනුම්දීම් මධ්‍යස්ථානයේ දැනුම්දීම් සබල කරන්න. <ph name="LINK" /> විවෘත කරන්න.</translation>
 <translation id="4623894491222334521">අනන්‍යතා ලේඛන</translation>
@@ -2834,6 +2839,7 @@
 <translation id="543656192084990644">චලන සංවේදකවලට ඉඩ නැත</translation>
 <translation id="5441409130426352029"><ph name="ATTRIBUTE_VALUE" />, <ph name="PREVIOUS_VALUE" /> විය</translation>
 <translation id="5443468954631487277">ප්‍රතිවර්තන පිළිවෙළ මුහුණු ඉහළට</translation>
+<translation id="5447103258548475868">විදේශ ගමන් බලපත්‍රය Google Wallet තුළ සුරකින්න</translation>
 <translation id="5447235695608032700"><ph name="SITE" /> හට ඔවුන් ඔබ ගැන සුරකින ලද තතු භාවිතා කිරීමට ඉඩ දෙන්න</translation>
 <translation id="5447973833955560753">ප්‍රතිසාධන මුරපදය</translation>
 <translation id="5451331376824595378">Chrome විසින් ආරක්ෂක සිදුවීම් සලකුණු කළ විට, සිදුවීම් පිළිබඳ අදාළ දත්ත ඔබේ පරිපාලකයා වෙත යවනු ලැබේ. මෙයට ඔබ Chrome තුළ පැමිණෙන පිටුවල URL, ඔබ දත්ත පිටපත් කළ පිටුවල URL, ගොනු නාම හෝ පාරදත්ත, IP ලිපිනය, බ්‍රවුසර හෝ පටිති බිඳ වැටීම්, සහ ඔබ වෙබ් පාදක යෙදුම්, ඔබ ඔබේ උපාංගය සහ Chrome වෙත පුරනය වීමට භාවිත කරන පරිශීලක නාමය ඇතුළත් විය හැක.</translation>
@@ -3016,6 +3022,7 @@
 <translation id="5718601519531438273">විදේශ ගමන් බලපත්‍ර සහ රියදුරු බලපත්‍ර වැනි තොරතුරු ඇතුළත් වේ</translation>
 <translation id="5720705177508910913">වත්මන් භාවිතකරු</translation>
 <translation id="5720895412771013401">ඩෙස්ක්ටොප් පරිගණක</translation>
+<translation id="5721147290164931316">ඔබේ දුරකථනය සමග පුරනය වීමට ස්කෑන් කරන්න</translation>
 <translation id="5721367770070844253">{count,plural, =1{{website_1}}=2{{website_1}, {website_2}}=3{{website_1}, {website_2}, සහ තව 1ක්}one{{website_1}, {website_2}, සහ තව {more_count}ක්}other{{website_1}, {website_2}, සහ තව {more_count}ක්}}</translation>
 <translation id="572328651809341494">මෑතකාලීන පටිති</translation>
 <translation id="5723873695528696965">ඔබේ MIDI උපාංග පාලන කර නැවත ක්‍රමලේඛන කරන්න</translation>
@@ -3557,6 +3564,7 @@
 <translation id="6550245281449521513">මූසික අගුලට ඉඩ නැත</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />, අලුත්</translation>
 <translation id="6552566579578780089">ගෙවීම්</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />. <ph name="SUGGESTION_TYPE" />. <ph name="GROUP_HEADER" /> සමූහයේ <ph name="NUM_MATCHES_IN_GROUP" /> න් <ph name="MATCH_POSITION" />.</translation>
 <translation id="6554732001434021288">දින <ph name="NUM_DAYS" />කට පෙර අවසන් වරට පිවිසි</translation>
 <translation id="6556866813142980365">නැවත කරන්න</translation>
 <translation id="6557715786897013164">අඟ 14 x 17</translation>
@@ -4233,6 +4241,7 @@
 <translation id="7599089013883397081">බාගැනීමේ කාලය නිමා විය</translation>
 <translation id="7602868996817972616">මෙම පිටුව ගැන Google වෙතින් විමසන්න</translation>
 <translation id="7606123685356405076">Gemini 3 මාදිලි</translation>
+<translation id="760632772920590778">වාහනය Google Wallet තුළ සුරකින්න</translation>
 <translation id="7610193165460212391">අගය <ph name="VALUE" /> පරාසයෙන් බැහැරව ඇත.</translation>
 <translation id="761261689936461781">ඝන</translation>
 <translation id="7613889955535752492">කල් ඉකුත් වීම: <ph name="EXPIRATION_MONTH" />/<ph name="EXPIRATION_YEAR" /></translation>
@@ -4261,7 +4270,9 @@
 <translation id="7646681339175747202">ඔබ මේ දැන් භාවිතා කළ මුරපදය දත්ත කඩ කිරීමකින් සොයා ගන්නා ලදි. Google මුරපද කළමනාකරු ඔබේ මුරපදය දැන් වෙනස් කිරීම නිර්දේශ කරයි.</translation>
 <translation id="7647206758853451655">මුද්‍රණ ගුණත්වය</translation>
 <translation id="7648133459447652947">ඔබේ කර්සරය පෙන්වීමට, යෙදුම් මාරු කරන්න, පිටුව නැවත පූරණය කරන්න, නැතහොත් ආපසු යන්න</translation>
+<translation id="764847582138410250">ඔබේ දුරකථනය සමග පුරනය වීමට ස්කෑන් කරන්න</translation>
 <translation id="7648527891719919697">ඔබ <ph name="BEGIN_ANDROID_SETTINGS_LINK" />Android සැකසීම්<ph name="END_ANDROID_SETTINGS_LINK" /> තුළ උසස් ආරක්ෂණය ක්‍රියාත්මක කර ඇති නිසා මෙම අඩවිය අවහිරව පවතිනු ඇත. <ph name="BEGIN_LEARN_MORE_LINK" />මෙම අනතුරු ඇඟවීම ගැන තව දැන ගන්න<ph name="END_LEARN_MORE_LINK" /></translation>
+<translation id="7648900539798595789">දන්නා සංචාරක අංකය (KTN) Google Wallet තුළ සුරකින්න</translation>
 <translation id="7648992873808071793">මෙම උපාංගය මත ගොනු ගබඩා කරන්න</translation>
 <translation id="7649070708921625228">උදවු</translation>
 <translation id="7650141368285545431">වෙනත් උපාංගයකින් මුරයතුර භාවිතා කරන්න</translation>
@@ -4354,6 +4365,7 @@
 <translation id="7773005668374414287">එකම පිළිවෙළ මුහුණු ඉහළට</translation>
 <translation id="7779418012194492374"><ph name="DEVICE_NAME" /> සඳහා ප්‍රවේශය අහෝසි කරන්න</translation>
 <translation id="7781829728241885113">ඊයේ</translation>
+<translation id="7782228658217918863">Google Wallet හි අනන්‍යතා කාඩ්පත සුරකින්න</translation>
 <translation id="7782465647372057580">ගිණුම් තතු සංකේතනය කර පෞද්ගලිකව තබා ඇත</translation>
 <translation id="7785471469930192436">අදාළ වන්නේ නම්, ඔබගේ සෙවීම් ඉතිහාසය මැකීම සඳහා ඔබගේ සෙවීම් යන්ත්‍රයේ උපදෙස් බලන්න.</translation>
 <translation id="7785790577395078482">මෙම ටැබ්ලටය</translation>
@@ -4888,6 +4900,7 @@
 <translation id="8671519637524426245"><ph name="SECURE_DNS_SALT" /> අගය ප්‍රමාණයේ අවශ්‍යතා සපුරාලන්නේ නැත.</translation>
 <translation id="867224526087042813">අත්සන</translation>
 <translation id="8672535691554698269">පරිගණක ජාල</translation>
+<translation id="8673710317985154384">{NUM_TABS,plural, =1{පටිති බෙදා ගැනීමේ විස්තර පෙන්වන්න. {WEBSITE_LIST_STR} වෙතින් 1 පටිත්තක් බෙදා ගැනීම}one{පටිති බෙදා ගැනීමේ විස්තර පෙන්වන්න. {WEBSITE_LIST_STR} සිට පටිති {NUM_TABS}ක් බෙදා ගැනීම}other{පටිති බෙදා ගැනීමේ විස්තර පෙන්වන්න. {WEBSITE_LIST_STR} සිට පටිති {NUM_TABS}ක් බෙදා ගැනීම}}</translation>
 <translation id="8675446170353411473">ඔබේ ගොනු <ph name="CLOUD_PROVIDER" /> වෙත උඩුගත කෙරේ</translation>
 <translation id="8676424191133491403">ප්‍රමාද නැත</translation>
 <translation id="8680536109547170164"><ph name="QUERY" />, පිළිතුර, <ph name="ANSWER" /></translation>

@@ -81,6 +81,9 @@ base::TimeDelta GetAvatarSyncPromoFeatureMinimumCookeAgeParam() {
 #endif
 }
 
+BASE_FEATURE(kAvoidAutoTriggerListAccountsOnStale,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 BASE_FEATURE(kBeforeFirstRunDesktopRefreshSurvey,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -410,6 +413,15 @@ BASE_FEATURE(kEnableOAuthMultiloginStandardCookiesBindingForSecondaryPartitions,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+BASE_FEATURE(kEnableOAuthMultiloginYoutubeCookiesBinding,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(bool,
+                   kOAuthMultiloginYoutubeCookieBindingEnforced,
+                   &kEnableOAuthMultiloginYoutubeCookiesBinding,
+                   true);
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
+
 BASE_FEATURE(kEnablePreferencesAccountStorage,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -474,16 +486,6 @@ const base::FeatureParam<base::TimeDelta>
     kPolicyDisclaimerRegistrationRetryDelay{
         &kEnforceManagementDisclaimer, "PolicyDisclaimerRegistrationRetryDelay",
         base::Hours(8)};
-#endif
-
-#if BUILDFLAG(IS_IOS)
-BASE_FEATURE(kEnforceMustFetchAppleAgeRangeInChromeCapability,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif
-
-#if BUILDFLAG(IS_IOS)
-BASE_FEATURE(kEnforceMustSkipAppleAgeRangeInChromeCapability,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
 BASE_FEATURE(kFetchAccountInfoOnRestart, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -590,7 +592,7 @@ BASE_FEATURE(kNonDefaultGaiaOriginCheck, base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS)
-BASE_FEATURE(kPasswordUploadUiUpdate, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kPasswordUploadUiUpdate, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_CHROMEOS)
 
@@ -728,6 +730,11 @@ BASE_FEATURE(kSyncEnableBookmarksInTransportMode,
 #endif
 );
 BASE_FEATURE(kBookmarksMigrateUiChanges, base::FEATURE_ENABLED_BY_DEFAULT);
+
+#if BUILDFLAG(IS_CHROMEOS)
+BASE_FEATURE(kUndoChromeOsUseConsentLevelSignin,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 BASE_FEATURE(kUsePrimaryAndTonalButtonsForPromos,
              base::FEATURE_ENABLED_BY_DEFAULT);

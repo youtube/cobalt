@@ -170,7 +170,8 @@ public class PaymentRequestServiceBuilder implements Delegate {
 
     @Override
     public @SecurePaymentConfirmationRequestValidationError int
-            validateSecurePaymentConfirmationRequest(SecurePaymentConfirmationRequest request) {
+            validateSecurePaymentConfirmationRequest(
+                    SecurePaymentConfirmationRequest request, Origin initiatorOrigin) {
         return mIsSecurePaymentConfirmationRequestValid
                 ? SecurePaymentConfirmationRequestValidationError.OK
                 : SecurePaymentConfirmationRequestValidationError.CREDENTIAL_IDS_REQUIRED;

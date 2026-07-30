@@ -10,12 +10,15 @@
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/current_thread.h"
+#include "base/test/run_until.h"
 #include "base/test/test_timeouts.h"
+#include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/performance_manager/public/background_tab_loading_policy.h"
@@ -46,6 +49,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/ui_features.h"
+#include "chrome/browser/ui/window_metadata/window_metadata_controller.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/test/base/chrome_test_utils.h"
@@ -64,6 +68,10 @@
 #include "components/saved_tab_groups/public/tab_group_sync_service.h"
 #include "components/saved_tab_groups/public/types.h"
 #include "components/sessions/content/content_test_helper.h"
+#include "components/sessions/core/command_storage_backend.h"
+#include "components/sessions/core/command_storage_features.h"
+#include "components/sessions/core/command_storage_manager.h"
+#include "components/sessions/core/command_storage_manager_test_helper.h"
 #include "components/sessions/core/session_id.h"
 #include "components/sessions/core/tab_restore_service.h"
 #include "components/sessions/core/tab_restore_service_impl.h"
@@ -542,12 +550,12 @@ IN_PROC_BROWSER_TEST_F(TabRestoreTest, RestoreWindowBounds) {
   EXPECT_EQ(2u, GlobalBrowserCollection::GetInstance()->GetSize());
 
   // Deliberately change the bounds of the first window to something different.
-  gfx::Rect bounds = browser()->window()->GetBounds();
+  gfx::Rect bounds = browser()->GetWindow()->GetBounds();
   bounds.set_width(700);
   bounds.set_height(480);
   bounds.Offset(20, 20);
-  browser()->window()->SetBounds(bounds);
-  gfx::Rect bounds2 = browser()->window()->GetBounds();
+  browser()->GetWindow()->SetBounds(bounds);
+  gfx::Rect bounds2 = browser()->GetWindow()->GetBounds();
   ASSERT_EQ(bounds, bounds2);
 
   // Close the first window.
@@ -1601,7 +1609,7 @@ IN_PROC_BROWSER_TEST_F(TabRestoreTest, GetRestoreWindowType) {
 
 IN_PROC_BROWSER_TEST_F(TabRestoreTest, RestoreWindowWithName) {
   AddFileSchemeTabs(browser(), 1);
-  browser()->SetWindowUserTitle("foobar");
+  WindowMetadataController::From(browser())->SetWindowUserTitle("foobar");
 
   // Create a second browser.
   ui_test_utils::NavigateToURLWithDisposition(
@@ -1620,7 +1628,7 @@ IN_PROC_BROWSER_TEST_F(TabRestoreTest, RestoreWindowWithName) {
   ASSERT_NO_FATAL_FAILURE(
       RestoreTab(/*target_browser=*/nullptr, active_tab_index));
   BrowserWindowInterface* const browser = browser_created_observer.Wait();
-  EXPECT_EQ("foobar", browser->GetBrowserForMigrationOnly()->user_title());
+  EXPECT_EQ("foobar", WindowMetadataController::From(browser)->user_title());
 }
 
 // Closing the last tab in a group then restoring will place the group back with
@@ -3840,5 +3848,117 @@ IN_PROC_BROWSER_TEST_F(TabRestoreVerticalTabsTest,
   EXPECT_EQ(new_state_controller->IsCollapsed(), kIsCollapsed);
   EXPECT_EQ(new_state_controller->GetUncollapsedWidth(), kUncollapsedWidth);
 }
+
+struct EncryptionTestParams {
+  const char* stage_name;
+};
+
+class TabRestoreEncryptionTest
+    : public TabRestoreTest,
+      public testing::WithParamInterface<EncryptionTestParams> {
+ public:
+  TabRestoreEncryptionTest() {
+    if (std::string_view(GetParam().stage_name) == "clear_only") {
+      scoped_feature_list_.InitAndDisableFeature(
+          sessions::kEncryptSessionStorage);
+    } else {
+      scoped_feature_list_.InitAndEnableFeatureWithParameters(
+          sessions::kEncryptSessionStorage, {{"stage", GetParam().stage_name}});
+    }
+  }
+
+  void AssertCommandStorageBackendFilesExist(Profile* profile) {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    sessions::TabRestoreServiceImpl* tab_restore_service =
+        static_cast<sessions::TabRestoreServiceImpl*>(
+            TabRestoreServiceFactory::GetForProfile(profile));
+    sessions::CommandStorageManager* command_storage_manager =
+        tab_restore_service->command_storage_manager_for_testing();
+    sessions::CommandStorageManagerTestHelper test_helper(
+        command_storage_manager);
+    command_storage_manager->Save();
+    test_helper.RunMessageLoopUntilBackendDone();
+    sessions::CommandStorageBackend* cleartext_backend =
+        test_helper.GetCleartextBackend();
+    sessions::CommandStorageBackend* encrypted_backend =
+        test_helper.GetEncryptedBackend();
+    if (test_helper.ShouldWriteEncryptedFiles()) {
+      ASSERT_TRUE(encrypted_backend);
+      const base::FilePath path = encrypted_backend->current_path_for_testing();
+      ASSERT_TRUE(base::PathExists(path));
+    } else {
+      ASSERT_FALSE(encrypted_backend);
+    }
+    if (test_helper.ShouldWriteCleartextFiles()) {
+      ASSERT_TRUE(cleartext_backend);
+      const base::FilePath path = cleartext_backend->current_path_for_testing();
+      ASSERT_TRUE(base::PathExists(path));
+    } else {
+      ASSERT_FALSE(cleartext_backend);
+    }
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_P(TabRestoreEncryptionTest, BasicRestore) {
+  AddFileSchemeTabs(browser(), 1);
+  int starting_tab_count = browser()->tab_strip_model()->count();
+
+  CloseTab(starting_tab_count - 1);
+  EXPECT_EQ(starting_tab_count - 1, browser()->tab_strip_model()->count());
+  AssertCommandStorageBackendFilesExist(browser()->profile());
+
+  ASSERT_NO_FATAL_FAILURE(RestoreTab(browser(), starting_tab_count - 1));
+
+  EXPECT_EQ(starting_tab_count, browser()->tab_strip_model()->count());
+  EXPECT_EQ(url1_,
+            browser()->tab_strip_model()->GetActiveWebContents()->GetURL());
+}
+
+IN_PROC_BROWSER_TEST_P(TabRestoreEncryptionTest, LargeSessionRestore) {
+  constexpr int kNumTabs = 20;
+  AddFileSchemeTabs(browser(), kNumTabs);
+  int starting_tab_count = browser()->tab_strip_model()->count();
+  EXPECT_EQ(kNumTabs + 1, starting_tab_count);
+
+  // Create a second browser window to stay alive and trigger restore.
+  ui_test_utils::NavigateToURLWithDisposition(
+      browser(), GURL(chrome::kChromeUINewTabURL),
+      WindowOpenDisposition::NEW_WINDOW,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_BROWSER);
+  EXPECT_EQ(2u, GlobalBrowserCollection::GetInstance()->GetSize());
+
+  Browser* browser1 = browser();
+  CloseBrowserSynchronously(browser1);
+  EXPECT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
+
+  BrowserWindowInterface* browser2 =
+      GetLastActiveBrowserWindowInterfaceWithAnyProfile();
+  AssertCommandStorageBackendFilesExist(browser2->GetProfile());
+
+  ui_test_utils::BrowserCreatedObserver observer;
+  sessions::TabRestoreService* service =
+      TabRestoreServiceFactory::GetForProfile(browser2->GetProfile());
+  service->RestoreMostRecentEntry(browser2->GetFeatures().live_tab_context());
+  Browser* restored_browser = observer.Wait();
+
+  EXPECT_EQ(starting_tab_count, restored_browser->tab_strip_model()->count());
+  for (int i = 1; i < starting_tab_count; ++i) {
+    EXPECT_EQ(
+        url1_,
+        restored_browser->tab_strip_model()->GetWebContentsAt(i)->GetURL());
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    TabRestoreEncryptionTest,
+    testing::Values(EncryptionTestParams{"clear_only"},
+                    EncryptionTestParams{"write_both_read_only_clear"}),
+    [](const testing::TestParamInfo<EncryptionTestParams>& info) {
+      return info.param.stage_name;
+    });
 
 }  // namespace sessions

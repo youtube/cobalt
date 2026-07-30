@@ -28,6 +28,7 @@ import org.chromium.components.browser_ui.widget.TouchEventObserver;
 import org.chromium.components.browser_ui.widget.TouchEventProvider;
 import org.chromium.content_public.browser.RenderWidgetHostView;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.ui.OverscrollActivationStatus;
 import org.chromium.ui.UiUtils;
 import org.chromium.ui.base.BackGestureEventSwipeEdge;
 import org.chromium.ui.base.WindowAndroid;
@@ -311,10 +312,10 @@ public class HistoryNavigationCoordinator
      * Processes a motion event releasing the finger off the screen and possibly initializing the
      * navigation.
      *
-     * @param allowNav {@code true} if release action is supposed to trigger navigation.
+     * @param status The activation status of the release gesture.
      */
-    public void release(boolean allowNav) {
-        if (mNavigationHandler != null) mNavigationHandler.release(allowNav);
+    public void release(@OverscrollActivationStatus int status) {
+        if (mNavigationHandler != null) mNavigationHandler.release(status);
     }
 
     /** Resets a gesture as the result of the successful navigation or cancellation. */

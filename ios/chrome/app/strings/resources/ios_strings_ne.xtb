@@ -874,6 +874,7 @@
 <translation id="4021447724486050609">आफ्नो ब्राउजर अपडेट गर्नुहोस्</translation>
 <translation id="4021931095789478915">रिडिङ लिस्टमा ${url} हालियोस्</translation>
 <translation id="4028871427853484857">खातामा सेभ गर्नुहोस्…</translation>
+<translation id="4036529942385659684">केही समयसम्मको निष्क्रियतापछि स्टार्ट पेज देखाउनुहोस्</translation>
 <translation id="4038354071007134711">यस यन्त्रमा भएको कुनै पनि एपले फाइल खोल्न सक्दैन।</translation>
 <translation id="4042870976416480368">पृष्ठमा खोज्नुहोस्</translation>
 <translation id="4045441967987592849">फेरि खोल्नुहोस्</translation>
@@ -911,7 +912,6 @@
 <translation id="417138788035229076">समूह व्यवस्थापन गर्नुहोस्</translation>
 <translation id="4172051516777682613">सधैँ देखाउनुहोस्</translation>
 <translation id="417273154673973994">{count,plural, =1{एउटा ट्याब समूह बन्द र सेभ गरिएका छ}other{{count} वटा ट्याब समूह बन्द र सेभ गरिएका छन्}}</translation>
-<translation id="417612446554534067">आफ्ना डिभाइसहरूमा पठाउनुहोस्</translation>
 <translation id="4180726336228139707">यो डिभाइसमा मात्र</translation>
 <translation id="4181841719683918333">भाषाहरू</translation>
 <translation id="4183350924949589798">थप सुरक्षा चाहिन्छ?</translation>
@@ -1135,6 +1135,7 @@
 <translation id="4896467949657706481">ट्याबहरू बन्द गरिए; तपाईं साइन आउट हुनुभयो</translation>
 <translation id="4911042367886397055"><ph name="USER_NAME" />, तपाईंलाई फेरि स्वागत छ!</translation>
 <translation id="4913626501929406101">तपाईं आफ्नो पारिवारिक समूहका कुनै पनि सदस्यसँग आफ्नो पासवर्डको कपी सुरक्षित तरिकाले सेयर गर्न सक्नुहुन्छ। <ph name="BEGIN_LINK" />थप जान्नुहोस्<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">लेन्सहरू</translation>
 <translation id="4917025507570489430">तपाईंले <ph name="USER_EMAIL" /> मार्फत साइन इन गरेका बेला तपाईं हालका ब्राउजिङ डेटा प्रयोग गर्न सक्नुहुन्छ। तपाईंको सङ्गठनले यी डेटा हेर्न सक्ने सम्भावना हुन्छ।</translation>
 <translation id="4918086044614829423">स्वीकार्नुहोस्</translation>
 <translation id="4930714375720679147">अन गर्नुहोस्</translation>
@@ -2145,6 +2146,7 @@
 <translation id="8263809106706527890">तपाईंको डिफल्ट ब्राउजरसम्बन्धी सेटिङ परिवर्तन भएको हुन सक्छ। तपाईं सेटिङमा गई यो कुरा जाँच गर्न सक्नुहुन्छ।</translation>
 <translation id="8264966119170358612">तपाईंका सेभ गरिएका केही पासवर्डहरू तेस्रो पक्षले गरेको डेटा चोरीको घटनामा देखिएका थिए। <ph name="BEGIN_LINK" />थप जान्नुहोस्<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">तपाईंको iPad रिसेट गर्ने क्रममा तपाईंलाई तपाईंको <ph name="USER_NAME" /> खाताबाट साइन आउट गरिएको थियो। फेरि साइन इन गर्न तलको "जारी राख्नुहोस्" मा ट्याप गर्नुहोस्।</translation>
+<translation id="8270320981823560179">Drive</translation>
 <translation id="8273982424131314219">तपाईंले <ph name="URL" /> मा जानकारी भर्नु पर्ने हुन्छ</translation>
 <translation id="8275068909952022340">थप…</translation>
 <translation id="8281781826761538115">डिफल्ट - <ph name="DEFAULT_LOCALE" /></translation>

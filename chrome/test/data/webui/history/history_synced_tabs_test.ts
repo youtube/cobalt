@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import type {ForeignSession, HistorySyncedDeviceCardElement, HistorySyncedDeviceManagerElement} from 'chrome://history/history.js';
-import {BrowserProxyImpl, ForeignSessionBrowserProxyImpl, HistorySignInState, SyncState} from 'chrome://history/history.js';
+import {BrowserProxyImpl, foreignSessionBrowserProxyFactory, HistorySignInState, SyncState} from 'chrome://history/history.js';
 import {webUIListenerCallback} from 'chrome://resources/js/cr.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
@@ -13,8 +13,8 @@ import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 import {isChildVisible} from 'chrome://webui-test/test_util.js';
 // </if>
 
+import {FakeForeignSessionPageHandler} from './fake_foreign_session_page_handler.js';
 import {TestHistoryBrowserProxy} from './test_browser_proxy.js';
-import {TestHistoryForeignSessionBrowserProxy} from './test_foreign_session_browser_proxy.js';
 import {createSession, createWindow} from './test_util.js';
 
 function getCards(manager: HistorySyncedDeviceManagerElement):
@@ -37,7 +37,7 @@ function assertNoSyncedTabsMessageShown(
 suite('<history-synced-device-manager>', function() {
   let element: HistorySyncedDeviceManagerElement;
   let testProxy: TestHistoryBrowserProxy;
-  let foreignSessionProxy: TestHistoryForeignSessionBrowserProxy;
+  let foreignSessionProxy: FakeForeignSessionPageHandler;
 
   function setForeignSessions(sessions: ForeignSession[]) {
     element.sessionList = sessions;
@@ -48,8 +48,10 @@ suite('<history-synced-device-manager>', function() {
     window.history.replaceState({}, '', '/');
     testProxy = new TestHistoryBrowserProxy();
     BrowserProxyImpl.setInstance(testProxy);
-    foreignSessionProxy = new TestHistoryForeignSessionBrowserProxy();
-    ForeignSessionBrowserProxyImpl.setInstance(foreignSessionProxy);
+    foreignSessionProxy = new FakeForeignSessionPageHandler();
+    const {instance} =
+        foreignSessionBrowserProxyFactory.createForTest(foreignSessionProxy);
+    foreignSessionBrowserProxyFactory.setInstance(instance);
     testProxy.setInitialIdentityState({
       signIn: HistorySignInState.SIGNED_IN,
       tabsSync: SyncState.TURNED_ON,
@@ -203,7 +205,7 @@ suite('<history-synced-device-manager>', function() {
 
     element.shadowRoot.querySelector<HTMLElement>('#menuDeleteButton')!.click();
     const deletedSessionTag =
-        await foreignSessionProxy.handler.whenCalled('deleteForeignSession');
+        await foreignSessionProxy.whenCalled('deleteForeignSession');
     assertEquals('Nexus 5', deletedSessionTag);
 
     // Simulate deleting the first device.
@@ -243,7 +245,7 @@ suite('<history-synced-device-manager>', function() {
     const anchor = cards[0]!.shadowRoot.querySelector('a')!;
     anchor.click();
     const [sessionTag, tabId, modifiers] =
-        await foreignSessionProxy.handler.whenCalled('openForeignSessionTab');
+        await foreignSessionProxy.whenCalled('openForeignSessionTab');
     assertEquals('Chromebook', sessionTag, 'sessionTag is correct');
     assertEquals(456, tabId, 'tabId is correct');
     assertFalse(modifiers.altKey, 'altKey is defined');
@@ -268,7 +270,7 @@ suite('<history-synced-device-manager>', function() {
     }));
 
     const [sessionTag, tabId, modifiers] =
-        await foreignSessionProxy.handler.whenCalled('openForeignSessionTab');
+        await foreignSessionProxy.whenCalled('openForeignSessionTab');
     assertEquals('Chromebook', sessionTag, 'sessionTag is correct');
     assertEquals(456, tabId, 'tabId is correct');
     assertTrue(modifiers.middleButton, 'middleButton is true');
@@ -409,15 +411,17 @@ suite('<history-synced-device-manager>', function() {
 suite('<history-sync-optin>', function() {
   let element: HistorySyncedDeviceManagerElement;
   let testProxy: TestHistoryBrowserProxy;
-  let foreignSessionProxy: TestHistoryForeignSessionBrowserProxy;
+  let foreignSessionProxy: FakeForeignSessionPageHandler;
 
   setup(function() {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     window.history.replaceState({}, '', '/');
     testProxy = new TestHistoryBrowserProxy();
     BrowserProxyImpl.setInstance(testProxy);
-    foreignSessionProxy = new TestHistoryForeignSessionBrowserProxy();
-    ForeignSessionBrowserProxyImpl.setInstance(foreignSessionProxy);
+    foreignSessionProxy = new FakeForeignSessionPageHandler();
+    const {instance} =
+        foreignSessionBrowserProxyFactory.createForTest(foreignSessionProxy);
+    foreignSessionBrowserProxyFactory.setInstance(instance);
     testProxy.setInitialIdentityState({
       signIn: HistorySignInState.WEB_ONLY_SIGNED_IN,
       tabsSync: SyncState.TURNED_OFF,
@@ -588,8 +592,8 @@ suite('<history-sync-optin>', function() {
   });
 
   test('calls turnOnHistorySync when button is clicked', async () => {
-      // For the sake of diversity, using other signin state in this test,
-      // different from WEB_ONLY_SIGN_IN
+    // For the sake of diversity, using other signin state in this test,
+    // different from WEB_ONLY_SIGN_IN
     webUIListenerCallback('history-identity-state-changed', {
       signIn: HistorySignInState.SIGNED_IN,
       tabsSync: SyncState.TURNED_OFF,

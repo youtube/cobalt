@@ -542,6 +542,12 @@ INSTANTIATE_TEST_SUITE_P(/* no prefix */,
                          PopupWindowOpenTest_Open,
                          ::testing::Bool());
 
+HEADLESS_PROTOCOL_TEST(PopupWindowHasOpener,
+                       "sanity/popup-window-has-opener.js")
+
+HEADLESS_PROTOCOL_TEST(OpenUrlSandboxPrivileges,
+                       "sanity/open-url-sandbox-privileges.js")
+
 class HeadlessProtocolBrowserTestWithoutSiteIsolation
     : public HeadlessProtocolBrowserTest {
  public:
@@ -790,5 +796,8 @@ HEADLESS_PROTOCOL_TEST(WindowWithNewContext,
 
 HEADLESS_PROTOCOL_TEST(RangeMouseEventAfterNodeRemoval,
                        "shared/range-mouse-event-after-node-removal.js")
+
+HEADLESS_PROTOCOL_TEST(GetCanvasContextWebGL,
+                       "shared/get-canvas-context-webgl.js")
 
 }  // namespace headless

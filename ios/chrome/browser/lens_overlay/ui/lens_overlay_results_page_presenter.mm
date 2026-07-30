@@ -714,6 +714,14 @@ const CGFloat kSidePanelHorizontalOcclusionInset = 24.0f;
   [_detentsManager requestMinimizeBottomSheet];
 }
 
+- (void)hideSearchBar {
+  [_resultViewController setSearchBarHidden:YES animated:YES];
+}
+
+- (void)showSearchBar {
+  [_resultViewController setSearchBarHidden:NO animated:YES];
+}
+
 - (void)adjustForSelectionResult {
   _detentsManager.presentationStrategy =
       SheetDetentPresentationStategySelection;

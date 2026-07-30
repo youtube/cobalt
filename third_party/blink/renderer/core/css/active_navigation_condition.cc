@@ -8,6 +8,7 @@
 #include "third_party/blink/renderer/core/html/html_anchor_element.h"
 #include "third_party/blink/renderer/core/route_matching/route.h"
 #include "third_party/blink/renderer/core/route_matching/route_map.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 
 namespace blink {
 
@@ -51,10 +52,11 @@ bool ActiveNavigationCondition::CheckSelectorMatch(
 void ActiveNavigationCondition::SerializeTo(StringBuilder& builder) const {
   NavigationLocationTestExpression::SerializePrepositionTo(preposition_,
                                                            builder);
+  builder.Append(" ");
   if (route_location_) {
     route_location_->SerializeTo(builder);
   } else {
-    // TODO(crbug.com/436805487): Serialize "link-href". And write tests, too.
+    builder.Append("link-href");
   }
 }
 

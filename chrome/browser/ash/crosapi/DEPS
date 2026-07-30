@@ -36,7 +36,6 @@ include_rules = [
   "+chrome/common/chrome_features.h",
   "+chrome/common/chrome_paths.h",
   "+chrome/common/extensions",
-  "+chrome/common/pref_names.h",
   "+chrome/common/printing",
   "+chrome/test/base",
 ]

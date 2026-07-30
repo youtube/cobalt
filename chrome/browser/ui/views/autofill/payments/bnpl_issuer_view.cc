@@ -54,8 +54,6 @@
 
 namespace autofill::payments {
 
-using IssuerId = autofill::BnplIssuer::IssuerId;
-
 BnplIssuerView::BnplIssuerView(
     base::WeakPtr<SelectBnplIssuerDialogController> controller,
     SelectBnplIssuerDialog* issuer_dialog)
@@ -91,8 +89,7 @@ void BnplIssuerView::PopulateIssuers() {
                            kTemporarilyEligibleCheckoutAmountNotYetKnown;
     const bool issuer_linked = issuer.payment_instrument().has_value();
     const std::pair<BnplIssuer::LightModeImageId, BnplIssuer::DarkModeImageId>
-        image_ids =
-            autofill::GetBnplIssuerIconIds(issuer.issuer_id(), issuer_linked);
+        image_ids = GetBnplIssuerIconIds(issuer.issuer_id(), issuer_linked);
     auto image_view = std::make_unique<views::ThemeTrackingImageView>(
         ui::ImageModel::FromResourceId(image_ids.first.value()),
         ui::ImageModel::FromResourceId(image_ids.second.value()),

@@ -27,11 +27,10 @@ cr-button {
   --cr-button-height: 32px;
 }
 
-div#icon {
+icon-from-table {
   width: 20px;
   height: 20px;
   margin: 6px;
-  background-image: var(--extension-icon-url);
-  background-size: contain;
+  --icon-size: 20px;
   border-radius: 4px; /* matches the rounding effect of cr-icon-button */
 }

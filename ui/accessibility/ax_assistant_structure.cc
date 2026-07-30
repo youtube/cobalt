@@ -80,8 +80,8 @@ std::u16string GetInnerText(const AXNode* node) {
 }
 
 std::u16string GetValue(const AXNode* node) {
-  std::u16string value =
-      node->GetString16Attribute(ax::mojom::StringAttribute::kValue);
+  std::u16string value = base::UTF8ToUTF16(
+      node->GetAriaValueTextOrValue().value_or(std::string()));
 
   if (value.empty() && (IsTextField(node) || IsRichTextEditable(node)) &&
       !IsAtomicTextField(node)) {

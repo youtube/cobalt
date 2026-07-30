@@ -114,18 +114,20 @@
 #include "third_party/blink/renderer/core/dom/attr.h"
 #include "third_party/blink/renderer/core/dom/column_pseudo_element.h"
 #include "third_party/blink/renderer/core/dom/container_node.h"
+#include "third_party/blink/renderer/core/dom/css_pseudo_element.h"
 #include "third_party/blink/renderer/core/dom/dataset_dom_string_map.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/document_fragment.h"
 #include "third_party/blink/renderer/core/dom/document_lifecycle.h"
 #include "third_party/blink/renderer/core/dom/dom_token_list.h"
+#include "third_party/blink/renderer/core/dom/element_animation_trigger_data.h"
 #include "third_party/blink/renderer/core/dom/element_data_cache.h"
-#include "third_party/blink/renderer/core/dom/element_rare_data_vector.h"
 #include "third_party/blink/renderer/core/dom/element_traversal.h"
 #include "third_party/blink/renderer/core/dom/events/event_dispatch_forbidden_scope.h"
 #include "third_party/blink/renderer/core/dom/events/event_dispatch_result.h"
 #include "third_party/blink/renderer/core/dom/events/event_dispatcher.h"
 #include "third_party/blink/renderer/core/dom/events/event_path.h"
+#include "third_party/blink/renderer/core/dom/explicitly_set_attr_elements_map.h"
 #include "third_party/blink/renderer/core/dom/first_letter_pseudo_element.h"
 #include "third_party/blink/renderer/core/dom/flat_tree_traversal.h"
 #include "third_party/blink/renderer/core/dom/focus_params.h"
@@ -141,6 +143,7 @@
 #include "third_party/blink/renderer/core/dom/node-inl.h"
 #include "third_party/blink/renderer/core/dom/node.h"
 #include "third_party/blink/renderer/core/dom/node_cloning_data.h"
+#include "third_party/blink/renderer/core/dom/node_rare_data.h"
 #include "third_party/blink/renderer/core/dom/node_traversal.h"
 #include "third_party/blink/renderer/core/dom/popover_data.h"
 #include "third_party/blink/renderer/core/dom/presentation_attribute_style.h"
@@ -808,14 +811,14 @@ HeapVector<Member<Animation>> Element::GetAnimationsInternal(
 }
 
 bool Element::HasElementFlag(ElementFlags mask) const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->HasElementFlag(mask);
   }
   return false;
 }
 
 void Element::SetElementFlag(ElementFlags mask, bool value) {
-  if (ElementRareDataVector* data = RareData()) {
+  if (NodeRareData* data = RareData()) {
     data->SetElementFlag(mask, value);
   } else if (value) {
     EnsureRareData().SetElementFlag(mask, value);
@@ -823,13 +826,13 @@ void Element::SetElementFlag(ElementFlags mask, bool value) {
 }
 
 void Element::ClearElementFlag(ElementFlags mask) {
-  if (ElementRareDataVector* data = RareData()) {
+  if (NodeRareData* data = RareData()) {
     data->ClearElementFlag(mask);
   }
 }
 
 void Element::ClearTabIndexExplicitlyIfNeeded() {
-  if (ElementRareDataVector* data = RareData()) {
+  if (NodeRareData* data = RareData()) {
     data->ClearTabIndexExplicitly();
   }
 }
@@ -1319,7 +1322,7 @@ void Element::SetBooleanAttribute(const QualifiedName& name, bool value) {
 }
 
 bool Element::HasAnyExplicitlySetAttrAssociatedElements() const {
-  if (ElementRareDataVector* data = RareData()) {
+  if (NodeRareData* data = RareData()) {
     const ExplicitlySetAttrElementsMap* element_attribute_map =
         data->GetExplicitlySetElementsForAttr();
     return element_attribute_map && !element_attribute_map->map.empty();
@@ -1334,7 +1337,7 @@ bool Element::HasExplicitlySetAttrAssociatedElements(
 
 GCedHeapLinkedHashSet<WeakMember<Element>>*
 Element::GetExplicitlySetElementsForAttr(const QualifiedName& name) const {
-  if (ElementRareDataVector* data = RareData()) {
+  if (NodeRareData* data = RareData()) {
     const ExplicitlySetAttrElementsMap* element_attribute_map =
         data->GetExplicitlySetElementsForAttr();
     if (!element_attribute_map) {
@@ -1352,7 +1355,7 @@ Element::GetExplicitlySetElementsForAttr(const QualifiedName& name) const {
 
 void Element::SynchronizeContentAttributeAndElementReference(
     const QualifiedName& name) {
-  if (ElementRareDataVector* data = RareData()) {
+  if (NodeRareData* data = RareData()) {
     ExplicitlySetAttrElementsMap* element_attribute_map =
         data->GetExplicitlySetElementsForAttr();
     if (element_attribute_map) {
@@ -1695,6 +1698,14 @@ void Element::SetElementArrayAttribute(
   }
 }
 
+FrozenArray<Element>* Element::ariaActionsElements() {
+  return GetElementArrayAttribute(html_names::kAriaActionsAttr);
+}
+void Element::setAriaActionsElements(
+    GCedHeapVector<Member<Element>>* given_elements) {
+  SetElementArrayAttribute(html_names::kAriaActionsAttr, given_elements);
+}
+
 FrozenArray<Element>* Element::ariaControlsElements() {
   return GetElementArrayAttribute(html_names::kAriaControlsAttr);
 }
@@ -1752,8 +1763,7 @@ void Element::setAriaOwnsElements(
 }
 
 NamedNodeMap* Element::attributesForBindings() const {
-  ElementRareDataVector* rare_data =
-      &const_cast<Element*>(this)->EnsureRareData();
+  NodeRareData* rare_data = &const_cast<Element*>(this)->EnsureRareData();
   if (NamedNodeMap* attribute_map = rare_data->AttributeMap()) {
     return attribute_map;
   }
@@ -1793,14 +1803,14 @@ PopoverData& Element::EnsurePopoverData() {
   return UnpackAndRefresh(EnsureRareData().EnsurePopoverData());
 }
 PopoverData* Element::GetPopoverData() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->GetPopoverData();
   }
   return nullptr;
 }
 
 ContentData* Element::GetAltContentData() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->GetAltContentData();
   }
   return nullptr;
@@ -1814,7 +1824,7 @@ InvokerData& Element::EnsureInvokerData() {
   return UnpackAndRefresh(EnsureRareData().EnsureInvokerData());
 }
 InvokerData* Element::GetInvokerData() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->GetInvokerData();
   }
   return nullptr;
@@ -1828,7 +1838,7 @@ InterestInvokerTargetData& Element::EnsureInterestInvokerTargetData() {
   return UnpackAndRefresh(EnsureRareData().EnsureInterestInvokerTargetData());
 }
 InterestInvokerTargetData* Element::GetInterestInvokerTargetData() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->GetInterestInvokerTargetData();
   }
   return nullptr;
@@ -2116,14 +2126,14 @@ inline void Element::SynchronizeAttribute(const QualifiedName& name) const {
 }
 
 ElementAnimations* Element::GetElementAnimations() const {
-  if (ElementRareDataVector* data = RareData()) {
+  if (NodeRareData* data = RareData()) {
     return data->GetElementAnimations();
   }
   return nullptr;
 }
 
 ElementAnimations& Element::EnsureElementAnimations() {
-  ElementRareDataVector* rare_data = &EnsureRareData();
+  NodeRareData* rare_data = &EnsureRareData();
   if (!rare_data->GetElementAnimations()) {
     rare_data = rare_data->SetElementAnimations(
         MakeGarbageCollected<ElementAnimations>());
@@ -2133,7 +2143,7 @@ ElementAnimations& Element::EnsureElementAnimations() {
 }
 
 bool Element::HasAnimations() const {
-  if (ElementRareDataVector* data = RareData()) {
+  if (NodeRareData* data = RareData()) {
     const ElementAnimations* element_animations = data->GetElementAnimations();
     return element_animations && !element_animations->IsEmpty();
   }
@@ -2207,7 +2217,7 @@ AtomicString Element::LowercaseIfNecessary(AtomicString name) const {
 }
 
 const AtomicString& Element::nonce() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->GetNonce();
   }
   return g_null_atom;
@@ -2574,7 +2584,7 @@ bool Element::ShouldUpdateLastRememberedInlineSize() const {
 }
 
 void Element::SetLastRememberedInlineSize(std::optional<LayoutUnit> size) {
-  if (ElementRareDataVector* data = RareData()) {
+  if (NodeRareData* data = RareData()) {
     data_ = data->SetLastRememberedInlineSize(size);
   } else if (size) {
     data_ = EnsureRareData().SetLastRememberedInlineSize(size);
@@ -2582,7 +2592,7 @@ void Element::SetLastRememberedInlineSize(std::optional<LayoutUnit> size) {
 }
 
 void Element::SetLastRememberedBlockSize(std::optional<LayoutUnit> size) {
-  if (ElementRareDataVector* data = RareData()) {
+  if (NodeRareData* data = RareData()) {
     data_ = data->SetLastRememberedBlockSize(size);
   } else if (size) {
     data_ = EnsureRareData().SetLastRememberedBlockSize(size);
@@ -2590,14 +2600,14 @@ void Element::SetLastRememberedBlockSize(std::optional<LayoutUnit> size) {
 }
 
 std::optional<LayoutUnit> Element::LastRememberedInlineSize() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->LastRememberedInlineSize();
   }
   return std::nullopt;
 }
 
 std::optional<LayoutUnit> Element::LastRememberedBlockSize() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->LastRememberedBlockSize();
   }
   return std::nullopt;
@@ -3869,7 +3879,7 @@ void Element::AttributeChanged(const AttributeModificationParams& params) {
     }
   } else if (name == html_names::kFocusgroupAttr) {
     // Keep the DOMTokenList in sync when the content attribute changes.
-    if (const ElementRareDataVector* data = RareData()) {
+    if (const NodeRareData* data = RareData()) {
       if (DOMTokenList* token_list = data->GetFocusgroupTokenList()) {
         token_list->DidUpdateAttributeValue(params.old_value, params.new_value);
       }
@@ -4069,7 +4079,7 @@ bool Element::IsExcludedAttribute(
 
 void Element::UpdateClassList(const AtomicString& old_class_string,
                               const AtomicString& new_class_string) {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     if (DOMTokenList* class_list = data->GetClassList()) {
       class_list->DidUpdateAttributeValue(old_class_string, new_class_string);
     }
@@ -4250,7 +4260,7 @@ Node::InsertionNotificationRequest Element::InsertedInto(
   }
 
   if (isConnected()) {
-    if (ElementRareDataVector* rare_data = RareData()) {
+    if (NodeRareData* rare_data = RareData()) {
       if (ElementIntersectionObserverData* observer_data =
               rare_data->IntersectionObserverData()) {
         observer_data->TrackWithController(
@@ -4335,12 +4345,12 @@ Node::InsertionNotificationRequest Element::InsertedInto(
   }
 
   // Clean up the unnecessary explicitly set custom element registry
-  // in element rare data set in RemovedFrom or TreeScopeAdopter. Note that
+  // in node rare data set in RemovedFrom or TreeScopeAdopter. Note that
   // we only need to do such bookkeeping when scoped custom element registry
   // is actually used.
   if (GetDocument().ScopedCustomElementRegistryUsed()) {
     DCHECK(RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled());
-    if (ElementRareDataVector* rare_data = RareData()) {
+    if (NodeRareData* rare_data = RareData()) {
       if (rare_data->HasCustomElementRegistrySet() &&
           insertion_point.IsInTreeScope()) {
         auto* registry = rare_data->GetCustomElementRegistry();
@@ -4442,7 +4452,7 @@ void Element::RemovedFrom(ContainerNode& insertion_point) {
     }
   }
 
-  if (ElementRareDataVector* data = RareData()) {
+  if (NodeRareData* data = RareData()) {
     if (InvokerData* invoker_data = data->GetInvokerData()) [[unlikely]] {
       // The element being removed is an interest invoker - move it to the
       // no-interest state and cancel any pending interest tasks.
@@ -4488,7 +4498,7 @@ void Element::RemovedFrom(ContainerNode& insertion_point) {
 
   SetIsCanvasOrInCanvasSubtree(false);
 
-  if (ElementRareDataVector* data = RareData()) {
+  if (NodeRareData* data = RareData()) {
     data->ClearFocusgroupData();
     data->ClearRestyleFlags();
 
@@ -4514,7 +4524,7 @@ void Element::RemovedFrom(ContainerNode& insertion_point) {
   if (GetDocument().ScopedCustomElementRegistryUsed()) {
     DCHECK(RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled());
     EnsureRareData();
-    ElementRareDataVector* data = RareData();
+    NodeRareData* data = RareData();
     if (!data->HasCustomElementRegistrySet() &&
         insertion_point.IsInTreeScope()) {
       data_ = data->SetCustomElementRegistry(customElementRegistry());
@@ -4723,7 +4733,7 @@ void Element::DetachLayoutTree(bool performing_reattach) {
   // be cleared before clearing the rare data vector below.
   ClearColumnPseudoElements();
 
-  if (ElementRareDataVector* data = RareData()) {
+  if (NodeRareData* data = RareData()) {
     if (!performing_reattach) {
       DetachOverscroll();
       data->ClearPseudoElements();
@@ -4801,6 +4811,10 @@ void Element::DetachLayoutTree(bool performing_reattach) {
 void Element::DetachDescendantsNeedingReattachDuringSkip() {
   for (Node* child = FlatTreeTraversal::FirstChild(*this); child;
        child = FlatTreeTraversal::NextSibling(*child)) {
+    // We only detach children that need reattachment. DetachLayoutTree()
+    // clears the ForceReattachLayoutTree flag (via ClearNeedsStyleRecalc()),
+    // so we must restore it here to ensure the node is reattached when the
+    // subtree is no longer skipped.
     if (child->GetForceReattachLayoutTree()) {
       child->DetachLayoutTree();
       child->SetForceReattachLayoutTree();
@@ -5466,7 +5480,7 @@ StyleRecalcChange Element::RecalcOwnStyle(
   StyleRecalcContext new_style_recalc_context = style_recalc_context;
   if (change.RecalcChildren() || change.RecalcContainerQueryDependent(*this)) {
     if (NeedsStyleRecalc()) {
-      if (ElementRareDataVector* data = RareData()) {
+      if (NodeRareData* data = RareData()) {
         // This element needs recalc because its parent changed inherited
         // properties or there was some style change in the ancestry which
         // needed a full subtree recalc. In that case we cannot use the
@@ -5591,7 +5605,7 @@ StyleRecalcChange Element::RecalcOwnStyle(
   }
 
   if (!new_style) {
-    if (ElementRareDataVector* data = RareData()) {
+    if (NodeRareData* data = RareData()) {
       if (ElementAnimations* element_animations =
               data->GetElementAnimations()) {
         // The animation should only be canceled when the base style is
@@ -6624,13 +6638,13 @@ ShadowRoot& Element::CreateAndAttachShadowRoot(ShadowRootMode type,
 
 // TODO(crbug.com/465839474): LTO-inline this function to unify the
 // fast and slow paths. (It cannot be easily inlined by putting it
-// into element.h, due to the dependency on ElementRareDataVector.)
+// into element.h, due to the dependency on NodeRareData.)
 ShadowRoot* Element::GetShadowRootInternal() const {
   return RareData()->GetShadowRoot();
 }
 
 EditContext* Element::editContext() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->GetEditContext();
   }
   return nullptr;
@@ -7168,7 +7182,7 @@ void Element::SetAnimationStyleChange(bool animation_style_change) {
     return;
   }
 
-  if (ElementRareDataVector* data = RareData()) {
+  if (NodeRareData* data = RareData()) {
     if (ElementAnimations* element_animations = data->GetElementAnimations()) {
       element_animations->SetAnimationStyleChange(animation_style_change);
     }
@@ -7220,7 +7234,7 @@ void Element::SetNeedsCompositingUpdate() {
 
 void Element::SetRegionCaptureCropId(
     std::unique_ptr<RegionCaptureCropId> crop_id) {
-  ElementRareDataVector& rare_data = EnsureRareData();
+  NodeRareData& rare_data = EnsureRareData();
   CHECK(!rare_data.GetRegionCaptureCropId());
 
   // Propagate efficient form through the rendering pipeline.
@@ -7235,7 +7249,7 @@ void Element::SetRegionCaptureCropId(
 }
 
 const RegionCaptureCropId* Element::GetRegionCaptureCropId() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->GetRegionCaptureCropId();
   }
   return nullptr;
@@ -7243,7 +7257,7 @@ const RegionCaptureCropId* Element::GetRegionCaptureCropId() const {
 
 void Element::SetTrackedElementSubRect(viz::TrackedElementFeature feature,
                                        const TrackedElementSubRect& rect) {
-  ElementRareDataVector& rare_data = EnsureRareData();
+  NodeRareData& rare_data = EnsureRareData();
   CHECK(!rare_data.GetTrackedElementSubRect(feature));
 
   data_ = rare_data.SetTrackedElementSubRect(feature, rect);
@@ -7261,14 +7275,14 @@ void Element::SetTrackedElementSubRect(viz::TrackedElementFeature feature,
 
 const TrackedElementSubRect* Element::GetTrackedElementSubRect(
     viz::TrackedElementFeature feature) const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->GetTrackedElementSubRect(feature);
   }
   return nullptr;
 }
 
 void Element::ClearTrackedElementSubRect(viz::TrackedElementFeature feature) {
-  if (ElementRareDataVector* data = RareData()) {
+  if (NodeRareData* data = RareData()) {
     data->ClearTrackedElementSubRect(feature);
   }
 
@@ -7284,7 +7298,7 @@ void Element::ClearTrackedElementSubRect(viz::TrackedElementFeature feature) {
 }
 
 const TrackedElementSubRects* Element::GetTrackedElementSubRects() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->GetTrackedElementSubRects();
   }
   return nullptr;
@@ -7293,7 +7307,7 @@ const TrackedElementSubRects* Element::GetTrackedElementSubRects() const {
 void Element::SetRestrictionTargetId(std::unique_ptr<RestrictionTargetId> id) {
   CHECK(RuntimeEnabledFeatures::ElementCaptureEnabled(GetExecutionContext()));
 
-  ElementRareDataVector& rare_data = EnsureRareData();
+  NodeRareData& rare_data = EnsureRareData();
   CHECK(!rare_data.GetRestrictionTargetId());
 
   // Propagate efficient form through the rendering pipeline.
@@ -7314,7 +7328,7 @@ void Element::SetRestrictionTargetId(std::unique_ptr<RestrictionTargetId> id) {
 }
 
 const RestrictionTargetId* Element::GetRestrictionTargetId() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->GetRestrictionTargetId();
   }
   return nullptr;
@@ -7368,7 +7382,7 @@ void Element::SetCustomElementDefinition(CustomElementDefinition* definition) {
 }
 
 CustomElementDefinition* Element::GetCustomElementDefinition() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->GetCustomElementDefinition();
   }
   return nullptr;
@@ -7381,7 +7395,7 @@ CustomElementRegistry* Element::customElementRegistry(
   // registry.
   if (RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled() &&
       GetDocument().ScopedCustomElementRegistryUsed()) {
-    if (const ElementRareDataVector* data = RareData()) {
+    if (const NodeRareData* data = RareData()) {
       if (data->HasCustomElementRegistrySet()) {
         CustomElementRegistry* registry = data->GetCustomElementRegistry();
         // A null script_state indicates an internal call that bypasses the
@@ -7407,7 +7421,7 @@ void Element::SetCustomElementRegistry(CustomElementRegistry* registry,
   // scenarios like cross document/scope adoption.
   if (registry == GetTreeScope().customElementRegistry() && !explicitly_set) {
     // Only touch rare data if it already exists and has a registry set.
-    if (const ElementRareDataVector* data = RareData()) {
+    if (const NodeRareData* data = RareData()) {
       if (data->HasCustomElementRegistrySet()) {
         EnsureRareData().ClearCustomElementRegistry();
       }
@@ -7424,7 +7438,7 @@ void Element::SetIsValue(const AtomicString& is_value) {
 }
 
 const AtomicString& Element::IsValue() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->IsValue();
   }
   return g_null_atom;
@@ -7435,7 +7449,7 @@ void Element::SetDidAttachInternals() {
 }
 
 bool Element::DidAttachInternals() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->DidAttachInternals();
   }
   return false;
@@ -7447,7 +7461,7 @@ ElementInternals& Element::EnsureElementInternals() {
 }
 
 const ElementInternals* Element::GetElementInternals() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->GetElementInternals();
   }
   return nullptr;
@@ -7476,6 +7490,13 @@ bool Element::IsActivatedSubmit() const {
 }
 
 bool Element::CanAttachShadowRoot() const {
+  if (namespaceURI() != html_names::xhtmlNamespaceURI) {
+    UseCounter::Count(GetDocument(),
+                      WebFeature::kElementAttachShadowNonHTMLNamespace);
+    if (RuntimeEnabledFeatures::ShadowRootNamespaceCheckEnabled()) {
+      return false;
+    }
+  }
   const AtomicString& local_name = localName();
   // Checking IsCustomElement() here is just an optimization
   // because IsValidName is not cheap.
@@ -7490,6 +7511,8 @@ const char* Element::ErrorMessageForAttachShadow(
   // https://dom.spec.whatwg.org/#concept-attach-a-shadow-root
   // 1. If shadow host’s namespace is not the HTML namespace, then throw a
   // "NotSupportedError" DOMException.
+  // TODO(crbug.com/521896365): CanAttachShadowRoot() doesn't actually check the
+  // namespace.
   // 2. If shadow host’s local name is not a valid custom element name,
   // "article", "aside", "blockquote", "body", "div", "footer", "h1", "h2",
   // "h3", "h4", "h5", "h6", "header", "main", "nav", "p", "section", or "span",
@@ -7939,7 +7962,7 @@ void Element::DidFinishParsingChildren() {
 }
 
 AttrNodeList* Element::GetAttrNodeList() {
-  if (ElementRareDataVector* data = RareData()) {
+  if (NodeRareData* data = RareData()) {
     return data->GetAttrNodeList();
   }
   return nullptr;
@@ -7947,7 +7970,7 @@ AttrNodeList* Element::GetAttrNodeList() {
 
 void Element::RemoveAttrNodeList() {
   DCHECK(GetAttrNodeList());
-  if (ElementRareDataVector* data = RareData()) {
+  if (NodeRareData* data = RareData()) {
     data->RemoveAttrNodeList();
   }
 }
@@ -8550,11 +8573,11 @@ void Element::UpdateSelectionOnFocus(
     frame->Selection().SetSelection(
         RuntimeEnabledFeatures::RemoveVisibleSelectionInDOMSelectionEnabled()
             ? CreateVisibleSelection(
-                  SelectionInDOMTree::Builder()
+                  SelectionInDomTree::Builder()
                       .Collapse(FirstPositionInOrBeforeNode(*this))
                       .Build())
                   .AsSelection()
-            : SelectionInDOMTree::Builder()
+            : SelectionInDomTree::Builder()
                   .Collapse(FirstPositionInOrBeforeNode(*this))
                   .Build(),
         SetSelectionOptions::Builder()
@@ -8687,7 +8710,7 @@ bool Element::CanBeKeyboardFocusableScroller(
   }
   DocumentLifecycle::DisallowTransitionScope disallow_transition(
       GetDocument().Lifecycle());
-  return IsScrollableNode(this);
+  return IsScrollableNode(this, SpatialNavigationDirection::kNone);
 }
 
 bool Element::ContainsKeyboardFocusableElementsSlow(
@@ -9050,14 +9073,14 @@ void Element::SetIsAdRelated(AdProvenance ad_provenance) {
 }
 
 bool Element::IsAdRelated() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->GetDisplayAdElementMonitor();
   }
   return false;
 }
 
 std::optional<AdProvenance> Element::GetAdProvenance() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     if (const DisplayAdElementMonitor* monitor =
             data->GetDisplayAdElementMonitor()) {
       return monitor->GetAdProvenance();
@@ -9067,7 +9090,7 @@ std::optional<AdProvenance> Element::GetAdProvenance() const {
 }
 
 bool Element::ShouldHighlightAd() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     if (const DisplayAdElementMonitor* monitor =
             data->GetDisplayAdElementMonitor()) {
       return monitor->ShouldHighlight();
@@ -9077,7 +9100,7 @@ bool Element::ShouldHighlightAd() const {
 }
 
 bool Element::HasUndoStack() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->HasUndoStack();
   }
   return false;
@@ -9128,7 +9151,7 @@ void Element::UpdatePasswordTracking() {
 }
 
 bool Element::HasBeenHeuristicCustomPasswordCSS() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->HasBeenHeuristicCustomPasswordCSS();
   }
   return false;
@@ -9145,7 +9168,7 @@ ColumnPseudoElement* Element::GetOrCreateColumnPseudoElementIfNeeded(
       !style || !style->HasPseudoElementStyle(kPseudoIdColumn)) {
     return nullptr;
   }
-  ElementRareDataVector& data = EnsureRareData();
+  NodeRareData& data = EnsureRareData();
   ColumnPseudoElement* column_pseudo_element =
       data.GetColumnPseudoElement(index);
   if (!column_pseudo_element) {
@@ -9194,7 +9217,7 @@ ColumnPseudoElement* Element::GetOrCreateColumnPseudoElementIfNeeded(
 }
 
 const ColumnPseudoElementsVector* Element::GetColumnPseudoElements() const {
-  ElementRareDataVector* data = RareData();
+  NodeRareData* data = RareData();
   if (!data) {
     return nullptr;
   }
@@ -9202,7 +9225,7 @@ const ColumnPseudoElementsVector* Element::GetColumnPseudoElements() const {
 }
 
 void Element::ClearColumnPseudoElements(wtf_size_t to_keep) {
-  ElementRareDataVector* data = RareData();
+  NodeRareData* data = RareData();
   if (!data) {
     return;
   }
@@ -9211,8 +9234,7 @@ void Element::ClearColumnPseudoElements(wtf_size_t to_keep) {
           data->GetColumnPseudoElements()) {
     for (PseudoElement* column_pseudo_element : *column_pseudo_elements) {
       if (++idx > to_keep) {
-        if (ElementRareDataVector* column_data =
-                column_pseudo_element->RareData()) {
+        if (NodeRareData* column_data = column_pseudo_element->RareData()) {
           column_data->ClearPseudoElements();
         }
       }
@@ -9226,7 +9248,7 @@ void Element::SetScrollbarPseudoElementStylesDependOnFontMetrics(bool value) {
 }
 
 bool Element::HasBeenExplicitlyScrolled() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->HasBeenExplicitlyScrolled();
   }
   return false;
@@ -9237,7 +9259,7 @@ void Element::SetHasBeenExplicitlyScrolled() {
 }
 
 bool Element::AffectedBySubjectHas() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->AffectedBySubjectHas();
   }
   return false;
@@ -9248,7 +9270,7 @@ void Element::SetAffectedByStartingStyles() {
 }
 
 bool Element::AffectedByStartingStyles() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->AffectedByStartingStyles();
   }
   return false;
@@ -9259,7 +9281,7 @@ void Element::SetAffectedBySubjectHas() {
 }
 
 bool Element::AffectedByNonSubjectHas() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->AffectedByNonSubjectHas();
   }
   return false;
@@ -9270,7 +9292,7 @@ void Element::SetAffectedByNonSubjectHas() {
 }
 
 bool Element::AncestorsOrAncestorSiblingsAffectedByHas() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->AncestorsOrAncestorSiblingsAffectedByHas();
   }
   return false;
@@ -9281,14 +9303,14 @@ void Element::SetAncestorsOrAncestorSiblingsAffectedByHas() {
 }
 
 unsigned Element::GetSiblingsAffectedByHasFlags() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->GetSiblingsAffectedByHasFlags();
   }
   return false;
 }
 
 bool Element::HasSiblingsAffectedByHasFlags(unsigned flags) const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->HasSiblingsAffectedByHasFlags(flags);
   }
   return false;
@@ -9299,7 +9321,7 @@ void Element::SetSiblingsAffectedByHasFlags(unsigned flags) {
 }
 
 bool Element::AffectedByPseudoInHas() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->AffectedByPseudoInHas();
   }
   return false;
@@ -9310,7 +9332,7 @@ void Element::SetAffectedByPseudoInHas() {
 }
 
 bool Element::AncestorsOrSiblingsAffectedByHoverInHas() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->AncestorsOrSiblingsAffectedByHoverInHas();
   }
   return false;
@@ -9321,7 +9343,7 @@ void Element::SetAncestorsOrSiblingsAffectedByHoverInHas() {
 }
 
 bool Element::AncestorsOrSiblingsAffectedByActiveInHas() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->AncestorsOrSiblingsAffectedByActiveInHas();
   }
   return false;
@@ -9332,7 +9354,7 @@ void Element::SetAncestorsOrSiblingsAffectedByActiveInHas() {
 }
 
 bool Element::AncestorsOrSiblingsAffectedByFocusInHas() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->AncestorsOrSiblingsAffectedByFocusInHas();
   }
   return false;
@@ -9343,7 +9365,7 @@ void Element::SetAncestorsOrSiblingsAffectedByFocusInHas() {
 }
 
 bool Element::AncestorsOrSiblingsAffectedByFocusVisibleInHas() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->AncestorsOrSiblingsAffectedByFocusVisibleInHas();
   }
   return false;
@@ -9354,7 +9376,7 @@ void Element::SetAncestorsOrSiblingsAffectedByFocusVisibleInHas() {
 }
 
 bool Element::AffectedByLogicalCombinationsInHas() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->AffectedByLogicalCombinationsInHas();
   }
   return false;
@@ -9365,7 +9387,7 @@ void Element::SetAffectedByLogicalCombinationsInHas() {
 }
 
 bool Element::AffectedByMultipleHas() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->AffectedByMultipleHas();
   }
   return false;
@@ -9513,12 +9535,22 @@ void Element::setInnerHTML(
     const V8UnionStringLegacyNullToEmptyStringOrTrustedHTML* html,
     ExceptionState& exception_state) {
   probe::BreakableLocation(GetExecutionContext(), "Element.setInnerHTML");
-  SetInnerHTMLWithoutTrustedTypes(
-      CheckTrustedTypes(html, trusted_types_names::kInnerHTML, exception_state),
-      exception_state);
+  auto [compliant_string, resolved_options] =
+      TrustedTypesCheckForLegacyFragment(
+          html, GetExecutionContext(), trusted_types_names::kElement,
+          trusted_types_names::kInnerHTML, exception_state);
+  if (exception_state.HadException()) {
+    return;
+  }
+  SetInnerHTMLInternal(
+      compliant_string,
+      FragmentParserConfig::ParseDeclarativeShadowRoots::kDontParse,
+      FragmentParserConfig::ForceHtml::kDontForce, Sanitizer::Mode::kUnsafe,
+      resolved_options, trusted_types_names::kInnerHTML, exception_state);
 }
 
 void Element::SetOuterHTMLInternal(const String& html,
+                                   const FragmentParserOptions& options,
                                    ExceptionState& exception_state) {
   if (exception_state.HadException()) {
     return;
@@ -9570,7 +9602,7 @@ void Element::SetOuterHTMLInternal(const String& html,
                             .context_element = context_element,
                             .registry = registry,
                         },
-                        FragmentParserOptions(), exception_state);
+                        options, exception_state);
 
   if (!fragment) {
     return;
@@ -9599,15 +9631,20 @@ void Element::SetOuterHTMLInternal(const String& html,
 
 void Element::SetOuterHTMLWithoutTrustedTypes(const String& html,
                                               ExceptionState& exception_state) {
-  SetOuterHTMLInternal(html, exception_state);
+  SetOuterHTMLInternal(html, FragmentParserOptions(), exception_state);
 }
 
 void Element::setOuterHTML(
     const V8UnionStringLegacyNullToEmptyStringOrTrustedHTML* html,
     ExceptionState& exception_state) {
-  SetOuterHTMLInternal(
-      CheckTrustedTypes(html, trusted_types_names::kOuterHTML, exception_state),
-      exception_state);
+  auto [compliant_string, resolved_options] =
+      TrustedTypesCheckForLegacyFragment(
+          html, GetExecutionContext(), trusted_types_names::kElement,
+          trusted_types_names::kOuterHTML, exception_state);
+  if (exception_state.HadException()) {
+    return;
+  }
+  SetOuterHTMLInternal(compliant_string, resolved_options, exception_state);
 }
 
 // Step 4 of http://domparsing.spec.whatwg.org/#insertadjacenthtml()
@@ -9673,7 +9710,7 @@ void Element::HideNonce() {
 }
 
 ElementIntersectionObserverData* Element::IntersectionObserverData() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->IntersectionObserverData();
   }
   return nullptr;
@@ -9685,7 +9722,7 @@ ElementIntersectionObserverData& Element::EnsureIntersectionObserverData() {
 
 HeapHashMap<Member<ResizeObserver>, Member<ResizeObservation>>*
 Element::ResizeObserverData() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->ResizeObserverData();
   }
   return nullptr;
@@ -9708,7 +9745,7 @@ DisplayLockContext& Element::EnsureDisplayLockContext() {
 }
 
 ContainerQueryData* Element::GetContainerQueryData() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->GetContainerQueryData();
   }
   return nullptr;
@@ -9737,7 +9774,7 @@ StyleScopeData& Element::EnsureStyleScopeData() {
 }
 
 StyleScopeData* Element::GetStyleScopeData() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->GetStyleScopeData();
   }
   return nullptr;
@@ -9748,7 +9785,7 @@ OutOfFlowData& Element::EnsureOutOfFlowData() {
 }
 
 OutOfFlowData* Element::GetOutOfFlowData() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->GetOutOfFlowData();
   }
   return nullptr;
@@ -9812,6 +9849,7 @@ void Element::insertAdjacentText(const String& where,
 
 void Element::InsertAdjacentHTMLInternal(const String& where,
                                          const String& html,
+                                         const FragmentParserOptions& options,
                                          ExceptionState& exception_state) {
   if (exception_state.HadException()) {
     return;
@@ -9857,7 +9895,7 @@ void Element::InsertAdjacentHTMLInternal(const String& where,
               .context_element = context_element,
               .registry = registry,
           },
-          FragmentParserOptions(), exception_state)) {
+          options, exception_state)) {
     InsertAdjacent(where, fragment, exception_state);
   }
 }
@@ -9866,17 +9904,23 @@ void Element::InsertAdjacentHTMLWithoutTrustedTypesForTesting(
     const String& where,
     const String& markup,
     ExceptionState& exception_state) {
-  InsertAdjacentHTMLInternal(where, markup, exception_state);
+  InsertAdjacentHTMLInternal(where, markup, FragmentParserOptions(),
+                             exception_state);
 }
 
 void Element::insertAdjacentHTML(const String& where,
                                  const V8UnionStringOrTrustedHTML* html,
                                  ExceptionState& exception_state) {
-  InsertAdjacentHTMLInternal(
-      where,
-      CheckTrustedTypes(html, trusted_types_names::kInsertAdjacentHTML,
-                        exception_state),
+  FragmentParserOptions resolved_options;
+  String compliant_string = TrustedTypesCheckForFragment(
+      html, resolved_options, GetExecutionContext(),
+      trusted_types_names::kElement, trusted_types_names::kInsertAdjacentHTML,
       exception_state);
+  if (exception_state.HadException()) {
+    return;
+  }
+  InsertAdjacentHTMLInternal(where, compliant_string, resolved_options,
+                             exception_state);
 }
 
 void Element::setPointerCapture(PointerId pointer_id,
@@ -10614,7 +10658,7 @@ void Element::ClearPseudoElement(PseudoId pseudo_id,
 
 void Element::UpdateColumnPseudoElements(const StyleRecalcChange change,
                                          const StyleRecalcContext& context) {
-  const ElementRareDataVector* data = RareData();
+  const NodeRareData* data = RareData();
   if (!data) {
     return;
   }
@@ -10831,7 +10875,7 @@ void Element::DetachPseudoElement(PseudoId pseudo_id,
 PseudoElement* Element::GetPseudoElement(
     PseudoId pseudo_id,
     const AtomicString& pseudo_argument) const {
-  if (ElementRareDataVector* data = RareData()) {
+  if (NodeRareData* data = RareData()) {
     return data->GetPseudoElement(pseudo_id, pseudo_argument);
   }
   return nullptr;
@@ -10886,7 +10930,7 @@ void Element::CacheCSSPseudoElement(PseudoId pseudo_id,
                                                  pseudo_element);
 }
 
-// Note: This method only checks ElementRareData, which caches top-level
+// Note: This method only checks NodeRareData, which caches top-level
 // pseudo-elements (like ::before, ::after, ::view-transition). It does not
 // resolve or return nested pseudo-elements (like view transition sub-elements:
 // ::view-transition-group, etc.) which are cached on their parent
@@ -10896,14 +10940,14 @@ void Element::CacheCSSPseudoElement(PseudoId pseudo_id,
 CSSPseudoElement* Element::GetCSSPseudoElement(
     PseudoId pseudo_id,
     const AtomicString& pseudo_argument) const {
-  if (ElementRareDataVector* data = RareData()) {
+  if (NodeRareData* data = RareData()) {
     return data->GetCSSPseudoElement(pseudo_id, pseudo_argument);
   }
   return nullptr;
 }
 
 bool Element::HasScrollButtonOrMarkerGroupPseudos() const {
-  ElementRareDataVector* data = RareData();
+  NodeRareData* data = RareData();
   return data && data->HasScrollButtonOrMarkerGroupPseudos();
 }
 
@@ -10950,14 +10994,6 @@ Element* Element::GetStyledPseudoElement(
     return nullptr;
   }
 
-  if (!RuntimeEnabledFeatures::ScopedViewTransitionsEnabled()) {
-    // The transition pseudos can currently only exist on the document element
-    // unless scoped view transitions are enabled.
-    if (!IsDocumentElement()) {
-      return nullptr;
-    }
-  }
-
   // This traverses the pseudo-element hierarchy generated in
   // UpdateTransitionPseudoElements to query nested ::view-transition-group
   // ::view-transition-image-pair and
@@ -11000,7 +11036,7 @@ bool Element::PseudoElementStylesAffectCounters() const {
   if (!style) {
     return false;
   }
-  const ElementRareDataVector* rare_data = RareData();
+  const NodeRareData* rare_data = RareData();
   if (!rare_data) {
     return false;
   }
@@ -11020,7 +11056,7 @@ bool Element::PseudoElementStylesAffectCounters() const {
 
 bool Element::PseudoElementStylesDependOnFontMetrics() const {
   const ComputedStyle* style = GetComputedStyle();
-  const ElementRareDataVector* rare_data = RareData();
+  const NodeRareData* rare_data = RareData();
   if (style && rare_data &&
       rare_data->ScrollbarPseudoElementStylesDependOnFontMetrics()) {
     return true;
@@ -11053,7 +11089,7 @@ bool Element::PseudoElementStylesDependOnFunc(
   // If we don't generate a PseudoElement, its style must have been cached on
   // the originating element's ComputedStyle. Hence, it remains to check styles
   // on the generated PseudoElements.
-  const ElementRareDataVector* rare_data = RareData();
+  const NodeRareData* rare_data = RareData();
   if (!rare_data) {
     return false;
   }
@@ -11299,7 +11335,7 @@ bool Element::CanGeneratePseudoElement(PseudoId pseudo_id) const {
 }
 
 bool Element::HasSiblingBoxPseudoElements() const {
-  const ElementRareDataVector* rare_data = RareData();
+  const NodeRareData* rare_data = RareData();
   if (!rare_data) {
     return false;
   }
@@ -11347,7 +11383,7 @@ Element* Element::closest(const AtomicString& selectors) {
 }
 
 DOMTokenList& Element::classList() {
-  ElementRareDataVector* rare_data = &EnsureRareData();
+  NodeRareData* rare_data = &EnsureRareData();
   if (!rare_data->GetClassList()) {
     auto* class_list =
         MakeGarbageCollected<DOMTokenList>(*this, html_names::kClassAttr);
@@ -11360,7 +11396,7 @@ DOMTokenList& Element::classList() {
 }
 
 DOMTokenList& Element::focusGroup() {
-  ElementRareDataVector* rare_data = &EnsureRareData();
+  NodeRareData* rare_data = &EnsureRareData();
   if (!rare_data->GetFocusgroupTokenList()) {
     auto* token_list = MakeGarbageCollected<FocusgroupDOMTokenList>(*this);
     token_list->DidUpdateAttributeValue(
@@ -11372,7 +11408,7 @@ DOMTokenList& Element::focusGroup() {
 }
 
 DOMStringMap& Element::dataset() {
-  ElementRareDataVector* rare_data = &EnsureRareData();
+  NodeRareData* rare_data = &EnsureRareData();
   if (!rare_data->Dataset()) {
     rare_data =
         rare_data->SetDataset(MakeGarbageCollected<DatasetDOMStringMap>(this));
@@ -11682,7 +11718,7 @@ bool Element::FastAttributeLookupAllowed(const QualifiedName& name) const {
 
 #if DUMP_NODE_STATISTICS
 bool Element::HasNamedNodeMap() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->AttributeMap();
   }
   return false;
@@ -12002,14 +12038,14 @@ void Element::UpdateIdNamedItemRegistration(NamedItemType type,
 }
 
 ScrollOffset Element::SavedLayerScrollOffset() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->SavedLayerScrollOffset();
   }
   return ScrollOffset();
 }
 
 void Element::SetSavedLayerScrollOffset(const ScrollOffset& size) {
-  if (ElementRareDataVector* data = RareData()) {
+  if (NodeRareData* data = RareData()) {
     data_ = data->SetSavedLayerScrollOffset(size);
   } else if (!size.IsZero()) {
     data_ = EnsureRareData().SetSavedLayerScrollOffset(size);
@@ -12610,7 +12646,7 @@ void Element::Trace(Visitor* visitor) const {
 }
 
 bool Element::HasPart() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     if (auto* part = data->GetPart()) {
       return part->length() > 0;
     }
@@ -12619,14 +12655,14 @@ bool Element::HasPart() const {
 }
 
 DOMTokenList* Element::GetPart() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->GetPart();
   }
   return nullptr;
 }
 
 DOMTokenList& Element::part() {
-  ElementRareDataVector& rare_data = EnsureRareData();
+  NodeRareData& rare_data = EnsureRareData();
   DOMTokenList* part = rare_data.GetPart();
   if (!part) {
     part = MakeGarbageCollected<DOMTokenList>(*this, html_names::kPartAttr);
@@ -12641,7 +12677,7 @@ bool Element::HasPartNamesMap() const {
 }
 
 const NamesMap* Element::PartNamesMap() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->PartNamesMap();
   }
   return nullptr;
@@ -13136,7 +13172,7 @@ FocusgroupData Element::GetFocusgroupData() const {
   if (!RuntimeEnabledFeatures::FocusgroupEnabled(context)) {
     return {};
   }
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->GetFocusgroupData();
   }
   return {};
@@ -13157,7 +13193,7 @@ void Element::ClearFocusgroupLastFocused() {
   if (!RuntimeEnabledFeatures::FocusgroupEnabled(context)) {
     return;
   }
-  if (ElementRareDataVector* data = RareData()) {
+  if (NodeRareData* data = RareData()) {
     data->ClearFocusgroupLastFocused();
   }
 }
@@ -13172,7 +13208,7 @@ Element* Element::GetFocusgroupLastFocused() const {
   if (GetFocusgroupData().flags & FocusgroupFlags::kNoMemory) {
     return nullptr;
   }
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->GetFocusgroupLastFocused();
   }
   return nullptr;
@@ -13685,13 +13721,13 @@ AnchorPositionScrollData& Element::EnsureAnchorPositionScrollData() {
 }
 
 void Element::RemoveAnchorPositionScrollData() {
-  if (ElementRareDataVector* data = RareData()) {
+  if (NodeRareData* data = RareData()) {
     data->RemoveAnchorPositionScrollData();
   }
 }
 
 AnchorPositionScrollData* Element::GetAnchorPositionScrollData() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->GetAnchorPositionScrollData();
   }
   return nullptr;
@@ -13702,7 +13738,7 @@ ScrollMarkerGroupData& Element::EnsureScrollTargetGroupData() {
 }
 
 void Element::RemoveScrollTargetGroupData() {
-  if (ElementRareDataVector* data = RareData()) {
+  if (NodeRareData* data = RareData()) {
     if (ScrollMarkerGroupData* scroll_marker_group_data =
             data->GetScrollMarkerGroupData()) {
       scroll_marker_group_data->ClearFocusGroup();
@@ -13713,7 +13749,7 @@ void Element::RemoveScrollTargetGroupData() {
 }
 
 ScrollMarkerGroupData* Element::GetScrollTargetGroupData() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->GetScrollMarkerGroupData();
   }
   return nullptr;
@@ -13724,7 +13760,7 @@ void Element::SetScrollTargetGroupContainerData(ScrollMarkerGroupData* data) {
 }
 
 ScrollMarkerGroupData* Element::GetScrollTargetGroupContainerData() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->GetScrollMarkerGroupContainerData();
   }
   return nullptr;
@@ -13742,7 +13778,7 @@ void Element::SetMayBeImplicitAnchor() {
 }
 
 bool Element::MayBeImplicitAnchor() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->MayBeImplicitAnchor();
   }
   return false;
@@ -13879,13 +13915,19 @@ void Element::SetHTMLUnsafeWithoutTrustedTypes(
 void Element::setHTMLUnsafe(const V8UnionStringOrTrustedHTML* html,
                             ExceptionState& exception_state) {
   UseCounter::Count(GetDocument(), WebFeature::kHTMLUnsafeMethods);
+  FragmentParserOptions resolved_options;
+  String compliant_string = TrustedTypesCheckForFragment(
+      html, resolved_options, GetExecutionContext(),
+      trusted_types_names::kElement, trusted_types_names::kSetHTMLUnsafe,
+      exception_state);
+  if (exception_state.HadException()) {
+    return;
+  }
   SetInnerHTMLInternal(
-      CheckTrustedTypes(html, trusted_types_names::kSetHTMLUnsafe,
-                        exception_state),
+      compliant_string,
       FragmentParserConfig::ParseDeclarativeShadowRoots::kParse,
       FragmentParserConfig::ForceHtml::kForce, Sanitizer::Mode::kUnsafe,
-      FragmentParserOptions(), trusted_types_names::kSetHTMLUnsafe,
-      exception_state);
+      resolved_options, trusted_types_names::kSetHTMLUnsafe, exception_state);
 }
 
 // TODO(nrosenthal): merge these calls once all the flags are merged.
@@ -13895,13 +13937,19 @@ void Element::setHTMLUnsafe(const V8UnionStringOrTrustedHTML* html,
   CHECK(RuntimeEnabledFeatures::SanitizerAPIEnabled());
   UseCounter::Count(GetDocument(), WebFeature::kHTMLUnsafeMethods);
 
+  FragmentParserOptions resolved_options(options);
+  String compliant_string = TrustedTypesCheckForFragment(
+      html, resolved_options, GetExecutionContext(),
+      trusted_types_names::kElement, trusted_types_names::kSetHTMLUnsafe,
+      exception_state);
+  if (exception_state.HadException()) {
+    return;
+  }
   SetInnerHTMLInternal(
-      CheckTrustedTypes(html, trusted_types_names::kSetHTMLUnsafe,
-                        exception_state),
+      compliant_string,
       FragmentParserConfig::ParseDeclarativeShadowRoots::kParse,
       FragmentParserConfig::ForceHtml::kForce, Sanitizer::Mode::kUnsafe,
-      FragmentParserOptions(options), trusted_types_names::kSetHTMLUnsafe,
-      exception_state);
+      resolved_options, trusted_types_names::kSetHTMLUnsafe, exception_state);
 }
 
 void Element::setHTMLUnsafe(const V8UnionStringOrTrustedHTML* html,
@@ -13909,13 +13957,19 @@ void Element::setHTMLUnsafe(const V8UnionStringOrTrustedHTML* html,
                             ExceptionState& exception_state) {
   CHECK(RuntimeEnabledFeatures::TrustedTypesCreateParserOptionsEnabled());
   UseCounter::Count(GetDocument(), WebFeature::kHTMLUnsafeMethods);
+  FragmentParserOptions resolved_options(options);
+  String compliant_string = TrustedTypesCheckForFragment(
+      html, resolved_options, GetExecutionContext(),
+      trusted_types_names::kElement, trusted_types_names::kSetHTMLUnsafe,
+      exception_state);
+  if (exception_state.HadException()) {
+    return;
+  }
   SetInnerHTMLInternal(
-      CheckTrustedTypes(html, trusted_types_names::kSetHTMLUnsafe,
-                        exception_state),
+      compliant_string,
       FragmentParserConfig::ParseDeclarativeShadowRoots::kParse,
       FragmentParserConfig::ForceHtml::kForce, Sanitizer::Mode::kUnsafe,
-      FragmentParserOptions(options), trusted_types_names::kSetHTMLUnsafe,
-      exception_state);
+      resolved_options, trusted_types_names::kSetHTMLUnsafe, exception_state);
 }
 
 void Element::setHTML(const String& html,
@@ -13935,7 +13989,7 @@ void Element::SetNamedTriggers(NamedAnimationTriggerMap&& named_triggers) {
 }
 
 NamedAnimationTriggerMap* Element::NamedTriggers() const {
-  ElementRareDataVector* data = RareData();
+  NodeRareData* data = RareData();
   if (!data) {
     return nullptr;
   }
@@ -14000,14 +14054,14 @@ OverscrollAreaTracker& Element::EnsureOverscrollAreaTracker() {
 }
 
 OverscrollAreaTracker* Element::GetOverscrollAreaTracker() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->OverscrollAreaTracker();
   }
   return nullptr;
 }
 
 Element* Element::GetOverscrollContainer() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->GetOverscrollContainer();
   }
   return nullptr;
@@ -14018,14 +14072,14 @@ void Element::SetOverscrollContainer(Element* element) {
 }
 
 void Element::ClearOverscrollContainer() {
-  if (ElementRareDataVector* data = RareData()) {
+  if (NodeRareData* data = RareData()) {
     data->ClearOverscrollContainer();
   }
 }
 
 void Element::DetachOverscroll() {
-  if (auto* container = GetOverscrollContainer()) {
-    auto* tracker = container->GetOverscrollAreaTracker();
+  if (Element* container = GetOverscrollContainer()) {
+    OverscrollAreaTracker* tracker = container->GetOverscrollAreaTracker();
     CHECK(tracker);
     tracker->RemoveOverscroll(this);
   }

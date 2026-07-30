@@ -136,6 +136,26 @@ void SpeechRecognitionDispatcherHost::StartRequestOnUI(
   WebContentsImpl* web_contents =
       static_cast<WebContentsImpl*>(WebContents::FromRenderFrameHost(rfh));
 
+#if BUILDFLAG(IS_ANDROID)
+  // On Android, background speech recognition is not permitted. (Desktop
+  // intentionally allows background recognition).
+  // This matches the Blink-side check in
+  // SpeechRecognition::PageVisibilityChanged() in
+  // third_party/blink/renderer/modules/speech/speech_recognition.cc.
+  if (!web_contents ||
+      web_contents->GetPageVisibilityState() != PageVisibilityState::kVisible) {
+    if (params->client) {
+      mojo::Remote<media::mojom::SpeechRecognitionSessionClient> client(
+          std::move(params->client));
+      client->ErrorOccurred(media::mojom::SpeechRecognitionError::New(
+          media::mojom::SpeechRecognitionErrorCode::kNotAllowed,
+          media::mojom::SpeechAudioErrorDetails::kNone));
+    }
+    // Implicitly dropping params->session_receiver closes the Mojo pipe.
+    return;
+  }
+#endif
+
   // Disable BackForwardCache when using the SpeechRecognition feature, because
   // currently we do not handle speech recognition after placing the page in
   // BackForwardCache.

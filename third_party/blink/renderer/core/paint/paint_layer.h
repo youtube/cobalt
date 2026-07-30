@@ -66,7 +66,6 @@ namespace blink {
 
 class CompositorFilterOperations;
 class ComputedStyle;
-class FilterEffect;
 class FilterOperations;
 class HitTestResult;
 class HitTestingTransformState;

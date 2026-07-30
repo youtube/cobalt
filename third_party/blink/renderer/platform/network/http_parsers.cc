@@ -57,6 +57,7 @@
 #include "services/network/public/mojom/integrity_policy.mojom-blink.h"
 #include "services/network/public/mojom/no_vary_search.mojom-blink-forward.h"
 #include "services/network/public/mojom/no_vary_search.mojom-blink.h"
+#include "services/network/public/mojom/origin_or_wildcard_header_value.mojom-blink.h"
 #include "services/network/public/mojom/parsed_headers.mojom-blink.h"
 #include "services/network/public/mojom/sri_message_signature.mojom-blink.h"
 #include "services/network/public/mojom/supports_loading_mode.mojom-blink.h"
@@ -244,20 +245,21 @@ blink::ContentSecurityPolicyPtr ConvertToBlink(
       ConvertToBlink(in->trusted_types), ConvertToBlink(in->parsing_errors));
 }
 
-blink::AllowCSPFromHeaderValuePtr ConvertToBlink(
-    const AllowCSPFromHeaderValuePtr& allow_csp_from) {
-  if (!allow_csp_from)
+blink::OriginOrWildcardHeaderValuePtr ConvertToBlink(
+    const OriginOrWildcardHeaderValuePtr& header_value) {
+  if (!header_value) {
     return nullptr;
-  switch (allow_csp_from->which()) {
-    case AllowCSPFromHeaderValue::Tag::kAllowStar:
-      return blink::AllowCSPFromHeaderValue::NewAllowStar(
-          allow_csp_from->get_allow_star());
-    case AllowCSPFromHeaderValue::Tag::kOrigin:
-      return blink::AllowCSPFromHeaderValue::NewOrigin(
-          ConvertToBlink(allow_csp_from->get_origin()));
-    case AllowCSPFromHeaderValue::Tag::kErrorMessage:
-      return blink::AllowCSPFromHeaderValue::NewErrorMessage(
-          ConvertToBlink(allow_csp_from->get_error_message()));
+  }
+  switch (header_value->which()) {
+    case OriginOrWildcardHeaderValue::Tag::kAllowStar:
+      return blink::OriginOrWildcardHeaderValue::NewAllowStar(
+          header_value->get_allow_star());
+    case OriginOrWildcardHeaderValue::Tag::kOrigin:
+      return blink::OriginOrWildcardHeaderValue::NewOrigin(
+          ConvertToBlink(header_value->get_origin()));
+    case OriginOrWildcardHeaderValue::Tag::kErrorMessage:
+      return blink::OriginOrWildcardHeaderValue::NewErrorMessage(
+          ConvertToBlink(header_value->get_error_message()));
   }
 }
 

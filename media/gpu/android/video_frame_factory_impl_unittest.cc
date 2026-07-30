@@ -50,7 +50,7 @@ class MockFrameInfoHelper : public FrameInfoHelper,
   void GetFrameInfo(std::unique_ptr<CodecOutputBufferRenderer> buffer_renderer,
                     FrameInfoReadyCB cb) override {
     FrameInfo info;
-    info.coded_size = buffer_renderer->size();
+    info.coded_size = buffer_renderer->visible_size();
     info.visible_rect = gfx::Rect(info.coded_size);
 
     std::move(cb).Run(std::move(buffer_renderer), info);
@@ -103,8 +103,8 @@ class VideoFrameFactoryImplTest : public testing::Test {
 
   void RequestVideoFrame() {
     auto output_buffer = CodecOutputBuffer::CreateForTesting(
-        0, video_frame_params_.coded_size, video_frame_params_.color_space,
-        std::nullopt);
+        0, video_frame_params_.coded_size, video_frame_params_.visible_rect,
+        video_frame_params_.color_space, std::nullopt);
     ASSERT_TRUE(VideoFrame::IsValidConfig(
         PIXEL_FORMAT_ARGB, VideoFrame::STORAGE_OPAQUE,
         video_frame_params_.coded_size, video_frame_params_.visible_rect,
@@ -218,7 +218,8 @@ TEST_F(VideoFrameFactoryImplTest, CreateVideoFrameFailsIfUnsupportedFormat) {
   gfx::Rect visible_rect(coded_size);
   gfx::Size natural_size(0, 0);
   auto output_buffer = CodecOutputBuffer::CreateForTesting(
-      0, coded_size, MediaFormatColorSpace::MakeRec709(), std::nullopt);
+      0, coded_size, visible_rect, MediaFormatColorSpace::MakeRec709(),
+      std::nullopt);
   ASSERT_FALSE(VideoFrame::IsValidConfig(PIXEL_FORMAT_ARGB,
                                          VideoFrame::STORAGE_OPAQUE, coded_size,
                                          visible_rect, natural_size));

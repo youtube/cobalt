@@ -73,10 +73,6 @@ struct VisualProperties {
   ui.mojom.WindowShowState window_show_state
       = ui.mojom.WindowShowState.kDefault;
 
-  // This represents the latest capture sequence number requested. When this is
-  // incremented, that means the caller wants to synchronize surfaces which
-  // should cause a new LocalSurfaceId to be generated.
-  uint32 capture_sequence_number;
 
   // This is composed from browser zoom (i.e. the page zoom level for a
   // WebContents) and, for a non-main-frame widget, the effect of the CSS "zoom"

@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/time/time.h"
+#include "base/timer/elapsed_timer.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 
@@ -26,6 +27,8 @@ struct ProviderStateService : public KeyedService {
   ProviderStateService& operator=(const ProviderStateService&) = delete;
 
   std::vector<CachedAutocompleteMatch> calculator_provider_cache;
+
+  base::ElapsedTimer profile_uptime_timer;
 };
 
 #endif  // COMPONENTS_OMNIBOX_BROWSER_PROVIDER_STATE_SERVICE_H_

@@ -6,6 +6,9 @@ module metrics_reporter.mojom;
 
 import "mojo/public/mojom/base/time.mojom";
 
+// The metrics reporter is used to measure latency between the browser and
+// WebUI.
+
 // Browser-side handler for requests from WebUI page.
 interface PageMetricsHost {
   // The WebUI calls this method when the MetricsReporter is first initialized.

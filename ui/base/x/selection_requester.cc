@@ -7,6 +7,8 @@
 #include <algorithm>
 
 #include "base/compiler_specific.h"
+#include "base/containers/extend.h"
+#include "base/containers/span.h"
 #include "base/memory/ref_counted_memory.h"
 #include "ui/base/x/selection_owner.h"
 #include "ui/base/x/selection_utils.h"
@@ -31,8 +33,7 @@ std::vector<uint8_t> CombineData(
   std::vector<uint8_t> combined;
   combined.reserve(bytes);
   for (const auto& datum : data) {
-    std::copy(datum->data(), UNSAFE_TODO(datum->data() + datum->size()),
-              std::back_inserter(combined));
+    base::Extend(combined, base::span<const uint8_t>(*datum));
   }
   return combined;
 }

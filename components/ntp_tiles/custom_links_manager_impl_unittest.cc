@@ -21,12 +21,20 @@
 #include "components/search/ntp_features.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "extensions/buildflags/buildflags.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using Link = ntp_tiles::CustomLinksManager::Link;
 using sync_preferences::TestingPrefServiceSyncable;
 
 namespace ntp_tiles {
+
+void PrintTo(const CustomLinksManager::Link& link, std::ostream* os) {
+  *os << "{url: " << link.url.spec()
+      << ", title: " << base::UTF16ToUTF8(link.title)
+      << ", is_most_visited: " << (link.is_most_visited ? "true" : "false")
+      << "}";
+}
 
 namespace {
 
@@ -122,7 +130,8 @@ class CustomLinksManagerImplTest : public testing::Test {
     history_service_ = history::CreateHistoryService(scoped_temp_dir_.GetPath(),
                                                      /*create_db=*/false);
     custom_links_ = std::make_unique<CustomLinksManagerImpl>(
-        &prefs_, history_service_.get());
+        CustomLinksManagerImpl::Options{
+            .prefs = &prefs_, .history_service = history_service_.get()});
   }
 
  protected:
@@ -218,7 +227,8 @@ TEST_F(CustomLinksManagerImplTest, AddLinkUpTo20WhenRedesignFlagEnabled) {
   // Recreate custom_links_ to pick up the enabled feature flag in its
   // constructor.
   custom_links_ =
-      std::make_unique<CustomLinksManagerImpl>(&prefs_, history_service_.get());
+      std::make_unique<CustomLinksManagerImpl>(CustomLinksManagerImpl::Options{
+          .prefs = &prefs_, .history_service = history_service_.get()});
 
   ASSERT_TRUE(custom_links_->Initialize(FillTestTiles(kTestCaseMax)));
 
@@ -258,7 +268,8 @@ TEST_F(CustomLinksManagerImplTest,
 
   // Recreate CustomLinksManagerImpl without experiment enabled.
   custom_links_ =
-      std::make_unique<CustomLinksManagerImpl>(&prefs_, history_service_.get());
+      std::make_unique<CustomLinksManagerImpl>(CustomLinksManagerImpl::Options{
+          .prefs = &prefs_, .history_service = history_service_.get()});
 
   // It should NOT truncate the links to 10, and instead preserve all 15!
   EXPECT_EQ(15u, custom_links_->GetLinks().size());
@@ -408,7 +419,8 @@ TEST_F(CustomLinksManagerImplTest, MigratedDefaultAppDeletedSingle) {
   ASSERT_TRUE(custom_links_->Initialize(initial_tiles));
   // Create new instance of CustomLinksManagerImpl to trigger the logic.
   std::unique_ptr<CustomLinksManagerImpl> custom_links_test_ =
-      std::make_unique<CustomLinksManagerImpl>(&prefs_, history_service_.get());
+      std::make_unique<CustomLinksManagerImpl>(CustomLinksManagerImpl::Options{
+          .prefs = &prefs_, .history_service = history_service_.get()});
   // Should be empty as NTP Default App is Removed.
   ASSERT_TRUE(custom_links_test_->GetLinks().empty());
 }
@@ -421,7 +433,8 @@ TEST_F(CustomLinksManagerImplTest, DeletedMigratedDefaultAppMultiLink) {
   ASSERT_TRUE(custom_links_->Initialize(initial_tiles));
   // Create new instance of CustomLinksManagerImpl to trigger the logic.
   std::unique_ptr<CustomLinksManagerImpl> custom_links_test_ =
-      std::make_unique<CustomLinksManagerImpl>(&prefs_, history_service_.get());
+      std::make_unique<CustomLinksManagerImpl>(CustomLinksManagerImpl::Options{
+          .prefs = &prefs_, .history_service = history_service_.get()});
   // Verify that Gmail does not exist in the custom links.
   ASSERT_EQ(std::vector<Link>(
                 {Link{GURL(kTestCase2[0].url), kTestCase2[0].title, true},
@@ -601,7 +614,8 @@ TEST_F(CustomLinksManagerImplTest, ShouldDeleteOnHistoryDeletionAfterShutdown) {
   // Simulate shutdown by recreating CustomLinksManagerImpl.
   custom_links_.reset();
   custom_links_ =
-      std::make_unique<CustomLinksManagerImpl>(&prefs_, history_service_.get());
+      std::make_unique<CustomLinksManagerImpl>(CustomLinksManagerImpl::Options{
+          .prefs = &prefs_, .history_service = history_service_.get()});
 
   // Set up Most Visited callback.
   base::MockCallback<base::RepeatingClosure> callback;
@@ -832,6 +846,35 @@ TEST_F(CustomLinksManagerImplTest, ClearThenUninitializeListAfterRemoteChange) {
   prefs_.SetUserPref(prefs::kCustomLinksInitialized, base::Value(false));
   EXPECT_FALSE(custom_links_->IsInitialized());
   EXPECT_EQ(std::vector<Link>(), custom_links_->GetLinks());
+}
+
+TEST_F(CustomLinksManagerImplTest, CustomMaxLinksLimit) {
+  // Instantiate with a custom limit of 3.
+  auto custom_links_limit_3 = std::make_unique<CustomLinksManagerImpl>(
+      CustomLinksManagerImpl::Options{.prefs = &prefs_,
+                                      .history_service = history_service_.get(),
+                                      .max_links = 3});
+
+  ASSERT_TRUE(
+      custom_links_limit_3->Initialize(FillTestTiles(kTestCase1)));  // 1 link
+  EXPECT_EQ(3u, custom_links_limit_3->GetMaxLinks());
+
+  // Add 2nd link.
+  EXPECT_TRUE(custom_links_limit_3->AddLink(GURL("http://foo2.com/"), u"Foo2"));
+  // Add 3rd link.
+  EXPECT_TRUE(custom_links_limit_3->AddLink(GURL("http://foo3.com/"), u"Foo3"));
+
+  // Reached limit of 3. Adding a 4th link should fail.
+  EXPECT_FALSE(
+      custom_links_limit_3->AddLink(GURL("http://foo4.com/"), u"Foo4"));
+
+  std::vector<CustomLinksManager::Link> expected;
+  for (size_t i = 0; i < kTestCase3.size(); ++i) {
+    expected.emplace_back(GURL(kTestCase3[i].url), kTestCase3[i].title,
+                          /*is_most_visited=*/i == 0);
+  }
+  EXPECT_THAT(custom_links_limit_3->GetLinks(),
+              testing::ElementsAreArray(expected));
 }
 
 }  // namespace ntp_tiles

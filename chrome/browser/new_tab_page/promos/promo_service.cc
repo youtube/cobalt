@@ -11,18 +11,19 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/json/json_reader.h"
 #include "base/json/json_string_value_serializer.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/observer_list.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
-#include "chrome/grit/generated_resources.h"
 #include "components/google/core/common/google_util.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
@@ -100,14 +101,9 @@ GURL GetApiUrl() {
 // be std::nullopt if top level dictionary keys of "update" and "promos" are
 // present. Note: the "log_url" (if found), is resolved against
 // GetGoogleBaseUrl() to form a valid GURL.
-bool JsonToPromoData(const base::Value& value, std::optional<PromoData>* data) {
+bool JsonToPromoData(const base::DictValue& dict,
+                     std::optional<PromoData>* data) {
   *data = std::nullopt;
-
-  if (!value.is_dict()) {
-    DVLOG(1) << "Parse error: top-level dictionary not found";
-    return false;
-  }
-  const base::DictValue& dict = value.GetDict();
 
   const base::DictValue* update = dict.FindDict("update");
   if (!update) {
@@ -188,7 +184,10 @@ void PromoService::Refresh() {
     auto fake_promo_json = std::make_optional<std::string>(base::StringPrintf(
         kFakePromo, kWarningSymbol, command_id.c_str(), command_id.c_str(),
         command_id.c_str(), command_id.c_str()));
-    OnLoadDone(std::move(fake_promo_json));
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&PromoService::OnLoadDone,
+                                  weak_ptr_factory_.GetWeakPtr(),
+                                  std::move(fake_promo_json)));
     return;
   }
 
@@ -246,15 +245,10 @@ void PromoService::OnLoadDone(std::optional<std::string> response_body) {
   if (remainder) {
     response = std::string(*remainder);
   }
-  data_decoder::DataDecoder::ParseJsonIsolated(
-      response, base::BindOnce(&PromoService::OnJsonParsed,
-                               weak_ptr_factory_.GetWeakPtr()));
-}
-
-void PromoService::OnJsonParsed(
-    data_decoder::DataDecoder::ValueOrError result) {
-  if (!result.has_value()) {
-    DVLOG(1) << "Parsing JSON failed: " << result.error();
+  std::optional<base::DictValue> value =
+      base::JSONReader::ReadDict(response, base::JSON_PARSE_RFC);
+  if (!value) {
+    DVLOG(1) << "Parsing JSON failed";
     PromoDataLoaded(Status::FATAL_ERROR, std::nullopt);
     return;
   }
@@ -262,10 +256,11 @@ void PromoService::OnJsonParsed(
   std::optional<PromoData> data;
   PromoService::Status status;
 
-  if (JsonToPromoData(*result, &data)) {
+  if (JsonToPromoData(*value, &data)) {
     bool is_blocked = IsBlockedAfterClearingExpired(data->promo_id);
-    if (is_blocked)
+    if (is_blocked) {
       data = PromoData();
+    }
     status = is_blocked ? Status::OK_BUT_BLOCKED : Status::OK_WITH_PROMO;
   } else {
     status = data ? Status::OK_WITHOUT_PROMO : Status::FATAL_ERROR;

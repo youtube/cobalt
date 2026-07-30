@@ -52,6 +52,7 @@ struct ChromeInfo {
   version_info::Channel channel{};
   base::Version version;
   bool is_new_tab_search_engine_url_android_enabled = false;
+  std::string user_feedback_allowed_pref_key;
 };
 // Device display metrics.
 struct DisplayMetrics {
@@ -126,109 +127,6 @@ struct DebugStreamData {
 std::string SerializeDebugStreamData(const DebugStreamData& data);
 std::optional<DebugStreamData> DeserializeDebugStreamData(
     std::string_view base64_encoded);
-
-// Information about a web page which may be used to determine an associated
-// web feed.
-class WebFeedPageInformation {
- public:
-  WebFeedPageInformation();
-  ~WebFeedPageInformation();
-  WebFeedPageInformation(const WebFeedPageInformation&);
-  WebFeedPageInformation(WebFeedPageInformation&&);
-  WebFeedPageInformation& operator=(const WebFeedPageInformation&);
-  WebFeedPageInformation& operator=(WebFeedPageInformation&&);
-
-  // The URL for the page. `url().has_ref()` is always false.
-  const GURL& url() const { return url_; }
-  // The Canonical URL for the page, if one was found. `url().has_ref()` is
-  // always false
-  const GURL& canonical_url() const { return canonical_url_; }
-
-  // Set the URL for the page. Trims off the URL ref.
-  void SetUrl(const GURL& url);
-
-  // Set the canonical URL for the page. Trims off the URL ref.
-  void SetCanonicalUrl(const GURL& url);
-
- private:
-  GURL url_;
-  GURL canonical_url_;
-};
-std::ostream& operator<<(std::ostream& os, const WebFeedPageInformation& value);
-
-// GENERATED_JAVA_ENUM_PACKAGE: org.chromium.chrome.browser.feed.webfeed
-enum class WebFeedSubscriptionStatus {
-  kUnknown = 0,
-  kSubscribed = 1,
-  kNotSubscribed = 2,
-  kSubscribeInProgress = 3,
-  kUnsubscribeInProgress = 4,
-};
-std::ostream& operator<<(std::ostream& out, WebFeedSubscriptionStatus value);
-
-// GENERATED_JAVA_ENUM_PACKAGE: org.chromium.chrome.browser.feed.webfeed
-enum class WebFeedAvailabilityStatus {
-  kStateUnspecified = 0,
-  kInactive = 1,
-  kActive = 2,
-  kWaitingForContent = 4,
-};
-std::ostream& operator<<(std::ostream& out, WebFeedAvailabilityStatus value);
-
-// Information about a web feed.
-struct WebFeedMetadata {
-  WebFeedMetadata();
-  WebFeedMetadata(const WebFeedMetadata&);
-  WebFeedMetadata(WebFeedMetadata&&);
-  ~WebFeedMetadata();
-  WebFeedMetadata& operator=(const WebFeedMetadata&);
-  WebFeedMetadata& operator=(WebFeedMetadata&&);
-
-  // Unique ID of the web feed. Empty if the client knows of no web feed.
-  std::string web_feed_id;
-  // Whether the subscribed Web Feed has content available for fetching.
-  WebFeedAvailabilityStatus availability_status =
-      WebFeedAvailabilityStatus::kStateUnspecified;
-  // Whether the Web Feed is recommended by the web feeds service.
-  bool is_recommended = false;
-  std::string title;
-  GURL publisher_url;
-  WebFeedSubscriptionStatus subscription_status =
-      WebFeedSubscriptionStatus::kUnknown;
-  GURL favicon_url;
-};
-std::ostream& operator<<(std::ostream& out, const WebFeedMetadata& value);
-
-// This must be kept in sync with WebFeedSubscriptionRequestStatus in
-// enums.xml. These values are persisted to logs. Entries should not be
-// renumbered and numeric values should never be reused.
-// GENERATED_JAVA_ENUM_PACKAGE: org.chromium.chrome.browser.feed.webfeed
-enum class WebFeedSubscriptionRequestStatus {
-  kUnknown = 0,
-  kSuccess = 1,
-  kFailedOffline = 2,
-  kFailedTooManySubscriptions = 3,
-  kFailedUnknownError = 4,
-  kAbortWebFeedSubscriptionPendingClearAll = 5,
-  kMaxValue = kAbortWebFeedSubscriptionPendingClearAll,
-};
-std::ostream& operator<<(std::ostream& out,
-                         WebFeedSubscriptionRequestStatus value);
-
-// This must be kept in sync with WebFeedQueryRequestStatus in
-// enums.xml. These values are persisted to logs. Entries should not be
-// renumbered and numeric values should never be reused.
-// GENERATED_JAVA_ENUM_PACKAGE: org.chromium.chrome.browser.feed.webfeed
-enum class WebFeedQueryRequestStatus {
-  kUnknown = 0,
-  kSuccess = 1,
-  kFailedOffline = 2,
-  kFailedUnknownError = 3,
-  kAbortWebFeedQueryPendingClearAll = 4,
-  kFailedInvalidUrl = 5,
-  kMaxValue = kFailedInvalidUrl,
-};
-std::ostream& operator<<(std::ostream& out, WebFeedQueryRequestStatus value);
 
 using NetworkRequestId = base::IdTypeU32<class NetworkRequestIdClass>;
 

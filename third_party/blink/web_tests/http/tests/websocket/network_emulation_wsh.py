@@ -1,5 +1,4 @@
-from six.moves.urllib import parse
-import six
+from urllib import parse
 
 broadcaster_request = None
 listener_request = None
@@ -30,6 +29,6 @@ def web_socket_transfer_data(request):
         line = request.ws_stream.receive_message()
         if line is None:
             return
-        binary = not isinstance(line, six.text_type)
+        binary = not isinstance(line, str)
         broadcaster_request.ws_stream.send_message(line, binary=binary)
         listener_request.ws_stream.send_message(line, binary=binary)

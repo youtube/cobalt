@@ -44,7 +44,7 @@ public class MostVisitedTilesCoordinator implements ConfigurationChangedObserver
     private final ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
     private final UiConfig mUiConfig;
     private final View mMvTilesContainerLayout;
-    private final boolean mIsTablet;
+    private final boolean mIsLff;
     private MostVisitedTilesMediator mMediator;
     private @Nullable TileRenderer mRenderer;
     private @Nullable UserEducationHelper mUserEducationHelper;
@@ -70,7 +70,7 @@ public class MostVisitedTilesCoordinator implements ConfigurationChangedObserver
         mActivity = activity;
         mActivityLifecycleDispatcher = activityLifecycleDispatcher;
         mMvTilesContainerLayout = mvTilesContainerLayout;
-        mIsTablet = DeviceFormFactor.isNonMultiDisplayContextOnTablet(mActivity);
+        mIsLff = DeviceFormFactor.isNonMultiDisplayContextOnTablet(mActivity);
 
         MostVisitedTilesLayout tilesLayout =
                 mvTilesContainerLayout.findViewById(R.id.mv_tiles_layout);
@@ -84,7 +84,7 @@ public class MostVisitedTilesCoordinator implements ConfigurationChangedObserver
         mRenderer =
                 new TileRenderer(
                         mActivity,
-                        SuggestionsConfig.getTileStyle(mUiConfig, mIsTablet),
+                        SuggestionsConfig.getTileStyle(mUiConfig, mIsLff),
                         TITLE_LINES,
                         /* imageFetcher= */ null);
 
@@ -95,7 +95,7 @@ public class MostVisitedTilesCoordinator implements ConfigurationChangedObserver
                         mvTilesContainerLayout,
                         mRenderer,
                         propertyModel,
-                        mIsTablet,
+                        mIsLff,
                         snapshotTileGridChangedRunnable,
                         tileCountChangedRunnable);
     }
@@ -120,7 +120,7 @@ public class MostVisitedTilesCoordinator implements ConfigurationChangedObserver
             mRenderer =
                     new TileRenderer(
                             mActivity,
-                            SuggestionsConfig.getTileStyle(mUiConfig, mIsTablet),
+                            SuggestionsConfig.getTileStyle(mUiConfig, mIsLff),
                             /* titleLines= */ 1,
                             suggestionsUiDelegate.getImageFetcher());
         } else {
@@ -171,10 +171,10 @@ public class MostVisitedTilesCoordinator implements ConfigurationChangedObserver
      * @param shouldShowLogo Whether the logo is shown.
      * @param isWhiteBackgroundOnSearchBoxApplied Whether a white background is applied to the fake
      *     search box.
-     * @param isTablet Whether the device is a tablet.
+     * @param isLff Whether the device is a large form factor.
      */
-    public void updateTilesLayoutMargins(boolean shouldShowLogo, boolean isTablet) {
-        mMediator.updateTilesLayoutMargins(shouldShowLogo, isTablet);
+    public void updateTilesLayoutMargins(boolean shouldShowLogo, boolean isLff) {
+        mMediator.updateTilesLayoutMargins(shouldShowLogo, isLff);
     }
 
     /** Called when the TasksSurface is hidden or NewTabPageLayout is destroyed. */

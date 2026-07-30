@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 
+#include "base/containers/span.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
@@ -86,7 +87,7 @@ class ChromeAppSorting : public AppSorting,
 
   // web_app::WebAppRegistrarObserver:
   void OnWebAppsWillBeUpdatedFromSync(
-      const std::vector<const web_app::WebApp*>& updated_apps_state) override;
+      base::span<const web_app::WebApp* const> updated_apps_state) override;
   void OnAppRegistrarDestroyed() override;
 
  private:

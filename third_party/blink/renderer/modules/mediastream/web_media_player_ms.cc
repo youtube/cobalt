@@ -1108,7 +1108,7 @@ bool WebMediaPlayerMS::DidLoadingProgress() {
 void WebMediaPlayerMS::Paint(cc::PaintCanvas* canvas,
                              const gfx::Rect& rect,
                              const cc::PaintFlags& flags,
-                             bool force_pixel_readback) {
+                             bool acquire_texture_backing) {
   DVLOG(3) << __func__;
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
@@ -1125,7 +1125,7 @@ void WebMediaPlayerMS::Paint(cc::PaintCanvas* canvas,
   media::PaintCanvasVideoRenderer::PaintParams paint_params;
   paint_params.dest_rect = gfx::RectF(rect);
   paint_params.transformation = GetFrameTransformation(frame);
-  paint_params.force_pixel_readback = force_pixel_readback;
+  paint_params.acquire_texture_backing = acquire_texture_backing;
   video_renderer_.Paint(frame, canvas, flags, paint_params, provider.get());
 }
 

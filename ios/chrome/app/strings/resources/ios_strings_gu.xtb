@@ -6,6 +6,7 @@
 <translation id="1005230401424685968">yyyy</translation>
 <translation id="1013952917065545813">તમે તાજેતરમાં બંધ કરેલા ટૅબ ફરીથી ખોલવા માટે, તમે અહીં પાછા આવી શકો છો</translation>
 <translation id="1016495303386450659">આઇટમ અપડેટ કરી</translation>
+<translation id="1018804590490383958">સ્કૅન કરો અને ઑટોમૅટિક રીતે ભરો</translation>
 <translation id="1019990162050689579">Gemini ઍપ ઍક્ટિવિટી</translation>
 <translation id="102916930470544692">પાસકી</translation>
 <translation id="1030376737535466765">Password Manager ખોલો</translation>
@@ -873,6 +874,7 @@
 <translation id="4021447724486050609">તમારું બ્રાઉઝર અપડેટ કરો</translation>
 <translation id="4021931095789478915">વાંચન સૂચિમાં ${url} ઉમેરો</translation>
 <translation id="4028871427853484857">એકાઉન્ટમાં સાચવો…</translation>
+<translation id="4036529942385659684">નિષ્ક્રિયતાની અવધિ પછી શરૂઆતનું પેજ બતાવો</translation>
 <translation id="4038354071007134711">આ ઉપકરણ પર કોઈ ઍપ્લિકેશન ફાઇલને ખોલી શકતી નથી.</translation>
 <translation id="4042870976416480368">પેજમાં શોધો</translation>
 <translation id="4045441967987592849">ફરી ખોલો</translation>
@@ -910,7 +912,6 @@
 <translation id="417138788035229076">ગ્રૂપ મેનેજ કરો</translation>
 <translation id="4172051516777682613">હંમેશા બતાવો</translation>
 <translation id="417273154673973994">{count,plural, =1{ટૅબનું 1 ગ્રૂપ બંધ કર્યું અને સાચવ્યું}one{ટૅબનું {count} ગ્રૂપ બંધ કર્યું અને સાચવ્યું}other{ટૅબના {count} ગ્રૂપ બંધ કર્યા અને સાચવ્યા}}</translation>
-<translation id="417612446554534067">તમારા બધા ડિવાઇસ પર મોકલો</translation>
 <translation id="4180726336228139707">માત્ર આ જ ડિવાઇસ પર</translation>
 <translation id="4181841719683918333">ભાષાઓ</translation>
 <translation id="4183350924949589798">વધુ સુરક્ષાની જરૂર છે?</translation>
@@ -1134,6 +1135,7 @@
 <translation id="4896467949657706481">ટૅબ બંધ કરવામાં આવી, તમને સાઇન આઉટ કરવામાં આવ્યા</translation>
 <translation id="4911042367886397055">આપનું ફરી સ્વાગત છે, <ph name="USER_NAME" />!</translation>
 <translation id="4913626501929406101">તમે તમારા ફૅમિલી ગ્રૂપમાં કોઈ વ્યક્તિ સાથે તમારા પાસવર્ડની કૉપિ સુરક્ષિત રીતે શેર કરી શકો છો. <ph name="BEGIN_LINK" />વધુ જાણો<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">લેન્સ</translation>
 <translation id="4917025507570489430">તમે <ph name="USER_EMAIL" /> તરીકે સાઇન ઇન કર્યું હોય ત્યારે વર્તમાન બ્રાઉઝિંગ ડેટાનો ઉપયોગ કરી શકો છો. તમારી સંસ્થા કદાચ આ ડેટા જોઈ શકશે.</translation>
 <translation id="4918086044614829423">સ્વીકારો</translation>
 <translation id="4930714375720679147">ચાલુ કરો</translation>
@@ -1549,6 +1551,7 @@
 <translation id="6301767200000930965">Aa</translation>
 <translation id="630308129961693966">તમારા ઍડ્રેસ બારની સ્થિતિ પસંદ કરો</translation>
 <translation id="6307241780749477694">આ ડિવાઇસ પર તમારા બધા પાસવર્ડ મેળવવા માટે ખાતરી કરો કે તે તમે જ છો</translation>
+<translation id="6307792728709337290">આ ખરીદી અને Chrome પર કરવામાં આવનારી ભવિષ્યની ખરીદીઓ માટે તમારું કાર્ડ ઑટોમૅટિક રીતે ભરવા માટે તેને તમારા Google એકાઉન્ટમાં સાચવો.</translation>
 <translation id="6316141353357700666">દેખાય છે તે સૂચિમાંથી તમે ઉપયોગમાં લેવા માગતા હો તે પાસવર્ડ પસંદ કરો.</translation>
 <translation id="6321526113093607004">બુકમાર્કમાં ઉમેરો</translation>
 <translation id="6327249202318869726">તમારા એકાઉન્ટ માટે Gemini બંધ કરવામાં આવ્યું છે. વધુ માહિતી માટે તમારા ઍડમિનનો સંપર્ક કરો.</translation>
@@ -2143,6 +2146,7 @@
 <translation id="8263809106706527890">તમારી ડિફૉલ્ટ બ્રાઉઝર સેટિંગમાં ફેરફાર થયો હોઈ શકે છે. તમે આને સેટિંગમાં જઈને ચેક કરી શકો છો.</translation>
 <translation id="8264966119170358612">તમારા અમુક સાચવેલા પાસવર્ડ બિન-Google ડેટા ઉલ્લંઘનમાં જાહેર કરવામાં આવ્યા હતા. <ph name="BEGIN_LINK" />વધુ જાણો<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">તમારી iPad રીસેટ પ્રક્રિયાના ભાગ તરીકે, તમારા એકાઉન્ટ <ph name="USER_NAME" />માંથી તમને સાઇન આઉટ કરવામાં આવ્યા. ફરીથી સાઇન ઇન કરવા માટે, "ચાલુ રાખો" પર ટૅપ કરો.</translation>
+<translation id="8270320981823560179">Drive</translation>
 <translation id="8273982424131314219">તમે <ph name="URL" /> માં માહિતી ભરશો</translation>
 <translation id="8275068909952022340">વધુ…</translation>
 <translation id="8281781826761538115">ડિફૉલ્ટ - <ph name="DEFAULT_LOCALE" /></translation>

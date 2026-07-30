@@ -25,7 +25,6 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/browser/ui/views/web_apps/web_app_dialog_test_support.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
 #include "chrome/browser/ui/web_applications/web_app_browsertest_base.h"
 #include "chrome/browser/ui/web_applications/web_app_dialogs.h"
@@ -85,13 +84,15 @@ class CreateShortcutBrowserTest : public WebAppBrowserTestBase {
     WebAppTestInstallObserver observer(profile());
     observer.BeginListening();
     {
-      std::unique_ptr<web_app::test::ScopedAutoCheckChromeOsOpenInWindow>
-          auto_check;
+      std::optional<base::AutoReset<CreateShortcutDialogCheckState>> auto_check;
       if (open_as_window) {
-        auto_check = std::make_unique<
-            web_app::test::ScopedAutoCheckChromeOsOpenInWindow>();
+        auto_check.emplace(
+            SetCreateShortcutDialogCheckStateForTesting(  // IN-TEST
+                CreateShortcutDialogCheckState::kChecked));
       }
-      web_app::test::ScopedAutoAcceptCreateShortcutDialog auto_accept;
+      base::AutoReset<InstallDialogTestResponse> auto_accept =
+          SetPwaInstallationAutoRespondForTesting(  // IN-TEST
+              InstallDialogTestResponse::kAcceptAndLaunch);
       CHECK(chrome::ExecuteCommand(browser(), IDC_CREATE_SHORTCUT));
       webapps::AppId app_id = observer.Wait();
       return app_id;

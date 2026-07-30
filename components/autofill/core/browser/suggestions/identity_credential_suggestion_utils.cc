@@ -27,11 +27,10 @@ std::vector<Suggestion> GetIdentityCredentialSuggestionsForType(
   // Given that the `identity_credential_delegate` only uses the autofill field
   // type to check whether a suggestion should be shown, the `form` and `field`
   // created here are empty apart from the field type.
-  autofill::FormData form;
-  autofill::FormFieldData field;
-  autofill::AutofillField autofill_field(field);
-  autofill_field.set_heuristic_type(autofill::HeuristicSource::kRegexes,
-                                    field_type);
+  FormData form;
+  FormFieldData field;
+  AutofillField autofill_field(field);
+  autofill_field.set_heuristic_type(HeuristicSource::kRegexes, field_type);
   return delegate->GetVerifiedAutofillSuggestions(
       form, /*form_structure=*/nullptr, field, &autofill_field,
       autofill_client);

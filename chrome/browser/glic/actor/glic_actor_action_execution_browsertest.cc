@@ -19,6 +19,7 @@ using ::base::test::ValueIs;
 using ::optimization_guide::proto::Actions;
 using ::optimization_guide::proto::ActionsResult;
 using ::optimization_guide::proto::ClickAction;
+using ::optimization_guide::proto::ScrollAction;
 using ::optimization_guide::proto::TabObservation;
 
 class GlicActorActionExecutionFunctionalBrowserTest
@@ -122,6 +123,29 @@ ClickAction MakeMissingCountClickAction(tabs::TabHandle handle) {
   return click;
 }
 
+using ScrollActionFactory = ScrollAction (*)(tabs::TabHandle);
+
+ScrollAction MakeNullTabScrollAction(tabs::TabHandle handle) {
+  ScrollAction scroll;
+  scroll.set_direction(ScrollAction::DOWN);
+  scroll.set_distance(100.0f);
+  return scroll;
+}
+
+ScrollAction MakeMissingDirectionScrollAction(tabs::TabHandle handle) {
+  ScrollAction scroll;
+  scroll.set_tab_id(handle.raw_value());
+  scroll.set_distance(100.0f);
+  return scroll;
+}
+
+ScrollAction MakeMissingDistanceScrollAction(tabs::TabHandle handle) {
+  ScrollAction scroll;
+  scroll.set_tab_id(handle.raw_value());
+  scroll.set_direction(ScrollAction::DOWN);
+  return scroll;
+}
+
 class GlicActorClickActionExecutionErrorBrowserTest
     : public GlicActorFunctionalBrowserTestBase,
       public ::testing::WithParamInterface<
@@ -172,6 +196,50 @@ INSTANTIATE_TEST_SUITE_P(
                        ::actor::mojom::ActionResultCode::kClickMissingType),
         std::make_pair(MakeMissingCountClickAction,
                        ::actor::mojom::ActionResultCode::kClickInvalidCount)));
+
+class GlicActorScrollActionExecutionErrorBrowserTest
+    : public GlicActorFunctionalBrowserTestBase,
+      public ::testing::WithParamInterface<
+          std::pair<ScrollActionFactory, ::actor::mojom::ActionResultCode>> {
+ public:
+  GlicActorScrollActionExecutionErrorBrowserTest() = default;
+};
+
+IN_PROC_BROWSER_TEST_P(GlicActorScrollActionExecutionErrorBrowserTest,
+                       PerformScrollActionErrors) {
+  ASSERT_OK_AND_ASSIGN(TaskId task_id, CreateTask());
+  EXPECT_NE(task_id, TaskId());
+
+  TestFuture<ActorTask::State> task_completion_state;
+  base::CallbackListSubscription subscription =
+      CreateTaskCompletionSubscription(task_id, task_completion_state);
+
+  auto [action_factory, expected_result] = GetParam();
+
+  Actions action;
+  *action.add_actions()->mutable_scroll() =
+      action_factory(active_tab()->GetHandle());
+  action.set_task_id(task_id.value());
+
+  EXPECT_THAT(PerformActions(action), ValueIs(HasResultCode(expected_result)));
+
+  StopActorTask(task_id, glic::mojom::ActorTaskStopReason::kTaskComplete);
+  EXPECT_EQ(ActorTask::State::kFinished, task_completion_state.Get())
+      << "Task " << task_id << " did not reach kFinished state.";
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    GlicActorScrollActionExecutionErrorBrowserTestAll,
+    GlicActorScrollActionExecutionErrorBrowserTest,
+    ::testing::Values(
+        std::make_pair(MakeNullTabScrollAction,
+                       ::actor::mojom::ActionResultCode::kTabWentAway),
+        std::make_pair(
+            MakeMissingDirectionScrollAction,
+            ::actor::mojom::ActionResultCode::kScrollMissingDirection),
+        std::make_pair(
+            MakeMissingDistanceScrollAction,
+            ::actor::mojom::ActionResultCode::kScrollMissingDistance)));
 
 IN_PROC_BROWSER_TEST_F(GlicActorActionExecutionFunctionalBrowserTest,
                        PerformConcurrentAsyncWaitActions) {

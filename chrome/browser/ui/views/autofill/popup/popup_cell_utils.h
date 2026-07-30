@@ -63,6 +63,9 @@ void AddSuggestionContentToView(
     std::unique_ptr<views::View> icon,
     PopupRowContentView& content_view);
 
+std::unique_ptr<PopupRowContentView> CreatePasskeyQrCodePopupRowContentView(
+    const Suggestion& suggestion);
+
 ui::ImageModel ImageModelFromVectorIcon(const gfx::VectorIcon& vector_icon,
                                         int icon_size);
 

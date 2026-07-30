@@ -85,6 +85,8 @@ class MemoryManagedPaintCanvas;
 class MemoryManagedPaintRecorder;
 class Path2D;
 class SVGResource;
+class Canvas2DResourceProviderSharedImage;
+class Canvas2DResourceProviderBitmap;
 enum class FlushReason;
 enum class PredefinedColorSpace;
 
@@ -158,6 +160,8 @@ class MODULES_EXPORT CanvasRenderingContext2D final
   bool ShouldDisableAccelerationBecauseOfReadback() const override;
 
   // CanvasHibernationHandler::Delegate implementation
+  Canvas2DResourceProviderSharedImage* GetSharedImageProvider() const override;
+  bool HasResourceProvider() const override;
   bool IsContextLost() const override { return isContextLost(); }
   bool IsPageVisible() const override {
     return canvas() && canvas()->IsPageVisible();
@@ -266,10 +270,10 @@ class MODULES_EXPORT CanvasRenderingContext2D final
   void ResetInternal() override;
 
   CanvasResourceProvider* GetResourceProvider() const override;
+  CanvasResourceProvider* resource_provider() const;
   void Dispose() override;
 
-  std::unique_ptr<CanvasResourceProvider> CreateCanvasResourceProvider();
-
+  void CreateCanvasResourceProvider();
 
   void PruneLocalFontCache(size_t target_size);
 
@@ -298,7 +302,7 @@ class MODULES_EXPORT CanvasRenderingContext2D final
   // CanvasResourceProvider.
   void DropAndRecreateExistingResourceProvider();
 
-  // This method should be called only when `resource_provider_` is null.
+  // This method should be called only when both providers are null.
   void RecreateResourceProvider();
 
   void WakeUpFromHibernation();
@@ -309,7 +313,8 @@ class MODULES_EXPORT CanvasRenderingContext2D final
   LinkedHashSet<String> font_lru_list_;
 
   std::unique_ptr<CanvasHibernationHandler> hibernation_handler_;
-  std::unique_ptr<CanvasResourceProvider> resource_provider_;
+  std::unique_ptr<Canvas2DResourceProviderSharedImage> shared_image_provider_;
+  std::unique_ptr<Canvas2DResourceProviderBitmap> bitmap_provider_;
 
   // `did_fail_to_create_resource_provider_` prevents repeated attempts in
   // allocating resources after the first attempt failed.

@@ -44,7 +44,7 @@ std::unique_ptr<WebViewAutofillClientIOS> WebViewAutofillClientIOS::Create(
     id<CWVAutofillClientIOSBridge, AutofillDriverIOSBridge> bridge) {
   auto* browser_state = ios_web_view::WebViewBrowserState::FromBrowserState(
       web_state->GetBrowserState());
-  return std::make_unique<autofill::WebViewAutofillClientIOS>(
+  return std::make_unique<WebViewAutofillClientIOS>(
       browser_state->GetPrefs(),
       ios_web_view::WebViewPersonalDataManagerFactory::GetForBrowserState(
           browser_state->GetRecordingBrowserState()),
@@ -57,8 +57,7 @@ std::unique_ptr<WebViewAutofillClientIOS> WebViewAutofillClientIOS::Create(
           browser_state->GetRecordingBrowserState()),
       ios_web_view::WebViewSyncServiceFactory::GetForBrowserState(
           browser_state),
-      autofill::WebViewAutofillLogRouterFactory::GetForBrowserState(
-          browser_state));
+      WebViewAutofillLogRouterFactory::GetForBrowserState(browser_state));
 }
 
 WebViewAutofillClientIOS::WebViewAutofillClientIOS(
@@ -252,7 +251,7 @@ WebViewAutofillClientIOS::ShowAutofillSuggestions(
 }
 
 void WebViewAutofillClientIOS::UpdateAutofillDataListValues(
-    base::span<const autofill::SelectOption> datalist) {
+    base::span<const SelectOption> datalist) {
   // No op. ios/web_view does not support display datalist.
 }
 

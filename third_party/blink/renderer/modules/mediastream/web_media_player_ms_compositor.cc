@@ -118,43 +118,46 @@ scoped_refptr<media::VideoFrame> CopyFrame(
     }
 
     if (frame->format() == media::PIXEL_FORMAT_NV12) {
-      libyuv::NV12Copy(frame->data(media::VideoFrame::Plane::kY),
-                       frame->stride(media::VideoFrame::Plane::kY),
-                       frame->data(media::VideoFrame::Plane::kUV),
-                       frame->stride(media::VideoFrame::Plane::kUV),
-                       new_frame->writable_data(media::VideoFrame::Plane::kY),
-                       new_frame->stride(media::VideoFrame::Plane::kY),
-                       new_frame->writable_data(media::VideoFrame::Plane::kUV),
-                       new_frame->stride(media::VideoFrame::Plane::kUV),
-                       coded_size.width(), coded_size.height());
+      libyuv::NV12Copy(
+          frame->data(media::VideoFrame::Plane::kY),
+          static_cast<int>(frame->stride(media::VideoFrame::Plane::kY)),
+          frame->data(media::VideoFrame::Plane::kUV),
+          static_cast<int>(frame->stride(media::VideoFrame::Plane::kUV)),
+          new_frame->writable_data(media::VideoFrame::Plane::kY),
+          static_cast<int>(new_frame->stride(media::VideoFrame::Plane::kY)),
+          new_frame->writable_data(media::VideoFrame::Plane::kUV),
+          static_cast<int>(new_frame->stride(media::VideoFrame::Plane::kUV)),
+          coded_size.width(), coded_size.height());
     } else if (frame->format() == media::PIXEL_FORMAT_ARGB) {
       libyuv::ARGBCopy(
           frame->data(media::VideoFrame::Plane::kARGB),
-          frame->stride(media::VideoFrame::Plane::kARGB),
+          static_cast<int>(frame->stride(media::VideoFrame::Plane::kARGB)),
           new_frame->writable_data(media::VideoFrame::Plane::kARGB),
-          new_frame->stride(media::VideoFrame::Plane::kARGB),
+          static_cast<int>(new_frame->stride(media::VideoFrame::Plane::kARGB)),
           coded_size.width(), coded_size.height());
     } else {
-      libyuv::I420Copy(frame->data(media::VideoFrame::Plane::kY),
-                       frame->stride(media::VideoFrame::Plane::kY),
-                       frame->data(media::VideoFrame::Plane::kU),
-                       frame->stride(media::VideoFrame::Plane::kU),
-                       frame->data(media::VideoFrame::Plane::kV),
-                       frame->stride(media::VideoFrame::Plane::kV),
-                       new_frame->writable_data(media::VideoFrame::Plane::kY),
-                       new_frame->stride(media::VideoFrame::Plane::kY),
-                       new_frame->writable_data(media::VideoFrame::Plane::kU),
-                       new_frame->stride(media::VideoFrame::Plane::kU),
-                       new_frame->writable_data(media::VideoFrame::Plane::kV),
-                       new_frame->stride(media::VideoFrame::Plane::kV),
-                       coded_size.width(), coded_size.height());
+      libyuv::I420Copy(
+          frame->data(media::VideoFrame::Plane::kY),
+          static_cast<int>(frame->stride(media::VideoFrame::Plane::kY)),
+          frame->data(media::VideoFrame::Plane::kU),
+          static_cast<int>(frame->stride(media::VideoFrame::Plane::kU)),
+          frame->data(media::VideoFrame::Plane::kV),
+          static_cast<int>(frame->stride(media::VideoFrame::Plane::kV)),
+          new_frame->writable_data(media::VideoFrame::Plane::kY),
+          static_cast<int>(new_frame->stride(media::VideoFrame::Plane::kY)),
+          new_frame->writable_data(media::VideoFrame::Plane::kU),
+          static_cast<int>(new_frame->stride(media::VideoFrame::Plane::kU)),
+          new_frame->writable_data(media::VideoFrame::Plane::kV),
+          static_cast<int>(new_frame->stride(media::VideoFrame::Plane::kV)),
+          coded_size.width(), coded_size.height());
     }
     if (frame->format() == media::PIXEL_FORMAT_I420A) {
-      libyuv::CopyPlane(frame->data(media::VideoFrame::Plane::kA),
-                        frame->stride(media::VideoFrame::Plane::kA),
-                        new_frame->writable_data(media::VideoFrame::Plane::kA),
-                        new_frame->stride(media::VideoFrame::Plane::kA),
-                        coded_size.width(), coded_size.height());
+      libyuv::CopyPlane(
+          frame->data(media::VideoFrame::Plane::kA),
+          static_cast<int>(frame->stride(media::VideoFrame::Plane::kA)),
+          new_frame->writable_data(media::VideoFrame::Plane::kA),
+          static_cast<int>(new_frame->stride(media::VideoFrame::Plane::kA)),
+          coded_size.width(), coded_size.height());
     }
   }
 
@@ -644,6 +647,14 @@ void WebMediaPlayerMSCompositor::PutCurrentFrame() {
 
 base::TimeDelta WebMediaPlayerMSCompositor::GetPreferredRenderInterval() {
   DCHECK(video_frame_compositor_task_runner_->BelongsToCurrentThread());
+  base::AutoLock auto_lock(current_frame_lock_);
+  return GetPreferredRenderIntervalInternal();
+}
+
+base::TimeDelta
+WebMediaPlayerMSCompositor::GetPreferredRenderIntervalInternal() {
+  DCHECK(video_frame_compositor_task_runner_->BelongsToCurrentThread());
+  current_frame_lock_.AssertAcquired();
   if (!rendering_frame_buffer_) {
     DCHECK_GE(last_render_length_, base::TimeDelta());
     return last_render_length_;
@@ -912,7 +923,7 @@ void WebMediaPlayerMSCompositor::
   if (negative_display_duration_count_ > 0) {
     base::UmaHistogramCounts100(
         "Media.WebMediaPlayerCompositor.NegativeDisplayDurationCount",
-        negative_display_duration_count_);
+        base::saturated_cast<int>(negative_display_duration_count_));
     negative_display_duration_count_ = 0;
   }
 
@@ -1049,7 +1060,7 @@ void WebMediaPlayerMSCompositor::SetCurrentFrame(
       (expected_display_time.has_value() && !expected_display_time->is_null())
           ? *expected_display_time
           : now;
-  last_preferred_render_interval_ = GetPreferredRenderInterval();
+  last_preferred_render_interval_ = GetPreferredRenderIntervalInternal();
   ++presented_frames_;
 
   TRACE_EVENT_INSTANT("media", "SetCurrentFrame Timestamps",
@@ -1168,6 +1179,7 @@ void WebMediaPlayerMSCompositor::ReplaceCurrentFrameWithACopy() {
 
 void WebMediaPlayerMSCompositor::SetAlgorithmEnabledForTesting(
     bool algorithm_enabled) {
+  base::AutoLock auto_lock(current_frame_lock_);
   if (!algorithm_enabled) {
     rendering_frame_buffer_.reset();
     return;
@@ -1175,9 +1187,9 @@ void WebMediaPlayerMSCompositor::SetAlgorithmEnabledForTesting(
 
   if (!rendering_frame_buffer_) {
     rendering_frame_buffer_ = std::make_unique<VideoRendererAlgorithmWrapper>(
-        blink::BindRepeating(
+        ConvertToBaseRepeatingCallback(CrossThreadBindRepeating(
             &WebMediaPlayerMSCompositor::MapTimestampsToRenderTimeTicks,
-            Unretained(this)),
+            CrossThreadUnretained(this))),
         &media_log_);
   }
 }

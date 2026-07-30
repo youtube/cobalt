@@ -11,6 +11,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "chrome/browser/signin/dice_tab_helper.h"
 #include "chrome/browser/signin/dice_web_signin_interceptor.h"
 #include "chrome/browser/signin/dice_web_signin_interceptor_factory.h"
@@ -22,6 +23,7 @@
 #include "components/metrics/profile_metrics_service.h"
 #include "components/signin/public/base/account_consistency_method.h"
 #include "components/signin/public/base/signin_metrics.h"
+#include "components/signin/public/base/signin_prefs.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "components/sync/base/features.h"
@@ -409,6 +411,36 @@ TEST_F(ProcessDiceHeaderDelegateImplTest, SigninHeaderReceived_SyncingTabOff) {
   // Since there is DiceTabHelper created, we do not expect the message to be
   // redirected.
   EXPECT_FALSE(signin_header_received_);
+}
+
+TEST_F(ProcessDiceHeaderDelegateImplTest, AttemptChromeSigninChoiceRemembered) {
+  base::HistogramTester histogram_tester;
+
+  if (!identity_test_environment_profile_adaptor_) {
+    InitializeIdentityTestEnvironment();
+  }
+  identity_test_environment_profile_adaptor_->identity_test_env()
+      ->MakeAccountAvailable(account_info_.email,
+                             {.gaia_id = account_info_.gaia});
+
+  SigninPrefs signin_prefs(*profile()->GetPrefs());
+  signin_prefs.SetChromeSigninInterceptionUserChoice(
+      account_info_.gaia, ChromeSigninUserChoice::kSignin);
+
+  std::unique_ptr<ProcessDiceHeaderDelegateImpl> delegate =
+      CreateDelegateAndNavigateToSignin(/*is_sync_signin_tab=*/false,
+                                        /*redirect_url=*/GURL());
+
+  delegate->HandleTokenExchangeSuccess(account_info_.account_id,
+                                       /*is_new_account=*/true);
+
+  histogram_tester.ExpectUniqueSample(
+      "Signin.SignIn.Offered",
+      signin_metrics::AccessPoint::kSigninChoiceRemembered, 1);
+
+  histogram_tester.ExpectUniqueSample(
+      "Signin.SignIn.Started",
+      signin_metrics::AccessPoint::kSigninChoiceRemembered, 1);
 }
 
 struct TestConfiguration {

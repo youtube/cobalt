@@ -9,6 +9,7 @@ import sys
 import tempfile
 import contextlib
 
+import finders.file_finder as file_finder
 import utils.command_util as command
 import utils.constants as const
 
@@ -80,6 +81,44 @@ def _ParseRefsOutput(output: str) -> list[str]:
   return targets
 
 
+def _FindTestTargetsViaGnRefs(out_dir: str, gn_paths: list[str]) -> list[str]:
+  gn_path: str = os.path.join(str(const.DEPOT_TOOLS_DIR), 'gn.py')
+
+  cmd: list[str] = [
+      sys.executable,
+      gn_path,
+      'refs',
+      out_dir,
+      '--all',
+      '--relation=source',
+  ]
+
+  is_cpp_only = all(
+      p.endswith(('.cc', '.mm', '.cpp', '.h', '.m')) for p in gn_paths)
+  if not is_cpp_only:
+    cmd.append('--relation=input')
+
+  response_file = None
+  if len(gn_paths) > 100:
+    cm = tempfile.NamedTemporaryFile(mode='w', delete=False)
+  else:
+    cm = contextlib.nullcontext()
+    cmd.extend(gn_paths)
+
+  with cm as tmp_file:
+    if tmp_file:
+      tmp_file.write('\n'.join(gn_paths))
+      cmd.append(f'@{tmp_file.name}')
+
+    targets: list[str] = _ParseRefsOutput(command.RunCommand(cmd))
+    test_targets = _TestTargetsFromGnRefs(targets)
+
+    if not test_targets and targets:
+      test_targets = _ParseRefsOutput(
+          command.RunCommand(cmd + ['--type=executable']))
+  return test_targets
+
+
 def FindTestTargets(
     target_cache: TargetCache,
     out_dir: str,
@@ -97,57 +136,15 @@ def FindTestTargets(
   if not test_targets:
     used_cache = False
 
-    # Use gn refs to recursively find all targets that depend on |path|, filter
-    # internal gn targets, and match against well-known test suffixes, falling
-    # back to a list of known test targets if that fails.
-    gn_path: str = os.path.join(str(const.DEPOT_TOOLS_DIR), 'gn.py')
+    web_test_paths = {p for p in paths if file_finder.IsWebTestFile(p)}
+    gn_paths = [p for p in paths if p not in web_test_paths]
+    test_targets = []
 
-    cmd: list[str] = [
-        sys.executable,
-        gn_path,
-        'refs',
-        out_dir,
-        '--all',
-        '--relation=source',
-    ]
+    if gn_paths:
+      test_targets = _FindTestTargetsViaGnRefs(out_dir, gn_paths)
 
-    # C/C++ tests can be found reliably with only 'source' relation. Java
-    # requires 'input' relation. Including fewer relations is faster and
-    # can avoid finding the wrong test targets.
-    is_cpp_only = all(
-        p.endswith(('.cc', '.mm', '.cpp', '.h', '.m')) for p in paths)
-    if not is_cpp_only:
-      cmd.append('--relation=input')
-
-    response_file = None
-    if len(paths) > 100:
-      cm = tempfile.NamedTemporaryFile(mode='w', delete=False)
-    else:
-      cm = contextlib.nullcontext()
-      cmd.extend(paths)
-
-    with cm as tmp_file:
-      if tmp_file:
-        tmp_file.write('\n'.join(paths))
-        cmd.append(f'@{tmp_file.name}')
-
-      targets: list[str] = _ParseRefsOutput(command.RunCommand(cmd))
-      test_targets = _TestTargetsFromGnRefs(targets)
-
-      # If no targets were identified as tests by looking at their names, ask GN
-      # if any are executables.
-      if not test_targets and targets:
-        test_targets = _ParseRefsOutput(
-            command.RunCommand(cmd + ['--type=executable']))
-
-    targets: list[str] = _ParseRefsOutput(command.RunCommand(cmd))
-    test_targets = _TestTargetsFromGnRefs(targets)
-
-    # If no targets were identified as tests by looking at their names, ask GN
-    # if any are executables.
-    if not test_targets and targets:
-      test_targets = _ParseRefsOutput(
-          command.RunCommand(cmd + ['--type=executable']))
+    if web_test_paths:
+      test_targets.append('//blink_tests')
 
   if not test_targets:
     command.ExitWithMessage(

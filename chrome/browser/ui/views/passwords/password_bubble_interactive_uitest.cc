@@ -466,10 +466,10 @@ IN_PROC_BROWSER_TEST_P(PasswordBubbleInteractiveUiTest,
   SetupPendingPassword();
   EXPECT_TRUE(IsBubbleShowing());
 
-  browser()->window()->Deactivate();
+  browser()->GetWindow()->Deactivate();
   EXPECT_TRUE(IsBubbleShowing());
 
-  browser()->window()->Activate();
+  browser()->GetWindow()->Activate();
   EXPECT_TRUE(IsBubbleShowing());
 }
 
@@ -482,7 +482,7 @@ IN_PROC_BROWSER_TEST_P(PasswordBubbleInteractiveUiTest, DontCloseOnLostFocus) {
       ->GetOkButton()
       ->RequestFocus();
 
-  browser()->window()->Deactivate();
+  browser()->GetWindow()->Deactivate();
   EXPECT_TRUE(IsBubbleShowing());
 }
 
@@ -1545,7 +1545,7 @@ IN_PROC_BROWSER_TEST_P(PasswordBubbleWithUnifiedUiDisabledInteractiveUiTest,
   EXPECT_TRUE(IsBubbleShowing());
 
   ui_test_utils::BrowserDestroyedObserver observer(focused_window);
-  focused_window->window()->Close();
+  focused_window->GetWindow()->Close();
   observer.Wait();
 
   // Wait until the auto-signin bubble has disappeared, which should happen

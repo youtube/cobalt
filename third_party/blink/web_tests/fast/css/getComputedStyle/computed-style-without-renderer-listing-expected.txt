@@ -341,7 +341,7 @@ perspective: none
 perspective-origin: 50% 50%
 pointer-events: auto
 position: static
-position-anchor: none
+position-anchor: normal
 position-area: none
 position-try-fallbacks: none
 position-try-order: normal

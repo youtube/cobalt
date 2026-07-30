@@ -395,6 +395,7 @@
 <translation id="5234764350956374838">閉じる</translation>
 <translation id="5239627039202700673">メッセージ、ドキュメント、他のアプリのリンクをクリックしたときに、常に Chrome で開くよう設定できます</translation>
 <translation id="5251420635869119124">ゲスト ユーザーは、記録を残さずに Chrome を使用できます。</translation>
+<translation id="5271833978500241046">Chrome の他の Gemini 機能と組み合わせて使用できます</translation>
 <translation id="5286907366254680517">検出しました</translation>
 <translation id="5320351714793324716">Cookie を許可した場合、Chrome はプリロードの際に Cookie を使用することがあります</translation>
 <translation id="5321325624576443340">Google レンズはご利用いただけません。しばらくしてからもう一度お試しください。</translation>
@@ -431,15 +432,6 @@
 <translation id="569897634095159764">インターネットに接続できません。プロキシ サーバーにより認証を求められています。</translation>
 <translation id="5709557627224531708">Chrome を既定のブラウザに設定する</translation>
 <translation id="5719246646468301581">Google Chrome および ChromeOS 追加利用規約</translation>
-<translation id="5719324992913248873">この操作を行うと、次のようになります。
-          <ph name="LINE_BREAKS" />
-           • 一部の Chrome の設定と Chrome のショートカットがリセットされます
-           <ph name="LINE_BREAK" />
-           • 拡張機能が無効になります
-           <ph name="LINE_BREAK" />
-           • Cookie や他の一時的なサイトデータが削除されます
-            <ph name="LINE_BREAKS" />
-           ブックマーク、履歴、保存したパスワードへの影響はありません。</translation>
 <translation id="5736850870166430177">サイトがパスワードを不正に取得しようとしている場合や、ユーザーが安全でないファイルをダウンロードしようとした場合は、URL とページ コンテンツの一部をセーフ ブラウジングに送信することがあります</translation>
 <translation id="5756509061973259733">このアカウントの Chrome プロファイルは、このデバイスにすでに存在します</translation>
 <translation id="5759947850379142561">Google レンズで検索するテキストまたは画像を選択してください。Esc キーを押すと Google レンズを終了します。</translation>
@@ -637,6 +629,7 @@
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7627609214560473136">データを保護するため、最近アクセスしていないサイトから権限を自動で削除します。</translation>
 <translation id="7629695634924605473">Chrome では、特定のパスワードが侵害された事実の有無がわかります</translation>
+<translation id="7629898584100520089">スキルなどの AI イノベーションは Google アカウントに保存され、Chrome 同期とは別に管理されます</translation>
 <translation id="7641148173327520642">システム管理者が、<ph name="TARGET_URL_HOSTNAME" /> へのアクセスに <ph name="ALTERNATIVE_BROWSER_NAME" /> を開くよう Google Chrome を設定しています。</translation>
 <translation id="7649070708921625228">ヘルプ</translation>
 <translation id="7651907282515937834">Chrome Enterprise ロゴ</translation>

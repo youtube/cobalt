@@ -47,6 +47,7 @@
 #include "chrome/browser/favicon/favicon_service_factory.h"
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/ui/ash/quick_insert/quick_insert_file_suggester.h"
 #include "chrome/browser/ui/ash/quick_insert/quick_insert_thumbnail_loader.h"
 #include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
@@ -555,6 +556,7 @@ QuickInsertClientImpl::CreateOmniboxProvider(bool bookmarks,
                                              bool open_tabs) {
   return std::make_unique<app_list::OmniboxProvider>(
       profile_, GetEmptyAppListControllerDelegate(),
+      TemplateURLServiceFactory::GetForProfile(profile_),
       LauncherSearchProviderTypes(bookmarks, history, open_tabs));
 }
 

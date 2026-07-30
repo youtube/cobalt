@@ -45,7 +45,6 @@ class TracedValue;
 
 namespace gfx {
 class ColorSpace;
-class GpuFence;
 struct PresentationFeedback;
 }  // namespace gfx
 
@@ -291,14 +290,6 @@ class Surface final : public ui::PropertyHandler {
 
   // Returns whether this surface or any of its subsurfaces contains a video.
   bool ContainsVideo();
-
-  // Request that the attached surface buffer at the next commit is associated
-  // with a gpu fence to be signaled when the buffer is ready for use.
-  void SetAcquireFence(std::unique_ptr<gfx::GpuFence> gpu_fence);
-  // Returns whether the surface has an uncommitted acquire fence.
-  bool HasPendingAcquireFence() const;
-  // Returns whether the surface has a committed acquire fence.
-  bool HasAcquireFence() const;
 
   // Surface state (damage regions, attached buffers, etc.) is double-buffered.
   // A Commit() call atomically applies all pending state, replacing the
@@ -557,14 +548,13 @@ class Surface final : public ui::PropertyHandler {
   //    subtree) is committed.
   // 3. State is committed.
   // Some fields are persisted between commits (e.g. which buffer is attached),
-  // and some fields are not (e.g. acquire fence). For fields that are
-  // persisted, they either need to be copyable, or if they are move only, they
-  // need to be wrapped in std::optional and only copied on commit if they
-  // have been changed. Not doing this can lead to broken behaviour, such as
-  // losing the attached buffer if some unrelated field is updated in a commit.
-  // If you add new fields to this struct, please document whether the field
-  // should be persisted between commits.
-  // See crbug.com/1283305 for context.
+  // and some fields are not. For fields that are persisted, they either need to
+  // be copyable, or if they are move only, they need to be wrapped in
+  // std::optional and only copied on commit if they have been changed. Not
+  // doing this can lead to broken behaviour, such as losing the attached buffer
+  // if some unrelated field is updated in a commit. If you add new fields to
+  // this struct, please document whether the field should be persisted between
+  // commits. See crbug.com/1283305 for context.
   struct ExtendedState {
     ExtendedState();
     ~ExtendedState();
@@ -588,9 +578,6 @@ class Surface final : public ui::PropertyHandler {
     // contents have been presented.
     // Not persisted between commits.
     std::list<PresentationCallback> presentation_callbacks;
-    // The acquire gpu fence to associate with the surface buffer.
-    // Not persisted between commits.
-    std::unique_ptr<gfx::GpuFence> acquire_fence;
     // The hint for overlay prioritization
     // Persisted between commits.
     OverlayPriority overlay_priority_hint = OverlayPriority::REGULAR;
@@ -774,7 +761,7 @@ class Surface final : public ui::PropertyHandler {
   raw_ptr<SurfaceDelegate> delegate_ = nullptr;
 
   // Surface observer list. Surface does not own the observers.
-  base::ObserverList<SurfaceObserver, true>::Unchecked observers_;
+  base::ObserverList<SurfaceObserver, true> observers_;
 
   std::unique_ptr<ash::OutputProtectionDelegate> output_protection_;
 

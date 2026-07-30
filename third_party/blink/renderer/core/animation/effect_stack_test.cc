@@ -10,6 +10,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_cssnumericvalue_double.h"
 #include "third_party/blink/renderer/core/animation/animation_clock.h"
 #include "third_party/blink/renderer/core/animation/animation_test_helpers.h"
+#include "third_party/blink/renderer/core/animation/document_animations.h"
 #include "third_party/blink/renderer/core/animation/document_timeline.h"
 #include "third_party/blink/renderer/core/animation/element_animations.h"
 #include "third_party/blink/renderer/core/animation/interpolable_length.h"
@@ -52,7 +53,11 @@ class AnimationEffectStackTest : public PageTestBase {
   void UpdateTimeline(base::TimeDelta time) {
     GetDocument().GetAnimationClock().UpdateTime(
         GetDocument().Timeline().CalculateZeroTime() + time);
-    timeline->ServiceAnimations(kTimingUpdateForAnimationFrame);
+    // Run full animation timing update, which includes removing replaced
+    // animations.
+    GetDocument()
+        .GetDocumentAnimations()
+        .UpdateAnimationTimingForAnimationFrame();
     SimulateMicrotask();
   }
 

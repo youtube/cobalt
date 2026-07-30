@@ -40,6 +40,7 @@ build_webui("build") {
     "skills_page_browser_proxy.ts",
     "user_skills_page.html.ts",
     "user_skills_page.ts",
+    "v2/skills.ts",
   ]
 
   css_files = [

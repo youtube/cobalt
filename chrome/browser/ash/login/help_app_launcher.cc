@@ -29,8 +29,6 @@ using ::extensions::ExtensionRegistry;
 
 const char kHelpAppFormat[] = "chrome-extension://%s/oobe.html?id=%d";
 
-const char* g_extension_id_for_test = nullptr;
-
 }  // namespace
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -48,9 +46,6 @@ void HelpAppLauncher::ShowHelpTopic(HelpTopic help_topic_id) {
     return;
 
   const char* extension_id = extension_misc::kHelpAppExtensionId;
-  if (g_extension_id_for_test && *g_extension_id_for_test != '\0') {
-    extension_id = g_extension_id_for_test;
-  }
 
   GURL url(base::StringPrintf(kHelpAppFormat, extension_id,
                               static_cast<int>(help_topic_id)));
@@ -59,11 +54,6 @@ void HelpAppLauncher::ShowHelpTopic(HelpTopic help_topic_id) {
   if (registry->enabled_extensions().GetByID(url.GetHost())) {
     ShowHelpTopicDialog(profile, GURL(url));
   }
-}
-
-// static
-void HelpAppLauncher::SetExtensionIdForTest(const char* extension_id) {
-  g_extension_id_for_test = extension_id;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -11,6 +11,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -58,6 +59,7 @@ public class DocumentPictureInPictureActivityUnitTest {
     @Mock private AconfigFlaggedApiDelegate mAconfigFlaggedApiDelegate;
     @Mock private AppTask mAppTask;
     @Mock private DisplayAndroidManager mDisplayAndroidManager;
+    @Mock private DocumentPictureInPictureActivity.Natives mMockActivityNatives;
 
     private DocumentPictureInPictureActivity mActivity;
 
@@ -68,6 +70,7 @@ public class DocumentPictureInPictureActivityUnitTest {
         DisplayAndroidManager.setInstanceForTesting(mDisplayAndroidManager);
         DisplayAndroid.setNonMultiDisplayForTesting(mDisplayAndroid);
         PictureInPictureBoundsCacheBridgeJni.setInstanceForTesting(mMockNatives);
+        DocumentPictureInPictureActivityJni.setInstanceForTesting(mMockActivityNatives);
 
         // Common Display setup
         when(mDisplayAndroid.getDipScale()).thenReturn(1.0f);
@@ -98,6 +101,7 @@ public class DocumentPictureInPictureActivityUnitTest {
         AndroidTaskUtils.setAppTaskForTesting(null);
         DisplayAndroidManager.resetInstanceForTesting();
         DisplayAndroid.setNonMultiDisplayForTesting(null);
+        DocumentPictureInPictureActivityJni.setInstanceForTesting(null);
     }
 
     @Test
@@ -308,5 +312,42 @@ public class DocumentPictureInPictureActivityUnitTest {
 
         // It should NOT cache these bounds.
         verifyNoInteractions(mMockNatives);
+    }
+
+    @Test
+    @Config(sdk = Build.VERSION_CODES.S)
+    public void testPerformPreInflationStartup_AbortsIfSessionInvalid() {
+        // Mock registerJavaActivity to return false (indicating native session closed).
+        when(mMockActivityNatives.registerJavaActivity(any(), any())).thenReturn(false);
+
+        // Setup mock WebContents to prevent crashes during early setup.
+        WebContents webContents = mock(WebContents.class);
+        when(webContents.isDestroyed()).thenReturn(false);
+        DocumentPictureInPictureActivity.setWebContentsForTesting(webContents);
+
+        mActivity.performPreInflationStartup();
+
+        // Verify that performPreInflationStartup aborts early by calling finish().
+        verify(mActivity).finish();
+    }
+
+    @Test
+    @Config(sdk = Build.VERSION_CODES.S)
+    public void testCloseActivity() {
+        doReturn(false).when(mActivity).isFinishing();
+
+        mActivity.closeActivity();
+
+        verify(mActivity).finish();
+    }
+
+    @Test
+    @Config(sdk = Build.VERSION_CODES.S)
+    public void testCloseActivity_DoesNotFinishIfAlreadyFinishing() {
+        doReturn(true).when(mActivity).isFinishing();
+
+        mActivity.closeActivity();
+
+        verify(mActivity, never()).finish();
     }
 }

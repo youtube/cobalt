@@ -18,8 +18,6 @@ TEST(PermissionsPolicyFeaturesTest,
       IsPermissionsPolicyFeatureGuardedByIsolatedContext("controlled-frame"));
   EXPECT_TRUE(
       IsPermissionsPolicyFeatureGuardedByIsolatedContext("direct-sockets"));
-  EXPECT_TRUE(IsPermissionsPolicyFeatureGuardedByIsolatedContext(
-      "direct-sockets-private"));
   EXPECT_TRUE(IsPermissionsPolicyFeatureGuardedByIsolatedContext("smart-card"));
   EXPECT_TRUE(IsPermissionsPolicyFeatureGuardedByIsolatedContext("sub-apps"));
   EXPECT_TRUE(

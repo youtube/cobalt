@@ -48,8 +48,8 @@ ebc5570c29018c4d67b1aa127baf12f703b4611ebc17b7dab5573894179b93fa | OU=AC RAIZ FN
 5d56499be4d2e08bcfcad08a3e38723d50503bde706948e42f55603019e528ae | CN=IdenTrust Commercial Root CA 1,O=IdenTrust,C=US | 2014-01-16 | 2034-01-16
 96bcec06264976f37460779acf28c5a7cfe8a3c0aae11a8ffcee05c0bddf08c6 | CN=ISRG Root X1,O=Internet Security Research Group,C=US | 2015-06-04 | 2035-06-04
 a1339d33281a0b56e557d3d32b1ce7f9367eb094bd5fa72a7e5004c8ded7cafe | CN=SZAFIR ROOT CA2,O=Krajowa Izba Rozliczeniowa S.A.,C=PL | 2015-10-19 | 2035-10-19
-3c5f81fea5fab82c64bfa2eaecafcde8e077fc8620a7cae537163df36edbf378 | CN=Microsec e-Szigno Root CA 2009,O=Microsec Ltd.,L=Budapest,C=HU,1.2.840.113549.1.9.1=#0c10696e666f40652d737a69676e6f2e6875 | 2009-06-16 | 2029-12-30
-beb00b30839b9bc32c32e4447905950641f26421b15ed089198b518ae2ea1b99 | CN=e-Szigno Root CA 2017,O=Microsec Ltd.,L=Budapest,C=HU,2.5.4.97=#130e56415448552d3233353834343937 | 2017-08-22 | 2042-08-22
+3c5f81fea5fab82c64bfa2eaecafcde8e077fc8620a7cae537163df36edbf378 | CN=Microsec e-Szigno Root CA 2009,O=Microsec Ltd.,L=Budapest,C=HU,1.2.840.113549.1.9.1=info@e-szigno.hu | 2009-06-16 | 2029-12-30
+beb00b30839b9bc32c32e4447905950641f26421b15ed089198b518ae2ea1b99 | CN=e-Szigno Root CA 2017,O=Microsec Ltd.,L=Budapest,C=HU,2.5.4.97=VATHU-23584497 | 2017-08-22 | 2042-08-22
 358df39d764af9e1b766e9c972df352ee15cfac227af6ad1d70e8e4a6edcba02 | CN=Microsoft ECC Root Certificate Authority 2017,O=Microsoft Corporation,C=US | 2019-12-18 | 2042-07-18
 c741f70f4b2a8d88bf2e71c14122ef53ef10eba0cfa5e64cfa20f418853073e0 | CN=Microsoft RSA Root Certificate Authority 2017,O=Microsoft Corporation,C=US | 2019-12-18 | 2042-07-18
 6b9c08e86eb0f767cfad65cd98b62149e5494a67f5845e7bd1ed019f27b86bd6 | CN=OISTE WISeKey Global Root GB CA,OU=OISTE Foundation Endorsed,O=WISeKey,C=CH | 2014-12-01 | 2039-12-01
@@ -79,7 +79,7 @@ d95d0e8eda79525bf9beb11b14d2100d3294985f0c62d9fabd9cd999eccb7b1d | CN=HARICA TLS
 371a00dc0533b3721a7eeb40e8419e70799d2b0a0f2c1d80693165f7cec4ad75 | CN=DigiCert TLS RSA4096 Root G5,O=DigiCert\, Inc.,C=US | 2021-01-15 | 2046-01-14
 b4585f22e4ac756a4e8612a1361c5d9d031a93fd84febb778fa3068b0fc42dc2 | CN=Certainly Root E1,O=Certainly,C=US | 2021-04-01 | 2046-04-01
 77b82cd8644c4305f7acc5cb156b45675004033d51c60c6202a8e0c33467d3a0 | CN=Certainly Root R1,O=Certainly,C=US | 2021-04-01 | 2046-04-01
-554153b13d2cf9ddb753bfbe1a4e0ae08d0aa4187058fe60a2b862b2e4b87bcb | CN=AC RAIZ FNMT-RCM SERVIDORES SEGUROS,OU=Ceres,O=FNMT-RCM,C=ES,2.5.4.97=#130f56415445532d51323832363030344a | 2018-12-20 | 2043-12-20
+554153b13d2cf9ddb753bfbe1a4e0ae08d0aa4187058fe60a2b862b2e4b87bcb | CN=AC RAIZ FNMT-RCM SERVIDORES SEGUROS,OU=Ceres,O=FNMT-RCM,C=ES,2.5.4.97=VATES-Q2826004J | 2018-12-20 | 2043-12-20
 fb8fec759169b9106b1e511644c618c51304373f6c0643088d8beffd1b997599 | SERIALNUMBER=G63287510,CN=ANF Secure Server Root CA,OU=ANF CA Raiz,O=ANF Autoridad de Certificacion,C=ES | 2019-09-04 | 2039-08-30
 e74fbda55bd564c473a36b441aa799c8a68e077440e8288b9fa1e50e4bbaca11 | CN=Security Communication ECC RootCA1,O=SECOM Trust Systems CO.\,LTD.,C=JP | 2016-06-16 | 2038-01-18
 2e44102ab58cb85419451c8e19d9acf3662cafbc614b6a53960a30f7d0e2eb41 | CN=TunTrust Root CA,O=Agence Nationale de Certification Electronique,C=TN | 2019-04-26 | 2044-04-26
@@ -94,7 +94,7 @@ c32ffd9f46f936d16c3673990959434b9ad60aafbb9e7cf33654f144cc1ba143 | CN=SSL.com TL
 3f63bb2814be174ec8b6439cf08d6d56f0b7c405883a5648a334424d6b3ec558 | CN=TWCA CYBER Root CA,OU=Root CA,O=TAIWAN-CA,C=TW | 2022-11-22 | 2047-11-22
 c0076b9ef0531fb1a656d67c4ebe97cd5dbaa41ef44598acc2489878c92d8711 | CN=TrustAsia TLS ECC Root CA,O=TrustAsia Technologies\, Inc.,C=CN | 2024-05-15 | 2044-05-15
 06c08d7dafd876971eb1124fe67f847ec0c7a158d3ea53cbe940e2ea9791f4c3 | CN=TrustAsia TLS RSA Root CA,O=TrustAsia Technologies\, Inc.,C=CN | 2024-05-15 | 2044-05-15
-b49141502d00663d740f2e7ec340c52800962666121a36d09cf7dd2b90384fb4 | CN=e-Szigno TLS Root CA 2023,O=Microsec Ltd.,L=Budapest,C=HU,2.5.4.97=#130e56415448552d3233353834343937 | 2023-07-17 | 2038-07-17
+b49141502d00663d740f2e7ec340c52800962666121a36d09cf7dd2b90384fb4 | CN=e-Szigno TLS Root CA 2023,O=Microsec Ltd.,L=Budapest,C=HU,2.5.4.97=VATHU-23584497 | 2023-07-17 | 2038-07-17
 ## Constrained Roots
 To learn more about constraints applied to certificates included in the Chrome Root Store, click [here](https://chromium.googlesource.com/chromium/src/+/main/net/data/ssl/chrome_root_store/faq.md).
 

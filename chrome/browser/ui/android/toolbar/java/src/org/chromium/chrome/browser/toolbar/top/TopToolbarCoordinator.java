@@ -5,7 +5,9 @@
 package org.chromium.chrome.browser.toolbar.top;
 
 import static org.chromium.build.NullUtil.assertNonNull;
+import static org.chromium.build.NullUtil.assumeNonNull;
 
+import android.animation.Animator;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.view.View;
@@ -45,6 +47,7 @@ import org.chromium.chrome.browser.fullscreen.FullscreenManager;
 import org.chromium.chrome.browser.layouts.LayoutManager;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.layouts.LayoutType;
+import org.chromium.chrome.browser.layouts.toolbar.ToolbarWidthConsumer;
 import org.chromium.chrome.browser.omnibox.LocationBar;
 import org.chromium.chrome.browser.omnibox.OmniboxStub;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -89,6 +92,7 @@ import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.resources.ResourceManager;
 import org.chromium.ui.util.TokenHolder;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -128,6 +132,8 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
     /** Null until {@link #initializeWithNative} is called. */
     private @Nullable TabStripTransitionCoordinator mTabStripTransitionCoordinator;
 
+    private final boolean mSuppressTabStripAtStart;
+
     private ToolbarControlContainer mControlContainer;
     private final Supplier<ResourceManager> mResourceManagerSupplier;
     private @Nullable TopToolbarOverlayCoordinator mOverlayCoordinator;
@@ -153,6 +159,12 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
     private final int mIndexOfLocationBarInToolbar;
     private int mLayerYOffset = UNSPECIFIED_TOOLBAR_OFFSET;
     private boolean mIsHairlineVisible = true;
+
+    private @Nullable NonNullObservableSupplier<Boolean> mIsVerticalTabsActiveSupplier;
+    private @Nullable NonNullObservableSupplier<Boolean> mIsGlicPinnedSupplier;
+    private @Nullable Runnable mToggleGlicCallback;
+    private @Nullable Callback<Boolean> mGlicVerticalTabsObserver;
+    private IncognitoStateProvider.@Nullable IncognitoStateObserver mIncognitoStateObserver;
 
     /**
      * Creates a new {@link TopToolbarCoordinator}.
@@ -192,6 +204,8 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
      *     behavior of the home button.
      * @param topControlsStacker The TopControlsStacker for child objects to check state from.
      * @param browserControlsVisibilityManager BrowserControlsStateProvider instance.
+     * @param onSigninTapped Runnable to be called when the signin button is tapped.
+     * @param suppressTabStripAtStart if {@code true}, suppress tab strip when Chrome starts.
      */
     public TopToolbarCoordinator(
             ToolbarControlContainer controlContainer,
@@ -238,7 +252,10 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
             DeviceLockActivityLauncher deviceLockActivityLauncher,
             BottomSheetController bottomSheetController,
             ModalDialogManager modalDialogManager,
-            SnackbarManager snackbarManager) {
+            SnackbarManager snackbarManager,
+            Runnable onSigninTapped,
+            boolean suppressTabStripAtStart) {
+        mSuppressTabStripAtStart = suppressTabStripAtStart;
         mToolbarLayout = toolbarLayout;
         mMenuButtonCoordinator = browsingModeMenuButtonCoordinator;
         mControlContainer = controlContainer;
@@ -260,6 +277,7 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
                                 signinButtonStub,
                                 tabSupplier,
                                 omniboxStubSupplier,
+                                onSigninTapped,
                                 mToolbarLayout::beginButtonTransition,
                                 profileSupplier,
                                 signinAndHistorySyncActivityLauncher,
@@ -356,7 +374,8 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
                             mTabObscuringHandler,
                             mDesktopWindowStateManager,
                             mTabStripTransitionDelegateSupplier,
-                            tabStripTransitionHandler);
+                            tabStripTransitionHandler,
+                            suppressTabStripAtStart);
         }
 
         // Add the layer after toolbar / control container is initialized.
@@ -398,6 +417,7 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
      * @param captureResourceIdSupplier Provides an id for the captured resource shown by the
      *     compositor.
      * @param tabStripTransitionHandler Handler that response to tab strip transition.
+     * @param toggleGlicCallback Callback to invoke when Glic button is toggled.
      */
     public void initializeWithNative(
             Profile profile,
@@ -412,8 +432,10 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
             NonNullObservableSupplier<Boolean> suppressToolbarSceneLayerSupplier,
             Callback<DrawingInfo> progressInfoCallback,
             MonotonicObservableSupplier<Long> captureResourceIdSupplier,
-            TabStripTransitionHandler tabStripTransitionHandler) {
+            TabStripTransitionHandler tabStripTransitionHandler,
+            Runnable toggleGlicCallback) {
         mTrackerSupplier.set(TrackerFactory.getTrackerForProfile(profile));
+        mToggleGlicCallback = toggleGlicCallback;
         mToolbarLayout.setTabCountSupplier(mTabCountSupplier);
         getLocationBar().updateVisualsForState();
         mToolbarLayout.setBookmarkClickHandler(bookmarkClickHandler);
@@ -429,7 +451,7 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
         // difference with the toolbar background color defined by system color theme. So we still
         // enable the overlay on XR devices. See https://crbug.com/377982076.
         if (DeviceClassManager.enableFullscreen() || DeviceInfo.isXr()) {
-            int layoutsToShowOn = LayoutType.BROWSING | LayoutType.TAB_SWITCHER;
+            int layoutsToShowOn = LayoutType.BROWSING | LayoutType.HUB;
             mOverlayCoordinator =
                     new TopToolbarOverlayCoordinator(
                             mToolbarLayout.getContext(),
@@ -463,7 +485,8 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
                             mTabObscuringHandler,
                             mDesktopWindowStateManager,
                             mTabStripTransitionDelegateSupplier,
-                            tabStripTransitionHandler);
+                            tabStripTransitionHandler,
+                            mSuppressTabStripAtStart);
         }
     }
 
@@ -474,7 +497,8 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
                     TabObscuringHandler tabObscuringHandler,
                     @Nullable DesktopWindowStateManager desktopWindowStateManager,
                     OneshotSupplier<TabStripTransitionDelegate> tabStripTransitionDelegateSupplier,
-                    TabStripTransitionHandler tabStripTransitionHandler) {
+                    TabStripTransitionHandler tabStripTransitionHandler,
+                    boolean suppressTabStripAtStart) {
         int tabStripHeightResource = toolbarLayout.getTabStripHeightFromResource();
         if (tabStripHeightResource <= 0) return null;
 
@@ -485,7 +509,8 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
                         tabObscuringHandler,
                         desktopWindowStateManager,
                         tabStripTransitionDelegateSupplier,
-                        tabStripTransitionHandler);
+                        tabStripTransitionHandler,
+                        suppressTabStripAtStart);
         toolbarLayout.getContext().registerComponentCallbacks(coordinator);
         toolbarLayout.setTabStripTransitionCoordinator(coordinator);
         return coordinator;
@@ -567,6 +592,13 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
 
         if (mAppMenuButtonHelperSupplier != null) {
             mAppMenuButtonHelperSupplier = null;
+        }
+        if (mGlicVerticalTabsObserver != null) {
+            mIsVerticalTabsActiveSupplier.removeObserver(mGlicVerticalTabsObserver);
+            mIsGlicPinnedSupplier.removeObserver(mGlicVerticalTabsObserver);
+        }
+        if (mIncognitoStateObserver != null) {
+            mIncognitoStateProvider.removeObserver(mIncognitoStateObserver);
         }
         if (mTabCountSupplier != null) {
             mTabCountSupplier = null;
@@ -765,6 +797,9 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
         if (mTabStripTransitionCoordinator != null) {
             return mTabStripTransitionCoordinator.getTabStripHeight();
         }
+        if (mSuppressTabStripAtStart) {
+            return 0;
+        }
         return mToolbarLayout.getTabStripHeightFromResource();
     }
 
@@ -784,7 +819,7 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
     }
 
     /**
-     * @param attached Whether or not the web content is attached to the view heirarchy.
+     * @param attached Whether or not the web content is attached to the view hierarchy.
      */
     public void setContentAttached(boolean attached) {
         mToolbarLayout.setContentAttached(attached);
@@ -903,16 +938,6 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
     }
 
     @Override
-    public void setBrowsingModeHairlineVisibility(boolean isVisible) {
-        mToolbarLayout.setHairlineVisibility(isVisible);
-    }
-
-    @Override
-    public boolean isBrowsingModeToolbarVisible() {
-        return mToolbarLayout.getVisibility() == View.VISIBLE;
-    }
-
-    @Override
     public View removeLocationBarView() {
         assert mToolbarLayout instanceof ToolbarPhone
                 : "Location bar removal logic is only supported on phones";
@@ -985,10 +1010,8 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
             return;
         }
 
-        // TODO(crbug.com/448641122): This may be better placed in the hairline view itself.
-        // If this layer is at the bottom of the stacker, the hairline should be visible.
         mIsHairlineVisible = mTopControlsStacker.isLayerAtBottom(getTopControlType());
-        mToolbarLayout.setHairlineVisibility(mIsHairlineVisible);
+        mToolbarLayout.setIsBottomMostTopControlsLayer(mIsHairlineVisible);
     }
 
     @Override
@@ -1133,5 +1156,65 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
         return (includeMinHeightBoundary || contentOffset > topControlsMinHeight)
                 && BrowserControlsUtils.shouldContentOffsetHideTopControlsHairline(
                         contentOffset, topControlsMinHeight, topControlsHairlineHeight);
+    }
+
+    private @Nullable IncognitoStateProvider mIncognitoStateProvider;
+
+    /**
+     * Observe Glic pinned state and vertical tab visibility.
+     *
+     * @param isVerticalTabsActiveSupplier Supplier of whether vertical tab is active.
+     * @param isGlicPinnedSupplier Supplier of whether glic is pinned.
+     */
+    public void observeGlicVerticalTabs(
+            NonNullObservableSupplier<Boolean> isVerticalTabsActiveSupplier,
+            NonNullObservableSupplier<Boolean> isGlicPinnedSupplier,
+            IncognitoStateProvider incognitoStateProvider) {
+        if (!(mToolbarLayout instanceof ToolbarTablet tabletLayout)) return;
+
+        mIsVerticalTabsActiveSupplier = isVerticalTabsActiveSupplier;
+        mIsGlicPinnedSupplier = isGlicPinnedSupplier;
+        mIncognitoStateProvider = incognitoStateProvider;
+
+        mGlicVerticalTabsObserver = this::onGlicVisibilityNeedsUpdate;
+        mIncognitoStateObserver = this::onGlicVisibilityNeedsUpdate;
+
+        mIsVerticalTabsActiveSupplier.addSyncObserver(mGlicVerticalTabsObserver);
+        mIsGlicPinnedSupplier.addSyncObserver(mGlicVerticalTabsObserver);
+        mIncognitoStateProvider.addIncognitoStateObserverAndTrigger(mIncognitoStateObserver);
+
+        int glicButtonWidth =
+                mToolbarLayout.getResources().getDimensionPixelSize(R.dimen.min_touch_target_size);
+        tabletLayout.setGlicToolbarWidthConsumer(
+                new ToolbarWidthConsumer() {
+                    @Override
+                    public boolean isVisible() {
+                        return shouldShowGlicToolbarButton();
+                    }
+
+                    @Override
+                    public int updateVisibility(int availableWidth) {
+                        return shouldShowGlicToolbarButton() ? glicButtonWidth : 0;
+                    }
+
+                    @Override
+                    public int updateVisibilityWithAnimation(
+                            int availableWidth, Collection<Animator> animators) {
+                        return updateVisibility(availableWidth);
+                    }
+                });
+    }
+
+    private boolean shouldShowGlicToolbarButton() {
+        return assumeNonNull(mIsVerticalTabsActiveSupplier).get()
+                && assumeNonNull(mIsGlicPinnedSupplier).get()
+                && !assumeNonNull(mIncognitoStateProvider).isIncognitoSelected();
+    }
+
+    private void onGlicVisibilityNeedsUpdate(boolean state) {
+        ((ToolbarTablet) mToolbarLayout)
+                .setGlicActionChipVisibility(
+                        shouldShowGlicToolbarButton(),
+                        v -> assumeNonNull(mToggleGlicCallback).run());
     }
 }

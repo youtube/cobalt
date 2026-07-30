@@ -205,8 +205,6 @@ void CrossProcessFrameConnector::SynchronizeVisualProperties(
   screen_infos_ = visual_properties.screen_infos;
   local_surface_id_ = visual_properties.local_surface_id;
 
-  capture_sequence_number_ = visual_properties.capture_sequence_number;
-
   SetRectInParentView(visual_properties.rect_in_local_root);
   SetLocalFrameSize(visual_properties.local_frame_size);
 
@@ -258,9 +256,6 @@ const gfx::Rect& CrossProcessFrameConnector::GetRectInParentViewInDip() {
   return rect_in_parent_view_in_dip_;
 }
 
-uint32_t CrossProcessFrameConnector::GetCaptureSequenceNumber() {
-  return capture_sequence_number_;
-}
 
 void CrossProcessFrameConnector::UpdateCursor(const ui::Cursor& cursor) {
   RenderWidgetHostViewBase* root_view = GetRootRenderWidgetHostView();
@@ -335,8 +330,6 @@ void CrossProcessFrameConnector::OnSynchronizeVisualProperties(
   // changed, then the viz::LocalSurfaceId must also change.
   if ((last_received_local_frame_size_ != visual_properties.local_frame_size ||
        screen_infos_.current() != visual_properties.screen_infos.current() ||
-       GetCaptureSequenceNumber() !=
-           visual_properties.capture_sequence_number ||
        last_received_zoom_level_ != visual_properties.zoom_level ||
        last_received_css_zoom_factor_ != visual_properties.css_zoom_factor) &&
       local_surface_id_ == visual_properties.local_surface_id) {

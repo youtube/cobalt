@@ -46,6 +46,7 @@ import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
 import org.chromium.components.browser_ui.widget.selectable_list.SelectionDelegate.SelectionObserver;
 import org.chromium.ui.base.ViewUtils;
 import org.chromium.ui.edge_to_edge.EdgeToEdgePadAdjuster;
+import org.chromium.ui.util.CommonOnLayoutChangeListeners;
 import org.chromium.ui.widget.LoadingView;
 
 import java.util.HashSet;
@@ -648,26 +649,37 @@ public class SelectableListLayout<E> extends FrameLayout
         addView(searchBoxContainer, searchBoxParams);
 
         searchBoxContainer.addOnLayoutChangeListener(
-                (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
-                    int height = bottom - top;
-                    int oldHeight = oldBottom - oldTop;
-                    if (height != oldHeight) {
-                        FrameLayout.LayoutParams containerParams =
-                                (FrameLayout.LayoutParams) searchBoxContainer.getLayoutParams();
-                        int totalHeight = height + containerParams.bottomMargin;
-                        View listContent = findViewById(R.id.list_content);
-                        FrameLayout.LayoutParams listParams =
-                                (FrameLayout.LayoutParams) listContent.getLayoutParams();
-                        listParams.topMargin = toolbarHeight + totalHeight;
-                        listContent.setLayoutParams(listParams);
+                CommonOnLayoutChangeListeners.createHeightChangedListener(
+                        (v, left, top, right, bottom) -> {
+                            int height = bottom - top;
+                            FrameLayout.LayoutParams containerParams =
+                                    (FrameLayout.LayoutParams) searchBoxContainer.getLayoutParams();
+                            int totalHeight = height + containerParams.bottomMargin;
+                            View listContent = findViewById(R.id.list_content);
+                            FrameLayout.LayoutParams listParams =
+                                    (FrameLayout.LayoutParams) listContent.getLayoutParams();
+                            listParams.topMargin = toolbarHeight + totalHeight;
+                            listContent.setLayoutParams(listParams);
 
-                        if (mToolbarShadow != null) {
-                            FrameLayout.LayoutParams shadowParams =
-                                    (FrameLayout.LayoutParams) mToolbarShadow.getLayoutParams();
-                            shadowParams.topMargin = toolbarHeight + totalHeight;
-                            mToolbarShadow.setLayoutParams(shadowParams);
-                        }
-                    }
-                });
+                            if (mToolbarShadow != null) {
+                                FrameLayout.LayoutParams shadowParams =
+                                        (FrameLayout.LayoutParams) mToolbarShadow.getLayoutParams();
+                                shadowParams.topMargin = toolbarHeight + totalHeight;
+                                mToolbarShadow.setLayoutParams(shadowParams);
+                            }
+                        }));
+    }
+
+    /**
+     * Announce the given text for accessibility using the live region.
+     *
+     * @param text The text to announce.
+     */
+    public void announceAccessibilityText(CharSequence text) {
+        setAccessibilityLiveRegion(ACCESSIBILITY_LIVE_REGION_POLITE);
+        setContentDescription(text);
+        sendAccessibilityEvent(
+                android.view.accessibility.AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED);
+        setAccessibilityLiveRegion(ACCESSIBILITY_LIVE_REGION_NONE);
     }
 }

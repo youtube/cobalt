@@ -132,7 +132,9 @@ std::unique_ptr<FormFieldParser> AddressFieldParser::Parse(
 bool AddressFieldParser::IsStandaloneZipSupported(
     const GeoIpCountryCode& client_country) {
   return client_country == GeoIpCountryCode("BR") ||
-         client_country == GeoIpCountryCode("MX");
+         client_country == GeoIpCountryCode("MX") ||
+         base::FeatureList::IsEnabled(
+             features::kAutofillSupportStandaloneZipCodeGlobally);
 }
 
 // static
@@ -170,57 +172,57 @@ void AddressFieldParser::AddClassifications(
   DCHECK(!(address2_ && street_address_));
   DCHECK(!(address3_ && street_address_));
 
-  AddClassification(company_, COMPANY_NAME, kBaseAddressParserScore,
+  AddClassification(company_, COMPANY_NAME, HeuristicParser::kAddress,
                     field_candidates);
-  AddClassification(address1_, ADDRESS_HOME_LINE1, kBaseAddressParserScore,
+  AddClassification(address1_, ADDRESS_HOME_LINE1, HeuristicParser::kAddress,
                     field_candidates);
-  AddClassification(address2_, ADDRESS_HOME_LINE2, kBaseAddressParserScore,
+  AddClassification(address2_, ADDRESS_HOME_LINE2, HeuristicParser::kAddress,
                     field_candidates);
-  AddClassification(address3_, ADDRESS_HOME_LINE3, kBaseAddressParserScore,
+  AddClassification(address3_, ADDRESS_HOME_LINE3, HeuristicParser::kAddress,
                     field_candidates);
   AddClassification(street_location_, ADDRESS_HOME_STREET_LOCATION,
-                    kBaseAddressParserScore, field_candidates);
+                    HeuristicParser::kAddress, field_candidates);
   AddClassification(street_address_, ADDRESS_HOME_STREET_ADDRESS,
-                    kBaseAddressParserScore, field_candidates);
+                    HeuristicParser::kAddress, field_candidates);
   AddClassification(dependent_locality_, ADDRESS_HOME_DEPENDENT_LOCALITY,
-                    kBaseAddressParserScore, field_candidates);
-  AddClassification(city_, ADDRESS_HOME_CITY, kBaseAddressParserScore,
+                    HeuristicParser::kAddress, field_candidates);
+  AddClassification(city_, ADDRESS_HOME_CITY, HeuristicParser::kAddress,
                     field_candidates);
-  AddClassification(state_, ADDRESS_HOME_STATE, kBaseAddressParserScore,
+  AddClassification(state_, ADDRESS_HOME_STATE, HeuristicParser::kAddress,
                     field_candidates);
-  AddClassification(zip_, ADDRESS_HOME_ZIP, kBaseAddressParserScore,
+  AddClassification(zip_, ADDRESS_HOME_ZIP, HeuristicParser::kAddress,
                     field_candidates);
   if (base::FeatureList::IsEnabled(features::kAutofillSupportSplitZipCode)) {
     AddClassification(zip_suffix_, ADDRESS_HOME_ZIP_SUFFIX,
-                      kBaseAddressParserScore, field_candidates);
+                      HeuristicParser::kAddress, field_candidates);
   }
-  AddClassification(country_, ADDRESS_HOME_COUNTRY, kBaseAddressParserScore,
+  AddClassification(country_, ADDRESS_HOME_COUNTRY, HeuristicParser::kAddress,
                     field_candidates);
   AddClassification(house_number_, ADDRESS_HOME_HOUSE_NUMBER,
-                    kBaseAddressParserScore, field_candidates);
+                    HeuristicParser::kAddress, field_candidates);
   AddClassification(street_name_, ADDRESS_HOME_STREET_NAME,
-                    kBaseAddressParserScore, field_candidates);
+                    HeuristicParser::kAddress, field_candidates);
   AddClassification(apartment_number_, ADDRESS_HOME_APT_NUM,
-                    kBaseAddressParserScore, field_candidates);
-  AddClassification(landmark_, ADDRESS_HOME_LANDMARK, kBaseAddressParserScore,
+                    HeuristicParser::kAddress, field_candidates);
+  AddClassification(landmark_, ADDRESS_HOME_LANDMARK, HeuristicParser::kAddress,
                     field_candidates);
   AddClassification(between_streets_, ADDRESS_HOME_BETWEEN_STREETS,
-                    kBaseAddressParserScore, field_candidates);
+                    HeuristicParser::kAddress, field_candidates);
   AddClassification(between_streets_line_1_, ADDRESS_HOME_BETWEEN_STREETS_1,
-                    kBaseAddressParserScore, field_candidates);
+                    HeuristicParser::kAddress, field_candidates);
   AddClassification(between_streets_line_2_, ADDRESS_HOME_BETWEEN_STREETS_2,
-                    kBaseAddressParserScore, field_candidates);
+                    HeuristicParser::kAddress, field_candidates);
   AddClassification(admin_level2_, ADDRESS_HOME_ADMIN_LEVEL2,
-                    kBaseAddressParserScore, field_candidates);
+                    HeuristicParser::kAddress, field_candidates);
   AddClassification(between_streets_or_landmark_,
                     ADDRESS_HOME_BETWEEN_STREETS_OR_LANDMARK,
-                    kBaseAddressParserScore, field_candidates);
+                    HeuristicParser::kAddress, field_candidates);
   AddClassification(overflow_and_landmark_, ADDRESS_HOME_OVERFLOW_AND_LANDMARK,
-                    kBaseAddressParserScore, field_candidates);
-  AddClassification(overflow_, ADDRESS_HOME_OVERFLOW, kBaseAddressParserScore,
+                    HeuristicParser::kAddress, field_candidates);
+  AddClassification(overflow_, ADDRESS_HOME_OVERFLOW, HeuristicParser::kAddress,
                     field_candidates);
   AddClassification(house_number_and_apt_, ADDRESS_HOME_HOUSE_NUMBER_AND_APT,
-                    kBaseAddressParserScore, field_candidates);
+                    HeuristicParser::kAddress, field_candidates);
 }
 
 bool AddressFieldParser::ParseCompany(ParsingContext& context,

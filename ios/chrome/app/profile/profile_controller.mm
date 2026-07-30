@@ -68,8 +68,6 @@
 #import "ios/chrome/browser/mailto_handler/model/mailto_handler_service_factory.h"
 #import "ios/chrome/browser/ntp/model/home_background_customization_promo_profile_agent.h"
 #import "ios/chrome/browser/profile_metrics/model/profile_activity_profile_agent.h"
-#import "ios/chrome/browser/reading_list/model/reading_list_download_service.h"
-#import "ios/chrome/browser/reading_list/model/reading_list_download_service_factory.h"
 #import "ios/chrome/browser/search_engines/model/extension_search_engine_data_updater.h"
 #import "ios/chrome/browser/search_engines/model/search_engines_util.h"
 #import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
@@ -125,9 +123,9 @@ NSString* const kStartupPurgeUnassociatedData = @"StartupPurgeUnassociatedData";
 NSString* const kStartupCreateMailtoHandlerService =
     @"StartupCreateMailtoHandlerService";
 
-// Name of the block initializing the ReadingListDownloadService instance.
-NSString* const kStartupInitReadingListDownloadService =
-    @"StartupInitReadingListDownloadService";
+// Name of the block cleaning up the offline reading list directory.
+NSString* const kStartupCleanupReadingListOfflineData =
+    @"StartupCleanupReadingListOfflineData";
 
 // Name of the block that resynchronize the Spotlight index.
 NSString* const kStartResyncSpotlightIndex = @"StartResyncSpotlightIndex";
@@ -745,7 +743,7 @@ void RecordDiscardedSceneConnectedAfterBeingPurged(
   [self scheduleClearingSessionCookies];
   [self scheduleCleanupSessionStateCache];
   [self scheduleCreateMailtoHandlerService];
-  [self scheduleInitializeReadingListDownloadService];
+  [self scheduleCleanupReadingListOfflineData];
   [self scheduleResyncSpotlightIndex];
   [self scheduleCleanupFavicons];
   [self scheduleLogStorageMetrics];
@@ -833,15 +831,15 @@ void RecordDiscardedSceneConnectedAfterBeingPurged(
                                      }];
 }
 
-// Schedules initialization of the ReadingList download service.
-- (void)scheduleInitializeReadingListDownloadService {
+// Schedules cleanup of the ReadingList offline data directory.
+// TODO(crbug.com/522229299): Remove after Jun 2027.
+- (void)scheduleCleanupReadingListOfflineData {
   DCHECK(_state.deferredRunner);
   __weak ProfileController* weakSelf = self;
-  [_state.deferredRunner
-      enqueueBlockNamed:kStartupInitReadingListDownloadService
-                  block:^{
-                    [weakSelf initializeReadingListDownloadService];
-                  }];
+  [_state.deferredRunner enqueueBlockNamed:kStartupCleanupReadingListOfflineData
+                                     block:^{
+                                       [weakSelf cleanupReadingListOfflineData];
+                                     }];
 }
 
 // Schedules resynchronisation of the Spotlight index.
@@ -904,11 +902,18 @@ void RecordDiscardedSceneConnectedAfterBeingPurged(
   std::ignore = MailtoHandlerServiceFactory::GetForProfile(_state.profile);
 }
 
-// Initializes the ReadingListDownloadService.
-- (void)initializeReadingListDownloadService {
+// Cleans up the ReadingList offline data directory.
+- (void)cleanupReadingListOfflineData {
   DCHECK(_state.profile);
-  ReadingListDownloadServiceFactory::GetForProfile(_state.profile)
-      ->Initialize();
+  ProfileIOS* profile = _state.profile;
+  base::FilePath offline_directory =
+      profile->GetStatePath().Append(FILE_PATH_LITERAL("Offline"));
+  base::ThreadPool::PostTask(
+      FROM_HERE,
+      {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+       base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
+      base::BindOnce(base::IgnoreResult(&base::DeletePathRecursively),
+                     offline_directory));
 }
 
 // Resynchronizes the spotlight index.

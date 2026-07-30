@@ -24,6 +24,7 @@
 #include "content/public/browser/storage_partition.h"
 #include "content/public/common/origin_util.h"
 #include "net/base/network_anonymization_key.h"
+#include "services/network/public/cpp/constants.h"
 #include "services/network/public/cpp/network_quality_tracker.h"
 #include "services/network/public/cpp/request_destination.h"
 #include "third_party/blink/public/common/features.h"
@@ -427,7 +428,7 @@ bool LoadingPredictor::HandleHintByOrigin(const GURL& url,
           url, true, network_anonymization_key,
           kLoadingPredictorPreconnectTrafficAnnotation,
           /*storage_partition_config=*/nullptr,
-          /*network_restrictions_id=*/std::nullopt,
+          network::GetTODONetworkRestrictionsId(),
           /*keepalive_config=*/std::nullopt, mojo::NullRemote());
     }
     return true;
@@ -440,7 +441,7 @@ bool LoadingPredictor::HandleHintByOrigin(const GURL& url,
         url, network_anonymization_key,
         kLoadingPredictorPreconnectTrafficAnnotation,
         /*storage_partition_config=*/nullptr,
-        /*network_restrictions_id=*/std::nullopt);
+        network::GetTODONetworkRestrictionsId());
     return true;
   }
 
@@ -511,7 +512,7 @@ void LoadingPredictor::PreconnectURLIfAllowed(
   // caller.
   preconnect_manager()->StartPreconnectUrl(
       url, allow_credentials, network_anonymization_key, traffic_annotation,
-      storage_partition_config, /*network_restrictions_id=*/std::nullopt,
+      storage_partition_config, network::GetTODONetworkRestrictionsId(),
       /*keepalive_config=*/std::nullopt, mojo::NullRemote());
 }
 

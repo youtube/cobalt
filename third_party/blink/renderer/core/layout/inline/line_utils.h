@@ -13,6 +13,10 @@ namespace blink {
 // Returns the NG line box fragment containing the caret position of the given
 // position. Returns false if the position is not in Layout NG, or does not
 // have any caret position.
+//
+// This function returns a top-level line box fragment. That is to say, if the
+// position points to a ruby annotation, which is in a nested line box, this
+// function returns the top-level line box for the base line.
 InlineCursor NGContainingLineBoxOf(const PositionWithAffinity&);
 
 // Returns true if the caret positions of the two positions are in the same NG

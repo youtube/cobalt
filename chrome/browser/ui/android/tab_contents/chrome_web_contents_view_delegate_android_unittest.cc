@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "base/android/device_info.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/search_engines/template_url_service_test_util.h"
@@ -22,6 +23,7 @@
 #include "content/public/test/test_renderer_host.h"
 #include "content/public/test/web_contents_tester.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/device_form_factor.h"
 #include "ui/gfx/animation/animation.h"
 #include "url/gurl.h"
 
@@ -78,12 +80,17 @@ TEST_F(ChromeWebContentsViewDelegateAndroidTest,
       features::kAndroidNavigationBlurTransitionAnimation,
       {{"skip_srp", "false"}});
 
-  // Animation should be shown for any navigation.
+  const bool is_phone =
+      ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_PHONE;
+
+  // Animation should be shown for any navigation on phone.
   content::MockNavigationHandle srp_handle(kSrpUrl, main_rfh());
-  EXPECT_TRUE(delegate_->ShouldShowBlurTransitionAnimation(&srp_handle));
+  EXPECT_EQ(delegate_->ShouldShowBlurTransitionAnimation(&srp_handle),
+            is_phone);
 
   content::MockNavigationHandle non_srp_handle(kNonSrpUrl, main_rfh());
-  EXPECT_TRUE(delegate_->ShouldShowBlurTransitionAnimation(&non_srp_handle));
+  EXPECT_EQ(delegate_->ShouldShowBlurTransitionAnimation(&non_srp_handle),
+            is_phone);
 }
 
 TEST_F(ChromeWebContentsViewDelegateAndroidTest,
@@ -95,10 +102,13 @@ TEST_F(ChromeWebContentsViewDelegateAndroidTest,
       /*disabled_features=*/{
           dom_distiller::kReaderModeBlurTransitionAnimation});
 
-  // Not SRP -> Animation should be shown.
+  const bool is_phone =
+      ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_PHONE;
+
+  // Not SRP -> Animation should be shown on phone.
   SetIsSrp(kSrpUrl);
   content::MockNavigationHandle handle(kNonSrpUrl, main_rfh());
-  EXPECT_TRUE(delegate_->ShouldShowBlurTransitionAnimation(&handle));
+  EXPECT_EQ(delegate_->ShouldShowBlurTransitionAnimation(&handle), is_phone);
 }
 
 TEST_F(ChromeWebContentsViewDelegateAndroidTest,
@@ -146,13 +156,16 @@ TEST_F(
                              {}}},
       /*disabled_features=*/{});
 
+  const bool is_phone =
+      ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_PHONE;
+
   // SRP to Reader Mode transition. Reader Mode feature is enabled.
   SetIsSrp(kSrpUrl);
   content::WebContentsTester::For(web_contents())->NavigateAndCommit(kSrpUrl);
   content::MockNavigationHandle handle(kReaderModeUrl, main_rfh());
 
-  // Animation should be shown.
-  EXPECT_TRUE(delegate_->ShouldShowBlurTransitionAnimation(&handle));
+  // Animation should be shown on phone.
+  EXPECT_EQ(delegate_->ShouldShowBlurTransitionAnimation(&handle), is_phone);
 }
 
 TEST_F(ChromeWebContentsViewDelegateAndroidTest,
@@ -162,9 +175,13 @@ TEST_F(ChromeWebContentsViewDelegateAndroidTest,
       /*disabled_features=*/{
           features::kAndroidNavigationBlurTransitionAnimation});
 
-  // Is Reader Mode -> Animation should be shown.
+  const bool is_phone =
+      ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_PHONE;
+
+  // Is Reader Mode -> Animation should be shown on phone.
   content::MockNavigationHandle reader_handle(kReaderModeUrl, main_rfh());
-  EXPECT_TRUE(delegate_->ShouldShowBlurTransitionAnimation(&reader_handle));
+  EXPECT_EQ(delegate_->ShouldShowBlurTransitionAnimation(&reader_handle),
+            is_phone);
 
   // Not Reader Mode -> Animation should NOT be shown.
   content::MockNavigationHandle non_reader_handle(kNonSrpUrl, main_rfh());
@@ -182,4 +199,23 @@ TEST_F(ChromeWebContentsViewDelegateAndroidTest,
 
   content::MockNavigationHandle handle(kReaderModeUrl, main_rfh());
   EXPECT_FALSE(delegate_->ShouldShowBlurTransitionAnimation(&handle));
+}
+
+TEST_F(ChromeWebContentsViewDelegateAndroidTest,
+       ShouldShowBlurTransition_GenericEnabled_NonPhoneFormFactor) {
+  // Mock a non-phone form factor.
+  base::android::device_info::set_is_desktop_for_testing(true);
+
+  scoped_feature_list_.InitAndEnableFeatureWithParameters(
+      features::kAndroidNavigationBlurTransitionAnimation,
+      {{"skip_srp", "false"}});
+
+  // Even if animation is enabled, it should NOT be shown for non-phone devices.
+  content::MockNavigationHandle srp_handle(kSrpUrl, main_rfh());
+  EXPECT_FALSE(delegate_->ShouldShowBlurTransitionAnimation(&srp_handle));
+
+  content::MockNavigationHandle non_srp_handle(kNonSrpUrl, main_rfh());
+  EXPECT_FALSE(delegate_->ShouldShowBlurTransitionAnimation(&non_srp_handle));
+
+  base::android::device_info::reset_is_desktop_for_testing();
 }

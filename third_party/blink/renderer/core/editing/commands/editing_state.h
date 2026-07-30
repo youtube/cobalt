@@ -17,7 +17,7 @@ namespace blink {
 // Example usage:
 //  EditingState editingState;
 //  ...
-//  functionMutatesDOMTree(..., &editingState);
+//  functionMutatesDomTree(..., &editingState);
 //  if (editingState.isAborted())
 //      return;
 //

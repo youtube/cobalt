@@ -8,12 +8,15 @@
 #include <set>
 #include <utility>
 
+#include "base/containers/circular_deque.h"
 #include "base/memory/ptr_util.h"
 #include "base/test/scoped_feature_list.h"
+#include "build/build_config.h"
 #include "ui/events/base_event_utils.h"
 #include "ui/events/event.h"
 #include "ui/views/bubble/bubble_border.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
+#include "ui/views/metrics.h"
 #include "ui/views/test/widget_test.h"
 #include "ui/views/views_features.h"
 #include "ui/views/widget/widget.h"
@@ -30,15 +33,60 @@ class TestBubbleDelegate : public BubbleDialogDelegate {
   }
 };
 
+// Used in tests to wait for a widget bounds change.
+class WidgetBoundsWaiter : public WidgetObserver {
+ public:
+  WidgetBoundsWaiter(Widget* widget, const gfx::Rect& target_bounds)
+      : target_bounds_(target_bounds) {
+    observation_.Observe(widget);
+    if (widget->GetWindowBoundsInScreen() == target_bounds_) {
+      finished_ = true;
+    }
+  }
+  WidgetBoundsWaiter(const WidgetBoundsWaiter&) = delete;
+  WidgetBoundsWaiter& operator=(const WidgetBoundsWaiter&) = delete;
+  ~WidgetBoundsWaiter() override = default;
+
+  void Wait() {
+    if (!finished_) {
+      run_loop_.Run();
+    }
+  }
+
+ private:
+  void OnWidgetBoundsChanged(Widget* widget, const gfx::Rect& bounds) override {
+    if (widget->GetWindowBoundsInScreen() == target_bounds_) {
+      finished_ = true;
+      if (run_loop_.running()) {
+        run_loop_.Quit();
+      }
+    }
+  }
+
+  const gfx::Rect target_bounds_;
+  bool finished_ = false;
+  base::RunLoop run_loop_;
+  base::ScopedObservation<Widget, WidgetObserver> observation_{this};
+};
+
 }  // namespace
 
 class OccludedWidgetInputProtectorTestBase : public WidgetTest {
  public:
-  OccludedWidgetInputProtectorTestBase() = default;
+  OccludedWidgetInputProtectorTestBase()
+      : WidgetTest(base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
 
-  const std::set<Widget*>& always_on_top_widgets() {
-    return OccludedWidgetInputProtector::GetInstance()
-        ->always_on_top_widgets_for_testing();
+  const std::map<Widget*, gfx::Rect>& always_on_top_widgets() {
+    return OccludedWidgetInputProtector::GetInstance()->always_on_top_widgets_;
+  }
+
+  const base::circular_deque<OccludedWidgetInputProtector::HistoricalOcclusion>&
+  occlusion_history() {
+    return OccludedWidgetInputProtector::GetInstance()->occlusion_history_;
+  }
+
+  const std::set<Widget*>& resizing_widgets() {
+    return OccludedWidgetInputProtector::GetInstance()->resizing_widgets_;
   }
 
   bool IsObserving(Widget* widget) {
@@ -51,6 +99,22 @@ class OccludedWidgetInputProtectorTestBase : public WidgetTest {
     View::ConvertPointFromScreen(target_view, &local_point);
     return ui::MouseEvent(ui::EventType::kMousePressed, local_point,
                           local_point, ui::EventTimeForNow(), 0, 0);
+  }
+
+  void FastForwardBy(base::TimeDelta delta) {
+    task_environment()->FastForwardBy(delta);
+  }
+
+  void PruneCachedOcclusionHistory() {
+    OccludedWidgetInputProtector::GetInstance()->PruneCachedOcclusionHistory();
+  }
+
+  void TearDown() override {
+    // Ensure all occlusion records expire and are purged before the next test
+    // to maintain isolation.
+    FastForwardBy(GetDoubleClickInterval() + base::Milliseconds(1));
+    PruneCachedOcclusionHistory();
+    WidgetTest::TearDown();
   }
 
  protected:
@@ -386,6 +450,286 @@ TEST_F(OccludedWidgetInputProtectorTest, ShouldBlockEvent_AnchoredWidget) {
   // events.
   EXPECT_FALSE(OccludedWidgetInputProtector::GetInstance()->ShouldBlockEvent(
       mouse_event, *view));
+}
+
+TEST_F(OccludedWidgetInputProtectorTest, HistoricalOcclusion_Hide) {
+  auto aot_widget = CreateWidgetWithZOrder(ui::ZOrderLevel::kFloatingWindow);
+  const gfx::Rect aot_bounds(10, 10, 100, 100);
+  aot_widget->SetBounds(aot_bounds);
+  aot_widget->Show();
+  WidgetVisibleWaiter(aot_widget.get()).Wait();
+
+  auto normal_widget = CreateWidgetWithZOrder();
+  normal_widget->SetBounds(aot_bounds);
+  normal_widget->Show();
+  WidgetVisibleWaiter(normal_widget.get()).Wait();
+
+  View* view = normal_widget->GetContentsView();
+  ui::MouseEvent event = CreateMouseEventAtScreenPoint(
+      view,
+      normal_widget->GetNonDecoratedClientAreaBoundsInScreen().CenterPoint());
+  EXPECT_TRUE(OccludedWidgetInputProtector::GetInstance()->ShouldBlockEvent(
+      event, *view));
+
+  aot_widget->Hide();
+  WidgetVisibleWaiter(aot_widget.get()).WaitUntilInvisible();
+
+  EXPECT_TRUE(OccludedWidgetInputProtector::GetInstance()->ShouldBlockEvent(
+      event, *view));
+  FastForwardBy(GetDoubleClickInterval() + base::Milliseconds(1));
+  EXPECT_FALSE(OccludedWidgetInputProtector::GetInstance()->ShouldBlockEvent(
+      event, *view));
+}
+
+TEST_F(OccludedWidgetInputProtectorTest, HistoricalOcclusion_Close) {
+  auto aot_widget = CreateWidgetWithZOrder(ui::ZOrderLevel::kFloatingWindow);
+  const gfx::Rect aot_bounds(10, 10, 100, 100);
+  aot_widget->SetBounds(aot_bounds);
+  aot_widget->Show();
+  WidgetVisibleWaiter(aot_widget.get()).Wait();
+
+  auto normal_widget = CreateWidgetWithZOrder();
+  normal_widget->SetBounds(aot_bounds);
+  normal_widget->Show();
+  WidgetVisibleWaiter(normal_widget.get()).Wait();
+
+  View* view = normal_widget->GetContentsView();
+  ui::MouseEvent event = CreateMouseEventAtScreenPoint(
+      view,
+      normal_widget->GetNonDecoratedClientAreaBoundsInScreen().CenterPoint());
+  EXPECT_TRUE(OccludedWidgetInputProtector::GetInstance()->ShouldBlockEvent(
+      event, *view));
+  aot_widget.reset();
+  EXPECT_TRUE(OccludedWidgetInputProtector::GetInstance()->ShouldBlockEvent(
+      event, *view));
+  FastForwardBy(GetDoubleClickInterval() + base::Milliseconds(1));
+  EXPECT_FALSE(OccludedWidgetInputProtector::GetInstance()->ShouldBlockEvent(
+      event, *view));
+}
+
+TEST_F(OccludedWidgetInputProtectorTest, HistoricalOcclusion_Unregister) {
+  auto aot_widget = CreateWidgetWithZOrder(ui::ZOrderLevel::kFloatingWindow);
+  const gfx::Rect aot_bounds(10, 10, 100, 100);
+  aot_widget->SetBounds(aot_bounds);
+  aot_widget->Show();
+  WidgetVisibleWaiter(aot_widget.get()).Wait();
+
+  auto normal_widget = CreateWidgetWithZOrder();
+  normal_widget->SetBounds(aot_bounds);
+  normal_widget->Show();
+  WidgetVisibleWaiter(normal_widget.get()).Wait();
+
+  View* view = normal_widget->GetContentsView();
+  ui::MouseEvent event = CreateMouseEventAtScreenPoint(
+      view,
+      normal_widget->GetNonDecoratedClientAreaBoundsInScreen().CenterPoint());
+  EXPECT_TRUE(OccludedWidgetInputProtector::GetInstance()->ShouldBlockEvent(
+      event, *view));
+  aot_widget->SetZOrderLevel(ui::ZOrderLevel::kNormal);
+  EXPECT_TRUE(OccludedWidgetInputProtector::GetInstance()->ShouldBlockEvent(
+      event, *view));
+  FastForwardBy(GetDoubleClickInterval() + base::Milliseconds(1));
+  EXPECT_FALSE(OccludedWidgetInputProtector::GetInstance()->ShouldBlockEvent(
+      event, *view));
+}
+
+TEST_F(OccludedWidgetInputProtectorTest, HistoricalOcclusion_Move) {
+  auto aot_widget = CreateWidgetWithZOrder(ui::ZOrderLevel::kFloatingWindow);
+  aot_widget->SetBounds(gfx::Rect(0, 0, 100, 100));
+  aot_widget->Show();
+  WidgetVisibleWaiter(aot_widget.get()).Wait();
+
+  const gfx::Rect new_bounds(200, 200, 100, 100);
+  auto normal_widget = CreateWidgetWithZOrder();
+  normal_widget->SetBounds(new_bounds);
+  normal_widget->Show();
+  WidgetVisibleWaiter(normal_widget.get()).Wait();
+
+  View* view = normal_widget->GetContentsView();
+
+  WidgetBoundsWaiter waiter(aot_widget.get(), new_bounds);
+  aot_widget->SetBounds(new_bounds);
+  waiter.Wait();
+
+  ui::MouseEvent event_at_new = CreateMouseEventAtScreenPoint(
+      view,
+      normal_widget->GetNonDecoratedClientAreaBoundsInScreen().CenterPoint());
+  EXPECT_TRUE(OccludedWidgetInputProtector::GetInstance()->ShouldBlockEvent(
+      event_at_new, *view));
+
+  aot_widget->Hide();
+  WidgetVisibleWaiter(aot_widget.get()).WaitUntilInvisible();
+
+  EXPECT_TRUE(OccludedWidgetInputProtector::GetInstance()->ShouldBlockEvent(
+      event_at_new, *view));
+  FastForwardBy(GetDoubleClickInterval() + base::Milliseconds(1));
+  EXPECT_FALSE(OccludedWidgetInputProtector::GetInstance()->ShouldBlockEvent(
+      event_at_new, *view));
+}
+
+TEST_F(OccludedWidgetInputProtectorTest,
+       UserResize_DoesNotRecordHistoricalOcclusion) {
+  auto aot_widget = CreateWidgetWithZOrder(ui::ZOrderLevel::kFloatingWindow);
+  aot_widget->Show();
+  WidgetVisibleWaiter(aot_widget.get()).Wait();
+
+  // Get the initial size.
+  const size_t initial_size = occlusion_history().size();
+
+  // Simulate user resize starting.
+  aot_widget->OnNativeWidgetUserResizeStarted();
+  EXPECT_TRUE(resizing_widgets().contains(aot_widget.get()));
+
+  // Change bounds (resize).
+  const gfx::Rect target_bounds(100, 100, 200, 200);
+  WidgetBoundsWaiter waiter(aot_widget.get(), target_bounds);
+  aot_widget->SetBounds(target_bounds);
+  waiter.Wait();
+
+  // Verify no new record was added during user manipulation.
+  EXPECT_EQ(occlusion_history().size(), initial_size);
+
+  // End resize.
+  aot_widget->OnNativeWidgetUserResizeEnded();
+  EXPECT_FALSE(resizing_widgets().contains(aot_widget.get()));
+}
+
+TEST_F(OccludedWidgetInputProtectorTest,
+       UserDrag_DoesNotRecordHistoricalOcclusion) {
+  auto aot_widget = CreateWidgetWithZOrder(ui::ZOrderLevel::kFloatingWindow);
+  aot_widget->Show();
+  WidgetVisibleWaiter(aot_widget.get()).Wait();
+
+  // Baseline size.
+  const size_t initial_size = occlusion_history().size();
+
+  // Simulate user drag starting.
+  aot_widget->OnNativeWidgetUserDragStarted();
+  EXPECT_TRUE(aot_widget->is_dragging());
+
+  // Change bounds (move).
+  const gfx::Rect target_bounds(100, 100, 100, 100);
+  WidgetBoundsWaiter waiter(aot_widget.get(), target_bounds);
+  aot_widget->SetBounds(target_bounds);
+  waiter.Wait();
+
+  // Verify no new record was added.
+  EXPECT_EQ(occlusion_history().size(), initial_size);
+
+  // End drag.
+  aot_widget->OnNativeWidgetUserDragEnded();
+  EXPECT_FALSE(aot_widget->is_dragging());
+}
+
+TEST_F(OccludedWidgetInputProtectorTest, Pruning_PreservesFIFOOrder) {
+  auto widget1 = CreateWidgetWithZOrder(ui::ZOrderLevel::kFloatingWindow);
+  auto widget2 = CreateWidgetWithZOrder(ui::ZOrderLevel::kFloatingWindow);
+  const gfx::Rect bounds1(0, 0, 100, 100);
+  const gfx::Rect bounds2(200, 200, 100, 100);
+  widget1->SetBounds(bounds1);
+  widget2->SetBounds(bounds2);
+  widget1->Show();
+  WidgetVisibleWaiter(widget1.get()).Wait();
+  widget2->Show();
+  WidgetVisibleWaiter(widget2.get()).Wait();
+
+  FastForwardBy(GetDoubleClickInterval() + base::Milliseconds(1));
+  PruneCachedOcclusionHistory();
+  ASSERT_TRUE(occlusion_history().empty());
+
+  widget1->Hide();
+  WidgetVisibleWaiter(widget1.get()).WaitUntilInvisible();
+
+  ASSERT_FALSE(occlusion_history().empty());
+  const gfx::Rect recorded_bounds1 = occlusion_history().back().bounds;
+  FastForwardBy(GetDoubleClickInterval() / 2);
+
+  widget2->Hide();
+  WidgetVisibleWaiter(widget2.get()).WaitUntilInvisible();
+
+  ASSERT_FALSE(occlusion_history().empty());
+  const gfx::Rect recorded_bounds2 = occlusion_history().back().bounds;
+
+  const auto& history = occlusion_history();
+  EXPECT_EQ(history[0].bounds, recorded_bounds1);
+  EXPECT_EQ(history[1].bounds, recorded_bounds2);
+
+  // Jump so that the first record is exactly 1ms past its expiration, while
+  // the second record is only roughly halfway through its life.
+  FastForwardBy(GetDoubleClickInterval() / 2 + base::Milliseconds(1));
+  PruneCachedOcclusionHistory();
+  ASSERT_EQ(history.size(), 1u);
+  EXPECT_EQ(history[0].bounds, recorded_bounds2);
+}
+
+TEST_F(OccludedWidgetInputProtectorTest, Pruning_HandlesSimultaneousRecords) {
+  auto widget1 = CreateWidgetWithZOrder(ui::ZOrderLevel::kFloatingWindow);
+  auto widget2 = CreateWidgetWithZOrder(ui::ZOrderLevel::kFloatingWindow);
+  widget1->SetBounds(gfx::Rect(0, 0, 100, 100));
+  widget2->SetBounds(gfx::Rect(200, 200, 100, 100));
+  widget1->Show();
+  WidgetVisibleWaiter(widget1.get()).Wait();
+  widget2->Show();
+  WidgetVisibleWaiter(widget2.get()).Wait();
+
+  FastForwardBy(GetDoubleClickInterval() + base::Milliseconds(1));
+  PruneCachedOcclusionHistory();
+  widget1->Hide();
+  WidgetVisibleWaiter(widget1.get()).WaitUntilInvisible();
+  widget2->Hide();
+  WidgetVisibleWaiter(widget2.get()).WaitUntilInvisible();
+
+  EXPECT_EQ(occlusion_history().size(), 2u);
+  FastForwardBy(GetDoubleClickInterval());
+  PruneCachedOcclusionHistory();
+  EXPECT_TRUE(occlusion_history().empty());
+}
+
+TEST_F(OccludedWidgetInputProtectorTest, Pruning_ExactBoundaryCondition) {
+  auto widget = CreateWidgetWithZOrder(ui::ZOrderLevel::kFloatingWindow);
+  widget->SetBounds(gfx::Rect(0, 0, 100, 100));
+  widget->Show();
+  WidgetVisibleWaiter(widget.get()).Wait();
+
+  // Clear any historical records from OS-level repositioning during Show().
+  FastForwardBy(GetDoubleClickInterval() + base::Milliseconds(1));
+  PruneCachedOcclusionHistory();
+  ASSERT_TRUE(occlusion_history().empty());
+
+  widget->Hide();
+  WidgetVisibleWaiter(widget.get()).WaitUntilInvisible();
+
+  EXPECT_EQ(occlusion_history().size(), 1u);
+  FastForwardBy(GetDoubleClickInterval());
+  PruneCachedOcclusionHistory();
+  EXPECT_TRUE(occlusion_history().empty());
+}
+
+TEST_F(OccludedWidgetInputProtectorTest,
+       HistoricalOcclusion_RedundantBoundsChange) {
+  auto widget = CreateWidgetWithZOrder(ui::ZOrderLevel::kFloatingWindow);
+  widget->SetBounds(gfx::Rect(10, 10, 100, 100));
+  widget->Show();
+  WidgetVisibleWaiter(widget.get()).Wait();
+
+  // Clear any historical records from OS-level repositioning during Show().
+  FastForwardBy(GetDoubleClickInterval() + base::Milliseconds(1));
+  PruneCachedOcclusionHistory();
+  ASSERT_TRUE(occlusion_history().empty());
+
+  // Simulate a redundant bounds change (same bounds).
+  OccludedWidgetInputProtector::GetInstance()->OnWidgetBoundsChanged(
+      widget.get(), widget->GetNonDecoratedClientAreaBoundsInScreen());
+
+  // Size should remain zero.
+  EXPECT_TRUE(occlusion_history().empty());
+
+  // Now hide.
+  widget->Hide();
+  WidgetVisibleWaiter(widget.get()).WaitUntilInvisible();
+
+  // Should only have one record from the hide operation.
+  EXPECT_EQ(occlusion_history().size(), 1u);
 }
 
 TEST_F(OccludedWidgetInputProtectorTest, ShouldBlockEvent_FeatureDisabled) {

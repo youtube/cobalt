@@ -52,28 +52,23 @@ auto FilledFieldHasAttributeWithValue(const std::string& attribute,
       Eq(expected_value));
 }
 
-// Returns the all the `autofill::FieldType`s used to build an UI representation
-// of an address. These values are the same as the ones used in the settings
-// page and edit dialog, furthermore, they depend on a profile's `country_code`.
-std::set<autofill::FieldType>
-GetExpectedFieldTypesToBuildAddressUiForCountryCode(
+// Returns the all `FieldType`s used to build a UI representation of an address.
+// These values are the same as the ones used in the settings page and edit
+// dialog, furthermore, they depend on a profile's `country_code`.
+std::set<FieldType> GetExpectedFieldTypesToBuildAddressUiForCountryCode(
     const std::string& country_code) {
-  std::set<autofill::FieldType> expected_address_ui_field_types;
+  std::set<FieldType> expected_address_ui_field_types;
 
   // These types are not part of `AutofillAddressUIComponent`.
-  expected_address_ui_field_types.insert(
-      autofill::FieldType::ADDRESS_HOME_COUNTRY);
-  expected_address_ui_field_types.insert(
-      autofill::FieldType::PHONE_HOME_WHOLE_NUMBER);
-  expected_address_ui_field_types.insert(autofill::FieldType::EMAIL_ADDRESS);
+  expected_address_ui_field_types.insert(FieldType::ADDRESS_HOME_COUNTRY);
+  expected_address_ui_field_types.insert(FieldType::PHONE_HOME_WHOLE_NUMBER);
+  expected_address_ui_field_types.insert(FieldType::EMAIL_ADDRESS);
 
-  std::vector<std::vector<autofill::AutofillAddressUIComponent>> components;
-  autofill::GetAddressComponents(country_code, "en-US",
-                                 /*include_literals=*/false, &components,
-                                 nullptr);
-  for (const std::vector<autofill::AutofillAddressUIComponent>& line :
-       components) {
-    for (const autofill::AutofillAddressUIComponent& component : line) {
+  std::vector<std::vector<AutofillAddressUIComponent>> components;
+  GetAddressComponents(country_code, "en-US",
+                       /*include_literals=*/false, &components, nullptr);
+  for (const std::vector<AutofillAddressUIComponent>& line : components) {
+    for (const AutofillAddressUIComponent& component : line) {
       expected_address_ui_field_types.insert(component.field);
     }
   }
@@ -96,15 +91,15 @@ std::string GetProfileInfoFromAddressField(const AutofillProfile profile,
 }
 
 // Adds waiting capabilities to BrowserAutofillManager.
-class TestAutofillManager : public autofill::BrowserAutofillManager {
+class TestAutofillManager : public BrowserAutofillManager {
  public:
-  explicit TestAutofillManager(autofill::ContentAutofillDriver* driver)
+  explicit TestAutofillManager(ContentAutofillDriver* driver)
       : BrowserAutofillManager(driver) {}
 
   static TestAutofillManager& GetForRenderFrameHost(
       content::RenderFrameHost* rfh) {
     return static_cast<TestAutofillManager&>(
-        autofill::ContentAutofillDriver::GetForRenderFrameHost(rfh)
+        ContentAutofillDriver::GetForRenderFrameHost(rfh)
             ->GetAutofillManager());
   }
 
@@ -123,9 +118,8 @@ class TestAutofillManager : public autofill::BrowserAutofillManager {
   }
 
  private:
-  autofill::TestAutofillManagerWaiter forms_seen_{
-      *this,
-      {autofill::AutofillManagerEvent::kFormsSeen}};
+  TestAutofillManagerWaiter forms_seen_{*this,
+                                        {AutofillManagerEvent::kFormsSeen}};
 };
 
 class DevToolsAutofillTest : public DevToolsProtocolTestBase {
@@ -265,8 +259,7 @@ class DevToolsAutofillTest : public DevToolsProtocolTestBase {
 
  private:
   test::AutofillBrowserTestEnvironment autofill_test_environment_;
-  autofill::TestAutofillManagerInjector<TestAutofillManager>
-      autofill_manager_injector_;
+  TestAutofillManagerInjector<TestAutofillManager> autofill_manager_injector_;
 };
 
 IN_PROC_BROWSER_TEST_F(DevToolsAutofillTest, SetAddresses) {
@@ -306,15 +299,13 @@ IN_PROC_BROWSER_TEST_F(DevToolsAutofillTest, SetAddresses) {
 
   SendCommandSync("Autofill.setAddresses", std::move(params));
 
-  base::span<const autofill::AutofillProfile> res =
+  base::span<const AutofillProfile> res =
       main_autofill_manager().client().GetTestAddresses();
   ASSERT_EQ(res.size(), 2u);
-  ASSERT_EQ(
-      res[0].GetAddress().GetRawInfo(autofill::FieldType::ADDRESS_HOME_LINE1),
-      u"Erika-mann");
-  ASSERT_EQ(
-      res[1].GetAddress().GetRawInfo(autofill::FieldType::ADDRESS_HOME_LINE2),
-      u"Faria lima");
+  ASSERT_EQ(res[0].GetAddress().GetRawInfo(FieldType::ADDRESS_HOME_LINE1),
+            u"Erika-mann");
+  ASSERT_EQ(res[1].GetAddress().GetRawInfo(FieldType::ADDRESS_HOME_LINE2),
+            u"Faria lima");
 }
 
 IN_PROC_BROWSER_TEST_F(DevToolsAutofillTest, TriggerCreditCardInIframe) {
@@ -481,9 +472,8 @@ IN_PROC_BROWSER_TEST_F(DevToolsAutofillTest, AddressFormFilled) {
   // Enable events and emit event about form being filled.
   SendCommandSync("Autofill.enable");
   main_autofill_manager().NotifyObservers(
-      &autofill::AutofillManager::Observer::OnFillOrPreviewForm, form_id(),
-      filled_fields_by_autofill[0].global_id(),
-      autofill::mojom::ActionPersistence::kFill,
+      &AutofillManager::Observer::OnFillOrPreviewForm, form_id(),
+      filled_fields_by_autofill[0].global_id(), mojom::ActionPersistence::kFill,
       base::MakeFlatSet<FieldGlobalId>(filled_fields_by_autofill, {},
                                        &FormFieldData::global_id),
       &profile);
@@ -491,7 +481,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsAutofillTest, AddressFormFilled) {
   base::DictValue notification = WaitForNotification(
       "Autofill.addressFormFilled", /*allow_existing=*/true);
 
-  std::set<autofill::FieldType> field_types_added_to_address_ui;
+  std::set<FieldType> field_types_added_to_address_ui;
   for (const base::Value& address_line :
        *notification.FindListByDottedPath("addressUi.addressFields")) {
     for (const base::Value& address_field :
@@ -505,12 +495,12 @@ IN_PROC_BROWSER_TEST_F(DevToolsAutofillTest, AddressFormFilled) {
     }
   }
 
-  // Assert the expected values used to build the address ui were sent to
+  // Assert the expected values used to build the address UI were sent to
   // devtools.
-  ASSERT_EQ(field_types_added_to_address_ui,
-            GetExpectedFieldTypesToBuildAddressUiForCountryCode(
-                base::UTF16ToUTF8(profile.GetInfo(
-                    autofill::FieldType::ADDRESS_HOME_COUNTRY, "en-US"))));
+  ASSERT_EQ(
+      field_types_added_to_address_ui,
+      GetExpectedFieldTypesToBuildAddressUiForCountryCode(base::UTF16ToUTF8(
+          profile.GetInfo(FieldType::ADDRESS_HOME_COUNTRY, "en-US"))));
   // Assert that the filled fields sent to devtools match exactly the ones
   // filled by autofill.
   const base::ListValue* filled_fields =
@@ -523,9 +513,8 @@ IN_PROC_BROWSER_TEST_F(DevToolsAutofillTest, AddressFormFilled) {
     const FormFieldData& ffd = filled_fields_by_autofill[i];
     const AutofillField* af = fs.GetFieldById(ffd.global_id());
 
-    std::vector<std::string_view> field_type_strings =
-        base::ToVector(af->Type().GetTypes(),
-                       &autofill::FieldTypeToDeveloperRepresentationString);
+    std::vector<std::string_view> field_type_strings = base::ToVector(
+        af->Type().GetTypes(), &FieldTypeToDeveloperRepresentationString);
     std::erase(field_type_strings, "");
 
     EXPECT_THAT(ff,
@@ -539,10 +528,10 @@ IN_PROC_BROWSER_TEST_F(DevToolsAutofillTest, AddressFormFilled) {
                         "frameId",
                         base::UTF8ToUTF16(
                             main_frame()->GetDevToolsFrameToken().ToString())));
-    EXPECT_THAT(ff,
-                FilledFieldHasAttributeWithValue(
-                    "htmlType", std::string(autofill::FormControlTypeToString(
-                                    af->form_control_type()))));
+    EXPECT_THAT(
+        ff, FilledFieldHasAttributeWithValue(
+                "htmlType",
+                std::string(FormControlTypeToString(af->form_control_type()))));
     EXPECT_THAT(
         ff, FilledFieldHasAttributeWithValue16("name", af->name_attribute()));
     EXPECT_EQ(*ff.GetDict().FindIntByDottedPath("fieldId"),
@@ -580,7 +569,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsAutofillTest, AutofillInOOPIFs) {
   FormData form =
       test_api(main_autofill_manager()).form_structures().front()->ToFormData();
 
-  autofill::MockAutofillManagerObserver observer;
+  MockAutofillManagerObserver observer;
   main_autofill_manager().AddObserver(&observer);
 
   base::RunLoop run_loop;
@@ -634,10 +623,9 @@ IN_PROC_BROWSER_TEST_F(DevToolsAutofillTest, AddressFormFilledInOOPIFs) {
   base::flat_set<FieldGlobalId> filled_fields_by_autofill{
       {form.fields()[0].global_id(), form.fields()[1].global_id()}};
   main_autofill_manager().NotifyObservers(
-      &autofill::AutofillManager::Observer::OnFillOrPreviewForm,
-      form.global_id(), *filled_fields_by_autofill.begin(),
-      autofill::mojom::ActionPersistence::kFill, filled_fields_by_autofill,
-      &profile);
+      &AutofillManager::Observer::OnFillOrPreviewForm, form.global_id(),
+      *filled_fields_by_autofill.begin(), mojom::ActionPersistence::kFill,
+      filled_fields_by_autofill, &profile);
 
   base::DictValue notification = WaitForNotification(
       "Autofill.addressFormFilled", /*allow_existing=*/true);
@@ -667,10 +655,9 @@ IN_PROC_BROWSER_TEST_F(DevToolsAutofillTest,
   const base::flat_set<FieldGlobalId> filled_fields_by_autofill_a = {
       {form_a.fields()[0].global_id(), form_a.fields()[1].global_id()}};
   main_autofill_manager().NotifyObservers(
-      &autofill::AutofillManager::Observer::OnFillOrPreviewForm,
-      form_a.global_id(), *filled_fields_by_autofill_a.begin(),
-      autofill::mojom::ActionPersistence::kFill, filled_fields_by_autofill_a,
-      &profile_a);
+      &AutofillManager::Observer::OnFillOrPreviewForm, form_a.global_id(),
+      *filled_fields_by_autofill_a.begin(), mojom::ActionPersistence::kFill,
+      filled_fields_by_autofill_a, &profile_a);
 
   WaitForNotification("Autofill.addressFormFilled", /*allow_existing=*/true);
 
@@ -687,10 +674,9 @@ IN_PROC_BROWSER_TEST_F(DevToolsAutofillTest,
   const base::flat_set<FieldGlobalId> filled_fields_by_autofill_b = {
       {form_b.fields()[0].global_id(), form_b.fields()[1].global_id()}};
   main_autofill_manager().NotifyObservers(
-      &autofill::AutofillManager::Observer::OnFillOrPreviewForm,
-      form_b.global_id(), *filled_fields_by_autofill_b.begin(),
-      autofill::mojom::ActionPersistence::kFill, filled_fields_by_autofill_b,
-      &profile_b);
+      &AutofillManager::Observer::OnFillOrPreviewForm, form_b.global_id(),
+      *filled_fields_by_autofill_b.begin(), mojom::ActionPersistence::kFill,
+      filled_fields_by_autofill_b, &profile_b);
   WaitForNotification("Autofill.addressFormFilled", /*allow_existing=*/true);
 }
 

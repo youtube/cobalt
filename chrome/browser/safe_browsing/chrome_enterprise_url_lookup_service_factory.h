@@ -15,6 +15,12 @@ namespace content {
 class BrowserContext;
 }
 
+namespace network {
+namespace mojom {
+class NetworkContext;
+}
+}  // namespace network
+
 namespace safe_browsing {
 
 class RealTimeUrlLookupServiceBase;
@@ -56,6 +62,8 @@ class ChromeEnterpriseRealTimeUrlLookupServiceFactory
   // BrowserContextKeyedServiceFactory:
   std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
+
+  static network::mojom::NetworkContext* GetNetworkContext(Profile* profile);
 };
 
 }  // namespace safe_browsing

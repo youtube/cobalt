@@ -74,7 +74,6 @@ source_set("impl") {
   if (is_android) {
     sources += [ "safety_tip_message_delegate_android.cc" ]
     deps += [
-      "//chrome/app:generated_resources",
       "//chrome/browser/android:tabs_public",
       "//chrome/browser/ui/android/tab_model",
       "//components/messages/android",
@@ -118,7 +117,6 @@ source_set("unit_tests") {
     sources += [ "safety_tip_message_delegate_android_unittest.cc" ]
     deps += [
       "//base/test:test_support",
-      "//chrome/app:generated_resources",
       "//components/messages/android",
       "//components/messages/android:test_support",
       "//components/strings:components_strings",

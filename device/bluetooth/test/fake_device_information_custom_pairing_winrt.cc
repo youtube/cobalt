@@ -28,8 +28,11 @@ using ABI::Windows::Devices::Enumeration::DevicePairingKinds_ProvidePin;
 using ABI::Windows::Devices::Enumeration::DevicePairingProtectionLevel;
 using ABI::Windows::Devices::Enumeration::DevicePairingRequestedEventArgs;
 using ABI::Windows::Devices::Enumeration::DevicePairingResult;
+using ABI::Windows::Devices::Enumeration::DevicePairingResultStatus;
 using ABI::Windows::Devices::Enumeration::DevicePairingResultStatus_Failed;
 using ABI::Windows::Devices::Enumeration::DevicePairingResultStatus_Paired;
+using ABI::Windows::Devices::Enumeration::
+    DevicePairingResultStatus_RejectedByHandler;
 using ABI::Windows::Devices::Enumeration::IDevicePairingResult;
 using ABI::Windows::Devices::Enumeration::IDevicePairingSettings;
 using ABI::Windows::Foundation::IAsyncOperation;
@@ -121,32 +124,39 @@ void FakeDeviceInformationCustomPairingWinrt::AcceptWithPin(std::string pin) {
 
 void FakeDeviceInformationCustomPairingWinrt::Complete() {
   bool is_paired = false;
+  DevicePairingResultStatus status = DevicePairingResultStatus_Failed;
   switch (pairing_kind_) {
     case DevicePairingKinds_ProvidePin:
-      is_paired = pin_ == accepted_pin_;
+      if (accepted_pin_.has_value()) {
+        is_paired = pin_ == *accepted_pin_;
+        status = is_paired ? DevicePairingResultStatus_Paired
+                           : DevicePairingResultStatus_Failed;
+      } else {
+        is_paired = false;
+        status = DevicePairingResultStatus_RejectedByHandler;
+      }
       break;
     case DevicePairingKinds_ConfirmOnly:
     case DevicePairingKinds_ConfirmPinMatch:
       is_paired = confirmed_;
+      status = is_paired ? DevicePairingResultStatus_Paired
+                         : DevicePairingResultStatus_RejectedByHandler;
       break;
     default:
       break;
   }
 
   pair_task_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(
-          [](base::OnceCallback<void(ComPtr<IDevicePairingResult>)>
-                 pair_callback,
-             ComPtr<FakeDeviceInformationPairingWinrt> pairing,
-             bool is_paired) {
-            std::move(pair_callback)
-                .Run(Make<FakeDevicePairingResultWinrt>(
-                    is_paired ? DevicePairingResultStatus_Paired
-                              : DevicePairingResultStatus_Failed));
-            pairing->set_paired(is_paired);
-          },
-          std::move(pair_callback_), pairing_, is_paired));
+      FROM_HERE, base::BindOnce(
+                     [](base::OnceCallback<void(ComPtr<IDevicePairingResult>)>
+                            pair_callback,
+                        ComPtr<FakeDeviceInformationPairingWinrt> pairing,
+                        bool is_paired, DevicePairingResultStatus status) {
+                       std::move(pair_callback)
+                           .Run(Make<FakeDevicePairingResultWinrt>(status));
+                       pairing->set_paired(is_paired);
+                     },
+                     std::move(pair_callback_), pairing_, is_paired, status));
 }
 
 }  // namespace device

@@ -64,11 +64,10 @@ class FocusEvent final : public UIEvent {
              InputDeviceCapabilities*);
   FocusEvent(const AtomicString& type, const FocusEventInit*);
 
-  EventTarget* relatedTarget() const { return related_target_.Get(); }
-  void SetRelatedTarget(EventTarget* related_target) {
+  EventTarget* relatedTarget() const override { return related_target_.Get(); }
+  void SetRelatedTarget(EventTarget* related_target) override {
     related_target_ = related_target;
   }
-
 
   const AtomicString& InterfaceName() const override;
   bool IsFocusEvent() const override;

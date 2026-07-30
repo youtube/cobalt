@@ -1027,6 +1027,55 @@ TEST_F(WebViewTest, AutoResizeMaxSize) {
                  kNoVerticalScrollbar);
 }
 
+TEST_F(WebViewTest, AutoResizeUsesScrollWidthForGridOverflow) {
+  ScopedAutoSizeUsesScrollWidthForOverflowForTest scoped_feature(true);
+  AutoResizeWebViewClient client;
+  WebViewImpl* web_view = web_view_helper_.Initialize(nullptr, &client);
+  client.GetTestData().SetWebView(web_view);
+
+  web_view->MainFrameViewWidget()->Resize(gfx::Size(800, 600));
+  frame_test_helpers::LoadHTMLString(
+      web_view->MainFrameImpl(),
+      R"HTML(
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style type="text/css">
+            .grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr 1fr;
+              grid-template-rows: 1fr 1fr;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="grid">
+            <label for="value1">From: </label>
+            <input id="value1" />
+            <select id="unit1"></select>
+            <label for="value2">To: </label>
+            <input readonly id="value2" />
+            <select id="unit2"></select>
+          </div>
+        </body>
+        </html>
+      )HTML",
+      url_test_helpers::ToKURL("http://example.com/"));
+
+  WebLocalFrameImpl* frame = web_view->MainFrameImpl();
+  LocalFrameView* frame_view = frame->GetFrame()->View();
+  frame_view->UpdateStyleAndLayout();
+
+  web_view->EnableAutoResizeMode(gfx::Size(25, 25), gfx::Size(800, 600));
+  frame_view->UpdateStyleAndLayout();
+
+  const int scroll_width =
+      frame->GetFrame()->GetDocument()->documentElement()->scrollWidth();
+  EXPECT_GE(client.GetTestData().Width(), scroll_width);
+
+  web_view_helper_.Reset();
+}
+
 void WebViewTest::TestTextInputType(WebTextInputType expected_type,
                                     const std::string& html_file) {
   RegisterMockedHttpURLLoad(html_file);

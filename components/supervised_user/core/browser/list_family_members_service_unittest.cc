@@ -28,7 +28,7 @@ const char kListMembersRequestPath[] =
 // Configures the account_info so that ListFamilyMembersService will fetch
 // family info for that account.
 AccountInfo& WithFamilyInfoFetching(AccountInfo& account_info) {
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   if (FetchListFamilyMembersWithCapability()) {
     mutator.set_can_fetch_family_member_info(true);
     mutator.set_is_subject_to_parental_controls(false);
@@ -137,7 +137,7 @@ TEST_F(ListFamilyMembersServiceTest, FamilyRolePrefReflectsAccountCapability) {
   // Test the `fetcher_`.
   AccountInfo primary_account = identity_test_env_.MakePrimaryAccountAvailable(
       "username_hoh@gmail.com", signin::ConsentLevel::kSignin);
-  AccountCapabilitiesTestMutator mutator(&primary_account.capabilities);
+  AccountCapabilitiesTestMutator mutator(&primary_account);
   identity_test_env_.UpdateAccountInfoForAccount(
       WithFamilyInfoFetching(primary_account));
   test_list_family_members_service_->Init();
@@ -177,7 +177,7 @@ TEST_F(ListFamilyMembersServiceTest,
   // Test the `fetcher_`.
   AccountInfo primary_account = identity_test_env_.MakePrimaryAccountAvailable(
       "username_hoh@gmail.com", signin::ConsentLevel::kSignin);
-  AccountCapabilitiesTestMutator mutator(&primary_account.capabilities);
+  AccountCapabilitiesTestMutator mutator(&primary_account);
   identity_test_env_.UpdateAccountInfoForAccount(
       WithFamilyInfoFetching(primary_account));
   test_list_family_members_service_->Init();
@@ -257,7 +257,7 @@ TEST_F(ListFamilyMembersServiceTest, AccountEligibilityUpdated) {
   ASSERT_EQ(0, test_url_loader_factory_.NumPending());
 
   // Set the eligibility capability after the service has been started.
-  AccountCapabilitiesTestMutator mutator(&primary_account.capabilities);
+  AccountCapabilitiesTestMutator mutator(&primary_account);
   identity_test_env_.UpdateAccountInfoForAccount(
       WithFamilyInfoFetching(primary_account));
 
@@ -304,7 +304,7 @@ TEST_F(ListFamilyMembersServiceTest,
 
   // Set the supervised user capability after the service has been started for
   // the current (non-primary) account.
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   identity_test_env_.UpdateAccountInfoForAccount(
       WithFamilyInfoFetching(account_info));
   // No requests made for ineligible account.
@@ -343,7 +343,7 @@ TEST_F(ListFamilyMembersServiceTest,
   // Test the `fetcher_`.
   AccountInfo primary_account = identity_test_env_.MakePrimaryAccountAvailable(
       "username_hoh@gmail.com", signin::ConsentLevel::kSignin);
-  AccountCapabilitiesTestMutator mutator(&primary_account.capabilities);
+  AccountCapabilitiesTestMutator mutator(&primary_account);
   identity_test_env_.UpdateAccountInfoForAccount(
       WithFamilyInfoFetching(primary_account));
   test_list_family_members_service_->Init();

@@ -718,4 +718,9 @@ bool PaymentRequestState::GetHasEnrolledInstrumentValue() const {
   return has_enrolled_instrument_ || can_make_payment_even_without_apps_;
 }
 
+void PaymentRequestState::set_user_interaction_in_web_payment_app(
+    bool user_interaction) {
+  user_interaction_in_web_payment_app_ = user_interaction;
+}
+
 }  // namespace payments

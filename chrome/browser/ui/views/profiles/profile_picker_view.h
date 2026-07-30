@@ -138,6 +138,8 @@ class ProfilePickerView : public views::WidgetDelegateView,
   explicit ProfilePickerView(ProfilePicker::Params&& params);
   ~ProfilePickerView() override;
 
+  const ProfilePicker::Params& params() const { return params_; }
+
   // Displays the profile picker.
   void Display();
 
@@ -219,8 +221,6 @@ class ProfilePickerView : public views::WidgetDelegateView,
   void ShowScreenFinished(
       content::WebContents* contents,
       base::OnceClosure navigation_finished_closure = base::OnceClosure());
-
-  void NavigateBack();
 
   // Register basic keyboard accelerators such as closing the window (Alt-F4
   // on Windows).

@@ -13,6 +13,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/types/pass_key.h"
+#include "chrome/browser/ui/views/tabs/shared/tab_strip_types.h"
 #include "components/tabs/public/tab_collection.h"
 #include "components/tabs/public/tab_collection_types.h"
 #include "ui/gfx/geometry/rect.h"
@@ -48,7 +49,8 @@ class TabCollectionNode {
       CustomDetachChildViewCallback;
   typedef std::vector<std::unique_ptr<TabCollectionNode>> NodeChildren;
 
-  explicit TabCollectionNode(tabs::ConstChildPtr node_data);
+  explicit TabCollectionNode(tabs::ConstChildPtr node_data,
+                             TabStripOrientation orientation);
   virtual ~TabCollectionNode();
 
   // Creates the view for this node. Then, for each child container in children,
@@ -104,6 +106,7 @@ class TabCollectionNode {
   tabs::ConstChildPtr GetNodeData() const { return node_data_; }
   tabs::TabCollectionNodeHandle GetHandle() const;
   Type type() const { return type_; }
+  TabStripOrientation orientation() const { return orientation_; }
   const NodeChildren& children() const { return children_; }
   views::View* view() const { return node_view_; }
   std::vector<views::View*> GetDirectChildren() const;
@@ -202,6 +205,8 @@ class TabCollectionNode {
 
   // Allows views to create the Tab Context Menu.
   raw_ptr<VerticalTabStripController> tab_strip_controller_ = nullptr;
+
+  const TabStripOrientation orientation_;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_TABS_VERTICAL_TAB_COLLECTION_NODE_H_

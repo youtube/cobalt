@@ -2866,7 +2866,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ComponentUpdater.Calls" enum="ComponentUpdaterCalls"
-    expires_after="2026-10-04">
+    expires_after="2026-12-06">
   <owner>sorin@chromium.org</owner>
   <owner>src/components/component_updater/OWNERS</owner>
   <summary>
@@ -3042,7 +3042,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DocumentScan.ScanFailed" enum="DocumentScanSaneBackend"
-    expires_after="2026-10-04">
+    expires_after="2026-12-06">
   <owner>bmgordon@chromium.org</owner>
   <owner>project-bolton@google.com</owner>
   <summary>
@@ -4556,7 +4556,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Hwsec.Attestation.PrepareDuration" units="ms"
-    expires_after="2026-10-11">
+    expires_after="2026-12-13">
   <owner>chingkang@chromium.org</owner>
   <owner>cros-hwsec-userland-eng+uma@google.com</owner>
   <summary>The duration of preparation for enrollment in attestation.</summary>
@@ -5001,7 +5001,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Mojo.Channel.WriteToReadLatencyUs" units="microseconds"
-    expires_after="2026-10-04">
+    expires_after="2026-12-06">
   <owner>lizeb@chromium.org</owner>
   <owner>rockot@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -5517,33 +5517,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Ozone.GestureInterpreterLibevdevCros.TouchpadClick.{MaxTime}"
-    units="mm" expires_after="2025-08-03">
-  <owner>seobrien@chromium.org</owner>
-  <owner>chromeos-tango@google.com</owner>
-  <summary>
-    The movement distance when a touchpad performs a physical click lasting
-    {MaxTime}. Excludes clicks which move more than 10mm, as these are assumed
-    to be intentional drag gestures. All distances are rounded up to the next
-    whole number of mm.
-  </summary>
-  <token key="MaxTime">
-    <variant name="150ms" summary="at most 150ms"/>
-    <variant name="160ms" summary="more than 150ms and at most 160ms"/>
-    <variant name="170ms" summary="more than 160ms and at most 170ms"/>
-    <variant name="180ms" summary="more than 170ms and at most 180ms"/>
-    <variant name="190ms" summary="more than 180ms and at most 190ms"/>
-    <variant name="200ms" summary="more than 190ms and at most 200ms"/>
-    <variant name="250ms" summary="more than 200ms and at most 250ms"/>
-    <variant name="300ms" summary="more than 250ms and at most 200ms"/>
-    <variant name="350ms" summary="more than 300ms and at most 350ms"/>
-    <variant name="450ms" summary="more than 350ms and at most 450ms"/>
-    <variant name="550ms" summary="more than 450ms and at most 550ms"/>
-    <variant name="650ms" summary="more than 550ms and at most 650ms"/>
-    <variant name="750ms" summary="more than 650ms and at most 750ms"/>
-  </token>
-</histogram>
-
 <histogram name="Ozone.NeuralStylusReport.ActivePalmTouchCount"
     units="touch event count" expires_after="2023-06-30">
   <owner>napper@chromium.org</owner>
@@ -5689,7 +5662,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PageImageService.Android.SalientImageUrlFetchResult{ClientId}"
-    enum="SalientImageUrlFetchResult" expires_after="2026-06-10">
+    enum="SalientImageUrlFetchResult" expires_after="2027-06-10">
   <owner>hanxi@google.com</owner>
   <owner>huangs@google.com</owner>
   <owner>wylieb@google.com</owner>
@@ -5916,20 +5889,6 @@ chromium-metrics-reviews@google.com.
     which is attached to a frame. This metric is recorded when the frame is
     deleted or is navigated to different document. This is not recorded when
     there is no prefetched signed exchanges.
-  </summary>
-</histogram>
-
-<histogram name="Prefs.JSonStore.SetValueKey" units="hash"
-    expires_after="2024-06-01">
-  <owner>etienneb@chromium.org</owner>
-  <owner>gab@chromium.org</owner>
-  <summary>
-    Records the hash of a preference key that is modified. The metric is used to
-    track which preferences are triggering an update to the preference files on
-    disk.
-
-    Keys are registered within the pref registry (see:
-    components/prefs/pref_registry.h).
   </summary>
 </histogram>
 
@@ -6168,7 +6127,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ReadingList.Read.Number" units="count"
-    expires_after="2026-10-04">
+    expires_after="2026-12-06">
   <owner>gambard@chromium.org</owner>
   <owner>bling-team@google.com</owner>
   <summary>Number of read entries in reading list.</summary>
@@ -7973,7 +7932,7 @@ regressions. -->
 </histogram>
 
 <histogram name="VoiceInteraction.StartEventSource"
-    enum="VoiceInteractionEventSource" expires_after="2026-10-05">
+    enum="VoiceInteractionEventSource" expires_after="2026-12-06">
   <owner>basiaz@google.com</owner>
   <owner>chrome-language@google.com</owner>
   <summary>
@@ -7996,7 +7955,7 @@ regressions. -->
 </histogram>
 
 <histogram name="VoiceInteraction.VoiceSearchResult" enum="BooleanSuccess"
-    expires_after="2026-10-04">
+    expires_after="2026-12-06">
   <owner>basiaz@google.com</owner>
   <owner>chrome-language@google.com</owner>
   <summary>
@@ -8048,7 +8007,7 @@ regressions. -->
 </histogram>
 
 <histogram name="WebFont.CacheHit" enum="WebFontCacheHit"
-    expires_after="2026-10-11">
+    expires_after="2026-12-13">
   <owner>hajimehoshi@chromium.org</owner>
   <owner>kenjibaheux@chromium.org</owner>
   <owner>kouhei@chromium.org</owner>

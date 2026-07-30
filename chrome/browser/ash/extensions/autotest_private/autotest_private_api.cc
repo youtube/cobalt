@@ -550,7 +550,7 @@ std::string SetAllowedPref(Profile* profile,
     DCHECK(value.is_bool());
   } else if (pref_name == ash::prefs::kAccessibilityVirtualKeyboardEnabled) {
     DCHECK(value.is_bool());
-  } else if (pref_name == prefs::kDocumentScanAPITrustedExtensions) {
+  } else if (pref_name == ash::prefs::kDocumentScanAPITrustedExtensions) {
     DCHECK(value.is_list());
   } else if (pref_name == ash::prefs::kEnableAutoScreenLock) {
     DCHECK(value.is_bool());
@@ -4337,8 +4337,8 @@ class AutotestPrivateInstallPWAForCurrentURLFunction::PWAInstallManagerObserver
 AutotestPrivateInstallPWAForCurrentURLFunction::
     AutotestPrivateInstallPWAForCurrentURLFunction()
     : auto_accept_pwa_install_confirmation_(
-          &web_app::test::g_auto_accept_all_install_dialogs_for_testing,
-          true) {}
+          web_app::SetPwaInstallationAutoRespondForTesting(  // IN-TEST
+              web_app::InstallDialogTestResponse::kAcceptAndLaunch)) {}
 AutotestPrivateInstallPWAForCurrentURLFunction::
     ~AutotestPrivateInstallPWAForCurrentURLFunction() = default;
 

@@ -67,10 +67,6 @@ class DownloadToolbarUIController
       delete;
   ~DownloadToolbarUIController() override;
 
-  // Create the DownloadDisplayController, this must be called once the
-  // PinnedToolbarActionsContainer is available since the
-  // DownloadDisplayController can call Show() immediately.
-  void Init();
   void TearDownPreBrowserWindowDestruction();
 
   // DownloadDisplay:

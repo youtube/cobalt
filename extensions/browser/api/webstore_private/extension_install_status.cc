@@ -20,7 +20,7 @@
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extensions_browser_client.h"
 #include "extensions/browser/managed_installation_mode.h"
-#include "extensions/browser/manifest_v2_experiment_manager.h"
+#include "extensions/browser/manifest_v2_handler.h"
 #include "extensions/browser/supervised_user_extensions_delegate.h"
 #include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension.h"
@@ -167,14 +167,13 @@ ExtensionInstallStatus PerformSynchronousChecks(
   }
 
   // Check if the extension is using an unsupported manifest version.
-  ManifestV2ExperimentManager* mv2_experiment_manager =
-      ManifestV2ExperimentManager::Get(browser_context);
+  ManifestV2Handler* mv2_handler = ManifestV2Handler::Get(browser_context);
   // At this point, we don't know what the extension manifest location really
   // is (because it's not installed). We pretend it will be kInternal, which
   // reflects an extension installed by the webstore.
   constexpr mojom::ManifestLocation kManifestLocation =
       mojom::ManifestLocation::kInternal;
-  if (mv2_experiment_manager->ShouldBlockExtensionInstallation(
+  if (mv2_handler->ShouldBlockExtensionInstallation(
           manifest_version, manifest_type, kManifestLocation)) {
     // The extension is using a deprecated manifest version and should not
     // be installable.

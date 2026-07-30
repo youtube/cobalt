@@ -105,4 +105,33 @@ TEST_F(PasskeySuggestionUtilsTest, MergePasskeyAndPasswordSuggestions) {
   EXPECT_NSEQ(kPasswordSuggestionValue, merged[1].value);
 }
 
+// Tests that converting a PasskeyCredential with a display name equal to its
+// username results in a FormSuggestion with only the Passkey label as its
+// `displayDescription`.
+TEST_F(PasskeySuggestionUtilsTest, SameDisplayNameAndUsername) {
+  NSArray<FormSuggestion*>* suggestions = FormSuggestionsFromPasskeyCredentials(
+      {CreatePasskeyCredential(/*display_name=*/kUsername)});
+
+  ASSERT_EQ(1u, suggestions.count);
+  EXPECT_NSEQ(base::SysUTF8ToNSString(kUsername), suggestions[0].value);
+  EXPECT_NSEQ(l10n_util::GetNSString(IDS_IOS_PASSKEY_SUGGESTION_LABEL),
+              suggestions[0].displayDescription);
+}
+
+// Tests the formatting logic for a passkey Manual Fill cell's subtitle.
+TEST_F(PasskeySuggestionUtilsTest, ManualFillSubtitleFormat) {
+  NSString* passkey_label =
+      l10n_util::GetNSString(IDS_IOS_PASSKEY_SUGGESTION_LABEL);
+  NSString* expected_subtitle =
+      [NSString stringWithFormat:@"%@ • %@", passkey_label,
+                                 base::SysUTF8ToNSString(kDisplayName)];
+
+  EXPECT_NSEQ(passkey_label,
+              FormatPasskeyManualFillSubtitle(/*display_name=*/nil));
+  EXPECT_NSEQ(passkey_label,
+              FormatPasskeyManualFillSubtitle(/*display_name=*/@""));
+  EXPECT_NSEQ(expected_subtitle, FormatPasskeyManualFillSubtitle(
+                                     base::SysUTF8ToNSString(kDisplayName)));
+}
+
 }  // namespace webauthn

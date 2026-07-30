@@ -41,6 +41,8 @@
 
 namespace media {
 
+using Error = AudioInputStream::AudioInputCallback::Error;
+
 bool operator==(const AudioObjectPropertyAddress& x,
                 const AudioObjectPropertyAddress& y) {
   return x.mSelector == y.mSelector && x.mScope == y.mScope &&
@@ -128,7 +130,7 @@ class FakeAudioInputCallback : public AudioInputStream::AudioInputCallback {
     last_number_of_frames_ = bus->frames();
   }
 
-  void OnError() override { on_error_call_count_++; }
+  void OnError(Error error_code) override { on_error_call_count_++; }
 
   int on_data_call_count() const { return on_data_call_count_; }
   int on_error_call_count() const { return on_error_call_count_; }

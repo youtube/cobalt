@@ -28,13 +28,13 @@
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
 #include "chrome/browser/ui/toolbar_controller_util.h"
 #include "chrome/browser/ui/ui_features.h"
-#include "chrome/browser/ui/views/contextual_tasks/contextual_tasks_button.h"
 #include "chrome/browser/ui/views/toolbar/overflow_button.h"
 #include "chrome/browser/ui/views/toolbar/pinned_toolbar_button_status_indicator.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_button.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/vector_icons/vector_icons.h"
+#include "components/omnibox/browser/vector_icons.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "ui/actions/actions.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -268,10 +268,12 @@ ToolbarController::GetDefaultResponsiveElements(Browser* browser) {
           /*is_section_end=*/true),
       ToolbarController::ResponsiveElementInfo(
           ToolbarController::ElementIdInfo{
-              ContextualTasksButton::kContextualTasksToolbarButton,
+              kPinnedToolbarActionShowSidePanelContextualTasksElementId,
               IDS_OVERFLOW_MENU_ITEM_TEXT_CONTEXTUAL_TASKS,
-              &kDockToRightSparkCustomIcon,
-              ContextualTasksButton::kContextualTasksToolbarButton},
+              &(features::IsRoundedIconsEnabled()
+                    ? omnibox::kSearchSparkIcon
+                    : omnibox::kSearchSparkOldIcon),
+              kPinnedToolbarActionShowSidePanelContextualTasksElementId},
           /*is_section_end=*/false),
   };
 
@@ -356,7 +358,7 @@ ToolbarController::GetDefaultOverflowOrder() {
       // them on overflow.
       kWebUIToolbarElementIdentifier, kToolbarForwardButtonElementId,
       kToolbarAvatarButtonElementId, kToolbarSplitTabsToolbarButtonElementId,
-      ContextualTasksButton::kContextualTasksToolbarButton};
+      kPinnedToolbarActionShowSidePanelContextualTasksElementId};
   if (base::FeatureList::IsEnabled(features::kToolbarGlicButtonResizing)) {
     const auto it =
         std::find(order.begin(), order.end(), kToolbarAvatarButtonElementId);
@@ -380,7 +382,9 @@ std::string ToolbarController::GetActionNameFromElementIdentifier(
            {kToolbarMediaButtonElementId, "MediaButton"},
            {kToolbarSidePanelButtonElementId, "SidePanelButton"},
            {kToolbarSplitTabsToolbarButtonElementId, "SplitTabs"},
-           {ContextualTasksButton::kContextualTasksToolbarButton,
+           {kPinnedToolbarActionShowSidePanelContextualTasksElementId,
+            "PinnedContextualTasksSidePanelButton"},
+           {kActionSidePanelShowContextualTasks,
             "PinnedContextualTasksSidePanelButton"},
            {kActionClearBrowsingData, "PinnedClearBrowsingDataButton"},
            {kActionCopyUrl, "PinnedCopyLinkButton"},
@@ -415,7 +419,8 @@ std::string ToolbarController::GetActionNameFromElementIdentifier(
            {kActionTabSearch, "PinnedTabSearchButton"},
            {kActionSidePanelShowGlic, "PinnedGlicButton"},
            {kActionSidePanelShowTabsFromOtherDevices,
-            "PinnedTabsFromOtherDevicesButton"}});
+            "PinnedTabsFromOtherDevicesButton"},
+           {kGlicButtonElementId, "GlicButtonElementId"}});
 
   const auto it = identifier_to_action_name_map->find(identifier);
   return it == identifier_to_action_name_map->end()

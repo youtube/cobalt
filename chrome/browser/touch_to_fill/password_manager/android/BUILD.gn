@@ -9,8 +9,8 @@ source_set("android") {
   visibility = [ "//chrome/browser/touch_to_fill/password_manager:factory" ]
 
   sources = [
-    "touch_to_fill_view_impl.cc",
-    "touch_to_fill_view_impl.h",
+    "touch_to_fill_password_manager_view_impl.cc",
+    "touch_to_fill_password_manager_view_impl.h",
   ]
 
   public_deps = [ "//base" ]

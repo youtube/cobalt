@@ -12,7 +12,6 @@
 #include "base/check.h"
 #include "chrome/common/chromeos/extensions/api/telemetry.h"
 #include "chromeos/ash/services/cros_healthd/public/mojom/cros_healthd_probe.mojom.h"
-#include "chromeos/crosapi/mojom/probe_service.mojom.h"
 #include "chromeos/services/network_config/public/mojom/network_types.mojom-forward.h"
 #include "chromeos/services/network_health/public/mojom/network_health_types.mojom-forward.h"
 
@@ -39,18 +38,18 @@ chromeos::api::os_telemetry::AudioInfo UncheckedConvertPtr(
     ash::cros_healthd::mojom::AudioInfoPtr input);
 
 chromeos::api::os_telemetry::CpuCStateInfo UncheckedConvertPtr(
-    crosapi::mojom::ProbeCpuCStateInfoPtr input);
+    ash::cros_healthd::mojom::CpuCStateInfoPtr input);
 
 chromeos::api::os_telemetry::LogicalCpuInfo UncheckedConvertPtr(
-    crosapi::mojom::ProbeLogicalCpuInfoPtr input);
+    ash::cros_healthd::mojom::LogicalCpuInfoPtr input);
 
 chromeos::api::os_telemetry::PhysicalCpuInfo UncheckedConvertPtr(
-    crosapi::mojom::ProbePhysicalCpuInfoPtr input);
+    ash::cros_healthd::mojom::PhysicalCpuInfoPtr input);
 
 // `serial_number` field should be converted iff `has_serial_number_permission`
 // is true.
 chromeos::api::os_telemetry::BatteryInfo UncheckedConvertPtr(
-    crosapi::mojom::ProbeBatteryInfoPtr input,
+    ash::cros_healthd::mojom::BatteryInfoPtr input,
     bool has_serial_number_permission);
 
 // The `mac_address` field should be converted iff `has_mac_address_permission`
@@ -64,59 +63,59 @@ chromeos::api::os_telemetry::InternetConnectivityInfo UncheckedConvertPtr(
     bool has_mac_address_permission);
 
 chromeos::api::os_telemetry::NonRemovableBlockDeviceInfo UncheckedConvertPtr(
-    crosapi::mojom::ProbeNonRemovableBlockDeviceInfoPtr);
+    ash::cros_healthd::mojom::NonRemovableBlockDeviceInfoPtr);
 
 chromeos::api::os_telemetry::OsVersionInfo UncheckedConvertPtr(
-    crosapi::mojom::ProbeOsVersionPtr input);
+    ash::cros_healthd::mojom::OsVersionPtr input);
 
 chromeos::api::os_telemetry::StatefulPartitionInfo UncheckedConvertPtr(
     ash::cros_healthd::mojom::StatefulPartitionInfoPtr input);
 
 chromeos::api::os_telemetry::TpmVersion UncheckedConvertPtr(
-    crosapi::mojom::ProbeTpmVersionPtr input);
+    ash::cros_healthd::mojom::TpmVersionPtr input);
 
 chromeos::api::os_telemetry::TpmStatus UncheckedConvertPtr(
-    crosapi::mojom::ProbeTpmStatusPtr input);
+    ash::cros_healthd::mojom::TpmStatusPtr input);
 
 chromeos::api::os_telemetry::TpmDictionaryAttack UncheckedConvertPtr(
-    crosapi::mojom::ProbeTpmDictionaryAttackPtr input);
+    ash::cros_healthd::mojom::TpmDictionaryAttackPtr input);
 
 chromeos::api::os_telemetry::TpmInfo UncheckedConvertPtr(
-    crosapi::mojom::ProbeTpmInfoPtr input);
+    ash::cros_healthd::mojom::TpmInfoPtr input);
 
 chromeos::api::os_telemetry::UsbBusInterfaceInfo UncheckedConvertPtr(
-    crosapi::mojom::ProbeUsbBusInterfaceInfoPtr input);
+    ash::cros_healthd::mojom::UsbBusInterfaceInfoPtr input);
 
 chromeos::api::os_telemetry::FwupdFirmwareVersionInfo UncheckedConvertPtr(
-    crosapi::mojom::ProbeFwupdFirmwareVersionInfoPtr input);
+    ash::cros_healthd::mojom::FwupdFirmwareVersionInfoPtr input);
 
 chromeos::api::os_telemetry::UsbBusInfo UncheckedConvertPtr(
-    crosapi::mojom::ProbeUsbBusInfoPtr input);
+    ash::cros_healthd::mojom::UsbBusInfoPtr input);
 
 // `serial_number` field should be converted iff `has_serial_number_permission`
 // is true.
 chromeos::api::os_telemetry::VpdInfo UncheckedConvertPtr(
-    crosapi::mojom::ProbeCachedVpdInfoPtr input,
+    ash::cros_healthd::mojom::VpdInfoPtr input,
     bool has_serial_number_permission);
 
 chromeos::api::os_telemetry::DisplayInfo UncheckedConvertPtr(
-    crosapi::mojom::ProbeDisplayInfoPtr input);
+    ash::cros_healthd::mojom::DisplayInfoPtr input);
 
 chromeos::api::os_telemetry::EmbeddedDisplayInfo UncheckedConvertPtr(
-    crosapi::mojom::ProbeEmbeddedDisplayInfoPtr input);
+    ash::cros_healthd::mojom::EmbeddedDisplayInfoPtr input);
 
 chromeos::api::os_telemetry::ExternalDisplayInfo UncheckedConvertPtr(
-    crosapi::mojom::ProbeExternalDisplayInfoPtr input);
+    ash::cros_healthd::mojom::ExternalDisplayInfoPtr input);
 
 chromeos::api::os_telemetry::ThermalInfo UncheckedConvertPtr(
-    crosapi::mojom::ProbeThermalInfoPtr input);
+    ash::cros_healthd::mojom::ThermalInfoPtr input);
 
 chromeos::api::os_telemetry::ThermalSensorInfo UncheckedConvertPtr(
-    crosapi::mojom::ProbeThermalSensorInfoPtr input);
+    ash::cros_healthd::mojom::ThermalSensorInfoPtr input);
 }  // namespace unchecked
 
 chromeos::api::os_telemetry::CpuArchitectureEnum Convert(
-    crosapi::mojom::ProbeCpuArchitectureEnum input);
+    ash::cros_healthd::mojom::CpuArchitectureEnum input);
 
 chromeos::api::os_telemetry::NetworkState Convert(
     chromeos::network_health::mojom::NetworkState input);
@@ -125,22 +124,22 @@ chromeos::api::os_telemetry::NetworkType Convert(
     chromeos::network_config::mojom::NetworkType input);
 
 chromeos::api::os_telemetry::TpmGSCVersion Convert(
-    crosapi::mojom::ProbeTpmGSCVersion input);
+    ash::cros_healthd::mojom::TpmGSCVersion input);
 
 chromeos::api::os_telemetry::FwupdVersionFormat Convert(
-    crosapi::mojom::ProbeFwupdVersionFormat input);
+    ash::cros_healthd::mojom::FwupdVersionFormat input);
 
 chromeos::api::os_telemetry::UsbVersion Convert(
-    crosapi::mojom::ProbeUsbVersion input);
+    ash::cros_healthd::mojom::UsbVersion input);
 
 chromeos::api::os_telemetry::UsbSpecSpeed Convert(
-    crosapi::mojom::ProbeUsbSpecSpeed input);
+    ash::cros_healthd::mojom::UsbSpecSpeed input);
 
 chromeos::api::os_telemetry::DisplayInputType Convert(
-    crosapi::mojom::ProbeDisplayInputType input);
+    ash::cros_healthd::mojom::DisplayInputType input);
 
 chromeos::api::os_telemetry::ThermalSensorSource Convert(
-    crosapi::mojom::ProbeThermalSensorSource input);
+    ash::cros_healthd::mojom::ThermalSensorInfo::ThermalSensorSource input);
 
 template <class OutputT, class InputT>
 std::vector<OutputT> ConvertPtrVector(std::vector<InputT> input) {

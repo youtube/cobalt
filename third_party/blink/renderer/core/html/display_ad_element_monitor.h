@@ -15,7 +15,7 @@ namespace blink {
 class CORE_EXPORT DisplayAdElementMonitor final
     : public GarbageCollected<DisplayAdElementMonitor>,
       public LocalFrameView::LifecycleNotificationObserver,
-      public ElementRareDataField {
+      public NodeRareDataField {
  public:
   enum class OverlayVisibility {
     kSkipped,

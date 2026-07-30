@@ -80,7 +80,6 @@ gn_args.config(
         "android",
         "debug",
         "minimal_symbols",
-        "shared",
         "x64",
     ],
 )
@@ -510,7 +509,6 @@ gn_args.config(
     name = "debug_builder",
     configs = [
         "debug",
-        "shared",
         "minimal_symbols",
     ],
 )
@@ -543,7 +541,6 @@ gn_args.config(
     configs = [
         "debug",
         "full_symbols",
-        "shared",
     ],
 )
 

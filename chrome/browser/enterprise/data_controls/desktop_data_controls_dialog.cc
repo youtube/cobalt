@@ -4,7 +4,6 @@
 
 #include "chrome/browser/enterprise/data_controls/desktop_data_controls_dialog.h"
 
-#include "chrome/grit/generated_resources.h"
 #include "components/constrained_window/constrained_window_views.h"
 #include "components/guest_view/browser/guest_view_base.h"
 #include "components/strings/grit/components_strings.h"

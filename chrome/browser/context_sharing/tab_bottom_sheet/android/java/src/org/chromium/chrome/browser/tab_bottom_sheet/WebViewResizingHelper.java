@@ -27,6 +27,7 @@ import org.chromium.components.thinwebview.ThinWebView;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.animation.AnimationHandler;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.util.CommonOnLayoutChangeListeners;
 
 /** Helper class for showing placeholders while resizing the Web View in the Tab Bottom Sheet. */
 @NullMarked
@@ -65,11 +66,12 @@ public class WebViewResizingHelper {
         mResizingContainer = new FrameLayout(mContext);
         mResizingContainer.setClipChildren(true);
         mResizingContainer.addOnLayoutChangeListener(
-                (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
-                    if (!mIsViewportSizeFixed) {
-                        updateBounds();
-                    }
-                });
+                CommonOnLayoutChangeListeners.createSizeChangedListener(
+                        () -> {
+                            if (!mIsViewportSizeFixed) {
+                                updateBounds();
+                            }
+                        }));
 
         mResizingPlaceholder =
                 LayoutInflater.from(mContext)

@@ -11,7 +11,8 @@
 #include "chrome/browser/notifications/scheduler/internal/stats.h"
 #include "chrome/browser/notifications/scheduler/public/notification_scheduler_constant.h"
 #include "chrome/browser/notifications/scheduler/public/tips_agent.h"
-#include "chrome/browser/notifications/scheduler/public/tips_utils.h"
+#include "chrome/browser/tips/core/tips_types.h"
+#include "chrome/browser/tips/core/tips_utils.h"
 
 namespace notifications {
 
@@ -31,11 +32,11 @@ void TipsClient::BeforeShowNotification(
     std::string feature_type = it->second;
     int type_int;
     base::StringToInt(feature_type, &type_int);
-    TipsNotificationsFeatureType type =
-        static_cast<TipsNotificationsFeatureType>(type_int);
+    tips::TipsNotificationsFeatureType type =
+        static_cast<tips::TipsNotificationsFeatureType>(type_int);
 
     // Set a pref to mark that a notification for this feature type has shown.
-    std::string pref = GetFeatureTypePref(type);
+    std::string pref = tips::GetFeatureTypePref(type);
     pref_service_->SetBoolean(pref, true);
 
     stats::LogTipsNotificationFeatureTypeShown(type);
@@ -61,8 +62,8 @@ void TipsClient::OnUserAction(const UserActionData& action_data) {
     std::string feature_type = it->second;
     int type_int;
     base::StringToInt(feature_type, &type_int);
-    TipsNotificationsFeatureType type =
-        static_cast<TipsNotificationsFeatureType>(type_int);
+    tips::TipsNotificationsFeatureType type =
+        static_cast<tips::TipsNotificationsFeatureType>(type_int);
 
     stats::LogTipsNotificationFeatureTypeAction(action_data.action_type, type);
 

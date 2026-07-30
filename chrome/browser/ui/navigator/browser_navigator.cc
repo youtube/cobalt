@@ -11,6 +11,7 @@
 #include <string_view>
 #include <utility>
 
+#include "base/feature_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/notimplemented.h"
 #include "base/notreached.h"
@@ -46,6 +47,7 @@
 #include "chrome/browser/ui/web_applications/web_app_tabbed_utils.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_tab_helper.h"
+#include "chrome/common/chrome_features.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/captive_portal/core/buildflags.h"
 #include "components/constrained_window/constrained_window_views.h"
@@ -654,6 +656,25 @@ base::WeakPtr<content::NavigationHandle> Navigate(NavigateParams* params) {
       return nullptr;
     }
 
+    // When the standalone Document PiP window is enabled, route to the
+    // DocumentPipHost-backed path instead of creating a Browser. The manager
+    // takes ownership of the child WebContents and shows the window itself, so
+    // Navigate() returns early without a Browser.
+    if (base::FeatureList::IsEnabled(features::kDocumentPipStandaloneWindow)) {
+      std::optional<blink::mojom::PictureInPictureWindowOptions> pip_options =
+          contents_to_navigate_or_insert->GetPictureInPictureOptions();
+      if (pip_options.has_value()) {
+        PictureInPictureWindowManager::GetInstance()
+            ->EnterStandaloneDocumentPictureInPicture(
+                params->source_contents, std::move(params->contents_to_insert),
+                std::move(*pip_options));
+      }
+      // If the WebContents doesn't have valid PiP options, don't enter PiP
+      // mode and don't create a browser window.
+      params->browser = nullptr;
+      return nullptr;
+    }
+
     PictureInPictureWindowManager::GetInstance()->EnterDocumentPictureInPicture(
         params->source_contents, contents_to_navigate_or_insert);
   }
@@ -915,7 +936,12 @@ base::WeakPtr<content::NavigationHandle> Navigate(NavigateParams* params) {
         tab_strip_model->AddToNewSplit(
             {new_tab_index}, split_tabs::SplitTabVisualData(),
             split_tabs::SplitTabCreatedSource::kLinkClick);
-        tab_strip_model->ActivateTabAt(new_tab_index);
+        // Re-query the index after adding to split, as `AddToNewSplit()` may
+        // have moved the tab to a different position.
+        const int inserted_tab_index = tab_strip_model->GetIndexOfWebContents(
+            contents_to_navigate_or_insert);
+        CHECK_NE(inserted_tab_index, TabStripModel::kNoTab);
+        tab_strip_model->ActivateTabAt(inserted_tab_index);
       }
     }
   }

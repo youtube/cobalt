@@ -15,7 +15,6 @@
 #include "components/app_restore/app_restore_data.h"
 #include "components/app_restore/app_restore_utils.h"
 #include "components/app_restore/full_restore_utils.h"
-#include "components/services/app_service/public/cpp/features.h"
 #include "ui/display/screen.h"
 #include "ui/events/event_constants.h"
 #include "ui/gfx/geometry/insets.h"

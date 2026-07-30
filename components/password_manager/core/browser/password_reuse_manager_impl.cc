@@ -125,8 +125,7 @@ PasswordReuseManagerImpl::PasswordReuseManagerImpl(
     os_crypt_async::OSCryptAsync* os_crypt_async) {
   os_crypt_async->GetInstance(
       base::BindOnce(&PasswordReuseManagerImpl::OnOsCryptAsyncReady,
-                     weak_ptr_factory_.GetWeakPtr()),
-      os_crypt_async::Encryptor::Option::kEncryptSyncCompat);
+                     weak_ptr_factory_.GetWeakPtr()));
 }
 
 PasswordReuseManagerImpl::~PasswordReuseManagerImpl() = default;

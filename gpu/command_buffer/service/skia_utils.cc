@@ -535,6 +535,23 @@ CreateVulkanYcbcrConversionInfo(
   }
 }
 
+std::string VulkanYcbcrConversionInfoToString(
+    const skgpu::VulkanYcbcrConversionInfo& info) {
+  if (!info.isValid()) {
+    return "invalid";
+  }
+  return base::StringPrintf(
+      "fmt:%u,ext:0x%" PRIx64
+      ",model:%u,range:%u,x:%u,y:%u,filter:%u,"
+      "force:%u,must_match:%u,linear:%u",
+      static_cast<uint32_t>(info.format()), info.externalFormat(),
+      static_cast<uint32_t>(info.model()), static_cast<uint32_t>(info.range()),
+      static_cast<uint32_t>(info.xChromaOffset()),
+      static_cast<uint32_t>(info.yChromaOffset()),
+      static_cast<uint32_t>(info.chromaFilter()),
+      static_cast<uint32_t>(info.forceExplicitReconstruction()),
+      info.samplerFilterMustMatchChromaFilter(), info.supportsLinearFilter());
+}
 #endif  // BUILDFLAG(ENABLE_VULKAN)
 
 bool ShouldVulkanSyncCpuForSkiaSubmit(

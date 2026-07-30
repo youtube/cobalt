@@ -184,9 +184,10 @@ void AudioHelperChromeOsImpl::OnData(
   on_data_callback_.Run(std::move(packet));
 }
 
-void AudioHelperChromeOsImpl::OnError() {
+void AudioHelperChromeOsImpl::OnError(Error error_code) {
   DCHECK(audio_runner_->RunsTasksInCurrentSequence());
-  LOG(ERROR) << "AudioInputStream Error encountered.";
+  LOG(ERROR) << "AudioInputStream Error encountered. Error Code: "
+             << static_cast<int>(error_code);
   base::UmaHistogramBoolean(kAudioStreamErrorHistogramName, /* sample= */ true);
   NotifyFatalStreamError();
 }

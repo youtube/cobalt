@@ -46,9 +46,7 @@ public class SystemWideCrashDirectories {
 
     /**
      * Create the directory in which WebView will store its minidumps.
-     * WebView needs a crash directory different from Chrome's to ensure Chrome's and WebView's
-     * minidump handling won't clash in cases where both Chrome and WebView are provided by the
-     * same app (Monochrome).
+     *
      * @return a reference to the created directory, or null if the creation failed.
      */
     public static File getOrCreateWebViewCrashDir() {

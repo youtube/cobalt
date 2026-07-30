@@ -518,8 +518,7 @@ void HTMLLinkElement::HandleExpectBlockingChanges() {
     return;
   }
 
-  if (blocking_attribute_->HasRenderToken() ||
-      blocking_attribute_->HasFullFrameRateToken()) {
+  if (blocking_attribute_->HasRenderToken()) {
     AddExpectRenderBlockingLinkIfNeeded();
   } else {
     RemoveExpectRenderBlockingLink();

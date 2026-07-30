@@ -22,7 +22,6 @@ import org.chromium.base.Callback;
 import org.chromium.base.CallbackUtils;
 import org.chromium.base.SelectionActionMenuClientWrapper;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.build.annotations.Nullable;
@@ -176,10 +175,7 @@ public class AwContentsStatics {
 
     /** Returns the variations header used with the X-Client-Data header. */
     public static String getVariationsHeader() {
-        String header = AwContentsStaticsJni.get().getVariationsHeader();
-        RecordHistogram.recordCount100Histogram(
-                "Android.WebView.VariationsHeaderLength", header.length());
-        return header;
+        return AwContentsStaticsJni.get().getVariationsHeader();
     }
 
     // Note that this can be called before browser process initialization.

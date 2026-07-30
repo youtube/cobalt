@@ -74,6 +74,7 @@ source_set("impl") {
       "//chrome/browser/sync",
       "//chrome/browser/sync:factories",
       "//chrome/browser/trusted_vault",
+      "//chrome/browser/ui:browser_actions",
       "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/passwords",
       "//chrome/browser/ui/passwords/bubble_controllers",

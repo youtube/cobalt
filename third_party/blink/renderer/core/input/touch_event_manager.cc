@@ -601,9 +601,9 @@ void TouchEventManager::HandleTouchPoint(
     // If the active touch document has no frame or view, it's probably being
     // destroyed so we can't dispatch events.
     // Update the points so they get removed in flush when they are released.
-    if (touch_attribute_map_.Contains(event.id)) {
-      TouchPointAttributes* attributes = touch_attribute_map_.at(event.id);
-      attributes->event_ = event;
+    const auto it = touch_attribute_map_.find(event.id);
+    if (it != touch_attribute_map_.end()) {
+      it->value->event_ = event;
     }
     return;
   }
@@ -612,12 +612,14 @@ void TouchEventManager::HandleTouchPoint(
   // would have never added them to |touch_attribute_map_| or hit-tested
   // them. For those just keep them in the map with a null target. Later they
   // will be targeted at the |touch_sequence_document_|.
-  if (!touch_attribute_map_.Contains(event.id)) {
-    touch_attribute_map_.insert(
-        event.id, MakeGarbageCollected<TouchPointAttributes>(event));
+  const auto it = touch_attribute_map_.find(event.id);
+  TouchPointAttributes* attributes;
+  if (it != touch_attribute_map_.end()) {
+    attributes = it->value;
+  } else {
+    attributes = MakeGarbageCollected<TouchPointAttributes>(event);
+    touch_attribute_map_.insert(event.id, attributes);
   }
-
-  TouchPointAttributes* attributes = touch_attribute_map_.at(event.id);
   attributes->event_ = event;
   attributes->coalesced_events_ = coalesced_events;
   attributes->stale_ = false;

@@ -120,12 +120,12 @@ using VisibleSelection = VisibleSelectionTemplate<EditingStrategy>;
 using VisibleSelectionInFlatTree =
     VisibleSelectionTemplate<EditingInFlatTreeStrategy>;
 
-CORE_EXPORT VisibleSelection CreateVisibleSelection(const SelectionInDOMTree&);
+CORE_EXPORT VisibleSelection CreateVisibleSelection(const SelectionInDomTree&);
 CORE_EXPORT VisibleSelectionInFlatTree
 CreateVisibleSelection(const SelectionInFlatTree&);
 
-CORE_EXPORT SelectionInDOMTree
-ExpandWithGranularity(const SelectionInDOMTree&,
+CORE_EXPORT SelectionInDomTree
+ExpandWithGranularity(const SelectionInDomTree&,
                       TextGranularity,
                       const WordInclusion& = WordInclusion::kDefault);
 
@@ -137,7 +137,7 @@ ExpandWithGranularity(const SelectionInFlatTree&,
 // We don't yet support multi-range selections, so we only ever have one range
 // to return.
 CORE_EXPORT EphemeralRange FirstEphemeralRangeOf(const VisibleSelection&);
-CORE_EXPORT EphemeralRange NormalizeRange(const SelectionInDOMTree&);
+CORE_EXPORT EphemeralRange NormalizeRange(const SelectionInDomTree&);
 CORE_EXPORT EphemeralRangeInFlatTree NormalizeRange(const SelectionInFlatTree&);
 
 CORE_EXPORT std::ostream& operator<<(std::ostream&, const VisibleSelection&);

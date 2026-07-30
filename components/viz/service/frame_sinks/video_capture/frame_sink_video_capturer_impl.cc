@@ -248,16 +248,6 @@ void FrameSinkVideoCapturerImpl::ResolveTarget() {
               : nullptr);
 }
 
-bool FrameSinkVideoCapturerImpl::TryResolveTarget() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  if (!resolved_target_) {
-    ResolveTarget();
-  }
-
-  return resolved_target_;
-}
-
 void FrameSinkVideoCapturerImpl::SetResolvedTarget(
     CapturableFrameSink* target) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -546,7 +536,10 @@ void FrameSinkVideoCapturerImpl::Stop() {
 void FrameSinkVideoCapturerImpl::RequestRefreshFrame() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  if (!TryResolveTarget()) {
+  if (!resolved_target_) {
+    // If we don't have a target, attempting to resolve it will force a high
+    // priority refresh.
+    ResolveTarget();
     return;
   }
 
@@ -667,8 +660,17 @@ void FrameSinkVideoCapturerImpl::RefreshInternal(
 
   // If the capture target has not yet been resolved, first try changing the
   // target since it may be available now.
-  if (!TryResolveTarget()) {
-    MaybeScheduleRefreshFrame();
+  if (!resolved_target_) {
+    ResolveTarget();
+
+    // ResolveTarget() may have updated `resolved_target_`. If it failed to do so, we may
+    // need a refresh frame.
+    if (!resolved_target_) {
+      MaybeScheduleRefreshFrame();
+    }
+
+    // Attempting to resolve the target will implicitly request a refresh frame,
+    // so we can exit early here.
     return;
   }
 

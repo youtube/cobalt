@@ -21,6 +21,7 @@
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 #include "services/network/network_context.h"
 #include "services/network/network_service.h"
+#include "services/network/public/cpp/constants.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/public/mojom/websocket.mojom.h"
 #include "services/network/test/fake_test_cert_verifier_params_factory.h"
@@ -114,7 +115,7 @@ class WebSocketFactoryTest : public testing::Test {
         TRAFFIC_ANNOTATION_FOR_TESTS, std::move(handshake_client),
         mojo::NullRemote(), mojo::NullRemote(), mojo::NullRemote(),
         /*throttling_profile_id=*/std::nullopt,
-        /*network_restrictions_id=*/std::nullopt);
+        network::GetTestNetworkRestrictionsId());
   }
 
  protected:

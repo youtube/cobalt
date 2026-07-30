@@ -581,6 +581,19 @@ if (is_chromeos) {
         [ "file_system_access/cloud_identifier/cloud_identifier_util_ash.h" ]
     deps = [ "//content/public/browser" ]
   }
+
+  source_set("exo_parts") {
+    public = [ "exo_parts.h" ]
+    sources = [ "exo_parts.cc" ]
+    deps = [
+      "//ash",
+      "//ash/constants",
+      "//base",
+      "//chrome/browser/ash/exo",
+      "//chromeos/ash/experiences/arc",
+      "//components/exo/server",
+    ]
+  }
 } else {
   source_set("fullscreen") {
     public = [ "fullscreen.h" ]
@@ -1135,9 +1148,21 @@ source_set("core") {
   ]
 
   if (!is_android) {
+    public_deps = [
+      "//chrome/browser/ui/webui/omnibox_popup",
+      "//chrome/browser/ui/webui/omnibox_popup/mojom",
+    ]
+
+    sources += [
+      "chrome_process_singleton.cc",
+      "intranet_redirect_detector.cc",
+      "process_singleton_startup_lock.cc",
+      "repost_form_warning_controller.cc",
+    ]
     deps += [
       ":chrome_process_singleton",
       ":intranet_redirect_detector",
+      ":repost_form_warning_controller",
       "//chrome/browser/accessibility/live_caption",
       "//chrome/browser/apps/app_service",
       "//chrome/browser/apps/app_service/publishers",
@@ -1146,6 +1171,7 @@ source_set("core") {
       "//chrome/browser/device_api",
       "//chrome/browser/device_api:impl",
       "//chrome/browser/direct_sockets",
+      "//chrome/browser/ui:browser_actions_impl",
       "//chrome/browser/ui/lens",
       "//chrome/browser/ui/tabs/tab_drag_api/desktop_tab_drag_impl",
       "//chrome/browser/ui/waap:waap_utils",
@@ -1153,6 +1179,7 @@ source_set("core") {
       "//chrome/browser/ui/webui/image",
       "//chrome/browser/ui/webui/indigo_internals",
       "//chrome/browser/ui/webui/indigo_internals:mojo_bindings",
+      "//chrome/browser/ui/webui/new_tab_page",
       "//chrome/browser/ui/webui/user_education_internals",
       "//chrome/browser/ui/webui/webnn_internals",
       "//chrome/browser/ui/webui_browser",
@@ -1243,7 +1270,12 @@ source_set("core") {
     deps += [ "//chrome/browser/ui/webui/compose" ]
   }
 
+  if (chrome_root_store_cert_management_ui) {
+    deps += [ "//chrome/browser/ui/webui/certificate_manager" ]
+  }
+
   if (!is_android && !is_chromeos) {
+    sources += [ "platform_util.cc" ]
     deps += [ "//chrome/browser/default_browser" ]
   }
 
@@ -1260,80 +1292,267 @@ source_set("core") {
   }
 
   if (is_win) {
-    sources += [ "chrome_browser_main_win.h" ]
+    sources += [
+      "chrome_browser_main_win.cc",
+      "chrome_browser_main_win.h",
+      "font_prewarmer_tab_helper.cc",
+      "fullscreen_win.cc",
+      "icon_loader_win.cc",
+      "memory_details_win.cc",
+      "platform_util_win.cc",
+      "process_singleton_win.cc",
+      "shell_integration_win.cc",
+    ]
+
+    libs = [
+      "secur32.lib",
+
+      # Needed for _variant_t used in browser_dm_token_storage_win.cc
+      "comsuppw.lib",
+    ]
+
     deps += [
+      ":font_prewarmer_tab_helper",
+      ":fullscreen",
+      "//chrome/app:chrome_exe_main_exports",
+      "//chrome/app/theme:chrome_unscaled_resources_grit",
+      "//chrome/browser/install_verification:impl",
       "//chrome/browser/os_crypt",
+      "//chrome/browser/platform_experience:prefs",
+      "//chrome/browser/shortcuts",
+      "//chrome/browser/startup",
+      "//chrome/browser/web_applications/chrome_pwa_launcher:util",
       "//chrome/browser/webnn",
       "//chrome/browser/webshare:impl",
+      "//chrome/browser/win:chrome_process_finder",
+      "//chrome/browser/win:cloud_synced_folder_checker",
       "//chrome/browser/win:isolated_browser_support",
       "//chrome/browser/win:mica_titlebar",
+      "//chrome/browser/win:registry_watcher",
+      "//chrome/browser/win/conflicts:module_info",
+      "//chrome/chrome_elf:constants",
+      "//chrome/chrome_elf:dll_hash",
+      "//chrome/chrome_elf:third_party_shared_defines",
+      "//chrome/common:version_header",
+      "//chrome/credential_provider/common:common_constants",
+      "//chrome/elevation_service:public_headers",
+      "//chrome/install_static:install_static_util",
       "//chrome/installer/util:isolation_support",
+      "//chrome/installer/util:with_no_strings",
+      "//chrome/notification_helper:constants",
+      "//chrome/services/util_win/public/mojom",
+      "//chrome/updater/app/server/win:updater_legacy_idl",
+      "//chrome/windows_services/elevated_tracing_service:tracing_service_idl",
       "//components/app_launch_prefetch",
+      "//components/crash/core/app",
+      "//components/crash/core/app:crash_export_thunk_include",
+      "//components/device_signals/core/browser/win",
+      "//components/live_caption:utils",
       "//components/os_crypt/async/browser:dpapi_key_provider",
       "//components/stylus_handwriting/win",
       "//media/mojo/services",
       "//sandbox/win:sandbox",
+      "//services/proxy_resolver/public/mojom",
+      "//third_party/crashpad/crashpad/client",
+      "//third_party/iaccessible2",
+      "//third_party/isimpledom",
+      "//third_party/wtl",
+      "//ui/aura_extra",
+      "//ui/base:fullscreen_win",
+      "//ui/color:accent_color_observer",
+      "//ui/display/util",
     ]
+
+    all_dependent_configs = [ ":browser_win_linker_flags" ]
 
     if (is_chrome_branded) {
       deps += [
+        "//chrome/browser/platform_experience/installer:installer_win",
         "//chrome/browser/win/installer_downloader:controller",
         "//chrome/browser/win/installer_downloader:infobar",
+        "//chrome/browser/win/installer_downloader:infobar_impl",
+        "//chrome/updater/app/server/win:updater_legacy_idl",
       ]
     }
   }
 
   if (is_mac) {
+    sources += [
+      "app_controller_mac.mm",
+      "browser_process_platform_part_mac.mm",
+      "chrome_browser_application_mac.mm",
+      "chrome_browser_main_mac.mm",
+      "file_select_helper_mac.mm",
+      "fullscreen_mac.mm",
+      "global_keyboard_shortcuts_mac.mm",
+      "icon_loader_mac.mm",
+      "memory_details_mac.cc",
+      "platform_util_mac.mm",
+      "process_singleton_mac.mm",
+      "shell_integration_mac.mm",
+    ]
+
     deps += [
+      ":app_controller_mac",
+      ":chrome_browser_application_mac",
       ":chrome_browser_main_mac",
+      ":fullscreen",
+      ":global_keyboard_shortcuts_mac",
       "//chrome/app_shim",
       "//chrome/browser/apps/app_shim",
+      "//chrome/browser/enterprise/connectors/device_trust/key_management/core/mac",
       "//chrome/browser/mac",
+      "//chrome/browser/mac:impl",
+      "//chrome/browser/renderer_host:delegate",
+      "//chrome/browser/renderer_host:delegate_impl",
+      "//chrome/browser/renderer_host:history_swiper",
+      "//chrome/browser/shortcuts",
       "//chrome/browser/ui/cocoa",
+      "//chrome/browser/web_applications/os_integration/mac:web_app_shortcut_copier_lib",
       "//chrome/browser/webshare",
       "//chrome/browser/webshare:impl",
+      "//chrome/services/mac_notifications",
+      "//chrome/services/mac_notifications/public/cpp",
+      "//chrome/services/mac_notifications/public/mojom",
+      "//components/crash/core/app",
+      "//components/device_signals/core/browser/mac",
       "//components/enterprise/platform_auth:enterprise_platform_auth",
+      "//components/handoff",
+      "//components/metal_util",
       "//components/os_crypt/async/browser:keychain_key_provider",
+      "//components/policy/core/common:common_constants",
+      "//components/remote_cocoa/app_shim",
       "//components/remote_cocoa/app_shim:features",
+      "//components/remote_cocoa/browser",
       "//sandbox/mac:seatbelt",
+      "//sandbox/policy",
+      "//services/video_capture/public/mojom:constants",
+      "//third_party/crashpad/crashpad/client",
+    ]
+
+    frameworks = [
+      "Accelerate.framework",
+      "AudioUnit.framework",
+      "AVFoundation.framework",
+      "AuthenticationServices.framework",
+      "CoreVideo.framework",  # Used for the Thumbnail capturer on macOS.
+      "DiskArbitration.framework",
+      "IOKit.framework",
+      "LocalAuthentication.framework",
+      "OpenGL.framework",
+      "QuartzCore.framework",
+      "SafariServices.framework",
+      "ScreenCaptureKit.framework",
+      "SecurityInterface.framework",
+      "UserNotifications.framework",
+      "UniformTypeIdentifiers.framework",
+      "VideoToolbox.framework",
     ]
   }
 
   if (!is_win && !is_android) {
-    deps += [ ":chrome_browser_main_posix" ]
+    sources += [
+      "certificate_viewer_stub.cc",
+      "chrome_browser_main_posix.cc",
+    ]
+    deps += [
+      ":certificate_viewer",
+      ":chrome_browser_main_posix",
+    ]
+  }
+
+  if (is_linux || is_chromeos) {
+    sources += [
+      "chrome_browser_main_linux.cc",
+      "memory_details_linux.cc",
+    ]
+    deps += [ "//third_party/fontconfig" ]
+    if (use_dbus) {
+      deps += [ "//dbus" ]
+    }
   }
 
   if (is_linux) {
     sources += [
+      "chrome_browser_main_extra_parts_linux.cc",
       "chrome_browser_main_extra_parts_linux.h",
       "chrome_browser_main_linux.h",
+      "fullscreen_linux.cc",
+      "icon_loader_auralinux.cc",
+      "shell_integration_linux.cc",
     ]
-    deps += [ "//components/os_crypt/async/browser:posix_key_provider" ]
+    deps += [
+      ":fullscreen",
+      ":shell_integration_linux",
+      "//components/os_crypt/async/browser:posix_key_provider",
+      "//third_party/libxml:xml_writer",
+      "//ui/linux:display_server_utils",
+    ]
 
     if (use_dbus) {
+      sources += [
+        "dbus_memory_pressure_evaluator_linux.cc",
+        "dbus_memory_pressure_evaluator_linux.h",
+        "platform_util_linux.cc",
+      ]
       deps += [
+        "//chrome/common:chrome_features",
+        "//components/dbus",
+        "//components/memory_pressure",
         "//components/os_crypt/async/browser:freedesktop_secret_key_provider",
         "//components/os_crypt/async/browser:secret_portal_key_provider",
+        "//dbus",
       ]
     }
   }
 
   if (is_android) {
-    sources += [ "chrome_browser_main_android.h" ]
+    sources += [
+      "after_startup_task_utils_android.cc",
+      "browser_process_platform_part_android.cc",
+      "chrome_browser_interface_binders_webui_parts_android.cc",
+      "chrome_browser_main_android.cc",
+      "chrome_browser_main_android.h",
+      "chrome_content_browser_client_android.cc",
+      "chrome_content_browser_client_android.h",
+      "commerce/android/price_tracking_utils_android.cc",
+      "commerce/android/shopping_service_factory_android.cc",
+      "composeplate/android/composeplate_utils.cc",
+      "icon_loader_android.cc",
+      "incognito/android/incognito_utils_android.cc",
+      "memory_details_android.cc",
+      "platform_util_android.cc",
+      "shell_integration_android.cc",
+    ]
     deps += [
       ":profile_key_startup_accessor",
+      "//chrome/android:jni_headers",
       "//chrome/browser/accessibility/accessibility_prefs",
+      "//chrome/browser/android",
+      "//chrome/browser/autocomplete",
+      "//chrome/browser/bookmarks",
+      "//chrome/browser/commerce",
+      "//chrome/browser/commerce/android:shopping_service_jni",
+      "//chrome/browser/composeplate/android:jni_headers",
       "//chrome/browser/dev_ui",
       "//chrome/browser/facilitated_payments",
       "//chrome/browser/feed",
+      "//chrome/browser/flags:flags_android",
+      "//chrome/browser/incognito:jni_headers",
       "//chrome/browser/notifications/chime/android",
       "//chrome/browser/offline_pages",
       "//chrome/browser/offline_pages:impl",
+      "//chrome/browser/prefetch/android",
+      "//chrome/browser/preloading/android",
       "//chrome/browser/ui/page_info",
+      "//chrome/browser/ui/webui/feed_internals",
+      "//chrome/browser/ui/webui/notifications_internals",
+      "//chrome/browser/util:jni_headers",
       "//chrome/browser/webapps:android",
       "//components/android_autofill/browser:features",
       "//components/browser_ui/accessibility/android",
       "//components/browser_ui/contacts_picker/android",
+      "//components/commerce/core:shopping_service",
       "//components/crash/content/browser",
       "//components/credential_management/android:features",
       "//components/external_intents/android",
@@ -1353,8 +1572,29 @@ source_set("core") {
     ]
   }
 
+  if (enable_offline_pages) {
+    # Used to build test harness locally.The harness is used manually to
+    # produce multiple offline pages to evaluate quality of the snapshots.
+    # This will only be built iff. | enable_offline_pages_harness | is set while
+    # | enable_offline_pages | and | is_android | are both true.
+    if (enable_offline_pages_harness && is_android) {
+      sources += [
+        "offline_pages/android/evaluation/evaluation_test_scheduler.cc",
+        "offline_pages/android/evaluation/evaluation_test_scheduler.h",
+        "offline_pages/android/evaluation/offline_page_evaluation_bridge.cc",
+        "offline_pages/android/evaluation/offline_page_evaluation_bridge.h",
+      ]
+    }
+  }
+
   if (is_chromeos) {
+    sources += [
+      "file_system_access/cloud_identifier/cloud_identifier_util_ash.cc",
+      "icon_loader_chromeos.cc",
+      "shell_integration_chromeos.cc",
+    ]
     deps += [
+      ":cloud_identifier_util_ash",
       "//ash/webui/camera_app_ui",
       "//ash/webui/help_app_ui",
       "//ash/webui/media_app_ui",
@@ -1366,6 +1606,7 @@ source_set("core") {
       "//chrome/browser/apps/app_service",
       "//chrome/browser/apps/app_service/app_install:navigation_throttle",
       "//chrome/browser/apps/digital_goods",
+      "//chrome/browser/apps/intent_helper:chromeos_disabled_apps_throttle",
       "//chrome/browser/ash/app_list/search",
       "//chrome/browser/ash/app_mode",
       "//chrome/browser/ash/app_restore",
@@ -1374,12 +1615,15 @@ source_set("core") {
       "//chrome/browser/ash/arc/session",
       "//chrome/browser/ash/boca/on_task",
       "//chrome/browser/ash/crostini",
+      "//chrome/browser/ash/drive",
       "//chrome/browser/ash/drive/fileapi",
       "//chrome/browser/ash/extensions/autotest_private",
       "//chrome/browser/ash/file_manager",
       "//chrome/browser/ash/file_suggest",
+      "//chrome/browser/ash/file_system_provider",
       "//chrome/browser/ash/file_system_provider/fileapi",
       "//chrome/browser/ash/fileapi",
+      "//chrome/browser/ash/fusebox",
       "//chrome/browser/ash/login",
       "//chrome/browser/ash/login/auth",
       "//chrome/browser/ash/login/demo_mode:demo_mode_login",
@@ -1492,8 +1736,20 @@ source_set("core") {
     ]
   }
 
+  if (use_aura) {
+    sources += [ "platform_util_aura.cc" ]
+    deps += [ "//ui/aura" ]
+  }
+
   if (use_ozone) {
-    sources += [ "chrome_browser_main_extra_parts_ozone.h" ]
+    sources += [
+      "chrome_browser_main_extra_parts_ozone.cc",
+      "chrome_browser_main_extra_parts_ozone.h",
+    ]
+    deps += [
+      "//ui/events/ozone",
+      "//ui/ozone",
+    ]
     deps += [
       "//ui/events/ozone",
       "//ui/ozone",
@@ -1535,19 +1791,50 @@ source_set("core") {
 
   deps += [ "//chrome/browser/vr:chrome_xr_integration_client" ]
 
+  if (enable_vr) {
+    sources += [
+      "vr/chrome_xr_integration_client.cc",
+      "vr/ui_host/vr_ui_host_impl.cc",
+      "vr/ui_host/vr_ui_host_impl.h",
+    ]
+    deps += [
+      "//chrome/browser/vr:vr_common",
+      "//device/vr",
+      "//device/vr/public/mojom:isolated_xr_service",
+    ]
+
+    if (is_android) {
+      deps += [ "//components/webxr/android" ]
+
+      # vr/chrome_xr_integration_client.cc unconditionally includes JNI headers
+      # from the per-runtime modules.
+      if (enable_arcore) {
+        deps += [ "//chrome/browser/android/vr:ar_jni_headers" ]
+      }
+      if (enable_cardboard) {
+        deps += [ "//chrome/browser/android/vr:vr_jni_headers" ]
+      }
+    }
+  }
+
+  if (is_posix) {
+    sources += [
+      "shutdown_signal_handlers_posix.cc",
+      "shutdown_signal_handlers_posix.h",
+    ]
+  }
+
   if (is_posix && !is_mac) {
-    deps += [ "//chrome/app:chrome_crash_reporter_client" ]
+    sources += [ "//chrome/app/chrome_crash_reporter_client.cc" ]
+    deps += [
+      "//chrome/app:chrome_crash_reporter_client",
+      "//components/crash/core/app",
+      "//components/version_info:generate_version_info",
+    ]
   }
 
   if (is_mac) {
     deps += [ ":chrome_browser_main_mac" ]
-  }
-
-  if (is_chromeos) {
-    deps += [
-      ":cloud_identifier_util_ash",
-      "//chrome/browser/apps/intent_helper:chromeos_disabled_apps_throttle",
-    ]
   }
 
   if (is_chrome_for_testing) {
@@ -1889,6 +2176,7 @@ static_library("browser") {
     "//chrome/browser/privacy",
     "//chrome/browser/privacy_sandbox",
     "//chrome/browser/privacy_sandbox:impl",
+    "//chrome/browser/private_verification_tokens",
     "//chrome/browser/profiles",
     "//chrome/browser/profiles:misc",
     "//chrome/browser/profiles:profile",
@@ -2666,47 +2954,12 @@ static_library("browser") {
   }
 
   if (is_android) {
-    sources += [
-      "after_startup_task_utils_android.cc",
-      "browser_process_platform_part_android.cc",
-      "chrome_browser_interface_binders_webui_parts_android.cc",
-      "chrome_browser_main_android.cc",
-      "chrome_content_browser_client_android.cc",
-      "chrome_content_browser_client_android.h",
-      "commerce/android/price_tracking_utils_android.cc",
-      "commerce/android/shopping_service_factory_android.cc",
-      "commerce/price_tracking/android/price_tracking_notification_bridge.cc",
-      "commerce/price_tracking/android/price_tracking_notification_bridge.h",
-      "composeplate/android/composeplate_utils.cc",
-      "icon_loader_android.cc",
-      "incognito/android/incognito_utils_android.cc",
-      "memory_details_android.cc",
-      "platform_util_android.cc",
-      "prefetch/android/preload_pages_settings_bridge.cc",
-      "shell_integration_android.cc",
-    ]
-
     deps += [
       "//chrome/browser/android",
-
-      # JNI headers and other Android-specific deps consumed by the remaining
-      # Android sources still in :browser (top-level *_android.cc and the few
-      # in commerce/, composeplate/, incognito/, prefetch/, preloading/).
-      "//chrome/android:jni_headers",
-      "//chrome/browser/commerce/android:shopping_service_jni",
-      "//chrome/browser/commerce/price_tracking/android:jni_headers",
-      "//chrome/browser/composeplate/android:jni_headers",
-      "//chrome/browser/incognito:jni_headers",
-      "//chrome/browser/prefetch/android:jni_headers",
-      "//chrome/browser/preloading/android",
-      "//chrome/browser/ui/webui/feed_internals",
-      "//chrome/browser/ui/webui/notifications_internals",
-      "//chrome/browser/util:jni_headers",
       "//components/webxr/android",
 
-      # Targets containing implementations consumed by the remaining Android
-      # sources that still live in :browser (top-level *_android.cc and the
-      # few in commerce/, composeplate/, incognito/, prefetch/, preloading/).
+      # Targets containing Android-specific implementations that have to be
+      # linked into the browser.
       # These mirror the allow_circular_includes_from list below.
       "//chrome/browser/auxiliary_search:impl",
       "//chrome/browser/bookmarks/android:impl",
@@ -2733,10 +2986,9 @@ static_library("browser") {
     allow_circular_includes_from += [
       "//chrome/browser/android",
 
-      # The following entries cover the remaining Android sources that still
-      # live in :browser (top-level *_android.cc and the few in commerce/,
-      # composeplate/, incognito/, prefetch/, preloading/). When those move
-      # into their own subdir targets, the entries below can be removed.
+      # The following targets contain Android implementations whose files
+      # still include headers owned by :browser. When those headers get
+      # componentized, the entries below can be removed.
       "//chrome/browser/autocomplete:impl",
       "//chrome/browser/auxiliary_search:impl",
       "//chrome/browser/background_sync:impl",
@@ -2793,6 +3045,12 @@ static_library("browser") {
       "//chrome/browser/dictation:impl",
       "//chrome/browser/payments:impl",
       "//chrome/browser/ui/tabs/tab_drag_api/desktop_tab_drag_impl",
+      "//chrome/browser/ui/webui/new_tab_page",
+      "//chrome/browser/ui/webui/new_tab_page:impl",
+      "//chrome/browser/ui/webui/new_tab_page_third_party",
+      "//chrome/browser/ui/webui/new_tab_page_third_party:impl",
+      "//chrome/browser/ui/webui/ntp",
+      "//chrome/browser/ui/webui/tab_search",
       "//chrome/browser/web_applications/isolated_web_apps/window_management",
       "//chrome/browser/web_applications/isolated_web_apps/window_management:impl",
       "//chrome/browser/webapps:desktop",
@@ -2806,11 +3064,9 @@ static_library("browser") {
     ]
 
     sources += [
+      # This file includes many headers still owned by //chrome/browser/ui,
+      # so it can't move into :core until they get componentized.
       "chrome_browser_interface_binders_webui_parts_desktop.cc",
-      "chrome_process_singleton.cc",
-      "intranet_redirect_detector.cc",
-      "process_singleton_startup_lock.cc",
-      "repost_form_warning_controller.cc",
     ]
 
     #!is_android
@@ -2966,7 +3222,7 @@ static_library("browser") {
       "//chrome/browser/ui/webui/commerce:impl",
       "//chrome/browser/ui/webui/content_annotator_internals",
       "//chrome/browser/ui/webui/cr_components/searchbox:searchbox_impl",
-      "//chrome/browser/ui/webui/cr_components/theme_color_picker",
+      "//chrome/browser/ui/webui/cr_components/theme_color_picker:impl",
       "//chrome/browser/ui/webui/customize_buttons",
       "//chrome/browser/ui/webui/customize_buttons:impl",
       "//chrome/browser/ui/webui/data_sharing",
@@ -2980,8 +3236,8 @@ static_library("browser") {
       "//chrome/browser/ui/webui/new_tab_footer:impl",
       "//chrome/browser/ui/webui/omnibox",
       "//chrome/browser/ui/webui/omnibox/logging:mojo_bindings",
+      "//chrome/browser/ui/webui/omnibox_popup",
       "//chrome/browser/ui/webui/omnibox_popup/mojom",
-      "//chrome/browser/ui/webui/privacy_sandbox:mojo_bindings",
       "//chrome/browser/ui/webui/searchbox",
       "//chrome/browser/ui/webui/settings",
       "//chrome/browser/ui/webui/settings:impl",
@@ -3254,8 +3510,6 @@ static_library("browser") {
 
     #!is_android
     if (!is_chromeos) {
-      sources += [ "platform_util.cc" ]
-
       deps += [
         "//chrome/browser/default_browser",
         "//chrome/browser/download/bubble",
@@ -3309,8 +3563,9 @@ static_library("browser") {
 
     if (!is_win) {
       sources += [
-        "certificate_viewer_stub.cc",
-        "chrome_browser_main_posix.cc",
+        # This file includes process_singleton_dialog_linux.h, which is still
+        # owned by //chrome/browser/ui, so it can't move into :core until
+        # that header gets componentized.
         "process_singleton_posix.cc",
       ]
       deps += [ ":chrome_browser_main_posix" ]
@@ -3323,14 +3578,12 @@ static_library("browser") {
 
   if (is_chromeos) {
     sources += [
+      # The following files include headers still owned by //chrome/browser/ui
+      # (e.g. browser.h), so they can't move into :core until those get
+      # componentized.
       "browser_process_platform_part_ash.cc",
       "chrome_browser_interface_binders_webui_parts_chromeos.cc",
-      "exo_parts.cc",
-      "exo_parts.h",
-      "file_system_access/cloud_identifier/cloud_identifier_util_ash.cc",
-      "icon_loader_chromeos.cc",
       "platform_util_ash.cc",
-      "shell_integration_chromeos.cc",
     ]
 
     deps += [
@@ -3640,8 +3893,6 @@ static_library("browser") {
       "//chrome/browser/ash/wallpaper_handlers",
       "//chrome/browser/chromeos/app_mode",
       "//chrome/browser/chromeos/arc",
-      "//chrome/browser/chromeos/cros_apps",
-      "//chrome/browser/chromeos/cros_apps/api",
       "//chrome/browser/chromeos/enterprise/cloud_storage",
       "//chrome/browser/chromeos/extensions/desk_api",
       "//chrome/browser/chromeos/extensions/echo_private",
@@ -3759,7 +4010,6 @@ static_library("browser") {
       "//chrome/browser/ui/webui/ash/network_ui",
       "//chrome/browser/ui/webui/ash/office_fallback",
       "//chrome/browser/ui/webui/ash/parent_access",
-      "//chrome/browser/ui/webui/ash/sanitize_dialog",
       "//chrome/browser/ui/webui/ash/sensor_info",
       "//chrome/browser/ui/webui/ash/set_time",
       "//chrome/browser/ui/webui/ash/settings",
@@ -4246,7 +4496,6 @@ static_library("browser") {
       "//chrome/browser/ui/webui/ash/multidevice_setup",
       "//chrome/browser/ui/webui/ash/network_ui",
       "//chrome/browser/ui/webui/ash/parent_access",
-      "//chrome/browser/ui/webui/ash/sanitize_dialog",
       "//chrome/browser/ui/webui/ash/sensor_info",
       "//chrome/browser/ui/webui/ash/settings",
       "//chrome/browser/ui/webui/ash/settings/calculator",
@@ -4368,23 +4617,6 @@ static_library("browser") {
   }
 
   if (is_win) {
-    libs += [
-      "secur32.lib",
-
-      # Needed for _variant_t used in browser_dm_token_storage_win.cc
-      "comsuppw.lib",
-    ]
-    sources += [
-      "chrome_browser_main_win.cc",
-      "font_prewarmer_tab_helper.cc",
-      "fullscreen_win.cc",
-      "icon_loader_win.cc",
-      "memory_details_win.cc",
-      "platform_util_win.cc",
-      "process_singleton_win.cc",
-      "shell_integration_win.cc",
-    ]
-
     # taskbar_decorator_win.cc in c/b/taskbar includes
     # chrome/browser/profiles/avatar_menu.h which is in this target, hence
     # causing a circular dependency.
@@ -4399,67 +4631,10 @@ static_library("browser") {
     ]
 
     deps += [
-      ":font_prewarmer_tab_helper",
-      "//chrome/app:chrome_exe_main_exports",
-      "//chrome/app/theme:chrome_unscaled_resources_grit",
-      "//chrome/browser/install_verification:impl",
-      "//chrome/browser/os_crypt",
-      "//chrome/browser/platform_experience:prefs",
-      "//chrome/browser/shortcuts",
-      "//chrome/browser/startup",
       "//chrome/browser/taskbar",
-      "//chrome/browser/web_applications/chrome_pwa_launcher:util",
-      "//chrome/browser/webnn",
-      "//chrome/browser/win:chrome_process_finder",
-      "//chrome/browser/win:cloud_synced_folder_checker",
       "//chrome/browser/win:impl",
-      "//chrome/browser/win:isolated_browser_support",
-      "//chrome/browser/win:mica_titlebar",
-      "//chrome/browser/win:registry_watcher",
-      "//chrome/browser/win/conflicts:module_info",
-      "//chrome/chrome_elf:constants",
-      "//chrome/chrome_elf:dll_hash",
-      "//chrome/chrome_elf:third_party_shared_defines",
-      "//chrome/common:version_header",
-      "//chrome/credential_provider/common:common_constants",
-      "//chrome/elevation_service:public_headers",
-      "//chrome/install_static:install_static_util",
-      "//chrome/installer/util:isolation_support",
-      "//chrome/installer/util:with_no_strings",
-      "//chrome/notification_helper:constants",
-      "//chrome/services/util_win/public/mojom",
-      "//chrome/updater/app/server/win:updater_legacy_idl",
-      "//chrome/windows_services/elevated_tracing_service:tracing_service_idl",
       "//components/app_launch_prefetch",
-      "//components/crash/core/app",
-      "//components/crash/core/app:crash_export_thunk_include",
-      "//components/device_signals/core/browser/win",
-      "//components/live_caption:utils",
-      "//components/os_crypt/async/browser:dpapi_key_provider",
-      "//components/stylus_handwriting/win",
-      "//sandbox/win:sandbox",
-      "//services/proxy_resolver/public/mojom",
-      "//third_party/crashpad/crashpad/client",
-      "//third_party/iaccessible2",
-      "//third_party/isimpledom",
-      "//third_party/wtl",
-      "//ui/aura_extra",
-      "//ui/base:fullscreen_win",
-      "//ui/color:accent_color_observer",
-      "//ui/display/util",
     ]
-
-    all_dependent_configs = [ ":browser_win_linker_flags" ]
-
-    if (is_chrome_branded) {
-      deps += [
-        "//chrome/browser/platform_experience/installer:installer_win",
-        "//chrome/browser/win/installer_downloader:controller",
-        "//chrome/browser/win/installer_downloader:infobar",
-        "//chrome/browser/win/installer_downloader:infobar_impl",
-        "//chrome/updater/app/server/win:updater_legacy_idl",
-      ]
-    }
   } else {
     # Non - Windows.
     if (toolkit_views) {
@@ -4468,84 +4643,6 @@ static_library("browser") {
         "//ui/views/controls/webview",
       ]
     }
-  }
-  if (is_mac) {
-    sources += [
-      "app_controller_mac.mm",
-      "browser_process_platform_part_mac.mm",
-      "chrome_browser_application_mac.mm",
-      "chrome_browser_main_mac.mm",
-      "file_select_helper_mac.mm",
-      "fullscreen_mac.mm",
-      "global_keyboard_shortcuts_mac.mm",
-      "icon_loader_mac.mm",
-      "memory_details_mac.cc",
-      "platform_util_mac.mm",
-      "process_singleton_mac.mm",
-      "shell_integration_mac.mm",
-    ]
-
-    deps += [
-      ":app_controller_mac",
-      ":chrome_browser_application_mac",
-      ":chrome_browser_main_mac",
-      ":global_keyboard_shortcuts_mac",
-      "//chrome/app_shim",
-      "//chrome/browser/apps/app_shim",
-      "//chrome/browser/enterprise/connectors/device_trust/key_management/core/mac",
-      "//chrome/browser/mac",
-      "//chrome/browser/mac:impl",
-      "//chrome/browser/renderer_host:delegate",
-      "//chrome/browser/renderer_host:delegate_impl",
-      "//chrome/browser/renderer_host:history_swiper",
-      "//chrome/browser/web_applications/os_integration/mac:web_app_shortcut_copier_lib",
-      "//chrome/services/mac_notifications",
-      "//chrome/services/mac_notifications/public/cpp",
-      "//chrome/services/mac_notifications/public/mojom",
-      "//components/crash/core/app",
-      "//components/device_signals/core/browser/mac",
-      "//components/enterprise/platform_auth:enterprise_platform_auth",
-      "//components/metal_util",
-      "//components/os_crypt/async/browser:keychain_key_provider",
-      "//components/policy/core/common:common_constants",
-      "//components/remote_cocoa/app_shim",
-      "//components/remote_cocoa/app_shim:features",
-      "//components/remote_cocoa/browser",
-      "//sandbox/mac:seatbelt",
-      "//sandbox/policy",
-      "//services/video_capture/public/mojom:constants",
-      "//third_party/crashpad/crashpad/client",
-    ]
-
-    # Any circular includes must depend on the target
-    # "browser_public_dependencies".
-    allow_circular_includes_from += [
-      "//chrome/browser/apps/app_shim",
-      "//chrome/browser/ui/cocoa",
-    ]
-
-    deps += [ "//chrome/browser/ui/cocoa" ]
-
-    frameworks = [
-      "Accelerate.framework",
-      "AudioUnit.framework",
-      "AVFoundation.framework",
-      "AuthenticationServices.framework",
-      "CoreVideo.framework",  # Used for the Thumbnail capturer on macOS.
-      "DiskArbitration.framework",
-      "IOKit.framework",
-      "LocalAuthentication.framework",
-      "OpenGL.framework",
-      "QuartzCore.framework",
-      "SafariServices.framework",
-      "SecurityInterface.framework",
-      "UserNotifications.framework",
-      "UniformTypeIdentifiers.framework",
-      "VideoToolbox.framework",
-    ]
-    weak_frameworks = [
-      "ScreenCaptureKit.framework",  # Available in macOS 12.3, stable in 13.2.
-    ]
   }
 
   if (enterprise_watermark) {
@@ -4652,24 +4749,7 @@ static_library("browser") {
     ]
   }
 
-  if (is_linux || is_chromeos) {
-    sources += [
-      "chrome_browser_main_linux.cc",
-      "memory_details_linux.cc",
-    ]
-    deps += [ "//third_party/fontconfig" ]
-    if (use_dbus) {
-      deps += [ "//dbus" ]
-    }
-  }
-
   if (is_linux) {
-    sources += [
-      "chrome_browser_main_extra_parts_linux.cc",
-      "fullscreen_linux.cc",
-      "icon_loader_auralinux.cc",
-      "shell_integration_linux.cc",
-    ]
     deps += [
       ":shell_integration_linux",
       "//chrome/app/theme:chrome_unscaled_resources_grit",
@@ -4682,11 +4762,6 @@ static_library("browser") {
     }
 
     if (use_dbus) {
-      sources += [
-        "dbus_memory_pressure_evaluator_linux.cc",
-        "dbus_memory_pressure_evaluator_linux.h",
-        "platform_util_linux.cc",
-      ]
       deps += [
         "//chrome/common:chrome_features",
         "//components/dbus",
@@ -4697,10 +4772,6 @@ static_library("browser") {
   }
 
   if (is_posix) {
-    sources += [
-      "shutdown_signal_handlers_posix.cc",
-      "shutdown_signal_handlers_posix.h",
-    ]
     if (!is_mac) {
       deps += [ "//components/os_crypt/async/browser:posix_key_provider" ]
     }
@@ -4752,7 +4823,6 @@ static_library("browser") {
   }
 
   if (is_posix && !is_mac) {
-    sources += [ "//chrome/app/chrome_crash_reporter_client.cc" ]
     deps += [
       "//chrome/app:chrome_crash_reporter_client",
       "//components/crash/content/browser",
@@ -4762,8 +4832,6 @@ static_library("browser") {
   }
 
   if (use_aura) {
-    # Cross - platform Aura files.
-    sources += [ "platform_util_aura.cc" ]
     deps += [
       "//ui/aura",
       "//ui/base/dragdrop:types",
@@ -4782,7 +4850,6 @@ static_library("browser") {
   }
 
   if (use_ozone) {
-    sources += [ "chrome_browser_main_extra_parts_ozone.cc" ]
     deps += [
       "//ui/events/ozone",
       "//ui/ozone",
@@ -4921,12 +4988,6 @@ static_library("browser") {
   }
 
   if (enable_extensions) {
-    sources += [
-      "policy/value_provider/extension_install_policies_value_provider.cc",
-      "policy/value_provider/extension_install_policies_value_provider.h",
-      "policy/value_provider/extension_policies_value_provider.cc",
-      "policy/value_provider/extension_policies_value_provider.h",
-    ]
     public_deps += [
       "//chrome/browser/apps/platform_apps",
       "//chrome/browser/apps/platform_apps/api",
@@ -5001,14 +5062,6 @@ static_library("browser") {
   # TODO(https://crbug.com/356905053): Add more dependencies here and merge this
   # block with the `enable_extensions` block above.
   if (enable_desktop_android_extensions) {
-    sources += [
-      # TODO(https://crbug.com/356905053): These files are temporary workarounds
-      # allow for a lightweight extensions runtime in desktop-android builds.
-      # They should be removed.
-      "extensions/extension_menu_model_android.cc",
-      "extensions/extension_menu_model_android.h",
-    ]
-
     deps += [
       "//chrome/browser/extensions",
       "//chrome/browser/ui/android/extensions",
@@ -5032,9 +5085,6 @@ static_library("browser") {
     deps += [ "//media/mojo/mojom" ]
 
     if (enable_cdm_storage_id) {
-      if (is_chrome_branded) {
-        sources += [ "internal/google_chrome_cdm_storage_id_key.h" ]
-      }
       if (enable_rlz) {
         deps += [ "//rlz:rlz_lib" ]
       }
@@ -5056,19 +5106,6 @@ static_library("browser") {
     # //chrome/browser/net/net_error_tab_helper.h
     # //chrome/browser/ssl/chrome_security_state_tab_helper.h
     allow_circular_includes_from += [ "//chrome/browser/offline_pages:impl" ]
-
-    # Used to build test harness locally.The harness is used manually to
-    # produce multiple offline pages to evaluate quality of the snapshots.
-    # This will only be built iff. | enable_offline_pages_harness | is set while
-    # | enable_offline_pages | and | is_android | are both true.
-    if (enable_offline_pages_harness && is_android) {
-      sources += [
-        "offline_pages/android/evaluation/evaluation_test_scheduler.cc",
-        "offline_pages/android/evaluation/evaluation_test_scheduler.h",
-        "offline_pages/android/evaluation/offline_page_evaluation_bridge.cc",
-        "offline_pages/android/evaluation/offline_page_evaluation_bridge.h",
-      ]
-    }
   }
   if (enable_on_device_translation) {
     deps += [
@@ -5136,31 +5173,12 @@ static_library("browser") {
   }
 
   if (enable_vr) {
-    sources += [
-      "vr/chrome_xr_integration_client.cc",
-      "vr/ui_host/vr_ui_host_impl.cc",
-      "vr/ui_host/vr_ui_host_impl.h",
-    ]
-
     deps += [
       "//chrome/browser/vr:chrome_xr_integration_client",
       "//chrome/browser/vr:vr_common",
       "//device/vr",
       "//device/vr/public/mojom:isolated_xr_service",
     ]
-
-    if (is_android) {
-      # vr/chrome_xr_integration_client.cc unconditionally includes JNI headers
-      # from the per-runtime modules.
-      if (enable_arcore) {
-        deps += [ "//chrome/browser/android/vr:ar_jni_headers" ]
-      }
-      if (enable_cardboard) {
-        deps += [ "//chrome/browser/android/vr:vr_jni_headers" ]
-      }
-    } else {
-      deps += [ "//device/vr/public/mojom:isolated_xr_service" ]
-    }
   }
 
   if (enable_lens_desktop_google_branded_features) {
@@ -5196,6 +5214,10 @@ static_library("browser") {
       "//chrome/browser/chrome_for_testing",
       "//chrome/browser/chrome_for_testing:browser",
     ]
+  }
+
+  if (!is_android) {
+    deps += [ "//chrome/browser/contextual_cueing/internals" ]
   }
 }
 
@@ -5387,7 +5409,6 @@ group("browser_generated_files") {
     "//chrome/browser/ui/webui/location_internals:mojo_bindings",
     "//chrome/browser/ui/webui/omnibox:mojo_bindings",
     "//chrome/browser/ui/webui/personal_context_internals:mojo_bindings",
-    "//chrome/browser/ui/webui/privacy_sandbox:mojo_bindings",
     "//chrome/browser/ui/webui/reset_password:mojo_bindings",
     "//chrome/browser/ui/webui/segmentation_internals:mojo_bindings",
     "//chrome/browser/ui/webui/suggest_internals:mojo_bindings",
@@ -5815,10 +5836,7 @@ static_library("test_support") {
       "android/webapk/test/fake_webapk_specifics_fetcher.h",
     ]
 
-    deps += [
-      "//chrome/browser/android",
-      "//chrome/browser/download:test_support",
-    ]
+    deps += [ "//chrome/browser/android" ]
   } else {
     sources += [
       "apps/intent_helper/preferred_apps_test_util.cc",

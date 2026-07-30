@@ -79,5 +79,4 @@ proto_library("full_proto") {
   proto_deps = [ ":prepare_full_proto" ]
 
   use_protobuf_full = true
-  import_dirs = [ "//third_party/protobuf/src" ]
 }

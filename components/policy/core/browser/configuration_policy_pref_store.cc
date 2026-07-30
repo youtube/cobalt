@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/functional/bind.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/observer_list.h"
 #include "components/policy/core/browser/browser_policy_connector_base.h"
 #include "components/policy/core/browser/configuration_policy_handler_list.h"
@@ -143,6 +144,9 @@ ConfigurationPolicyPrefStore::CreatePreferencesFromPolicies() {
   handler_list_->ApplyPolicySettings(filtered_policies, prefs.get(),
                                      errors.get(), &deprecated_policies,
                                      &future_policies);
+
+  base::UmaHistogramBoolean("Enterprise.CloudPolicy.HasPreferenceMappingErrors",
+                            !errors->empty());
 
   if (!errors->empty()) {
     if (errors->IsReady()) {

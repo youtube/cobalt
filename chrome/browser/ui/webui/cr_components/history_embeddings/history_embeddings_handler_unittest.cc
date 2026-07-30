@@ -154,8 +154,7 @@ class HistoryEmbeddingsHandlerTest : public BrowserWithTestWindowTest {
 
     handler_ = std::make_unique<HistoryEmbeddingsHandler>(
         mojo::PendingReceiver<history_embeddings::mojom::PageHandler>(),
-        profile_->GetWeakPtr(), web_ui(), false);
-    handler_->SetPage(page_.BindAndGetRemote());
+        page_.BindAndGetRemote(), profile_->GetWeakPtr(), web_ui(), false);
   }
 
   void TearDown() override {

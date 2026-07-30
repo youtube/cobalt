@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../assert_selection.js"></script>
+<script>
+// Test move forward/backward line when there is a ruby element.
+// This test is expected to fail currently as caret enters <rt>.
+
+// Move forward line from before ruby to the next line.
+selection_test(
+  [
+    '<div contenteditable>',
+      '<p>1行目のテキスト</p>',
+      '<p>2行目の|テキスト<ruby>漢字<rt>かんじ</rt></ruby>テキスト</p>',
+      '<p>3行目のテキストテキストテキスト</p>',
+    '</div>',
+  ].join(''),
+  selection => selection.modify('move', 'forward', 'line'),
+  [
+    '<div contenteditable>',
+      '<p>1行目のテキスト</p>',
+      '<p>2行目のテキスト<ruby>漢字<rt>かんじ</rt></ruby>テキスト</p>',
+      '<p>3行目の|テキストテキストテキスト</p>',
+    '</div>',
+  ].join(''),
+  'Move forward line from before ruby to the next line');
+
+// Move backward line from after ruby to the previous line.
+selection_test(
+  [
+    '<div contenteditable>',
+      '<p>1行目のテキストテキストテキスト</p>',
+      '<p>2行目のテキスト<ruby>漢字<rt>かんじ</rt></ruby>テキ|スト</p>',
+      '<p>3行目のテキスト</p>',
+    '</div>',
+  ].join(''),
+  selection => selection.modify('move', 'backward', 'line'),
+  [
+    '<div contenteditable>',
+      '<p>1行目のテキストテキスト|テキスト</p>',
+      '<p>2行目のテキスト<ruby>漢字<rt>かんじ</rt></ruby>テキスト</p>',
+      '<p>3行目のテキスト</p>',
+    '</div>',
+  ].join(''),
+  'Move backward line from after ruby to the previous line');
+</script>

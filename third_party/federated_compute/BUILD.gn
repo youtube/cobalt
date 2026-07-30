@@ -12,17 +12,37 @@ config("federated_compute_include") {
   ]
 }
 
+config("compat_no_flock") {
+  if (is_win) {
+    include_dirs = [ "compat-no-flock" ]
+  }
+}
+
 source_set("base") {
   public = [
     "src/fcp/base/base_name.h",
+    "src/fcp/base/clock.h",
+    "src/fcp/base/compression.h",
     "src/fcp/base/digest.h",
     "src/fcp/base/monitoring.h",
+    "src/fcp/base/platform.h",
+    "src/fcp/base/random_token.h",
+    "src/fcp/base/scheduler.h",
+    "src/fcp/base/time_util.h",
+    "src/fcp/base/wall_clock_stopwatch.h",
   ]
 
   sources = [
     "src/fcp/base/base_name.cc",
+    "src/fcp/base/clock.cc",
+    "src/fcp/base/compression.cc",
     "src/fcp/base/digest.cc",
     "src/fcp/base/monitoring.cc",
+    "src/fcp/base/platform.cc",
+    "src/fcp/base/random_token.cc",
+    "src/fcp/base/scheduler.cc",
+    "src/fcp/base/time_util.cc",
+    "src/fcp/base/wall_clock_stopwatch.cc",
   ]
 
   configs -= [ "//build/config/compiler:chromium_code" ]
@@ -33,11 +53,15 @@ source_set("base") {
   deps = [
     "//third_party/abseil-cpp:absl",
     "//third_party/boringssl",
+    "//third_party/protobuf:duration_proto",
+    "//third_party/protobuf:io_gzip_stream",
+    "//third_party/protobuf:timestamp_proto",
   ]
 }
 
 proto_library("confidential_compute_proto") {
   sources = [
+    "src/fcp/protos/confidentialcompute/aggregation_client_payload.proto",
     "src/fcp/protos/confidentialcompute/data_upload_config.proto",
     "src/fcp/protos/confidentialcompute/key.proto",
     "src/fcp/protos/confidentialcompute/payload_transparency.proto",
@@ -47,12 +71,12 @@ proto_library("confidential_compute_proto") {
 
   deps = [
     "//third_party/oak:oak_proto",
+    "//third_party/oak:proto_attestation_reference_value_proto",
     "//third_party/protobuf:timestamp_proto",
   ]
 
   import_dirs = [
     "//third_party/oak/chromium",
-    "//third_party/protobuf/src",
   ]
 
   proto_in_dir = "src"
@@ -62,12 +86,14 @@ proto_library("confidential_compute_proto") {
 
 source_set("confidential_compute") {
   public = [
+    "src/fcp/confidentialcompute/client_payload.h",
     "src/fcp/confidentialcompute/cose.h",
     "src/fcp/confidentialcompute/crypto.h",
   ]
 
   sources = [
     "chromium/fcp/confidentialcompute/cose.cc",
+    "src/fcp/confidentialcompute/client_payload.cc",
     "src/fcp/confidentialcompute/crypto.cc",
   ]
 
@@ -78,13 +104,214 @@ source_set("confidential_compute") {
 
   public_deps = [
     ":confidential_compute_proto",
-    "//third_party/oak:oak_proto",
+    "//third_party/boringssl",
   ]
 
   deps = [
     ":base",
     "//base",
     "//components/cbor",
+  ]
+}
+
+proto_library("federatedcompute_proto") {
+  sources = [
+    "chromium/fcp/protos/federated_api.proto",
+    "chromium/fcp/protos/federatedcompute/aggregations.proto",
+    "chromium/fcp/protos/federatedcompute/common.proto",
+    "chromium/fcp/protos/federatedcompute/confidential_aggregations.proto",
+    "chromium/fcp/protos/federatedcompute/eligibility_eval_tasks.proto",
+    "chromium/fcp/protos/federatedcompute/secure_aggregations.proto",
+    "chromium/fcp/protos/federatedcompute/task_assignments.proto",
+    "chromium/fcp/secagg/shared/secagg_messages.proto",
+  ]
+
+  deps = [
+    "//third_party/federated_compute/third_party/googleapis:google_rpc_code_proto",
+    "//third_party/federated_compute/third_party/googleapis:google_rpc_status_proto",
+    "//third_party/protobuf:any_proto",
+    "//third_party/protobuf:duration_proto",
+  ]
+
+  import_dirs = [
+    "//third_party/oak/chromium",
+    "//third_party/federated_compute/third_party/googleapis/src",
+  ]
+
+  proto_in_dir = "chromium"
+  cc_generator_options = "lite"
+}
+
+proto_library("client_proto") {
+  sources = [
+    "src/fcp/client/cache/cache_manifest.proto",
+    "src/fcp/client/diag_codes.proto",
+    "src/fcp/client/engine/engine.proto",
+    "src/fcp/client/event_time_range.proto",
+    "src/fcp/client/example_query_result.proto",
+    "src/fcp/client/fl_runner.proto",
+    "src/fcp/client/histogram_counters.proto",
+    "src/fcp/client/http/http_resource_metadata.proto",
+    "src/fcp/client/selector_context.proto",
+    "src/fcp/client/task_result_info.proto",
+    "src/fcp/protos/confidentialcompute/access_policy_endorsement_options.proto",
+    "src/fcp/protos/confidentialcompute/blob_header.proto",
+    "src/fcp/protos/confidentialcompute/payload_metadata.proto",
+    "src/fcp/protos/confidentialcompute/windowing_schedule.proto",
+    "src/fcp/protos/data_type.proto",
+    "src/fcp/protos/opstats.proto",
+    "src/fcp/protos/plan.proto",
+    "src/fcp/protos/population_eligibility_spec.proto",
+  ]
+
+  deps = [
+    ":confidential_compute_proto",
+    ":federatedcompute_proto",
+    "//third_party/federated_compute/third_party/googleapis:google_longrunning_operations_proto",
+    "//third_party/federated_compute/third_party/googleapis:google_rpc_code_proto",
+    "//third_party/federated_compute/third_party/googleapis:google_type_date_proto",
+    "//third_party/federated_compute/third_party/googleapis:google_type_datetime_proto",
+    "//third_party/federated_compute/third_party/googleapis:google_type_timeofday_proto",
+    "//third_party/oak:oak_proto",
+    "//third_party/oak:proto_attestation_reference_value_proto",
+    "//third_party/protobuf:any_proto",
+    "//third_party/protobuf:duration_proto",
+    "//third_party/protobuf:timestamp_proto",
+  ]
+
+  import_dirs = [
+    "chromium",
+    "//third_party/federated_compute/third_party/googleapis/src",
+    "//third_party/oak/chromium",
+    "//third_party/protobuf/src",
+  ]
+
+  proto_in_dir = "src"
+  cc_generator_options = "lite"
+}
+
+source_set("fl_runner") {
+  public = [
+    "src/fcp/client/event_publisher.h",
+    "src/fcp/client/files.h",
+    "src/fcp/client/fl_runner.h",
+    "src/fcp/client/flags.h",
+    "src/fcp/client/log_manager.h",
+    "src/fcp/client/secagg_event_publisher.h",
+    "src/fcp/client/stats.h",
+  ]
+
+  sources = [
+    "chromium/fcp/client/cache/file_backed_resource_cache.h",
+    "chromium/fcp/client/opstats/pds_backed_opstats_db.cc",
+    "chromium/fcp/client/secagg_runner.cc",
+    "src/fcp/client/attestation/attestation_verifier.cc",
+    "src/fcp/client/attestation/attestation_verifier.h",
+    "src/fcp/client/cache/resource_cache.h",
+    "src/fcp/client/converters.cc",
+    "src/fcp/client/converters.h",
+    "src/fcp/client/eligibility_decider.cc",
+    "src/fcp/client/eligibility_decider.h",
+    "src/fcp/client/engine/common.cc",
+    "src/fcp/client/engine/common.h",
+    "src/fcp/client/engine/example_iterator_factory.h",
+    "src/fcp/client/engine/example_query_plan_engine.cc",
+    "src/fcp/client/engine/example_query_plan_engine.h",
+    "src/fcp/client/engine/external_dataset_iterator.h",
+    "src/fcp/client/engine/privacy_id_utils.cc",
+    "src/fcp/client/engine/privacy_id_utils.h",
+    "src/fcp/client/example_iterator_query_recorder.cc",
+    "src/fcp/client/example_iterator_query_recorder.h",
+    "src/fcp/client/federated_protocol.h",
+    "src/fcp/client/federated_protocol_util.cc",
+    "src/fcp/client/federated_protocol_util.h",
+    "src/fcp/client/federated_select.cc",
+    "src/fcp/client/federated_select.h",
+    "src/fcp/client/fl_runner.cc",
+    "src/fcp/client/http/http_client.h",
+    "src/fcp/client/http/http_client_util.cc",
+    "src/fcp/client/http/http_client_util.h",
+    "src/fcp/client/http/http_federated_protocol.cc",
+    "src/fcp/client/http/http_federated_protocol.h",
+    "src/fcp/client/http/http_secagg_send_to_server_impl.cc",
+    "src/fcp/client/http/http_secagg_send_to_server_impl.h",
+    "src/fcp/client/http/in_memory_request_response.cc",
+    "src/fcp/client/http/in_memory_request_response.h",
+    "src/fcp/client/http/protocol_request_helper.cc",
+    "src/fcp/client/http/protocol_request_helper.h",
+    "src/fcp/client/interruptible_runner.cc",
+    "src/fcp/client/interruptible_runner.h",
+    "src/fcp/client/opstats/opstats_db.h",
+    "src/fcp/client/opstats/opstats_example_store.cc",
+    "src/fcp/client/opstats/opstats_example_store.h",
+    "src/fcp/client/opstats/opstats_logger.h",
+    "src/fcp/client/opstats/opstats_logger_impl.cc",
+    "src/fcp/client/opstats/opstats_logger_impl.h",
+    "src/fcp/client/opstats/opstats_utils.cc",
+    "src/fcp/client/opstats/opstats_utils.h",
+    "src/fcp/client/opstats/pds_backed_opstats_db.h",
+    "src/fcp/client/phase_logger.h",
+    "src/fcp/client/phase_logger_impl.cc",
+    "src/fcp/client/phase_logger_impl.h",
+    "src/fcp/client/runner_common.h",
+    "src/fcp/client/secagg_runner.h",
+    "src/fcp/client/simple_task_environment.cc",
+    "src/fcp/client/simple_task_environment.h",
+    "src/fcp/client/tensorflow/tensorflow_runner.h",
+    "src/fcp/client/tensorflow/tensorflow_runner_factory.cc",
+    "src/fcp/client/tensorflow/tensorflow_runner_factory.h",
+    "src/fcp/client/willow/willow_payload_encryptor.h",
+    "src/fcp/confidentialcompute/time_window_utilities.cc",
+    "src/fcp/confidentialcompute/time_window_utilities.h",
+    "src/fcp/secagg/client/secagg_client.h",
+    "src/fcp/secagg/client/secagg_client_state.h",
+    "src/fcp/secagg/client/send_to_server_interface.h",
+    "src/fcp/secagg/client/state_transition_listener_interface.h",
+    "src/fcp/secagg/shared/aes_key.h",
+    "src/fcp/secagg/shared/aes_prng_factory.h",
+    "src/fcp/secagg/shared/async_abort.h",
+    "src/fcp/secagg/shared/input_vector_specification.h",
+    "src/fcp/secagg/shared/key.h",
+    "src/fcp/secagg/shared/prng.h",
+    "src/fcp/secagg/shared/secagg_vector.h",
+    "src/fcp/secagg/shared/shamir_secret_sharing.h",
+  ]
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+
+  public_configs = [ ":federated_compute_include" ]
+
+  configs += [
+    # Temporary workaround for Windows, where flock() is not natively supported.
+    #
+    # Stubbing flock to return 0 (success) is safe (in this specific case)
+    # because the FCP service in Chrome is a singleton (per profile), and Chrome
+    # enforces a single app instance per data directory, so concurrent FCP
+    # processes writing to the same directory do not exist.
+    ":compat_no_flock",
+  ]
+
+  public_deps = [
+    ":base",
+    ":client_proto",
+    ":federatedcompute_proto",
+    "third_party/tensorflow-federated:tensorflow_federated",
+    "//third_party/abseil-cpp:absl",
+  ]
+
+  deps = [
+    ":confidential_compute",
+    "third_party/protodatastore-cpp",
+    "//third_party/federated_compute/third_party/googleapis:google_longrunning_operations_proto",
+    "//third_party/federated_compute/third_party/googleapis:google_rpc_code_proto",
+    "//third_party/federated_compute/third_party/googleapis:google_rpc_status_proto",
+    "//third_party/protobuf:any_proto",
+    "//third_party/protobuf:duration_proto",
+    "//third_party/protobuf:protobuf_lite",
+    "//third_party/protobuf:time_util",
+    "//third_party/protobuf:timestamp_proto",
+    "//third_party/re2",
   ]
 }
 

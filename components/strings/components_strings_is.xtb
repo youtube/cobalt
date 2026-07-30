@@ -269,6 +269,7 @@ Ef þú gerir það ekki loka persónuverndarstillingar þínar á þennan aðga
 <translation id="1407135791313364759">Opna alla</translation>
 <translation id="1408696301184924537">Til að fylla þetta IBAN út næst með sjálfvirkum hætti skaltu vista það á Google-reikningnum þínum</translation>
 <translation id="1408787208417187241">Þrjú hefti efst</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> af <ph name="NUM_MATCHES_IN_GROUP" /> í hópnum <ph name="GROUP_HEADER" />.</translation>
 <translation id="1410365862999780287">Aðrir sem nota tækið geta ekki séð virknina þína svo þú getur vafrað að vild. Þetta breytir því ekki hvernig vefsvæði sem þú skoðar og þjónustur sem þau nota safna gögnunum þínum, þ.m.t Google. Niðurhal, bókamerki og atriði á leslista verða vistuð.</translation>
 <translation id="1410941016594047814">Umslag: boðskort</translation>
 <translation id="1413235258620101697">CVC-númer þessa korts verður dulkóðað og vistað í Google-veski til að flýta fyrir greiðslu</translation>
@@ -300,6 +301,7 @@ Ef þú gerir það ekki loka persónuverndarstillingar þínar á þennan aðga
 <translation id="1445896388055045436">Sýna tiltæk fríðindi korts við greiðslu. Skilmálar útgefanda gilda.</translation>
 <translation id="1447067628680007684">(x86_64)</translation>
 <translation id="1448166547804028941">Ekki er hægt að setja upp lyklana „<ph name="DATA_CONTROLS_FIRST_KEY_SET" />“ í sama reglusafni og lyklarnir „<ph name="DATA_CONTROLS_SECOND_KEY_SET" />“ eru í</translation>
+<translation id="1449251255954293933">Vista leiðréttingarnúmer í Google-veski</translation>
 <translation id="1455413310270022028">Strokleður</translation>
 <translation id="1457992721081300557">{NUM_REVIEWS,plural, =0{Skoða 0 umsagnir}=1{Skoða 1 umsögn}one{Skoða # umsögn}other{Skoða # umsagnir}}</translation>
 <translation id="1458059624921545588">Fólk og samfélag</translation>
@@ -660,6 +662,7 @@ Ef þú gerir það ekki loka persónuverndarstillingar þínar á þennan aðga
 <translation id="2045871135676061132">Umslag: persónulegt</translation>
 <translation id="2046951263634619614">Bókabúðir</translation>
 <translation id="2048261947532620704">Þýðir síðu</translation>
+<translation id="2055016614992422886">Samtal</translation>
 <translation id="2059166748188874810">Sveitarfélag</translation>
 <translation id="2059202684901022309">22 x 34 to.</translation>
 <translation id="2064568741209980952">Lánstraust og lán</translation>
@@ -1155,6 +1158,7 @@ Ef þú gerir það ekki loka persónuverndarstillingar þínar á þennan aðga
 <translation id="2782088940970074970">Bílaleigur</translation>
 <translation id="278436560439594386">Heimilistæki</translation>
 <translation id="2784474685437057136">B5 Extra</translation>
+<translation id="2784795832957740711">Aðgangsorð · aðgangslyklar</translation>
 <translation id="2784949926578158345">Tengingin var núllstillt.</translation>
 <translation id="2786008859124691917">Reiðhjól og fylgihlutir</translation>
 <translation id="2792012897584536778">Kerfisstjórar þessa tækis eru búnir að setja upp öryggisvottorð sem kann að gera þeim kleift að sjá efni vefsvæða sem þú opnar.</translation>
@@ -2305,6 +2309,7 @@ Farðu í <ph name="BEGIN_LINK" />greiðslustillingar<ph name="END_LINK" /> til 
 <translation id="46128681529823442">Fótboltabúnaður</translation>
 <translation id="4612904677925722054">Þetta vefsvæði gæti innihaldið efni fyrir fullorðna. Foreldri þitt eða forsjáraðili verður að samþykkja að þú skoðir þetta vefsvæði.</translation>
 <translation id="4619564267100705184">Staðfestu hver þú ert</translation>
+<translation id="4619669610757527494">Vista ökuskírteini í Google-veski</translation>
 <translation id="4622292761762557753">Flytja samt</translation>
 <translation id="4622647778991854660">Kveiktu á tilkynningum í Tilkynningamiðstöðinni. Opna <ph name="LINK" />.</translation>
 <translation id="4623894491222334521">Skilríki</translation>
@@ -2834,6 +2839,7 @@ Farðu í <ph name="BEGIN_LINK" />greiðslustillingar<ph name="END_LINK" /> til 
 <translation id="543656192084990644">Hreyfiskynjarar ekki leyfðir</translation>
 <translation id="5441409130426352029"><ph name="ATTRIBUTE_VALUE" />, áður <ph name="PREVIOUS_VALUE" /></translation>
 <translation id="5443468954631487277">Öfug röð, snýr upp</translation>
+<translation id="5447103258548475868">Vista vegabréf í Google-veski</translation>
 <translation id="5447235695608032700">Leyfa <ph name="SITE" /> að nota upplýsingar sem það hefur vistað um þig</translation>
 <translation id="5447973833955560753">Endurheimtaraðgangsorð</translation>
 <translation id="5451331376824595378">Þegar Chrome flaggar öryggisatvik eru viðeigandi gögn um atvikin send til kerfisstjórans. Þetta getur innihaldið vefslóðir síðna sem þú opnar í Chrome, vefslóðir síðna sem þú hefur afritað gögn af, skráarheiti eða lýsigögn, IP-tölur, hrun í vafra eða flipa og notandanafnið sem þú notar til að skrá þig inn í forrit á vefnum, tækið þitt og Chrome.</translation>
@@ -3557,6 +3563,7 @@ Farðu í <ph name="BEGIN_LINK" />greiðslustillingar<ph name="END_LINK" /> til 
 <translation id="6550245281449521513">Ekki leyfilegt að læsa mús</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />, nýtt</translation>
 <translation id="6552566579578780089">Greiðslur</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> af <ph name="NUM_MATCHES_IN_GROUP" /> í hópnum <ph name="GROUP_HEADER" />.</translation>
 <translation id="6554732001434021288">Síðast opnað fyrir <ph name="NUM_DAYS" /> dögum</translation>
 <translation id="6556866813142980365">Endurgera</translation>
 <translation id="6557715786897013164">14 x 17 to.</translation>
@@ -4233,6 +4240,7 @@ Farðu í <ph name="BEGIN_LINK" />greiðslustillingar<ph name="END_LINK" /> til 
 <translation id="7599089013883397081">Niðurhal rann út á tíma</translation>
 <translation id="7602868996817972616">Spyrja Google um þessa síðu</translation>
 <translation id="7606123685356405076">Gemini 3-líkön</translation>
+<translation id="760632772920590778">Vista bíl í Google-veski</translation>
 <translation id="7610193165460212391">Gildið er utan sviðs <ph name="VALUE" />.</translation>
 <translation id="761261689936461781">Þykk</translation>
 <translation id="7613889955535752492">Rennur út: <ph name="EXPIRATION_MONTH" />/<ph name="EXPIRATION_YEAR" /></translation>
@@ -4262,6 +4270,7 @@ Farðu í <ph name="BEGIN_LINK" />greiðslustillingar<ph name="END_LINK" /> til 
 <translation id="7647206758853451655">Prentgæði</translation>
 <translation id="7648133459447652947">Til að sjá bendilinn þinn, skipta á milli forrita, endurnýja síðuna eða fara til baka</translation>
 <translation id="7648527891719919697">Þetta vefsvæði verður áfram á bannlista vegna þess að kveikt er á Áætlun um ítarlega vernd í <ph name="BEGIN_ANDROID_SETTINGS_LINK" />stillingum Android<ph name="END_ANDROID_SETTINGS_LINK" />. <ph name="BEGIN_LEARN_MORE_LINK" />Nánar um þessa viðvörun<ph name="END_LEARN_MORE_LINK" /></translation>
+<translation id="7648900539798595789">Vista þekkt ferðalangsnúmer í Google-veski</translation>
 <translation id="7648992873808071793">Geyma skrár í þessu tæki</translation>
 <translation id="7649070708921625228">Hjálp</translation>
 <translation id="7650141368285545431">Nota aðgangslykil úr öðru tæki</translation>
@@ -4354,6 +4363,7 @@ Farðu í <ph name="BEGIN_LINK" />greiðslustillingar<ph name="END_LINK" /> til 
 <translation id="7773005668374414287">Sama röð, snýr upp</translation>
 <translation id="7779418012194492374">Afturkalla aðgang fyrir <ph name="DEVICE_NAME" /></translation>
 <translation id="7781829728241885113">Í gær</translation>
+<translation id="7782228658217918863">Vista skilríki í Google-veski</translation>
 <translation id="7782465647372057580">Reikningsupplýsingar eru dulkóðaðar og lokaðar</translation>
 <translation id="7785471469930192436">Skoðaðu leiðbeiningar leitarvélarinnar um að eyða leitarferlinum ef það á við</translation>
 <translation id="7785790577395078482">þessari spjaldtölvu</translation>

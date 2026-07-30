@@ -404,6 +404,7 @@ Neke funkcije su možda nedostupne. Navedite drugi direktorijum profila ili kori
 <translation id="5234764350956374838">Odbaci</translation>
 <translation id="5239627039202700673">Koristite Chrome svaki put kada kliknite na linkove u porukama, dokumentima i drugim aplikacijama.</translation>
 <translation id="5251420635869119124">Gosti mogu da koriste Chrome a da ne ostavljaju nikakve tragove.</translation>
+<translation id="5271833978500241046">Koristite ih sa drugim Gemini funkcijama u Chrome-u</translation>
 <translation id="5286907366254680517">Otkriveno</translation>
 <translation id="5320351714793324716">Ako dozvolite kolačiće, Chrome može da ih koristi kada predučitava stranice</translation>
 <translation id="5321325624576443340">Google objektiv nije dostupan. Probajte ponovo kasnije.</translation>
@@ -442,15 +443,6 @@ Google Chrome ne može da vrati podešavanja.</translation>
 <translation id="569897634095159764">Povezivanje sa internetom nije uspelo. Proksi server zahteva potvrdu identiteta.</translation>
 <translation id="5709557627224531708">Podesite Chrome kao podrazumevani pregledač</translation>
 <translation id="5719246646468301581">Dodatni uslovi korišćenja usluge za Google Chrome i ChromeOS</translation>
-<translation id="5719324992913248873">Ovom radnjom:
-          <ph name="LINE_BREAKS" />
-           • resetujete neka Chrome podešavanja i Chrome prečice
-           <ph name="LINE_BREAK" />
-           • onemogućavate dodatke
-           <ph name="LINE_BREAK" />
-           • brišete kolačiće i druge privremene podatke o sajtovima
-            <ph name="LINE_BREAKS" />
-           Ovo se neće odraziti na obeleživače, istoriju i sačuvane lozinke.</translation>
 <translation id="5736850870166430177">Ako neki sajt pokuša da ukrade vašu lozinku ili probate da preuzmete štetni fajl, Chrome može da pošalje URL-ove, uključujući delove sadržaja stranice, u Bezbedno pregledanje</translation>
 <translation id="5756509061973259733">Chrome profil sa ovim nalogom već postoji na ovom uređaju</translation>
 <translation id="5759947850379142561">Izaberite bilo koji tekst ili sliku za pretragu pomoću Google objektiva ili pritisnite Escape da biste izašli iz Google objektiva</translation>
@@ -648,6 +640,7 @@ Google Chrome ne može da vrati podešavanja.</translation>
 <translation id="7606334485649076285">Google Chrome OS Flex</translation>
 <translation id="7627609214560473136">Da biste zaštitili podatke, dozvolite da Chrome uklanja dozvole sa sajtova koje duže niste posećivali.</translation>
 <translation id="7629695634924605473">Chrome vas obaveštava ako su lozinke ugrožene</translation>
+<translation id="7629898584100520089">Inovacije veštačke inteligencije, poput veština, čuvaju se na Google nalogu i njima se upravlja zasebno od Chrome sinhronizacije</translation>
 <translation id="7641148173327520642">Administrator sistema je konfigurisao Google Chrome da otvara pregledač <ph name="ALTERNATIVE_BROWSER_NAME" /> da bi pristupao <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="7649070708921625228">Pomoć</translation>
 <translation id="7651907282515937834">Chrome Enterprise logotip</translation>

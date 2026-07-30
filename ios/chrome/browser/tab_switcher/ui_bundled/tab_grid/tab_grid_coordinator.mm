@@ -26,6 +26,7 @@
 #import "components/strings/grit/components_strings.h"
 #import "components/supervised_user/core/browser/supervised_user_utils.h"
 #import "ios/chrome/app/profile/first_run_profile_agent.h"
+#import "ios/chrome/browser/authentication/ui_bundled/signin_presenter.h"
 #import "ios/chrome/browser/bookmarks/model/bookmark_model_factory.h"
 #import "ios/chrome/browser/bookmarks/ui_bundled/home/bookmarks_coordinator.h"
 #import "ios/chrome/browser/bring_android_tabs/model/bring_android_tabs_to_ios_service.h"
@@ -54,6 +55,8 @@
 #import "ios/chrome/browser/saved_tab_groups/model/ios_tab_group_sync_util.h"
 #import "ios/chrome/browser/saved_tab_groups/model/tab_group_sync_service_factory.h"
 #import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
+#import "ios/chrome/browser/send_tab_to_self/coordinator/send_tab_to_self_coordinator.h"
+#import "ios/chrome/browser/send_tab_to_self/coordinator/send_tab_to_self_coordinator_delegate.h"
 #import "ios/chrome/browser/sessions/model/ios_chrome_tab_restore_service_factory.h"
 #import "ios/chrome/browser/share_kit/model/share_kit_manage_configuration.h"
 #import "ios/chrome/browser/share_kit/model/share_kit_service.h"
@@ -81,8 +84,8 @@
 #import "ios/chrome/browser/shared/public/commands/bring_android_tabs_commands.h"
 #import "ios/chrome/browser/shared/public/commands/browser_commands.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
-#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
 #import "ios/chrome/browser/shared/public/commands/page_action_menu_commands.h"
 #import "ios/chrome/browser/shared/public/commands/popup_menu_commands.h"
@@ -141,6 +144,8 @@
 #import "ios/chrome/browser/url_loading/model/url_loading_params.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/grit/ios_strings.h"
+#import "ios/web/public/thread/web_task_traits.h"
+#import "ios/web/public/thread/web_thread.h"
 #import "ui/base/l10n/l10n_util.h"
 
 using collaboration::CollaborationServiceShareOrManageEntryPoint;
@@ -181,6 +186,8 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
                                   InactiveTabsCoordinatorDelegate,
                                   LegacyGridTransitionAnimationLayoutProviding,
                                   SceneStateObserver,
+                                  SendTabToSelfCoordinatorDelegate,
+                                  SigninPresenter,
                                   TabContextMenuDelegate,
                                   TabGridCommands,
                                   TabGridTransitionLayoutProviding,
@@ -258,6 +265,8 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
 // YES if the TabViewController has never been shown yet.
 @property(nonatomic, assign) BOOL firstPresentation;
 @property(nonatomic, strong) SharingCoordinator* sharingCoordinator;
+// Coordinator for "Send tab to self".
+@property(nonatomic, strong) SendTabToSelfCoordinator* sendTabToSelfCoordinator;
 // The action sheet coordinator, if one is currently being shown.
 @property(nonatomic, strong) ActionSheetCoordinator* actionSheetCoordinator;
 // The coordinator for the page action menu.
@@ -819,8 +828,8 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   _viewController.childViewControllerForStatusBarStyle = nil;
 
   if (IsGeminiCopresenceEnabled() && !IsChromeNextIaEnabled()) {
-    id<BWGCommands> geminiHandler = HandlerForProtocol(
-        self.regularBrowser->GetCommandDispatcher(), BWGCommands);
+    id<GeminiCommands> geminiHandler = HandlerForProtocol(
+        self.regularBrowser->GetCommandDispatcher(), GeminiCommands);
     [geminiHandler
         hideFloatyIfInvokedAnimated:NO
                          fromSource:gemini::FloatyUpdateSource::TabGrid];
@@ -1061,8 +1070,8 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
 
   id<SceneCommands> sceneHandler =
       HandlerForProtocol(self.dispatcher, SceneCommands);
-  id<BWGCommands> geminiHandler =
-      HandlerForProtocol(_regularBrowser->GetCommandDispatcher(), BWGCommands);
+  id<GeminiCommands> geminiHandler = HandlerForProtocol(
+      _regularBrowser->GetCommandDispatcher(), GeminiCommands);
 
   _viewController = [[TabGridViewController alloc]
       initWithPageConfiguration:_pageConfiguration];
@@ -1231,6 +1240,8 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   _viewController = nil;
   [self.sharingCoordinator stop];
   self.sharingCoordinator = nil;
+  [self.sendTabToSelfCoordinator stop];
+  self.sendTabToSelfCoordinator = nil;
   [self.incognitoBrowser->GetCommandDispatcher() stopDispatchingToTarget:self];
   [self.regularBrowser->GetCommandDispatcher() stopDispatchingToTarget:self];
   [self.dispatcher stopDispatchingForProtocol:@protocol(SceneCommands)];
@@ -1394,6 +1405,7 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
       initWithURLs:URLs
           scenario:SharingScenario::TabGridSelectionMode];
 
+  [self.sharingCoordinator stop];
   self.sharingCoordinator =
       [[SharingCoordinator alloc] initWithBaseViewController:_viewController
                                                      browser:self.regularBrowser
@@ -1563,12 +1575,63 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   SharingParams* params = [[SharingParams alloc] initWithURL:URL
                                                        title:title
                                                     scenario:scenario];
+  [self.sharingCoordinator stop];
   self.sharingCoordinator =
       [[SharingCoordinator alloc] initWithBaseViewController:_viewController
                                                      browser:self.regularBrowser
                                                       params:params
                                                   sourceItem:view];
   [self.sharingCoordinator start];
+}
+
+- (void)sendTabToSelfWithIdentifier:(web::WebStateID)identifier {
+  Browser* browser = self.regularBrowser;
+  if (!browser) {
+    return;
+  }
+  WebStateList* webStateList = browser->GetWebStateList();
+  web::WebState* webState = GetWebState(
+      webStateList, WebStateSearchCriteria{.identifier = identifier});
+  if (!webState) {
+    return;
+  }
+  const GURL& url = webState->GetVisibleURL();
+  NSString* title = base::SysUTF16ToNSString(webState->GetTitle());
+
+  [self.sendTabToSelfCoordinator stop];
+  self.sendTabToSelfCoordinator = [[SendTabToSelfCoordinator alloc]
+      initWithBaseViewController:_viewController
+                         browser:self.regularBrowser
+                 signinPresenter:self
+                             url:url
+                           title:title];
+  self.sendTabToSelfCoordinator.delegate = self;
+
+  // Postpone the start of the coordinator to allow the context menu dismissal
+  // animation to complete cleanly and prevent a UIKit transition deadlock.
+  __weak TabGridCoordinator* weakSelf = self;
+  ExecuteWhenTransitionsComplete(
+      ^{
+        [weakSelf.sendTabToSelfCoordinator start];
+      },
+      _viewController);
+}
+
+#pragma mark - SendTabToSelfCoordinatorDelegate
+
+- (void)sendTabToSelfCoordinatorWantsToBeStopped:
+    (SendTabToSelfCoordinator*)coordinator {
+  DCHECK_EQ(coordinator, self.sendTabToSelfCoordinator);
+  [self.sendTabToSelfCoordinator stop];
+  self.sendTabToSelfCoordinator = nil;
+}
+
+#pragma mark - SigninPresenter
+
+- (void)showSignin:(ShowSigninCommand*)command {
+  id<SceneCommands> handler =
+      HandlerForProtocol(self.dispatcher, SceneCommands);
+  [handler showSignin:command baseViewController:_viewController];
 }
 
 - (void)addToReadingListURL:(const GURL&)URL title:(NSString*)title {
@@ -1913,9 +1976,6 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
       self.regularBrowser->GetCommandDispatcher(), PageActionMenuCommands);
   [self.pageActionMenuCoordinator start];
 }
-
-
-
 
 #pragma mark - TabGroupPositioner
 

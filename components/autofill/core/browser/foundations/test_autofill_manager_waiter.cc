@@ -284,6 +284,20 @@ void TestAutofillManagerWaiter::OnAfterFormSubmitted(AutofillManager& manager,
   OnAfter(Event::kFormSubmitted);
 }
 
+void TestAutofillManagerWaiter::OnBeforeFormWithEmailVerificationTokenSubmitted(
+    AutofillManager& manager,
+    const FormData& form,
+    const FieldGlobalId& field_id) {
+  OnBefore(Event::kFormWithEmailVerificationTokenSubmitted);
+}
+
+void TestAutofillManagerWaiter::OnAfterFormWithEmailVerificationTokenSubmitted(
+    AutofillManager& manager,
+    const FormData& form,
+    const FieldGlobalId& field_id) {
+  OnAfter(Event::kFormWithEmailVerificationTokenSubmitted);
+}
+
 void TestAutofillManagerWaiter::OnBeforeLoadedServerPredictions(
     AutofillManager& manager) {
   OnBefore(Event::kLoadedServerPredictions);

@@ -796,7 +796,7 @@ class SearchEngineChoiceEligibilityOverriddenProgramSettingsTest
             .MakePrimaryAccountAvailable("test@example.com",
                                          signin::ConsentLevel::kSignin);
 
-    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account_info);
     switch (can_make_choice_capability) {
       case signin::Tribool::kTrue:
         mutator.set_can_make_chrome_search_engine_choice_screen_choice(true);

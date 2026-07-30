@@ -16,6 +16,25 @@ TEST(PageOrientationTest, GetClockwiseRotationSteps) {
   EXPECT_EQ(GetClockwiseRotationSteps(PageOrientation::kClockwise270), 3);
 }
 
+TEST(PageOrientationTest, PageOrientationFromClockwiseRotationSteps) {
+  EXPECT_EQ(PageOrientationFromClockwiseRotationSteps(0),
+            PageOrientation::kOriginal);
+  EXPECT_EQ(PageOrientationFromClockwiseRotationSteps(1),
+            PageOrientation::kClockwise90);
+  EXPECT_EQ(PageOrientationFromClockwiseRotationSteps(2),
+            PageOrientation::kClockwise180);
+  EXPECT_EQ(PageOrientationFromClockwiseRotationSteps(3),
+            PageOrientation::kClockwise270);
+  EXPECT_EQ(PageOrientationFromClockwiseRotationSteps(4),
+            PageOrientation::kOriginal);
+  EXPECT_EQ(PageOrientationFromClockwiseRotationSteps(5),
+            PageOrientation::kClockwise90);
+  EXPECT_EQ(PageOrientationFromClockwiseRotationSteps(100),
+            PageOrientation::kOriginal);
+  EXPECT_EQ(PageOrientationFromClockwiseRotationSteps(101),
+            PageOrientation::kClockwise90);
+}
+
 TEST(PageOrientationTest, RotateClockwise) {
   EXPECT_EQ(RotateClockwise(PageOrientation::kOriginal),
             PageOrientation::kClockwise90);

@@ -18,6 +18,9 @@ class BrowserContext;
 
 namespace network {
 class SharedURLLoaderFactory;
+namespace mojom {
+class NetworkContext;
+}
 }  // namespace network
 
 namespace variations {
@@ -63,6 +66,7 @@ class RealTimeUrlLookupServiceFactory : public ProfileKeyedServiceFactory {
 
   static variations::VariationsService* GetVariationsService();
   static base::Time GetMinAllowedTimestampForReferrerChains(Profile* profile);
+  static network::mojom::NetworkContext* GetNetworkContext(Profile* profile);
 
   scoped_refptr<network::SharedURLLoaderFactory> testing_url_loader_factory_;
 };

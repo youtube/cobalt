@@ -419,6 +419,19 @@ void StyleElement::SetToPendingState(Document& document, Element& element) {
                                                     pending_sheet_type_);
 }
 
+void StyleElement::MediaAttributeChanged(Element& element,
+                                         const AtomicString& new_value) {
+  DCHECK(IsSameObject(element));
+  if (!sheet_ || !element.isConnected() ||
+      !element.GetDocument().IsActive()) {
+    return;
+  }
+  sheet_->SetMediaQueries(
+      MediaQuerySet::Create(new_value, element.GetExecutionContext()));
+  element.GetDocument().GetStyleEngine().SetNeedsActiveStyleUpdate(
+      element.GetTreeScope());
+}
+
 void StyleElement::BlockingAttributeChanged(Element& element) {
   // If this is a dynamically inserted style element, and the `blocking`
   // has changed so that the element is no longer render-blocking, then unblock

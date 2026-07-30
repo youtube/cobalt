@@ -924,7 +924,7 @@ void CatapAudioInputStreamSource::Start(
     ReportStartStatus(false, timer.Elapsed());
     SendLogMessage("%s => Error starting the device. Status: %d", __func__,
                    status);
-    sink_->OnError();
+    sink_->OnError(Error::kStartupFailed);
   }
   ReportStartStatus(true, timer.Elapsed());
 }
@@ -1421,7 +1421,7 @@ void CatapAudioInputStreamSource::ProcessPropertyChange(
                      is_alive);
       if (!is_alive) {
         // OnError() may delete `this`.
-        OnError();
+        OnError(Error::kRuntimeError);
         if (!weak_this) {
           return;
         }
@@ -1500,11 +1500,11 @@ void CatapAudioInputStreamSource::ProcessPropertyChange(
   }
 }
 
-void CatapAudioInputStreamSource::OnError() {
+void CatapAudioInputStreamSource::OnError(Error error_code) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   SendLogMessage("%s", __func__);
   if (sink_) {
-    sink_->OnError();
+    sink_->OnError(error_code);
   }
 }
 
@@ -1621,7 +1621,7 @@ void CatapAudioInputStream::Start(AudioInputCallback* callback) {
   CHECK(callback);
   if (!source_) {
     SendLogMessage("%s => stream is nullptr", __func__);
-    callback->OnError();
+    callback->OnError(Error::kStartupFailed);
     return;
   }
   audio_input_callback_ = callback;
@@ -1675,7 +1675,7 @@ void CatapAudioInputStream::OnSampleRateChange() {
   if (restart_on_device_change_) {
     RestartStream();
   } else {
-    OnError();
+    OnError(Error::kRuntimeError);
   }
 }
 
@@ -1691,11 +1691,11 @@ CatapAudioInputStream::~CatapAudioInputStream() {
   CHECK(!source_);
 }
 
-void CatapAudioInputStream::OnError() {
+void CatapAudioInputStream::OnError(Error error_code) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   SendLogMessage("%s", __func__);
   if (audio_input_callback_) {
-    audio_input_callback_->OnError();
+    audio_input_callback_->OnError(error_code);
   }
 }
 
@@ -1727,7 +1727,7 @@ void CatapAudioInputStream::RestartStream() {
   source_.reset();
   if (Open() != OpenOutcome::kSuccess) {
     CHECK(!source_);
-    OnError();
+    OnError(Error::kRuntimeError);
     audio_input_callback_ = nullptr;
     return;
   }

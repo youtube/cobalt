@@ -57,6 +57,7 @@ android_library("java") {
     "android/java/src/org/chromium/chrome/browser/settings/ChromeManagedPreferenceDelegate.java",
     "android/java/src/org/chromium/chrome/browser/settings/FaviconLoader.java",
     "android/java/src/org/chromium/chrome/browser/settings/ProfileDependentSetting.java",
+    "android/java/src/org/chromium/chrome/browser/settings/SettingsPage.java",
   ]
   public_deps = [
     ":factory_java",
@@ -70,10 +71,12 @@ android_library("java") {
     "//chrome/browser/preferences:java",
     "//chrome/browser/profiles/android:java",
     "//chrome/browser/ui/android/favicon:java",
+    "//chrome/browser/ui/android/native_page:java",
     "//components/browser_ui/settings/android:java",
     "//components/browser_ui/settings/android:managed_prefs_java_resources",
     "//components/browser_ui/styles/android:java",
     "//components/browser_ui/widget/android:java",
+    "//components/embedder_support/android:util_java",
     "//components/favicon/android:java",
     "//components/prefs/android:java",
     "//components/user_prefs/android:java",

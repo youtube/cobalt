@@ -402,7 +402,10 @@ bool WebContentsDevToolsAgentHost::AttachSession(DevToolsSession* session) {
   // Force WebContents to render if it does not have a live renderer.
   // This is a sign that the page is backgrounded and unloaded
   // from memory usually when re-opening a saved browser session.
-  if (wc && !wc->GetPrimaryMainFrame()->IsRenderFrameLive()) {
+  // We should not force a reload if there is already an uncommitted navigation,
+  // as this can re-enter the navigation controller and crash.
+  if (wc && !wc->GetPrimaryMainFrame()->IsRenderFrameLive() &&
+      !wc->HasUncommittedNavigationInPrimaryMainFrame()) {
     wc->GetController().SetNeedsReload();
     wc->GetController().LoadIfNecessary();
   }

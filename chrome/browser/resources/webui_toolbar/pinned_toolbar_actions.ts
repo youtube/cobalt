@@ -6,10 +6,10 @@ import './pinned_toolbar_action.js';
 import './toolbar_divider.js';
 
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
+import type {PinnedToolbarActionState} from '/shared/toolbar_ui_api_data_model.mojom-webui.js';
 
 import {getCss} from './pinned_toolbar_actions.css.js';
 import {getHtml} from './pinned_toolbar_actions.html.js';
-import type {PinnedToolbarActionState} from './toolbar_ui_api_data_model.mojom-webui.js';
 
 export class PinnedToolbarActionsElement extends CrLitElement {
   static get is() {

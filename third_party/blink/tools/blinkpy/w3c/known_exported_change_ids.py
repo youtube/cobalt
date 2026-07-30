@@ -36,6 +36,8 @@ _RAW_KNOWN_EXPORTED_CHANGE_IDS = {
     # Forgot to put `No-Export: true` in the commit message for
     # https://crrev.com/c/6977528.
     'I7c368ddaabcc257192042770dfda59d18611c6cb',
+    # Duplicated changes without `No-Export: true` footer.
+    'I8d3bffc13d0ca43c1ca18b0f5e4ecd4ff659267b',
 }
 
 

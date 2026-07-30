@@ -164,6 +164,8 @@ class UserPolicySigninServiceTest : public PlatformTest {
 
     BrowserPolicyConnector::SetDeviceManagementServiceForTesting(nullptr);
 
+    mock_store_ = nullptr;
+    manager_ = nullptr;
     profile_.reset();
     TestingApplicationContext::GetGlobal()
         ->GetBrowserPolicyConnector()
@@ -292,11 +294,9 @@ class UserPolicySigninServiceTest : public PlatformTest {
   raw_ptr<PrefService> pref_service_;
 
   std::unique_ptr<TestProfileIOS> profile_;
-  raw_ptr<MockUserCloudPolicyStore, DanglingUntriaged> mock_store_ =
-      nullptr;  // Not owned.
+  raw_ptr<MockUserCloudPolicyStore> mock_store_ = nullptr;  // Not owned.
   SchemaRegistry schema_registry_;
-  raw_ptr<UserCloudPolicyManager, DanglingUntriaged> manager_ =
-      nullptr;  // Not owned.
+  raw_ptr<UserCloudPolicyManager> manager_ = nullptr;  // Not owned.
 
   // Used in conjunction with OnRegisterCompleted() to test client registration
   // callbacks.

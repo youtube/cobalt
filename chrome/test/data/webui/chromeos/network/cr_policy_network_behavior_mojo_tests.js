@@ -24,7 +24,7 @@ suite('CrPolicyNetworkBehaviorMojo', function() {
   let testBehavior;
 
   setup(function() {
-    PolymerTest.clearBody();
+    document.body.innerHTML = window.trustedTypes.emptyHTML;
     testBehavior = document.createElement('test-behavior');
     document.body.appendChild(testBehavior);
   });

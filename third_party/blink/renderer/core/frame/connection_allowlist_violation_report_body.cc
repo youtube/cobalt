@@ -16,44 +16,15 @@ namespace blink {
 void ConnectionAllowlistViolationReportBody::QueueWebRTCReport(
     V8ConnectionAllowlistDisposition::Enum disposition,
     const ExecutionContext& execution_context) {
-  const PolicyContainer* policy_container =
-      execution_context.GetPolicyContainer();
-  if (!policy_container) {
-    return;
-  }
+  QueueReport("webrtc", disposition, execution_context);
+}
 
-  const std::optional<network::ConnectionAllowlist> allowlist =
-      disposition == V8ConnectionAllowlistDisposition::Enum::kEnforce
-          ? policy_container->GetPolicies().connection_allowlists.enforced
-          : policy_container->GetPolicies().connection_allowlists.report_only;
-  CHECK(allowlist.has_value());
-
-  Vector<String> blink_allowlist;
-  for (const std::string& pattern : allowlist->allowlist) {
-    blink_allowlist.push_back(String::FromUtf8(pattern));
-  }
-
-  auto disposition_obj =
-      disposition == V8ConnectionAllowlistDisposition::Enum::kEnforce
-          ? V8ConnectionAllowlistDisposition(
-                V8ConnectionAllowlistDisposition::Enum::kEnforce)
-          : V8ConnectionAllowlistDisposition(
-                V8ConnectionAllowlistDisposition::Enum::kReport);
-
-  ConnectionAllowlistViolationReportBody* body =
-      MakeGarbageCollected<ConnectionAllowlistViolationReportBody>(
-          execution_context.Url().GetString(), "webrtc", blink_allowlist,
-          disposition_obj);
-
-  Report* report =
-      MakeGarbageCollected<Report>(ReportType::kConnectionAllowlistViolation,
-                                   execution_context.Url().GetString(), body);
-  const std::optional<std::string> endpoint = allowlist->reporting_endpoint;
-
-  if (endpoint.has_value()) {
-    ReportingContext::From(&execution_context)
-        ->QueueReport(report, Vector<String>{endpoint->c_str()});
-  }
+// static
+void ConnectionAllowlistViolationReportBody::QueueServiceWorkerReport(
+    const KURL& connection,
+    V8ConnectionAllowlistDisposition::Enum disposition,
+    const ExecutionContext& execution_context) {
+  QueueReport(connection.GetString(), disposition, execution_context);
 }
 
 void ConnectionAllowlistViolationReportBody::BuildJSONValue(
@@ -84,5 +55,47 @@ ConnectionAllowlistViolationReportBody::ConnectionAllowlistViolationReportBody(
       connection_(connection),
       allowlist_(allowlist),
       disposition_(disposition) {}
+
+void ConnectionAllowlistViolationReportBody::QueueReport(
+    const String& connection,
+    V8ConnectionAllowlistDisposition::Enum disposition,
+    const ExecutionContext& execution_context) {
+  const PolicyContainer* policy_container =
+      execution_context.GetPolicyContainer();
+  CHECK(policy_container);
+
+  const std::optional<network::ConnectionAllowlist> allowlist =
+      disposition == V8ConnectionAllowlistDisposition::Enum::kEnforce
+          ? policy_container->GetPolicies().connection_allowlists.enforced
+          : policy_container->GetPolicies().connection_allowlists.report_only;
+  CHECK(allowlist.has_value());
+
+  Vector<String> blink_allowlist;
+  for (const std::string& pattern : allowlist->allowlist) {
+    blink_allowlist.push_back(String::FromUtf8(pattern));
+  }
+
+  auto disposition_obj =
+      disposition == V8ConnectionAllowlistDisposition::Enum::kEnforce
+          ? V8ConnectionAllowlistDisposition(
+                V8ConnectionAllowlistDisposition::Enum::kEnforce)
+          : V8ConnectionAllowlistDisposition(
+                V8ConnectionAllowlistDisposition::Enum::kReport);
+
+  ConnectionAllowlistViolationReportBody* body =
+      MakeGarbageCollected<ConnectionAllowlistViolationReportBody>(
+          execution_context.Url().GetString(), connection, blink_allowlist,
+          disposition_obj);
+
+  Report* report =
+      MakeGarbageCollected<Report>(ReportType::kConnectionAllowlistViolation,
+                                   execution_context.Url().GetString(), body);
+  const std::optional<std::string> endpoint = allowlist->reporting_endpoint;
+
+  if (endpoint.has_value()) {
+    ReportingContext::From(&execution_context)
+        ->QueueReport(report, Vector<String>{endpoint->c_str()});
+  }
+}
 
 }  // namespace blink

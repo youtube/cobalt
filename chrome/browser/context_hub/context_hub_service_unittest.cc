@@ -1,0 +1,127 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "chrome/browser/context_hub/context_hub_service.h"
+
+#include <optional>
+
+#include "base/test/gmock_callback_support.h"
+#include "base/test/scoped_feature_list.h"
+#include "base/test/task_environment.h"
+#include "base/test/test_future.h"
+#include "chrome/browser/context_hub/features.h"
+#include "components/personal_context/core/context_memory_error.h"
+#include "components/personal_context/core/mock_personal_context_service.h"
+#include "components/personal_context/proto/features/auto_todos.pb.h"
+#include "testing/gmock/include/gmock/gmock.h"
+#include "testing/gtest/include/gtest/gtest.h"
+
+namespace context_hub {
+
+namespace {
+
+using ::base::test::RunOnceCallback;
+using ::testing::_;
+
+class ContextHubServiceTest : public testing::Test {
+ public:
+  ContextHubServiceTest() : service_(&mock_personal_context_service_) {}
+  ~ContextHubServiceTest() override = default;
+
+ protected:
+  base::test::TaskEnvironment task_environment_;
+  base::test::ScopedFeatureList scoped_feature_list_;
+  personal_context::MockPersonalContextService mock_personal_context_service_;
+  ContextHubService service_;
+};
+
+TEST_F(ContextHubServiceTest, GenerateAutoTodos_FeatureDisabled) {
+  scoped_feature_list_.InitAndDisableFeature(features::kAutoTodos);
+
+  EXPECT_CALL(mock_personal_context_service_, FetchContext).Times(0);
+
+  base::test::TestFuture<
+      std::optional<personal_context::proto::AutoTodosResponse>>
+      future;
+  service_.GenerateAutoTodos(future.GetCallback());
+
+  EXPECT_FALSE(future.Get().has_value());
+}
+
+TEST_F(ContextHubServiceTest, GenerateAutoTodos_FeatureEnabled_ServiceSuccess) {
+  scoped_feature_list_.InitAndEnableFeature(features::kAutoTodos);
+
+  personal_context::proto::AutoTodosResponse expected_response;
+  auto* todo = expected_response.add_todos();
+  todo->set_title("Test Todo");
+  todo->set_description("Test Description");
+
+  personal_context::proto::Any any_response;
+  expected_response.SerializeToString(any_response.mutable_value());
+
+  EXPECT_CALL(
+      mock_personal_context_service_,
+      FetchContext(personal_context::proto::CONTEXT_MEMORY_FEATURE_AUTO_TODOS,
+                   _, _, _))
+      .WillOnce(RunOnceCallback<3>(personal_context::FetchContextResult(
+          base::ok(std::move(any_response)))));
+
+  base::test::TestFuture<
+      std::optional<personal_context::proto::AutoTodosResponse>>
+      future;
+  service_.GenerateAutoTodos(future.GetCallback());
+
+  auto result = future.Get();
+  ASSERT_TRUE(result.has_value());
+  ASSERT_EQ(result.value().todos_size(), 1);
+  EXPECT_EQ(result.value().todos(0).title(), "Test Todo");
+  EXPECT_EQ(result.value().todos(0).description(), "Test Description");
+}
+
+TEST_F(ContextHubServiceTest, GenerateAutoTodos_FeatureEnabled_ServiceError) {
+  scoped_feature_list_.InitAndEnableFeature(features::kAutoTodos);
+
+  personal_context::ContextMemoryError expected_error =
+      personal_context::ContextMemoryError::FromExecutionError(
+          personal_context::ContextMemoryError::ExecutionError::
+              kGenericFailure);
+
+  EXPECT_CALL(
+      mock_personal_context_service_,
+      FetchContext(personal_context::proto::CONTEXT_MEMORY_FEATURE_AUTO_TODOS,
+                   _, _, _))
+      .WillOnce(RunOnceCallback<3>(personal_context::FetchContextResult(
+          base::unexpected(expected_error))));
+
+  base::test::TestFuture<
+      std::optional<personal_context::proto::AutoTodosResponse>>
+      future;
+  service_.GenerateAutoTodos(future.GetCallback());
+
+  EXPECT_FALSE(future.Get().has_value());
+}
+
+TEST_F(ContextHubServiceTest, GenerateAutoTodos_FeatureEnabled_ParseError) {
+  scoped_feature_list_.InitAndEnableFeature(features::kAutoTodos);
+
+  personal_context::proto::Any any_response;
+  any_response.set_value("corrupted proto data");
+
+  EXPECT_CALL(
+      mock_personal_context_service_,
+      FetchContext(personal_context::proto::CONTEXT_MEMORY_FEATURE_AUTO_TODOS,
+                   _, _, _))
+      .WillOnce(RunOnceCallback<3>(personal_context::FetchContextResult(
+          base::ok(std::move(any_response)))));
+
+  base::test::TestFuture<
+      std::optional<personal_context::proto::AutoTodosResponse>>
+      future;
+  service_.GenerateAutoTodos(future.GetCallback());
+
+  EXPECT_FALSE(future.Get().has_value());
+}
+
+}  // namespace
+}  // namespace context_hub

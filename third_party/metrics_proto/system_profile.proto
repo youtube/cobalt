@@ -550,7 +550,8 @@ message SystemProfileProto {
     string tpm_rw_firmware_version = 27;
 
     // The hardware manufacturer of the device (e.g., "Google", "Samsung",
-    // "Xiaomi"). Only implemented on Android.
+    // "Xiaomi").
+    // Available only on Android clients running M150 or later.
     string manufacturer = 29;
   }
 

@@ -124,8 +124,8 @@ void LoadRestoredTabIfVisible(Browser* browser,
   // loaded.
   if (!webui_browser::IsWebUIBrowserEnabled()) {
     DCHECK(!browser->window()->GetContentsSize().IsEmpty() ||
-           (browser->window()->GetBounds().IsEmpty() &&
-            browser->window()->GetRestoredBounds().IsEmpty()));
+           (browser->GetWindow()->GetBounds().IsEmpty() &&
+            browser->GetWindow()->GetRestoredBounds().IsEmpty()));
   }
   DCHECK_EQ(web_contents->GetSize(), browser->window()->GetContentsSize());
 
@@ -211,11 +211,11 @@ WebContents* AddRestoredTabImpl(std::unique_ptr<WebContents> web_contents,
   // Fallback to the restore bounds if it's empty as the window is not shown
   // yet and the bounds may not be available on all platforms.
   if (size.IsEmpty()) {
-    size = browser->window()->GetRestoredBounds().size();
+    size = browser->GetWindow()->GetRestoredBounds().size();
   }
   raw_web_contents->Resize(gfx::Rect(size));
 
-  const bool initially_hidden = !select || browser->window()->IsMinimized();
+  const bool initially_hidden = !select || browser->GetWindow()->IsMinimized();
   if (initially_hidden) {
     raw_web_contents->WasHidden();
   } else {
@@ -231,7 +231,7 @@ WebContents* AddRestoredTabImpl(std::unique_ptr<WebContents> web_contents,
         true;
 #endif
     if (should_activate) {
-      browser->window()->Activate();
+      browser->GetWindow()->Activate();
     }
   }
 
@@ -280,7 +280,7 @@ WebContents* AddRestoredTab(
     const std::map<std::string, std::string>& extra_data,
     bool from_session_restore,
     std::optional<bool> is_active_browser) {
-  const bool initially_hidden = !select || browser->window()->IsMinimized();
+  const bool initially_hidden = !select || browser->GetWindow()->IsMinimized();
   std::unique_ptr<WebContents> web_contents = CreateRestoredTab(
       browser, navigations, selected_navigation, extension_app_id,
       last_active_time_ticks, last_active_time, session_storage_namespace,

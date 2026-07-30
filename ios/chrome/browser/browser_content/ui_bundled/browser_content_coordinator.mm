@@ -31,8 +31,8 @@
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/activity_service_commands.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
-#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
@@ -145,8 +145,8 @@
                                     profile)];
 
     _explainWithGeminiMediator.sceneHandler = sceneHandler;
-    _explainWithGeminiMediator.BWGHandler =
-        HandlerForProtocol(dispatcher, BWGCommands);
+    _explainWithGeminiMediator.geminiHandler =
+        HandlerForProtocol(dispatcher, GeminiCommands);
     _browserEditMenuHandler.explainWithGeminiDelegate =
         _explainWithGeminiMediator;
   }

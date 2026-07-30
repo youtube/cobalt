@@ -229,11 +229,11 @@ ToggleEffectsButton::ToggleEffectsButton(
   label_ = AddChildView(std::move(label));
 
   SetTooltipText(l10n_util::GetStringFUTF16(
-      VIDEO_CONFERENCE_TOGGLE_BUTTON_TOOLTIP,
+      IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_TOOLTIP,
       l10n_util::GetStringUTF16(accessible_name_id_),
       l10n_util::GetStringUTF16(
-          toggled_ ? VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_ON
-                   : VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_OFF)));
+          toggled_ ? IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_ON
+                   : IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_OFF)));
   GetViewAccessibility().SetRole(ax::mojom::Role::kToggleButton);
   SetFocusBehavior(FocusBehavior::ALWAYS);
 
@@ -299,11 +299,11 @@ void ToggleEffectsButton::UpdateColorsAndBackground() {
 
 void ToggleEffectsButton::UpdateTooltip() {
   SetTooltipText(l10n_util::GetStringFUTF16(
-      VIDEO_CONFERENCE_TOGGLE_BUTTON_TOOLTIP,
+      IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_TOOLTIP,
       l10n_util::GetStringUTF16(accessible_name_id_),
       l10n_util::GetStringUTF16(
-          toggled_ ? VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_ON
-                   : VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_OFF)));
+          toggled_ ? IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_ON
+                   : IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_OFF)));
 }
 
 BEGIN_METADATA(ToggleEffectsButton);

@@ -51,7 +51,7 @@ class AddressEditorView : public views::View {
   // If the editor is validatable (`AddressEditorController::is_validatable()`),
   // make sure the address is valid (`AddressEditorController::is_valid()`)
   // before calling this method.
-  const autofill::AutofillProfile& GetAddressProfile();
+  const AutofillProfile& GetAddressProfile();
 
   // Checks all fields and updates their visual status accordingly. Returns
   // `false` if at least one field is invalid and `true` otherwise or if
@@ -59,7 +59,7 @@ class AddressEditorView : public views::View {
   bool ValidateAllFields();
 
   void SelectCountryForTesting(const std::u16string& code);
-  void SetTextInputFieldValueForTesting(autofill::FieldType type,
+  void SetTextInputFieldValueForTesting(FieldType type,
                                         const std::u16string& value);
   std::u16string_view GetValidationErrorForTesting() const;
 

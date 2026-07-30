@@ -19,7 +19,6 @@
 #include "chrome/browser/ash/login/test/scoped_policy_update.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/common/chrome_paths.h"
-#include "chrome/common/pref_names.h"
 #include "chromeos/ash/components/dbus/session_manager/fake_session_manager_client.h"
 #include "chromeos/ash/components/dbus/session_manager/session_manager_client.h"
 #include "chromeos/ash/components/policy/device_policy/device_policy_builder.h"
@@ -112,13 +111,13 @@ void DeviceStateMixin::SetUpLocalStatePrefService(PrefService* local_state) {
     case DeviceStateMixin::State::OOBE_COMPLETED_ACTIVE_DIRECTORY_ENROLLED:
     case DeviceStateMixin::State::OOBE_COMPLETED_CONSUMER_OWNED:
     case DeviceStateMixin::State::OOBE_COMPLETED_DEMO_MODE:
-      local_state->SetBoolean(prefs::kOobeComplete, true);
+      local_state->SetBoolean(ash::prefs::kOobeComplete, true);
       local_state->SetInteger(ash::prefs::kDeviceRegistered, 1);
       local_state->SetBoolean(ash::prefs::kEnrollmentRecoveryRequired, false);
       break;
     case DeviceStateMixin::State::OOBE_COMPLETED_UNOWNED:
     case DeviceStateMixin::State::OOBE_COMPLETED_PERMANENTLY_UNOWNED:
-      local_state->SetBoolean(prefs::kOobeComplete, true);
+      local_state->SetBoolean(ash::prefs::kOobeComplete, true);
       local_state->SetInteger(ash::prefs::kDeviceRegistered, 0);
       local_state->SetBoolean(ash::prefs::kEnrollmentRecoveryRequired, false);
       break;

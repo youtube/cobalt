@@ -62,6 +62,7 @@
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/data_decoder/public/cpp/data_decoder.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
+#include "services/network/public/cpp/constants.h"
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "services/network/public/mojom/client_security_state.mojom.h"
 #include "services/network/public/mojom/connection_change_observer_client.mojom.h"
@@ -721,14 +722,15 @@ void AdAuctionServiceImpl::PreconnectSocket(
     const GURL& url,
     const net::NetworkAnonymizationKey& network_anonymization_key) {
   // TODO(crbug.com/447954811): pass the `network_restrictions_id` from the
-  // caller.
+  // caller. Since Protected Audience API is deprecated, it's ok for this to be
+  // TODO until the code is removed.
   render_frame_host()
       .GetStoragePartition()
       ->GetNetworkContext()
       ->PreconnectSockets(
           /*num_streams=*/1, url, network::mojom::CredentialsMode::kOmit,
           network_anonymization_key,
-          /*network_restrictions_id=*/std::nullopt,
+          /*network_restrictions_id=*/network::GetTODONetworkRestrictionsId(),
           net::MutableNetworkTrafficAnnotationTag(),
           /*keepalive_config=*/std::nullopt, mojo::NullRemote());
 }

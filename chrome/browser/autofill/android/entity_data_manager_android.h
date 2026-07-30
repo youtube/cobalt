@@ -25,6 +25,15 @@ namespace consent_auditor {
 class ConsentAuditor;
 }
 
+namespace personal_context {
+class PersonalContextEnablementService;
+enum class PersonalContextEnablementState;
+}  // namespace personal_context
+
+namespace subscription_eligibility {
+class SubscriptionEligibilityService;
+}  // namespace subscription_eligibility
+
 namespace signin {
 class IdentityManager;
 }
@@ -37,13 +46,17 @@ namespace account_settings {
 class AccountSettingService;
 }
 
+namespace personal_context {
+class PersonalContextEnablementService;
+}
+
 namespace autofill {
 
 class WalletPassAccessManager;
 
 // Android wrapper of the EntityDataManager which provides access from the
 // Java layer.
-class EntityDataManagerAndroid : public autofill::EntityDataManager::Observer {
+class EntityDataManagerAndroid : public EntityDataManager::Observer {
  public:
   EntityDataManagerAndroid(
       JNIEnv* env,
@@ -54,6 +67,10 @@ class EntityDataManagerAndroid : public autofill::EntityDataManager::Observer {
       const syncer::SyncService* sync_service,
       const account_settings::AccountSettingService* account_setting_service,
       consent_auditor::ConsentAuditor* consent_auditor,
+      personal_context::PersonalContextEnablementService*
+          personal_context_enablement_service,
+      subscription_eligibility::SubscriptionEligibilityService*
+          subscription_eligibility_service,
       bool is_off_the_record,
       WalletPassAccessManager* wallet_pass_access_manager,
       EntityDataManager* entity_data_manager);
@@ -143,6 +160,15 @@ class EntityDataManagerAndroid : public autofill::EntityDataManager::Observer {
   // servers. Used to display a notice in the management UI.
   bool IsWalletPublicPassStorageEnabled(JNIEnv* env);
 
+  // Returns whether the personal context preference is visible.
+  bool IsPersonalContextPreferenceVisible(JNIEnv* env);
+
+  // Returns whether the personal context is enabled.
+  bool IsPersonalContextEnabled(JNIEnv* env);
+
+  // Sets whether the personal context is enabled.
+  void SetPersonalContextEnabled(JNIEnv* env, bool enabled);
+
  private:
   friend class EntityDataManagerAndroidTestApi;
 
@@ -216,6 +242,10 @@ class EntityDataManagerAndroid : public autofill::EntityDataManager::Observer {
   const raw_ptr<const account_settings::AccountSettingService>
       account_setting_service_;
   const raw_ptr<consent_auditor::ConsentAuditor> consent_auditor_;
+  const raw_ptr<personal_context::PersonalContextEnablementService>
+      personal_context_enablement_service_;
+  const raw_ptr<subscription_eligibility::SubscriptionEligibilityService>
+      subscription_eligibility_service_;
   const bool is_off_the_record_;
   const raw_ptr<WalletPassAccessManager> wallet_pass_access_manager_;
 

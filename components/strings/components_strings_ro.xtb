@@ -269,6 +269,7 @@
 <translation id="1407135791313364759">Deschideți-le pe toate</translation>
 <translation id="1408696301184924537">Pentru a completa automat acest IBAN data viitoare, salvează-l în Contul Google</translation>
 <translation id="1408787208417187241">Capsare triplă în partea de sus</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> din <ph name="NUM_MATCHES_IN_GROUP" /> din grupul <ph name="GROUP_HEADER" />.</translation>
 <translation id="1410365862999780287">Alte persoane care folosesc acest dispozitiv nu îți vor vedea activitatea, astfel că poți naviga în mod privat. Acest lucru nu va schimba modul în care site-urile pe care le accesezi și serviciile pe care acestea le folosesc, inclusiv Google, colectează datele. Descărcările, marcajele și elementele din lista de lecturi se vor salva.</translation>
 <translation id="1410941016594047814">Plic invitație</translation>
 <translation id="1413235258620101697">Codul CVC al acestui card va fi criptat și salvat în Portofelul Google pentru finalizarea mai rapidă a achiziției</translation>
@@ -660,6 +661,7 @@
 <translation id="2045871135676061132">Plic personal</translation>
 <translation id="2046951263634619614">Vânzători de carte</translation>
 <translation id="2048261947532620704">Se traduce pagina</translation>
+<translation id="2055016614992422886">Conversație</translation>
 <translation id="2059166748188874810">Municipiu</translation>
 <translation id="2059202684901022309">22 x 34 in</translation>
 <translation id="2064568741209980952">Creditare și împrumut</translation>
@@ -3557,6 +3559,7 @@ Pentru a ascunde opțiunile de plată mai târziu, accesează <ph name="BEGIN_LI
 <translation id="6550245281449521513">Blocarea mouse-ului nu este permisă</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />, nou</translation>
 <translation id="6552566579578780089">Plăți</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> din <ph name="NUM_MATCHES_IN_GROUP" /> din grupul <ph name="GROUP_HEADER" />.</translation>
 <translation id="6554732001434021288">Accesat ultima dată acum <ph name="NUM_DAYS" /> zile</translation>
 <translation id="6556866813142980365">Repetă</translation>
 <translation id="6557715786897013164">14 x 17 in</translation>

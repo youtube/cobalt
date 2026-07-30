@@ -89,7 +89,7 @@ public class ActivityRecreationController {
 
         var layoutManager = mLayoutManagerSupplier.get();
         if (layoutManager != null) {
-            if (layoutManager.isLayoutVisible(LayoutType.TAB_SWITCHER)) {
+            if (layoutManager.isLayoutVisible(LayoutType.HUB)) {
                 mRetainedUiState.mIsTabSwitcherShown = true;
             }
         }
@@ -280,7 +280,7 @@ public class ActivityRecreationController {
     private static void restoreTabSwitcherState(
             boolean isTabSwitcherShown, LayoutManager layoutManager) {
         if (!isTabSwitcherShown) return;
-        layoutManager.showLayout(LayoutType.TAB_SWITCHER, false);
+        layoutManager.showLayout(LayoutType.HUB, false);
     }
 
     private static void restoreExclusiveAccessState(

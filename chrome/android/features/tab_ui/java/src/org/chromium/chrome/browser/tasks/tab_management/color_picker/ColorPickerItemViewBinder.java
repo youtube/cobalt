@@ -21,6 +21,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.LayerDrawable;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.ViewOverlay;
 import android.widget.ImageView;
 
@@ -56,13 +57,13 @@ public class ColorPickerItemViewBinder {
     public static final int SELECTION_LAYER = 1;
     public static final int INNER_LAYER = 2;
 
-    static View createItemView(Context context) {
+    static View createItemView(ViewGroup parent) {
         int layoutToInflate =
                 isAndroidThemeModuleEnabled()
                         ? R.layout.color_picker_icon_button_layout
                         : R.layout.color_picker_item;
 
-        return LayoutInflater.from(context).inflate(layoutToInflate, /* root= */ null, false);
+        return LayoutInflater.from(parent.getContext()).inflate(layoutToInflate, parent, false);
     }
 
     static void bind(PropertyModel model, View view, PropertyKey propertyKey) {

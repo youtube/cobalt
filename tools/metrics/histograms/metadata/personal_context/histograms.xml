@@ -22,6 +22,54 @@ chromium-metrics-reviews@google.com.
 
 <histograms>
 
+<!-- LINT.IfChange(ContextMemoryFeature) -->
+
+<variants name="ContextMemoryFeature">
+  <variant name="AmbientAutofill" summary="Ambient Autofill"/>
+  <variant name="AtMemory" summary="AtMemory"/>
+  <variant name="AutoTodos" summary="AutoTodos"/>
+  <variant name="Unspecified" summary="Unspecified feature"/>
+</variants>
+
+<!-- LINT.ThenChange(//components/personal_context/core/context_memory_features.cc:ContextMemoryFeature) -->
+
+<histogram
+    name="PersonalContext.FetchContext.ErrorStatus.{ContextMemoryFeature}"
+    enum="ContextMemoryExecutionError" expires_after="2026-11-15">
+  <owner>qiaoli@google.com</owner>
+  <owner>chrome-memory-context-eng@google.com</owner>
+  <summary>
+    Records the specific execution error code when fetching context from the
+    Context Memory Service fails for the {ContextMemoryFeature} capability.
+    Recorded on request failure.
+  </summary>
+  <token key="ContextMemoryFeature" variants="ContextMemoryFeature"/>
+</histogram>
+
+<histogram name="PersonalContext.FetchContext.Latency.{ContextMemoryFeature}"
+    units="ms" expires_after="2026-11-15">
+  <owner>qiaoli@google.com</owner>
+  <owner>chrome-memory-context-eng@google.com</owner>
+  <summary>
+    Records the duration in milliseconds taken to completely fetch context from
+    the Context Memory Service for the {ContextMemoryFeature} capability.
+    Recorded upon request completion or failure.
+  </summary>
+  <token key="ContextMemoryFeature" variants="ContextMemoryFeature"/>
+</histogram>
+
+<histogram name="PersonalContext.FetchContext.Result.{ContextMemoryFeature}"
+    enum="BooleanSuccess" expires_after="2026-11-15">
+  <owner>qiaoli@google.com</owner>
+  <owner>chrome-memory-context-eng@google.com</owner>
+  <summary>
+    Records whether the context was successfully fetched from the Context Memory
+    Service for the {ContextMemoryFeature} capability. Recorded upon request
+    completion or failure.
+  </summary>
+  <token key="ContextMemoryFeature" variants="ContextMemoryFeature"/>
+</histogram>
+
 <histogram name="PersonalContext.NoticeInteractions"
     enum="PersonalContextNoticeInteractions" expires_after="2026-10-04">
   <owner>kalinino@google.com</owner>

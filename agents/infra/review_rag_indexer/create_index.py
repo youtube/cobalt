@@ -5,7 +5,6 @@
 """Script for creating indexes for the Review RAG service."""
 
 import argparse
-import dataclasses
 import datetime
 import json
 import logging
@@ -16,44 +15,16 @@ import posixpath
 import dateparser
 
 import cipd_helpers
+import gerrit_steps
+import git_utils
+from common_types import CommonArgs, PreviousRunInfo
+import local_git_steps
 
 # Should be incremented every time the an index-visible change is made to the
 # script so that incompatible indexes are not reused.
 SCRIPT_VERSION = 1
 
 MANIFEST_NAME = 'manifest.json'
-
-
-@dataclasses.dataclass
-class PreviousRunInfo:
-    """Information extracted from the previous run's manifest."""
-    # The git revision that was used as HEAD in the previous run.
-    revision: str
-    # The time that the previous run was started at. Equivalent to the
-    # `window_base` value of that run.
-    start_time: datetime.datetime
-
-
-@dataclasses.dataclass
-class CommonArgs:
-    """Arguments that are expected to be passed around frequently."""
-    # The Git-on-Borg project hosting the repo that is being operated on.
-    project: str
-    # The git repo within `project` that is being operated on.
-    repo: str
-    # The window over which the index is being created.
-    window: datetime.timedelta
-    # The timestamp that `window` was calculated over.
-    window_base: datetime.datetime
-    # Whether we are running in dryrun mode.
-    dryrun: bool
-    # Information about the previous index creation run, if available.
-    previous_run: PreviousRunInfo | None
-
-    @property
-    def clobber(self) -> bool:
-        """Create a fresh index rather than building on a previous one."""
-        return self.previous_run is None
 
 
 def _calculate_time_window(
@@ -203,11 +174,41 @@ def _parse_args() -> argparse.Namespace:
         action='store_true',
         help=('Run through all index creation steps, but do not upload any '
               'index data.'))
+    parser.add_argument(
+        '--head-git-revision',
+        default='HEAD',
+        help=('An git revision to treat as HEAD. Commits after this revision '
+              'will be ignored. This is primarily intended to support local '
+              'runs with WIP changes committed.'))
     parser.add_argument('--verbose',
                         action='store_true',
                         help='Log more verbosely')
+    parser.add_argument(
+        '--num-network-workers',
+        type=int,
+        default=20,
+        help='The number of workers to use for network operations.')
 
-    return parser.parse_args()
+    args = parser.parse_args()
+    _validate_args(args, parser)
+    return args
+
+
+def _validate_args(args: argparse.Namespace,
+                   parser: argparse.ArgumentParser) -> None:
+    """Validates arguments immediately after parsing.
+
+    Args:
+        args: The parsed arguments.
+        parser: The parser that parsed `args`.
+    """
+    if args.num_network_workers <= 0:
+        parser.error('--num-network-workers must be positive')
+
+    if args.head_git_revision != 'HEAD':
+        if not git_utils.revision_exists(args.head_git_revision):
+            parser.error(
+                f'Invalid head git revision: {args.head_git_revision}')
 
 
 def main() -> None:
@@ -225,8 +226,20 @@ def main() -> None:
                              window=window,
                              window_base=base,
                              dryrun=args.dryrun,
-                             previous_run=None)
+                             previous_run=None,
+                             head_git_revision=args.head_git_revision,
+                             num_network_workers=args.num_network_workers)
     _retrieve_previous_run_info(common_args)
+
+    cl_info = local_git_steps.process_local_git_data(common_args)
+    if not cl_info:
+        logging.info('No CLs found. Exiting.')
+        return
+    gerrit_steps.retrieve_hashtags(common_args, cl_info)
+    gerrit_steps.retrieve_comments(common_args, cl_info)
+    total_comments = sum(len(cl.comments) for cl in cl_info)
+    logging.info('Retrieved %d comment threads.', total_comments)
+
 
 
 if __name__ == '__main__':

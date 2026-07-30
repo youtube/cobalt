@@ -85,18 +85,6 @@ enum class KioskInstallResult {
   kSecondaryAppUpdateFailed = 7,
 };
 
-enum class KioskLaunchResult {
-  kUnknown = 0,
-  // Launch of kiosk app was successful.
-  kSuccess = 1,
-  // Primary or secondary apps are not ready for launch
-  kUnableToLaunch = 2,
-  // The primary app is not offline enabled, but network is not ready
-  kNetworkMissing = 3,
-  // The primary app is a deprecated Chrome App.
-  kChromeAppDeprecated = 4,
-};
-
 }  // namespace ash
 
 #endif  // CHROME_BROWSER_ASH_APP_MODE_KIOSK_APP_TYPES_H_

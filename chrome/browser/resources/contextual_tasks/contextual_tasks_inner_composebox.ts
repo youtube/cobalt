@@ -66,7 +66,9 @@ export interface ContextualTasksInnerComposeboxInterface {
       uuidToDelete: UnguessableToken, fromUserAction?: boolean,
       fromAutoSuggestedChip?: boolean): ComposeboxFile|null;
   focusInput(): void;
+  getAutomaticActiveTabChipElement(): HTMLElement|null;
   getDropTarget(): HTMLElement;
+  getHasAutomaticActiveTabChipToken(): boolean;
   hasFiles(): boolean;
   injectInput(
       title: string, thumbnail: string, fileToken: UnguessableToken,
@@ -109,8 +111,6 @@ export class
       disableFallbackGlifAnimation: {type: Boolean},
       enableCarouselScrolling: {type: Boolean},
       enableFileHint: {type: Boolean},
-      energyEffectAnimationEnabled: {type: Boolean},
-      energyEffectEnabled: {type: Boolean},
       glifAnimationState: {type: String},
       inputPlaceholderOverride: {type: String},
       isFollowupQuery: {type: Boolean},
@@ -128,8 +128,6 @@ export class
   accessor disableFallbackGlifAnimation: boolean = false;
   accessor enableCarouselScrolling: boolean = true;
   accessor enableFileHint: boolean = false;
-  accessor energyEffectAnimationEnabled: boolean = false;
-  accessor energyEffectEnabled: boolean = false;
   accessor glifAnimationState: GlifAnimationState =
       GlifAnimationState.INELIGIBLE;
   accessor inputPlaceholderOverride: string = '';
@@ -202,6 +200,16 @@ export class
   drag and drop handler can access addDroppedFiles(). */
   getDropTarget() {
     return this;
+  }
+
+  getAutomaticActiveTabChipElement(): HTMLElement|null {
+    // TODO: Migrate automatic active tab behavior.
+    return null;
+  }
+
+  getHasAutomaticActiveTabChipToken(): boolean {
+    // TODO: Migrate automatic active tab behavior.
+    return false;
   }
 
   injectInput(

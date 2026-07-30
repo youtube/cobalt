@@ -16,6 +16,7 @@
 #include "chrome/browser/ui/autofill/payments/save_iban_ui.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/autofill/address_sign_in_promo_view.h"
 #include "chrome/browser/ui/views/autofill/autofill_ai/autofill_ai_import_data_bubble_view.h"
@@ -97,8 +98,10 @@ View* ShowAddressProfileBubble(ToolbarButtonProvider* toolbar_button_provider,
 }  // namespace
 
 AutofillBubbleHandlerImpl::AutofillBubbleHandlerImpl(
+    BrowserWindowInterface* browser,
     ToolbarButtonProvider* toolbar_button_provider)
-    : toolbar_button_provider_(toolbar_button_provider) {}
+    : toolbar_button_provider_(toolbar_button_provider),
+      scoped_user_data_(browser->GetUnownedUserDataHost(), *this) {}
 
 AutofillBubbleHandlerImpl::~AutofillBubbleHandlerImpl() = default;
 

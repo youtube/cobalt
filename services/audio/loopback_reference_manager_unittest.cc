@@ -36,6 +36,7 @@ namespace {
 using ReferenceOpenOutcome = ReferenceSignalProvider::ReferenceOpenOutcome;
 using OpenOutcome = media::AudioInputStream::OpenOutcome;
 using AudioInputCallback = media::AudioInputStream::AudioInputCallback;
+using Error = media::AudioInputStream::AudioInputCallback::Error;
 
 class MockAudioLog : public media::AudioLog {
  public:
@@ -512,7 +513,7 @@ TEST_F(LoopbackReferenceManagerTest, OnReferenceStreamError) {
   // deleted. Note that this will not normally be called on the main thread, but
   // we do so in this test to check the various cases in which the scheduled
   // deletion interacts with StartListening() and GetReferenceSignalProvider().
-  audio_callback->OnError();
+  audio_callback->OnError(Error::kRuntimeError);
 
   // We have had an error but destruction of the core has not yet occurred, so
   // listening will be successful.
@@ -583,7 +584,7 @@ TEST_F(LoopbackReferenceManagerTest, StopListeningAfterOnError) {
   AudioInputCallback* audio_callback = *(mock_input_stream->captured_callback_);
 
   // Send an error.
-  audio_callback->OnError();
+  audio_callback->OnError(Error::kRuntimeError);
 
   // Stop listening to the provider before the error has been processed.
   reference_signal_provider->StopListening(&mock_listener);
@@ -703,7 +704,7 @@ TEST_F(LoopbackReferenceManagerTest, DeliversErrorsOnMainThread) {
       FROM_HERE, base::BindOnce(
                      [](base::WaitableEvent* fired_error_event,
                         AudioInputCallback* audio_callback) {
-                       audio_callback->OnError();
+                       audio_callback->OnError(Error::kRuntimeError);
                        fired_error_event->Signal();
                      },
                      &fired_error_event, audio_callback));

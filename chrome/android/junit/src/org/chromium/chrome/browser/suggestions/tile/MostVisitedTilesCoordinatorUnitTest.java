@@ -80,7 +80,7 @@ public class MostVisitedTilesCoordinatorUnitTest {
 
     @Test
     public void testUpdateTilesLayoutMargins() {
-        mCoordinator.updateTilesLayoutMargins(/* shouldShowLogo= */ true, /* isTablet= */ false);
+        mCoordinator.updateTilesLayoutMargins(/* shouldShowLogo= */ true, /* isLff= */ false);
         verify(mMediator).updateTilesLayoutMargins(eq(true), eq(false));
     }
 }

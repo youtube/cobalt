@@ -62,7 +62,9 @@ void DeleteReadOnlyMemoryRegion(std::uintptr_t memory_map_ptr,
 const void* ReadOnlyMemoryRegionData(std::uintptr_t memory_map_ptr,
                                      std::uintptr_t user_data) {
   CHECK(memory_map_ptr);
-  return reinterpret_cast<base::MemoryMappedFile*>(memory_map_ptr)->data();
+  return reinterpret_cast<base::MemoryMappedFile*>(memory_map_ptr)
+      ->bytes()
+      .data();
 }
 
 uint64_t ReadOnlyMemoryRegionLength(std::uintptr_t memory_map_ptr,

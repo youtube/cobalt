@@ -15,7 +15,6 @@
 namespace blink {
 
 class ContainerNode;
-class Document;
 class Element;
 
 // HeapHashMap is not node-based and thus does not have stable iterators,

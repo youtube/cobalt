@@ -404,6 +404,7 @@ Sumir eiginleikar kunna að vera óaðgengilegir. Tilgreindu aðra prófílmöpp
 <translation id="5234764350956374838">Hunsa</translation>
 <translation id="5239627039202700673">Notaðu Chrome þegar þú ýtir á tengla í skilaboðum, skjölum og öðrum forritum</translation>
 <translation id="5251420635869119124">Gestir geta notað Chrome án þess að skilja eftir sig nokkur spor.</translation>
+<translation id="5271833978500241046">Notaðu hana samhliða öðrum Gemini-eiginleikum í Chrome</translation>
 <translation id="5286907366254680517">Greint</translation>
 <translation id="5320351714793324716">Ef þú leyfir fótspor kann Chrome að nota þau við forhleðslu</translation>
 <translation id="5321325624576443340">Google-linsa er ekki tiltæk. Reyndu aftur síðar.</translation>
@@ -442,15 +443,6 @@ Google Chrome getur ekki endurheimt stillingarnar þínar.</translation>
 <translation id="569897634095159764">Ekki er hægt að tengjast internetinu. Staðgengilsþjónninn krefst auðkenningar.</translation>
 <translation id="5709557627224531708">Stilltu Chrome sem sjálfgefinn vafra</translation>
 <translation id="5719246646468301581">Viðbótarþjónustuskilmálar Google Chrome og ChromeOS</translation>
-<translation id="5719324992913248873">Þessi aðgerð mun:
-          <ph name="LINE_BREAKS" />
-           • Endurstilla sumar stillingar og flýtileiðir Chrome
-           <ph name="LINE_BREAK" />
-           • Slökkva á viðbótum
-           <ph name="LINE_BREAK" />
-           • Eyða fótsporum og öðrum tímabundnum vefsvæðagögnum
-            <ph name="LINE_BREAKS" />
-           Hún hefur ekki áhrif á bókamerki, feril og vistuð aðgangsorð.</translation>
 <translation id="5736850870166430177">Ef vefsvæði reynir að stela aðgangsorðinu þínu, eða ef þú sækir skaðlega skrá, gæti Chrome einnig sent vefslóðir í örugga vefskoðun, þar á meðal hluta af innihaldi síðna</translation>
 <translation id="5756509061973259733">Chrome prófíll með þessum reikningi er þegar til í þessu tæki</translation>
 <translation id="5759947850379142561">Veldu hvaða texta eða mynd sem er til að leita með Google-linsu eða ýttu á „Esc“ til að loka Linsunni</translation>
@@ -648,6 +640,7 @@ Google Chrome getur ekki endurheimt stillingarnar þínar.</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7627609214560473136">Til að vernda gögnin þín skaltu leyfa Chrome að fjarlægja heimildir vefsvæða sem þú hefur ekki opnað nýlega.</translation>
 <translation id="7629695634924605473">Chrome lætur þig vita ef aðgangsorðin þín eru einhvern tímann í hættu</translation>
+<translation id="7629898584100520089">Gervigreindarnýjungar á borð við færni eru vistaðar á Google-reikningnum þínum og stjórnað sérstaklega í Chrome-samstillingu</translation>
 <translation id="7641148173327520642">Kerfisstjórinn hefur stillt Google Chrome á að opna <ph name="ALTERNATIVE_BROWSER_NAME" /> til að fá aðgang að <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="7649070708921625228">Hjálp</translation>
 <translation id="7651907282515937834">Lógó Chrome Enterprise</translation>

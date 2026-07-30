@@ -14,6 +14,5 @@ include_rules = [
   "+chrome/browser/browser_process.h",
   "+chrome/browser/browser_process_platform_part_ash.h",
   "+chrome/browser/profiles",
-  "+chrome/common",
   "+chrome/grit",
 ]

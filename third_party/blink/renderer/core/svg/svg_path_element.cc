@@ -20,15 +20,19 @@
 
 #include "third_party/blink/renderer/core/svg/svg_path_element.h"
 
+#include "third_party/blink/renderer/bindings/core/v8/v8_svg_path_data_settings.h"
 #include "third_party/blink/renderer/core/dom/document.h"
+#include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/core/svg/svg_animated_path.h"
 #include "third_party/blink/renderer/core/svg/svg_mpath_element.h"
+#include "third_party/blink/renderer/core/svg/svg_path.h"
 #include "third_party/blink/renderer/core/svg/svg_path_query.h"
 #include "third_party/blink/renderer/core/svg/svg_path_utilities.h"
 #include "third_party/blink/renderer/core/svg/svg_point_tear_off.h"
 #include "third_party/blink/renderer/platform/geometry/path_builder.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 
 namespace blink {
 
@@ -99,6 +103,18 @@ SVGPointTearOff* SVGPathElement::getPointAtLength(
   }
   gfx::PointF point = path_query.GetPointAtLength(length);
   return SVGPointTearOff::CreateDetached(point);
+}
+
+HeapVector<Member<SVGPathSegment>> SVGPathElement::getPathData(
+    const SVGPathDataSettings* settings) {
+  const bool normalize = settings->normalize();
+  if (normalize) {
+    UseCounter::Count(GetDocument(),
+                      WebFeature::kSVGPathElementGetPathDataNormalized);
+  }
+  // Read the attribute base value, unaffected by SMIL or CSS.
+  return BuildPathSegmentsFromByteStream(path_->BaseValue()->ByteStream(),
+                                         normalize);
 }
 
 void SVGPathElement::DidRecalcStyle(const StyleRecalcChange change) {

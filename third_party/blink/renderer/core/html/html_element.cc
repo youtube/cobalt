@@ -32,6 +32,7 @@
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/forms/form_control_type.mojom-blink.h"
 #include "third_party/blink/public/mojom/frame/frame.mojom-blink.h"
+#include "third_party/blink/public/mojom/unbounded_element/unbounded_element.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/js_event_handler_for_content_attribute.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_attach_internals_options.h"
@@ -56,7 +57,6 @@
 #include "third_party/blink/renderer/core/dom/document_fragment.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/dom/element.h"
-#include "third_party/blink/renderer/core/dom/element_rare_data_vector.h"
 #include "third_party/blink/renderer/core/dom/element_traversal.h"
 #include "third_party/blink/renderer/core/dom/events/event_listener.h"
 #include "third_party/blink/renderer/core/dom/events/scoped_event_queue.h"
@@ -66,6 +66,7 @@
 #include "third_party/blink/renderer/core/dom/id_target_observer.h"
 #include "third_party/blink/renderer/core/dom/invoker_data.h"
 #include "third_party/blink/renderer/core/dom/node_lists_node_data.h"
+#include "third_party/blink/renderer/core/dom/node_rare_data.h"
 #include "third_party/blink/renderer/core/dom/node_traversal.h"
 #include "third_party/blink/renderer/core/dom/popover_data.h"
 #include "third_party/blink/renderer/core/dom/shadow_root.h"
@@ -149,6 +150,7 @@
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/text/character_names.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
+#include "ui/gfx/geometry/rect.h"
 
 namespace blink {
 
@@ -1596,6 +1598,7 @@ ScriptPromise<IDLUndefined> HTMLElement::showUnboundedElement(
   if (auto* layout_object = GetLayoutObject()) {
     bounds = layout_object->AbsoluteBoundingBoxRect();
   }
+  SetLastSentUnboundedBounds(bounds);
 
   if (bounds.IsEmpty()) {
     // TODO(crbug.com/508672616): This is likely weird for now as an element
@@ -1604,6 +1607,17 @@ ScriptPromise<IDLUndefined> HTMLElement::showUnboundedElement(
     resolver->Reject(MakeGarbageCollected<DOMException>(
         DOMExceptionCode::kNotSupportedError,
         "Unbounded elements must have non-empty bounds."));
+    return promise;
+  }
+
+  // TODO(crbug.com/508672616): the unbounded element API does not work when
+  // the TreesInViz feature is enabled. There are various CHECKs that enforce
+  // this. So we need to reject here.
+  if (base::FeatureList::IsEnabled(::features::kTreesInViz)) {
+    resolver->Reject(MakeGarbageCollected<DOMException>(
+        DOMExceptionCode::kNotSupportedError,
+        "The unbounded element API doesn't support the TreesInViz feature. "
+        "Please disable it with `--disable-features=TreesInViz`."));
     return promise;
   }
 
@@ -1654,6 +1668,17 @@ void HTMLElement::SetUnboundedElementActive(bool active) {
     layout_object->AddSubtreePaintPropertyUpdateReason(
         SubtreePaintPropertyUpdateReason::kContainerChainMayChange);
   }
+}
+
+gfx::Rect HTMLElement::LastSentUnboundedBounds() const {
+  if (const NodeRareData* data = RareData()) {
+    return data->LastSentUnboundedBounds();
+  }
+  return gfx::Rect();
+}
+
+void HTMLElement::SetLastSentUnboundedBounds(const gfx::Rect& bounds) {
+  data_ = EnsureRareData().SetLastSentUnboundedBounds(bounds);
 }
 
 bool HTMLElement::togglePopover(ExceptionState& exception_state) {

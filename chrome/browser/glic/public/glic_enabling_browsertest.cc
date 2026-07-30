@@ -7,13 +7,10 @@
 #include "base/command_line.h"
 #include "base/metrics/metrics_hashes.h"
 #include "base/test/metrics/histogram_tester.h"
-#include "base/test/scoped_amount_of_physical_memory_override.h"
 #include "base/test/scoped_command_line.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/chrome_browser_main.h"
-#include "chrome/browser/chrome_browser_main_extra_parts.h"
 #include "chrome/browser/glic/glic_metrics_provider.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/public/features.h"
@@ -37,7 +34,6 @@
 #include "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "components/subscription_eligibility/subscription_eligibility_prefs.h"
-#include "components/variations/service/variations_service.h"
 #include "components/variations/synthetic_trial_registry.h"
 #include "content/public/test/browser_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -135,7 +131,7 @@ class GlicEnablingWithSeparateAccountCapabilityTest : public GlicEnablingTest {
         identity_manager->FindExtendedAccountInfoByAccountId(
             identity_manager->GetPrimaryAccountId(
                 signin::ConsentLevel::kSignin));
-    AccountCapabilitiesTestMutator mutator(&primary_account.capabilities);
+    AccountCapabilitiesTestMutator mutator(&primary_account);
     mutator.set_can_use_model_execution_features(capability_value);
     signin::UpdateAccountInfoForAccount(identity_manager, primary_account);
   }
@@ -444,83 +440,69 @@ IN_PROC_BROWSER_TEST_F(GlicEnablingTieredRolloutV2Test, EnabledForProfileTest) {
   EXPECT_FALSE(GlicEnabling::IsEnabledForProfile(profile()));
 }
 
-struct SystemRequirementsTestParams {
-  base::ByteSize memory_size;
-  bool is_dogfood;
-  bool expected_result;
+struct GeminiEntTestParams {
+  std::string email;
+  std::optional<std::string> hosted_domain;
+  bool expect_settings;
 };
 
-class GlicDogfoodMockExtraParts : public ChromeBrowserMainExtraParts {
- public:
-  explicit GlicDogfoodMockExtraParts(bool is_dogfood)
-      : is_dogfood_(is_dogfood) {}
-  ~GlicDogfoodMockExtraParts() override = default;
-
-  void PreProfileInit() override {
-    g_browser_process->variations_service()->SetIsLikelyDogfoodClientForTesting(
-        is_dogfood_);
+class GlicEnablingGeminiEntBrowserTest
+    : public GlicEnablingTest,
+      public ::testing::WithParamInterface<GeminiEntTestParams> {
+ protected:
+  GlicEnablingGeminiEntBrowserTest() {
+    glic_test_env_.SetForceSigninAndModelExecutionCapability(false);
   }
-
- private:
-  const bool is_dogfood_;
-};
-
-class GlicEnablingSystemRequirementsTest
-    : public InProcessBrowserTest,
-      public testing::WithParamInterface<SystemRequirementsTestParams> {
- public:
-  GlicEnablingSystemRequirementsTest() {
+  void InitializeFeatureList() override {
+    scoped_feature_list_.InitWithFeatures(
+        {
+            features::kGlicGeminiEnterpriseSettingsEnabled,
 #if BUILDFLAG(IS_CHROMEOS)
-    scoped_feature_list_.InitAndDisableFeature(
-        chromeos::features::kFeatureManagementGlic);
-#endif  // BUILDFLAG(IS_CHROMEOS)
+            chromeos::features::kFeatureManagementGlic,
+#endif
+        },
+        {});
   }
-  void SetUp() override {
-    memory_override_.emplace(GetParam().memory_size);
-    InProcessBrowserTest::SetUp();
-  }
-  void CreatedBrowserMainParts(content::BrowserMainParts* parts) override {
-    InProcessBrowserTest::CreatedBrowserMainParts(parts);
-    static_cast<ChromeBrowserMainParts*>(parts)->AddParts(
-        std::make_unique<GlicDogfoodMockExtraParts>(GetParam().is_dogfood));
-  }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-  std::optional<base::test::ScopedAmountOfPhysicalMemoryOverride>
-      memory_override_;
 };
 
-IN_PROC_BROWSER_TEST_P(GlicEnablingSystemRequirementsTest,
-                       IsSystemRequirementMet) {
-  GlicGlobalEnabling::Delegate delegate;
-  EXPECT_EQ(GetParam().expected_result,
-            GlicGlobalEnabling(delegate).IsSystemRequirementMet());
+IN_PROC_BROWSER_TEST_P(GlicEnablingGeminiEntBrowserTest, VerifySettings) {
+  const GeminiEntTestParams& params = GetParam();
+
+  // 1. Set the pref directly using base::DictValue.
+  base::DictValue pref_value;
+  pref_value.Set("project_id", "test-project");
+  pref_value.Set("app_id", "test-engine");
+  pref_value.Set("location", "us");
+  profile()->GetPrefs()->SetDict(glic::prefs::kGlicGeminiEnterpriseSettings,
+                                 std::move(pref_value));
+
+  // 2. Sign in with the parameterized account.
+  glic::ForceSigninAndGlicCapability(profile(),
+                                     params.hosted_domain.value_or(""));
+
+  // 3. Verify results.
+  std::optional<glic::mojom::GeminiEnterpriseSettings> settings =
+      GlicEnabling::GetGeminiEnterpriseSettings(profile());
+
+  if (params.expect_settings) {
+    ASSERT_TRUE(settings.has_value());
+    EXPECT_EQ(settings->project_id, "test-project");
+    EXPECT_EQ(settings->app_id, "test-engine");
+    EXPECT_EQ(settings->location, "us");
+  } else {
+    EXPECT_EQ(settings, std::nullopt);
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(
     All,
-    GlicEnablingSystemRequirementsTest,
-#if BUILDFLAG(IS_CHROMEOS)
-    testing::Values(SystemRequirementsTestParams{.memory_size = base::GiBU(7),
-                                                 .is_dogfood = true,
-                                                 .expected_result = false},
-                    SystemRequirementsTestParams{.memory_size = base::GiBU(8),
-                                                 .is_dogfood = true,
-                                                 .expected_result = true},
-                    // On ChromeOS, we expect that a non-dogfood client with
-                    // >= 8GB RAM doesn't met system requirements since we
-                    // explicitly gate Gemini-in-Chrome to Chromebook Plus
-                    // devices via FeatureManagementGlic.
-                    SystemRequirementsTestParams{.memory_size = base::GiBU(8),
-                                                 .is_dogfood = false,
-                                                 .expected_result = false})
-#else
-    testing::Values(SystemRequirementsTestParams{.memory_size = base::MiBU(256),
-                                                 .is_dogfood = false,
-                                                 .expected_result = true})
-#endif
-);
+    GlicEnablingGeminiEntBrowserTest,
+    ::testing::Values(GeminiEntTestParams{.email = "user@consumer.com",
+                                          .hosted_domain = std::nullopt,
+                                          .expect_settings = false},
+                      GeminiEntTestParams{.email = "user@enterprise.com",
+                                          .hosted_domain = "enterprise.com",
+                                          .expect_settings = true}));
 
 }  // namespace
 }  // namespace glic

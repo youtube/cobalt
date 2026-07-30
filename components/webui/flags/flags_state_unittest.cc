@@ -54,6 +54,10 @@ const char kFlags12[] = "flag12";
 const char kFlags13[] = "flag13";
 const char kFlags14[] = "flag14";
 
+// Matches an entry of kRenamedFlags to test rename migration.
+const char kOldFlagName[] = "prompt-api-for-gemini-nano";
+const char kNewFlagName[] = "prompt-api";
+
 const char kSwitch1[] = "switch";
 const char kSwitch2[] = "switch2";
 const char kSwitch3[] = "switch3";
@@ -215,6 +219,9 @@ auto kEntries = std::to_array<FeatureEntry>({
     {kFlags14, kDummyName, kDummyDescription,
      0,  // Ends up being mapped to the current platform.
      MULTI_VALUE_TYPE(kMultiChoicesWithEnableDisableFeatures2)},
+    {kNewFlagName, kDummyName, kDummyDescription,
+     0,  // Ends up being mapped to the current platform.
+     SINGLE_VALUE_TYPE(kSwitch1)},
 });
 
 class FlagsStateTest : public ::testing::Test,
@@ -274,6 +281,14 @@ TEST_F(FlagsStateTest, ChangeNeedsRestart) {
   EXPECT_FALSE(flags_state_->IsRestartNeededToCommitChanges());
   flags_state_->SetFeatureEntryEnabled(&flags_storage_, kFlags1, true);
   EXPECT_TRUE(flags_state_->IsRestartNeededToCommitChanges());
+}
+
+TEST_F(FlagsStateTest, RenamedFlagMigration) {
+  flags_storage_.SetFlags({kOldFlagName});
+  std::set<std::string> enabled_flags;
+  flags_state_->GetSanitizedEnabledFlags(&flags_storage_, &enabled_flags);
+  EXPECT_THAT(enabled_flags, ::testing::ElementsAre(kNewFlagName));
+  EXPECT_THAT(flags_storage_.GetFlags(), ::testing::ElementsAre(kNewFlagName));
 }
 
 // Tests that disabling a default enabled entry requires a restart.
@@ -988,7 +1003,7 @@ TEST_F(FlagsStateTest, GetFlagFeatureEntries) {
   // All |kEntries| except for |kFlags3| should be supported.
   auto supported_count = supported_entries.size();
   auto unsupported_count = unsupported_entries.size();
-  EXPECT_EQ(13u, supported_count);
+  EXPECT_EQ(14u, supported_count);
   EXPECT_EQ(1u, unsupported_count);
   EXPECT_EQ(std::size(kEntries), supported_count + unsupported_count);
 }

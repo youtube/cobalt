@@ -41,6 +41,7 @@
 #include "third_party/blink/public/mojom/frame/fullscreen.mojom.h"
 #include "third_party/blink/public/mojom/frame/intrinsic_sizing_info.mojom-forward.h"
 #include "third_party/blink/public/mojom/input/input_event_result.mojom-shared.h"
+#include "third_party/blink/public/mojom/unbounded_element/unbounded_element.mojom-forward.h"
 #include "third_party/skia/include/core/SkImageInfo.h"
 #include "ui/accessibility/ax_action_handler_registry.h"
 #include "ui/base/ime/mojom/text_input_state.mojom-forward.h"
@@ -71,11 +72,24 @@ class LatencyInfo;
 enum class DomCode : uint32_t;
 }  // namespace ui
 
+namespace mojo {
+template <typename T>
+class PendingReceiver;
+template <typename T>
+class PendingRemote;
+}  // namespace mojo
+
+namespace viz::mojom {
+class CompositorFrameSink;
+class CompositorFrameSinkClient;
+}  // namespace viz::mojom
+
 namespace content {
 
 class DevicePosturePlatformProvider;
 class MouseWheelPhaseHandler;
 class RenderWidgetHostImpl;
+class UnboundedSurfaceWindow;
 class ScopedViewTransitionResources;
 class TextInputManager;
 class TouchSelectionControllerClientManager;
@@ -292,8 +306,6 @@ class CONTENT_EXPORT RenderWidgetHostViewBase
   virtual gfx::Size GetRequestedRendererSize();
   virtual gfx::Size GetRequestedRendererSizeDevicePx();
 
-  // Returns the current capture sequence number.
-  virtual uint32_t GetCaptureSequenceNumber() const;
 
   // The size of the view's backing surface in non-DPI-adjusted pixels.
   virtual gfx::Size GetCompositorViewportPixelSize();
@@ -415,6 +427,23 @@ class CONTENT_EXPORT RenderWidgetHostViewBase
 
   // Tells the View to destroy itself.
   virtual void Destroy();
+
+  // Unbounded element API methods.
+  virtual void CreateUnboundedSurface(
+      mojo::PendingAssociatedReceiver<blink::mojom::UnboundedSurfaceHost> host,
+      mojo::PendingAssociatedRemote<blink::mojom::UnboundedSurfaceClient>
+          client,
+      const gfx::Rect& bounds_in_dips);
+  virtual void UpdateUnboundedSurfaceBounds(const gfx::Rect& bounds_in_screen);
+  virtual void DismissUnboundedSurface();
+  virtual void DestroyUnboundedSurface();
+  virtual bool HasActiveUnboundedSurface() const;
+  virtual viz::FrameSinkId GetUnboundedSurfaceFrameSinkId() const;
+  virtual viz::LocalSurfaceId GetUnboundedSurfaceLocalSurfaceId() const;
+  virtual void GetUnboundedSurfaceCompositorFrameSink(
+      mojo::PendingReceiver<viz::mojom::CompositorFrameSink> sink,
+      mojo::PendingRemote<viz::mojom::CompositorFrameSinkClient> client);
+  virtual UnboundedSurfaceWindow* GetUnboundedSurfaceWindow() const;
 
   // Updates the tooltip text and its position and displays the requested
   // tooltip on the screen. The |bounds| parameter corresponds to the bounds of
@@ -645,6 +674,8 @@ class CONTENT_EXPORT RenderWidgetHostViewBase
   // The model object. Access is protected to allow access to
   // RenderWidgetHostViewChildFrame.
   raw_ptr<RenderWidgetHostImpl, DanglingUntriaged> host_;
+
+  std::unique_ptr<UnboundedSurfaceWindow> unbounded_surface_window_;
 
   // Whether this view is a frame or a popup.
   WidgetType widget_type_ = WidgetType::kFrame;

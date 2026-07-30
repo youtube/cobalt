@@ -1835,14 +1835,15 @@ class TabImpl implements Tab {
         if (!UrlConstants.CHROME_SCHEME.equals(scheme)) return false;
 
         String host = url.getHost();
-        if (UrlConstants.SETTINGS_HOST.equals(host)) {
-            // TODO(crbug.com/456164910): Use the URL path to open deeplinks into Settings.
-            SettingsNavigationFactory.createSettingsNavigation()
-                    .startSettings(assumeNonNull(getActivity()));
-            goBack(); // Keep showing the previous contents in the tab.
-            return true;
-        }
-        return false;
+        if (!UrlConstants.SETTINGS_HOST.equals(host)) return false;
+
+        if (ChromeFeatureList.isEnabled(ChromeFeatureList.SETTINGS_IN_TAB)) return false;
+
+        // TODO(crbug.com/456164910): Use the URL path to open deeplinks into Settings.
+        SettingsNavigationFactory.createSettingsNavigation()
+                .startSettings(assumeNonNull(getActivity()));
+        goBack(); // Keep showing the previous contents in the tab.
+        return true;
     }
 
     /**

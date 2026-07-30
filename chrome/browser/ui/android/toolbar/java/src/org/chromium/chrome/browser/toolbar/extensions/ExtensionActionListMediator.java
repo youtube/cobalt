@@ -454,7 +454,7 @@ class ExtensionActionListMediator implements Destroyable {
         model.set(ExtensionActionButtonProperties.ACCESSIBLE_NAME, action.getAccessibleName());
     }
 
-    private void updateActionPropertiesForAll(WebContents webContents) {
+    void updateActionPropertiesForAll(WebContents webContents) {
         for (int i = 0; i < mModels.size(); i++) {
             updateActionPropertiesForIndex(i, getActionIdForIndex(i), webContents);
         }

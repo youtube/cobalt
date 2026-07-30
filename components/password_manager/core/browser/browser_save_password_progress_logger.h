@@ -13,6 +13,7 @@
 #include "components/autofill/core/browser/proto/password_requirements.pb.h"
 #include "components/autofill/core/common/mojom/autofill_types.mojom.h"
 #include "components/autofill/core/common/save_password_progress_logger.h"
+#include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_manager_metrics_recorder.h"
 #include "components/password_manager/core/browser/votes_uploader.h"
 #include "url/gurl.h"
@@ -74,6 +75,9 @@ class BrowserSavePasswordProgressLogger
   // Browser-specific addition to the base class' Log* methods. The input is
   // passed to SendLog for display.
   void LogString(StringID label, const std::string& s);
+
+  // Logs a save or update decision along with the specific store details.
+  void LogPasswordSaveAndUpdate(StringID label, PasswordForm::Store store);
 
   // Log a password successful submission event.
   void LogSuccessfulSubmissionIndicatorEvent(

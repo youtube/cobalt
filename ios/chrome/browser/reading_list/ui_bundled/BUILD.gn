@@ -136,7 +136,6 @@ source_set("ui") {
     "reading_list_toolbar_button_commands.h",
     "reading_list_toolbar_button_manager.h",
     "reading_list_toolbar_button_manager.mm",
-    "reading_list_ui_distillation_status.h",
     "text_badge_view.h",
     "text_badge_view.mm",
   ]

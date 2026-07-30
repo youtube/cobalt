@@ -31,6 +31,7 @@
 #include "chrome/browser/ui/views/toolbar/pinned_action_toolbar_button.h"
 #include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container_layout.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_divider.h"
+#include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/feature_engagement/public/feature_constants.h"
@@ -883,6 +884,13 @@ ToolbarButton* PinnedToolbarActionsContainer::GetDownloadButton() {
 
 views::BubbleAnchor PinnedToolbarActionsContainer::GetBubbleAnchor(
     actions::ActionId action_id) {
+  if (IsOverflowed(action_id)) {
+    if (browser_view_ && browser_view_->toolbar() &&
+        browser_view_->toolbar()->overflow_button() &&
+        browser_view_->toolbar()->overflow_button()->GetVisible()) {
+      return views::BubbleAnchor(browser_view_->toolbar()->overflow_button());
+    }
+  }
   return views::BubbleAnchor(GetButtonFor(action_id));
 }
 

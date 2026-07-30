@@ -69,6 +69,7 @@ enum ExternalPointerTypeTag : uint16_t {
   kFXJSEFunctionDescriptorTag,
   kFXJSEClassDescriptorTag,
   kV8IsolateTag,
+  kLastExternalPointerTypeTag = kV8IsolateTag,
 };
 
 }  // namespace gin

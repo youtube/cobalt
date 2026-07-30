@@ -3275,7 +3275,7 @@ IN_PROC_BROWSER_TEST_P(HttpsUpgradesBrowserTest,
   GURL https_url = https_server()->GetURL("foo.com", "/simple.html");
 
   if (IsHttpsFirstModeInterstitialEnabledAcrossSites()) {
-    // HTTPS-First Mode should supercede HTTPS-Upgrades and upgrade the
+    // HTTPS-First Mode should supersede HTTPS-Upgrades and upgrade the
     // navigation despite the HttpsUpgradeMode policy setting.
     EXPECT_FALSE(NavigateToURLWithLinkTransition(contents, http_url));
     EXPECT_EQ(https_url, contents->GetLastCommittedURL());

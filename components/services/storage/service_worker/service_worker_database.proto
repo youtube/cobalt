@@ -170,6 +170,7 @@ message ServiceWorkerRegistrationData {
             kJsonDestination = 26;
             kSharedStorageWorkletDestination = 27;
             kEmailVerificationDestination = 28;
+            kTextDestination = 29;
           }
           optional Destination destination = 3;
         }

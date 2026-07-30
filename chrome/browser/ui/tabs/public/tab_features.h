@@ -56,6 +56,7 @@ class ContentAnnotatorTabHelper;
 
 namespace autofill {
 class BubbleManager;
+class OmniboxAutofillBubbleController;
 class OmniboxAutofillPageActionController;
 }  // namespace autofill
 
@@ -529,6 +530,11 @@ class TabFeatures {
   // Responsible for managing the "Autofill payment" page action.
   std::unique_ptr<autofill::OmniboxAutofillPageActionController>
       omnibox_autofill_page_action_controller_;
+
+  // Responsible for managing the bubble that displays after the
+  // "Autofill payment" chip is clicked.
+  std::unique_ptr<autofill::OmniboxAutofillBubbleController>
+      omnibox_autofill_bubble_controller_;
 
   std::unique_ptr<AskBeforeHttpDialogController>
       ask_before_http_dialog_controller_;

@@ -21,15 +21,12 @@ class MockPasswordManagerDelegate : public PasswordManagerDelegate {
       delete;
   ~MockPasswordManagerDelegate() override;
 
-  MOCK_METHOD((void),
-              ShowSuggestions,
-              (const autofill::TriggeringField&),
-              (override));
+  MOCK_METHOD((void), ShowSuggestions, (const TriggeringField&), (override));
 
 #if BUILDFLAG(IS_ANDROID)
   MOCK_METHOD((void),
               ShowKeyboardReplacingSurface,
-              (const autofill::PasswordSuggestionRequest&),
+              (const PasswordSuggestionRequest&),
               (override));
 #endif  // BUILDFLAG(IS_ANDROID)
 

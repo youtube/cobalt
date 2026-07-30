@@ -1047,7 +1047,13 @@ class AppPlatformMetricsServiceBrowserTest
   base::TimeDelta accumulated_two_hours_time_;
 };
 
-IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest, UsageTime) {
+// TODO(crbug.com/521490538): Fix memory leaks and re-enable the tests.
+#if defined(LEAK_SANITIZER)
+#define MAYBE_UsageTime DISABLED_UsageTime
+#else
+#define MAYBE_UsageTime UsageTime
+#endif
+IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest, MAYBE_UsageTime) {
   // Create an ARC app window.
   std::string app_id = "aa";
   InstallOneApp(app_id, AppType::kArc, "com.google.AA", Readiness::kReady,
@@ -1069,7 +1075,7 @@ IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest, UsageTime) {
 
   // Set the browser window active.
   ModifyInstance(app_constants::kChromeAppId,
-                 browser->window()->GetNativeWindow(), kActiveInstanceState);
+                 browser->GetWindow()->GetNativeWindow(), kActiveInstanceState);
 
   FastForwardBy(base::Minutes(3));
   VerifyAppUsageTimeCountHistogram(/*expected_count=*/2, AppTypeName::kArc);
@@ -1099,7 +1105,8 @@ IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest, UsageTime) {
 
   // Set the browser window inactive.
   ModifyInstance(app_constants::kChromeAppId,
-                 browser->window()->GetNativeWindow(), kInactiveInstanceState);
+                 browser->GetWindow()->GetNativeWindow(),
+                 kInactiveInstanceState);
 
   // Set time passed 2 hours to record the usage time AppKM.
   FastForwardBy(base::Minutes(95));
@@ -1108,12 +1115,19 @@ IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest, UsageTime) {
   CloseBrowserSynchronously(browser);
 }
 
-IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest, UsageTimeUkm) {
+// TODO(crbug.com/521490538): Fix memory leaks and re-enable the tests.
+#if defined(LEAK_SANITIZER)
+#define MAYBE_UsageTimeUkm DISABLED_UsageTimeUkm
+#else
+#define MAYBE_UsageTimeUkm UsageTimeUkm
+#endif
+IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest,
+                       MAYBE_UsageTimeUkm) {
   Browser* browser = CreateBrowserWindow();
 
   // Set the browser window active.
   ModifyInstance(app_constants::kChromeAppId,
-                 browser->window()->GetNativeWindow(), kActiveInstanceState);
+                 browser->GetWindow()->GetNativeWindow(), kActiveInstanceState);
 
   sync_service()->SetAllowedByEnterprisePolicy(false);
 
@@ -1126,7 +1140,8 @@ IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest, UsageTimeUkm) {
   static constexpr base::TimeDelta kAppUsageDuration = base::Hours(1);
   FastForwardBy(kAppUsageDuration);
   ModifyInstance(app_constants::kChromeAppId,
-                 browser->window()->GetNativeWindow(), kInactiveInstanceState);
+                 browser->GetWindow()->GetNativeWindow(),
+                 kInactiveInstanceState);
 
   // Fast forward by 2 hours and verify usage data reported to UKM only includes
   // usage data since sync was last enabled.
@@ -1136,29 +1151,37 @@ IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest, UsageTimeUkm) {
   CloseBrowserSynchronously(browser);
 }
 
+// TODO(crbug.com/521490538): Fix memory leaks and re-enable the tests.
+#if defined(LEAK_SANITIZER)
+#define MAYBE_UsageTimeUkmReportAfterReboot \
+  DISABLED_UsageTimeUkmReportAfterReboot
+#else
+#define MAYBE_UsageTimeUkmReportAfterReboot UsageTimeUkmReportAfterReboot
+#endif
 IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest,
-                       UsageTimeUkmReportAfterReboot) {
+                       MAYBE_UsageTimeUkmReportAfterReboot) {
   Browser* browser = CreateBrowserWindow();
   InstallOneApp(kWebAppId1, AppType::kWeb, "https://foo.com/",
                 Readiness::kReady, InstallSource::kSystem);
 
   // Set the browser window active.
   ModifyInstance(app_constants::kChromeAppId,
-                 browser->window()->GetNativeWindow(), kActiveInstanceState);
+                 browser->GetWindow()->GetNativeWindow(), kActiveInstanceState);
 
   FastForwardBy(base::Minutes(30));
 
   // Create a web app tab.
   const GURL url = GURL("https://foo.com");
   auto web_app_window =
-      CreateWebAppWindow(browser->window()->GetNativeWindow());
+      CreateWebAppWindow(browser->GetWindow()->GetNativeWindow());
 
   // Set the web app tab as activated.
   ModifyWebAppInstance(kWebAppId1, web_app_window.get(), kActiveInstanceState);
 
   FastForwardBy(base::Minutes(20));
   ModifyInstance(app_constants::kChromeAppId,
-                 browser->window()->GetNativeWindow(), kInactiveInstanceState);
+                 browser->GetWindow()->GetNativeWindow(),
+                 kInactiveInstanceState);
   ModifyWebAppInstance(kWebAppId1, web_app_window.get(),
                        kInactiveInstanceState);
 
@@ -1177,10 +1200,11 @@ IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest,
 
   // Set the browser window as activated.
   ModifyInstance(app_constants::kChromeAppId,
-                 browser->window()->GetNativeWindow(), kActiveInstanceState);
+                 browser->GetWindow()->GetNativeWindow(), kActiveInstanceState);
   FastForwardBy(base::Minutes(10));
   ModifyInstance(app_constants::kChromeAppId,
-                 browser->window()->GetNativeWindow(), kInactiveInstanceState);
+                 browser->GetWindow()->GetNativeWindow(),
+                 kInactiveInstanceState);
 
   // Verify UKM is not reported.
   VerifyAppUsageTimeUkm(/*count=*/2);
@@ -1207,23 +1231,33 @@ IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest,
   CloseBrowserSynchronously(browser);
 }
 
+// TODO(crbug.com/521490538): Fix memory leaks and re-enable the tests.
+#if defined(LEAK_SANITIZER)
+#define MAYBE_UsageTimeUkmWithMultipleWindows \
+  DISABLED_UsageTimeUkmWithMultipleWindows
+#else
+#define MAYBE_UsageTimeUkmWithMultipleWindows UsageTimeUkmWithMultipleWindows
+#endif
 IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest,
-                       UsageTimeUkmWithMultipleWindows) {
+                       MAYBE_UsageTimeUkmWithMultipleWindows) {
   Browser* browser1 = CreateBrowserWithAuraWindow();
 
   // Set the browser window active.
   ModifyInstance(app_constants::kChromeAppId,
-                 browser1->window()->GetNativeWindow(), kActiveInstanceState);
+                 browser1->GetWindow()->GetNativeWindow(),
+                 kActiveInstanceState);
   FastForwardBy(base::Minutes(5));
 
   // Set the browser window inactive.
   ModifyInstance(app_constants::kChromeAppId,
-                 browser1->window()->GetNativeWindow(), kInactiveInstanceState);
+                 browser1->GetWindow()->GetNativeWindow(),
+                 kInactiveInstanceState);
   FastForwardBy(base::Minutes(1));
 
   Browser* browser2 = CreateBrowserWithAuraWindow();
   ModifyInstance(app_constants::kChromeAppId,
-                 browser2->window()->GetNativeWindow(), kActiveInstanceState);
+                 browser2->GetWindow()->GetNativeWindow(),
+                 kActiveInstanceState);
   FastForwardBy(base::Minutes(7));
 
   // Close windows.
@@ -1238,8 +1272,17 @@ IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest,
                         AppTypeName::kChromeBrowser);
 }
 
-IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest,
-                       UsageTimeUkmForWebAppOpenInTabWithInactivatedBrowser) {
+// TODO(crbug.com/521490538): Fix memory leaks and re-enable the tests.
+#if defined(LEAK_SANITIZER)
+#define MAYBE_UsageTimeUkmForWebAppOpenInTabWithInactivatedBrowser \
+  DISABLED_UsageTimeUkmForWebAppOpenInTabWithInactivatedBrowser
+#else
+#define MAYBE_UsageTimeUkmForWebAppOpenInTabWithInactivatedBrowser \
+  UsageTimeUkmForWebAppOpenInTabWithInactivatedBrowser
+#endif
+IN_PROC_BROWSER_TEST_F(
+    AppPlatformMetricsServiceBrowserTest,
+    MAYBE_UsageTimeUkmForWebAppOpenInTabWithInactivatedBrowser) {
   Browser* browser = CreateBrowserWindow();
   InstallOneApp(kWebAppId1, AppType::kWeb, "https://foo.com/",
                 Readiness::kReady, InstallSource::kSystem);
@@ -1247,11 +1290,12 @@ IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest,
   // Create a web app tab.
   const GURL url = GURL("https://foo.com");
   auto web_app_window =
-      CreateWebAppWindow(browser->window()->GetNativeWindow());
+      CreateWebAppWindow(browser->GetWindow()->GetNativeWindow());
 
   // Set the browser window as inactivated.
   ModifyInstance(app_constants::kChromeAppId,
-                 browser->window()->GetNativeWindow(), kInactiveInstanceState);
+                 browser->GetWindow()->GetNativeWindow(),
+                 kInactiveInstanceState);
 
   // Set the web app tab as activated.
   ModifyWebAppInstance(kWebAppId1, web_app_window.get(), kActiveInstanceState);
@@ -1261,7 +1305,8 @@ IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest,
 
   // Set the browser window and web app tabs as inactivated.
   ModifyInstance(app_constants::kChromeAppId,
-                 browser->window()->GetNativeWindow(), kInactiveInstanceState);
+                 browser->GetWindow()->GetNativeWindow(),
+                 kInactiveInstanceState);
   ModifyWebAppInstance(kWebAppId1, web_app_window.get(),
                        kInactiveInstanceState);
   FastForwardBy(base::Minutes(2));
@@ -1269,9 +1314,10 @@ IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest,
   // Set the web app tab as activated.
   ModifyWebAppInstance(kWebAppId1, web_app_window.get(), kActiveInstanceState);
   ModifyInstance(app_constants::kChromeAppId,
-                 browser->window()->GetNativeWindow(), kInactiveInstanceState);
+                 browser->GetWindow()->GetNativeWindow(),
+                 kInactiveInstanceState);
   ModifyInstance(app_constants::kChromeAppId,
-                 browser->window()->GetNativeWindow(), kActiveInstanceState);
+                 browser->GetWindow()->GetNativeWindow(), kActiveInstanceState);
   FastForwardBy(base::Minutes(3));
   VerifyNoAppUsageTimeUkm();
 
@@ -1286,7 +1332,7 @@ IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest,
 
   // Set the browser window as destroyed.
   ModifyInstance(app_constants::kChromeAppId,
-                 browser->window()->GetNativeWindow(),
+                 browser->GetWindow()->GetNativeWindow(),
                  apps::InstanceState::kDestroyed);
   VerifyNoAppUsageTimeUkm();
 
@@ -1301,8 +1347,17 @@ IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest,
   CloseBrowserSynchronously(browser);
 }
 
-IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest,
-                       UsageTimeUkmForWebAppOpenInTabWithActivatedBrowser) {
+// TODO(crbug.com/521490538): Fix memory leaks and re-enable the tests.
+#if defined(LEAK_SANITIZER)
+#define MAYBE_UsageTimeUkmForWebAppOpenInTabWithActivatedBrowser \
+  DISABLED_UsageTimeUkmForWebAppOpenInTabWithActivatedBrowser
+#else
+#define MAYBE_UsageTimeUkmForWebAppOpenInTabWithActivatedBrowser \
+  UsageTimeUkmForWebAppOpenInTabWithActivatedBrowser
+#endif
+IN_PROC_BROWSER_TEST_F(
+    AppPlatformMetricsServiceBrowserTest,
+    MAYBE_UsageTimeUkmForWebAppOpenInTabWithActivatedBrowser) {
   Browser* browser = CreateBrowserWindow();
   InstallOneApp(kWebAppId1, AppType::kWeb, "https://foo.com/",
                 Readiness::kReady, InstallSource::kSystem);
@@ -1310,14 +1365,14 @@ IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest,
   // Create a web app tab.
   const GURL url = GURL("https://foo.com");
   auto web_app_window =
-      CreateWebAppWindow(browser->window()->GetNativeWindow());
+      CreateWebAppWindow(browser->GetWindow()->GetNativeWindow());
 
   // Set the web app tab as activated.
   ModifyWebAppInstance(kWebAppId1, web_app_window.get(), kActiveInstanceState);
 
   // Set the browser window as activated.
   ModifyInstance(app_constants::kChromeAppId,
-                 browser->window()->GetNativeWindow(), kActiveInstanceState);
+                 browser->GetWindow()->GetNativeWindow(), kActiveInstanceState);
 
   FastForwardBy(base::Minutes(5));
   VerifyNoAppUsageTimeUkm();
@@ -1329,7 +1384,8 @@ IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest,
 
   // Set the browser window as inactivated.
   ModifyInstance(app_constants::kChromeAppId,
-                 browser->window()->GetNativeWindow(), kInactiveInstanceState);
+                 browser->GetWindow()->GetNativeWindow(),
+                 kInactiveInstanceState);
   VerifyNoAppUsageTimeUkm();
   FastForwardBy(base::Minutes(112));
 
@@ -1341,7 +1397,7 @@ IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest,
 
   // Set the browser window as activated.
   ModifyInstance(app_constants::kChromeAppId,
-                 browser->window()->GetNativeWindow(), kActiveInstanceState);
+                 browser->GetWindow()->GetNativeWindow(), kActiveInstanceState);
 
   // Set the web app tab as activated.
   ModifyWebAppInstance(kWebAppId1, web_app_window.get(), kActiveInstanceState);
@@ -1349,7 +1405,8 @@ IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest,
 
   // Set the browser window as inactivated.
   ModifyInstance(app_constants::kChromeAppId,
-                 browser->window()->GetNativeWindow(), kInactiveInstanceState);
+                 browser->GetWindow()->GetNativeWindow(),
+                 kInactiveInstanceState);
 
   // Verify no more app usage time AppKM is recorded.
   VerifyAppUsageTimeUkm(/*count=*/2);
@@ -1368,12 +1425,12 @@ IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest,
 
   // Set the browser window as activated.
   ModifyInstance(app_constants::kChromeAppId,
-                 browser->window()->GetNativeWindow(), kActiveInstanceState);
+                 browser->GetWindow()->GetNativeWindow(), kActiveInstanceState);
   FastForwardBy(base::Minutes(1));
 
   // Set the browser window as destroyed.
   ModifyInstance(app_constants::kChromeAppId,
-                 browser->window()->GetNativeWindow(),
+                 browser->GetWindow()->GetNativeWindow(),
                  apps::InstanceState::kDestroyed);
 
   // Set the web app tab as destroyed.
@@ -1394,8 +1451,16 @@ IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest,
   CloseBrowserSynchronously(browser);
 }
 
+// TODO(crbug.com/521490538): Fix memory leaks and re-enable the tests.
+#if defined(LEAK_SANITIZER)
+#define MAYBE_UsageTimeUkmForMultipleWebAppOpenInTab \
+  DISABLED_UsageTimeUkmForMultipleWebAppOpenInTab
+#else
+#define MAYBE_UsageTimeUkmForMultipleWebAppOpenInTab \
+  UsageTimeUkmForMultipleWebAppOpenInTab
+#endif
 IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest,
-                       UsageTimeUkmForMultipleWebAppOpenInTab) {
+                       MAYBE_UsageTimeUkmForMultipleWebAppOpenInTab) {
   Browser* browser = CreateBrowserWindow();
   InstallOneApp(kWebAppId1, AppType::kWeb, "https://foo.com/",
                 Readiness::kReady, InstallSource::kSystem);
@@ -1405,10 +1470,10 @@ IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest,
   // Create web app tabs.
   const GURL url1 = GURL("https://foo.com");
   auto web_app_window1 =
-      CreateWebAppWindow(browser->window()->GetNativeWindow());
+      CreateWebAppWindow(browser->GetWindow()->GetNativeWindow());
   const GURL url2 = GURL("https://foo2.com");
   auto web_app_window2 =
-      CreateWebAppWindow(browser->window()->GetNativeWindow());
+      CreateWebAppWindow(browser->GetWindow()->GetNativeWindow());
 
   // Set the web app tab 1 as activated.
   ModifyWebAppInstance(kWebAppId1, web_app_window1.get(), kActiveInstanceState);
@@ -1417,7 +1482,7 @@ IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest,
 
   // Set the browser window as activated.
   ModifyInstance(app_constants::kChromeAppId,
-                 browser->window()->GetNativeWindow(), kActiveInstanceState);
+                 browser->GetWindow()->GetNativeWindow(), kActiveInstanceState);
 
   FastForwardBy(base::Minutes(5));
 
@@ -1438,7 +1503,8 @@ IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest,
 
   // Set the browser window as activated.
   ModifyInstance(app_constants::kChromeAppId,
-                 browser->window()->GetNativeWindow(), kInactiveInstanceState);
+                 browser->GetWindow()->GetNativeWindow(),
+                 kInactiveInstanceState);
 
   // Destroy the browser windows, and web app tabs.
   ModifyWebAppInstance(kWebAppId1, web_app_window1.get(),
@@ -1446,7 +1512,7 @@ IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest,
   ModifyWebAppInstance(kWebAppId2, web_app_window2.get(),
                        apps::InstanceState::kDestroyed);
   ModifyInstance(app_constants::kChromeAppId,
-                 browser->window()->GetNativeWindow(),
+                 browser->GetWindow()->GetNativeWindow(),
                  apps::InstanceState::kDestroyed);
 
   FastForwardBy(base::Minutes(108));
@@ -1463,8 +1529,14 @@ IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest,
   CloseBrowserSynchronously(browser);
 }
 
-IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest, BrowserWindow) {
-
+// TODO(crbug.com/521490538): Fix memory leaks and re-enable the tests.
+#if defined(LEAK_SANITIZER)
+#define MAYBE_BrowserWindow DISABLED_BrowserWindow
+#else
+#define MAYBE_BrowserWindow BrowserWindow
+#endif
+IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest,
+                       MAYBE_BrowserWindow) {
   InstallOneApp(app_constants::kChromeAppId, AppType::kChromeApp, "Chrome",
                 Readiness::kReady, InstallSource::kSystem);
 
@@ -1527,8 +1599,14 @@ IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest, BrowserWindow) {
   CloseBrowserSynchronously(browser1);
 }
 
+// TODO(crbug.com/521490538): Fix memory leaks and re-enable the tests.
+#if defined(LEAK_SANITIZER)
+#define MAYBE_AppRunningPercentage DISABLED_AppRunningPercentage
+#else
+#define MAYBE_AppRunningPercentage AppRunningPercentage
+#endif
 IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest,
-                       AppRunningPercentage) {
+                       MAYBE_AppRunningPercentage) {
   Browser* browser = CreateBrowserWindow();
 
   // Test one Chrome browser.

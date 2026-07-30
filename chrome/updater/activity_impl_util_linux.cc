@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "base/containers/to_vector.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
+#include "base/files/safe_base_name.h"
 #include "base/strings/string_split.h"
 #include "chrome/updater/activity_impl_util_posix.h"
 #include "chrome/updater/updater_branding.h"
@@ -61,13 +63,18 @@ std::vector<base::FilePath> GetHomeDirPaths(UpdaterScope scope) {
   return {};
 }
 
-base::FilePath GetActiveFile(const base::FilePath& home_dir,
-                             const std::string& id) {
+std::optional<base::FilePath> GetActiveFile(const base::FilePath& home_dir,
+                                            const std::string& id) {
+  std::optional<base::SafeBaseName> basename = base::SafeBaseName::Create(id);
+  if (!basename || basename->path() != base::FilePath(id) ||
+      basename->empty() || basename->path() == base::FilePath(".")) {
+    return std::nullopt;
+  }
   return home_dir.Append(".local")
       .Append(COMPANY_SHORTNAME_STRING)
       .Append(PRODUCT_FULLNAME_STRING)
       .Append("Actives")
-      .Append(id);
+      .Append(*basename);
 }
 
 }  // namespace updater

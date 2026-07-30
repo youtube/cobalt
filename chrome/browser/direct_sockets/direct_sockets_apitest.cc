@@ -751,8 +751,6 @@ class IsolatedWebAppApiTest : public web_app::IsolatedWebAppBrowserTestHarness {
             PermissionsPolicyFeature::kDirectSockets);
     if (with_pna) {
       manifest_builder
-          .AddPermissionsPolicyWildcard(
-              PermissionsPolicyFeature::kDirectSocketsPrivate)
           .AddPermissionsPolicyWildcard(PermissionsPolicyFeature::kLocalNetwork)
           .AddPermissionsPolicyWildcard(
               PermissionsPolicyFeature::kLoopbackNetwork);
@@ -830,8 +828,6 @@ class IsolatedWebAppSharedWorkerApiTest
 
     if (with_pna) {
       manifest_builder
-          .AddPermissionsPolicyWildcard(
-              PermissionsPolicyFeature::kDirectSocketsPrivate)
           .AddPermissionsPolicyWildcard(PermissionsPolicyFeature::kLocalNetwork)
           .AddPermissionsPolicyWildcard(
               PermissionsPolicyFeature::kLoopbackNetwork);
@@ -910,8 +906,6 @@ class IsolatedWebAppServiceWorkerApiTest
             PermissionsPolicyFeature::kDirectSockets);
     if (with_pna) {
       manifest_builder
-          .AddPermissionsPolicyWildcard(
-              PermissionsPolicyFeature::kDirectSocketsPrivate)
           .AddPermissionsPolicyWildcard(PermissionsPolicyFeature::kLocalNetwork)
           .AddPermissionsPolicyWildcard(
               PermissionsPolicyFeature::kLoopbackNetwork);
@@ -1388,7 +1382,8 @@ IN_PROC_BROWSER_TEST_F(ChromeDirectSocketsUdpIsolatedWebAppMulticastTest,
 
 IN_PROC_BROWSER_TEST_F(ChromeDirectSocketsUdpIsolatedWebAppTest,
                        UdpServerReadWrite) {
-  // UDP Bound Mode requires direct-sockets-private permissions policy.
+  // UDP Bound Mode requires local-network and loopback-network permissions
+  // policy.
   content::RenderFrameHost* app_frame =
       InstallAndOpenIsolatedWebApp(/*with_pna=*/true);
 
@@ -1596,8 +1591,6 @@ class IsolatedWebAppDirectSocketsPermissionPrompt
         web_app::ManifestBuilder()
             .AddPermissionsPolicyWildcard(
                 PermissionsPolicyFeature::kDirectSockets)
-            .AddPermissionsPolicyWildcard(
-                PermissionsPolicyFeature::kDirectSocketsPrivate)
             .AddPermissionsPolicyWildcard(
                 PermissionsPolicyFeature::kLocalNetwork)
             .AddPermissionsPolicyWildcard(

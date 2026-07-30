@@ -48,7 +48,7 @@ public class SearchBoxCoordinator implements NtpSearchBox {
     public SearchBoxCoordinator(
             Context context,
             ViewStub viewStub,
-            boolean isTablet,
+            boolean isLff,
             ActivityLifecycleDispatcher activityLifecycleDispatcher,
             boolean isIncognito,
             WindowAndroid windowAndroid,
@@ -61,7 +61,7 @@ public class SearchBoxCoordinator implements NtpSearchBox {
                         context,
                         mModel,
                         mView,
-                        isTablet,
+                        isLff,
                         activityLifecycleDispatcher,
                         newTabPageManager,
                         isIncognito,

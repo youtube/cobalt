@@ -126,7 +126,7 @@ TEST_F(ConnectionTokenAttestationTest, NoToken) {
   // Pending request should fail.
   auto result = future.Get();
   ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error(), StatusCode::kClientAttestationFailed);
+  EXPECT_EQ(result.error(), StatusCode::kClientAttestationTokenFetchFailed);
 
   // No requests were ever sent to the inner connection.
   EXPECT_EQ(fake_connection_->pending_requests().size(), 0u);
@@ -149,6 +149,8 @@ TEST_F(ConnectionTokenAttestationTest, ErrorBeforeFirstResponse) {
 
   ASSERT_EQ(fake_connection_->pending_requests().size(), 2u);
 
+  base::HistogramTester histogram_tester;
+
   // Simulate any error before a successful response.
   auto cb = std::move(fake_connection_->pending_requests()[1].callback);
   fake_connection_->pending_requests()[1].callback = base::DoNothing();
@@ -158,6 +160,10 @@ TEST_F(ConnectionTokenAttestationTest, ErrorBeforeFirstResponse) {
   ASSERT_FALSE(result.has_value());
   // The error should be rewritten to kClientAttestationFailed
   EXPECT_EQ(result.error(), StatusCode::kClientAttestationFailed);
+
+  histogram_tester.ExpectUniqueSample(
+      "PrivateAi.Client.ClientAttestationRequestFailureReason",
+      StatusCode::kNetworkError, 1);
 
   // We expect a disconnect to be requested.
   EXPECT_EQ(on_disconnect_counter_, 1);
@@ -211,6 +217,100 @@ TEST_F(ConnectionTokenAttestationTest, ErrorAfterFirstResponse) {
 
   // No new disconnect call expected directly from attestation heuristic.
   EXPECT_EQ(on_disconnect_counter_, 0);
+}
+
+TEST_F(ConnectionTokenAttestationTest, TimeoutBeforeFirstResponse) {
+  CreateConnectionAttestation();
+
+  base::test::TestFuture<base::expected<proto::PrivateAiResponse, StatusCode>>
+      future;
+  proto::PrivateAiRequest request;
+  request.set_request_id(123);
+  connection_attestation_->Send(std::move(request), base::Seconds(1),
+                                future.GetCallback());
+
+  // Provide the token.
+  token_manager_.RunPendingCallbacks();
+
+  ASSERT_EQ(fake_connection_->pending_requests().size(), 2u);
+
+  base::HistogramTester histogram_tester;
+
+  // Simulate timeout before a successful response.
+  auto cb = std::move(fake_connection_->pending_requests()[1].callback);
+  fake_connection_->pending_requests()[1].callback = base::DoNothing();
+  std::move(cb).Run(base::unexpected(StatusCode::kTimeout));
+
+  auto result = future.Get();
+  ASSERT_FALSE(result.has_value());
+  // The error should be rewritten to kClientAttestationFailed
+  EXPECT_EQ(result.error(), StatusCode::kClientAttestationFailed);
+
+  histogram_tester.ExpectUniqueSample(
+      "PrivateAi.Client.ClientAttestationRequestFailureReason",
+      StatusCode::kTimeout, 1);
+
+  // We expect a disconnect to be requested.
+  EXPECT_EQ(on_disconnect_counter_, 1);
+}
+
+TEST_F(ConnectionTokenAttestationTest, DestroyedBeforeFirstResponse) {
+  CreateConnectionAttestation();
+
+  base::test::TestFuture<base::expected<proto::PrivateAiResponse, StatusCode>>
+      future;
+  proto::PrivateAiRequest request;
+  request.set_request_id(123);
+  connection_attestation_->Send(std::move(request), base::Seconds(1),
+                                future.GetCallback());
+
+  // Provide the token.
+  token_manager_.RunPendingCallbacks();
+
+  ASSERT_EQ(fake_connection_->pending_requests().size(), 2u);
+
+  base::HistogramTester histogram_tester;
+
+  // Simulate destruction before a successful response.
+  auto cb = std::move(fake_connection_->pending_requests()[1].callback);
+  fake_connection_->pending_requests()[1].callback = base::DoNothing();
+  std::move(cb).Run(base::unexpected(StatusCode::kDestroyed));
+
+  auto result = future.Get();
+  ASSERT_FALSE(result.has_value());
+  // The error should be rewritten to kClientAttestationFailed
+  EXPECT_EQ(result.error(), StatusCode::kClientAttestationFailed);
+
+  histogram_tester.ExpectUniqueSample(
+      "PrivateAi.Client.ClientAttestationRequestFailureReason",
+      StatusCode::kDestroyed, 1);
+
+  // We expect a disconnect to be requested.
+  EXPECT_EQ(on_disconnect_counter_, 1);
+}
+
+TEST_F(ConnectionTokenAttestationTest, DecodeFailure) {
+  CreateConnectionAttestation();
+
+  base::test::TestFuture<base::expected<proto::PrivateAiResponse, StatusCode>>
+      future;
+  connection_attestation_->Send(proto::PrivateAiRequest(), base::Seconds(1),
+                                future.GetCallback());
+
+  // Provide an invalid token to simulate decode failure.
+  token_manager_.RespondToGetAuthToken(phosphor::BlindSignedAuthToken{
+      .token = "invalid base64!!!",
+      .encoded_extensions = "cHJveHlfZXh0ZW5zaW9ucw=="});
+
+  // Pending request should fail.
+  auto result = future.Get();
+  ASSERT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), StatusCode::kClientAttestationTokenDecodeFailed);
+
+  // No requests were ever sent to the inner connection.
+  EXPECT_EQ(fake_connection_->pending_requests().size(), 0u);
+
+  EXPECT_EQ(on_disconnect_counter_, 1);
 }
 
 }  // namespace

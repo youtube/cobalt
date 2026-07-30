@@ -52,8 +52,8 @@ CHROME_OPTIONS = [
     # Verbose levels for routing, casting, mirroring, and openscreen.
     "--vmodule=media_router*=3,discovery_mdns*=3,*cast*=3,"
     "webrtc_logging*=3,*mirroring*=3,*openscreen*=3",
-    # Force-enable stats collection loop and RTCP reporting on startup.
-    "--enable-features=EnableRtcpReporting",
+    # Force-enable stats collection loop, RTCP reporting, and 60fps streaming.
+    "--enable-features=EnableRtcpReporting,CastStreaming60fps",
     # Skips the first-run experience modal.
     "--no-first-run",
     # Prevents the "Set as default browser" prompt from appearing.
@@ -256,6 +256,8 @@ def run_performance_test(video_file: str, driver: webdriver, args):
         '-y',
         # Set the input format to Video4Linux2.
         '-f', 'video4linux2',
+        # Force V4L2 capture framerate to 60fps.
+        '-framerate', '60',
         # Set the input pixel format.
         '-input_format', 'yuyv422',
         # Specify the input file (video device).

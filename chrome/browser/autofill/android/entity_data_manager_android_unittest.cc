@@ -27,6 +27,7 @@
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_prefs.h"
 #include "components/consent_auditor/fake_consent_auditor.h"
+#include "components/personal_context/core/personal_context_prefs.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "components/sync/test/test_sync_service.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
@@ -47,12 +48,13 @@ using ::testing::SaveArg;
 class EntityDataManagerAndroidTest : public testing::Test {
  public:
   EntityDataManagerAndroidTest() {
-    autofill::prefs::RegisterProfilePrefs(prefs_.registry());
+    prefs::RegisterProfilePrefs(prefs_.registry());
+    personal_context::prefs::RegisterProfilePrefs(prefs_.registry());
     entity_data_manager_ = std::make_unique<EntityDataManager>(
         &prefs_, identity_test_env_.identity_manager(), &sync_service_,
         webdata_helper_.autofill_webdata_service(),
         /*history_service=*/nullptr, /*strike_database=*/nullptr,
-        autofill::GeoIpCountryCode("US"));
+        GeoIpCountryCode("US"));
 
     entity_data_manager_android_ = new EntityDataManagerAndroid(
         base::android::AttachCurrentThread(),
@@ -60,6 +62,8 @@ class EntityDataManagerAndroidTest : public testing::Test {
         /*google_groups_manager=*/nullptr, &prefs_,
         identity_test_env_.identity_manager(), &sync_service_,
         /*account_setting_service=*/nullptr, &consent_auditor_,
+        /*personal_context_enablement_service=*/nullptr,
+        /*subscription_eligibility_service=*/nullptr,
         /*is_off_the_record=*/false, &mock_wallet_pass_access_manager_,
         entity_data_manager_.get());
   }
@@ -244,15 +248,15 @@ TEST_F(EntityDataManagerAndroidTest, LogEntityAddedFromSettings) {
 
   histogram_tester.ExpectUniqueSample(
       "Autofill.Ai.EntityAddedFromSettings.Passport.Local",
-      autofill::EntityTypeName::kPassport, 1);
+      EntityTypeName::kPassport, 1);
   histogram_tester.ExpectUniqueSample(
-      "Autofill.Ai.EntityAddedFromSettings.Local",
-      autofill::EntityTypeName::kPassport, 1);
+      "Autofill.Ai.EntityAddedFromSettings.Local", EntityTypeName::kPassport,
+      1);
   histogram_tester.ExpectUniqueSample(
-      "Autofill.Ai.EntityAddedFromSettings.Passport",
-      autofill::EntityTypeName::kPassport, 1);
+      "Autofill.Ai.EntityAddedFromSettings.Passport", EntityTypeName::kPassport,
+      1);
   histogram_tester.ExpectUniqueSample("Autofill.Ai.EntityAddedFromSettings",
-                                      autofill::EntityTypeName::kPassport, 1);
+                                      EntityTypeName::kPassport, 1);
 }
 
 TEST_F(EntityDataManagerAndroidTest, LogEntityUpdatedFromSettings) {
@@ -271,15 +275,15 @@ TEST_F(EntityDataManagerAndroidTest, LogEntityUpdatedFromSettings) {
 
   histogram_tester.ExpectBucketCount(
       "Autofill.Ai.EntityUpdatedFromSettings.Passport.Local",
-      autofill::EntityTypeName::kPassport, 1);
+      EntityTypeName::kPassport, 1);
   histogram_tester.ExpectBucketCount(
-      "Autofill.Ai.EntityUpdatedFromSettings.Local",
-      autofill::EntityTypeName::kPassport, 1);
+      "Autofill.Ai.EntityUpdatedFromSettings.Local", EntityTypeName::kPassport,
+      1);
   histogram_tester.ExpectBucketCount(
       "Autofill.Ai.EntityUpdatedFromSettings.Passport",
-      autofill::EntityTypeName::kPassport, 1);
+      EntityTypeName::kPassport, 1);
   histogram_tester.ExpectBucketCount("Autofill.Ai.EntityUpdatedFromSettings",
-                                     autofill::EntityTypeName::kPassport, 1);
+                                     EntityTypeName::kPassport, 1);
 }
 
 TEST_F(EntityDataManagerAndroidTest, LogEntityDeletedFromSettings) {
@@ -298,15 +302,28 @@ TEST_F(EntityDataManagerAndroidTest, LogEntityDeletedFromSettings) {
 
   histogram_tester.ExpectUniqueSample(
       "Autofill.Ai.EntityDeletedFromSettings.Passport.Local",
-      autofill::EntityTypeName::kPassport, 1);
+      EntityTypeName::kPassport, 1);
   histogram_tester.ExpectUniqueSample(
-      "Autofill.Ai.EntityDeletedFromSettings.Local",
-      autofill::EntityTypeName::kPassport, 1);
+      "Autofill.Ai.EntityDeletedFromSettings.Local", EntityTypeName::kPassport,
+      1);
   histogram_tester.ExpectUniqueSample(
       "Autofill.Ai.EntityDeletedFromSettings.Passport",
-      autofill::EntityTypeName::kPassport, 1);
+      EntityTypeName::kPassport, 1);
   histogram_tester.ExpectUniqueSample("Autofill.Ai.EntityDeletedFromSettings",
-                                      autofill::EntityTypeName::kPassport, 1);
+                                      EntityTypeName::kPassport, 1);
+}
+
+TEST_F(EntityDataManagerAndroidTest, PersonalContextEnabled_GetAndSet) {
+  // The default value registered in personal_context::prefs is true.
+  EXPECT_TRUE(entity_data_manager_android_->IsPersonalContextEnabled(env()));
+
+  // Set to false and verify it changed.
+  entity_data_manager_android_->SetPersonalContextEnabled(env(), false);
+  EXPECT_FALSE(entity_data_manager_android_->IsPersonalContextEnabled(env()));
+
+  // Set back to true and verify it changed.
+  entity_data_manager_android_->SetPersonalContextEnabled(env(), true);
+  EXPECT_TRUE(entity_data_manager_android_->IsPersonalContextEnabled(env()));
 }
 
 }  // namespace

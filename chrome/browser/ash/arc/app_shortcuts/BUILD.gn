@@ -6,8 +6,6 @@ assert(is_chromeos)
 
 static_library("app_shortcuts") {
   sources = [
-    "arc_app_shortcuts_menu_builder.cc",
-    "arc_app_shortcuts_menu_builder.h",
     "arc_app_shortcuts_request.cc",
     "arc_app_shortcuts_request.h",
   ]
@@ -17,24 +15,15 @@ static_library("app_shortcuts") {
   deps = [
     "//base",
     "//chrome/browser/apps/app_service/app_icon",
-    "//chrome/browser/ash/app_list",
-    "//chrome/browser/ash/app_list/arc",
-    "//chrome/browser/ash/app_list/search",
-    "//chrome/browser/ash/app_list/search/ranking",
-    "//chrome/browser/profiles:profile",
     "//chromeos/ash/experiences/arc",
     "//chromeos/ash/experiences/arc/mojom",
-    "//ui/base",
   ]
 }
 
 source_set("unit_tests") {
   testonly = true
 
-  sources = [
-    "arc_app_shortcuts_menu_builder_unittest.cc",
-    "arc_app_shortcuts_request_unittest.cc",
-  ]
+  sources = [ "arc_app_shortcuts_request_unittest.cc" ]
 
   deps = [
     ":app_shortcuts",
@@ -46,7 +35,5 @@ source_set("unit_tests") {
     "//chrome/test:test_support",
     "//content/test:test_support",
     "//testing/gtest",
-    "//ui/base",
-    "//ui/display",
   ]
 }

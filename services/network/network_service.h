@@ -23,12 +23,14 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
+#include "base/timer/elapsed_timer.h"
 #include "base/timer/timer.h"
 #include "build/build_config.h"
 #include "components/vrp_flags/buildflags.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
+#include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/address_list.h"
 #include "net/base/schemeful_site.h"
@@ -92,7 +94,8 @@ class NetworkService;
 class SCTAuditingCache;
 
 class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
-    : public mojom::NetworkService {
+    : public mojom::NetworkService,
+      public mojom::NetworkContextCreator {
  public:
   explicit NetworkService(
       std::unique_ptr<service_manager::BinderRegistry> registry,
@@ -168,6 +171,8 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
   void CreateNetworkContext(
       mojo::PendingReceiver<mojom::NetworkContext> receiver,
       mojom::NetworkContextParamsPtr params) override;
+  void BindNetworkContextCreator(
+      mojo::PendingReceiver<mojom::NetworkContextCreator> receiver) override;
   void ConfigureStubHostResolver(
       bool insecure_dns_client_enabled,
       bool happy_eyeballs_v3_enabled,
@@ -476,6 +481,14 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
   std::unique_ptr<FirstPartySetsManager> first_party_sets_manager_;
 
   mojo::Receiver<mojom::NetworkService> receiver_{this};
+
+  // Receivers for NetworkContextCreator connections, used to allow
+  // calling CreateNetworkContext from background threads.
+  mojo::ReceiverSet<mojom::NetworkContextCreator> context_creator_receiver_set_;
+
+  // Timer to measure the time from NetworkService creation to the first
+  // CreateNetworkContext call. Reset after the metric is recorded.
+  std::optional<base::ElapsedTimer> time_to_first_context_timer_;
 
   mojo::Remote<mojom::URLLoaderNetworkServiceObserver>
       default_url_loader_network_service_observer_;

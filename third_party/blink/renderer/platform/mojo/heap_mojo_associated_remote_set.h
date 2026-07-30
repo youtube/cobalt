@@ -80,6 +80,11 @@ class HeapMojoAssociatedRemoteSet {
  private:
   FRIEND_TEST_ALL_PREFIXES(HeapMojoAssociatedRemoteSetGCWithContextObserverTest,
                            NoClearOnConservativeGC);
+  FRIEND_TEST_ALL_PREFIXES(HeapMojoAssociatedRemoteSetGCWithContextObserverTest,
+                           ResetsOnGC);
+  FRIEND_TEST_ALL_PREFIXES(
+      HeapMojoAssociatedRemoteSetGCWithoutContextObserverTest,
+      ResetsOnGC);
 
   // Garbage collected wrapper class to add a prefinalizer.
   class Wrapper final : public GarbageCollected<Wrapper>,

@@ -47,7 +47,7 @@ class GetUnmaskDetailsRequest : public PaymentsRequest {
 
   // Suggested authentication method and other information to facilitate card
   // unmasking.
-  payments::UnmaskDetails unmask_details_;
+  UnmaskDetails unmask_details_;
 };
 
 }  // namespace autofill::payments

@@ -1,0 +1,59 @@
+<!doctype html>
+<title>events fired when moving a playing media element to another document</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/media.js"></script>
+<div id="log"></div>
+<video hidden></video>
+<iframe hidden></iframe>
+<script>
+async_test(function(t) {
+  var v = document.querySelector('video');
+  v.src = getVideoURI('/media/movie_300');
+  v.play();
+
+  // The HTML spec does not treat a cross-document move as a pause trigger,
+  // so no "pause" event must fire even though the implementation re-runs the
+  // load algorithm to release frame-specific resources.
+  v.onpause = t.step_func(function() {
+    assert_unreached('pause event must not fire on a cross-document move');
+  });
+
+  var initialPlayingSeen = false;
+  var playEventsAfterMove = 0;
+
+  v.addEventListener('play', t.step_func(function() {
+    if (initialPlayingSeen) {
+      ++playEventsAfterMove;
+    }
+  }));
+
+  v.onplaying = t.step_func(function() {
+    if (initialPlayingSeen) {
+      return;
+    }
+    initialPlayingSeen = true;
+    document.querySelector('iframe').contentDocument.body.appendChild(v);
+    // Wait a stable state and then a couple of task turns to give any
+    // mistakenly-scheduled pause event a chance to fire and the "play"
+    // event scheduled by the playback-state restore a chance to dispatch.
+    t.step_timeout(function() {
+      t.step_timeout(t.step_func_done(function() {
+        // The implementation re-runs the load algorithm and then restores the
+        // playing state via PlayInternal(). PlayInternal() schedules exactly
+        // one "play" event, which confirms that the canonical paused→playing
+        // transition ran (instead of a raw paused_ = false write that would
+        // silently skip event scheduling, play-promise bookkeeping and the
+        // pseudo-class invalidations).
+        // TODO: This is a Chrome specific implementation detail, since it
+        // forces the Loading Algorithm when attaching to a new document,
+        // causing the play promises to be rejected. We run PlayInternal
+        // to recover the original state, however this causes a "play" event
+        // that is not defined in the spec and that other browsers don't emit.
+        assert_greater_than_equal(playEventsAfterMove, 1,
+            'a play event must fire on the playing-state restore');
+      }), 0);
+    }, 0);
+  });
+});
+</script>

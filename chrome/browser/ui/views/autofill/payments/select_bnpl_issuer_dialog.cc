@@ -150,7 +150,7 @@ SelectBnplIssuerDialog::SelectBnplIssuerDialog(
   CreateThrobberView();
   CreateBnplIssuerView();
   if (base::FeatureList::IsEnabled(
-          ::autofill::features::kAutofillEnableAiBasedAmountExtraction) &&
+          features::kAutofillEnableAiBasedAmountExtraction) &&
       has_seen_ai_terms) {
     throbber_container_view_->SetVisible(true);
     bnpl_issuer_view_->SetVisible(false);
@@ -161,7 +161,7 @@ SelectBnplIssuerDialog::SelectBnplIssuerDialog(
 
   TextWithLink link_text;
   if (base::FeatureList::IsEnabled(
-          ::autofill::features::kAutofillEnableAiBasedAmountExtraction)) {
+          features::kAutofillEnableAiBasedAmountExtraction)) {
     CHECK(controller_);
     link_text = GetBnplUiFooterTextForAi(controller_->GetPaymentsDataManager());
   } else {

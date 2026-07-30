@@ -12,6 +12,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/sequence_checker.h"
 #include "base/time/time.h"
+#include "base/unguessable_token.h"
 #include "chrome/browser/performance_manager/mechanisms/page_discarder.h"
 #include "chrome/browser/performance_manager/policies/cannot_discard_reason.h"
 #include "chrome/browser/performance_manager/policies/discard_eligibility_policy.h"
@@ -22,6 +23,7 @@
 #include "components/performance_manager/public/graph/graph_registered.h"
 #include "components/performance_manager/public/graph/node_data_describer.h"
 #include "components/performance_manager/public/graph/page_node.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 
 namespace content {
 class WebContents;
@@ -65,7 +67,9 @@ class PageDiscardingHelper
   // been a successful discard or until there's no more discard candidate.
   DiscardResult DiscardAPage(
       DiscardEligibilityPolicy::DiscardReason discard_reason,
-      bool ignore_recent_visibility = false);
+      bool ignore_recent_visibility = false,
+      std::optional<absl::flat_hash_set<base::UnguessableToken>>
+          allowed_browser_context_ids = std::nullopt);
 
   // Selects and discards multiple tabs to meet the reclaim target. This will
   // keep trying again until there's been at least a single successful discard
@@ -104,7 +108,9 @@ class PageDiscardingHelper
       std::optional<memory_pressure::ReclaimTarget> reclaim_target,
       bool discard_protected_tabs,
       DiscardEligibilityPolicy::DiscardReason discard_reason,
-      bool ignore_recent_visibility = false);
+      bool ignore_recent_visibility = false,
+      std::optional<absl::flat_hash_set<base::UnguessableToken>>
+          allowed_browser_context_ids = std::nullopt);
 
   // The mechanism used to do the actual discarding.
   std::unique_ptr<mechanism::PageDiscarder> page_discarder_;

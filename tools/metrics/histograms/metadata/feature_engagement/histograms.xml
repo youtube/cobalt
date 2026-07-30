@@ -55,6 +55,8 @@ chromium-metrics-reviews@google.com.
   <variant name="IPH_AddToHomescreenTextBubble"
       summary="(obsolete) educating users about adding website shortcuts to
                their home screen (using a text bubble)"/>
+  <variant name="IPH_AimActivationHint"
+      summary="A hint to activate AI Mode on Android Desktop via keystrokes."/>
   <variant name="IPH_AndroidBottomBarGlic"
       summary="Describes the GLIC button added in the bottom bar."/>
   <variant name="IPH_AndroidBottomBarNewTab"
@@ -134,6 +136,8 @@ chromium-metrics-reviews@google.com.
   <variant name="IPH_BadgedReadingList" summary="badged reading list"/>
   <variant name="IPH_BatterySaverMode" summary="battery saver mode"/>
   <variant name="IPH_Bookmark" summary="bookmark"/>
+  <variant name="IPH_BookmarkBarSimplified"
+      summary="bookmark bar simplified auto-hide toast"/>
   <variant name="IPH_BottomToolbarTip" summary="bottom toolbar"/>
   <variant name="IPH_CCTHistory" summary="CCT history action"/>
   <variant name="IPH_CCTMinimized" summary="CCT minimize action"/>
@@ -644,6 +648,8 @@ chromium-metrics-reviews@google.com.
       summary="side by side split view tabs pinnable IPH"/>
   <variant name="IPH_SideBySideTabSwitchFeature"
       summary="side by side split view tab switch IPH"/>
+  <variant name="IPH_SidePanelContextualTasksPinnableFeature"
+      summary="contextual tasks side panel pinnable"/>
   <variant name="IPH_SidePanelGenericPinnableFeature"
       summary="side panel pinnable"/>
   <variant name="IPH_SidePanelLensOverlayPinnableFeature"
@@ -777,7 +783,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="InProductHelp.Db.TotalEvents" units="events"
-    expires_after="2026-10-04">
+    expires_after="2026-12-06">
   <owner>nyquist@chromium.org</owner>
   <summary>
     Records the total number of event records in the database for in-product
@@ -826,7 +832,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="InProductHelp.InitializationTime.Total" units="ms"
-    expires_after="2026-10-03">
+    expires_after="2026-12-06">
   <owner>agazal@chromium.org</owner>
   <owner>mschillaci@chromium.org</owner>
   <owner>nyquist@chromium.org</owner>

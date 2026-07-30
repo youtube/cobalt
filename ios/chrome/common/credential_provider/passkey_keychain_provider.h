@@ -20,7 +20,7 @@ class PasskeyKeychainProvider {
   // Types for the different callbacks.
   using CheckEnrolledCallback = base::OnceCallback<void(BOOL, NSError*)>;
   using EnrollCallback = base::OnceCallback<void(NSError*)>;
-  using KeysMarkedAsAsStaleCallback = base::OnceCallback<void(void)>;
+  using KeysMarkedAsAsStaleCallback = base::OnceClosure;
   using CheckDegradedRecoverabilityCallback =
       base::OnceCallback<void(BOOL, NSError*)>;
   using FixDegradedRecoverabilityCallback = base::OnceCallback<void(NSError*)>;

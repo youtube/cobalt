@@ -96,6 +96,9 @@ public class ExtensionsToolbarCoordinatorImpl
     private Profile mProfile;
     private PrefService mPrefService;
     private PrefChangeRegistrar mPrefChangeRegistrar;
+    private @Nullable NullableObservableSupplier<Tab> mCurrentTabSupplier;
+    private int mLastDensityDpi;
+    private int mLastIconWidthPx;
 
     @Override
     public void initializeWithNative(
@@ -115,6 +118,7 @@ public class ExtensionsToolbarCoordinatorImpl
         mBridge = new ExtensionActionsBridge(task, profile);
         mWindowAndroid = windowAndroid;
         mProfile = profile;
+        mCurrentTabSupplier = currentTabSupplier;
 
         extensionsToolbarStub.setLayoutResource(R.layout.extensions_toolbar_container);
         mContainer = (LinearLayout) extensionsToolbarStub.inflate();
@@ -176,6 +180,10 @@ public class ExtensionsToolbarCoordinatorImpl
         mWasWindowCompact =
                 context.getResources().getConfiguration().screenWidthDp
                         < COMPACT_WINDOW_THRESHOLD_DP;
+        mLastDensityDpi = context.getResources().getConfiguration().densityDpi;
+        mLastIconWidthPx =
+                context.getResources()
+                        .getDimensionPixelSize(R.dimen.extension_action_icon_canvas_width);
     }
 
     @Override
@@ -204,6 +212,7 @@ public class ExtensionsToolbarCoordinatorImpl
         mExtensionActionListCoordinator.destroy();
         mExtensionsToolbarBridge.destroy();
         mBridge.destroy();
+        mCurrentTabSupplier = null;
 
         LifetimeAssert.setSafeToGc(mLifetimeAssert, true);
     }
@@ -214,6 +223,23 @@ public class ExtensionsToolbarCoordinatorImpl
         if (isWindowCompact != mWasWindowCompact) {
             mWasWindowCompact = isWindowCompact;
             mExtensionAccessControlButtonCoordinator.requestVisibilityUpdate();
+        }
+
+        int densityDpi = newConfig.densityDpi;
+        int iconWidthPx =
+                mContainer
+                        .getContext()
+                        .getResources()
+                        .getDimensionPixelSize(R.dimen.extension_action_icon_canvas_width);
+        if (densityDpi != mLastDensityDpi || iconWidthPx != mLastIconWidthPx) {
+            mLastDensityDpi = densityDpi;
+            mLastIconWidthPx = iconWidthPx;
+            if (mCurrentTabSupplier != null) {
+                Tab currentTab = mCurrentTabSupplier.get();
+                if (currentTab != null && currentTab.getWebContents() != null) {
+                    mExtensionActionListCoordinator.updateAllIcons(currentTab.getWebContents());
+                }
+            }
         }
         // Force layout refresh to pick up new dimensions if density changed.
         ViewUtils.requestLayout(

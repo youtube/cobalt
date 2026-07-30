@@ -12,6 +12,7 @@
 
 #include "base/test/bind.h"
 #include "base/values.h"
+#include "base/memory/raw_ptr.h"
 #include "chrome/browser/lifetime/browser_shutdown.h"
 #include "chrome/browser/policy/chrome_policy_blocklist_service_factory.h"
 #include "chrome/common/pref_names.h"
@@ -19,6 +20,7 @@
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
+#include "chrome/test/base/testing_profile_manager.h"
 #include "components/policy/core/browser/url_list/policy_blocklist_service.h"
 #include "components/policy/core/browser/url_list/url_list_policy_pref_names.h"
 #include "components/policy/core/common/policy_pref_names.h"
@@ -63,9 +65,10 @@ class BrowserAboutHandlerTest : public testing::Test {
   }
 
   void SetUp() override {
-    profile_ = TestingProfile::Builder().Build();
+    ASSERT_TRUE(profile_manager_.SetUp());
+    profile_ = profile_manager_.CreateTestingProfile("testing_profile");
     ChromePolicyBlocklistServiceFactory::GetInstance()->SetTestingFactory(
-        profile_.get(),
+        profile_,
         base::BindLambdaForTesting([&](content::BrowserContext* context) {
           return std::unique_ptr<KeyedService>(
               std::make_unique<PolicyBlocklistService>(
@@ -76,7 +79,7 @@ class BrowserAboutHandlerTest : public testing::Test {
         }));
   }
 
-  TestingProfile* profile() { return profile_.get(); }
+  TestingProfile* profile() { return profile_; }
 
   content::BrowserTaskEnvironment* task_environment() {
     return &task_environment_;
@@ -103,7 +106,8 @@ class BrowserAboutHandlerTest : public testing::Test {
 
  private:
   content::BrowserTaskEnvironment task_environment_;
-  std::unique_ptr<TestingProfile> profile_;
+  TestingProfileManager profile_manager_{TestingBrowserProcess::GetGlobal()};
+  raw_ptr<TestingProfile> profile_;
 };
 
 TEST_F(BrowserAboutHandlerTest, HandleChromeAboutAndChromeSyncRewrite) {

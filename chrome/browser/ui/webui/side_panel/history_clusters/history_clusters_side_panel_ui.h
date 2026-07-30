@@ -17,6 +17,7 @@
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/common/url_constants.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "mojo/public/cpp/bindings/receiver.h"
 #include "ui/webui/resources/cr_components/history_clusters/history_clusters.mojom-forward.h"
 #include "ui/webui/resources/cr_components/history_embeddings/history_embeddings.mojom.h"
 
@@ -48,8 +49,10 @@ class HistoryClustersSidePanelUIConfig
   std::optional<int> GetCommandIdForTesting() override;
 };
 
-class HistoryClustersSidePanelUI : public TopChromeWebUIController,
-                                   public content::WebContentsObserver {
+class HistoryClustersSidePanelUI
+    : public TopChromeWebUIController,
+      public content::WebContentsObserver,
+      public history_embeddings::mojom::PageHandlerFactory {
  public:
   explicit HistoryClustersSidePanelUI(content::WebUI* web_ui);
   HistoryClustersSidePanelUI(const HistoryClustersSidePanelUI&) = delete;
@@ -69,8 +72,8 @@ class HistoryClustersSidePanelUI : public TopChromeWebUIController,
       mojo::PendingReceiver<page_image_service::mojom::PageImageServiceHandler>
           pending_page_handler);
   void BindInterface(
-      mojo::PendingReceiver<history_embeddings::mojom::PageHandler>
-          pending_page_handler);
+      mojo::PendingReceiver<history_embeddings::mojom::PageHandlerFactory>
+          pending_page_handler_factory);
 
   // Gets a weak pointer to this object.
   base::WeakPtr<HistoryClustersSidePanelUI> GetWeakPtr();
@@ -103,6 +106,12 @@ class HistoryClustersSidePanelUI : public TopChromeWebUIController,
       history_clusters_handler_;
   std::unique_ptr<page_image_service::ImageServiceHandler>
       image_service_handler_;
+  // history_embeddings::mojom::PageHandlerFactory:
+  void CreatePageHandler(
+      mojo::PendingRemote<history_embeddings::mojom::Page> page,
+      mojo::PendingReceiver<history_embeddings::mojom::PageHandler> receiver)
+      override;
+
   std::unique_ptr<HistoryEmbeddingsHandler> history_embeddings_handler_;
 
   // The initial state that we have to cache here until the page finishes its
@@ -111,6 +120,9 @@ class HistoryClustersSidePanelUI : public TopChromeWebUIController,
       history_clusters::HistoryClustersInitialState::kUnknown;
 
   raw_ptr<BrowserWindowInterface> browser_window_interface_;
+
+  mojo::Receiver<history_embeddings::mojom::PageHandlerFactory>
+      history_embeddings_handler_factory_receiver_{this};
 
   // Used for `GetWeakPtr()`.
   base::WeakPtrFactory<HistoryClustersSidePanelUI> weak_ptr_factory_{this};

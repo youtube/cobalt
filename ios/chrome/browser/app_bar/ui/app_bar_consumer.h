@@ -16,6 +16,7 @@ typedef NS_ENUM(NSUInteger, AppBarButtonType) {
 
 // The states for the assistant button.
 enum class AppBarAssistantButtonState {
+  kLens,
   kAsk,
   kAIM,
   kAccount,
@@ -55,6 +56,9 @@ enum class AppBarAssistantButtonState {
 
 // Sets whether the incognito mode is active.
 - (void)setIncognito:(BOOL)incognito;
+
+// Sets whether the current page is the NTP and if it is the Start Surface.
+- (void)setNTPVisible:(BOOL)ntpVisible isStartSurface:(BOOL)isStartSurface;
 
 @end
 

@@ -4,17 +4,21 @@
 
 #include "media/cast/encoding/media_video_encoder_wrapper.h"
 
+#include <algorithm>
 #include <memory>
 #include <utility>
 
 #include "base/check.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/thread_pool.h"
+#include "build/build_config.h"
 #include "media/base/async_destroy_video_encoder.h"
 #include "media/base/encoder_status.h"
+#include "media/base/media_switches.h"
 #include "media/base/media_util.h"
 #include "media/base/video_codecs.h"
 #include "media/base/video_encoder.h"
@@ -42,7 +46,6 @@
 
 namespace media::cast {
 namespace {
-
 
 std::unique_ptr<media::VideoEncoder> CreateHardwareEncoder(
     media::GpuVideoAcceleratorFactories& gpu_factories,
@@ -73,6 +76,50 @@ std::unique_ptr<media::VideoEncoder> CreateSoftwareEncoder(VideoCodec codec) {
   }
 }
 
+// Encoder utilization is calculated differently depending on encoder
+// acceleration:
+//   * Hardware encoders are pipelined, so we use the maximum of the backlog of
+//     frames waiting to be processed, and the processing time of each frame
+//     relative to the target frame duration.
+//   * Software encoders are typically synchronous, so we can directly map the
+//     processing time of each frame relative to the target frame duration.
+double CalculateEncoderUtilization(bool is_hardware_encoder,
+                                   size_t backlog_size,
+                                   base::TimeDelta processing_time,
+                                   base::TimeDelta target_frame_duration) {
+  double utilization = 0.0;
+  if (is_hardware_encoder) {
+    // The "pipeline" is the set of frames that is actively undergoing
+    // processing. This is similar in size to the backlog but represents a
+    // separate stage in the encoding process. This value is chosen based on the
+    // capacity of a typical hardware encoder.
+    static constexpr int kPipelineSize = 3;
+
+    // The "backlog" is the set of frames that has been submitted for encoding
+    // but not yet taken for processing. Our value is based on the size of the
+    // pipeline, since the backlog is fully saturated when we have more frames
+    // than the pipeline can process.
+    static constexpr int kMaxBacklogSize = kPipelineSize + 1;
+
+    // 1. Backlog Model: Is the encoder keeping up with the submission rate?
+    double backlog_utilization =
+        static_cast<double>(backlog_size) / kMaxBacklogSize;
+
+    // 2. Latency Model: Is the pipeline taking too long glass-to-glass?
+    double latency_utilization =
+        processing_time / (target_frame_duration * kPipelineSize);
+
+    // Hardware utilization is the worst-case of the two metrics.
+    utilization = std::max(backlog_utilization, latency_utilization);
+  } else {
+    // Software is synchronous/bounded, so latency directly maps to CPU load.
+    utilization = processing_time / target_frame_duration;
+  }
+
+  // Clamp to a safe range to prevent PID controller explosion on anomalies
+  // (e.g., system sleep or thread starvation).
+  return std::clamp(utilization, 0.0, 2.0);
+}
 
 // Must be called on the ENCODER thread, which resolves to VIDEO for hardware
 // encoding, and MAIN for software encoding.
@@ -159,6 +206,7 @@ MediaVideoEncoderWrapper::MediaVideoEncoderWrapper(
       gpu_factories_(gpu_factories),
       is_hardware_encoder_(video_config.use_hardware_encoder),
       codec_(video_config.video_codec()),
+      target_frame_duration_(base::Seconds(1) / video_config.max_frame_rate),
       encoder_(nullptr,
                base::OnTaskRunnerDeleter(cast_environment_->GetTaskRunner(
                    CastEnvironment::ThreadId::kVideo))),
@@ -342,20 +390,13 @@ void MediaVideoEncoderWrapper::OnEncodedFrame(
   const base::TimeDelta processing_time =
       encoded_frame->encode_completion_time - metadata.encode_start_time;
   encoded_frame->encoder_utilization =
-      processing_time / metadata.frame_duration;
+      ComputeAndRecordUtilization(processing_time);
 
-  if (metadata.estimated_complexity) {
-    const auto duration = metadata.frame_duration.InSecondsF();
-    const double actual_bitrate =
-        duration > 0 ? output.data.size() * 8.0 / duration : 0.0f;
-    const double target_bitrate = options_.bitrate->target_bps();
-    CHECK_GT(target_bitrate, 0.0);
-    const double bitrate_utilization = actual_bitrate / target_bitrate;
-    encoded_frame->lossiness =
-        bitrate_utilization * (*metadata.estimated_complexity);
-  } else {
-    encoded_frame->lossiness = 0.0f;
-  }
+  encoded_frame->lossiness =
+      metadata.estimated_complexity
+          ? ComputeLossiness(output.data.size(), metadata.frame_duration,
+                             *metadata.estimated_complexity)
+          : 0.0f;
 
   encoded_frame->capture_begin_time = metadata.capture_begin_time;
   encoded_frame->capture_end_time = metadata.capture_end_time;
@@ -365,6 +406,67 @@ void MediaVideoEncoderWrapper::OnEncodedFrame(
   recent_metadata_.pop();
   metrics_provider_->IncrementEncodedFrameCount();
   std::move(frame_encoded_callback).Run(std::move(encoded_frame));
+}
+
+double MediaVideoEncoderWrapper::ComputeAndRecordUtilization(
+    base::TimeDelta processing_time) {
+  const double raw_utilization =
+      CalculateEncoderUtilization(is_hardware_encoder_, recent_metadata_.size(),
+                                  processing_time, target_frame_duration_);
+
+  // Apply EMA to smooth out I-frame spikes.
+  // A weight of 0.1 for the new value is standard for 30-60fps media pipelines.
+  static constexpr double kEmaWeight = 0.1;
+  if (!ema_encoder_utilization_) {
+    ema_encoder_utilization_ = raw_utilization;
+  } else {
+    ema_encoder_utilization_ = (raw_utilization * kEmaWeight) +
+                               (*ema_encoder_utilization_ * (1.0 - kEmaWeight));
+  }
+  return *ema_encoder_utilization_;
+}
+
+// Computes a heuristic representing the visual quality degradation of the
+// encoded frame. Upstream rate controllers use this "lossiness" metric to
+// decide if they need to drop the framerate to give individual frames a
+// larger bit budget.
+//
+// A higher return value indicates a more heavily compressed (lower quality)
+// frame. This is estimated by multiplying the frame's bitrate utilization
+// by its estimated spatial/temporal complexity.
+double MediaVideoEncoderWrapper::ComputeLossiness(
+    size_t data_size,
+    base::TimeDelta frame_duration,
+    double estimated_complexity) const {
+  const double duration = frame_duration.InSecondsF();
+  if (duration <= 0.0) {
+    return 0.0;
+  }
+
+  // 1. Calculate the effective bitrate of this specific frame.
+  const double data_size_in_bits = data_size * 8.0;
+  const double actual_bitrate = data_size_in_bits / duration;
+
+  // 2. Calculate bitrate utilization compared to target bitrate.
+  // This measures how much of our target bandwidth budget this frame consumed.
+  // If actual_bitrate > target_bitrate, the encoder is overshooting to handle
+  // difficult content.
+  const double target_bitrate = options_.bitrate->target_bps();
+  CHECK_GT(target_bitrate, 0.0);
+  const double bitrate_utilization = actual_bitrate / target_bitrate;
+
+  // 3. Scale utilization by the estimated complexity of the frame.
+  // The estimated_complexity represents how difficult the frame is to compress
+  // (e.g., high motion or high detail). A frame that uses 100% of the bitrate
+  // budget on a blank wall (low complexity) is not very lossy. A frame that
+  // uses 100% of the budget on a confetti explosion (high complexity) is
+  // assumed to be highly lossy.
+  const double raw_lossiness = bitrate_utilization * estimated_complexity;
+
+  // 4. Clamp to a safe upper bound to protect the rate controller's internal
+  // state from timestamp jitter anomalies.
+  constexpr double kMaxLossiness = 5.0;
+  return std::clamp(raw_lossiness, 0.0, kMaxLossiness);
 }
 
 void MediaVideoEncoderWrapper::OnEncoderStatus(int encoder_version,
@@ -448,13 +550,13 @@ void MediaVideoEncoderWrapper::ConstructEncoder() {
     }
   }
 
-  if (is_hardware_encoder_) {
+  if (encoder_is_overridden_for_testing_) {
+    // Don't construct a new encoder if it is overridden for testing.
+  } else if (is_hardware_encoder_) {
     CHECK(gpu_factories_);
     SetEncoder(CreateHardwareEncoder(
         *gpu_factories_,
         cast_environment_->GetTaskRunner(CastEnvironment::ThreadId::kMain)));
-  } else if (encoder_is_overridden_for_testing_) {
-    // Don't construct a new encoder if it is overridden for testing.
   } else {
     SetEncoder(CreateSoftwareEncoder(codec_));
   }

@@ -58,6 +58,43 @@ component("views") {
   }
 }
 
+source_set("layout_provider") {
+  sources = [
+    "chrome_layout_provider.h",
+    "chrome_typography.h",
+    "chrome_typography_provider.h",
+  ]
+
+  public_deps = [
+    "//ui/color:color_headers",
+    "//ui/gfx/geometry",
+    "//ui/views",
+  ]
+}
+
+# This thin target is split because of the following circular inclusion:
+# //c/b/ui/views:layout_provider ->
+# //c/b/ui/views/location_bar:location_bar ->
+# //c/b/lens/region_search:region_search ->
+# //c/b/ui/views:layout_provider
+#
+source_set("layout_provider_impl") {
+  sources = [
+    "chrome_layout_provider.cc",
+    "chrome_typography.cc",
+    "chrome_typography_provider.cc",
+  ]
+
+  deps = [
+    ":layout_provider",
+    "//chrome/browser/ui:ui_features",
+    "//chrome/browser/ui/color:color_headers",
+    "//chrome/browser/ui/views/location_bar",
+    "//components/omnibox/browser",
+    "//components/omnibox/common",
+  ]
+}
+
 source_set("test_support") {
   testonly = true
   public = [ "global_media_controls/media_dialog_ui_for_test.h" ]

@@ -156,7 +156,7 @@ void OsAndPoliciesUpdateChecker::UpdateStatusChanged(
   switch (status.current_operation()) {
     case update_engine::Operation::IDLE:
       if (!ignore_idle_status_) {
-        // No update to download or an error occured mid-way of an existing
+        // No update to download or an error occurred mid-way of an existing
         // update download.
         // TODO(abhishekbh): Differentiate between the two cases and call
         // ScheduleRetry in case of error.

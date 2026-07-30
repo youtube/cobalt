@@ -685,7 +685,7 @@ void ScrollMarkerGroupData::Trace(Visitor* v) const {
   v->Trace(focus_group_);
   v->Trace(scrollable_areas_);
   PostLayoutSnapshotClient::Trace(v);
-  ElementRareDataField::Trace(v);
+  NodeRareDataField::Trace(v);
 }
 
 }  // namespace blink

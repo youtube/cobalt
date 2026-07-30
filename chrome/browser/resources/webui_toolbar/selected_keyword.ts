@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import './icon_from_table.js';
+import '/shared/icon_from_table.js';
 
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
+import type {SelectedKeywordState} from '/shared/toolbar_ui_api_data_model.mojom-webui.js';
 
 import {getCss} from './selected_keyword.css.js';
 import {getHtml} from './selected_keyword.html.js';
-import type {SelectedKeywordState} from './toolbar_ui_api_data_model.mojom-webui.js';
 
 export class SelectedKeywordElement extends CrLitElement {
   static get is() {

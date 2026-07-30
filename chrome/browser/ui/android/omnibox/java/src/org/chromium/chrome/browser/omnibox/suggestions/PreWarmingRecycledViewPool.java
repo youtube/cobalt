@@ -47,14 +47,30 @@ public class PreWarmingRecycledViewPool extends RecycledViewPool {
         }
     }
 
+    @VisibleForTesting static final int PRE_WARMED_EDIT_URL_SUGGESTION_VIEW_COUNT = 1;
+    @VisibleForTesting static final int PRE_WARMED_TILE_NAVSUGGEST_VIEW_COUNT = 1;
+    @VisibleForTesting static final int PRE_WARMED_HEADER_VIEW_COUNT = 1;
+    @VisibleForTesting static final int PRE_WARMED_CLIPBOARD_SUGGESTION_VIEW_COUNT = 1;
+    @VisibleForTesting static final int PRE_WARMED_DEFAULT_VIEW_COUNT = 15;
+    @VisibleForTesting static final int PRE_WARMED_ENTITY_SUGGESTION_VIEW_COUNT = 3;
+
     private final ViewTypeAndCount[] mViewsToCreate =
             new ViewTypeAndCount[] {
-                new ViewTypeAndCount(OmniboxSuggestionUiType.EDIT_URL_SUGGESTION, 1),
-                new ViewTypeAndCount(OmniboxSuggestionUiType.TILE_NAVSUGGEST, 1),
-                new ViewTypeAndCount(OmniboxSuggestionUiType.HEADER, 1),
-                new ViewTypeAndCount(OmniboxSuggestionUiType.CLIPBOARD_SUGGESTION, 1),
-                new ViewTypeAndCount(OmniboxSuggestionUiType.DEFAULT, 15),
-                new ViewTypeAndCount(OmniboxSuggestionUiType.ENTITY_SUGGESTION, 3)
+                new ViewTypeAndCount(
+                        OmniboxSuggestionUiType.EDIT_URL_SUGGESTION,
+                        PRE_WARMED_EDIT_URL_SUGGESTION_VIEW_COUNT),
+                new ViewTypeAndCount(
+                        OmniboxSuggestionUiType.TILE_NAVSUGGEST,
+                        PRE_WARMED_TILE_NAVSUGGEST_VIEW_COUNT),
+                new ViewTypeAndCount(OmniboxSuggestionUiType.HEADER, PRE_WARMED_HEADER_VIEW_COUNT),
+                new ViewTypeAndCount(
+                        OmniboxSuggestionUiType.CLIPBOARD_SUGGESTION,
+                        PRE_WARMED_CLIPBOARD_SUGGESTION_VIEW_COUNT),
+                new ViewTypeAndCount(
+                        OmniboxSuggestionUiType.DEFAULT, PRE_WARMED_DEFAULT_VIEW_COUNT),
+                new ViewTypeAndCount(
+                        OmniboxSuggestionUiType.ENTITY_SUGGESTION,
+                        PRE_WARMED_ENTITY_SUGGESTION_VIEW_COUNT)
             };
 
     private final OmniboxViewHolderFactory mViewHolderFactory;

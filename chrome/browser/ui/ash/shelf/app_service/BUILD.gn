@@ -85,6 +85,7 @@ source_set("browser_tests") {
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
   sources = [
+    "app_service_app_window_browsertest.cc",
     "app_service_promise_app_shelf_context_menu_browsertest.cc",
     "app_service_shelf_context_menu_browsertest.cc",
     "web_app_shelf_browsertest.cc",
@@ -93,14 +94,17 @@ source_set("browser_tests") {
   deps = [
     ":app_service",
     "//ash",
+    "//ash/constants",
     "//base/test:test_support",
     "//chrome/app/vector_icons",
     "//chrome/browser",
     "//chrome/browser/apps/app_service",
     "//chrome/browser/apps/app_service:app_registry_cache_waiter",
     "//chrome/browser/apps/platform_apps",
+    "//chrome/browser/apps/platform_apps:browser_test_support",
     "//chrome/browser/ash/app_list/arc",
     "//chrome/browser/ash/arc",
+    "//chrome/browser/ash/arc:arc_util",
     "//chrome/browser/ash/arc/session",
     "//chrome/browser/ash/borealis",
     "//chrome/browser/ash/borealis:test_support",
@@ -122,6 +126,8 @@ source_set("browser_tests") {
     "//chromeos/ash/experiences/arc:arc_test_support",
     "//components/app_constants",
     "//components/exo",
+    "//components/services/app_service/public/cpp:instance_update",
+    "//components/services/app_service/public/cpp:test_support",
     "//content/test:test_support",
     "//extensions/browser",
     "//extensions/common",

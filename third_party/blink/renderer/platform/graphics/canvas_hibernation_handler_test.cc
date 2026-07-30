@@ -52,13 +52,16 @@ class TestHibernationHandlerDelegate
     is_hibernating_ = is_hibernating;
   }
 
-  CanvasResourceProvider* GetResourceProvider() const override {
+  Canvas2DResourceProviderSharedImage* GetSharedImageProvider() const override {
     return resource_provider_.get();
+  }
+  bool HasResourceProvider() const override {
+    return resource_provider_ != nullptr;
   }
   void ResetResourceProvider() override { resource_provider_.reset(); }
 
   void CreateResourceProvider() {
-    CHECK(!GetResourceProvider());
+    CHECK(!GetSharedImageProvider());
     resource_provider_ = Canvas2DResourceProviderSharedImage::CreateWithClear(
         size_, GetN32FormatForCanvas(), kPremul_SkAlphaType,
         gfx::ColorSpace::CreateSRGB(), gfx::HDRMetadata(),
@@ -73,7 +76,7 @@ class TestHibernationHandlerDelegate
   }
 
  private:
-  std::unique_ptr<CanvasResourceProvider> resource_provider_;
+  std::unique_ptr<Canvas2DResourceProviderSharedImage> resource_provider_;
   bool page_visible_ = true;
   bool is_hibernating_ = false;
   gfx::Size size_;
@@ -169,7 +172,7 @@ void SetPageVisible(
   } else {
     // End hibernation.
     if (hibernation_handler->IsHibernating()) {
-      if (!delegate->GetResourceProvider()) {
+      if (!delegate->GetSharedImageProvider()) {
         delegate->CreateResourceProvider();
       }
       hibernation_handler->Clear();
@@ -189,10 +192,10 @@ std::map<std::string, uint64_t> GetEntries(
 }
 
 void Draw(TestHibernationHandlerDelegate& delegate) {
-  if (!delegate.GetResourceProvider()) {
+  if (!delegate.GetSharedImageProvider()) {
     delegate.CreateResourceProvider();
   }
-  CanvasResourceProvider* provider = delegate.GetResourceProvider();
+  auto* provider = delegate.GetSharedImageProvider();
   provider->GetCanvasForTesting().drawLine(0, 0, 2, 2, cc::PaintFlags());
   provider->Flush(FlushReason::kOther);
 }
@@ -295,7 +298,7 @@ TEST_P(CanvasHibernationHandlerTest, SimpleTest) {
   EXPECT_FALSE(handler.is_encoded());
 
   EXPECT_FALSE(handler.IsHibernating());
-  EXPECT_TRUE(delegate.GetResourceProvider()->IsValid());
+  EXPECT_TRUE(delegate.GetSharedImageProvider()->IsValid());
 }
 
 TEST_P(CanvasHibernationHandlerTest, ForegroundBeforeHibernation) {

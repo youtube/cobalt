@@ -410,7 +410,7 @@ TEST_F(FieldFillingAddressUtilTest, FillStreetAddressTextField) {
   AutofillProfile profile(i18n_model_definition::kLegacyHierarchyCountryCode);
   field.set_form_control_type(FormControlType::kInputText);
   field.set_server_predictions(
-      {::autofill::test::CreateFieldPrediction(ADDRESS_HOME_STREET_ADDRESS)});
+      {test::CreateFieldPrediction(ADDRESS_HOME_STREET_ADDRESS)});
 
   std::u16string value = u"123 Fake St.\nApt. 42";
   profile.SetInfo(AutofillType(ADDRESS_HOME_STREET_ADDRESS), value, "en-US");
@@ -899,7 +899,7 @@ class AlternativeNameFillingTest
 
 TEST_P(AlternativeNameFillingTest, FillAlternativeName) {
   base::test::ScopedFeatureList features{
-      autofill::features::kAutofillSupportPhoneticNameForJP};
+      features::kAutofillSupportPhoneticNameForJP};
   const FieldType& field_type = std::get<0>(GetParam());
   const AlternativeNameFillingTestCase& test_case = std::get<1>(GetParam());
 

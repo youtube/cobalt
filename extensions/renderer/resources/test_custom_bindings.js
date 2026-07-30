@@ -10,6 +10,9 @@ const environmentSpecificBindings =
 const GetExtensionAPIDefinitionsForTest =
     requireNative('apiDefinitions').GetExtensionAPIDefinitionsForTest;
 const GetAPIFeatures = requireNative('test_features').GetAPIFeatures;
+const GetUseStandardizedApiBehavior =
+    requireNative('test_api_standardized_behavior')
+        .GetUseStandardizedApiBehavior;
 const userGestures = requireNative('user_gestures');
 const logging = requireNative('logging');
 
@@ -18,7 +21,7 @@ const GetModuleSystem = requireNative('v8_context').GetModuleSystem;
 // A flag to determine adapt testing behavior to comply with the W3C
 // browser.test proposal
 // (github.com/w3c/webextensions/blob/main/proposals/browser_test_api.md).
-let useStandardizedApiBehavior = false;
+const useStandardizedApiBehavior = GetUseStandardizedApiBehavior();
 
 function handleException(message, error) {
   bindingUtil.handleException(message || 'Unknown error', error);
@@ -327,12 +330,16 @@ apiBridge.registerCustomHook(function(api) {
 
     try {
       chromeTest.log(`( RUN      ) ${testName(currentTest)}`);
+      // Notify this script context (if it's listening) that the test started.
       if (chromeTest.onTestStarted) {
         chromeTest.onTestStarted.dispatch({testName: testName(currentTest)});
       }
+      // Notify other renderer script contexts that the test started.
+      chromeTest.notifyTestStarted(testName(currentTest));
       bindingUtil.setExceptionHandler(function(message, e) {
         if (e !== kFailureException) {
-          chromeTest.fail(`uncaught exception: ${message}`);
+          chromeTest.fail(
+              `Exception running ${testName(currentTest)}: ${message}`);
         }
       });
       const result = $Function.call(currentTest);
@@ -347,7 +354,7 @@ apiBridge.registerCustomHook(function(api) {
   // Helper function to get around the fact that function names in javascript
   // are read-only, and you can't assign one to anonymous functions.
   function testName(test) {
-    return test ? (test.name || test.generatedName) : '(no test)';
+    return (test && (test.name || test.generatedName)) || '(no test)';
   }
 
   function testDone() {
@@ -434,10 +441,12 @@ apiBridge.registerCustomHook(function(api) {
     // really fancy, there may be more sophisticated ways of doing this.
     Error.captureStackTrace(stack, failHandler);
 
-    const assertionDescription = message || 'FAIL (no message)';
+    const assertionDescription = message || 'Assertion FAIL';
     const fullMessage = `${assertionDescription} \n ${stack.stack}`;
 
     console.log(`[FAIL] ${testName(currentTest)}: ${fullMessage}`);
+    // Notify this script context (if it's listening) that the test finished and
+    // failed.
     if (chromeTest.onTestFinished) {
       chromeTest.onTestFinished.dispatch({
         testName: testName(currentTest),
@@ -447,6 +456,11 @@ apiBridge.registerCustomHook(function(api) {
         message: fullMessage
       });
     }
+    // Notify other renderer script contexts that the test finished and failed.
+    chromeTest.notifyTestFinished(
+        testName(currentTest), /* result= */ false,
+        /* remainingTests= */ chromeTest.tests.length, assertionDescription,
+        /* message= */ fullMessage);
     testsFailed++;
     testDone();
 
@@ -463,14 +477,23 @@ apiBridge.registerCustomHook(function(api) {
         '`assertPromiseRejects(...).then(...).`.');
     console.log(`[SUCCESS] ${testName(currentTest)}`);
     chromeTest.log('(  SUCCESS )');
+    // Notify this script context (if it's listening) that the test finished and
+    // succeeded.
     if (chromeTest.onTestFinished) {
       chromeTest.onTestFinished.dispatch({
         testName: testName(currentTest),
         result: true,
         remainingTests: chromeTest.tests.length,
-        assertionDescription: 'Test succeeded'
+        assertionDescription: `${testName(currentTest)} PASS`
       });
     }
+    // Notify other renderer script contexts that the test finished and
+    // succeeded.
+    chromeTest.notifyTestFinished(
+        testName(currentTest), /* result= */ true,
+        /* remainingTests= */ chromeTest.tests.length,
+        /* assertionDescription= */ `${testName(currentTest)} PASS`,
+        /* message= */ '');
     testDone();
   });
 
@@ -717,13 +740,6 @@ apiBridge.registerCustomHook(function(api) {
       runNextTest();
     });
   });
-
-  // TODO(crbug.com/493947412): Instead of a setter, initialize this from the
-  // C++ test harness. For now this allows us to test the new behavior.
-  apiFunctions.setHandleRequest(
-      'setUseStandardizedApiBehaviorForTesting', function(enabled) {
-        useStandardizedApiBehavior = enabled;
-      });
 
   apiFunctions.setHandleRequest('getApiDefinitions', function() {
     return GetExtensionAPIDefinitionsForTest();

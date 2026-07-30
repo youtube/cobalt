@@ -8,128 +8,151 @@
 #import "ios/web/public/js_messaging/script_message_dict_value.h"
 #import "ios/web/public/js_messaging/script_message_list_value.h"
 #import "ios/web/public/js_messaging/script_message_value.h"
+#import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
 
 namespace web {
 
 using ScriptMessageListValueTest = PlatformTest;
 
-// Tests that Empty() returns true for an empty list.
+// Tests that `empty()` returns true for an empty list.
 TEST_F(ScriptMessageListValueTest, ListValueIsEmptyGivenEmptyArray) {
   NSArray* empty_ns_array = @[];
   ScriptMessageListValue empty_list(empty_ns_array);
 
-  EXPECT_TRUE(empty_list.Empty());
+  EXPECT_TRUE(empty_list.empty());
 }
 
-// Tests that Size() returns 0 for an empty list.
+// Tests that `size()` returns 0 for an empty list.
 TEST_F(ScriptMessageListValueTest, SizeIsZeroGivenEmptyArray) {
   NSArray* empty_ns_array = @[];
   ScriptMessageListValue empty_list(empty_ns_array);
 
-  EXPECT_EQ(0u, empty_list.Size());
+  EXPECT_EQ(0u, empty_list.size());
 }
 
-// Tests that Empty() returns false for non-empty list.
+// Tests that `empty()` returns false for non-empty list.
 TEST_F(ScriptMessageListValueTest, ListValueIsNotEmptyGivenNonEmptyArray) {
   NSArray* non_empty_ns_array = @[ @1, @2 ];
   ScriptMessageListValue list(non_empty_ns_array);
 
-  EXPECT_FALSE(list.Empty());
+  EXPECT_FALSE(list.empty());
 }
 
-// Tests that Size() is equivalent to the number of elements in a non-empty
+// Tests that `size()` is equivalent to the number of elements in a non-empty
 // list.
 TEST_F(ScriptMessageListValueTest, SizeIsTwoGivenNonEmptyArray) {
   NSArray* array_with_two_elements = @[ @1, @2 ];
   ScriptMessageListValue list(array_with_two_elements);
 
-  EXPECT_EQ(list.Size(), 2u);
+  EXPECT_EQ(list.size(), 2u);
 }
 
-// Tests whether the Front() function correctly returns the first element in the
-// list.
+// Tests whether the `front()` function correctly returns `std::nullopt` if the
+// list is empty.
+TEST_F(ScriptMessageListValueTest, NoFrontElementIfArrayIsEmpty) {
+  NSArray* array_with_dict_elements = @[];
+  ScriptMessageListValue list(array_with_dict_elements);
+
+  std::optional<ScriptMessageValue> front = list.front();
+
+  ASSERT_FALSE(front.has_value());
+}
+
+// Tests whether the `front()` function correctly returns the first element in
+// the list.
 TEST_F(ScriptMessageListValueTest, FrontElementIsEquivalentToTheFirstElement) {
   NSArray* array_with_dict_elements =
       @[ @{@"name" : @"item1"}, @{@"name" : @"item2"} ];
   ScriptMessageListValue list(array_with_dict_elements);
 
-  std::unique_ptr<ScriptMessageValue> front = list.Front();
+  std::optional<ScriptMessageValue> front = list.front();
 
-  ASSERT_TRUE(front);
-  EXPECT_EQ(base::Value::Type::DICT, front->type());
+  ASSERT_TRUE(front.has_value());
+  ASSERT_EQ(base::Value::Type::DICT, front->type());
   EXPECT_EQ("item1", front->GetDict().FindString("name").value_or(""));
 }
 
-// Tests whether the Front() function correctly returns the first element in the
-// list containing NSNumbers.
+// Tests whether the `front()` function correctly returns the first element in
+// the list containing NSNumbers.
 TEST_F(ScriptMessageListValueTest,
        FrontElementIsEquivalentToTheFirstElementInNumberArray) {
   NSArray* array_with_nsnumber_elements =
       @[ @1, @2, @3, @4, @5, @6, @7, @8, @9, @10 ];
   ScriptMessageListValue list(array_with_nsnumber_elements);
 
-  std::unique_ptr<ScriptMessageValue> front = list.Front();
+  std::optional<ScriptMessageValue> front = list.front();
 
-  ASSERT_TRUE(front);
-  EXPECT_EQ(base::Value::Type::INTEGER, front->type());
+  ASSERT_TRUE(front.has_value());
+  ASSERT_EQ(base::Value::Type::INTEGER, front->type());
   EXPECT_EQ(1, front->GetValue().GetInt());
 }
 
-// Tests whether the Front() function correctly returns the first element in the
-// list containing strings.
+// Tests whether the `front()` function correctly returns the first element in
+// the list containing strings.
 TEST_F(ScriptMessageListValueTest,
        FrontElementIsEquivalentToTheFirstElementInStringArray) {
   NSArray* array_with_string_elements = @[ @"a", @"b", @"c", @"d", @"e" ];
   ScriptMessageListValue list(array_with_string_elements);
 
-  std::unique_ptr<ScriptMessageValue> front = list.Front();
+  std::optional<ScriptMessageValue> front = list.front();
 
-  ASSERT_TRUE(front);
-  EXPECT_EQ(base::Value::Type::STRING, front->type());
+  ASSERT_TRUE(front.has_value());
+  ASSERT_EQ(base::Value::Type::STRING, front->type());
   EXPECT_EQ("a", front->GetValue().GetString());
 }
 
-// Tests whether the Back() function correctly returns the last element in the
-// list.
+// Tests whether the `back()` function correctly returns `std::nullopt` if the
+// list is empty.
+TEST_F(ScriptMessageListValueTest, NoBackElementIfArrayIsEmpty) {
+  NSArray* array_with_dict_elements = @[];
+  ScriptMessageListValue list(array_with_dict_elements);
+
+  std::optional<ScriptMessageValue> back = list.back();
+
+  ASSERT_FALSE(back.has_value());
+}
+
+// Tests whether the `back()` function correctly returns the last element in
+// the list.
 TEST_F(ScriptMessageListValueTest, BackElementIsEquivalentToTheLastElement) {
   NSArray* array_with_dict_elements =
       @[ @{@"name" : @"item1"}, @{@"name" : @"item2"} ];
   ScriptMessageListValue list(array_with_dict_elements);
 
-  std::unique_ptr<ScriptMessageValue> back = list.Back();
+  std::optional<ScriptMessageValue> back = list.back();
 
-  ASSERT_TRUE(back);
-  EXPECT_EQ(base::Value::Type::DICT, back->type());
+  ASSERT_TRUE(back.has_value());
+  ASSERT_EQ(base::Value::Type::DICT, back->type());
   EXPECT_EQ("item2", back->GetDict().FindString("name").value_or(""));
 }
 
-// Tests whether the Back() function correctly returns the last element in the
-// list containing NSNumbers.
+// Tests whether the `back()` function correctly returns the last element in
+// the list containing NSNumbers.
 TEST_F(ScriptMessageListValueTest,
        BackElementIsEquivalentToTheLastElementInNumberArray) {
   NSArray* array_with_nsnumber_elements =
       @[ @1, @2, @3, @4, @5, @6, @7, @8, @9, @10 ];
   ScriptMessageListValue list(array_with_nsnumber_elements);
 
-  std::unique_ptr<ScriptMessageValue> back = list.Back();
+  std::optional<ScriptMessageValue> back = list.back();
 
-  ASSERT_TRUE(back);
-  EXPECT_EQ(base::Value::Type::INTEGER, back->type());
+  ASSERT_TRUE(back.has_value());
+  ASSERT_EQ(base::Value::Type::INTEGER, back->type());
   EXPECT_EQ(10, back->GetValue().GetInt());
 }
 
-// Tests whether the Back() function correctly returns the last element in the
-// list containing Strings.
+// Tests whether the `back()` function correctly returns the last element in
+// the list containing Strings.
 TEST_F(ScriptMessageListValueTest,
        BackElementIsEquivalentToTheLastElementInStringArray) {
   NSArray* array_with_string_elements = @[ @"a", @"b", @"c", @"d", @"e" ];
   ScriptMessageListValue list(array_with_string_elements);
 
-  std::unique_ptr<ScriptMessageValue> back = list.Back();
+  std::optional<ScriptMessageValue> back = list.back();
 
-  ASSERT_TRUE(back);
-  EXPECT_EQ(base::Value::Type::STRING, back->type());
+  ASSERT_TRUE(back.has_value());
+  ASSERT_EQ(base::Value::Type::STRING, back->type());
   EXPECT_EQ("e", back->GetValue().GetString());
 }
 
@@ -140,7 +163,7 @@ TEST_F(ScriptMessageListValueTest, ListValueSupportsMoveConstruction) {
 
   ScriptMessageListValue moved_constructed(std::move(original));
 
-  EXPECT_EQ(2u, moved_constructed.Size());
+  EXPECT_EQ(2u, moved_constructed.size());
 }
 
 // Tests move assignment.
@@ -152,7 +175,36 @@ TEST_F(ScriptMessageListValueTest, ListValueSupportsMoveAssignment) {
 
   moved_assigned = std::move(moved_constructed);
 
-  EXPECT_EQ(2u, moved_assigned.Size());
+  EXPECT_EQ(2u, moved_assigned.size());
+}
+
+// Tests forward iteration using loop by size.
+TEST_F(ScriptMessageListValueTest, ListValueSupportsForwardIterators) {
+  NSArray* array_of_nums = @[ @0, @1, @2, @3, @4, @5, @6, @7, @8, @9 ];
+  ScriptMessageListValue list(array_of_nums);
+
+  ScriptMessageListValue::iterator iter = list.begin();
+  for (size_t index = 0; index < list.size(); ++index) {
+    ASSERT_EQ(base::Value::Type::INTEGER, (*iter).type());
+    EXPECT_NSEQ(@((*iter).GetValue().GetInt()), array_of_nums[index]);
+    iter++;
+  }
+}
+
+// Tests if ScriptMessageListValue can be iterated over using range-based loop
+// syntax.
+TEST_F(ScriptMessageListValueTest, ListValueSupportsRangeBasedLoopSyntax) {
+  NSArray* array_of_nums = @[ @0, @1, @2, @3, @4, @5, @6, @7, @8, @9 ];
+  ScriptMessageListValue list(array_of_nums);
+
+  size_t index = 0;
+  for (ScriptMessageValue value : list) {
+    ASSERT_EQ(base::Value::Type::INTEGER, value.type());
+    EXPECT_NSEQ(@(value.GetValue().GetInt()), array_of_nums[index]);
+    index++;
+  }
+
+  EXPECT_EQ(10u, index);
 }
 
 }  // namespace web

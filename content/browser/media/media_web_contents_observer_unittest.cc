@@ -5,6 +5,7 @@
 #include "content/browser/media/media_web_contents_observer.h"
 
 #include <memory>
+#include <optional>
 
 #include "base/run_loop.h"
 #include "content/test/test_render_view_host.h"
@@ -13,6 +14,7 @@
 #include "media/mojo/mojom/media_player.mojom.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
+#include "ui/gfx/geometry/size.h"
 
 namespace content {
 namespace {
@@ -31,7 +33,8 @@ class TestMediaPlayer final : public media::mojom::MediaPlayer {
   void RequestSeekForward(base::TimeDelta seek_time) override {}
   void RequestSeekBackward(base::TimeDelta seek_time) override {}
   void RequestSeekTo(base::TimeDelta seek_time) override {}
-  void RequestEnterPictureInPicture() override {}
+  void RequestEnterPictureInPicture(
+      const std::optional<gfx::Size>& min_size) override {}
   void RequestMute(bool mute) override {}
   void SetVolumeMultiplier(double multiplier) override {}
   void SetPersistentState(bool persistent) override {}

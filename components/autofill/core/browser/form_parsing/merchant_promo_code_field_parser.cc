@@ -33,7 +33,7 @@ MerchantPromoCodeFieldParser::MerchantPromoCodeFieldParser(
 void MerchantPromoCodeFieldParser::AddClassifications(
     FieldCandidatesMap& field_candidates) const {
   AddClassification(match_, MERCHANT_PROMO_CODE,
-                    kBaseMerchantPromoCodeParserScore, field_candidates);
+                    HeuristicParser::kMerchantPromoCode, field_candidates);
 }
 
 }  // namespace autofill

@@ -227,7 +227,7 @@ TEST_P(IdleSpellCheckControllerTest,
       "aaaaaaaaaaaaaaaaa</pre></form>");
   auto* option_element = QuerySelector("option");
   GetDocument().GetFrame()->Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .Collapse(Position(option_element, 1))
           .Build(),
       SetSelectionOptions());

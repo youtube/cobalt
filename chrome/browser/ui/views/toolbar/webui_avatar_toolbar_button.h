@@ -11,6 +11,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/ui/views/toolbar/avatar_toolbar_button_interface.h"
+#include "ui/views/controls/button/button.h"
 
 class Browser;
 class AvatarToolbarButtonStateManager;
@@ -27,6 +28,12 @@ class WebUIAvatarToolbarButton : public AvatarToolbarButtonInterface {
   ~WebUIAvatarToolbarButton() override;
 
   void Initialize();
+  void SetAvatarButtonHovered(bool hovered);
+  void SetAvatarButtonFocused(bool focused);
+
+  // Returns whether an In-Product Help promo is currently showing for this
+  // button.
+  bool IsShowingIPHPromo() const;
 
   // AvatarToolbarButtonInterface overrides:
   void UpdateIcon() override;
@@ -75,6 +82,9 @@ class WebUIAvatarToolbarButton : public AvatarToolbarButtonInterface {
   std::unique_ptr<AvatarToolbarButtonStateManager> state_manager_;
 
   bool is_initialized_ = false;
+  bool hovered_ = false;
+  bool focused_ = false;
+  bool is_showing_iph_promo_ = false;
 
   base::WeakPtrFactory<WebUIAvatarToolbarButton> weak_ptr_factory_{this};
 };

@@ -63,7 +63,9 @@ class TestPopupNavigationDelegate : public ChromePopupNavigationDelegate {
   using ChromePopupNavigationDelegate::ChromePopupNavigationDelegate;
 
   // ChromePopupNavigationDelegate:
-  GURL GetURL() override { return GURL("http://blocked-popup/"); }
+  GURL GetURL() override {
+    return GURL("https://sub.blocked-popup-domain.com/path");
+  }
 };
 
 std::unique_ptr<blocked_content::PopupNavigationDelegate>

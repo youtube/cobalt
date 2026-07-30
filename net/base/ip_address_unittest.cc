@@ -328,9 +328,17 @@ TEST(IPAddressTest, IsMulticast) {
   ASSERT_TRUE(ipv4_multicast.AssignFromIPLiteral("224.0.0.1"));
   EXPECT_TRUE(ipv4_multicast.IsMulticast());
 
+  IPAddress ipv4_last_multicast;
+  ASSERT_TRUE(ipv4_last_multicast.AssignFromIPLiteral("239.255.255.255"));
+  EXPECT_TRUE(ipv4_last_multicast.IsMulticast());
+
   IPAddress ipv4_non_multicast;
   ASSERT_TRUE(ipv4_non_multicast.AssignFromIPLiteral("223.255.255.255"));
   EXPECT_FALSE(ipv4_non_multicast.IsMulticast());
+
+  IPAddress ipv4_after_multicast;
+  ASSERT_TRUE(ipv4_after_multicast.AssignFromIPLiteral("240.0.0.0"));
+  EXPECT_FALSE(ipv4_after_multicast.IsMulticast());
 
   IPAddress ipv6_multicast;
   ASSERT_TRUE(ipv6_multicast.AssignFromIPLiteral("ff02::1"));
@@ -342,6 +350,31 @@ TEST(IPAddressTest, IsMulticast) {
 
   IPAddress invalid;
   EXPECT_FALSE(invalid.IsMulticast());
+}
+
+TEST(IPAddressTest, IsLoopback) {
+  IPAddress ipv4_loopback;
+  ASSERT_TRUE(ipv4_loopback.AssignFromIPLiteral("127.0.0.1"));
+  EXPECT_TRUE(ipv4_loopback.IsLoopback());
+
+  IPAddress ipv4_non_loopback;
+  ASSERT_TRUE(ipv4_non_loopback.AssignFromIPLiteral("128.0.0.1"));
+  EXPECT_FALSE(ipv4_non_loopback.IsLoopback());
+
+  IPAddress ipv6_loopback;
+  ASSERT_TRUE(ipv6_loopback.AssignFromIPLiteral("::1"));
+  EXPECT_TRUE(ipv6_loopback.IsLoopback());
+
+  IPAddress ipv6_not_loopback_last_byte;
+  ASSERT_TRUE(ipv6_not_loopback_last_byte.AssignFromIPLiteral("::2"));
+  EXPECT_FALSE(ipv6_not_loopback_last_byte.IsLoopback());
+
+  IPAddress ipv6_not_loopback_prefix;
+  ASSERT_TRUE(ipv6_not_loopback_prefix.AssignFromIPLiteral("1::1"));
+  EXPECT_FALSE(ipv6_not_loopback_prefix.IsLoopback());
+
+  IPAddress invalid;
+  EXPECT_FALSE(invalid.IsLoopback());
 }
 
 TEST(IPAddressTest, IsZero) {
@@ -610,6 +643,15 @@ TEST(IPAddressTest, ParseCIDRBlock_Valid) {
   EXPECT_EQ("0,0,0,0,0,0,0,0,0,0,255,255,192,168,0,1",
             DumpIPAddress(ip_address));
   EXPECT_EQ(112u, prefix_length_in_bits);
+
+  EXPECT_TRUE(
+      ParseCIDRBlock("192.168.0.1/32", &ip_address, &prefix_length_in_bits));
+  EXPECT_EQ("192,168,0,1", DumpIPAddress(ip_address));
+  EXPECT_EQ(32u, prefix_length_in_bits);
+
+  EXPECT_TRUE(ParseCIDRBlock("::1/128", &ip_address, &prefix_length_in_bits));
+  EXPECT_EQ("0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1", DumpIPAddress(ip_address));
+  EXPECT_EQ(128u, prefix_length_in_bits);
 }
 
 // Test parsing invalid CIDR notation literals specific to the URL-Hostname
@@ -662,6 +704,7 @@ TEST(IPAddressTest, ParseURLHostnameToAddress_FailParse) {
   EXPECT_FALSE(ParseURLHostnameToAddress("  192.168.0.1  ", &address));
   EXPECT_FALSE(ParseURLHostnameToAddress("::1", &address));
   EXPECT_FALSE(ParseURLHostnameToAddress("[192.169.0.1]", &address));
+  EXPECT_FALSE(ParseURLHostnameToAddress("[]", &address));
 }
 
 TEST(IPAddressTest, ParseURLHostnameToAddress_IPv4) {

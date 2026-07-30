@@ -292,7 +292,7 @@ TEST_F(AudioTrackMojoEncoderTest, TimeInPauseIsRespected) {
   audio_encoder().FinishInitialization();
   auto params = media::TestAudioParameters::Normal();
   media::AudioTimestampHelper helper(params.sample_rate());
-  size_t input_frames = params.frames_per_buffer() / params.channels();
+  int input_frames = params.frames_per_buffer() / params.channels();
   helper.SetBaseTimestamp(base::Seconds(1));
   auto timestamp_frame_0 = base::TimeTicks() + helper.GetTimestamp();
   audio_track_encoder().EncodeAudio(GenerateInput(), timestamp_frame_0);

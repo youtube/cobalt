@@ -130,4 +130,38 @@ TEST_F(SiteFamiliarityUtilsJsOptimizerMigrationDisabledTest,
       content_settings::JavascriptOptimizerSetting::kAllowed);
 }
 
+TEST_F(SiteFamiliarityUtilsJsOptimizerTest, IsV8OptimizerMigrationDryRun) {
+  // 1. Migration disabled, dry run disabled (default).
+  EXPECT_FALSE(IsV8OptimizerMigrationDryRun(profile()));
+
+  // 2. Migration enabled, dry run disabled (default).
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(
+        safe_browsing::kMigrateToBlockV8OptimizerOnUnfamiliarSites);
+    EXPECT_FALSE(IsV8OptimizerMigrationDryRun(profile()));
+  }
+
+  // 3. Migration enabled, dry run enabled.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        safe_browsing::kMigrateToBlockV8OptimizerOnUnfamiliarSites,
+        {{"dry_run", "true"}});
+
+    // Default user (no pref) -> should be dry run.
+    EXPECT_TRUE(IsV8OptimizerMigrationDryRun(profile()));
+
+    // User opted in via pref -> should NOT be dry run.
+    SetJsOptimizerSetting(content_settings::JavascriptOptimizerSetting::
+                              kBlockedForUnfamiliarSites);
+    EXPECT_FALSE(IsV8OptimizerMigrationDryRun(profile()));
+
+    // User opted out via pref -> should NOT be dry run.
+    SetJsOptimizerSetting(
+        content_settings::JavascriptOptimizerSetting::kAllowed);
+    EXPECT_FALSE(IsV8OptimizerMigrationDryRun(profile()));
+  }
+}
+
 }  // namespace site_protection

@@ -372,7 +372,7 @@ TEST_F(KeywordEditorControllerManagedDSPTest, SetDefaultWhileRecommended) {
   ASSERT_NE(util()->model()->GetTemplateURLForKeyword(kManaged), nullptr);
 }
 
-// Tests that a recomended search provider does not persist when a different
+// Tests that a recommended search provider does not persist when a different
 // recommended provider is applied via policy.
 TEST_F(KeywordEditorControllerManagedDSPTest, UpdateRecommended) {
   // Simulate setting a recommended default provider.
@@ -396,7 +396,7 @@ TEST_F(KeywordEditorControllerManagedDSPTest, UpdateRecommended) {
   EXPECT_EQ(original_size, util()->model()->GetTemplateURLs().size());
 }
 
-// Tests that a recomended search provider does not persist when a managed
+// Tests that a recommended search provider does not persist when a managed
 // provider is applied via policy.
 TEST_F(KeywordEditorControllerManagedDSPTest, SetManagedWhileRecommended) {
   // Simulate setting a recommended default provider.

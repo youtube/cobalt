@@ -17,6 +17,9 @@ BASE_FEATURE(kMobilePromoOnDesktopWithReminder,
 BASE_FEATURE(kMobilePromoOnDesktopWithReminderWave1,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kMobilePromoOnDesktopWithReminderWave2,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kMobilePromoOnDesktopRecordActiveDays,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -24,6 +27,9 @@ BASE_FEATURE(kMobilePromoOnDesktopWithQRCode,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kMobilePromoOnDesktopWithQRCodeWave1,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kMobilePromoOnDesktopWithQRCodeWave2,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kMobilePromoOnDesktopForcePromoType,
@@ -48,7 +54,10 @@ bool MobilePromoOnDesktopEnabled() {
          (base::FeatureList::IsEnabled(kMobilePromoOnDesktopWithReminder) ||
           base::FeatureList::IsEnabled(kMobilePromoOnDesktopWithQRCode) ||
           base::FeatureList::IsEnabled(kMobilePromoOnDesktopWithQRCodeWave1) ||
-          base::FeatureList::IsEnabled(kMobilePromoOnDesktopWithReminderWave1));
+          base::FeatureList::IsEnabled(
+              kMobilePromoOnDesktopWithReminderWave1) ||
+          base::FeatureList::IsEnabled(kMobilePromoOnDesktopWithQRCodeWave2) ||
+          base::FeatureList::IsEnabled(kMobilePromoOnDesktopWithReminderWave2));
 }
 
 bool IsMobilePromoOnDesktopRecordActiveDaysEnabled() {
@@ -128,6 +137,9 @@ bool IsMobilePromoOnDesktopNotificationsEnabled() {
              kMobilePromoOnDesktopNotificationParam, false) ||
          base::GetFieldTrialParamByFeatureAsBool(
              kMobilePromoOnDesktopWithReminderWave1,
+             kMobilePromoOnDesktopNotificationParam, false) ||
+         base::GetFieldTrialParamByFeatureAsBool(
+             kMobilePromoOnDesktopWithReminderWave2,
              kMobilePromoOnDesktopNotificationParam, false);
 }
 

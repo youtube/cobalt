@@ -23,6 +23,7 @@
 #include "components/favicon/core/test/mock_favicon_service.h"
 #include "components/signin/public/base/signin_switches.h"
 #include "components/sync/base/client_tag_hash.h"
+#include "components/sync/base/server_defined_unique_tags.h"
 #include "components/sync/base/unique_position.h"
 #include "components/sync/protocol/entity_metadata.pb.h"
 #include "components/sync_bookmarks/bookmark_model_view.h"
@@ -98,7 +99,6 @@ enum class ExpectedBookmarksUuidDuplicates {
 };
 
 const char kBookmarkBarId[] = "bookmark_bar_id";
-const char kBookmarkBarTag[] = "bookmark_bar";
 
 // Fork of enum RemoteBookmarkUpdateError.
 enum class ExpectedRemoteBookmarkUpdateError {
@@ -225,7 +225,7 @@ syncer::UpdateResponseData CreateUpdateResponseData(
 syncer::UpdateResponseData CreateBookmarkBarNodeUpdateData() {
   syncer::EntityData data;
   data.id = kBookmarkBarId;
-  data.server_defined_unique_tag = kBookmarkBarTag;
+  data.server_defined_unique_tag = syncer::kBookmarkBarTag;
 
   data.specifics.mutable_bookmark();
 

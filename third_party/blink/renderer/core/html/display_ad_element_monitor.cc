@@ -215,7 +215,7 @@ DisplayAdElementMonitor::CheckOverlayVisibility(
 
 void DisplayAdElementMonitor::Trace(Visitor* visitor) const {
   visitor->Trace(element_);
-  ElementRareDataField::Trace(visitor);
+  NodeRareDataField::Trace(visitor);
 }
 
 }  // namespace blink

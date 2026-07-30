@@ -608,6 +608,10 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
     open_flags |= O_APPEND | O_WRONLY;
   }
 
+  if (flags & FLAG_NO_FOLLOW) {
+    open_flags |= O_NOFOLLOW;
+  }
+
   static_assert(O_RDONLY == 0, "O_RDONLY must equal zero");
 
   mode_t mode = S_IRUSR | S_IWUSR;

@@ -29,8 +29,6 @@ class TimerFactoryImpl : public TimerFactory {
    protected:
     virtual std::unique_ptr<TimerFactory> CreateInstance() = 0;
 
-   private:
-    static std::unique_ptr<Factory> test_factory_;
   };
 
   TimerFactoryImpl(const TimerFactoryImpl&) = delete;

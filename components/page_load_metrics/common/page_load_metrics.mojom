@@ -658,13 +658,15 @@ struct SoftNavigationMetrics {
   // e.g. LCP.
   mojo_base.mojom.TimeDelta start_time;
 
-  // The timestamp that we use for slicing the performance timeline;
+  // The TimeTicks value that we use for slicing the performance timeline;
   // specifically, for layout shifts (LayoutShift) and interactions
   // (EventTiming) in a PageLoadMetrics.UpdateTiming call, we distinguish
   // measurements belonging before or after this soft navigation by comparing
-  // with this timestamp. This is only a Chrome-internal mechanism and never
-  // recorded to UKM. Note: For our web exposed (experimental) API,
-  // PerformanceEntry.navigationId serves the same purpose.
+  // with this value. Only its ordering relative to other event TimeTicks is
+  // meaningful; the absolute value is not a wall-clock timestamp. This is only
+  // a Chrome-internal mechanism and never recorded to UKM. Note: For our web
+  // exposed (experimental) API, PerformanceEntry.navigationId serves the same
+  // purpose.
   mojo_base.mojom.TimeTicks soft_navigation_slicing_time;
 
   // The type of the soft navigation.

@@ -31,6 +31,11 @@ class TestPipScreenCaptureCoordinator : public PipScreenCaptureCoordinator {
       desktop_capture::PipScreenCaptureExclusionObserver* observer) override;
   bool IsExcludedFromScreenCapture() const override;
 
+  base::UnguessableToken RegisterMediaPickerAsCapture(
+      const GlobalRenderFrameHostId& render_frame_host_id) override;
+  void UnregisterMediaPickerAsCapture(
+      const base::UnguessableToken& session_id) override;
+
   void SetExcluded(bool is_excluded);
 
  private:

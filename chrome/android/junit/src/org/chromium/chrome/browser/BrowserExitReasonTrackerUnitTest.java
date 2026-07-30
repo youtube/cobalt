@@ -56,7 +56,7 @@ public class BrowserExitReasonTrackerUnitTest {
 
         BrowserExitReasonTracker.initForegroundBrowserProcess();
 
-        verify(mOrchestrator).onForegroundBrowserProcessInitialized(reason);
+        verify(mOrchestrator).onForegroundBrowserProcessInitialized();
         assertFalse(mPrefs.contains(ChromePreferenceKeys.LAST_SESSION_BROWSER_EXIT_REASON));
         assertEquals(
                 Process.myPid(), mPrefs.readInt(ChromePreferenceKeys.LAST_SESSION_BROWSER_PID));

@@ -96,9 +96,11 @@ bool IsBackgroundEffectView(NSView* view) {
     return true;
   }
 
-  Class glass_effect_view_class = NSClassFromString(@"NSGlassEffectView");
-  return glass_effect_view_class &&
-         [view isKindOfClass:glass_effect_view_class];
+  if (@available(macOS 26, *)) {
+    return [view isKindOfClass:[NSGlassEffectView class]];
+  }
+
+  return false;
 }
 
 }  // namespace
@@ -266,14 +268,15 @@ NSComparisonResult SubviewSorter(__kindof NSView* lhs,
 
   // Put background effect views before `ViewsCompositorSuperview`, otherwise
   // they can cover content displayed by the compositor.
-  if (IsBackgroundEffectView(lhs)) {
-    return NSOrderedAscending;
+  bool lhs_is_bg = IsBackgroundEffectView(lhs);
+  bool rhs_is_bg = IsBackgroundEffectView(rhs);
+  if (lhs_is_bg != rhs_is_bg) {
+    return lhs_is_bg ? NSOrderedAscending : NSOrderedDescending;
   }
-  if ([lhs isKindOfClass:[ViewsCompositorSuperview class]]) {
-    if (IsBackgroundEffectView(rhs)) {
-      return NSOrderedDescending;
-    }
-    return NSOrderedAscending;
+  bool lhs_is_comp = [lhs isKindOfClass:[ViewsCompositorSuperview class]];
+  bool rhs_is_comp = [rhs isKindOfClass:[ViewsCompositorSuperview class]];
+  if (lhs_is_comp != rhs_is_comp) {
+    return lhs_is_comp ? NSOrderedAscending : NSOrderedDescending;
   }
 
   const RankMap* rank = static_cast<const RankMap*>(rank_as_void);
@@ -1853,15 +1856,11 @@ void NativeWidgetNSWindowBridge::SetCanAppearInExistingFullscreenSpaces(
     bool can_appear_in_existing_fullscreen_spaces) {
   NSWindowCollectionBehavior collectionBehavior = window_.collectionBehavior;
   if (can_appear_in_existing_fullscreen_spaces) {
-    if (@available(macOS 13.0, *)) {
-      collectionBehavior &= ~NSWindowCollectionBehaviorPrimary;
-    }
+    collectionBehavior &= ~NSWindowCollectionBehaviorPrimary;
     collectionBehavior |= NSWindowCollectionBehaviorFullScreenAuxiliary;
     collectionBehavior &= ~NSWindowCollectionBehaviorFullScreenPrimary;
   } else {
-    if (@available(macOS 13.0, *)) {
-      collectionBehavior |= NSWindowCollectionBehaviorPrimary;
-    }
+    collectionBehavior |= NSWindowCollectionBehaviorPrimary;
     collectionBehavior |= NSWindowCollectionBehaviorFullScreenPrimary;
     collectionBehavior &= ~NSWindowCollectionBehaviorFullScreenAuxiliary;
   }

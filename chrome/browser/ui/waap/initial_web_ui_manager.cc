@@ -14,6 +14,7 @@
 #include "chrome/common/webui_url_constants.h"
 #include "components/ukm/content/source_url_recorder.h"
 #include "content/public/browser/navigation_controller.h"
+#include "content/public/browser/render_process_host.h"
 #include "content/public/browser/site_instance.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
@@ -46,9 +47,21 @@ InitialWebUIManager::InitialWebUIManager(BrowserWindowInterface* browser)
 
     ConfigureToolbarWebContents(toolbar_web_contents_.get(), browser);
 
-    toolbar_web_contents_->GetController().LoadURL(
-        GURL(chrome::kChromeUIWebUIToolbarURL), content::Referrer(),
-        ui::PAGE_TRANSITION_AUTO_TOPLEVEL, std::string());
+    const bool pre_navigate =
+        features::kWebUIReloadButtonPrewarmWebUIPreNavigate.Get() ||
+        base::FeatureList::IsEnabled(
+            features::kWebUIToolbarProcessOverheadExperiment);
+    // We only navigate here when `WebUIReloadButtonPrewarmWebUIPreNavigate` is
+    // true or we are running the process creation overhead experiment.
+    if (pre_navigate) {
+      toolbar_web_contents_->GetController().LoadURL(
+          GURL(chrome::kChromeUIWebUIToolbarURL), content::Referrer(),
+          ui::PAGE_TRANSITION_AUTO_TOPLEVEL, std::string());
+    } else {
+      // Only create the render process here. The navigation will be done in
+      // `WebUIToolbarWebView::AddedToWidget()`.
+      site_instance->GetProcess()->Init();
+    }
   }
 }
 

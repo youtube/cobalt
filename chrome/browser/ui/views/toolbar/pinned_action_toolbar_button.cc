@@ -37,6 +37,7 @@
 #include "ui/actions/actions.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/menu_separator_types.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/color/color_id.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/insets.h"
@@ -212,7 +213,9 @@ void PinnedActionToolbarButton::Layout(PassKey) {
       image_container_view()->GetLocalBounds();
   const int new_x = image_container_bounds.x() +
                     (image_container_bounds.width() - status_rect.width()) / 2;
-  const int new_y = image_container_bounds.bottom() + kStatusIndicatorSpacing;
+  const int new_y =
+      image_container_bounds.bottom() +
+      (features::IsRoundedIconsEnabled() ? 0 : kStatusIndicatorSpacing);
   // Set the new origin for status_rect
   status_rect.set_origin(gfx::Point(new_x, new_y));
   status_indicator_->SetBoundsRect(status_rect);
@@ -263,19 +266,8 @@ bool PinnedActionToolbarButton::ShouldShowEphemerallyInToolbar() {
 }
 
 void PinnedActionToolbarButton::SetActionEngaged(bool action_engaged) {
-  if (!IsActive()) {
-    SetProperty(
-        kToolbarButtonFlexPriorityKey,
-        action_engaged
-            ? static_cast<
-                  std::underlying_type_t<PinnedToolbarActionFlexPriority>>(
-                  PinnedToolbarActionFlexPriority::kMedium)
-            : static_cast<
-                  std::underlying_type_t<PinnedToolbarActionFlexPriority>>(
-                  PinnedToolbarActionFlexPriority::kLow));
-    InvalidateLayout();
-  }
   action_engaged_ = action_engaged;
+  UpdateFlexPriority();
 }
 
 void PinnedActionToolbarButton::HideStatusIndicator() {
@@ -296,26 +288,29 @@ void PinnedActionToolbarButton::OnAnchorCountChanged(size_t anchor_count) {
   // small enough that icons must overflow. Update the
   // kToolbarButtonFlexPriorityKey to make sure icons are forced visible or able
   // to overflow.
-  if (anchor_count > 0) {
+  has_anchor_ = anchor_count > 0;
+  UpdateFlexPriority();
+  if (!has_anchor_) {
+    container_->MaybeRemovePoppedOutButtonFor(GetActionId());
+  }
+}
+
+void PinnedActionToolbarButton::UpdateFlexPriority() {
+  PinnedToolbarActionFlexPriority priority =
+      PinnedToolbarActionFlexPriority::kLow;
+  if (has_anchor_) {
+    priority = PinnedToolbarActionFlexPriority::kHigh;
+  } else if (action_engaged_) {
+    priority = PinnedToolbarActionFlexPriority::kMedium;
+  }
+
+  if (static_cast<PinnedToolbarActionFlexPriority>(
+          GetProperty(kToolbarButtonFlexPriorityKey)) != priority) {
     SetProperty(
         kToolbarButtonFlexPriorityKey,
         static_cast<std::underlying_type_t<PinnedToolbarActionFlexPriority>>(
-            PinnedToolbarActionFlexPriority::kHigh));
+            priority));
     InvalidateLayout();
-    has_anchor_ = true;
-  } else {
-    SetProperty(
-        kToolbarButtonFlexPriorityKey,
-        action_engaged_
-            ? static_cast<
-                  std::underlying_type_t<PinnedToolbarActionFlexPriority>>(
-                  PinnedToolbarActionFlexPriority::kMedium)
-            : static_cast<
-                  std::underlying_type_t<PinnedToolbarActionFlexPriority>>(
-                  PinnedToolbarActionFlexPriority::kLow));
-    InvalidateLayout();
-    has_anchor_ = false;
-    container_->MaybeRemovePoppedOutButtonFor(GetActionId());
   }
 }
 

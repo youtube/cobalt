@@ -13,6 +13,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/notreached.h"
+#include "base/strings/string_view_util.h"
 #include "base/task/thread_pool.h"
 #include "base/test/bind.h"
 #include "base/test/gtest_util.h"
@@ -148,10 +149,8 @@ class FileOperationProxyImplTest : public testing::Test {
     }
     base::MemoryMappedFile mapped_file;
     CHECK(mapped_file.Initialize(std::move(open_result)));
-    EXPECT_THAT(
-        std::string_view(reinterpret_cast<const char*>(mapped_file.data()),
-                         mapped_file.length()),
-        *expected_file_content);
+    EXPECT_THAT(base::as_string_view(mapped_file.bytes()),
+                *expected_file_content);
   }
 
   // Tests that the Open method reports a bad message.

@@ -43,6 +43,7 @@ import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.chrome.browser.tab_ui.TabContentManagerThumbnailProvider;
 import org.chromium.chrome.browser.tab_ui.TabListFaviconProvider;
 import org.chromium.chrome.browser.tab_ui.TabListFaviconProvider.TabFaviconMetadata;
+import org.chromium.chrome.browser.tab_ui.TabListMode;
 import org.chromium.chrome.browser.tab_ui.ThumbnailProvider;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.tab_ui.R;
@@ -542,7 +543,7 @@ public class MultiThumbnailCardProvider implements ThumbnailProvider {
         mTabListFaviconProvider =
                 new TabListFaviconProvider(
                         context,
-                        false,
+                        TabListMode.GRID,
                         R.dimen.default_favicon_corner_radius,
                         TabFavicon::getBitmap);
 

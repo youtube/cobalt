@@ -223,6 +223,7 @@ component("fido") {
         "//services/device/public/cpp/usb",
         "//services/device/public/mojom",
         "//services/device/public/mojom:usb",
+        "//services/network/public/cpp",
         "//services/network/public/mojom",
       ]
     }
@@ -330,6 +331,7 @@ if (use_blink) {
       ":fido",
       "//components/cbor",
       "//components/device_event_log",
+      "//services/network/public/cpp",
       "//services/network/public/mojom",
       "//third_party/blink/public/mojom:authenticator_mojo_bindings",
     ]

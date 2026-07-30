@@ -92,7 +92,7 @@ void ReportGenerator::GenerateReport(
     ReportCallback callback,
     std::unique_ptr<ReportRequest> basic_request) {
   browser_report_generator_.Generate(
-      ReportType::kFull,
+      ReportType::kBrowser,
       base::BindOnce(&ReportGenerator::OnBrowserReportReady,
                      weak_ptr_factory_.GetWeakPtr(), std::move(basic_request),
                      report_type, std::move(callback)));

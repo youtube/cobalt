@@ -58,6 +58,7 @@
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/prefs/pref_service.h"
+#include "components/signin/public/base/signin_metrics.h"
 #include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/tribool.h"
@@ -630,6 +631,10 @@ void ProfilePickerHandler::HandleRecordSignInPromoImpression(
     const base::ListValue& /*args*/) {
   signin_metrics::RecordSigninImpressionUserActionForAccessPoint(
       signin_metrics::AccessPoint::kUserManager);
+  signin_metrics::LogSignInOffered(
+      signin_metrics::AccessPoint::kUserManager,
+      signin_metrics::PromoAction::
+          PROMO_ACTION_NEW_ACCOUNT_NO_EXISTING_ACCOUNT);
 }
 
 void ProfilePickerHandler::HandleSetProfileName(const base::ListValue& args) {

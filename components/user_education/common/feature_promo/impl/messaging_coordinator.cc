@@ -5,43 +5,42 @@
 #include "components/user_education/common/feature_promo/impl/messaging_coordinator.h"
 
 #include "base/callback_list.h"
-#include "components/user_education/common/product_messaging_controller.h"
+#include "base/functional/bind.h"
+#include "components/user_education/product_messaging/product_messaging_controller.h"
+#include "components/user_education/product_messaging/product_messaging_types.h"
 
 namespace user_education::internal {
 
-DEFINE_CLASS_REQUIRED_NOTICE_IDENTIFIER(MessagingCoordinator,
-                                        kLowPriorityNoticeId);
-DEFINE_CLASS_REQUIRED_NOTICE_IDENTIFIER(MessagingCoordinator,
-                                        kHighPriorityNoticeId);
+DEFINE_CLASS_PRODUCT_MESSAGE_KEY(MessagingCoordinator, kLowPriorityNoticeId);
+DEFINE_CLASS_PRODUCT_MESSAGE_KEY(MessagingCoordinator, kHighPriorityNoticeId);
 
 MessagingCoordinator::MessagingCoordinator(
     ProductMessagingController& controller)
-    : controller_(controller) {
-  message_shown_subscription_ = controller_->AddRequiredNoticeShownCallback(
-      base::BindRepeating(&MessagingCoordinator::OnMessageShown,
-                          weak_ptr_factory_.GetWeakPtr()));
-}
+    : controller_(controller) {}
 
 MessagingCoordinator::~MessagingCoordinator() = default;
 
-bool MessagingCoordinator::CanShowPromo(bool high_priority) const {
+bool MessagingCoordinator::ReadyToShow(bool high_priority) const {
   // Must always be holding the handle.
   if (!handle_) {
     return false;
   }
 
-  // Only a high priority promo can take advantage of a high-priority-pending.
-  if (!high_priority && (promo_state_ == PromoState::kHighPriorityPending ||
-                         promo_state_ == PromoState::kHighPriorityShowing)) {
-    return false;
+  if (high_priority) {
+    return promo_state_ == PromoState::kHighPriorityPending;
+  } else {
+    return promo_state_ == PromoState::kLowPriorityPending;
   }
-
-  // Otherwise holding the handle is sufficient.
-  return true;
 }
 
 bool MessagingCoordinator::IsBlockedByExternalPromo() const {
-  return !handle_ && controller_->has_current_notice();
+  return !handle_ &&
+         !controller_
+              ->GetAllMessages(
+                  {ProductMessageStatus::kWaiting, ProductMessageStatus::kReady,
+                   ProductMessageStatus::kShowing},
+                  /*priority_higher_than=*/ProductMessageType::kHighPriorityIph)
+              .empty();
 }
 
 void MessagingCoordinator::TransitionToState(PromoState promo_state) {
@@ -50,18 +49,18 @@ void MessagingCoordinator::TransitionToState(PromoState promo_state) {
       ReleaseAll();
       break;
     case PromoState::kLowPriorityShowing:
-      CHECK(CanShowPromo(false));
-      // Priority is not held when a low priority promo is showing.
-      handle_.Release();
+      CHECK(ReadyToShow(/*high_priority=*/false));
+      handle_->SetShown();
       break;
     case PromoState::kHighPriorityShowing:
-      CHECK(CanShowPromo(true));
+      CHECK(ReadyToShow(/*high_priority=*/true));
+      handle_->SetShown();
       break;
     case PromoState::kLowPriorityPending:
-      MaybeRequestPriority(/*high_priority=*/false);
+      RequestPriority(/*high_priority=*/false);
       break;
     case PromoState::kHighPriorityPending:
-      MaybeRequestPriority(/*high_priority=*/true);
+      RequestPriority(/*high_priority=*/true);
       break;
   }
 
@@ -78,47 +77,48 @@ base::CallbackListSubscription MessagingCoordinator::AddPromoReadyCallback(
   return promo_ready_callbacks_.Add(std::move(callback));
 }
 
-void MessagingCoordinator::MaybeRequestPriority(bool high_priority) {
-  // Should not re-request priority if we already have it. If the promo can be
-  // shown it should either be shown, or the state should return to kNone.
-  CHECK(!CanShowPromo(high_priority));
+void MessagingCoordinator::RequestPriority(bool high_priority) {
+  CHECK(!ReadyToShow(high_priority));
 
   // If the handle is held but it's being held for the wrong reason, release it.
   if (handle_) {
-    handle_.Release();
+    handle_.reset();
   }
 
   auto cb = base::BindOnce(&MessagingCoordinator::OnPriorityReceived,
                            weak_ptr_factory_.GetWeakPtr());
   if (high_priority) {
-    // High priority notices take the same precedence as
-    if (!controller_->IsNoticeQueued(kHighPriorityNoticeId)) {
-      controller_->UnqueueRequiredNotice(kLowPriorityNoticeId);
-      controller_->QueueRequiredNotice(kHighPriorityNoticeId, std::move(cb));
-    }
-  } else if (!controller_->IsNoticeQueued(kLowPriorityNoticeId)) {
-    // Low-priority show after all other messaging.
-    controller_->UnqueueRequiredNotice(kHighPriorityNoticeId);
-    controller_->QueueRequiredNotice(kLowPriorityNoticeId, std::move(cb),
-                                     {kShowAfterAllNotices});
+    controller_->UnqueueMessage(kLowPriorityNoticeId);
+    controller_->QueueMessage(kHighPriorityNoticeId, std::move(cb));
+  } else {
+    controller_->UnqueueMessage(kHighPriorityNoticeId);
+    controller_->QueueMessage(kLowPriorityNoticeId, std::move(cb));
   }
 }
 
 void MessagingCoordinator::ReleaseAll() {
-  handle_.Release();
-  controller_->UnqueueRequiredNotice(kLowPriorityNoticeId);
-  controller_->UnqueueRequiredNotice(kHighPriorityNoticeId);
+  handle_.reset();
+  controller_->UnqueueMessage(kLowPriorityNoticeId);
+  controller_->UnqueueMessage(kHighPriorityNoticeId);
 }
 
-void MessagingCoordinator::OnPriorityReceived(
-    RequiredNoticePriorityHandle handle) {
+void MessagingCoordinator::OnPriorityReceived(ProductMessagingHandle handle) {
   handle_ = std::move(handle);
+  handle_->SetSupersededCallback(base::BindRepeating(
+      &MessagingCoordinator::OnStatusChange, base::Unretained(this)));
   promo_ready_callbacks_.Notify();
 }
 
-void MessagingCoordinator::OnMessageShown(RequiredNoticeId message_id) {
-  if (message_id == kLowPriorityNoticeId ||
-      message_id == kHighPriorityNoticeId) {
+void MessagingCoordinator::OnStatusChange(ProductMessageKey message_key,
+                                          ProductMessageStatus status) {
+  if (message_key == kLowPriorityNoticeId ||
+      message_key == kHighPriorityNoticeId) {
+    return;
+  }
+  if (status != ProductMessageStatus::kShowing) {
+    return;
+  }
+  if (message_key.type() <= ProductMessageType::kHighPriorityIph) {
     return;
   }
   if (promo_state_ == PromoState::kLowPriorityShowing) {

@@ -95,6 +95,11 @@ void ContextualTasksCookieSynchronizer::CopyCookiesToWebviewStoragePartition() {
     return;
   }
 
+  if (!identity_manager_) {
+    CompleteAuth(false);
+    return;
+  }
+
   // Set a timeout to avoid hanging if multilogin hangs.
   timeout_.Start(FROM_HERE, kCookieSyncDefaultTimeout,
                  base::BindOnce(&ContextualTasksCookieSynchronizer::OnTimeout,
@@ -115,6 +120,7 @@ void ContextualTasksCookieSynchronizer::OnIdentityManagerShutdown(
 }
 
 void ContextualTasksCookieSynchronizer::BeginCookieSync() {
+  CHECK(identity_manager_);
   // We only need primary account authentication in the webview.
   CoreAccountId primary_account_id =
       identity_manager_->GetPrimaryAccountId(signin::ConsentLevel::kSignin);

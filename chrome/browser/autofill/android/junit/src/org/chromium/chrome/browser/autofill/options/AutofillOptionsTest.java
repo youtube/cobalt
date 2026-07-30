@@ -11,7 +11,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -29,8 +28,6 @@ import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProper
 
 import android.content.ComponentName;
 import android.content.Context;
-import android.content.Intent;
-import android.net.Uri;
 import android.text.SpannableString;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -59,7 +56,6 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.RuntimeEnvironment;
-import org.robolectric.Shadows;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadow.api.Shadow;
 import org.robolectric.shadows.ShadowApplication;
@@ -69,7 +65,6 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
-import org.chromium.base.test.util.UserActionTester;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.autofill.PersonalDataManager;
@@ -933,61 +928,6 @@ public class AutofillOptionsTest {
                 View.GONE, thingsToConsider.findViewById(R.id.info_item_summary_2).getVisibility());
     }
 
-    @Test
-    @SmallTest
-    @EnableFeatures(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)
-    public void testPersonalContextSettingsLinkRowVisible() {
-        doReturn(true).when(mMockEntityDataManagerJni).isPersonalContextSettingVisible(any());
-
-        new AutofillOptionsCoordinator(mFragment, this::assertModalNotUsed, Assert::fail)
-                .initializeNow();
-
-        assertTrue(mFragment.getAutofillAiPersonalContext().isVisible());
-    }
-
-    @Test
-    @SmallTest
-    @EnableFeatures(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)
-    public void testPersonalContextSettingsLinkRowNotVisible() {
-        doReturn(false).when(mMockEntityDataManagerJni).isPersonalContextSettingVisible(any());
-
-        new AutofillOptionsCoordinator(mFragment, this::assertModalNotUsed, Assert::fail)
-                .initializeNow();
-
-        assertFalse(mFragment.getAutofillAiPersonalContext().isVisible());
-    }
-
-    @Test
-    @SmallTest
-    @EnableFeatures(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)
-    public void testPersonalContextSettingsLinkRowClick() {
-        final String testUrl = "https://test.com";
-        doReturn(true).when(mMockEntityDataManagerJni).isPersonalContextSettingVisible(any());
-        doReturn(testUrl).when(mMockEntityDataManagerJni).getPersonalContextSettingsUrl();
-
-        new AutofillOptionsCoordinator(mFragment, this::assertModalNotUsed, Assert::fail)
-                .initializeNow();
-
-        var userActionTester = new UserActionTester();
-        mFragment
-                .getAutofillAiPersonalContext()
-                .getOnPreferenceClickListener()
-                .onPreferenceClick(mFragment.getAutofillAiPersonalContext());
-
-        Intent intent =
-                Shadows.shadowOf(RuntimeEnvironment.getApplication()).getNextStartedActivity();
-        assertNotNull(intent);
-        assertEquals(Intent.ACTION_VIEW, intent.getAction());
-        assertEquals(Uri.parse(testUrl), intent.getData());
-
-        assertTrue(
-                userActionTester
-                        .getActions()
-                        .contains(
-                                AutofillOptionsMediator
-                                        .HISTOGRAM_PERSONAL_CONTEXT_SETTINGS_LINK_ROW_CLICK));
-        userActionTester.tearDown();
-    }
 
     @Test
     @SmallTest

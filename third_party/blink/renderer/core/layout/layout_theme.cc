@@ -22,6 +22,7 @@
 #include "third_party/blink/renderer/core/layout/layout_theme.h"
 
 #include "build/build_config.h"
+#include "third_party/blink/public/common/renderer_preferences/renderer_preferences.h"
 #include "third_party/blink/public/strings/grit/blink_strings.h"
 #include "third_party/blink/public/web/blink.h"
 #include "third_party/blink/renderer/core/css_value_keywords.h"
@@ -172,6 +173,23 @@ LayoutTheme& LayoutTheme::GetTheme() {
   return NativeTheme();
 }
 
+Color LayoutTheme::active_selection_background_color_ =
+    Color::FromRGBA32(kDefaultActiveSelectionBgColor);
+Color LayoutTheme::active_selection_foreground_color_ =
+    Color::FromRGBA32(kDefaultActiveSelectionFgColor);
+Color LayoutTheme::inactive_selection_background_color_ =
+    Color::FromRGBA32(kDefaultInactiveSelectionBgColor);
+Color LayoutTheme::inactive_selection_foreground_color_ =
+    Color::FromRGBA32(kDefaultInactiveSelectionFgColor);
+Color LayoutTheme::active_list_box_selection_background_color_dark_mode_ =
+    Color::FromRGBA32(0xFF99C8FF);
+Color LayoutTheme::active_list_box_selection_foreground_color_dark_mode_ =
+    Color::FromRGBA32(0xFF3B3B3B);
+Color LayoutTheme::inactive_list_box_selection_background_color_dark_mode_ =
+    Color::FromRGBA32(0x4D3B3B3B);
+Color LayoutTheme::inactive_list_box_selection_foreground_color_dark_mode_ =
+    Color::FromRGBA32(0xFF323232);
+
 LayoutTheme::LayoutTheme() : has_custom_focus_ring_color_(false) {}
 
 AppearanceValue LayoutTheme::AdjustAppearanceWithAuthorStyle(
@@ -306,9 +324,8 @@ void LayoutTheme::AdjustStyle(const Element& element,
   // value.
   switch (appearance) {
     case AppearanceValue::kMenulist:
-      return AdjustMenuListStyle(builder);
     case AppearanceValue::kMenulistButton:
-      return AdjustMenuListButtonStyle(builder);
+      return AdjustMenuListStyle(builder);
     case AppearanceValue::kSliderThumbHorizontal:
     case AppearanceValue::kSliderThumbVertical:
       return AdjustSliderThumbStyle(builder);
@@ -396,47 +413,66 @@ Color LayoutTheme::PlatformActiveSpellingMarkerHighlightColor() const {
 
 Color LayoutTheme::PlatformActiveSelectionBackgroundColor(
     mojom::blink::ColorScheme color_scheme) const {
-  // Use a blue color by default if the platform theme doesn't define anything.
-  return Color(0, 0, 255);
+  return active_selection_background_color_;
 }
 
 Color LayoutTheme::PlatformActiveSelectionForegroundColor(
     mojom::blink::ColorScheme color_scheme) const {
-  // Use a white color by default if the platform theme doesn't define anything.
-  return Color::kWhite;
+  return active_selection_foreground_color_;
 }
 
 Color LayoutTheme::PlatformInactiveSelectionBackgroundColor(
     mojom::blink::ColorScheme color_scheme) const {
-  // Use a grey color by default if the platform theme doesn't define anything.
-  // This color matches Firefox's inactive color.
-  return Color(176, 176, 176);
+  return inactive_selection_background_color_;
 }
 
 Color LayoutTheme::PlatformInactiveSelectionForegroundColor(
     mojom::blink::ColorScheme color_scheme) const {
-  // Use a black color by default.
-  return Color::kBlack;
+  return inactive_selection_foreground_color_;
 }
 
 Color LayoutTheme::PlatformActiveListBoxSelectionBackgroundColor(
     mojom::blink::ColorScheme color_scheme) const {
-  return PlatformActiveSelectionBackgroundColor(color_scheme);
+  return color_scheme == mojom::blink::ColorScheme::kDark
+             ? active_list_box_selection_background_color_dark_mode_
+             : PlatformActiveSelectionBackgroundColor(color_scheme);
 }
 
 Color LayoutTheme::PlatformActiveListBoxSelectionForegroundColor(
     mojom::blink::ColorScheme color_scheme) const {
-  return PlatformActiveSelectionForegroundColor(color_scheme);
+  return color_scheme == mojom::blink::ColorScheme::kDark
+             ? active_list_box_selection_foreground_color_dark_mode_
+             : PlatformActiveSelectionForegroundColor(color_scheme);
 }
 
 Color LayoutTheme::PlatformInactiveListBoxSelectionBackgroundColor(
     mojom::blink::ColorScheme color_scheme) const {
-  return PlatformInactiveSelectionBackgroundColor(color_scheme);
+  return color_scheme == mojom::blink::ColorScheme::kDark
+             ? inactive_list_box_selection_background_color_dark_mode_
+             : PlatformInactiveSelectionBackgroundColor(color_scheme);
 }
 
 Color LayoutTheme::PlatformInactiveListBoxSelectionForegroundColor(
     mojom::blink::ColorScheme color_scheme) const {
-  return PlatformInactiveSelectionForegroundColor(color_scheme);
+  return color_scheme == mojom::blink::ColorScheme::kDark
+             ? inactive_list_box_selection_foreground_color_dark_mode_
+             : PlatformInactiveSelectionForegroundColor(color_scheme);
+}
+
+void LayoutTheme::SetSelectionColors(Color active_background_color,
+                                     Color active_foreground_color,
+                                     Color inactive_background_color,
+                                     Color inactive_foreground_color) {
+  if (active_selection_background_color_ != active_background_color ||
+      active_selection_foreground_color_ != active_foreground_color ||
+      inactive_selection_background_color_ != inactive_background_color ||
+      inactive_selection_foreground_color_ != inactive_foreground_color) {
+    active_selection_background_color_ = active_background_color;
+    active_selection_foreground_color_ = active_foreground_color;
+    inactive_selection_background_color_ = inactive_background_color;
+    inactive_selection_foreground_color_ = inactive_foreground_color;
+    PlatformColorsDidChange();
+  }
 }
 
 bool LayoutTheme::IsControlStyled(AppearanceValue appearance,
@@ -505,13 +541,15 @@ void LayoutTheme::AdjustButtonStyle(ComputedStyleBuilder&) const {}
 void LayoutTheme::AdjustInnerSpinButtonStyle(ComputedStyleBuilder&) const {}
 
 void LayoutTheme::AdjustMenuListStyle(ComputedStyleBuilder& builder) const {
-  // Menulists should have visible overflow
-  // https://bugs.webkit.org/show_bug.cgi?id=21287
-  builder.SetOverflowX(EOverflow::kVisible);
-  builder.SetOverflowY(EOverflow::kVisible);
+  if (!RuntimeEnabledFeatures::SelectUsesUAClipEnabled()) {
+    // Menulists should have visible overflow
+    // https://bugs.webkit.org/show_bug.cgi?id=21287
+    builder.SetOverflowX(EOverflow::kVisible);
+    builder.SetOverflowY(EOverflow::kVisible);
+  }
+  // Height is locked to auto on all browsers.
+  builder.ResetLineHeight();
 }
-
-void LayoutTheme::AdjustMenuListButtonStyle(ComputedStyleBuilder&) const {}
 
 void LayoutTheme::AdjustSliderThumbStyle(ComputedStyleBuilder& builder) const {
   AdjustSliderThumbSize(builder);
@@ -824,10 +862,6 @@ Color LayoutTheme::PlatformTextSearchColor(
                                   color_provider, can_expose_accent_color);
   }
   return Color::kBlack;
-}
-
-Color LayoutTheme::TapHighlightColor() {
-  return GetTheme().PlatformTapHighlightColor();
 }
 
 void LayoutTheme::SetCustomFocusRingColor(const Color& c) {

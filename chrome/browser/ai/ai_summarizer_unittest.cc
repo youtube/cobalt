@@ -134,6 +134,12 @@ optimization_guide::proto::FeatureTextSafetyConfiguration CreateSafetyConfig() {
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 class AISummarizerTest : public AITestUtils::AITestBase {
+ public:
+  AISummarizerTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        blink::features::kAISummarizationAPI);
+  }
+
  protected:
   optimization_guide::proto::OnDeviceModelExecutionFeatureConfig CreateConfig()
       override {
@@ -215,6 +221,9 @@ class AISummarizerTest : public AITestUtils::AITestBase {
     auto result = summarizer_client.result().Take();
     EXPECT_OK(result);
   }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 TEST(AISummarizerStandaloneTest, CombineContexts) {
@@ -898,7 +907,8 @@ class AISummarizerManifestTest : public AITestUtils::AITestManifestBase {
  public:
   AISummarizerManifestTest() {
     scoped_feature_list_.InitWithFeaturesAndParameters(
-        {{blink::features::kAISummarizationPerformancePreference, {}},
+        {{blink::features::kAISummarizationAPI, {}},
+         {blink::features::kAISummarizationPerformancePreference, {}},
          {optimization_guide::kOptimizationGuideManifestBroker, {}},
          {on_device_model::features::kOnDeviceModelLitertLmBackend, {}}},
         {});

@@ -10,7 +10,7 @@ import {ButtonState} from 'chrome://resources/ash/common/bluetooth/bluetooth_typ
 import type {CrButtonElement} from 'chrome://resources/ash/common/cr_elements/cr_button/cr_button.js';
 import {getDeepActiveElement} from 'chrome://resources/ash/common/util.js';
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {eventToPromise} from 'chrome://webui-test/chromeos/test_util.js';
 import {waitAfterNextRender} from 'chrome://webui-test/polymer_test_util.js';
 
@@ -52,7 +52,7 @@ suite('CrComponentsBluetoothBasePageTest', function() {
     assertTrue(!!title);
     assertEquals(
         bluetoothBasePage.i18n('bluetoothPairNewDevice'),
-        title!.textContent.trim());
+        title.textContent.trim());
 
     const getProgress = () =>
         bluetoothBasePage.shadowRoot!.querySelector('paper-progress');

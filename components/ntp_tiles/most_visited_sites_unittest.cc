@@ -29,6 +29,7 @@
 #include "build/build_config.h"
 #include "components/history/core/browser/top_sites.h"
 #include "components/history/core/browser/top_sites_observer.h"
+#include "components/ntp_tiles/constants.h"
 #include "components/ntp_tiles/custom_links_manager.h"
 #include "components/ntp_tiles/enterprise/enterprise_shortcuts_manager.h"
 #include "components/ntp_tiles/features.h"
@@ -248,6 +249,7 @@ class MockCustomLinksManager : public CustomLinksManager {
   MOCK_METHOD0(Uninitialize, void());
   MOCK_CONST_METHOD0(IsInitialized, bool());
   MOCK_CONST_METHOD0(GetLinks, const std::vector<CustomLinksManager::Link>&());
+  MOCK_CONST_METHOD0(GetMaxLinks, size_t());
   MOCK_METHOD3(AddLinkTo,
                bool(const GURL& url, const std::u16string& title, size_t pos));
   MOCK_METHOD2(AddLink, bool(const GURL& url, const std::u16string& title));
@@ -475,6 +477,14 @@ class MostVisitedSitesTest : public ::testing::Test {
       mock_custom_links_manager =
           std::make_unique<StrictMock<MockCustomLinksManager>>();
       mock_custom_links_manager_ = mock_custom_links_manager.get();
+      size_t expected_max_links =
+          base::FeatureList::IsEnabled(ntp_features::kNtpShortcutsRedesign)
+              ? static_cast<size_t>(
+                    ntp_features::GetMaxShortcutsInExpandedState())
+              : ntp_tiles::kMaxNumCustomLinks;
+      EXPECT_CALL(*mock_custom_links_manager, GetMaxLinks())
+          .Times(testing::AnyNumber())
+          .WillRepeatedly(Return(expected_max_links));
     }
 
     // Enterprise custom links needs to be nullptr when MostVisitedSites is
@@ -2059,6 +2069,16 @@ class MostVisitedSitesWithEnterpriseShortcutsTest
     run_loop.Run();
     Mock::VerifyAndClearExpectations(mock_top_sites_.get());
     Mock::VerifyAndClearExpectations(mock_custom_links_manager_);
+    if (mock_custom_links_manager_) {
+      size_t expected_max_links =
+          base::FeatureList::IsEnabled(ntp_features::kNtpShortcutsRedesign)
+              ? static_cast<size_t>(
+                    ntp_features::GetMaxShortcutsInExpandedState())
+              : ntp_tiles::kMaxNumCustomLinks;
+      EXPECT_CALL(*mock_custom_links_manager_, GetMaxLinks())
+          .Times(testing::AnyNumber())
+          .WillRepeatedly(Return(expected_max_links));
+    }
     Mock::VerifyAndClearExpectations(mock_enterprise_shortcuts_manager_);
   }
 };

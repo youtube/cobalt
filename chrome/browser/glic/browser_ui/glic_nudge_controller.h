@@ -16,16 +16,17 @@ class WebContents;
 namespace glic {
 
 // Enumerates the various user action for the Glic nudge.
+// GENERATED_JAVA_ENUM_PACKAGE: org.chromium.chrome.browser.glic
 enum class GlicNudgeActivity {
-  kNudgeShown,
-  kNudgeClicked,
-  kNudgeDismissed,
-  kNudgeNotShownWebContents,
-  kNudgeIgnoredActiveTabChanged,
-  kNudgeIgnoredNavigation,
-  kNudgeNotShownWindowCallToActionUI,
-  kNudgeIgnoredOpenedContextualTasksSidePanel,
-  kNudgeIgnoredOmniboxContextMenuInteraction,
+  kNudgeShown = 0,
+  kNudgeClicked = 1,
+  kNudgeDismissed = 2,
+  kNudgeNotShownWebContents = 3,
+  kNudgeIgnoredActiveTabChanged = 4,
+  kNudgeIgnoredNavigation = 5,
+  kNudgeNotShownWindowCallToActionUI = 6,
+  kNudgeIgnoredOpenedContextualTasksSidePanel = 7,
+  kNudgeIgnoredOmniboxContextMenuInteraction = 8,
 };
 
 class GlicNudgeDelegate;

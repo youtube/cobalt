@@ -64,7 +64,7 @@ EmailFieldParser::EmailFieldParser(FieldAndMatchInfo match,
 
 void EmailFieldParser::AddClassifications(
     FieldCandidatesMap& field_candidates) const {
-  AddClassification(match_, email_type_, kBaseEmailParserScore,
+  AddClassification(match_, email_type_, HeuristicParser::kEmail,
                     field_candidates);
 }
 

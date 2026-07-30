@@ -31,7 +31,7 @@ SearchFieldParser::SearchFieldParser(FieldAndMatchInfo match)
 
 void SearchFieldParser::AddClassifications(
     FieldCandidatesMap& field_candidates) const {
-  AddClassification(match_, SEARCH_TERM, kBaseSearchParserScore,
+  AddClassification(match_, SEARCH_TERM, HeuristicParser::kSearch,
                     field_candidates);
 }
 

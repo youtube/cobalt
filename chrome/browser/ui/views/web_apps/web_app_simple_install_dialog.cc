@@ -16,7 +16,6 @@
 #include "chrome/browser/ui/views/page_action/page_action_icon_view.h"
 #include "chrome/browser/ui/views/web_apps/web_app_icon_name_and_origin_view.h"
 #include "chrome/browser/ui/views/web_apps/web_app_install_dialog_delegate.h"
-#include "chrome/browser/ui/views/web_apps/web_app_testing_flags.h"
 #include "chrome/browser/ui/web_applications/web_app_dialogs.h"
 #include "chrome/browser/ui/web_applications/web_app_info_image_source.h"
 #include "chrome/browser/web_applications/model/dialog_image_info.h"
@@ -154,7 +153,8 @@ void ShowSimpleInstallDialogForWebApps(
   auto dialog = views::BubbleDialogModelHost::CreateModal(
       std::move(dialog_model), ui::mojom::ModalType::kChild);
 
-  if (test::g_dont_close_install_dialogs_on_deactivate_for_testing) {
+  if (GetPwaInstallationDialogDeactivateActionForTesting() ==  // IN-TEST
+      InstallDialogDeactivateAction::kKeepOpen) {
     dialog->set_close_on_deactivate(false);
   }
   dialog_delegate = dialog->AsBubbleDialogDelegate();
@@ -168,11 +168,14 @@ void ShowSimpleInstallDialogForWebApps(
   delegate_weak_ptr->OnWidgetShownStartTracking(simple_dialog_widget);
 
   base::RecordAction(base::UserMetricsAction("WebAppInstallShown"));
-  if (test::g_auto_accept_all_install_dialogs_for_testing) {
-    dialog_delegate->AcceptDialog();
-  }
-  if (test::g_auto_decline_install_dialogs_for_testing) {
-    dialog_delegate->CancelDialog();
+  InstallDialogTestResponse auto_response =
+      GetPwaInstallationDialogAutoResponseForTesting();  // IN-TEST
+  if (auto_response != InstallDialogTestResponse::kNone) {
+    if (auto_response == InstallDialogTestResponse::kDeny) {
+      dialog_delegate->CancelDialog();
+    } else {
+      dialog_delegate->AcceptDialog();
+    }
   }
 }
 

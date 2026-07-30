@@ -48,6 +48,7 @@ source_set("audio") {
     "alive_checker.h",
     "application_loopback_device_helper.cc",
     "application_loopback_device_helper.h",
+    "audio_constants.h",
     "audio_debug_file_writer.cc",
     "audio_debug_file_writer.h",
     "audio_debug_recording_helper.cc",
@@ -195,8 +196,8 @@ source_set("audio") {
     frameworks += [
       "AudioUnit.framework",
       "CoreMedia.framework",
+      "ScreenCaptureKit.framework",
     ]
-    weak_frameworks = [ "ScreenCaptureKit.framework" ]  # macOS 13.0
   }
 
   if (is_ios) {
@@ -504,8 +505,10 @@ source_set("unit_tests") {
       "mac/catap_audio_input_stream_unittest.mm",
     ]
     deps += [ "//third_party/ocmock" ]
-    frameworks = [ "CoreMedia.framework" ]
-    weak_frameworks = [ "ScreenCaptureKit.framework" ]  # macOS 13.0
+    frameworks = [
+      "CoreMedia.framework",
+      "ScreenCaptureKit.framework",
+    ]
   }
 
   if (use_cras) {

@@ -20,6 +20,8 @@
 class BrowserWindowInterface;
 class CommandUpdater;
 
+class Profile;
+
 namespace optimization_guide {
 class OptimizationGuideDecider;
 }  // namespace optimization_guide
@@ -45,6 +47,9 @@ class LensOverlayEntryPointController : public TemplateURLServiceObserver,
   DECLARE_USER_DATA(LensOverlayEntryPointController);
   static LensOverlayEntryPointController* From(
       BrowserWindowInterface* browser_window_interface);
+
+  // Returns true if the Lens Overlay is enabled at the profile level.
+  static bool IsEnabledOnInit(Profile* profile);
 
   explicit LensOverlayEntryPointController(
       BrowserWindowInterface* browser_window_interface);

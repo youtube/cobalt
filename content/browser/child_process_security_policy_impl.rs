@@ -10,8 +10,9 @@
 #![deny(unsafe_code)]
 
 use cxx::UniquePtr;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::{LazyLock, Mutex, MutexGuard};
+use storage_common::FileSystemType;
 use url::Origin;
 
 /// This block defines the Foreign Function Interface for C++ code to call the
@@ -23,6 +24,7 @@ mod ffi {
     unsafe extern "C++" {
         include!("url/origin.rs.h");
         include!("content/browser/isolated_origin_util.h");
+        include!("storage/common/file_system/file_system_types.h");
 
         // Gives us access to C++ url::Origin and all methods exposed in the origin
         // bridge file without having to redefine them here.
@@ -36,6 +38,14 @@ mod ffi {
         #[Self = "IsolatedOriginUtil"]
         #[cxx_name = "IsValidIsolatedOrigin"]
         fn is_valid_isolated_origin(origin: &Origin) -> bool;
+
+        #[namespace = "content"]
+        #[Self = "IsolatedOriginUtil"]
+        #[cxx_name = "IsValidOriginForOriginAgentClusterOptIn"]
+        fn is_valid_origin_for_origin_agent_cluster_opt_in(origin: &Origin) -> bool;
+
+        #[namespace = "storage"]
+        type FileSystemType = storage_common::FileSystemType;
     }
 
     extern "Rust" {
@@ -59,6 +69,22 @@ mod ffi {
             result: &mut bool,
         ) -> bool;
         fn erase_v8_optimization_state(browsing_instance_id: u32);
+
+        fn register_file_system_permission_policy(file_system_type: FileSystemType, policy: i32);
+        fn find_permissions_for_file_system_type(
+            file_system_type: FileSystemType,
+            policy: &mut i32,
+        ) -> bool;
+
+        fn record_origin_agent_cluster_request_if_new(
+            browser_context_id: &str,
+            origin: UniquePtr<Origin>,
+        ) -> bool;
+        fn has_origin_ever_requested_origin_agent_cluster_value(
+            browser_context_id: &str,
+            origin: UniquePtr<Origin>,
+        ) -> bool;
+        fn remove_origin_agent_cluster_requests_for_browser_context(browser_context_id: &str);
     }
 }
 
@@ -170,6 +196,60 @@ fn erase_v8_optimization_state(browsing_instance_id: u32) {
     cpsp.v8_optimization_verdict_map.remove(&browsing_instance_id);
 }
 
+fn register_file_system_permission_policy(file_system_type: FileSystemType, policy: i32) {
+    let mut cpsp = ChildProcessSecurityPolicyImpl::get_locked_instance();
+    cpsp.file_system_policy_map.insert(file_system_type, policy);
+}
+
+fn find_permissions_for_file_system_type(
+    file_system_type: FileSystemType,
+    policy: &mut i32,
+) -> bool {
+    let cpsp = ChildProcessSecurityPolicyImpl::get_locked_instance();
+    if let Some(val) = cpsp.file_system_policy_map.get(&file_system_type) {
+        *policy = *val;
+        return true;
+    }
+    false
+}
+
+fn record_origin_agent_cluster_request_if_new(
+    browser_context_id: &str,
+    origin: UniquePtr<ffi::Origin>,
+) -> bool {
+    if !ffi::IsolatedOriginUtil::is_valid_origin_for_origin_agent_cluster_opt_in(&origin) {
+        return false;
+    }
+
+    let browser_context_id = BrowserContextId(browser_context_id.to_string());
+    let mut cpsp = ChildProcessSecurityPolicyImpl::get_locked_instance();
+    let origins = cpsp.origin_agent_cluster_opt_ins_and_outs.entry(browser_context_id).or_default();
+
+    if origins.contains(&origin) {
+        return false;
+    }
+
+    origins.insert(origin);
+    true
+}
+
+fn has_origin_ever_requested_origin_agent_cluster_value(
+    browser_context_id: &str,
+    origin: UniquePtr<ffi::Origin>,
+) -> bool {
+    let browser_context_id = BrowserContextId(browser_context_id.to_string());
+    let cpsp = ChildProcessSecurityPolicyImpl::get_locked_instance();
+    cpsp.origin_agent_cluster_opt_ins_and_outs
+        .get(&browser_context_id)
+        .is_some_and(|origins| origins.contains(&origin))
+}
+
+fn remove_origin_agent_cluster_requests_for_browser_context(browser_context_id: &str) {
+    let browser_context_id = BrowserContextId(browser_context_id.to_string());
+    let mut cpsp = ChildProcessSecurityPolicyImpl::get_locked_instance();
+    cpsp.origin_agent_cluster_opt_ins_and_outs.remove(&browser_context_id);
+}
+
 /// Defines a global policy object that tracks security information for child
 /// processes as well as global security state. This is intended to primarily be
 /// used for access checks on renderer processes but may eventually be used for
@@ -182,6 +262,7 @@ pub struct ChildProcessSecurityPolicyImpl {
     /// Tracks the schemes that are ok to request or commit, or are pseudo
     /// schemes that are generally not allowed to commit.
     known_schemes: HashMap<String, SchemePolicy>,
+
     /// A map of BrowsingInstances and ProcessLocks (represented by their
     /// url::Origins) to v8-optimization verdicts. The purpose of the map is to
     /// ensure that changes in the return value of
@@ -194,6 +275,28 @@ pub struct ChildProcessSecurityPolicyImpl {
     /// works on the C++ side (using binary search over sorted keys).
     v8_optimization_verdict_map:
         BTreeMap<BrowsingInstanceId, BTreeMap<cxx::UniquePtr<Origin>, V8OptimizationVerdict>>,
+
+    /// A map of FileSystemTypes to bitwise-or'd combinations of permission
+    /// policies allowed for those types. See
+    /// storage::FileSystemContext::GetPermissionPolicy.
+    file_system_policy_map: BTreeMap<FileSystemType, i32>,
+
+    // The set of all origins that have ever explicitly requested an
+    // Origin-Agent-Cluster state (either opting in or opting out), organized by
+    // BrowserContext ID. This allows us to know which origins need to be
+    // tracked when using default isolation in any given BrowsingInstance.
+    // Origins requesting an Origin-Agent-Cluster state, if successful, are
+    // marked as isolated or not via `DetermineOriginAgentClusterIsolation()`.
+    // Each BrowserContext's state is tracked separately so that timing attacks
+    // do not reveal whether an origin has been visited in another (e.g.,
+    // incognito) BrowserContext. In general, the state of other
+    // BrowsingInstances is not observable outside such timing side channels.
+    //
+    // Stored as a BTreeMap rather than a HashMap to closer match how
+    // base::flat_map works on the C++ side (using binary search over sorted
+    // keys).
+    origin_agent_cluster_opt_ins_and_outs:
+        BTreeMap<BrowserContextId, BTreeSet<cxx::UniquePtr<ffi::Origin>>>,
     // TODO(crbug.com/482216433): this will also eventually track per-process
     // state.
 }
@@ -203,7 +306,12 @@ impl ChildProcessSecurityPolicyImpl {
     /// ChildProcessSecurityPolicyImpl should always be obtained via
     /// `get_locked_instance()`.
     fn new() -> Self {
-        Self { known_schemes: HashMap::new(), v8_optimization_verdict_map: BTreeMap::new() }
+        Self {
+            known_schemes: HashMap::new(),
+            v8_optimization_verdict_map: BTreeMap::new(),
+            file_system_policy_map: BTreeMap::new(),
+            origin_agent_cluster_opt_ins_and_outs: BTreeMap::new(),
+        }
     }
 
     /// Private function to get a reference to the singleton instance of
@@ -215,7 +323,7 @@ impl ChildProcessSecurityPolicyImpl {
     ///
     /// NOTE: Unlike the C++ implementation, which uses multiple fine-grained
     /// locks (e.g., `lock_`, `isolated_origins_lock_`,
-    /// `origins_isolation_opt_in_lock_`) to reduce thread contention, the
+    /// `origin_agent_cluster_lock_`) to reduce thread contention, the
     /// Rust implementation deliberately uses a single class-wide Mutex.
     /// This simplifies the concurrency model and reduces the risk of
     /// lock-ordering deadlocks.
@@ -249,6 +357,13 @@ impl ChildProcessSecurityPolicyImpl {
 // can be used by both Rust and C++.
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub struct BrowsingInstanceId(u32);
+
+/// A unique identifier for a `BrowserContext`. Currently, this is based on the
+/// string representation of the C++ `BrowserContext::UniqueToken()`.
+// TODO(crbug.com/522298905): Add FFI for UnguessableToken so that
+// `UniqueToken()` can be used by both Rust and C++.
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
+pub struct BrowserContextId(String);
 
 /// An enum tracking whether v8 optimizations are enabled or disabled.
 #[derive(PartialEq, Eq)]

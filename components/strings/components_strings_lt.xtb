@@ -269,6 +269,7 @@ Kitu atveju tai bus užblokuota pagal jūsų privatumo nustatymus. Taip turinys,
 <translation id="1407135791313364759">Atidaryti viską</translation>
 <translation id="1408696301184924537">Jei norite kitą kartą automatiškai užpildyti šį IBAN, išsaugokite jį „Google“ paskyroje</translation>
 <translation id="1408787208417187241">Trys sankabėlės viršuje</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> iš <ph name="NUM_MATCHES_IN_GROUP" /> grupėje „<ph name="GROUP_HEADER" />“.</translation>
 <translation id="1410365862999780287">Kiti šį įrenginį naudojantys žmonės nematys jūsų veiklos, todėl galėsite naršyti daugiau privačiai. Tai nepakeis, kaip lankomos svetainės ir naudojamos paslaugos, įskaitant „Google“, renka duomenis. Atsisiuntimai, žymės ir skaitymo sąrašo elementai bus išsaugoti.</translation>
 <translation id="1410941016594047814">Kvietimo vokas</translation>
 <translation id="1413235258620101697">Šios kortelės saugos kodas (CVC) bus šifruotas ir išsaugotas „Google Wallet“, kad galėtumėte greičiau atsiskaityti</translation>
@@ -300,6 +301,7 @@ Kitu atveju tai bus užblokuota pagal jūsų privatumo nustatymus. Taip turinys,
 <translation id="1445896388055045436">Atsiskaitant rodyti pasiekiamas kortelės privilegijas ir premijas. Taikomos išdavėjo sąlygos.</translation>
 <translation id="1447067628680007684">(x86_64)</translation>
 <translation id="1448166547804028941">Klavišų „<ph name="DATA_CONTROLS_FIRST_KEY_SET" />“ negalima nustatyti tame pačiame žodyne, kur nustatyti klavišai „<ph name="DATA_CONTROLS_SECOND_KEY_SET" />“</translation>
+<translation id="1449251255954293933">Išsaugokite kompensavimo numerį „Google Wallet“</translation>
 <translation id="1455413310270022028">Trintukas</translation>
 <translation id="1457992721081300557">{NUM_REVIEWS,plural, =0{Peržiūrėti 0 apžvalgų}=1{Peržiūrėti 1 apžvalgą}one{Peržiūrėti visus # apžvalgą}few{Peržiūrėti visus # apžvalgas}many{Peržiūrėti visus # apžvalgos}other{Peržiūrėti visus # apžvalgų}}</translation>
 <translation id="1458059624921545588">Žmonės ir visuomenė</translation>
@@ -660,6 +662,7 @@ Kitu atveju tai bus užblokuota pagal jūsų privatumo nustatymus. Taip turinys,
 <translation id="2045871135676061132">Asmeninis vokas</translation>
 <translation id="2046951263634619614">Knygų mažmenininkai</translation>
 <translation id="2048261947532620704">Verčiamas puslapis</translation>
+<translation id="2055016614992422886">Pokalbis</translation>
 <translation id="2059166748188874810">Savivaldybė</translation>
 <translation id="2059202684901022309">22 x 34 col.</translation>
 <translation id="2064568741209980952">Kreditai ir paskolos</translation>
@@ -1155,6 +1158,7 @@ Kitu atveju tai bus užblokuota pagal jūsų privatumo nustatymus. Taip turinys,
 <translation id="2782088940970074970">Automobilių nuoma</translation>
 <translation id="278436560439594386">Namų apyvokos prietaisai</translation>
 <translation id="2784474685437057136">B5 Extra</translation>
+<translation id="2784795832957740711">Slaptažodžiai · Prieigos raktai</translation>
 <translation id="2784949926578158345">Ryšys atkurtas.</translation>
 <translation id="2786008859124691917">Dviračiai ir priedai</translation>
 <translation id="2792012897584536778">Šio įrenginio administratoriai nustatė saugos sertifikatus, leidžiančius jiems peržiūrėti svetainių, kuriose lankotės, turinį.</translation>
@@ -2306,6 +2310,7 @@ Jei norite paslėpti mokėjimo vėliau parinktis, eikite į <ph name="BEGIN_LINK
 <translation id="46128681529823442">Futbolo įranga</translation>
 <translation id="4612904677925722054">Šioje svetainėje gali būti suaugusiesiems skirto turinio. Vienas iš tėvų ar globėjų turi patvirtinti, kad galite apsilankyti šioje svetainėje.</translation>
 <translation id="4619564267100705184">Patvirtinti tapatybę</translation>
+<translation id="4619669610757527494">Išsaugokite vairuotojo pažymėjimą „Google Wallet“</translation>
 <translation id="4622292761762557753">Vis tiek perkelti</translation>
 <translation id="4622647778991854660">Įgalinkite pranešimus pranešimų centre. Atidaryti <ph name="LINK" />.</translation>
 <translation id="4623894491222334521">Asmens tapatybės dokumentai</translation>
@@ -2835,6 +2840,7 @@ Jei norite paslėpti mokėjimo vėliau parinktis, eikite į <ph name="BEGIN_LINK
 <translation id="543656192084990644">Neleidžiama naudoti judesio jutiklių</translation>
 <translation id="5441409130426352029"><ph name="ATTRIBUTE_VALUE" />, buvo <ph name="PREVIOUS_VALUE" /></translation>
 <translation id="5443468954631487277">Atvirkštine tvarka, gerąja puse į viršų</translation>
+<translation id="5447103258548475868">Išsaugokite pasą „Google Wallet“</translation>
 <translation id="5447235695608032700">Leisti <ph name="SITE" /> naudoti informaciją apie jus, kurią išsaugojo</translation>
 <translation id="5447973833955560753">Atkūrimo slaptažodis</translation>
 <translation id="5451331376824595378">Kai saugos įvykius pažymi „Chrome“, atitinkami įvykių duomenys išsiunčiami administratoriui. Tai gali būti naršyklėje „Chrome“ lankomų puslapių URL, puslapių, iš kurių nukopijavote duomenis, URL, failų pavadinimai ar metaduomenys, IP adresai, naršyklės ar skirtukų strigtys ir naudotojo vardas, kurį naudodami prisijungiate prie žiniatinklio programų, įrenginio ir „Chrome“.</translation>
@@ -3017,6 +3023,7 @@ Jei norite paslėpti mokėjimo vėliau parinktis, eikite į <ph name="BEGIN_LINK
 <translation id="5718601519531438273">Apima tokią informaciją kaip pasai ir vairuotojų pažymėjimai</translation>
 <translation id="5720705177508910913">Dabartinis naudotojas</translation>
 <translation id="5720895412771013401">Staliniai kompiuteriai</translation>
+<translation id="5721147290164931316">Nuskaitykite, kad prisijungtumėte telefonu</translation>
 <translation id="5721367770070844253">{count,plural, =1{{website_1}}=2{{website_1}, {website_2}}=3{{website_1}, {website_2} ir dar 1}one{{website_1}, {website_2} ir dar {more_count}}few{{website_1}, {website_2} ir dar {more_count}}many{{website_1}, {website_2} ir dar {more_count}}other{{website_1}, {website_2} ir dar {more_count}}}</translation>
 <translation id="572328651809341494">Naujausi skirtukai</translation>
 <translation id="5723873695528696965">Valdyti ir iš naujo suprogramuoti MIDI įrenginius</translation>
@@ -3558,6 +3565,7 @@ Jei norite paslėpti mokėjimo vėliau parinktis, eikite į <ph name="BEGIN_LINK
 <translation id="6550245281449521513">Pelės užraktas neleidžiamas</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />, nauja</translation>
 <translation id="6552566579578780089">Mokėjimai</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> iš <ph name="NUM_MATCHES_IN_GROUP" /> grupėje „<ph name="GROUP_HEADER" />“.</translation>
 <translation id="6554732001434021288">Paskutinį kartą lankytasi prieš <ph name="NUM_DAYS" /> d.</translation>
 <translation id="6556866813142980365">Grąžinti</translation>
 <translation id="6557715786897013164">14 x 17 col.</translation>
@@ -4235,6 +4243,7 @@ Papildoma išsami informacija:
 <translation id="7599089013883397081">Baigėsi atsisiuntimo skirtasis laikas</translation>
 <translation id="7602868996817972616">Paklauskite „Google“ apie šį puslapį</translation>
 <translation id="7606123685356405076">„Gemini 3“ modeliai</translation>
+<translation id="760632772920590778">Išsaugokite transporto priemonę „Google Wallet“</translation>
 <translation id="7610193165460212391">Vertė nepatenka į diapazoną <ph name="VALUE" />.</translation>
 <translation id="761261689936461781">Platus</translation>
 <translation id="7613889955535752492">Galioja iki: <ph name="EXPIRATION_YEAR" />-<ph name="EXPIRATION_MONTH" /></translation>
@@ -4263,7 +4272,9 @@ Papildoma išsami informacija:
 <translation id="7646681339175747202">Slaptažodis, kurį ką tik naudojote, buvo atskleistas įvykus duomenų saugos pažeidimui. „Google“ slaptažodžių tvarkyklė rekomenduoja dabar pakeisti šį slaptažodį.</translation>
 <translation id="7647206758853451655">Spausdinimo kokybė</translation>
 <translation id="7648133459447652947">Jei norite rodyti žymeklį, perjunkite programas, įkelkite puslapį iš naujo arba grįžkite</translation>
+<translation id="764847582138410250">Nuskaitykite, kad prisijungtumėte telefonu</translation>
 <translation id="7648527891719919697">Ši svetainė liks užblokuota, nes <ph name="BEGIN_ANDROID_SETTINGS_LINK" />„Android“ nustatymuose<ph name="END_ANDROID_SETTINGS_LINK" /> įjungėte Papildomą apsaugą. <ph name="BEGIN_LEARN_MORE_LINK" />Sužinokite daugiau apie šį perspėjimą<ph name="END_LEARN_MORE_LINK" /></translation>
+<translation id="7648900539798595789">Išsaugokite žinomo keliautojo numerį „Google Wallet“</translation>
 <translation id="7648992873808071793">Saugoti failus šiame įrenginyje</translation>
 <translation id="7649070708921625228">Pagalba</translation>
 <translation id="7650141368285545431">Naudoti prieigos raktą iš kito įrenginio</translation>
@@ -4356,6 +4367,7 @@ Papildoma išsami informacija:
 <translation id="7773005668374414287">Ta pačia tvarka, gerąja puse į viršų</translation>
 <translation id="7779418012194492374">Anuliuoti prieigą prie „<ph name="DEVICE_NAME" />“</translation>
 <translation id="7781829728241885113">Vakar</translation>
+<translation id="7782228658217918863">Išsaugokite asmens tapatybės kortelę „Google Wallet“</translation>
 <translation id="7782465647372057580">Paskyros informacija yra šifruota ir privati</translation>
 <translation id="7785471469930192436">Peržiūrėkite paieškos variklio instrukcijas, kaip ištrinti paieškos istoriją (jei taikoma).</translation>
 <translation id="7785790577395078482">šį planšetinį kompiuterį</translation>

@@ -745,6 +745,56 @@ TEST_F(BaseFileTest, CreatedInDefaultDirectory) {
   base_file_->Finish();
 }
 
+// Test that a temporary file is created in the system temporary directory
+// when no default directory is provided.
+TEST_F(BaseFileTest, CreatedInSystemTempDirectory) {
+  ASSERT_TRUE(base_file_->full_path().empty());
+  DownloadInterruptReason result = base_file_->Initialize(
+      base::FilePath(), base::FilePath(), base::File(), 0, std::string(),
+      std::unique_ptr<crypto::SecureHash>(), false, &kTestDataBytesWasted);
+  ASSERT_EQ(DOWNLOAD_INTERRUPT_REASON_NONE, result);
+  EXPECT_FALSE(base_file_->full_path().empty());
+  EXPECT_TRUE(base_file_->in_progress());
+
+  base::FilePath system_temp_dir;
+  ASSERT_TRUE(base::GetTempDir(&system_temp_dir));
+  EXPECT_TRUE(system_temp_dir.IsParent(base_file_->full_path()));
+  base_file_->Finish();
+}
+
+// Test that a temporary file is created in the system temporary directory
+// when the default directory is unwritable (fallback mechanism).
+#if BUILDFLAG(IS_FUCHSIA)
+// TODO(crbug.com/40221266): Re-enable when MakeFileUnwritable works on Fuchsia.
+#define MAYBE_CreatedInSystemTempDirectoryFallback \
+  DISABLED_CreatedInSystemTempDirectoryFallback
+#else
+#define MAYBE_CreatedInSystemTempDirectoryFallback \
+  CreatedInSystemTempDirectoryFallback
+#endif
+TEST_F(BaseFileTest, MAYBE_CreatedInSystemTempDirectoryFallback) {
+  base::FilePath unwritable_dir(
+      temp_dir_.GetPath().AppendASCII("UnwritableDir"));
+  ASSERT_TRUE(base::CreateDirectory(unwritable_dir));
+
+  base::FilePermissionRestorer restore_permissions(unwritable_dir);
+  ASSERT_TRUE(base::MakeFileUnwritable(unwritable_dir));
+
+  ASSERT_TRUE(base_file_->full_path().empty());
+  DownloadInterruptReason result = base_file_->Initialize(
+      base::FilePath(), unwritable_dir, base::File(), 0, std::string(),
+      std::unique_ptr<crypto::SecureHash>(), false, &kTestDataBytesWasted);
+  ASSERT_EQ(DOWNLOAD_INTERRUPT_REASON_NONE, result);
+  EXPECT_FALSE(base_file_->full_path().empty());
+  EXPECT_TRUE(base_file_->in_progress());
+
+  EXPECT_FALSE(unwritable_dir.IsParent(base_file_->full_path()));
+  base::FilePath system_temp_dir;
+  ASSERT_TRUE(base::GetTempDir(&system_temp_dir));
+  EXPECT_TRUE(system_temp_dir.IsParent(base_file_->full_path()));
+  base_file_->Finish();
+}
+
 TEST_F(BaseFileTest, NoDoubleDeleteAfterCancel) {
   ASSERT_TRUE(InitializeFile());
   base::FilePath full_path = base_file_->full_path();

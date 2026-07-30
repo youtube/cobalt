@@ -611,7 +611,7 @@ IN_PROC_BROWSER_TEST_F(DNSErrorPageTest, IFrameDNSError) {
 #else
 #define MAYBE_IFrameDNSError_GoBack IFrameDNSError_GoBack
 #endif
-// Test that a DNS error occuring in an iframe does not result in an
+// Test that a DNS error occurring in an iframe does not result in an
 // additional session history entry.
 IN_PROC_BROWSER_TEST_F(DNSErrorPageTest, MAYBE_IFrameDNSError_GoBack) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
@@ -629,7 +629,7 @@ IN_PROC_BROWSER_TEST_F(DNSErrorPageTest, MAYBE_IFrameDNSError_GoBack) {
 #else
 #define MAYBE_IFrameDNSError_GoBackAndForward IFrameDNSError_GoBackAndForward
 #endif
-// Test that a DNS error occuring in an iframe does not result in an
+// Test that a DNS error occurring in an iframe does not result in an
 // additional session history entry.
 IN_PROC_BROWSER_TEST_F(DNSErrorPageTest,
                        MAYBE_IFrameDNSError_GoBackAndForward) {
@@ -639,7 +639,7 @@ IN_PROC_BROWSER_TEST_F(DNSErrorPageTest,
   GoForwardAndWaitForTitle("Blah");
 }
 
-// Test that a DNS error occuring in an iframe, once the main document is
+// Test that a DNS error occurring in an iframe, once the main document is
 // completed loading, does not result in an additional session history entry.
 // To ensure that the main document has completed loading, JavaScript is used to
 // inject an iframe after loading is done.

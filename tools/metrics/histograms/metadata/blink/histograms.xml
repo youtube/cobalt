@@ -911,6 +911,18 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Blink.Compositor.PACUpdateTypeOnScrollCullRectChange"
+    enum="PACUpdateType" expires_after="2026-07-11">
+  <owner>wangxianzhu@chromium.org</owner>
+  <owner>paint-dev@chromium.org</owner>
+  <summary>
+    Reports the type of PaintArtifactCompositor::NeedsUpdate() when any
+    scrolling contents cull rect changed (which occurs after the accumulated
+    scroll delta of a scroller exceeds 512 since the last change) during a
+    document lifecycle update.
+  </summary>
+</histogram>
+
 <histogram name="Blink.Compositor.StickyLayerCount" units="count"
     expires_after="2026-08-07">
   <owner>wangxianzhu@chromium.org</owner>
@@ -2721,9 +2733,9 @@ chromium-metrics-reviews@google.com.
   <summary>
     Recorded once per FedCM well-known discovery attempt when the
     FedCmWebIdentitySubdomain feature is enabled. True if the
-    https://web-identity.&lt;eTLD+1&gt;/.well-known/web-identity fetch returned
-    a usable response (success ParseStatus and provider_urls.size() &lt;= 1).
-    False if it fell back to the apex
+    https://web-identity.well-known.&lt;eTLD+1&gt;/.well-known/web-identity
+    fetch returned a usable response (success ParseStatus and
+    provider_urls.size() &lt;= 1). False if it fell back to the apex
     https://&lt;eTLD+1&gt;/.well-known/web-identity URL due to fetch failure
     (network error, malformed JSON, or non-dictionary response) or more than one
     provider_url.
@@ -4393,7 +4405,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.LinkHeader.LoadLinksFromHeaderMode"
-    enum="LoadLinksFromHeaderMode" expires_after="2026-10-04">
+    enum="LoadLinksFromHeaderMode" expires_after="2026-12-06">
   <owner>tnak@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -4840,7 +4852,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.ResourceRequest.CompletionDelay3" units="ms"
-    expires_after="2026-10-01">
+    expires_after="2026-12-06">
   <owner>horo@chromium.org</owner>
   <owner>net-dev@chromium.org</owner>
   <summary>
@@ -4877,7 +4889,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.ResourceRequest.RedirectDelay2" units="ms"
-    expires_after="2026-10-01">
+    expires_after="2026-12-06">
   <owner>horo@chromium.org</owner>
   <owner>net-dev@chromium.org</owner>
   <summary>
@@ -4902,7 +4914,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.ResourceRequest.StartDelay2" units="ms"
-    expires_after="2026-10-01">
+    expires_after="2026-12-06">
   <owner>horo@chromium.org</owner>
   <owner>net-dev@chromium.org</owner>
   <summary>
@@ -5648,6 +5660,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Blink.Style.MatchedPropertiesCache.BucketSize" units="entries"
+    expires_after="2027-03-12">
+  <owner>etiennep@chromium.org</owner>
+  <owner>src/third_party/blink/renderer/core/css/OWNERS</owner>
+  <summary>
+    Size of the bucket (CachedMatchedProperties::entries) in which an item
+    landed in the MatchedPropertiesCache (MPC). Recorded when adding an entry to
+    the cache (subsampled to 1%).
+  </summary>
+</histogram>
+
 <histogram name="Blink.Style.UpdateTime{BlinkUpdateTimeSuffixes}"
     units="microseconds" expires_after="2026-11-29">
   <owner>pdr@chromium.org</owner>
@@ -5683,29 +5706,6 @@ chromium-metrics-reviews@google.com.
 
     Warning: this histogram was expired from 2024-02-25 to 2024-04-17; data may
     be missing.
-  </summary>
-</histogram>
-
-<histogram name="Blink.ThrottleFrameRate.AllowedBySecurity.API" enum="Boolean"
-    expires_after="2025-12-31">
-  <owner>gjc@google.com</owner>
-  <owner>chrome-loading@google.com</owner>
-  <summary>
-    Whether the frame rate throttling feature is allowed by the security check.
-    Recorded each time the link blocking=&quot;full-frame-rate&quot; API is
-    triggered.
-  </summary>
-</histogram>
-
-<histogram
-    name="Blink.ThrottleFrameRate.AllowedBySecurity.DocumentInitialization"
-    enum="Boolean" expires_after="2025-12-31">
-  <owner>gjc@google.com</owner>
-  <owner>chrome-loading@google.com</owner>
-  <summary>
-    Whether the frame rate throttling feature is allowed by the security check.
-    Recorded each time the browser attempts to throttle the frame rate when the
-    document is initialized and the corresponding feature is enabled.
   </summary>
 </histogram>
 
@@ -6274,7 +6274,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.XMLParsing.NonXsltXmlParsingTime.{Backend}" units="ms"
-    expires_after="2026-10-04">
+    expires_after="2026-12-06">
   <owner>drott@chromium.org</owner>
   <owner>dom-dev@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>

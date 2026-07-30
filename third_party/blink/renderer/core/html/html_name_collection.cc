@@ -23,8 +23,6 @@
 
 #include "third_party/blink/renderer/core/html/html_name_collection.h"
 
-#include "third_party/blink/renderer/core/dom/element_rare_data_vector.h"
-
 namespace blink {
 
 HTMLNameCollection::HTMLNameCollection(ContainerNode& document,

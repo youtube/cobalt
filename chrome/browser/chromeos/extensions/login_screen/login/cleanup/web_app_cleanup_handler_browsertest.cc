@@ -33,17 +33,17 @@ namespace web_app {
 
 namespace {
 
-const std::u16string kApp1Title = u"Example App1";
+constexpr char16_t kApp1Title[] = u"Example App1";
 constexpr char kApp1StartURL[] = "https://example_url1.com/";
 constexpr char kApp1InstallURL[] = "https://example_url1.com/install";
 
 constexpr char kApp2InstallURL[] = "https://example_url2.com/install";
 
-const std::u16string kApp3Title = u"Example App3";
+constexpr char16_t kApp3Title[] = u"Example App3";
 constexpr char kApp3StartURL[] = "https://example_url3.com/";
 constexpr char kApp3InstallURL[] = "https://example_url3.com/install";
 
-const std::u16string kApp4Title = u"Example App4";
+constexpr char16_t kApp4Title[] = u"Example App4";
 constexpr char kApp4StartURL[] = "https://example_url4.com/";
 constexpr char kApp4InstallURL[] = "https://example_url4.com/install";
 

@@ -14,21 +14,25 @@ export function getHtml(this: ToolbarAppElement) {
 ${this.isBackForwardButtonEnabled_ ? html`
   <back-forward-button id="back" direction="back"
    .state="${this.navigationControlsState_.backForwardControlState.backButtonState}"
-   .leadingMargin="${this.navigationControlsState_.backForwardControlState.backButtonLeadingMargin}">
+   .leadingMargin="${this.navigationControlsState_.backForwardControlState.backButtonLeadingMargin}"
+   .touchUi="${this.navigationControlsState_.touchUi}">
   </back-forward-button>
   <back-forward-button id="forward" direction="forward"
    .state="${this.navigationControlsState_.backForwardControlState.forwardButtonState}"
-   .hidden="${!this.navigationControlsState_.backForwardControlState.forwardButtonState.shouldBeShown}">
+   .hidden="${!this.navigationControlsState_.backForwardControlState.forwardButtonState.shouldBeShown}"
+   .touchUi="${this.navigationControlsState_.touchUi}">
   </back-forward-button>` : ''}
   ${this.isReloadButtonEnabled_ ? html`
     <reload-button id="reload"
-      .state="${this.navigationControlsState_.reloadControlState}">
+      .state="${this.navigationControlsState_.reloadControlState}"
+      .touchUi="${this.navigationControlsState_.touchUi}">
     </reload-button>
   ` : ''}
   ${this.isHomeButtonEnabled_ ? html`
     <home-button id="home"
       .state="${this.navigationControlsState_.homeControlState}"
-      .hidden="${!this.navigationControlsState_.homeControlState.shouldBeShown}">
+      .hidden="${!this.navigationControlsState_.homeControlState.shouldBeShown}"
+      .touchUi="${this.navigationControlsState_.touchUi}">
     </home-button>
   ` : ''}
   ${this.isSplitTabsButtonEnabled_ ? html`
@@ -43,11 +47,22 @@ ${this.isBackForwardButtonEnabled_ ? html`
         .locationBarState="${this.navigationControlsState_.locationBarState}">
     </location-bar>
   ` : ''}
+  ${this.isExtensionsContainerEnabled_ ? html`
+    <webui-toolbar-extensions id="extensions"
+        .state="${this.navigationControlsState_.extensionsState}"
+        .hidden="${this.navigationControlsState_.extensionsState.length === 0}">
+    </webui-toolbar-extensions>
+  ` : ''}
   ${this.isPinnedToolbarActionsEnabled_ ? html`
     <pinned-toolbar-actions id="pinnedToolbarActions"
         .state="${this.navigationControlsState_.pinnedToolbarActionsState}"
         .hidden="${this.navigationControlsState_.pinnedToolbarActionsState.length === 0}">
     </pinned-toolbar-actions>
+  ` : ''}
+  ${this.isBatterySaverButtonEnabled_ ? html`
+    <battery-saver-button id="battery-saver"
+        .hidden="${!this.navigationControlsState_.batterySaverButtonVisible}">
+    </battery-saver-button>
   ` : ''}
   ${this.isAvatarButtonEnabled_ ? html`
     <avatar-button id="avatar"

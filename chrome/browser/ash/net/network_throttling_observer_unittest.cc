@@ -6,9 +6,9 @@
 
 #include <memory>
 
+#include "ash/constants/ash_pref_names.h"
 #include "base/test/task_environment.h"
 #include "base/values.h"
-#include "chrome/common/pref_names.h"
 #include "chromeos/ash/components/dbus/shill/shill_manager_client.h"
 #include "chromeos/ash/components/network/network_handler_test_helper.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -23,7 +23,7 @@ class NetworkThrottlingObserverTest : public ::testing::Test {
   NetworkThrottlingObserverTest() {
     local_state_ = std::make_unique<TestingPrefServiceSimple>();
     local_state_->registry()->RegisterDictionaryPref(
-        prefs::kNetworkThrottlingEnabled);
+        ash::prefs::kNetworkThrottlingEnabled);
     observer_ = std::make_unique<NetworkThrottlingObserver>(local_state_.get());
   }
 
@@ -67,7 +67,7 @@ TEST_F(NetworkThrottlingObserverTest, ThrottlingChangeCallsShill) {
   EXPECT_FALSE(GetNetworkThrottlingStatus().enabled);
 
   // Setting the preference should update the network throttling.
-  local_state()->SetDict(prefs::kNetworkThrottlingEnabled,
+  local_state()->SetDict(ash::prefs::kNetworkThrottlingEnabled,
                          std::move(updated_throttling_policy));
   base::RunLoop().RunUntilIdle();
   {
@@ -78,7 +78,7 @@ TEST_F(NetworkThrottlingObserverTest, ThrottlingChangeCallsShill) {
   }
 
   // Clearing the preference should disable throttling
-  local_state()->ClearPref(prefs::kNetworkThrottlingEnabled);
+  local_state()->ClearPref(ash::prefs::kNetworkThrottlingEnabled);
   base::RunLoop().RunUntilIdle();
   EXPECT_FALSE(GetNetworkThrottlingStatus().enabled);
 }

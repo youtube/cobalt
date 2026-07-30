@@ -129,7 +129,7 @@ const String ComputeTextForInsertion(const String& new_text,
       new_text.length() - common_prefix_length - common_suffix_length);
 }
 
-SelectionInDOMTree ComputeSelectionForInsertion(
+SelectionInDomTree ComputeSelectionForInsertion(
     const EphemeralRange& selection_range,
     const int offset,
     const int length) {
@@ -138,7 +138,7 @@ SelectionInDOMTree ComputeSelectionForInsertion(
       TextIteratorBehavior::EmitsObjectReplacementCharacterBehavior());
   const EphemeralRange& range_for_insertion =
       char_it.CalculateCharacterSubrange(offset, length);
-  return SelectionInDOMTree::Builder()
+  return SelectionInDomTree::Builder()
       .SetBaseAndExtent(range_for_insertion)
       .Build();
 }

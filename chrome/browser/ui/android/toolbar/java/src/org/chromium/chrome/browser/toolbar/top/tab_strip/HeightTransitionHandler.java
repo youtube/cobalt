@@ -105,6 +105,7 @@ class HeightTransitionHandler {
      *     TabStripTransitionDelegate}.
      * @param tabStripTransitionHandler The {@link TabStripTransitionHandler} instance to facilitate
      *     tab strip visibility transitions.
+     * @param suppressTabStripAtStart if {@code true}, suppress tab strip when Chrome starts.
      */
     HeightTransitionHandler(
             ControlContainer controlContainer,
@@ -113,7 +114,8 @@ class HeightTransitionHandler {
             Handler handler,
             TabObscuringHandler tabObscuringHandler,
             OneshotSupplier<TabStripTransitionDelegate> tabStripTransitionDelegateSupplier,
-            TabStripTransitionHandler tabStripTransitionHandler) {
+            TabStripTransitionHandler tabStripTransitionHandler,
+            boolean suppressTabStripAtStart) {
         mControlContainer = controlContainer;
         mTabStripHeightFromResource = tabStripHeightFromResource;
         mCallbackController = callbackController;
@@ -121,7 +123,8 @@ class HeightTransitionHandler {
         mTabStripTransitionDelegateSupplier = tabStripTransitionDelegateSupplier;
         mTabStripTransitionHandler = tabStripTransitionHandler;
 
-        mTabStripHeight = tabStripHeightFromResource;
+        mTabStripSuppressed = suppressTabStripAtStart;
+        mTabStripHeight = suppressTabStripAtStart ? 0 : tabStripHeightFromResource;
         mTabStripVisible = mTabStripHeight > 0;
         mDeferTransitionTokenHolder =
                 new TokenHolder(mCallbackController.makeCancelable(this::onTokenUpdate));

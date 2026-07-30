@@ -34,9 +34,14 @@ include_rules = [
   "+chrome/browser/web_applications/web_app_provider.h",
   "+chrome/browser/web_applications/web_app_registrar.h",
   "+chrome/common/chromeos/extensions",
-  "+chrome/common/pref_names.h",
   "+chrome/test/base",
 
   # Dependencies outside of //chrome:
   "+components/web_package",
 ]
+
+specific_include_rules = {
+  "chrome_shimless_rma_delegate_unittest\\.cc": [
+    "+chrome/common/pref_names.h",
+  ],
+}

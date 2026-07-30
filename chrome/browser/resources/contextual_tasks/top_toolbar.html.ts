@@ -60,6 +60,7 @@ export function getHtml(this: TopToolbarElement) {
       </cr-icon-button>
     ` : ''}
     <cr-icon-button id="overflowMenuButton" iron-icon="cr:more-vert"
+      data-element-id="kContextualTasksWebUIOverflowMenuElementId"
       class="no-overlap" title="$i18n{moreOptionsTooltip}"
       aria-label="$i18n{moreOptionsTooltip}"
       @click="${this.onOverflowMenuButtonClick_}"
@@ -80,11 +81,11 @@ export function getHtml(this: TopToolbarElement) {
   </cr-lazy-render-lit>
   <cr-lazy-render-lit id="overflowMenu" .template="${() => html`
     <contextual-tasks-overflow-menu
-      .enableOpenInNewTabButton="${this.enableOpenInNewTabButton}"
-      .isPinned="${this.isPinned}"
-      .isPinButtonEnabled="${this.isPinButtonEnabled}"
-      .isAiPage="${this.isAiPage}"
-      @pin-click="${this.onPinClick_}">
+        .enableOpenInNewTabButton="${this.enableOpenInNewTabButton}"
+        .isPinned="${this.isPinned}"
+        .isPinButtonEnabled="${this.isPinButtonEnabled}"
+        .isAiPage="${this.isAiPage}"
+        @pin-click="${this.onPinClick_}">
     </contextual-tasks-overflow-menu>`}">
   </cr-lazy-render-lit>
   ${this.showReopenTabs_ ? html`

@@ -39,8 +39,6 @@ extern const base::FeatureParam<bool> kGlicSelectionPromptUpdatesOnly;
 extern const base::FeatureParam<bool> kGlicSelectionPromptUseWidget;
 extern const base::FeatureParam<bool> kGlicSelectionPromptEnablePinning;
 extern const base::FeatureParam<std::string> kGlicSelectionTopCueOnlyList;
-extern const base::FeatureParam<int>
-    kGlicSelectionPromptWidgetMaxTotalDismisses;
 
 BASE_DECLARE_FEATURE(kGlicCreateTabAdjacent);
 
@@ -118,6 +116,7 @@ BASE_DECLARE_FEATURE(kGlicProcessCounterAbuseVerdict);
 BASE_DECLARE_FEATURE(kGlicNoWebUiLoader);
 BASE_DECLARE_FEATURE(kGlicGeminiEnterpriseSettingsEnabled);
 
+BASE_DECLARE_FEATURE(kGlicHotkeyLocalScope);
 }  // namespace features
 
 #endif  // CHROME_BROWSER_GLIC_PUBLIC_FEATURES_H_

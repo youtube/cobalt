@@ -64,6 +64,7 @@ class PixManager {
       const GURL& main_frame_url,
       const std::optional<GURL>& iframe_url,
       const url::Origin& main_frame_origin,
+      bool is_same_origin,
       std::optional<PixCodeRustValidationResult> rust_validation_result,
       std::string pix_code,
       ukm::SourceId ukm_source_id);
@@ -73,6 +74,13 @@ class PixManager {
   friend class PixManagerTestApi;
   friend class PixManagerTestForUiScreens;
   friend class PixManagerPaymentsNetworkInterfaceTest;
+
+  // Determines if the copy event in the iframe is allowed, returning the exit
+  // reason if it should be rejected, or std::nullopt if it is allowed.
+  std::optional<PixFlowExitedReason> GetExitedReasonForIframe(
+      const GURL& iframe_url,
+      const GURL& main_frame_url,
+      bool is_same_origin) const;
 
   // Queries the allowlist for the `url`. The result could be:
   // 1. In the allowlist

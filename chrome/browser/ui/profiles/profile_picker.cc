@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "base/check_is_test.h"
 #include "base/command_line.h"
 #include "base/containers/flat_set.h"
 #include "base/feature_list.h"
@@ -91,6 +92,14 @@ ProfilePicker::Params ProfilePicker::Params::ForGlicManager(
   Params params(EntryPoint::kGlicManager, GetPickerProfilePath());
   params.picked_profile_callback_ = std::move(picked_profile_callback);
   return params;
+}
+
+// static
+ProfilePicker::Params ProfilePicker::Params::ForTesting(  // IN-TEST
+    EntryPoint entry_point,
+    const base::FilePath& profile_path) {
+  CHECK_IS_TEST();
+  return ProfilePicker::Params(entry_point, profile_path);
 }
 
 void ProfilePicker::Params::NotifyFirstRunExited(

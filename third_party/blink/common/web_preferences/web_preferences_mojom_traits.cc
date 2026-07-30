@@ -163,6 +163,7 @@ bool StructTraits<blink::mojom::WebPreferencesDataView,
   out->double_tap_to_zoom_enabled = data.double_tap_to_zoom_enabled();
   out->fullscreen_supported = data.fullscreen_supported();
   out->is_initial_profile = data.is_initial_profile();
+  out->text_size_adjust_enabled = data.text_size_adjust_enabled();
 #if BUILDFLAG(IS_ANDROID)
   out->font_scale_factor = data.font_scale_factor();
   out->font_weight_adjustment = data.font_weight_adjustment();

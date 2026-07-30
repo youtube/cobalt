@@ -291,6 +291,7 @@ constexpr base::TimeDelta kClearItemsDelay = base::Seconds(2.0);
   [_consumer setFilterMenuEnabled:[self filterMenuShouldBeEnabled]];
   [_consumer setSortingMenuEnabled:[self sortingMenuShouldBeEnabled]];
   [_consumer setAllowsMultipleSelection:_allowsMultipleSelection];
+  [_consumer setAccountButtonHidden:_forComposebox];
 }
 
 - (void)setActive:(BOOL)active {

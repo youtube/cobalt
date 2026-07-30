@@ -371,6 +371,8 @@ blink_core_sources_editing = [
   "visible_units_line.cc",
   "visible_units_paragraph.cc",
   "visible_units_sentence.cc",
+  "visual_caret_movement.cc",
+  "visual_caret_movement.h",
 ]
 
 if (is_mac) {
@@ -495,6 +497,7 @@ blink_core_tests_editing = [
   "visible_units_sentence_test.cc",
   "visible_units_test.cc",
   "visible_units_word_test.cc",
+  "visual_caret_movement_test.cc",
 ]
 
 if (is_mac) {

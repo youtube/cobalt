@@ -489,20 +489,20 @@ void PolicyUIHandler::HandleUploadReport(const base::ListValue& args) {
     const auto on_report_uploaded = base::BarrierClosure(
         2, base::BindOnce(&PolicyUIHandler::OnReportUploaded,
                           weak_factory_.GetWeakPtr(), callback_id));
-    report_scheduler->UploadFullReport(on_report_uploaded);
-    profile_report_scheduler->UploadFullReport(on_report_uploaded);
+    report_scheduler->UploadReport(on_report_uploaded);
+    profile_report_scheduler->UploadReport(on_report_uploaded);
     return;
   }
 
   if (report_scheduler) {
-    report_scheduler->UploadFullReport(
+    report_scheduler->UploadReport(
         base::BindOnce(&PolicyUIHandler::OnReportUploaded,
                        weak_factory_.GetWeakPtr(), callback_id));
     return;
   }
 
   if (profile_report_scheduler) {
-    profile_report_scheduler->UploadFullReport(
+    profile_report_scheduler->UploadReport(
         base::BindOnce(&PolicyUIHandler::OnReportUploaded,
                        weak_factory_.GetWeakPtr(), callback_id));
     return;

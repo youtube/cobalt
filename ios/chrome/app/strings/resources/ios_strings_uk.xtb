@@ -6,6 +6,7 @@
 <translation id="1005230401424685968">РРРР</translation>
 <translation id="1013952917065545813">Ви можете повернутися сюди, щоб відкрити нещодавно закриті вкладки</translation>
 <translation id="1016495303386450659">Закладку оновлено</translation>
+<translation id="1018804590490383958">Відсканувати й заповнити автоматично</translation>
 <translation id="1019990162050689579">Історія дій у додатках Gemini</translation>
 <translation id="102916930470544692">Ключ доступу</translation>
 <translation id="1030376737535466765">Відкрити Менеджер паролів</translation>
@@ -873,6 +874,7 @@
 <translation id="4021447724486050609">Оновіть вебпереглядач</translation>
 <translation id="4021931095789478915">Додати URL-адресу ${url} у список читання</translation>
 <translation id="4028871427853484857">Зберегти в обліковому записі…</translation>
+<translation id="4036529942385659684">Показувати початкову сторінку після періоду неактивності</translation>
 <translation id="4038354071007134711">Немає додатків на пристрої, щоб відкрити цей файл.</translation>
 <translation id="4042870976416480368">Знайти на сторінці</translation>
 <translation id="4045441967987592849">Повторно відкрити</translation>
@@ -910,7 +912,6 @@
 <translation id="417138788035229076">Керувати групою</translation>
 <translation id="4172051516777682613">Завжди показувати</translation>
 <translation id="417273154673973994">{count,plural, =1{1 групу вкладок закрито й збережено}one{{count} групу вкладок закрито й збережено}few{{count} групи вкладок закрито й збережено}many{{count} груп вкладок закрито й збережено}other{{count} групи вкладок закрито й збережено}}</translation>
-<translation id="417612446554534067">Надіслати на ваші пристрої</translation>
 <translation id="4180726336228139707">Лише на цьому пристрої</translation>
 <translation id="4181841719683918333">Мови</translation>
 <translation id="4183350924949589798">Посилити захист?</translation>
@@ -1134,6 +1135,7 @@
 <translation id="4896467949657706481">Ви вийшли з облікового запису, а вкладки було закрито</translation>
 <translation id="4911042367886397055">З поверненням, <ph name="USER_NAME" />!</translation>
 <translation id="4913626501929406101">Ви можете безпечно надіслати копію пароля учасникам сімейної групи. <ph name="BEGIN_LINK" />Докладніше<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">Лупа</translation>
 <translation id="4917025507570489430">Ви зможете використовувати наявні дані вебперегляду, коли ввійдете в обліковий запис <ph name="USER_EMAIL" />. Ваша організація може переглядати ці дані.</translation>
 <translation id="4918086044614829423">Прийняти</translation>
 <translation id="4930714375720679147">Увімкнути</translation>
@@ -1549,6 +1551,7 @@
 <translation id="6301767200000930965">Aa</translation>
 <translation id="630308129961693966">Виберіть, де буде адресний рядок</translation>
 <translation id="6307241780749477694">Підтвердьте свою особу, щоб отримати доступ до всіх паролів на цьому пристрої</translation>
+<translation id="6307792728709337290">Збережіть картку в обліковому записі Google, щоб автоматично заповнювати її дані під час цієї і майбутніх покупок у Chrome.</translation>
 <translation id="6316141353357700666">Виберіть потрібний пароль зі списку.</translation>
 <translation id="6321526113093607004">Додати в закладки</translation>
 <translation id="6327249202318869726">Gemini вимкнено для вашого облікового запису. Щоб дізнатися більше, зверніться до свого адміністратора.</translation>
@@ -2143,6 +2146,7 @@
 <translation id="8263809106706527890">Можливо, параметри вебпереглядача за умовчанням змінилися. Ви можете перевірити їх у налаштуваннях.</translation>
 <translation id="8264966119170358612">Деякі ваші збережені паролі було розкрито через порушення безпеки даних стороннього сервісу. <ph name="BEGIN_LINK" />Докладніше<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">Ви вийшли з облікового запису <ph name="USER_NAME" />, коли було скинуто налаштування iPad. Щоб увійти знову, натисніть "Продовжити" нижче.</translation>
+<translation id="8270320981823560179">Диск</translation>
 <translation id="8273982424131314219">Ваші дані буде введено на веб-сайті <ph name="URL" /></translation>
 <translation id="8275068909952022340">Більше…</translation>
 <translation id="8281781826761538115">За умовчанням – <ph name="DEFAULT_LOCALE" /></translation>

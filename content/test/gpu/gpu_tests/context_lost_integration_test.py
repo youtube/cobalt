@@ -87,6 +87,8 @@ class ContextLostIntegrationTest(gpu_integration_test.GpuIntegrationTest):
         'ContextLost_MacWebGLMultisamplingHighPowerSwitchDoesNotCrash',
         'ContextLost_MacWebGLCopyTexSubImage2DHighPowerSwitchDoesNotCrash',
         'ContextLost_MacWebGLPreserveDBHighPowerSwitchLosesContext',
+        # Fullscreen changes can affect other browsers running in parallel.
+        'ContextLost_WebGLContextNotLostFromFullscreenChange',
     }
     if host_information.IsMac() or host_information.IsWindows():
       serial_tests |= {
@@ -137,6 +139,8 @@ class ContextLostIntegrationTest(gpu_integration_test.GpuIntegrationTest):
               'webgl.html?query=forced_quantity_loss'),
              ('ContextLost_WebGLContextLostFromSelectElement',
               'webgl_with_select_element.html'),
+             ('ContextLost_WebGLContextNotLostFromFullscreenChange',
+              'webgl_with_fullscreen.html'),
              ('ContextLost_WebGLContextLostInHiddenTab',
               'webgl.html?query=kill_after_notification'),
              ('ContextLost_WebGLContextLostOverlyLargeUniform',
@@ -412,6 +416,16 @@ class ContextLostIntegrationTest(gpu_integration_test.GpuIntegrationTest):
     self.RestartBrowserIfNecessaryWithArgs(
         [cba.DISABLE_DOMAIN_BLOCKING_FOR_3D_APIS])
     self._NavigateAndWaitForLoad(test_path)
+    self._WaitForTabAndCheckCompletion()
+
+  def _ContextLost_WebGLContextNotLostFromFullscreenChange(
+      self, test_path: str) -> None:
+    self.RestartBrowserIfNecessaryWithArgs(
+        [cba.DISABLE_DOMAIN_BLOCKING_FOR_3D_APIS])
+    self._NavigateAndWaitForLoad(test_path)
+    # Entering fullscreen requires a user gesture, so synthesize a real click
+    # on the button rather than calling requestFullscreen() from script.
+    self.tab.action_runner.ClickElement(selector='#enterFullscreenButton')
     self._WaitForTabAndCheckCompletion()
 
   def _ContextLost_WebGLContextLostInHiddenTab(self, test_path: str) -> None:

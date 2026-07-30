@@ -244,6 +244,7 @@ Numai un utilizator care deține expresia ta de acces îți poate citi datele cr
 <translation id="2082238445998314030">Rezultatul <ph name="RESULT_NUMBER" /> din <ph name="TOTAL_RESULTS" /></translation>
 <translation id="2091863218454846791">Se afișează vizualizarea compactă</translation>
 <translation id="2093731487903423814">ultimele 15 minute</translation>
+<translation id="2094298041331405438">Atinge aici pentru a închide toate ferestrele incognito</translation>
 <translation id="2096577711562668473">Schimbi serviciul de completare automată?</translation>
 <translation id="2109384632594340939">fotografia de profil</translation>
 <translation id="2111511281910874386">Accesează pagina</translation>
@@ -505,6 +506,7 @@ Numai un utilizator care deține expresia ta de acces îți poate citi datele cr
 <translation id="3114507951000454849">Citește știrile de azi <ph name="NEWS_ICON" /></translation>
 <translation id="3122883569442693641">Mai multe detalii</translation>
 <translation id="3123734510202723619">Anunțuri</translation>
+<translation id="3132267803114336523">Pentru a închide toate ferestrele incognito, atinge indicatorul Incognito</translation>
 <translation id="3134385238404760368">Nicio filă recentă</translation>
 <translation id="3135655388926735587">Atinge File recente</translation>
 <translation id="314939179385989105">Pagina de pornire Chrome</translation>
@@ -613,6 +615,7 @@ Numai un utilizator care deține expresia ta de acces îți poate citi datele cr
 <translation id="3635073343384702370">Chrome îți poate verifica parolele dacă le salvezi</translation>
 <translation id="3636940436873918441">Limbi preferate</translation>
 <translation id="3637744895182738742">Dacă uiți expresia de acces sau dorești să modifici această setare, <ph name="BEGIN_LINK" />șterge datele Chrome din cont<ph name="END_LINK" />.</translation>
+<translation id="3649090831059057090"><ph name="WINDOW_TITLE" /> – <ph name="TAB_COUNT" /></translation>
 <translation id="3653111872753786013"><ph name="WEBSITE_TITLE" />: <ph name="WEBSITE_URL" /></translation>
 <translation id="3674208116086565128">Accesează pagina de pornire a aplicației Google</translation>
 <translation id="368329460027487650">Utilizator deconectat. Deschide opțiunile pentru a te conecta.</translation>
@@ -637,6 +640,7 @@ Numai un utilizator care deține expresia ta de acces îți poate citi datele cr
 <translation id="3739899004075612870">Marcat în <ph name="PRODUCT_NAME" /></translation>
 <translation id="3740290940447881599">Asigură-te că ai încredere în acest site</translation>
 <translation id="3740525748616366977">Căutarea vocală nu este disponibilă pe acest dispozitiv</translation>
+<translation id="3756823472711156529">Restabilește grupul</translation>
 <translation id="3763110477555836428">Un număr de card virtual va fi completat când finalizezi achiziția cu acest card pentru a-ți proteja detaliile reale. Gestionează în Portofelul Google. <ph name="BEGIN_LINK1" />Află mai multe despre cardurile virtuale<ph name="END_LINK1" /></translation>
 <translation id="376561056759077985">Unele date nu au fost încă salvate</translation>
 <translation id="3770620323585347665">Denumește fereastra</translation>

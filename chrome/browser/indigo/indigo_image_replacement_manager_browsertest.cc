@@ -8,6 +8,7 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/bind.h"
+#include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "base/test/test_timeouts.h"
@@ -1318,4 +1319,92 @@ IN_PROC_BROWSER_TEST_F(IndigoImageReplacementManagerBrowserTest,
   EXPECT_FALSE(manager->GetPrimaryTrackedElementId().has_value());
 }
 
+IN_PROC_BROWSER_TEST_F(IndigoImageReplacementManagerBrowserTest,
+                       ShowsErrorToastOnPrimaryReplacementFailure) {
+  GURL test_url = embedded_test_server()->GetURL("/empty.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), test_url));
+
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  content::RenderFrameHostWrapper main_rfh(web_contents->GetPrimaryMainFrame());
+
+  // Set up IndigoAgent host.
+  std::unique_ptr<FakeIndigoAgent> fake_agent =
+      SetupAndInvokeIndigoAgent(main_rfh.get());
+
+  // Simulate primary replacement creation failure by notifying the host
+  // directly.
+  fake_agent->host()->ReportInvokeError();
+  // Verify that an error toast is displayed.
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    ToastController* const toast_controller =
+        ToastController::MaybeGetForWebContents(web_contents);
+    return toast_controller && toast_controller->IsShowingToast();
+  }));
+
+  ToastController* const toast_controller =
+      ToastController::MaybeGetForWebContents(web_contents);
+  EXPECT_EQ(toast_controller->GetCurrentToastId(), ToastId::kIndigoInvokeError);
+}
+
+class IndigoImageReplacementManagerBrowserTestWithParam
+    : public IndigoImageReplacementManagerBrowserTest,
+      public ::testing::WithParamInterface<gfx::Size> {};
+
+IN_PROC_BROWSER_TEST_P(IndigoImageReplacementManagerBrowserTestWithParam,
+                       ShowErrorToastOnPrimaryImageTooSmall) {
+  GURL test_url = embedded_test_server()->GetURL("/empty.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), test_url));
+
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  content::RenderFrameHostWrapper main_rfh(web_contents->GetPrimaryMainFrame());
+
+  // Set up IndigoAgent host.
+  std::unique_ptr<FakeIndigoAgent> fake_agent =
+      SetupAndInvokeIndigoAgent(main_rfh.get());
+
+  IndigoImageReplacementManager* manager =
+      IndigoImageReplacementManager::GetOrCreateForPage(main_rfh->GetPage());
+  ASSERT_TRUE(manager);
+
+  tabs::TabInterface* const tab =
+      tabs::TabInterface::GetFromContents(web_contents);
+  ASSERT_TRUE(tab);
+  auto* controller = IndigoPageActionController::From(tab);
+  ASSERT_TRUE(controller);
+
+  MockImageReplacement mock_replacement(web_contents);
+  mojo::Receiver<blink::mojom::ImageReplacement> receiver(&mock_replacement);
+
+  manager->RegisterImageReplacement(receiver.BindNewPipeAndPassRemote(),
+                                    /*is_primary=*/true);
+  mock_replacement.WaitForStartReplacement();
+  mock_replacement.WaitForRenderReplacement();
+
+  // Find the subframe.
+  content::RenderFrameHostWrapper subframe(
+      content::ChildFrameAt(main_rfh.get(), 0));
+  ASSERT_TRUE(subframe.get());
+
+  // Simulate the width dropping below 170px or size becoming empty by calling
+  // FrameSizeChanged on the controller.
+  controller->FrameSizeChanged(subframe.get(), GetParam());
+
+  mock_replacement.WaitForDisconnect();
+
+  // IndigoAgentHost::Reset should have been called.
+  fake_agent->WaitForReset();
+
+  // An error toast should be displayed.
+  ToastController* const toast_controller =
+      ToastController::MaybeGetForTabInterface(tab);
+  ASSERT_TRUE(toast_controller && toast_controller->IsShowingToast());
+  EXPECT_EQ(toast_controller->GetCurrentToastId(), ToastId::kIndigoInvokeError);
+}
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         IndigoImageReplacementManagerBrowserTestWithParam,
+                         ::testing::Values(gfx::Size(100, 100),
+                                           gfx::Size(200, 0)));
 }  // namespace indigo

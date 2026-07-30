@@ -12,13 +12,18 @@
 
 class WebStateList;
 
-@protocol BWGCommands;
+namespace feature_engagement {
+class Tracker;
+}
+
+@protocol GeminiCommands;
 @protocol SettingsCommands;
 
 // Handler for the Gemini sessions.
 @interface GeminiSessionHandler : NSObject <GeminiSessionDelegate>
 
 - (instancetype)initWithWebStateList:(WebStateList*)webStateList
+                             tracker:(feature_engagement::Tracker*)tracker
     NS_DESIGNATED_INITIALIZER;
 
 - (instancetype)init NS_UNAVAILABLE;
@@ -27,7 +32,7 @@ class WebStateList;
 @property(nonatomic, weak) id<GeminiViewStateDelegate> geminiViewStateDelegate;
 
 // The Gemini commands handler used by this session handler.
-@property(nonatomic, weak) id<BWGCommands> geminiHandler;
+@property(nonatomic, weak) id<GeminiCommands> geminiHandler;
 
 // The settings commands handler used by this session handler.
 @property(nonatomic, weak) id<SettingsCommands> settingsHandler;

@@ -215,7 +215,7 @@ public class ChromeTabbedOnDragListenerUnitTest {
                                 isMultiTabDrag)));
 
         // Drop should return false, since it is trying to drop into tab switcher.
-        when(mLayoutStateProvider.isLayoutVisible(LayoutType.TAB_SWITCHER)).thenReturn(true);
+        when(mLayoutStateProvider.isLayoutVisible(LayoutType.HUB)).thenReturn(true);
         assertFalse(
                 "Action drop should return false",
                 mChromeTabbedOnDragListener.onDrag(
@@ -276,7 +276,7 @@ public class ChromeTabbedOnDragListenerUnitTest {
 
         // Drop should return false, since the destination instance is the same as the source
         // instance.
-        when(mLayoutStateProvider.isLayoutVisible(LayoutType.TAB_SWITCHER)).thenReturn(false);
+        when(mLayoutStateProvider.isLayoutVisible(LayoutType.HUB)).thenReturn(false);
         assertFalse(
                 "Action drop should return false",
                 mChromeTabbedOnDragListener.onDrag(
@@ -377,7 +377,7 @@ public class ChromeTabbedOnDragListenerUnitTest {
         // Drop should return true, since the destination instance is not the same as the source
         // instance.
         when(mMultiInstanceManager.getCurrentInstanceId()).thenReturn(2);
-        when(mLayoutStateProvider.isLayoutVisible(LayoutType.TAB_SWITCHER)).thenReturn(false);
+        when(mLayoutStateProvider.isLayoutVisible(LayoutType.HUB)).thenReturn(false);
         assertTrue(
                 "Action drop should return true",
                 mChromeTabbedOnDragListener.onDrag(
@@ -510,7 +510,7 @@ public class ChromeTabbedOnDragListenerUnitTest {
 
         // Drop should return false.
         when(mMultiInstanceManager.getCurrentInstanceId()).thenReturn(2);
-        when(mLayoutStateProvider.isLayoutVisible(LayoutType.TAB_SWITCHER)).thenReturn(false);
+        when(mLayoutStateProvider.isLayoutVisible(LayoutType.HUB)).thenReturn(false);
 
         // Verify action drop is failed.
         assertFalse(

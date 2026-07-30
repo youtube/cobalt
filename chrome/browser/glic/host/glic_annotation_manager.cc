@@ -243,7 +243,7 @@ void GlicAnnotationManager::ScrollTo(
     return;
   }
 
-  auto focused_tab_data = host->sharing_manager().GetFocusedTabData();
+  auto focused_tab_data = host->GetSharingManagerInternal().GetFocusedTabData();
   if (!focused_tab_data.focus()) {
     std::move(wrapped_callback).Run(mojom::ScrollToErrorReason::kNoFocusedTab);
     return;
@@ -333,8 +333,9 @@ GlicAnnotationManager::AnnotationTask::AnnotationTask(
   CHECK(host_);
   // Using base::Unretained is safe here because `this` owns the subscription.
   tab_change_subscription_ =
-      host_->sharing_manager().AddFocusedTabChangedCallback(base::BindRepeating(
-          &AnnotationTask::OnFocusedTabChanged, base::Unretained(this)));
+      host_->GetSharingManagerInternal().AddFocusedTabChangedCallback(
+          base::BindRepeating(&AnnotationTask::OnFocusedTabChanged,
+                              base::Unretained(this)));
 
   // Using base::Unretained is safe because `this` owns the receiver.
   annotation_agent_host_receiver_.set_disconnect_handler(base::BindOnce(

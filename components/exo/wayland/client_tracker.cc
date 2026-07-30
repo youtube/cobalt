@@ -42,7 +42,11 @@ ClientTracker::ClientListener::ClientListener(ClientTracker* tracker,
 
 // static.
 void ClientTracker::OnClientCreated(struct wl_listener* listener, void* data) {
-  ClientListener* client_created_listener = UNSAFE_TODO(wl_container_of(
+  // SAFETY: wl_container_of is used to calculate the address of the
+  // containing ClientListener struct, which uses unsafe pointer arithmetic.
+  // This is valid because `listener` is guaranteed to be contained inside
+  // a ClientListener.
+  ClientListener* client_created_listener = UNSAFE_BUFFERS(wl_container_of(
       listener, /*sample=*/client_created_listener, /*member=*/listener));
   wl_client* client = static_cast<wl_client*>(data);
   ClientTracker* tracker = client_created_listener->tracker;
@@ -52,7 +56,11 @@ void ClientTracker::OnClientCreated(struct wl_listener* listener, void* data) {
 // static.
 void ClientTracker::OnClientDestroyed(struct wl_listener* listener,
                                       void* data) {
-  ClientListener* client_destroyed_listener = UNSAFE_TODO(wl_container_of(
+  // SAFETY: wl_container_of is used to calculate the address of the
+  // containing ClientListener struct, which uses unsafe pointer arithmetic.
+  // This is valid because `listener` is guaranteed to be contained inside
+  // a ClientListener.
+  ClientListener* client_destroyed_listener = UNSAFE_BUFFERS(wl_container_of(
       listener, /*sample=*/client_destroyed_listener, /*member=*/listener));
   wl_client* client = static_cast<wl_client*>(data);
   ClientTracker* tracker = client_destroyed_listener->tracker;

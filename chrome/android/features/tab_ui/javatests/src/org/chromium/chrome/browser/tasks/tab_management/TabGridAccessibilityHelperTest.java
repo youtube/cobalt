@@ -102,7 +102,7 @@ public class TabGridAccessibilityHelperTest {
     public void tearDown() {
         ActivityTestUtils.clearActivityOrientation(mActivityTestRule.getActivity());
         final ChromeTabbedActivity cta = mActivityTestRule.getActivity();
-        if (cta != null && cta.getLayoutManager().isLayoutVisible(LayoutType.TAB_SWITCHER)) {
+        if (cta != null && cta.getLayoutManager().isLayoutVisible(LayoutType.HUB)) {
             leaveTabSwitcher(cta);
         }
     }

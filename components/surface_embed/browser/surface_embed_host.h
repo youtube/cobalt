@@ -58,7 +58,8 @@ class SurfaceEmbedHost : public mojom::SurfaceEmbedHost,
       bool is_visible) override;
 
   // content::SurfaceEmbedConnector::Delegate implementation:
-  void SetFrameSinkId(const viz::FrameSinkId& frame_sink_id) override;
+  void SetFrameSinkId(const viz::FrameSinkId& frame_sink_id,
+                      bool allow_paint_holding) override;
   void UpdateLocalSurfaceIdFromChild(
       const viz::LocalSurfaceId& local_surface_id) override;
   void ChildProcessGone() override;

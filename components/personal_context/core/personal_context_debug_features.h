@@ -12,6 +12,11 @@
 // intended for manual debugging and testing purposes.
 namespace personal_context::features::debug {
 
+// Overrides the base URL of the Context Memory Service returned by
+// `GetContextMemoryServiceBaseUrl`.
+inline constexpr char kContextMemoryServiceBaseUrlSwitch[] =
+    "context-memory-service-base-url";
+
 BASE_DECLARE_FEATURE(kPersonalContextForceEnablementState);
 BASE_DECLARE_FEATURE_PARAM(int, kPersonalContextForceEnablementStateParam);
 

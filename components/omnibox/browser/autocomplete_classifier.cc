@@ -23,6 +23,10 @@
 #include "third_party/metrics_proto/omnibox_event.pb.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/device_info.h"
+#endif
+
 #if !BUILDFLAG(IS_IOS)
 #include "components/history_clusters/core/config.h"  // nogncheck
 #endif
@@ -88,6 +92,9 @@ int AutocompleteClassifier::DefaultOmniboxProviders(bool is_low_memory_device) {
       AutocompleteProvider::TYPE_ZERO_SUGGEST |
       AutocompleteProvider::TYPE_ZERO_SUGGEST_LOCAL_HISTORY |
       (base::FeatureList::IsEnabled(omnibox::kDocumentProvider)
+#if BUILDFLAG(IS_ANDROID)
+               && base::android::device_info::is_desktop()
+#endif
            ? AutocompleteProvider::TYPE_DOCUMENT
            : 0) |
       (OmniboxFieldTrial::IsOnDeviceHeadSuggestEnabledForAnyMode()

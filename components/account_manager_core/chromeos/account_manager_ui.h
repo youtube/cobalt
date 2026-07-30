@@ -12,8 +12,7 @@
 
 namespace account_manager {
 
-// This interface is used by `AccountManagerMojoService` to show system UI
-// (system dialogs, OS Settings etc.)
+// This interface is used by `AccountManagerMojoService` to show system dialogs.
 class COMPONENT_EXPORT(ACCOUNT_MANAGER_CORE) AccountManagerUI {
  public:
   AccountManagerUI();
@@ -35,9 +34,6 @@ class COMPONENT_EXPORT(ACCOUNT_MANAGER_CORE) AccountManagerUI {
       base::OnceClosure close_dialog_closure) = 0;
 
   virtual bool IsDialogShown() = 0;
-
-  // Show OS Settings > Accounts.
-  virtual void ShowManageAccountsSettings() = 0;
 };
 
 }  // namespace account_manager

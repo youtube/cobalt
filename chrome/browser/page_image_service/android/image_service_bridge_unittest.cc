@@ -10,7 +10,6 @@
 #include "chrome/test/base/testing_profile_manager.h"
 #include "components/page_image_service/image_service.h"
 #include "components/page_image_service/mojom/page_image_service.mojom.h"
-#include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -43,21 +42,15 @@ class ImageServiceBridgeTest : public testing::Test {
         TestingBrowserProcess::GetGlobal());
     ASSERT_TRUE(profile_manager_->SetUp());
     profile_ = profile_manager_->CreateTestingProfile("ImageServiceBridgeTest");
-    identity_test_environment_ =
-        std::make_unique<signin::IdentityTestEnvironment>();
 
-    image_service_bridge_ = std::make_unique<ImageServiceBridge>(
-        &mock_image_service_, identity_test_environment_->identity_manager());
+    image_service_bridge_ =
+        std::make_unique<ImageServiceBridge>(&mock_image_service_);
   }
 
   void TearDown() override { image_service_bridge_.reset(); }
 
   ImageServiceBridge* image_service_bridge() {
     return image_service_bridge_.get();
-  }
-
-  signin::IdentityTestEnvironment* identity_test_environment() {
-    return identity_test_environment_.get();
   }
 
   MockImageService& mock_image_service() { return mock_image_service_; }
@@ -67,7 +60,6 @@ class ImageServiceBridgeTest : public testing::Test {
 
   std::unique_ptr<ImageServiceBridge> image_service_bridge_;
   std::unique_ptr<TestingProfileManager> profile_manager_;
-  std::unique_ptr<signin::IdentityTestEnvironment> identity_test_environment_;
 
   raw_ptr<Profile> profile_;
 
@@ -75,26 +67,12 @@ class ImageServiceBridgeTest : public testing::Test {
 };
 
 TEST_F(ImageServiceBridgeTest, TestGetImageUrl) {
-  identity_test_environment()->SetPrimaryAccount("test@gmail.com",
-                                                 signin::ConsentLevel::kSync);
-
   GURL url = GURL("http://foo.com");
   // This callback will only be invoked for edge cases. Nothing will happen
   // when the mock_image_service() is called.
   base::MockOnceCallback<void(const GURL&)> mock_callback;
 
-  EXPECT_CALL(mock_callback, Run(testing::_)).Times(0);
-  EXPECT_CALL(mock_image_service(), FetchImageFor(testing::_, testing::Eq(url),
-                                                  testing::_, testing::_));
-  image_service_bridge()->FetchImageUrlForImpl(
-      /*is_account_data=*/false, page_image_service::mojom::ClientId::Bookmarks,
-      url, mock_callback.Get());
-
-  // Without sync consent, no call will be made for locally-tied data
-  // (is_account_data is false).
-  identity_test_environment()->ClearPrimaryAccount();
-  identity_test_environment()->SetPrimaryAccount("test@gmail.com",
-                                                 signin::ConsentLevel::kSignin);
+  // No call will be made for locally-tied data (is_account_data is false).
   EXPECT_CALL(mock_callback, Run(testing::Eq(GURL())));
   EXPECT_CALL(mock_image_service(),
               FetchImageFor(testing::_, testing::_, testing::_, testing::_))
@@ -120,17 +98,4 @@ TEST_F(ImageServiceBridgeTest, TestGetImageUrlWithInvalidURL) {
   image_service_bridge()->FetchImageUrlForImpl(
       /*is_account_data=*/false, page_image_service::mojom::ClientId::Bookmarks,
       GURL(""), mock_callback.Get());
-}
-
-TEST_F(ImageServiceBridgeTest, TestHasConsentToFetchImages) {
-  identity_test_environment()->SetPrimaryAccount("test@gmail.com",
-                                                 signin::ConsentLevel::kSync);
-  ASSERT_TRUE(image_service_bridge()->HasConsentToFetchImagesImpl(false));
-  ASSERT_TRUE(image_service_bridge()->HasConsentToFetchImagesImpl(true));
-
-  identity_test_environment()->ClearPrimaryAccount();
-  identity_test_environment()->SetPrimaryAccount("testnosync@gmail.com",
-                                                 signin::ConsentLevel::kSignin);
-  ASSERT_FALSE(image_service_bridge()->HasConsentToFetchImagesImpl(false));
-  ASSERT_TRUE(image_service_bridge()->HasConsentToFetchImagesImpl(true));
 }

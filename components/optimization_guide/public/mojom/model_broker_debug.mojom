@@ -65,8 +65,12 @@ struct BrokerUseCaseInfo {
 struct BrokerModelInfo {
   // The name of the model.
   string name;
+  // Size of the folder containing the model files.
+  uint64 folder_size;
   // The absolute path to the weights file for the model.
   string weights_path;
+  // A string representation of the backend (CPU vs GPU) used for this model.
+  string backend_type;
 };
 
 // A snapshot of the ModelBroker's internal state.

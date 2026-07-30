@@ -63,6 +63,8 @@ using JniAudioDevice = media::AudioManagerAndroid::JniAudioDevice;
 using JniDelegate = media::AudioManagerAndroid::JniDelegate;
 
 namespace media {
+
+using Error = AudioInputStream::AudioInputCallback::Error;
 namespace {
 
 ACTION_P4(CheckCountAndPostQuitTask, count, limit, task_runner, quit_closure) {
@@ -218,7 +220,7 @@ class MockAudioInputCallback : public AudioInputStream::AudioInputCallback {
                     base::TimeTicks capture_time,
                     double volume,
                     const AudioGlitchInfo& glitch_info));
-  MOCK_METHOD0(OnError, void());
+  MOCK_METHOD1(OnError, void(Error));
 };
 
 // Implements AudioInputStream::AudioInputCallback and writes the recorded
@@ -284,7 +286,7 @@ class FileAudioSink : public AudioInputStream::AudioInputCallback {
     }
   }
 
-  void OnError() override {}
+  void OnError(Error error_code) override {}
 
  private:
   raw_ptr<base::WaitableEvent> event_;
@@ -316,7 +318,7 @@ class FullDuplexAudioSinkSource
   ~FullDuplexAudioSinkSource() override {}
 
   // AudioInputStream::AudioInputCallback implementation
-  void OnError() override {}
+  void OnError(Error error_code) override {}
   void OnData(const AudioBus* src,
               base::TimeTicks capture_time,
               double volume,
@@ -753,7 +755,7 @@ class AudioAndroidInputTest : public AudioAndroidOutputTest {
             &count, num_callbacks,
             base::SingleThreadTaskRunner::GetCurrentDefault(),
             run_loop.QuitWhenIdleClosure()));
-    EXPECT_CALL(sink, OnError()).Times(0);
+    EXPECT_CALL(sink, OnError(_)).Times(0);
 
     OpenAndStartAudioInputStreamOnAudioThread(&sink);
 
@@ -1288,7 +1290,7 @@ TEST_F(AudioAndroidOutputTest, OpenAndCloseOutputStreamWithDevice) {
 // explicitly being stopped.
 TEST_P(AudioAndroidInputTest, OpenStartAndCloseInputStream) {
   NiceMock<MockAudioInputCallback> callback;
-  EXPECT_CALL(callback, OnError()).Times(0);
+  EXPECT_CALL(callback, OnError(_)).Times(0);
 
   AudioParameters params = GetDefaultInputStreamParametersOnAudioThread();
   MakeAudioInputStreamOnAudioThread(params);

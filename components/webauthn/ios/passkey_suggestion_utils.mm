@@ -27,7 +27,7 @@ NSArray<FormSuggestion*>* FormSuggestionsFromPasskeyCredentials(
     NSString* displayName = base::SysUTF8ToNSString(passkey.display_name());
     NSString* value = displayName.length ? displayName : username;
     NSString* displayDescription =
-        ComputePasskeyDescription(username, displayName);
+        FormatPasskeySuggestionDescription(username, displayName);
 
     FormSuggestion* suggestion = [FormSuggestion
         suggestionWithValue:value
@@ -83,14 +83,23 @@ NSArray<FormSuggestion*>* MergePasskeyAndPasswordSuggestions(
       [passkey_suggestions arrayByAddingObjectsFromArray:password_suggestions];
 }
 
-NSString* ComputePasskeyDescription(NSString* username,
-                                    NSString* display_name) {
+NSString* FormatPasskeySuggestionDescription(NSString* username,
+                                             NSString* display_name) {
+  NSString* passkey_label =
+      l10n_util::GetNSString(IDS_IOS_PASSKEY_SUGGESTION_LABEL);
+  if (!display_name.length || [display_name isEqualToString:username]) {
+    return passkey_label;
+  }
+  return [NSString stringWithFormat:@"%@ • %@", passkey_label, username];
+}
+
+NSString* FormatPasskeyManualFillSubtitle(NSString* display_name) {
   NSString* passkey_label =
       l10n_util::GetNSString(IDS_IOS_PASSKEY_SUGGESTION_LABEL);
   if (!display_name.length) {
     return passkey_label;
   }
-  return [NSString stringWithFormat:@"%@ • %@", passkey_label, username];
+  return [NSString stringWithFormat:@"%@ • %@", passkey_label, display_name];
 }
 
 }  // namespace webauthn

@@ -403,6 +403,7 @@
 <translation id="5234764350956374838">કાઢી નાખો</translation>
 <translation id="5239627039202700673">જ્યારે પણ તમે મેસેજ, દસ્તાવેજો અને અન્ય ઍપમાંની લિંક પર ક્લિક કરો, ત્યારે Chromeનો ઉપયોગ કરો</translation>
 <translation id="5251420635869119124">અતિથિઓ કંઈપણ પાછળ છોડ્યાં વિના Chrome નો ઉપયોગ કરી શકે છે.</translation>
+<translation id="5271833978500241046">Chromeમાં Geminiની અન્ય સુવિધાઓની સાથે તેનો ઉપયોગ કરો</translation>
 <translation id="5286907366254680517">ભાળ મળી</translation>
 <translation id="5320351714793324716">જો તમે કુકીને મંજૂરી આપો, તો Chrome પહેલેથી લોડ કરતી વખતે તેનો ઉપયોગ કરી શકે છે</translation>
 <translation id="5321325624576443340">Google Lens ઉપલબ્ધ નથી. થોડા સમય પછી ફરી પ્રયાસ કરો.</translation>
@@ -441,15 +442,6 @@ Google Chrome તમારા સેટિંગને રિકવર કરી
 <translation id="569897634095159764">ઇન્ટરનેટ સાથે કનેક્ટ કરી શકતા નથી. પ્રૉક્સી સર્વરને પ્રમાણીકરણની જરૂર છે.</translation>
 <translation id="5709557627224531708">Chromeને તમારા ડિફૉલ્ટ બ્રાઉઝર તરીકે સેટ કરો</translation>
 <translation id="5719246646468301581">Google Chrome અને ChromeOSની વધારાની સેવાની શરતો</translation>
-<translation id="5719324992913248873">આમ કરવાથી:
-          <ph name="LINE_BREAKS" />
-           • Chromeના અમુક સેટિંગ અને Chrome શૉર્ટકટ રીસેટ થઈ જશે
-           <ph name="LINE_BREAK" />
-           • એક્સ્ટેન્શન બંધ થઈ જશે
-           <ph name="LINE_BREAK" />
-           • કુકી અને સાઇટનો અન્ય હંગામી ડેટા ડિલીટ થઈ જશે
-            <ph name="LINE_BREAKS" />
-           બુકમાર્ક, ઇતિહાસ અને સાચવેલા પાસવર્ડને કોઈ અસર નહીં થાય.</translation>
 <translation id="5736850870166430177">જો કોઈ સાઇટ તમારો પાસવર્ડ ચોરી કરવાનો પ્રયાસ કરે અથવા તમે કોઈ નુકસાનકારક ફાઇલ ડાઉનલોડ કરો, ત્યારે Chrome પેજ કન્ટેન્ટના બિટ સહિત URLs પણ Safe Browsingને મોકલી શકે છે</translation>
 <translation id="5756509061973259733">આ એકાઉન્ટ સાથેની Chrome પ્રોફાઇલ પહેલેથી જ આ ડિવાઇસ પર અસ્તિત્વમાં છે</translation>
 <translation id="5759947850379142561">Google Lens વડે શોધવા માટે કોઈપણ ટેક્સ્ટ અથવા છબી પસંદ કરો અથવા Google Lensમાંથી બહાર નીકળવા માટે Escape દબાવો</translation>
@@ -647,6 +639,7 @@ Google Chrome તમારા સેટિંગને રિકવર કરી
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7627609214560473136">તમારા ડેટાને સુરક્ષિત કરવા માટે, Chromeને તમે તાજેતરમાં મુલાકાત લીધી ન હોય તેવી સાઇટમાંથી પરવાનગીઓ દૂર કરવા દો.</translation>
 <translation id="7629695634924605473">Chrome વડે તમે તમારા પાસવર્ડમાં ક્યારેક ચેડાં થાય તો તેના વિશે જાણકારી મેળવી શકો છો</translation>
+<translation id="7629898584100520089">કૌશલ્યો જેવી AI ઇનોવેશનને તમારા Google એકાઉન્ટમાં સાચવવામાં આવે છે અને Chrome સિંકથી અલગ રીતે મેનેજ કરવામાં આવે છે</translation>
 <translation id="7641148173327520642">તમારા સિસ્ટમ વ્યવસ્થાપકે <ph name="TARGET_URL_HOSTNAME" />ને ઍક્સેસ કરવા Google Chromeને <ph name="ALTERNATIVE_BROWSER_NAME" /> ખોલવા માટે ગોઠવેલું છે.</translation>
 <translation id="7649070708921625228">સહાય</translation>
 <translation id="7651907282515937834">Chrome એન્ટરપ્રાઇઝ લૉગો</translation>

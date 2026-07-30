@@ -778,17 +778,9 @@ void UserActivityBrowserAgent::HandleRouteToCorrectTab(
     params = UrlLoadParams::InNewTab(url, virtual_url);
   }
 
-  // App scheme URLs are not generally allowed to be opened in new tabs.
-  // However, allow `chrome://dino` to be opened if the request originated
-  // from a widget or a siri shortcut in order to support the Dino Game.
-  // Setting the `transition_type` to `PAGE_TRANSITION_AUTO_BOOKMARK` instead of
-  // `PAGE_TRANSITION_LINK` allows this load to complete successfully.
-  if ((connection_information_.startupParameters.openedViaWidgetScheme ||
-       connection_information_.startupParameters.openedViaSiriShortcut) &&
-      url.GetScheme() == kChromeUIScheme &&
-      url.GetHost() == kChromeUIDinoHost) {
-    params.web_params.transition_type = ui::PAGE_TRANSITION_AUTO_BOOKMARK;
-  }
+  params.from_widget_or_siri =
+      connection_information_.startupParameters.openedViaWidgetScheme ||
+      connection_information_.startupParameters.openedViaSiriShortcut;
 
   if (connection_information_.startupParameters.imageSearchData) {
     TemplateURLService* template_url_service =

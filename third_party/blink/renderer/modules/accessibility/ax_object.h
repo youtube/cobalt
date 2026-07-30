@@ -1694,6 +1694,7 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
 #endif
 
  private:
+  void NotifyCanvasIgnoredStateChanged(bool is_ignored);
   bool ComputeCanSetFocusAttribute();
   String KeyboardShortcut() const;
   void UpdateStyleAndLayoutTreeForNode(Node& node);

@@ -41,7 +41,7 @@ ManageSavedIbanBubbleView::ManageSavedIbanBubbleView(
               },
               base::Unretained(this)),
           l10n_util::GetStringUTF16(IDS_AUTOFILL_MANAGE_SAVED_PAYMENT_METHODS)))
-      ->SetID(autofill::DialogViewId::MANAGE_IBANS_BUTTON);
+      ->SetID(DialogViewId::MANAGE_IBANS_BUTTON);
   SetShowCloseButton(true);
   set_fixed_width(views::LayoutProvider::Get()->GetDistanceMetric(
       views::DISTANCE_BUBBLE_PREFERRED_WIDTH));

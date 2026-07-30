@@ -128,7 +128,7 @@ sk_sp<SkTypeface> FontUniqueNameLookupWin::InstantiateFromMatchResult(
     if (mapped_file->Initialize(std::move(
             match_result->typeface_data->get_font_file()->file_handle))) {
       data = SkData::MakeWithProc(
-          mapped_file->data(), mapped_file->length(),
+          mapped_file->bytes().data(), mapped_file->bytes().size(),
           [](const void*, void* ctx) {
             delete static_cast<base::MemoryMappedFile*>(ctx);
           },

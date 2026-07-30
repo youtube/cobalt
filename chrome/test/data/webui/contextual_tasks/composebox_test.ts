@@ -12,7 +12,7 @@ import {ToolMode} from 'chrome://resources/cr_components/composebox/composebox_q
 import type {ComposeboxToolChipElement} from 'chrome://resources/cr_components/composebox/composebox_tool_chip.js';
 import {createAutocompleteMatch, createAutocompleteResultForTesting} from 'chrome://resources/cr_components/searchbox/searchbox_browser_proxy.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import {PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import {PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote, SuggestInventory} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {PageRemote as SearchboxPageRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {MockInputState} from 'chrome://webui-test/cr_components/searchbox/searchbox_test_utils.js';
@@ -21,7 +21,9 @@ import {TestMock} from 'chrome://webui-test/test_mock.js';
 import {$$, isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {TestContextualTasksBrowserProxy} from './test_contextual_tasks_browser_proxy.js';
-import {fixtureUrl, getSubmitButton, setupAutocompleteResults, simulateUserInput} from './test_utils.js';
+import {setupAutocompleteResults} from './test_searchbox_utils.js';
+import {createCtComposeboxApp, fixtureUrl, getSubmitButton, simulateUserInput} from './test_utils.js';
+import type {CtComposeboxAppParts} from './test_utils.js';
 
 declare global {
   interface Window {
@@ -66,10 +68,12 @@ suite('ContextualTasksComposeboxTest', () => {
         chipLabel: 'Canvas',
         hintText: 'Canvas hint',
         aimUrlParams: [{paramKey: 'rc', paramValue: '1'}],
+        menuTooltip: '',
       }] :
                                                [],
     });
-    await microtasksFinished();
+    await searchboxCallbackRouterRemote.$.flushForTesting();
+    await composebox.updateComplete;
   }
   class MockResizeObserver {
     static instances: MockResizeObserver[] = [];
@@ -111,6 +115,7 @@ suite('ContextualTasksComposeboxTest', () => {
     mockTimer = new MockTimer();
 
     loadTimeData.overrideValues({
+      useContextualTasksComposeboxFork: false,
       contextualMenuUsePecApi: false,
       composeboxSmartTabSharingVisible: false,
       enableComposeboxJumpFix: false,
@@ -133,6 +138,8 @@ suite('ContextualTasksComposeboxTest', () => {
     mockComposeboxPageHandler = TestMock.fromClass(ComposeboxPageHandlerRemote);
     mockComposeboxPageHandler.setResultFor(
         'getSmartTabSharingActive', Promise.resolve({active: false}));
+    mockComposeboxPageHandler.setResultFor(
+        'canShowNextboxAnimation', Promise.resolve({canShow: true}));
     mockSearchboxPageHandler = TestMock.fromClass(SearchboxPageHandlerRemote);
     mockSearchboxPageHandler.setResultFor(
         'getRecentTabs', Promise.resolve({tabs: []}));
@@ -158,6 +165,7 @@ suite('ContextualTasksComposeboxTest', () => {
           chipLabel: 'Canvas',
           hintText: 'Canvas hint',
           aimUrlParams: [{paramKey: 'rc', paramValue: '1'}],
+          menuTooltip: '',
         }],
       },
     }));
@@ -278,6 +286,8 @@ suite('ContextualTasksComposeboxTest', () => {
     assertEquals(0, composebox.selectedMatchIndex, 'Parent index should be 0');
   });
 
+  // TODO(crbug.com/523350742): Enable Tooltip tests on Android.
+  // <if expr="not is_android">
   test('TooltipVisibilityUpdatesOnResize', () => {
     mockTimer.install();
     const composeboxElement = contextualTasksApp.$.composebox;
@@ -392,12 +402,16 @@ suite('ContextualTasksComposeboxTest', () => {
     mockTimer.tick(1);
     assertEquals(1, contextualTasksApp.numberOfTimesTooltipShownForTesting);
   });
+  // </if>
+
 
   test('ToolChipVisibilityBasedOnInputState', async () => {
     const innerComposebox = contextualTasksApp.$.composebox.$.composebox;
 
     const getChip = () => {
-      const toolChip = $$(innerComposebox, 'cr-composebox-tool-chip');
+      const toolChip = $$(
+          innerComposebox,
+          '.context-menu-container:not(#voiceToolChipsContainer) cr-composebox-tool-chip');
       return toolChip ? $$(toolChip, '#toolEnabledButton') : null;
     };
 
@@ -451,7 +465,8 @@ suite('ContextualTasksComposeboxTest', () => {
 
     // Wait for the component to actually request autocomplete
     // before we mock the response, otherwise the response is ignored.
-    await mockSearchboxPageHandler.whenCalled('queryAutocomplete');
+    await mockSearchboxPageHandler.whenCalled(
+        'queryAutocompleteWithSuggestInventory');
 
     // 2. Mock Autocomplete Results.
     await setupAutocompleteResults(searchboxCallbackRouterRemote, TEST_QUERY,
@@ -618,7 +633,10 @@ suite('ContextualTasksComposeboxTest', () => {
     testProxy.callbackRouterRemote.onZeroStateChange(true);
     await testProxy.callbackRouterRemote.$.flushForTesting();
 
-    assertEquals(1, mockSearchboxPageHandler.getCallCount('queryAutocomplete'));
+    assertEquals(
+        1,
+        mockSearchboxPageHandler.getCallCount(
+            'queryAutocompleteWithSuggestInventory'));
   });
 
   test(
@@ -663,8 +681,35 @@ suite('ContextualTasksComposeboxTest', () => {
         testProxy.callbackRouterRemote.onZeroStateChange(false);
 
         assertEquals(
-            0, mockSearchboxPageHandler.getCallCount('queryAutocomplete'));
+            0,
+            mockSearchboxPageHandler.getCallCount(
+                'queryAutocompleteWithSuggestInventory'));
       });
+
+  test('typing clears suggestInventory', async () => {
+    const innerComposebox = contextualTasksApp.$.composebox.$.composebox;
+    const inputElement = innerComposebox.getInputElement().$.input;
+
+    // Set some non-default suggest inventory.
+    innerComposebox.suggestInventory = SuggestInventory.kTravel;
+    assertEquals(SuggestInventory.kTravel, innerComposebox.suggestInventory);
+
+    // Simulate typing.
+    simulateUserInput(inputElement, 'new query');
+    mockTimer.tick(300);  // Trigger debounced query.
+
+    // Verify suggestInventory is cleared.
+    assertEquals(null, innerComposebox.suggestInventory);
+
+    // Verify that the query call passed the default inventory.
+    await mockSearchboxPageHandler.whenCalled(
+        'queryAutocompleteWithSuggestInventory');
+    const calls = mockSearchboxPageHandler.getArgs(
+        'queryAutocompleteWithSuggestInventory');
+    const lastCall = calls[calls.length - 1];
+    assertEquals('new query', lastCall[0]);
+    assertEquals(SuggestInventory.kDefault, lastCall[3]);
+  });
 
   test('inputEnabled attribute reflected on composebox', async () => {
     const contextualComposebox = contextualTasksApp.$.composebox;
@@ -753,7 +798,7 @@ suite('ContextualTasksComposeboxTest', () => {
           matches: matches,
         });
 
-    await contextualComposebox.updateComplete;
+    innerComposebox.suggestInventory = SuggestInventory.kTravel;
 
     // Simulate Tab focus (match-focusin).
     dropdown.dispatchEvent(new CustomEvent('match-focusin', {
@@ -763,6 +808,8 @@ suite('ContextualTasksComposeboxTest', () => {
     }));
 
     await innerComposebox.updateComplete;
+    // Focusing on a suggestion should not clear suggestInventory.
+    assertEquals(SuggestInventory.kTravel, innerComposebox.suggestInventory);
 
     // Simulate pressing Enter to submit.
     dropdown.dispatchEvent(new KeyboardEvent('keydown', {
@@ -816,7 +863,10 @@ suite('ContextualTasksComposeboxTest', () => {
     assertFalse(
         contextualTasksApp.isLoadErrorForTesting, 'Should be online initially');
     assertTrue(isVisible(composebox), 'Composebox should be visible initially');
-    assertEquals(1, mockSearchboxPageHandler.getCallCount('queryAutocomplete'));
+    assertEquals(
+        1,
+        mockSearchboxPageHandler.getCallCount(
+            'queryAutocompleteWithSuggestInventory'));
 
     // 2. Go offline.
     Object.defineProperty(window.navigator, 'onLine', {
@@ -1017,7 +1067,9 @@ suite('ContextualTasksComposeboxTest', () => {
     const innerComposebox = contextualTasksApp.$.composebox.$.composebox;
 
     const getChip = () => {
-      const toolChip = $$(innerComposebox, 'cr-composebox-tool-chip');
+      const toolChip = $$(
+          innerComposebox,
+          '.context-menu-container:not(#voiceToolChipsContainer) cr-composebox-tool-chip');
       return toolChip ? $$(toolChip, '#toolEnabledButton') : null;
     };
 
@@ -1308,4 +1360,109 @@ suite('ContextualTasksComposeboxTest', () => {
         }).shouldShowErrorScrim_(),
         'Error scrim should hide after clicking the details link');
   });
+});
+
+// =============================================================================
+// Fork DUAL-PATH SMOKE SUITE
+// Infrastructure-only coverage: verifies the wrapper's
+// `useContextualTasksComposeboxFork` ternary picks the right inner element
+// on both paths. The fork is a smoke skeleton, so nothing here may depend on
+// inner composebox behavior.
+// =============================================================================
+[true, false].forEach(useFork => {
+  suite(
+     `ContextualTasksComposeboxForkSmokeTest (useContextualTasksComposeboxFork =
+        ${useFork})`,
+      () => {
+        let testProxy: TestContextualTasksBrowserProxy;
+        let mockComposeboxPageHandler: TestMock<ComposeboxPageHandlerRemote>&
+            ComposeboxPageHandlerRemote;
+        let mockSearchboxPageHandler: TestMock<SearchboxPageHandlerRemote>&
+            SearchboxPageHandlerRemote;
+        let parts: CtComposeboxAppParts;
+
+        setup(async () => {
+          if (!window.chrome) {
+            Object.assign(window, {chrome: {}});
+          }
+
+          if (!window.chrome.histograms) {
+            Object.assign(window.chrome, {
+              histograms: {
+                recordEnumerationValue: () => {},
+                recordUserAction: () => {},
+                recordBoolean: () => {},
+              },
+            });
+          }
+          document.body.innerHTML = window.trustedTypes!.emptyHTML;
+
+          loadTimeData.overrideValues({
+            contextualMenuUsePecApi: false,
+            composeboxSmartTabSharingVisible: false,
+            enableComposeboxJumpFix: false,
+            composeboxShowTypedSuggest: true,
+            composeboxShowZps: true,
+            enableBasicModeZOrder: true,
+            composeboxShowContextMenu: true,
+            forcedEmbeddedPageHost: '',
+            tabFaviconChipsToCoinsEnabled: false,
+          });
+
+          testProxy = new TestContextualTasksBrowserProxy(fixtureUrl);
+          BrowserProxyImpl.setInstance(testProxy);
+
+          mockComposeboxPageHandler =
+              TestMock.fromClass(ComposeboxPageHandlerRemote);
+          mockComposeboxPageHandler.setResultFor(
+              'getSmartTabSharingActive', Promise.resolve({active: false}));
+          mockComposeboxPageHandler.setResultFor(
+              'canShowNextboxAnimation', Promise.resolve({canShow: true}));
+          mockSearchboxPageHandler =
+              TestMock.fromClass(SearchboxPageHandlerRemote);
+          mockSearchboxPageHandler.setResultFor(
+              'getRecentTabs', Promise.resolve({tabs: []}));
+          mockSearchboxPageHandler.setResultFor(
+              'getPageClassification',
+              Promise.resolve({metricSource: 'CO_BROWSING_COMPOSEBOX'}));
+          mockSearchboxPageHandler.setResultFor(
+              'addTabContext',
+              Promise.resolve({high: BigInt(1), low: BigInt(2)}));
+          mockSearchboxPageHandler.setResultFor(
+              'getInputState', Promise.resolve({state: new MockInputState()}));
+          const searchboxCallbackRouter = new SearchboxPageCallbackRouter();
+          searchboxCallbackRouter.$.bindNewPipeAndPassRemote();
+          ComposeboxProxyImpl.setInstance(new ComposeboxProxyImpl(
+              mockComposeboxPageHandler, new ComposeboxPageCallbackRouter(),
+              mockSearchboxPageHandler, searchboxCallbackRouter));
+
+          parts = await createCtComposeboxApp(useFork);
+        });
+
+        test('flag selects the expected inner composebox element', () => {
+          const {wrapper, innerComposebox} = parts;
+          assertEquals(
+              useFork ? 'CONTEXTUAL-TASKS-INNER-COMPOSEBOX' : 'CR-COMPOSEBOX',
+              innerComposebox.tagName);
+          assertEquals('composebox', innerComposebox.id);
+          assertEquals(
+            innerComposebox,
+            wrapper.shadowRoot.querySelector('#composebox'));
+        });
+
+        test('wrapper tracks focus state from inner composebox events',
+             async () => {
+               const {wrapper, innerComposebox} = parts;
+
+               innerComposebox.dispatchEvent(
+                   new CustomEvent('composebox-focus-in'));
+               await microtasksFinished();
+               assertTrue(wrapper.isComposeboxFocusedForTesting);
+
+               innerComposebox.dispatchEvent(
+                   new CustomEvent('composebox-focus-out'));
+               await microtasksFinished();
+               assertFalse(wrapper.isComposeboxFocusedForTesting);
+        });
+      });
 });

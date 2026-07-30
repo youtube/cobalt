@@ -23,9 +23,9 @@ InSessionPasswordSyncManager::InSessionPasswordSyncManager(
     Profile* primary_profile)
     : local_state_(CHECK_DEREF(local_state)),
       primary_profile_(primary_profile),
-      primary_user_(ProfileHelper::Get()->GetUserByProfile(primary_profile)) {
-  DCHECK(primary_user_);
-}
+      primary_account_id_(
+          CHECK_DEREF(ProfileHelper::Get()->GetUserByProfile(primary_profile))
+              .GetAccountId()) {}
 
 InSessionPasswordSyncManager::~InSessionPasswordSyncManager() = default;
 
@@ -40,7 +40,7 @@ void InSessionPasswordSyncManager::OnTokenCreated(const std::string& token) {
 
   // Set token value in local state.
   user_manager::KnownUser known_user(&local_state_.get());
-  known_user.SetPasswordSyncToken(primary_user_->GetAccountId(), token);
+  known_user.SetPasswordSyncToken(primary_account_id_, token);
   ResetReauthRequiredBySamlTokenDismatch();
 }
 
@@ -55,7 +55,7 @@ void InSessionPasswordSyncManager::OnTokenFetched(const std::string& token) {
   if (!token.empty()) {
     // Set token fetched from the endpoint in local state.
     user_manager::KnownUser known_user(&local_state_.get());
-    known_user.SetPasswordSyncToken(primary_user_->GetAccountId(), token);
+    known_user.SetPasswordSyncToken(primary_account_id_, token);
     ResetReauthRequiredBySamlTokenDismatch();
   } else {
     // This is the first time a sync token is created for the user: we need to

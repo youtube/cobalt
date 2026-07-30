@@ -16,8 +16,8 @@ group("password_manager") {
 source_set("factory") {
   if (is_android) {
     sources = [
-      "touch_to_fill_view_factory.cc",
-      "touch_to_fill_view_factory.h",
+      "touch_to_fill_password_manager_view_factory.cc",
+      "touch_to_fill_password_manager_view_factory.h",
     ]
 
     deps = [ "//chrome/browser/touch_to_fill/password_manager/android" ]
@@ -34,20 +34,20 @@ source_set("public") {
 
   public_deps = [ "//url" ]
 
-  sources = [ "touch_to_fill_view.h" ]
+  sources = [ "touch_to_fill_password_manager_view.h" ]
 }
 
 if (is_android) {
   source_set("impl") {
     sources = [
-      "touch_to_fill_controller.cc",
-      "touch_to_fill_controller.h",
-      "touch_to_fill_controller_autofill_delegate.cc",
-      "touch_to_fill_controller_autofill_delegate.h",
-      "touch_to_fill_controller_delegate.cc",
-      "touch_to_fill_controller_delegate.h",
-      "touch_to_fill_controller_webauthn_delegate.cc",
-      "touch_to_fill_controller_webauthn_delegate.h",
+      "touch_to_fill_password_manager_controller.cc",
+      "touch_to_fill_password_manager_controller.h",
+      "touch_to_fill_password_manager_credential_delegate.cc",
+      "touch_to_fill_password_manager_credential_delegate.h",
+      "touch_to_fill_password_manager_delegate.cc",
+      "touch_to_fill_password_manager_delegate.h",
+      "touch_to_fill_password_manager_webauthn_delegate.cc",
+      "touch_to_fill_password_manager_webauthn_delegate.h",
     ]
 
     public_deps = [
@@ -81,12 +81,12 @@ if (is_android) {
     testonly = true
 
     sources = [
-      "touch_to_fill_controller_autofill_delegate_unittest.cc",
-      "touch_to_fill_controller_webauthn_delegate_unittest.cc",
+      "touch_to_fill_password_manager_credential_delegate_unittest.cc",
+      "touch_to_fill_password_manager_webauthn_delegate_unittest.cc",
     ]
 
-    # In touch_to_fill_controller_webauthn_delegate_unittest.cc, test globals
-    # (const std::vector, std::u16string) have non-trivial destructors.
+    # In touch_to_fill_password_manager_webauthn_delegate_unittest.cc, test
+    # globals (const std::vector, std::u16string) have non-trivial destructors.
     cflags_cc = [ "-Wno-exit-time-destructors" ]
 
     deps = [
@@ -121,6 +121,6 @@ if (is_android) {
 
   java_cpp_enum("java_enum_srcjar") {
     visibility = [ "./*" ]
-    sources = [ "touch_to_fill_controller_autofill_delegate.h" ]
+    sources = [ "touch_to_fill_password_manager_credential_delegate.h" ]
   }
 }

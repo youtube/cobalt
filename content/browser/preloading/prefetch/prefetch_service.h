@@ -260,7 +260,9 @@ class CONTENT_EXPORT PrefetchService : public PrefetchContainerObserver {
   // Cancels unrelated prefetches.
   //
   // See `CancelUnrelatedPrefetchURLLoaderThrottle`.
-  void CancelUnrelatedPrefetchForNavigation();
+  void CancelUnrelatedPrefetchForNavigation(
+      const std::optional<blink::DocumentToken>&
+          navigation_initiator_document_token);
 
   const PrefetchContainer* GetPrefetchContainerForTesting(
       const PrefetchKey& key) const;

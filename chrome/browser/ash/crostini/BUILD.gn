@@ -171,8 +171,6 @@ static_library("test_support") {
     "crostini_test_util.h",
     "fake_crostini_features.cc",
     "fake_crostini_features.h",
-    "fake_crostini_installer_ui_delegate.cc",
-    "fake_crostini_installer_ui_delegate.h",
   ]
 
   public_deps = [

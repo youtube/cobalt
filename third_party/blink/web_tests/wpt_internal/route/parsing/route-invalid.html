@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<title>Invalid @route rules</title>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-navigation-1/#at-route">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/css/support/parsing-testcommon.js"></script>
+<script>
+  test(()=> {
+    test_invalid_rule(`@route nodashes {\n}`);
+  }, "no double-dash in route name");
+
+  test(()=> {
+    test_invalid_rule(`@route --r1 --r2 {\n}`);
+  }, "two names");
+
+  test(()=> {
+    test_invalid_rule(`@route (--r1) {\n}`);
+  }, "parentheses");
+</script>

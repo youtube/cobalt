@@ -52,7 +52,6 @@ CanvasResourceDispatcher::CanvasResourceDispatcher(
       size_(size),
       change_size_for_next_commit_(false),
       placeholder_canvas_id_(canvas_id),
-      num_pending_placeholder_resources_(0),
       client_(client),
       task_runner_(std::move(task_runner)),
       agent_group_scheduler_compositor_task_runner_(
@@ -75,118 +74,15 @@ CanvasResourceDispatcher::CanvasResourceDispatcher(
     provider->ConnectToEmbedder(frame_sink_id_,
                                 surface_embedder_.BindNewPipeAndPassReceiver());
   }
-
-  // `PlaceholderClient` runs callbacks synchronously and lives on the same
-  // thread. Because dispatcher owns client, Unretained is fine.
-  placeholder_client_ = std::make_unique<PlaceholderClient>(
-      placeholder_canvas_id_, agent_group_scheduler_compositor_task_runner_,
-      task_runner_,
-      base::BindRepeating(
-          [](CanvasResourceDispatcher* dispatcher) {
-            dispatcher->SetAnimationState(
-                dispatcher->placeholder_client_->GetAnimationState());
-          },
-          base::Unretained(this)));
 }
 
 CanvasResourceDispatcher::~CanvasResourceDispatcher() = default;
 
-namespace {
-
-static void UpdatePlaceholderImage(
-    base::WeakPtr<CanvasResourceDispatcher> dispatcher,
-    scoped_refptr<base::SingleThreadTaskRunner> task_runner,
-    DOMNodeId placeholder_canvas_id,
-    scoped_refptr<blink::ExportedCanvasResource>&& canvas_resource) {
-  DCHECK(IsMainThread());
-
-  if (placeholder_canvas_id == OffscreenCanvasPlaceholder::kNoPlaceholderId ||
-      placeholder_canvas_id == kInvalidDOMNodeId) {
-    return;
-  }
-
-  OffscreenCanvasPlaceholder* placeholder_canvas =
-      OffscreenCanvasPlaceholder::GetPlaceholderCanvasById(
-          placeholder_canvas_id);
-  if (placeholder_canvas) {
-    placeholder_canvas->SetOffscreenCanvasResource(std::move(canvas_resource));
-    task_runner->PostTask(
-        FROM_HERE,
-        base::BindOnce(&CanvasResourceDispatcher::OnMainThreadReceivedImage,
-                       dispatcher));
-  }
-}
-
-void UpdatePlaceholderDispatcher(
-    base::WeakPtr<OffscreenCanvasPlaceholder::Client> client,
-    scoped_refptr<base::SingleThreadTaskRunner> task_runner,
-    DOMNodeId placeholder_canvas_id) {
-  OffscreenCanvasPlaceholder* placeholder_canvas =
-      OffscreenCanvasPlaceholder::GetPlaceholderCanvasById(
-          placeholder_canvas_id);
-  // Note that the placeholder canvas may be destroyed when this post task get
-  // to executed.
-  if (placeholder_canvas)
-    placeholder_canvas->SetClient(client, task_runner);
-}
-
-}  // namespace
-
-void CanvasResourceDispatcher::PostImageToPlaceholderIfNotBlocked(
-    scoped_refptr<ExportedCanvasResource> exported_resource) {
-  if (placeholder_canvas_id_ == OffscreenCanvasPlaceholder::kNoPlaceholderId ||
-      // `agent_group_scheduler_compositor_task_runner_` may be null if this
-      // was created from a SharedWorker.
-      !agent_group_scheduler_compositor_task_runner_) {
-    exported_resource.reset();
-    return;
-  }
-
-  // Determines whether the main thread may be blocked. If unblocked, post
-  // |canvas_resource|. Otherwise, save it but do not post it.
-  if (num_pending_placeholder_resources_ < kMaxPendingPlaceholderResources) {
-    PostImageToPlaceholder(std::move(exported_resource));
-    num_pending_placeholder_resources_++;
-  } else {
-    DCHECK(num_pending_placeholder_resources_ ==
-           kMaxPendingPlaceholderResources);
-
-    // The previous unposted resource becomes obsolete now.
-    latest_unposted_resource_.reset();
-
-    latest_unposted_resource_ = std::move(exported_resource);
-  }
-}
-
-void CanvasResourceDispatcher::PostImageToPlaceholder(
-    scoped_refptr<ExportedCanvasResource>&& canvas_resource) {
-  // After this point, |canvas_resource| can only be used on the main thread,
-  // until it is returned.
-  canvas_resource->Transfer();
-
-  CHECK(agent_group_scheduler_compositor_task_runner_);
-  PostCrossThreadTask(
-      *agent_group_scheduler_compositor_task_runner_, FROM_HERE,
-      CrossThreadBindOnce(UpdatePlaceholderImage, GetWeakPtr(), task_runner_,
-                          placeholder_canvas_id_, std::move(canvas_resource)));
-}
-
 void CanvasResourceDispatcher::DispatchFrame(
-    scoped_refptr<CanvasResource>&& canvas_resource,
+    scoped_refptr<ExportedCanvasResource>&& exported_resource,
     const gfx::Rect& damage_rect,
     bool is_opaque) {
   TRACE_EVENT0("blink", "CanvasResourceDispatcher::DispatchFrame");
-  if (!canvas_resource) {
-    return;
-  }
-
-  auto exported_resource =
-      base::MakeRefCounted<ExportedCanvasResource>(std::move(canvas_resource));
-
-  // This takes another ref and sends it to the placeholder. The
-  // ExternalCanvasResource will be destroyed when both display compositor and
-  // placeholder are done with it, returning underlying memory to the owner.
-  PostImageToPlaceholderIfNotBlocked(exported_resource);
 
   // For frameless canvas, we don't get a valid frame_sink_id and should drop.
   if (!frame_sink_id_.is_valid()) {
@@ -423,74 +319,11 @@ void CanvasResourceDispatcher::ReclaimResources(
   }
 }
 
-void CanvasResourceDispatcher::OnMainThreadReceivedImage() {
-  num_pending_placeholder_resources_--;
-
-  // The main thread has become unblocked recently and we have a resource that
-  // has not been posted yet.
-  if (latest_unposted_resource_) {
-    DCHECK(num_pending_placeholder_resources_ ==
-           kMaxPendingPlaceholderResources - 1);
-    PostImageToPlaceholderIfNotBlocked(std::move(latest_unposted_resource_));
-    // To make it safe to use/check latest_unposted_resource_ after using
-    // std::move on it, we need to force a reset because the move above is
-    // elide-able.
-    latest_unposted_resource_.reset();
-  }
-}
-
 void CanvasResourceDispatcher::Reshape(const gfx::Size& size) {
   if (size_ != size) {
     size_ = size;
     change_size_for_next_commit_ = true;
   }
-}
-
-void CanvasResourceDispatcher::PlaceholderClient::RegisterWithPlaceholder() {
-  // `agent_group_scheduler_compositor_task_runner_` may be null if this
-  // was created from a SharedWorker.
-  if (!agent_group_scheduler_compositor_task_runner_)
-    return;
-
-  if (placeholder_canvas_id_ == OffscreenCanvasPlaceholder::kNoPlaceholderId ||
-      placeholder_canvas_id_ == kInvalidDOMNodeId) {
-    return;
-  }
-
-  // If the offscreencanvas is in the same thread as the canvas, we will update
-  // the canvas resource dispatcher directly. So Offscreen Canvas can behave in
-  // a more synchronous way when it's on the main thread.
-  if (IsMainThread()) {
-    UpdatePlaceholderDispatcher(GetWeakPtr(), task_runner_,
-                                placeholder_canvas_id_);
-  } else {
-    PostCrossThreadTask(
-        *agent_group_scheduler_compositor_task_runner_, FROM_HERE,
-        CrossThreadBindOnce(UpdatePlaceholderDispatcher, GetWeakPtr(),
-                            task_runner_, placeholder_canvas_id_));
-  }
-}
-
-CanvasResourceDispatcher::PlaceholderClient::PlaceholderClient(
-    DOMNodeId placeholder_canvas_id,
-    scoped_refptr<base::SingleThreadTaskRunner>
-        agent_group_scheduler_compositor_task_runner,
-    scoped_refptr<base::SingleThreadTaskRunner> task_runner,
-    base::RepeatingClosure animation_state_callback)
-    : animation_state_callback_(animation_state_callback),
-      placeholder_canvas_id_(placeholder_canvas_id),
-      task_runner_(std::move(task_runner)),
-      agent_group_scheduler_compositor_task_runner_(
-          std::move(agent_group_scheduler_compositor_task_runner)) {
-  RegisterWithPlaceholder();
-}
-
-CanvasResourceDispatcher::PlaceholderClient::~PlaceholderClient() = default;
-
-void CanvasResourceDispatcher::PlaceholderClient::SetAnimationState(
-    OffscreenCanvasPlaceholder::AnimationState animation_state) {
-  animation_state_ = animation_state;
-  animation_state_callback_.Run();
 }
 
 }  // namespace blink

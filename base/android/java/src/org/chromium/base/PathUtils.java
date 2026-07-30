@@ -5,7 +5,6 @@
 package org.chromium.base;
 
 import android.content.Context;
-import android.content.pm.ApplicationInfo;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
@@ -392,21 +391,6 @@ public abstract class PathUtils {
         }
 
         return absolutePaths.toArray(new String[absolutePaths.size()]);
-    }
-
-    /**
-     * @return the path to native libraries.
-     */
-    @SuppressWarnings("unused")
-    @CalledByNative
-    private static @JniType("std::string") String getNativeLibraryDirectory() {
-        ApplicationInfo ai = ContextUtils.getApplicationContext().getApplicationInfo();
-        if ((ai.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
-                || (ai.flags & ApplicationInfo.FLAG_SYSTEM) == 0) {
-            return ai.nativeLibraryDir;
-        }
-
-        return "/system/lib/";
     }
 
     /**
