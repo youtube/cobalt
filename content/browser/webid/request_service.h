@@ -34,6 +34,7 @@
 #include "content/public/browser/webid/identity_request_dialog_controller.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "third_party/blink/public/mojom/credentialmanagement/credential_manager.mojom.h"
+#include "third_party/blink/public/mojom/webid/federated_auth_request.mojom-shared.h"
 #include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
 #include "url/gurl.h"
 
@@ -133,7 +134,9 @@ class CONTENT_EXPORT RequestService
                        RequestUserInfoCallback) override;
   void CancelTokenRequest() override;
   void ResolveTokenRequest(const std::optional<std::string>& account_id,
+                           blink::mojom::FedCmRedirectMethod method,
                            const std::optional<GURL>& redirect_to,
+                           const std::string& request_body,
                            base::Value token,
                            ResolveTokenRequestCallback callback) override;
   void SetIdpSigninStatus(
@@ -162,7 +165,9 @@ class CONTENT_EXPORT RequestService
   void OnClose() override;
   bool OnResolve(GURL idp_config_url,
                  const std::optional<std::string>& account_id,
+                 blink::mojom::FedCmRedirectMethod method,
                  const std::optional<GURL>& redirect_to,
+                 const std::string& request_body,
                  const base::Value& token) override;
   void OnOriginMismatch(Method method,
                         const url::Origin& expected,
@@ -323,6 +328,7 @@ class CONTENT_EXPORT RequestService
 
  private:
   friend class RequestServiceTest;
+  friend class IdentityCredentialSourceImpl;  // for OnAccountSelected
 
   struct FetchData {
     FetchData();
@@ -393,8 +399,13 @@ class CONTENT_EXPORT RequestService
   void OnRedirectToResponseReceived(
       blink::mojom::IdentityProviderRequestOptionsPtr idp,
       FetchStatus status,
-      const GURL& redirect_to);
-  void RedirectTo(const GURL& idp_config_url, const GURL& redirect_to);
+      blink::mojom::FedCmRedirectMethod method,
+      const GURL& redirect_to,
+      const std::string& request_body);
+  void RedirectTo(const GURL& idp_config_url,
+                  blink::mojom::FedCmRedirectMethod method,
+                  const GURL& redirect_to,
+                  const std::string& request_body);
 
   // Called after we get at token (either from the ID assertion endpoint or
   // from IdentityProvider.resolve) to update our various permissions.
@@ -520,8 +531,12 @@ class CONTENT_EXPORT RequestService
   // IDP. Used to later set accounts_ in the order in which the IDPs are
   // requested.
   base::flat_map<GURL, std::vector<IdentityRequestAccountPtr>> idp_accounts_;
+  base::flat_map<GURL, std::vector<IdentityRequestAccountPtr>>
+      idp_filtered_accounts_;
   // The accounts to be displayed by the UI.
   std::vector<IdentityRequestAccountPtr> accounts_;
+  // The accounts that were filtered out during fetching.
+  std::vector<IdentityRequestAccountPtr> filtered_accounts_;
 
   // Contains the set of account IDs of an IDP before a login URL is displayed
   // to the user. Used to compute the account ID of the account that the user

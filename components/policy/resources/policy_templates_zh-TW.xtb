@@ -4447,6 +4447,13 @@ ServiceWorkerAutoPreload 功能會在開始執行 ServiceWorker 啟動程序時�
 <translation id="4150201353443180367">顯示設定</translation>
 <translation id="4154221011709068799">不允許外部儲存空間</translation>
 <translation id="415445772247959702">線上應用程式商店 (自 89 版開始支援)</translation>
+<translation id="415631927748520887">無論是否預設啟用 Chrome 應用程式，只要將這項政策設為 True，Chrome 應用程式就能繼續在資訊站工作階段中執行。
+
+如果不設定這項政策或設為 False，系統會依裝置上定義的預設行為運作。
+
+嘗試啟動已停用的 Chrome 應用程式時，系統會向使用者顯示訊息，說明為何無法啟動應用程式，並建議聯絡 IT 部門。
+
+在 M151 版淘汰 Kiosk 工作階段中的 Chrome 應用程式以前，這項政策的值都會持續生效。</translation>
 <translation id="4157003184375321727">回報作業系統和韌體版本</translation>
 <translation id="4157594634940419685">允許存取原生 CUPS 印表機</translation>
 <translation id="4158531549614162499">啟用透過行動網路連線執行 Google 雲端硬碟同步功能</translation>
@@ -4498,19 +4505,6 @@ ServiceWorkerAutoPreload 功能會在開始執行 ServiceWorker 啟動程序時�
           設好這項政策後，使用者即無法變更或覆寫設定。
 
           如果不設定這項政策，系統會在初次顯示登入畫面時停用插入點醒目顯示，但使用者隨時可以啟用。</translation>
-<translation id="4182348537826882258">如果設定 <ph name="URL_BLOCKLIST_POLICY_NAME" /> 政策，系統會禁止載入遭禁止網址的網頁。管理員可以指定要封鎖的網址模式清單。如果未設定，瀏覽器就不會封鎖任何網址。<ph name="URL_ALLOWLIST_POLICY_NAME" /> 中最多可定義 1000 個例外網址。瞭解如何格式化網址模式 (https://support.google.com/chrome/a?p=url_blocklist_filter_format)。
-
-注意：這項政策不會套用至含有動態載入資料的網頁內 JavaScript 網址。如果封鎖 example.com/abc，example.com 仍可使用 XMLHTTPRequest 載入內容。此外，這項政策也不會阻止網頁使用 JavaScript History API 將網址列顯示的網址更新為已封鎖的網址。
-
-從 <ph name="PRODUCT_NAME" /> 73 版開始，你可以封鎖 javascript://* 網址，但這麼做只會影響在網址列輸入的 JavaScript，或是像書籤小程式這類項目。
-
-自 <ph name="PRODUCT_NAME" /> 92 版起，系統在無頭模式下也會支援這項政策。
-
-      注意：封鎖內部 chrome://* 和 chrome-untrusted://* 網址可導致非預期的錯誤，使用者也可能會在某些情況下突破內部網址封鎖。在不封鎖特定內部網址的情況下，看看是否可以使用其他更合適的政策。例如：
-
-- 不封鎖 chrome://settings/certificates，改用 <ph name="CA_CERTIFICATE_MANAGEMENT_ALLOWED_POLICY_NAME" />。
-
-- 不封鎖 chrome-untrusted://crosh，改用 <ph name="SYSTEM_FEATURES_DISABLE_LIST_POLICY_NAME" />。</translation>
 <translation id="4183229833636799228"><ph name="FLASH_PLUGIN_NAME" /> 預設設定</translation>
 <translation id="4185868802416355029">允許受管理的擴充功能使用 Enterprise Hardware Platform API</translation>
 <translation id="4186244263855283575">允許自訂重新啟動裝置的時間表。如果設為 True，裝置會根據時間表重新啟動。如要取消任何排定的重新啟動作業，你必須先移除這項政策。
@@ -11939,6 +11933,11 @@ Topics API 已淘汰，因此這項政策也已在 <ph name="PRODUCT_NAME" /> 14
 <translation id="9051019223077908578">設定登入畫面上的已安裝應用程式和擴充功能清單</translation>
 <translation id="9053841574218808519">一律執行未過期的外掛程式</translation>
 <translation id="9055866143096316150">將螢幕 Wake Lock 使用要求降級為系統 Wake Lock 使用要求</translation>
+<translation id="9056262797461453462">如果設定 <ph name="URL_BLOCKLIST_POLICY_NAME" /> 政策，系統就不會載入網址已遭禁止的網頁。管理員可以指定要封鎖的網址模式清單。如果未設定，瀏覽器將不會封鎖任何網址。<ph name="URL_ALLOWLIST_POLICY_NAME" /> 中最多可定義 1,000 個例外網址。如要瞭解網址模式的格式規定，請前往 https://support.google.com/chrome/a?p=url_blocklist_filter_format。
+
+注意：這項政策不會套用至含有動態載入資料的網頁內 JavaScript 網址。如果封鎖 example.com/abc，example.com 仍可使用 XMLHTTPRequest 載入內容。此外，這項政策也無法阻止網頁使用 JavaScript History API 將網址列顯示的網址更新為已封鎖的網址。從 <ph name="PRODUCT_NAME" /> 73 版開始，你可以封鎖 javascript://* 網址，但這麼做只會影響在網址列輸入的 JavaScript，或是像書籤小程式這類項目。自 <ph name="PRODUCT_NAME" /> 92 版起，系統在無頭模式下也支援這項政策。注意：封鎖內部 chrome://* 和 chrome-untrusted://* 網址可能導致非預期的錯誤，使用者也可能會在某些情況下突破封鎖。建議您不要封鎖特定內部網址，而是考慮使用其他更合適的政策。例如：
+
+- 不封鎖 chrome://settings/certificates，改用 <ph name="CA_CERTIFICATE_MANAGEMENT_ALLOWED_POLICY_NAME" />。- 不封鎖 chrome-untrusted://crosh，改用 <ph name="SYSTEM_FEATURES_DISABLE_LIST_POLICY_NAME" />。- 不封鎖 devtools://*，改用 <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />、<ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> 或 <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> 政策。</translation>
 <translation id="9057159618445405645">使用 Chrome 瀏覽器預設行為</translation>
 <translation id="9061455386353325110">指定使用者能否讓 <ph name="PRODUCT_NAME" /> 使用生成式 AI 來進一步辨識表單，協助填寫更多欄位。
 
@@ -12048,11 +12047,6 @@ Topics API 已淘汰，因此這項政策也已在 <ph name="PRODUCT_NAME" /> 14
 <translation id="9135095804754272364">偵測到 USB 裝置時顯示通知</translation>
 <translation id="9136212796239682721">停用下載對話框 UI</translation>
 <translation id="9136399279941091445">發布指定裝置政策時的停機時間間隔</translation>
-<translation id="9138686056337842869">無論是否預設啟用 Chrome 應用程式，只要將這項政策設為 True，Chrome 應用程式就能繼續在資訊站工作階段中執行。
-
-如果不設定這項政策或設為 False，系統會依裝置上定義的預設行為運作。
-
-嘗試啟動已停用的 Chrome 應用程式時，系統會向使用者顯示訊息，說明為何無法啟動應用程式，並建議聯絡 IT 部門。</translation>
 <translation id="9139775903828905867">控制用於觸發 F11 的快速鍵</translation>
 <translation id="9140064482233876338">這項政策自 M69 起已淘汰，請改用 OverrideSecurityRestrictionsOnInsecureOrigin。
 

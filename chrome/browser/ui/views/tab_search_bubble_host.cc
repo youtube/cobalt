@@ -30,7 +30,6 @@
 #include "chrome/browser/ui/views/tabs/tab_strip_controller.h"
 #include "chrome/browser/ui/webui/tab_search/tab_search_prefs.h"
 #include "chrome/browser/ui/webui/tab_search/tab_search_ui.h"
-#include "chrome/common/chrome_features.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/feature_engagement/public/event_constants.h"
@@ -95,7 +94,11 @@ TabSearchBubbleHost::TabSearchBubbleHost(
   webui_bubble_manager_observer_.Observe(webui_bubble_manager_.get());
 }
 
-TabSearchBubbleHost::~TabSearchBubbleHost() = default;
+TabSearchBubbleHost::~TabSearchBubbleHost() {
+  for (auto& observer : observers_) {
+    observer.OnHostDestroying();
+  }
+}
 
 void TabSearchBubbleHost::OnWidgetVisibilityChanged(views::Widget* widget,
                                                     bool visible) {

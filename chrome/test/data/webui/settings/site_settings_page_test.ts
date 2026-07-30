@@ -9,7 +9,7 @@ import type {CrExpandButtonElement, SettingsSiteSettingsPageElement} from 'chrom
 import {ContentSetting, CookieControlsMode, ContentSettingsTypes, defaultSettingLabel, SettingsState, SafetyHubBrowserProxyImpl, SafetyHubEvent} from 'chrome://settings/lazy_load.js';
 import type {CrLinkRowElement, Route, SettingsPrefsElement, SettingsToggleButtonElement} from 'chrome://settings/settings.js';
 import {CrSettingsPrefs, loadTimeData, Router, routes} from 'chrome://settings/settings.js';
-import {assertEquals, assertFalse, assertTrue, assertThrows} from 'chrome://webui-test/chai_assert.js';
+import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {isChildVisible} from 'chrome://webui-test/test_util.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 
@@ -149,10 +149,10 @@ suite('SiteSettingsPage', function() {
             '#notifications')!;
     assertTrue(!!notificationsLinkRow);
 
-    page.set('prefs.generated.notification.value', SettingsState.BLOCK);
+    page.set('prefs.generated.notification.value', SettingsState.CPSS);
     await flushTasks();
     assertEquals(
-        loadTimeData.getString('siteSettingsNotificationsBlocked'),
+        loadTimeData.getString('siteSettingsNotificationsAskCPSS'),
         notificationsLinkRow.subLabel);
 
     page.set('prefs.generated.notification.value', SettingsState.QUIET);
@@ -374,13 +374,5 @@ suite('ContentSettingsVisibility', function() {
             .querySelectorAll('settings-category-default-radio-group')
             .length,
         expectedPagesCount);
-  });
-});
-
-suite('WebPrintingNotShown', function() {
-  test('navigateToWebPrinting', function() {
-    assertThrows(
-        () =>
-            Router.getInstance().navigateTo(routes.SITE_SETTINGS_WEB_PRINTING));
   });
 });

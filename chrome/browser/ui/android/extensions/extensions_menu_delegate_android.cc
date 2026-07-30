@@ -5,11 +5,15 @@
 #include "chrome/browser/ui/android/extensions/extensions_menu_delegate_android.h"
 
 #include "base/android/jni_string.h"
+#include "base/check_op.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/ui/android/extensions/extension_action_delegate_android.h"
+#include "chrome/browser/ui/extensions/extensions_menu_view_model.h"
 #include "content/public/browser/web_contents.h"
+#include "extensions/browser/permissions_manager.h"
 #include "ui/gfx/android/java_bitmap.h"
 #include "ui/gfx/image/image_skia.h"
+#include "ui/gfx/image/image_skia_rep.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "chrome/browser/ui/android/extensions/jni_headers/ExtensionsMenuBridge_jni.h"
@@ -17,18 +21,46 @@
 
 namespace {
 
+// TODO(crbug.com/471016915): Placeholder size. Replace with size provided from
+// Java.
+constexpr gfx::Size kActionIconSize = gfx::Size(40, 40);
+
+base::android::ScopedJavaLocalRef<jobject> ConvertToJavaBitmap(
+    const ui::ImageModel& image_model) {
+  if (image_model.IsEmpty() || !image_model.IsImage()) {
+    return nullptr;
+  }
+
+  gfx::ImageSkia image_skia = image_model.GetImage().AsImageSkia();
+
+  float icon_scale_factor = 1.0f;
+  const gfx::ImageSkiaRep& rep =
+      image_skia.GetRepresentation(icon_scale_factor);
+  const SkBitmap& bitmap = rep.GetBitmap();
+
+  if (bitmap.isNull()) {
+    return nullptr;
+  }
+
+  return gfx::ConvertToJavaBitmap(bitmap);
+}
+
 // Returns a Java ExtensionsMenuTypes.ControlState object.
 base::android::ScopedJavaLocalRef<jobject> CreateJavaControlState(
     JNIEnv* env,
     const ExtensionsMenuViewModel::ControlState& state) {
+  auto state_icon_bitmap = ConvertToJavaBitmap(state.icon);
   return extensions::Java_ControlState_Constructor(
       env, static_cast<int>(state.status), state.text, state.accessible_name,
-      state.tooltip_text, state.is_on);
+      state.tooltip_text, state.is_on, state_icon_bitmap);
 }
 
 }  // namespace
 
 namespace extensions {
+
+using base::android::ScopedJavaLocalRef;
+using PermissionsManager = extensions::PermissionsManager;
 
 ExtensionsMenuDelegateAndroid::ExtensionsMenuDelegateAndroid(
     BrowserWindowInterface* browser,
@@ -46,17 +78,21 @@ void ExtensionsMenuDelegateAndroid::Destroy(JNIEnv* env) {
   delete this;
 }
 
+base::android::ScopedJavaLocalRef<jobject>
+ExtensionsMenuDelegateAndroid::GetActionIcon(JNIEnv* env, int action_index) {
+  ui::ImageModel icon_model =
+      menu_model_->GetActionIcon(action_index, kActionIconSize);
+  return ConvertToJavaBitmap(icon_model);
+}
+
 std::vector<base::android::ScopedJavaLocalRef<jobject>>
 ExtensionsMenuDelegateAndroid::GetMenuEntries(JNIEnv* env) {
   std::vector<base::android::ScopedJavaLocalRef<jobject>> java_entries;
 
   for (const auto& action_model : menu_model_->action_models()) {
-    // TODO(crbug.com/471016915): Use the correct size for the icon once
-    // implemented. For now, using a placeholder.
-    auto icon_size = gfx::Size();
     extensions::ExtensionId id = action_model->GetId();
     ExtensionsMenuViewModel::MenuEntryState state =
-        menu_model_->GetMenuEntryState(id, icon_size);
+        menu_model_->GetMenuEntryState(id, kActionIconSize);
 
     base::android::ScopedJavaLocalRef<jobject> j_item =
         Java_MenuEntryState_Constructor(
@@ -65,6 +101,19 @@ ExtensionsMenuDelegateAndroid::GetMenuEntries(JNIEnv* env) {
   }
 
   return java_entries;
+}
+
+base::android::ScopedJavaLocalRef<jobject>
+ExtensionsMenuDelegateAndroid::GetSiteSettings(JNIEnv* env) {
+  ExtensionsMenuViewModel::SiteSettingsState site_settings_state =
+      menu_model_->GetSiteSettingsState();
+
+  base::android::ScopedJavaLocalRef<jobject> j_toggle_state =
+      CreateJavaControlState(env, site_settings_state.toggle);
+
+  return extensions::Java_SiteSettingsState_Constructor(
+      env, site_settings_state.label, site_settings_state.has_tooltip,
+      j_toggle_state);
 }
 
 bool ExtensionsMenuDelegateAndroid::IsReady(JNIEnv* env) {
@@ -82,7 +131,8 @@ ExtensionsMenuDelegateAndroid::CreateActionViewModel(
 }
 
 void ExtensionsMenuDelegateAndroid::OnPageNavigation() {
-  // TODO(crbug.com/473213114)
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_ExtensionsMenuBridge_onModelChanged(env, java_object_);
 }
 
 void ExtensionsMenuDelegateAndroid::OnActionAdded(
@@ -99,12 +149,22 @@ void ExtensionsMenuDelegateAndroid::OnActionRemoved(
 
 void ExtensionsMenuDelegateAndroid::OnActionUpdated(
     const ToolbarActionsModel::ActionId& action_id) {
-  // TODO(crbug.com/473213114)
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_ExtensionsMenuBridge_onModelChanged(env, java_object_);
 }
 
 void ExtensionsMenuDelegateAndroid::OnActionIconUpdated(
     const ToolbarActionsModel::ActionId& action_id) {
-  // TODO(crbug.com/473213114)
+  JNIEnv* env = base::android::AttachCurrentThread();
+
+  const auto& models = menu_model_->action_models();
+  auto it = std::ranges::find_if(
+      models, [&](const auto& model) { return model->GetId() == action_id; });
+  CHECK(it != models.end());
+
+  int menu_entry_index = std::distance(models.begin(), it);
+  Java_ExtensionsMenuBridge_onActionIconUpdated(env, java_object_,
+                                                menu_entry_index);
 }
 
 void ExtensionsMenuDelegateAndroid::OnActionsInitialized() {
@@ -187,7 +247,10 @@ void ExtensionsMenuDelegateAndroid::OnSiteAccessSelected(
 
 void ExtensionsMenuDelegateAndroid::OnSiteSettingsToggleButtonPressed(
     bool is_on) {
-  // TODO(crbug.com/473213115)
+  PermissionsManager::UserSiteSetting site_setting =
+      is_on ? PermissionsManager::UserSiteSetting::kCustomizeByExtension
+            : PermissionsManager::UserSiteSetting::kBlockAllExtensions;
+  menu_model_->UpdateSiteSetting(site_setting);
 }
 
 void ExtensionsMenuDelegateAndroid::OnReloadPageButtonClicked() {
@@ -201,6 +264,12 @@ void ExtensionsMenuDelegateAndroid::OpenMainPage() {
 void ExtensionsMenuDelegateAndroid::OpenSitePermissionsPage(
     const extensions::ExtensionId& extension_id) {
   // TODO(crbug.com/473213115)
+}
+
+void ExtensionsMenuDelegateAndroid::OnSiteSettingsToggleChanged(
+    JNIEnv* env,
+    bool is_checked) {
+  OnSiteSettingsToggleButtonPressed(is_checked);
 }
 
 static int64_t JNI_ExtensionsMenuBridge_Init(

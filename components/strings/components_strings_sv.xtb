@@ -1060,6 +1060,7 @@ Annars blockeras detta av integritetsinställningarna. Om du tillåter detta kan
 <translation id="2674524144218093528">Målning av hus</translation>
 <translation id="26774279487328902"><ph name="GROUP_COUNT" /> flikgrupper är inte längre tillgängliga</translation>
 <translation id="2677748264148917807">Lämna</translation>
+<translation id="2679659833697380">Din information sparas på enheten</translation>
 <translation id="2683195745483370038">Andra resultat hittades</translation>
 <translation id="2686919536310834199">Skicka feedback för Hjälp mig skriva.</translation>
 <translation id="2687555958734450033">Bästa passning</translation>
@@ -2574,6 +2575,7 @@ Annars blockeras detta av integritetsinställningarna. Om du tillåter detta kan
 <translation id="5114987907971894280">virtuell verklighet</translation>
 <translation id="5115232566827194440">Åsidosättning av begränsning för hanterad gästsession</translation>
 <translation id="5115563688576182185">(64 bitar)</translation>
+<translation id="5116015291385561204">Verifiera din identitet för att autofylla känsliga uppgifter</translation>
 <translation id="5120526915373271910">Familjefilmer</translation>
 <translation id="5122786942953798871">Kuvert (bomull)</translation>
 <translation id="5123063207673082822">helgen</translation>
@@ -3974,6 +3976,7 @@ Mer information.
 <translation id="7372973238305370288">sökresultat</translation>
 <translation id="7374461526650987610">Protokollhanterare</translation>
 <translation id="7374733840632556089">Det här problemet uppstår på grund av ett certifikat som du eller någon annan har installerat på enheten. Certifikatet är känt för att användas för att övervaka och fånga upp nätverkstrafik och är inte betrott i Chrome. Även om det kan vara berättigat med övervakning i vissa fall, t.ex. i ett skol- eller företagsnätverk, vill vi göra dig medveten om vad som pågår även om du inte kan göra något åt det. Alla webbläsare och appar som använder internet omfattas av övervakningen.</translation>
+<translation id="73750335798090836">Använd alltid fingeravtryck, ansiktet eller ett annat skärmlås när du använder känsliga uppgifter som rese- och identitetshandlingar för extra skydd</translation>
 <translation id="7375532151824574023">{NUM_COOKIES,plural, =0{Inga webbplatser tillåts}=1{1 webbplats tillåts}other{# webbplatser tillåts}}</translation>
 <translation id="7375818412732305729">Fil bifogas</translation>
 <translation id="7376031331622621328">Ark för handel på nedre delen av skärmen</translation>
@@ -4230,6 +4233,7 @@ Mer information.
 <translation id="7714404809393719981">Foto (halvblankt)</translation>
 <translation id="7714424966701020172">Alternativet för att fylla i fullständigt namn har valts</translation>
 <translation id="7714464543167945231">Certifikat</translation>
+<translation id="7714943438925794410">Innehåll från kassasidan delas med Google för att erbjuda dessa alternativ. Gå till <ph name="IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_FOOTNOTE_HIDE_OPTION_PAYMENT_SETTINGS_LINK_TEXT" /> om du vill dölja alternativen för att betala senare i autofyll.</translation>
 <translation id="7716147886133743102">Blockerades av administratören</translation>
 <translation id="7716375162095500223">Ignorerad eller ännu inte uppladdad</translation>
 <translation id="7716424297397655342">Det går inte att läsa in webbplatsen från cachelagringen</translation>
@@ -4312,6 +4316,7 @@ Mer information.
 <translation id="7862306158978555061">visa känsliga uppgifter</translation>
 <translation id="7865448901209910068">Bästa hastighet</translation>
 <translation id="7865482168955081228">Felskärmen för Köp nu, betala senare har stängts.</translation>
+<translation id="7870207318911766769">Innehåll från kassasidan delas med Google för att erbjuda dessa alternativ.</translation>
 <translation id="7870281855125116701">En rabatt hittades</translation>
 <translation id="7871445724586827387">Byt lösenord till Google-kontot</translation>
 <translation id="787226752901403048">Logga in i Chrome för att dela och gå med i flikgrupper och samarbeta</translation>

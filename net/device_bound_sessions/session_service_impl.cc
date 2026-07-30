@@ -725,7 +725,7 @@ void SessionServiceImpl::OnRefreshRequestCompletion(
 void SessionServiceImpl::UnblockDeferredRequests(
     const SessionKey& session_key,
     RefreshResult result,
-    std::optional<SessionError::ErrorType> fetch_error,
+    std::optional<net::device_bound_sessions::SessionError> fetch_error,
     std::optional<SessionDisplay> new_session_display,
     std::optional<bool> is_proactive_refresh_candidate,
     std::optional<base::TimeDelta> minimum_proactive_refresh_threshold) {
@@ -746,7 +746,7 @@ void SessionServiceImpl::UnblockDeferredRequests(
       return SessionEvent::MakeRefreshEvent(
           session_key.site, session_key.id.value(),
           /*succeeded=*/result == RefreshResult::kRefreshed, result,
-          fetch_error, std::move(new_session_display),
+          std::move(fetch_error), std::move(new_session_display),
           /*was_fully_proactive_refresh=*/!has_deferred_request);
     });
   }
@@ -1006,13 +1006,11 @@ void SessionServiceImpl::OnAddSessionKeyRestored(
     std::optional<std::string> session_id;
     std::optional<SessionDisplay> display_info;
     if (succeeded) {
-      // TODO(crbug.com/471021582): Some failed creation events could have a
-      // session_id. Can we thread that through?
       session_id = session_or_error.value()->id().value();
       display_info = session_or_error.value()->ToDisplay();
     }
     return SessionEvent::MakeCreationEvent(site, std::move(session_id),
-                                           succeeded, result,
+                                           succeeded, SessionError(result),
                                            std::move(display_info));
   });
 
@@ -1168,7 +1166,7 @@ SessionError::ErrorType SessionServiceImpl::OnRegistrationCompleteInternal(
                 NotifyIfEventCallbackListeners([&] {
                   return SessionEvent::MakeCreationEvent(
                       site, session->id().value(), /*succeeded=*/true,
-                      success_result, session->ToDisplay());
+                      SessionError(success_result), session->ToDisplay());
                 });
                 NotifySessionAccess(on_access_callback,
                                     SessionAccess::AccessType::kCreation,
@@ -1184,14 +1182,13 @@ SessionError::ErrorType SessionServiceImpl::OnRegistrationCompleteInternal(
               [&](SessionError error) {
                 // We failed to create a new session, so there's nothing to
                 // clean up.
-                // TODO(crbug.com/471021582): Some failed creation events could
-                // have a session_id. Can we thread that through?
+                SessionError::ErrorType error_type = error.type;
                 NotifyIfEventCallbackListeners([&] {
                   return SessionEvent::MakeCreationEvent(
                       site, /*session_id=*/std::nullopt, /*succeeded=*/false,
-                      error.type, /*new_session_display=*/std::nullopt);
+                      std::move(error), /*new_session_display=*/std::nullopt);
                 });
-                return error.type;
+                return error_type;
               }));
   return result;
 }
@@ -1237,7 +1234,7 @@ SessionError::ErrorType SessionServiceImpl::OnRefreshRequestCompletionInternal(
                 // The session has been refreshed, restart the request.
                 SessionError::ErrorType success_result = SessionError::kSuccess;
                 UnblockDeferredRequests(session_key, RefreshResult::kRefreshed,
-                                        success_result,
+                                        SessionError(success_result),
                                         std::move(new_session_display),
                                         is_proactive_refresh_candidate,
                                         std::move(minimum_cookie_lifetime));
@@ -1253,7 +1250,8 @@ SessionError::ErrorType SessionServiceImpl::OnRefreshRequestCompletionInternal(
                         *existing_session, *existing_session, stored_cookies);
                 SessionError::ErrorType success_result = SessionError::kSuccess;
                 UnblockDeferredRequests(
-                    session_key, RefreshResult::kRefreshed, success_result,
+                    session_key, RefreshResult::kRefreshed,
+                    SessionError(success_result),
                     /*new_session_display=*/std::nullopt,
                     is_proactive_refresh_candidate,
                     existing_session
@@ -1261,13 +1259,15 @@ SessionError::ErrorType SessionServiceImpl::OnRefreshRequestCompletionInternal(
                 return success_result;
               },
               [&](SessionError error) {
+                SessionError::ErrorType error_type = error.type;
                 if (std::optional<DeletionReason> deletion_reason =
                         error.GetDeletionReason();
                     deletion_reason.has_value()) {
                   DeleteSessionAndNotify(*deletion_reason, session_key,
                                          on_access_callback);
-                  UnblockDeferredRequests(
-                      session_key, RefreshResult::kFatalError, error.type);
+                  UnblockDeferredRequests(session_key,
+                                          RefreshResult::kFatalError,
+                                          std::move(error));
                 } else {
                   RefreshResult refresh_result;
                   if (error.IsServerError()) {
@@ -1280,9 +1280,9 @@ SessionError::ErrorType SessionServiceImpl::OnRefreshRequestCompletionInternal(
                   }
                   // Transient error, unblock the request without cookies.
                   UnblockDeferredRequests(session_key, refresh_result,
-                                          error.type);
+                                          std::move(error));
                 }
-                return error.type;
+                return error_type;
               }));
 
   refresh_last_result_.insert_or_assign(session_key.site, SessionError(result));

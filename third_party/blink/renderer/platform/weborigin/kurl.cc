@@ -772,24 +772,17 @@ void KURL::SetPath(const String& input) {
   ReplaceComponents(replacements);
 }
 
-String DecodeURLEscapeSequences(const StringView& string, DecodeURLMode mode) {
+String DecodeUrlEscapeSequences(const StringView& string, DecodeUrlMode mode) {
   StringUtf8Adaptor string_utf8(string);
   url::RawCanonOutputT<char16_t> unescaped;
-  url::DecodeURLEscapeSequences(string_utf8.AsStringView(), mode, &unescaped);
+  url::DecodeUrlEscapeSequences(string_utf8.AsStringView(), mode, &unescaped);
   return StringImpl::Create8BitIfPossible(unescaped.view());
 }
 
 String EncodeWithURLEscapeSequences(const StringView& not_encoded_string) {
   std::string utf8 = Utf8Encoding().Encode(
       not_encoded_string, UnencodableHandling::kNoUnencodables);
-
-  url::RawCanonOutputT<char> buffer;
-  size_t input_length = utf8.length();
-  if (buffer.capacity() < input_length * 3)
-    buffer.Resize(input_length * 3);
-
-  url::EncodeURIComponent(utf8, &buffer);
-  String escaped(base::span(buffer.view()));
+  String escaped(base::span(url::UriComponentEncoder(utf8).view()));
   // Unescape '/'; it's safe and much prettier.
   escaped.Replace("%2F", "/");
   return escaped;

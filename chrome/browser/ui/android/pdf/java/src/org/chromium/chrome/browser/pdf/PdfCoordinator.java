@@ -116,6 +116,12 @@ public class PdfCoordinator implements PdfActionsDelegate {
         mIsIncognito = profile.isOffTheRecord();
         mUrl = url;
         mView = LayoutInflater.from(activity).inflate(R.layout.pdf_page, null);
+        if (PdfUtils.isInlinePdfV2Enabled()) {
+            PdfToolbar toolbar = mView.findViewById(R.id.pdf_toolbar);
+            toolbar.setVisibility(View.VISIBLE);
+            toolbar.setPageNumber(getCurrentPageString());
+            toolbar.setPageCount(getPageCountString());
+        }
         mProgressBar = mView.findViewById(R.id.progress_bar);
         mView.setBackgroundColor(
                 ChromeColors.getPrimaryBackgroundColor(activity, profile.isOffTheRecord()));
@@ -133,7 +139,7 @@ public class PdfCoordinator implements PdfActionsDelegate {
         mFragmentContainerViewId = View.generateViewId();
         fragmentContainerView.setId(mFragmentContainerViewId);
         mFragmentManager = ((FragmentActivity) activity).getSupportFragmentManager();
-        // TODO(b/360717802): Reuse fragment from savedInstance.
+        // TODO(crbug.com/360717802): Reuse fragment from savedInstance.
         Fragment fragment = mFragmentManager.findFragmentByTag(mTabId);
         if (fragment != null) {
             mFragmentManager.beginTransaction().remove(fragment).commitAllowingStateLoss();
@@ -153,7 +159,10 @@ public class PdfCoordinator implements PdfActionsDelegate {
     /** The class responsible for rendering pdf document. */
     public static class ChromePdfViewerFragment extends PdfViewerFragment {
 
-        private final PdfActionsDelegate mDelegate;
+        private @Nullable PdfActionsDelegate mDelegate;
+
+        /** Public no-arg constructor for FragmentManager. */
+        public ChromePdfViewerFragment() {}
 
         public ChromePdfViewerFragment(PdfActionsDelegate handler) {
             mDelegate = handler;
@@ -170,6 +179,9 @@ public class PdfCoordinator implements PdfActionsDelegate {
 
         @Override
         public boolean onLinkClicked(ExternalLink externalLink) {
+            if (mDelegate == null) {
+                return false;
+            }
             return mDelegate.onLinkClicked(externalLink.getUri());
         }
 
@@ -291,34 +303,45 @@ public class PdfCoordinator implements PdfActionsDelegate {
         }
         mUri = PdfUtils.getUriFromFilePath(mPdfFilePath);
         if (mUri != null) {
-            // TODO(crbug.com/418075119): Minimize the try catch block.
-            try {
-                if (!sSkipLoadPdfForTesting) {
-                    // Committing the fragment
-                    // TODO(crbug.com/360717802): Reuse fragment from savedInstance.
-                    FragmentTransaction transaction = mFragmentManager.beginTransaction();
-                    transaction.add(mFragmentContainerViewId, mChromePdfViewerFragment, mTabId);
-                    transaction.commitAllowingStateLoss();
-                    mFragmentManager.executePendingTransactions();
-                    PdfUtils.recordPdfLoad();
-                    long currentTime = SystemClock.elapsedRealtime();
-                    mChromePdfViewerFragment.mDocumentLoadStartTimestamp = currentTime;
-                    if (sLastPdfLoadTimestamp > 0) {
-                        PdfUtils.recordPdfLoadInterval(currentTime - sLastPdfLoadTimestamp);
-                    }
-                    sLastPdfLoadTimestamp = currentTime;
-                    mProgressBar.setVisibility(View.GONE);
-                    mChromePdfViewerFragment.setDocumentUri(mUri);
-                }
-            } catch (Exception e) {
-                Log.e(TAG, "Load pdf fails.", e);
-            } finally {
+            if (sSkipLoadPdfForTesting) {
                 mIsPdfLoaded = true;
+            } else {
+                // Committing the fragment
+                // TODO(crbug.com/360717802): Reuse fragment from savedInstance.
+                FragmentTransaction transaction = mFragmentManager.beginTransaction();
+                transaction.add(mFragmentContainerViewId, mChromePdfViewerFragment, mTabId);
+                transaction.commitAllowingStateLoss();
+                mFragmentManager.executePendingTransactions();
+                PdfUtils.recordPdfLoad();
+                long currentTime = SystemClock.elapsedRealtime();
+                mChromePdfViewerFragment.mDocumentLoadStartTimestamp = currentTime;
+                if (sLastPdfLoadTimestamp > 0) {
+                    PdfUtils.recordPdfLoadInterval(currentTime - sLastPdfLoadTimestamp);
+                }
+                sLastPdfLoadTimestamp = currentTime;
+                mProgressBar.setVisibility(View.GONE);
+                try {
+                    mChromePdfViewerFragment.setDocumentUri(mUri);
+                } catch (IllegalArgumentException e) {
+                    Log.e(TAG, "Load pdf fails due to invalid uri.", e);
+                } finally {
+                    mIsPdfLoaded = true;
+                }
             }
         } else {
             // TODO(crbug.com/348712628): show some error UI when content URI is null.
             Log.e(TAG, "Uri is null.");
         }
+    }
+
+    private String getCurrentPageString() {
+        // TODO(rathomas): Update the current page.
+        return "99";
+    }
+
+    private String getPageCountString() {
+        // TODO(rathomas): Update the page count.
+        return " / 99";
     }
 
     @Nullable String requestAssistContent(String filename, boolean isWorkProfile) {

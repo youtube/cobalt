@@ -35,7 +35,6 @@ import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
-import org.robolectric.annotation.LooperMode;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
@@ -46,8 +45,6 @@ import org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridge;
 import org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni;
 import org.chromium.components.content_settings.ContentSetting;
 import org.chromium.components.content_settings.ContentSettingsType;
-import org.chromium.components.embedder_support.util.UrlUtilities;
-import org.chromium.components.embedder_support.util.UrlUtilitiesJni;
 import org.chromium.components.omnibox.OmniboxFeatureList;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.components.permissions.PermissionsAndroidFeatureList;
@@ -58,7 +55,6 @@ import org.chromium.content_public.browser.WebContents;
 /** Robolectric tests for {@link GeolocationHeader}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
-@LooperMode(LooperMode.Mode.LEGACY)
 @EnableFeatures(PermissionsAndroidFeatureList.APPROXIMATE_GEOLOCATION_PERMISSION)
 public class GeolocationHeaderUnitTest {
     private static final String SEARCH_URL = "https://www.google.com/search?q=potatoes";
@@ -100,7 +96,6 @@ public class GeolocationHeaderUnitTest {
 
     public @Rule MockitoRule mMockitoRule = MockitoJUnit.rule();
 
-    @Mock UrlUtilities.Natives mUrlUtilitiesJniMock;
     @Mock WebsitePreferenceBridge.Natives mWebsitePreferenceBridgeJniMock;
     @Mock Profile mProfileMock;
     @Mock WebContents mWebContentsMock;
@@ -111,7 +106,6 @@ public class GeolocationHeaderUnitTest {
 
     @Before
     public void setUp() {
-        UrlUtilitiesJni.setInstanceForTesting(mUrlUtilitiesJniMock);
         WebsitePreferenceBridgeJni.setInstanceForTesting(mWebsitePreferenceBridgeJniMock);
         GeolocationTracker.setLocationForTesting(null, null);
         GeolocationTracker.setLocationAgeForTesting(null);
@@ -127,10 +121,9 @@ public class GeolocationHeaderUnitTest {
         when(mWebsitePreferenceBridgeJniMock.isDSEOrigin(
                         any(BrowserContextHandle.class), anyString()))
                 .thenReturn(true);
-        when(mUrlUtilitiesJniMock.isGoogleSearchUrl(anyString())).thenReturn(true);
         when(mProfileMock.isOffTheRecord()).thenReturn(false);
         when(mTemplateUrlServiceMock.getUrlForSearchQuery(anyString()))
-                .thenReturn("https://example.com/");
+                .thenReturn("https://www.google.com/search?q=a");
         when(mTemplateUrlServiceMock.isDefaultSearchEngineGoogle()).thenReturn(true);
         mRefreshLastKnownLocationCount = 0;
         GeolocationTracker.setRefreshLastKnownLocationRunnableForTesting(

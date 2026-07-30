@@ -223,9 +223,8 @@ OffscreenCanvasRenderingContext2D::GetOrCreateResourceProvider() {
   const viz::SharedImageFormat format = GetSharedImageFormat();
   const gfx::ColorSpace color_space = GetColorSpace();
   if (use_shared_image) {
-    provider = Canvas2DResourceProviderSharedImage::Create(
+    provider = Canvas2DResourceProviderSharedImage::CreateWithClear(
         host->Size(), format, alpha_type, color_space,
-        CanvasResourceProvider::ShouldInitialize::kCallClear,
         SharedGpuContext::ContextProviderWrapper(),
         can_use_gpu ? RasterMode::kGPU : RasterMode::kCPU,
         shared_image_usage_flags, host);
@@ -233,10 +232,10 @@ OffscreenCanvasRenderingContext2D::GetOrCreateResourceProvider() {
     // using the software compositor
     base::WeakPtr<CanvasResourceDispatcher> dispatcher_weakptr =
         host->GetOrCreateResourceDispatcher()->GetWeakPtr();
-    provider = Canvas2DResourceProviderSharedImage::CreateForSoftwareCompositor(
-        host->Size(), format, alpha_type, color_space,
-        CanvasResourceProvider::ShouldInitialize::kCallClear,
-        SharedGpuContext::SharedImageInterfaceProvider(), host);
+    provider = Canvas2DResourceProviderSharedImage::
+        CreateWithClearForSoftwareCompositor(
+            host->Size(), format, alpha_type, color_space,
+            SharedGpuContext::SharedImageInterfaceProvider(), host);
   }
 
   if (!provider) {
@@ -246,9 +245,8 @@ OffscreenCanvasRenderingContext2D::GetOrCreateResourceProvider() {
     // visible on screen, but at least readbacks will work. Failure to create
     // another type of resource prover above is a sign that the graphics
     // pipeline is in a bad state (e.g. gpu process crashed, out of memory)
-    provider = Canvas2DResourceProviderBitmap::Create(
-        host->Size(), format, alpha_type, color_space,
-        CanvasResourceProvider::ShouldInitialize::kCallClear, host);
+    provider = Canvas2DResourceProviderBitmap::CreateWithClear(
+        host->Size(), format, alpha_type, color_space, host);
   }
 
   resource_provider_ = std::move(provider);

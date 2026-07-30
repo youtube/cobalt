@@ -11,7 +11,6 @@
 
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
-#include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
 #include "build/build_config.h"
@@ -111,6 +110,14 @@ void OmniboxPopupViewWebUI::UpdatePopupAppearance() {
             delta);
       }
     }
+
+    if (auto* handler = presenter()
+                            ->GetWebUIContent()
+                            ->contents_wrapper()
+                            ->GetWebUIController()
+                            ->omnibox_handler()) {
+      handler->SetAimButtonVisible(omnibox_view_->AimButtonVisible());
+    }
   }
 }
 
@@ -127,7 +134,32 @@ void OmniboxPopupViewWebUI::OnDragCanceled() {}
 void OmniboxPopupViewWebUI::GetPopupAccessibleNodeData(
     ui::AXNodeData* node_data) const {}
 
-raw_ptr<OmniboxPopupViewWebUI>
-OmniboxPopupViewWebUI::GetOmniboxPopupViewWebUI() {
-  return this;
+void OmniboxPopupViewWebUI::StepSelection(
+    OmniboxPopupSelection::Direction direction,
+    OmniboxPopupSelection::Step step) {
+  if (auto* handler = presenter()
+                          ->GetWebUIContent()
+                          ->contents_wrapper()
+                          ->GetWebUIController()
+                          ->omnibox_handler()) {
+    handler->SetAimButtonVisible(omnibox_view_->AimButtonVisible());
+    handler->StepSelection(direction, step);
+  }
+}
+
+void OmniboxPopupViewWebUI::OpenCurrentSelection(
+    WindowOpenDisposition disposition) {
+  if (auto* handler = presenter()
+                          ->GetWebUIContent()
+                          ->contents_wrapper()
+                          ->GetWebUIController()
+                          ->omnibox_handler()) {
+    handler->OpenCurrentSelection(disposition);
+  }
+}
+
+bool OmniboxPopupViewWebUI::IsSelectionPopupControlled() const {
+  return base::FeatureList::IsEnabled(
+             omnibox::kWebUIOmniboxPopupSelectionControl) &&
+         IsOpen();
 }

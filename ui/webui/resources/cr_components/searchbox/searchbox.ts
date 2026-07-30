@@ -19,7 +19,7 @@ import {DragAndDropHandler} from '//resources/cr_components/search/drag_drop_han
 import type {DragAndDropHost} from '//resources/cr_components/search/drag_drop_host.js';
 import {I18nMixinLit} from '//resources/cr_elements/i18n_mixin_lit.js';
 import {WebUiListenerMixinLit} from '//resources/cr_elements/web_ui_listener_mixin_lit.js';
-import {assert, assertNotReachedCase} from '//resources/js/assert.js';
+import {assert} from '//resources/js/assert.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import {MetricsReporterImpl} from '//resources/js/metrics_reporter/metrics_reporter.js';
 import {isMac} from '//resources/js/platform.js';
@@ -57,110 +57,7 @@ CSS.registerProperty({
   inherits: true,
 });
 
-enum AnimationState {
-  FADE_IN,
-  HOLD,
-  FADE_OUT,
-}
-
-interface AnimationDetails {
-  startOpacity: number;
-  endOpacity: number;
-  duration: number;
-  nextAnimationState: AnimationState;
-}
-
-/**
- * Responsible for cycling placeholder text animations on an HTMLInputElement.
- */
-export class PlaceholderTextCycler {
-  private input_: HTMLInputElement|HTMLTextAreaElement;
-  private animation_: Animation|null = null;
-  private placeholderTexts_: string[] = [];
-  private placeholderTextsCurrentIndex_: number = 0;
-  private changePlaceholderTextIntervalMs_: number = 4000;
-  private fadePlaceholderTextDurationMs_: number = 250;
-
-  constructor(
-      animatedPlaceholderContainer: HTMLInputElement|HTMLTextAreaElement,
-      placeholderTexts: string[], changeTextAnimationIntervalMs: number,
-      fadeTextAnimationDurationMs: number) {
-    assert(placeholderTexts.length > 0);
-
-    this.input_ = animatedPlaceholderContainer;
-    this.placeholderTexts_ = placeholderTexts;
-    this.changePlaceholderTextIntervalMs_ = changeTextAnimationIntervalMs;
-    this.fadePlaceholderTextDurationMs_ = fadeTextAnimationDurationMs;
-  }
-
-  start() {
-    this.stop();
-
-    this.placeholderTextsCurrentIndex_ = 0;
-    this.animate_(AnimationState.HOLD);
-  }
-
-  stop() {
-    if (this.animation_) {
-      this.animation_.cancel();
-      this.animation_ = null;
-    }
-
-    this.placeholderTextsCurrentIndex_ = 0;
-    this.input_.placeholder =
-        this.placeholderTexts_[this.placeholderTextsCurrentIndex_]!;
-  }
-
-  private animate_(state: AnimationState) {
-    let animationDetails: AnimationDetails|null = null;
-    switch (state) {
-      case AnimationState.FADE_IN:
-        this.input_.placeholder =
-            this.placeholderTexts_[this.placeholderTextsCurrentIndex_]!;
-        animationDetails = {
-          startOpacity: 0,
-          endOpacity: 1,
-          duration: this.fadePlaceholderTextDurationMs_,
-          nextAnimationState: AnimationState.HOLD,
-        };
-        break;
-      case AnimationState.HOLD:
-        animationDetails = {
-          startOpacity: 1,
-          endOpacity: 1,
-          duration: this.changePlaceholderTextIntervalMs_,
-          nextAnimationState: AnimationState.FADE_OUT,
-        };
-        break;
-      case AnimationState.FADE_OUT:
-        this.placeholderTextsCurrentIndex_ =
-            (this.placeholderTextsCurrentIndex_ + 1) %
-            this.placeholderTexts_.length;
-        animationDetails = {
-          startOpacity: 1,
-          endOpacity: 0,
-          duration: this.fadePlaceholderTextDurationMs_,
-          nextAnimationState: AnimationState.FADE_IN,
-        };
-        break;
-      default:
-        assertNotReachedCase(state);
-    }
-
-    this.animation_ = this.input_.animate(
-        [
-          {'--placeholder-opacity': animationDetails.startOpacity},
-          {'--placeholder-opacity': animationDetails.endOpacity},
-        ],
-        {duration: animationDetails.duration},
-    );
-    this.animation_.onfinish = () => {
-      if (this.animation_) {
-        this.animate_(animationDetails.nextAnimationState);
-      }
-    };
-  }
-}
+import {PlaceholderTextCycler} from './placeholder_text_cycler.js';
 
 interface Input {
   text: string;
@@ -999,14 +896,10 @@ export class SearchboxElement extends SearchboxElementBase implements
     }
 
     if (e.key === 'Escape') {
-      this.dispatchEvent(new CustomEvent('escape-searchbox', {
-        bubbles: true,
-        composed: true,
-        detail: {
-          event: e,
-          emptyInput: !this.$.input.value,
-        },
-      }));
+      this.fire('escape-searchbox', {
+        event: e,
+        emptyInput: !this.$.input.value,
+      });
     }
 
     // Do not handle the following keys if there are no matches available.
@@ -1168,8 +1061,8 @@ export class SearchboxElement extends SearchboxElementBase implements
   protected async refreshTabSuggestions_(forceRefresh: boolean = false) {
     // Only refresh tab suggestions if the context menu is opened or the recent
     // tab chip is visible.
-    const requiresRefresh = forceRefresh || this.contextMenuOpened_ ||
-        this.recentTabChipVisible_();
+    const requiresRefresh =
+        forceRefresh || this.contextMenuOpened_ || this.recentTabChipVisible_();
     if (!requiresRefresh) {
       return;
     }
@@ -1210,6 +1103,19 @@ export class SearchboxElement extends SearchboxElementBase implements
     // now a `ContextualSearchboxHandler`.
     this.pageHandler_.activateMetricsFunnel('AiModeButton');
     if (!this.composeboxEnabled || this.$.input.value.trim()) {
+      let source = 'Unknown';
+      if (loadTimeData.getBoolean('isLensSearchbox')) {
+        source = 'Lens';
+      } else if (loadTimeData.getBoolean('isTopChromeSearchbox')) {
+        source = 'Omnibox';
+      } else {
+        source = 'NewTabPage';
+      }
+      const metricName =
+          `ContextualSearch.UserAction.SubmitQuery.WithoutContext.${source}`;
+      chrome.metricsPrivate.recordUserAction(metricName);
+      chrome.metricsPrivate.recordBoolean(metricName, true);
+
       // Construct navigation url.
       const searchParams = new URLSearchParams();
       searchParams.append('sourceid', 'chrome');
@@ -1261,17 +1167,13 @@ export class SearchboxElement extends SearchboxElementBase implements
     if (this.ntpRealboxNextEnabled) {
       this.$.context.closeMenu();
     }
-    this.dispatchEvent(new CustomEvent('open-composebox', {
-      detail: {
-        searchboxText: this.$.input.value,
-        contextFiles: uploads,
-        mode: mode,
-        model: model,
-        inputState: this.inputState_,
-      },
-      bubbles: true,
-      composed: true,
-    }));
+    this.fire('open-composebox', {
+      searchboxText: this.$.input.value,
+      contextFiles: uploads,
+      mode: mode,
+      model: model,
+      inputState: this.inputState_,
+    });
     this.setInputText('');
   }
 
@@ -1306,17 +1208,14 @@ export class SearchboxElement extends SearchboxElementBase implements
 
   protected computeShowRecentTabChip_(): boolean {
     // composeboxShowRecentTabChip is unavailable in the WebUI Browser.
-    return loadTimeData.valueExists('composeboxShowRecentTabChip') &&
-        loadTimeData.getBoolean('composeboxShowRecentTabChip') &&
-        this.result_?.input.length === 0;
-  }
-
-  protected shouldShowRecentTabChipInDropdown_(): boolean {
+    const recentTabChipEnabled =
+        loadTimeData.valueExists('composeboxShowRecentTabChip') &&
+        loadTimeData.getBoolean('composeboxShowRecentTabChip');
     const isBrowserTabAllowed = !this.showModelPicker_ ||
         (!!this.inputState_ &&
          this.inputState_.allowedInputTypes.includes(InputType.kBrowserTab));
-    return !!this.recentTabForChip_ && this.dropdownIsVisible &&
-        this.isInputEmpty() && isBrowserTabAllowed;
+    return recentTabChipEnabled && !!this.recentTabForChip_ &&
+        this.dropdownIsVisible && this.isInputEmpty() && isBrowserTabAllowed;
   }
 
   protected computePlaceholderText_(placeholderText: string): string {
@@ -1366,11 +1265,7 @@ export class SearchboxElement extends SearchboxElementBase implements
         this.isDeletingInput_ || this.pastedInInput_ || caretNotAtEnd;
     this.pageHandler_.queryAutocomplete(input, preventInlineAutocomplete);
 
-    this.dispatchEvent(new CustomEvent('query-autocomplete', {
-      bubbles: true,
-      composed: true,
-      detail: {inputValue: input},
-    }));
+    this.fire('query-autocomplete', {inputValue: input});
   }
 
   /**
@@ -1412,9 +1307,8 @@ export class SearchboxElement extends SearchboxElementBase implements
     if (!this.ntpRealboxNextEnabled) {
       return false;
     }
-    const recentTabChip =
-        this.shadowRoot.querySelector<RecentTabChipElement>(
-            'composebox-recent-tab-chip') ||
+    const recentTabChip = this.shadowRoot.querySelector<RecentTabChipElement>(
+                              'composebox-recent-tab-chip') ||
         this.$.context.shadowRoot.querySelector<RecentTabChipElement>(
             'composebox-recent-tab-chip');
     return !!recentTabChip;

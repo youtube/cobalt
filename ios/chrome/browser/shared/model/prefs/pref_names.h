@@ -387,7 +387,7 @@ inline constexpr char kIosSaveToDriveDownloadManagerPolicySettings[] =
 inline constexpr char kIosChooseFromDriveFilePickerPolicySettings[] =
     "ios.choose_from_drive.file_picker_policy";
 
-// Preference to store the current ThemeSpecificsIos for the user's background
+// Preference to store the current `ThemeIosSpecifics` for the user's background
 // choices.
 inline constexpr char kIosSavedThemeSpecificsIos[] =
     "ios.saved_theme_specifics_ios";
@@ -447,7 +447,7 @@ inline constexpr char kIosNtpFeedTopSigninPromoDisplayedCount[] =
 inline constexpr char kIosNtpThemeMigrationComplete[] =
     "ios.ntp.theme_migration_complete";
 
-// String preference to store the active `ThemeSpecificsIos` for the user's
+// String preference to store the active `ThemeIosSpecifics` for the user's
 // background choices. This is the "live" source of truth for the current NTP
 // background, updated by both local changes and remote sync updates.
 inline constexpr char kIosNtpThemeSpecifics[] = "ios.ntp.theme_specifics";
@@ -832,6 +832,11 @@ inline constexpr char kNextSSORecallTime[] = "ios.next_sso_recall_time";
 // 0 means Gemini is enabled (default), and 1 means it's disabled.
 inline constexpr char kGeminiEnabledByPolicy[] = "ios.gemini_enabled_by_policy";
 
+// An integer determining the enabled status of Gen Ai by policy.
+// 0 or 1 means all covered generative AI features are enabled, while 2 means
+// that they are disabled.
+inline constexpr char kGenAiEnabledByPolicy[] = "ios.gen_ai_enabled_by_policy";
+
 // A boolean specifying whether the user has ever been eligible for AI Hub.
 inline constexpr char kAIHubEligibilityTriggered[] =
     "ios.ai_hub_eligibility_triggered";
@@ -885,6 +890,10 @@ inline constexpr char kCrossPlatformPromosActiveDays[] =
 // recent than 28 days ago.
 inline constexpr char kCrossPlatformPromosIOS16thActiveDay[] =
     "cross_platform_promos.ios_16th_active_day";
+
+// A time pref to remember the last time the "active day" feature engagement
+// tracker event was fired.
+inline constexpr char kLastRecordedActiveDay[] = "ios.last_recorded_active_day";
 
 }  // namespace prefs
 

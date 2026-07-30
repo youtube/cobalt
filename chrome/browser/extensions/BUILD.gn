@@ -264,8 +264,6 @@ source_set("extensions") {
     "corrupted_extension_reinstaller.h",
     "corrupted_extension_reinstaller_factory.cc",
     "corrupted_extension_reinstaller_factory.h",
-    "crx_installer.cc",
-    "crx_installer.h",
     "cws_info_service.cc",
     "cws_info_service.h",
     "cws_info_service_factory.cc",
@@ -509,6 +507,7 @@ source_set("extensions") {
     "//chrome/browser/app_mode",
     "//chrome/browser/apps:user_type_filter",
     "//chrome/browser/bitmap_fetcher",
+    "//chrome/browser/bookmarks",
     "//chrome/browser/content_settings:content_settings_factory",
     "//chrome/browser/devtools",
     "//chrome/browser/download",
@@ -526,6 +525,7 @@ source_set("extensions") {
     "//chrome/browser/prefs",
     "//chrome/browser/prefs:util",
     "//chrome/browser/preloading:prefs",
+    "//chrome/browser/preloading/prefetch/no_state_prefetch",
     "//chrome/browser/profiles",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/profiles/keep_alive",
@@ -547,6 +547,7 @@ source_set("extensions") {
     "//chrome/browser/ui/prefs",
     "//chrome/browser/ui/safety_hub",
     "//chrome/browser/ui/toolbar",
+    "//chrome/browser/ui/webui:webui_util",
     "//chrome/common",
     "//components/bookmarks/browser",
     "//components/bookmarks/managed",
@@ -592,9 +593,11 @@ source_set("extensions") {
     "//components/vector_icons",
     "//content/public/browser",
     "//extensions/browser",
+    "//extensions/browser:crx_installer",
     "//extensions/browser:keepalive",
     "//extensions/browser/api/storage:settings_namespace",
     "//extensions/browser/api/storage:settings_observer",
+    "//extensions/browser/api/system_display:display_info_provider",
     "//extensions/browser/api/virtual_keyboard_private:virtual_keyboard_delegate",
     "//extensions/browser/forced_extensions",
     "//extensions/browser/updater",
@@ -623,10 +626,7 @@ source_set("extensions") {
   defines = []
 
   if (is_mac || is_win || is_linux || is_chromeos) {
-    deps += [
-      "//chrome/browser/ui/webui:webui_util",
-      "//components/webapps/isolated_web_apps:scheme",
-    ]
+    deps += [ "//components/webapps/isolated_web_apps:scheme" ]
   }
   if (is_android) {
     sources += [
@@ -636,7 +636,6 @@ source_set("extensions") {
       "api/management/chrome_management_api_delegate_android.cc",
       "api/messaging/native_message_android_host.cc",
       "api/messaging/native_message_android_host.h",
-      "api/tabs/tabs_api_android.cc",
       "api/tabs/tabs_event_router_platform_delegate_android.cc",
       "api/tabs/tabs_event_router_platform_delegate_android.h",
       "chrome_extension_host_delegate_android.cc",
@@ -645,6 +644,8 @@ source_set("extensions") {
       "extension_error_ui_android.h",
       "external_install_error_android.cc",
       "external_install_error_android.h",
+      "system_display/display_info_provider_android.cc",
+      "system_display/display_info_provider_android.h",
     ]
     deps += [
       "//chrome/android:chrome_jni_headers",
@@ -653,7 +654,6 @@ source_set("extensions") {
   } else {
     sources += [
       "api/chrome_extensions_api_client_non_android.cc",
-      "api/tabs/tabs_api_non_android.cc",
       "api/tabs/tabs_event_router_platform_delegate_non_android.cc",
       "api/tabs/tabs_event_router_platform_delegate_non_android.h",
       "chrome_extension_host_delegate_non_android.cc",
@@ -773,6 +773,8 @@ source_set("extensions") {
       "api/passwords_private/passwords_private_event_router_factory.h",
       "api/passwords_private/passwords_private_utils.cc",
       "api/passwords_private/passwords_private_utils.h",
+      "api/proxy_override_rules/proxy_override_rules_transformer.cc",
+      "api/proxy_override_rules/proxy_override_rules_transformer.h",
       "api/settings_private/generated_pref.cc",
       "api/settings_private/generated_pref.h",
       "api/settings_private/generated_prefs.cc",
@@ -1054,7 +1056,6 @@ source_set("extensions") {
       "//extensions:extensions_resources",
       "//extensions/browser/api:extensions_api_client",
       "//extensions/browser/api/content_settings",
-      "//extensions/browser/api/system_display:display_info_provider",
       "//extensions/common:mojom",
       "//extensions/common/api",
       "//extensions/strings",
@@ -1594,6 +1595,8 @@ static_library("test_support") {
     "fake_crx_installer.h",
     "load_error_waiter.cc",
     "load_error_waiter.h",
+    "menu_manager_test_observer.cc",
+    "menu_manager_test_observer.h",
     "mock_extension_special_storage_policy.cc",
     "mock_extension_special_storage_policy.h",
     "mock_window_controller_list_observer.cc",
@@ -1625,6 +1628,7 @@ static_library("test_support") {
     "//components/value_store:test_support",
     "//content/test:test_support",
     "//extensions:test_support",
+    "//extensions/browser:crx_installer",
     "//services/data_decoder/public/cpp:test_support",
     "//testing/gmock",
   ]
@@ -1635,8 +1639,6 @@ static_library("test_support") {
       "api/messaging/native_messaging_test_util.h",
       "api/passwords_private/test_passwords_private_delegate.cc",
       "api/passwords_private/test_passwords_private_delegate.h",
-      "menu_manager_test_observer.cc",
-      "menu_manager_test_observer.h",
       "mock_crx_installer.cc",
       "mock_crx_installer.h",
       "test_extension_service.cc",

@@ -7,10 +7,10 @@
 #include <array>
 
 #include "ash/constants/ash_features.h"
+#include "ash/constants/url_constants.h"
 #include "ash/shell.h"
 #include "base/containers/span.h"
 #include "chrome/browser/ui/webui/ash/settings/search/search_tag_registry.h"
-#include "chrome/common/url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "chromeos/dbus/power/power_manager_client.h"
 #include "content/public/browser/web_ui.h"
@@ -220,15 +220,12 @@ void PowerSection::AddLoadTimeData(content::WebUIDataSource* html_source) {
       u"https://support.google.com/chromebook/?p=settings_adaptive_charging");
 
   html_source->AddString("powerBatterySaverLearnMoreUrl",
-                         chrome::kCrosBatterySaverLearnMoreURL);
+                         ash::external_urls::kCrosBatterySaverLearnMoreURL);
 
   html_source->AddBoolean("isAdaptiveChargingSupported",
                           Shell::Get()
                               ->adaptive_charging_controller()
                               ->IsAdaptiveChargingSupported());
-
-  html_source->AddBoolean("isBatteryChargeLimitAvailable",
-                          ash::features::IsBatteryChargeLimitAvailable());
 }
 
 void PowerSection::AddHandlers(content::WebUI* web_ui) {
@@ -297,9 +294,7 @@ void PowerSection::PowerChanged(
 
         // Assume that Adaptive Charging must be enabled and supported for
         // charge limit to be supported.
-        if (ash::features::IsBatteryChargeLimitAvailable()) {
-          updater.AddSearchTags(GetPowerWithOptimizedChargingSearchConcepts());
-        }
+        updater.AddSearchTags(GetPowerWithOptimizedChargingSearchConcepts());
       }
 
       const auto* battery_saver_controller =

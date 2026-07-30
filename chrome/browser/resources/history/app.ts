@@ -175,9 +175,8 @@ export class HistoryAppElement extends HistoryAppElementBase {
       historyEmbeddingsDisclaimerLinkClicked_: {type: Boolean},
       includeActorVisits_: {type: Boolean},
       includeUserVisits_: {type: Boolean},
-      isBrowsingHistoryActorIntegrationM3Enabled_: {
-        type: Boolean,
-      },
+      isBrowsingHistoryActorIntegrationM3Enabled_: {type: Boolean},
+      isGlicWebActuationAvailable_: {type: Boolean},
     };
   }
 
@@ -244,6 +243,8 @@ export class HistoryAppElement extends HistoryAppElementBase {
   protected accessor includeUserVisits_: boolean = true;
   protected accessor isBrowsingHistoryActorIntegrationM3Enabled_: boolean =
       loadTimeData.getBoolean('isBrowsingHistoryActorIntegrationM3Enabled');
+  protected accessor isGlicWebActuationAvailable_: boolean =
+      loadTimeData.getBoolean('isGlicWebActuationAvailable');
 
   private browserService_: BrowserService = BrowserServiceImpl.getInstance();
   private callbackRouter_: PageCallbackRouter =
@@ -422,11 +423,6 @@ export class HistoryAppElement extends HistoryAppElementBase {
         this.enableHistoryEmbeddings_) {
       this.onHistoryEmbeddingsContainerShown_();
     }
-  }
-
-  private fire_(eventName: string, detail?: any) {
-    this.dispatchEvent(
-        new CustomEvent(eventName, {bubbles: true, composed: true, detail}));
   }
 
   protected historyClustersSelected_(): boolean {
@@ -804,7 +800,7 @@ export class HistoryAppElement extends HistoryAppElementBase {
       afterString = convertDateToQueryValue(e.detail.value.timeRangeStart);
     }
 
-    this.fire_('change-query', {
+    this.fire('change-query', {
       search: this.queryState_.searchTerm,
       after: afterString,
     });
@@ -817,7 +813,7 @@ export class HistoryAppElement extends HistoryAppElementBase {
   protected onHistoryEmbeddingsItemMoreFromSiteClick_(
       e: HistoryEmbeddingsMoreActionsClickEvent) {
     const historyEmbeddingsItem = e.detail;
-    this.fire_(
+    this.fire(
         'change-query',
         {search: 'host:' + new URL(historyEmbeddingsItem.url).hostname});
   }
@@ -904,7 +900,7 @@ export class HistoryAppElement extends HistoryAppElementBase {
     this.includeUserVisits_ = e.detail.userVisits;
     this.includeActorVisits_ = e.detail.actorVisits;
 
-    this.fire_('change-query', {
+    this.fire('change-query', {
       search: this.queryState_.searchTerm,
       includeActorVisits: this.includeActorVisits_,
       includeUserVisits: this.includeUserVisits_,
@@ -913,7 +909,7 @@ export class HistoryAppElement extends HistoryAppElementBase {
 
   protected showFilterChips_(): boolean {
     return this.isBrowsingHistoryActorIntegrationM3Enabled_ &&
-        !this.getShowResultsByGroup_();
+        this.isGlicWebActuationAvailable_ && !this.getShowResultsByGroup_();
   }
 }
 

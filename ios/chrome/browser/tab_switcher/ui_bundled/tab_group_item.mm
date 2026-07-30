@@ -61,7 +61,7 @@
   if (!_tabGroupColorPalette || _colorId != currentColorId) {
     _colorId = currentColorId;
     _tabGroupColorPalette =
-        [[TabGroupColorPalette alloc] initWithSeedColorId:_colorId];
+        [[TabGroupColorPalette alloc] initWithColorId:_colorId];
   }
   return _tabGroupColorPalette;
 }
@@ -85,6 +85,13 @@
     return NO;
   }
   return _tabGroup->visual_data().is_collapsed();
+}
+
+- (UIColor*)tabStripColor {
+  if (IsTabGroupColorOnSurfaceEnabled()) {
+    return self.tabGroupColorPalette.commonColor;
+  }
+  return self.groupColor;
 }
 
 #pragma mark - Debugging

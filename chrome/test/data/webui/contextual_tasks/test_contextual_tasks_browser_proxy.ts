@@ -7,6 +7,7 @@ import type {ComposeboxPosition, ContextInfo, PageHandlerInterface, PageInterfac
 import type {BrowserProxy} from 'chrome://contextual-tasks/contextual_tasks_browser_proxy.js';
 import type {PostMessageHandler} from 'chrome://contextual-tasks/post_message_handler.js';
 import type {PageHandler as ComposeboxPageHandler, PageHandlerFactory as ComposeboxPageHandlerFactory} from 'chrome://resources/cr_components/composebox/composebox.mojom-webui.js';
+import type {UnguessableToken} from 'chrome://resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 import type {Uuid} from 'chrome://resources/mojo/mojo/public/mojom/base/uuid.mojom-webui.js';
 import type {Url} from 'chrome://resources/mojo/url/mojom/url.mojom-webui.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
@@ -34,6 +35,8 @@ class MockPage extends TestBrowserProxy implements PageInterface {
       'showOauthErrorDialog',
       'lockInput',
       'unlockInput',
+      'injectInput',
+      'removeInjectedInput',
     ]);
   }
 
@@ -123,6 +126,14 @@ class MockPage extends TestBrowserProxy implements PageInterface {
   unlockInput() {
     this.methodCalled('unlockInput');
   }
+
+  injectInput(title: string, thumbnail: string, fileToken: UnguessableToken) {
+    this.methodCalled('injectInput', title, thumbnail, fileToken);
+  }
+
+  removeInjectedInput(fileToken: UnguessableToken) {
+    this.methodCalled('removeInjectedInput', fileToken);
+  }
 }
 
 /**
@@ -134,6 +145,7 @@ class TestContextualTasksPageHandler extends TestBrowserProxy implements
   private url_: Url;
   private isInTab_: boolean = true;
   private page_: MockPage;
+  private isAiPageResult_: boolean = false;
 
   constructor(url: string, page: MockPage) {
     super([
@@ -211,9 +223,13 @@ class TestContextualTasksPageHandler extends TestBrowserProxy implements
     return Promise.resolve({isZeroState: false});
   }
 
+  setIsAiPage(isAiPage: boolean) {
+    this.isAiPageResult_ = isAiPage;
+  }
+
   isAiPage(url: Url) {
     this.methodCalled('isAiPage', url);
-    return Promise.resolve({isAiPage: false});
+    return Promise.resolve({isAiPage: this.isAiPageResult_});
   }
 
   openMyActivityUi() {

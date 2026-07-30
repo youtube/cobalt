@@ -30,8 +30,6 @@ namespace remoting {
 class PipewireDesktopCapturer : public DesktopCapturer,
                                 public webrtc::DesktopCapturer::Callback {
  public:
-  static constexpr bool kSupportsFrameCallbacks = true;
-
   explicit PipewireDesktopCapturer(base::WeakPtr<CaptureStream> stream);
   PipewireDesktopCapturer(const PipewireDesktopCapturer&) = delete;
   PipewireDesktopCapturer& operator=(const PipewireDesktopCapturer&) = delete;
@@ -39,10 +37,11 @@ class PipewireDesktopCapturer : public DesktopCapturer,
 
   // DesktopCapturer interface.
   // These methods can be called on any sequence.
-  bool SupportsFrameCallbacks() const override;
   void Start(Callback* callback) override;
   void CaptureFrame() override;
   void SetMaxFrameRate(std::uint32_t max_frame_rate) override;
+  void SetSharedMemoryFactory(std::unique_ptr<webrtc::SharedMemoryFactory>
+                                  shared_memory_factory) override;
 
   // Unimplemented DesktopCapturer methods that should not be called. Rather,
   // the appropriate PipewireCaptureStream is provided to the constructor by the
@@ -50,6 +49,9 @@ class PipewireDesktopCapturer : public DesktopCapturer,
   // DesktopInteractionStrategy::CreateVideoCapturer().
   bool GetSourceList(SourceList* sources) override;
   bool SelectSource(SourceId id) override;
+  void Pause(bool pause) override;
+  void BoostCaptureRate(base::TimeDelta capture_interval,
+                        base::TimeDelta duration) override;
 
  private:
   // webrtc::DesktopCapturer::Callback implementation.
@@ -59,9 +61,13 @@ class PipewireDesktopCapturer : public DesktopCapturer,
 
   base::WeakPtr<CaptureStream> stream_;
 
+  std::unique_ptr<webrtc::SharedMemoryFactory> shared_memory_factory_;
+
   // Per the webrtc::DesktopCapturer interface, callback is required to remain
   // valid until this is destroyed.
   raw_ptr<Callback> callback_ = nullptr;
+
+  uint32_t last_frame_rate_ GUARDED_BY_CONTEXT(sequence_checker_) = 60;
 
   SEQUENCE_CHECKER(sequence_checker_);
 

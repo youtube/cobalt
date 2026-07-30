@@ -1051,9 +1051,14 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
   inline bool IsScrollButtonOrMarkerContent() const;
   inline bool IsBeforeOrAfterContent() const;
   inline bool IsInterestHintContent() const;
-  inline bool IsPseudo(PseudoId id) const;
   static inline bool IsAfterContent(const LayoutObject* obj) {
     return obj && obj->IsAfterContent();
+  }
+
+  bool IsOverscrollAreaParent() const {
+    NOT_DESTROYED();
+    const Node* node = GetNode();
+    return node && node->GetPseudoId() == kPseudoIdOverscrollAreaParent;
   }
 
   // Returns true if the text is generated (from, e.g., list marker,
@@ -1525,7 +1530,7 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
   bool IsOverscrollContainer() const {
     NOT_DESTROYED();
     return StyleRef().IsInternalOverscrollAreaAuto() ||
-           IsPseudo(kPseudoIdOverscrollAreaParent);
+           IsOverscrollAreaParent();
   }
 
   bool IsScrollContainer() const {
@@ -2611,12 +2616,6 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
   virtual PhysicalRect LocalCaretRect(int caret_offset,
                                       CaretShape caret_shape) const;
 
-  // When performing a global document tear-down, the layoutObject of the
-  // document is cleared. We use this as a hook to detect the case of document
-  // destruction and don't waste time doing unnecessary work.
-  bool DocumentBeingDestroyed() const;
-  bool DocumentBeingDestroyedActual() const;
-
   void DestroyAndCleanupAnonymousWrappers(bool performing_reattach);
 
   void Destroy();
@@ -3621,8 +3620,6 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
                                          const LayoutBoxModelObject* ancestor,
                                          MapCoordinatesFlags = 0) const;
 
-  void ClearLayoutRootIfNeeded() const;
-
   void ScheduleRelayout();
 
   void AddAsImageObserver(StyleImage*);
@@ -4236,18 +4233,6 @@ struct ThreadingTrait<T> {
 // interchangeably.
 DEFINE_COMPARISON_OPERATORS_WITH_REFERENCES(LayoutObject)
 
-inline bool LayoutObject::DocumentBeingDestroyed() const {
-  NOT_DESTROYED();
-  if (RuntimeEnabledFeatures::DisableDocumentBeingDestroyedEnabled()) {
-    return false;
-  }
-  return GetDocument().Lifecycle().GetState() >= DocumentLifecycle::kStopping;
-}
-inline bool LayoutObject::DocumentBeingDestroyedActual() const {
-  NOT_DESTROYED();
-  return GetDocument().Lifecycle().GetState() >= DocumentLifecycle::kStopping;
-}
-
 inline bool LayoutObject::IsPseudoElementContent(PseudoId pseudo_id) const {
   NOT_DESTROYED();
   if (StyleRef().StyleType() != pseudo_id) {
@@ -4314,12 +4299,6 @@ inline bool LayoutObject::IsInterestHintContent() const {
 inline bool LayoutObject::IsBeforeOrAfterContent() const {
   NOT_DESTROYED();
   return IsBeforeContent() || IsAfterContent();
-}
-
-inline bool LayoutObject::IsPseudo(PseudoId id) const {
-  NOT_DESTROYED();
-  PseudoElement* pseudo = DynamicTo<PseudoElement>(GetNode());
-  return pseudo && pseudo->GetPseudoId() == id;
 }
 
 inline void LayoutObject::ClearNeedsLayoutWithoutPaintInvalidation() {

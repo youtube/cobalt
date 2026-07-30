@@ -118,8 +118,7 @@ InstrumentedVideoEncoderWrapper::OnEncodedImage(
   VideoEncoderStateObserver::EncodeResult encode_result{
       .width = base::checked_cast<int>(encoded_image._encodedWidth),
       .height = base::checked_cast<int>(encoded_image._encodedHeight),
-      .keyframe =
-          encoded_image._frameType == webrtc::VideoFrameType::kVideoFrameKey,
+      .keyframe = encoded_image.IsKey(),
       .spatial_index = encoded_image.SpatialIndex(),
       .rtp_timestamp = encoded_image.RtpTimestamp(),
       .encode_end_time = base::TimeTicks::Now(),
@@ -146,6 +145,16 @@ void InstrumentedVideoEncoderWrapper::OnDroppedFrame(
     webrtc::EncodedImageCallback::DropReason reason) {
   if (callback_) {
     callback_->OnDroppedFrame(reason);
+  }
+}
+
+void InstrumentedVideoEncoderWrapper::OnFrameDropped(
+    uint32_t rtp_timestamp,
+    int spatial_id,
+    bool is_end_of_temporal_unit) {
+  if (callback_) {
+    callback_->OnFrameDropped(rtp_timestamp, spatial_id,
+                              is_end_of_temporal_unit);
   }
 }
 }  // namespace blink

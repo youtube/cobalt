@@ -1418,7 +1418,7 @@ IN_PROC_BROWSER_TEST_F(BrowserTest, RestorePinnedTabs) {
                 /*restore_tabbed_browser=*/true);
 
   // The launch should have created a new browser.
-  ASSERT_EQ(2u, chrome::GetBrowserCount(browser()->profile()));
+  ASSERT_EQ(1u, chrome::GetBrowserCount(browser()->profile()));
 
   // Find the new browser.
   Browser* const new_browser = ui_test_utils::GetBrowserNotInSet({browser()});
@@ -3229,6 +3229,21 @@ IN_PROC_BROWSER_TEST_F(BrowserTest,
   EXPECT_EQ(2u, chrome::GetTotalBrowserCount());
   new_browser->SynchronouslyDestroyBrowser();
   EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
+}
+
+IN_PROC_BROWSER_TEST_F(BrowserTest, ClosedBrowsersShouldNotShow) {
+  // Create a new browser but do not show it yet.
+  BrowserWindowInterface* const new_browser =
+      Browser::Create(Browser::CreateParams(GetProfile(), true));
+  ui::BaseWindow* const new_window = new_browser->GetWindow();
+  EXPECT_FALSE(new_window->IsVisible());
+
+  // Close the browser before Show() is called.
+  new_window->Close();
+
+  // Attempts to show a closed browser should no-op.
+  new_window->Show();
+  EXPECT_FALSE(new_window->IsVisible());
 }
 
 class GuestSessionBrowserTest : public BrowserTest {

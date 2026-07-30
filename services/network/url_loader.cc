@@ -1808,7 +1808,9 @@ int URLLoader::OnBeforeStartTransaction(
     net::cookie_util::ParseRequestCookieLine(cookie_header, &request_cookies_);
   }
 
+  base::UmaHistogramBoolean("Net.URLLoader.HasHeaderClient", !!header_client_);
   if (header_client_) {
+    on_before_send_headers_start_time_ = base::TimeTicks::Now();
     header_client_->OnBeforeSendHeaders(
         *used_headers,
         base::BindOnce(&URLLoader::OnBeforeSendHeadersComplete,
@@ -2342,6 +2344,10 @@ void URLLoader::OnBeforeSendHeadersComplete(
     net::NetworkDelegate::OnBeforeStartTransactionCallback callback,
     int result,
     const std::optional<net::HttpRequestHeaders>& headers) {
+  CHECK(!on_before_send_headers_start_time_.is_null());
+  base::UmaHistogramTimes(
+      "Net.URLLoader.OnBeforeSendHeadersDuration",
+      base::TimeTicks::Now() - on_before_send_headers_start_time_);
   if (include_request_cookies_with_response_ && headers) {
     request_cookies_.clear();
     std::string cookie_header =
@@ -2700,13 +2706,16 @@ void URLLoader::PerformSyntheticResponseFallback() {
   response_->headers = base::MakeRefCounted<net::HttpResponseHeaders>(
       "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n");
 
-  size_t written_bytes =
+  auto [result, written_bytes] =
       WriteSyntheticResponseFallbackBody(response_body_stream_);
-  CHECK_GT(written_bytes, 0u);
-  total_written_bytes_ += written_bytes;
-
-  SendResponseToClient();
-  NotifyCompleted(net::OK);
+  if (result == MOJO_RESULT_OK) {
+    CHECK_GT(written_bytes, 0u);
+    total_written_bytes_ += written_bytes;
+    SendResponseToClient();
+    NotifyCompleted(net::OK);
+  } else {
+    NotifyCompleted(net::ERR_INSUFFICIENT_RESOURCES);
+  }
 }
 
 }  // namespace network

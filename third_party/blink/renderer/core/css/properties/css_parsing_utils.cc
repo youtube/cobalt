@@ -1821,35 +1821,29 @@ cssvalue::CSSURIValue* ConsumeUrl(CSSParserTokenStream& stream,
   return MakeGarbageCollected<cssvalue::CSSURIValue>(
       *CollectUrlData(url.Value(), context));
 }
+
+// https://drafts.csswg.org/css-navigation-1/#funcdef-url-pattern
 CSSURLPatternValue* ConsumeUrlPattern(CSSParserTokenStream& stream,
                                       const CSSParserContext& context) {
-  wtf_size_t value_start_offset = stream.LookAheadOffset();
-  stream.EnsureLookAhead();
-
-  CSSParserToken token = stream.Peek();
-  if (token.GetType() != kFunctionToken ||
-      token.FunctionId() != CSSValueID::kUrlPattern) {
+  // url-pattern( <string> )
+  if (stream.Peek().FunctionId() != CSSValueID::kUrlPattern) {
     return nullptr;
   }
 
-  {
-    CSSParserTokenStream::RestoringBlockGuard guard(stream);
-    stream.ConsumeWhitespace();
-    token = stream.ConsumeIncludingWhitespace();
-    if (token.GetType() == kBadStringToken || !stream.AtEnd()) {
-      return nullptr;
-    }
-    guard.Release();
+  CSSParserTokenStream::RestoringBlockGuard guard(stream);
+  stream.ConsumeWhitespace();
+  if (stream.Peek().GetType() != kStringToken) {
+    return nullptr;
   }
-  DCHECK_EQ(token.GetType(), kStringToken);
+  AtomicString value =
+      stream.ConsumeIncludingWhitespace().Value().ToAtomicString();
+  if (!guard.Release()) {
+    // Trailing junk after <string>.
+    return nullptr;
+  }
   stream.ConsumeWhitespace();
 
-  wtf_size_t value_end_offset = stream.LookAheadOffset();
-  if (stream.IsAttrTainted(value_start_offset, value_end_offset)) {
-    return nullptr;
-  }
-
-  return MakeGarbageCollected<CSSURLPatternValue>(AtomicString(token.Value()));
+  return MakeGarbageCollected<CSSURLPatternValue>(value);
 }
 
 struct ColorInterpolationSpace {
@@ -3710,7 +3704,7 @@ void AddProperty(CSSPropertyID resolved_property,
   bool set_from_shorthand = false;
 
   if (IsValidCSSPropertyID(current_shorthand)) {
-    Vector<StylePropertyShorthand, 4> shorthands;
+    MatchingShorthandsVector shorthands;
     getMatchingShorthandsForLonghand(resolved_property, &shorthands);
     set_from_shorthand = true;
     if (shorthands.size() > 1) {
@@ -3927,9 +3921,9 @@ bool ConsumeShorthandVia2Longhands(
   const StylePropertyShorthand::Properties& longhands = shorthand.properties();
   DCHECK_EQ(longhands.size(), 2u);
 
-  auto local_context =
-      CSSParserLocalContext(CSSPropertyName(longhands[0]->PropertyID()))
-          .WithCurrentShorthand(shorthand.id());
+  auto local_context = CSSParserLocalContext(
+      CSSPropertyName(longhands[0]->PropertyID()), shorthand.id(),
+      /*custom_function_name=*/g_null_atom);
 
   const CSSValue* start =
       ParseLonghand(longhands[0]->PropertyID(), context, local_context, stream);
@@ -3967,9 +3961,9 @@ bool ConsumeShorthandVia4Longhands(
   const StylePropertyShorthand::Properties& longhands = shorthand.properties();
   DCHECK_EQ(longhands.size(), 4u);
 
-  auto local_context =
-      CSSParserLocalContext(CSSPropertyName(longhands[0]->PropertyID()))
-          .WithCurrentShorthand(shorthand.id());
+  auto local_context = CSSParserLocalContext(
+      CSSPropertyName(longhands[0]->PropertyID()), shorthand.id(),
+      /*custom_function_name=*/g_null_atom);
 
   const CSSValue* top =
       ParseLonghand(longhands[0]->PropertyID(), context, local_context, stream);
@@ -4034,8 +4028,9 @@ bool ConsumeShorthandGreedilyViaLonghands(
       shorthand.properties();
   bool found_any = false;
   bool found_longhand;
-  auto local_context = CSSParserLocalContext(CSSPropertyName(shorthand.id()))
-                           .WithCurrentShorthand(shorthand.id());
+  auto local_context =
+      CSSParserLocalContext(CSSPropertyName(shorthand.id()), shorthand.id(),
+                            /*custom_function_name=*/g_null_atom);
   do {
     found_longhand = false;
     for (size_t i = 0; i < shorthand.length(); ++i) {
@@ -7660,9 +7655,8 @@ bool ConsumeGapDecorationsRuleEdgeInteriorInsetShorthand(
   rule_end_inset = nullptr;
 
   // Consume the first <length-percentage> value (required).
-  rule_start_inset = ConsumeLengthOrPercent(
-      stream, context, local_context, CSSPrimitiveValue::ValueRange::kAll);
-  if (!rule_start_inset) {
+  if (!ConsumeGapDecorationsRuleInsetStartEndShorthand(
+          important, context, local_context, stream, rule_start_inset)) {
     return false;
   }
 
@@ -7674,14 +7668,23 @@ bool ConsumeGapDecorationsRuleEdgeInteriorInsetShorthand(
   }
 
   // Consume the optional second <length-percentage> value.
-  rule_end_inset = ConsumeLengthOrPercent(stream, context, local_context,
-                                          CSSPrimitiveValue::ValueRange::kAll);
+  return ConsumeGapDecorationsRuleInsetStartEndShorthand(
+      important, context, local_context, stream, rule_end_inset);
+}
 
-  if (!rule_end_inset) {
-    return false;
-  }
+// Consuming the `*-rule-inset-start` and `*-rule-inset-end` shorthands
+// with syntax <length-percentage>
+bool ConsumeGapDecorationsRuleInsetStartEndShorthand(
+    bool important,
+    const CSSParserContext& context,
+    CSSParserLocalContext& local_context,
+    CSSParserTokenStream& stream,
+    CSSValue*& rule_inset_value) {
+  CHECK(RuntimeEnabledFeatures::CSSGapDecorationEnabled());
 
-  return true;
+  rule_inset_value = ConsumeLengthOrPercent(
+      stream, context, local_context, CSSPrimitiveValue::ValueRange::kAll);
+  return rule_inset_value != nullptr;
 }
 
 // Consuming the `rule-inset`, `column-rule-inset`, `row-rule-inset`

@@ -10,10 +10,12 @@
 
 #include "base/functional/bind.h"
 #include "base/memory/weak_ptr.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/sequence_checker.h"
 #include "remoting/host/linux/pipewire_capture_stream.h"
 #include "third_party/webrtc/modules/desktop_capture/desktop_frame.h"
+#include "third_party/webrtc/modules/desktop_capture/desktop_geometry.h"
 
 namespace remoting {
 
@@ -26,10 +28,6 @@ PipewireDesktopCapturer::~PipewireDesktopCapturer() {
   if (stream_) {
     stream_->SetCallback(nullptr);
   }
-}
-
-bool PipewireDesktopCapturer::SupportsFrameCallbacks() const {
-  return kSupportsFrameCallbacks;
 }
 
 void PipewireDesktopCapturer::Start(Callback* callback) {
@@ -47,9 +45,17 @@ void PipewireDesktopCapturer::CaptureFrame() {
 
 void PipewireDesktopCapturer::SetMaxFrameRate(std::uint32_t max_frame_rate) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  last_frame_rate_ = max_frame_rate;
   if (stream_) {
     stream_->SetMaxFrameRate(max_frame_rate);
   }
+}
+
+void PipewireDesktopCapturer::SetSharedMemoryFactory(
+    std::unique_ptr<webrtc::SharedMemoryFactory> shared_memory_factory) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  shared_memory_factory_ = std::move(shared_memory_factory);
 }
 
 bool PipewireDesktopCapturer::GetSourceList(SourceList* sources) {
@@ -58,6 +64,18 @@ bool PipewireDesktopCapturer::GetSourceList(SourceList* sources) {
 
 bool PipewireDesktopCapturer::SelectSource(SourceId id) {
   NOTREACHED();
+}
+
+void PipewireDesktopCapturer::Pause(bool pause) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (stream_) {
+    stream_->SetMaxFrameRate(pause ? 0u : last_frame_rate_);
+  }
+}
+
+void PipewireDesktopCapturer::BoostCaptureRate(base::TimeDelta capture_interval,
+                                               base::TimeDelta duration) {
+  NOTIMPLEMENTED() << "Boosting frame rate is not supported for wayland";
 }
 
 void PipewireDesktopCapturer::OnFrameCaptureStart() {
@@ -69,6 +87,17 @@ void PipewireDesktopCapturer::OnCaptureResult(
     Result result,
     std::unique_ptr<webrtc::DesktopFrame> frame) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  // TODO: crbug.com/475611769 - Add shared memory support to
+  // webrtc::SharedScreenCastStream to eliminate the unnecessary copy.
+  if (frame && shared_memory_factory_) {
+    auto shared_memory_frame = webrtc::SharedMemoryDesktopFrame::Create(
+        frame->size(), frame->pixel_format(), shared_memory_factory_.get());
+    webrtc::DesktopRect rect = frame->rect();
+    shared_memory_frame->CopyPixelsFrom(*frame, rect.top_left(), rect);
+    shared_memory_frame->MoveFrameInfoFrom(frame.get());
+    frame = std::move(shared_memory_frame);
+  }
   callback_->OnCaptureResult(result, std::move(frame));
 }
 

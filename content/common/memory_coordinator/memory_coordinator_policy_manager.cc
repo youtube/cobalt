@@ -75,17 +75,45 @@ MemoryCoordinatorPolicyManager::MemoryCoordinatorPolicyManager() = default;
 
 MemoryCoordinatorPolicyManager::~MemoryCoordinatorPolicyManager() = default;
 
+void MemoryCoordinatorPolicyManager::AddObserver(Observer* observer) {
+  observers_.AddObserver(observer);
+
+  for (auto const& [child_id, host_state] : hosts_) {
+    for (auto const& [consumer_id, group_state] : host_state->groups) {
+      observer->OnConsumerGroupAdded(consumer_id, group_state->traits(),
+                                     group_state->process_type(), child_id);
+    }
+  }
+}
+
+void MemoryCoordinatorPolicyManager::RemoveObserver(Observer* observer) {
+  observers_.RemoveObserver(observer);
+}
+
+#if BUILDFLAG(ENABLE_MEMORY_COORDINATOR_INTERNALS)
+void MemoryCoordinatorPolicyManager::AddDiagnosticObserver(
+    DiagnosticObserver* observer) {
+  diagnostic_observers_.AddObserver(observer);
+
+  // Catch up with existing limits.
+  for (auto const& [child_id, host_state] : hosts_) {
+    for (auto const& [consumer_id, group_state] : host_state->groups) {
+      observer->OnMemoryLimitChanged(consumer_id, child_id,
+                                     group_state->current_limit());
+    }
+  }
+}
+
+void MemoryCoordinatorPolicyManager::RemoveDiagnosticObserver(
+    DiagnosticObserver* observer) {
+  diagnostic_observers_.RemoveObserver(observer);
+}
+#endif  // BUILDFLAG(ENABLE_MEMORY_COORDINATOR_INTERNALS)
+
 void MemoryCoordinatorPolicyManager::AddPolicy(
     MemoryCoordinatorPolicy* policy) {
   auto [_, inserted] = policies_.insert(policy);
   CHECK(inserted);
-
-  for (auto const& [child_id, host_state] : hosts_) {
-    for (auto const& [consumer_id, group_state] : host_state->groups) {
-      policy->OnConsumerGroupAdded(consumer_id, group_state->traits(),
-                                   group_state->process_type(), child_id);
-    }
-  }
 }
 
 void MemoryCoordinatorPolicyManager::RemovePolicy(
@@ -151,17 +179,17 @@ void MemoryCoordinatorPolicyManager::OnConsumerGroupAdded(
       consumer_id, std::make_unique<GroupState>(traits, process_type));
   CHECK(inserted);
 
-  for (auto& policy : policies_) {
-    policy->OnConsumerGroupAdded(consumer_id, traits, process_type,
-                                 child_process_id);
+  for (auto& observer : observers_) {
+    observer.OnConsumerGroupAdded(consumer_id, traits, process_type,
+                                  child_process_id);
   }
 }
 
 void MemoryCoordinatorPolicyManager::OnConsumerGroupRemoved(
     std::string_view consumer_id,
     ChildProcessId child_process_id) {
-  for (auto& policy : policies_) {
-    policy->OnConsumerGroupRemoved(consumer_id, child_process_id);
+  for (auto& observer : observers_) {
+    observer.OnConsumerGroupRemoved(consumer_id, child_process_id);
   }
 
   HostState& host_state = GetHostState(child_process_id);
@@ -169,6 +197,17 @@ void MemoryCoordinatorPolicyManager::OnConsumerGroupRemoved(
   size_t removed = host_state.groups.erase(consumer_id);
   CHECK_EQ(removed, 1u);
 }
+
+#if BUILDFLAG(ENABLE_MEMORY_COORDINATOR_INTERNALS)
+void MemoryCoordinatorPolicyManager::OnMemoryLimitChanged(
+    std::string_view consumer_id,
+    ChildProcessId child_process_id,
+    int memory_limit) {
+  for (auto& observer : diagnostic_observers_) {
+    observer.OnMemoryLimitChanged(consumer_id, child_process_id, memory_limit);
+  }
+}
+#endif
 
 void MemoryCoordinatorPolicyManager::UpdateConsumers(
     MemoryCoordinatorPolicy* policy,
@@ -237,6 +276,13 @@ void MemoryCoordinatorPolicyManager::UpdateConsumersForProcess(
     if (!new_effective_limit && !update.release_memory) {
       return true;
     }
+
+#if BUILDFLAG(ENABLE_MEMORY_COORDINATOR_INTERNALS)
+    if (new_effective_limit) {
+      OnMemoryLimitChanged(update.consumer_id, child_process_id,
+                           *new_effective_limit);
+    }
+#endif
 
     // Replace the policy request with the computed aggregate limit for the IPC.
     update.percentage = new_effective_limit;

@@ -33,7 +33,6 @@
 #include "chrome/browser/ui/safety_hub/safety_hub_prefs.h"
 #include "chrome/browser/ui/tabs/tab_strip_prefs.h"
 #include "chrome/browser/ui/toolbar/toolbar_pref_names.h"
-#include "chrome/common/chrome_features.h"
 #include "chrome/common/extensions/api/settings_private.h"
 #include "chrome/common/pref_names.h"
 #include "components/autofill/core/common/autofill_prefs.h"
@@ -171,6 +170,12 @@ bool IsSettingReadOnly(const std::string& pref_name) {
       pref_name == ::prefs::kPinUnlockAutosubmitEnabled) {
     return true;
   }
+
+  // `kAllowedLocalAuthfactors` is never directly changeable by the user.
+  if (pref_name == ash::prefs::kAllowedLocalAuthFactors) {
+    return true;
+  }
+
 #endif
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
   // Can be changed only from C++ after successful re-auth.
@@ -201,6 +206,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
 
   // Miscellaneous
   (*s_allowlist)[::embedder_support::kAlternateErrorPagesEnabled] =
+      settings_api::PrefType::kBoolean;
+  (*s_allowlist)[autofill::prefs::kAutofillOtherDatatypesEnabled] =
       settings_api::PrefType::kBoolean;
   (*s_allowlist)[autofill::prefs::kAutofillProfileEnabled] =
       settings_api::PrefType::kBoolean;
@@ -239,6 +246,12 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
   (*s_allowlist)[::prefs::kVerticalTabsEnabled] =
       settings_api::PrefType::kBoolean;
   (*s_allowlist)[::prefs::kTabSearchRightAligned] =
+      settings_api::PrefType::kBoolean;
+  (*s_allowlist)[::prefs::kTabSearchPinnedToTabstrip] =
+      settings_api::PrefType::kBoolean;
+  (*s_allowlist)[::prefs::kProjectsPanelPinnedToTabstrip] =
+      settings_api::PrefType::kBoolean;
+  (*s_allowlist)[::prefs::kEverythingMenuPinnedToTabstrip] =
       settings_api::PrefType::kBoolean;
   (*s_allowlist)[tab_groups::prefs::kAutoPinNewTabGroups] =
       settings_api::PrefType::kBoolean;
@@ -632,6 +645,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
       settings_api::PrefType::kBoolean;
   (*s_allowlist)[ash::prefs::kMessageCenterLockScreenMode] =
       settings_api::PrefType::kString;
+  (*s_allowlist)[ash::prefs::kAllowedLocalAuthFactors] =
+      settings_api::PrefType::kList;
 
   // Accessibility.
   (*s_allowlist)[ash::prefs::kAccessibilityAutoclickDelayMs] =

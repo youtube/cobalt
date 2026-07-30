@@ -6,8 +6,7 @@
 #define CHROME_INSTALLER_UTIL_COPY_TREE_WORK_ITEM_H_
 
 #include "base/files/file_path.h"
-#include "base/files/scoped_temp_dir.h"
-#include "base/gtest_prod_util.h"
+#include "chrome/installer/util/file_conductor.h"
 #include "chrome/installer/util/work_item.h"
 
 // A WorkItem subclass that recursively copies a file system hierarchy from
@@ -37,16 +36,11 @@ class CopyTreeWorkItem : public WorkItem {
   // |dest_path|.
   CopyTreeWorkItem(const base::FilePath& source_path,
                    const base::FilePath& dest_path,
-                   const base::FilePath& temp_path,
-                   CopyOverWriteOption overwrite_option,
-                   const base::FilePath& alternative_path);
+                   const base::FilePath& temp_path);
 
   // WorkItem:
   bool DoImpl() override;
   void RollbackImpl() override;
-
-  // Checks if the path specified is in use (and hence can not be deleted)
-  static bool IsFileInUse(const base::FilePath& path);
 
   // Source path to copy files from.
   base::FilePath source_path_;
@@ -54,39 +48,7 @@ class CopyTreeWorkItem : public WorkItem {
   // Destination path to copy files to.
   base::FilePath dest_path_;
 
-  // Temporary directory that can be used.
-  base::FilePath temp_path_;
-
-  // Controls the behavior for overwriting.
-  CopyOverWriteOption overwrite_option_;
-
-  // If overwrite_option_ = NEW_NAME_IF_IN_USE, this variables stores the path
-  // to be used if the file is in use and hence we want to copy it to a
-  // different path.
-  base::FilePath alternative_path_;
-
-  // Whether the source was copied to dest_path_
-  bool copied_to_dest_path_;
-
-  // Whether the original files have been moved to backup path under
-  // temporary directory. If true, moving back is needed during rollback.
-  bool moved_to_backup_;
-
-  // Whether the source was copied to alternative_path_ because dest_path_
-  // existed and was in use. Needed during rollback.
-  bool copied_to_alternate_path_;
-
-  // The temporary directory into which the original dest_path_ has been moved.
-  base::ScopedTempDir backup_path_;
-
-  // Whether |backup_path_| was created.
-  bool backup_path_created_;
-
-  FRIEND_TEST_ALL_PREFIXES(CopyTreeWorkItemTest, CopyFileSameContent);
-  FRIEND_TEST_ALL_PREFIXES(CopyTreeWorkItemTest, CopyFileInUse);
-  FRIEND_TEST_ALL_PREFIXES(CopyTreeWorkItemTest, CopyFileAndCleanup);
-  FRIEND_TEST_ALL_PREFIXES(CopyTreeWorkItemTest, NewNameAndCopyTest);
-  FRIEND_TEST_ALL_PREFIXES(CopyTreeWorkItemTest, CopyFileInUseAndCleanup);
+  installer::FileConductor file_conductor_;
 };
 
 #endif  // CHROME_INSTALLER_UTIL_COPY_TREE_WORK_ITEM_H_

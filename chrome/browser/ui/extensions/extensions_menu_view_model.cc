@@ -552,7 +552,11 @@ ExtensionsMenuViewModel::ExtensionsMenuViewModel(
 }
 
 ExtensionsMenuViewModel::~ExtensionsMenuViewModel() {
+  // Stop observing to avoid notifications during destruction.
   WebContentsObserver::Observe(nullptr);
+  tab_list_interface_observation_.Reset();
+  toolbar_model_observation_.Reset();
+  permissions_manager_observation_.Reset();
 }
 
 void ExtensionsMenuViewModel::AddObserver(Observer* observer) {
@@ -729,6 +733,10 @@ void ExtensionsMenuViewModel::UpdateSiteSetting(
   const url::Origin& origin =
       GetActiveWebContents()->GetPrimaryMainFrame()->GetLastCommittedOrigin();
 
+  if (origin.opaque()) {
+    return;
+  }
+
   extensions::TabHelper::FromWebContents(web_contents)
       ->SetReloadRequired(site_setting);
   PermissionsManager::Get(browser_->GetProfile())
@@ -781,6 +789,16 @@ ExtensionsMenuViewModel::GetActionButtonState(
           : ExtensionsMenuViewModel::ControlState::Status::kDisabled;
   button_state.icon = action_model->GetIcon(web_contents, icon_size);
   return button_state;
+}
+
+ui::ImageModel ExtensionsMenuViewModel::GetActionIcon(
+    int action_index,
+    const gfx::Size& icon_size) {
+  CHECK_GE(action_index, 0);
+  CHECK_LT(static_cast<size_t>(action_index), action_models_.size());
+  content::WebContents* web_contents = GetActiveWebContents();
+
+  return action_models_[action_index]->GetIcon(web_contents, icon_size);
 }
 
 ExtensionsMenuViewModel::ControlState
@@ -953,6 +971,12 @@ ExtensionsMenuViewModel::SiteSettingsState
 ExtensionsMenuViewModel::GetSiteSettingsState() {
   content::WebContents* web_contents = GetActiveWebContents();
   Profile* profile = browser_->GetProfile();
+  ExtensionsMenuViewModel::SiteSettingsState site_settings;
+  if (!web_contents) {
+    site_settings.toggle.status = ControlState::Status::kHidden;
+    return site_settings;
+  }
+
   auto has_enterprise_extensions = [&]() {
     return std::any_of(
         toolbar_model_->action_ids().begin(),
@@ -965,7 +989,6 @@ ExtensionsMenuViewModel::GetSiteSettingsState() {
         });
   };
 
-  ExtensionsMenuViewModel::SiteSettingsState site_settings;
   std::u16string current_site =
       extensions::ui_util::GetFormattedHostForDisplay(*web_contents);
 
@@ -1228,10 +1251,16 @@ void ExtensionsMenuViewModel::OnToolbarPinnedActionsChanged() {
 }
 
 void ExtensionsMenuViewModel::OnActiveTabChanged(tabs::TabInterface* tab) {
+  if (!tab_list_interface_observation_.IsObserving()) {
+    return;
+  }
   auto* web_contents = tab->GetContents();
   WebContentsObserver::Observe(web_contents);
 
   OnWebContentsChanged(web_contents);
+}
+void ExtensionsMenuViewModel::OnTabListDestroyed(TabListInterface& tab_list) {
+  tab_list_interface_observation_.Reset();
 }
 
 void ExtensionsMenuViewModel::DidFinishNavigation(
@@ -1351,6 +1380,10 @@ void ExtensionsMenuViewModel::OnWebContentsChanged(
 }
 
 content::WebContents* ExtensionsMenuViewModel::GetActiveWebContents() {
-  auto* tab = TabListInterface::From(browser_)->GetActiveTab();
+  auto* tab_list = TabListInterface::From(browser_);
+  if (!tab_list) {
+    return nullptr;
+  }
+  auto* tab = tab_list->GetActiveTab();
   return tab ? tab->GetContents() : nullptr;
 }

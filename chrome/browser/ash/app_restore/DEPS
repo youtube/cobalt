@@ -38,7 +38,6 @@ include_rules = [
   "+chrome/common/chrome_features.h",
   "+chrome/common/chrome_switches.h",
   "+chrome/common/pref_names.h",
-  "+chrome/common/webui_url_constants.h",
   "+chrome/grit",
 ]
 
@@ -64,7 +63,6 @@ specific_include_rules = {
     "+chrome/browser/ui/browser_tabstrip.h",
     "+chrome/browser/ui/browser_window.h",
     "+chrome/browser/ui/browser_window/public",
-    "+chrome/browser/ui/settings_window_manager_chromeos.h",
     "+chrome/browser/ui/web_applications/test",
     "+chrome/browser/web_applications/test",
     "+chrome/test/base",

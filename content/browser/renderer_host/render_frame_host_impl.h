@@ -2689,6 +2689,10 @@ class CONTENT_EXPORT RenderFrameHostImpl
   void OnFirstContentfulPaint(base::TimeDelta duration) override;
   void NotifyFirstContentfulPaint();
   void SetStorageAccessApiStatus(net::StorageAccessApiStatus status) override;
+  std::unique_ptr<download::DownloadUrlParameters> CreateDownloadUrlParameters(
+      const GURL& url,
+      const net::NetworkTrafficAnnotationTag& traffic_annotation)
+      const override;
 
   void ReportNoBinderForInterface(const std::string& error);
 
@@ -3404,8 +3408,7 @@ class CONTENT_EXPORT RenderFrameHostImpl
   // in a NavigationController. See https://crbug.com/365039 for more details.
   virtual void SendBeforeUnload(bool is_reload,
                                 base::WeakPtr<RenderFrameHostImpl> impl,
-                                bool for_legacy,
-                                const bool is_renderer_initiated_navigation);
+                                bool for_legacy);
 
  private:
   friend class CommitNavigationPauser;

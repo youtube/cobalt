@@ -35,6 +35,18 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/browser/ui/views/tabs/tab_strip_combo_button.cc:AccidentalClickType) -->
 
+<!-- LINT.IfChange(AndroidTabMediaState) -->
+
+<enum name="AndroidTabMediaState">
+  <int value="0" label="None"/>
+  <int value="1" label="Muted"/>
+  <int value="2" label="Audible"/>
+  <int value="3" label="Recording"/>
+  <int value="4" label="Sharing"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/tab/java/src/org/chromium/chrome/browser/tab/Tab.java:AndroidTabMediaState) -->
+
 <!-- LINT.IfChange(AnimationFreezeCheckerState) -->
 
 <enum name="AnimationFreezeCheckerState">
@@ -504,6 +516,18 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/ui/tabs/tab_metrics_provider.h:VerticalTabsState) -->
+
+<!-- LINT.IfChange(VerticalTabStripEntryPoint) -->
+
+<enum name="VerticalTabStripEntryPoint">
+  <int value="0" label="AppMenu"/>
+  <int value="1" label="Settings"/>
+  <int value="2" label="SystemContextMenu"/>
+  <int value="3" label="TabContextMenu"/>
+  <int value="4" label="MacViewMenu"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_metrics.h:VerticalTabStripEntryPoint) -->
 
 </enums>
 

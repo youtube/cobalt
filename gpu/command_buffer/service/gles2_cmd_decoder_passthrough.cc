@@ -1196,7 +1196,7 @@ void GLES2DecoderPassthroughImpl::Destroy(bool have_context) {
   }
 
   if (have_context) {
-    api()->glDebugMessageCallbackFn(nullptr, nullptr);
+    api()->glDebugMessageCallbackKHRFn(nullptr, nullptr);
   }
 
   if (context_.get()) {
@@ -1300,12 +1300,8 @@ gpu::Capabilities GLES2DecoderPassthroughImpl::GetCapabilities() {
   caps.texture_norm16 = feature_info_->feature_flags().ext_texture_norm16;
   caps.texture_half_float_linear =
       feature_info_->feature_flags().enable_texture_half_float_linear;
-  caps.image_ycbcr_420v =
-      feature_info_->feature_flags().chromium_image_ycbcr_420v;
   caps.image_ar30 = feature_info_->feature_flags().chromium_image_ar30;
   caps.image_ab30 = feature_info_->feature_flags().chromium_image_ab30;
-  caps.image_ycbcr_p010 =
-      feature_info_->feature_flags().chromium_image_ycbcr_p010;
   if (feature_info_->workarounds().webgl_or_caps_max_texture_size) {
     caps.max_texture_size =
         std::min(caps.max_texture_size,
@@ -1320,7 +1316,6 @@ gpu::Capabilities GLES2DecoderPassthroughImpl::GetCapabilities() {
   // Technically, YUV readback is handled on the client side, but enable it here
   // so that clients can use this to detect support.
   caps.supports_yuv_readback = true;
-  caps.chromium_gpu_fence = feature_info_->feature_flags().chromium_gpu_fence;
   caps.mesa_framebuffer_flip_y =
       feature_info_->feature_flags().mesa_framebuffer_flip_y;
 
@@ -1998,9 +1993,8 @@ bool GLES2DecoderPassthroughImpl::LazySharedContextState::Initialize() {
       std::move(gl_context),
       /*use_virtualized_gl_contexts=*/false, base::DoNothing(),
       GrContextType::kGL);
-  auto feature_info = base::MakeRefCounted<gles2::FeatureInfo>(
-      workarounds, group->gpu_feature_info());
-  if (!shared_context_state_->InitializeGL(gpu_preferences, feature_info)) {
+  if (!shared_context_state_->InitializeGL(gpu_preferences, workarounds,
+                                           group->gpu_feature_info())) {
     impl_->InsertError(GL_INVALID_OPERATION,
                        "ContextResult::kFatalFailure: Failed to Initialize GL "
                        "for SharedContextState");

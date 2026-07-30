@@ -5,7 +5,7 @@
 import 'chrome://new-tab-page/new_tab_page.js';
 
 import type {SearchboxElement, SearchboxIconElement, SearchboxMatchElement} from 'chrome://new-tab-page/new_tab_page.js';
-import {$$, BrowserProxyImpl, MetricsReporterImpl, PlaceholderTextCycler, SearchboxBrowserProxy} from 'chrome://new-tab-page/new_tab_page.js';
+import {$$, BrowserProxyImpl, MetricsReporterImpl, SearchboxBrowserProxy} from 'chrome://new-tab-page/new_tab_page.js';
 import {createAutocompleteMatch, createAutocompleteResultForTesting, createSearchMatchForTesting} from 'chrome://resources/cr_components/searchbox/searchbox_browser_proxy.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {PageMetricsCallbackRouter} from 'chrome://resources/js/metrics_reporter.mojom-webui.js';
@@ -21,7 +21,7 @@ import {fakeMetricsPrivate} from 'chrome://webui-test/metrics_test_support.js';
 import {TestMock} from 'chrome://webui-test/test_mock.js';
 import {eventToPromise, isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
-import {assertStyle, waitForAttributeChange} from './searchbox_test_utils.js';
+import {assertStyle} from './searchbox_test_utils.js';
 import {TestSearchboxBrowserProxy} from './test_searchbox_browser_proxy.js';
 
 enum Attributes {
@@ -170,9 +170,12 @@ suite('NewTabPageRealboxTest', () => {
   let realbox: SearchboxElement;
   let testProxy: TestSearchboxBrowserProxy;
   let testMetricsReporterProxy: TestMock<BrowserProxyImpl>;
+  let metrics: MetricsTracker;
 
   setup(async () => {
-    ({realbox, testProxy, testMetricsReporterProxy} = await setupRealboxTest());
+    ({realbox, testProxy, testMetricsReporterProxy, metrics} =
+         await setupRealboxTest());
+    window.open = () => null;
   });
 
   // TODO(crbug.com/328270499): Uncomment once flakiness is fixed.
@@ -397,6 +400,38 @@ suite('NewTabPageRealboxTest', () => {
 
     // Assert.
     await whenOpenComposeBox;
+  });
+
+  test('clicking composebox button with text records user action', async () => {
+    // Arrange.
+    realbox = await createAndAppendRealbox(
+        {composeButtonEnabled: true, composeboxEnabled: true});
+    realbox.$.input.value = 'hello';
+
+    // Act.
+    const composeButton =
+        realbox.shadowRoot.querySelector<HTMLElement>('#composeButton');
+    assertTrue(!!composeButton);
+
+    const eventDetail: ClickEventDetail = {
+      button: 0,
+      ctrlKey: false,
+      metaKey: false,
+      shiftKey: false,
+    };
+    composeButton.dispatchEvent(new CustomEvent('compose-click', {
+      detail: eventDetail,
+      bubbles: true,
+      composed: true,
+    }));
+
+    // Assert.
+    const metricName =
+        'ContextualSearch.UserAction.SubmitQuery.WithoutContext.NewTabPage';
+    // One histogram and one action metric should be emitted.
+    assertEquals(2, metrics.count(metricName));
+    // Only one histogram should be recorded.
+    assertEquals(1, metrics.count(metricName, true));
   });
 
   test('hovering on composebox button plays the animation.', async () => {
@@ -3084,31 +3119,6 @@ suite('NewTabPageRealboxTest', () => {
   });
 });
 
-suite('PlaceholderTextCyclerTest', () => {
-  let testInputElement: HTMLInputElement;
-
-  setup(() => {
-    document.body.innerHTML = window.trustedTypes!.emptyHTML;
-    testInputElement = document.createElement('input');
-    testInputElement.type = 'text';
-    document.body.appendChild(testInputElement);
-  });
-
-  test('start and stop cycling input placeholder', async () => {
-    const sampleTransitionPlaceholder = 'Make a plan';
-    const placeholderTextCycler: PlaceholderTextCycler =
-        new PlaceholderTextCycler(
-            testInputElement, ['Ask Google', sampleTransitionPlaceholder], 50,
-            25);
-    placeholderTextCycler.start();
-    const text =
-        await waitForAttributeChange(testInputElement, 'placeholder', '');
-    assertEquals(sampleTransitionPlaceholder, text);
-
-    placeholderTextCycler.stop();
-  });
-});
-
 suite('NewTabPageRealboxTabsTest', () => {
   let realbox: SearchboxElement;
   let testProxy: TestSearchboxBrowserProxy;
@@ -3225,8 +3235,13 @@ suite('NewTabPageRealboxNextTest', () => {
     const contextElement =
         realbox.shadowRoot.querySelector('contextual-entrypoint-and-carousel');
     assertTrue(!!contextElement);
-    const contextMenuEntrypoint = contextElement.shadowRoot.querySelector(
-        'cr-composebox-context-menu-entrypoint');
+    const entrypointAndMenu =
+        contextElement.shadowRoot.querySelector(
+            'cr-composebox-contextual-entrypoint-and-menu');
+    assertTrue(!!entrypointAndMenu);
+    const contextMenuEntrypoint =
+        entrypointAndMenu.shadowRoot.querySelector(
+            'cr-composebox-context-menu-entrypoint');
     assertTrue(!!contextMenuEntrypoint);
 
     testProxy.handler.setResultFor(
@@ -3268,8 +3283,13 @@ suite('NewTabPageRealboxNextTest', () => {
     const contextElement =
         realbox.shadowRoot.querySelector('contextual-entrypoint-and-carousel');
     assertTrue(!!contextElement);
-    const contextMenuEntrypoint = contextElement.shadowRoot.querySelector(
-        'cr-composebox-context-menu-entrypoint');
+    const entrypointAndMenu =
+        contextElement.shadowRoot.querySelector(
+            'cr-composebox-contextual-entrypoint-and-menu');
+    assertTrue(!!entrypointAndMenu);
+    const contextMenuEntrypoint =
+        entrypointAndMenu.shadowRoot.querySelector(
+            'cr-composebox-context-menu-entrypoint');
     assertTrue(!!contextMenuEntrypoint);
 
     testProxy.handler.setResultFor(

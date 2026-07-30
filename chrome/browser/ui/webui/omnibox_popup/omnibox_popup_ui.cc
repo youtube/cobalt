@@ -64,6 +64,11 @@ bool OmniboxPopupUIConfig::IsWebUIEnabled(
          base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxPopup);
 }
 
+bool OmniboxPopupUIConfig::ShouldCrashOnJavascriptErrorInDevelopmentBuild()
+    const {
+  return true;
+}
+
 OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
     : TopChromeWebUIController(web_ui,
                                true /* Needed for webui browser tests */),
@@ -79,6 +84,9 @@ OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
   source->AddBoolean(
       "omniboxPopupDebugEnabled",
       base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxPopupDebug));
+  source->AddBoolean("webuiOmniboxPopupSelectionControlEnabled",
+                     base::FeatureList::IsEnabled(
+                         omnibox::kWebUIOmniboxPopupSelectionControl));
 
   source->AddBoolean("reportMetrics", true);
   source->AddString("charTypedToPaintMetricName",

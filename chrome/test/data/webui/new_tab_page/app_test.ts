@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {ActionChipsHandlerRemote, ChipType, PageCallbackRouter as ActionChipsPageCallbackRouter} from 'chrome://new-tab-page/action_chips.mojom-webui.js';
+import {ActionChipsHandlerRemote, IconType, PageCallbackRouter as ActionChipsPageCallbackRouter} from 'chrome://new-tab-page/action_chips.mojom-webui.js';
 import type {PageRemote as ActionChipsPageRemote, TabInfo} from 'chrome://new-tab-page/action_chips.mojom-webui.js';
 import type {CustomizeButtonsDocumentRemote} from 'chrome://new-tab-page/customize_buttons.mojom-webui.js';
 import {CustomizeButtonsDocumentCallbackRouter, CustomizeButtonsHandlerRemote, SidePanelOpenTrigger} from 'chrome://new-tab-page/customize_buttons.mojom-webui.js';
@@ -2298,21 +2298,21 @@ suite('NewTabPageAppTest', () => {
             title: 'TabContext',
             subtitle: 'tab-subtitle',
             suggestion: 'tab-suggestion',
-            type: ChipType.kRecentTab,
+            suggestTemplateInfo: {typeIcon: IconType.kFavicon},
             tab: fakeTab,
           },
           {
             title: 'Nano Banana',
             subtitle: 'image-subtitle',
             suggestion: 'image-suggestion',
-            type: ChipType.kImage,
+            suggestTemplateInfo: {typeIcon: IconType.kBanana},
             tab: null,
           },
           {
             title: 'DeepSearch',
             subtitle: 'ds-subtitle',
             suggestion: 'ds-suggestion',
-            type: ChipType.kDeepSearch,
+            suggestTemplateInfo: {typeIcon: IconType.kGlobeWithSearchLoop},
             tab: null,
           },
         ]);
@@ -2469,7 +2469,7 @@ suite('NewTabPageAppTest', () => {
             title: 'Deep dive',
             subtitle: subtitle,
             suggestion: suggestion,
-            type: ChipType.kDeepDive,
+            suggestTemplateInfo: {typeIcon: IconType.kSubArrowRight},
             tab: {
               tabId: 1,
               title: 'Test Title',
@@ -2809,5 +2809,35 @@ suite('NewTabPageAppReducedMotionTest', () => {
                 'none');
           });
     });
+  });
+
+  suite('ReducedMotionIntegration', () => {
+    setup(() => {
+      loadTimeData.overrideValues({
+        ntpNextFeaturesEnabled: true,
+        ntpRealboxNextEnabled: true,
+        actionChipsEnabled: true,
+      });
+      createSetup();
+    });
+
+    test(
+        'action chips receive reduced-motion-preferred attribute', async () => {
+          setReducedMotionPreference(true);
+          await createAndAppendApp();
+
+          const actionChips = app.shadowRoot.querySelector('ntp-action-chips')!;
+          assertTrue(actionChips.hasAttribute('reduced-motion-preferred'));
+        });
+
+    test(
+        'action chips do not have reduced-motion-preferred attr. when disabled',
+        async () => {
+          setReducedMotionPreference(false);
+          await createAndAppendApp();
+
+          const actionChips = app.shadowRoot.querySelector('ntp-action-chips')!;
+          assertFalse(actionChips.hasAttribute('reduced-motion-preferred'));
+        });
   });
 });

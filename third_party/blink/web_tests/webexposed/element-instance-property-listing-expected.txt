@@ -250,7 +250,6 @@ namespace http://www.w3.org/1999/xhtml
     property onmouseover
     property onmouseup
     property onmousewheel
-    property onoverscroll
     property onpaste
     property onpause
     property onplay
@@ -455,6 +454,7 @@ html element audio
     property error
     property latencyHint
     property load
+    property loading
     property loop
     property mediaKeys
     property muted
@@ -552,6 +552,7 @@ html element canvas
     property getElementTransform
     property height
     property layoutSubtree
+    property onpaint
     property toBlob
     property toDataURL
     property transferControlToOffscreen
@@ -807,6 +808,7 @@ html element input
     property formMethod
     property formNoValidate
     property formTarget
+    property getValueRange
     property height
     property incremental
     property indeterminate
@@ -1153,7 +1155,6 @@ html element td
     property width
 html element template
     property content
-    property parseparts
     property shadowRootClonable
     property shadowRootCustomElementRegistry
     property shadowRootDelegatesFocus
@@ -1167,6 +1168,7 @@ html element textarea
     property dirName
     property disabled
     property form
+    property getValueRange
     property labels
     property maxLength
     property minLength
@@ -1297,6 +1299,7 @@ html element video
     property height
     property latencyHint
     property load
+    property loading
     property loop
     property mediaKeys
     property muted
@@ -1564,7 +1567,6 @@ namespace http://www.w3.org/2000/svg
     property onmouseover
     property onmouseup
     property onmousewheel
-    property onoverscroll
     property onpaste
     property onpause
     property onplay

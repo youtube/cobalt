@@ -344,8 +344,8 @@ std::unique_ptr<net::test_server::HttpResponse> CronetTestRequestHandler(
 namespace cronet {
 
 static long JNI_NativeTestServer_Create(JNIEnv* env,
-                                        std::string& test_files_root,
-                                        std::string& test_data_dir,
+                                        const std::string& test_files_root,
+                                        const std::string& test_data_dir,
                                         net::EmbeddedTestServer::Type type) {
   base::InitAndroidTestPaths(base::FilePath(test_data_dir));
   return reinterpret_cast<long>(
@@ -378,7 +378,7 @@ EmbeddedTestServerAdapter::~EmbeddedTestServerAdapter() = default;
 
 void EmbeddedTestServerAdapter::EnableConnectProxy(
     JNIEnv* env,
-    std::vector<std::string>& urls) {
+    const std::vector<std::string>& urls) {
   std::vector<net::HostPortPair> destinations;
   for (auto& url : urls) {
     destinations.push_back(net::HostPortPair::FromURL(GURL(url)));
@@ -452,7 +452,7 @@ std::string EmbeddedTestServerAdapter::GetFileURL(
 
 void EmbeddedTestServerAdapter::RegisterRequestHandler(
     JNIEnv* env,
-    std::unique_ptr<NativeTestServerHandleRequestCallback>& callback) {
+    std::unique_ptr<NativeTestServerHandleRequestCallback>&& callback) {
   test_server.RegisterRequestHandler(
       base::BindRepeating(&NativeTestServerHandleRequestCallback::operator(),
                           base::Owned(std::move(callback))));

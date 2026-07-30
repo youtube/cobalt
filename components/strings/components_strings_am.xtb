@@ -1060,6 +1060,7 @@
 <translation id="2674524144218093528">የቤት ቀለም እና ማስዋቢያዎች</translation>
 <translation id="26774279487328902"><ph name="GROUP_COUNT" /> የትር ቡድኖች ከእንግዲህ አይገኙም</translation>
 <translation id="2677748264148917807">ለቅቀህ ውጣ</translation>
+<translation id="2679659833697380">መረጃዎ በመሣሪያዎ ላይ ተቀምጧል</translation>
 <translation id="2683195745483370038">ሌሎች ውጤቶች ተገኝተዋል</translation>
 <translation id="2686919536310834199">ለእንድጽፍ እርዳኝ ግብረመልስ ይላኩ።</translation>
 <translation id="2687555958734450033">ምርጥ መገጣጠም</translation>
@@ -2573,6 +2574,7 @@
 <translation id="5114987907971894280">ምናባዊ እውነታ</translation>
 <translation id="5115232566827194440">የተገደበ የሚተዳደር የእንግዳ ክፍለ ጊዜ መሻር</translation>
 <translation id="5115563688576182185">(64-ቢት)</translation>
+<translation id="5116015291385561204">ልዩ ጥንቃቄ የሚያስፈልገው መረጃን በራስ-ሰር ለመሙላት እርስዎ መሆንዎን ያረጋግጡ</translation>
 <translation id="5120526915373271910">የቤተሰብ ፊልሞች</translation>
 <translation id="5122786942953798871">ፖስታ (ጥጥ)</translation>
 <translation id="5123063207673082822">የሳምንት እረፍት ቀን</translation>
@@ -3973,6 +3975,7 @@
 <translation id="7372973238305370288">የፍለጋ ውጤት</translation>
 <translation id="7374461526650987610">የፕሮቶኮል ተቆጣጣሪዎች</translation>
 <translation id="7374733840632556089">ይህ ችግር የተፈጠረው በእርስዎ ወይም በሌላ ሰው በእርስዎ መሣሪያ ላይ በተጫነ የዕውቅና ማረጋገጫ ምክንያት ነው። ይህ የዕውቅና ማረጋገጫ አውታረ መረቦችን እንደሚከታተል እና አቋርጦ እንደሚገባ የታወቀ ነው እና በChrome የታመነ አይደለም። ክትትል ለማድረግ እንደ ትምህርት ቤት ወይም የኩባንያ አውታረ መረብ በመሳሰሉ አንዳንድ ሕጋዊ አስፈላጊ ምክንያቶች ቢኖሩም Chrome ይህ እየተፈጠረ እንዳለ ምንም እንኳ እርስዎ ሊያስቆሙት ባይችሉም እንዲያውቁት ማድረግ ይፈልጋል። ክትትል ማድረግ በማናቸውም ድሩን በሚደርስ አሳሽ ወይም መተግበሪያ ላይ ሊያጋጥም ይችል ይሆናል።</translation>
+<translation id="73750335798090836">ለተጨማሪ ጥበቃ፣ እንደ የጉዞ እና የማንነት ሰነዶች ያሉ ልዩ ጥንቃቄ የሚያስፈልገው መረጃን ሲጠቀሙ ሁልጊዜም የጣት አሻራ፣ መልክ ወይም ሌላ ማያ ገጽ መቆለፊያ ይጠቀሙ</translation>
 <translation id="7375532151824574023">{NUM_COOKIES,plural, =0{ምንም ጣቢያዎች አልፈቀዱም}=1{1 ጣቢያ ፈቅዷል}one{# ጣቢያ ፈቅዷል}other{# ጣቢያዎች ፈቅደዋል}}</translation>
 <translation id="7375818412732305729">ፋይል ተያይዟል</translation>
 <translation id="7376031331622621328">የንግድ የግርጌ ሉህ</translation>
@@ -4229,6 +4232,7 @@
 <translation id="7714404809393719981">ፎቶ (በግማሽ አንጸባራቂ)</translation>
 <translation id="7714424966701020172">የሙሉ ስም ይሙሉ አማራጭ ተመርጧል</translation>
 <translation id="7714464543167945231">ሰርቲፊኬት</translation>
+<translation id="7714943438925794410">እነዚህን አማራጮች ለማቅረብ ከክፍያ ማጠናቀቂያ ገጽ ላይ የመጣ ይዘት ከGoogle ጋር ይጋራል። በራስ-ሙላ ውስጥ የበኋላ ላይ መክፈል አማራጮችን ለመደበቅ ወደ <ph name="IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_FOOTNOTE_HIDE_OPTION_PAYMENT_SETTINGS_LINK_TEXT" /> ይሂዱ።</translation>
 <translation id="7716147886133743102">በእርስዎ አስተዳዳሪ ታግዷል</translation>
 <translation id="7716375162095500223">እስካሁን አልተሰቀለም ወይም ችላ ተብሏል</translation>
 <translation id="7716424297397655342">ይህ ጣቢያ ከመሸጎጫው ላይ ሊጫን አይችልም</translation>
@@ -4311,6 +4315,7 @@
 <translation id="7862306158978555061">ልዩ ጥንቃቄ የሚያስፈልገው መረጃን አሳይ</translation>
 <translation id="7865448901209910068">ምርጥ ፍጥነት</translation>
 <translation id="7865482168955081228">የአሁን ይግዙ፣ በኋላ ይክፈሉ ስሕተት ማያ ገጽ ተዘግቷል።</translation>
+<translation id="7870207318911766769">እነዚህን አማራጮች ለማቅረብ ከክፍያ ማጠናቀቂያ ገጽ ላይ የመጣ ይዘት ከGoogle ጋር ይጋራል።</translation>
 <translation id="7870281855125116701">የዋጋ ቅናሽ ተገኝቷል</translation>
 <translation id="7871445724586827387">የGoogle መለያ የይለፍ ቃልዎን ይለውጡ</translation>
 <translation id="787226752901403048">የትር ቡድኖችን ለማጋራት እና ለመቀላቀል እና በሐሳቦች ላይ አንድ ላይ ለመሥራት ወደ Chrome ይግቡ</translation>

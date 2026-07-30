@@ -33,6 +33,8 @@ BASE_FEATURE(kBrowserWidgetCacheThemeService,
 BASE_FEATURE(kCreateNewTabGroupAppMenuTopLevel,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kDesktopGlowUp, base::FEATURE_DISABLED_BY_DEFAULT);
+
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 BASE_FEATURE(kDseIntegrity, base::FEATURE_ENABLED_BY_DEFAULT);
 // Enables the feature to remove the last confirmation dialog when relaunching
@@ -255,6 +257,16 @@ BASE_FEATURE(kThreeButtonPasswordSaveDialog, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kToolbarHeightSidePanel, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kSidePanelFlyoverAnimation, base::FEATURE_ENABLED_BY_DEFAULT);
+bool UseSidePanelFlyoverAnimation() {
+#if BUILDFLAG(IS_MAC)
+  // Mac can smoothly resize contents and does not need flyover.
+  return false;
+#else
+  return base::FeatureList::IsEnabled(kSidePanelFlyoverAnimation);
+#endif
+}
+
 // Enables enterprise profile badging for managed profiles on the toolbar avatar
 // and in the profile menu. On managed profiles, a building icon will be used as
 // a badge in the profile menu.
@@ -343,24 +355,6 @@ BASE_FEATURE_PARAM(bool,
                    &kPageActionsMigration,
                    "enable_all",
                    false);
-
-BASE_FEATURE_PARAM(bool,
-                   kPageActionsMigrationLensOverlay,
-                   &kPageActionsMigration,
-                   "lens_overlay",
-                   true);
-
-BASE_FEATURE_PARAM(bool,
-                   kPageActionsMigrationMemorySaver,
-                   &kPageActionsMigration,
-                   "memory_saver",
-                   true);
-
-BASE_FEATURE_PARAM(bool,
-                   kPageActionsMigrationTranslate,
-                   &kPageActionsMigration,
-                   "translate",
-                   true);
 
 BASE_FEATURE_PARAM(bool,
                    kPageActionsMigrationIntentPicker,

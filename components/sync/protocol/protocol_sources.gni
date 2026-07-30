@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 sync_protocol_sources = [
+  "accessibility_annotation_specifics.proto",
   "account_setting_specifics.proto",
   "ai_thread_specifics.proto",
   "app_list_specifics.proto",
@@ -77,8 +78,8 @@ sync_protocol_sources = [
   "sync_invalidations_payload.proto",
   "tab_group_attribution_metadata.proto",
   "test.proto",
+  "theme_ios_specifics.proto",
   "theme_specifics.proto",
-  "theme_specifics_ios.proto",
   "theme_types.proto",
   "typed_url_specifics.proto",
   "unencrypted_sharing_message.proto",

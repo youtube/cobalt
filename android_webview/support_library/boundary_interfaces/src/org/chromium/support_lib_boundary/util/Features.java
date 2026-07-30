@@ -296,6 +296,13 @@ public class Features {
     // Profile.clearPrefetch
     public static final String PREFETCH_WITH_URL = "PREFETCH_URL_V5";
 
+    // Profile.setMaxPrefetches
+    // Profile.setPrefetchTtlSeconds
+    public static final String PREFETCH_CACHE = "PREFETCH_CACHE_V1";
+
+    // Profile.setMaxPrerenders
+    public static final String SET_MAX_PRERENDERS = "SET_MAX_PRERENDERS_V1";
+
     // WebviewCompat.setDefaultTrafficStatsTag
     // WebviewCompat.setDefaultTrafficStatsUid
     public static final String DEFAULT_TRAFFICSTATS_TAGGING = "DEFAULT_TRAFFICSTATS_TAGGING";
@@ -305,6 +312,10 @@ public class Features {
     // WebViewStartUpResult.getAsyncStartUpLocations
     public static final String ASYNC_WEBVIEW_STARTUP_ASYNC_STARTUP_LOCATIONS =
             "ASYNC_WEBVIEW_STARTUP_ASYNC_STARTUP_LOCATIONS";
+
+    // WebViewCompat.startUpWebView
+    // WebViewStartUpResult.getAsyncStartUpLocations
+    public static final String ASYNC_WEBVIEW_STARTUP_V2 = "ASYNC_WEBVIEW_STARTUP_V2";
 
     // WebViewCompat.prerenderUrl
     // WebViewCompat.clearPrerender

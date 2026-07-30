@@ -79,8 +79,7 @@ class WebApp {
   WebApp(const webapps::ManifestId& manifest_id,
          const GURL& start_url,
          const GURL& scope,
-         std::optional<webapps::AppId> parent_app_id = std::nullopt,
-         std::optional<webapps::ManifestId> parent_manifest_id = std::nullopt);
+         std::optional<webapps::AppId> parent_app_id = std::nullopt);
 
   // Create a web app object from just the incoming sync data.
   // Callers are responsible for sanitizing the inputs in the sync_proto,
@@ -517,7 +516,6 @@ class WebApp {
   void SetManifestUpdateTime(const base::Time& time);
   void SetRunOnOsLoginMode(RunOnOsLoginMode mode);
   void SetManifestUrl(const GURL& manifest_url);
-  void SetManifestId(const webapps::ManifestId& manifest_id);
   void SetWindowControlsOverlayEnabled(bool enabled);
   void SetLaunchHandler(std::optional<LaunchHandler> launch_handler);
   void SetParentAppId(const std::optional<webapps::AppId>& parent_app_id);
@@ -644,13 +642,9 @@ class WebApp {
   friend std::unique_ptr<proto::WebApp> WebAppToProto(const WebApp& web_app);
   friend std::ostream& operator<<(std::ostream&, const WebApp&);
 
-  // TODO(http://crbug.com/384536509): Remove this after migrating parent_app_id
-  // in the database to parent_manifest_id.
-  WebApp(const webapps::AppId& app_id,
-         const webapps::ManifestId& manifest_id,
-         const GURL& start_url,
-         const GURL& scope,
-         std::optional<webapps::AppId> parent_app_id);
+  // This shouldn't be a public API. If the `manifest_id` needs to be set for a
+  // web app, use the constructors to do so.
+  void SetManifestId(const webapps::ManifestId& manifest_id);
 
   // LINT.IfChange(MemberVariables)
   webapps::AppId app_id_;

@@ -8,6 +8,7 @@
 
 #include "base/command_line.h"
 #include "chrome/browser/dom_distiller/tab_utils.h"
+#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/read_anything/read_anything_controller.h"
 #include "chrome/browser/ui/read_anything/read_anything_enums.h"
@@ -22,6 +23,7 @@
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_id.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_enums.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
+#include "components/feature_engagement/public/feature_constants.h"
 #include "components/prefs/pref_filter.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switches.h"
@@ -172,7 +174,7 @@ void ReadAnythingEntryPointController::UpdatePageActionVisibility(
     base::OnceCallback<void(user_education::FeaturePromoResult promo_result)>
         show_promo_callback) {
   if (!base::FeatureList::IsEnabled(features::kPageActionsMigration) ||
-      !features::IsReadAnythingOmniboxChipEnabled()) {
+      !features::IsReadAnythingOmniboxChipEnabled() || !bwi) {
     return;
   }
 
@@ -203,6 +205,13 @@ void ReadAnythingEntryPointController::UpdatePageActionVisibility(
 bool ReadAnythingEntryPointController::CheckIfShouldSuggestReadingModeNaive(
     BrowserWindowInterface* bwi) {
   if (!features::IsReadAnythingOmniboxChipEnabled() || !bwi) {
+    return false;
+  }
+
+  // Disable the omnibox on app windows, as these windows don't usually have
+  // omnibox support.
+  Browser* browser = bwi->GetBrowserForMigrationOnly();
+  if (browser && (browser->is_type_app() || browser->is_type_app_popup())) {
     return false;
   }
 

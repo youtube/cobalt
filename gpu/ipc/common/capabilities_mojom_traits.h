@@ -45,17 +45,11 @@ struct GPU_IPC_COMMON_EXPORT StructTraits<gpu::mojom::CapabilitiesDataView,
   static bool texture_half_float_linear(const gpu::Capabilities& cap) {
     return cap.texture_half_float_linear;
   }
-  static bool image_ycbcr_420v(const gpu::Capabilities& cap) {
-    return cap.image_ycbcr_420v;
-  }
   static bool image_ar30(const gpu::Capabilities& cap) {
     return cap.image_ar30;
   }
   static bool image_ab30(const gpu::Capabilities& cap) {
     return cap.image_ab30;
-  }
-  static bool image_ycbcr_p010(const gpu::Capabilities& cap) {
-    return cap.image_ycbcr_p010;
   }
   static bool render_buffer_format_bgra8888(const gpu::Capabilities& cap) {
     return cap.render_buffer_format_bgra8888;
@@ -66,17 +60,11 @@ struct GPU_IPC_COMMON_EXPORT StructTraits<gpu::mojom::CapabilitiesDataView,
   static bool avoid_stencil_buffers(const gpu::Capabilities& cap) {
     return cap.avoid_stencil_buffers;
   }
-  static bool disable_2d_canvas_copy_on_write(const gpu::Capabilities& cap) {
-    return cap.disable_2d_canvas_copy_on_write;
-  }
   static bool supports_rgb_to_yuv_conversion(const gpu::Capabilities& cap) {
     return cap.supports_rgb_to_yuv_conversion;
   }
   static bool supports_yuv_readback(const gpu::Capabilities& cap) {
     return cap.supports_yuv_readback;
-  }
-  static bool chromium_gpu_fence(const gpu::Capabilities& cap) {
-    return cap.chromium_gpu_fence;
   }
   static bool mesa_framebuffer_flip_y(const gpu::Capabilities& cap) {
     return cap.mesa_framebuffer_flip_y;
@@ -87,10 +75,6 @@ struct GPU_IPC_COMMON_EXPORT StructTraits<gpu::mojom::CapabilitiesDataView,
   }
   static bool using_vulkan_context(const gpu::Capabilities& cap) {
     return cap.using_vulkan_context;
-  }
-  static const base::flat_set<viz::SharedImageFormat>& mappable_formats(
-      const gpu::Capabilities& cap) {
-    return cap.mappable_formats;
   }
   static const base::flat_map<uint32_t, std::vector<uint64_t>>&
   drm_formats_and_modifiers(const gpu::Capabilities& cap) {

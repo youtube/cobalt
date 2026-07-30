@@ -7,6 +7,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/extensions/extensions_menu_view_model.h"
 #include "chrome/browser/ui/views/extensions/extensions_menu_handler.h"
+#include "third_party/skia/include/core/SkBitmap.h"
 
 #ifndef CHROME_BROWSER_UI_ANDROID_EXTENSIONS_EXTENSIONS_MENU_DELEGATE_ANDROID_H_
 #define CHROME_BROWSER_UI_ANDROID_EXTENSIONS_EXTENSIONS_MENU_DELEGATE_ANDROID_H_
@@ -29,9 +30,13 @@ class ExtensionsMenuDelegateAndroid : public ExtensionsMenuViewModel::Delegate,
 
   // JNI implementations:
   void Destroy(JNIEnv* env);
+  base::android::ScopedJavaLocalRef<jobject> GetActionIcon(JNIEnv* env,
+                                                           int action_index);
   std::vector<base::android::ScopedJavaLocalRef<jobject>> GetMenuEntries(
       JNIEnv* env);
+  base::android::ScopedJavaLocalRef<jobject> GetSiteSettings(JNIEnv* env);
   bool IsReady(JNIEnv* env);
+  void OnSiteSettingsToggleChanged(JNIEnv* env, bool is_checked);
 
   // ExtensionsMenuViewModel::Delegate:
   std::unique_ptr<ExtensionActionViewModel> CreateActionViewModel(

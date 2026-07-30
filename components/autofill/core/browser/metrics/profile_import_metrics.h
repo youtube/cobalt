@@ -5,6 +5,7 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_METRICS_PROFILE_IMPORT_METRICS_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_METRICS_PROFILE_IMPORT_METRICS_H_
 
+#include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/form_import/addresses/autofill_profile_import_process.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "services/metrics/public/cpp/ukm_recorder.h"
@@ -250,6 +251,17 @@ void LogZipCodeLengthMetric(std::u16string_view zip);
 // Logs the specific zip code separator char found in a valid and complete
 // profile considered for import.
 void LogZipCodeSeparatorMetric(std::u16string_view zip);
+
+// Logs the `user_decision` regarding a save prompt, but splits the decision
+// based on the `submission_source`. Only logs metrics for specific values of
+// `user_decision` and `submission_source`.
+void LogNewProfileUserDecisionPerSubmissionSourceMetric(
+    AutofillClient::AddressPromptUserDecision user_decision,
+    mojom::SubmissionSource submission_source);
+
+// Logs that `field_type` was removed from a profile on import because the
+// value of this type is a placeholder.
+void LogRemovedPlaceholderValue(FieldType field_type);
 
 }  // namespace autofill::autofill_metrics
 

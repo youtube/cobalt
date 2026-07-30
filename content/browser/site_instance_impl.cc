@@ -202,7 +202,7 @@ scoped_refptr<SiteInstanceImpl> SiteInstanceImpl::CreateForServiceWorker(
                                       /* allow_default_instance */ false);
 
   DCHECK(!site_instance->GetSiteInfo().is_error_page());
-  DCHECK_EQ(site_instance->IsGuest(), is_guest);
+  DCHECK_EQ(site_instance->GetSecurityPrincipal().IsGuest(), is_guest);
   site_instance->is_for_service_worker_ = true;
 
   // Attempt to reuse a renderer process if possible. Note that in the
@@ -265,7 +265,7 @@ scoped_refptr<SiteInstanceImpl> SiteInstanceImpl::CreateForFencedFrame(
   scoped_refptr<SiteInstanceImpl> site_instance =
       base::WrapRefCounted(new SiteInstanceImpl(new BrowsingInstance(
           browser_context, embedder_site_instance->GetWebExposedIsolationInfo(),
-          embedder_site_instance->IsGuest(),
+          embedder_site_instance->GetSecurityPrincipal().IsGuest(),
           /*is_fenced=*/should_isolate_fenced_frames,
           embedder_site_instance->IsFixedStoragePartition())));
 
@@ -281,7 +281,7 @@ scoped_refptr<SiteInstanceImpl> SiteInstanceImpl::CreateForFencedFrame(
   // have a SiteInfo with is_fenced set to true).
   if (!embedder_site_instance->IsDefaultSiteInstance()) {
     site_instance->SetSite(embedder_site_instance->GetSiteInfo());
-  } else if (embedder_site_instance->IsGuest()) {
+  } else if (embedder_site_instance->GetSecurityPrincipal().IsGuest()) {
     // For guests, in the case where the embedder is not a default SiteInstance,
     // we reuse the embedder's SiteInfo above. When the embedder is
     // a default SiteInstance, we explicitly create a SiteInfo through
@@ -292,9 +292,11 @@ scoped_refptr<SiteInstanceImpl> SiteInstanceImpl::CreateForFencedFrame(
     // below.
     DCHECK(!should_isolate_fenced_frames);
     site_instance->SetSite(SiteInfo::CreateForGuest(
-        browser_context, embedder_site_instance->GetStoragePartitionConfig()));
+        browser_context, embedder_site_instance->GetSecurityPrincipal()
+                             .GetStoragePartitionConfig()));
   }
-  DCHECK_EQ(embedder_site_instance->IsGuest(), site_instance->IsGuest());
+  DCHECK_EQ(embedder_site_instance->GetSecurityPrincipal().IsGuest(),
+            site_instance->GetSecurityPrincipal().IsGuest());
   if (embedder_site_instance->HasProcess()) {
     site_instance->ReuseExistingProcessIfPossible(
         embedder_site_instance->GetProcess());
@@ -635,9 +637,9 @@ void SiteInstanceImpl::SetSiteInfoInternal(const SiteInfo& site_info) {
   CHECK_EQ(site_info.web_exposed_isolation_info(),
            browsing_instance_->web_exposed_isolation_info());
 
-  if (verify_storage_partition_info_) {
-    auto old_partition_config = site_info_.storage_partition_config();
-    auto new_partition_config = site_info.storage_partition_config();
+  if (has_accessed_unassigned_site_info_) {
+    auto old_partition_config = site_info_.GetStoragePartitionConfig();
+    auto new_partition_config = site_info.GetStoragePartitionConfig();
     CHECK_EQ(old_partition_config, new_partition_config);
   }
   // Remember that this SiteInstance has been used to load a URL, even if the
@@ -738,7 +740,7 @@ void SiteInstanceImpl::ConvertToDefaultOrSetSite(const UrlInfo& url_info) {
         SiteInfo::Create(GetIsolationContext(), updated_url_info);
     if (CanBePlacedInDefaultSiteInstanceOrGroup(
             GetIsolationContext(), updated_url_info.url, site_info)) {
-      SetSiteInfoToDefault(site_info.storage_partition_config());
+      SetSiteInfoToDefault(site_info.GetStoragePartitionConfig());
       AddSiteInfoToDefault(site_info);
 
       DCHECK(browsing_instance_->has_default_site_instance());
@@ -783,7 +785,14 @@ const GURL& SiteInstanceImpl::GetSiteURL() const {
   return site_info_.site_url();
 }
 
-const SiteInfo& SiteInstanceImpl::GetSiteInfo() {
+const SiteInfo& SiteInstanceImpl::GetSiteInfo() const {
+  if (!has_site_) {
+    // `site_info_` has not been set yet. The caller is reading default
+    // SiteInfo. Record this so that SetSiteInfoInternal() can later verify
+    // that the StoragePartitionConfig does not change between the value from
+    // default SiteInfo and the one from the assigned SiteInfo.
+    has_accessed_unassigned_site_info_ = true;
+  }
   return site_info_;
 }
 
@@ -817,7 +826,7 @@ SiteInfo SiteInstanceImpl::DeriveSiteInfo(
   // for <webview>).
   if (IsFixedStoragePartition()) {
     overridden_url_info.storage_partition_config =
-        GetSiteInfo().storage_partition_config();
+        GetSiteInfo().GetStoragePartitionConfig();
   }
 
   return SiteInfo::Create(GetIsolationContext(), overridden_url_info);
@@ -971,7 +980,7 @@ bool SiteInstanceImpl::IsSuitableForUrlInfo(const UrlInfo& url_info) {
     // special case because we need to be consistent with the HasProcess() path
     // and the IsSuitableHost() call below always returns false for guests.
     if (site_info_ == site_info)
-      return !IsGuest();
+      return !site_info_.IsGuest();
 
     // If the site URLs do not match, but neither this SiteInstance nor the
     // destination site_url require dedicated processes, then it is safe to use
@@ -1012,7 +1021,7 @@ BrowserContext* SiteInstanceImpl::GetBrowserContext() {
 }
 
 const SecurityPrincipal& SiteInstanceImpl::GetSecurityPrincipal() const {
-  return site_info_;
+  return GetSiteInfo();
 }
 
 // static
@@ -1100,14 +1109,10 @@ bool SiteInstanceImpl::IsSameSiteWithURLInfo(const UrlInfo& url_info) {
       url_info, true /* should_compare_effective_urls */);
 }
 
-bool SiteInstanceImpl::IsGuest() {
-  return site_info_.is_guest();
-}
-
 bool SiteInstanceImpl::IsFixedStoragePartition() {
   bool is_fixed_storage_partition =
       browsing_instance_->is_fixed_storage_partition();
-  if (IsGuest()) {
+  if (site_info_.IsGuest()) {
     CHECK(is_fixed_storage_partition);
   }
   return is_fixed_storage_partition;
@@ -1125,20 +1130,9 @@ bool SiteInstanceImpl::IsPdf() {
   return site_info_.is_pdf();
 }
 
-const StoragePartitionConfig& SiteInstanceImpl::GetStoragePartitionConfig() {
-  if (!has_site_) {
-    // Note: `site_info_` has not been set yet. This is ok as long as the
-    // StoragePartition of this SiteInstance does not change when `site_info_`
-    // is actually set. Enable the verification code in SetSiteInfoInternal()
-    // to verify that the storage partition info does not change.
-    verify_storage_partition_info_ = true;
-  }
-  return site_info_.storage_partition_config();
-}
-
 std::string SiteInstanceImpl::GetPartitionDomain(
     StoragePartitionImpl* storage_partition) {
-  auto storage_partition_config = GetStoragePartitionConfig();
+  auto storage_partition_config = site_info_.GetStoragePartitionConfig();
 
   // The DCHECK here is to allow the trybots to detect any attempt to introduce
   // new code that violates this assumption.
@@ -1418,7 +1412,7 @@ bool SiteInstanceImpl::DoesSiteInfoForURLMatch(const UrlInfo& url_info) {
       CanBePlacedInDefaultSiteInstanceOrGroup(GetIsolationContext(),
                                               url_info.url, site_info)) {
     site_info = SiteInfo::CreateForDefaultSiteInstance(
-        GetIsolationContext(), site_info.storage_partition_config(),
+        GetIsolationContext(), site_info.GetStoragePartitionConfig(),
         GetWebExposedIsolationInfo(),
         site_info.agent_cluster_key().GetCrossOriginIsolationKey());
   }
@@ -1523,7 +1517,7 @@ void SiteInstanceImpl::LockProcessIfNeeded() {
 
   DCHECK(HasSite());
   DCHECK_EQ(storage_partition->GetConfig(),
-            site_info_.storage_partition_config());
+            site_info_.GetStoragePartitionConfig());
 
   if (site_info_.ShouldLockProcessToSite(GetIsolationContext())) {
     ProcessLock lock_to_set = ProcessLock::FromSiteInfo(GetSiteInfo());

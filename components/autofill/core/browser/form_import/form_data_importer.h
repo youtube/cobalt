@@ -24,9 +24,6 @@ class HistoryService;
 namespace autofill {
 
 class AutofillClient;
-class CreditCardSaveManager;
-class IbanSaveManager;
-enum class NonInteractivePaymentMethodType;
 class PaymentsDataManager;
 class SourceId;
 
@@ -35,25 +32,6 @@ class SourceId;
 // the `PaymentsDataManager`. Owned by `AutofillClient` implementations.
 class FormDataImporter : public history::HistoryServiceObserver {
  public:
-  // Record type of the credit card extracted from the form, if one exists.
-  // TODO(crbug.com/40255227): Remove this enum and user CreditCard::RecordType
-  // instead.
-  enum CreditCardImportType {
-    // No card was successfully extracted from the form.
-    kNoCard,
-    // The extracted card is already stored locally on the device.
-    kLocalCard,
-    // The extracted card is already known to be a server card (either masked or
-    // unmasked).
-    kServerCard,
-    // The extracted card is not currently stored with the browser.
-    kNewCard,
-    // The extracted card is already known to be a virtual card.
-    kVirtualCard,
-    // The extracted card is known to be a duplicate local and server card.
-    kDuplicateLocalServerCard,
-  };
-
   // The parameters should outlive the FormDataImporter.
   FormDataImporter(AutofillClient* client,
                    history::HistoryService* history_service);
@@ -71,17 +49,6 @@ class FormDataImporter : public history::HistoryServiceObserver {
                                 bool payment_methods_autofill_enabled,
                                 ukm::SourceId ukm_source_id);
 
-  // Extracts credit card from the form structure.
-  payments::PaymentsFormDataImporter::ExtractCreditCardFromFormResult
-  ExtractCreditCardFromForm(const FormStructure& form);
-
-  // Tries to initiate the saving of `extracted_iban` if applicable.
-  bool ProcessIbanImportCandidate(Iban& extracted_iban);
-
-  CreditCardSaveManager* GetCreditCardSaveManager() {
-    return credit_card_save_manager_.get();
-  }
-
   // history::HistoryServiceObserver
   void OnHistoryDeletions(history::HistoryService* history_service,
                           const history::DeletionInfo& deletion_info) override;
@@ -91,14 +58,6 @@ class FormDataImporter : public history::HistoryServiceObserver {
       FormSignature form_signature) const {
     return form_associator_.GetFormAssociations(form_signature);
   }
-
-  // This should only set
-  // `payment_method_type_if_non_interactive_authentication_flow_completed_` to
-  // a value when there was an autofill with no interactive authentication,
-  // otherwise it should set to nullopt.
-  void SetPaymentMethodTypeIfNonInteractiveAuthenticationFlowCompleted(
-      std::optional<NonInteractivePaymentMethodType>
-          payment_method_type_if_non_interactive_authentication_flow_completed);
 
   // Gets the AddressFormDataImporter owned by `this`.
   AddressFormDataImporter& GetAddressFormDataImporter();
@@ -135,26 +94,6 @@ class FormDataImporter : public history::HistoryServiceObserver {
                                     bool profile_autofill_enabled,
                                     bool payment_methods_autofill_enabled);
 
-  // Returns the extracted card if one was found in the form.
-  //
-  // The returned card is, unless nullopt,
-  // - a matching server card, if any match is found, or
-  // - the candidate input card, augmented with a matching local card's nickname
-  //   if such any match is found.
-  // It is nullopt under the following conditions:
-  // - if the card number is invalid;
-  // - if the card is a known virtual card;
-  // - if a card matches but the extracted card has no expiration date.
-  //
-  // The function has two side-effects:
-  // - all matching local cards are updated to include the information from the
-  //   extracted card;
-  // - `credit_card_import_type_` is set to
-  //   - SERVER_CARD if a server card matches;
-  //   - LOCAL_CARD if a local and no server card matches;
-  //   - NEW_CARD otherwise.
-  std::optional<CreditCard> ExtractCreditCard(const FormStructure& form);
-
   // Returns an existing server card based on the following criteria:
   // - If `candidate` compares with a full server card, this function returns
   //   the existing full server card which has the same full card number as
@@ -171,40 +110,13 @@ class FormDataImporter : public history::HistoryServiceObserver {
   std::optional<CreditCard> TryMatchingExistingServerCard(
       const CreditCard& candidate);
 
-  // Tries to initiate the saving of the `extracted_credit_card` if applicable.
-  // `submitted_form` is the form from which the card was
-  // imported. `is_credit_card_upstream_enabled` indicates if server card
-  // storage is enabled. Returns true if a save is initiated.
-  bool ProcessExtractedCreditCard(
-      const FormStructure& submitted_form,
-      const std::optional<CreditCard>& extracted_credit_card,
-      bool is_credit_card_upstream_enabled,
-      ukm::SourceId ukm_source_id);
-
-  // If the mandatory re-auth opt-in bubble can be shown for a credit card, this
-  // function will start the flow and return true. Otherwise, it will return
-  // false.
-  bool ProceedWithCardMandatoryReauthOptInIfApplicable();
-
   PaymentsDataManager& payments_data_manager();
 
   // The associated autofill client.
   const raw_ref<AutofillClient> client_;
 
-  // Responsible for managing credit card save flows (local or upload).
-  std::unique_ptr<CreditCardSaveManager> credit_card_save_manager_;
-
-  // Responsible for managing IBAN save flows. It is guaranteed to be non-null.
-  std::unique_ptr<IbanSaveManager> iban_save_manager_;
-
   base::ScopedObservation<history::HistoryService, HistoryServiceObserver>
       history_service_observation_{this};
-
-  // Represents the type of the credit card import candidate from the submitted
-  // form. It will be used to determine whether to offer upload save or not.
-  // Will be passed to `credit_card_save_manager_` for metrics. If no credit
-  // card was found in the form, the type will be `kNoCard`.
-  CreditCardImportType credit_card_import_type_ = CreditCardImportType::kNoCard;
 
   // Enables associating recently submitted forms with each other.
   FormAssociator form_associator_;
@@ -215,17 +127,14 @@ class FormDataImporter : public history::HistoryServiceObserver {
   // FormDataImporter to handle payments-related functionality.
   payments::PaymentsFormDataImporter payments_form_data_importer_;
 
-  // If the most recent payments autofill flow had a non-interactive
-  // authentication,
-  // `payment_method_type_if_non_interactive_authentication_flow_completed_`
-  // will contain the type of payment method that had the non-interactive
-  // authentication, otherwise it will be nullopt. This is for logging purposes
-  // to log the type of non interactive payment method type that triggers
-  // mandatory reauth.
-  std::optional<NonInteractivePaymentMethodType>
-      payment_method_type_if_non_interactive_authentication_flow_completed_;
-
   friend class FormDataImporterTestApi;
+
+  // TODO(crbug.com/481379161): Remove `payments::PaymentsFormDataImporter` as a
+  //    friend class once the FDI->PaymentsFDI migration is complete. This is
+  //    very much not ideal and temporary, but the alternative is temporarily
+  //    passing in class variables as parameters until the last second, which
+  //    probably carries slightly higher risk.
+  friend class payments::PaymentsFormDataImporter;
 };
 
 }  // namespace autofill

@@ -42,6 +42,7 @@
 #include "base/time/time.h"
 #include "base/values.h"
 #include "base/version.h"
+#include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/browser_process.h"
@@ -50,7 +51,6 @@
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
 #include "chrome/browser/extensions/chrome_zipfile_installer.h"
 #include "chrome/browser/extensions/component_loader.h"
-#include "chrome/browser/extensions/crx_installer.h"
 #include "chrome/browser/extensions/extension_error_ui.h"
 #include "chrome/browser/extensions/extension_management_test_util.h"
 #include "chrome/browser/extensions/extension_service_test_base.h"
@@ -107,6 +107,7 @@
 #include "extensions/browser/blocklist.h"
 #include "extensions/browser/blocklist_extension_prefs.h"
 #include "extensions/browser/blocklist_state.h"
+#include "extensions/browser/crx_installer.h"
 #include "extensions/browser/disable_reason.h"
 #include "extensions/browser/extension_creator.h"
 #include "extensions/browser/extension_file_task_runner.h"
@@ -1157,22 +1158,22 @@ TEST_F(ExtensionServiceTest, PendingImports) {
 
   // Each of these extensions should have been rejected because of dependencies
   // that cannot be satisfied.
-  EXPECT_FALSE(
-      prefs()->GetDelayedInstallInfo("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"));
+  EXPECT_FALSE(prefs()->GetDelayedInstallExtensionInfo(
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"));
   EXPECT_FALSE(
       prefs()->GetInstalledExtensionInfo("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"));
-  EXPECT_FALSE(
-      prefs()->GetDelayedInstallInfo("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"));
+  EXPECT_FALSE(prefs()->GetDelayedInstallExtensionInfo(
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"));
   EXPECT_FALSE(
       prefs()->GetInstalledExtensionInfo("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"));
-  EXPECT_FALSE(
-      prefs()->GetDelayedInstallInfo("cccccccccccccccccccccccccccccccc"));
+  EXPECT_FALSE(prefs()->GetDelayedInstallExtensionInfo(
+      "cccccccccccccccccccccccccccccccc"));
   EXPECT_FALSE(
       prefs()->GetInstalledExtensionInfo("cccccccccccccccccccccccccccccccc"));
 
   // Make sure the import started for the extension with a dependency.
-  EXPECT_TRUE(
-      prefs()->GetDelayedInstallInfo("behllobkkfkfnphdnhnkndlbkcpglgmj"));
+  EXPECT_TRUE(prefs()->GetDelayedInstallExtensionInfo(
+      "behllobkkfkfnphdnhnkndlbkcpglgmj"));
   EXPECT_EQ(
       ExtensionPrefs::DelayReason::kWaitForImports,
       prefs()->GetDelayedInstallReason("behllobkkfkfnphdnhnkndlbkcpglgmj"));
@@ -1242,7 +1243,7 @@ TEST_F(ExtensionServiceTest, ReloadExtensionWithPendingImports) {
   EXPECT_EQ("1.0.0", extension->VersionString());
 
   // Make sure the import started for the extension with a dependency.
-  EXPECT_TRUE(prefs()->GetDelayedInstallInfo(id));
+  EXPECT_TRUE(prefs()->GetDelayedInstallExtensionInfo(id));
   EXPECT_EQ(ExtensionPrefs::DelayReason::kWaitForImports,
             prefs()->GetDelayedInstallReason(id));
 
@@ -1265,7 +1266,7 @@ TEST_F(ExtensionServiceTest, ReloadExtensionWithPendingImports) {
   EXPECT_EQ("1.0.0", extension->VersionString());
 
   // The update should remain delayed, with the import pending.
-  EXPECT_TRUE(prefs()->GetDelayedInstallInfo(id));
+  EXPECT_TRUE(prefs()->GetDelayedInstallExtensionInfo(id));
   EXPECT_EQ(ExtensionPrefs::DelayReason::kWaitForImports,
             prefs()->GetDelayedInstallReason(id));
 

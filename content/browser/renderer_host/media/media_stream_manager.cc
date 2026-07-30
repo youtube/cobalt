@@ -123,6 +123,11 @@ using ::blink::mojom::MediaStreamType;
 using ::blink::mojom::StreamSelectionInfo;
 using ::blink::mojom::StreamSelectionInfoPtr;
 
+// If enabled, the device name is also used when comparing devices in
+// FindExistingRequestedDevice.
+BASE_FEATURE(kEnumerateDevicesUseNameInDeviceComparison,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 namespace {
 // Turns off available audio effects (removes the flag) if the options
 // explicitly turn them off.
@@ -441,11 +446,6 @@ bool ChangeSourceSupported(const MediaStreamDevices& devices) {
     }
   }
 
-  if (!base::FeatureList::IsEnabled(
-          media::kShareThisTabInsteadButtonGetDisplayMedia)) {
-    return false;  // Killswitch engaged.
-  }
-
   if (!std::ranges::contains(devices, MediaStreamType::DISPLAY_VIDEO_CAPTURE,
                              &MediaStreamDevice::type) &&
       !std::ranges::contains(devices,
@@ -454,16 +454,7 @@ bool ChangeSourceSupported(const MediaStreamDevices& devices) {
     return false;  // Not an API call that supports share-this-tab-instead.
   }
 
-  if (!base::FeatureList::IsEnabled(
-          media::kShareThisTabInsteadButtonGetDisplayMediaAudio) &&
-      std::ranges::contains(devices, MediaStreamType::DISPLAY_AUDIO_CAPTURE,
-                            &MediaStreamDevice::type)) {
-    // The user chose to capture audio, but the killswitch against
-    // share-this-tab-instead with audio is engaged.
-    return false;
-  }
-
-  return true;  // getDisplayMedia() and killswitches did not trigger.
+  return true;  // getDisplayMedia() now supported by default.
 }
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
@@ -3000,8 +2991,12 @@ bool MediaStreamManager::FindExistingRequestedDevice(
             continue;
           }
           const blink::MediaStreamDevice& device = device_ptr->value();
-          const bool is_same_device =
+          bool is_same_device =
               device.id == hashed_source_id && device.type == new_device.type;
+          if (base::FeatureList::IsEnabled(
+                  kEnumerateDevicesUseNameInDeviceComparison)) {
+            is_same_device = is_same_device && device.name == new_device.name;
+          }
           // If `audio_stream_selection_info` is `search_only_by_device_id`, the
           // search is performed only based on the `device.id`. If, however,
           // `audio_stream_selection_info` is `session_id_map`, the
@@ -3861,6 +3856,19 @@ void MediaStreamManager::WillDestroyCurrentMessageLoop() {
   if (audio_input_device_manager_) {
     audio_input_device_manager_->UnregisterListener(this);
   }
+
+#if BUILDFLAG(IS_CHROMEOS)
+  // SystemEventMonitorImpl and JpegAcceleratorProviderImpl are created on the
+  // UI thread and must be destroyed there before the UI message loop stops.
+  if (system_event_monitor_) {
+    GetUIThreadTaskRunner({})->DeleteSoon(FROM_HERE,
+                                          std::move(system_event_monitor_));
+  }
+  if (jpeg_accelerator_provider_) {
+    GetUIThreadTaskRunner({})->DeleteSoon(
+        FROM_HERE, std::move(jpeg_accelerator_provider_));
+  }
+#endif
 
   audio_input_device_manager_ = nullptr;
   video_capture_manager_ = nullptr;

@@ -241,7 +241,14 @@ class InstallerDialogView : public views::BoxLayoutView {
   }
 
   void SetTitle(const ToU16String& title) {
-    title_label_->SetText(title.get());
+    const std::u16string& title_text = title.get();
+    title_label_->SetText(title_text);
+
+    views::StyledLabel::RangeStyleInfo bold_style;
+    bold_style.custom_font = title_label_->GetFontList().Derive(
+        0, gfx::Font::FontStyle::NORMAL, gfx::Font::Weight::BOLD);
+
+    title_label_->AddStyleRange(gfx::Range(0, title_text.length()), bold_style);
   }
 
   void SetSubtitle(int subtitle_id,
@@ -634,11 +641,10 @@ views::Widget* IsolatedWebAppInstallerViewImpl::ShowDialog(
           },
           [this](const IsolatedWebAppInstallerModel::ConfirmInstallationDialog&
                      confirm_installation_dialog) {
-            auto subtitle = ui::DialogModelLabel::CreateWithReplacement(
-                IDS_IWA_INSTALLER_CONFIRM_SUBTITLE,
-                ui::DialogModelLabel::CreateLink(
-                    IDS_IWA_INSTALLER_CONFIRM_LEARN_MORE,
-                    confirm_installation_dialog.learn_more_callback));
+            // TODO(crbug.com/315374696): Re-introduce Learn More link once
+            // user-facing articles are released.
+            auto subtitle =
+                ui::DialogModelLabel(IDS_IWA_INSTALLER_CONFIRM_SUBTITLE);
             return ShowChildDialog(
                 IDS_IWA_INSTALLER_CONFIRM_TITLE, subtitle,
                 CreateImageModelFromVector(kPrivacyTipIcon, ui::kColorAccent),

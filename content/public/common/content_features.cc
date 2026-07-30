@@ -173,11 +173,11 @@ BASE_FEATURE(kBackForwardCacheMemoryControls,
 // Enables getting screenshots as shared images for back forward transitions
 // in cross-document navigations.
 BASE_FEATURE(kBackForwardTransitionsCrossDocSharedImage,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 // Enables getting screenshots as shared images for back forward transitions
 // to native pages.
 BASE_FEATURE(kBackForwardTransitionsNativePageSharedImage,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 // If enabled, makes battery saver request heavy align wake ups.
@@ -197,13 +197,6 @@ BASE_FEATURE(kBypassRedirectChecksPerRequest, base::FEATURE_ENABLED_BY_DEFAULT);
 // restored if cookies change / if HTTPOnly cookies change.
 // TODO(crbug.com/40189625): Remove this feature and clean up.
 BASE_FEATURE(kCacheControlNoStoreEnterBackForwardCache,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// This killswitch is distinct from the OT.
-// It allows us to remotely disable the feature, and get it to stop working even
-// on sites that are in possession of a valid token. When that happens, all API
-// calls gated by the killswitch will fail graceully.
-BASE_FEATURE(kCapturedSurfaceControlKillswitch,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Clear the window.name property for the top-level cross-site navigations that
@@ -1324,9 +1317,6 @@ const base::FeatureParam<int> kAndroidDesktopZoomScalingFactor{
 const base::FeatureParam<int> kAndroidMonitorZoomScalingFactor{
     &kAndroidDesktopZoomScaling, "monitor-zoom-scaling-factor", 100};
 
-// A feature to enable launch handler and file handler api for Chrome on Android
-BASE_FEATURE(kAndroidWebAppLaunchHandler, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Allows the use of "Smart Zoom", an alternative form of page zoom, and
 // enables the associated UI.
 BASE_FEATURE(kSmartZoom, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1414,13 +1404,13 @@ const base::FeatureParam<std::string> kForcedOffCapturingAppsUserSetting{
 // "delay_seconds" field trial parameter. This allows for experimentation with
 // different timeout values for keeping subframe processes alive for potential
 // reuse.
-BASE_FEATURE(kSubframeProcessShutdownDelay, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kSubframeProcessShutdownDelay, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Specifies the custom shutdown delay in seconds to use when the
 // kSubframeProcessShutdownDelay feature is enabled.
 // Default value, matching the original kSubframeProcessShutdownDelay.
 const base::FeatureParam<int> kSubframeProcessShutdownDelaySeconds{
-    &kSubframeProcessShutdownDelay, "delay_seconds", 2};
+    &kSubframeProcessShutdownDelay, "delay_seconds", 10};
 
 namespace {
 enum class VideoCaptureServiceConfiguration {

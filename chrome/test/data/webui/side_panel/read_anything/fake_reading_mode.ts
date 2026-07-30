@@ -47,9 +47,8 @@ export class FakeReadingMode {
   yellowTheme: number = 9;
   blueTheme: number = 10;
   highContrastTheme: number = 11;
-  lowContrastTheme: number = 12;
-  sepiaLightTheme: number = 13;
-  sepiaDarkTheme: number = 14;
+  lowContrastLightTheme: number = 12;
+  lowContrastDarkTheme: number = 13;
 
   // Enum values for highlight granularity.
   autoHighlighting: number = 0;
@@ -423,6 +422,9 @@ export class FakeReadingMode {
   setContentForTesting(_snapshotLite: Object, contentNodeIds: number[]) {
     this.isSpeechTreeInitialized = contentNodeIds.length > 0;
   }
+  // Sets the same structure as setContentForTesting but forces
+  // the processing of the AX Tree Anchors.
+  setAnchorsForTesting(_snapshotLite: Object, _contentNodeIds: number[]) {}
 
   // Set the theme. Used by tests only.
   setThemeForTesting(

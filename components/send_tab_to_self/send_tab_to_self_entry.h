@@ -8,6 +8,7 @@
 #include <string>
 
 #include "base/time/time.h"
+#include "components/send_tab_to_self/page_context.h"
 #include "url/gurl.h"
 
 namespace sync_pb {
@@ -16,10 +17,14 @@ class SendTabToSelfSpecifics;
 
 namespace send_tab_to_self {
 
-constexpr base::TimeDelta kExpiryTime = base::Days(10);
+inline constexpr base::TimeDelta kExpiryTime = base::Days(10);
+
+// Maximum size of the PageContext proto in bytes. Arbitrarily chosen as
+// sensible threshold to avoid running into the per-entity size limit enforced
+// by Sync.
+inline constexpr size_t kMaxPageContextSizeBytes = 4096;  // 4 KB
 
 class SendTabToSelfLocal;
-
 // A tab that is being shared. The URL is a unique identifier for an entry, as
 // such it should not be empty and is the only thing considered when comparing
 // entries.
@@ -35,9 +40,11 @@ class SendTabToSelfEntry {
                      const std::string& title,
                      base::Time shared_time,
                      const std::string& device_name,
-                     const std::string& target_device_sync_cache_guid);
+                     const std::string& target_device_sync_cache_guid,
+                     const PageContext& page_context);
 
   SendTabToSelfEntry(const SendTabToSelfEntry&);
+
   SendTabToSelfEntry& operator=(const SendTabToSelfEntry&) = delete;
 
   ~SendTabToSelfEntry();
@@ -62,6 +69,9 @@ class SendTabToSelfEntry {
   // The state of this entry's notification: if it has been |dismissed|.
   void SetNotificationDismissed(bool notification_dismissed);
   bool GetNotificationDismissed() const;
+
+  // Returns the page context.
+  const PageContext& GetPageContext() const;
 
   // Returns a protobuf encoding the content of this SendTabToSelfEntry for
   // local storage.
@@ -99,6 +109,7 @@ class SendTabToSelfEntry {
   base::Time shared_time_;
   bool notification_dismissed_;
   bool opened_;
+  PageContext page_context_;
 };
 
 }  // namespace send_tab_to_self

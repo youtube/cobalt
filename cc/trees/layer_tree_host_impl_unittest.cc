@@ -208,17 +208,9 @@ INSTANTIATE_COMMIT_TO_TREE_TEST_P(
     OccludedSurfaceThrottlingLayerTreeHostImplTest);
 
 // A test fixture for new animation timelines tests.
-class LayerTreeHostImplTimelinesTest : public LayerTreeHostImplTest {
- public:
-  void SetUp() override {
-    CreateHostImpl(DefaultSettings(), CreateLayerTreeFrameSink());
-
-    // TODO(bokan): Mac wheel scrolls don't cause smooth scrolling in the real
-    // world. In tests, we force it on for consistency. Can be removed when
-    // https://crbug.com/574283 is fixed.
-    host_impl_->set_force_smooth_wheel_scrolling_for_testing(true);
-  }
-};
+// TODO(487287578): Remove this once we've stabilized our use of
+// ScopedFeatureList on android-x86-rel.
+class LayerTreeHostImplTimelinesTest : public LayerTreeHostImplTest {};
 
 INSTANTIATE_ANIMATIONS_TREE_TEST_P(LayerTreeHostImplTimelinesTest);
 
@@ -14249,7 +14241,7 @@ TEST_P(LayerTreeHostImplTest, AnimatedScrollYielding) {
       /*is_left_side_vertical_scrollbar*/ false,
       /*is_overlay*/ false);
 
-  // TODO(arakeri): crbug.com/1070063 Setting the dimensions for scrollbar parts
+  // TODO(crbug.com/40126196): Setting the dimensions for scrollbar parts
   // (like thumb, track etc) should be moved to SetupScrollbarLayer.
   SetupScrollbarLayer(scroll_layer, scrollbar);
   const gfx::Size scrollbar_size = gfx::Size(15, 600);
@@ -14353,7 +14345,7 @@ TEST_P(LayerTreeHostImplTest, ThumbDragScrollerLengthIncrease) {
       /*is_left_side_vertical_scrollbar*/ false,
       /*is_overlay*/ false);
 
-  // TODO(arakeri): crbug.com/1070063 Setting the dimensions for scrollbar parts
+  // TODO(crbug.com/40126196): Setting the dimensions for scrollbar parts
   // (like thumb, track etc) should be moved to SetupScrollbarLayer.
   SetupScrollbarLayer(scroll_layer, scrollbar);
   const gfx::Size scrollbar_size = gfx::Size(15, 600);

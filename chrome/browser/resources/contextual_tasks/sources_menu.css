@@ -9,39 +9,25 @@
  * #scheme=relative
  * #css_wrapper_metadata_end */
 
-:host {
-  --mwb-primary-text-font-size: 12px;
-  --mwb-secondary-text-font-size: 11px;
-}
-
 .dropdown-item {
-  display: flex;
-  align-items: center;
-  padding: 5px var(--mwb-list-item-horizontal-margin);
   width: 320px;
+  padding: 0 0;
 }
 
 cr-action-menu {
   --cr-menu-border-radius: 16px;
-  --cr-action-menu-padding: 25px 0px;
+  --cr-action-menu-padding: 16px 0;
 }
 
 .header {
   color: var(--cr-primary-text-color);
-  padding: 8px var(--mwb-list-item-horizontal-margin);
-}
-
-/* Top padding for the main header, "Shared tabs and files" */
-cr-action-menu > .header:first-child {
+  padding: 0 16px 8px 16px;
+  font-size: 14px;
   font-weight: bold;
+  line-height: 20px;
 }
 
 .file-icon {
-  background-color: var(--color-composebox-pdf-chip-icon-background,
-      --color-composebox-background);
-  border-radius: var(--pdf-icon-border-radius, 4px);
-  box-sizing: border-box;
-  color: var(--color-composebox-pdf-chip-icon-border);
-  height: var(--mwb-icon-size);
-  width: var(--mwb-icon-size);
+  color: #b3261e;
+  border-radius: 8px;
 }

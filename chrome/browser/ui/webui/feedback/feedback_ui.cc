@@ -49,9 +49,16 @@ void AddStringResources(content::WebUIDataSource* source,
       {"pageTitle", IDS_FEEDBACK_REPORT_PAGE_TITLE},
       {"pageUrl", IDS_FEEDBACK_REPORT_URL_LABEL},
       {"privacyNote", IDS_FEEDBACK_PRIVACY_NOTE},
-      {"reportUnsafeSiteDescription",
+      {"reportUnsafeSiteDialogDescription",
        IDS_REPORT_UNSAFE_SITE_DIALOG_DESCRIPTION},
-      {"reportUnsafeSiteTitle", IDS_REPORT_UNSAFE_SITE_DIALOG_TITLE},
+      {"reportUnsafeSiteDialogFooter", IDS_REPORT_UNSAFE_SITE_DIALOG_FOOTER},
+      {"reportUnsafeSiteDialogIncludeScreenshotCheckboxLabel",
+       IDS_REPORT_UNSAFE_SITE_DIALOG_INCLUDE_SCREENSHOT_CHECKBOX_LABEL},
+      {"reportUnsafeSiteDialogSendButtonLabel",
+       IDS_REPORT_UNSAFE_SITE_DIALOG_SEND_BUTTON_LABEL},
+      {"reportUnsafeSiteDialogTitle", IDS_REPORT_UNSAFE_SITE_DIALOG_TITLE},
+      {"reportUnsafeSiteDialogUrlLabel",
+       IDS_REPORT_UNSAFE_SITE_DIALOG_URL_LABEL},
       {"screenshot", IDS_FEEDBACK_SCREENSHOT_LABEL},
       {"screenshotA11y", IDS_FEEDBACK_SCREENSHOT_A11Y_TEXT},
       {"sendReport", IDS_FEEDBACK_SEND_REPORT},
@@ -75,9 +82,8 @@ void AddStringResources(content::WebUIDataSource* source,
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
   if (feedback::ReportUnsafeSiteDialog::IsEnabled(*profile)) {
-    source->AddResourcePath(
-        "report-unsafe-site",
-        IDR_FEEDBACK_REPORT_UNSAFE_SITE_REPORT_UNSAFE_SITE_HTML);
+    source->AddResourcePath("report-unsafe-site",
+                            IDR_FEEDBACK_REPORT_UNSAFE_SITE_HTML);
   }
 }
 

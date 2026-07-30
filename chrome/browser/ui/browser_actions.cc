@@ -15,10 +15,12 @@
 #include "base/functional/callback_helpers.h"
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
+#include "build/branding_buildflags.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_side_panel_coordinator.h"
 #include "chrome/browser/devtools/devtools_window.h"
+#include "chrome/browser/indigo/indigo_page_action_controller.h"
 #include "chrome/browser/prefs/incognito_mode_prefs.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
@@ -651,14 +653,8 @@ void BrowserActions::InitializeBrowserActions() {
           kTabSearchTabStripIcon)
           .SetProperty(
               actions::kActionItemPinnableKey,
-              !base::FeatureList::IsEnabled(
-                  tabs::kHorizontalTabStripComboButton)
-                  ? static_cast<
-                        std::underlying_type_t<actions::ActionPinnableState>>(
-                        actions::ActionPinnableState::kPinnable)
-                  : static_cast<
-                        std::underlying_type_t<actions::ActionPinnableState>>(
-                        actions::ActionPinnableState::kNotPinnable))
+              static_cast<std::underlying_type_t<actions::ActionPinnableState>>(
+                  actions::ActionPinnableState::kNotPinnable))
           .Build());
 
   if (tabs::IsVerticalTabsFeatureEnabled()) {
@@ -1466,6 +1462,34 @@ void BrowserActions::InitializeBrowserActions() {
             .Build());
   }
 #endif  // BUILDFLAG(ENABLE_GLIC)
+
+  root_action_item_->AddChild(
+      actions::ActionItem::Builder(
+          base::BindRepeating(
+              [](BrowserWindowInterface* bwi, actions::ActionItem* item,
+                 actions::ActionInvocationContext context) {
+                if (!bwi) {
+                  return;
+                }
+                auto* tab = bwi->GetActiveTabInterface();
+                if (!tab) {
+                  return;
+                }
+                auto* controller =
+                    indigo::IndigoPageActionController::From(tab);
+                if (controller) {
+                  controller->InvokeAction();
+                }
+              },
+              bwi))
+          .SetActionId(kActionIndigo)
+          .SetTooltipText(l10n_util::GetStringUTF16(
+              IDS_INDIGO_ENTRYPOINT_CHIP_TOOLTIP_TEXT))
+          .SetImage(ui::ImageModel::FromVectorIcon(
+              vector_icons::kCodeIcon, ui::kColorIcon,
+              ui::SimpleMenuModel::kDefaultIconSize))
+          .SetText(l10n_util::GetStringUTF16(IDS_INDIGO_ENTRYPOINT_CHIP_TEXT))
+          .Build());
 
   AddListeners();
 }

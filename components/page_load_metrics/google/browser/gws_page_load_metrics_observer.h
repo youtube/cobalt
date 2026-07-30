@@ -168,6 +168,16 @@ class GWSPageLoadMetricsObserver
   }
 
  private:
+  struct PerformanceMarkTimingHistogramInfo {
+    const char* histogram_name;
+    // We may not have a corresponding field in the class for each
+    // PerformanceMark (i.e. will not need to preserve the mark timing, since we
+    // do not need them for succeeding histograms), hence the `timing_member`
+    // may be std::nullopt.
+    std::optional<std::optional<base::TimeDelta> GWSPageLoadMetricsObserver::*>
+        timing_member;
+  };
+
   void LogMetricsOnComplete();
   void RecordNavigationTimingHistograms();
   void RecordLatencyHistograms(base::TimeTicks response_start_time);
@@ -183,6 +193,13 @@ class GWSPageLoadMetricsObserver
   void RecordConnectionReuseHistograms();
 
   void RecordGWSSessionStateHistograms();
+
+  void RecordAIOHistograms();
+
+  std::optional<PerformanceMarkTimingHistogramInfo> GetMarkNameToTimingInfo(
+      std::string_view mark_name) const;
+  base::TimeDelta AdjustPerformanceMarkTiming(
+      const page_load_metrics::mojom::CustomUserTimingMarkPtr& mark);
 
   virtual bool IsFromNewTabPage(
       content::NavigationHandle* navigation_handle) = 0;
@@ -220,6 +237,10 @@ class GWSPageLoadMetricsObserver
   std::optional<base::TimeDelta> head_chunk_start_time_;
   std::optional<base::TimeDelta> head_chunk_end_time_;
   std::optional<base::TimeDelta> sgl_time_;
+
+  std::optional<base::TimeDelta> aio_async_start_time_;
+  std::optional<base::TimeDelta> aio_initial_content_time_;
+  std::optional<base::TimeDelta> aio_viewport_end_time_;
 
   int64_t navigation_id_;
 };

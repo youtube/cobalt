@@ -34,6 +34,8 @@
 
 namespace tabs {
 
+class StorageRestoreOrchestrator;
+
 // Standardizes the underlying types backing the TabInterface to ensure
 // consistent handles.
 using TabCanonicalizer =
@@ -91,8 +93,14 @@ class TabStateStorageService : public KeyedService,
   void SavePayload(const TabCollection* collection);
   void SaveChildren(const TabCollection* collection);
 
+  // Saves the divergent children of the collection to the database. This must
+  // only be used during restore orchestration.
+  void SaveDivergentChildren(const TabCollection* collection,
+                             base::PassKey<StorageRestoreOrchestrator>);
+
   void Remove(const TabInterface* tab);
   void Remove(const TabCollection* collection);
+  void Remove(StorageId id);
 
   void LoadAllNodes(std::string_view window_tag,
                     bool is_off_the_record,
@@ -102,9 +110,15 @@ class TabStateStorageService : public KeyedService,
                           bool is_off_the_record,
                           CountTabsForWindowCallback callback);
 
-  void ClearState();
+  void ClearAllWindows();
+  void ClearAllDivergenceWindows();
 
   void ClearWindow(std::string_view window_tag);
+
+  void ClearDivergentNodesForWindow(std::string_view window_tag,
+                                    bool is_off_the_record);
+
+  void ClearDivergenceWindow(std::string_view window_tag);
 
   void ClearNodesForWindowExcept(std::string_view window_tag,
                                  bool is_off_the_record,

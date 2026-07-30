@@ -23,7 +23,6 @@
 #include "chrome/browser/ui/webui/ash/settings/search/search_concept.h"
 #include "chrome/browser/ui/webui/ash/settings/search/search_tag_registry.h"
 #include "chrome/browser/ui/webui/settings/search_engines_handler.h"
-#include "chrome/common/url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "chromeos/components/magic_boost/public/cpp/magic_boost_state.h"
 #include "chromeos/components/mahi/public/cpp/mahi_manager.h"
@@ -291,11 +290,13 @@ void SearchSection::AddLoadTimeData(content::WebUIDataSource* html_source) {
   html_source->AddLocalizedStrings(kLocalizedStrings);
 
   html_source->AddString("helpMeReadWriteLearnMoreUrl",
-                         chrome::kHelpMeReadWriteLearnMoreURL);
+                         ash::external_urls::kHelpMeReadWriteLearnMoreURL);
 
-  html_source->AddString("lobsterLearnMoreUrl", chrome::kLobsterLearnMoreURL);
+  html_source->AddString("lobsterLearnMoreUrl",
+                         ash::external_urls::kLobsterLearnMoreURL);
 
-  html_source->AddString("scannerLearnMoreUrl", chrome::kScannerLearnMoreUrl);
+  html_source->AddString("scannerLearnMoreUrl",
+                         ash::external_urls::kScannerLearnMoreUrl);
 
   html_source->AddBoolean("isQuickAnswersSupported", IsQuickAnswersSupported());
 

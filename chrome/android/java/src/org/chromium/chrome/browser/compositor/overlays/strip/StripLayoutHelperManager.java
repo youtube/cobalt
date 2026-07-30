@@ -13,6 +13,8 @@ import static org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutU
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.content.Context;
+import android.content.SharedPreferences;
+import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Color;
@@ -33,6 +35,7 @@ import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.content.res.AppCompatResources;
 
 import org.chromium.base.Callback;
+import org.chromium.base.ContextUtils;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NonNullObservableSupplier;
@@ -77,6 +80,8 @@ import org.chromium.chrome.browser.lifecycle.PauseResumeWithNativeObserver;
 import org.chromium.chrome.browser.lifecycle.TopResumedActivityChangedObserver;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
+import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.share.ShareDelegate;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.Tab.LoadUrlResult;
@@ -123,7 +128,6 @@ import org.chromium.url.GURL;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Supplier;
 
 /**
  * This class handles managing which StripLayoutHelper is currently active and dispatches all input
@@ -135,7 +139,8 @@ public class StripLayoutHelperManager
                 PauseResumeWithNativeObserver,
                 TabStripSceneLayerHolder,
                 TopResumedActivityChangedObserver,
-                AppHeaderObserver {
+                AppHeaderObserver,
+                OnSharedPreferenceChangeListener {
     /**
      * POD type that contains the necessary tab model info on startup. Used in the startup flicker
      * fix experiment where we create a placeholder tab strip on startup to mitigate jank as tabs
@@ -180,7 +185,7 @@ public class StripLayoutHelperManager
 
     // Shared button constants (Model selector and Glic).
     private static final float BUTTON_BACKGROUND_WIDTH_DP = 32.f;
-    private static final float BUTTON_BACKGROUND_HEIGHT_DP = 32.f;
+    static final float BUTTON_BACKGROUND_HEIGHT_DP = 32.f;
     private static final float BUTTON_DESIRED_TOUCH_TARGET_SIZE =
             StripLayoutUtils.shouldApplyMoreDensity() ? BUTTON_BACKGROUND_WIDTH_DP : 48.f;
     private static final float BUTTON_CLICK_SLOP_DP =
@@ -369,6 +374,9 @@ public class StripLayoutHelperManager
             if (DragDropGlobalState.hasValue()) {
                 return;
             }
+            if (mModelSelectorButton != null && mModelSelectorButton.click(x, y, 0)) {
+                return;
+            }
             getActiveStripLayoutHelper().onLongPress(x, y);
         }
 
@@ -488,6 +496,9 @@ public class StripLayoutHelperManager
      * @param backPressManager The {@link BackPressManager} for handling back press.
      * @param snackbarManager The {@link SnackbarManager} used to show snackbar UI.
      */
+    // TODO(crbug.com/484116872): Suppressing to observe SharedPreferences, which is discouraged;
+    // should use another messaging channel instead.
+    @SuppressWarnings("UseSharedPreferencesManagerFromChromeCheck")
     public StripLayoutHelperManager(
             Context context,
             LayoutManagerHost managerHost,
@@ -510,7 +521,7 @@ public class StripLayoutHelperManager
             ActionConfirmationManager actionConfirmationManager,
             DataSharingTabManager dataSharingTabManager,
             BottomSheetController bottomSheetController,
-            Supplier<ShareDelegate> shareDelegateSupplier,
+            MonotonicObservableSupplier<ShareDelegate> shareDelegateSupplier,
             @Nullable NonNullObservableSupplier<Boolean> xrSpaceModeObservableSupplier,
             BackPressManager backPressManager,
             SnackbarManager snackbarManager) {
@@ -578,6 +589,7 @@ public class StripLayoutHelperManager
                         getActiveStripLayoutHelper().onKeyboardFocus(isFocused, view);
                     };
             createGlicButton(context, glicClickHandler, glicKeyboardFocusHandler);
+            ContextUtils.getAppSharedPreferences().registerOnSharedPreferenceChangeListener(this);
         }
         if (!IncognitoUtils.shouldOpenIncognitoAsWindow()) {
             StripLayoutViewOnClickHandler selectorClickHandler =
@@ -870,7 +882,7 @@ public class StripLayoutHelperManager
     }
 
     /** Cleans up internal state. An instance should not be used after this method is called. */
-    @SuppressWarnings("NullAway")
+    @SuppressWarnings({"NullAway", "UseSharedPreferencesManagerFromChromeCheck"})
     public void destroy() {
         mTabStripTreeProvider.destroy();
         mTabStripTreeProvider = null;
@@ -880,6 +892,7 @@ public class StripLayoutHelperManager
         // Delete the EventFilter to avoid any updates on destroyed StripLayoutHelpers.
         mEventFilter = null;
         mTabStripEventHandler = null;
+        ContextUtils.getAppSharedPreferences().unregisterOnSharedPreferenceChangeListener(this);
         mIncognitoHelper.destroy();
         mNormalHelper.destroy();
         if (mTabModelSelector != null) {
@@ -1909,51 +1922,65 @@ public class StripLayoutHelperManager
     }
 
     private boolean isGlicButtonEnabled() {
-        return ChromeFeatureList.isEnabled(ChromeFeatureList.GLIC);
+        return ChromeFeatureList.sGlic.isEnabled();
+    }
+
+    @Override
+    public void onSharedPreferenceChanged(
+            SharedPreferences sharedPreferences, @Nullable String key) {
+        if (ChromePreferenceKeys.GLIC_BUTTON_PINNED.equals(key)) {
+            updateStripButtons();
+        }
     }
 
     private void updateStripButtons() {
-        boolean isGlicVisible = false;
-        if (mGlicButton != null) {
-            isGlicVisible = !mIsIncognito;
-        }
+        // Use helper methods to calculate new visibility of strip buttons.
+        boolean newGlicVisibility = shouldGlicBeVisible();
+        boolean newMsbVisibility = shouldMsbBeVisible();
 
-        boolean isMsbVisible = false;
-        if (mModelSelectorButton != null) {
-            mModelSelectorButton.setIncognito(mIsIncognito);
-            if (mTabModelSelector != null) {
-                isMsbVisible = mTabModelSelector.getModel(true).getCount() != 0;
-            }
-        }
-
-        boolean glicChanged = (mGlicButton != null && mGlicButton.isVisible() != isGlicVisible);
+        // Early exit if visibility of both buttons hasn't changed.
+        boolean glicChanged = mGlicButton != null && mGlicButton.isVisible() != newGlicVisibility;
         boolean msbChanged =
-                (mModelSelectorButton != null && mModelSelectorButton.isVisible() != isMsbVisible);
-
+                mModelSelectorButton != null
+                        && mModelSelectorButton.isVisible() != newMsbVisibility;
         if (!glicChanged && !msbChanged) return;
 
-        if (mGlicButton != null) mGlicButton.setVisible(isGlicVisible);
-        if (mModelSelectorButton != null) mModelSelectorButton.setVisible(isMsbVisible);
+        // Set updated visibilities (of both buttons for simplicity).
+        if (mGlicButton != null) mGlicButton.setVisible(newGlicVisibility);
+        if (mModelSelectorButton != null) mModelSelectorButton.setVisible(newMsbVisibility);
 
-        float glicTouchTargetSize = 0.0f;
-        if (isGlicVisible) {
-            // calculated with the same logic as msbTouchTargetSize
-            glicTouchTargetSize =
-                    getGlicButtonWidthWithEndPadding() + getGlicButtonStartPaddingForTouchTarget();
-        }
+        // Calculate layout sizes and update margins. We use (width + end padding + start spacing)
+        // to create a larger gap between buttons to meet touch target size requirements.
+        float glicTouchTargetSize =
+                newGlicVisibility
+                        ? (getGlicButtonWidthWithEndPadding()
+                                + getGlicButtonStartPaddingForTouchTarget())
+                        : 0.0f;
+        float msbTouchTargetSize =
+                newMsbVisibility
+                        ? (getModelSelectorButtonWidthWithEndPadding()
+                                + getMsbStartPaddingForTouchTarget())
+                        : 0.0f;
 
-        float msbTouchTargetSize = 0.0f;
-        if (isMsbVisible) {
-            // msbTouchTargetSize = msbEndPadding(8dp) + msbWidth(32dp) + msbStartPadding(8dp to
-            // create more gap between MSB and NTB so there is enough space for touch target).
-            msbTouchTargetSize =
-                    getModelSelectorButtonWidthWithEndPadding()
-                            + getMsbStartPaddingForTouchTarget();
-        }
-
+        // In Incognito, glic is always hidden so use touch target size of 0.
         mNormalHelper.updateEndMarginForStripButtons(glicTouchTargetSize, msbTouchTargetSize);
         mIncognitoHelper.updateEndMarginForStripButtons(
-                /* glicTouchTargetSize= */ 0, msbTouchTargetSize);
+                /* glicTouchTargetSize= */ 0.0f, msbTouchTargetSize);
+    }
+
+    private boolean shouldGlicBeVisible() {
+        if (mGlicButton == null || mIsIncognito) return false;
+        return ChromeSharedPreferences.getInstance()
+                .readBoolean(ChromePreferenceKeys.GLIC_BUTTON_PINNED, true);
+    }
+
+    private boolean shouldMsbBeVisible() {
+        if (mModelSelectorButton == null) return false;
+
+        // Sync the incognito state whenever the button exists
+        mModelSelectorButton.setIncognito(mIsIncognito);
+
+        return mTabModelSelector != null && mTabModelSelector.getModel(true).getCount() != 0;
     }
 
     /**

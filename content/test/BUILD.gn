@@ -23,8 +23,6 @@ import("//services/device/public/cpp/compute_pressure/buildflags.gni")
 import("//services/screen_ai/buildflags/features.gni")
 import("//testing/test.gni")
 import("//third_party/blink/public/public_features.gni")
-import("//third_party/closure_compiler/closure_args.gni")
-import("//third_party/closure_compiler/compile_js.gni")
 import("//third_party/protobuf/proto_library.gni")
 import("//tools/grit/grit_rule.gni")
 import("//tools/grit/preprocess_if_expr.gni")
@@ -2945,6 +2943,7 @@ test("content_unittests") {
     "../browser/service_worker/service_worker_script_loader_factory_unittest.cc",
     "../browser/service_worker/service_worker_single_script_update_checker_unittest.cc",
     "../browser/service_worker/service_worker_synthetic_response_data_pipe_connector_unittest.cc",
+    "../browser/service_worker/service_worker_synthetic_response_manager_unittest.cc",
     "../browser/service_worker/service_worker_updated_script_loader_unittest.cc",
     "../browser/service_worker/service_worker_version_unittest.cc",
     "../browser/shareable_file_reference_unittest.cc",
@@ -3365,7 +3364,6 @@ test("content_unittests") {
     "//storage/browser",
     "//storage/browser:test_support",
     "//storage/common",
-    "//storage/common:database_status",
     "//testing/gmock",
     "//testing/gtest",
     "//third_party/blink/public:blink",

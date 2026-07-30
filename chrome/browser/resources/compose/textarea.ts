@@ -63,7 +63,11 @@ export class ComposeTextareaElement extends CrLitElement {
   }
 
   accessor allowExitingReadonlyMode: boolean = false;
-  accessor inputParams: ConfigurableParams;
+  accessor inputParams: ConfigurableParams = {
+    minWordLimit: 0,
+    maxWordLimit: 0,
+    maxCharacterLimit: 0,
+  };
   accessor readonly: boolean = false;
   protected accessor invalidInput_: boolean = false;
   protected accessor tooLong_: boolean = false;
@@ -84,20 +88,15 @@ export class ComposeTextareaElement extends CrLitElement {
   }
 
   focusInput() {
-    // Wait for update to complete, since clients may call this immediately
-    // after updating state.
-    this.updateComplete.then(() => this.$.input.focus());
+    this.$.input.focus();
   }
 
   focusEditButton() {
-    // Wait for update to complete, since clients may call this immediately
-    // after updating state.
-    this.updateComplete.then(() => this.$.editButton.focus());
+    this.$.editButton.focus();
   }
 
   protected onEditClick_() {
-    this.dispatchEvent(
-        new CustomEvent('edit-click', {bubbles: true, composed: true}));
+    this.fire('edit-click');
   }
 
   scrollInputToTop() {

@@ -43,7 +43,6 @@ scoped_refptr<WebGPUMailboxTexture> WebGPUMailboxTexture::FromStaticBitmapImage(
     const wgpu::Device& device,
     wgpu::TextureUsage usage,
     scoped_refptr<StaticBitmapImage> image,
-    const SkImageInfo& info,
     const gfx::Rect& image_sub_rect,
     bool is_dummy_mailbox_texture) {
   // TODO(crbugs.com/1217160) Mac uses IOSurface in SharedImageBackingGLImage
@@ -70,14 +69,12 @@ scoped_refptr<WebGPUMailboxTexture> WebGPUMailboxTexture::FromStaticBitmapImage(
           ? 1
           : image_sub_rect.height();
 
-  // If source image cannot be wrapped into webgpu mailbox texture directly,
-  // applied cache with the sub rect size.
-  SkImageInfo recyclable_canvas_resource_info =
-      info.makeWH(mailbox_texture_width, mailbox_texture_height);
   // Get a recyclable resource for producing WebGPU-compatible shared images.
   std::unique_ptr<RecyclableCanvasResource> recyclable_canvas_resource =
       dawn_control_client->GetOrCreateCanvasResource(
-          recyclable_canvas_resource_info);
+          image->GetSharedImageFormat(),
+          gfx::Size(mailbox_texture_width, mailbox_texture_height),
+          image->GetColorSpace(), image->GetAlphaType());
 
   if (!recyclable_canvas_resource) {
     return nullptr;

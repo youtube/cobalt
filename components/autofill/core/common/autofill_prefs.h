@@ -49,14 +49,14 @@ inline constexpr char kAutofillAiSyncedOptInStatus[] =
 inline constexpr char kAutofillAiOptInStatus[] =
     "autofill.autofill_ai.opt_in_status";
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || \
-    BUILDFLAG(IS_CHROMEOS)
+    BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_IOS)
 // Boolean that is true if re-authentication is required before viewing Autofill
 // AI values. This could happen during the filling moment or when visiting the
 // management page.
 inline constexpr char kAutofillAiReauthBeforeViewingSensitiveData[] =
     "autofill.autofill_ai.reauth_before_viewing_sensitive_data";
 #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) ||
-        // BUILDFLAG(IS_CHROMEOS)
+        // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_IOS)
 // Integer that is set to the last version where the Autofill AI deduping
 // routine was run. This routine will be run once per version.
 inline constexpr char kAutofillAiLastVersionDeduped[] =
@@ -94,6 +94,11 @@ inline constexpr char kAutofillHasSeenIban[] = "autofill.has_seen_iban";
 // was run. This routine will be run once per version.
 inline constexpr char kAutofillLastVersionDeduped[] =
     "autofill.last_version_deduped";
+// Boolean that controls availability of other autofill data types:
+// * Autofilling of travel-related entities of Autofill AI
+// * Autofilling of identity-related entities of Autofill AI
+inline constexpr char kAutofillOtherDatatypesEnabled[] =
+    "autofill.other_datatypes_enabled";
 // Boolean that is true, when users can save their CVCs.
 inline constexpr char kAutofillPaymentCvcStorage[] =
     "autofill.payment_cvc_storage";

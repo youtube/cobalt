@@ -117,11 +117,10 @@ class WTF_EXPORT AtomicString {
   }
 
   // Find substrings.
-  wtf_size_t Find(
-      const StringView& value,
-      wtf_size_t start = 0,
-      TextCaseSensitivity case_sensitivity = kTextCaseSensitive) const {
-    return string_.Find(value, start, case_sensitivity);
+
+  // Find a substring. Returns the index of the match, or `kNotFound`.
+  size_type find(const StringView& value, size_type start = 0) const {
+    return string_.find(value, start);
   }
 
   // Unicode aware case insensitive string matching. Non-ASCII characters might
@@ -138,12 +137,17 @@ class WTF_EXPORT AtomicString {
     return string_.FindIgnoringAsciiCase(value, start);
   }
 
-  bool Contains(char c) const { return find(c) != kNotFound; }
-  bool Contains(
-      const StringView& value,
-      TextCaseSensitivity case_sensitivity = kTextCaseSensitive) const {
-    return Find(value, 0, case_sensitivity) != kNotFound;
-  }
+  // Returns `true` if this string contains the specified `c`.
+  bool contains(UChar c) const { return find(c) != kNotFound; }
+  bool contains(LChar c) const { return find(c) != kNotFound; }
+  bool contains(char c) const { return find(c) != kNotFound; }
+  // Returns `true` if this string contains the specified `value`.
+  // If `value` is empty, this returns `true`.
+  bool contains(const StringView& value) const;
+  // Returns `true` if this string contains the specified `value`, using ASCII
+  // case-insensitive matching.
+  // If `value` is empty, this returns `true`.
+  bool ContainsIgnoringAsciiCase(const StringView& value) const;
 
   // Find the last instance of a single character or string.
   wtf_size_t ReverseFind(UChar c, wtf_size_t start = UINT_MAX) const {
@@ -154,24 +158,25 @@ class WTF_EXPORT AtomicString {
     return string_.ReverseFind(value, start);
   }
 
-  bool StartsWith(
-      const StringView& prefix,
-      TextCaseSensitivity case_sensitivity = kTextCaseSensitive) const {
-    return string_.StartsWith(prefix, case_sensitivity);
+  bool starts_with(const StringView& prefix) const {
+    return string_.StartsWith(prefix);
   }
   bool StartsWithIgnoringAsciiCase(const StringView& prefix) const {
     return string_.StartsWithIgnoringAsciiCase(prefix);
   }
-  bool StartsWith(UChar character) const {
+  bool starts_with(UChar character) const {
     return string_.StartsWith(character);
   }
 
-  bool EndsWith(
-      const StringView& suffix,
-      TextCaseSensitivity case_sensitivity = kTextCaseSensitive) const {
-    return string_.EndsWith(suffix, case_sensitivity);
+  bool ends_with(const StringView& suffix) const {
+    return string_.EndsWith(suffix);
   }
-  bool EndsWith(UChar character) const { return string_.EndsWith(character); }
+  bool ends_with(UChar character) const { return string_.EndsWith(character); }
+  // Returns true if this string ends with the specified `suffix`, using ASCII
+  // case-insensitive matching. If `suffix` is empty, this returns `true`.
+  bool EndsWithIgnoringAsciiCase(const StringView& suffix) const {
+    return string_.EndsWithIgnoringAsciiCase(suffix);
+  }
 
   // Returns a lowercase/uppercase version of the string.
   // These functions convert ASCII characters only.

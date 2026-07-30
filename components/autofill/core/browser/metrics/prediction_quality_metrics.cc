@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/check_op.h"
+#include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
 #include "components/autofill/core/browser/autofill_field.h"
@@ -17,6 +18,8 @@
 #include "components/autofill/core/browser/form_parsing/autofill_parsing_utils.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/metrics/form_interactions_ukm_logger.h"
+#include "components/autofill/core/common/autofill_features.h"
+#include "components/autofill/core/common/autofill_util.h"
 #include "components/autofill/core/common/dense_set.h"
 #include "components/autofill/core/common/label_source_util.h"
 
@@ -430,6 +433,13 @@ int GetFieldTypeGroupPredictionQualityMetric(FieldType field_type,
         case FLIGHT_RESERVATION_ARRIVAL_AIRPORT:
         case FLIGHT_RESERVATION_DEPARTURE_AIRPORT:
         case FLIGHT_RESERVATION_DEPARTURE_DATE:
+        case ORDER_ID:
+        case ORDER_DATE:
+        case ORDER_MERCHANT_NAME:
+        case ORDER_MERCHANT_DOMAIN:
+        case ORDER_PRODUCT_NAMES:
+        case ORDER_ACCOUNT:
+        case ORDER_GRAND_TOTAL:
           NOTREACHED() << field_type << " type is not in that group.";
       }
       break;
@@ -545,7 +555,7 @@ bool DuplicatedFilling(const FormStructure& form, const AutofillField& field) {
           return false;
         }
         return field.value_for_import() == form_field->value_for_import() &&
-               form_field->is_autofilled();
+               form_field->last_modifier() == FieldModifier::kAutofill;
       };
   return std::ranges::any_of(form, is_autofilled_with_same_value);
 }
@@ -962,6 +972,53 @@ void LogFieldPredictionOverlapMetrics(const AutofillField& field) {
         base::StrCat({prefix, prediction_source, kAllTypes}), sample);
     base::UmaHistogramEnumeration(
         base::StrCat({prefix, prediction_source, field_type_str}), sample);
+  }
+}
+
+void LogPhoneNumberDetectionExperimentMetrics(const AutofillField& field) {
+  const bool is_heuristics_country_code =
+      field.heuristic_type() == PHONE_HOME_COUNTRY_CODE;
+  const bool is_overall_country_code =
+      field.Type().GetAddressType() == PHONE_HOME_COUNTRY_CODE;
+  const bool is_computed_country_code =
+      field.ComputedType().GetAddressType() == PHONE_HOME_COUNTRY_CODE;
+  const bool is_possible_country_code =
+      std::ranges::contains(field.possible_types(), PHONE_HOME_COUNTRY_CODE);
+
+  if (field.IsSelectElement() &&
+      (is_heuristics_country_code || is_overall_country_code)) {
+    const bool is_augmented_country_code_field =
+        LikelyAugmentedPhoneCountryCode(
+            field, base::FeatureList::IsEnabled(
+                       features::kAutofillNewAugmentedPhoneCountryCodeRegex));
+    if (is_heuristics_country_code) {
+      base::UmaHistogramBoolean(
+          "Autofill.FieldPrediction.AugmentedPhoneCountryCode.Heuristics",
+          is_augmented_country_code_field);
+    }
+    if (is_overall_country_code) {
+      base::UmaHistogramBoolean(
+          "Autofill.FieldPrediction.AugmentedPhoneCountryCode.Overall",
+          is_augmented_country_code_field);
+    }
+  }
+
+  if (is_computed_country_code) {
+    const bool reset_by_rationalization =
+        field.Type().GetAddressType() == UNKNOWN_TYPE &&
+        field.PredictionSource() == AutofillPredictionSource::kRationalization;
+    if (reset_by_rationalization || is_overall_country_code) {
+      base::UmaHistogramBoolean(
+          "Autofill.FieldPrediction.PhoneCountryCodeRationalizedToUnknown",
+          reset_by_rationalization);
+    }
+  }
+
+  if (is_overall_country_code && is_possible_country_code &&
+      field.PredictionSource()) {
+    base::UmaHistogramEnumeration(
+        "Autofill.FieldPrediction.PhoneCountryCode.CorrectPredictionSource",
+        *field.PredictionSource());
   }
 }
 

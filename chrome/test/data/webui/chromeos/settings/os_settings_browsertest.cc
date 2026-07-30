@@ -6,6 +6,7 @@
 #include "ash/constants/webui_url_constants.h"
 #include "base/strings/strcat.h"
 #include "base/test/scoped_feature_list.h"
+#include "build/branding_buildflags.h"
 #include "chrome/browser/ash/crostini/fake_crostini_features.h"
 #include "chrome/browser/ash/login/test/cryptohome_mixin.h"
 #include "chrome/browser/ash/login/test/user_auth_config.h"
@@ -389,6 +390,14 @@ IN_PROC_BROWSER_TEST_F(OSSettingsDeviceTestPeripheralAndSplitEnabled,
 
 IN_PROC_BROWSER_TEST_F(OSSettingsMochaTest, DevicePageAudioPage) {
   RunSettingsTest("device_page/audio_page_test.js");
+}
+
+IN_PROC_BROWSER_TEST_F(OSSettingsMochaTest, DevicePageKeyboard) {
+  RunSettingsTest("device_page/keyboard_test.js");
+}
+
+IN_PROC_BROWSER_TEST_F(OSSettingsMochaTest, DevicePagePointers) {
+  RunSettingsTest("device_page/pointers_test.js");
 }
 
 IN_PROC_BROWSER_TEST_F(OSSettingsMochaTest,

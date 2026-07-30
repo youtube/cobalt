@@ -320,7 +320,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebAuthentication.EnclaveLoadDuration" units="ms"
-    expires_after="2026-06-21">
+    expires_after="2026-08-23">
   <owner>kenrb@chromium.org</owner>
   <owner>chrome-webauthn@google.com</owner>
   <summary>
@@ -627,7 +627,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebAuthentication.MechanismSorter.DeduplicationHappened"
-    enum="Boolean" expires_after="2026-05-10">
+    enum="Boolean" expires_after="2026-09-30">
   <owner>derinel@google.com</owner>
   <owner>chrome-webauthn@google.com</owner>
   <summary>
@@ -638,7 +638,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebAuthentication.MechanismSorter.SelectedMechanismType"
-    enum="WebAuthenticationDeduplicatedType" expires_after="2026-03-29">
+    enum="WebAuthenticationDeduplicatedType" expires_after="2026-09-30">
   <owner>derinel@google.com</owner>
   <owner>chrome-webauthn@google.com</owner>
   <summary>
@@ -659,7 +659,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebAuthentication.PasskeyCount" units="count"
-    expires_after="2026-06-21">
+    expires_after="2026-08-23">
   <owner>izuzic@google.com</owner>
   <owner>ylahodiuk@google.com</owner>
   <owner>chrome-webauthn@google.com</owner>
@@ -670,7 +670,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebAuthentication.PasskeyReadiness" enum="Boolean"
-    expires_after="2026-06-21">
+    expires_after="2026-08-23">
   <owner>izuzic@google.com</owner>
   <owner>ylahodiuk@google.com</owner>
   <owner>chrome-webauthn@google.com</owner>

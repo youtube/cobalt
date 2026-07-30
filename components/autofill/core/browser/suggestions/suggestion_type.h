@@ -176,8 +176,15 @@ enum class SuggestionType {
   // Throbber suggestion to indicate loading state.
   kLoadingThrobber = 77,
 
-  // Next ID: 78
-  kMaxValue = kLoadingThrobber
+  // Memory search result for @memory feature.
+  kAtMemorySearchResult = 78,
+
+  // Buy-Now-Pay-Later footnote suggestion to display the privacy notice with
+  // bold and link text.
+  kBnplFootnote = 79,
+
+  // Next ID: 80
+  kMaxValue = kBnplFootnote
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/autofill/enums.xml:SuggestionType)
 

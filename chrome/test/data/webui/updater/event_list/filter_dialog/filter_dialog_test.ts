@@ -4,7 +4,7 @@
 
 import {FilterDialogElement} from 'chrome://updater/event_list/filter_dialog/filter_dialog.js';
 import {assertEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
-import {microtasksFinished} from 'chrome://webui-test/test_util.js';
+import {whenCheck} from 'chrome://webui-test/test_util.js';
 
 suite('FilterDialogElement', () => {
   let filterDialog: FilterDialogElement;
@@ -32,9 +32,9 @@ suite('FilterDialogElement', () => {
     filterDialog = new FilterDialogElement();
     parent.appendChild(filterDialog);
 
-    await microtasksFinished();
-
     const dialog = filterDialog.$.dialog;
+    await whenCheck(dialog, () => dialog.style.top !== '');
+
     assertEquals('204px', dialog.style.top);
     assertEquals('100px', dialog.style.left);
   });
@@ -52,9 +52,9 @@ suite('FilterDialogElement', () => {
     filterDialog.anchorElement = anchor;
     document.body.appendChild(filterDialog);
 
-    await microtasksFinished();
-
     const dialog = filterDialog.$.dialog;
+    await whenCheck(dialog, () => dialog.style.top !== '');
+
     assertEquals('254px', dialog.style.top);
     assertEquals('200px', dialog.style.left);
   });
@@ -72,9 +72,9 @@ suite('FilterDialogElement', () => {
     filterDialog.anchorElement = initialAnchor;
     document.body.appendChild(filterDialog);
 
-    await microtasksFinished();
+    const dialog = filterDialog.$.dialog;
+    await whenCheck(dialog, () => dialog.style.top !== '');
 
-    let dialog = filterDialog.$.dialog;
     assertEquals('34px', dialog.style.top);  // 10 + 20 + 4
     assertEquals('10px', dialog.style.left);
 
@@ -87,10 +87,39 @@ suite('FilterDialogElement', () => {
     document.body.appendChild(newAnchor);
 
     filterDialog.anchorElement = newAnchor;
-    await microtasksFinished();
+    await whenCheck(dialog, () => dialog.style.top === '344px');
 
-    dialog = filterDialog.$.dialog;
     assertEquals('344px', dialog.style.top);  // 300 + 40 + 4
     assertEquals('300px', dialog.style.left);
+  });
+
+  test('repositions dialog on scroll', async () => {
+    const anchor = document.createElement('div');
+    anchor.style.position = 'absolute';
+    anchor.style.top = '200px';
+    anchor.style.left = '200px';
+    anchor.style.width = '50px';
+    anchor.style.height = '50px';
+    document.body.appendChild(anchor);
+
+    filterDialog = new FilterDialogElement();
+    filterDialog.anchorElement = anchor;
+    document.body.appendChild(filterDialog);
+
+    const dialog = filterDialog.$.dialog;
+    await whenCheck(dialog, () => dialog.style.top !== '');
+
+    assertEquals('254px', dialog.style.top);
+    assertEquals('200px', dialog.style.left);
+
+    // Simulate scroll by moving the anchor and firing a scroll event.
+    anchor.style.top = '100px';
+    window.dispatchEvent(
+        new CustomEvent('scroll', {bubbles: true, composed: true}));
+
+    await whenCheck(dialog, () => dialog.style.top === '154px');
+
+    assertEquals('154px', dialog.style.top);
+    assertEquals('200px', dialog.style.left);
   });
 });

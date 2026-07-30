@@ -184,7 +184,7 @@ void TabStripModelAdapterImpl::MoveCollection(const NodeId& id,
 
 tabs_api::mojom::ContainerPtr TabStripModelAdapterImpl::GetTabStripTopology(
     tabs::TabCollection::Handle root) const {
-  return MojoTreeBuilder(tab_strip_model_).Build(root);
+  return MojoTreeBuilder(tab_strip_model_, window_id_).Build(root);
 }
 
 std::optional<const tab_groups::TabGroupId>
@@ -262,12 +262,22 @@ tabs_api::Position TabStripModelAdapterImpl::GetPositionForAbsoluteIndex(
 tabs_api::Path TabStripModelAdapterImpl::GetPathForCollection(
     tabs::TabCollectionHandle collection_handle) const {
   std::vector<tabs_api::NodeId> components;
+  components.push_back(NodeId::FromWindowId(window_id_));
+
+  // Traversal is bottom-up (child -> root), but the path requires a top-down
+  // representation (root -> child).
+  std::vector<tabs_api::NodeId> collection_components;
   const tabs::TabCollection* curr = collection_handle.Get();
   while (curr) {
-    components.push_back(NodeId::FromTabCollectionHandle(curr->GetHandle()));
+    collection_components.push_back(
+        NodeId::FromTabCollectionHandle(curr->GetHandle()));
     curr = curr->GetParentCollection();
   }
-  std::reverse(components.begin(), components.end());
+  std::reverse(collection_components.begin(), collection_components.end());
+  components.insert(components.end(),
+                    std::make_move_iterator(collection_components.begin()),
+                    std::make_move_iterator(collection_components.end()));
+
   return tabs_api::Path(std::move(components));
 }
 

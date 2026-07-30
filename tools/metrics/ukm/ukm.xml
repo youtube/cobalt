@@ -15778,6 +15778,11 @@ be describing additional metrics about the same event.
       Measure of total memory used by media/webmediaplayer/video.
     </summary>
   </metric>
+  <metric name="WebNN">
+    <summary>
+      Measure of the backing memory consumed by the WebNN service.
+    </summary>
+  </metric>
 </event>
 
 <event name="Memory.TabFootprint">
@@ -24418,8 +24423,8 @@ be describing additional metrics about the same event.
   </metric>
   <metric name="NavigationId">
     <summary>
-      Records the navigation id of a soft navigation. It is used to
-      differentiate soft navigations.
+      Deprecated as of 2026/02/17. Records the navigation id of a soft
+      navigation. It is used to differentiate soft navigations.
     </summary>
   </metric>
   <metric name="PaintTiming.LargestContentfulPaint">

@@ -94,11 +94,6 @@ BASE_FEATURE(kAutocorrectByDefault, base::FEATURE_ENABLED_BY_DEFAULT);
 // each new user session.
 BASE_FEATURE(kAutozoomNudgeSessionReset, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enables a settings option to set an explicit charge limit for Chromebooks.
-BASE_FEATURE(kBatteryChargeLimit,
-             "CrosBatteryChargeLimit",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Make Battery Saver available.
 BASE_FEATURE(kBatterySaver,
              "CrosBatterySaver",
@@ -1733,10 +1728,6 @@ BASE_FEATURE(kSessionManagerLongKillTimeout, base::FEATURE_DISABLED_BY_DEFAULT);
 // file session_manager_service.cc.
 BASE_FEATURE(kSessionManagerLivenessCheck, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Removes notifier settings from quick settings view.
-BASE_FEATURE(kSettingsAppNotificationSettings,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Whether theme changes should be animated for the Settings app.
 BASE_FEATURE(kSettingsAppThemeChangeAnimation,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1744,10 +1735,6 @@ BASE_FEATURE(kSettingsAppThemeChangeAnimation,
 // Whether we should track auto-hide preferences separately between clamshell
 // and tablet.
 BASE_FEATURE(kShelfAutoHideSeparation, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables launcher nudge that animates the home button to guide users to open
-// the launcher.
-BASE_FEATURE(kShelfLauncherNudge, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables or disables the OS update page in the Shimless RMA flow.
 BASE_FEATURE(kShimlessRMAOsUpdate, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -2017,12 +2004,6 @@ BASE_FEATURE(kVcTrayTitleHeader,
              "VCTrayTitleHeader",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables or disables alternative light intensity for ChromeOS video
-// conferencing relighting.
-BASE_FEATURE(kVcLightIntensity,
-             "VCLightIntensity",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Enables or disables web API support for ChromeOS video conferencing.
 BASE_FEATURE(kVcWebApi, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -2214,10 +2195,6 @@ bool IsAutoSignOutEnabled() {
 
 bool IsBabelOrcaAvailable() {
   return base::FeatureList::IsEnabled(kBabelOrca);
-}
-
-bool IsBatteryChargeLimitAvailable() {
-  return base::FeatureList::IsEnabled(kBatteryChargeLimit);
 }
 
 bool IsBatterySaverAvailable() {
@@ -3133,16 +3110,8 @@ bool IsSeparateWebAppShortcutBadgeIconEnabled() {
   return base::FeatureList::IsEnabled(kSeparateWebAppShortcutBadgeIcon);
 }
 
-bool IsSettingsAppNotificationSettingsEnabled() {
-  return base::FeatureList::IsEnabled(kSettingsAppNotificationSettings);
-}
-
 bool IsSettingsAppThemeChangeAnimationEnabled() {
   return base::FeatureList::IsEnabled(kSettingsAppThemeChangeAnimation);
-}
-
-bool IsShelfLauncherNudgeEnabled() {
-  return base::FeatureList::IsEnabled(kShelfLauncherNudge);
 }
 
 bool IsShimlessRMAOsUpdateEnabled() {

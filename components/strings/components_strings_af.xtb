@@ -1060,6 +1060,7 @@ Dit sal andersins deur jou privaatheidinstellings geblokkeer word. Dit sal die i
 <translation id="2674524144218093528">Huisverf en -afwerking</translation>
 <translation id="26774279487328902"><ph name="GROUP_COUNT" />-oortjiegroepe is nie meer beskikbaar nie</translation>
 <translation id="2677748264148917807">Gaan uit</translation>
+<translation id="2679659833697380">Jou inligting is op jou toestel gestoor</translation>
 <translation id="2683195745483370038">Ander resultate gevind</translation>
 <translation id="2686919536310834199">Stuur terugvoer vir Help my skryf.</translation>
 <translation id="2687555958734450033">Beste passing</translation>
@@ -2574,6 +2575,7 @@ Dit sal andersins deur jou privaatheidinstellings geblokkeer word. Dit sal die i
 <translation id="5114987907971894280">virtuele realiteit</translation>
 <translation id="5115232566827194440">Beperkte bestuurde gastesessietersydestelling</translation>
 <translation id="5115563688576182185">(64 bis)</translation>
+<translation id="5116015291385561204">Verifieer dat dit jy is om sensitiewe inligting te outovul</translation>
 <translation id="5120526915373271910">Gesinsflieks</translation>
 <translation id="5122786942953798871">Koevert (katoen)</translation>
 <translation id="5123063207673082822">Naweek</translation>
@@ -3973,6 +3975,7 @@ Bykomende besonderhede:
 <translation id="7372973238305370288">soekresultaat</translation>
 <translation id="7374461526650987610">Protokolhanteerders</translation>
 <translation id="7374733840632556089">Hierdie probleem word veroorsaak deur 'n sertifikaat wat jy of iemand anders op jou toestel geïnstalleer het. Dit is bekend dat hierdie sertifikaat gebruik word om netwerke te monitor en te onderskep, en dit word nie deur Chrome vertrou nie. Terwyl sommige wettige gevalle vir monitering wel bestaan, soos op 'n skool- of maatskappynetwerk, wil Chrome seker maak dat jy weet dit gebeur, selfs al kan jy dit nie keer nie. Monitering kan in enige blaaier of app met toegang tot die web plaasvind.</translation>
+<translation id="73750335798090836">Gebruik vir ekstra beskerming altyd jou vingerafdruk, gesig of ander skermslot wanneer jy sensitiewe inligting soos reis- en identiteitdokumente gebruik</translation>
 <translation id="7375532151824574023">{NUM_COOKIES,plural, =0{Geen werwe toegelaat nie}=1{1 werf toegelaat}other{# werwe toegelaat}}</translation>
 <translation id="7375818412732305729">Lêer is aangeheg</translation>
 <translation id="7376031331622621328">Handel se onderste blad</translation>
@@ -4229,6 +4232,7 @@ om uit te vind hoe om die sagteware permanent van jou rekenaar te verwyder&lt;/o
 <translation id="7714404809393719981">Foto (semiglans)</translation>
 <translation id="7714424966701020172">Die opsie om die volle naam in te vul, is gekies</translation>
 <translation id="7714464543167945231">Sertifikaat</translation>
+<translation id="7714943438925794410">Inhoud op die betaalpuntbladsy word met Google gedeel om hierdie opsies te bied. Gaan na <ph name="IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_FOOTNOTE_HIDE_OPTION_PAYMENT_SETTINGS_LINK_TEXT" /> toe om opsies om te later te betaal in outovul te versteek.</translation>
 <translation id="7716147886133743102">Geblokkeer deur jou administrateur</translation>
 <translation id="7716375162095500223">Nog nie opgelaai nie, of geïgnoreer</translation>
 <translation id="7716424297397655342">Hierdie werf kan nie uit die kas gelaai word nie</translation>
@@ -4311,6 +4315,7 @@ om uit te vind hoe om die sagteware permanent van jou rekenaar te verwyder&lt;/o
 <translation id="7862306158978555061">wys sensitiewe inligting</translation>
 <translation id="7865448901209910068">Beste spoed</translation>
 <translation id="7865482168955081228">Koop-Nou-Betaal-Later-foutskerm is toegemaak.</translation>
+<translation id="7870207318911766769">Inhoud op die betaalpuntbladsy word met Google gedeel om hierdie opsies te bied.</translation>
 <translation id="7870281855125116701">Afslag gevind</translation>
 <translation id="7871445724586827387">Verander jou Google-rekeningwagwoord</translation>
 <translation id="787226752901403048">Meld by Chrome aan om oortjiegroepe te deel en daarby aan te sluit, en saam te werk aan idees</translation>

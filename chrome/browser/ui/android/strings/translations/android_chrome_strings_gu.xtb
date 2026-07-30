@@ -246,6 +246,7 @@
 <translation id="2047378580182589770">છૂપા મોડમાંથી બહાર નીકળવા માટે, ટચ કરીને થોડીવાર દબાવી રાખો</translation>
 <translation id="2049574241039454490"><ph name="FILE_SIZE_OF_TOTAL" /> <ph name="SEPARATOR" /> <ph name="DESCRIPTION" /></translation>
 <translation id="2051669996101374349">જ્યારે પણ શક્ય હોય ત્યારે HTTPSનો ઉપયોગ કરો અને તેને સપોર્ટ કરતી ન હોય તેવી સાઇટને લોડ કરતા પહેલાં ચેતવણી મેળવો. તમે વિગતવાર સુરક્ષાનું સેટિંગ ચાલુ કરેલું હોવાથી તમે આ સેટિંગ બદલી શકતા નથી.</translation>
+<translation id="2052723746739622752">Geminiને અનપિન કરો</translation>
 <translation id="2056878612599315956">સાઇટ રોકવામાં આવી</translation>
 <translation id="2063047797624276601">તમારી સંસ્થાએ Safe Browsingમાં વધારેલી સુરક્ષા ચાલુ કરી છે</translation>
 <translation id="2065944887543506430">{FILE_COUNT,plural, =1{1 ડાઉનલોડ નિષ્ફળ થયું}one{# ડાઉનલોડ નિષ્ફળ થયું}other{# ડાઉનલોડ નિષ્ફળ થયાં}}</translation>
@@ -396,6 +397,7 @@
 <translation id="2702516483241149200">નવું: આ ટેક્સ્ટ પર સ્ક્રોલ કરતી હોય એવી કોઈ લિંક શેર કરો</translation>
 <translation id="2708226184420201102"><ph name="PRODUCT_NAME" />ના બ્રાઉઝરમાં ખોલો</translation>
 <translation id="271033894570825754">નવો સંગ્રહ</translation>
+<translation id="2710883118091822664">તમારા બધા ડિવાઇસ પર સરળતાથી ચાલુ રાખવા માટે સાઇન ઇન કરો</translation>
 <translation id="2718352093833049315">ફક્ત વાઇ-ફાઇ પર</translation>
 <translation id="2718846868787000099">તમારી પસંદગીની ભાષાઓમાં કન્ટેન્ટ બતાવવા માટે, તમે મુલાકાત લો તે સાઇટ તમારી પસંદગીઓ જોઈ શકશે</translation>
 <translation id="2723001399770238859">ઑડિઓ</translation>
@@ -531,6 +533,7 @@
 <translation id="3268048651973962414">શોધ પરિણામો જોવા માટે ઉપર ખેંચો</translation>
 <translation id="3269093882174072735">છબી લોડ કરો</translation>
 <translation id="3280562213547448728">વૉઇસ શોધ</translation>
+<translation id="3282568296779691940">Chrome માં સાઇન ઇન કરો</translation>
 <translation id="3285065882678541460">{TAB_COUNT,plural, =1{<ph name="TAB_GROUPS_PART" />, <ph name="TAB_COUNT_ONE" /> ટૅબ}one{<ph name="TAB_GROUPS_PART" />, <ph name="TAB_COUNT_MANY" /> ટૅબ}other{<ph name="TAB_GROUPS_PART" />, <ph name="TAB_COUNT_MANY" /> ટૅબ}}</translation>
 <translation id="3286508210927575634">{PASSWORDS_COUNT,plural, =1{1 પાસવર્ડને માત્ર આ ડિવાઇસમાં સાચવવામાં આવ્યો છે. તમારા અન્ય ડિવાઇસમાં તેનો ઉપયોગ કરવા માટે, તેને તમારા Google એકાઉન્ટમાં સાચવો.}one{# પાસવર્ડને માત્ર આ ડિવાઇસમાં સાચવવામાં આવ્યો છે. તમારા અન્ય ડિવાઇસમાં તેનો ઉપયોગ કરવા માટે, તેને તમારા Google એકાઉન્ટમાં સાચવો.}other{# પાસવર્ડને માત્ર આ ડિવાઇસમાં સાચવવામાં આવ્યા છે. તમારા અન્ય ડિવાઇસમાં તેનો ઉપયોગ કરવા માટે, તેને તમારા Google એકાઉન્ટમાં સાચવો.}}</translation>
 <translation id="3293181007446299124">તમારા બ્રાઉઝિંગ ઇતિહાસને તમારા ડિવાઇસમાં ખાનગી રાખવામાં આવે છે અને તમારી ઓળખને સુરક્ષિત રાખવા માટે રિપોર્ટને થોડા વિલંબ પછી મોકલવામાં આવે છે</translation>
@@ -643,6 +646,7 @@
 <translation id="3775705724665058594">તમારા ડિવાઇસ પર મોકલો</translation>
 <translation id="3777796259512476958">મોટાભાગની સાઇટમાંથી તમને સાઇન આઉટ કરે છે</translation>
 <translation id="3791957072666773229">{TAB_COUNT,plural, =1{1 ટૅબ}one{# ટૅબ}other{# ટૅબ}}</translation>
+<translation id="3792938779249970121">એકાઉન્ટ પસંદ કરો</translation>
 <translation id="3795154175078851242">લિંક સાથે છબી કૉપિ કરો</translation>
 <translation id="3807999512799921804"><ph name="TAB_TITLE" />, પસંદ કરેલું પિન કરેલું સાંભળી શકાય તેવું છૂપું ટૅબ</translation>
 <translation id="3810973564298564668">મેનેજ કરો</translation>
@@ -718,13 +722,13 @@
 <translation id="4113030288477039509">તમારા વ્યવસ્થાપક દ્વારા મેનેજ થયેલ</translation>
 <translation id="4116038641877404294">ઇન્ટરનેટ ન હોય ત્યારે પણ ઉપયોગમાં લેવા માટે પેજ ડાઉનલોડ કરો</translation>
 <translation id="4121654769234887259">તમારે આ પાસવર્ડ યાદ રાખવાની જરૂર રહેશે નહીં. તેને <ph name="USERNAME" /> માટેના Google Password Managerમાં સાચવવામાં આવશે.</translation>
-<translation id="4124152339699379357">નોટિફિકેશનની પરવાનગી સંબંધી ફ્લોને સંપૂર્ણ ખોલ્યો</translation>
 <translation id="4132137475637520539">લિંક ધરાવતી કોઈપણ વ્યક્તિને જોડાવા દો</translation>
 <translation id="4135200667068010335">કોઈ ટૅબ સાથે શેર કરવાના ડિવાઇસની સૂચિ બંધ છે.</translation>
 <translation id="4136632885151622181"><ph name="TAB_TITLE" />, એકથી વધુ પસંદ કરેલું પિન કરેલું, રેકોર્ડ કરતું ટૅબ</translation>
 <translation id="4137746084635924146">ડિવાઇસની હાલની ભાષા</translation>
 <translation id="414128724510021958">ડિફૉલ્ટ તરીકે વિનંતી કરાયેલી ડેસ્કટૉપ સાઇટ</translation>
 <translation id="4162867837470729563">શેરિંગના વિકલ્પોની સૂચિ સંપૂર્ણ ઊંચાઈએ ખોલી છે.</translation>
+<translation id="4165077084524712774">વધુ ટૂલ</translation>
 <translation id="4170011742729630528">સેવા ઉપલબ્ધ નથી; પછી ફરીથી પ્રયાસ કરો</translation>
 <translation id="4170577491341606575">તમારું કન્ટેન્ટ મેળવી રહ્યાં છીએ\u2026</translation>
 <translation id="4177222230309051052">તમારા બધા બુકમાર્ક મેળવો</translation>
@@ -736,6 +740,7 @@
 <translation id="4189344235004694858">{NUM_REVOKED_PERMISSIONS,plural, =1{સ્પામ અથવા છેતરામણા કન્ટેન્ટને કારણે Chrome દ્વારા આ સાઇટને નોટિફિકેશન મોકલવાથી રોકવામાં આવી છે}one{સ્પામ અથવા છેતરામણા કન્ટેન્ટને કારણે Chrome દ્વારા આ સાઇટને નોટિફિકેશન મોકલવાથી રોકવામાં આવી છે}other{સ્પામ અથવા છેતરામણા કન્ટેન્ટને કારણે Chrome દ્વારા આ સાઇટને નોટિફિકેશન મોકલવાથી રોકવામાં આવી છે}}</translation>
 <translation id="4195643157523330669">નવા ટૅબમાં ખોલો</translation>
 <translation id="4197828496439691735">{NUM_TABS,plural, =1{આ ડિવાઇસ પર 1 ટૅબ}one{આ ડિવાઇસ પર # ટૅબ}other{આ ડિવાઇસ પર # ટૅબ}}</translation>
+<translation id="4198268995694216131">વધારાની સાઇટ</translation>
 <translation id="4198423547019359126">કોઈ ડાઉનલોડ સ્થાનો ઉપલબ્ધ નથી</translation>
 <translation id="4209029522667123437"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> • તમે આ સાઇટ પર ઉપયોગ કર્યો છે</translation>
 <translation id="4214315110991671325">જો તમે કુકીને મંજૂરી આપો, તો Chrome પહેલેથી લોડ કરવા માટે તેમનો ઉપયોગ કરી શકે છે.</translation>
@@ -1016,6 +1021,7 @@
 <translation id="5304593522240415983">આ ફીલ્ડ ખાલી હોઈ શકતું નથી</translation>
 <translation id="5306014156308790439">'સંગ્રહમાં ઉમેરો' બટન બંધ કર્યું છે</translation>
 <translation id="5308380583665731573">કનેક્ટ કરો</translation>
+<translation id="5313967007315987356">સાઈટ ઉમેરો</translation>
 <translation id="5316947901395241499">તમારા ઍડમિનિસ્ટ્રેટર દ્વારા પાસવર્ડ સાચવવાની સુવિધા બંધ કરવામાં આવી છે</translation>
 <translation id="5317780077021120954">સાચવો</translation>
 <translation id="5319359161174645648">Google Chromeની ભલામણ કરે છે</translation>
@@ -1196,6 +1202,7 @@
 <translation id="610630277578876674">મેસેજમાં ઝડપથી લિંક ખોલો અને અન્ય ઘણી સુવિધાઓ મેળવો</translation>
 <translation id="6108923351542677676">સેટઅપની પ્રક્રિયા ચાલુ છે...</translation>
 <translation id="6112702117600201073">પેજ રિફ્રેશ કરી રહ્યાં છીએ</translation>
+<translation id="612221930823678863">ક્વેરીના બદલે <ph name="QUERY" /> ધરાવતું URL</translation>
 <translation id="6122831415929794347">Safe Browsing બંધ કરીએ?</translation>
 <translation id="6124936178263837501">સ્પામ નથી તરીકે જાણ કરો</translation>
 <translation id="6125202119952209826"><ph name="OWNER_FIRST_NAME" /> સાથે ટૅબના ગ્રૂપમાં જોડાઓ</translation>
@@ -1227,6 +1234,7 @@
 <translation id="6202812185118613467">સિંક શરૂ કરવા ફરી સાઇન ઇન કરો</translation>
 <translation id="6204781143409202534">Chromeને <ph name="DOMAIN" /> પાસેથી મળેલા સંભવિત સ્પામની ભાળ મળી છે.</translation>
 <translation id="6205314730813004066">જાહેરાત સંબંધી પ્રાઇવસી</translation>
+<translation id="6210282067670792090">શોધ એન્જિન અને સાઇટમાં શોધવા માટે, ઍડ્રેસ બારમાં આ કીબોર્ડ શૉર્ટકટ સાથે શૉર્ટકટનો ઉપયોગ કરો</translation>
 <translation id="6210748933810148297"><ph name="EMAIL" /> નથી?</translation>
 <translation id="6211386937064921208">આ પેજનો પ્રીવ્યૂ કરી રહ્યાં છીએ</translation>
 <translation id="6212567362666004597">ગ્રૂપમાં ટૅબ ઉમેરો</translation>
@@ -1268,6 +1276,7 @@
 <translation id="6340526405444716530">મનગમતું બનાવવું</translation>
 <translation id="6341580099087024258">ફાઇલો ક્યાં સાચવવી તે પૂછો</translation>
 <translation id="6342069812937806050">હમણાં જ</translation>
+<translation id="634208815998129842">કાર્ય સંચાલક</translation>
 <translation id="6343495912647200061">{SHIPPING_ADDRESS,plural, =1{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 અને વધુ <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" />}one{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 અને વધુ <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" />}other{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 અને વધુ <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" />}}</translation>
 <translation id="6345878117466430440">વાંચેલાં તરીકે માર્ક કરો</translation>
 <translation id="6356893102071098867">ચેક કરો કે તમે યોગ્ય એકાઉન્ટ પસંદ કર્યું હોય</translation>
@@ -1349,6 +1358,7 @@
 <translation id="6647441008198474441">હવે તમે આના પછી કઈ સાઇટની મુલાકાત લેશો તેનું પૂર્વાનુમાન લગાવવા માટે, તમે જેની મુલાકાત લો છો તે URLs Googleને મોકલવામાં આવે છે</translation>
 <translation id="6648977384226967773">{CONTACT,plural, =1{<ph name="CONTACT_PREVIEW" />\u2026 અને વધુ <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" />}one{<ph name="CONTACT_PREVIEW" />\u2026 અને વધુ <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" />}other{<ph name="CONTACT_PREVIEW" />\u2026 અને વધુ <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" />}}</translation>
 <translation id="6649642165559792194">છબીને પ્રીવ્યૂ કરો <ph name="BEGIN_NEW" />નવું<ph name="END_NEW" /></translation>
+<translation id="6659594942844771486">ટૅબ</translation>
 <translation id="6661521899577697780">Chrome Finds સુવિધા પસંદ કરવાનો વિકલ્પ અડધી ઊંચાઈએ ખોલ્યો</translation>
 <translation id="666731172850799929"><ph name="APP_NAME" /> માં ખોલો</translation>
 <translation id="6669390930482049506">મને સૂચિત કરો</translation>
@@ -1457,6 +1467,7 @@
 <translation id="6980258170429555165"><ph name="MENU_NAME" /> મેનૂ હાઇલાઇટ કરેલું છે.</translation>
 <translation id="6983306615164277634">તમે આ સ્થિતિને બદલવા માટે ઍડ્રેસ બારને ટચ કરીને થોડીવાર દબાવી રાખી શકો છો.</translation>
 <translation id="6987047470128880212">છૂપી ટૅબ આ ડિવાઇસ પર ઉપલબ્ધ નથી</translation>
+<translation id="6989358895283601928">સાચવો અને પ્રિન્ટ કરો</translation>
 <translation id="6996145122199359148">આ પેજ ડાઉનલોડ કરો</translation>
 <translation id="7013762323294215682">આ પાસકી તમારા Password Managerમાં સાચવવામાં આવશે. આ પાસકીની ઍક્સેસ ધરાવનારી કોઈપણ વ્યક્તિ તેનો ઉપયોગ કરી શકશે.</translation>
 <translation id="7020741890149022655">વાંચન સૂચિમાં ઉમેરો <ph name="BEGIN_NEW" />નવું<ph name="END_NEW" /></translation>
@@ -1484,6 +1495,7 @@
 <translation id="7117485132243600300">તમે ફૉલો કરો છો તે કન્ટેન્ટ, સૂચવેલા વિષયો અને શોધને મેનેજ કરો</translation>
 <translation id="7119984597597798764"><ph name="INSTANCE_TITLE" /> બંધ કરો</translation>
 <translation id="7121179479711575744">Chromeમાં સાઇન ઇન કરો</translation>
+<translation id="7136694880210472378">ડિફૉલ્ટ બનાવો</translation>
 <translation id="7136902389402789299">{NUM_SITES,plural, =1{1 સાઇટની પરવાનગીઓનો રિવ્યૂ કર્યો}one{# સાઇટની પરવાનગીઓનો રિવ્યૂ કર્યો}other{# સાઇટની પરવાનગીઓનો રિવ્યૂ કર્યો}}</translation>
 <translation id="7138678301420049075">અન્ય</translation>
 <translation id="7140829094791862589">મેન્યુઅલ ક્રમે સૉર્ટ કરો</translation>
@@ -1511,6 +1523,7 @@
 <translation id="7196215469483532480">પ્રાઇવસી સંબંધિત માર્ગદર્શિકાની સમજૂતી પૂરી ઊંચાઈ સુધી ખોલી છે</translation>
 <translation id="7196455519852483601">તમે તમારો અમુક અથવા તમામ ઇતિહાસ, કુકી, સાઇટનો ડેટા અને બીજું ઘણું ડિલીટ કરી શકો છો</translation>
 <translation id="7197682514647286393">તમારો બ્રાઉઝિંગ ડેટા ઝડપથી ડિલીટ કરો</translation>
+<translation id="719791532916917144">કીબોર્ડ શૉર્ટકટ</translation>
 <translation id="7207760545532569765"><ph name="TAB_COUNT" /> ટૅબને નવી બૅકગ્રાઉન્ડ ટૅબ તરીકે રિસ્ટોર કરો.</translation>
 <translation id="7217781228893594884">જ્યારે તમે Chrome છોડશો, ત્યારે છૂપી ટૅબ લૉક થઈ જશે</translation>
 <translation id="7221869452894271364">આ પેજને ફરીથી લોડ કરો</translation>
@@ -1539,6 +1552,7 @@
 <translation id="7314734791127433392">પાસવર્ડ ચેક કરી શકતા નથી</translation>
 <translation id="7324354302972299151">“Do Not Track"ની વિનંતી મોકલો</translation>
 <translation id="7333041109965360609">નોટિફિકેશનમાંથી અનસબ્સ્ક્રાઇબ કર્યું</translation>
+<translation id="7335766481146072567">'ચાલુ રાખો' દબાવો</translation>
 <translation id="7336259382292148213">બરાબર લાગે છે</translation>
 <translation id="7339898014177206373">નવી વિન્ડો</translation>
 <translation id="7340958967809483333">Discover માટેના વિકલ્પો</translation>
@@ -1708,6 +1722,7 @@
 <translation id="7998918019931843664">બંધ કરેલ ટેબ ફરીથી ખોલો</translation>
 <translation id="8001245658307297681">તમે કોઈ સ્થાનિક ફાઇલ જોઈ રહ્યાં છો</translation>
 <translation id="8004582292198964060">બ્રાઉઝર</translation>
+<translation id="8006630792898017994">Space કી અથવા Tab કી</translation>
 <translation id="8023190977980579548"><ph name="TAB_TITLE" />, એકથી વધુ પસંદ કરેલું પિન કરેલું શેર કરતું છૂપું ટૅબ</translation>
 <translation id="8025972204417227828">નવું ઉમેરો</translation>
 <translation id="8027863900915310177">ડાઉનલોડ કરવાની જગ્યા પસંદ કરો</translation>
@@ -1748,6 +1763,7 @@
 <translation id="813082847718468539">સ્થાન માહિતી જુઓ</translation>
 <translation id="8135406045838672858">ડાઉનલોડ કરેલી PDFs <ph name="APP_NAME" /> વડે ઑટોમૅટિક રીતે ખુલે છે</translation>
 <translation id="8137562778192957619">તમારે આ પાસવર્ડ યાદ રાખવાની જરૂર રહેશે નહીં. તેને Google Password Managerમાં સાચવવામાં આવશે.</translation>
+<translation id="8151185429379586178">વિકાસકર્તા સાધનો</translation>
 <translation id="8152331954420209374">Lens પર જાઓ</translation>
 <translation id="8153206878708357851">કૅરેટ બ્રાઉઝિંગને ટૉગલ કરો</translation>
 <translation id="8154784523622173959">આ પેજનું બૅકગ્રાઉન્ડ મનગમતું બનાવો</translation>
@@ -1827,6 +1843,7 @@
 <translation id="8449781591250785734">{NUM_SITES,plural, =1{1 સાઇટમાંથી પરવાનગીઓ કાઢી નાખી}one{# સાઇટમાંથી પરવાનગીઓ કાઢી નાખી}other{# સાઇટમાંથી પરવાનગીઓ કાઢી નાખી}}</translation>
 <translation id="8453310803815879010">Dino ગેમ શરૂ કરો</translation>
 <translation id="8455675988389029454">તમારા બધા ડિવાઇસ પર તમારા બુકમાર્ક, પાસવર્ડ અને બીજું ઘણું મેળવો</translation>
+<translation id="8458341576712814616">શૉર્ટકટ</translation>
 <translation id="8458413889418591446">તમે મુલાકાત લીધેલી સાઇટ પર ઝડપથી પાછા જવા માટે, તમારા ઇતિહાસ અને ટૅબને સિંક કરો</translation>
 <translation id="84594714173170813">તમારા Google એકાઉન્ટમાં Chromeના ડેટાનો ઉપયોગ કરવાનું ચાલુ રાખો</translation>
 <translation id="8460448946170646641">પ્રાઇવસી અને સુરક્ષા સંબંધિત મુખ્ય નિયંત્રણોનો રિવ્યૂ કરો</translation>
@@ -1843,7 +1860,6 @@
 <translation id="8506357771923193001">તમને તમારા ડાઉનલોડ અહીં જોવા મળશે</translation>
 <translation id="8512053371384421952">તમને હવે <ph name="DOMAIN" /> તરફથી નોટિફિકેશન મળશે નહીં.</translation>
 <translation id="8516012719330875537">ઇમેજ એડિટર</translation>
-<translation id="8526855376374973824">નોટિફિકેશનની પરવાનગી સંબંધી ફ્લો</translation>
 <translation id="8533670235862049797">Safe Browsingની સુવિધા ચાલુ છે</translation>
 <translation id="8540136935098276800">સાચી રીતે ફોર્મેટ કરેલું URL દાખલ કરો</translation>
 <translation id="854522910157234410">આ પેજ ખોલો</translation>
@@ -1852,6 +1868,7 @@
 <translation id="8559961053328923750">જાહેરાતના કાર્યપ્રદર્શનની માપણી કરવા માટે સાઇટ દ્વારા બ્રાઉઝર મારફતે શેર કરી શકાય તેવા ડેટાની કુલ માત્રાને Chrome મર્યાદિત કરે છે</translation>
 <translation id="8559990750235505898">પેજનો અન્ય ભાષાઓમાં અનુવાદ કરવાનું ઑફર કરો</translation>
 <translation id="8560602726703398413">Bookmarksમાં તમારી વાંચન સૂચિ શોધો</translation>
+<translation id="85618473456579127">સૌથી ઉપર જમણી બાજુએ પ્રોફાઇલ પર ટૅપ કરો</translation>
 <translation id="8565021320663436446"><ph name="MEMBER_FULL_NAME" />ને કાઢી નાખીએ?</translation>
 <translation id="8570677896027847510">ફાઇલ સુરક્ષિત રીતે ડાઉનલોડ કરી શકાતી નથી</translation>
 <translation id="8571213806525832805">છેલ્લા 4 અઠવાડિયા</translation>
@@ -1914,7 +1931,6 @@
 <translation id="8854223127042600341">તમારી ઑફલાઇન ફાઇલો જુઓ</translation>
 <translation id="885480114717186641">તમે <ph name="HOST_NAME" /> માટે ડેસ્કટૉપ સાઇટની વિનંતી કરી શકો છો</translation>
 <translation id="8856607253650333758">વર્ણનો મેળવો</translation>
-<translation id="8856931513242997049">નોટિફિકેશનની પરવાનગી સંબંધી ફ્લો બંધ કર્યો</translation>
 <translation id="8863714995118816041"><ph name="SITE_NAME" />ને ફરી પરવાનગીઓ આપવામાં આવી</translation>
 <translation id="8865415417596392024">તમારા એકાઉન્ટમાંનો Chrome ડેટા</translation>
 <translation id="8872506776304248286">ઍપ્લિકેશનમાં ખોલો</translation>

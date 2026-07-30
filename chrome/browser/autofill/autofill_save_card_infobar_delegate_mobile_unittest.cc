@@ -12,7 +12,6 @@
 #include "base/functional/callback_helpers.h"
 #include "base/json/json_reader.h"
 #include "base/test/metrics/histogram_tester.h"
-#include "build/branding_buildflags.h"
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
 #include "chrome/browser/ui/android/autofill/autofill_save_card_delegate_android.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
@@ -204,7 +203,8 @@ AutofillSaveCardInfoBarDelegateMobileTest::
 
   credit_card_to_save_ = credit_card;
   std::variant<payments::PaymentsAutofillClient::LocalSaveCardPromptCallback,
-               payments::PaymentsAutofillClient::UploadSaveCardPromptCallback>
+               payments::PaymentsAutofillClient::UploadSaveCardPromptCallback,
+               payments::PaymentsAutofillClient::CardSaveAndFillDialogCallback>
       save_card_callback;
   AutofillSaveCardUiInfo ui_info;
   if (is_uploading) {

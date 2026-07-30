@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "ash/constants/ash_features.h"
+#include "ash/constants/chrome_url_constants.h"
 #include "ash/constants/webui_url_constants.h"
 #include "ash/public/cpp/test/test_new_window_delegate.h"
 #include "base/byte_count.h"
@@ -22,6 +23,7 @@
 #include "base/system/sys_info.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/scoped_running_on_chromeos.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/values.h"
 #include "chrome/browser/ash/arc/session/arc_session_manager.h"
 #include "chrome/browser/ash/arc/test/test_arc_session_manager.h"
@@ -31,9 +33,7 @@
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/ui/webui/ash/settings/calculator/size_calculator_test_api.h"
 #include "chrome/browser/ui/webui/ash/settings/pages/storage/device_storage_util.h"
-#include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_paths.h"
-#include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile_manager.h"
 #include "chromeos/ash/components/dbus/concierge/concierge_client.h"
@@ -720,8 +720,8 @@ TEST_F(StorageHandlerTest, SystemSize) {
 
 TEST_F(StorageHandlerTest, OpenBrowsingDataSettings) {
   EXPECT_CALL(new_window_delegate(),
-              OpenUrl(GURL(chrome::kChromeUISettingsURL)
-                          .Resolve(chrome::kClearBrowserDataSubPage),
+              OpenUrl(GURL(ash::chrome_urls::kChromeUISettingsURL)
+                          .Resolve(ash::chrome_urls::kClearBrowserDataSubPage),
                       ash::NewWindowDelegate::OpenUrlFrom::kUserInteraction,
                       ash::NewWindowDelegate::Disposition::kSwitchToTab));
   base::ListValue empty_args;

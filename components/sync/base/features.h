@@ -51,6 +51,12 @@ BASE_DECLARE_FEATURE(kSyncGeminiThread);
 // Enables syncing of themes across iOS devices.
 BASE_DECLARE_FEATURE(kSyncThemesIos);
 
+// Enables syncing of usage metadata for loyalty cards.
+BASE_DECLARE_FEATURE(kSyncLoyaltyCardMetadata);
+
+// Enables syncing of accessibility annotations to devices.
+BASE_DECLARE_FEATURE(kSyncAccessibilityAnnotation);
+
 #if !BUILDFLAG(IS_CHROMEOS)
 // Flag that controls Uno fast-follow features which are:
 // On Android:
@@ -87,19 +93,6 @@ BASE_DECLARE_FEATURE(kReplaceSyncPromosWithSignInPromos);
 // they were already signed in by the time `kReplaceSyncPromosWithSignInPromos`
 // was enabled.
 BASE_DECLARE_FEATURE_PARAM(bool, kExplicitSigninForExtensions);
-
-// Feature flag to enable an observer for awaiting the sync engine startup.
-BASE_DECLARE_FEATURE(kEnableAwaitSyncServiceStartup);
-
-// Configurable timeout for the sync engine startup observation in the profile
-// picker.
-extern const base::FeatureParam<int>
-    kAwaitSyncServiceStartupInProfilePickerTimeoutSeconds;
-
-// Configurable timeout for the sync engine startup observation when browser is
-// open.
-extern const base::FeatureParam<int>
-    kAwaitSyncServiceStartupInBrowserTimeoutSeconds;
 
 // If enabled, allowlisted priority preferences will be synced even if the
 // preferences user toggle is off. Note that this flag is only meaningful if

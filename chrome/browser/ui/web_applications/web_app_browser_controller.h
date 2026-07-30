@@ -120,9 +120,7 @@ class WebAppBrowserController : public AppBrowserController,
   bool HasPendingUpdate() const override;
   bool HasPendingMigration() const override;
   bool HasPendingUpdateNotIgnoredByUser() const override;
-  void CreateMetadataAndTriggerAppUpdateDialog(
-      base::TimeTicks start_time) const override;
-  void CreateMetadataAndTriggerAppMigrationDialog(
+  void TriggerAppUpdateOrMigrationDialog(
       base::TimeTicks start_time) const override;
 #if BUILDFLAG(IS_CHROMEOS)
   const ash::SystemWebAppDelegate* system_app() const override;
@@ -176,6 +174,11 @@ class WebAppBrowserController : public AppBrowserController,
   void OnReadHomeTabIcon(SkBitmap home_tab_icon_bitmap) const;
   void OnReadIcon(IconPurpose purpose, SkBitmap bitmap);
   void PerformDigitalAssetLinkVerification(Browser* browser);
+  void CreateMetadataAndTriggerAppUpdateDialog(
+      base::TimeTicks start_time) const;
+  void CreateMetadataAndTriggerAppMigrationDialog(
+      bool is_forced_migration_on_startup,
+      base::TimeTicks start_time) const;
   void OnMetadataObtainedTriggerUpdateDialog(
       base::TimeTicks start_time,
       std::optional<WebAppIdentityUpdate> identity_update) const;
@@ -183,7 +186,8 @@ class WebAppBrowserController : public AppBrowserController,
       base::TimeTicks start_time,
       std::optional<WebAppIdentityUpdate> identity_update) const;
   void OnUpdateDialogResult(WebAppIdentityUpdateResult result) const;
-  void OnMigrationDialogResult(WebAppIdentityUpdateResult result) const;
+  void OnMigrationDialogResult(bool is_forced_migration,
+                               WebAppIdentityUpdateResult result) const;
 
 #if BUILDFLAG(IS_CHROMEOS)
   void CheckDigitalAssetLinkRelationshipForAndroidApp(

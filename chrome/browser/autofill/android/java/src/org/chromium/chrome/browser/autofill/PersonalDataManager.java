@@ -786,10 +786,10 @@ public class PersonalDataManager implements Destroyable {
         return profiles;
     }
 
+    @Nullable
     public AutofillProfile getProfile(String guid) {
         ThreadUtils.assertOnUiThread();
-        return new AutofillProfile(
-                PersonalDataManagerJni.get().getProfileByGUID(mPersonalDataManagerAndroid, guid));
+        return PersonalDataManagerJni.get().getProfileByGUID(mPersonalDataManagerAndroid, guid);
     }
 
     public void deleteProfile(String guid) {
