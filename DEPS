@@ -2018,8 +2018,9 @@ deps = {
   'src/third_party/cpu_features/src':
     Var('chromium_git') + '/external/github.com/google/cpu_features.git' + '@' + '936b9ab5515dead115606559502e3864958f7f6e',
 
-  'src/third_party/cpuinfo/src':
-    Var('chromium_git') + '/external/github.com/pytorch/cpuinfo.git' + '@' + 'de0ce7c7251372892e53ce9bc891750d2c9a4fd8',
+# Cobalt: imported
+#  'src/third_party/cpuinfo/src':
+#    Var('chromium_git') + '/external/github.com/pytorch/cpuinfo.git' + '@' + 'de0ce7c7251372892e53ce9bc891750d2c9a4fd8',
 
   'src/third_party/crc32c/src':
     Var('chromium_git') + '/external/github.com/google/crc32c.git' + '@' + 'd3d60ac6e0f16780bcfcc825385e1d338801a558',
@@ -2964,8 +2965,9 @@ deps = {
   'src/third_party/webpagereplay':
     Var('chromium_git') + '/webpagereplay.git' + '@' + Var('webpagereplay_revision'),
 
-  'src/third_party/webrtc':
-    Var('webrtc_git') + '/src.git' + '@' + '1d1e00c19a6e7dae3cc1948a1f5bd0fa495bdfe2',
+# Cobalt: imported
+#  'src/third_party/webrtc':
+#    Var('webrtc_git') + '/src.git' + '@' + '1d1e00c19a6e7dae3cc1948a1f5bd0fa495bdfe2',
 
   # Wuffs' canonical repository is at github.com/google/wuffs, but we use
   # Skia's mirror of Wuffs, the same as in upstream Skia's DEPS file.
