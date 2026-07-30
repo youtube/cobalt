@@ -225,10 +225,8 @@
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #include <sys/resource.h>
 
-#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include "components/services/font/public/mojom/font_service.mojom.h"  // nogncheck
 #include "content/browser/font_service.h"  // nogncheck
-#endif
 #include "third_party/blink/public/mojom/memory_usage_monitor_linux.mojom.h"  // nogncheck
 
 #include "content/browser/child_thread_type_switcher_linux.h"
@@ -1812,15 +1810,6 @@ bool RenderProcessHostImpl::Init() {
         base::checked_cast<int32_t>(id_.GetUnsafeValue())));
 
     base::Thread::Options options;
-#if BUILDFLAG(IS_COBALT)
-    // When "ReduceAndroidThreadStackSize" is enabled, the default stack size for
-    // helper threads is reduced to 256KB to save virtual memory. However, the
-    // in-process renderer thread is a high-risk thread that can use a
-    // significant portion of its stack (observed up to 252KB RSS in testing).
-    // We explicitly set it to 1MB to exclude it from the reduction and prevent
-    // stack overflow crashes.
-    options.stack_size = 1024 * 1024;
-#endif
 #if BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_MAC)
     // In-process plugins require this to be a UI message loop.
     options.message_pump_type = base::MessagePumpType::UI;
@@ -5318,9 +5307,7 @@ uint64_t RenderProcessHostImpl::GetPrivateMemoryFootprint() {
   auto dump = memory_instrumentation::mojom::RawOSMemDump::New();
   dump->platform_private_footprint =
       memory_instrumentation::mojom::PlatformPrivateFootprint::New();
-#if BUILDFLAG(IS_STARBOARD)
-  bool success = false;
-#elif BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_IOS_TVOS)
+#if BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_IOS_TVOS)
   bool success = memory_instrumentation::OSMetrics::FillOSMemoryDump(
       GetProcess().Handle(), {}, ChildProcessTaskPortProvider::GetInstance(),
       dump.get());
@@ -5565,9 +5552,7 @@ void RenderProcessHostImpl::OnProcessLaunched() {
     // Not all platforms launch processes in the same backgrounded state. Make
     // sure |priority_.visible| reflects this platform's initial process
     // state.
-#if BUILDFLAG(IS_STARBOARD)
-    priority_.visible = true;
-#elif BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_IOS_TVOS)
+#if BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_IOS_TVOS)
     priority_.visible = child_process_launcher_->GetProcess().GetPriority(
                             ChildProcessTaskPortProvider::GetInstance()) ==
                         base::Process::Priority::kUserBlocking;
